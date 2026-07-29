@@ -1,3 +1,23 @@
 .scratch
 .claude/settings.local.json
 .claude/worktrees/
+.DS_Store
+
+# .NET build output
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+artifacts/
+*.user
+*.suo
+
+# Test / coverage output
+[Tt]est[Rr]esults/
+*.coverage
+*.trx
+
+# IDE
+.vs/
+.idea/
+*.swp

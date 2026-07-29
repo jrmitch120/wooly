@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Wooly.Cli/Wooly.Cli.csproj" />
+    <Project Path="src/Wooly.Core/Wooly.Core.csproj" />
+    <Project Path="src/Wooly.Tui/Wooly.Tui.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Wooly.Tests/Wooly.Tests.csproj" />
+  </Folder>
+</Solution>
