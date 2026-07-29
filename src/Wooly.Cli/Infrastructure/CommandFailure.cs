@@ -61,8 +61,14 @@ internal static class CommandFailure
         RateLimitedException => ExitCode.RateLimited,
         TransientNetworkException or OperationCanceledException => ExitCode.NetworkError,
 
-        // How the command line was written, or what it asked for, was wrong.
-        CommandParseException or CommandRuntimeException => ExitCode.UsageError,
+        // No profile to act as, or one whose token the instance will not take. All of them are fixed by
+        // authenticating a profile, which is what makes them one code rather than three.
+        AuthenticationException => ExitCode.AuthenticationError,
+
+        // How the command line was written, or what it asked for, was wrong. A profile named that does not exist
+        // belongs here too: it is a value that is wrong, not a client that cannot authenticate.
+        UnknownProfileException or UsageException or CommandParseException or CommandRuntimeException =>
+            ExitCode.UsageError,
 
         _ => ExitCode.Error,
     };

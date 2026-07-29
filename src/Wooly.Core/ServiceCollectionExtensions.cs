@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Wooly.Core.Configuration;
 using Wooly.Core.Credentials;
 using Wooly.Core.Http;
+using Wooly.Core.Profiles;
 
 namespace Wooly.Core;
 
@@ -11,8 +12,8 @@ public static class ServiceCollectionExtensions
 {
     /// <summary>
     ///     Adds the shared API/auth/config layer: the named <see cref="HttpClient" /> every Mastodon call goes through,
-    ///     the factory that builds Mastonet clients over it, this client's identity, and the two stores it persists
-    ///     through — non-secret config, and access tokens.
+    ///     the factory that builds Mastonet clients over it, this client's identity, the two stores it persists
+    ///     through — non-secret config, and access tokens — and the profile registry that spans them.
     /// </summary>
     public static IServiceCollection AddWoolyCore(this IServiceCollection services)
     {
@@ -38,6 +39,11 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ICredentialStore>(provider => new FallbackCredentialStore(
             OsKeyringCredentialStore.Open,
             new PlaintextFileCredentialStore(provider.GetRequiredService<WoolyPaths>())));
+
+        // Sits above both stores. Commands ask this rather than the stores, so that a profile's config half and its
+        // token half are never written one without the other.
+        services.AddSingleton<IProfileRegistry, ProfileRegistry>();
+        services.AddSingleton<IAccessTokenVerifier, AccessTokenVerifier>();
 
         // The version users see must be the front end's own — reading this assembly instead would report the core
         // library's version, which is only right for as long as every project happens to share one version number.

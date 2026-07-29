@@ -52,6 +52,23 @@ public static class WoolyCommandApp
 
             config.AddCommand<VersionCommand>("version")
                   .WithDescription("Print the client's version.");
+
+            config.AddBranch("profile", profile =>
+            {
+                profile.SetDescription("Manage the local profiles this client acts as.");
+
+                profile.AddCommand<ProfileAddCommand>("add")
+                       .WithDescription("Connect a profile to an account with an access token you already have.");
+
+                profile.AddCommand<ProfileListCommand>("list")
+                       .WithDescription("List the profiles set up on this machine.");
+
+                profile.AddCommand<ProfileShowCommand>("show")
+                       .WithDescription("Report the profile this client would act as.");
+
+                profile.AddCommand<ProfileSwitchCommand>("switch")
+                       .WithDescription("Change the profile commands act as by default.");
+            });
         });
 
         return app;
