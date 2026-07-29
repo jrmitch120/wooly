@@ -3,6 +3,11 @@ using Wooly.Tests.Fakes;
 
 namespace Wooly.Tests.Core;
 
+/// <summary>
+///     Covers both halves of this store: what it accepts from Git Credential Manager when it opens, and how it files
+///     tokens once it has. GCM's answer arrives through a delegate as data, so a store that holds tokens in the
+///     clear, or holds nothing at all, is reachable here without touching the developer's own Git configuration.
+/// </summary>
 public class OsKeyringCredentialStoreTests
 {
     private readonly FakeOsKeyring _keyring = new();
@@ -81,5 +86,57 @@ public class OsKeyringCredentialStoreTests
         Assert.Equal(CredentialStorage.OsKeyring, NewStore().Storage);
     }
 
-    private OsKeyringCredentialStore NewStore() => new(_keyring);
+    /// <summary>
+    ///     GCM's plaintext store writes secrets to a file this client does not own and cannot vouch for. Refusing it
+    ///     hands the run to <see cref="FallbackCredentialStore" />, whose plaintext file at least says what it is.
+    /// </summary>
+    [Fact]
+    public void Open_RefusesAStoreThatWouldHoldTheTokenInTheClear()
+    {
+        Assert.Throws<InvalidOperationException>(() => OpenOver("plaintext"));
+    }
+
+    /// <summary>
+    ///     GCM's <c>none</c> store swallows writes and answers reads with nothing, so a user would authenticate, be
+    ///     told it worked, and be signed out again on the next run.
+    /// </summary>
+    [Fact]
+    public void Open_RefusesAStoreThatHoldsNothingAtAll()
+    {
+        Assert.Throws<InvalidOperationException>(() => OpenOver("none"));
+    }
+
+    /// <summary>Git's credential cache forgets tokens on a timer, which is not somewhere to keep a sign-in.</summary>
+    [Fact]
+    public void Open_RefusesAStoreThatForgetsTheTokenLater()
+    {
+        Assert.Throws<InvalidOperationException>(() => OpenOver("cache"));
+    }
+
+    /// <summary>
+    ///     Nothing is pinned unless the pin took: a <see langword="null" /> name means GCM was left to choose for
+    ///     itself, which is the very thing this client stopped doing.
+    /// </summary>
+    [Fact]
+    public void Open_RefusesWhenGcmWasLeftToChooseForItself()
+    {
+        Assert.Throws<InvalidOperationException>(() => OpenOver(backingStoreName: null));
+    }
+
+    /// <summary>
+    ///     Naming the right store is not the same as having one. A machine with no keyring must fail here, where
+    ///     <see cref="FallbackCredentialStore" /> is watching, rather than later, mid-command.
+    /// </summary>
+    [Fact]
+    public void Open_RefusesAKeyringThatWillNotAnswer()
+    {
+        Assert.Throws<PlatformNotSupportedException>(
+            () => OsKeyringCredentialStore.Open(
+                () => new GcmKeyring(GcmKeyring.BackingStoreForThisMachine, new SilentKeyring())));
+    }
+
+    private OsKeyringCredentialStore NewStore() => OpenOver(GcmKeyring.BackingStoreForThisMachine);
+
+    private OsKeyringCredentialStore OpenOver(string? backingStoreName) =>
+        OsKeyringCredentialStore.Open(() => new GcmKeyring(backingStoreName, _keyring));
 }
