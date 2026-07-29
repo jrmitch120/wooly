@@ -14,6 +14,10 @@ public sealed class MastodonClientFactory(IHttpClientFactory httpClientFactory) 
         new MastodonClient(instance, accessToken, httpClientFactory.CreateClient(WoolyClient.HttpClientName));
 
     /// <inheritdoc />
+    public IMastodonClient CreateAnonymousClient(string instance) =>
+        new MastodonClient(instance, string.Empty, httpClientFactory.CreateClient(WoolyClient.HttpClientName));
+
+    /// <inheritdoc />
     public IAuthenticationClient CreateAuthenticationClient(string instance) =>
         new AuthenticationClient(instance, httpClientFactory.CreateClient(WoolyClient.HttpClientName));
 }

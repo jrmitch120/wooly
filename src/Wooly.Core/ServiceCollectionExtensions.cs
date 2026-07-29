@@ -1,5 +1,6 @@
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
+using Wooly.Core.Http;
 
 namespace Wooly.Core;
 
@@ -12,7 +13,18 @@ public static class ServiceCollectionExtensions
     /// </summary>
     public static IServiceCollection AddWoolyCore(this IServiceCollection services)
     {
-        services.AddHttpClient(WoolyClient.HttpClientName);
+        services.AddSingleton(RetryPolicy.Default);
+        services.AddSingleton(TimeProvider.System);
+        services.AddSingleton<IRetryDelay, TaskRetryDelay>();
+        services.AddTransient<TransientFaultRetryHandler>();
+        services.AddTransient<RateLimitHandler>();
+
+        // Retry sits outermost so that a rate limit — raised by the inner handler — is never mistaken for a fault
+        // worth retrying, and so a retried request is re-checked against the limit on every attempt.
+        services.AddHttpClient(WoolyClient.HttpClientName)
+                .AddHttpMessageHandler<TransientFaultRetryHandler>()
+                .AddHttpMessageHandler<RateLimitHandler>();
+
         services.AddSingleton<IMastodonClientFactory, MastodonClientFactory>();
 
         // The version users see must be the front end's own — reading this assembly instead would report the core

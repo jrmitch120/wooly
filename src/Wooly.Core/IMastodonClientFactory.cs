@@ -16,6 +16,13 @@ public interface IMastodonClientFactory
     IMastodonClient CreateClient(string instance, string accessToken);
 
     /// <summary>
+    ///     Creates a client for the endpoints an instance serves to anyone — the ones reachable before a profile
+    ///     exists, such as the instance's own metadata.
+    /// </summary>
+    /// <param name="instance">The instance's domain, e.g. <c>mastodon.social</c>.</param>
+    IMastodonClient CreateAnonymousClient(string instance);
+
+    /// <summary>
     ///     Creates a client for <paramref name="instance" />'s authentication endpoints — the app registration and
     ///     OAuth exchange that happen before any access token exists (ADR-0004).
     /// </summary>
