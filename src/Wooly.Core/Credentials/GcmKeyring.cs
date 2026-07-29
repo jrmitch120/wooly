@@ -26,6 +26,12 @@ internal sealed record GcmKeyring(string? BackingStoreName, OsKeyring Keyring)
     /// <summary>
     ///     The one backing store this client will accept on the machine it is running on, under GCM's own name for it.
     ///     Literals for the same reason as <see cref="BackingStoreVariable" />.
+    ///     <para>
+    ///         One per platform, deliberately, and the cost of that is on Linux: GCM's <c>gpg</c>/<c>pass</c> store is
+    ///         secure, and a user who configured it for Git is refused here and falls back to the plaintext file. It
+    ///         is not an oversight and not a special case to add — accepting it would mean reading the configuration
+    ///         this pin exists to stop reading. ADR-0003's Consequences carries the whole tradeoff.
+    ///     </para>
     /// </summary>
     public static string BackingStoreForThisMachine =>
         OperatingSystem.IsWindows() ? "wincredman"

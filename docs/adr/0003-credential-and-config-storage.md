@@ -5,3 +5,5 @@ Access tokens are secrets and need OS-native protection; everything else (profil
 ## Consequences
 
 A future reader seeing plaintext credentials on some Linux systems should not assume it's a bug — it's the intended fallback when no OS keyring exists, not the default path on macOS/Windows/most Linux desktops.
+
+There are two roads to that fallback, not one. The first is the case above: nothing is there to hold a secret. The second arrived with #34, which pins the backing store this client asks Git Credential Manager for rather than inheriting whatever the user configured for Git — so a keyring that exists but is not the pinned one is refused too. That refusal is deliberate, and on Linux it has a cost: GCM's `gpg`/`pass` store is genuinely secure, and a user who had configured it for Git now lands on the plaintext file instead. Accepting it was not an option worth taking, because honouring GCM's configured store is the exact thing #34 stopped doing. Anyone revisiting this should treat it as one question — whether the pin should name a single store per platform or a set of acceptable ones — rather than as a missing special case for `gpg`.
