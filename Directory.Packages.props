@@ -15,6 +15,10 @@
     <!-- TUI shell (ADR-0002) -->
     <PackageVersion Include="Terminal.Gui" Version="2.4.17" />
 
+    <!-- Config and credential storage (ADR-0003) -->
+    <PackageVersion Include="Devlooped.CredentialManager" Version="2.7.0" />
+    <PackageVersion Include="Tomlyn" Version="2.10.1" />
+
     <!-- Hosting / dependency injection -->
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
