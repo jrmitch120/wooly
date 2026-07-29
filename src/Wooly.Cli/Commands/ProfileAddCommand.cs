@@ -10,14 +10,17 @@ using Wooly.Core.Profiles;
 namespace Wooly.Cli.Commands;
 
 /// <summary>
-///     Connects a profile to a Mastodon account with an access token the user obtained from the instance themselves —
-///     ADR-0004's headless path, and the one that needs no browser. The token is checked against the instance before
-///     anything is written, so the profile that lands is one that works.
+///     Connects a profile to a Mastodon account. ADR-0004's two ways in meet here and part company for one step only —
+///     how the access token is come by, through the browser or from the user's own hands. Everything after that is the
+///     same for both: the token is checked against the instance before anything is written, so the profile that lands
+///     is one that works, and it is stored the one way profiles are stored.
 /// </summary>
 internal sealed class ProfileAddCommand(
     IAnsiConsole console,
     IProfileRegistry profiles,
     IAccessTokenVerifier verifier,
+    IBrowserAuthorizer authorizer,
+    IWebBrowser browser,
     WoolyPaths paths) : AsyncCommand<ProfileAddCommand.Settings>
 {
     internal sealed class Settings : CommandSettings
@@ -31,8 +34,12 @@ internal sealed class ProfileAddCommand(
         public string Instance { get; init; } = string.Empty;
 
         [CommandOption("--token <TOKEN>")]
-        [Description("An access token for the account. Asked for instead if omitted, keeping it out of shell history.")]
+        [Description("Connect with an access token you already have, instead of through the browser.")]
         public string? AccessToken { get; init; }
+
+        [CommandOption("--manual")]
+        [Description("Ask for an access token to paste, for a machine with no browser to open.")]
+        public bool Manual { get; init; }
 
         public override ValidationResult Validate()
         {
@@ -59,10 +66,12 @@ internal sealed class ProfileAddCommand(
 
     protected override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
     {
-        var accessToken = ReadAccessToken(settings);
+        var accessToken = await ObtainAccessToken(settings, cancellationToken);
 
         // Before the profile is written, not after: a profile that cannot authenticate is worse than no profile,
-        // because every later command would fail as though the client were broken.
+        // because every later command would fail as though the client were broken. A token from the browser goes
+        // through this too — it is how the account to record the profile under is learned, and a token that has just
+        // been issued costs one call to confirm.
         var account = await verifier.VerifyAccount(settings.Instance, accessToken);
 
         var addition = profiles.Add(
@@ -83,14 +92,25 @@ internal sealed class ProfileAddCommand(
         return (int)ExitCode.Success;
     }
 
-    private string ReadAccessToken(Settings settings)
+    /// <summary>
+    ///     Which of ADR-0004's two paths this invocation takes. The browser is the default because it is the one that
+    ///     asks nothing of the user that they have to go and find first; the other two are what they chose instead.
+    /// </summary>
+    private Task<string> ObtainAccessToken(Settings settings, CancellationToken cancellationToken)
     {
         // Trimmed because a token is pasted rather than typed, and a paste carries whatever whitespace came with it.
         if (!string.IsNullOrWhiteSpace(settings.AccessToken))
         {
-            return settings.AccessToken.Trim();
+            return Task.FromResult(settings.AccessToken.Trim());
         }
 
+        return settings.Manual
+            ? Task.FromResult(AskForAccessToken())
+            : AuthorizeInBrowser(settings.Instance, cancellationToken);
+    }
+
+    private string AskForAccessToken()
+    {
         if (!CanAskTheUser)
         {
             throw new UsageException(
@@ -98,6 +118,34 @@ internal sealed class ProfileAddCommand(
         }
 
         return console.Prompt(new TextPrompt<string>("Access token:").Secret()).Trim();
+    }
+
+    /// <summary>
+    ///     Sends the user to the instance's own authorization page and waits for their answer to come back. The
+    ///     address is printed either way: a browser that opened is no guarantee the right one did, and one that did not
+    ///     open leaves the address as the only way on.
+    /// </summary>
+    private async Task<string> AuthorizeInBrowser(string instance, CancellationToken cancellationToken)
+    {
+        using var authorization = await authorizer.Begin(instance, cancellationToken);
+
+        if (browser.TryOpen(authorization.AuthorizationUrl))
+        {
+            console.MarkupLineInterpolated(
+                $"Opening [bold]{instance}[/] in your browser to authorize {WoolyClient.Name}. If it does not open, go to:");
+        }
+        else
+        {
+            console.MarkupLineInterpolated(
+                $"No browser could be opened here. To authorize {WoolyClient.Name}, go to [bold]{instance}[/] at:");
+        }
+
+        // Written without markup: an address is not this client's text to interpret, and a stray bracket in one would
+        // be read as formatting.
+        console.WriteLine(authorization.AuthorizationUrl.ToString());
+        console.WriteLine("Waiting for the browser to come back...");
+
+        return await authorization.AwaitAccessToken(cancellationToken);
     }
 
     /// <summary>

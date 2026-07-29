@@ -46,6 +46,11 @@ public static class WoolyCommandApp
             config.SetApplicationName(WoolyClient.Name);
             config.ConfigureConsole(console);
 
+            // An option this client does not have is a user expecting something of it that it does not do — most
+            // pointedly --password, which ADR-0004 rules out. Left relaxed, Spectre collects such an option as a
+            // leftover argument and carries on, so the user is answered by silence.
+            config.UseStrictParsing();
+
             // Left to itself, Spectre renders failures to stdout and exits -1 — breaching both the stderr-only rule
             // and the reserved exit codes for every failure the CLI can have.
             config.SetExceptionHandler((exception, _) => CommandFailure.Report(exception, errorConsole));
@@ -58,7 +63,7 @@ public static class WoolyCommandApp
                 profile.SetDescription("Manage the local profiles this client acts as.");
 
                 profile.AddCommand<ProfileAddCommand>("add")
-                       .WithDescription("Connect a profile to an account with an access token you already have.");
+                       .WithDescription("Connect a profile to a Mastodon account, through your browser by default.");
 
                 profile.AddCommand<ProfileListCommand>("list")
                        .WithDescription("List the profiles set up on this machine.");
