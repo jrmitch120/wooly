@@ -1,0 +1,7 @@
+# Testing seams: IMastodonClient primary, HttpMessageHandler and a live instance secondary, TUI shell untested
+
+API-dependent code needs a small number of deliberately chosen test seams rather than testing at every layer. The primary seam is `IMastodonClient`/`IAuthenticationClient` (see ADR-0001) — interface-level fakes carry the bulk of unit tests for command and business logic, including whatever a TUI screen invokes. `HttpMessageHandler`-level fakes are reserved narrowly for tests that guard Mastonet's JSON deserialization against edge-case payloads (unicode, empty fields, pagination headers), which interface fakes can't catch. A small integration suite runs against a real, dockerized Mastodon instance for the core read/write paths (auth, timeline fetch, post, boost/favorite) to catch drift between Mastonet's models and the live API — run in CI via docker-compose, in a separate filtered category so it doesn't slow the default test run. The TUI shell itself (screens, keybindings, rendering, focus handling) is manually smoke-tested, not automated, even though Terminal.Gui v2's instance-based `IApplication` makes headless driving possible — that investment isn't worth it for v1 since all the logic the shell calls is already covered through the primary seam.
+
+## Consequences
+
+Anyone tempted to add headless TUI automation, or to fake every test at the `HttpMessageHandler` level "to be thorough," should treat that as a deviation from this decision worth re-raising, not a default extension of test coverage.
