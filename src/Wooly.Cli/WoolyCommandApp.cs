@@ -143,6 +143,11 @@ public static class WoolyCommandApp
                 timeline.AddCommand<TimelineTagCommand>("tag")
                         .WithDescription("Read the public posts carrying a hashtag.");
             });
+
+            // A verb of its own rather than a branch: one command covers accounts, hashtags and posts alike, which is
+            // the point of it — a user searching a half-remembered word rarely knows which of the three it will be.
+            config.AddCommand<SearchCommand>("search")
+                  .WithDescription("Find accounts, hashtags and posts matching what you are looking for.");
         });
 
         return app;

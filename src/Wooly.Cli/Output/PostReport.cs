@@ -139,10 +139,6 @@ internal static class PostReport
     private static string PostedAt(Post post) => LocalMoment.Of(post.PostedAt);
 
     private static string Counts(Post post) =>
-        $"{Pluralize(post.Boosts, "boost")}, {Pluralize(post.Favorites, "favorite")}, "
-        + $"{Pluralize(post.Replies, "reply", "replies")}";
-
-    /// <param name="plural">Given only where adding an <c>s</c> would not make one.</param>
-    private static string Pluralize(long count, string singular, string? plural = null) =>
-        $"{count} {(count == 1 ? singular : plural ?? singular + "s")}";
+        $"{Plural.Of(post.Boosts, "boost")}, {Plural.Of(post.Favorites, "favorite")}, "
+        + $"{Plural.Of(post.Replies, "reply", "replies")}";
 }

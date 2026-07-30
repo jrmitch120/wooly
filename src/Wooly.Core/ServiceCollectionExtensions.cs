@@ -6,6 +6,7 @@ using Wooly.Core.Http;
 using Wooly.Core.Notifications;
 using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
+using Wooly.Core.Search;
 using Wooly.Core.Timelines;
 
 namespace Wooly.Core;
@@ -51,6 +52,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IPostAuthor, PostAuthor>();
         services.AddSingleton<IPostEngagement, PostEngagement>();
         services.AddSingleton<INotificationInbox, NotificationInbox>();
+        services.AddSingleton<IInstanceSearch, InstanceSearch>();
 
         // The two ways a profile is connected to an account (ADR-0004): through the browser, and — for a machine with
         // no browser to open — by pasting a token, which needs nothing registered because the user brings the token.
