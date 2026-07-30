@@ -28,6 +28,21 @@ _Avoid_: server (when referring to a Mastodon instance)
 **Account**:
 A user's identity on a specific instance, addressed as `username@instance` when referenced from outside its home instance. Distinct from a local CLI **profile** (below).
 
+**Tie**:
+One of the three things the profile's own account can have with another and undo again: following it, blocking it, or
+muting it. Each is on or off rather than an act of its own, so `unfollow` is a follow taken off rather than a fourth
+thing to do. Distinct from **standing**, which is what the instance reports the ties currently are.
+
+**Follow request**:
+A follow waiting for the account being followed to accept it, which is what following a **locked** account — one that
+approves its followers by hand — leaves behind instead of a follow. Named by the id of the account that asked, which is
+what accepting or rejecting one takes.
+
+**Standing**:
+Where the profile's own account stands with another one: whether it follows it, has a **follow request** waiting with
+it, is followed by it, and whether it has blocked or muted it. An instance sends this only where it is asked, so an
+account may carry none — which says the question was not put, not that the answers are all no.
+
 **Profile**:
 A named local credential/config entry in this CLI tool, pointing at one Mastodon account. A user may have multiple profiles (e.g. personal + work accounts, possibly on different instances). One profile is the "current" profile used by default; commands may override it per-invocation.
 _Avoid_: account (when referring to the CLI's local credential entry, to keep it distinct from the Mastodon account itself)

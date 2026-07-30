@@ -113,6 +113,51 @@ public static class WoolyCommandApp
                     .WithDescription("Release a pinned post back to where it falls by date.");
             });
 
+            config.AddBranch("account", account =>
+            {
+                account.SetDescription("Manage who you follow, block and mute, and who follows you.");
+
+                account.AddCommand<AccountFollowCommand>("follow")
+                       .WithDescription("Follow an account, so its posts reach your home timeline.");
+
+                account.AddCommand<AccountUnfollowCommand>("unfollow")
+                       .WithDescription("Stop following an account, or withdraw a follow request.");
+
+                account.AddCommand<AccountFollowersCommand>("followers")
+                       .WithDescription("List the accounts following you, or following the account you name.");
+
+                account.AddCommand<AccountFollowingCommand>("following")
+                       .WithDescription("List the accounts you follow, or the account you name follows.");
+
+                account.AddCommand<AccountBlockCommand>("block")
+                       .WithDescription("Block an account: it is unfollowed, cannot follow you, and neither sees the other.");
+
+                account.AddCommand<AccountUnblockCommand>("unblock")
+                       .WithDescription("Lift a block. A follow the block broke has to be made again.");
+
+                account.AddCommand<AccountMuteCommand>("mute")
+                       .WithDescription("Hide an account without refusing it: still followed, simply not shown.");
+
+                account.AddCommand<AccountUnmuteCommand>("unmute")
+                       .WithDescription("Show a muted account again.");
+
+                // A branch of its own under the noun, because answering a request is a different act on a different
+                // thing from following: the account is asking, and what is accepted or rejected is what they asked.
+                account.AddBranch("requests", requests =>
+                {
+                    requests.SetDescription("Answer the follows waiting on a locked account.");
+
+                    requests.AddCommand<AccountRequestListCommand>("list")
+                            .WithDescription("List the accounts waiting for you to let them follow you.");
+
+                    requests.AddCommand<AccountRequestAcceptCommand>("accept")
+                            .WithDescription("Let a waiting account follow you.");
+
+                    requests.AddCommand<AccountRequestRejectCommand>("reject")
+                            .WithDescription("Turn a waiting account away. They are told nothing, and may ask again.");
+                });
+            });
+
             config.AddBranch("notification", notification =>
             {
                 notification.SetDescription("Read and clear what is waiting for the current profile.");

@@ -68,8 +68,8 @@ internal static class CommandFailure
         // How the command line was written, or what it asked for, was wrong. A profile named that does not exist
         // belongs here too, and so do a file that is not where --media said and a post that cannot be edited: each is a
         // value on the command line that is wrong, not a client that could not do its job.
-        UnknownProfileException or MediaNotFoundException or UneditablePostException or UsageException
-            or CommandParseException or CommandRuntimeException => ExitCode.UsageError,
+        UnknownProfileException or UnknownAccountException or MediaNotFoundException or UneditablePostException
+            or UsageException or CommandParseException or CommandRuntimeException => ExitCode.UsageError,
 
         _ => ExitCode.Error,
     };

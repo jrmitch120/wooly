@@ -23,8 +23,12 @@ internal static class PagedReading
     /// <param name="readPage">Asks the instance for one page, given what to ask for.</param>
     /// <param name="asItem">Turns one thing off the wire into the domain value a caller wanted.</param>
     /// <param name="idOf">
-    ///     The instance's id for one thing off the wire, needed as a fallback cursor for an instance that names no next
-    ///     page.
+    ///     The instance's id for one thing off the wire, used as a fallback cursor for an instance that names no next
+    ///     page — or <see langword="null" /> where the things being read are not what the endpoint pages by. A timeline
+    ///     and an inbox page by the id of the post or notification in hand, so they have a fallback to give; a list of
+    ///     accounts pages by the id of the follow rather than of the account, which is not a value this client ever
+    ///     sees. Guessing there would ask for a page starting somewhere in another id space altogether, and silently
+    ///     skip or repeat accounts. Where it is null, an instance that names no next page has ended the list.
     /// </param>
     /// <returns>
     ///     What arrived, and the rate limit that stopped the rest if one did. Nothing waits here — ADR-0006 leaves that
@@ -35,7 +39,7 @@ internal static class PagedReading
         int pageSize,
         Func<ArrayOptions, Task<MastodonList<TWire>>> readPage,
         Func<TWire, TItem> asItem,
-        Func<TWire, string> idOf,
+        Func<TWire, string>? idOf,
         CancellationToken cancellationToken)
     {
         var items = new List<TItem>();
@@ -72,8 +76,9 @@ internal static class PagedReading
             // there is one: a page can come back short of what was asked for and still not be the last, because an
             // instance drops filtered items from a page after counting them. Only where it names no next page does a
             // page with room to spare mean the end — and there the oldest thing just read is where a further page
-            // would start, since a page comes back newest first.
-            nextPage = page.NextPageMaxId ?? (page.Count < wanted ? null : idOf(page[^1]));
+            // would start, since a page comes back newest first. A caller that gave no fallback has nothing this
+            // endpoint pages by, and takes the missing link header as the end of the list.
+            nextPage = page.NextPageMaxId ?? (page.Count < wanted || idOf is null ? null : idOf(page[^1]));
 
             if (nextPage is null)
             {
