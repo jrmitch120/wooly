@@ -88,7 +88,23 @@ public class ProfileCommandTests : IDisposable
         var run = Run(["profile", "add", "personal", "--instance", "mastodon.social"]);
 
         Assert.Equal((int)ExitCode.Success, run.ExitCode);
-        Assert.Contains(_authorizer.AuthorizationUrl.ToString(), run.Output);
+        Assert.Contains(WebAddress.Of(_authorizer.AuthorizationUrl), run.Output);
+    }
+
+    /// <summary>
+    ///     The printed address is there to be pasted into a browser, so it has to be the address the request was made
+    ///     with — escapes and all. <see cref="Uri.ToString" /> would hand back the ones the query did not strictly need,
+    ///     leaving spaces where <c>%20</c> was, and whatever parsed that string next would escape the escapes still in
+    ///     it: an authorization request reaching the instance with its redirect URI encoded twice.
+    /// </summary>
+    [Fact]
+    public void Add_ShowsTheAddressWithItsEscapesIntactSoItCanBePastedBackIntoABrowser()
+    {
+        var run = Run(["profile", "add", "personal", "--instance", "mastodon.social"]);
+
+        Assert.Contains("scope=read%20write", run.Output);
+        Assert.Contains("redirect_uri=http%3A%2F%2F127.0.0.1%3A54321%2F", run.Output);
+        Assert.DoesNotContain("scope=read write", run.Output);
     }
 
     /// <summary>A sign-in the user turns down leaves nothing behind, exactly as a refused token does.</summary>

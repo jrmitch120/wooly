@@ -14,7 +14,9 @@ public sealed class SystemWebBrowser : IWebBrowser
     {
         try
         {
-            using var browser = Process.Start(new ProcessStartInfo(url.ToString()) { UseShellExecute = true });
+            // Through WebAddress because this is the one place the URL stops being a Uri and becomes a string the OS
+            // parses again — the moment an escape lost here turns into one added twice.
+            using var browser = Process.Start(new ProcessStartInfo(WebAddress.Of(url)) { UseShellExecute = true });
 
             return browser is not null;
         }

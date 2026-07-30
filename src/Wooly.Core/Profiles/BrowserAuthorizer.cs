@@ -35,7 +35,10 @@ public sealed class BrowserAuthorizer(IMastodonClientFactory clientFactory, Time
         try
         {
             var client = clientFactory.CreateAuthenticationClient(instance);
-            var redirectUri = listener.RedirectUri.ToString();
+
+            // Through WebAddress because an instance matches this address as text at all three points it sees it —
+            // registration here, the authorization page, and the exchange — so all three have to write it the same way.
+            var redirectUri = WebAddress.Of(listener.RedirectUri);
 
             await RegisterClient(client, instance, redirectUri, cancellationToken);
 
@@ -154,8 +157,9 @@ public sealed class BrowserAuthorizer(IMastodonClientFactory clientFactory, Time
             try
             {
                 // The redirect URI goes out again because an instance checks the exchange against the address it
-                // redirected to, and Mastonet defaults to a different one when not told.
-                var auth = await client.ConnectWithCode(code, listener.RedirectUri.ToString())
+                // redirected to, and Mastonet defaults to a different one when not told. Written the same way it was
+                // registered and authorized with, because that check is a comparison of text.
+                var auth = await client.ConnectWithCode(code, WebAddress.Of(listener.RedirectUri))
                                        .WaitAsync(cancellationToken);
 
                 return string.IsNullOrWhiteSpace(auth.AccessToken)

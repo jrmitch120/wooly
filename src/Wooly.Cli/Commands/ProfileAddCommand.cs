@@ -163,8 +163,9 @@ internal sealed class ProfileAddCommand(
         }
 
         // Written without markup: an address is not this client's text to interpret, and a stray bracket in one would
-        // be read as formatting.
-        console.WriteLine(authorization.AuthorizationUrl.ToString());
+        // be read as formatting. Through WebAddress for the same reason it is printed at all — this is an address to be
+        // pasted into a browser, and one whose escapes have been given back is no longer the address that was asked for.
+        console.WriteLine(WebAddress.Of(authorization.AuthorizationUrl));
         console.WriteLine("Waiting for the browser to come back...");
 
         return await authorization.AwaitAccessToken(cancellationToken);

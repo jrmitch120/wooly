@@ -15,8 +15,13 @@ internal sealed class FakeBrowserAuthorizer(string accessToken, string? refusal)
     /// <summary>Whether whoever began the sign-in gave the port back afterwards.</summary>
     public bool Disposed { get; private set; }
 
-    /// <inheritdoc />
-    public Uri AuthorizationUrl { get; } = new("https://mastodon.social/oauth/authorize?client_id=client-abc");
+    /// <summary>
+    ///     Shaped like the real one in the way that matters to a command: escaped. A real authorization request carries
+    ///     a scope list and a redirect URI in its query, so anything that writes this address down has an escape to
+    ///     lose.
+    /// </summary>
+    public Uri AuthorizationUrl { get; } = new(
+        "https://mastodon.social/oauth/authorize?client_id=client-abc&scope=read%20write&redirect_uri=http%3A%2F%2F127.0.0.1%3A54321%2F");
 
     /// <summary>A sign-in the user goes through with, authorizing <c>token-from-browser</c>.</summary>
     public static FakeBrowserAuthorizer Authorizing() => new("token-from-browser", refusal: null);
