@@ -6,17 +6,20 @@ namespace Wooly.Core.Paging;
 
 /// <summary>
 ///     Asks an instance for as many of something as a caller wanted, a page at a time. ADR-0007's first decision made
-///     reusable: a caller asks for a count, and the <c>max_id</c> cursor, the 40-item ceiling an instance serves and the
-///     number of calls it takes stay in here. The ADR warned that every later list — notifications, searches, an
-///     account's posts — would otherwise carry a copy of this loop, and that each copy would get the end condition
-///     slightly differently; this is the one copy.
+///     reusable: a caller asks for a count, and the <c>max_id</c> cursor, the ceiling an instance serves and the number
+///     of calls it takes stay in here. The ADR warned that every later list — notifications, searches, an account's
+///     posts — would otherwise carry a copy of this loop, and that each copy would get the end condition slightly
+///     differently; this is the one copy.
 /// </summary>
 internal static class PagedReading
 {
-    /// <summary>The most items Mastodon serves in one call, so the most there is any point asking for.</summary>
-    public const int PageSize = 40;
-
     /// <summary>Collects up to <paramref name="limit" /> items, newest first.</summary>
+    /// <param name="pageSize">
+    ///     The most the endpoint being read serves in one call, so the most there is any point asking it for. Passed in
+    ///     rather than fixed here because Mastodon does not answer with the same ceiling everywhere — a timeline serves
+    ///     40 and notifications 30 — and asking for more than an endpoint gives makes every full page look short, which
+    ///     is the one thing this loop reads as the end of the list.
+    /// </param>
     /// <param name="readPage">Asks the instance for one page, given what to ask for.</param>
     /// <param name="asItem">Turns one thing off the wire into the domain value a caller wanted.</param>
     /// <param name="idOf">
@@ -29,6 +32,7 @@ internal static class PagedReading
     /// </returns>
     public static async Task<Paged<TItem>> Collect<TWire, TItem>(
         int limit,
+        int pageSize,
         Func<ArrayOptions, Task<MastodonList<TWire>>> readPage,
         Func<TWire, TItem> asItem,
         Func<TWire, string> idOf,
@@ -44,7 +48,7 @@ internal static class PagedReading
             // have stopped itself.
             cancellationToken.ThrowIfCancellationRequested();
 
-            var wanted = Math.Min(PageSize, limit - items.Count);
+            var wanted = Math.Min(pageSize, limit - items.Count);
             MastodonList<TWire> page;
 
             try

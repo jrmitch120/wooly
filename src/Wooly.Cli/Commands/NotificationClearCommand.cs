@@ -30,7 +30,8 @@ internal sealed class NotificationClearCommand(
     {
         var profile = profiles.Resolve(settings.Profile);
 
-        if (!ConfirmedBy(settings))
+        // Everything waiting goes at once and none of it comes back, so a person at a terminal is asked first.
+        if (!Consent.Given(console, settings.Yes, "Clear every notification? This cannot be undone."))
         {
             NotificationReport.LeftAlone(console);
 
@@ -43,21 +44,5 @@ internal sealed class NotificationClearCommand(
         NotificationReport.Cleared(console);
 
         return (int)ExitCode.Success;
-    }
-
-    /// <summary>
-    ///     Whether to go ahead. A person at a terminal is asked, because everything waiting goes at once and none of it
-    ///     comes back. A script is not: there is nothing to prompt at and nobody to read the prompt, and stopping to ask
-    ///     would make this command unusable in the automation the CLI exists for. Typing the command is that
-    ///     invocation's consent, and <c>--yes</c> is how a person says the same thing.
-    /// </summary>
-    private bool ConfirmedBy(Settings settings)
-    {
-        if (settings.Yes || !console.Profile.Capabilities.Interactive)
-        {
-            return true;
-        }
-
-        return console.Confirm("Clear every notification? This cannot be undone.", defaultValue: false);
     }
 }

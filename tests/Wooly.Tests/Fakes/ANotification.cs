@@ -10,8 +10,8 @@ namespace Wooly.Tests.Fakes;
 internal static class ANotification
 {
     /// <param name="post">
-    ///     The post it is about. Defaults to one, because all but a follow have one; pass <see langword="null" /> with
-    ///     <paramref name="kind" /> set to a follow for the notification that has none.
+    ///     The post it is about. Defaults to one, because all but a follow have one; <see cref="Follow" /> is the
+    ///     notification that has none.
     /// </param>
     public static Notification With(
         string id = "34",

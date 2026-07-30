@@ -32,7 +32,8 @@ internal sealed class PostDeleteCommand(IAnsiConsole console, IProfileRegistry p
     {
         var profile = profiles.Resolve(settings.Profile);
 
-        if (!ConfirmedBy(settings))
+        // A mistyped id here is a post nobody can get back, so a person at a terminal is asked first.
+        if (!Consent.Given(console, settings.Yes, $"Delete post {settings.PostId}? This cannot be undone."))
         {
             console.MarkupLineInterpolated($"Left post [bold]{settings.PostId}[/] alone.");
 
@@ -45,21 +46,5 @@ internal sealed class PostDeleteCommand(IAnsiConsole console, IProfileRegistry p
         PostReport.Deleted(console, settings.PostId);
 
         return (int)ExitCode.Success;
-    }
-
-    /// <summary>
-    ///     Whether to go ahead. A person at a terminal is asked, because a mistyped id here is a post nobody can get
-    ///     back. A script is not: there is nothing to prompt at and nobody to read the prompt, and stopping to ask would
-    ///     make this command unusable in the automation the CLI exists for. Typing the command with an id in it is that
-    ///     invocation's consent, and <c>--yes</c> is how a person says the same thing.
-    /// </summary>
-    private bool ConfirmedBy(Settings settings)
-    {
-        if (settings.Yes || !console.Profile.Capabilities.Interactive)
-        {
-            return true;
-        }
-
-        return console.Confirm($"Delete post {settings.PostId}? This cannot be undone.", defaultValue: false);
     }
 }

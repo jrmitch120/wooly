@@ -16,6 +16,13 @@ namespace Wooly.Core.Notifications;
 /// </summary>
 public sealed class NotificationInbox(IMastodonClientFactory clientFactory) : INotificationInbox
 {
+    /// <summary>
+    ///     The most notifications Mastodon serves in one call. Ten fewer than a timeline's page, which is why the loop
+    ///     takes this rather than holding one number for everything: asking for 40 would get 30 back, and a full page
+    ///     that looks short is exactly what the loop reads as the end of the list.
+    /// </summary>
+    private const int PageSize = 30;
+
     /// <inheritdoc />
     public async Task<NotificationFetch> Read(ActiveProfile profile, int limit, CancellationToken cancellationToken)
     {
@@ -23,6 +30,7 @@ public sealed class NotificationInbox(IMastodonClientFactory clientFactory) : IN
 
         var read = await PagedReading.Collect(
             limit,
+            PageSize,
             options => client.GetNotifications(options),
             notification => NotificationWire.ToNotification(notification, profile.Instance),
             notification => notification.Id,

@@ -18,6 +18,9 @@ namespace Wooly.Core.Timelines;
 /// </summary>
 public sealed class TimelineReader(IMastodonClientFactory clientFactory) : ITimelineReader
 {
+    /// <summary>The most posts Mastodon serves from a timeline in one call, so the most there is any point asking for.</summary>
+    private const int PageSize = 40;
+
     /// <inheritdoc />
     public async Task<TimelineFetch> Read(
         ActiveProfile profile,
@@ -29,6 +32,7 @@ public sealed class TimelineReader(IMastodonClientFactory clientFactory) : ITime
 
         var read = await PagedReading.Collect(
             limit,
+            PageSize,
             options => Fetch(client, timeline, options),
             status => PostWire.ToPost(status, profile.Instance),
             status => status.Id,

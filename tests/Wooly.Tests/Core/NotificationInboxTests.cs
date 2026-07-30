@@ -162,18 +162,54 @@ public class NotificationInboxTests
     [Fact]
     public async Task Read_PagesUntilItHasAsManyNotificationsAsWereAskedFor()
     {
+        // Deliberately not the oldest notification of the first page (171), so that honouring the header is
+        // distinguishable from falling back to it.
         var network = new ScriptedHttpMessageHandler(
-            PageResponse(PageOf(count: 40, firstId: 200), nextMaxId: "150"),
+            PageResponse(PageOf(count: 30, firstId: 200), nextMaxId: "150"),
             PageResponse(PageOf(count: 5, firstId: 149)));
 
-        var fetch = await NewInbox(network).Read(Profile, 45, TestContext.Current.CancellationToken);
+        var fetch = await NewInbox(network).Read(Profile, 35, TestContext.Current.CancellationToken);
 
-        Assert.Equal(45, fetch.Notifications.Count);
+        Assert.Equal(35, fetch.Notifications.Count);
         Assert.True(fetch.IsComplete);
         Assert.Equal(2, network.Requests.Count);
-        Assert.Equal("https://mastodon.social/api/v1/notifications?limit=40", network.Requests[0].RequestUri?.ToString());
+        Assert.Equal("https://mastodon.social/api/v1/notifications?limit=30", network.Requests[0].RequestUri?.ToString());
         Assert.Equal(
             "https://mastodon.social/api/v1/notifications?max_id=150&limit=5",
+            network.Requests[1].RequestUri?.ToString());
+    }
+
+    /// <summary>
+    ///     Mastodon serves ten fewer notifications in a call than it does posts, and asking for a timeline's worth would
+    ///     get a full page back looking short — which this loop reads as the end of the list. So an account with more
+    ///     waiting than one page would be reported as having only the first thirty, and reported as complete.
+    /// </summary>
+    [Fact]
+    public async Task Read_AsksForNoMoreInOneCallThanTheInstanceServes()
+    {
+        var network = new ScriptedHttpMessageHandler(PageResponse(PageOf(count: 30, firstId: 200)));
+
+        await NewInbox(network).Read(Profile, 100, TestContext.Current.CancellationToken);
+
+        Assert.Equal("https://mastodon.social/api/v1/notifications?limit=30", network.Requests[0].RequestUri?.ToString());
+    }
+
+    /// <summary>
+    ///     Not every instance sends the link header, and paging cannot depend on one that may not come — the oldest
+    ///     notification just read is where a further page starts, since a page comes back newest first.
+    /// </summary>
+    [Fact]
+    public async Task Read_PagesFromTheLastNotificationItSawWhenTheInstanceNamesNoNextPage()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            PageResponse(PageOf(count: 30, firstId: 200)),
+            PageResponse(PageOf(count: 5, firstId: 170)));
+
+        var fetch = await NewInbox(network).Read(Profile, 35, TestContext.Current.CancellationToken);
+
+        Assert.Equal(35, fetch.Notifications.Count);
+        Assert.Equal(
+            "https://mastodon.social/api/v1/notifications?max_id=171&limit=5",
             network.Requests[1].RequestUri?.ToString());
     }
 
@@ -197,12 +233,12 @@ public class NotificationInboxTests
     public async Task Read_StopsOnARateLimitAndKeepsTheNotificationsItAlreadyHad()
     {
         var network = new ScriptedHttpMessageHandler(
-            PageResponse(PageOf(count: 40, firstId: 200), nextMaxId: "161"),
+            PageResponse(PageOf(count: 30, firstId: 200), nextMaxId: "171"),
             ScriptedHttpMessageHandler.Status(HttpStatusCode.TooManyRequests));
 
-        var fetch = await NewInbox(network).Read(Profile, 45, TestContext.Current.CancellationToken);
+        var fetch = await NewInbox(network).Read(Profile, 35, TestContext.Current.CancellationToken);
 
-        Assert.Equal(40, fetch.Notifications.Count);
+        Assert.Equal(30, fetch.Notifications.Count);
         Assert.False(fetch.IsComplete);
         Assert.Equal("mastodon.social", fetch.StoppedBy?.Instance);
 
