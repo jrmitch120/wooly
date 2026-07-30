@@ -74,6 +74,23 @@ public static class WoolyCommandApp
                 profile.AddCommand<ProfileSwitchCommand>("switch")
                        .WithDescription("Change the profile commands act as by default.");
             });
+
+            config.AddBranch("timeline", timeline =>
+            {
+                timeline.SetDescription("Read a timeline as the current profile.");
+
+                timeline.AddCommand<TimelineHomeCommand>("home")
+                        .WithDescription("Read the posts of the accounts you follow.");
+
+                timeline.AddCommand<TimelineLocalCommand>("local")
+                        .WithDescription("Read the public posts of accounts on your own instance.");
+
+                timeline.AddCommand<TimelineFederatedCommand>("federated")
+                        .WithDescription("Read the public posts reaching your instance from everywhere it federates with.");
+
+                timeline.AddCommand<TimelineTagCommand>("tag")
+                        .WithDescription("Read the public posts carrying a hashtag.");
+            });
         });
 
         return app;
