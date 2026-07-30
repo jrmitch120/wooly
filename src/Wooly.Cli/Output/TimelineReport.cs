@@ -1,5 +1,6 @@
 using System.Globalization;
 using Spectre.Console;
+using Wooly.Core.Posts;
 using Wooly.Core.Timelines;
 
 namespace Wooly.Cli.Output;

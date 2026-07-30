@@ -1,4 +1,5 @@
 using Wooly.Core.Errors;
+using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
 using Wooly.Core.Timelines;
 
@@ -21,28 +22,6 @@ internal sealed class FakeTimelineReader(TimelineFetch fetch) : ITimelineReader
         new(TimelineFetch.StoppedShort(
             posts,
             new RateLimitedException("mastodon.social", new DateTimeOffset(2026, 7, 29, 13, 0, 0, TimeSpan.Zero))));
-
-    /// <summary>A post with everything filled in, so a test only says the part it is about.</summary>
-    public static Post APost(
-        string id = "110",
-        string account = "jeff@mastodon.social",
-        string author = "Jeff",
-        string content = "Hello world",
-        string? contentWarning = null,
-        Post? boosted = null) => new()
-    {
-        Id = id,
-        Account = account,
-        Author = author,
-        PostedAt = new DateTimeOffset(2026, 7, 29, 12, 0, 0, TimeSpan.Zero),
-        Content = content,
-        ContentWarning = contentWarning,
-        Boosts = 3,
-        Favorites = 5,
-        Replies = 1,
-        Boosted = boosted,
-        Url = $"https://mastodon.social/@jeff/{id}",
-    };
 
     public Task<TimelineFetch> Read(
         ActiveProfile profile,

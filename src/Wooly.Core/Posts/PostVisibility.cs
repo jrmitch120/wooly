@@ -1,4 +1,4 @@
-namespace Wooly.Core;
+namespace Wooly.Core.Posts;
 
 /// <summary>Who can see a post, in Mastodon's four settings, from the widest audience to the narrowest.</summary>
 public enum PostVisibility

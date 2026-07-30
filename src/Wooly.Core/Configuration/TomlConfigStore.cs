@@ -1,6 +1,7 @@
 using Tomlyn;
 using Tomlyn.Model;
 using Wooly.Core.Errors;
+using Wooly.Core.Posts;
 
 namespace Wooly.Core.Configuration;
 
@@ -43,7 +44,7 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
         // Inserted before the profiles so the writer emits the short, general section above the long, per-profile one.
         if (config.Preferences.DefaultVisibility is { } visibility)
         {
-            root[PreferencesKey] = new TomlTable { [DefaultVisibilityKey] = TomlName(visibility) };
+            root[PreferencesKey] = new TomlTable { [DefaultVisibilityKey] = PostVisibilityName.Of(visibility) };
         }
 
         if (config.Profiles.Count > 0)
@@ -67,9 +68,6 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
 
         TomlFile.Write(paths.ConfigFile, TomlSerializer.Serialize(root));
     }
-
-    /// <summary>How a visibility is spelled in the file — lower case, exactly as the <c>--visibility</c> flag takes it.</summary>
-    private static string TomlName(PostVisibility visibility) => visibility.ToString().ToLowerInvariant();
 
     private Dictionary<string, ProfileConfig> ReadProfiles(TomlTable root)
     {
@@ -115,20 +113,10 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
             return null;
         }
 
-        // Matched against the spellings by hand rather than through Enum.TryParse, which would also accept the
-        // underlying numbers ("1") and comma-separated combinations ("public,direct") — neither of which is a thing
-        // a user could have meant to write in this file.
-        foreach (var visibility in Enum.GetValues<PostVisibility>())
-        {
-            if (string.Equals(TomlName(visibility), raw, StringComparison.OrdinalIgnoreCase))
-            {
-                return visibility;
-            }
-        }
-
-        var accepted = string.Join(", ", Enum.GetValues<PostVisibility>().Select(TomlName));
-
-        throw new ConfigurationException(paths.ConfigFile, $"'{raw}' is not a post visibility. Use one of: {accepted}.");
+        // The same spellings the --visibility flag takes, asked of the same place, so that a word this client accepts
+        // on the command line is never turned down in the file (or the other way about).
+        return PostVisibilityName.Parse(raw)
+               ?? throw new ConfigurationException(paths.ConfigFile, PostVisibilityName.Rejection(raw));
     }
 
     private string? ReadString(TomlTable table, string key) => table.TryGetValue(key, out var value)

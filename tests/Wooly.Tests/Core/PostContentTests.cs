@@ -1,4 +1,4 @@
-using Wooly.Core.Timelines;
+using Wooly.Core.Posts;
 
 namespace Wooly.Tests.Core;
 

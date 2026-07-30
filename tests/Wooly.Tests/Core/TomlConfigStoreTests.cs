@@ -1,4 +1,5 @@
 using Wooly.Core;
+using Wooly.Core.Posts;
 using Wooly.Core.Configuration;
 using Wooly.Core.Errors;
 using Wooly.Tests.Fakes;
