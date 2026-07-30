@@ -159,6 +159,20 @@ public class PostEngagementCommandTests : IDisposable
         Assert.Equal("110", read.PostId);
     }
 
+    /// <summary>
+    ///     The one thing a post asked for by id gets that a timeline's posts do not: where to read it on the web, which
+    ///     is the part that cannot be worked out from anything else on screen.
+    /// </summary>
+    [Fact]
+    public void Show_SaysWhereToReadThePostOnTheWeb()
+    {
+        AddProfile();
+
+        var run = Run(["post", "show", "110"]);
+
+        Assert.Contains("https://mastodon.social/@jeff/110", run.Output);
+    }
+
     /// <summary>A post shown on its own reads the way the same post reads on a timeline, because it is written once.</summary>
     [Fact]
     public void Show_ShowsAContentWarningRatherThanPrintingPastIt()

@@ -54,6 +54,19 @@ internal static class PostReport
         WriteAddress(console, post);
     }
 
+    /// <summary>Reports one post asked for by id: the post itself, and where to read it on the web.</summary>
+    /// <remarks>
+    ///     The address is what a single post gets that a timeline's posts do not. A timeline is read down, and one
+    ///     address per post would be a line of noise on every one of them; a post asked for by id is being looked at,
+    ///     and the address is the thing that cannot be worked out from what is on screen.
+    /// </remarks>
+    public static void Shown(IAnsiConsole console, Post post)
+    {
+        Write(console, post);
+
+        WriteAddress(console, post);
+    }
+
     /// <summary>Writes the post itself: who wrote it, when, what it says, and how it has been received.</summary>
     public static void Write(IAnsiConsole console, Post post)
     {

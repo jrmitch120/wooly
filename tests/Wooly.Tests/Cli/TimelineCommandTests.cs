@@ -161,6 +161,21 @@ public class TimelineCommandTests : IDisposable
         Assert.DoesNotContain("\n\n  3 boosts", run.Output.ReplaceLineEndings("\n"));
     }
 
+    /// <summary>
+    ///     A timeline is read down, so a web address on every post would be a line of noise on every one of them. The
+    ///     address belongs to <c>post show</c>, which is a post being looked at rather than scrolled past.
+    /// </summary>
+    [Fact]
+    public void Home_LeavesTheWebAddressOffThePostsItScrollsPast()
+    {
+        AddProfile();
+
+        var run = Run(["timeline", "home"]);
+
+        Assert.Contains("jeff@mastodon.social", run.Output);
+        Assert.DoesNotContain("https://mastodon.social/@jeff/110", run.Output);
+    }
+
     [Fact]
     public void Home_ShowsAContentWarningApartFromThePostsText()
     {

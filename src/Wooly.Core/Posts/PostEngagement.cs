@@ -15,8 +15,9 @@ namespace Wooly.Core.Posts;
 ///         caller that asked about one post is answered about that post. Nowhere above this layer has to know that
 ///         boosting is the one mark that makes a post.
 ///     </para>
-///     Nothing here retries and nothing here waits: these are writes, which ADR-0006 never resends, and a rate limit is
-///     reported rather than slept off.
+///     Nothing here retries and nothing here waits. A mark the instance answered is never sent again, because ADR-0006
+///     resends nothing an instance has already taken, and a rate limit is reported rather than slept off — for the read
+///     as much as for the marks.
 /// </summary>
 public sealed class PostEngagement(IMastodonClientFactory clientFactory) : IPostEngagement
 {

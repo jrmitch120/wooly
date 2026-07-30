@@ -18,9 +18,11 @@ public interface IPostEngagement
 {
     /// <summary>Puts <paramref name="mark" /> on the post <paramref name="postId" /> names, or takes it off.</summary>
     /// <param name="wanted">
-    ///     Whether the mark should end up on the post. Asking for a mark a post already carries, or asking to take off
-    ///     one it does not, is not an error — the post ends up as asked either way, which is what lets a script say what
-    ///     it wants without first asking what is there.
+    ///     Whether the mark should end up on the post. Nothing here reads the post first to find out what it already
+    ///     carries: whether asking twice is harmless is the instance's to answer, and it answers differently by mark —
+    ///     boosting and favoriting something already boosted or favorited pass, where pinning something already pinned
+    ///     is refused. This client does not paper over that difference, because doing so would mean holding a copy of
+    ///     each instance's rules and getting them wrong quietly.
     /// </param>
     /// <returns>
     ///     The post that was marked, as it now stands — the post <paramref name="postId" /> named, never the boost that
