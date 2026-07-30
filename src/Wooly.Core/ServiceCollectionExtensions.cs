@@ -45,6 +45,13 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IProfileRegistry, ProfileRegistry>();
         services.AddSingleton<IAccessTokenVerifier, AccessTokenVerifier>();
 
+        // The two ways a profile is connected to an account (ADR-0004): through the browser, and — for a machine with
+        // no browser to open — by pasting a token, which needs nothing registered because the user brings the token.
+        services.AddSingleton<IWebBrowser, SystemWebBrowser>();
+        services.AddSingleton<IBrowserAuthorizer>(provider => new BrowserAuthorizer(
+            provider.GetRequiredService<IMastodonClientFactory>(),
+            BrowserAuthorizer.DefaultPatience));
+
         // The version users see must be the front end's own — reading this assembly instead would report the core
         // library's version, which is only right for as long as every project happens to share one version number.
         var versionSource = Assembly.GetEntryAssembly() ?? typeof(AssemblyClientInfo).Assembly;

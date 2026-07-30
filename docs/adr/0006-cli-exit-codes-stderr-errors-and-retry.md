@@ -10,6 +10,8 @@ Every command needs the same failure behavior, and no command should have to rei
 
 **A rate limit fails fast and is never waited out inside the shared layer.** A `429` becomes a `RateLimitedException` carrying the instance and, when the instance says so, the moment the limit resets. The CLI reports it and exits `5` so automation never hangs on a silent wait; the TUI is expected to read the reset time and run its own visible countdown. Putting a wait inside the handler would take that choice away from both front ends.
 
+**Parsing is strict: an option this client does not have is a usage error** (#20). Spectre.Console.Cli's default is to collect an unrecognized option as a leftover argument and run the command anyway, which answers a user's mistaken expectation with silence — most pointedly `--password`, which ADR-0004 rules out and which would otherwise be swallowed while a browser opened instead. Strict parsing makes every such option exit `2` with the option named.
+
 **These behaviors are tested at the `HttpMessageHandler` seam, deliberately against ADR-0005's default.** ADR-0005 makes `IMastodonClient` the primary seam and keeps HTTP-level fakes narrow, and that still holds for command logic. It cannot hold here: retry, the translation of a `429`, and the exit code each produces all live *below* `IMastodonClient`, so faking that interface would skip the code under test entirely. The exception is scoped to this cross-cutting layer and to the one end-to-end test that proves a command inherits it — it is not licence to fake HTTP for command logic.
 
 ## Consequences
