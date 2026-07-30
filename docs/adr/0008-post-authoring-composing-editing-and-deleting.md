@@ -19,7 +19,16 @@ is a content warning it leaves out. So `Edit` reads the post first and carries i
 warning through unless the edit says otherwise. Without that, `post edit <id> "fixed the typo"` would be a way to lose a
 photograph, and — worse — a way to show a reader exactly what a warning had been put there to hide. Saying so takes three
 states out of one field: `--cw <TEXT>` replaces the warning, `--cw ""` removes it, and no `--cw` at all leaves it. Silence
-has to mean "leave it" rather than "remove it" for the reason just given.
+has to mean "leave it" rather than "remove it" for the reason just given. A warning made only of whitespace counts as no
+warning, on both `post create` and `post edit`, so that the one flag cannot mean two things depending on which command
+took it — and because a post hidden behind a warning of spaces is hidden behind nothing.
+
+The third thing carried through is the post's own "hide this" flag, and it is the one with no text to read it off: a post
+can be marked sensitive because of what its pictures show, with no warning written at all. Deriving that flag from the
+warning text — the obvious thing, since Mastodon sets it when a warning is set — would un-blur those pictures on an edit
+that only fixed a typo. So it is carried forward and only ever added to. The consequence is that an edit cannot unhide
+sensitive media; erring toward leaving something hidden is the harmless direction, and unhiding is not what `post edit`
+is for.
 
 A poll cannot be carried through at all, and that is the one thing this client refuses to do rather than do badly. An
 edit that omitted the poll would delete it and every vote in it; one that resent it would restart the voting. So a post

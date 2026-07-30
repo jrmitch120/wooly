@@ -24,4 +24,12 @@ public sealed record PostEdit
 
     /// <summary>Whether this edit has anything to say about the content warning.</summary>
     public bool ChangesContentWarning => ContentWarning is not null;
+
+    /// <summary>
+    ///     The warning the post should end up behind, for an edit that changes it at all: empty where the author asked
+    ///     for none. Whitespace amounts to none, the same as it does when a post is first composed — a warning made of
+    ///     spaces would hide a post behind nothing, which is worse than either hiding it or not.
+    /// </summary>
+    public string ContentWarningWanted =>
+        string.IsNullOrWhiteSpace(ContentWarning) ? string.Empty : ContentWarning;
 }

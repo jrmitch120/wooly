@@ -85,13 +85,20 @@ public sealed class PostAuthor(IMastodonClientFactory clientFactory) : IPostAuth
 
         // Silence from the edit means "leave it as it was", which here has to be said out loud: an omitted spoiler_text
         // is how the API is told to take the warning off.
-        var contentWarning = edit.ChangesContentWarning ? edit.ContentWarning : existing.SpoilerText ?? string.Empty;
+        var contentWarning = edit.ChangesContentWarning
+            ? edit.ContentWarningWanted
+            : existing.SpoilerText ?? string.Empty;
 
         var edited = await client.EditStatus(
             postId,
             edit.Text,
             existing.MediaAttachments.Select(attachment => attachment.Id),
-            sensitive: !string.IsNullOrEmpty(contentWarning),
+
+            // Carried forward rather than worked out from the warning alone. A post can be marked as one to hide
+            // because of what its pictures show, with no warning text at all, and deriving this flag from the text
+            // would un-blur those pictures on an edit that only fixed a typo. Erring the other way — leaving something
+            // hidden that need not be — is the harmless direction, so unhiding is not something an edit does here.
+            sensitive: existing.Sensitive == true || !string.IsNullOrEmpty(contentWarning),
             spoilerText: contentWarning);
 
         return PostWire.ToPost(edited, profile.Instance);

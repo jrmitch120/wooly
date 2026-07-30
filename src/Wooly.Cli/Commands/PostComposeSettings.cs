@@ -72,8 +72,9 @@ internal abstract class PostComposeSettings : ProfileScopedSettings
     ///     <see cref="Validate" /> first; said out loud rather than silently publishing something else.
     /// </exception>
     public PostDraft ToDraft(PostVisibility? visibilityWhenUnsaid) =>
-        Compose(visibilityWhenUnsaid, out var problem)
-        ?? throw new InvalidOperationException($"These settings describe no post to publish: {problem}");
+        TryCompose(visibilityWhenUnsaid, out var draft, out var problem)
+            ? draft
+            : throw new InvalidOperationException($"These settings describe no post to publish: {problem}");
 
     public override ValidationResult Validate()
     {
@@ -86,18 +87,22 @@ internal abstract class PostComposeSettings : ProfileScopedSettings
 
         // Every rule is asked by composing the draft, rather than checked over again here: two lists of rules is how
         // the parser comes to accept something the composer then cannot build.
-        return Compose(visibilityWhenUnsaid: null, out var problem) is null
-            ? ValidationResult.Error(problem)
-            : ValidationResult.Success();
+        return TryCompose(visibilityWhenUnsaid: null, out _, out var problem)
+            ? ValidationResult.Success()
+            : ValidationResult.Error(problem);
     }
 
     /// <summary>
-    ///     The draft, or <see langword="null" /> with <paramref name="problem" /> saying what is wrong with these
-    ///     settings. One method rather than a parse and a matching set of checks, so that what the argument parser turns
-    ///     down and what the command could not have built are the same thing by construction.
+    ///     Composes the draft these settings describe, or says what is wrong with them. One method rather than a parse
+    ///     and a matching set of checks, so that what the argument parser turns down and what the command could not have
+    ///     built are the same thing by construction.
     /// </summary>
-    private PostDraft? Compose(PostVisibility? visibilityWhenUnsaid, [NotNullWhen(false)] out string? problem)
+    private bool TryCompose(
+        PostVisibility? visibilityWhenUnsaid,
+        [NotNullWhen(true)] out PostDraft? draft,
+        [NotNullWhen(false)] out string? problem)
     {
+        draft = null;
         problem = null;
 
         var visibility = visibilityWhenUnsaid;
@@ -110,7 +115,7 @@ internal abstract class PostComposeSettings : ProfileScopedSettings
             {
                 problem = PostVisibilityName.Rejection(Visibility);
 
-                return null;
+                return false;
             }
         }
 
@@ -120,7 +125,7 @@ internal abstract class PostComposeSettings : ProfileScopedSettings
             {
                 problem = MediaOption.Rejection(value);
 
-                return null;
+                return false;
             }
         }
 
@@ -128,10 +133,10 @@ internal abstract class PostComposeSettings : ProfileScopedSettings
 
         if (problem is not null)
         {
-            return null;
+            return false;
         }
 
-        var draft = new PostDraft
+        var composed = new PostDraft
         {
             Text = Text,
 
@@ -143,9 +148,16 @@ internal abstract class PostComposeSettings : ProfileScopedSettings
             Poll = poll,
         };
 
-        problem = draft.Problem;
+        problem = composed.Problem;
 
-        return problem is null ? draft : null;
+        if (problem is not null)
+        {
+            return false;
+        }
+
+        draft = composed;
+
+        return true;
     }
 
     /// <summary>

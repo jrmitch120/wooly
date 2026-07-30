@@ -33,7 +33,8 @@ internal static class MediaOption
 
         return new MediaAttachment
         {
-            Path = trimmed[..separator],
+            // Trimmed at both ends, because "cat.png : a ginger cat" is a path somebody spaced out for legibility.
+            Path = trimmed[..separator].TrimEnd(),
 
             // A colon with nothing after it is somebody who meant to write a description and did not. An empty one
             // would be worse than none: a reader relying on it would be told the picture shows nothing.
@@ -42,7 +43,23 @@ internal static class MediaOption
     }
 
     /// <summary>Whether <paramref name="value" /> names a file at all.</summary>
-    public static bool IsWellFormed(string? value) => value is not null && Parse(value).Path.Length > 0;
+    /// <remarks>
+    ///     Asks the same question <see cref="Parse" /> answers, rather than calling it: what makes a value well formed is
+    ///     that there is a path in front of the colon, and reading that off a parsed attachment would make the two able
+    ///     to disagree about which characters the path is.
+    /// </remarks>
+    public static bool IsWellFormed(string? value)
+    {
+        if (value is null)
+        {
+            return false;
+        }
+
+        var trimmed = value.Trim();
+        var separator = SeparatorIn(trimmed);
+
+        return (separator < 0 ? trimmed : trimmed[..separator]).TrimEnd().Length > 0;
+    }
 
     /// <summary>
     ///     How a value that names no file is described. Says what the option looks like, because a user who wrote it
@@ -53,16 +70,11 @@ internal static class MediaOption
         + $"cat.png or 'cat.png:a ginger cat', not '{value}'.";
 
     /// <summary>
-    ///     Where the separating colon is, or <c>-1</c> if there is none. A drive letter's colon — one letter, a colon,
-    ///     then a slash — is part of the path and is stepped over.
+    ///     Where the separating colon is in an already-trimmed value, or <c>-1</c> if there is none. A drive letter's
+    ///     colon — one letter, a colon, then a slash — is part of the path and is stepped over.
     /// </summary>
-    private static int SeparatorIn(string value)
-    {
-        var from = LooksLikeADriveLetter(value) ? 2 : 0;
-        var separator = value.IndexOf(':', from);
-
-        return separator;
-    }
+    private static int SeparatorIn(string value) =>
+        value.IndexOf(':', LooksLikeADriveLetter(value) ? 2 : 0);
 
     private static bool LooksLikeADriveLetter(string value) =>
         value.Length >= 3 && char.IsLetter(value[0]) && value[1] == ':' && value[2] is '\\' or '/';

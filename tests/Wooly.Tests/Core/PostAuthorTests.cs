@@ -335,6 +335,45 @@ public class PostAuthorTests : IDisposable
     }
 
     /// <summary>
+    ///     The third thing an edit must not drop, and the one with no text to read it off: a post can be marked as one to
+    ///     hide because of what its pictures show, with no warning written at all. Working the flag out from the warning
+    ///     alone would un-blur those pictures on an edit that only fixed a typo.
+    /// </summary>
+    [Fact]
+    public async Task Edit_KeepsAPostHiddenWhenItWasHiddenWithNoWarningWrittenOnIt()
+    {
+        var network = Answering(StatusJson("110", sensitive: true, attachmentIds: ["m1"]));
+
+        await NewAuthor(network).Edit(
+            Profile,
+            "110",
+            new PostEdit { Text = "Fixed the typo" },
+            TestContext.Current.CancellationToken);
+
+        Assert.Contains("sensitive=true", network.Bodies[^1]);
+    }
+
+    /// <summary>
+    ///     A warning made of spaces hides a post behind nothing, which is worse than either hiding it or not. Read the
+    ///     same way as it is when a post is first composed.
+    /// </summary>
+    [Fact]
+    public async Task Edit_ReadsAWarningMadeOnlyOfSpacesAsNoWarningAtAll()
+    {
+        var network = Answering(StatusJson("110", contentWarning: "spoilers"));
+
+        await NewAuthor(network).Edit(
+            Profile,
+            "110",
+            new PostEdit { Text = "Fixed the typo", ContentWarning = "   " },
+            TestContext.Current.CancellationToken);
+
+        Assert.Contains("spoiler_text=", network.Bodies[^1]);
+        Assert.DoesNotContain("spoiler_text=spoilers", network.Bodies[^1]);
+        Assert.DoesNotContain("sensitive=true", network.Bodies[^1]);
+    }
+
+    /// <summary>
     ///     The one thing this client will not do rather than do badly: an edit cannot carry a poll through, and a request
     ///     that left the poll out would take it — and every vote cast in it — away.
     /// </summary>
@@ -393,6 +432,7 @@ public class PostAuthorTests : IDisposable
         string? contentWarning = null,
         string visibility = "public",
         string[]? attachmentIds = null,
+        bool sensitive = false,
         bool poll = false)
     {
         var attachments = string.Join(",", (attachmentIds ?? []).Select(AttachmentJson));
@@ -406,6 +446,7 @@ public class PostAuthorTests : IDisposable
                    "account": { "id": "1", "username": "jeff", "acct": "jeff", "display_name": "Jeff" },
                    "content": "{{content}}",
                    "spoiler_text": "{{contentWarning}}",
+                   "sensitive": {{(sensitive ? "true" : "false")}},
                    "visibility": "{{visibility}}",
                    "reblogs_count": 0,
                    "favourites_count": 0,

@@ -64,6 +64,23 @@ public class PostCommandTests : IDisposable
         Assert.Equal("spoilers", Assert.Single(_posts.Published).Draft.ContentWarning);
     }
 
+    /// <summary>
+    ///     A warning made of spaces hides a post behind nothing. Read the same way here as <c>post edit</c> reads it, so
+    ///     the one flag cannot come to mean two things depending on which command it was passed to.
+    /// </summary>
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Create_ReadsAWarningWithNothingWrittenInItAsNoWarningAtAll(string blank)
+    {
+        AddProfile();
+
+        var run = Run(["post", "create", "Hello world", "--cw", blank]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Null(Assert.Single(_posts.Published).Draft.ContentWarning);
+    }
+
     [Theory]
     [InlineData("public", PostVisibility.Public)]
     [InlineData("unlisted", PostVisibility.Unlisted)]
