@@ -48,6 +48,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IAccessTokenVerifier, AccessTokenVerifier>();
         services.AddSingleton<ITimelineReader, TimelineReader>();
         services.AddSingleton<IPostAuthor, PostAuthor>();
+        services.AddSingleton<IPostEngagement, PostEngagement>();
 
         // The two ways a profile is connected to an account (ADR-0004): through the browser, and — for a machine with
         // no browser to open — by pasting a token, which needs nothing registered because the user brings the token.

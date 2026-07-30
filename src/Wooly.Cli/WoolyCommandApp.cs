@@ -77,7 +77,7 @@ public static class WoolyCommandApp
 
             config.AddBranch("post", post =>
             {
-                post.SetDescription("Write, change and take down the current profile's own posts.");
+                post.SetDescription("Write, read and act on posts as the current profile.");
 
                 post.AddCommand<PostCreateCommand>("create")
                     .WithDescription("Publish a new post, optionally with a content warning, files or a poll.");
@@ -90,6 +90,27 @@ public static class WoolyCommandApp
 
                 post.AddCommand<PostDeleteCommand>("delete")
                     .WithDescription("Take one of your posts down. This cannot be undone.");
+
+                post.AddCommand<PostShowCommand>("show")
+                    .WithDescription("Show a single post by id, outside any timeline.");
+
+                post.AddCommand<PostBoostCommand>("boost")
+                    .WithDescription("Re-share a post to your own followers.");
+
+                post.AddCommand<PostUnboostCommand>("unboost")
+                    .WithDescription("Stop re-sharing a post you had boosted.");
+
+                post.AddCommand<PostFavoriteCommand>("favorite")
+                    .WithDescription("Mark a post as liked, without boosting it.");
+
+                post.AddCommand<PostUnfavoriteCommand>("unfavorite")
+                    .WithDescription("Take a favorite back off a post.");
+
+                post.AddCommand<PostPinCommand>("pin")
+                    .WithDescription("Hold one of your own posts at the top of your profile.");
+
+                post.AddCommand<PostUnpinCommand>("unpin")
+                    .WithDescription("Release a pinned post back to where it falls by date.");
             });
 
             config.AddBranch("timeline", timeline =>
