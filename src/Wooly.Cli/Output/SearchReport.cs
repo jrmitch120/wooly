@@ -1,5 +1,6 @@
 using Spectre.Console;
 using Wooly.Core.Accounts;
+using Wooly.Core.Posts;
 using Wooly.Core.Search;
 
 namespace Wooly.Cli.Output;
@@ -23,37 +24,37 @@ internal static class SearchReport
 
         // A search narrowed to one kind has every line on screen of that kind, and a heading over the only thing
         // there is says nothing the command line did not already say.
-        var headings = query.Kind is SearchKind.Everything;
+        var withHeadings = query.Kind is SearchKind.Everything;
 
-        if (found.Accounts is { Count: > 0 } accounts)
+        WriteSection(console, "Accounts", found.Accounts, withHeadings, Write);
+        WriteSection(console, "Hashtags", found.Hashtags, withHeadings, Write);
+        WriteSection(console, "Posts", found.Posts, withHeadings, WritePost);
+    }
+
+    /// <summary>
+    ///     Writes one kind of result under a heading naming it, or nothing at all where there was none of that kind —
+    ///     an empty heading is a promise of something to read.
+    /// </summary>
+    private static void WriteSection<TResult>(
+        IAnsiConsole console,
+        string heading,
+        IReadOnlyList<TResult>? found,
+        bool withHeadings,
+        Action<IAnsiConsole, TResult> write)
+    {
+        if (found is not { Count: > 0 })
         {
-            WriteHeading(console, "Accounts", headings);
-
-            foreach (var account in accounts)
-            {
-                Write(console, account);
-            }
+            return;
         }
 
-        if (found.Hashtags is { Count: > 0 } hashtags)
+        if (withHeadings)
         {
-            WriteHeading(console, "Hashtags", headings);
-
-            foreach (var hashtag in hashtags)
-            {
-                Write(console, hashtag);
-            }
+            console.MarkupLineInterpolated($"[bold]{heading}[/]");
         }
 
-        if (found.Posts is { Count: > 0 } posts)
+        foreach (var result in found)
         {
-            WriteHeading(console, "Posts", headings);
-
-            foreach (var post in posts)
-            {
-                PostReport.Write(console, post);
-                console.WriteLine();
-            }
+            write(console, result);
         }
     }
 
@@ -65,14 +66,6 @@ internal static class SearchReport
         ? $"Nothing matching '{query.Text}'."
         : $"No {SearchKindName.Of(query.Kind)} matching '{query.Text}'.";
 
-    private static void WriteHeading(IAnsiConsole console, string heading, bool wanted)
-    {
-        if (wanted)
-        {
-            console.MarkupLineInterpolated($"[bold]{heading}[/]");
-        }
-    }
-
     /// <summary>
     ///     One account: who they are, how much of a presence they have, and where to read them. The address leads,
     ///     because it is what every <c>account</c> command asks the user to type.
@@ -81,14 +74,7 @@ internal static class SearchReport
     {
         console.MarkupLineInterpolated($"[bold]{account.Address}[/]  {account.Author}");
         console.MarkupLineInterpolated($"  [dim]{Presence(account)}[/]");
-
-        // Written without markup: an address is not this client's text to interpret, and a stray bracket in one would
-        // be read as formatting rather than printed.
-        if (account.Url is not null)
-        {
-            console.WriteLine($"  {account.Url}");
-        }
-
+        console.WriteAddress(account.Url, "  ");
         console.WriteLine();
     }
 
@@ -108,6 +94,16 @@ internal static class SearchReport
             console.MarkupLineInterpolated($"  [dim]{Use(hashtag)}[/]");
         }
 
+        console.WriteLine();
+    }
+
+    /// <summary>
+    ///     One post, written by <see cref="PostReport.Write" /> so that a post found by a search and the same post read
+    ///     on a timeline cannot come to look like two different posts.
+    /// </summary>
+    private static void WritePost(IAnsiConsole console, Post post)
+    {
+        PostReport.Write(console, post);
         console.WriteLine();
     }
 

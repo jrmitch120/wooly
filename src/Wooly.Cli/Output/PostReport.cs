@@ -26,7 +26,7 @@ internal static class PostReport
         // actually did — which for a draft that left the choice to the account is the only place it is knowable.
         console.MarkupLineInterpolated($"Posted [bold]{post.Id}[/] ({PostVisibilityName.Of(post.Visibility)}).");
 
-        WriteAddress(console, post);
+        console.WriteAddress(post.Url);
     }
 
     /// <summary>Reports the post that has just been changed.</summary>
@@ -34,7 +34,7 @@ internal static class PostReport
     {
         console.MarkupLineInterpolated($"Edited [bold]{post.Id}[/].");
 
-        WriteAddress(console, post);
+        console.WriteAddress(post.Url);
     }
 
     /// <summary>Reports the post that has just been taken down, which there is nothing left to link to.</summary>
@@ -50,7 +50,7 @@ internal static class PostReport
     {
         console.MarkupLineInterpolated($"{Did(mark, wanted)} [bold]{post.Id}[/].");
 
-        WriteAddress(console, post);
+        console.WriteAddress(post.Url);
     }
 
     /// <summary>Reports one post asked for by id: the post itself, and where to read it on the web.</summary>
@@ -63,7 +63,7 @@ internal static class PostReport
     {
         Write(console, post);
 
-        WriteAddress(console, post);
+        console.WriteAddress(post.Url);
     }
 
     /// <summary>Writes the post itself: who wrote it, when, what it says, and how it has been received.</summary>
@@ -123,18 +123,6 @@ internal static class PostReport
         (PostMark.Pin, false) => "Unpinned",
         _ => throw new ArgumentOutOfRangeException(nameof(mark), mark, "Not a mark this client puts on a post."),
     };
-
-    /// <summary>
-    ///     Written without markup: an address is not this client's text to interpret, and a stray bracket in one would be
-    ///     read as formatting rather than printed.
-    /// </summary>
-    private static void WriteAddress(IAnsiConsole console, Post post)
-    {
-        if (post.Url is not null)
-        {
-            console.WriteLine(post.Url);
-        }
-    }
 
     private static string PostedAt(Post post) => LocalMoment.Of(post.PostedAt);
 

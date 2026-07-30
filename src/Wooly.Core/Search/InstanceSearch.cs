@@ -35,7 +35,7 @@ public sealed class InstanceSearch(IMastodonClientFactory clientFactory) : IInst
         return SearchResults.Matching(
             query.Kind,
             found.Accounts?.Select(account => AccountWire.ToAccount(account, profile.Instance)).ToList() ?? [],
-            found.Hashtags?.Select(SearchWire.ToHashtag).ToList() ?? [],
+            found.Hashtags?.Select(HashtagWire.ToHashtag).ToList() ?? [],
             found.Statuses?.Select(status => PostWire.ToPost(status, profile.Instance)).ToList() ?? []);
     }
 }

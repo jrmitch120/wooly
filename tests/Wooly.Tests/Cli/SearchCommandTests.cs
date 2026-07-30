@@ -118,6 +118,37 @@ public class SearchCommandTests : IDisposable
         Assert.DoesNotContain("Hello world", run.Output);
     }
 
+    /// <summary>
+    ///     A heading names what follows, which is worth saying when three kinds follow one another and worth nothing
+    ///     when the command line already said there would be one kind.
+    /// </summary>
+    [Fact]
+    public void Search_HeadsEachKindOfResultOnlyWhenMoreThanOneWasAskedFor()
+    {
+        AddProfile();
+
+        Assert.Contains("Accounts", Run(["search", "cats"]).Output);
+        Assert.DoesNotContain("Accounts", Run(["search", "cats", "--type", "accounts"]).Output);
+    }
+
+    /// <summary>
+    ///     An instance that sent no usage for a tag is one this has nothing to say about, and "0 posts from 0 accounts"
+    ///     would say something — that nobody is posting to a tag which may well be busy.
+    /// </summary>
+    [Fact]
+    public void Search_SaysNothingAboutTheUseOfAHashtagTheInstanceReportedNoneFor()
+    {
+        AddProfile();
+        _search = FakeInstanceSearch.Finding(
+            hashtags: [AHashtag.With("cats", recentPosts: 0, recentAccounts: 0)]);
+
+        var run = Run(["search", "cats", "--type", "hashtags"]);
+
+        Assert.Contains("#cats", run.Output);
+        Assert.DoesNotContain("0 posts", run.Output);
+        Assert.DoesNotContain("recently", run.Output);
+    }
+
     [Fact]
     public void Search_ReportsATypeItDoesNotKnowAsAUsageError()
     {

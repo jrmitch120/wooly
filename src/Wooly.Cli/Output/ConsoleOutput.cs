@@ -13,4 +13,21 @@ internal static class ConsoleOutput
     /// </summary>
     public static void WriteUnwrapped(this IAnsiConsole console, string text) =>
         console.Profile.Out.Writer.WriteLine(text);
+
+    /// <summary>
+    ///     Writes where something can be read on the web, or nothing at all where the instance did not say. Written
+    ///     without markup: an address is not this client's text to interpret, and a stray bracket in one would be read
+    ///     as formatting rather than printed.
+    /// </summary>
+    /// <param name="indent">
+    ///     What the address sits behind, for an address written underneath something indented — a post's address leads
+    ///     the line, an account's sits under the account.
+    /// </param>
+    public static void WriteAddress(this IAnsiConsole console, string? url, string indent = "")
+    {
+        if (url is not null)
+        {
+            console.WriteLine($"{indent}{url}");
+        }
+    }
 }
