@@ -16,6 +16,11 @@ _Avoid_: reblog, repost, retweet
 Marking a post as liked, without re-sharing it. The API spells this `favourite` (British spelling). This project uses the US spelling "favorite" everywhere outside the literal API-wire layer.
 _Avoid_: favourite, like
 
+**Notification**:
+Something an instance tells an account happened to it: somebody mentioned it, followed it, boosted or favorited one of
+its posts. This project names those four and passes any other kind on under the instance's own word for it (ADR-0010).
+A notification is distinct from the post it is about — it has an id of its own, which is what dismisses it.
+
 **Instance**:
 The Mastodon server a given account is registered on, identified by its domain (e.g. `mastodon.social`). Mastodon's own newer UI/docs increasingly say "server", but this project uses "instance" throughout for consistency with the wider ecosystem (other clients, API error messages) and to avoid ambiguity with "server" as hostname or client-server architecture.
 _Avoid_: server (when referring to a Mastodon instance)
