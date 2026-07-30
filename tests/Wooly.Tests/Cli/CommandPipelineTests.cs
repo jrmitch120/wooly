@@ -79,7 +79,9 @@ public class CommandPipelineTests
     [Fact]
     public void Run_ReportsAMistypedCommandAsAUsageErrorOnStderr()
     {
-        var run = Run(["timeline", "home"], ScriptedHttpMessageHandler.Json(InstanceJson));
+        // A typo of a command this client has, rather than a name it might one day grow into — this test outlived
+        // the first such stand-in, which was "timeline home" before there was one.
+        var run = Run(["tiimeline", "home"], ScriptedHttpMessageHandler.Json(InstanceJson));
 
         Assert.Equal((int)ExitCode.UsageError, run.ExitCode);
         Assert.NotEmpty(run.ErrorOutput.Trim());
