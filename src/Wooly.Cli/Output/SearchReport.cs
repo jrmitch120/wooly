@@ -26,7 +26,7 @@ internal static class SearchReport
         // there is says nothing the command line did not already say.
         var withHeadings = query.Kind is SearchKind.Everything;
 
-        WriteSection(console, "Accounts", found.Accounts, withHeadings, Write);
+        WriteSection(console, "Accounts", found.Accounts, withHeadings, WriteAccount);
         WriteSection(console, "Hashtags", found.Hashtags, withHeadings, Write);
         WriteSection(console, "Posts", found.Posts, withHeadings, WritePost);
     }
@@ -67,14 +67,12 @@ internal static class SearchReport
         : $"No {SearchKindName.Of(query.Kind)} matching '{query.Text}'.";
 
     /// <summary>
-    ///     One account: who they are, how much of a presence they have, and where to read them. The address leads,
-    ///     because it is what every <c>account</c> command asks the user to type.
+    ///     One account, written by <see cref="AccountReport.Write(IAnsiConsole,Account)" /> so that an account a search
+    ///     found and the same account in a followers list cannot come to look like two different accounts.
     /// </summary>
-    private static void Write(IAnsiConsole console, Account account)
+    private static void WriteAccount(IAnsiConsole console, Account account)
     {
-        console.MarkupLineInterpolated($"[bold]{account.Address}[/]  {account.Author}");
-        console.MarkupLineInterpolated($"  [dim]{Presence(account)}[/]");
-        console.WriteAddress(account.Url, "  ");
+        AccountReport.Write(console, account);
         console.WriteLine();
     }
 
@@ -106,10 +104,6 @@ internal static class SearchReport
         PostReport.Write(console, post);
         console.WriteLine();
     }
-
-    private static string Presence(Account account) =>
-        $"{Plural.Of(account.Followers, "follower")}, {Plural.Of(account.Posts, "post")}, "
-        + $"following {Plural.Of(account.Following, "account")}";
 
     private static string Use(Hashtag hashtag) =>
         $"{Plural.Of(hashtag.RecentPosts, "post")} from {Plural.Of(hashtag.RecentAccounts, "account")} recently";

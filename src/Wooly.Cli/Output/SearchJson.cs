@@ -12,8 +12,9 @@ namespace Wooly.Cli.Output;
 ///     <c>--type</c> would otherwise destroy — an empty <c>posts</c> in both cases would tell a script that nothing it
 ///     searched for had been posted, when in fact posts were never looked for.
 ///     <para>
-///         The posts themselves are <see cref="PostDocument" />s, spelled the one way every command spells a post, and
-///         an account names its address and display name with the same two words a post does.
+///         The posts and the accounts themselves are <see cref="PostDocument" />s and <see cref="AccountDocument" />s,
+///         spelled the one way every command spells each — an account names its address and display name with the same
+///         two words a post does.
 ///     </para>
 /// </summary>
 internal static class SearchJson
@@ -22,20 +23,12 @@ internal static class SearchJson
     {
         var document = new FoundDocument(
             query.Text,
-            found.Accounts?.Select(Of).ToList(),
+            found.Accounts?.Select(AccountDocument.Of).ToList(),
             found.Hashtags?.Select(Of).ToList(),
             found.Posts?.Select(PostDocument.Of).ToList());
 
         JsonOutput.Write(console, document);
     }
-
-    private static AccountDocument Of(Account account) => new(
-        account.Address,
-        account.Author,
-        account.Followers,
-        account.Following,
-        account.Posts,
-        account.Url);
 
     private static HashtagDocument Of(Hashtag hashtag) => new(
         hashtag.Name,
@@ -52,19 +45,6 @@ internal static class SearchJson
         [property: JsonPropertyName("accounts")] IReadOnlyList<AccountDocument>? Accounts,
         [property: JsonPropertyName("hashtags")] IReadOnlyList<HashtagDocument>? Hashtags,
         [property: JsonPropertyName("posts")] IReadOnlyList<PostDocument>? Posts);
-
-    /// <param name="Address">
-    ///     Written as <c>account</c>, which is what a post calls the same fact, so one <c>jq</c> filter reads an
-    ///     account's address wherever it turns up.
-    /// </param>
-    /// <param name="Posts">How many posts the account has published — not the posts a search found.</param>
-    private sealed record AccountDocument(
-        [property: JsonPropertyName("account")] string Address,
-        [property: JsonPropertyName("author")] string Author,
-        [property: JsonPropertyName("followers")] long Followers,
-        [property: JsonPropertyName("following")] long Following,
-        [property: JsonPropertyName("posts")] long Posts,
-        [property: JsonPropertyName("url")] string? Url);
 
     /// <param name="Name">Bare, with no leading <c>#</c>, which is how <c>timeline tag</c> takes one.</param>
     private sealed record HashtagDocument(
