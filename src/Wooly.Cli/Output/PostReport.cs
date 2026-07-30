@@ -26,7 +26,7 @@ internal static class PostReport
         // actually did — which for a draft that left the choice to the account is the only place it is knowable.
         console.MarkupLineInterpolated($"Posted [bold]{post.Id}[/] ({PostVisibilityName.Of(post.Visibility)}).");
 
-        WriteAddress(console, post);
+        console.WriteAddress(post.Url);
     }
 
     /// <summary>Reports the post that has just been changed.</summary>
@@ -34,7 +34,7 @@ internal static class PostReport
     {
         console.MarkupLineInterpolated($"Edited [bold]{post.Id}[/].");
 
-        WriteAddress(console, post);
+        console.WriteAddress(post.Url);
     }
 
     /// <summary>Reports the post that has just been taken down, which there is nothing left to link to.</summary>
@@ -50,7 +50,7 @@ internal static class PostReport
     {
         console.MarkupLineInterpolated($"{Did(mark, wanted)} [bold]{post.Id}[/].");
 
-        WriteAddress(console, post);
+        console.WriteAddress(post.Url);
     }
 
     /// <summary>Reports one post asked for by id: the post itself, and where to read it on the web.</summary>
@@ -63,7 +63,7 @@ internal static class PostReport
     {
         Write(console, post);
 
-        WriteAddress(console, post);
+        console.WriteAddress(post.Url);
     }
 
     /// <summary>Writes the post itself: who wrote it, when, what it says, and how it has been received.</summary>
@@ -124,25 +124,9 @@ internal static class PostReport
         _ => throw new ArgumentOutOfRangeException(nameof(mark), mark, "Not a mark this client puts on a post."),
     };
 
-    /// <summary>
-    ///     Written without markup: an address is not this client's text to interpret, and a stray bracket in one would be
-    ///     read as formatting rather than printed.
-    /// </summary>
-    private static void WriteAddress(IAnsiConsole console, Post post)
-    {
-        if (post.Url is not null)
-        {
-            console.WriteLine(post.Url);
-        }
-    }
-
     private static string PostedAt(Post post) => LocalMoment.Of(post.PostedAt);
 
     private static string Counts(Post post) =>
-        $"{Pluralize(post.Boosts, "boost")}, {Pluralize(post.Favorites, "favorite")}, "
-        + $"{Pluralize(post.Replies, "reply", "replies")}";
-
-    /// <param name="plural">Given only where adding an <c>s</c> would not make one.</param>
-    private static string Pluralize(long count, string singular, string? plural = null) =>
-        $"{count} {(count == 1 ? singular : plural ?? singular + "s")}";
+        $"{Plural.Of(post.Boosts, "boost")}, {Plural.Of(post.Favorites, "favorite")}, "
+        + $"{Plural.Of(post.Replies, "reply", "replies")}";
 }
