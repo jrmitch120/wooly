@@ -29,4 +29,11 @@ public sealed record AccountStanding
 
     /// <summary>Whether the profile has muted the account.</summary>
     public required bool Muting { get; init; }
+
+    /// <summary>
+    ///     Whether a follow is waiting for the account to accept it, rather than in place. What following a locked
+    ///     account leaves behind, and the one thing that makes "now following" a false report — asked here rather than
+    ///     read off the two flags wherever somebody needs it, so that every caller reads the pair the same way.
+    /// </summary>
+    public bool IsFollowWaiting => FollowRequested && !Following;
 }

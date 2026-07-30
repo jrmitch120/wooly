@@ -33,14 +33,12 @@ public sealed record AccountAddress
             return false;
         }
 
-        var handle = Handle(typed);
+        var parts = Handle(typed).Split('@');
 
         // A handle has to survive being put in a query string and compared against what an instance answers with, so
         // the two ways it can fail to are refused here: whitespace inside it, and any number of @ but one.
-        return handle.Length > 0
-               && !handle.Any(char.IsWhiteSpace)
-               && handle.Split('@') is not { Length: > 2 }
-               && handle.Split('@').All(part => part.Length > 0);
+        return parts.Length <= 2
+               && parts.All(part => part.Length > 0 && !part.Any(char.IsWhiteSpace));
     }
 
     /// <summary>The account <paramref name="typed" /> names.</summary>

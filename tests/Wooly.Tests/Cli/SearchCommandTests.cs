@@ -272,6 +272,10 @@ public class SearchCommandTests : IDisposable
         Assert.Equal("cats", found.GetProperty("query").GetString());
 
         var account = Assert.Single(found.GetProperty("accounts").EnumerateArray().ToList());
+
+        // The same document every command writes for an account, which is why a search result carries the instance's
+        // id: it is what the account commands take, and reading one out of a search is how a script reaches them.
+        Assert.Equal("42", account.GetProperty("id").GetString());
         Assert.Equal("alice@hachyderm.io", account.GetProperty("account").GetString());
         Assert.Equal("Alice", account.GetProperty("author").GetString());
         Assert.Equal(1203, account.GetProperty("followers").GetInt64());

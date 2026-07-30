@@ -57,7 +57,7 @@ public class AccountCommandTests : IDisposable
     /// </summary>
     [Theory]
     [InlineData("follow", "Now following")]
-    [InlineData("unfollow", "No longer following")]
+    [InlineData("unfollow", "Unfollowed")]
     [InlineData("block", "Blocked")]
     [InlineData("unblock", "Unblocked")]
     [InlineData("mute", "Muted")]
@@ -88,6 +88,23 @@ public class AccountCommandTests : IDisposable
         Assert.Equal((int)ExitCode.Success, run.ExitCode);
         Assert.Contains("Asked to follow alice@hachyderm.io", run.Output);
         Assert.DoesNotContain("Now following", run.Output);
+    }
+
+    /// <summary>
+    ///     The same command withdraws a follow request that was never accepted, and what comes back cannot tell that
+    ///     from an ordinary unfollow — so it says only that it was done, rather than claiming a follow that may never
+    ///     have existed.
+    /// </summary>
+    [Fact]
+    public void Account_ClaimsNoFollowItCannotKnowThereWasWhenUnfollowing()
+    {
+        AddProfile();
+        _relationships = FakeAccountRelationships.Holding(AnAccount.With(standing: AnAccount.Standing()));
+
+        var run = Run(["account", "unfollow", "alice@hachyderm.io"]);
+
+        Assert.Contains("Unfollowed alice@hachyderm.io", run.Output);
+        Assert.DoesNotContain("No longer following", run.Output);
     }
 
     /// <summary>A bare username is somebody on the profile's own instance, which is how that instance lists them.</summary>

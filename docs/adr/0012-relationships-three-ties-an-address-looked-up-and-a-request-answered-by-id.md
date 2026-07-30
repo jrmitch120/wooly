@@ -56,9 +56,32 @@ way to act on the wrong account after somebody moves instances.
 
 The paged-list settings collapse that ADR-0007, ADR-0010 and ADR-0011 each deferred happens here, because this is the
 genuinely paged third list those ADRs were waiting for: `PagedListSettings` now carries `--limit` and `--json` for
-timelines, notifications and account lists alike. The one thing it cost is the per-command wording of the `--limit`
-help text — an attribute is fixed for every command that inherits it — so the description reads "How many to fetch"
-everywhere, and only the message turning down a limit of none still names what is being counted.
+timelines, notifications and account lists alike. What it cost is the per-command wording of both options' help text —
+an attribute is fixed for every command that inherits it — so `--limit` now reads "How many to fetch" rather than "How
+many posts to fetch", and `--json` "Write what was read as JSON" rather than "Write the timeline as JSON", on commands
+that shipped saying the more specific thing. Only the message turning down a limit of none still names what is being
+counted. Buying that wording back means declaring the options per command again, which is the duplication three ADRs
+asked to be rid of; the trade is worth revisiting only if a user is actually misled by the general wording.
+
+An address may be written any of the ways Mastodon shows one — `alice@hachyderm.io`, `@alice@hachyderm.io`, or a bare
+`alice` for somebody on the profile's own instance — where the issue asked only for `user@instance`. A handle is copied
+out of a profile page or a post as often as it is typed, and refusing the two spellings a user is most likely to have
+copied would be a rule with nothing behind it. A bare username is qualified with the profile's instance before anything
+is matched, so it can never silently reach somebody else's account of the same name.
+
+`account unfollow` reports "Unfollowed", not "no longer following". The same command withdraws a follow request that
+was never accepted, and what comes back cannot tell the two apart — either way the profile now neither follows the
+account nor waits on it. Reporting the act rather than the state is the only thing true in both cases.
+
+Accounts read from these lists are paged by the instance's own link header alone. Mastodon paginates followers and
+following by the id of the *follow*, not of the account followed, and this client never sees one — so `PagedReading`
+takes a null fallback cursor here, and an instance that names no next page has ended the list. The alternative, reusing
+the last account's id, asks for a page starting somewhere in another id space and silently skips or repeats accounts.
+A timeline and an inbox still pass their fallback, because a post and a notification are what those endpoints page by.
+
+`search --json` gains an `id` on every account, because a search result and a followers list are now the same
+`AccountDocument`. That is ADR-0011's own request — one spelling of an account wherever it turns up — arriving as an
+additive change to a shipped command's output rather than as a new command's.
 
 `AccountStanding` carries five of the thirteen facts a Mastodon relationship holds. Endorsements, domain blocks, notes,
 notification-muting and whether boosts are shown are left off deliberately: each belongs to a command this client does

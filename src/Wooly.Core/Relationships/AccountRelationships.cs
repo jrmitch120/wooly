@@ -165,7 +165,11 @@ public sealed class AccountRelationships(IMastodonClientFactory clientFactory) :
             PageSize,
             readPage,
             account => AccountWire.ToAccount(account, instance),
-            account => account.Id,
+
+            // No fallback cursor: Mastodon pages these lists by the id of the follow, not of the account followed,
+            // and an account's id is a value in another id space altogether. An instance that names no next page has
+            // ended the list, and guessing one would silently skip or repeat accounts.
+            idOf: null,
             cancellationToken);
 
         return read.StoppedBy is null

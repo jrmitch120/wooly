@@ -13,30 +13,25 @@ namespace Wooly.Cli.Output;
 internal static class AccountJson
 {
     /// <summary>Writes one side of an account's follows, saying which side and whose it is.</summary>
-    public static void Write(IAnsiConsole console, FollowSide side, string? whose, AccountFetch fetch)
-    {
-        JsonOutput.Write(
-            console,
-            new AccountListDocument(
-                NameOf(side),
-                whose,
-                fetch.IsComplete,
-                RateLimitDocument.Of(fetch.StoppedBy),
-                fetch.Accounts.Select(AccountDocument.Of).ToList()));
-    }
+    public static void Write(IAnsiConsole console, FollowSide side, string? whose, AccountFetch fetch) =>
+        Write(console, NameOf(side), whose, fetch);
 
     /// <summary>Writes the accounts waiting to be let in.</summary>
     /// <remarks>
-    ///     The same envelope, named <c>requests</c>: it is a list of accounts read the same paged way, and a second
-    ///     shape for it would mean a script reading two lists of accounts two ways.
+    ///     The same envelope, named <c>requests</c>, and with no account named: it is a list of accounts read the same
+    ///     paged way, only ever the profile's own, and a second shape for it would mean a script reading two lists of
+    ///     accounts two ways.
     /// </remarks>
-    public static void WriteRequests(IAnsiConsole console, AccountFetch fetch)
+    public static void WriteRequests(IAnsiConsole console, AccountFetch fetch) =>
+        Write(console, "requests", whose: null, fetch);
+
+    private static void Write(IAnsiConsole console, string list, string? whose, AccountFetch fetch)
     {
         JsonOutput.Write(
             console,
             new AccountListDocument(
-                "requests",
-                null,
+                list,
+                whose,
                 fetch.IsComplete,
                 RateLimitDocument.Of(fetch.StoppedBy),
                 fetch.Accounts.Select(AccountDocument.Of).ToList()));

@@ -98,16 +98,22 @@ internal static class AccountReport
     ///     three ties in more than six ways.
     /// </summary>
     /// <remarks>
-    ///     Following is the one that does not always do what was asked: a locked account is asked rather than followed,
-    ///     and only the standing the instance answered with says which happened. Saying "now following" over a request
-    ///     nobody has accepted yet would tell the user their timeline is about to change when it is not.
+    ///     <para>
+    ///         Following is the one that does not always do what was asked: a locked account is asked rather than
+    ///         followed, and only the standing the instance answered with says which happened. Saying "now following"
+    ///         over a request nobody has accepted yet would tell the user their timeline is about to change when it is
+    ///         not.
+    ///     </para>
+    ///     Unfollowing says only that it was done, because the same command also withdraws a follow request that was
+    ///     never accepted — and what came back cannot tell the two apart, since either way the profile now neither
+    ///     follows the account nor is waiting on it. "No longer following" would claim a follow that may never have
+    ///     existed.
     /// </remarks>
     private static string Did(Account account, AccountTie tie, bool wanted) => (tie, wanted) switch
     {
-        (AccountTie.Follow, true) when account.Standing is { Following: false, FollowRequested: true } =>
-            "Asked to follow",
+        (AccountTie.Follow, true) when account.Standing is { IsFollowWaiting: true } => "Asked to follow",
         (AccountTie.Follow, true) => "Now following",
-        (AccountTie.Follow, false) => "No longer following",
+        (AccountTie.Follow, false) => "Unfollowed",
         (AccountTie.Block, true) => "Blocked",
         (AccountTie.Block, false) => "Unblocked",
         (AccountTie.Mute, true) => "Muted",

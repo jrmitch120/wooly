@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http;
+using System.Text;
 using Microsoft.Extensions.DependencyInjection;
 using Wooly.Core;
 using Wooly.Core.Accounts;
@@ -155,21 +156,41 @@ public class AccountRelationshipsTests
 
     /// <summary>
     ///     The list is paged by the loop a timeline and an inbox are read down, so more than a page's worth is asked
-    ///     for a page at a time rather than not at all.
+    ///     for a page at a time rather than not at all — and the next page starts where the instance said it does.
     /// </summary>
     [Fact]
     public async Task List_AsksForFurtherPagesUntilItHasWhatWasAskedFor()
     {
         var network = new ScriptedHttpMessageHandler(
             ScriptedHttpMessageHandler.Json(AccountJson("jeff", id: "1")),
-            ScriptedHttpMessageHandler.Json(Accounts(Enumerable.Range(1, 80).Select(id => AccountJson($"a{id}", id: $"{id}")).ToArray())),
-            ScriptedHttpMessageHandler.Json(Accounts(AccountJson("last", id: "999"))));
+            Page(FullPage(), nextPageAt: "4801"),
+            Page(Accounts(AccountJson("last", id: "999")), nextPageAt: null));
 
         var fetch = await Relationships(network).List(Profile, FollowSide.Following, account: null, 100, TestContext.Current.CancellationToken);
 
         Assert.Equal(81, fetch.Accounts.Count);
         Assert.Contains("limit=80", network.Requests[1].RequestUri?.Query);
-        Assert.Contains("max_id=80", network.Requests[2].RequestUri?.Query);
+        Assert.Contains("max_id=4801", network.Requests[2].RequestUri?.Query);
+    }
+
+    /// <summary>
+    ///     Mastodon pages these lists by the id of the follow, not of the account followed, so an instance that names
+    ///     no next page has ended the list. Guessing one out of the last account's id would ask for a page starting
+    ///     somewhere in another id space altogether, and silently skip or repeat accounts.
+    /// </summary>
+    [Fact]
+    public async Task List_StopsWhereTheInstanceNamedNoFurtherPageRatherThanGuessingWhereOneWouldStart()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(AccountJson("jeff", id: "1")),
+            Page(FullPage(), nextPageAt: null),
+            Page(Accounts(AccountJson("never-read", id: "999")), nextPageAt: null));
+
+        var fetch = await Relationships(network).List(Profile, FollowSide.Followers, account: null, 100, TestContext.Current.CancellationToken);
+
+        Assert.Equal(80, fetch.Accounts.Count);
+        Assert.True(fetch.IsComplete);
+        Assert.Equal(2, network.Requests.Count);
     }
 
     /// <summary>
@@ -181,7 +202,7 @@ public class AccountRelationshipsTests
     {
         var network = new ScriptedHttpMessageHandler(
             ScriptedHttpMessageHandler.Json(AccountJson("jeff", id: "1")),
-            ScriptedHttpMessageHandler.Json(Accounts(Enumerable.Range(1, 80).Select(id => AccountJson($"a{id}", id: $"{id}")).ToArray())),
+            Page(FullPage(), nextPageAt: "4801"),
             ScriptedHttpMessageHandler.Status(HttpStatusCode.TooManyRequests));
 
         var fetch = await Relationships(network).List(Profile, FollowSide.Followers, account: null, 100, TestContext.Current.CancellationToken);
@@ -238,6 +259,35 @@ public class AccountRelationshipsTests
         new(payloads.Select(ScriptedHttpMessageHandler.Json).ToArray());
 
     private static string Accounts(params string[] accounts) => $"[{string.Join(",", accounts)}]";
+
+    /// <summary>A page as full as the endpoint serves, which is what makes the loop ask whether there is another.</summary>
+    private static string FullPage() =>
+        Accounts(Enumerable.Range(1, 80).Select(id => AccountJson($"a{id}", $"{id}")).ToArray());
+
+    /// <summary>
+    ///     One page of a list, with the link header an instance names the next page in.
+    /// </summary>
+    /// <param name="nextPageAt">
+    ///     Where the next page starts, in the id space the endpoint pages by — a follow's id, which is nothing like any
+    ///     account id on the page — or <see langword="null" /> for an instance saying this is the last page.
+    /// </param>
+    private static Func<HttpRequestMessage, HttpResponseMessage> Page(string json, string? nextPageAt) =>
+        _ =>
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(json, Encoding.UTF8, "application/json"),
+            };
+
+            if (nextPageAt is not null)
+            {
+                response.Headers.TryAddWithoutValidation(
+                    "Link",
+                    $"""<https://mastodon.social/api/v1/accounts/1/followers?max_id={nextPageAt}>; rel="next" """);
+            }
+
+            return response;
+        };
 
     /// <param name="account">
     ///     The wire's <c>acct</c>: bare for an account on the instance being read, <c>username@instance</c> for one
