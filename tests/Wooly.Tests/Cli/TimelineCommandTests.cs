@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Spectre.Console.Testing;
 using Wooly.Cli;
 using Wooly.Core;
+using Wooly.Core.Posts;
 using Wooly.Core.Credentials;
 using Wooly.Core.Profiles;
 using Wooly.Core.Timelines;
@@ -19,7 +20,7 @@ public class TimelineCommandTests : IDisposable
 {
     private readonly TemporaryDirectory _directory = new();
 
-    private FakeTimelineReader _timelines = FakeTimelineReader.Holding(FakeTimelineReader.APost());
+    private FakeTimelineReader _timelines = FakeTimelineReader.Holding(APost.With());
 
     public void Dispose() => _directory.Dispose();
 
@@ -120,9 +121,9 @@ public class TimelineCommandTests : IDisposable
     public void Home_ShowsABoostAsWhoBoostedItAndThePostTheyBoosted()
     {
         AddProfile();
-        _timelines = FakeTimelineReader.Holding(FakeTimelineReader.APost(
+        _timelines = FakeTimelineReader.Holding(APost.With(
             content: string.Empty,
-            boosted: FakeTimelineReader.APost(id: "99", account: "alice@hachyderm.io", content: "The original")));
+            boosted: APost.With(id: "99", account: "alice@hachyderm.io", content: "The original")));
 
         var run = Run(["timeline", "home"]);
 
@@ -140,7 +141,7 @@ public class TimelineCommandTests : IDisposable
     public void Home_KeepsAPostsOwnLinesWithoutIndentingTheBlankOnes()
     {
         AddProfile();
-        _timelines = FakeTimelineReader.Holding(FakeTimelineReader.APost(content: "First\n\nSecond"));
+        _timelines = FakeTimelineReader.Holding(APost.With(content: "First\n\nSecond"));
 
         var run = Run(["timeline", "home"]);
 
@@ -152,7 +153,7 @@ public class TimelineCommandTests : IDisposable
     public void Home_ShowsAPostWithNoTextAtAllWithoutAnEmptyLineStandingInForIt()
     {
         AddProfile();
-        _timelines = FakeTimelineReader.Holding(FakeTimelineReader.APost(content: string.Empty));
+        _timelines = FakeTimelineReader.Holding(APost.With(content: string.Empty));
 
         var run = Run(["timeline", "home"]);
 
@@ -164,7 +165,7 @@ public class TimelineCommandTests : IDisposable
     public void Home_ShowsAContentWarningApartFromThePostsText()
     {
         AddProfile();
-        _timelines = FakeTimelineReader.Holding(FakeTimelineReader.APost(contentWarning: "spoilers"));
+        _timelines = FakeTimelineReader.Holding(APost.With(contentWarning: "spoilers"));
 
         var run = Run(["timeline", "home"]);
 
@@ -250,7 +251,7 @@ public class TimelineCommandTests : IDisposable
     public void Home_ShowsThePostsItGotAndReportsTheRateLimitThatStoppedTheRest()
     {
         AddProfile();
-        _timelines = FakeTimelineReader.RateLimitedAfter(FakeTimelineReader.APost());
+        _timelines = FakeTimelineReader.RateLimitedAfter(APost.With());
 
         var run = Run(["timeline", "home"]);
 
@@ -364,7 +365,7 @@ public class TimelineCommandTests : IDisposable
     public void Home_WritesJsonUnwrappedByTheConsolesWidth()
     {
         AddProfile();
-        _timelines = FakeTimelineReader.Holding(FakeTimelineReader.APost(content: new string('x', 400)));
+        _timelines = FakeTimelineReader.Holding(APost.With(content: new string('x', 400)));
 
         var run = Run(["timeline", "home", "--json"], consoleWidth: 80);
 

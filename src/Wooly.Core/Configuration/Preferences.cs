@@ -1,3 +1,5 @@
+using Wooly.Core.Posts;
+
 namespace Wooly.Core.Configuration;
 
 /// <summary>Settings that change how this client behaves, rather than who it talks to.</summary>

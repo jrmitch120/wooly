@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Wooly.Core.Configuration;
 using Wooly.Core.Credentials;
 using Wooly.Core.Http;
+using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
 using Wooly.Core.Timelines;
 
@@ -46,6 +47,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IProfileRegistry, ProfileRegistry>();
         services.AddSingleton<IAccessTokenVerifier, AccessTokenVerifier>();
         services.AddSingleton<ITimelineReader, TimelineReader>();
+        services.AddSingleton<IPostAuthor, PostAuthor>();
 
         // The two ways a profile is connected to an account (ADR-0004): through the browser, and — for a machine with
         // no browser to open — by pasting a token, which needs nothing registered because the user brings the token.

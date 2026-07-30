@@ -1,3 +1,4 @@
+using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
 
 namespace Wooly.Core.Timelines;

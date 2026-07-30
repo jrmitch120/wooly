@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Text;
 using Microsoft.Extensions.DependencyInjection;
 using Wooly.Core;
+using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
 using Wooly.Core.Timelines;
 using Wooly.Tests.Fakes;
@@ -59,6 +60,25 @@ public class TimelineReaderTests
         Assert.Equal("https://mastodon.social/@jeff/110", post.Url);
         Assert.Null(post.ContentWarning);
         Assert.Null(post.Boosted);
+    }
+
+    /// <summary>
+    ///     Read off the post rather than assumed. A reader who cannot see that a post went out followers-only cannot tell
+    ///     which of their own posts is safe to quote elsewhere.
+    /// </summary>
+    [Theory]
+    [InlineData("public", PostVisibility.Public)]
+    [InlineData("unlisted", PostVisibility.Unlisted)]
+    [InlineData("private", PostVisibility.Private)]
+    [InlineData("direct", PostVisibility.Direct)]
+    public async Task Read_ReportsWhoCanSeeEachPost(string wire, PostVisibility expected)
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(Page(PostJson("110", visibility: wire))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        Assert.Equal(expected, Assert.Single(fetch.Posts).Visibility);
     }
 
     /// <summary>
@@ -314,6 +334,7 @@ public class TimelineReaderTests
         string account = "jeff",
         string content = "<p>Hello world</p>",
         string? contentWarning = null,
+        string visibility = "public",
         string? boosting = null) =>
         $$"""
           {
@@ -329,7 +350,7 @@ public class TimelineReaderTests
             },
             "content": "{{content}}",
             "spoiler_text": "{{contentWarning}}",
-            "visibility": "public",
+            "visibility": "{{visibility}}",
             "reblogs_count": 3,
             "favourites_count": 5,
             "replies_count": 1,

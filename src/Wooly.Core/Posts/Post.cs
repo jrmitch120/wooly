@@ -1,4 +1,4 @@
-namespace Wooly.Core.Timelines;
+namespace Wooly.Core.Posts;
 
 /// <summary>
 ///     One post, in this project's vocabulary rather than the API's (CONTEXT.md): a <c>status</c> is a post, a
@@ -26,6 +26,13 @@ public sealed record Post
     ///     from <see cref="Content" /> so a reader can honour the warning rather than print past it.
     /// </summary>
     public string? ContentWarning { get; init; }
+
+    /// <summary>
+    ///     Who can see it. Read back off a post rather than assumed, which is what lets a client confirm that the
+    ///     post it just published went out as narrowly as it was asked to — an author who meant <c>private</c> and got
+    ///     <c>public</c> has no way to undo that by the time they find out.
+    /// </summary>
+    public required PostVisibility Visibility { get; init; }
 
     /// <summary>How many accounts have boosted it.</summary>
     public required long Boosts { get; init; }

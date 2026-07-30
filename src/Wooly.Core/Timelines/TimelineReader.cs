@@ -1,6 +1,7 @@
 using Mastonet;
 using Mastonet.Entities;
 using Wooly.Core.Errors;
+using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
 
 namespace Wooly.Core.Timelines;
@@ -50,7 +51,7 @@ public sealed class TimelineReader(IMastodonClientFactory clientFactory) : ITime
                 return TimelineFetch.StoppedShort(posts, rateLimit);
             }
 
-            posts.AddRange(page.Select(status => ToPost(status, profile.Instance)));
+            posts.AddRange(page.Select(status => PostWire.ToPost(status, profile.Instance)));
 
             // Nothing came back, so asking again cannot do better however much the instance says is left.
             if (page.Count == 0)
@@ -83,41 +84,4 @@ public sealed class TimelineReader(IMastodonClientFactory clientFactory) : ITime
             TimelineScope.Tag => client.GetTagTimeline(timeline.Hashtag!, options),
             _ => throw new ArgumentOutOfRangeException(nameof(timeline), timeline.Scope, "Not a timeline this client reads."),
         };
-
-    private static Post ToPost(Status status, string instance) => new()
-    {
-        Id = status.Id,
-        Account = Qualify(status.Account, instance),
-        Author = string.IsNullOrWhiteSpace(status.Account.DisplayName)
-            ? status.Account.UserName
-            : status.Account.DisplayName,
-        PostedAt = AsUtc(status.CreatedAt),
-        Content = PostContent.ToPlainText(status.Content),
-
-        // The wire says "no warning" with an empty string, which is not the same thing as a warning to print.
-        ContentWarning = string.IsNullOrWhiteSpace(status.SpoilerText) ? null : status.SpoilerText,
-        Boosts = status.ReblogCount,
-        Favorites = status.FavouritesCount,
-        Replies = status.RepliesCount,
-        Boosted = status.Reblog is null ? null : ToPost(status.Reblog, instance),
-        Url = status.Url,
-    };
-
-    /// <summary>
-    ///     Mastodon timestamps every post in UTC. A parser that hands one back as <see cref="DateTimeKind.Unspecified" />
-    ///     is still handing back UTC, so it is read as such rather than as this machine's local time.
-    /// </summary>
-    private static DateTimeOffset AsUtc(DateTime moment) => moment.Kind switch
-    {
-        DateTimeKind.Unspecified => new DateTimeOffset(moment, TimeSpan.Zero),
-        _ => new DateTimeOffset(moment.ToUniversalTime(), TimeSpan.Zero),
-    };
-
-    /// <summary>
-    ///     An instance names its own accounts by bare username and everyone else's by <c>username@instance</c>. A
-    ///     timeline mixes the two, so the bare ones are qualified here — otherwise two posts side by side would say
-    ///     who wrote them in two different ways.
-    /// </summary>
-    private static string Qualify(Account account, string instance) =>
-        account.AccountName.Contains('@') ? account.AccountName : $"{account.AccountName}@{instance}";
 }

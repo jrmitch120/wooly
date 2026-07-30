@@ -75,6 +75,23 @@ public static class WoolyCommandApp
                        .WithDescription("Change the profile commands act as by default.");
             });
 
+            config.AddBranch("post", post =>
+            {
+                post.SetDescription("Write, change and take down the current profile's own posts.");
+
+                post.AddCommand<PostCreateCommand>("create")
+                    .WithDescription("Publish a new post, optionally with a content warning, files or a poll.");
+
+                post.AddCommand<PostReplyCommand>("reply")
+                    .WithDescription("Publish a post answering another one, composed the same way as any other post.");
+
+                post.AddCommand<PostEditCommand>("edit")
+                    .WithDescription("Change what one of your posts says, leaving the rest of it as it was.");
+
+                post.AddCommand<PostDeleteCommand>("delete")
+                    .WithDescription("Take one of your posts down. This cannot be undone.");
+            });
+
             config.AddBranch("timeline", timeline =>
             {
                 timeline.SetDescription("Read a timeline as the current profile.");

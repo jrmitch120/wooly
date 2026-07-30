@@ -13,6 +13,13 @@ internal sealed class ScriptedHttpMessageHandler(params Func<HttpRequestMessage,
     /// <summary>Every request the handler was asked to send, in order.</summary>
     public List<HttpRequestMessage> Requests { get; } = [];
 
+    /// <summary>
+    ///     What each of those requests carried, in the same order, and an empty string where one carried nothing. Read
+    ///     as the request goes past rather than off <see cref="Requests" /> afterwards, because a request body is a
+    ///     stream that has been consumed by then.
+    /// </summary>
+    public List<string> Bodies { get; } = [];
+
     /// <summary>A handler that fails every send the way a dropped connection does.</summary>
     public static ScriptedHttpMessageHandler AlwaysUnreachable(string message = "Connection refused") =>
         new(Unreachable(message));
@@ -39,12 +46,15 @@ internal sealed class ScriptedHttpMessageHandler(params Func<HttpRequestMessage,
             Content = new StringContent($$"""{"error":"{{error}}"}""", Encoding.UTF8, "application/json"),
         };
 
-    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    protected override async Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken)
     {
         Requests.Add(request);
+        Bodies.Add(request.Content is null ? string.Empty : await request.Content.ReadAsStringAsync(cancellationToken));
 
         var step = steps[Math.Min(Requests.Count - 1, steps.Length - 1)];
 
-        return Task.FromResult(step(request));
+        return step(request);
     }
 }

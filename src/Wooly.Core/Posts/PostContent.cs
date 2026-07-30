@@ -1,7 +1,7 @@
 using System.Net;
 using System.Text;
 
-namespace Wooly.Core.Timelines;
+namespace Wooly.Core.Posts;
 
 /// <summary>
 ///     Flattens the HTML an instance serves a post's text as into the plain text a terminal can print. Mastodon emits a

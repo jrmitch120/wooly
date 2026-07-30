@@ -1,4 +1,5 @@
 using Wooly.Core.Errors;
+using Wooly.Core.Posts;
 
 namespace Wooly.Core.Timelines;
 
