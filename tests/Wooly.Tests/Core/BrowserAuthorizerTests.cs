@@ -103,9 +103,13 @@ public class BrowserAuthorizerTests
         Assert.Equal(QueryOf(authorization.AuthorizationUrl)["redirect_uri"], submitted["redirect_uri"]);
     }
 
-    /// <summary>The point of the state value: an authorization this sign-in never asked for is not spent.</summary>
+    /// <summary>
+    ///     The point of the state value: an authorization this sign-in never asked for is not spent. It does not end
+    ///     the sign-in either — the socket is on an address anything running here can reach, so ending on one would
+    ///     let any local process stop a sign-in by guessing a port.
+    /// </summary>
     [Fact]
-    public async Task AwaitAccessToken_RefusesAnAuthorizationThisSignInNeverAskedFor()
+    public async Task AwaitAccessToken_IgnoresAnAuthorizationThisSignInNeverAskedForAndKeepsWaiting()
     {
         var network = AnInstanceThatAuthorizes();
         using var authorization = await Begin(network);
@@ -113,8 +117,36 @@ public class BrowserAuthorizerTests
         var accessToken = authorization.AwaitAccessToken(TestContext.Current.CancellationToken);
         await SendBrowserBack(authorization, "code=code-planted&state=state-someone-elses");
 
-        await Assert.ThrowsAsync<AuthenticationException>(() => accessToken);
-        Assert.Single(network.Requests);
+        Assert.False(accessToken.IsCompleted);
+
+        await SendBrowserBack(authorization, $"code=code-abc&state={StateOf(authorization)}");
+
+        Assert.Equal("token-from-browser", await accessToken);
+
+        // The planted code was never taken to the instance: one call to register, one to exchange, and the exchange
+        // was of the genuine code.
+        Assert.Equal(2, network.Requests.Count);
+    }
+
+    /// <summary>
+    ///     A refusal is text an instance chose, and the same address anything on this machine can reach is where it
+    ///     arrives — so one arriving without this sign-in's state must not be repeated to the user as though the
+    ///     instance had said it.
+    /// </summary>
+    [Fact]
+    public async Task AwaitAccessToken_IsNotEndedByARefusalFromSomethingOtherThanThisSignIn()
+    {
+        var network = AnInstanceThatAuthorizes();
+        using var authorization = await Begin(network);
+
+        var accessToken = authorization.AwaitAccessToken(TestContext.Current.CancellationToken);
+        await SendBrowserBack(authorization, "error=access_denied&error_description=Planted+by+something+else");
+
+        Assert.False(accessToken.IsCompleted);
+
+        await SendBrowserBack(authorization, $"code=code-abc&state={StateOf(authorization)}");
+
+        Assert.Equal("token-from-browser", await accessToken);
     }
 
     [Fact]
@@ -124,7 +156,11 @@ public class BrowserAuthorizerTests
         using var authorization = await Begin(network);
 
         var accessToken = authorization.AwaitAccessToken(TestContext.Current.CancellationToken);
-        await SendBrowserBack(authorization, "error=access_denied&error_description=The+request+was+denied");
+
+        // With the state the request went out with, which is what an instance echoes back on a refusal too.
+        await SendBrowserBack(
+            authorization,
+            $"error=access_denied&error_description=The+request+was+denied&state={StateOf(authorization)}");
 
         var exception = await Assert.ThrowsAsync<AuthenticationException>(() => accessToken);
 

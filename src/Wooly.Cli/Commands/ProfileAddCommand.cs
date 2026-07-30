@@ -60,6 +60,15 @@ internal sealed class ProfileAddCommand(
                 return ValidationResult.Error(InstanceDomain.Rejection(Instance));
             }
 
+            // Both name the same fallback and only one of them can be honoured, so a user who passed both meant
+            // something this command cannot do. Letting the token quietly win would be the silence ADR-0006 turned
+            // strict parsing on to stop.
+            if (Manual && !string.IsNullOrWhiteSpace(AccessToken))
+            {
+                return ValidationResult.Error(
+                    "Pass --token <TOKEN> to give a token outright, or --manual to be asked for one — not both.");
+            }
+
             return ValidationResult.Success();
         }
     }
@@ -104,9 +113,22 @@ internal sealed class ProfileAddCommand(
             return Task.FromResult(settings.AccessToken.Trim());
         }
 
-        return settings.Manual
-            ? Task.FromResult(AskForAccessToken())
-            : AuthorizeInBrowser(settings.Instance, cancellationToken);
+        if (settings.Manual)
+        {
+            return Task.FromResult(AskForAccessToken());
+        }
+
+        // A browser sign-in is a conversation: the address to go to is printed here, and the answer comes back here.
+        // With no terminal for either half — under a pipe, or in CI — nobody would see the address, and the wait
+        // would end minutes later in a failure the user was never given a way to avoid. ADR-0004's fallback is the
+        // whole answer to a machine like that, so it is named rather than merely available.
+        if (!CanAskTheUser)
+        {
+            throw new UsageException(
+                "Connecting through the browser needs a terminal, and there is none here. Pass --token <TOKEN>.");
+        }
+
+        return AuthorizeInBrowser(settings.Instance, cancellationToken);
     }
 
     private string AskForAccessToken()

@@ -89,20 +89,19 @@ public sealed class BrowserAuthorizer(IMastodonClientFactory clientFactory, Time
         /// <inheritdoc />
         public async Task<string> AwaitAccessToken(CancellationToken cancellationToken)
         {
-            var redirect = await AwaitRedirect(cancellationToken);
+            using var waiting = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
+            waiting.CancelAfter(patience);
+
+            var redirect = await AwaitOurRedirect(waiting.Token, cancellationToken);
+
+            // Read only once the redirect is known to be this sign-in's. The error and its description are text an
+            // instance chose, and anything that can reach the socket could have chosen them instead — so they are
+            // repeated to the user only after there is a reason to believe the instance said them.
             if (redirect.Error is not null)
             {
                 throw new AuthenticationException(
                     $"{instance} did not authorize {WoolyClient.Name}: {redirect.ErrorDescription ?? redirect.Error}");
-            }
-
-            // Ordinal because this is a comparison of two opaque values, not of two pieces of text: nothing about
-            // culture or case should make two different states look like one.
-            if (!string.Equals(redirect.State, state, StringComparison.Ordinal))
-            {
-                throw new AuthenticationException(
-                    "The browser came back with an authorization this sign-in did not ask for, so it was not used. Authorize the profile again.");
             }
 
             if (redirect.Code is null)
@@ -116,15 +115,31 @@ public sealed class BrowserAuthorizer(IMastodonClientFactory clientFactory, Time
         /// <inheritdoc />
         public void Dispose() => listener.Dispose();
 
-        private async Task<AuthorizationRedirect> AwaitRedirect(CancellationToken cancellationToken)
+        /// <summary>
+        ///     Waits for a redirect bearing this sign-in's state value, ignoring any that does not. The socket is on
+        ///     an address anything else running here can reach, so an unrecognized redirect says nothing about this
+        ///     sign-in — least of all that it should end. Treating one as an answer would let any local process stop
+        ///     a sign-in by guessing a port; ignoring it costs only the wait that was already being served.
+        /// </summary>
+        /// <param name="waiting">The wait as a whole, including the patience this class runs out of.</param>
+        /// <param name="cancellationToken">The caller's own, to tell their cancellation from a timeout.</param>
+        private async Task<AuthorizationRedirect> AwaitOurRedirect(
+            CancellationToken waiting,
+            CancellationToken cancellationToken)
         {
-            using var waiting = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-
-            waiting.CancelAfter(patience);
-
             try
             {
-                return await listener.AwaitRedirect(waiting.Token);
+                while (true)
+                {
+                    var redirect = await listener.AwaitRedirect(waiting);
+
+                    // Ordinal because this is a comparison of two opaque values, not of two pieces of text: nothing
+                    // about culture or case should make two different states look like one.
+                    if (string.Equals(redirect.State, state, StringComparison.Ordinal))
+                    {
+                        return redirect;
+                    }
+                }
             }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {

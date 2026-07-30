@@ -133,6 +133,50 @@ public class ProfileCommandTests : IDisposable
     }
 
     /// <summary>
+    ///     ADR-0004's fallback exists for the machine with no browser, and a machine with no terminal has no way
+    ///     through the browser path either — nobody would see the address, and the wait would end minutes later in a
+    ///     failure the user was never offered a way around. So it is refused at once, naming the way through.
+    /// </summary>
+    [Fact]
+    public void Add_RefusesABrowserSignInWithNoTerminalToConductItAt()
+    {
+        var run = Run(["profile", "add", "personal", "--instance", "mastodon.social"], atATerminal: false);
+
+        Assert.Equal((int)ExitCode.UsageError, run.ExitCode);
+        Assert.Contains("--token", run.ErrorOutput);
+        Assert.Empty(_authorizer.Instances);
+        Assert.Empty(_browser.Opened);
+    }
+
+    /// <summary>A token given outright still works with no terminal — it is what the fallback is for.</summary>
+    [Fact]
+    public void Add_ConnectsWithATokenGivenOutrightEvenWithNoTerminal()
+    {
+        var run = Run(
+            ["profile", "add", "personal", "--instance", "mastodon.social", "--token", "token-personal"],
+            atATerminal: false);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Equal("token-personal", _credentialStore.FindAccessToken("personal"));
+    }
+
+    /// <summary>
+    ///     Both flags name the same fallback and only one can be honoured, so passing both meant something this
+    ///     command cannot do. Letting the token quietly win would be the silence strict parsing was turned on to stop.
+    /// </summary>
+    [Fact]
+    public void Add_RefusesToBeToldTwiceHowToDoTheManualPath()
+    {
+        var run = Run(
+            ["profile", "add", "personal", "--instance", "mastodon.social", "--token", "token-personal", "--manual"]);
+
+        Assert.Equal((int)ExitCode.UsageError, run.ExitCode);
+        Assert.Contains("--manual", run.ErrorOutput);
+        Assert.Empty(_verifier.Tokens);
+        Assert.False(File.Exists(Path.Combine(_directory.Path, "config.toml")));
+    }
+
+    /// <summary>
     ///     ADR-0004 rules out password-grant authentication outright, so there is no option to give one to. The point
     ///     of testing it is that "no such option" is a thing a later change could quietly stop being true.
     /// </summary>
@@ -295,19 +339,28 @@ public class ProfileCommandTests : IDisposable
     private CommandRun Add(string name, string instance, string accessToken) =>
         Run(["profile", "add", name, "--instance", instance, "--token", accessToken]);
 
+    /// <param name="atATerminal">
+    ///     Whether there is a person watching. True by default, because that is where this client is run from — set
+    ///     false for the machine that has none, which is a different command surface rather than a quieter one.
+    /// </param>
     private CommandRun Run(
         string[] args,
         string? typed = null,
         FakeAccessTokenVerifier? verifier = null,
-        FakeBrowserAuthorizer? authorizer = null)
+        FakeBrowserAuthorizer? authorizer = null,
+        bool atATerminal = true)
     {
         // Wide enough that no assertion is defeated by a wrapped line.
         var console = new TestConsole().Width(200);
         var errorConsole = new TestConsole().Width(200);
 
-        if (typed is not null)
+        if (atATerminal)
         {
             console.Interactive();
+        }
+
+        if (typed is not null)
+        {
             console.Input.PushTextWithEnter(typed);
         }
 
