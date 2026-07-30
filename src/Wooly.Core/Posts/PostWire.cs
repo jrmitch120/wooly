@@ -18,11 +18,9 @@ internal static class PostWire
     public static Post ToPost(Status status, string instance) => new()
     {
         Id = status.Id,
-        Account = Qualify(status.Account, instance),
-        Author = string.IsNullOrWhiteSpace(status.Account.DisplayName)
-            ? status.Account.UserName
-            : status.Account.DisplayName,
-        PostedAt = AsUtc(status.CreatedAt),
+        Account = MastodonWire.Qualify(status.Account, instance),
+        Author = MastodonWire.DisplayName(status.Account),
+        PostedAt = MastodonWire.AsUtc(status.CreatedAt),
         Content = PostContent.ToPlainText(status.Content),
 
         // The wire says "no warning" with an empty string, which is not the same thing as a warning to print.
@@ -66,22 +64,4 @@ internal static class PostWire
             visibility,
             "Not a visibility this client knows."),
     };
-
-    /// <summary>
-    ///     Mastodon timestamps every post in UTC. A parser that hands one back as <see cref="DateTimeKind.Unspecified" />
-    ///     is still handing back UTC, so it is read as such rather than as this machine's local time.
-    /// </summary>
-    private static DateTimeOffset AsUtc(DateTime moment) => moment.Kind switch
-    {
-        DateTimeKind.Unspecified => new DateTimeOffset(moment, TimeSpan.Zero),
-        _ => new DateTimeOffset(moment.ToUniversalTime(), TimeSpan.Zero),
-    };
-
-    /// <summary>
-    ///     An instance names its own accounts by bare username and everyone else's by <c>username@instance</c>. A
-    ///     timeline mixes the two, so the bare ones are qualified here — otherwise two posts side by side would say
-    ///     who wrote them in two different ways.
-    /// </summary>
-    private static string Qualify(Account account, string instance) =>
-        account.AccountName.Contains('@') ? account.AccountName : $"{account.AccountName}@{instance}";
 }

@@ -1,6 +1,6 @@
 using Mastonet;
 using Mastonet.Entities;
-using Wooly.Core.Errors;
+using Wooly.Core.Paging;
 using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
 
@@ -8,8 +8,8 @@ namespace Wooly.Core.Timelines;
 
 /// <summary>
 ///     Reads a timeline through Mastonet, turning what an instance answers with into posts and asking again for as
-///     many pages as the caller's limit takes. Paging is this class's business alone — a caller asked for posts, not
-///     for a page and a cursor to carry back.
+///     many pages as the caller's limit takes. Paging is <see cref="PagedReading" />'s business, not the caller's — a
+///     caller asked for posts, not for a page and a cursor to carry back.
 ///     <para>
 ///         A rate limit stops the reading rather than ending it: what already arrived is worth having, and the fetch
 ///         carries the limit alongside it so the caller can tell a timeline cut short from one with nothing on it.
@@ -18,9 +18,6 @@ namespace Wooly.Core.Timelines;
 /// </summary>
 public sealed class TimelineReader(IMastodonClientFactory clientFactory) : ITimelineReader
 {
-    /// <summary>The most posts Mastodon serves in one call, so the most there is any point asking for.</summary>
-    private const int PageSize = 40;
-
     /// <inheritdoc />
     public async Task<TimelineFetch> Read(
         ActiveProfile profile,
@@ -29,50 +26,17 @@ public sealed class TimelineReader(IMastodonClientFactory clientFactory) : ITime
         CancellationToken cancellationToken)
     {
         var client = clientFactory.CreateClient(profile.Instance, profile.AccessToken);
-        var posts = new List<Post>();
-        string? nextPage = null;
 
-        while (posts.Count < limit)
-        {
-            // Mastonet's timeline calls take no cancellation token of their own, so a Ctrl-C lands between pages
-            // rather than during one. Between pages is where the pages this class added are, which is the part a
-            // caller could not have stopped itself.
-            cancellationToken.ThrowIfCancellationRequested();
+        var read = await PagedReading.Collect(
+            limit,
+            options => Fetch(client, timeline, options),
+            status => PostWire.ToPost(status, profile.Instance),
+            status => status.Id,
+            cancellationToken);
 
-            var wanted = Math.Min(PageSize, limit - posts.Count);
-            MastodonList<Status> page;
-
-            try
-            {
-                page = await Fetch(client, timeline, new ArrayOptions { Limit = wanted, MaxId = nextPage });
-            }
-            catch (RateLimitedException rateLimit)
-            {
-                return TimelineFetch.StoppedShort(posts, rateLimit);
-            }
-
-            posts.AddRange(page.Select(status => PostWire.ToPost(status, profile.Instance)));
-
-            // Nothing came back, so asking again cannot do better however much the instance says is left.
-            if (page.Count == 0)
-            {
-                break;
-            }
-
-            // The instance names where the next page starts in a link header, and that is the authority on whether
-            // there is one: a page can come back short of what was asked for and still not be the last, because an
-            // instance drops filtered posts from a page after counting them. Only where it names no next page does a
-            // page with room to spare mean the end — and there the oldest post just read is where a further page
-            // would start, since a page comes back newest first.
-            nextPage = page.NextPageMaxId ?? (page.Count < wanted ? null : page[^1].Id);
-
-            if (nextPage is null)
-            {
-                break;
-            }
-        }
-
-        return TimelineFetch.Complete(posts);
+        return read.StoppedBy is null
+            ? TimelineFetch.Complete(read.Items)
+            : TimelineFetch.StoppedShort(read.Items, read.StoppedBy);
     }
 
     private static Task<MastodonList<Status>> Fetch(IMastodonClient client, Timeline timeline, ArrayOptions options) =>

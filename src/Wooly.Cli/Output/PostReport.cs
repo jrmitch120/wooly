@@ -1,4 +1,3 @@
-using System.Globalization;
 using Spectre.Console;
 using Wooly.Core.Posts;
 
@@ -137,12 +136,7 @@ internal static class PostReport
         }
     }
 
-    /// <summary>
-    ///     Shown in this machine's own time zone: a person reading a post is placing it against their own day. Output
-    ///     meant to be read back somewhere else is <c>--json</c>'s, and that stays UTC.
-    /// </summary>
-    private static string PostedAt(Post post) =>
-        post.PostedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
+    private static string PostedAt(Post post) => LocalMoment.Of(post.PostedAt);
 
     private static string Counts(Post post) =>
         $"{Pluralize(post.Boosts, "boost")}, {Pluralize(post.Favorites, "favorite")}, "

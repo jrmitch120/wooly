@@ -18,7 +18,7 @@ internal static class TimelineJson
             NameOf(timeline.Scope),
             timeline.Hashtag,
             fetch.IsComplete,
-            fetch.StoppedBy is null ? null : new RateLimitDocument(fetch.StoppedBy.Instance, fetch.StoppedBy.ResetsAt),
+            RateLimitDocument.Of(fetch.StoppedBy),
             fetch.Posts.Select(PostDocument.Of).ToList());
 
         JsonOutput.Write(console, document);
@@ -47,8 +47,4 @@ internal static class TimelineJson
         [property: JsonPropertyName("complete")] bool Complete,
         [property: JsonPropertyName("rateLimit")] RateLimitDocument? RateLimit,
         [property: JsonPropertyName("posts")] IReadOnlyList<PostDocument> Posts);
-
-    private sealed record RateLimitDocument(
-        [property: JsonPropertyName("instance")] string Instance,
-        [property: JsonPropertyName("resetsAt")] DateTimeOffset? ResetsAt);
 }

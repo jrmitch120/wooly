@@ -113,6 +113,20 @@ public static class WoolyCommandApp
                     .WithDescription("Release a pinned post back to where it falls by date.");
             });
 
+            config.AddBranch("notification", notification =>
+            {
+                notification.SetDescription("Read and clear what is waiting for the current profile.");
+
+                notification.AddCommand<NotificationListCommand>("list")
+                            .WithDescription("Read the mentions, follows, boosts and favorites waiting for you.");
+
+                notification.AddCommand<NotificationDismissCommand>("dismiss")
+                            .WithDescription("Clear a single notification, named by its id.");
+
+                notification.AddCommand<NotificationClearCommand>("clear")
+                            .WithDescription("Clear every notification at once. This cannot be undone.");
+            });
+
             config.AddBranch("timeline", timeline =>
             {
                 timeline.SetDescription("Read a timeline as the current profile.");
