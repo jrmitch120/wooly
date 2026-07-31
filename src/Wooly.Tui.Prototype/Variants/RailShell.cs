@@ -229,9 +229,6 @@ internal abstract class RailShell : VariantWindow
     /// <summary>What this shell draws in front of a rail entry — a cursor, a key, an arrow.</summary>
     protected abstract string Prefix(int index);
 
-    /// <summary>Whether this destination is under the cursor but not asked for yet — waiting on the user, not the wire.</summary>
-    protected virtual bool Pending(int index) => false;
-
     /// <summary>An overlay this shell wants drawn over the content, or nothing.</summary>
     protected virtual IReadOnlyList<string> Overlay => [];
 
@@ -419,12 +416,7 @@ internal abstract class RailShell : VariantWindow
                 SetAttribute(current ? Ink.RailOn : Ink.Rail);
                 AddStr(0, row2, $"{shell.Prefix(index)}{Ink.Clip(label, width - 5)}".PadRight(width));
 
-                if (shell.Pending(index))
-                {
-                    SetAttribute(Ink.Handle);
-                    AddStr(width - 2, row2, "◌");
-                }
-                else if (waiting)
+                if (waiting)
                 {
                     SetAttribute(Ink.Warning);
                     AddStr(width - 2, row2, "◴");

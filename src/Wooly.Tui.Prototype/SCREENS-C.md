@@ -18,9 +18,9 @@ by waiting for the rail to be still before asking, so a fast walk costs one fetc
 
 ## C·0 — Cycle, settling — the anchored shell
 
-Tab walks the rail and what it lands on loads, exactly as before. What changed is *when*: the destination under
-the cursor is not asked for until the rail has been still for 180ms, so the five destinations you fly past on the
-way to the sixth are never requested at all. Same six tabs, same landing, **one fetch**.
+Tab counts steps along the rail. Nothing moves until you stop for 180ms — then the highlight lands where you
+counted to and that destination loads. A run of tab presses is one navigation, so the five destinations passed
+over are never drawn and never requested. Six tabs, one move, **one fetch**.
 ```
    Home             follow requests
    Local           ▌Maria Ochoa @maria@fosstodon.org                                         ○ 12m
@@ -48,14 +48,14 @@ way to the sixth are never requested at all. Same six tabs, same landing, **one 
 
 ### Mid-walk, before it settles
 
-The cursor moves on the keypress — the rail never feels laggy — while the content stays on the timeline you are
-leaving, and the destination under the cursor wears `◌`: waiting on you, not on the network. (`◴` is the
-other one, and means a fetch really is in flight.) Held still here with `WOOLY_SETTLE_MS=5000`.
+Three tabs in, with the settle held open by `WOOLY_SETTLE_MS=5000`. Nothing has happened yet — the highlight is
+still on Home, the timeline is still Home's, and the rail shows no half-state to explain. That is the point: there
+is no in-between to draw, because a run of presses has not finished being one move.
 ```
-   Home             home
+▸  Home             home
    Local           ▌Maria Ochoa @maria@fosstodon.org                                         ○ 12m
    Federated       ▌Finally shipped the terminal client rewrite. Terminal.Gui v2's instance-based
-▸  #dotnet      ◌  ▌application model made the whole shell testable — no more static state
+   #dotnet         ▌application model made the whole shell testable — no more static state
 ────────────────── ▌leaking between test runs.
    Notifications4  ▌↺ 12   ★ 34   ↩ 5    ⏎ read · a author
    Direct messa…1  ▌
@@ -72,7 +72,7 @@ other one, and means a fetch really is in flight.) Held still here with `WOOLY_S
 
 Before the settle rule this same walk cost **six fetches with five thrown away** — five timelines nobody read, and
 five bites of the rate-limit quota the rail is displaying. That number is what the other three models below were
-measured against, and it is a property of asking on every keypress rather than of cycling itself.
+measured against, and it is a property of moving and asking on every keypress rather than of cycling itself.
 
 ## C·1 — Highlight, then enter
 

@@ -3,27 +3,29 @@ using Terminal.Gui.Input;
 namespace Wooly.Tui.Prototype;
 
 /// <summary>
-///     C·0 — Cycle, settling. Tab walks the rail and the destination it lands on loads — but not until the rail has
-///     been still for <see cref="Settle" />. Holding tab through six destinations is one fetch, of the one you stopped
-///     on, because the five you passed through were never asked for in the first place.
+///     C·0 — Cycle, settling. Tab counts steps; nothing on screen moves until the rail has been still for
+///     <see cref="Settle" />, and then the highlight lands on where you counted to and that destination loads.
 ///     <para>
-///         The cursor still moves on every keypress, so the rail never feels laggy; what waits is the instance being
-///         asked. A destination whose fetch has not been sent yet is marked <c>◌</c>, so the rail says out loud that it
-///         is waiting for you rather than for the network.
+///         There is no in-between state to draw and none to explain: a run of tab presses is one navigation, so the
+///         rail shows where you were until it can show where you ended up. Six tabs is one move and one fetch.
 ///     </para>
 /// </summary>
 internal sealed class CycleRail : RailShell
 {
     /// <summary>
-    ///     How still the rail has to be before the destination under the cursor is actually loaded. Overridable through
-    ///     <c>WOOLY_SETTLE_MS</c> so the waiting state can be held still long enough to screenshot.
+    ///     How still the rail has to be before the highlight moves and the destination under it loads. Overridable
+    ///     through <c>WOOLY_SETTLE_MS</c> so the wait can be held open long enough to watch.
     /// </summary>
     private static readonly TimeSpan Settle = TimeSpan.FromMilliseconds(
         int.TryParse(Environment.GetEnvironmentVariable("WOOLY_SETTLE_MS"), out var ms) ? ms : 180);
 
+    /// <summary>Where the highlight is — only ever moved by a settle.</summary>
     private int _at;
-    private int _pending;
-    private bool _waiting;
+
+    /// <summary>Where the tab presses have counted to, which nothing draws until they stop.</summary>
+    private int _counted;
+
+    private int _token;
 
     public CycleRail() : base(4)
     {
@@ -32,8 +34,6 @@ internal sealed class CycleRail : RailShell
     protected override string Hint => "tab/shift-tab destination · j/k post · ⏎ read · a author · esc back";
 
     protected override string Prefix(int index) => index == _at ? "▸  " : "   ";
-
-    protected override bool Pending(int index) => _waiting && index == _at;
 
     protected override bool RailKey(Key key)
     {
@@ -56,19 +56,16 @@ internal sealed class CycleRail : RailShell
 
     private void Step(int by)
     {
-        _at = (_at + by + Stops.Length) % Stops.Length;
+        _counted = (_counted + by + Stops.Length) % Stops.Length;
 
-        // The cursor moves now; the fetch is scheduled and every earlier schedule is abandoned by the token, so only
-        // the last step in a run of them ever reaches the instance.
-        var mine = ++_pending;
-        _waiting = true;
-        Redraw();
+        // Every press abandons the settle the press before it left, so only the last one in a run ever lands.
+        var mine = ++_token;
 
         GetApp()?.AddTimeout(Settle, () =>
         {
-            if (mine == _pending)
+            if (mine == _token)
             {
-                _waiting = false;
+                _at = _counted;
                 Go(_at);
             }
 
