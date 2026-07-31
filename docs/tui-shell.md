@@ -62,7 +62,7 @@ workable only because the status row always shows the current screen's keys. Wha
 | `esc` | Up one level of the stack. Never quits. |
 | `ctrl-q` | Quit. |
 | `?` | The keymap for this screen. The spec has no in-app help story; this is the shell adding one, and #28 carries it — every other screen inherits it for free. |
-| `tab` / `shift-tab` | The next / previous destination. The cursor moves at once; the destination loads once the rail has been still for ~180ms. |
+| `tab` / `shift-tab` | Counts a step. The highlight moves, and the destination loads, once the tabbing has stopped for ~180ms. |
 | `/` | Search. |
 
 Feed and post:
@@ -112,7 +112,6 @@ glyph or a position that carries the same meaning when colour is gone.
 | `rail-unread` | An unread count | the number's presence |
 | `quota` / `quota-low` | Rate-limit budget left, and nearly spent | the number |
 | `chrome` | Breadcrumb and status rows | position |
-| `pending` | The destination under the cursor, not asked for yet | `◌` |
 | `loading` | A fetch in flight; stale content while it lands | `◴` |
 | `destructive` | A delete affordance and its confirmation | the word |
 | `error` | A failure the shell has to say out loud | the word |
@@ -162,22 +161,19 @@ Rules:
 
 ## Fetching, since the rail loads on arrival
 
-`tab` walks the rail and what it lands on loads (ADR-0014). Four rules keep that affordable, and none of them changes
+`tab` walks the rail and what it lands on loads (ADR-0014). Three rules keep that affordable, and none of them changes
 what the user does:
 
-- **A step schedules the fetch; it does not send it.** The cursor moves on the keypress, and the destination under it
-  is asked for only once the rail has been still for a settle window (~180ms). Each step abandons the previous
-  schedule, so a run of tabs sends exactly one request — the destination somebody stopped on. Holding tab through six
-  destinations costs one fetch, not six.
-- **The rail says which kind of waiting it is.** `◌` under the cursor means *waiting for you to stop*; `◴` means a
-  fetch really is in flight. A pause with no explanation reads as a hang.
+- **A press counts a step and restarts a settle window (~180ms); nothing is drawn or fetched until it closes.** Each
+  press abandons the window before it, so a run of presses is one move: the highlight lands where the count reached
+  and that one destination is fetched. Holding tab through six destinations is one move and one fetch, not six.
 - **A destination is cached for a short while.** A step onto one fetched recently draws immediately and asks for
   nothing, so walking out along the rail and back is one fetch per destination rather than one per arrival.
-- **An overtaken fetch is discarded, never drawn.** A reader two destinations further on must not have a stale timeline
-  appear underneath them.
+- **An overtaken fetch is discarded, never drawn.** A reader who has moved on must not have a stale timeline appear
+  underneath them.
 
-The settle window is the only thing that waits. The cursor, the highlight and the rail all move on the keypress; there
-is no press-enter-to-load and no destination that behaves differently from its neighbours.
+Because nothing moves ahead of its content, there is no half-state to indicate — no marker for *chosen but not loaded*.
+What the rail highlights is always a destination that was actually asked for.
 
 The alternatives were built and measured — a cursor that moves free until `⏎` commits, a key per destination, a jump
 list — and all cost one fetch against cycling's six *before* the settle rule, which is what closed the gap. They are on
