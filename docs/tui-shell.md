@@ -61,7 +61,7 @@ workable only because the status row always shows the current screen's keys. Wha
 |---|---|
 | `esc` | Up one level of the stack. Never quits. |
 | `ctrl-q` | Quit. |
-| `?` | The keymap for this screen. (The spec has no in-app help story; this is the shell adding one, and the theming/help ticket should carry it.) |
+| `?` | The keymap for this screen. The spec has no in-app help story; this is the shell adding one, and #28 carries it — every other screen inherits it for free. |
 | `tab` / `shift-tab` | Move between destinations — **see the open question below.** |
 | `/` | Search. |
 
