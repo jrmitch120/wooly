@@ -17,7 +17,7 @@ internal sealed class PostReplyCommand(
     IConfigStore config,
     IPostAuthor posts) : PostComposeCommand<PostReplyCommand.Settings>(console, profiles, config, posts)
 {
-    internal sealed class Settings : PostComposeSettings
+    internal sealed class Settings : PostPublishSettings
     {
         [CommandArgument(0, "<ID>")]
         [Description("The id of the post to answer, as shown by a timeline.")]

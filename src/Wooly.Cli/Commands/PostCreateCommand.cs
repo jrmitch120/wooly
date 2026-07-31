@@ -14,7 +14,7 @@ internal sealed class PostCreateCommand(
     IConfigStore config,
     IPostAuthor posts) : PostComposeCommand<PostCreateCommand.Settings>(console, profiles, config, posts)
 {
-    internal sealed class Settings : PostComposeSettings
+    internal sealed class Settings : PostPublishSettings
     {
         [CommandArgument(0, "<TEXT>")]
         [Description("What the post says. May be empty only for a post that is nothing but attached files.")]

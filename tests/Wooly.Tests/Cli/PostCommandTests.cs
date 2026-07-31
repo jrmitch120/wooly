@@ -374,6 +374,41 @@ public class PostCommandTests : IDisposable
         Assert.Single(draft.Media);
     }
 
+    /// <summary>
+    ///     A visibility typed on the command line is carried as chosen, which is what lets a reply refuse to go out
+    ///     wider than the post it answers rather than quietly narrowing what somebody asked for (ADR-0013). Whether it
+    ///     is too wide is the instance's answer to give, so the port is what decides — this proves the command tells it
+    ///     which kind of answer it has.
+    /// </summary>
+    [Fact]
+    public void Reply_CarriesAVisibilityTypedOnTheCommandLineAsOneThatWasChosen()
+    {
+        AddProfile();
+
+        Run(["post", "reply", "99", "Quite so", "--visibility", "private"]);
+
+        var draft = Assert.Single(_posts.Published).Draft;
+        Assert.Equal(PostVisibility.Private, draft.Visibility);
+        Assert.True(draft.VisibilityChosen);
+    }
+
+    /// <summary>
+    ///     The config file's preference is not a choice made about this reply, so it is narrowed to fit rather than
+    ///     refused. Carried as chosen, a profile that prefers public could never answer a direct message.
+    /// </summary>
+    [Fact]
+    public void Reply_CarriesTheConfigFilesPreferenceAsOneThatWasNotChosen()
+    {
+        AddProfile();
+        PreferVisibility("public");
+
+        Run(["post", "reply", "99", "Quite so"]);
+
+        var draft = Assert.Single(_posts.Published).Draft;
+        Assert.Equal(PostVisibility.Public, draft.Visibility);
+        Assert.False(draft.VisibilityChosen);
+    }
+
     [Fact]
     public void Reply_ReportsAMissingPostIdAsAUsageError()
     {

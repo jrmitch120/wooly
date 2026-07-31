@@ -45,6 +45,11 @@ public sealed class PostAuthor(IMastodonClientFactory clientFactory) : IPostAuth
         }
 
         var client = clientFactory.CreateClient(profile.Instance, profile.AccessToken);
+
+        // Before anything is uploaded, because this is the call that can refuse the whole publish. Only a reply pays
+        // for it, and only a reply needs it — see Reaching.
+        var reaching = await Reaching(client, draft, cancellationToken);
+
         var attachmentIds = await Upload(client, draft.Media, cancellationToken);
 
         // Mastonet's own calls take no cancellation token, so a Ctrl-C lands between calls rather than during one.
@@ -53,7 +58,7 @@ public sealed class PostAuthor(IMastodonClientFactory clientFactory) : IPostAuth
 
         var published = await client.PublishStatus(
             draft.Text,
-            draft.Visibility is { } visibility ? PostWire.ToWire(visibility) : null,
+            reaching is { } visibility ? PostWire.ToWire(visibility) : null,
             draft.InReplyTo,
             attachmentIds,
 
@@ -112,6 +117,53 @@ public sealed class PostAuthor(IMastodonClientFactory clientFactory) : IPostAuth
         var client = clientFactory.CreateClient(profile.Instance, profile.AccessToken);
 
         await client.DeleteStatus(postId);
+    }
+
+    /// <summary>
+    ///     Who the post should reach when it goes out, which for a reply is not simply what the draft said.
+    /// </summary>
+    /// <remarks>
+    ///     A reply is never published wider than the post it answers (ADR-0013). Mastodon does not enforce that — the
+    ///     API takes whatever visibility a request names, whatever it is answering — so a reply to a direct message
+    ///     composed at an account's own default would be published to the world, which is not a mistake anybody can
+    ///     take back. Knowing what is being answered takes a read before the write, the same trade
+    ///     <see cref="Edit" /> makes and for the same kind of reason.
+    ///     <para>
+    ///         A post answering nothing has nothing to be wider than, and pays for no read.
+    ///     </para>
+    /// </remarks>
+    /// <exception cref="WiderReplyException">
+    ///     The draft named a visibility wider than the post it answers. A standing preference is narrowed instead — see
+    ///     <see cref="PostDraft.VisibilityChosen" />.
+    /// </exception>
+    private static async Task<PostVisibility?> Reaching(
+        IMastodonClient client,
+        PostDraft draft,
+        CancellationToken cancellationToken)
+    {
+        if (draft.InReplyTo is not { } answeredId)
+        {
+            return draft.Visibility;
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var answered = PostWire.ToVisibility((await client.GetStatus(answeredId)).Visibility);
+
+        // Silence is answered as narrowly as the thing being answered, which is what every Mastodon client does and
+        // the only safe reading of it here: the account's own default on the instance is a value this client cannot
+        // see, so leaving the choice to it would be leaving it to something that might be wider.
+        if (draft.Visibility is not { } asked)
+        {
+            return answered;
+        }
+
+        if (draft.VisibilityChosen && PostAudience.IsWiderThan(asked, answered))
+        {
+            throw new WiderReplyException(asked, answered);
+        }
+
+        return PostAudience.Narrower(asked, answered);
     }
 
     /// <summary>

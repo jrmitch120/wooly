@@ -67,8 +67,10 @@ internal static class CommandFailure
 
         // How the command line was written, or what it asked for, was wrong. A profile named that does not exist
         // belongs here too, and so do a file that is not where --media said and a post that cannot be edited: each is a
-        // value on the command line that is wrong, not a client that could not do its job.
-        UnknownProfileException or UnknownAccountException or MediaNotFoundException or UneditablePostException
+        // value on the command line that is wrong, not a client that could not do its job. A reply asked to go out
+        // wider than the post it answers is the same kind of thing — a --visibility that cannot have what it said.
+        UnknownProfileException or UnknownAccountException or UnknownConversationException or MediaNotFoundException
+            or UneditablePostException or WiderReplyException
             or UsageException or CommandParseException or CommandRuntimeException => ExitCode.UsageError,
 
         _ => ExitCode.Error,

@@ -21,6 +21,17 @@ Something an instance tells an account happened to it: somebody mentioned it, fo
 its posts. This project names those four and passes any other kind on under the instance's own word for it (ADR-0010).
 A notification is distinct from the post it is about — it has an id of its own, which is what dismisses it.
 
+**Direct message**:
+A post whose visibility is direct, which Mastodon delivers only to the accounts its text mentions. Not a separate kind
+of thing from a post and not composed by a separate path — `dm send` is post authoring with the audience settled and the
+recipient written into the text (ADR-0013). "DM" is the CLI's noun for the branch and nothing else.
+_Avoid_: private message, PM
+
+**Conversation**:
+One thread of direct messages, as the instance keeps it: who it is with, whether anything in it is unread, and what was
+last said. It carries an id of its own, which is what shows it and what marks it read — distinct from the id of any
+**post** in it, and the two are not interchangeable.
+
 **Instance**:
 The Mastodon server a given account is registered on, identified by its domain (e.g. `mastodon.social`). Mastodon's own newer UI/docs increasingly say "server", but this project uses "instance" throughout for consistency with the wider ecosystem (other clients, API error messages) and to avoid ambiguity with "server" as hostname or client-server architecture.
 _Avoid_: server (when referring to a Mastodon instance)

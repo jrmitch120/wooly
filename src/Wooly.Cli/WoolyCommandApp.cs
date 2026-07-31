@@ -189,6 +189,28 @@ public static class WoolyCommandApp
                         .WithDescription("Read the public posts carrying a hashtag.");
             });
 
+            // A noun of its own rather than a corner of "post", even though a direct message is a post: what a user
+            // wants of their messages is a list of who is talking to them, which no timeline of posts answers. What
+            // the branch deliberately does not have is its own way of composing — dm send is post create with the
+            // audience settled (ADR-0013), and replying inside a conversation is post reply, which cannot answer a
+            // direct message any more widely than it was said.
+            config.AddBranch("dm", dm =>
+            {
+                dm.SetDescription("Read and write the direct conversations the current profile is in.");
+
+                dm.AddCommand<DirectMessageListCommand>("list")
+                  .WithDescription("List your direct conversations, and say which of them are unread.");
+
+                dm.AddCommand<DirectMessageShowCommand>("show")
+                  .WithDescription("Read one conversation in full, oldest post first.");
+
+                dm.AddCommand<DirectMessageSendCommand>("send")
+                  .WithDescription("Write to an account directly, without setting visibility or mentions by hand.");
+
+                dm.AddCommand<DirectMessageReadCommand>("read")
+                  .WithDescription("Clear the unread mark on a conversation.");
+            });
+
             // A verb of its own rather than a branch: one command covers accounts, hashtags and posts alike, which is
             // the point of it — a user searching a half-remembered word rarely knows which of the three it will be.
             config.AddCommand<SearchCommand>("search")

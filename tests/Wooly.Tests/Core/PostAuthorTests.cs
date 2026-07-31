@@ -116,6 +116,10 @@ public class PostAuthorTests : IDisposable
         Assert.DoesNotContain("visibility=", network.Bodies[0]);
     }
 
+    /// <summary>
+    ///     A reply reads the post it answers before it publishes, because it may not go out wider than that post
+    ///     (ADR-0013) — so the request naming the answered post comes first, and the publish second.
+    /// </summary>
     [Fact]
     public async Task Publish_NamesThePostAReplyAnswers()
     {
@@ -126,7 +130,105 @@ public class PostAuthorTests : IDisposable
             Draft("Quite so") with { InReplyTo = "99" },
             TestContext.Current.CancellationToken);
 
-        Assert.Contains("in_reply_to_id=99", network.Bodies[0]);
+        Assert.Equal(2, network.Requests.Count);
+        Assert.Equal(HttpMethod.Get, network.Requests[0].Method);
+        Assert.Equal("https://mastodon.social/api/v1/statuses/99", network.Requests[0].RequestUri?.ToString());
+        Assert.Contains("in_reply_to_id=99", network.Bodies[1]);
+    }
+
+    /// <summary>
+    ///     The reason for that read. Mastodon takes whatever visibility a request names, whatever it is answering, so a
+    ///     reply to a direct message composed at the account's own default would be published to the world — which is
+    ///     what makes an answer to a direct message go out direct without anybody saying so.
+    /// </summary>
+    [Theory]
+    [InlineData("direct", "visibility=direct")]
+    [InlineData("private", "visibility=private")]
+    [InlineData("unlisted", "visibility=unlisted")]
+    public async Task Publish_AnswersAPostAsNarrowlyAsItWasSaidWhenTheDraftDoesNotSay(string answered, string expected)
+    {
+        var network = Answering(StatusJson("110", visibility: answered));
+
+        await NewAuthor(network).Publish(
+            Profile,
+            Draft("Quite so") with { InReplyTo = "99" },
+            TestContext.Current.CancellationToken);
+
+        Assert.Contains(expected, network.Bodies[1]);
+    }
+
+    /// <summary>
+    ///     A standing preference too wide for the post being answered is narrowed to fit, without comment. Refusing it
+    ///     would leave a profile whose <c>default_visibility</c> is public unable to answer a direct message at all.
+    /// </summary>
+    [Fact]
+    public async Task Publish_NarrowsAStandingPreferenceTooWideForThePostItAnswers()
+    {
+        var network = Answering(StatusJson("110", visibility: "direct"));
+
+        await NewAuthor(network).Publish(
+            Profile,
+            Draft("Quite so") with { InReplyTo = "99", Visibility = PostVisibility.Public },
+            TestContext.Current.CancellationToken);
+
+        Assert.Contains("visibility=direct", network.Bodies[1]);
+    }
+
+    /// <summary>
+    ///     A visibility named on the invocation itself is refused rather than narrowed: publishing something other than
+    ///     what was asked for is not a thing to do quietly, and under a pipe the sentence saying so is read by nothing.
+    /// </summary>
+    [Fact]
+    public async Task Publish_RefusesToAnswerAPostMoreWidelyThanItWasSaid()
+    {
+        var network = Answering(StatusJson("110", visibility: "direct"));
+
+        var refusal = await Assert.ThrowsAsync<WiderReplyException>(
+            () => NewAuthor(network).Publish(
+                Profile,
+                Draft("Quite so") with
+                {
+                    InReplyTo = "99",
+                    Visibility = PostVisibility.Public,
+                    VisibilityChosen = true,
+                },
+                TestContext.Current.CancellationToken));
+
+        Assert.Equal(PostVisibility.Public, refusal.Asked);
+        Assert.Equal(PostVisibility.Direct, refusal.Answered);
+
+        // Refused before anything was published, so there is nothing to take back.
+        Assert.Single(network.Requests);
+    }
+
+    /// <summary>Narrower than the post being answered is the author's to choose, and is left alone.</summary>
+    [Fact]
+    public async Task Publish_AnswersAPostMoreNarrowlyThanItWasSaidWhenAsked()
+    {
+        var network = Answering(StatusJson("110", visibility: "public"));
+
+        await NewAuthor(network).Publish(
+            Profile,
+            Draft("Quite so") with
+            {
+                InReplyTo = "99",
+                Visibility = PostVisibility.Direct,
+                VisibilityChosen = true,
+            },
+            TestContext.Current.CancellationToken);
+
+        Assert.Contains("visibility=direct", network.Bodies[1]);
+    }
+
+    /// <summary>A post answering nothing has nothing to be wider than, and pays for no read.</summary>
+    [Fact]
+    public async Task Publish_ReadsNoPostForOneThatAnswersNothing()
+    {
+        var network = Answering(StatusJson("110"));
+
+        await NewAuthor(network).Publish(Profile, Draft("Hello world"), TestContext.Current.CancellationToken);
+
+        Assert.Single(network.Requests);
     }
 
     /// <summary>
