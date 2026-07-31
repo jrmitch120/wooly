@@ -62,7 +62,7 @@ workable only because the status row always shows the current screen's keys. Wha
 | `esc` | Up one level of the stack. Never quits. |
 | `ctrl-q` | Quit. |
 | `?` | The keymap for this screen. The spec has no in-app help story; this is the shell adding one, and #28 carries it — every other screen inherits it for free. |
-| `tab` / `shift-tab` | Move between destinations — **see the open question below.** |
+| `tab` / `shift-tab` | The next / previous destination. It loads on arrival; a destination fetched recently is drawn from cache and costs nothing. |
 | `/` | Search. |
 
 Feed and post:
@@ -159,13 +159,26 @@ Rules:
 - When the driver reports no colour at all (`NO_COLOR`, `TERM=dumb`) every role resolves to the terminal's default pair
   and the glyphs above carry everything.
 
+## Fetching, since the rail loads on arrival
+
+`tab` walks the rail and what it lands on loads (ADR-0014). Three rules keep that affordable, and none of them changes
+what the user does:
+
+- **A destination is cached for a short while.** A step onto a destination fetched recently draws immediately and asks
+  the instance for nothing. Walking out along the rail and back is one fetch per destination, not one per arrival.
+- **An overtaken fetch is discarded, never drawn.** A reader two destinations further on must not have a stale timeline
+  appear underneath them.
+- **The quota on the rail is load-bearing here.** This is the mechanism that can spend rate-limit budget by accident,
+  so story 54's indicator is not decoration on this shell.
+
+The alternatives were built and measured — a cursor that moves free until `⏎` commits, a key per destination, a jump
+list — and all cost one fetch against cycling's six on the same walk, before caching. They are on the prototype branch
+(`SCREENS-C.md`) if the decision is ever revisited.
+
 ## Open questions
 
-1. **How a destination is chosen.** Measured against a 450ms fake instance, Home → Follow requests costs six fetches and
-   five discards when `tab` both walks the rail and loads what it lands on, and one fetch when the walk is free and
-   `⏎` commits it — or when a key goes straight to a destination, or a jump list takes its name. The shape does not
-   depend on the answer; the rate-limit quota does. `SCREENS-C.md` on the prototype branch has all four working.
-2. **Whether a theme can decline to set a background** and inherit the terminal's own. `Terminal.Gui` attributes are a
+1. **Whether a theme can decline to set a background** and inherit the terminal's own. `Terminal.Gui` attributes are a
    foreground/background pair, so "inherit" needs checking against the driver rather than assuming.
-3. **Where compose lives** — an editor pushed onto the stack like any other screen, or a region that opens under the
+2. **Where compose lives** — an editor pushed onto the stack like any other screen, or a region that opens under the
    feed so the thing being replied to stays visible.
+3. **How long a cached destination stays fresh**, and whether the answer differs for a timeline and for notifications.

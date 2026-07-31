@@ -20,15 +20,25 @@ words. The rail alone costs 19, so the same terminal leaves the feed 61 — a ra
 pane is not. What the context pane held (who wrote this, where you stand with them) is exactly what the account screen
 holds now, one keystroke away, at full width.
 
-**Walking the rail costs a fetch, and that is the one thing this record does not settle.** The anchor is the shape
-above. How a destination is *chosen* is a separate mechanism, and the prototype measured it rather than guessing:
-against a fake instance answering in 450ms, with any answer overtaken before it lands thrown away, going from Home to
-Follow requests costs **six fetches and five discards** if tab both walks the rail and loads what it lands on, and
-**one** if the walk is free and enter commits it — or if a key goes straight there, or if a jump list takes a name. Five
-of those six fetches are timelines nobody asked to read, and each one spends rate-limit quota that story 54's indicator
-then has to report. The shape does not depend on which mechanism wins, so it is not held up by it; the mechanism is
-carried as an open question against #28 with the measurement attached, and deferring the commit is the smallest change
-that answers it.
+**Tab walks the rail and what it lands on loads, and the cost of that is paid by a cache rather than by an extra
+keystroke.** Three other mechanisms were prototyped and measured — a cursor that moves for free until enter commits it,
+a key bound to each destination, a jump list taking a name — and against a fake instance answering in 450ms, all three
+cost one fetch where cycling costs six with five discards on the walk from Home to Follow requests. Cycling is chosen
+anyway, and the reason it is defensible is that the six is a property of the naive implementation rather than of the
+interaction: a rail step is a *reader landing on a timeline*, and a timeline it landed on a moment ago does not have to
+be asked for again.
+
+So the shell keeps a short-lived cache of what each destination last returned, keyed by destination and dropped after a
+small age, and a step onto a cached destination draws it immediately and fetches nothing. Walking Home → Local →
+Federated → Notifications and back is then one fetch per destination *ever*, not one per arrival, and the walk back is
+free. Two things follow that the shell owes regardless: an in-flight fetch that is overtaken before it lands is
+discarded rather than drawn (a reader two destinations further on must never have a stale timeline appear underneath
+them), and the rate-limit quota on the rail matters more here than it would under any of the other three, because this
+is the mechanism that can spend it by accident. Both are cheap; neither costs the user a keystroke, which is the point.
+
+What this deliberately does not do is make the interaction conditional — no debounce that swallows a fast walk, no
+"press enter to load", no destination that behaves differently from its neighbours. A rail you can hold tab on and
+watch go past is the thing being kept.
 
 **No view builds a colour.** Nothing in the TUI constructs a `Terminal.Gui` `Attribute`, names a `StandardColor`, or
 holds a palette of its own — a view says which *role* the thing it is drawing plays (a byline's name, a handle, a
