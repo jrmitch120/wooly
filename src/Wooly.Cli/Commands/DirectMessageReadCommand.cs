@@ -25,7 +25,7 @@ internal sealed class DirectMessageReadCommand(
 
         if (settings.Json)
         {
-            ConversationJson.WriteOne(console, conversation);
+            ConversationJson.WriteConversation(console, conversation);
         }
         else
         {

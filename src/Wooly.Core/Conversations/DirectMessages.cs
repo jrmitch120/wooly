@@ -31,9 +31,10 @@ public sealed class DirectMessages(IMastodonClientFactory clientFactory) : IDire
     private const int PageSize = 40;
 
     /// <summary>
-    ///     How far down the list of conversations an id is looked for. Far enough that anything a user has seen listed
-    ///     is reachable, and short enough that an id that names nothing costs a handful of calls rather than every
-    ///     conversation the account has ever had.
+    ///     How far down the list of conversations an id is looked for. Far enough for anything a user is realistically
+    ///     naming, and short enough that an id that names nothing costs a handful of calls rather than every
+    ///     conversation the account has ever had. A <c>list</c> asked for more than this can print a conversation this
+    ///     cannot then find, which is why the refusal says how far it looked rather than claiming the id is wrong.
     /// </summary>
     private const int ConversationsSearched = 200;
 
@@ -82,7 +83,11 @@ public sealed class DirectMessages(IMastodonClientFactory clientFactory) : IDire
         var found = read.Items.FirstOrDefault(conversation => conversation.Id == conversationId)
                     ?? throw new UnknownConversationException(conversationId, ConversationsSearched);
 
-        return new ConversationThread { Conversation = found, Posts = await Thread(client, found, profile, cancellationToken) };
+        return new ConversationThread
+        {
+            Conversation = found,
+            Posts = await Thread(client, found, profile.Instance, cancellationToken),
+        };
     }
 
     /// <inheritdoc />
@@ -111,11 +116,17 @@ public sealed class DirectMessages(IMastodonClientFactory clientFactory) : IDire
     ///     of, and no call is made. Descendants are asked for as well as ancestors even though the post being asked
     ///     about is the conversation's latest: what an instance has already delivered and what it has listed are two
     ///     different moments, and a reply that arrived between them belongs in the thread rather than below the fold.
+    ///     <para>
+    ///         What this cannot reach is a second thread in the same conversation. Mastodon groups a conversation by
+    ///         who is in it rather than by what answers what, so two messages to the same account that answer nothing
+    ///         share a conversation while sharing no context — and the API has no call for "the posts of conversation
+    ///         X". The newest thread is what a reader wants nearly always, and the rest is reachable by post id.
+    ///     </para>
     /// </remarks>
     private static async Task<IReadOnlyList<Post>> Thread(
         IMastodonClient client,
         Conversation conversation,
-        ActiveProfile profile,
+        string instance,
         CancellationToken cancellationToken)
     {
         if (conversation.Latest is not { } latest)
@@ -129,9 +140,9 @@ public sealed class DirectMessages(IMastodonClientFactory clientFactory) : IDire
 
         return
         [
-            .. context.Ancestors.Select(status => PostWire.ToPost(status, profile.Instance)),
+            .. context.Ancestors.Select(status => PostWire.ToPost(status, instance)),
             latest,
-            .. context.Descendants.Select(status => PostWire.ToPost(status, profile.Instance)),
+            .. context.Descendants.Select(status => PostWire.ToPost(status, instance)),
         ];
     }
 }

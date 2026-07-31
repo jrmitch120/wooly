@@ -28,10 +28,18 @@ public interface IDirectMessages
     /// </returns>
     Task<ConversationFetch> List(ActiveProfile profile, int limit, CancellationToken cancellationToken);
 
-    /// <summary>Reads one conversation in full: the thread of posts, oldest first.</summary>
+    /// <summary>Reads one conversation: the thread its last post belongs to, oldest first.</summary>
     /// <param name="conversationId">
     ///     The conversation's own id, as a listing reports it — not the id of any post in it.
     /// </param>
+    /// <remarks>
+    ///     "The thread its last post belongs to" is narrower than "everything in the conversation", and the difference
+    ///     is Mastodon's rather than this client's. An instance groups a conversation by who is in it, not by what
+    ///     answers what, so two messages sent to the same account that answer nothing are one conversation holding two
+    ///     unrelated threads — and the API offers no way to ask for the posts of a conversation, only for the context of
+    ///     a post. What comes back is therefore the newest thread; an older one is still reachable by its own post id
+    ///     through <c>post show</c>. See ADR-0013.
+    /// </remarks>
     /// <exception cref="Errors.UnknownConversationException">
     ///     No conversation this profile has recently is named by that id.
     /// </exception>

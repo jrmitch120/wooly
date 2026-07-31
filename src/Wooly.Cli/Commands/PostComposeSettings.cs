@@ -67,12 +67,22 @@ internal abstract class PostComposeSettings : ProfileScopedSettings
     ///     The profile's own preferred visibility from the config file, or <see langword="null" /> to leave the choice
     ///     to the account's setting on the instance.
     /// </param>
+    /// <param name="audience">
+    ///     Who the post should reach, or <see langword="null" /> where what was typed names nobody. Nothing partial is
+    ///     handed back on failure: a <see cref="ComposedVisibility" /> holding a null visibility reads as the perfectly
+    ///     good "leave it to the instance", and a caller that missed the problem would act on it.
+    /// </param>
     /// <param name="problem">What is wrong with what was typed, or <see langword="null" /> if nothing is.</param>
-    protected virtual ComposedVisibility Reaching(PostVisibility? whenUnsaid, out string? problem)
+    /// <remarks>The <c>Try</c> shape is <see cref="TryCompose" />'s, so both halves of composing read the same way.</remarks>
+    protected virtual bool TryChooseAudience(
+        PostVisibility? whenUnsaid,
+        [NotNullWhen(true)] out ComposedVisibility? audience,
+        [NotNullWhen(false)] out string? problem)
     {
+        audience = new ComposedVisibility(whenUnsaid, Chosen: false);
         problem = null;
 
-        return new ComposedVisibility(whenUnsaid, Chosen: false);
+        return true;
     }
 
     /// <summary>
@@ -119,9 +129,7 @@ internal abstract class PostComposeSettings : ProfileScopedSettings
     {
         draft = null;
 
-        var reaching = Reaching(visibilityWhenUnsaid, out problem);
-
-        if (problem is not null)
+        if (!TryChooseAudience(visibilityWhenUnsaid, out var audience, out problem))
         {
             return false;
         }
@@ -149,8 +157,8 @@ internal abstract class PostComposeSettings : ProfileScopedSettings
 
             // An empty --cw is a flag somebody passed and left blank, which is not a warning to put a post behind.
             ContentWarning = string.IsNullOrWhiteSpace(ContentWarning) ? null : ContentWarning,
-            Visibility = reaching.Visibility,
-            VisibilityChosen = reaching.Chosen,
+            Visibility = audience.Visibility,
+            VisibilityChosen = audience.Chosen,
             InReplyTo = InReplyTo,
             Media = Media.Select(MediaOption.Parse).ToList(),
             Poll = poll,

@@ -16,6 +16,12 @@ namespace Wooly.Cli.Output;
 /// </summary>
 internal static class ConversationReport
 {
+    /// <summary>
+    ///     What a conversation whose posts have all been taken down says. One spelling, because it is said in a listing
+    ///     and again when one is read on its own, and two spellings of one sentence is one of them going stale.
+    /// </summary>
+    private const string NothingLeft = "Nothing left in this conversation.";
+
     /// <summary>Writes the conversations, one after another with a blank line between them.</summary>
     public static void Write(IAnsiConsole console, ConversationFetch fetch)
     {
@@ -43,7 +49,7 @@ internal static class ConversationReport
             {
                 // A conversation whose posts have all been taken down. Saying so is worth a line: the alternative is a
                 // heading with nothing under it, which reads as output that went wrong.
-                console.MarkupLine("  [dim]nothing left in this conversation[/]");
+                console.MarkupLine($"  [dim]{NothingLeft}[/]");
             }
 
             console.WriteLine();
@@ -58,7 +64,7 @@ internal static class ConversationReport
 
         if (thread.Posts.Count == 0)
         {
-            console.MarkupLine("Nothing left in this conversation.");
+            console.MarkupLine(NothingLeft);
 
             return;
         }

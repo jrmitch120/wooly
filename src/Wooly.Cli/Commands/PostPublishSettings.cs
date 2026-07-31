@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using Spectre.Console.Cli;
 using Wooly.Core.Posts;
 
@@ -23,22 +24,30 @@ internal abstract class PostPublishSettings : PostComposeSettings
     ///     first is refused for being wider than a post it answers; the second is narrowed to fit, so that a profile
     ///     whose <c>default_visibility</c> is public can still answer a direct message.
     /// </remarks>
-    protected override ComposedVisibility Reaching(PostVisibility? whenUnsaid, out string? problem)
+    protected override bool TryChooseAudience(
+        PostVisibility? whenUnsaid,
+        [NotNullWhen(true)] out ComposedVisibility? audience,
+        [NotNullWhen(false)] out string? problem)
     {
         problem = null;
 
         if (Visibility is null)
         {
-            return new ComposedVisibility(whenUnsaid, Chosen: false);
+            audience = new ComposedVisibility(whenUnsaid, Chosen: false);
+
+            return true;
         }
 
         if (PostVisibilityName.Parse(Visibility) is not { } named)
         {
+            audience = null;
             problem = PostVisibilityName.Rejection(Visibility);
 
-            return new ComposedVisibility(null, Chosen: false);
+            return false;
         }
 
-        return new ComposedVisibility(named, Chosen: true);
+        audience = new ComposedVisibility(named, Chosen: true);
+
+        return true;
     }
 }

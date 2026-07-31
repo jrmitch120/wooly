@@ -26,7 +26,7 @@ internal static class ConversationJson
         JsonOutput.Write(console, ConversationDocument.Of(thread));
 
     /// <summary>Writes one conversation on its own, as it stands.</summary>
-    public static void WriteOne(IAnsiConsole console, Conversation conversation) =>
+    public static void WriteConversation(IAnsiConsole console, Conversation conversation) =>
         JsonOutput.Write(console, ConversationDocument.Of(conversation));
 
     /// <param name="Complete">

@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using Wooly.Cli.Output;
@@ -62,11 +63,15 @@ internal sealed class DirectMessageSendCommand(
         ///     Not negotiable, and not offered as an option. Chosen rather than inherited, so that nothing downstream
         ///     mistakes it for a preference it may widen.
         /// </remarks>
-        protected override ComposedVisibility Reaching(PostVisibility? whenUnsaid, out string? problem)
+        protected override bool TryChooseAudience(
+            PostVisibility? whenUnsaid,
+            [NotNullWhen(true)] out ComposedVisibility? audience,
+            [NotNullWhen(false)] out string? problem)
         {
+            audience = new ComposedVisibility(PostVisibility.Direct, Chosen: true);
             problem = null;
 
-            return new ComposedVisibility(PostVisibility.Direct, Chosen: true);
+            return true;
         }
 
         public override ValidationResult Validate() =>

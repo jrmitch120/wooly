@@ -212,6 +212,24 @@ public class DirectMessagesTests
             () => NewMessages(network).Show(Profile, "9", TestContext.Current.CancellationToken));
     }
 
+    /// <summary>
+    ///     A conversation can hold more than one thread — an instance groups it by who is in it, not by what answers
+    ///     what — and only the one the last post is in comes back. Pinned rather than left to chance: what is shown is
+    ///     that post and its context, so a lone root shows as one post rather than as everything ever said to the
+    ///     account (ADR-0013).
+    /// </summary>
+    [Fact]
+    public async Task Show_ReadsOnlyTheThreadTheLastPostIsIn()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(Page(ConversationJson("7", latest: PostJson("110")))),
+            ScriptedHttpMessageHandler.Json(ContextJson()));
+
+        var thread = await NewMessages(network).Show(Profile, "7", TestContext.Current.CancellationToken);
+
+        Assert.Equal(["110"], thread.Posts.Select(post => post.Id));
+    }
+
     /// <summary>There is no post to ask the context of, so no call is made and the thread is empty.</summary>
     [Fact]
     public async Task Show_ReadsAConversationWithNothingLeftInItWithoutAskingForAThread()

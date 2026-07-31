@@ -25,14 +25,26 @@ marking a conversation read by the id of the post in it clears nothing, and both
 `SingleConversationSettings` say so out loud.
 
 Showing one has a shape forced on it: Mastodon serves no single conversation by id, only the list of them. So the list
-is walked until the id turns up, and no further than 200 conversations — far enough that anything a user has seen listed
-is reachable, short enough that a typo costs a handful of calls rather than an account's whole history. `PagedReading`
-grew a `stopWhen` for it, which is the same walk it already did with a different reason to stop; the alternative, asking
-for all 200 and searching the result, would spend five calls to find something on the first page. A conversation carries
-only its last post, so the thread itself comes from that post's context: one call to find the conversation, one to read
-what was said in it. A rate limit part way down the walk is re-thrown as itself rather than reported as "no such
-conversation", because telling a user their id is wrong when what happened is that the looking stopped sends them
-checking a value that was right.
+is walked until the id turns up, and no further than 200 conversations — far enough for anything a user is realistically
+naming, short enough that a typo costs a handful of calls rather than an account's whole history. `PagedReading` grew a
+`stopWhen` for it, which is the same walk it already did with a different reason to stop; the alternative, asking for
+all 200 and searching the result, would spend five calls to find something on the first page. A rate limit part way down
+the walk is re-thrown as itself rather than reported as "no such conversation", because telling a user their id is wrong
+when what happened is that the looking stopped sends them checking a value that was right.
+
+That ceiling is a real edge: `dm list --limit 300` can print a conversation `dm show` then refuses, since `--limit` has
+no ceiling of its own. Rather than pretend otherwise, `UnknownConversationException` says how far it looked instead of
+claiming the id does not exist. Raising the ceiling only moves the edge; removing it would let one mistyped id page an
+account's entire history.
+
+**What `dm show` shows is the thread the conversation's last post is in, which is not always all of it.** A conversation
+carries only its last post, so the thread comes from that post's context: one call to find the conversation, one to read
+what was said in it. But an instance groups a conversation by *who is in it*, not by what answers what — so two messages
+to the same account that each answer nothing are one conversation holding two unrelated roots, and the context of the
+newest reaches only its own. The API has no call for "the posts of conversation X", and the alternatives are worse:
+reading the whole direct timeline and matching participants would be several calls and a guess at what belongs. The
+newest thread is what a reader wants nearly always, an older root is still reachable through `post show`, and this is
+recorded here rather than left for somebody to discover.
 
 **Reading a conversation does not mark it read.** `dm show` leaves the unread mark exactly as it found it and `dm read`
 is what takes it off. A client that cleared the mark on the way past would make "what have I not read" unanswerable for

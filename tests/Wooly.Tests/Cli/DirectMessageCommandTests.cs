@@ -103,7 +103,7 @@ public class DirectMessageCommandTests : IDisposable
 
         Assert.Equal((int)ExitCode.Success, run.ExitCode);
         Assert.Contains("7", run.Output);
-        Assert.Contains("nothing left", run.Output);
+        Assert.Contains("Nothing left", run.Output);
     }
 
     [Fact]
