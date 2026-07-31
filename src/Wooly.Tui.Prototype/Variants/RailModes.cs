@@ -3,7 +3,7 @@ using Terminal.Gui.Input;
 namespace Wooly.Tui.Prototype;
 
 /// <summary>
-///     C·0 — Cycle, settling. Tab counts steps; nothing on screen moves until the rail has been still for
+///     C·0 — Cycle, settling. Tab counts steps; nothing on screen moves until the tabbing has stopped for
 ///     <see cref="Settle" />, and then the highlight lands on where you counted to and that destination loads.
 ///     <para>
 ///         There is no in-between state to draw and none to explain: a run of tab presses is one navigation, so the
@@ -17,7 +17,7 @@ internal sealed class CycleRail : RailShell
     ///     through <c>WOOLY_SETTLE_MS</c> so the wait can be held open long enough to watch.
     /// </summary>
     private static readonly TimeSpan Settle = TimeSpan.FromMilliseconds(
-        int.TryParse(Environment.GetEnvironmentVariable("WOOLY_SETTLE_MS"), out var ms) ? ms : 180);
+        int.TryParse(Environment.GetEnvironmentVariable("WOOLY_SETTLE_MS"), out var ms) ? ms : 250);
 
     /// <summary>Where the highlight is — only ever moved by a settle.</summary>
     private int _at;

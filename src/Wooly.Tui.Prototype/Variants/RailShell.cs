@@ -411,17 +411,13 @@ internal abstract class RailShell : VariantWindow
 
                 var (stop, label, key, badge) = Stops[index];
                 var current = stop == shell.Fetch.Showing;
-                var waiting = shell.Fetch.Loading && stop == shell.Fetch.Wanted;
 
                 SetAttribute(current ? Ink.RailOn : Ink.Rail);
                 AddStr(0, row2, $"{shell.Prefix(index)}{Ink.Clip(label, width - 5)}".PadRight(width));
 
-                if (waiting)
-                {
-                    SetAttribute(Ink.Warning);
-                    AddStr(width - 2, row2, "◴");
-                }
-                else if (badge.Length > 0)
+                // Unread counts only. A fetch in flight is the breadcrumb's business, not the rail's — the rail
+                // shows where you are and what is waiting for you, and nothing else moves in it.
+                if (badge.Length > 0)
                 {
                     SetAttribute(current ? Ink.RailOn : Ink.Badge);
                     AddStr(width - 2, row2, badge);

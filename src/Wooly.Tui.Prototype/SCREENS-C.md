@@ -18,7 +18,7 @@ by waiting for the rail to be still before asking, so a fast walk costs one fetc
 
 ## C·0 — Cycle, settling — the anchored shell
 
-Tab counts steps along the rail. Nothing moves until you stop for 180ms — then the highlight lands where you
+Tab counts steps along the rail. Nothing moves until you stop for 250ms — then the highlight lands where you
 counted to and that destination loads. A run of tab presses is one navigation, so the five destinations passed
 over are never drawn and never requested. Six tabs, one move, **one fetch**.
 ```
