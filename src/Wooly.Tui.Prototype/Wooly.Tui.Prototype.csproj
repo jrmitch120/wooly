@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- THROWAWAY PROTOTYPE. Deliberately not in Wooly.slnx: it must never build, ship, or be tested with the real
+       solution. See README.md in this folder. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Wooly.Tui.Prototype</RootNamespace>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Terminal.Gui" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Wooly.Core\Wooly.Core.csproj" />
+  </ItemGroup>
+
+</Project>
