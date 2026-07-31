@@ -57,3 +57,22 @@ account may carry none — which says the question was not put, not that the ans
 **Profile**:
 A named local credential/config entry in this CLI tool, pointing at one Mastodon account. A user may have multiple profiles (e.g. personal + work accounts, possibly on different instances). One profile is the "current" profile used by default; commands may override it per-invocation.
 _Avoid_: account (when referring to the CLI's local credential entry, to keep it distinct from the Mastodon account itself)
+
+**Destination**:
+One of the places the TUI's rail can send you — a timeline, notifications, direct messages, follow requests, search,
+the profile's own account. A destination is what carries an unread count and what costs a fetch to arrive at, which is
+why choosing one is a decision of its own (ADR-0014). Distinct from a **screen**: a destination is the entry on the
+rail, a screen is what the content region is showing, and drilling from a post into an account changes the screen
+without changing the destination.
+_Avoid_: tab, section, page
+
+**Role**:
+What a piece of the TUI is, said in a way a **theme** can answer: a byline's name, a handle, a content warning, a boost
+mark, an unread count, the selected row. Views name roles and never colours, so that the same screen can be themed,
+degrade to sixteen colours or to none, and be tested on which role it chose (ADR-0014). Distinct from Terminal.Gui's
+own `VisualRole`, which describes what a widget is doing (`Normal`, `Focus`) rather than what a boost is.
+
+**Theme**:
+A named set of colours answering this project's **roles**, written as a table in the same TOML config file as
+everything else and chosen by name. Two are built in, for dark and light terminals; a theme a user writes overrides
+only the roles it names.
