@@ -42,4 +42,18 @@ public interface IPostEngagement
     ///     what they get, shown the way a timeline shows one.
     /// </returns>
     Task<Post> Show(ActiveProfile profile, string postId, CancellationToken cancellationToken);
+
+    /// <summary>Reads what has been said in answer to the post <paramref name="postId" /> names.</summary>
+    /// <remarks>
+    ///     Alongside <see cref="Show" /> rather than folded into it, because a caller that already has the post — which
+    ///     is every caller that got here by pressing enter on one — would otherwise pay for reading it a second time.
+    ///     A screen showing a post with its replies makes one call, not two.
+    ///     <para>
+    ///         What comes back is the whole subtree flattened, oldest first, and not just the direct answers: that is
+    ///         the shape Mastodon serves and the shape a thread reads in. A reply to a reply is still an answer to the
+    ///         post, and dropping it would show a conversation with its middle missing.
+    ///     </para>
+    /// </remarks>
+    /// <returns>The replies, or an empty list where nothing has answered it.</returns>
+    Task<IReadOnlyList<Post>> Replies(ActiveProfile profile, string postId, CancellationToken cancellationToken);
 }

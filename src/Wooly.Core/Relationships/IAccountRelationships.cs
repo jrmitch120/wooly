@@ -35,6 +35,20 @@ public interface IAccountRelationships
         bool wanted,
         CancellationToken cancellationToken);
 
+    /// <summary>Reads one account, and where the profile's own account stands with it.</summary>
+    /// <param name="account">The account as the user named it, the same way <see cref="Set" /> takes one.</param>
+    /// <remarks>
+    ///     Reading and setting sit on one port because the standing a screen shows is the standing a tie changes: the
+    ///     TUI's account screen draws what this answers and then asks <see cref="Set" /> to change it, and a second
+    ///     port over the same two endpoints would be a seam with no decision behind it.
+    /// </remarks>
+    /// <returns>
+    ///     The account, carrying the standing the instance answered with — never <see langword="null" /> standing,
+    ///     because this is one of the few places Mastodon is asked for it.
+    /// </returns>
+    /// <exception cref="Errors.UnknownAccountException">The instance knows no account by that address.</exception>
+    Task<Account> Show(ActiveProfile profile, AccountAddress account, CancellationToken cancellationToken);
+
     /// <summary>Lists one side of an account's follows, newest follow first.</summary>
     /// <param name="account">
     ///     Whose follows to list, or <see langword="null" /> for the profile's own — which is what a user asking for

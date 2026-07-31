@@ -31,6 +31,9 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
     /// <summary>Every follow request it was asked to answer, in order.</summary>
     public List<Answered> Answers { get; } = [];
 
+    /// <summary>Every account it was asked to read, in order — where a test proves whose account a screen opened.</summary>
+    public List<Shown> Reads { get; } = [];
+
     /// <summary>
     ///     An instance that takes whatever it is asked, answers about <paramref name="subject" />, and holds
     ///     <paramref name="listing" /> in every list it is asked for.
@@ -61,6 +64,13 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
         CancellationToken cancellationToken)
     {
         Ties.Add(new Tied(profile.Name, account, tie, wanted));
+
+        return Answer(_subject);
+    }
+
+    public Task<Account> Show(ActiveProfile profile, AccountAddress account, CancellationToken cancellationToken)
+    {
+        Reads.Add(new Shown(profile.Name, account));
 
         return Answer(_subject);
     }
@@ -106,4 +116,7 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
 
     /// <summary>One answered request: which profile answered, whose request, and what they said.</summary>
     internal sealed record Answered(string Profile, string AccountId, bool Accepted);
+
+    /// <summary>One account read: which profile asked, and whose account they asked about.</summary>
+    internal sealed record Shown(string Profile, AccountAddress Account);
 }

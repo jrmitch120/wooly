@@ -16,10 +16,9 @@ namespace Wooly.Core.Relationships;
 ///     Manages relationships through Mastonet. Two things happen here that nowhere above has to know about.
 ///     <para>
 ///         The first is that Mastodon's relationship endpoints all take an account id, and a user types an address. So
-///         an address is looked up first — through the same resolving search a <c>search</c> makes (ADR-0011), which is
-///         what finds an account this instance has never met. That costs a call before every follow, block and mute,
-///         and it is the only way to spend it: Mastonet 3.1.3 has no lookup endpoint, and an address is the only name
-///         for an account that means the same thing on two instances.
+///         an address is looked up first, through <see cref="AccountLookup" />. That costs a call before every follow,
+///         block and mute, and it is the only way to spend it: Mastonet 3.1.3 has no lookup endpoint, and an address is
+///         the only name for an account that means the same thing on two instances.
 ///     </para>
 ///     <para>
 ///         The second is that the lists are paged by <see cref="PagedReading" />, the same loop a timeline and an inbox
@@ -37,13 +36,6 @@ public sealed class AccountRelationships(IMastodonClientFactory clientFactory) :
     /// </summary>
     private const int PageSize = 80;
 
-    /// <summary>
-    ///     How many candidates a lookup asks for. More than one, because an instance answers a search with everything
-    ///     that resembles the query — <c>alice@hachyderm.io</c> brings back <c>alicia</c> and <c>alice@other.social</c>
-    ///     too — and the wanted one is not reliably first. Few, because only an exact match is ever taken.
-    /// </summary>
-    private const int LookupCandidates = 10;
-
     /// <inheritdoc />
     public async Task<Account> Set(
         ActiveProfile profile,
@@ -53,13 +45,32 @@ public sealed class AccountRelationships(IMastodonClientFactory clientFactory) :
         CancellationToken cancellationToken)
     {
         var client = clientFactory.CreateClient(profile.Instance, profile.AccessToken);
-        var found = await Resolve(client, account, profile.Instance, cancellationToken);
+        var found = await AccountLookup.Resolve(client, account, profile.Instance, cancellationToken);
 
         // Nothing is read first to find out whether the tie is already there. The instance settles that, the same way
         // ADR-0009 leaves it to settle whether a post is already boosted.
         cancellationToken.ThrowIfCancellationRequested();
 
         var standing = await Apply(client, found.Id, tie, wanted);
+
+        return AccountWire.ToAccount(found, profile.Instance, standing);
+    }
+
+    /// <inheritdoc />
+    public async Task<Account> Show(
+        ActiveProfile profile,
+        AccountAddress account,
+        CancellationToken cancellationToken)
+    {
+        var client = clientFactory.CreateClient(profile.Instance, profile.AccessToken);
+        var found = await AccountLookup.Resolve(client, account, profile.Instance, cancellationToken);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        // A second call, because a search answers with accounts and never with where the profile stands with them.
+        // Asked for one id rather than the many this endpoint takes: this is one account being read, and a caller
+        // that wanted a list would be asking for a list.
+        var standing = (await client.GetAccountRelationships(found.Id)).FirstOrDefault();
 
         return AccountWire.ToAccount(found, profile.Instance, standing);
     }
@@ -75,7 +86,7 @@ public sealed class AccountRelationships(IMastodonClientFactory clientFactory) :
         var client = clientFactory.CreateClient(profile.Instance, profile.AccessToken);
         var accountId = account is null
             ? await Own(client, cancellationToken)
-            : (await Resolve(client, account, profile.Instance, cancellationToken)).Id;
+            : (await AccountLookup.Resolve(client, account, profile.Instance, cancellationToken)).Id;
 
         return await Collect(
             options => side switch
@@ -187,33 +198,5 @@ public sealed class AccountRelationships(IMastodonClientFactory clientFactory) :
         cancellationToken.ThrowIfCancellationRequested();
 
         return (await client.GetCurrentUser()).Id;
-    }
-
-    /// <summary>
-    ///     The account an address names, found by asking the instance to resolve it. Only an exact match on the full
-    ///     address is taken: a search for <c>alice@hachyderm.io</c> that turns up only <c>alicia@hachyderm.io</c> has
-    ///     found somebody else, and blocking the wrong account on a near miss is not a mistake worth being helpful about.
-    /// </summary>
-    private static async Task<WireAccount> Resolve(
-        IMastodonClient client,
-        AccountAddress account,
-        string instance,
-        CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        var wanted = account.On(instance);
-
-        var found = await client.SearchAccounts(
-            account.Text,
-            LookupCandidates,
-            resolveNonLocalAccouns: true);
-
-        return found.FirstOrDefault(
-                   candidate => string.Equals(
-                       MastodonWire.Qualify(candidate, instance),
-                       wanted,
-                       StringComparison.OrdinalIgnoreCase))
-               ?? throw new UnknownAccountException(account, instance);
     }
 }

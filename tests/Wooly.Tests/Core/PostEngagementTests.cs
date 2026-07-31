@@ -115,6 +115,40 @@ public class PostEngagementTests
         Assert.Equal("110", post.Boosted?.Id);
     }
 
+    /// <summary>
+    ///     Mastodon serves what came before a post as well as what came after it, on one endpoint. Only the answers
+    ///     are what a post screen draws underneath it.
+    /// </summary>
+    [Fact]
+    public async Task Replies_ReadsWhatAnsweredThePostAndNotWhatItAnswered()
+    {
+        var network = Answering($$"""
+                                 {
+                                   "ancestors": [{{StatusJson("100")}}],
+                                   "descendants": [{{StatusJson("111")}}, {{StatusJson("112")}}]
+                                 }
+                                 """);
+
+        var replies = await NewEngagement(network).Replies(Profile, "110", TestContext.Current.CancellationToken);
+
+        var request = Assert.Single(network.Requests);
+        Assert.Equal(HttpMethod.Get, request.Method);
+        Assert.Equal("https://mastodon.social/api/v1/statuses/110/context", request.RequestUri?.ToString());
+
+        Assert.Equal(["111", "112"], replies.Select(reply => reply.Id));
+    }
+
+    /// <summary>A post nobody has answered has an empty list of answers, which is not a hole for a caller to check for.</summary>
+    [Fact]
+    public async Task Replies_ReportsNothingWhereNobodyHasAnsweredThePost()
+    {
+        var network = Answering("""{"ancestors": [], "descendants": []}""");
+
+        var replies = await NewEngagement(network).Replies(Profile, "110", TestContext.Current.CancellationToken);
+
+        Assert.Empty(replies);
+    }
+
     private static ScriptedHttpMessageHandler Answering(string json) =>
         new(ScriptedHttpMessageHandler.Json(json));
 

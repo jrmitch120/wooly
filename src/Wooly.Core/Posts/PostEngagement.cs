@@ -49,6 +49,24 @@ public sealed class PostEngagement(IMastodonClientFactory clientFactory) : IPost
         return PostWire.ToPost(await client.GetStatus(postId), profile.Instance);
     }
 
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<Post>> Replies(
+        ActiveProfile profile,
+        string postId,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var client = clientFactory.CreateClient(profile.Instance, profile.AccessToken);
+
+        // Mastodon answers with what came before the post as well as what came after it. Only the answers are asked
+        // for here: a caller reached this post by choosing it, so what it is a reply to is a place it can walk to
+        // rather than something to draw underneath it.
+        var context = await client.GetStatusContext(postId);
+
+        return context.Descendants.Select(status => PostWire.ToPost(status, profile.Instance)).ToList();
+    }
+
     /// <summary>
     ///     The one crossing between this client's three marks and Mastodon's six endpoints. Written out rather than
     ///     built from the mark's name, so that a mark renamed here cannot quietly start calling an endpoint that is not

@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Text;
 using Microsoft.Extensions.DependencyInjection;
 using Wooly.Core;
+using Wooly.Core.Accounts;
 using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
 using Wooly.Core.Timelines;
@@ -304,6 +305,71 @@ public class TimelineReaderTests
         var request = Assert.Single(network.Requests);
         Assert.Equal(expected, request.RequestUri?.ToString());
         Assert.Equal("Bearer token-personal", request.Headers.Authorization?.ToString());
+    }
+
+    /// <summary>
+    ///     An account's posts are a timeline like the other four, and the one thing that differs is that this endpoint
+    ///     takes an id where a user has an address — so the address is looked up first, the same resolving search a tie
+    ///     is put on an account through.
+    /// </summary>
+    [Fact]
+    public async Task Read_LooksUpAnAccountBeforeReadingThePostsItWrote()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json("""[{"id": "42", "username": "alice", "acct": "alice@hachyderm.io"}]"""),
+            ScriptedHttpMessageHandler.Json(Page(PostJson("110"))));
+
+        var fetch = await NewReader(network).Read(
+            Profile,
+            Timeline.By(AccountAddress.Parse("alice@hachyderm.io")),
+            20,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(
+            "https://mastodon.social/api/v1/accounts/search?q=alice%40hachyderm.io&limit=10&resolve=true",
+            network.Requests[0].RequestUri?.ToString());
+
+        // Boosts left in and replies left out: what this account says and passes on, rather than half of a hundred
+        // conversations they answered.
+        Assert.Equal(
+            "https://mastodon.social/api/v1/accounts/42/statuses?exclude_replies=true&limit=20",
+            network.Requests[1].RequestUri?.ToString());
+
+        Assert.Single(fetch.Posts);
+    }
+
+    /// <summary>
+    ///     One lookup for the whole read, however many pages it takes. Paying for it per page would spend a call to
+    ///     learn what the last one already knew.
+    /// </summary>
+    [Fact]
+    public async Task Read_LooksUpAnAccountOnceHoweverManyPagesItsPostsTake()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json("""[{"id": "42", "username": "alice", "acct": "alice@hachyderm.io"}]"""),
+            PageResponse(PageOf(count: 40, firstId: 200), nextMaxId: "150"),
+            PageResponse(PageOf(count: 5, firstId: 149)));
+
+        var fetch = await NewReader(network).Read(
+            Profile,
+            Timeline.By(AccountAddress.Parse("alice@hachyderm.io")),
+            45,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(45, fetch.Posts.Count);
+        Assert.Equal(3, network.Requests.Count);
+        Assert.Equal(
+            "https://mastodon.social/api/v1/accounts/42/statuses?exclude_replies=true&max_id=150&limit=5",
+            network.Requests[2].RequestUri?.ToString());
+    }
+
+    /// <summary>Every timeline says what it is in a sentence, including the one that belongs to somebody.</summary>
+    [Fact]
+    public void Description_NamesWhoseTimelineAnAccountsPostsAre()
+    {
+        Assert.Equal(
+            "the posts of @alice@hachyderm.io",
+            Timeline.By(AccountAddress.Parse("alice@hachyderm.io")).Description);
     }
 
     /// <summary>

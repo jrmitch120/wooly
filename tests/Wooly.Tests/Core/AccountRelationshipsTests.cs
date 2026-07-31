@@ -49,6 +49,51 @@ public class AccountRelationshipsTests
         Assert.Equal("alice@hachyderm.io", account.Address);
     }
 
+    /// <summary>
+    ///     What the TUI's account screen opens onto: who they are, and where this profile stands with them. Two calls,
+    ///     because a search answers with accounts and never with a standing.
+    /// </summary>
+    [Fact]
+    public async Task Show_ReadsTheAccountAndWhereTheProfileStandsWithIt()
+    {
+        var network = Answering(
+            Accounts(AccountJson("alice@hachyderm.io", id: "42")),
+            Accounts(Relationship("42", following: true, followedBy: true)));
+
+        var account = await Relationships(network)
+            .Show(Profile, AccountAddress.Parse("alice@hachyderm.io"), TestContext.Current.CancellationToken);
+
+        Assert.Equal(
+            "https://mastodon.social/api/v1/accounts/search?q=alice%40hachyderm.io&limit=10&resolve=true",
+            network.Requests[0].RequestUri?.ToString());
+
+        Assert.Equal(
+            "https://mastodon.social/api/v1/accounts/relationships?id[]=42",
+            network.Requests[1].RequestUri?.ToString());
+
+        Assert.Equal("alice@hachyderm.io", account.Address);
+        Assert.Equal(1203, account.Followers);
+        Assert.True(account.Standing?.Following);
+        Assert.True(account.Standing?.FollowedBy);
+        Assert.False(account.Standing?.Blocking);
+    }
+
+    /// <summary>
+    ///     Only an exact match is taken, the same way <see cref="IAccountRelationships.Set" /> takes one: showing the
+    ///     wrong account is how somebody comes to follow, block or mute the wrong account from the screen it opens.
+    /// </summary>
+    [Fact]
+    public async Task Show_RefusesAnAccountThatOnlyResemblesTheOneAskedFor()
+    {
+        var network = Answering(Accounts(AccountJson("alicia@hachyderm.io", id: "43")));
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        await Assert.ThrowsAsync<UnknownAccountException>(
+            () => Relationships(network).Show(Profile, AccountAddress.Parse("alice@hachyderm.io"), cancellationToken));
+
+        Assert.Single(network.Requests);
+    }
+
     [Theory]
     [InlineData(AccountTie.Follow, true, "follow")]
     [InlineData(AccountTie.Follow, false, "unfollow")]
