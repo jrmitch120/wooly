@@ -62,7 +62,7 @@ workable only because the status row always shows the current screen's keys. Wha
 | `esc` | Up one level of the stack. Never quits. |
 | `ctrl-q` | Quit. |
 | `?` | The keymap for this screen. The spec has no in-app help story; this is the shell adding one, and #28 carries it — every other screen inherits it for free. |
-| `tab` / `shift-tab` | Counts a step. The highlight moves, and the destination loads, once the tabbing has stopped for ~180ms. |
+| `tab` / `shift-tab` | Counts a step. The highlight moves, and the destination loads, once the tabbing has stopped for ~250ms. |
 | `/` | Search. |
 
 Feed and post:
@@ -112,7 +112,7 @@ glyph or a position that carries the same meaning when colour is gone.
 | `rail-unread` | An unread count | the number's presence |
 | `quota` / `quota-low` | Rate-limit budget left, and nearly spent | the number |
 | `chrome` | Breadcrumb and status rows | position |
-| `loading` | A fetch in flight; stale content while it lands | `◴` |
+| `loading` | Stale content while a fetch lands | the breadcrumb says `fetching…` |
 | `destructive` | A delete affordance and its confirmation | the word |
 | `error` | A failure the shell has to say out loud | the word |
 
@@ -164,7 +164,7 @@ Rules:
 `tab` walks the rail and what it lands on loads (ADR-0014). Three rules keep that affordable, and none of them changes
 what the user does:
 
-- **A press counts a step and restarts a settle window (~180ms); nothing is drawn or fetched until it closes.** Each
+- **A press counts a step and restarts a settle window (~250ms); nothing is drawn or fetched until it closes.** Each
   press abandons the window before it, so a run of presses is one move: the highlight lands where the count reached
   and that one destination is fetched. Holding tab through six destinations is one move and one fetch, not six.
 - **A destination is cached for a short while.** A step onto one fetched recently draws immediately and asks for
@@ -173,7 +173,9 @@ what the user does:
   underneath them.
 
 Because nothing moves ahead of its content, there is no half-state to indicate — no marker for *chosen but not loaded*.
-What the rail highlights is always a destination that was actually asked for.
+What the rail highlights is always a destination that was actually asked for. The rail carries no fetch-in-flight mark
+either: its right-hand column is unread counts and nothing else, and that a fetch is happening is said once, on the
+breadcrumb. A rail somebody is reading should hold still.
 
 The alternatives were built and measured — a cursor that moves free until `⏎` commits, a key per destination, a jump
 list — and all cost one fetch against cycling's six *before* the settle rule, which is what closed the gap. They are on
@@ -185,4 +187,4 @@ the prototype branch (`SCREENS-C.md`) if the decision is ever revisited.
    foreground/background pair, so "inherit" needs checking against the driver rather than assuming.
 2. **Where compose lives** — an editor pushed onto the stack like any other screen, or a region that opens under the
    feed so the thing being replied to stays visible.
-3. **How long the settle window and the cache should be** — 180ms and "a short while" are the prototype's guesses, and a timeline and a notification list may not want the same cache age.
+3. **How long the settle window and the cache should be** — 250ms and "a short while" are the prototype's guesses, and a timeline and a notification list may not want the same cache age.

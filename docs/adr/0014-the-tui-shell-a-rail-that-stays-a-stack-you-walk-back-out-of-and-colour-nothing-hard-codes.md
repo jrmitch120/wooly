@@ -28,7 +28,7 @@ requests. Cycling is kept, because the six turns out to be a property of *when* 
 interaction: a run of tab presses is one navigation, not six, and only the destination somebody stopped on was ever
 wanted.
 
-So a press advances a count and restarts a short settle window (180ms in the prototype); every press abandons the
+So a press advances a count and restarts a short settle window (250ms in the prototype); every press abandons the
 window the press before it left, and only the last one lands. When it does, the highlight moves to where the count
 reached and that destination is fetched. The same six tabs are now one visible move and one fetch — what every other
 mechanism costs — and the five destinations passed over are neither drawn nor requested.
@@ -36,7 +36,9 @@ mechanism costs — and the five destinations passed over are neither drawn nor 
 The thing this buys beyond the fetch count is that there is no in-between state at all. Nothing on the rail moves
 ahead of its content, so nothing has to explain itself: no half-selected destination, no marker for *chosen but not
 loaded*, no timeline sitting under a highlight that belongs to a different one. What the rail shows is always a
-destination that was actually asked for. Two things still follow: an answer overtaken before it lands is discarded
+destination that was actually asked for — which is also why the rail carries no fetch-in-flight marker of its own. Its
+right-hand column is unread counts and nothing else; that a fetch is happening is said once, on the breadcrumb, where
+the content it will replace already is. A rail somebody is reading should hold still. Two things still follow: an answer overtaken before it lands is discarded
 rather than drawn, and a destination is worth caching briefly so that walking out along the rail and back is one fetch
 per destination rather than one per arrival. The rate-limit quota on the rail earns its corner here more than under
 any of the other three, because this is the mechanism that could spend it by accident.
@@ -54,7 +56,7 @@ Gui's own `Scheme` is the *output* of resolving a role, not the vocabulary: its 
 
 **Colour is never the only thing carrying a meaning.** Every state the TUI shows has a glyph before it has a colour:
 `○ ◌ ● ✉` for the four audiences, `⚠` for a content warning, `↺` and `★` for the two marks, `▌` for the selected row,
-`◴` for something still loading. This is not decoration. `Terminal.Gui` reports a terminal as `ColorCapabilityLevel.
+the word `fetching…` on the breadcrumb for a fetch in flight. This is not decoration. `Terminal.Gui` reports a terminal as `ColorCapabilityLevel.
 NoColor` when `NO_COLOR` is set or `TERM=dumb`, and a shell that says "this post is boosted" only by turning a number
 green says nothing at all there — the same nothing it says to a reader who cannot separate that green from that grey.
 Colour makes the glyphs faster to scan; it is never asked to carry a fact by itself.
