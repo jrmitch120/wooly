@@ -62,7 +62,7 @@ workable only because the status row always shows the current screen's keys. Wha
 | `esc` | Up one level of the stack. Never quits. |
 | `ctrl-q` | Quit. |
 | `?` | The keymap for this screen. The spec has no in-app help story; this is the shell adding one, and #28 carries it — every other screen inherits it for free. |
-| `tab` / `shift-tab` | The next / previous destination. It loads on arrival; a destination fetched recently is drawn from cache and costs nothing. |
+| `tab` / `shift-tab` | The next / previous destination. The cursor moves at once; the destination loads once the rail has been still for ~180ms. |
 | `/` | Search. |
 
 Feed and post:
@@ -112,6 +112,7 @@ glyph or a position that carries the same meaning when colour is gone.
 | `rail-unread` | An unread count | the number's presence |
 | `quota` / `quota-low` | Rate-limit budget left, and nearly spent | the number |
 | `chrome` | Breadcrumb and status rows | position |
+| `pending` | The destination under the cursor, not asked for yet | `◌` |
 | `loading` | A fetch in flight; stale content while it lands | `◴` |
 | `destructive` | A delete affordance and its confirmation | the word |
 | `error` | A failure the shell has to say out loud | the word |
@@ -161,19 +162,26 @@ Rules:
 
 ## Fetching, since the rail loads on arrival
 
-`tab` walks the rail and what it lands on loads (ADR-0014). Three rules keep that affordable, and none of them changes
+`tab` walks the rail and what it lands on loads (ADR-0014). Four rules keep that affordable, and none of them changes
 what the user does:
 
-- **A destination is cached for a short while.** A step onto a destination fetched recently draws immediately and asks
-  the instance for nothing. Walking out along the rail and back is one fetch per destination, not one per arrival.
+- **A step schedules the fetch; it does not send it.** The cursor moves on the keypress, and the destination under it
+  is asked for only once the rail has been still for a settle window (~180ms). Each step abandons the previous
+  schedule, so a run of tabs sends exactly one request — the destination somebody stopped on. Holding tab through six
+  destinations costs one fetch, not six.
+- **The rail says which kind of waiting it is.** `◌` under the cursor means *waiting for you to stop*; `◴` means a
+  fetch really is in flight. A pause with no explanation reads as a hang.
+- **A destination is cached for a short while.** A step onto one fetched recently draws immediately and asks for
+  nothing, so walking out along the rail and back is one fetch per destination rather than one per arrival.
 - **An overtaken fetch is discarded, never drawn.** A reader two destinations further on must not have a stale timeline
   appear underneath them.
-- **The quota on the rail is load-bearing here.** This is the mechanism that can spend rate-limit budget by accident,
-  so story 54's indicator is not decoration on this shell.
+
+The settle window is the only thing that waits. The cursor, the highlight and the rail all move on the keypress; there
+is no press-enter-to-load and no destination that behaves differently from its neighbours.
 
 The alternatives were built and measured — a cursor that moves free until `⏎` commits, a key per destination, a jump
-list — and all cost one fetch against cycling's six on the same walk, before caching. They are on the prototype branch
-(`SCREENS-C.md`) if the decision is ever revisited.
+list — and all cost one fetch against cycling's six *before* the settle rule, which is what closed the gap. They are on
+the prototype branch (`SCREENS-C.md`) if the decision is ever revisited.
 
 ## Open questions
 
@@ -181,4 +189,4 @@ list — and all cost one fetch against cycling's six on the same walk, before c
    foreground/background pair, so "inherit" needs checking against the driver rather than assuming.
 2. **Where compose lives** — an editor pushed onto the stack like any other screen, or a region that opens under the
    feed so the thing being replied to stays visible.
-3. **How long a cached destination stays fresh**, and whether the answer differs for a timeline and for notifications.
+3. **How long the settle window and the cache should be** — 180ms and "a short while" are the prototype's guesses, and a timeline and a notification list may not want the same cache age.

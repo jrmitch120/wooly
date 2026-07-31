@@ -20,25 +20,27 @@ words. The rail alone costs 19, so the same terminal leaves the feed 61 — a ra
 pane is not. What the context pane held (who wrote this, where you stand with them) is exactly what the account screen
 holds now, one keystroke away, at full width.
 
-**Tab walks the rail and what it lands on loads, and the cost of that is paid by a cache rather than by an extra
-keystroke.** Three other mechanisms were prototyped and measured — a cursor that moves for free until enter commits it,
-a key bound to each destination, a jump list taking a name — and against a fake instance answering in 450ms, all three
-cost one fetch where cycling costs six with five discards on the walk from Home to Follow requests. Cycling is chosen
-anyway, and the reason it is defensible is that the six is a property of the naive implementation rather than of the
-interaction: a rail step is a *reader landing on a timeline*, and a timeline it landed on a moment ago does not have to
-be asked for again.
+**Tab walks the rail, and the destination under the cursor loads once the rail has been still for a moment.** Three
+other mechanisms were prototyped and measured — a cursor that moves for free until enter commits it, a key bound to
+each destination, a jump list taking a name — and against a fake instance answering in 450ms, all three cost one fetch
+where cycling, asking on every keypress, cost six with five discards on the walk from Home to Follow requests. Cycling
+is kept, because the six turns out to be a property of *when* the instance is asked rather than of the interaction: a
+run of tab presses is one navigation, not six, and it is only the destination somebody stopped on that they wanted.
 
-So the shell keeps a short-lived cache of what each destination last returned, keyed by destination and dropped after a
-small age, and a step onto a cached destination draws it immediately and fetches nothing. Walking Home → Local →
-Federated → Notifications and back is then one fetch per destination *ever*, not one per arrival, and the walk back is
-free. Two things follow that the shell owes regardless: an in-flight fetch that is overtaken before it lands is
-discarded rather than drawn (a reader two destinations further on must never have a stale timeline appear underneath
-them), and the rate-limit quota on the rail matters more here than it would under any of the other three, because this
-is the mechanism that can spend it by accident. Both are cheap; neither costs the user a keystroke, which is the point.
+So a step moves the cursor immediately and *schedules* the fetch, and each step abandons the schedule the step before
+it left. A run of tabs therefore leaves exactly one schedule standing, and the five destinations flown past are never
+asked for at all — the same six tabs to the same destination now cost one fetch, which is what every other mechanism
+costs. The settle window is short enough not to be felt as lag (180ms in the prototype) and it is the only thing that
+waits: the cursor, the highlight and the rail all move on the keypress, so nothing about the interaction becomes
+conditional. There is no press-enter-to-load, and no destination that behaves differently from its neighbours; a rail
+you can hold tab on and watch go past is exactly what is being kept.
 
-What this deliberately does not do is make the interaction conditional — no debounce that swallows a fast walk, no
-"press enter to load", no destination that behaves differently from its neighbours. A rail you can hold tab on and
-watch go past is the thing being kept.
+Three smaller things follow. The rail says which kind of waiting it is doing — one mark for *waiting on you*, another
+for *a fetch is in flight* — because a pause with no explanation reads as a hang. An answer that is overtaken before it
+lands is discarded rather than drawn, since a reader two destinations further on must never have a stale timeline
+appear underneath them. And a destination is worth caching briefly on top of all this, so that walking out along the
+rail and back is one fetch per destination rather than one per arrival. The rate-limit quota on the rail earns its
+corner here more than under any of the other three, because this is the mechanism that could spend it by accident.
 
 **No view builds a colour.** Nothing in the TUI constructs a `Terminal.Gui` `Attribute`, names a `StandardColor`, or
 holds a palette of its own — a view says which *role* the thing it is drawing plays (a byline's name, a handle, a
