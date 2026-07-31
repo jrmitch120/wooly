@@ -20,28 +20,28 @@ words. The rail alone costs 19, so the same terminal leaves the feed 61 — a ra
 pane is not. What the context pane held (who wrote this, where you stand with them) is exactly what the account screen
 holds now, one keystroke away, at full width.
 
-**Tab counts steps along the rail, and the highlight moves — and the destination loads — once the tabbing stops.**
-Three other mechanisms were prototyped and measured — a cursor that moves for free until enter commits it, a key bound
-to each destination, a jump list taking a name — and against a fake instance answering in 450ms, all three cost one
-fetch where cycling, moving and asking on every keypress, cost six with five discards on the walk from Home to Follow
-requests. Cycling is kept, because the six turns out to be a property of *when* a press is acted on rather than of the
+**Tab moves a cursor along the rail at once; the selection follows it — and the fetch goes out — when the tabbing
+stops.** Three other mechanisms were prototyped and measured — a cursor that moves for free until enter commits it, a
+key bound to each destination, a jump list taking a name — and against a fake instance answering in 450ms, all three
+cost one fetch where cycling, selecting on every keypress, cost six with five discards on the walk from Home to Follow
+requests. Cycling is kept, because the six turns out to be a property of *when a press is acted on* rather than of the
 interaction: a run of tab presses is one navigation, not six, and only the destination somebody stopped on was ever
 wanted.
 
-So a press advances a count and restarts a short settle window (250ms in the prototype); every press abandons the
-window the press before it left, and only the last one lands. When it does, the highlight moves to where the count
-reached and that destination is fetched. The same six tabs are now one visible move and one fetch — what every other
-mechanism costs — and the five destinations passed over are neither drawn nor requested.
+So the rail separates the two things a keypress used to do at once. The cursor moves on every press, immediately,
+because a key that draws nothing for a quarter of a second reads as lag however much work it is saving. The selection
+moves only when the presses stop, on a settle window (250ms in the prototype) that every press restarts and abandons
+the one before it — and moving the selection is what asks the instance for anything. The same six tabs are six cursor
+moves, one selection, and one fetch, which is what every other mechanism costs.
 
-The thing this buys beyond the fetch count is that there is no in-between state at all. Nothing on the rail moves
-ahead of its content, so nothing has to explain itself: no half-selected destination, no marker for *chosen but not
-loaded*, no timeline sitting under a highlight that belongs to a different one. What the rail shows is always a
-destination that was actually asked for — which is also why the rail carries no fetch-in-flight marker of its own. Its
-right-hand column is unread counts and nothing else; that a fetch is happening is said once, on the breadcrumb, where
-the content it will replace already is. A rail somebody is reading should hold still. Two things still follow: an answer overtaken before it lands is discarded
-rather than drawn, and a destination is worth caching briefly so that walking out along the rail and back is one fetch
-per destination rather than one per arrival. The rate-limit quota on the rail earns its corner here more than under
-any of the other three, because this is the mechanism that could spend it by accident.
+The rail therefore carries two marks and never needs a third: one for where the tabbing has got to, one for what is
+selected, both in the same column on the left where the destination names already are. There is no marker for *chosen
+but not loaded* and none for a fetch in flight — the right-hand column stays unread counts, and that a fetch is
+happening is said once on the breadcrumb, beside the content it is about to replace. A rail somebody is reading should
+hold still. Two smaller things still follow: an answer overtaken before it lands is discarded rather than drawn, and a
+destination is worth caching briefly so that walking out along the rail and back is one fetch per destination rather
+than one per arrival. The rate-limit quota on the rail earns its corner here more than under any of the other three,
+because this is the mechanism that could spend it by accident.
 
 **No view builds a colour.** Nothing in the TUI constructs a `Terminal.Gui` `Attribute`, names a `StandardColor`, or
 holds a palette of its own — a view says which *role* the thing it is drawing plays (a byline's name, a handle, a

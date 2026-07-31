@@ -62,7 +62,7 @@ workable only because the status row always shows the current screen's keys. Wha
 | `esc` | Up one level of the stack. Never quits. |
 | `ctrl-q` | Quit. |
 | `?` | The keymap for this screen. The spec has no in-app help story; this is the shell adding one, and #28 carries it — every other screen inherits it for free. |
-| `tab` / `shift-tab` | Counts a step. The highlight moves, and the destination loads, once the tabbing has stopped for ~250ms. |
+| `tab` / `shift-tab` | Moves the cursor (`▶`) at once. The selection (`▸`) follows it, and that destination loads, once the tabbing has stopped for ~250ms. |
 | `/` | Search. |
 
 Feed and post:
@@ -108,7 +108,7 @@ glyph or a position that carries the same meaning when colour is gone.
 | `boost` / `boost-mine` | The boost mark, and it when it is yours | `↺`, and the count |
 | `favorite` / `favorite-mine` | The favorite mark, and it when it is yours | `★`, and the count |
 | `selection` | The selected row | `▌` in the gutter |
-| `rail` / `rail-current` | Destinations, and the one being shown | `▸` |
+| `rail` / `rail-current` | Destinations, and the one selected | `▸`, with `▶` for the cursor |
 | `rail-unread` | An unread count | the number's presence |
 | `quota` / `quota-low` | Rate-limit budget left, and nearly spent | the number |
 | `chrome` | Breadcrumb and status rows | position |
@@ -161,21 +161,21 @@ Rules:
 
 ## Fetching, since the rail loads on arrival
 
-`tab` walks the rail and what it lands on loads (ADR-0014). Three rules keep that affordable, and none of them changes
-what the user does:
+`tab` walks the rail and what it lands on loads (ADR-0014). Three rules keep that affordable, and none of them makes
+the keyboard feel slow:
 
-- **A press counts a step and restarts a settle window (~250ms); nothing is drawn or fetched until it closes.** Each
-  press abandons the window before it, so a run of presses is one move: the highlight lands where the count reached
-  and that one destination is fetched. Holding tab through six destinations is one move and one fetch, not six.
+- **The cursor moves on the press; the selection moves when the pressing stops.** A press moves the cursor and restarts
+  a settle window (~250ms) that every later press abandons. When it closes, the selection follows the cursor and that
+  destination — only that one — is fetched. Six tabs are six cursor moves, one selection and one fetch.
 - **A destination is cached for a short while.** A step onto one fetched recently draws immediately and asks for
   nothing, so walking out along the rail and back is one fetch per destination rather than one per arrival.
 - **An overtaken fetch is discarded, never drawn.** A reader who has moved on must not have a stale timeline appear
   underneath them.
 
-Because nothing moves ahead of its content, there is no half-state to indicate — no marker for *chosen but not loaded*.
-What the rail highlights is always a destination that was actually asked for. The rail carries no fetch-in-flight mark
-either: its right-hand column is unread counts and nothing else, and that a fetch is happening is said once, on the
-breadcrumb. A rail somebody is reading should hold still.
+The rail carries exactly two marks for this, both in the left column with the destination names: `▶` where the tabbing
+has got to, `▸` what is selected. It carries no third mark for *chosen but not loaded* and none for a fetch in flight —
+the right-hand column is unread counts and nothing else, and a fetch is announced once on the breadcrumb. A rail
+somebody is reading should hold still.
 
 The alternatives were built and measured — a cursor that moves free until `⏎` commits, a key per destination, a jump
 list — and all cost one fetch against cycling's six *before* the settle rule, which is what closed the gap. They are on
