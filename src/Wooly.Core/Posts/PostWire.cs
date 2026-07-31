@@ -29,8 +29,48 @@ internal static class PostWire
         Boosts = status.ReblogCount,
         Favorites = status.FavouritesCount,
         Replies = status.RepliesCount,
+
+        // The wire leaves all three out where it has nobody to answer them about, which is a read made without a
+        // token. Silence there means "not marked" rather than "unknown": every call this client makes is signed in,
+        // so a missing flag is an instance that had nothing to report rather than one that was not asked.
+        Marks = new PostMarks
+        {
+            Boosted = status.Reblogged ?? false,
+            Favorited = status.Favourited ?? false,
+            Pinned = status.Pinned ?? false,
+        },
+        // Mastonet leaves this null rather than empty where a post carries nothing, and a timeline is mostly posts
+        // that carry nothing.
+        Media = status.MediaAttachments?.Select(ToMedia).ToList() ?? [],
         Boosted = status.Reblog is null ? null : ToPost(status.Reblog, instance),
         Url = status.Url,
+    };
+
+    /// <summary>One attachment as it came down, which is a different thing from one on its way up (<see cref="PostMedia" />).</summary>
+    private static PostMedia ToMedia(Attachment attachment) => new()
+    {
+        Id = attachment.Id,
+        Kind = ToKind(attachment.Type),
+        Url = attachment.Url,
+        Preview = string.IsNullOrWhiteSpace(attachment.PreviewUrl) ? null : attachment.PreviewUrl,
+
+        // The wire says "described as nothing" with an empty string, which is not the same thing as a description to
+        // read out.
+        Description = string.IsNullOrWhiteSpace(attachment.Description) ? null : attachment.Description,
+    };
+
+    /// <summary>
+    ///     What this client calls the kind the instance named. Anything else is kept as
+    ///     <see cref="MediaKind.Unknown" /> rather than refused, because an instance is free to serve a kind newer than
+    ///     this client and a post whose attachment cannot be named still has one.
+    /// </summary>
+    private static MediaKind ToKind(string? type) => type switch
+    {
+        "image" => MediaKind.Image,
+        "gifv" => MediaKind.Animation,
+        "video" => MediaKind.Video,
+        "audio" => MediaKind.Audio,
+        _ => MediaKind.Unknown,
     };
 
     /// <summary>How this project spells the visibility Mastonet handed back.</summary>

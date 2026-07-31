@@ -44,6 +44,20 @@ public sealed record Post
     public required long Replies { get; init; }
 
     /// <summary>
+    ///     What the profile reading the post has already done to it. Distinct from the three counts above, which say
+    ///     how many accounts did each thing without saying whether one of them was you — and a screen cannot draw a
+    ///     lit star, or offer to take a boost back, without knowing that (ADR-0014).
+    /// </summary>
+    public required PostMarks Marks { get; init; }
+
+    /// <summary>
+    ///     What is attached to the post besides its text, in the order the author attached it, and empty where nothing
+    ///     is. Read back off the instance, which is what makes it <see cref="PostMedia" /> rather than the
+    ///     <see cref="MediaAttachment" /> a draft carries up.
+    /// </summary>
+    public IReadOnlyList<PostMedia> Media { get; init; } = [];
+
+    /// <summary>
     ///     The post this one boosts, or <see langword="null" /> if it is not a boost. A boost carries no text of its
     ///     own — <see cref="Account" /> is who boosted, and everything worth reading is in here.
     /// </summary>
