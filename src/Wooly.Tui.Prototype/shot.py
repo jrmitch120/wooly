@@ -27,6 +27,7 @@ if pid == 0:
     os.dup2(slave, 2)
     os.close(slave)
     os.environ["TERM"] = "xterm-256color"
+    # WOOLY_SETTLE_MS and friends are inherited from the caller.
     os.environ["COLUMNS"] = str(cols)
     os.environ["LINES"] = str(rows)
     argv = ["dotnet", dll, "--shot", variant, "--hold", hold]

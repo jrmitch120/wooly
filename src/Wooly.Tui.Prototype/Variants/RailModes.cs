@@ -3,13 +3,27 @@ using Terminal.Gui.Input;
 namespace Wooly.Tui.Prototype;
 
 /// <summary>
-///     C·0 — Cycle. The rail as it was: tab walks to the next destination and that destination loads. The baseline, so
-///     the cost of walking through things on the way to the thing you wanted is a number you can read rather than a
-///     worry. Tab from Home to Search is five fetches and four of them thrown away.
+///     C·0 — Cycle, settling. Tab walks the rail and the destination it lands on loads — but not until the rail has
+///     been still for <see cref="Settle" />. Holding tab through six destinations is one fetch, of the one you stopped
+///     on, because the five you passed through were never asked for in the first place.
+///     <para>
+///         The cursor still moves on every keypress, so the rail never feels laggy; what waits is the instance being
+///         asked. A destination whose fetch has not been sent yet is marked <c>◌</c>, so the rail says out loud that it
+///         is waiting for you rather than for the network.
+///     </para>
 /// </summary>
 internal sealed class CycleRail : RailShell
 {
+    /// <summary>
+    ///     How still the rail has to be before the destination under the cursor is actually loaded. Overridable through
+    ///     <c>WOOLY_SETTLE_MS</c> so the waiting state can be held still long enough to screenshot.
+    /// </summary>
+    private static readonly TimeSpan Settle = TimeSpan.FromMilliseconds(
+        int.TryParse(Environment.GetEnvironmentVariable("WOOLY_SETTLE_MS"), out var ms) ? ms : 180);
+
     private int _at;
+    private int _pending;
+    private bool _waiting;
 
     public CycleRail() : base(4)
     {
@@ -18,6 +32,8 @@ internal sealed class CycleRail : RailShell
     protected override string Hint => "tab/shift-tab destination · j/k post · ⏎ read · a author · esc back";
 
     protected override string Prefix(int index) => index == _at ? "▸  " : "   ";
+
+    protected override bool Pending(int index) => _waiting && index == _at;
 
     protected override bool RailKey(Key key)
     {
@@ -41,7 +57,23 @@ internal sealed class CycleRail : RailShell
     private void Step(int by)
     {
         _at = (_at + by + Stops.Length) % Stops.Length;
-        Go(_at);
+
+        // The cursor moves now; the fetch is scheduled and every earlier schedule is abandoned by the token, so only
+        // the last step in a run of them ever reaches the instance.
+        var mine = ++_pending;
+        _waiting = true;
+        Redraw();
+
+        GetApp()?.AddTimeout(Settle, () =>
+        {
+            if (mine == _pending)
+            {
+                _waiting = false;
+                Go(_at);
+            }
+
+            return false;
+        });
     }
 }
 

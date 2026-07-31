@@ -6,18 +6,21 @@ rail you walk through fetches everything you walk past.
 
 The bottom-right corner of every shell counts fetches. Same journey in each: **Home → Follow requests**.
 
+C·0 is the anchored shell (ADR-0014). It keeps cycling — tab walks, and what it lands on loads — and pays for it
+by waiting for the rail to be still before asking, so a fast walk costs one fetch rather than six.
+
 | | Model | Keys for that journey | Fetches |
 |---|---|---|---|
-| C·0 | Cycle (today's C) | `tab` ×6 | **6, five thrown away** |
+| C·0 | Cycle, settling — **the anchor** | `tab` ×6 | **1** (6 before the settle rule) |
 | C·1 | Highlight then enter | `tab` `j`×6 `⏎` | **1** |
 | C·2 | Direct keys | `q` | **1** |
 | C·3 | Jump list | `g` `fol` `⏎` | **1** |
 
-## C·0 — Cycle: what you have now
+## C·0 — Cycle, settling — the anchored shell
 
-Six tabs from Home to Follow requests. Every step asked the instance for a timeline nobody wanted to read, and
-five of the six answers were thrown away when the next tab overtook them. This is the jerk you were worried about,
-and it is worse than it looks: each discarded fetch still spent rate-limit quota.
+Tab walks the rail and what it lands on loads, exactly as before. What changed is *when*: the destination under
+the cursor is not asked for until the rail has been still for 180ms, so the five destinations you fly past on the
+way to the sixth are never requested at all. Same six tabs, same landing, **one fetch**.
 ```
    Home             follow requests
    Local           ▌Maria Ochoa @maria@fosstodon.org                                         ○ 12m
@@ -39,9 +42,37 @@ and it is worse than it looks: each discarded fetch still spent rate-limit quota
 
 ──────────────────  Kev @kev@mas.to                                                           ○ 1h
  213/300 left       ⚠ instance politics, long
- tab/shift-tab destination · j/k post · ⏎ read · a author · esc back      fetches 6 · 5 thrown away
+ tab/shift-tab destination · j/k post · ⏎ read · a author · esc back                      fetches 1
  PROTOTYPE  ◀ F9   C0 — Rail · cycle   F10 ▶                                 F1 notes · Ctrl-Q quit
 ```
+
+### Mid-walk, before it settles
+
+The cursor moves on the keypress — the rail never feels laggy — while the content stays on the timeline you are
+leaving, and the destination under the cursor wears `◌`: waiting on you, not on the network. (`◴` is the
+other one, and means a fetch really is in flight.) Held still here with `WOOLY_SETTLE_MS=5000`.
+```
+   Home             home
+   Local           ▌Maria Ochoa @maria@fosstodon.org                                         ○ 12m
+   Federated       ▌Finally shipped the terminal client rewrite. Terminal.Gui v2's instance-based
+▸  #dotnet      ◌  ▌application model made the whole shell testable — no more static state
+────────────────── ▌leaking between test runs.
+   Notifications4  ▌↺ 12   ★ 34   ↩ 5    ⏎ read · a author
+   Direct messa…1  ▌
+   Follow reque…2   Ben Whitlock @ben@hachyderm.io                                           ○ 41m
+   Search           sixel in 2026 and it still comes down to whether your multiplexer passes the
+──────────────────  escape through 🙃
+   @jeff            ▒▒▒▒ Screenshot of a terminal showing an image rendered as coloured blocks
+                    ↺ 3   ★ 21   ↩ 11    ⏎ read · a author
+──────────────────
+ 213/300 left       ↺Jeff · Hazel @hazel@mastodon.art                                         ○ 1h
+ tab/shift-tab destination · j/k post · ⏎ read · a author · esc back                      fetches 0
+ PROTOTYPE  ◀ F9   C0 — Rail · cycle   F10 ▶                                 F1 notes · Ctrl-Q quit
+```
+
+Before the settle rule this same walk cost **six fetches with five thrown away** — five timelines nobody read, and
+five bites of the rate-limit quota the rail is displaying. That number is what the other three models below were
+measured against, and it is a property of asking on every keypress rather than of cycling itself.
 
 ## C·1 — Highlight, then enter
 

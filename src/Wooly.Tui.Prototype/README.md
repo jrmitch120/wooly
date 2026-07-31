@@ -38,14 +38,15 @@ C won on its rail and lost on its right-hand column, so round two keeps the rail
 makes a post or an account something you **drill into** from a list item (`⏎` reads it, `a` opens the author, `esc`
 walks back up a breadcrumb).
 
-That leaves one open question, which is the one worth prototyping: **choosing a destination without paying for the
-ones you pass through.** These four differ in nothing else. Every shell counts fetches in the bottom-right corner, the
+They differ in one thing only: **how a destination is chosen without paying for the ones you pass through.** C·0 is
+the anchored answer (ADR-0014) — cycling kept, and the cost removed by waiting for the rail to be still rather than by
+asking the user for an extra keystroke. Every shell counts fetches in the bottom-right corner, the
 fake instance answers in 450ms, and an answer overtaken before it lands is thrown away — so the cost of a selection
 model is a number on screen rather than a feeling.
 
 | | Model | Home → Follow requests | Fetches | Where it hurts |
 |---|---|---|---|---|
-| **C·0** | Cycle — tab walks and loads | `tab` ×6 | **6**, five thrown away | The problem, measured. Every step spends rate-limit quota on a timeline nobody read. |
+| **C·0** | Cycle, settling — **the anchor** (ADR-0014) | `tab` ×6 | **1** | Nothing, once it waits 180ms for the rail to be still. Asking on every keypress instead cost 6 with 5 discarded, which is what the other three were measured against. |
 | **C·1** | Highlight, then enter | `tab` `j`×6 `⏎` | **1** | Two cursors to explain: `▸` where you are, `▶` where you are going. The rail holds the keyboard while it has the cursor. |
 | **C·2** | Direct keys | `q` | **1** | The alphabet. `r` is already reply, so requests took `q` — and every destination added later needs a spare letter. |
 | **C·3** | Jump list — `g`, then type | `g` `fol` `⏎` | **1** | One extra keystroke, and the only shape that has to be taught. Scales past nine destinations, which the other three do not. |
