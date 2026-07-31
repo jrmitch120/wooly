@@ -52,11 +52,4 @@ public sealed record Destination(DestinationKind Kind, string Label, Timeline? T
 {
     /// <summary>How many unread things are waiting here, or zero where nothing is or nothing counts them.</summary>
     public int Unread { get; init; }
-
-    /// <summary>
-    ///     Whether this ticket has a screen for it. The four that do not are still on the rail and still selectable —
-    ///     they say which ticket is bringing them rather than doing nothing at all, because a rail entry that swallows
-    ///     a keypress reads as a bug.
-    /// </summary>
-    public bool Opens => Timeline is not null || Kind == DestinationKind.Profile;
 }

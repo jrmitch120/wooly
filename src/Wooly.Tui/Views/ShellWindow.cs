@@ -19,11 +19,17 @@ internal sealed class ShellWindow : Window
     private readonly ComposeEditor _editor;
     private readonly Shell.Shell _shell;
     private readonly TimeProvider _clock;
+    private readonly Action _quit;
 
-    public ShellWindow(Shell.Shell shell, ITheme theme, TimeProvider clock)
+    /// <param name="quit">
+    ///     What <c>ctrl-q</c> does. Passed in rather than reached for, because the application is the thing that owns
+    ///     the run loop and this window is one of the things running in it.
+    /// </param>
+    public ShellWindow(Shell.Shell shell, ITheme theme, TimeProvider clock, Action quit)
     {
         _shell = shell;
         _clock = clock;
+        _quit = quit;
 
         // No border and no title: the contract gives the frame two rows, and both of them say something. A box around
         // the outside would cost two more and say nothing.
@@ -98,6 +104,15 @@ internal sealed class ShellWindow : Window
             return true;
         }
 
+        // The one key that ends the run. Bound explicitly because esc is taken — it walks up the stack and never
+        // quits (docs/tui-shell.md) — and Terminal.Gui's own default quit key is esc, which this window consumes.
+        if (key == Key.Q.WithCtrl)
+        {
+            _quit();
+
+            return true;
+        }
+
         if (key == Key.Tab)
         {
             _shell.Step(1);
@@ -136,6 +151,20 @@ internal sealed class ShellWindow : Window
         if (key == Key.PageUp)
         {
             _shell.Move(-10);
+
+            return true;
+        }
+
+        if (key == Key.Home)
+        {
+            _shell.Move(int.MinValue);
+
+            return true;
+        }
+
+        if (key == Key.End)
+        {
+            _shell.Move(int.MaxValue);
 
             return true;
         }
@@ -192,9 +221,9 @@ internal sealed class ShellWindow : Window
         {
             _shell.Reveal();
         }
-        else if (key == Key.F5)
+        else if (key.AsRune.Value == '/')
         {
-            _ = _shell.Refresh();
+            _shell.Search();
         }
         else if (key.AsRune.Value == '?')
         {

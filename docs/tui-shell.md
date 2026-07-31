@@ -63,7 +63,7 @@ workable only because the status row always shows the current screen's keys. Wha
 | `ctrl-q` | Quit. |
 | `?` | The keymap for this screen. The spec has no in-app help story; this is the shell adding one, and #28 carries it — every other screen inherits it for free. |
 | `tab` / `shift-tab` | Moves the cursor (`▶`) at once. The selection (`▸`) follows it, and that destination loads, once the tabbing has stopped for ~250ms. |
-| `/` | Search. |
+| `/` | Search. Goes to the search destination; what it opens onto is #29's. |
 
 Feed and post:
 

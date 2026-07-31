@@ -14,83 +14,45 @@ namespace Wooly.Tui.Screens;
 /// </remarks>
 public sealed class PostScreen(Post post, IReadOnlyList<Post> replies) : Screen
 {
-    private readonly List<Post> _replies = [.. replies];
-    private readonly HashSet<string> _revealed = [];
-
-    private Post _post = post;
+    private readonly PickedPosts _replies = new(replies);
+    private readonly PickedPosts _itself = new([post]);
 
     /// <inheritdoc />
-    public override string Crumb => $"post by @{(_post.Boosted ?? _post).Account}";
+    public override string Crumb => $"post by @{(Post.Boosted ?? Post).Account}";
 
     /// <inheritdoc />
     public override IReadOnlyList<KeyHint> Keys =>
-    [
-        new("j/k", "reply"),
-        new("a", "author"),
-        new("r", "reply"),
-        new("b", "boost"),
-        new("f", "favorite"),
-        new("p", "pin"),
-        new("e", "edit"),
-        new("d", "delete"),
-        new("x", "show warning"),
-        new("esc", "back"),
-        new("?", "keys"),
-    ];
+        PostKeys.Around(new KeyHint("j/k", "post · replies"), new KeyHint("esc", "back"));
 
     /// <summary>Which of the post and its replies is picked out: 0 is the post, and the rest are the answers in order.</summary>
     public int At { get; private set; }
 
     /// <summary>The post this screen is about.</summary>
-    public Post Post => _post;
+    public Post Post => _itself.Posts[0];
 
     /// <summary>What has been said in answer to it, oldest first.</summary>
-    public IReadOnlyList<Post> Replies => _replies;
+    public IReadOnlyList<Post> Replies => _replies.Posts;
 
     /// <inheritdoc />
-    public override Post? Picked => At == 0 ? _post : _replies[At - 1];
+    public override Post? Picked => At == 0 ? Post : _replies.Posts[At - 1];
 
     /// <inheritdoc />
-    public override void Move(int by) => At = Math.Clamp(At + by, 0, _replies.Count);
+    public override void Move(int by) => At = PickedPosts.Clamped(At, by, _replies.Count);
 
     /// <inheritdoc />
-    public override bool Reveal()
-    {
-        if (Picked is not { } picked)
-        {
-            return false;
-        }
-
-        var shown = picked.Boosted ?? picked;
-
-        return shown.ContentWarning is not null && _revealed.Add(shown.Id);
-    }
+    public override bool Reveal() => Picked is { } picked && Held(picked).Reveal(picked);
 
     /// <inheritdoc />
     public override void Replace(Post post)
     {
-        if (_post.Id == post.Id)
-        {
-            _post = post;
-        }
-        else if (_post.Boosted?.Id == post.Id)
-        {
-            _post = _post with { Boosted = post };
-        }
-
-        for (var at = 0; at < _replies.Count; at++)
-        {
-            if (_replies[at].Id == post.Id)
-            {
-                _replies[at] = post;
-            }
-        }
+        _itself.Replace(post);
+        _replies.Replace(post);
     }
 
     /// <inheritdoc />
     public override void Remove(string postId)
     {
-        _replies.RemoveAll(reply => reply.Id == postId);
+        _replies.Remove(postId);
 
         At = Math.Clamp(At, 0, _replies.Count);
     }
@@ -101,9 +63,9 @@ public sealed class PostScreen(Post post, IReadOnlyList<Post> replies) : Screen
         var room = Math.Max(1, width - 1);
         var lines = new List<Line>();
 
-        foreach (var line in PostLines.Whole(_post, room, Revealed(_post), now))
+        foreach (var line in PostLines.Whole(Post, room, _itself.IsRevealed(Post), now))
         {
-            lines.Add(line.After(Gutter(At == 0)));
+            lines.Add(line.After(PickedPosts.Gutter(At == 0)));
         }
 
         lines.Add(Line.Blank);
@@ -112,18 +74,21 @@ public sealed class PostScreen(Post post, IReadOnlyList<Post> replies) : Screen
 
         if (_replies.Count == 0)
         {
-            lines.Add(Line.Of("Nobody has answered this yet.", Role.Muted).After(Gutter(picked: false)));
+            lines.Add(Line.Of("Nobody has answered this yet.", Role.Muted)
+                          .After(PickedPosts.Gutter(picked: false)));
 
             return lines;
         }
 
+        // The replies draw their own gutter from their own index, which is one behind this screen's: the post itself
+        // is what index zero picks out.
         for (var at = 0; at < _replies.Count; at++)
         {
-            var reply = _replies[at];
+            var reply = _replies.Posts[at];
 
-            foreach (var line in PostLines.Feed(reply, room, Revealed(reply), now))
+            foreach (var line in PostLines.Feed(reply, room, _replies.IsRevealed(reply), now))
             {
-                lines.Add(line.After(Gutter(At == at + 1)));
+                lines.Add(line.After(PickedPosts.Gutter(At == at + 1)));
             }
 
             lines.Add(Line.Blank);
@@ -132,10 +97,9 @@ public sealed class PostScreen(Post post, IReadOnlyList<Post> replies) : Screen
         return lines;
     }
 
-    private static Span Gutter(bool picked) => new(picked ? "▌" : " ", picked ? Role.Selection : Role.Body);
+    /// <summary>Which of the two lists a post on this screen belongs to, since the post itself is not one of its replies.</summary>
+    private PickedPosts Held(Post post) => post.Id == Post.Id ? _itself : _replies;
 
     private string Heading(int width) =>
         TextWrap.Clip(_replies.Count == 0 ? "── replies ──" : $"── {_replies.Count} replies ──", width);
-
-    private bool Revealed(Post post) => _revealed.Contains((post.Boosted ?? post).Id);
 }

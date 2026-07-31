@@ -36,8 +36,5 @@ public sealed class DestinationCache(TimeProvider clock, TimeSpan freshFor)
     /// </summary>
     public void Forget(DestinationKind kind) => _held.Remove(kind);
 
-    /// <summary>Forgets the lot, which is what a reader asking for a refresh means.</summary>
-    public void Clear() => _held.Clear();
-
     private sealed record Held(DateTimeOffset At, IReadOnlyList<Post> Posts);
 }

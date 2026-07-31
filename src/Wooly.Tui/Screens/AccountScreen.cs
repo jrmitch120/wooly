@@ -17,88 +17,42 @@ namespace Wooly.Tui.Screens;
 /// </remarks>
 public sealed class AccountScreen(Account account, IReadOnlyList<Post> posts) : Screen
 {
-    private readonly List<Post> _posts = [.. posts];
-    private readonly HashSet<string> _revealed = [];
+    private readonly PickedPosts _picked = new(posts);
 
     /// <inheritdoc />
     public override string Crumb => $"@{account.Address}";
 
     /// <inheritdoc />
     public override IReadOnlyList<KeyHint> Keys =>
-    [
-        new("j/k", "post"),
-        new("⏎", "read"),
-        new("r", "reply"),
-        new("b", "boost"),
-        new("f", "favorite"),
-        new("x", "show warning"),
-        new("esc", "back"),
-        new("?", "keys"),
-    ];
+        PostKeys.Around(new KeyHint("j/k", "post"), new KeyHint("esc", "back"));
 
     /// <summary>The account being shown.</summary>
     public Account Account => account;
 
     /// <summary>Which of their posts is picked out.</summary>
-    public int At { get; private set; }
+    public int At => _picked.At;
 
     /// <summary>The posts of theirs that were read, newest first.</summary>
-    public IReadOnlyList<Post> Posts => _posts;
+    public IReadOnlyList<Post> Posts => _picked.Posts;
 
     /// <inheritdoc />
-    public override Post? Picked => _posts.Count == 0 ? null : _posts[At];
+    public override Post? Picked => _picked.Picked;
 
     /// <inheritdoc />
-    public override void Move(int by)
-    {
-        if (_posts.Count > 0)
-        {
-            At = Math.Clamp(At + by, 0, _posts.Count - 1);
-        }
-    }
+    public override void Move(int by) => _picked.Move(by);
 
     /// <inheritdoc />
-    public override bool Reveal()
-    {
-        if (Picked is not { } picked)
-        {
-            return false;
-        }
-
-        var shown = picked.Boosted ?? picked;
-
-        return shown.ContentWarning is not null && _revealed.Add(shown.Id);
-    }
+    public override bool Reveal() => _picked.Reveal();
 
     /// <inheritdoc />
-    public override void Replace(Post post)
-    {
-        for (var at = 0; at < _posts.Count; at++)
-        {
-            if (_posts[at].Id == post.Id)
-            {
-                _posts[at] = post;
-            }
-            else if (_posts[at].Boosted?.Id == post.Id)
-            {
-                _posts[at] = _posts[at] with { Boosted = post };
-            }
-        }
-    }
+    public override void Replace(Post post) => _picked.Replace(post);
 
     /// <inheritdoc />
-    public override void Remove(string postId)
-    {
-        _posts.RemoveAll(post => post.Id == postId || post.Boosted?.Id == postId);
-
-        At = _posts.Count == 0 ? 0 : Math.Clamp(At, 0, _posts.Count - 1);
-    }
+    public override void Remove(string postId) => _picked.Remove(postId);
 
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(int width, DateTimeOffset now)
     {
-        var room = Math.Max(1, width - 1);
-
         var lines = new List<Line>
         {
             Line.Of(TextWrap.Clip(account.Author, width), Role.BylineName),
@@ -115,26 +69,14 @@ public sealed class AccountScreen(Account account, IReadOnlyList<Post> posts) : 
             Line.Blank,
         };
 
-        if (_posts.Count == 0)
+        if (_picked.Count == 0)
         {
             lines.Add(Line.Of("Nothing to read here yet.", Role.Muted));
 
             return lines;
         }
 
-        for (var at = 0; at < _posts.Count; at++)
-        {
-            var post = _posts[at];
-            var picked = at == At;
-            var shown = post.Boosted ?? post;
-
-            foreach (var line in PostLines.Feed(post, room, _revealed.Contains(shown.Id), now))
-            {
-                lines.Add(line.After(new Span(picked ? "▌" : " ", picked ? Role.Selection : Role.Body)));
-            }
-
-            lines.Add(Line.Blank);
-        }
+        lines.AddRange(_picked.Lines(width, now));
 
         return lines;
     }

@@ -61,13 +61,13 @@ public sealed class ComposeScreen(ComposeFor purpose, Post? about = null) : Scre
     {
         var lines = new List<Line>();
 
-        if (About is { } about1 && Purpose == ComposeFor.Reply)
+        if (About is { } answered && Purpose == ComposeFor.Reply)
         {
             // What is being answered stays on screen, which is the thing the rejected "editor under the feed" was for.
             // It costs four rows here and no layout at all.
-            lines.Add(Line.Of(TextWrap.Clip($"Answering @{about1.Account}:", width), Role.Muted));
+            lines.Add(Line.Of(TextWrap.Clip($"Answering @{answered.Account}:", width), Role.Muted));
 
-            foreach (var row in TextWrap.Wrap(about1.Content, Math.Max(1, width - 2)).Take(3))
+            foreach (var row in TextWrap.Wrap(answered.Content, Math.Max(1, width - 2)).Take(3))
             {
                 lines.Add(Line.Of($"  {row}", Role.Muted));
             }

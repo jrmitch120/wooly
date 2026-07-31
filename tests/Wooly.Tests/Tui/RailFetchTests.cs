@@ -176,6 +176,62 @@ public class RailFetchTests
     }
 
     /// <summary>
+    ///     A destination that asks the instance for nothing still overtakes what the last one asked for. Without that,
+    ///     stepping from a timeline still in flight onto one of the destinations whose screen is a standing notice
+    ///     would let the timeline land on top of the notice a moment later.
+    /// </summary>
+    [Fact]
+    public async Task Step_DiscardsAnAnswerOvertakenByADestinationThatFetchesNothing()
+    {
+        var held = new TaskCompletionSource<TimelineFetch>();
+        var shell = new AShell
+        {
+            Timelines = FakeTimelineReader.Awaiting(timeline => timeline.Scope switch
+            {
+                TimelineScope.Local => held.Task,
+                _ => Task.FromResult(TimelineFetch.Complete([APost.With()])),
+            }),
+        };
+
+        var opened = await shell.Opened();
+
+        opened.Step(1);
+        shell.Host.Settle();
+
+        // On to notifications, whose screen is #29's and which asks the instance for nothing at all.
+        opened.Step(3);
+        shell.Host.Settle();
+
+        Assert.IsType<NoticeScreen>(opened.Screen);
+
+        held.SetResult(TimelineFetch.Complete([APost.With(id: "stale")]));
+
+        Assert.IsType<NoticeScreen>(opened.Screen);
+        Assert.Equal("notifications", opened.Breadcrumb);
+    }
+
+    /// <summary>
+    ///     The same rule for a drill: a reader who tabbed away while the replies were in flight is somewhere else, and
+    ///     a post screen appearing over the destination they are on now is the same stale answer.
+    /// </summary>
+    [Fact]
+    public async Task Enter_DiscardsRepliesTheReaderHasAlreadyTabbedAwayFrom()
+    {
+        var shell = new AShell();
+        var opened = await shell.Opened();
+
+        var drilling = opened.Enter();
+
+        opened.Step(1);
+        shell.Host.Settle();
+
+        await drilling;
+
+        Assert.IsType<FeedScreen>(opened.Screen);
+        Assert.Equal("local", opened.Breadcrumb);
+    }
+
+    /// <summary>
     ///     Nine of them, in the order the contract lists, including the four whose screens are #29's and #30's. The
     ///     shape of the rail is what this ticket settles, and a rail that grows four entries later is a different rail.
     /// </summary>

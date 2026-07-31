@@ -145,11 +145,22 @@ public sealed class Shell
         }
 
         var about = picked.Boosted ?? picked;
-        var replies = await Ask(token => _ports.Engagement.Replies(_profile, about.Id, token));
+
+        // Which destination this drill started from. A reader who tabbed away while the replies were in flight is
+        // somewhere else now, and a post screen appearing over it would be the same stale-answer problem the rail's
+        // own discard rule solves.
+        var from = _asked;
+        var replies = await Ask(cancellation => _ports.Engagement.Replies(_profile, about.Id, cancellation));
 
         if (replies is not null)
         {
-            Apply(() => Push(new PostScreen(picked, replies)));
+            Apply(() =>
+            {
+                if (!Overtaken(from))
+                {
+                    Push(new PostScreen(picked, replies));
+                }
+            });
         }
     }
 
@@ -161,7 +172,7 @@ public sealed class Shell
             return;
         }
 
-        await OpenAccount(AccountAddress.Parse((picked.Boosted ?? picked).Account));
+        await OpenAccount(AccountAddress.Parse((picked.Boosted ?? picked).Account), _asked);
     }
 
     /// <summary>Walks back up one level of the stack. Never quits, and never leaves the shell with nothing on it.</summary>
@@ -186,6 +197,12 @@ public sealed class Shell
         Notice = null;
         Changed?.Invoke();
     }
+
+    /// <summary>
+    ///     Goes to search, which is a frame key rather than a screen's (<c>docs/tui-shell.md</c>): it means the same
+    ///     thing everywhere, so it is bound here even though what it opens onto is #29's.
+    /// </summary>
+    public void Search() => Rail.GoTo(DestinationKind.Search);
 
     /// <summary>Shows the current screen's keymap, which is itself a place in the stack.</summary>
     public void Help()
@@ -327,14 +344,6 @@ public sealed class Shell
         });
     }
 
-    /// <summary>Reads the current destination again, whatever its cached age says.</summary>
-    public async Task Refresh()
-    {
-        _cache.Forget(Rail.Showing.Kind);
-
-        await Go(Rail.Showing);
-    }
-
     /// <summary>The nine, in the order the rail draws them.</summary>
     private static IReadOnlyList<Destination> Destinations(ActiveProfile profile, string? hashtag) =>
     [
@@ -355,15 +364,20 @@ public sealed class Shell
     /// <summary>Arriving at a destination, which is what moving the rail's selection means.</summary>
     private async Task Go(Destination destination)
     {
+        // Taken before anything else, and by every arrival rather than only the ones that fetch. A destination that
+        // asks the instance for nothing still overtakes what the last one asked for — otherwise a timeline still in
+        // flight lands on top of the notice screen the reader has since walked to.
+        var token = ++_asked;
+
         // Walking to a destination is arriving somewhere, so whatever was drilled into from the last one is left
         // behind: the stack is where you went from here, and this is a different here.
-        Apply(() => Reset(Waiting(destination)));
+        Apply(() => Reset(OnArrival(destination)));
 
         if (destination.Kind == DestinationKind.Profile)
         {
             if (_profile.Account is { } account)
             {
-                await OpenAccount(AccountAddress.Parse(account), replacing: true);
+                await OpenAccount(AccountAddress.Parse(account), token, replacing: true);
             }
 
             return;
@@ -373,8 +387,6 @@ public sealed class Shell
         {
             return;
         }
-
-        var token = ++_asked;
 
         if (_cache.Fresh(destination.Kind) is { } held)
         {
@@ -394,7 +406,7 @@ public sealed class Shell
         {
             // Overtaken. The reader has asked for somewhere else since, and drawing this now would put a timeline
             // they have left underneath the destination they are on.
-            if (token != _asked)
+            if (Overtaken(token))
             {
                 return;
             }
@@ -405,7 +417,11 @@ public sealed class Shell
     }
 
     /// <summary>Opens an account screen: who they are, their standing, and their posts.</summary>
-    private async Task OpenAccount(AccountAddress address, bool replacing = false)
+    /// <param name="token">
+    ///     Which arrival this belongs to. Two calls deep, so it is checked once at the end rather than after each:
+    ///     what matters is whether the reader is still where they were when they asked, not how far the answer got.
+    /// </param>
+    private async Task OpenAccount(AccountAddress address, int token, bool replacing = false)
     {
         var account = await Ask(token => _ports.Accounts.Show(_profile, address, token));
 
@@ -424,6 +440,11 @@ public sealed class Shell
 
         Apply(() =>
         {
+            if (Overtaken(token))
+            {
+                return;
+            }
+
             var screen = new AccountScreen(account, posts.Posts);
 
             if (replacing)
@@ -584,8 +605,11 @@ public sealed class Shell
         return waited.Task;
     }
 
-    /// <summary>The screen a destination shows while its own is being fetched.</summary>
-    private Screen Waiting(Destination destination) => destination.Kind switch
+    /// <summary>
+    ///     What a destination puts on screen the moment it is arrived at: an empty feed for the four timelines, whose
+    ///     posts land a moment later, and a standing notice for the ones whose screens later tickets bring.
+    /// </summary>
+    private Screen OnArrival(Destination destination) => destination.Kind switch
     {
         DestinationKind.Notifications => new NoticeScreen(
             "notifications",
@@ -687,6 +711,12 @@ public sealed class Shell
 
         Changed?.Invoke();
     }
+
+    /// <summary>
+    ///     Whether the reader has arrived somewhere else since <paramref name="token" /> was taken, which makes
+    ///     whatever it belongs to an answer to a question nobody is asking any more.
+    /// </summary>
+    private bool Overtaken(int token) => token != _asked;
 
     private void Apply(Action work) => _host.OnUiThread(work);
 }

@@ -1,6 +1,7 @@
 using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
+using Wooly.Tui.Shell;
 
 namespace Wooly.Tests.Tui;
 
@@ -174,6 +175,51 @@ public class ShellStackTests
         opened.Back();
 
         Assert.IsType<FeedScreen>(opened.Screen);
+    }
+
+    /// <summary>
+    ///     Every key the shell acts on is a key the screen said it answers to. A key that fires without being on the
+    ///     status row is a key nobody can find, and the row is the only thing making a keymap that varies workable
+    ///     (docs/tui-shell.md).
+    /// </summary>
+    [Fact]
+    public async Task Keys_SayEveryKeyThatActsOnThePickedPost()
+    {
+        var shell = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(APost.With(id: "110", account: "ben@hachyderm.io")),
+            Accounts = FakeAccountRelationships.Holding(AnAccount.With(address: "ben@hachyderm.io")),
+        };
+
+        var opened = await shell.Opened();
+        var acting = PostKeys.OnAPost.Select(key => key.Key).ToList();
+
+        Assert.Subset(opened.Keys.Select(key => key.Key).ToHashSet(), acting.ToHashSet());
+
+        await opened.Enter();
+
+        Assert.Subset(opened.Keys.Select(key => key.Key).ToHashSet(), acting.ToHashSet());
+
+        await opened.OpenAuthor();
+
+        Assert.Subset(opened.Keys.Select(key => key.Key).ToHashSet(), acting.ToHashSet());
+    }
+
+    /// <summary>
+    ///     <c>/</c> is a frame key rather than a screen's, so it means the same thing everywhere even though what it
+    ///     opens onto is #29's.
+    /// </summary>
+    [Fact]
+    public async Task Search_GoesToTheSearchDestinationFromWhereverYouAre()
+    {
+        var shell = new AShell();
+        var opened = await shell.Opened();
+
+        await opened.Enter();
+        opened.Search();
+
+        Assert.Equal(DestinationKind.Search, opened.Rail.Showing.Kind);
+        Assert.Equal("search", opened.Breadcrumb);
     }
 
     /// <summary>Asking for help twice is still one screen, not a stack of them.</summary>

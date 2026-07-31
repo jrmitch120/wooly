@@ -51,7 +51,7 @@ try
         ShellTiming.Default,
         preferences.Hashtag);
 
-    using var window = new ShellWindow(shell, Themes.ForCurrentTerminal(), clock);
+    using var window = new ShellWindow(shell, Themes.ForCurrentTerminal(), clock, application.RequestStop);
 
     // Started rather than awaited: the first timeline arrives while the shell is already on screen, which is what the
     // breadcrumb's fetching mark is for.

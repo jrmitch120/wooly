@@ -41,7 +41,7 @@ public static class PostLines
         lines.Add(Byline(shown, width, now));
         lines.AddRange(Body(shown, width, revealed));
         lines.AddRange(Media(shown, width));
-        lines.Add(Counts(shown));
+        lines.Add(Counts(shown, spelledOut: false));
 
         return lines;
     }
@@ -61,7 +61,7 @@ public static class PostLines
             Line.Of([
                 new Span(Elapsed.Moment(shown.PostedAt), Role.Muted),
                 new Span(" · ", Role.Muted),
-                new Span($"{Audience(shown.Visibility)} {AudienceName(shown.Visibility)}", Role.Audience),
+                new Span($"{Audience(shown.Visibility)} {PostVisibilityName.Of(shown.Visibility)}", Role.Audience),
             ]),
             Line.Blank,
         };
@@ -77,7 +77,7 @@ public static class PostLines
         lines.AddRange(Body(shown, width, revealed));
         lines.AddRange(Media(shown, width));
         lines.Add(Line.Blank);
-        lines.Add(CountsSpelledOut(shown));
+        lines.Add(Counts(shown, spelledOut: true));
 
         return lines;
     }
@@ -91,9 +91,6 @@ public static class PostLines
         PostVisibility.Direct => "✉",
         _ => throw new ArgumentOutOfRangeException(nameof(visibility), visibility, "Not an audience this client draws."),
     };
-
-    /// <summary>Who can see a post, in the word a reader would use for it.</summary>
-    public static string AudienceName(PostVisibility visibility) => PostVisibilityName.Of(visibility);
 
     /// <summary>
     ///     The name, the handle, and — pushed to the right — the audience and how long ago. The right-hand pair is laid
@@ -177,22 +174,22 @@ public static class PostLines
     ///     The three counts. Each takes the role that says whether this profile is one of the accounts in it, which is
     ///     the whole reason a post carries the reader's own marks.
     /// </summary>
-    private static Line Counts(Post post) => Line.Of([
-        new Span($"↺ {Number(post.Boosts)}", post.Marks.Boosted ? Role.BoostMine : Role.Boost),
+    /// <param name="spelledOut">
+    ///     Whether each count says what it counts. A feed has room for the glyph and the number and a reader scanning
+    ///     one does not need the word; the post screen has room for both.
+    /// </param>
+    private static Line Counts(Post post, bool spelledOut) => Line.Of([
+        new Span($"↺ {Number(post.Boosts)}{Word(" boosts", spelledOut)}", post.Marks.Boosted ? Role.BoostMine : Role.Boost),
         new Span("   ", Role.Muted),
-        new Span($"★ {Number(post.Favorites)}", post.Marks.Favorited ? Role.FavoriteMine : Role.Favorite),
+        new Span(
+            $"★ {Number(post.Favorites)}{Word(" favorites", spelledOut)}",
+            post.Marks.Favorited ? Role.FavoriteMine : Role.Favorite),
         new Span("   ", Role.Muted),
-        new Span($"↩ {Number(post.Replies)}", Role.Muted),
+        new Span($"↩ {Number(post.Replies)}{Word(" replies", spelledOut)}", Role.Muted),
         new Span(post.Marks.Pinned ? "   pinned" : string.Empty, Role.Muted),
     ]);
 
-    private static Line CountsSpelledOut(Post post) => Line.Of([
-        new Span($"↺ {Number(post.Boosts)} boosts", post.Marks.Boosted ? Role.BoostMine : Role.Boost),
-        new Span("   ", Role.Muted),
-        new Span($"★ {Number(post.Favorites)} favorites", post.Marks.Favorited ? Role.FavoriteMine : Role.Favorite),
-        new Span("   ", Role.Muted),
-        new Span($"↩ {Number(post.Replies)} replies", Role.Muted),
-    ]);
+    private static string Word(string word, bool spelledOut) => spelledOut ? word : string.Empty;
 
     private static string Number(long count) => count.ToString("N0", CultureInfo.CurrentCulture);
 }
