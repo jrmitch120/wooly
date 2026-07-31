@@ -27,6 +27,18 @@ public sealed record PostDraft
     public PostVisibility? Visibility { get; init; }
 
     /// <summary>
+    ///     Where <see cref="Visibility" /> came from: <see langword="true" /> if this composition named it,
+    ///     <see langword="false" /> if it is a standing preference the composer had nothing to say about.
+    /// </summary>
+    /// <remarks>
+    ///     The difference only matters for a reply, which may not go out wider than the post it answers (ADR-0013). A
+    ///     preference too wide for the post being answered is narrowed to fit without comment — otherwise a profile
+    ///     whose default is public could never answer a direct message. A visibility named on the invocation itself is
+    ///     refused instead, because publishing something other than what was asked for is not a thing to do quietly.
+    /// </remarks>
+    public bool VisibilityChosen { get; init; }
+
+    /// <summary>
     ///     The id of the post this one answers, or <see langword="null" /> if it answers nothing.
     /// </summary>
     public string? InReplyTo { get; init; }

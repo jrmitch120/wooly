@@ -30,6 +30,12 @@ internal static class PagedReading
     ///     sees. Guessing there would ask for a page starting somewhere in another id space altogether, and silently
     ///     skip or repeat accounts. Where it is null, an instance that names no next page has ended the list.
     /// </param>
+    /// <param name="stopWhen">
+    ///     Read against each item as it arrives; the collection ends with the page holding the first one it answers
+    ///     true for. This is how something is looked <em>up</em> in a list an instance will only serve in order —
+    ///     asking for the caller's whole limit and searching afterwards would spend every page's worth of calls to
+    ///     find a thing on the first page. Where null, the collection runs to the limit or to the end of the list.
+    /// </param>
     /// <returns>
     ///     What arrived, and the rate limit that stopped the rest if one did. Nothing waits here — ADR-0006 leaves that
     ///     choice to whichever front end is reading.
@@ -40,7 +46,8 @@ internal static class PagedReading
         Func<ArrayOptions, Task<MastodonList<TWire>>> readPage,
         Func<TWire, TItem> asItem,
         Func<TWire, string>? idOf,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Func<TItem, bool>? stopWhen = null)
     {
         var items = new List<TItem>();
         string? nextPage = null;
@@ -64,10 +71,20 @@ internal static class PagedReading
                 return new Paged<TItem>(items, rateLimit);
             }
 
-            items.AddRange(page.Select(asItem));
+            var arrived = page.Select(asItem).ToList();
+
+            items.AddRange(arrived);
 
             // Nothing came back, so asking again cannot do better however much the instance says is left.
             if (page.Count == 0)
+            {
+                break;
+            }
+
+            // What the caller was looking for has turned up, so there is nothing further to ask for. The rest of this
+            // page comes back with it rather than being trimmed away: it arrived, and which of a page's items a caller
+            // wanted is the caller's business.
+            if (stopWhen is not null && arrived.Any(stopWhen))
             {
                 break;
             }

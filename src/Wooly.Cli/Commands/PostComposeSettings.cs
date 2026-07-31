@@ -28,12 +28,6 @@ internal abstract class PostComposeSettings : ProfileScopedSettings
     [Description("Put the post behind a content warning, which readers see instead of its text.")]
     public string? ContentWarning { get; init; }
 
-    [CommandOption("--visibility <WHO>")]
-    [Description(
-        "Who can see the post: public (anyone), unlisted (anyone with the link), private (your followers) or "
-        + "direct (only the accounts mentioned). Defaults to your own setting on the instance.")]
-    public string? Visibility { get; init; }
-
     [CommandOption("--media <PATH>")]
     [Description("Attach a file, with optional alt text after a colon — 'cat.png:a ginger cat'. Repeat for more.")]
     public string[] Media { get; init; } = [];
@@ -59,6 +53,37 @@ internal abstract class PostComposeSettings : ProfileScopedSettings
 
     /// <summary>The id of the post being answered, or <see langword="null" /> for a post of its own.</summary>
     public virtual string? InReplyTo => null;
+
+    /// <summary>
+    ///     Who the post should reach, and whether this invocation settled that or inherited it.
+    /// </summary>
+    /// <remarks>
+    ///     A hook rather than an option declared here, because not every composing command has the question to ask.
+    ///     <c>post create</c> and <c>post reply</c> offer <c>--visibility</c> (<see cref="PostPublishSettings" />);
+    ///     <c>dm send</c> answers direct whatever anyone types, because a direct message that went out any other way is
+    ///     not one — and offering a flag that can only be given one value is an invitation to give it another.
+    /// </remarks>
+    /// <param name="whenUnsaid">
+    ///     The profile's own preferred visibility from the config file, or <see langword="null" /> to leave the choice
+    ///     to the account's setting on the instance.
+    /// </param>
+    /// <param name="audience">
+    ///     Who the post should reach, or <see langword="null" /> where what was typed names nobody. Nothing partial is
+    ///     handed back on failure: a <see cref="ComposedVisibility" /> holding a null visibility reads as the perfectly
+    ///     good "leave it to the instance", and a caller that missed the problem would act on it.
+    /// </param>
+    /// <param name="problem">What is wrong with what was typed, or <see langword="null" /> if nothing is.</param>
+    /// <remarks>The <c>Try</c> shape is <see cref="TryCompose" />'s, so both halves of composing read the same way.</remarks>
+    protected virtual bool TryChooseAudience(
+        PostVisibility? whenUnsaid,
+        [NotNullWhen(true)] out ComposedVisibility? audience,
+        [NotNullWhen(false)] out string? problem)
+    {
+        audience = new ComposedVisibility(whenUnsaid, Chosen: false);
+        problem = null;
+
+        return true;
+    }
 
     /// <summary>
     ///     The draft these settings describe.
@@ -103,20 +128,10 @@ internal abstract class PostComposeSettings : ProfileScopedSettings
         [NotNullWhen(false)] out string? problem)
     {
         draft = null;
-        problem = null;
 
-        var visibility = visibilityWhenUnsaid;
-
-        if (Visibility is not null)
+        if (!TryChooseAudience(visibilityWhenUnsaid, out var audience, out problem))
         {
-            visibility = PostVisibilityName.Parse(Visibility);
-
-            if (visibility is null)
-            {
-                problem = PostVisibilityName.Rejection(Visibility);
-
-                return false;
-            }
+            return false;
         }
 
         foreach (var value in Media)
@@ -142,7 +157,8 @@ internal abstract class PostComposeSettings : ProfileScopedSettings
 
             // An empty --cw is a flag somebody passed and left blank, which is not a warning to put a post behind.
             ContentWarning = string.IsNullOrWhiteSpace(ContentWarning) ? null : ContentWarning,
-            Visibility = visibility,
+            Visibility = audience.Visibility,
+            VisibilityChosen = audience.Chosen,
             InReplyTo = InReplyTo,
             Media = Media.Select(MediaOption.Parse).ToList(),
             Poll = poll,
