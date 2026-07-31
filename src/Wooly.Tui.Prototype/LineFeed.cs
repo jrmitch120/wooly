@@ -31,6 +31,12 @@ internal abstract class LineFeed : View
 
     public event EventHandler<int>? SelectionChanged;
 
+    /// <summary>
+    ///     A shell-level keymap, consulted before this view's own keys. Needed because a <c>KeyDown</c> handler on an
+    ///     ancestor only ever sees what the focused view did not consume — j and k would never reach it.
+    /// </summary>
+    public Func<Key, bool>? Intercept { get; set; }
+
     /// <summary>Whether the selected post's rows are marked. Off where something else already shows the selection.</summary>
     protected virtual bool MarkSelection => true;
 
@@ -45,6 +51,11 @@ internal abstract class LineFeed : View
 
     protected override bool OnKeyDown(Key key)
     {
+        if (Intercept?.Invoke(key) == true)
+        {
+            return true;
+        }
+
         if (key == Key.CursorDown || key == Key.J)
         {
             Move(1);

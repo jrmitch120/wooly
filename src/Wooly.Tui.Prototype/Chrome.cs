@@ -17,6 +17,13 @@ internal static class Variants
         new("B", "Split reading pane", "Index left, whole post right — a mail reader for the timeline.", () => new SplitReadingPane()),
         new("C", "Workspace rail", "A rail of destinations, a feed, and a context pane. Nothing is modal.", () => new WorkspaceRail()),
         new("D", "Command bar", "No chrome but one line. Vim/weechat keys, and the CLI's own verbs on `:`.", () => new CommandBar()),
+
+        // The C family: one design — rail, no right column, drill into a post or an account — with four ways of
+        // choosing a destination. Watch the fetch count on the bottom row.
+        new("C0", "Rail · cycle", "Tab walks the rail and every step loads. The baseline you are trying to beat.", () => new CycleRail()),
+        new("C1", "Rail · highlight then enter", "A cursor on the rail that costs nothing to move. Enter commits.", () => new HighlightRail()),
+        new("C2", "Rail · direct keys", "Every destination wears its key. One press, one fetch, no transit.", () => new DirectRail()),
+        new("C3", "Rail · jump list", "`g`, then type enough of the name. Scales past the alphabet.", () => new PaletteRail()),
     ];
 
     public static int IndexOf(string? key)
