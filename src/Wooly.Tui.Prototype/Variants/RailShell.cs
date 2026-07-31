@@ -238,6 +238,12 @@ internal abstract class RailShell : VariantWindow
     /// <summary>Which destination is lit as current.</summary>
     protected int ShowingAt => Array.FindIndex(Stops, stop => stop.Stop == Fetch.Showing);
 
+    /// <summary>
+    ///     Which destination the rail highlights. Not always the one on screen: a shell may commit a selection and
+    ///     light it while its content is still arriving.
+    /// </summary>
+    protected virtual int Selected => ShowingAt;
+
     /// <summary>Asks the fake instance for something, and lands the answer a fake network later.</summary>
     private void Ask(Stop stop, string label)
     {
@@ -410,7 +416,7 @@ internal abstract class RailShell : VariantWindow
                 }
 
                 var (stop, label, key, badge) = Stops[index];
-                var current = stop == shell.Fetch.Showing;
+                var current = index == shell.Selected;
 
                 SetAttribute(current ? Ink.RailOn : Ink.Rail);
                 AddStr(0, row2, $"{shell.Prefix(index)}{Ink.Clip(label, width - 5)}".PadRight(width));

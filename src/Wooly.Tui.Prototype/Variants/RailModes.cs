@@ -3,27 +3,29 @@ using Terminal.Gui.Input;
 namespace Wooly.Tui.Prototype;
 
 /// <summary>
-///     C·0 — Cycle, settling. Tab counts steps; nothing on screen moves until the tabbing has stopped for
-///     <see cref="Settle" />, and then the highlight lands on where you counted to and that destination loads.
+///     C·0 — Cycle, settling. Tab moves the cursor at once — a keypress that draws nothing reads as lag — and the
+///     selection follows it once the tabbing has stopped for <see cref="Settle" />, which is also when the destination
+///     is asked for.
 ///     <para>
-///         There is no in-between state to draw and none to explain: a run of tab presses is one navigation, so the
-///         rail shows where you were until it can show where you ended up. Six tabs is one move and one fetch.
+///         So the rail carries two marks and they are never both needed: <c>▶</c> is where the tabbing has got to, and
+///         <c>▸</c> — with the row lit — is what is selected. A run of presses moves the first six times and the
+///         second once, which is why six tabs are one fetch.
 ///     </para>
 /// </summary>
 internal sealed class CycleRail : RailShell
 {
     /// <summary>
-    ///     How still the rail has to be before the highlight moves and the destination under it loads. Overridable
-    ///     through <c>WOOLY_SETTLE_MS</c> so the wait can be held open long enough to watch.
+    ///     How still the tabbing has to be before the selection follows the cursor. Overridable through
+    ///     <c>WOOLY_SETTLE_MS</c> so the gap between the two can be held open long enough to watch.
     /// </summary>
     private static readonly TimeSpan Settle = TimeSpan.FromMilliseconds(
         int.TryParse(Environment.GetEnvironmentVariable("WOOLY_SETTLE_MS"), out var ms) ? ms : 250);
 
-    /// <summary>Where the highlight is — only ever moved by a settle.</summary>
-    private int _at;
+    /// <summary>Where the tabbing has got to. Moves on the keypress, every time.</summary>
+    private int _cursor;
 
-    /// <summary>Where the tab presses have counted to, which nothing draws until they stop.</summary>
-    private int _counted;
+    /// <summary>What is selected, and therefore what has been asked for. Moves only when the tabbing stops.</summary>
+    private int _at;
 
     private int _token;
 
@@ -33,7 +35,17 @@ internal sealed class CycleRail : RailShell
 
     protected override string Hint => "tab/shift-tab destination · j/k post · ⏎ read · a author · esc back";
 
-    protected override string Prefix(int index) => index == _at ? "▸  " : "   ";
+    protected override int Selected => _at;
+
+    protected override string Prefix(int index)
+    {
+        if (index == _at)
+        {
+            return "▸  ";
+        }
+
+        return index == _cursor ? " ▶ " : "   ";
+    }
 
     protected override bool RailKey(Key key)
     {
@@ -56,16 +68,19 @@ internal sealed class CycleRail : RailShell
 
     private void Step(int by)
     {
-        _counted = (_counted + by + Stops.Length) % Stops.Length;
+        _cursor = (_cursor + by + Stops.Length) % Stops.Length;
 
-        // Every press abandons the settle the press before it left, so only the last one in a run ever lands.
+        // Drawn now, so the key never feels swallowed. Every press abandons the settle the press before it left, so
+        // only the last one in a run moves the selection and asks for anything.
+        Redraw();
+
         var mine = ++_token;
 
         GetApp()?.AddTimeout(Settle, () =>
         {
             if (mine == _token)
             {
-                _at = _counted;
+                _at = _cursor;
                 Go(_at);
             }
 

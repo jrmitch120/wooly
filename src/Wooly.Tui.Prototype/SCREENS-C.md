@@ -18,9 +18,10 @@ by waiting for the rail to be still before asking, so a fast walk costs one fetc
 
 ## C·0 — Cycle, settling — the anchored shell
 
-Tab counts steps along the rail. Nothing moves until you stop for 250ms — then the highlight lands where you
-counted to and that destination loads. A run of tab presses is one navigation, so the five destinations passed
-over are never drawn and never requested. Six tabs, one move, **one fetch**.
+Tab moves the cursor along the rail immediately — a keypress that draws nothing reads as lag. The *selection*
+follows once the tabbing has stopped for 250ms, and that is when the destination is asked for. So the rail carries
+two marks: `▶` is where the tabbing has got to, `▸` is what is selected. Six tabs move the first six times and
+the second once — **one fetch**.
 ```
    Home             follow requests
    Local           ▌Maria Ochoa @maria@fosstodon.org                                         ○ 12m
@@ -48,14 +49,14 @@ over are never drawn and never requested. Six tabs, one move, **one fetch**.
 
 ### Mid-walk, before it settles
 
-Three tabs in, with the settle held open by `WOOLY_SETTLE_MS=5000`. Nothing has happened yet — the highlight is
-still on Home, the timeline is still Home's, and the rail shows no half-state to explain. That is the point: there
-is no in-between to draw, because a run of presses has not finished being one move.
+Three tabs in, with the settle held open by `WOOLY_SETTLE_MS=5000`. The cursor `▶` is already on #dotnet — the
+keypresses were never swallowed — while the selection `▸`, the timeline under it and the fetch count are all
+still Home's. Stop here and the selection catches up; keep tabbing and the five you passed are never asked for.
 ```
 ▸  Home             home
    Local           ▌Maria Ochoa @maria@fosstodon.org                                         ○ 12m
    Federated       ▌Finally shipped the terminal client rewrite. Terminal.Gui v2's instance-based
-   #dotnet         ▌application model made the whole shell testable — no more static state
+ ▶ #dotnet         ▌application model made the whole shell testable — no more static state
 ────────────────── ▌leaking between test runs.
    Notifications4  ▌↺ 12   ★ 34   ↩ 5    ⏎ read · a author
    Direct messa…1  ▌

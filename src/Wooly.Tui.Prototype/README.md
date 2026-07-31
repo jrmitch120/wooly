@@ -46,7 +46,7 @@ model is a number on screen rather than a feeling.
 
 | | Model | Home → Follow requests | Fetches | Where it hurts |
 |---|---|---|---|---|
-| **C·0** | Cycle, settling — **the anchor** (ADR-0014) | `tab` ×6 | **1** | Nothing, once tab counts steps and the highlight lands only after 250ms of stillness. Moving and asking on every keypress instead cost 6 with 5 discarded, which is what the other three were measured against. |
+| **C·0** | Cycle, settling — **the anchor** (ADR-0014) | `tab` ×6 | **1** | Nothing, once the cursor (`▶`) moves on the keypress and the selection (`▸`) follows only after 250ms of stillness. Selecting and asking on every keypress instead cost 6 with 5 discarded, which is what the other three were measured against. |
 | **C·1** | Highlight, then enter | `tab` `j`×6 `⏎` | **1** | Two cursors to explain: `▸` where you are, `▶` where you are going. The rail holds the keyboard while it has the cursor. |
 | **C·2** | Direct keys | `q` | **1** | The alphabet. `r` is already reply, so requests took `q` — and every destination added later needs a spare letter. |
 | **C·3** | Jump list — `g`, then type | `g` `fol` `⏎` | **1** | One extra keystroke, and the only shape that has to be taught. Scales past nine destinations, which the other three do not. |
