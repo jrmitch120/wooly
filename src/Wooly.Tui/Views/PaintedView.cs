@@ -169,9 +169,42 @@ internal sealed class PaintedView : View
 
         var lines = Rows(width, height);
 
+        Want(lines, height);
         Place(lines, height);
 
         _settled = lines;
+    }
+
+    /// <summary>
+    ///     Sends for the pictures of the attachments near enough to the screen to be worth having, and for no others.
+    /// </summary>
+    /// <remarks>
+    ///     The one place that knows where the scroll has got to, which is why this is the view's job and not the post's
+    ///     (ADR-0016). An account of nothing but photographs works out rows for every post it holds; sending for a
+    ///     picture from there would fetch and decode the lot to draw the handful that fit, which is how this came to
+    ///     run a machine out of memory.
+    ///     <para>
+    ///         A screen's worth either side of what is showing, so that a picture is usually there by the time it is
+    ///         scrolled to rather than arriving after it.
+    ///     </para>
+    /// </remarks>
+    private void Want(IReadOnlyList<Line> lines, int height)
+    {
+        if (_pictures is null)
+        {
+            return;
+        }
+
+        var from = _top - height;
+        var to = _top + (height * 2);
+
+        for (var at = Math.Max(0, from); at < Math.Min(lines.Count, to); at++)
+        {
+            if (lines[at].Wants is { } media)
+            {
+                _pictures.Want(media);
+            }
+        }
     }
 
     /// <summary>The rows to draw, and where the scroll has to be for the selected one to be among them.</summary>

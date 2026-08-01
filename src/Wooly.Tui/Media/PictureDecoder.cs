@@ -1,4 +1,5 @@
 using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 
@@ -16,11 +17,18 @@ namespace Wooly.Tui.Media;
 internal static class PictureDecoder
 {
     /// <summary>
-    ///     How many pixels a decoded picture may be along its longer side. A picture is drawn at the full width of the
-    ///     column it is in, which on a wide terminal is most of a thousand pixels, so this is what that costs; anything
-    ///     larger is decoded, held in memory and thrown away again by the scale down to the box.
+    ///     How wide a decoded picture may be. A picture is drawn at the full width of the column it is in, which on a
+    ///     wide terminal is most of a thousand pixels.
     /// </summary>
     public const int LongestSide = 1024;
+
+    /// <summary>
+    ///     How tall a decoded picture may be, which is the cap that does the work: a box is at most
+    ///     <see cref="Rendering.Inset.WholeRows" /> rows, and a row is around twenty pixels. Anything taller is decoded
+    ///     and held only to be thrown away by the scale down to the box — and at four bytes a pixel, held is the word
+    ///     that matters.
+    /// </summary>
+    public const int TallestSide = 640;
 
     /// <summary>
     ///     The picture <paramref name="bytes" /> hold, scaled down to something a terminal has room for — or
@@ -30,19 +38,29 @@ internal static class PictureDecoder
     /// </summary>
     public static Picture? From(byte[] bytes)
     {
+        var room = new Size(LongestSide, TallestSide);
+
         try
         {
-            using var image = Image.Load<Rgba32>(bytes);
+            // The header first, which costs nothing to read, because what it settles is whether the decoder can be
+            // told to shrink on the way in: a JPEG can be decoded straight to a fraction of its stored size, so an
+            // eight-megapixel photograph never has to exist whole in memory to end up as a few hundred pixels of
+            // terminal. Asked for only where the picture is bigger than the room, since a target size is a size to
+            // decode *to* and would otherwise blow a thumbnail up to fill it.
+            var stored = Image.Identify(bytes).Size;
 
-            if (Math.Max(image.Width, image.Height) > LongestSide)
+            var options = stored.Width > room.Width || stored.Height > room.Height
+                ? new DecoderOptions { TargetSize = room }
+                : new DecoderOptions();
+
+            using var image = Image.Load<Rgba32>(options, bytes);
+
+            // A target size is what the decoder aims at rather than what it promises, so the box is made exact here.
+            if (image.Width > room.Width || image.Height > room.Height)
             {
                 // Resized here rather than at the view, which scales by nearest neighbour: a photograph reduced to a
                 // tenth of its size that way keeps every tenth pixel and loses every edge in the picture.
-                image.Mutate(context => context.Resize(new ResizeOptions
-                {
-                    Mode = ResizeMode.Max,
-                    Size = new Size(LongestSide, LongestSide),
-                }));
+                image.Mutate(context => context.Resize(new ResizeOptions { Mode = ResizeMode.Max, Size = room }));
             }
 
             return new Picture(Pixels(image));

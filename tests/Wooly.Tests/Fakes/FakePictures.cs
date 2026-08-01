@@ -15,8 +15,11 @@ internal sealed class FakePictures : IPictures
 
     private FakePictures(CellSize? cell) => Cell = cell;
 
-    /// <summary>Every attachment this was asked about, in order — what proves a screen asked rather than assumed.</summary>
+    /// <summary>Every attachment whose picture was looked up, in order.</summary>
     public List<string> Asked { get; } = [];
+
+    /// <summary>Every attachment sent for, in order — what proves only what is near the screen is fetched.</summary>
+    public List<string> Sent { get; } = [];
 
     /// <inheritdoc />
     public CellSize? Cell { get; }
@@ -45,4 +48,7 @@ internal sealed class FakePictures : IPictures
 
         return _held.GetValueOrDefault(media.Id);
     }
+
+    /// <inheritdoc />
+    public void Want(PostMedia media) => Sent.Add(media.Id);
 }

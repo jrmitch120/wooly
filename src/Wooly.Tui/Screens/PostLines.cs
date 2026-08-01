@@ -199,8 +199,9 @@ public static class PostLines
                 continue;
             }
 
-            // The description first, so it does not move when the picture lands underneath it.
-            yield return Described(attached, MediaMark, width);
+            // The description first, so it does not move when the picture lands underneath it — and marked as wanting
+            // a picture, which is how the view knows to send for one if this post is near enough to the screen.
+            yield return Described(attached, MediaMark, width) with { Wants = attached };
 
             if (pictures.Of(attached) is { } picture
                 && Inset.For(attached, picture, cell, width, mostRows) is { } inset)

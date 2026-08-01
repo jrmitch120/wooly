@@ -120,13 +120,28 @@ Three more rules follow, and `PaintedView` keeps all three:
   at a minimum of sixteen rows a picture is more than the tallest terminal can show, and the rail and the two chrome
   rows build none.
 
+**Asking whether a picture is here is not the same as sending for it, and only the view may send.** A post works out
+its rows whether or not it is anywhere near the screen — that is what a list of posts does — so a lookup that also
+fetched fetched everything. On an account of nothing but photographs that was forty posts' worth of downloads and
+full-size decodes, against a cache too small to hold them, every frame: a machine out of memory, by way of lag,
+flicker, and pictures that never finished arriving.
+
+So `IPictures` has two questions instead of one. `Of` is a lookup and nothing more. `Want` says an attachment is worth
+having, and only `PaintedView` says it — of the rows within a screen's reach of the scroll position, which is the one
+thing that knows where that is. The rows carry `Wants` on the description standing in for a picture, so an attachment
+can be named as waiting before any of its pixels exist. Three smaller bounds fall out of the same failure and are worth
+keeping together: at most four pictures are fetched and decoded at once, since decoding holds a whole picture before it
+is scaled; a picture is decoded no taller than the tallest box can be, and where the format allows it that shrinking
+happens *in* the decoder rather than after it, so a large photograph never exists whole in memory; and a burst of
+arrivals is announced as one redraw rather than one each, because a forced redraw re-encodes every picture on screen.
+
 ## Consequences
 
 Previews are fetched on their own `HttpClient`, not through the one every Mastodon call goes through: a file server
 needs no token, counts against no rate limit, and a picture that will not load must not spend the retry budget a
 timeline's fetch is relying on. They are asked for once each, held to a bounded number of the most recently wanted, and
-scaled down as they are decoded — a terminal draws a few hundred pixels across, and a client that held a morning's
-scrolling at full size would be holding a morning's scrolling.
+scaled down as they are decoded — a terminal draws a few hundred pixels across, and at four bytes a pixel a client that
+held a morning's scrolling at full size would be holding a morning's scrolling.
 
 Nothing about a picture is ever reported as an error. A fetch that fails, a file that will not decode, a format this
 build has no decoder for: all of them are "no picture", the box stays empty, and the row that says what is attached is

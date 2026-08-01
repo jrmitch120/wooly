@@ -66,10 +66,26 @@ try
     // A picture lands on whatever thread finished fetching it, and drawing is the application's. Redrawn rather than
     // told to the shell, because nothing about the shell has changed — the same rows are wanted, with the box that
     // was waiting now filled in.
-    using var pictures = Pictures.Over(
-        files,
-        () => RasterProtocol.CellOf(application.Driver),
-        () => application.Invoke(() => application.LayoutAndDraw(true)));
+    //
+    // One redraw for a burst, not one each: pictures arrive together, a forced redraw re-encodes every picture on
+    // screen, and doing that once per arrival is what a reader sees as flicker.
+    var redrawing = 0;
+
+    void Redraw()
+    {
+        if (Interlocked.Exchange(ref redrawing, 1) == 1)
+        {
+            return;
+        }
+
+        application.Invoke(() =>
+        {
+            Interlocked.Exchange(ref redrawing, 0);
+            application.LayoutAndDraw(true);
+        });
+    }
+
+    using var pictures = Pictures.Over(files, () => RasterProtocol.CellOf(application.Driver), Redraw);
 
     using var window = new ShellWindow(
         shell,

@@ -146,6 +146,67 @@ public class MediaLineTests
         PostLines.Feed(APost.With(media: [APost.APicture()]), 61, revealed: false, Now, pictures);
 
         Assert.Empty(pictures.Asked);
+        Assert.Empty(pictures.Sent);
+    }
+
+    /// <summary>
+    ///     Working out a post's rows never sends for anything, however many posts there are. What a post is made of
+    ///     does not depend on where the reader has scrolled to, so an account of nothing but photographs works out rows
+    ///     for every post it holds — and a lookup that also fetched would fetch the whole gallery to draw the handful
+    ///     that fit, which is how this came to run a machine out of memory (ADR-0016).
+    /// </summary>
+    [Fact]
+    public void Feed_SendsForNothingHoweverManyPicturesAreOnTheScreensPosts()
+    {
+        var pictures = FakePictures.With();
+
+        var posts = Enumerable.Range(0, 40)
+                              .Select(at => APost.With(id: $"{at}", media: [APost.APicture(id: $"m{at}")]))
+                              .ToList();
+
+        var home = new Destination(DestinationKind.Home, "Home", Timeline.Home);
+
+        new FeedScreen(home, posts).Lines(61, Now, pictures);
+
+        Assert.Empty(pictures.Sent);
+    }
+
+    /// <summary>
+    ///     A row waiting for a picture says which attachment it is waiting for, which is what lets the view — the one
+    ///     thing that knows where the scroll has got to — send for the few that are near the screen.
+    /// </summary>
+    [Fact]
+    public void Feed_SaysWhichAttachmentARowIsWaitingFor()
+    {
+        var waiting = PostLines.Feed(
+            APost.With(media: [APost.APicture()]),
+            61,
+            revealed: false,
+            Now,
+            FakePictures.With());
+
+        Assert.Equal("m1", Assert.Single(waiting, line => line.Wants is not null).Wants?.Id);
+
+        // Nothing to wait for where nothing could be drawn: the attachment is linked instead.
+        var linked = PostLines.Feed(
+            APost.With(media: [APost.APicture()]),
+            61,
+            revealed: false,
+            Now,
+            FakePictures.DrawingNothing());
+
+        Assert.DoesNotContain(linked, line => line.Wants is not null);
+    }
+
+    /// <summary>A gutter put in front of a row does not lose what that row was waiting for.</summary>
+    [Fact]
+    public void Whole_KeepsWhatARowIsWaitingForBehindAGutter()
+    {
+        var post = APost.With(media: [APost.APicture()]);
+
+        var lines = new PostScreen(post, []).Lines(61, Now, FakePictures.With());
+
+        Assert.Equal("m1", Assert.Single(lines, line => line.Wants is not null).Wants?.Id);
     }
 
     /// <summary>

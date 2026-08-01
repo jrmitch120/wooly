@@ -25,10 +25,19 @@ public interface IPictures
     ///     The picture for <paramref name="media" /> if it is here, and <see langword="null" /> while it is not.
     /// </summary>
     /// <remarks>
-    ///     Asking is what sends for it. That makes this safe to call every time the rows are worked out — a picture is
-    ///     fetched once, and a redraw is how it appears once it lands — and it means nothing is fetched for a post
-    ///     nobody has scrolled to. A picture that cannot be had at all answers <see langword="null" /> for good rather
-    ///     than being asked for again on the next frame.
+    ///     A lookup and nothing else — asking does not send for anything. The rows of every post on a screen are worked
+    ///     out whether or not that post is anywhere near the viewport, so a lookup that also fetched would fetch an
+    ///     account's whole gallery to draw the four of it a reader can see (ADR-0016).
     /// </remarks>
     Picture? Of(PostMedia media);
+
+    /// <summary>
+    ///     Says that <paramref name="media" /> is on screen, or nearly, and its picture is worth having.
+    /// </summary>
+    /// <remarks>
+    ///     Safe to call on every frame: an attachment is sent for once, a redraw is how the picture appears when it
+    ///     lands, and one that cannot be had is not asked for again. Said by whatever knows where the scroll has got
+    ///     to, which is the view rather than the post.
+    /// </remarks>
+    void Want(PostMedia media);
 }

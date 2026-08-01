@@ -27,11 +27,11 @@ public sealed class Pictures(
     Action arrived) : IPictures, IDisposable
 {
     /// <summary>
-    ///     How many pictures are held at once. A feed shows a handful of posts and a reader scrolls through a few
-    ///     screens of them; past that, the oldest is the one least likely to be looked at again, and a client holding
-    ///     every picture of a morning's scrolling would be holding a morning's scrolling in memory.
+    ///     How many pictures are held at once. Only a handful can be on screen and only what is near the screen is ever
+    ///     sent for, so this is a scroll or two of slack rather than a gallery — and a picture is megabytes once it is
+    ///     pixels, so a client holding a morning's scrolling would be holding a morning's scrolling in memory.
     /// </summary>
-    public const int MostHeld = 32;
+    public const int MostHeld = 16;
 
     /// <summary>
     ///     How many bytes of a download are worth reading. A preview is tens of kilobytes; anything of this size is
@@ -40,12 +40,18 @@ public sealed class Pictures(
     public const int MostBytes = 8 * 1024 * 1024;
 
     /// <summary>
+    ///     How many pictures are fetched and decoded at once. Small on purpose: see <see cref="Fetch" />.
+    /// </summary>
+    public const int AtATime = 4;
+
+    /// <summary>
     ///     How long a preview is waited for. Short, because nothing is waiting on it: the post is already on screen
     ///     saying what is attached to it, and a picture that has not arrived by now is one the reader has read past.
     /// </summary>
     public static readonly TimeSpan Patience = TimeSpan.FromSeconds(10);
 
     private readonly Lock _gate = new();
+    private readonly SemaphoreSlim _atATime = new(AtATime, AtATime);
     private readonly Dictionary<string, Picture?> _held = [];
     private readonly Queue<string> _order = new();
     private readonly CancellationTokenSource _abandoned = new();
@@ -58,6 +64,7 @@ public sealed class Pictures(
     {
         _abandoned.Cancel();
         _abandoned.Dispose();
+        _atATime.Dispose();
     }
 
     /// <summary>
@@ -89,20 +96,27 @@ public sealed class Pictures(
     {
         lock (_gate)
         {
-            if (_held.TryGetValue(media.Id, out var held))
+            return _held.GetValueOrDefault(media.Id);
+        }
+    }
+
+    /// <inheritdoc />
+    public void Want(PostMedia media)
+    {
+        lock (_gate)
+        {
+            if (_held.ContainsKey(media.Id))
             {
-                return held;
+                return;
             }
 
             // Written down before the fetch goes out, and holding null until it lands: that is what makes asking on
-            // every draw cost one fetch rather than one a frame, and what stops a picture that cannot be had from
+            // every frame cost one fetch rather than one a frame, and what stops a picture that cannot be had from
             // being asked for again for as long as it is remembered.
             Remember(media.Id, picture: null);
         }
 
         _ = Fetch(media);
-
-        return null;
     }
 
     /// <summary>
@@ -144,9 +158,21 @@ public sealed class Pictures(
 
         try
         {
-            if (await fetch(AddressOf(media), _abandoned.Token) is { } bytes)
+            // A few at a time. Decoding holds the whole of a picture in memory before it is scaled down, so a screenful
+            // arriving at once is a screenful of originals held at once — which is how this ran a machine out of memory
+            // rather than merely making it wait (ADR-0016).
+            await _atATime.WaitAsync(_abandoned.Token);
+
+            try
             {
-                picture = PictureDecoder.From(bytes);
+                if (await fetch(AddressOf(media), _abandoned.Token) is { } bytes)
+                {
+                    picture = PictureDecoder.From(bytes);
+                }
+            }
+            finally
+            {
+                _atATime.Release();
             }
         }
         catch (Exception failure) when (failure is not OutOfMemoryException)
