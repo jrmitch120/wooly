@@ -135,6 +135,20 @@ public class MediaLineTests
     }
 
     /// <summary>
+    ///     A terminal that draws nothing fetches nothing. Nobody asked for the pixels, because the rows were settled
+    ///     without them — so a reader on Terminal.app pays no data for previews that could never have been shown.
+    /// </summary>
+    [Fact]
+    public void Feed_SendsForNoPixelsOnATerminalThatDrawsNothing()
+    {
+        var pictures = FakePictures.DrawingNothing();
+
+        PostLines.Feed(APost.With(media: [APost.APicture()]), 61, revealed: false, Now, pictures);
+
+        Assert.Empty(pictures.Asked);
+    }
+
+    /// <summary>
     ///     A screen laid out with no pictures at all — every test, and the shell before a terminal has answered —
     ///     links everything rather than reserving rows for a box that may never come.
     /// </summary>
