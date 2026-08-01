@@ -95,7 +95,20 @@ the sweep the framework makes after each frame of views no longer rendering; cle
 image from the output buffer there and then, which is what makes the driver emit the delete. Only the second is a
 promise. A picture stuck over somebody else's post while scrolling is that difference.
 
-Three rules follow, and `PaintedView` keeps all three:
+**And a picture is put where the rows want it before the boxes are drawn, not while they are.** Terminal.Gui draws a
+view's SubViews *before* its own content, so a `PaintedView` that placed its boxes from `OnDrawingContent` placed them
+after they had already drawn — every picture landing where the rows had wanted it one frame ago. The symptom was
+precise and is worth writing down, because it is what told us where to look: moving between posts a row at a time left
+the pictures behind while the text moved, a page-jump was clean, and so was any key that changed the screen. The two
+clean cases are the ones where a picture leaves the view entirely, and letting go of one takes it off the terminal at
+once without needing a redraw to do it. So the boxes are settled from `OnClearingViewport`, which is the first thing a
+view does when it draws and therefore the last moment before its SubViews draw.
+
+That also means the rows are worked out once a frame and shared, rather than worked out again to paint. Where the
+scroll has got to is derived from where it was, so asking twice in one frame can answer twice differently — and text
+drawn at one scroll position with pictures placed at another is the thing all of this exists to prevent.
+
+Three more rules follow, and `PaintedView` keeps all three:
 
 - **Everything is released before anything is placed.** A box whose picture is no longer wanted is cleared at the top
   of the frame, so nothing is ever drawn over a placement the terminal has not yet been told to drop.

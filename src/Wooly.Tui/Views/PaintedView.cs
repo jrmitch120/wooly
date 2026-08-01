@@ -37,6 +37,7 @@ internal sealed class PaintedView : View
     private readonly IPictures? _pictures;
     private readonly List<PictureView> _boxes = [];
 
+    private IReadOnlyList<Line>? _settled;
     private int _top;
 
     /// <param name="theme">What answers the roles.</param>
@@ -71,6 +72,29 @@ internal sealed class PaintedView : View
     /// </summary>
     public bool FollowsSelection { get; init; }
 
+    /// <summary>
+    ///     Where the pictures are put, which has to be before the boxes holding them draw — and Terminal.Gui draws a
+    ///     view's SubViews <em>before</em> its content, so doing it from <see cref="OnDrawingContent" /> put every
+    ///     picture where the rows wanted it one frame ago.
+    /// </summary>
+    /// <remarks>
+    ///     That is the whole of why this is here rather than there. The symptom was precise: moving between posts a row
+    ///     at a time left the pictures behind while the text moved, because each box drew at the place the frame before
+    ///     had given it — while a page-jump, which carries a picture off screen entirely, was clean, since letting go of
+    ///     one takes it off the terminal at once and needs no redraw to do it.
+    ///     <para>
+    ///         Clearing the viewport is the first thing a view does when it draws, so it is the last moment before the
+    ///         boxes are drawn. Nothing is cleared differently for it: the answer is always <see langword="false" />,
+    ///         which is "carry on".
+    ///     </para>
+    /// </remarks>
+    protected override bool OnClearingViewport()
+    {
+        Settle();
+
+        return false;
+    }
+
     protected override bool OnDrawingContent(DrawContext? context)
     {
         var width = Viewport.Width;
@@ -78,16 +102,15 @@ internal sealed class PaintedView : View
 
         if (width <= 0 || height <= 0)
         {
-            // Nothing can be drawn, so nothing may be left drawn either: a box still showing from the last size this
-            // view had would be a picture over whatever replaces it.
-            _boxes.ForEach(box => box.Release());
-
             return true;
         }
 
-        var lines = _rows(width, height);
+        // Taken from the settling a moment ago rather than worked out again: where the scroll has got to is worked out
+        // from where it was, so asking twice in one frame can answer twice differently — and text drawn at one scroll
+        // position with pictures placed at another is the bug this whole arrangement exists to avoid.
+        var lines = _settled ?? Rows(width, height);
 
-        _top = FollowsSelection ? ScrolledTo(lines, height) : 0;
+        _settled = null;
 
         for (var row = 0; row < height; row++)
         {
@@ -121,9 +144,44 @@ internal sealed class PaintedView : View
             }
         }
 
+        return true;
+    }
+
+    /// <summary>
+    ///     Works out the rows and where the scroll has got to, and puts every picture where those rows say it goes.
+    ///     Called before anything is drawn, for the reason <see cref="OnClearingViewport" /> gives.
+    /// </summary>
+    private void Settle()
+    {
+        _settled = null;
+
+        var width = Viewport.Width;
+        var height = Viewport.Height;
+
+        if (width <= 0 || height <= 0)
+        {
+            // Nothing can be drawn, so nothing may be left drawn either: a box still showing from the last size this
+            // view had would be a picture over whatever replaces it.
+            _boxes.ForEach(box => box.Release());
+
+            return;
+        }
+
+        var lines = Rows(width, height);
+
         Place(lines, height);
 
-        return true;
+        _settled = lines;
+    }
+
+    /// <summary>The rows to draw, and where the scroll has to be for the selected one to be among them.</summary>
+    private IReadOnlyList<Line> Rows(int width, int height)
+    {
+        var lines = _rows(width, height);
+
+        _top = FollowsSelection ? ScrolledTo(lines, height) : 0;
+
+        return lines;
     }
 
     /// <summary>
