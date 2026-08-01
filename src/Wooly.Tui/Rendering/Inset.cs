@@ -1,4 +1,5 @@
 using Wooly.Core.Posts;
+using Wooly.Tui.Media;
 
 namespace Wooly.Tui.Rendering;
 
@@ -8,10 +9,9 @@ namespace Wooly.Tui.Rendering;
 ///     rows a post produces and scrolls with them.
 /// </summary>
 /// <remarks>
-///     What is named here is the <em>attachment</em>, not the pixels. The box is settled while the picture is still
-///     being fetched — or has failed to arrive at all — which is what keeps a feed from jumping under a reader as
-///     images land one by one (ADR-0016). Whether anything is drawn in the box is the view's question, and it is asked
-///     on every frame.
+///     A box exists only where there is a picture to put in it and a terminal able to draw one. There is no
+///     cell-by-cell fallback: a photograph reduced to one coloured block per cell is not a picture of anything, and an
+///     attachment a terminal cannot draw reads better as the link and description the CLI gives it (ADR-0016).
 /// </remarks>
 /// <param name="Media">The attachment to draw.</param>
 /// <param name="Column">How far in from the left of the row the box starts.</param>
@@ -20,49 +20,53 @@ namespace Wooly.Tui.Rendering;
 public sealed record Inset(PostMedia Media, int Column, int Columns, int Rows)
 {
     /// <summary>
-    ///     How tall a picture is in a feed item, where it is one post among many and the text is what a reader is
-    ///     scanning.
+    ///     The most rows a picture takes in a feed item, where it is one post among many and the reader is scanning
+    ///     rather than looking.
     /// </summary>
-    public const int FeedRows = 6;
+    public const int FeedRows = 16;
 
     /// <summary>
-    ///     How tall a picture is on the post screen, where the post is the whole of what is being looked at and a
-    ///     reader who drilled into it has said which post they care about.
+    ///     The most rows a picture takes on the post screen, where the post is the whole of what is on screen and a
+    ///     reader who pressed <c>⏎</c> has said which post they care about.
     /// </summary>
-    public const int WholeRows = 12;
+    public const int WholeRows = 32;
 
     /// <summary>
-    ///     A post's pictures laid out side by side across one band of rows, in the order their author attached them.
-    ///     Side by side rather than stacked because Mastodon allows four attachments and four bands would bury the post
-    ///     that carries them — the same arrangement, and the same reason, as every other client's grid.
+    ///     The box <paramref name="picture" /> gets: the full width it is allowed, at the picture's own proportions,
+    ///     shrunk to fit where that would be taller than <paramref name="mostRows" />.
     /// </summary>
-    /// <param name="pictures">The attachments to draw, which are the ones a terminal can draw at all.</param>
-    /// <param name="width">How many columns the band has, which at an 80-column terminal is 61 less any gutter.</param>
-    /// <param name="rows">How tall the band is.</param>
-    /// <returns>One inset per picture, or nothing at all where there is not the room for even a column each.</returns>
-    public static IReadOnlyList<Inset> Across(IReadOnlyList<PostMedia> pictures, int width, int rows)
+    /// <remarks>
+    ///     Width-driven rather than height-driven, which is the whole difference between an inline picture and a
+    ///     thumbnail: a reader looking at a photograph in a terminal wants it as large as the column it is in allows,
+    ///     and the height that follows from its proportions is what it costs. The cap is what stops a tall picture
+    ///     taking a screen and a half of a feed.
+    /// </remarks>
+    /// <param name="media">The attachment being drawn.</param>
+    /// <param name="picture">Its pixels, whose proportions settle the shape of the box.</param>
+    /// <param name="cell">How many pixels one cell is, which is what turns those proportions into rows and columns.</param>
+    /// <param name="width">How many columns there are to draw in.</param>
+    /// <param name="mostRows">The most rows this box may take.</param>
+    /// <returns>The box, or <see langword="null" /> where there is no room for one.</returns>
+    public static Inset? For(PostMedia media, Picture picture, CellSize cell, int width, int mostRows)
     {
-        if (pictures.Count == 0 || rows < 1)
+        if (width < 1 || mostRows < 1 || picture.Width < 1 || picture.Height < 1
+            || cell.Width < 1 || cell.Height < 1)
         {
-            return [];
+            return null;
         }
 
-        // A cell is about twice as tall as it is wide, so a box this many rows tall holds about twice as many pixel
-        // rows — and a picture of the shape most photographs are wants around half as many again across. Nothing here
-        // has to be exact: the picture keeps its own proportions inside whatever box it is given, and the slack shows
-        // as a margin rather than as a stretched face.
-        var wanted = rows * 3;
+        var columns = width;
+        var rows = Rounded((long)columns * cell.Width * picture.Height, (long)picture.Width * cell.Height);
 
-        // One blank column between boxes, so two pictures side by side read as two rather than as one wide one.
-        var room = (width - (pictures.Count - 1)) / pictures.Count;
-        var columns = Math.Min(wanted, room);
-
-        if (columns < 1)
+        if (rows > mostRows)
         {
-            return [];
+            // Too tall at full width, so the height is what is fixed and the width follows from it.
+            rows = mostRows;
+            columns = Rounded((long)rows * cell.Height * picture.Width, (long)picture.Height * cell.Width);
+            columns = Math.Clamp(columns, 1, width);
         }
 
-        return [.. pictures.Select((picture, at) => new Inset(picture, at * (columns + 1), columns, rows))];
+        return new Inset(media, Column: 0, Columns: columns, Rows: Math.Max(1, rows));
     }
 
     /// <summary>How wide the whole band is, which is what the row standing in for it has to measure.</summary>
@@ -71,4 +75,11 @@ public sealed record Inset(PostMedia Media, int Column, int Columns, int Rows)
 
     /// <summary>This inset moved <paramref name="by" /> columns to the right, for a row something was put in front of.</summary>
     public Inset ShiftedBy(int by) => this with { Column = Column + by };
+
+    /// <summary>
+    ///     <paramref name="value" /> over <paramref name="by" />, rounded to nearest and never less than one. Worked
+    ///     out in <see cref="long" /> because the pixel counts on both sides are multiplied together first, and a large
+    ///     picture on a wide terminal overflows an <see cref="int" /> before the division brings it back down.
+    /// </summary>
+    private static int Rounded(long value, long by) => by < 1 ? 1 : (int)Math.Max(1, (value + (by / 2)) / by);
 }

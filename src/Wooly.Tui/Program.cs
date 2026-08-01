@@ -66,7 +66,10 @@ try
     // A picture lands on whatever thread finished fetching it, and drawing is the application's. Redrawn rather than
     // told to the shell, because nothing about the shell has changed — the same rows are wanted, with the box that
     // was waiting now filled in.
-    using var pictures = Pictures.Over(files, () => application.Invoke(() => application.LayoutAndDraw(true)));
+    using var pictures = Pictures.Over(
+        files,
+        () => RasterProtocol.CellOf(application.Driver),
+        () => application.Invoke(() => application.LayoutAndDraw(true)));
 
     using var window = new ShellWindow(
         shell,

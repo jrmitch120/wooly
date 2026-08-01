@@ -12,8 +12,9 @@ _Avoid_: status, toot
 Something on a post besides its text — a picture, an animation, a video, a sound. Two records rather than one, because
 the same subject is a different thing at each end: on its way up it is a file on this machine with a description
 (`MediaAttachment`), and read back off an instance it is an id, a kind, an address and a description (`PostMedia`).
-Only a still picture is **drawn**; everything else is **linked** — its address, and what its author said it shows — on
-the CLI and the TUI alike (ADR-0016).
+Only a still picture is **drawn**, and only in a TUI on a terminal that speaks sixel or the Kitty graphics protocol;
+everything else is **linked** — its address, and what its author said it shows — on the CLI and the TUI alike
+(ADR-0016).
 _Avoid_: media file, image (where the kind has not been settled)
 
 **Boost**:

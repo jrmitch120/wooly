@@ -1,9 +1,9 @@
-# Media: a box kept before the picture arrives, and a link for everything that cannot be drawn
+# Media: drawn at full width where a terminal can draw, and linked where it cannot
 
 Story 49 asks the TUI to draw images inline — sixel, then the Kitty graphics protocol, then coloured cells — while
 stories 50 and 51 keep the CLI to a link and alt text always, and keep video and audio to a link and a description on
-both surfaces. The ladder itself turned out to be the easy part; four other things had to be decided to build it, and
-they are what this records.
+both surfaces. The ladder itself turned out to be the easy part; the rest was decided by building it and looking at it,
+and one of those decisions goes against what the ticket asked for.
 
 **Only a still picture is drawn. Everything else is a link and what its author said it shows.** `PostMedia.IsDrawable`
 is the whole rule, and it is true of `MediaKind.Image` and nothing else. Video and audio are story 51's, and the reason
@@ -27,32 +27,42 @@ timeline is a line of noise per post. The two are not the same thing: a post's a
 already on screen, and an attachment's address is the only way to reach the attachment at all. `--json` grows a `media`
 array for the same reason, which also closes the gap story 15 left open once #28 taught `Post` to carry media at all.
 
-**A picture's box is kept before the picture arrives, and kept when it never does.** A post's rows say how many columns
-and rows each of its pictures gets; whether there are pixels to put in the box is asked separately, on every frame. The
-alternative — reserve rows only once the bytes are decoded — was rejected because a feed of ten posts would reflow ten
-times as previews landed one by one, under a reader who is trying to read it. What that costs is a box of blank rows
-where a picture could not be fetched at all, which is a real cost and the right one: the row underneath still says
-`▒▒▒▒` and what the attachment shows, so nothing is lost but space, and space is what the reader would have spent
-anyway if the fetch had worked.
+**There is no cell-based fallback. A terminal that cannot draw links its attachments, exactly as the CLI does.** The
+ticket asked for a third rung — a coloured cell per pixel, on the reasoning that it always works and so the TUI needs
+no link-and-alt-text fallback. It was built, and it was wrong: a photograph in a box of a few dozen cells is a few
+dozen coloured rectangles that resemble nothing, and it is strictly worse than the description it replaced, because a
+reader can read a description. So `PictureWay` has two rungs and a floor, and on the floor every attachment — a
+photograph included — reads the way `post show` writes it: `⏵`, what its author said it shows, and the address on the
+rows below.
 
-It also keeps the interesting half of this testable with no terminal in the room, which is what ADR-0005 and ADR-0014
-ask for. *A video is linked rather than drawn*, *four pictures share one band rather than taking four*, *a gutter moves
-the boxes along with the text* are all facts about rows, and they are asserted. Pixels are not, and stay a manual smoke
-test.
+That decision is what forces the shape of everything else here. Whether a terminal can draw at all, and how big its
+cells are, has to be known while a post's *rows* are being worked out rather than while they are being painted, because
+it changes what the rows are. So `IPictures` is threaded into `Screen.Lines`, answers `Cell` as well as `Of`, and a
+screen laid out with no terminal in the room — which is every test — links everything. That in turn keeps the
+interesting half of this assertable, which is what ADR-0005 and ADR-0014 ask for: *a video is linked rather than
+drawn*, *a terminal that draws nothing links everything*, *a picture keeps its own proportions*, *a gutter moves the box
+along with the text*. Pixels are not asserted, and stay a manual smoke test.
 
-**Four attachments share one band, side by side.** Mastodon allows four, and four stacked boxes would bury the post
-carrying them — a feed item would be mostly pictures and the text an afterthought. So the drawn attachments get one
-band of rows between them, laid out left to right in the order their author attached them, with the descriptions in the
-same order underneath. A feed item's band is six rows and a post screen's is twelve, because a reader who pressed enter
-on a post has said which post they care about.
+**A picture is drawn at the full width of the column it is in, at its own proportions.** Width-driven, not
+height-driven, and that is the whole difference between an inline picture and a thumbnail: the first attempt fixed the
+height at six rows and let the width follow, which produced a box around eighteen columns wide — a postage stamp beside
+what every other terminal client draws. The rows now follow from the picture's own proportions and the pixels-per-cell
+the protocol reports, and the only limit is a cap on height (sixteen rows in a feed item, thirty-two on the post
+screen) so that a tall photograph cannot take a screen and a half of a feed. A picture that hits the cap is narrowed to
+match, so it is still the shape it was.
+
+The picture's own description stands *above* its box rather than below, so that it does not move when the pixels land
+underneath it. Until they do there is no box at all — a picture still on its way is its description and nothing else,
+and the rows appear under it rather than a hole opening above the text a reader is part-way through.
 
 **Terminal.Gui draws the pixels, and the preference for sixel is expressed where its ladder reads it.** `ImageView`
-already implements exactly the three rungs story 49 asks for, including the coloured-cell fallback that needs nothing
-of the terminal, and the raster plumbing underneath it — retained image ids, dirty tracking, clipping a picture that is
-half scrolled off — is not reachable from outside the library anyway. It tries Kitty first and sixel second, which is
-story 49's order reversed. Rather than reimplement the ladder to swap two rungs of it, `RasterProtocol.PreferSixel`
-sets Kitty support aside on a terminal that reports both, so that sixel is what is left; a terminal with only one of
-them is untouched, and one with neither still draws cells.
+implements both protocols, and the raster plumbing underneath it — retained image ids, dirty tracking, clipping a
+picture that is half scrolled off — is not reachable from outside the library anyway. It tries Kitty first and sixel
+second, which is story 49's order reversed. Rather than reimplement the ladder to swap two rungs of it,
+`RasterProtocol.PreferSixel` sets Kitty support aside on a terminal that reports both, so that sixel is what is left; a
+terminal with only one of them is untouched. `ImageView` would also fall back to coloured cells of its own accord,
+which this client does not want, so a `PictureView` that finds no raster protocol hides rather than drawing — the belt
+to the brace of a post that has already laid itself out knowing there is no box.
 
 That preference is *subscribed to*, not set once, and the difference is the whole of why it is a module rather than two
 lines in `Program`. Both capabilities are found out by asking the terminal and waiting: the detectors queue ANSI

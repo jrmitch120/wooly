@@ -1,4 +1,5 @@
 using Wooly.Core.Posts;
+using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
 
 namespace Wooly.Tui.Screens;
@@ -37,7 +38,17 @@ public abstract class Screen
     /// <summary>The rows to draw, at <paramref name="width" /> columns.</summary>
     /// <param name="width">How wide the content region is — 61 at an 80-column terminal.</param>
     /// <param name="now">What to measure timestamps against.</param>
-    public abstract IReadOnlyList<Line> Lines(int width, DateTimeOffset now);
+    /// <param name="pictures">
+    ///     What this terminal can draw and which attachments' pixels have arrived, or <see langword="null" /> for a
+    ///     screen being laid out with no terminal in the room — which is every test, and which reads as every
+    ///     attachment being linked rather than drawn.
+    ///     <para>
+    ///         A screen needs this while it is working out its rows rather than while they are being painted, because
+    ///         it changes what the rows are: a picture's own proportions settle how many rows its box takes, and an
+    ///         attachment on a terminal that draws nothing becomes a link and a description instead (ADR-0016).
+    ///     </para>
+    /// </param>
+    public abstract IReadOnlyList<Line> Lines(int width, DateTimeOffset now, IPictures? pictures = null);
 
     /// <summary>Moves what is picked out by <paramref name="by" /> items, stopping at either end.</summary>
     public virtual void Move(int by)

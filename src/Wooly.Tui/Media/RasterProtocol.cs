@@ -1,18 +1,18 @@
+using System.Drawing;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.Drivers;
 
 namespace Wooly.Tui.Media;
 
 /// <summary>
-///     Which way of putting pixels on a terminal this client prefers. Story 49 asks for sixel first, the Kitty graphics
-///     protocol where sixel is not there, and coloured cells everywhere else; Terminal.Gui's <c>ImageView</c> tries
-///     Kitty first and sixel second, which is the same ladder in the other order (ADR-0016).
+///     Which way of putting pixels on a terminal this client uses: sixel, then the Kitty graphics protocol, and then
+///     nothing at all. Terminal.Gui's <c>ImageView</c> tries Kitty first and sixel second, which is the same two rungs
+///     in the other order (ADR-0016).
 /// </summary>
 /// <remarks>
 ///     Rather than reimplement the ladder to reverse two rungs of it, the preference is expressed where the ladder
 ///     reads it: on a terminal reporting both, Kitty support is set aside so that sixel is what is left. Nothing is
-///     touched on a terminal reporting only one of them, so the fallback order is unchanged — a Kitty terminal with no
-///     sixel still draws through Kitty, and a terminal with neither still draws cells.
+///     touched on a terminal reporting only one of them, so a Kitty terminal with no sixel still draws through Kitty.
 /// </remarks>
 internal static class RasterProtocol
 {
@@ -46,7 +46,31 @@ internal static class RasterProtocol
     public static PictureWay Chosen(SixelSupportResult? sixel, KittyGraphicsSupportResult? kitty) =>
         sixel?.IsSupported == true ? PictureWay.Sixel
         : kitty?.IsSupported == true ? PictureWay.Kitty
-        : PictureWay.Cells;
+        : PictureWay.None;
+
+    /// <summary>
+    ///     How big a cell is on <paramref name="driver" />'s terminal, or <see langword="null" /> where it draws no
+    ///     pictures at all — which is what makes every attachment on such a terminal a link and a description.
+    /// </summary>
+    /// <remarks>
+    ///     The resolution comes from whichever protocol is being drawn through, because it is that protocol's answer:
+    ///     both detectors ask the terminal how many pixels its window is and how many cells, and divide.
+    /// </remarks>
+    public static CellSize? CellOf(IDriver? driver) =>
+        Chosen(driver?.SixelSupport, driver?.KittyGraphicsSupport) switch
+        {
+            PictureWay.Sixel => Sized(driver!.SixelSupport!.Resolution),
+            PictureWay.Kitty => Sized(driver!.KittyGraphicsSupport!.Resolution),
+            _ => null,
+        };
+
+    /// <summary>
+    ///     A reported resolution, or the 10×20 both detectors fall back to where the terminal answered that it speaks
+    ///     the protocol but not how big its cells are.
+    /// </summary>
+    private static CellSize Sized(Size resolution) => new(
+        resolution.Width > 0 ? resolution.Width : 10,
+        resolution.Height > 0 ? resolution.Height : 20);
 
     /// <summary>
     ///     Puts the driver where <see cref="Chosen" /> says it should be. Setting Kitty aside raises the event this is

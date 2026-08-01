@@ -92,6 +92,7 @@ public class PicturesTests
 
                 return Task.FromResult<byte[]?>(APng(4, 4));
             },
+            ADrawingTerminal,
             landed.SetResult);
 
         var media = APost.APicture();
@@ -122,6 +123,7 @@ public class PicturesTests
 
                 return Task.FromResult<byte[]?>(null);
             },
+            ADrawingTerminal,
             () => { });
 
         pictures.Of(APost.APicture() with { Preview = null });
@@ -145,6 +147,7 @@ public class PicturesTests
 
                 throw new HttpRequestException("Connection refused");
             },
+            ADrawingTerminal,
             () => { });
 
         Assert.Null(pictures.Of(APost.APicture()));
@@ -163,6 +166,7 @@ public class PicturesTests
 
         using var pictures = new Pictures(
             (_, _) => Task.FromResult<byte[]?>(APng(4, 4)),
+            ADrawingTerminal,
             () =>
             {
                 if (Interlocked.Increment(ref landed) == 2)
@@ -196,6 +200,7 @@ public class PicturesTests
 
                 return Task.FromResult<byte[]?>(null);
             },
+            ADrawingTerminal,
             () => { });
 
         // One more than there is room for, which drops the first.
@@ -232,7 +237,7 @@ public class PicturesTests
         var landed = new TaskCompletionSource();
 
         using var http = new HttpClient(network);
-        using var pictures = Pictures.Over(http, landed.SetResult);
+        using var pictures = Pictures.Over(http, ADrawingTerminal, landed.SetResult);
 
         pictures.Of(APost.APicture());
 
@@ -252,7 +257,7 @@ public class PicturesTests
         var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Status(HttpStatusCode.NotFound));
 
         using var http = new HttpClient(network);
-        using var pictures = Pictures.Over(http, () => { });
+        using var pictures = Pictures.Over(http, ADrawingTerminal, () => { });
 
         Assert.Null(pictures.Of(APost.APicture()));
     }
@@ -274,7 +279,7 @@ public class PicturesTests
         });
 
         using var http = new HttpClient(network);
-        using var pictures = Pictures.Over(http, () => landed = true);
+        using var pictures = Pictures.Over(http, ADrawingTerminal, () => landed = true);
 
         pictures.Of(APost.APicture());
 
@@ -287,6 +292,9 @@ public class PicturesTests
         Assert.Null(pictures.Of(APost.APicture()));
         Assert.False(landed);
     }
+
+    /// <summary>A terminal that draws pictures, since none of these tests is about one that does not.</summary>
+    private static CellSize? ADrawingTerminal() => new CellSize(10, 20);
 
     private static byte[] APng(int width, int height) => Encoded(width, height, new PngEncoder());
 

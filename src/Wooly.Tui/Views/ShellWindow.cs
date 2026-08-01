@@ -58,7 +58,7 @@ internal sealed class ShellWindow : Window
             CanFocus = false,
         };
 
-        var content = new PaintedView(theme, (width, _) => shell.Screen.Lines(width, clock.GetUtcNow()))
+        var content = new PaintedView(theme, (width, _) => shell.Screen.Lines(width, clock.GetUtcNow(), pictures))
         {
             X = RailLines.Width + 1,
             Y = 1,

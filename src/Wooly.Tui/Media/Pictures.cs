@@ -12,12 +12,18 @@ namespace Wooly.Tui.Media;
 ///     answer without a socket, and so the one thing this class is about — asked once, held, and announced when it
 ///     lands — is testable on its own.
 /// </param>
+/// <param name="cell">
+///     How big a cell is on this terminal, or <see langword="null" /> where it draws no pictures at all. Asked afresh
+///     each time rather than settled once, because the terminal answers the questions behind it some frames after the
+///     shell is already on screen (<see cref="RasterProtocol" />).
+/// </param>
 /// <param name="arrived">
-///     What to do when a picture lands: redraw, so the box that has been waiting for it fills in. Called off the thread
-///     the fetch finished on, so whatever is passed here is what has to get back to the UI thread.
+///     What to do when a picture lands: redraw, so the rows that have been waiting for it fill in. Called off the
+///     thread the fetch finished on, so whatever is passed here is what has to get back to the UI thread.
 /// </param>
 public sealed class Pictures(
     Func<string, CancellationToken, Task<byte[]?>> fetch,
+    Func<CellSize?> cell,
     Action arrived) : IPictures, IDisposable
 {
     /// <summary>
@@ -44,6 +50,9 @@ public sealed class Pictures(
     private readonly Queue<string> _order = new();
     private readonly CancellationTokenSource _abandoned = new();
 
+    /// <inheritdoc />
+    public CellSize? Cell => cell();
+
     /// <summary>Stops anything still being fetched, for a shell that is closing.</summary>
     public void Dispose()
     {
@@ -54,8 +63,9 @@ public sealed class Pictures(
     /// <summary>
     ///     Everything the shell needs to fetch and hold pictures, wired to <paramref name="http" />.
     /// </summary>
+    /// <param name="cell">How big a cell is — see the constructor.</param>
     /// <param name="arrived">What to do when one lands — see the constructor.</param>
-    public static Pictures Over(HttpClient http, Action arrived) => new(
+    public static Pictures Over(HttpClient http, Func<CellSize?> cell, Action arrived) => new(
         async (address, cancellation) =>
         {
             // Headers first, so that a length worth refusing is refused before the body is read rather than after it
@@ -71,6 +81,7 @@ public sealed class Pictures(
 
             return await Read(body, cancellation);
         },
+        cell,
         arrived);
 
     /// <inheritdoc />

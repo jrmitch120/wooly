@@ -106,17 +106,20 @@ public class RoleTests
     [Fact]
     public void Feed_DrawsAnAttachmentAndSaysWhereItHasNoDescription()
     {
+        // On a terminal that draws, so the mark is the picture's rather than a link's.
         var described = PostLines.Feed(
             APost.With(media: [APost.APicture(description: "A cartoon sheep")]),
             61,
             revealed: false,
-            Now);
+            Now,
+            FakePictures.With());
 
         var undescribed = PostLines.Feed(
             APost.With(media: [APost.APicture(description: null)]),
             61,
             revealed: false,
-            Now);
+            Now,
+            FakePictures.With());
 
         var first = described.First(line => line.Text.Contains("▒▒▒▒", StringComparison.Ordinal));
         Assert.True(first.Has(Role.Media));

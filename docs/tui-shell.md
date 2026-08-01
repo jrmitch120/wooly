@@ -130,13 +130,17 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
 - **Sixel is preferred over Kitty, and the preference is subscribed to.** Both capabilities are answers the terminal
   sends back some frames after startup, so a preference set once at startup is set against nothing and then overwritten
   (ADR-0016).
-- **A picture's box is kept before the picture arrives, and kept if it never does.** The rows are reserved from the
-  post, not from the pixels, so a feed does not reflow under a reader as previews land. Until one does, the `▒▒▒▒` row
-  under the box says what is attached.
-- **A post's pictures share one band, side by side**, in the order their author attached them — six rows in a feed
-  item, twelve on the post screen.
-- **Nothing about a picture is ever an error.** A fetch that fails and a file that will not decode both leave an empty
-  box and the description under it, which is what a terminal that cannot draw shows anyway.
+- **There is no cell-based fallback.** A terminal offering neither sixel nor the Kitty graphics protocol links every
+  attachment, a photograph included, exactly the way the CLI writes one. The coloured-block rendering the ticket asked
+  for was built and rejected on the evidence: a photograph as a few dozen rectangles resembles nothing and is worse
+  than the description it replaced.
+- **A picture is drawn at the full width of the column it is in, at its own proportions**, capped at 16 rows in a feed
+  item and 32 on the post screen. Width-driven rather than height-driven — that is the difference between an inline
+  picture and a postage stamp.
+- **The description stands above the picture**, so it does not move when the pixels land under it. Until they do there
+  is no box: a picture on its way is its `▒▒▒▒` description and nothing else.
+- **Nothing about a picture is ever an error.** A fetch that fails and a file that will not decode both leave the
+  description standing on its own, which is what a terminal that cannot draw shows anyway.
 
 ### What conversations settled
 

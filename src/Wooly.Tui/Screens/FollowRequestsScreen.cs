@@ -1,4 +1,5 @@
 using Wooly.Core.Accounts;
+using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Theme;
 
@@ -67,7 +68,7 @@ public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string?
     }
 
     /// <inheritdoc />
-    public override IReadOnlyList<Line> Lines(int width, DateTimeOffset now)
+    public override IReadOnlyList<Line> Lines(int width, DateTimeOffset now, IPictures? pictures = null)
     {
         var lines = new List<Line>();
 

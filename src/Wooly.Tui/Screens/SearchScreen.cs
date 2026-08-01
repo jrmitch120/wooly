@@ -1,5 +1,6 @@
 using Wooly.Core.Accounts;
 using Wooly.Core.Posts;
+using Wooly.Tui.Media;
 using Wooly.Core.Search;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Theme;
@@ -169,7 +170,7 @@ public sealed class SearchScreen : Screen
     }
 
     /// <inheritdoc />
-    public override IReadOnlyList<Line> Lines(int width, DateTimeOffset now)
+    public override IReadOnlyList<Line> Lines(int width, DateTimeOffset now, IPictures? pictures = null)
     {
         var lines = new List<Line> { Prompt(width), Line.Blank };
 
@@ -213,7 +214,7 @@ public sealed class SearchScreen : Screen
         {
             var post = _posts.Posts[at];
 
-            foreach (var line in PostLines.Feed(post, room, _posts.IsRevealed(post), now))
+            foreach (var line in PostLines.Feed(post, room, _posts.IsRevealed(post), now, pictures))
             {
                 lines.Add(line.After(PickedPosts.Gutter(FirstPost + at == At)));
             }

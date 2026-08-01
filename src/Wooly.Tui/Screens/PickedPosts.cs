@@ -1,4 +1,5 @@
 using Wooly.Core.Posts;
+using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Theme;
 
@@ -92,7 +93,7 @@ public sealed class PickedPosts(IReadOnlyList<Post> posts)
     ///     The posts as rows, each behind a gutter that says whether it is the one picked out. One column of gutter is
     ///     always taken, so that moving the selection down does not shift every post sideways as it goes.
     /// </summary>
-    public IReadOnlyList<Line> Lines(int width, DateTimeOffset now)
+    public IReadOnlyList<Line> Lines(int width, DateTimeOffset now, IPictures? pictures = null)
     {
         var room = Math.Max(1, width - 1);
         var lines = new List<Line>();
@@ -101,7 +102,7 @@ public sealed class PickedPosts(IReadOnlyList<Post> posts)
         {
             var post = _posts[at];
 
-            foreach (var line in PostLines.Feed(post, room, IsRevealed(post), now))
+            foreach (var line in PostLines.Feed(post, room, IsRevealed(post), now, pictures))
             {
                 lines.Add(line.After(Gutter(at == At)));
             }

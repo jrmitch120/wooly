@@ -1,4 +1,5 @@
 using Wooly.Core.Posts;
+using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Theme;
 
@@ -17,8 +18,8 @@ namespace Wooly.Tui.Screens;
 public static class PostLines
 {
     /// <summary>
-    ///     What marks a picture: the whole of what a reader has until its pixels arrive, and the whole of what they
-    ///     have if none ever do — which on a terminal drawing coloured cells is nearly a picture anyway.
+    ///     What marks a picture being drawn in place: it stands above the box, and is the whole of what a reader has
+    ///     while the pixels are still on their way.
     /// </summary>
     private const string MediaMark = "▒▒▒▒";
 
@@ -30,7 +31,16 @@ public static class PostLines
     /// <param name="width">How many columns there are, which at an 80-column terminal is 61.</param>
     /// <param name="revealed">Whether the reader has asked to see past a content warning.</param>
     /// <param name="now">What to measure the timestamp against.</param>
-    public static IReadOnlyList<Line> Feed(Post post, int width, bool revealed, DateTimeOffset now)
+    /// <param name="pictures">
+    ///     What this terminal can draw and what has arrived, or <see langword="null" /> where nothing is drawn — which
+    ///     is what every attachment falls back to being linked means.
+    /// </param>
+    public static IReadOnlyList<Line> Feed(
+        Post post,
+        int width,
+        bool revealed,
+        DateTimeOffset now,
+        IPictures? pictures = null)
     {
         var lines = new List<Line>();
         var shown = post.Boosted ?? post;
@@ -45,7 +55,7 @@ public static class PostLines
 
         lines.Add(Byline(shown, width, now));
         lines.AddRange(Body(shown, width, revealed));
-        lines.AddRange(Media(shown, width, Inset.FeedRows));
+        lines.AddRange(Media(shown, width, pictures, Inset.FeedRows));
         lines.Add(Counts(shown, spelledOut: false));
 
         return lines;
@@ -55,7 +65,13 @@ public static class PostLines
     ///     The post whole, as the screen you drilled into: the same content, with the byline broken across two rows
     ///     and the moment said exactly rather than as an age.
     /// </summary>
-    public static IReadOnlyList<Line> Whole(Post post, int width, bool revealed, DateTimeOffset now)
+    /// <inheritdoc cref="Feed" />
+    public static IReadOnlyList<Line> Whole(
+        Post post,
+        int width,
+        bool revealed,
+        DateTimeOffset now,
+        IPictures? pictures = null)
     {
         var shown = post.Boosted ?? post;
 
@@ -80,7 +96,7 @@ public static class PostLines
         }
 
         lines.AddRange(Body(shown, width, revealed));
-        lines.AddRange(Media(shown, width, Inset.WholeRows));
+        lines.AddRange(Media(shown, width, pictures, Inset.WholeRows));
         lines.Add(Line.Blank);
         lines.Add(Counts(shown, spelledOut: true));
 
@@ -155,57 +171,71 @@ public static class PostLines
     }
 
     /// <summary>
-    ///     What is attached: the pictures in a band drawn in place, then a line each saying what they show, then the
-    ///     attachments a terminal cannot draw — each of those as a link and its description, never as an inline
-    ///     rendering attempt (story 51, ADR-0016).
+    ///     What is attached: each one behind a mark saying what it shows, and then either the picture itself drawn in
+    ///     place or the address to reach it at.
     /// </summary>
-    /// <param name="rows">How tall the band of pictures is, which is the one thing a feed and a whole post differ on.</param>
-    private static IEnumerable<Line> Media(Post post, int width, int rows)
+    /// <remarks>
+    ///     Three cases, and which one an attachment falls into is settled here rather than at the view, because it
+    ///     changes how many rows the post takes. A picture this terminal can draw and has the pixels for gets a box; a
+    ///     picture whose pixels have not landed yet gets its description and nothing else, so the rows appear under it
+    ///     when they arrive rather than a hole opening above; and everything else — a video, a sound, an attachment of
+    ///     a kind this client has no word for, and <em>any</em> attachment on a terminal offering neither sixel nor the
+    ///     Kitty graphics protocol — gets the link and description the CLI gives it. There is no cell-by-cell fallback:
+    ///     a photograph reduced to one coloured block per cell is not a picture of anything (ADR-0016).
+    /// </remarks>
+    /// <param name="pictures">What can be drawn and what is here, or <see langword="null" /> where nothing can be.</param>
+    /// <param name="mostRows">The most rows a picture may take, which is what a feed and a whole post differ on.</param>
+    private static IEnumerable<Line> Media(Post post, int width, IPictures? pictures, int mostRows)
     {
-        var drawn = post.Media.Where(attached => attached.IsDrawable).ToList();
-
-        foreach (var line in Band(drawn, width, rows))
+        foreach (var attached in post.Media)
         {
-            yield return line;
-        }
-
-        foreach (var attached in drawn)
-        {
-            yield return Described(attached, MediaMark, width);
-        }
-
-        foreach (var attached in post.Media.Where(attached => !attached.IsDrawable))
-        {
-            yield return Described(attached, LinkMark, width);
-
-            // The address on rows of its own, wrapped rather than clipped: at 61 columns a real attachment address is
-            // longer than the row, and a link with its end cut off is a link nobody can follow. Indented under the
-            // mark, so a reader can see where it starts and where it stops.
-            foreach (var row in TextWrap.Wrap(attached.Url, Math.Max(1, width - 2)))
+            if (!attached.IsDrawable || pictures?.Cell is not { } cell)
             {
-                yield return Line.Of($"  {row}", Role.Muted);
+                foreach (var line in Linked(attached, width))
+                {
+                    yield return line;
+                }
+
+                continue;
+            }
+
+            // The description first, so it does not move when the picture lands underneath it.
+            yield return Described(attached, MediaMark, width);
+
+            if (pictures.Of(attached) is { } picture
+                && Inset.For(attached, picture, cell, width, mostRows) is { } inset)
+            {
+                foreach (var line in Box(inset))
+                {
+                    yield return line;
+                }
             }
         }
     }
 
-    /// <summary>
-    ///     The rows a post's pictures are drawn in. The box is kept whether or not the pixels are here yet, so a feed
-    ///     does not jump under a reader as images land; the mark and the description below say what is in it until
-    ///     they do (ADR-0016).
-    /// </summary>
-    private static IEnumerable<Line> Band(IReadOnlyList<PostMedia> pictures, int width, int rows)
+    /// <summary>An attachment that is not being drawn: what it shows, and where to get it.</summary>
+    private static IEnumerable<Line> Linked(PostMedia attached, int width)
     {
-        var insets = Inset.Across(pictures, width, rows);
+        yield return Described(attached, LinkMark, width);
 
-        if (insets.Count == 0)
+        // The address on rows of its own, wrapped rather than clipped: at 61 columns a real attachment address is
+        // longer than the row, and a link with its end cut off is a link nobody can follow. Indented under the mark,
+        // so a reader can see where it starts and where it stops.
+        foreach (var row in TextWrap.Wrap(attached.Url, Math.Max(1, width - 2)))
         {
-            yield break;
+            yield return Line.Of($"  {row}", Role.Muted);
         }
+    }
 
-        // The band's first row carries the boxes; the rest are rows of the screen that the boxes cover.
-        yield return new Line([new Span(new string(' ', Inset.Width(insets)), Role.Media)]) { Insets = insets };
+    /// <summary>
+    ///     The rows a picture is drawn over. The first carries the box; the rest are rows of the screen the box covers,
+    ///     and they are rows of the post so that everything below the picture is where the picture leaves it.
+    /// </summary>
+    private static IEnumerable<Line> Box(Inset inset)
+    {
+        yield return new Line([new Span(new string(' ', inset.Columns), Role.Media)]) { Insets = [inset] };
 
-        for (var row = 1; row < rows; row++)
+        for (var row = 1; row < inset.Rows; row++)
         {
             yield return Line.Blank;
         }

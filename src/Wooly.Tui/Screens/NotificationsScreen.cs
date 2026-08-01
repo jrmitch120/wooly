@@ -1,5 +1,6 @@
 using Wooly.Core.Notifications;
 using Wooly.Core.Posts;
+using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Theme;
 
@@ -97,7 +98,7 @@ public sealed class NotificationsScreen(IReadOnlyList<Notification> notification
     }
 
     /// <inheritdoc />
-    public override IReadOnlyList<Line> Lines(int width, DateTimeOffset now)
+    public override IReadOnlyList<Line> Lines(int width, DateTimeOffset now, IPictures? pictures = null)
     {
         var lines = new List<Line>();
 
@@ -117,7 +118,7 @@ public sealed class NotificationsScreen(IReadOnlyList<Notification> notification
 
             if (notification.Post is { } post)
             {
-                foreach (var line in PostLines.Feed(post, Math.Max(1, room - 2), _revealed.Has(post), now))
+                foreach (var line in PostLines.Feed(post, Math.Max(1, room - 2), _revealed.Has(post), now, pictures))
                 {
                     lines.Add(line.After(PickedPosts.Gutter(at == At), new Span("  ", Role.Body)));
                 }

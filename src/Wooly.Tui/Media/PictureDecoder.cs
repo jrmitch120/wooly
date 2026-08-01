@@ -16,11 +16,11 @@ namespace Wooly.Tui.Media;
 internal static class PictureDecoder
 {
     /// <summary>
-    ///     How many pixels a decoded picture may be along its longer side. A picture is drawn into a box of a few dozen
-    ///     cells — a few hundred pixels at the resolutions terminals report — so anything larger is decoded, held in
-    ///     memory and thrown away again. Kept generous enough that the box is never upscaled from less than it has.
+    ///     How many pixels a decoded picture may be along its longer side. A picture is drawn at the full width of the
+    ///     column it is in, which on a wide terminal is most of a thousand pixels, so this is what that costs; anything
+    ///     larger is decoded, held in memory and thrown away again by the scale down to the box.
     /// </summary>
-    public const int LongestSide = 320;
+    public const int LongestSide = 1024;
 
     /// <summary>
     ///     The picture <paramref name="bytes" /> hold, scaled down to something a terminal has room for — or

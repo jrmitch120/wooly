@@ -19,8 +19,8 @@ public class RasterProtocolTests
     [InlineData(true, true, PictureWay.Sixel)]
     [InlineData(true, false, PictureWay.Sixel)]
     [InlineData(false, true, PictureWay.Kitty)]
-    [InlineData(false, false, PictureWay.Cells)]
-    public void Chosen_PrefersSixelThenKittyThenCells(bool sixel, bool kitty, PictureWay expected) =>
+    [InlineData(false, false, PictureWay.None)]
+    public void Chosen_PrefersSixelThenKittyThenNothing(bool sixel, bool kitty, PictureWay expected) =>
         Assert.Equal(
             expected,
             RasterProtocol.Chosen(
@@ -34,7 +34,7 @@ public class RasterProtocolTests
     [Fact]
     public void Chosen_TreatsACapabilityNotYetReportedAsOneNotThere()
     {
-        Assert.Equal(PictureWay.Cells, RasterProtocol.Chosen(null, null));
+        Assert.Equal(PictureWay.None, RasterProtocol.Chosen(null, null));
         Assert.Equal(PictureWay.Kitty, RasterProtocol.Chosen(null, new KittyGraphicsSupportResult { IsSupported = true }));
         Assert.Equal(PictureWay.Sixel, RasterProtocol.Chosen(new SixelSupportResult { IsSupported = true }, null));
     }

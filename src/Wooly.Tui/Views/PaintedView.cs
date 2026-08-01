@@ -124,7 +124,9 @@ internal sealed class PaintedView(ITheme theme, Func<int, int, IReadOnlyList<Lin
 
                 box.Show(inset.Media.Id, Pictures.Of(inset.Media));
                 box.Frame = new Rectangle(inset.Column, top, inset.Columns, inset.Rows);
-                box.Visible = box.HasPicture;
+
+                // Never drawn as coloured cells, whatever ImageView would have been willing to do (ADR-0016).
+                box.Visible = box.HasPicture && box.CanDraw;
             }
         }
 
