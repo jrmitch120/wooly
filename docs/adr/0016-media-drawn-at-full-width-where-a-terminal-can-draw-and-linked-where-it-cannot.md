@@ -88,18 +88,24 @@ much as outside it — its colours are the content, not an emphasis somebody cho
 `Media/PictureDecoder.cs`, and a second test asserts that the named file is still there, so the allowance cannot
 quietly come to cover nothing or be renamed around. Every screen is still caught.
 
-**A picture is released by hiding the view that drew it, and nothing may take a path that skips the hiding.** Sixel is
-painted into the terminal's cells, so drawing text over it erases it. A Kitty placement is not: it persists until it is
-explicitly deleted, and Terminal.Gui deletes one when the view that owns it stops being drawn — it walks the tree after
-each frame, collects the ids of views still rendering, and releases the rest. That walk is what a stuck picture means
-has gone wrong.
+**A picture is taken off the screen by clearing the view that drew it, not by hiding it.** Sixel is painted into the
+terminal's cells, so drawing text over it erases it. A Kitty placement is not: it persists until it is explicitly
+deleted. Terminal.Gui offers two ways to reach that delete, and they are not equally strong. Hiding a view leaves it to
+the sweep the framework makes after each frame of views no longer rendering; clearing `ImageView.Image` withdraws the
+image from the output buffer there and then, which is what makes the driver emit the delete. Only the second is a
+promise. A picture stuck over somebody else's post while scrolling is that difference.
 
-So `PaintedView` builds its whole pool of boxes in its constructor rather than growing it on demand. Growing it on
-demand meant adding a subview from inside the parent's own draw, which mutates the tree that draw is walking and leaves
-the release of a vanished picture depending on whether this frame happened to be the one that grew the pool — visible
-as a picture stuck over somebody else's post while scrolling. Every box is now either given a place or hidden on every
-frame, including on the paths that draw nothing at all, with no way out that does neither. The pool is fixed at eight,
-which at a minimum of sixteen rows a picture is more than the tallest terminal can show.
+Three rules follow, and `PaintedView` keeps all three:
+
+- **Everything is released before anything is placed.** A box whose picture is no longer wanted is cleared at the top
+  of the frame, so nothing is ever drawn over a placement the terminal has not yet been told to drop.
+- **A box never goes from one picture straight to another.** Boxes are matched to attachments by id, and one freed this
+  frame is the last resort when a home is being found for a new picture — so between two pictures on one view there is
+  always a frame in which that view held nothing.
+- **The pool is built in the constructor, and only where there are pictures at all.** Growing it on demand meant adding
+  a subview from inside the parent's own draw, which mutates the tree that draw is walking. It is fixed at eight, which
+  at a minimum of sixteen rows a picture is more than the tallest terminal can show, and the rail and the two chrome
+  rows build none.
 
 ## Consequences
 

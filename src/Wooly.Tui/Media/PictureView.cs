@@ -32,23 +32,13 @@ internal sealed class PictureView : ImageView
     /// <summary>The instance's id for the attachment being shown, or <see langword="null" /> while it is showing none.</summary>
     public string? MediaId { get; private set; }
 
-    /// <summary>Whether there is anything here to draw.</summary>
-    public bool HasPicture => MediaId is not null;
-
     /// <summary>Shows <paramref name="picture" /> as the attachment <paramref name="mediaId" /> names.</summary>
     /// <remarks>
-    ///     A <see langword="null" /> picture is one that has not arrived, or one that never will; either way there is
-    ///     nothing to draw, and the row the post left saying what is attached is what the reader has.
+    ///     Only ever called on a view holding this attachment already or holding nothing at all: one of these never
+    ///     goes straight from one picture to another. <see cref="Release" /> says why.
     /// </remarks>
-    public void Show(string mediaId, Picture? picture)
+    public void Show(string mediaId, Picture picture)
     {
-        if (picture is null)
-        {
-            MediaId = null;
-
-            return;
-        }
-
         if (MediaId == mediaId)
         {
             return;
@@ -56,5 +46,25 @@ internal sealed class PictureView : ImageView
 
         MediaId = mediaId;
         Image = picture.Pixels;
+    }
+
+    /// <summary>Takes the picture off this view, and off the terminal.</summary>
+    /// <remarks>
+    ///     Clearing <see cref="ImageView.Image" /> is what withdraws the image from the output buffer, and withdrawing
+    ///     it from the buffer is what makes the driver delete the Kitty placement holding it on screen. Hiding the view
+    ///     alone leaves that to the sweep Terminal.Gui makes of views that are no longer rendering, which is a weaker
+    ///     promise than saying so — and a Kitty placement nobody deletes is not erased by drawing text over it
+    ///     (ADR-0016). This is the difference between a picture that goes away and one that stays over the next post.
+    /// </remarks>
+    public void Release()
+    {
+        if (MediaId is null && !Visible)
+        {
+            return;
+        }
+
+        MediaId = null;
+        Visible = false;
+        Image = null;
     }
 }

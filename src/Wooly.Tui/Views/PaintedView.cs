@@ -80,7 +80,7 @@ internal sealed class PaintedView : View
         {
             // Nothing can be drawn, so nothing may be left drawn either: a box still showing from the last size this
             // view had would be a picture over whatever replaces it.
-            Hide(from: 0);
+            _boxes.ForEach(box => box.Release());
 
             return true;
         }
@@ -136,9 +136,9 @@ internal sealed class PaintedView : View
     ///     in it — a picture still on its way, or one that could not be had — is hidden rather than drawn empty, which
     ///     leaves the row saying <c>▒▒▒▒</c> and what it shows as the whole of the answer.
     ///     <para>
-    ///         Every box is either given a place here or hidden here, on every frame and with no path out that does
-    ///         neither. What is hidden is what Terminal.Gui releases, and what it releases is what stops a Kitty
-    ///         placement outliving the post it belonged to.
+    ///         Every box is either given a place here or released here, on every frame and with no path out that does
+    ///         neither — and everything is released before anything is placed, so a picture is never put on screen over
+    ///         one the terminal has not yet been told to drop.
     ///     </para>
     /// </remarks>
     private void Place(IReadOnlyList<Line> lines, int height)
@@ -148,49 +148,104 @@ internal sealed class PaintedView : View
             return;
         }
 
-        var placed = 0;
+        var wanted = Wanted(lines, height);
 
-        for (var at = 0; at < lines.Count && placed < _boxes.Count; at++)
+        // Let go first, and of everything, before anything is put anywhere. A box is released the moment its picture
+        // stops being wanted, which is what tells the terminal to drop what is on it — doing that after placing the
+        // rest would leave a frame in which the old placement is still on screen under the new one.
+        var freed = new List<PictureView>();
+
+        foreach (var box in _boxes)
+        {
+            if (box.MediaId is { } held && wanted.Any(want => want.Inset.Media.Id == held))
+            {
+                continue;
+            }
+
+            if (box.MediaId is not null)
+            {
+                freed.Add(box);
+            }
+
+            box.Release();
+        }
+
+        var taken = new List<PictureView>();
+
+        foreach (var (inset, top, picture) in wanted)
+        {
+            if (Free(inset.Media.Id, freed, taken) is not { } box)
+            {
+                continue;
+            }
+
+            taken.Add(box);
+
+            var frame = new Rectangle(inset.Column, top, inset.Columns, inset.Rows);
+
+            box.Show(inset.Media.Id, picture);
+
+            // Only when it has actually moved: setting it throws away the scaled copy and re-encodes the picture,
+            // which on a feed redrawn per keypress would be a re-transmission per keypress.
+            if (box.Frame != frame)
+            {
+                box.Frame = frame;
+            }
+
+            // Never drawn as coloured cells, whatever ImageView would have been willing to do (ADR-0016).
+            box.Visible = box.CanDraw;
+        }
+    }
+
+    /// <summary>
+    ///     The pictures to draw this frame, with the row each starts on — which may be above the top of the view or
+    ///     run past its bottom, for a box being scrolled past.
+    /// </summary>
+    private List<(Inset Inset, int Top, Picture Picture)> Wanted(IReadOnlyList<Line> lines, int height)
+    {
+        var wanted = new List<(Inset, int, Picture)>();
+
+        for (var at = 0; at < lines.Count; at++)
         {
             foreach (var inset in lines[at].Insets)
             {
                 var top = at - _top;
 
-                // Off the top or off the bottom. A box straddling either edge is placed anyway and clipped, which is
-                // what keeps a picture visible while it is being scrolled past rather than blinking out at the edge.
-                if (top + inset.Rows <= 0 || top >= height || placed >= _boxes.Count)
+                // Off the top or off the bottom. A box straddling either edge is kept and clipped, which is what
+                // keeps a picture visible while it is being scrolled past rather than blinking out at the edge.
+                if (top + inset.Rows <= 0 || top >= height)
                 {
                     continue;
                 }
 
-                var box = _boxes[placed++];
-                var frame = new Rectangle(inset.Column, top, inset.Columns, inset.Rows);
-
-                box.Show(inset.Media.Id, _pictures.Of(inset.Media));
-
-                // Only when it has actually moved: setting it throws away the scaled copy and re-encodes the picture,
-                // which on a feed redrawn per keypress would be a re-transmission per keypress.
-                if (box.Frame != frame)
+                if (_pictures!.Of(inset.Media) is { } picture)
                 {
-                    box.Frame = frame;
+                    wanted.Add((inset, top, picture));
                 }
-
-                // Never drawn as coloured cells, whatever ImageView would have been willing to do (ADR-0016).
-                box.Visible = box.HasPicture && box.CanDraw;
             }
         }
 
-        Hide(from: placed);
+        return wanted;
     }
 
-    /// <summary>Hides every box from <paramref name="from" /> on, which is every one this frame found no place for.</summary>
-    private void Hide(int from)
-    {
-        for (var spare = from; spare < _boxes.Count; spare++)
-        {
-            _boxes[spare].Visible = false;
-        }
-    }
+    /// <summary>
+    ///     The box to draw <paramref name="mediaId" /> in: the one already holding it, or one holding nothing.
+    /// </summary>
+    /// <remarks>
+    ///     A box freed this very frame is the last resort, so that a view never goes from one picture straight to
+    ///     another within a frame — the terminal is told to drop the first, and only a frame later is the second put
+    ///     there. With room for eight and a terminal able to show a handful, that fallback is not reached in practice;
+    ///     it is there so that a screen full of pictures draws them rather than dropping one.
+    ///     <para>
+    ///         A box already <paramref name="taken" /> this frame is never handed out again, because the same
+    ///         attachment can be on screen twice — a boost and the post it boosts, both in one feed — and two boxes
+    ///         sharing one view would be one picture drawn and the other silently lost.
+    ///     </para>
+    /// </remarks>
+    private PictureView? Free(string mediaId, List<PictureView> freed, List<PictureView> taken) =>
+        _boxes.FirstOrDefault(box => box.MediaId == mediaId && !taken.Contains(box))
+        ?? _boxes.FirstOrDefault(box => box.MediaId is null && !freed.Contains(box) && !taken.Contains(box))
+        ?? _boxes.FirstOrDefault(box => box.MediaId is null && !taken.Contains(box));
 
     /// <summary>
     ///     Which row to draw first so that the selected one is on screen. Follows the selection rather than keeping a
