@@ -135,6 +135,17 @@ is scaled; a picture is decoded no taller than the tallest box can be, and where
 happens *in* the decoder rather than after it, so a large photograph never exists whole in memory; and a burst of
 arrivals is announced as one redraw rather than one each, because a forced redraw re-encodes every picture on screen.
 
+**Where a screen scrolls to has to settle, because its own answer is its next input.** Pictures made a post taller
+than the terminal for the first time, and the scroll rule the shell had shipped with since #28 could not hold one:
+keeping the end of a too-tall post on screen means scrolling down, keeping its start on screen means scrolling back,
+and asked afresh each frame it alternated between the two. Every flip moved the boxes, moving a box asks for a redraw,
+and the redraw asked again — a loop that ran as fast as the terminal could draw, which is what a reader saw as very
+fast flicker with pictures over the text.
+
+The rule is now said outright rather than left to fall out of the arithmetic: a post taller than the room is shown from
+its top and held there, which is what the code's own comment had claimed all along. It lives in `Rendering.Scroll` with
+one property asserted above all others — asked twice over the same rows it answers the same thing twice.
+
 ## Consequences
 
 Previews are fetched on their own `HttpClient`, not through the one every Mastodon call goes through: a file server

@@ -212,7 +212,7 @@ internal sealed class PaintedView : View
     {
         var lines = _rows(width, height);
 
-        _top = FollowsSelection ? ScrolledTo(lines, height) : 0;
+        _top = FollowsSelection ? Scroll.To(lines, height, _top) : 0;
 
         return lines;
     }
@@ -337,41 +337,4 @@ internal sealed class PaintedView : View
         _boxes.FirstOrDefault(box => box.MediaId == mediaId && !taken.Contains(box))
         ?? _boxes.FirstOrDefault(box => box.MediaId is null && !freed.Contains(box) && !taken.Contains(box))
         ?? _boxes.FirstOrDefault(box => box.MediaId is null && !taken.Contains(box));
-
-    /// <summary>
-    ///     Which row to draw first so that the selected one is on screen. Follows the selection rather than keeping a
-    ///     scroll position of its own: what the reader picked out is the thing that has to be visible, and everything
-    ///     that moves it — <c>j</c>, <c>k</c>, a post arriving — moves it deliberately.
-    /// </summary>
-    private int ScrolledTo(IReadOnlyList<Line> lines, int height)
-    {
-        var first = -1;
-        var last = -1;
-
-        for (var at = 0; at < lines.Count; at++)
-        {
-            if (!lines[at].Has(Role.Selection))
-            {
-                continue;
-            }
-
-            if (first < 0)
-            {
-                first = at;
-            }
-
-            last = at;
-        }
-
-        if (first < 0)
-        {
-            return Math.Clamp(_top, 0, Math.Max(0, lines.Count - height));
-        }
-
-        // A post taller than the terminal is shown from its top rather than its bottom: the byline is what says whose
-        // post you are looking at, and losing that is worse than losing the last of the text.
-        var top = last - height + 1 > _top ? last - height + 1 : Math.Min(_top, first);
-
-        return Math.Clamp(top, 0, Math.Max(0, lines.Count - 1));
-    }
 }
