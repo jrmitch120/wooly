@@ -16,6 +16,24 @@ public static class DirectMessage
     ///     message with nothing written in it is the mention alone rather than a mention with a space after it — one
     ///     that carries a file and no words is a thing somebody sends.
     /// </remarks>
-    public static string To(AccountAddress account, string text) =>
-        string.IsNullOrWhiteSpace(text) ? $"@{account}" : $"@{account} {text}";
+    public static string To(AccountAddress account, string text) => To([account], text);
+
+    /// <summary>
+    ///     The same, for a message going to more than one account — which is what answering a conversation with
+    ///     several accounts in it is. Every one of them is named, in the order given, because Mastodon delivers to the
+    ///     accounts the text mentions and a reply that named only the last speaker would drop the rest of the
+    ///     conversation out of it.
+    /// </summary>
+    /// <returns>The text, or an empty string where no account was named — nobody to write to is nothing to write.</returns>
+    public static string To(IReadOnlyList<AccountAddress> accounts, string text)
+    {
+        if (accounts.Count == 0)
+        {
+            return text;
+        }
+
+        var mentions = string.Join(" ", accounts.Select(account => $"@{account}"));
+
+        return string.IsNullOrWhiteSpace(text) ? mentions : $"{mentions} {text}";
+    }
 }

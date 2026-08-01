@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Text;
 using Microsoft.Extensions.DependencyInjection;
 using Wooly.Core;
+using Wooly.Core.Accounts;
 using Wooly.Core.Conversations;
 using Wooly.Core.Errors;
 using Wooly.Core.Profiles;
@@ -279,6 +280,27 @@ public class DirectMessagesTests
 
         Assert.Equal("7", conversation.Id);
         Assert.False(conversation.Unread);
+    }
+
+    /// <summary>
+    ///     A message to a conversation with several accounts in it names every one of them, because Mastodon delivers
+    ///     a direct post to the accounts its text mentions and one that named only the last speaker would drop the
+    ///     rest of the conversation out of it.
+    /// </summary>
+    [Fact]
+    public void To_NamesEveryAccountAMessageIsFor()
+    {
+        AccountAddress[] both =
+        [
+            AccountAddress.Parse("alice@hachyderm.io"),
+            AccountAddress.Parse("ben@fosstodon.org"),
+        ];
+
+        Assert.Equal("@alice@hachyderm.io @ben@fosstodon.org Both of you then", DirectMessage.To(both, "Both of you then"));
+
+        // The mentions alone, for a message carrying files and no words — a mention with a space after it is not what
+        // gets sent.
+        Assert.Equal("@alice@hachyderm.io @ben@fosstodon.org", DirectMessage.To(both, "  "));
     }
 
     /// <summary>Resolved from the container the app builds, so the wiring is under test alongside the behavior.</summary>

@@ -323,6 +323,45 @@ public class RoleTests
     }
 
     /// <summary>
+    ///     <c>docs/tui-shell.md</c>'s own example of what role selection is for: an unread conversation's badge takes
+    ///     <c>rail-unread</c>, and one nobody has anything new in takes no badge at all rather than a dimmer one.
+    /// </summary>
+    [Fact]
+    public void Messages_DrawAnUnreadConversationsBadgeInItsOwnRole()
+    {
+        var screen = new DirectMessagesScreen([
+            AConversation.With(id: "7", with: ["alice@hachyderm.io"]),
+            AConversation.With(id: "8", with: ["ben@hachyderm.io"], unread: false),
+        ]);
+
+        var lines = screen.Lines(61, Now);
+
+        var unread = lines.First(line => line.Text.Contains("alice", StringComparison.Ordinal));
+        var read = lines.First(line => line.Text.Contains("ben", StringComparison.Ordinal));
+
+        Assert.Contains(unread.Spans, span => span is { Role: Role.RailUnread, Text: "unread" });
+        Assert.DoesNotContain(read.Spans, span => span.Role == Role.RailUnread);
+
+        // Who it is with is a handle wherever it is drawn, which is the same role a byline gives it.
+        Assert.Contains(unread.Spans, span => span.Role == Role.BylineHandle);
+
+        // And the row picked out is told apart by a mark as well as by a role, exactly as a feed's is.
+        Assert.Contains(lines.Where(line => line.Has(Role.Selection)), line => line.Text.StartsWith('▌'));
+    }
+
+    /// <summary>
+    ///     A conversation whose posts have all been taken down says so. The alternative is a heading with nothing
+    ///     under it, which reads as a screen that went wrong rather than a conversation that was emptied.
+    /// </summary>
+    [Fact]
+    public void Messages_SayWhereAConversationHasNothingLeftInIt()
+    {
+        var screen = new DirectMessagesScreen([AConversation.Emptied()]);
+
+        Assert.Contains(screen.Lines(61, Now), line => line.Text.Contains("Nothing left", StringComparison.Ordinal));
+    }
+
+    /// <summary>
     ///     The search prompt says where the next letter lands with a mark rather than a colour, so a terminal with
     ///     none still shows where the typing is going.
     /// </summary>
@@ -371,12 +410,18 @@ public class RoleTests
                 [AHashtag.With("an-extremely-long-hashtag-somebody-really-did-use", 1_204_887, 90_112)],
                 [wordy]));
 
+        var talkative = AConversation.With(
+            with: ["somebody@an-extremely-long-instance-domain.example", "another@an-equally-long-domain.example"],
+            latest: wordy);
+
         Screen[] screens =
         [
             new NotificationsScreen([ANotification.With(author: "Somebody With A Very Long Display Name", post: wordy)]),
             new FollowRequestsScreen([account]),
             search,
             new AccountScreen(account, [wordy]),
+            new DirectMessagesScreen([talkative, AConversation.Emptied(id: "9")]),
+            new ConversationScreen(AConversation.Thread(talkative, wordy)),
         ];
 
         foreach (var screen in screens)

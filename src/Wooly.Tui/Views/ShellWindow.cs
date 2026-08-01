@@ -256,6 +256,12 @@ internal sealed class ShellWindow : Window
         {
             _ = _shell.Mark(PostMark.Pin);
         }
+        else if (key == Key.M)
+        {
+            // Lower case only: the capitals are matched above, so this cannot be the mute a conversation has no use
+            // for (docs/tui-shell.md).
+            _ = _shell.MarkRead();
+        }
         else if (key == Key.C)
         {
             _shell.Compose();

@@ -304,9 +304,10 @@ public class RailFetchTests
         Assert.Equal(readsWhenOpened, shell.Timelines.Reads.Count);
     }
 
-    /// <summary>Each of the three destinations #29 brings a screen for arrives at its own, not at somebody else's.</summary>
+    /// <summary>Each destination that lists something of its own arrives at its own screen, not at somebody else's.</summary>
     [Theory]
     [InlineData(4, typeof(NotificationsScreen))]
+    [InlineData(5, typeof(DirectMessagesScreen))]
     [InlineData(6, typeof(FollowRequestsScreen))]
     [InlineData(7, typeof(SearchScreen))]
     public async Task Step_ArrivesAtTheScreenItsDestinationOpensOnto(int steps, Type screen)
@@ -319,19 +320,5 @@ public class RailFetchTests
 
         Assert.Equal(steps, opened.Rail.Current);
         Assert.IsType(screen, opened.Screen);
-    }
-
-    /// <summary>The one whose screen a later ticket brings says which, rather than doing nothing at all.</summary>
-    [Fact]
-    public async Task Step_ArrivesAtTheDestinationWhoseScreenIsNotHereYet()
-    {
-        var shell = new AShell();
-        var opened = await shell.Opened();
-
-        opened.Step(5);
-        shell.Host.Settle();
-
-        Assert.Equal(DestinationKind.Messages, opened.Rail.Showing.Kind);
-        Assert.IsType<NoticeScreen>(opened.Screen);
     }
 }

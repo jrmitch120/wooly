@@ -25,7 +25,14 @@ public enum ComposeFor
 ///     The text itself lives here rather than in the editor widget, so that what is being written is a fact about the
 ///     shell — something a test can set and read — rather than something only a terminal knows.
 /// </remarks>
-public sealed class ComposeScreen(ComposeFor purpose, Post? about = null) : Screen
+/// <param name="purpose">What this screen was opened to do.</param>
+/// <param name="about">The post being replied to or edited.</param>
+/// <param name="opening">
+///     What is already in the editor when it opens, for a reply the shell has to address: a direct message reaches the
+///     accounts its text mentions and nobody else (ADR-0013), so the mention is put where the reader can see and edit
+///     it rather than added silently on the way out.
+/// </param>
+public sealed class ComposeScreen(ComposeFor purpose, Post? about = null, string? opening = null) : Screen
 {
     /// <summary>What this screen was opened to do.</summary>
     public ComposeFor Purpose { get; } = purpose;
@@ -33,11 +40,22 @@ public sealed class ComposeScreen(ComposeFor purpose, Post? about = null) : Scre
     /// <summary>The post being replied to or edited, or <see langword="null" /> for one answering nothing.</summary>
     public Post? About { get; } = about;
 
-    /// <summary>What has been written so far.</summary>
-    public string Text { get; set; } = purpose == ComposeFor.Edit ? about?.Content ?? string.Empty : string.Empty;
+    /// <summary>
+    ///     What was in the editor before anybody typed: the post itself for an edit, the mention for a reply that had
+    ///     to be addressed, and nothing for anything else.
+    /// </summary>
+    public string Opening { get; } = Opened(purpose, about, opening);
 
-    /// <summary>Whether there is anything here worth sending.</summary>
-    public bool IsEmpty => string.IsNullOrWhiteSpace(Text);
+    /// <summary>What has been written so far.</summary>
+    public string Text { get; set; } = Opened(purpose, about, opening);
+
+    /// <summary>
+    ///     Whether there is anything here worth sending — which for a reply this client addressed means anything
+    ///     beyond the mention it opened with, since a message that is nothing but its recipient's name says nothing.
+    /// </summary>
+    public bool IsEmpty =>
+        string.IsNullOrWhiteSpace(Text)
+        || (Purpose == ComposeFor.Reply && string.Equals(Text.Trim(), Opening.Trim(), StringComparison.Ordinal));
 
     /// <inheritdoc />
     public override string Crumb => Purpose switch
@@ -55,6 +73,18 @@ public sealed class ComposeScreen(ComposeFor purpose, Post? about = null) : Scre
         new("esc", "throw it away"),
         new("?", "keys"),
     ];
+
+    /// <summary>
+    ///     What the editor opens with. A mention gets a space after it, because the reader's own words go after the
+    ///     recipient rather than into their name — which is the one place this differs from
+    ///     <see cref="Wooly.Core.Conversations.DirectMessage.To(Wooly.Core.Accounts.AccountAddress,string)" />, whose
+    ///     job is what gets sent rather than what is being typed into.
+    /// </summary>
+    private static string Opened(ComposeFor purpose, Post? about, string? opening) => purpose switch
+    {
+        ComposeFor.Edit => about?.Content ?? string.Empty,
+        _ => string.IsNullOrEmpty(opening) ? string.Empty : $"{opening} ",
+    };
 
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(int width, DateTimeOffset now)

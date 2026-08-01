@@ -88,7 +88,8 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Account | `F` follow/unfollow · `M` mute/unmute · `B` block/unblock — capitals, so a lower-case mark key can never fire a tie by accident |
 | Notifications | `d` dismiss one · `D` clear all |
 | Follow requests | `a` accept · `x` reject |
-| Direct messages | `⏎` open the conversation · `m` mark read |
+| Direct messages | `⏎` open the conversation · `m` mark read — `m` again inside the thread, where a reader who has just read it is most likely to press it |
+| Conversation | `m` mark read, and every key that acts on a post, since each message in it is one |
 
 ### What the four screens settled
 
@@ -116,6 +117,27 @@ not answer them differently:
   rail keeps a place for is a setting the reader wrote down, and a search result is not them changing their mind.
 - **`⏎` on a follow request opens whoever is asking**, because the question is about a person and the answer to it is
   on their account screen.
+
+### What conversations settled
+
+The last two screens, and the one place a screen writes words of its own into what a reader is sending:
+
+- **Opening a conversation does not mark it read.** `⏎` shows the thread and leaves the mark exactly as it found it;
+  `m` is the only thing that clears it (ADR-0013). A client that cleared it on the way past would make "what have I not
+  read" unanswerable for anything that looked afterwards — including this shell's own badge.
+- **A conversation is marked read by its own id**, which is not the id of any post in it (CONTEXT.md). The same id
+  opens it, and the two screens holding it — the list and the thread pushed from it — are both moved by one answer, so
+  a row cannot still say `unread` under a thread just marked.
+- **A reply in a conversation opens with the mention already in it.** Mastodon delivers a direct post to the accounts
+  its text mentions and to nobody else, so a reply that named nobody would reach nobody. It is written where the reader
+  can see and edit it rather than added silently on the way out, by the same `DirectMessage.To` that `dm send` uses —
+  and a reply that is nothing but the mention it opened with is refused as nothing written. Every account in the
+  conversation is named, not only whoever spoke last, and nothing is added to a reply that is not direct.
+- **A reply lands at the end of the thread it answers**, rather than appearing nowhere until the conversation is read
+  again. A conversation is read in the order it was said in, and what was just said is part of it.
+- **The unread indicator is the word, not a glyph.** This client's glyphs already say who can see a post — `○ ◌ ● ✉` —
+  and a second circle beside `●` is one mark too many to tell apart at a glance. The word takes `rail-unread`, the same
+  role as the badge counting it on the rail.
 
 ## Starting it, and the one destination that needs configuring
 

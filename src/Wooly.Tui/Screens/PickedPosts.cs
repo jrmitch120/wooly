@@ -74,6 +74,12 @@ public sealed class PickedPosts(IReadOnlyList<Post> posts)
         }
     }
 
+    /// <summary>
+    ///     Puts <paramref name="post" /> at the end of the list, which is where a message this profile has just sent
+    ///     belongs in the thread it answers.
+    /// </summary>
+    public void Add(Post post) => _posts.Add(post);
+
     /// <summary>Takes the post <paramref name="postId" /> names off the list, after it was deleted.</summary>
     public void Remove(string postId)
     {
