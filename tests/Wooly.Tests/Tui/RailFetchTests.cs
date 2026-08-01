@@ -177,8 +177,8 @@ public class RailFetchTests
 
     /// <summary>
     ///     A destination that asks the instance for nothing still overtakes what the last one asked for. Without that,
-    ///     stepping from a timeline still in flight onto one of the destinations whose screen is a standing notice
-    ///     would let the timeline land on top of the notice a moment later.
+    ///     stepping from a timeline still in flight onto search — a prompt, which asks for nothing until something is
+    ///     typed into it — would let the timeline land on top of the prompt a moment later.
     /// </summary>
     [Fact]
     public async Task Step_DiscardsAnAnswerOvertakenByADestinationThatFetchesNothing()
@@ -198,16 +198,16 @@ public class RailFetchTests
         opened.Step(1);
         shell.Host.Settle();
 
-        // On to notifications, whose screen is #29's and which asks the instance for nothing at all.
-        opened.Step(3);
+        // On to search, which is a prompt and asks the instance for nothing at all until something is typed into it.
+        opened.Step(6);
         shell.Host.Settle();
 
-        Assert.IsType<NoticeScreen>(opened.Screen);
+        Assert.IsType<SearchScreen>(opened.Screen);
 
         held.SetResult(TimelineFetch.Complete([APost.With(id: "stale")]));
 
-        Assert.IsType<NoticeScreen>(opened.Screen);
-        Assert.Equal("notifications", opened.Breadcrumb);
+        Assert.IsType<SearchScreen>(opened.Screen);
+        Assert.Equal("search", opened.Breadcrumb);
     }
 
     /// <summary>
@@ -304,13 +304,12 @@ public class RailFetchTests
         Assert.Equal(readsWhenOpened, shell.Timelines.Reads.Count);
     }
 
-    /// <summary>The four whose screens later tickets bring say which, rather than doing nothing at all.</summary>
+    /// <summary>Each of the three destinations #29 brings a screen for arrives at its own, not at somebody else's.</summary>
     [Theory]
-    [InlineData(4)]
-    [InlineData(5)]
-    [InlineData(6)]
-    [InlineData(7)]
-    public async Task Step_ArrivesAtTheDestinationsWhoseScreensAreNotHereYet(int steps)
+    [InlineData(4, typeof(NotificationsScreen))]
+    [InlineData(6, typeof(FollowRequestsScreen))]
+    [InlineData(7, typeof(SearchScreen))]
+    public async Task Step_ArrivesAtTheScreenItsDestinationOpensOnto(int steps, Type screen)
     {
         var shell = new AShell();
         var opened = await shell.Opened();
@@ -319,6 +318,20 @@ public class RailFetchTests
         shell.Host.Settle();
 
         Assert.Equal(steps, opened.Rail.Current);
+        Assert.IsType(screen, opened.Screen);
+    }
+
+    /// <summary>The one whose screen a later ticket brings says which, rather than doing nothing at all.</summary>
+    [Fact]
+    public async Task Step_ArrivesAtTheDestinationWhoseScreenIsNotHereYet()
+    {
+        var shell = new AShell();
+        var opened = await shell.Opened();
+
+        opened.Step(5);
+        shell.Host.Settle();
+
+        Assert.Equal(DestinationKind.Messages, opened.Rail.Showing.Kind);
         Assert.IsType<NoticeScreen>(opened.Screen);
     }
 }

@@ -27,6 +27,13 @@ public abstract class Screen
     /// </summary>
     public virtual Post? Picked => null;
 
+    /// <summary>
+    ///     Whether this screen is taking what is typed, which is only ever a search prompt taking a query. A fact
+    ///     about the screen rather than a mode the window keeps, so that the keys which act on a post cannot fire
+    ///     while somebody is writing the word <c>backfeed</c>.
+    /// </summary>
+    public virtual bool IsTyping => false;
+
     /// <summary>The rows to draw, at <paramref name="width" /> columns.</summary>
     /// <param name="width">How wide the content region is — 61 at an 80-column terminal.</param>
     /// <param name="now">What to measure timestamps against.</param>

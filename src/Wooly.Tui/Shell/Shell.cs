@@ -1,8 +1,11 @@
 using Wooly.Core.Accounts;
 using Wooly.Core.Errors;
 using Wooly.Core.Http;
+using Wooly.Core.Notifications;
 using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
+using Wooly.Core.Relationships;
+using Wooly.Core.Search;
 using Wooly.Core.Timelines;
 using Wooly.Tui.Screens;
 
@@ -27,7 +30,10 @@ public sealed class Shell
     /// </summary>
     private const int PostsWanted = 40;
 
-    /// <summary>How many notifications, conversations or requests a count asks for before it stops counting.</summary>
+    /// <summary>
+    ///     How many notifications, conversations or requests are asked for: what a screen lists, and what a count
+    ///     counts up to before it stops counting.
+    /// </summary>
     private const int CountedAtMost = 40;
 
     /// <summary>What a call that answers with nothing answers with, so that one retry loop serves both kinds.</summary>
@@ -120,6 +126,30 @@ public sealed class Shell
     /// </summary>
     public void Step(int by) => Rail.Step(by);
 
+    /// <summary>
+    ///     What a key that means different things on different screens means <em>here</em>. The whole of the collision
+    ///     the contract allows, in one table, so that a reader can see at once that <c>d</c> is dismiss on one screen
+    ///     and delete on every other (<c>docs/tui-shell.md</c>).
+    /// </summary>
+    /// <remarks>
+    ///     It lives on the shell rather than in the window because the window binds keys and knows nothing about
+    ///     screens — and each arm below is a public verb of its own, so a test can ask for the meaning it is about
+    ///     without going through a keypress to get at it.
+    /// </remarks>
+    public Task Press(ShellKey key) => (key, Screen) switch
+    {
+        (ShellKey.Enter, SearchScreen search) => search.IsTyping ? Find() : OpenResult(),
+        (ShellKey.Enter, FollowRequestsScreen) => OpenAsker(),
+        (ShellKey.Author, FollowRequestsScreen) => AnswerRequest(accepted: true),
+        (ShellKey.Discard, NotificationsScreen) => Dismiss(),
+        (ShellKey.Reject, FollowRequestsScreen) => AnswerRequest(accepted: false),
+        (ShellKey.Enter, _) => Enter(),
+        (ShellKey.Author, _) => OpenAuthor(),
+        (ShellKey.Discard, _) => AtOnce(AskToDelete),
+        (ShellKey.Reject, _) => AtOnce(Reveal),
+        _ => Task.CompletedTask,
+    };
+
     /// <summary>Moves what is picked out on the current screen.</summary>
     public void Move(int by)
     {
@@ -200,9 +230,227 @@ public sealed class Shell
 
     /// <summary>
     ///     Goes to search, which is a frame key rather than a screen's (<c>docs/tui-shell.md</c>): it means the same
-    ///     thing everywhere, so it is bound here even though what it opens onto is #29's.
+    ///     thing everywhere, and from the search destination itself it means a fresh prompt rather than nothing —
+    ///     otherwise the one place the key is most likely to be pressed is the one place it does nothing.
     /// </summary>
-    public void Search() => Rail.GoTo(DestinationKind.Search);
+    public void Search()
+    {
+        if (Rail.Showing.Kind == DestinationKind.Search)
+        {
+            Reset(new SearchScreen());
+
+            return;
+        }
+
+        Rail.GoTo(DestinationKind.Search);
+    }
+
+    /// <summary>Puts a letter into whatever is being typed into, which is only ever the search prompt.</summary>
+    public void Type(char letter)
+    {
+        if (Screen is SearchScreen { IsTyping: true } search)
+        {
+            search.Type(letter);
+            Changed?.Invoke();
+        }
+    }
+
+    /// <summary>Takes the last letter back out of it.</summary>
+    public void Backspace()
+    {
+        if (Screen is SearchScreen { IsTyping: true } search)
+        {
+            search.Backspace();
+            Changed?.Invoke();
+        }
+    }
+
+    /// <summary>Asks the instance for what has been typed into the prompt.</summary>
+    /// <remarks>
+    ///     A search is one call, so a rate limit leaves nothing to draw and is waited out rather than half-answered
+    ///     (ADR-0011) — which <see cref="Ask{T}" /> already does, and is why this reads like every other fetch here.
+    /// </remarks>
+    public async Task Find()
+    {
+        if (Screen is not SearchScreen search)
+        {
+            return;
+        }
+
+        if (!SearchQuery.IsWellFormed(search.Query))
+        {
+            // The same words the command turns an empty query down with, so that the two front ends cannot come to
+            // say different things about the same empty value.
+            Say(SearchQuery.Rejection, isError: true);
+
+            return;
+        }
+
+        var query = SearchQuery.For(search.Query);
+        var from = _asked;
+        var found = await Ask(token => _ports.Search.Find(_profile, query, token));
+
+        if (found is null)
+        {
+            return;
+        }
+
+        Apply(() =>
+        {
+            if (Overtaken(from) || Screen is not SearchScreen still)
+            {
+                return;
+            }
+
+            still.Found(query.Text, found);
+            Changed?.Invoke();
+        });
+    }
+
+    /// <summary>
+    ///     Opens whatever a search turned up and the reader picked out: an account, a hashtag's timeline, or a post.
+    /// </summary>
+    /// <remarks>
+    ///     A hashtag opens as a screen on the stack rather than as the rail's own hashtag destination. Which tag the
+    ///     rail keeps a place for is a setting the reader wrote down (<c>docs/tui-shell.md</c>), and a search result
+    ///     is not them changing their mind about it.
+    /// </remarks>
+    public async Task OpenResult()
+    {
+        if (Screen is not SearchScreen search)
+        {
+            return;
+        }
+
+        if (search.PickedAccount is { } account)
+        {
+            await OpenAccount(AccountAddress.Parse(account.Address), _asked);
+
+            return;
+        }
+
+        if (search.PickedHashtag is { } hashtag)
+        {
+            await OpenTag(hashtag.Name, _asked);
+
+            return;
+        }
+
+        await Enter();
+    }
+
+    /// <summary>Clears the picked notification, which is named by its own id and not by the post's (CONTEXT.md).</summary>
+    public async Task Dismiss()
+    {
+        if (Screen is not NotificationsScreen notifications || notifications.PickedNotification is not { } picked)
+        {
+            return;
+        }
+
+        if (!await Did(token => _ports.Notifications.Dismiss(_profile, picked.Id, token)))
+        {
+            return;
+        }
+
+        Apply(() =>
+        {
+            _cache.Forget(DestinationKind.Notifications);
+            notifications.Forget([picked.Id]);
+            Counted(DestinationKind.Notifications, notifications.Notifications.Count);
+
+            Changed?.Invoke();
+        });
+    }
+
+    /// <summary>
+    ///     Asks before emptying the inbox. Unlike dismissing one, this takes away a list nobody has necessarily read
+    ///     yet and nothing brings it back — so it is asked on the same terms <c>notification clear</c> asks it.
+    /// </summary>
+    public void AskToClear()
+    {
+        if (Screen is not NotificationsScreen notifications || notifications.Notifications.Count == 0)
+        {
+            return;
+        }
+
+        Asking = new Confirmation("Clear every notification? This cannot be undone.", Going: "clear");
+        _confirming = Clear;
+
+        Changed?.Invoke();
+    }
+
+    /// <summary>Accepts or turns away the picked follow request.</summary>
+    public async Task AnswerRequest(bool accepted)
+    {
+        if (Screen is not FollowRequestsScreen requests || requests.PickedAccount is not { } picked)
+        {
+            return;
+        }
+
+        // By id, as the list reports it, because that is what answering one takes: an address would cost a lookup to
+        // arrive back at the id already in hand (ADR-0012).
+        var answered = await Ask(token => _ports.Accounts.Answer(_profile, picked.Id, accepted, token));
+
+        if (answered is null)
+        {
+            return;
+        }
+
+        Apply(() =>
+        {
+            _cache.Forget(DestinationKind.Requests);
+            requests.Answered(picked.Id);
+            Counted(DestinationKind.Requests, requests.Waiting.Count);
+
+            Say(accepted ? $"@{picked.Address} can follow you." : $"@{picked.Address} was turned away.", isError: false);
+        });
+    }
+
+    /// <summary>Opens the account of whoever is asking to follow, so the question can be answered knowing who asked.</summary>
+    public async Task OpenAsker()
+    {
+        if (Screen is FollowRequestsScreen { PickedAccount: { } picked })
+        {
+            await OpenAccount(AccountAddress.Parse(picked.Address), _asked);
+        }
+    }
+
+    /// <summary>
+    ///     Puts one of the three ties on the account being shown, or takes it off — whichever it does not already
+    ///     have, which is why a tie is on or off rather than an act of its own (ADR-0012).
+    /// </summary>
+    /// <remarks>
+    ///     Only the account screen offers these, and only it says so on its status row. The keys are capitals so that
+    ///     a lower-case mark key cannot fire one by accident (<c>docs/tui-shell.md</c>).
+    /// </remarks>
+    public async Task Tie(AccountTie tie)
+    {
+        if (Screen is not AccountScreen account)
+        {
+            return;
+        }
+
+        var address = AccountAddress.Parse(account.Account.Address);
+        var wanted = !account.Has(tie);
+
+        var stands = await Ask(token => _ports.Accounts.Set(_profile, address, tie, wanted, token));
+
+        if (stands is null)
+        {
+            return;
+        }
+
+        Apply(() =>
+        {
+            account.Stands(stands);
+
+            // Home is the profile's own following, so a follow or a block changes what belongs on it — and a mute
+            // changes what belongs on all of them.
+            _cache.Forget(DestinationKind.Home);
+
+            Say(Said(tie, wanted, stands), isError: false);
+        });
+    }
 
     /// <summary>Shows the current screen's keymap, which is itself a place in the stack.</summary>
     public void Help()
@@ -373,14 +621,25 @@ public sealed class Shell
         // behind: the stack is where you went from here, and this is a different here.
         Apply(() => Reset(OnArrival(destination)));
 
-        if (destination.Kind == DestinationKind.Profile)
+        switch (destination.Kind)
         {
-            if (_profile.Account is { } account)
-            {
-                await OpenAccount(AccountAddress.Parse(account), token, replacing: true);
-            }
+            case DestinationKind.Profile:
+                if (_profile.Account is { } account)
+                {
+                    await OpenAccount(AccountAddress.Parse(account), token, replacing: true);
+                }
 
-            return;
+                return;
+
+            case DestinationKind.Notifications:
+                await OpenNotifications(token);
+
+                return;
+
+            case DestinationKind.Requests:
+                await OpenRequests(token);
+
+                return;
         }
 
         if (destination.Timeline is not { } timeline)
@@ -388,7 +647,7 @@ public sealed class Shell
             return;
         }
 
-        if (_cache.Fresh(destination.Kind) is { } held)
+        if (_cache.Fresh<Post>(destination.Kind) is { } held)
         {
             Apply(() => Reset(new FeedScreen(destination, held, Emptiness(held, destination))));
 
@@ -458,6 +717,124 @@ public sealed class Shell
         });
     }
 
+    /// <summary>Arriving at the notifications destination: what is waiting, and the count that says so on the rail.</summary>
+    private async Task OpenNotifications(int token)
+    {
+        if (_cache.Fresh<Notification>(DestinationKind.Notifications) is { } held)
+        {
+            Apply(() => Reset(new NotificationsScreen(held, Emptiness(held.Count, "Nothing is waiting for you."))));
+
+            return;
+        }
+
+        var fetch = await Ask(cancellation => _ports.Notifications.Read(_profile, CountedAtMost, cancellation));
+
+        if (fetch is null)
+        {
+            return;
+        }
+
+        Apply(() =>
+        {
+            if (Overtaken(token))
+            {
+                return;
+            }
+
+            _cache.Keep(DestinationKind.Notifications, fetch.Notifications);
+
+            Reset(new NotificationsScreen(
+                fetch.Notifications,
+                Emptiness(fetch.Notifications.Count, "Nothing is waiting for you.", fetch.StoppedBy)));
+
+            // The count and the screen are read from the same answer, so the badge cannot say four over a list of
+            // three.
+            Counted(DestinationKind.Notifications, fetch.Notifications.Count);
+        });
+    }
+
+    /// <summary>Arriving at the follow-requests destination: who is waiting to be let in.</summary>
+    private async Task OpenRequests(int token)
+    {
+        if (_cache.Fresh<Account>(DestinationKind.Requests) is { } held)
+        {
+            Apply(() => Reset(new FollowRequestsScreen(held, Emptiness(held.Count, "Nobody is waiting to follow you."))));
+
+            return;
+        }
+
+        var fetch = await Ask(cancellation => _ports.Accounts.PendingRequests(_profile, CountedAtMost, cancellation));
+
+        if (fetch is null)
+        {
+            return;
+        }
+
+        Apply(() =>
+        {
+            if (Overtaken(token))
+            {
+                return;
+            }
+
+            _cache.Keep(DestinationKind.Requests, fetch.Accounts);
+
+            Reset(new FollowRequestsScreen(
+                fetch.Accounts,
+                Emptiness(fetch.Accounts.Count, "Nobody is waiting to follow you.", fetch.StoppedBy)));
+
+            Counted(DestinationKind.Requests, fetch.Accounts.Count);
+        });
+    }
+
+    /// <summary>Opens a hashtag's timeline as a screen on the stack, which is what a search result for one does.</summary>
+    private async Task OpenTag(string name, int token)
+    {
+        var posts = await Ask(cancellation =>
+            _ports.Timelines.Read(_profile, Timeline.Tag(name), PostsWanted, cancellation));
+
+        if (posts is null)
+        {
+            return;
+        }
+
+        Apply(() =>
+        {
+            if (Overtaken(token))
+            {
+                return;
+            }
+
+            // A destination of its own rather than the rail's, so that the breadcrumb says which tag this is without
+            // the rail's own hashtag entry changing under a reader who did not ask it to.
+            var showing = new Destination(DestinationKind.Hashtag, $"#{name}", Timeline.Tag(name));
+
+            Push(new FeedScreen(showing, posts.Posts, Emptiness(posts.Posts, showing, posts.StoppedBy)));
+        });
+    }
+
+    /// <summary>Empties the inbox, once it has been said twice.</summary>
+    private async Task Clear()
+    {
+        if (!await Did(token => _ports.Notifications.Clear(_profile, token)))
+        {
+            return;
+        }
+
+        Apply(() =>
+        {
+            _cache.Forget(DestinationKind.Notifications);
+
+            if (Screen is NotificationsScreen notifications)
+            {
+                notifications.Forget(notifications.Notifications.Select(notification => notification.Id).ToList());
+            }
+
+            Counted(DestinationKind.Notifications, 0);
+            Say("Cleared.", isError: false);
+        });
+    }
+
     private async Task Delete(string postId)
     {
         if (!await Did(token => _ports.Author.Delete(_profile, postId, token)))
@@ -508,10 +885,7 @@ public sealed class Shell
         {
             var unread = await read(CancellationToken.None);
 
-            Apply(() => Rail.Update(Rail.Destinations.First(destination => destination.Kind == kind) with
-            {
-                Unread = unread,
-            }));
+            Apply(() => Counted(kind, unread));
         }
         catch (WoolyException)
         {
@@ -519,6 +893,14 @@ public sealed class Shell
             // that refused to open because a badge was unavailable would be trading the whole thing for a number.
         }
     }
+
+    /// <summary>
+    ///     Puts a count on the rail. Said in one place, because the badge is written from three: the read that opens
+    ///     the shell, arriving at the destination itself, and clearing something off it — and a badge that disagreed
+    ///     with the list under it would be the shell arguing with itself.
+    /// </summary>
+    private void Counted(DestinationKind kind, int unread) =>
+        Rail.Update(Rail.Destinations.First(destination => destination.Kind == kind) with { Unread = unread });
 
     /// <summary>
     ///     Makes a call, waiting out a rate limit with a visible countdown rather than failing on it (story 53) — the
@@ -606,27 +988,18 @@ public sealed class Shell
     }
 
     /// <summary>
-    ///     What a destination puts on screen the moment it is arrived at: an empty feed for the four timelines, whose
-    ///     posts land a moment later, and a standing notice for the ones whose screens later tickets bring.
+    ///     What a destination puts on screen the moment it is arrived at: an empty list for the ones whose contents
+    ///     land a moment later, a prompt for search, and a standing notice for the one whose screen #30 brings.
     /// </summary>
     private Screen OnArrival(Destination destination) => destination.Kind switch
     {
-        DestinationKind.Notifications => new NoticeScreen(
-            "notifications",
-            "Notifications land here in a later release.",
-            "For now: wooly notification list"),
+        DestinationKind.Notifications => new NotificationsScreen([]),
+        DestinationKind.Requests => new FollowRequestsScreen([]),
+        DestinationKind.Search => new SearchScreen(),
         DestinationKind.Messages => new NoticeScreen(
             "direct messages",
             "Conversations land here in a later release.",
             "For now: wooly dm list"),
-        DestinationKind.Requests => new NoticeScreen(
-            "follow requests",
-            "Follow requests land here in a later release.",
-            "For now: wooly account request list"),
-        DestinationKind.Search => new NoticeScreen(
-            "search",
-            "Search lands here in a later release.",
-            "For now: wooly search"),
         DestinationKind.Hashtag when destination.Timeline is null => new NoticeScreen(
             "hashtag",
             "No hashtag is set for the rail.",
@@ -646,6 +1019,49 @@ public sealed class Shell
         }
 
         return posts.Count == 0 ? $"Nothing on {destination.Timeline?.Description} yet." : null;
+    }
+
+    /// <summary>
+    ///     The same, for a list that is not a timeline. A rate limit that stopped the read part way through is said
+    ///     out loud rather than drawn as an empty list, which is the whole reason a fetch reports what stopped it
+    ///     (ADR-0007): a reader told "nothing is waiting" would believe it.
+    /// </summary>
+    private static string? Emptiness(int howMany, string whenEmpty, RateLimitedException? stoppedBy = null)
+    {
+        if (stoppedBy is not null)
+        {
+            return "Rate limited part way through — this is what arrived.";
+        }
+
+        return howMany == 0 ? whenEmpty : null;
+    }
+
+    /// <summary>What a tie that has just gone on or come off is worth saying about, in this project's words.</summary>
+    /// <remarks>
+    ///     A follow is the one that may not have gone through as asked: following a locked account leaves a request
+    ///     behind rather than a follow, and the instance's own answer is the only thing that says which happened
+    ///     (CONTEXT.md).
+    /// </remarks>
+    private static string Said(AccountTie tie, bool wanted, Account account) => (tie, wanted) switch
+    {
+        (AccountTie.Follow, true) when account.Standing?.IsFollowWaiting == true => $"Asked to follow @{account.Address}.",
+        (AccountTie.Follow, true) => $"Following @{account.Address}.",
+        (AccountTie.Follow, false) => $"No longer following @{account.Address}.",
+        (AccountTie.Block, true) => $"Blocked @{account.Address}.",
+        (AccountTie.Block, false) => $"Unblocked @{account.Address}.",
+        (AccountTie.Mute, true) => $"Muted @{account.Address}.",
+        _ => $"Unmuted @{account.Address}.",
+    };
+
+    /// <summary>
+    ///     An arm of <see cref="Press" /> that reaches no instance, as a task — so that the table above is one shape
+    ///     all the way down rather than a mix of two.
+    /// </summary>
+    private static Task AtOnce(Action work)
+    {
+        work();
+
+        return Task.CompletedTask;
     }
 
     private void Compose(ComposeFor purpose)

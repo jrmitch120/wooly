@@ -45,7 +45,9 @@ public static class ChromeLines
             return Line.Of([
                 new Span(TextWrap.Clip($" {question.Question}", width), Role.Destructive),
                 new Span(
-                    TextWrap.Clip($"  {question.Confirm} delete · esc keep", Math.Max(0, width - question.Question.Length - 1)),
+                    TextWrap.Clip(
+                        $"  {question.Confirm} {question.Going} · esc keep",
+                        Math.Max(0, width - question.Question.Length - 1)),
                     Role.Muted),
             ]);
         }

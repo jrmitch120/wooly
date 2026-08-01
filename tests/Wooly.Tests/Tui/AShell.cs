@@ -24,6 +24,7 @@ internal sealed class AShell
         Accounts = FakeAccountRelationships.Holding();
         Notifications = FakeNotificationInbox.Holding();
         Messages = FakeDirectMessages.Holding();
+        Search = FakeInstanceSearch.Finding();
         RateLimit = FakeRateLimitReport.Silent();
     }
 
@@ -42,6 +43,8 @@ internal sealed class AShell
     public FakeNotificationInbox Notifications { get; set; }
 
     public FakeDirectMessages Messages { get; set; }
+
+    public FakeInstanceSearch Search { get; set; }
 
     public FakeRateLimitReport RateLimit { get; set; }
 
@@ -66,7 +69,7 @@ internal sealed class AShell
     /// <summary>The shell itself, over whatever the fakes have been set to.</summary>
     public Shell Build() => new(
         Profile,
-        new ShellPorts(Timelines, Author, Engagement, Accounts, Notifications, Messages, RateLimit),
+        new ShellPorts(Timelines, Author, Engagement, Accounts, Notifications, Messages, Search, RateLimit),
         Host,
         Clock,
         Timing,

@@ -90,6 +90,25 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Follow requests | `a` accept · `x` reject |
 | Direct messages | `⏎` open the conversation · `m` mark read |
 
+### What the four screens settled
+
+The keys above are the contract. These are the questions building them raised, answered once so the next screen does
+not answer them differently:
+
+- **A notification is not the post it is about.** `d` dismisses by the notification's own id; every other key on the
+  row acts on the post it carries, so a mention can be answered without leaving the inbox. A follow carries no post,
+  and picking one leaves those keys with nothing to act on rather than guessing.
+- **`D` asks first.** Emptying the inbox takes away a list nobody has necessarily read and nothing brings it back, so
+  it is confirmed on the same terms `post delete` is — the same confirmation, saying `clear` rather than `delete`.
+- **A count and the list under it are one fact.** Arriving at a destination sets its badge from the same answer the
+  screen is drawn from, and dismissing or answering something moves both.
+- **`/` from the search screen starts a fresh prompt** rather than doing nothing, since that is the one place the key
+  is most likely to be pressed twice.
+- **A hashtag a search found opens as a screen on the stack**, not as the rail's hashtag destination. Which tag the
+  rail keeps a place for is a setting the reader wrote down, and a search result is not them changing their mind.
+- **`⏎` on a follow request opens whoever is asking**, because the question is about a person and the answer to it is
+  on their account screen.
+
 ## Starting it, and the one destination that needs configuring
 
 `wooly-tui` takes one option, `--profile <name>`, and it means what it means everywhere else: act as that profile for

@@ -25,4 +25,12 @@ public static class PostKeys
     /// <summary>Those keys, after whatever this screen calls moving the selection and before the way out of it.</summary>
     public static IReadOnlyList<KeyHint> Around(KeyHint moving, params KeyHint[] after) =>
         [moving, .. OnAPost, .. after, new KeyHint("?", "keys")];
+
+    /// <summary>
+    ///     Those keys with <paramref name="instead" /> in place of the one that shares its letter, for a screen where
+    ///     one of them means something else — <c>d</c> dismisses a notification where it deletes a post
+    ///     (<c>docs/tui-shell.md</c>). The key is still listed, so it is still announced; only what it does changes.
+    /// </summary>
+    public static IReadOnlyList<KeyHint> Saying(KeyHint instead) =>
+        [.. OnAPost.Select(key => key.Key == instead.Key ? instead : key)];
 }

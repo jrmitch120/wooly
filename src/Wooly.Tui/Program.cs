@@ -9,6 +9,7 @@ using Wooly.Core.Notifications;
 using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
 using Wooly.Core.Relationships;
+using Wooly.Core.Search;
 using Wooly.Core.Timelines;
 using Wooly.Tui;
 using Wooly.Tui.Shell;
@@ -39,6 +40,7 @@ try
         provider.GetRequiredService<IAccountRelationships>(),
         provider.GetRequiredService<INotificationInbox>(),
         provider.GetRequiredService<IDirectMessages>(),
+        provider.GetRequiredService<IInstanceSearch>(),
         provider.GetRequiredService<IRateLimitReport>());
 
     var clock = provider.GetRequiredService<TimeProvider>();
