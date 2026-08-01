@@ -37,10 +37,17 @@ internal static class APost
     };
 
     /// <summary>A picture attached to a post, with the description its author gave it.</summary>
-    public static PostMedia APicture(string id = "m1", string? description = "A cartoon sheep") => new()
+    public static PostMedia APicture(string id = "m1", string? description = "A cartoon sheep") =>
+        Attached(MediaKind.Image, id, description);
+
+    /// <summary>An attachment of any kind, for a test that is about the kind rather than about a picture.</summary>
+    public static PostMedia Attached(
+        MediaKind kind,
+        string id = "m1",
+        string? description = "A cartoon sheep") => new()
     {
         Id = id,
-        Kind = MediaKind.Image,
+        Kind = kind,
         Url = $"https://files.mastodon.social/{id}/original.png",
         Preview = $"https://files.mastodon.social/{id}/small.png",
         Description = description,

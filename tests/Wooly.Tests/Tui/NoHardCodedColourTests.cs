@@ -18,6 +18,14 @@ public partial class NoHardCodedColourTests
     /// <summary>Where a colour may be built. Everything under here is the theme; everything else names roles.</summary>
     private const string TheThemesOwnFolder = "Theme";
 
+    /// <summary>
+    ///     The one file outside the theme that builds colours, and the reason it is allowed to: a photograph's own
+    ///     pixels are the content rather than a role, and there is no sense in which a theme could answer for them
+    ///     (ADR-0016). Named one file at a time rather than by folder, so that a screen dropped in beside it is still
+    ///     caught.
+    /// </summary>
+    private static readonly string[] WhereThePixelsAre = [Path.Combine("Media", "PictureDecoder.cs")];
+
     [Fact]
     public void NoViewOutsideTheThemeConstructsAColour()
     {
@@ -27,7 +35,8 @@ public partial class NoHardCodedColourTests
         {
             var relative = Path.GetRelativePath(TuiSources(), file);
 
-            if (relative.StartsWith(TheThemesOwnFolder + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+            if (relative.StartsWith(TheThemesOwnFolder + Path.DirectorySeparatorChar, StringComparison.Ordinal)
+                || WhereThePixelsAre.Contains(relative, StringComparer.Ordinal))
             {
                 continue;
             }
@@ -52,6 +61,16 @@ public partial class NoHardCodedColourTests
         Assert.True(sources.Count > 10, $"Only found {sources.Count} source files under {TuiSources()}.");
         Assert.Contains(sources, file => file.EndsWith("PostLines.cs", StringComparison.Ordinal));
     }
+
+    /// <summary>
+    ///     An allowance that stopped matching a file would be an allowance quietly covering nothing — or, worse, one
+    ///     nobody notices has been renamed around.
+    /// </summary>
+    [Fact]
+    public void EveryFileAllowedToBuildAColourIsThere() =>
+        Assert.All(WhereThePixelsAre, allowed => Assert.True(
+            File.Exists(Path.Combine(TuiSources(), allowed)),
+            $"{allowed} is allowed to build a colour but is not there."));
 
     /// <summary>
     ///     Building an attribute, or naming one of Terminal.Gui's own colours. Deliberately crude: this is a rule about

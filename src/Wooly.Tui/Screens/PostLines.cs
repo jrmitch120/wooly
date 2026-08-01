@@ -9,15 +9,18 @@ namespace Wooly.Tui.Screens;
 ///     screen. Both name roles and neither knows what a colour is (ADR-0014).
 ///     <para>
 ///         Every state here has a glyph before it has a colour — <c>○ ◌ ● ✉</c> for the four audiences, <c>⚠</c> for a
-///         warning, <c>↺</c> and <c>★</c> for the two marks, <c>▒▒▒▒</c> for a picture. That is not decoration: on a
-///         terminal reporting no colour, and to a reader who cannot tell this green from that grey, the glyphs are the
-///         whole of what is being said.
+///         warning, <c>↺</c> and <c>★</c> for the two marks, <c>▒▒▒▒</c> for a picture, <c>⏵</c> for an attachment
+///         that is linked rather than drawn. That is not decoration: on a terminal reporting no colour, and to a reader
+///         who cannot tell this green from that grey, the glyphs are the whole of what is being said.
 ///     </para>
 /// </summary>
 public static class PostLines
 {
-    /// <summary>What stands in for a picture nothing in this ticket can draw. Media itself is #31.</summary>
+    /// <summary>What stands in for a picture until — or unless — its pixels arrive.</summary>
     private const string MediaMark = "▒▒▒▒";
+
+    /// <summary>What stands in front of an attachment that is linked rather than drawn.</summary>
+    private const string LinkMark = "⏵";
 
     /// <summary>One post as a feed shows it: a byline, the text, what is attached, and the three counts.</summary>
     /// <param name="post">The post, which may be a boost of another one.</param>
@@ -39,7 +42,7 @@ public static class PostLines
 
         lines.Add(Byline(shown, width, now));
         lines.AddRange(Body(shown, width, revealed));
-        lines.AddRange(Media(shown, width));
+        lines.AddRange(Media(shown, width, Inset.FeedRows));
         lines.Add(Counts(shown, spelledOut: false));
 
         return lines;
@@ -74,7 +77,7 @@ public static class PostLines
         }
 
         lines.AddRange(Body(shown, width, revealed));
-        lines.AddRange(Media(shown, width));
+        lines.AddRange(Media(shown, width, Inset.WholeRows));
         lines.Add(Line.Blank);
         lines.Add(Counts(shown, spelledOut: true));
 
@@ -149,25 +152,65 @@ public static class PostLines
     }
 
     /// <summary>
-    ///     What is attached, as a mark and whatever its author said it shows. Drawing the thing itself is #31; saying
-    ///     it is there, and saying what it is, is what this ticket owes a reader who cannot see it either way.
+    ///     What is attached: the pictures in a band drawn in place, then a line each saying what they show, then the
+    ///     attachments a terminal cannot draw — each of those as a link and its description, never as an inline
+    ///     rendering attempt (story 51, ADR-0016).
     /// </summary>
-    private static IEnumerable<Line> Media(Post post, int width) =>
-        post.Media.Select(attached => Line.Of([
-            new Span($"{MediaMark} ", Role.Media),
-            new Span(
-                TextWrap.Clip(attached.Description ?? $"{Kind(attached.Kind)}, undescribed", width - MediaMark.Length - 1),
-                attached.Description is null ? Role.Muted : Role.Media),
-        ]));
-
-    private static string Kind(MediaKind kind) => kind switch
+    /// <param name="rows">How tall the band of pictures is, which is the one thing a feed and a whole post differ on.</param>
+    private static IEnumerable<Line> Media(Post post, int width, int rows)
     {
-        MediaKind.Image => "a picture",
-        MediaKind.Animation => "an animation",
-        MediaKind.Video => "a video",
-        MediaKind.Audio => "some audio",
-        _ => "an attachment",
-    };
+        var drawn = post.Media.Where(attached => attached.IsDrawable).ToList();
+
+        foreach (var line in Band(drawn, width, rows))
+        {
+            yield return line;
+        }
+
+        foreach (var attached in drawn)
+        {
+            yield return Described(attached, MediaMark, width);
+        }
+
+        foreach (var attached in post.Media.Where(attached => !attached.IsDrawable))
+        {
+            yield return Described(attached, LinkMark, width);
+
+            // The address on its own row: at 61 columns it is longer than what is left of a row that already says
+            // what the thing is, and a link cut off in the middle is a link nobody can follow.
+            yield return Line.Of(TextWrap.Clip($"  {attached.Url}", width), Role.Muted);
+        }
+    }
+
+    /// <summary>
+    ///     The rows a post's pictures are drawn in. The box is kept whether or not the pixels are here yet, so a feed
+    ///     does not jump under a reader as images land; the mark and the description below say what is in it until
+    ///     they do (ADR-0016).
+    /// </summary>
+    private static IEnumerable<Line> Band(IReadOnlyList<PostMedia> pictures, int width, int rows)
+    {
+        var insets = Inset.Across(pictures, width, rows);
+
+        if (insets.Count == 0)
+        {
+            yield break;
+        }
+
+        // The band's first row carries the boxes; the rest are rows of the screen that the boxes cover.
+        yield return new Line([new Span(new string(' ', Inset.Width(insets)), Role.Media)]) { Insets = insets };
+
+        for (var row = 1; row < rows; row++)
+        {
+            yield return Line.Blank;
+        }
+    }
+
+    /// <summary>One attachment behind <paramref name="mark" />, saying what its author said it shows.</summary>
+    private static Line Described(PostMedia attached, string mark, int width) => Line.Of([
+        new Span($"{mark} ", Role.Media),
+        new Span(
+            TextWrap.Clip(attached.Shows, width - mark.Length - 1),
+            attached.Description is null ? Role.Muted : Role.Media),
+    ]);
 
     /// <summary>
     ///     The three counts. Each takes the role that says whether this profile is one of the accounts in it, which is

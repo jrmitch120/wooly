@@ -15,6 +15,16 @@
     <!-- TUI shell (ADR-0002) -->
     <PackageVersion Include="Terminal.Gui" Version="2.4.17" />
 
+    <!--
+      Decoding a downloaded preview into pixels for the TUI to draw (ADR-0016). Terminal.Gui draws a Color[,] and
+      decodes nothing itself. Fully managed, so a self-contained executable (#32) stays one file per platform rather
+      than one file plus a native image library per architecture. Licensed under the Six Labors Split License, which is
+      royalty-free for a project under an OSI-approved licence — this one is MIT. Held at 3.x deliberately: 4.0 adds a
+      build-time licence-key check that fails the build until somebody registers for a key, which would make a clone of
+      this repository not build.
+    -->
+    <PackageVersion Include="SixLabors.ImageSharp" Version="3.1.12" />
+
     <!-- Config and credential storage (ADR-0003) -->
     <PackageVersion Include="Devlooped.CredentialManager" Version="2.7.0" />
     <PackageVersion Include="Tomlyn" Version="2.10.1" />

@@ -47,7 +47,7 @@ A screen is a place in the stack, not a window. Entering one pushes, `esc` pops,
 | Follow requests | A rail destination | #29 |
 | Direct messages — conversations, then a thread | A rail destination | #30 |
 | Compose / reply / edit — a screen on the stack, like any other | `c`, `r` or `e` | #28 |
-| Media inside a post or feed item | Drawn in place | #31 |
+| Media inside a post or feed item | Drawn in place | #31 (ADR-0016) |
 
 Every screen owes three things: it reads at 61 columns, it says what its keys are on the status row, and it names roles
 rather than colours (below).
@@ -118,6 +118,22 @@ not answer them differently:
 - **`⏎` on a follow request opens whoever is asking**, because the question is about a person and the answer to it is
   on their account screen.
 
+### What media settled
+
+Media is drawn in place inside a feed item or a post, at whatever width the content region has (ADR-0016):
+
+- **Only a still picture is drawn.** Video, audio, an animation and anything this client has no word for get a `⏵`, the
+  description, and the address on the row below — never an inline rendering attempt (story 51). An animation is linked
+  rather than drawn as the still its preview happens to be, because a frozen frame with nothing to say it was meant to
+  move is the misleading rendering the story rules out.
+- **A picture's box is kept before the picture arrives, and kept if it never does.** The rows are reserved from the
+  post, not from the pixels, so a feed does not reflow under a reader as previews land. Until one does, the `▒▒▒▒` row
+  under the box says what is attached.
+- **A post's pictures share one band, side by side**, in the order their author attached them — six rows in a feed
+  item, twelve on the post screen.
+- **Nothing about a picture is ever an error.** A fetch that fails and a file that will not decode both leave an empty
+  box and the description under it, which is what a terminal that cannot draw shows anyway.
+
 ### What conversations settled
 
 The last two screens, and the one place a screen writes words of its own into what a reader is sending:
@@ -173,6 +189,7 @@ glyph or a position that carries the same meaning when colour is gone.
 | `audience` | The visibility mark | `○ ◌ ● ✉` |
 | `content-warning` | A warning and its text | `⚠` |
 | `media` | Image placeholders and attachment links | `▒▒▒▒`, `⏵` |
+| *(none — a picture's own pixels)* | A drawn picture | it is the picture |
 | `poll` | Options and their bars | the bar itself |
 | `boost` / `boost-mine` | The boost mark, and it when it is yours | `↺`, and the count |
 | `favorite` / `favorite-mine` | The favorite mark, and it when it is yours | `★`, and the count |
@@ -187,6 +204,10 @@ glyph or a position that carries the same meaning when colour is gone.
 
 Role selection is testable without a terminal and is expected to be tested: *a post of mine offers delete in the
 destructive role*, *an unread conversation's badge takes `rail-unread`*. Drawing is not tested (ADR-0005, ADR-0014).
+
+The one thing that carries colour without naming a role is a drawn picture, whose pixels are the content rather than an
+emphasis somebody chose — there is no sense in which `dark` and `light` would answer them differently. The scan that
+enforces "no view constructs a colour" names the one file allowed to (ADR-0016); every screen is still caught.
 
 ## A theme
 

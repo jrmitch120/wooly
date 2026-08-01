@@ -34,4 +34,18 @@ public sealed record PostMedia
     ///     most of the time.
     /// </summary>
     public string? Description { get; init; }
+
+    /// <summary>
+    ///     Whether a terminal can draw this in place, rather than only say where it is. Only a still picture can:
+    ///     a video and a sound have no single frame to stand for them, and an animation drawn as the one frame its
+    ///     preview happens to be is exactly the misleading inline rendering story 51 asks not to attempt — a reader
+    ///     shown a frozen picture has no way to tell it was meant to move (ADR-0016).
+    /// </summary>
+    public bool IsDrawable => Kind is MediaKind.Image;
+
+    /// <summary>
+    ///     What this shows, in the words its author gave it — or, where they gave none, in this client's, which names
+    ///     the kind and says the description is missing rather than leaving a reader to guess whether it was.
+    /// </summary>
+    public string Shows => Description ?? $"{MediaKindName.Of(Kind)}, undescribed";
 }

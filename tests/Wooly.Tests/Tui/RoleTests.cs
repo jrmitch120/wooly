@@ -118,12 +118,12 @@ public class RoleTests
             revealed: false,
             Now);
 
-        var first = described.First(line => line.Has(Role.Media));
-        Assert.Contains("▒▒▒▒", first.Text);
+        var first = described.First(line => line.Text.Contains("▒▒▒▒", StringComparison.Ordinal));
+        Assert.True(first.Has(Role.Media));
         Assert.Contains("A cartoon sheep", first.Text);
 
-        var second = undescribed.First(line => line.Has(Role.Media));
-        Assert.Contains("undescribed", second.Text);
+        var second = undescribed.First(line => line.Text.Contains("▒▒▒▒", StringComparison.Ordinal));
+        Assert.Contains("a picture, undescribed", second.Text);
         Assert.Contains(second.Spans, span => span.Role == Role.Muted);
     }
 

@@ -12,6 +12,7 @@ using Wooly.Core.Relationships;
 using Wooly.Core.Search;
 using Wooly.Core.Timelines;
 using Wooly.Tui;
+using Wooly.Tui.Media;
 using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 using Wooly.Tui.Views;
@@ -53,7 +54,26 @@ try
         ShellTiming.Default,
         preferences.Hashtag);
 
-    using var window = new ShellWindow(shell, Themes.ForCurrentTerminal(), clock, application.RequestStop);
+    // Story 49 asks for sixel first and Kitty where sixel is not there, which is the other way round from the order
+    // Terminal.Gui tries them in. Settled once, here, before anything has been drawn (ADR-0016).
+    RasterProtocol.PreferSixel(application.Driver);
+
+    // A preview comes off a file server rather than off the API, so it goes out on its own client: it needs no token,
+    // it counts against no rate limit, and a picture that will not load must not spend the retry budget a timeline's
+    // fetch is relying on.
+    using var files = new HttpClient { Timeout = Pictures.Patience };
+
+    // A picture lands on whatever thread finished fetching it, and drawing is the application's. Redrawn rather than
+    // told to the shell, because nothing about the shell has changed — the same rows are wanted, with the box that
+    // was waiting now filled in.
+    using var pictures = Pictures.Over(files, () => application.Invoke(() => application.LayoutAndDraw(true)));
+
+    using var window = new ShellWindow(
+        shell,
+        Themes.ForCurrentTerminal(),
+        clock,
+        application.RequestStop,
+        pictures);
 
     // Started rather than awaited: the first timeline arrives while the shell is already on screen, which is what the
     // breadcrumb's fetching mark is for.
