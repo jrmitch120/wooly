@@ -1,5 +1,6 @@
 using Mastonet;
 using Mastonet.Entities;
+using Wooly.Core.Accounts;
 using Wooly.Core.Paging;
 using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
@@ -30,10 +31,17 @@ public sealed class TimelineReader(IMastodonClientFactory clientFactory) : ITime
     {
         var client = clientFactory.CreateClient(profile.Instance, profile.AccessToken);
 
+        // Once, before the first page rather than on each one: an address becomes an id by asking the instance
+        // (AccountLookup), and paying for that lookup per page would spend a call to learn what the last one already
+        // knew. The other four timelines need nobody looked up and pay nothing.
+        var accountId = timeline.Account is null
+            ? null
+            : (await AccountLookup.Resolve(client, timeline.Account, profile.Instance, cancellationToken)).Id;
+
         var read = await PagedReading.Collect(
             limit,
             PageSize,
-            options => Fetch(client, timeline, options),
+            options => Fetch(client, timeline, accountId, options),
             status => PostWire.ToPost(status, profile.Instance),
             status => status.Id,
             cancellationToken);
@@ -43,13 +51,28 @@ public sealed class TimelineReader(IMastodonClientFactory clientFactory) : ITime
             : TimelineFetch.StoppedShort(read.Items, read.StoppedBy);
     }
 
-    private static Task<MastodonList<Status>> Fetch(IMastodonClient client, Timeline timeline, ArrayOptions options) =>
+    private static Task<MastodonList<Status>> Fetch(
+        IMastodonClient client,
+        Timeline timeline,
+        string? accountId,
+        ArrayOptions options) =>
         timeline.Scope switch
         {
             TimelineScope.Home => client.GetHomeTimeline(options),
             TimelineScope.Local => client.GetPublicTimeline(options, local: true),
             TimelineScope.Federated => client.GetPublicTimeline(options),
             TimelineScope.Tag => client.GetTagTimeline(timeline.Hashtag!, options),
+
+            // Boosts left in and replies left out, which is what an account's own page shows on the web and what
+            // somebody who pressed 'a' on a post is asking to see: what this account says and passes on, rather than
+            // half of a hundred conversations they answered.
+            TimelineScope.Account => client.GetAccountStatuses(
+                accountId!,
+                options,
+                onlyMedia: false,
+                excludeReplies: true,
+                pinned: false,
+                excludeReblogs: false),
             _ => throw new ArgumentOutOfRangeException(nameof(timeline), timeline.Scope, "Not a timeline this client reads."),
         };
 }

@@ -13,7 +13,7 @@ namespace Wooly.Core.Http;
 ///         handler would take that choice away from both.
 ///     </para>
 /// </summary>
-internal sealed class RateLimitHandler(TimeProvider timeProvider) : DelegatingHandler
+internal sealed class RateLimitHandler(TimeProvider timeProvider, RateLimitReport report) : DelegatingHandler
 {
     /// <summary>Mastodon reports the moment a limit lifts here, as an ISO 8601 timestamp.</summary>
     private const string RateLimitResetHeader = "X-RateLimit-Reset";
@@ -21,6 +21,11 @@ internal sealed class RateLimitHandler(TimeProvider timeProvider) : DelegatingHa
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         var response = await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        var resetsAt = ReadResetsAt(response);
+
+        // Every response, not only the refusal. An instance says what is left on all of them, and a client that only
+        // looked at the one that said "none" could show a reader nothing until the moment it was too late (story 54).
+        report.Observed(response, resetsAt);
 
         if (response.StatusCode != HttpStatusCode.TooManyRequests)
         {
@@ -28,7 +33,6 @@ internal sealed class RateLimitHandler(TimeProvider timeProvider) : DelegatingHa
         }
 
         var instance = request.RequestUri?.Host ?? "the instance";
-        var resetsAt = ReadResetsAt(response);
 
         response.Dispose();
 

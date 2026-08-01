@@ -17,6 +17,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Wooly.Cli\Wooly.Cli.csproj" />
     <ProjectReference Include="..\..\src\Wooly.Core\Wooly.Core.csproj" />
+    <ProjectReference Include="..\..\src\Wooly.Tui\Wooly.Tui.csproj" />
   </ItemGroup>
 
   <ItemGroup>

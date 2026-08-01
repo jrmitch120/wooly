@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Text;
 using Microsoft.Extensions.DependencyInjection;
 using Wooly.Core;
+using Wooly.Core.Accounts;
 using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
 using Wooly.Core.Timelines;
@@ -131,6 +132,165 @@ public class TimelineReaderTests
         Assert.Equal("The original", boost.Boosted?.Content);
     }
 
+    /// <summary>
+    ///     The counts say how many accounts boosted or favorited a post; these say whether one of them was the profile
+    ///     doing the reading. A screen cannot draw a lit star, or offer to take a boost back rather than put one on,
+    ///     without the second answer (ADR-0014).
+    /// </summary>
+    [Fact]
+    public async Task Read_ReportsWhichMarksThisProfileAlreadyHasOnAPost()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(Page(PostJson(
+                "110",
+                marks: "\"reblogged\": true, \"favourited\": true, \"pinned\": true,"))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        var post = Assert.Single(fetch.Posts);
+        Assert.True(post.Marks.Boosted);
+        Assert.True(post.Marks.Favorited);
+        Assert.True(post.Marks.Pinned);
+        Assert.True(post.Marks.Has(PostMark.Favorite));
+    }
+
+    /// <summary>
+    ///     One mark at a time, because three flags mapped in one go is exactly where two of them come to be read off
+    ///     the same field.
+    /// </summary>
+    [Theory]
+    [InlineData(PostMark.Boost, "\"reblogged\": true,")]
+    [InlineData(PostMark.Favorite, "\"favourited\": true,")]
+    [InlineData(PostMark.Pin, "\"pinned\": true,")]
+    public async Task Read_ReportsEachMarkFromItsOwnFieldOnTheWire(PostMark mark, string marks)
+    {
+        var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Json(Page(PostJson("110", marks: marks))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        var post = Assert.Single(fetch.Posts);
+        Assert.True(post.Marks.Has(mark));
+        Assert.Equal(
+            [mark],
+            Enum.GetValues<PostMark>().Where(post.Marks.Has));
+    }
+
+    /// <summary>
+    ///     An instance leaves the three flags out where it has nobody to answer them about. Every call this client
+    ///     makes is signed in, so silence there is a post this profile has not marked rather than a question that was
+    ///     never put.
+    /// </summary>
+    [Fact]
+    public async Task Read_ReportsAPostAsUnmarkedWhereTheInstanceSaidNothingAboutTheMarks()
+    {
+        var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Json(Page(PostJson("110"))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        Assert.Equal(PostMarks.None, Assert.Single(fetch.Posts).Marks);
+    }
+
+    /// <summary>
+    ///     What came down, which is not what <see cref="MediaAttachment" /> describes: a post being read has no path on
+    ///     this machine, and the description is the only field the two share.
+    /// </summary>
+    [Fact]
+    public async Task Read_ReportsWhatIsAttachedToAPost()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(Page(PostJson("110", media: MediaJson()))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        var attached = Assert.Single(Assert.Single(fetch.Posts).Media);
+        Assert.Equal("m1", attached.Id);
+        Assert.Equal(MediaKind.Image, attached.Kind);
+        Assert.Equal("https://files.mastodon.social/m1/original.png", attached.Url);
+        Assert.Equal("https://files.mastodon.social/m1/small.png", attached.Preview);
+        Assert.Equal("A cartoon sheep", attached.Description);
+    }
+
+    [Theory]
+    [InlineData("image", MediaKind.Image)]
+    [InlineData("gifv", MediaKind.Animation)]
+    [InlineData("video", MediaKind.Video)]
+    [InlineData("audio", MediaKind.Audio)]
+    [InlineData("unknown", MediaKind.Unknown)]
+    public async Task Read_ReportsWhatKindOfThingIsAttached(string wire, MediaKind expected)
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(Page(PostJson("110", media: MediaJson(type: wire)))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        Assert.Equal(expected, Assert.Single(Assert.Single(fetch.Posts).Media).Kind);
+    }
+
+    /// <summary>
+    ///     An instance may serve a kind newer than this client, and dropping the attachment would show the post as
+    ///     nothing but its text — which is a lie a reader has no way to notice.
+    /// </summary>
+    [Fact]
+    public async Task Read_KeepsAnAttachmentOfAKindItCannotName()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(Page(PostJson("110", media: MediaJson(type: "hologram")))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        var attached = Assert.Single(Assert.Single(fetch.Posts).Media);
+        Assert.Equal(MediaKind.Unknown, attached.Kind);
+        Assert.Equal("https://files.mastodon.social/m1/original.png", attached.Url);
+    }
+
+    /// <summary>An attachment nobody described is not one described as the empty string.</summary>
+    [Fact]
+    public async Task Read_ReportsAnUndescribedAttachmentAsHavingNoDescription()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(Page(PostJson("110", media: MediaJson(description: "")))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        Assert.Null(Assert.Single(Assert.Single(fetch.Posts).Media).Description);
+    }
+
+    /// <summary>A post carrying nothing carries an empty list, which is not a hole for a caller to check for.</summary>
+    [Fact]
+    public async Task Read_ReportsAPostWithNothingAttachedAsCarryingNoMedia()
+    {
+        var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Json(Page(PostJson("110"))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        Assert.Empty(Assert.Single(fetch.Posts).Media);
+    }
+
+    /// <summary>
+    ///     A boost carries no text of its own and no pictures of its own either — both belong to the post it points at,
+    ///     which is what a feed has to draw.
+    /// </summary>
+    [Fact]
+    public async Task Read_ReportsABoostsMediaAndMarksOnThePostThatWasBoosted()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(Page(PostJson(
+                "110",
+                content: "",
+                boosting: PostJson(
+                    "99",
+                    account: "alice@hachyderm.io",
+                    marks: "\"favourited\": true,",
+                    media: MediaJson())))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        var boosted = Assert.Single(fetch.Posts).Boosted;
+        Assert.NotNull(boosted);
+        Assert.True(boosted.Marks.Favorited);
+        Assert.Equal("A cartoon sheep", Assert.Single(boosted.Media).Description);
+    }
+
     [Theory]
     [InlineData(TimelineScope.Home, "https://mastodon.social/api/v1/timelines/home?limit=20")]
     [InlineData(TimelineScope.Local, "https://mastodon.social/api/v1/timelines/public?local=true&limit=20")]
@@ -145,6 +305,71 @@ public class TimelineReaderTests
         var request = Assert.Single(network.Requests);
         Assert.Equal(expected, request.RequestUri?.ToString());
         Assert.Equal("Bearer token-personal", request.Headers.Authorization?.ToString());
+    }
+
+    /// <summary>
+    ///     An account's posts are a timeline like the other four, and the one thing that differs is that this endpoint
+    ///     takes an id where a user has an address — so the address is looked up first, the same resolving search a tie
+    ///     is put on an account through.
+    /// </summary>
+    [Fact]
+    public async Task Read_LooksUpAnAccountBeforeReadingThePostsItWrote()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json("""[{"id": "42", "username": "alice", "acct": "alice@hachyderm.io"}]"""),
+            ScriptedHttpMessageHandler.Json(Page(PostJson("110"))));
+
+        var fetch = await NewReader(network).Read(
+            Profile,
+            Timeline.By(AccountAddress.Parse("alice@hachyderm.io")),
+            20,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(
+            "https://mastodon.social/api/v1/accounts/search?q=alice%40hachyderm.io&limit=10&resolve=true",
+            network.Requests[0].RequestUri?.ToString());
+
+        // Boosts left in and replies left out: what this account says and passes on, rather than half of a hundred
+        // conversations they answered.
+        Assert.Equal(
+            "https://mastodon.social/api/v1/accounts/42/statuses?exclude_replies=true&limit=20",
+            network.Requests[1].RequestUri?.ToString());
+
+        Assert.Single(fetch.Posts);
+    }
+
+    /// <summary>
+    ///     One lookup for the whole read, however many pages it takes. Paying for it per page would spend a call to
+    ///     learn what the last one already knew.
+    /// </summary>
+    [Fact]
+    public async Task Read_LooksUpAnAccountOnceHoweverManyPagesItsPostsTake()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json("""[{"id": "42", "username": "alice", "acct": "alice@hachyderm.io"}]"""),
+            PageResponse(PageOf(count: 40, firstId: 200), nextMaxId: "150"),
+            PageResponse(PageOf(count: 5, firstId: 149)));
+
+        var fetch = await NewReader(network).Read(
+            Profile,
+            Timeline.By(AccountAddress.Parse("alice@hachyderm.io")),
+            45,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(45, fetch.Posts.Count);
+        Assert.Equal(3, network.Requests.Count);
+        Assert.Equal(
+            "https://mastodon.social/api/v1/accounts/42/statuses?exclude_replies=true&max_id=150&limit=5",
+            network.Requests[2].RequestUri?.ToString());
+    }
+
+    /// <summary>Every timeline says what it is in a sentence, including the one that belongs to somebody.</summary>
+    [Fact]
+    public void Description_NamesWhoseTimelineAnAccountsPostsAre()
+    {
+        Assert.Equal(
+            "the posts of @alice@hachyderm.io",
+            Timeline.By(AccountAddress.Parse("alice@hachyderm.io")).Description);
     }
 
     /// <summary>
@@ -329,16 +554,40 @@ public class TimelineReaderTests
     ///     The wire's <c>acct</c>: bare for an account on the instance being read, <c>username@instance</c> for one
     ///     anywhere else.
     /// </param>
+    /// <summary>One attachment, as the wire serves one back on a post.</summary>
+    private static string MediaJson(
+        string id = "m1",
+        string type = "image",
+        string? description = "A cartoon sheep") =>
+        $$"""
+          [{
+            "id": "{{id}}",
+            "type": "{{type}}",
+            "url": "https://files.mastodon.social/{{id}}/original.png",
+            "preview_url": "https://files.mastodon.social/{{id}}/small.png",
+            "description": "{{description}}"
+          }]
+          """;
+
+    /// <param name="marks">
+    ///     What the instance said this profile has already done to the post, as the wire spells the three flags — or
+    ///     <see langword="null" /> for an instance that sent none of them.
+    /// </param>
+    /// <param name="media">The wire's <c>media_attachments</c> array, or <see langword="null" /> for a post carrying none.</param>
     private static string PostJson(
         string id,
         string account = "jeff",
         string content = "<p>Hello world</p>",
         string? contentWarning = null,
         string visibility = "public",
-        string? boosting = null) =>
+        string? boosting = null,
+        string? marks = null,
+        string? media = null) =>
         $$"""
           {
             "id": "{{id}}",
+            {{marks ?? string.Empty}}
+            "media_attachments": {{media ?? "[]"}},
             "uri": "https://mastodon.social/users/jeff/statuses/{{id}}",
             "url": "https://mastodon.social/@jeff/{{id}}",
             "created_at": "2026-07-29T12:00:00.000Z",

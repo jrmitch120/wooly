@@ -14,4 +14,8 @@
     <ProjectReference Include="..\Wooly.Core\Wooly.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Wooly.Tests" />
+  </ItemGroup>
+
 </Project>

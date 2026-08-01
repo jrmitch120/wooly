@@ -18,6 +18,9 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
     private const string AccountKey = "account";
     private const string DefaultVisibilityKey = "default_visibility";
 
+    /// <summary>The hashtag the TUI's rail keeps a destination for.</summary>
+    private const string HashtagKey = "hashtag";
+
     /// <inheritdoc />
     public WoolyConfig Load()
     {
@@ -42,9 +45,21 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
         }
 
         // Inserted before the profiles so the writer emits the short, general section above the long, per-profile one.
-        if (config.Preferences.DefaultVisibility is { } visibility)
+        if (config.Preferences is { DefaultVisibility: not null } or { Hashtag: not null })
         {
-            root[PreferencesKey] = new TomlTable { [DefaultVisibilityKey] = PostVisibilityName.Of(visibility) };
+            var preferences = new TomlTable();
+
+            if (config.Preferences.DefaultVisibility is { } visibility)
+            {
+                preferences[DefaultVisibilityKey] = PostVisibilityName.Of(visibility);
+            }
+
+            if (config.Preferences.Hashtag is { } hashtag)
+            {
+                preferences[HashtagKey] = hashtag;
+            }
+
+            root[PreferencesKey] = preferences;
         }
 
         if (config.Profiles.Count > 0)
@@ -103,7 +118,27 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
             return new Preferences();
         }
 
-        return new Preferences { DefaultVisibility = ReadVisibility(stored) };
+        return new Preferences
+        {
+            DefaultVisibility = ReadVisibility(stored),
+            Hashtag = ReadHashtag(stored),
+        };
+    }
+
+    /// <summary>
+    ///     The tag the rail keeps a place for. Held to the same one-word rule the <c>timeline tag</c> command holds a
+    ///     typed one to, because a tag goes into a request path — see <see cref="Timelines.Hashtag" />.
+    /// </summary>
+    private string? ReadHashtag(TomlTable preferences)
+    {
+        if (ReadString(preferences, HashtagKey) is not { } raw)
+        {
+            return null;
+        }
+
+        return Timelines.Hashtag.IsWellFormed(raw)
+            ? Timelines.Hashtag.Bare(raw)
+            : throw new ConfigurationException(paths.ConfigFile, Timelines.Hashtag.Rejection(raw));
     }
 
     private PostVisibility? ReadVisibility(TomlTable preferences)

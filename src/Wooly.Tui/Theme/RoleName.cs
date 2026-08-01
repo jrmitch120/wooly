@@ -1,0 +1,52 @@
+namespace Wooly.Tui.Theme;
+
+/// <summary>
+///     What each <see cref="Role" /> is called outside the code: in <c>docs/tui-shell.md</c>'s table, and — when #46
+///     arrives — as the key a user writes in a <c>[themes.*]</c> table. Written out rather than derived from the enum
+///     member's name, so that renaming a member in C# cannot silently rename the key somebody has in their config file.
+/// </summary>
+public static class RoleName
+{
+    private static readonly Dictionary<Role, string> Names = new()
+    {
+        [Role.Body] = "body",
+        [Role.Muted] = "muted",
+        [Role.BylineName] = "byline-name",
+        [Role.BylineHandle] = "byline-handle",
+        [Role.Audience] = "audience",
+        [Role.ContentWarning] = "content-warning",
+        [Role.Media] = "media",
+        [Role.Poll] = "poll",
+        [Role.Boost] = "boost",
+        [Role.BoostMine] = "boost-mine",
+        [Role.Favorite] = "favorite",
+        [Role.FavoriteMine] = "favorite-mine",
+        [Role.Selection] = "selection",
+        [Role.Rail] = "rail",
+        [Role.RailCurrent] = "rail-current",
+        [Role.RailUnread] = "rail-unread",
+        [Role.Quota] = "quota",
+        [Role.QuotaLow] = "quota-low",
+        [Role.Chrome] = "chrome",
+        [Role.Loading] = "loading",
+        [Role.Destructive] = "destructive",
+        [Role.Error] = "error",
+    };
+
+    /// <summary>What <paramref name="role" /> is called in the contract and in a theme.</summary>
+    /// <exception cref="ArgumentOutOfRangeException">
+    ///     A role nothing has a name for, which is a member added to the enum without coming here — a defect to read
+    ///     about rather than a key to invent.
+    /// </exception>
+    public static string Of(Role role) => Names.TryGetValue(role, out var name)
+        ? name
+        : throw new ArgumentOutOfRangeException(nameof(role), role, "Not a role this client has a name for.");
+
+    /// <summary>The role <paramref name="name" /> names, or <see langword="null" /> where nothing does.</summary>
+    /// <remarks>
+    ///     What #46 needs to turn a user's <c>[themes.midnight]</c> key into a role, and to say which key was wrong
+    ///     rather than ignoring it.
+    /// </remarks>
+    public static Role? For(string name) =>
+        Names.Where(entry => entry.Value == name).Select(entry => (Role?)entry.Key).FirstOrDefault();
+}

@@ -46,7 +46,7 @@ A screen is a place in the stack, not a window. Entering one pushes, `esc` pops,
 | Search — prompt and results | A rail destination, or `/` | #29 |
 | Follow requests | A rail destination | #29 |
 | Direct messages — conversations, then a thread | A rail destination | #30 |
-| Compose / reply — an editor over the content region | `c` or `r` | #28 |
+| Compose / reply / edit — a screen on the stack, like any other | `c`, `r` or `e` | #28 |
 | Media inside a post or feed item | Drawn in place | #31 |
 
 Every screen owes three things: it reads at 61 columns, it says what its keys are on the status row, and it names roles
@@ -63,7 +63,7 @@ workable only because the status row always shows the current screen's keys. Wha
 | `ctrl-q` | Quit. |
 | `?` | The keymap for this screen. The spec has no in-app help story; this is the shell adding one, and #28 carries it — every other screen inherits it for free. |
 | `tab` / `shift-tab` | Moves the cursor (`▶`) at once. The selection (`▸`) follows it, and that destination loads, once the tabbing has stopped for ~250ms. |
-| `/` | Search. |
+| `/` | Search. Goes to the search destination; what it opens onto is #29's. |
 
 Feed and post:
 
@@ -89,6 +89,23 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Notifications | `d` dismiss one · `D` clear all |
 | Follow requests | `a` accept · `x` reject |
 | Direct messages | `⏎` open the conversation · `m` mark read |
+
+## Starting it, and the one destination that needs configuring
+
+`wooly-tui` takes one option, `--profile <name>`, and it means what it means everywhere else: act as that profile for
+this run, without changing which one is current (story 9). Everything else about the profile — which instance, which
+token — is resolved through `IProfileRegistry` exactly as a command's scope resolves it.
+
+Eight of the nine destinations are the same eight for everybody. The ninth is a hashtag, and which one is nobody's
+business but the reader's, so it is a setting in the same TOML file everything else lives in (ADR-0003):
+
+```toml
+[preferences]
+hashtag = "dotnet"
+```
+
+With none set, the destination is still on the rail — it says no tag has been named and asks the instance for nothing,
+rather than being a rail entry that swallows a keypress.
 
 ## Roles
 
@@ -181,10 +198,25 @@ The alternatives were built and measured — a cursor that moves free until `⏎
 list — and all cost one fetch against cycling's six *before* the settle rule, which is what closed the gap. They are on
 the prototype branch (`SCREENS-C.md`) if the decision is ever revisited.
 
+## The numbers
+
+Settled in #28. All three live in one place in the code (`ShellTiming`), so a reader looking for them finds them
+together.
+
+| What | How long | Why that |
+|---|---|---|
+| Settle window | 250ms | Long enough that a deliberate double-tap lands as one move; short enough that a single tab does not read as a pause. |
+| Destination cache | 1 minute | Long enough that walking out along the rail and back is free; short enough that a timeline left and returned to a minute later is fetched rather than remembered. This client forgets a destination early when it is the thing that changed it — a post published, deleted or marked. |
+| Countdown step | 1 second | The unit a rate-limit countdown counts in. |
+
+One cache age for everything, rather than one per kind of destination. The question the cache answers is "is this still
+the timeline I just left", not "is this still current", and that has the same answer wherever you left from.
+
 ## Open questions
 
 1. **Whether a theme can decline to set a background** and inherit the terminal's own. `Terminal.Gui` attributes are a
-   foreground/background pair, so "inherit" needs checking against the driver rather than assuming.
-2. **Where compose lives** — an editor pushed onto the stack like any other screen, or a region that opens under the
-   feed so the thing being replied to stays visible.
-3. **How long the settle window and the cache should be** — 250ms and "a short while" are the prototype's guesses, and a timeline and a notification list may not want the same cache age.
+   foreground/background pair, so "inherit" needs checking against the driver rather than assuming. #46's, along with
+   the rest of the theme file.
+2. ~~**Where compose lives.**~~ Settled by ADR-0015: a screen on the stack, like everything else. A reply draws the
+   first rows of what it is answering above the editor, which is the part of the split region that was worth keeping.
+3. ~~**How long the settle window and the cache should be.**~~ Settled above.

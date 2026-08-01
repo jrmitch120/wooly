@@ -14,4 +14,11 @@ public enum TimelineScope
 
     /// <summary>The public posts carrying one hashtag.</summary>
     Tag,
+
+    /// <summary>
+    ///     The posts of one account, which is what an account screen shows underneath who they are. A timeline rather
+    ///     than a reading of its own: it is posts, newest first, paged the way the other four are, and the one thing
+    ///     that differs is which endpoint is asked.
+    /// </summary>
+    Account,
 }

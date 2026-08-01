@@ -26,6 +26,10 @@ public static class ServiceCollectionExtensions
         services.AddSingleton(RetryPolicy.Default);
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton<IRetryDelay, TaskRetryDelay>();
+
+        // One report for the whole process, written by the handler on every response and read by whoever draws it.
+        services.AddSingleton<RateLimitReport>();
+        services.AddSingleton<IRateLimitReport>(provider => provider.GetRequiredService<RateLimitReport>());
         services.AddTransient<TransientFaultRetryHandler>();
         services.AddTransient<RateLimitHandler>();
 
