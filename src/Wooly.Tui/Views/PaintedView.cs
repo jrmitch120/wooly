@@ -17,25 +17,59 @@ namespace Wooly.Tui.Views;
 ///     <see cref="PictureView" /> per box. Those boxes ride the rows: they are placed from the same scroll position the
 ///     text is drawn at, on every frame, so a picture cannot come adrift from the post it belongs to (ADR-0016).
 /// </remarks>
-/// <param name="theme">What answers the roles.</param>
-/// <param name="rows">The rows to draw, given how much room there is.</param>
-internal sealed class PaintedView(ITheme theme, Func<int, int, IReadOnlyList<Line>> rows) : View
+internal sealed class PaintedView : View
 {
+    /// <summary>
+    ///     How many pictures can be on screen at once. A picture is at least a few rows tall and a post's text stands
+    ///     between one and the next, so a terminal cannot show many; this is generous for the tallest terminal anybody
+    ///     reads a feed on.
+    /// </summary>
+    /// <remarks>
+    ///     Fixed, and every one of them built before anything is drawn, because the alternative is adding a subview
+    ///     from inside a draw — which mutates the tree the draw is walking, and leaves the release of a vanished
+    ///     picture depending on whether this frame happened to be the one that grew the pool. A stale Kitty placement
+    ///     is not erased by drawing text over it (ADR-0016), so that shows up as a picture stuck over somebody's post.
+    /// </remarks>
+    private const int MostBoxes = 8;
+
+    private readonly ITheme _theme;
+    private readonly Func<int, int, IReadOnlyList<Line>> _rows;
+    private readonly IPictures? _pictures;
     private readonly List<PictureView> _boxes = [];
 
     private int _top;
+
+    /// <param name="theme">What answers the roles.</param>
+    /// <param name="rows">The rows to draw, given how much room there is.</param>
+    /// <param name="pictures">
+    ///     Where the pixels for a drawn attachment come from, or <see langword="null" /> for a region that shows no
+    ///     posts — the rail and the two chrome rows, which reserve no boxes and would never ask.
+    /// </param>
+    public PaintedView(ITheme theme, Func<int, int, IReadOnlyList<Line>> rows, IPictures? pictures = null)
+    {
+        _theme = theme;
+        _rows = rows;
+        _pictures = pictures;
+
+        if (pictures is null)
+        {
+            return;
+        }
+
+        for (var at = 0; at < MostBoxes; at++)
+        {
+            var box = new PictureView { Visible = false };
+
+            _boxes.Add(box);
+            Add(box);
+        }
+    }
 
     /// <summary>
     ///     Whether this view scrolls to keep the selected row on screen. The content region does; the rail and the two
     ///     chrome rows are always as tall as what they hold.
     /// </summary>
     public bool FollowsSelection { get; init; }
-
-    /// <summary>
-    ///     Where the pixels for a drawn attachment come from, or <see langword="null" /> for a region that shows no
-    ///     posts — the rail and the two chrome rows, which reserve no boxes and would never ask.
-    /// </summary>
-    public IPictures? Pictures { get; init; }
 
     protected override bool OnDrawingContent(DrawContext? context)
     {
@@ -44,10 +78,14 @@ internal sealed class PaintedView(ITheme theme, Func<int, int, IReadOnlyList<Lin
 
         if (width <= 0 || height <= 0)
         {
+            // Nothing can be drawn, so nothing may be left drawn either: a box still showing from the last size this
+            // view had would be a picture over whatever replaces it.
+            Hide(from: 0);
+
             return true;
         }
 
-        var lines = rows(width, height);
+        var lines = _rows(width, height);
 
         _top = FollowsSelection ? ScrolledTo(lines, height) : 0;
 
@@ -55,7 +93,7 @@ internal sealed class PaintedView(ITheme theme, Func<int, int, IReadOnlyList<Lin
         {
             // Cleared first, in the theme's own background, so that a row which is shorter than the one it replaced
             // does not leave the tail of the old one behind it.
-            SetAttribute(theme.For(Role.Body));
+            SetAttribute(_theme.For(Role.Body));
             AddStr(0, row, new string(' ', width));
 
             var at = _top + row;
@@ -76,7 +114,7 @@ internal sealed class PaintedView(ITheme theme, Func<int, int, IReadOnlyList<Lin
 
                 var text = span.Text.Length > width - column ? span.Text[..(width - column)] : span.Text;
 
-                SetAttribute(theme.For(span.Role));
+                SetAttribute(_theme.For(span.Role));
                 AddStr(column, row, text);
 
                 column += text.Length;
@@ -97,17 +135,22 @@ internal sealed class PaintedView(ITheme theme, Func<int, int, IReadOnlyList<Lin
     ///     and building and disposing a view per picture per frame would be the cost of scrolling. A box with nothing
     ///     in it — a picture still on its way, or one that could not be had — is hidden rather than drawn empty, which
     ///     leaves the row saying <c>▒▒▒▒</c> and what it shows as the whole of the answer.
+    ///     <para>
+    ///         Every box is either given a place here or hidden here, on every frame and with no path out that does
+    ///         neither. What is hidden is what Terminal.Gui releases, and what it releases is what stops a Kitty
+    ///         placement outliving the post it belonged to.
+    ///     </para>
     /// </remarks>
     private void Place(IReadOnlyList<Line> lines, int height)
     {
-        if (Pictures is null)
+        if (_pictures is null)
         {
             return;
         }
 
         var placed = 0;
 
-        for (var at = 0; at < lines.Count; at++)
+        for (var at = 0; at < lines.Count && placed < _boxes.Count; at++)
         {
             foreach (var inset in lines[at].Insets)
             {
@@ -115,39 +158,38 @@ internal sealed class PaintedView(ITheme theme, Func<int, int, IReadOnlyList<Lin
 
                 // Off the top or off the bottom. A box straddling either edge is placed anyway and clipped, which is
                 // what keeps a picture visible while it is being scrolled past rather than blinking out at the edge.
-                if (top + inset.Rows <= 0 || top >= height)
+                if (top + inset.Rows <= 0 || top >= height || placed >= _boxes.Count)
                 {
                     continue;
                 }
 
-                var box = Box(placed++);
+                var box = _boxes[placed++];
+                var frame = new Rectangle(inset.Column, top, inset.Columns, inset.Rows);
 
-                box.Show(inset.Media.Id, Pictures.Of(inset.Media));
-                box.Frame = new Rectangle(inset.Column, top, inset.Columns, inset.Rows);
+                box.Show(inset.Media.Id, _pictures.Of(inset.Media));
+
+                // Only when it has actually moved: setting it throws away the scaled copy and re-encodes the picture,
+                // which on a feed redrawn per keypress would be a re-transmission per keypress.
+                if (box.Frame != frame)
+                {
+                    box.Frame = frame;
+                }
 
                 // Never drawn as coloured cells, whatever ImageView would have been willing to do (ADR-0016).
                 box.Visible = box.HasPicture && box.CanDraw;
             }
         }
 
-        for (var spare = placed; spare < _boxes.Count; spare++)
+        Hide(from: placed);
+    }
+
+    /// <summary>Hides every box from <paramref name="from" /> on, which is every one this frame found no place for.</summary>
+    private void Hide(int from)
+    {
+        for (var spare = from; spare < _boxes.Count; spare++)
         {
             _boxes[spare].Visible = false;
         }
-    }
-
-    /// <summary>The pooled box at <paramref name="at" />, added to this view the first time that many are wanted.</summary>
-    private PictureView Box(int at)
-    {
-        while (_boxes.Count <= at)
-        {
-            var box = new PictureView { Visible = false };
-
-            _boxes.Add(box);
-            Add(box);
-        }
-
-        return _boxes[at];
     }
 
     /// <summary>

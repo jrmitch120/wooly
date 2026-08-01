@@ -58,7 +58,11 @@ internal sealed class ShellWindow : Window
             CanFocus = false,
         };
 
-        var content = new PaintedView(theme, (width, _) => shell.Screen.Lines(width, clock.GetUtcNow(), pictures))
+        // The one region that shows posts, so the one region with pictures to draw in place (docs/tui-shell.md).
+        var content = new PaintedView(
+            theme,
+            (width, _) => shell.Screen.Lines(width, clock.GetUtcNow(), pictures),
+            pictures)
         {
             X = RailLines.Width + 1,
             Y = 1,
@@ -66,10 +70,6 @@ internal sealed class ShellWindow : Window
             Height = Dim.Fill(1),
             CanFocus = false,
             FollowsSelection = true,
-
-            // The one region that shows posts, so the one region with pictures to draw in place
-            // (docs/tui-shell.md).
-            Pictures = pictures,
         };
 
         _editor = new ComposeEditor(() => _ = Send(), () => shell.Back())
