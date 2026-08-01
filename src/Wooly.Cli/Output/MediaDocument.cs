@@ -30,7 +30,7 @@ internal sealed record MediaDocument(
     /// <summary>How <paramref name="media" /> is written down.</summary>
     public static MediaDocument Of(PostMedia media) => new(
         media.Id,
-        media.Kind.ToString().ToLowerInvariant(),
+        MediaKindName.Written(media.Kind),
         media.Url,
         media.Preview,
         media.Description);

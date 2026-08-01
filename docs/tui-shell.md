@@ -123,9 +123,13 @@ not answer them differently:
 Media is drawn in place inside a feed item or a post, at whatever width the content region has (ADR-0016):
 
 - **Only a still picture is drawn.** Video, audio, an animation and anything this client has no word for get a `⏵`, the
-  description, and the address on the row below — never an inline rendering attempt (story 51). An animation is linked
-  rather than drawn as the still its preview happens to be, because a frozen frame with nothing to say it was meant to
-  move is the misleading rendering the story rules out.
+  description, and the address on the rows below — wrapped rather than clipped, since a real address is longer than 61
+  columns and a link with its end cut off is not a link. Never an inline rendering attempt (story 51). An animation is
+  linked rather than drawn as the still its preview happens to be, because a frozen frame with nothing to say it was
+  meant to move is the misleading rendering the story rules out.
+- **Sixel is preferred over Kitty, and the preference is subscribed to.** Both capabilities are answers the terminal
+  sends back some frames after startup, so a preference set once at startup is set against nothing and then overwritten
+  (ADR-0016).
 - **A picture's box is kept before the picture arrives, and kept if it never does.** The rows are reserved from the
   post, not from the pixels, so a feed does not reflow under a reader as previews land. Until one does, the `▒▒▒▒` row
   under the box says what is attached.

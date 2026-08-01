@@ -28,16 +28,8 @@ internal sealed class ShellWindow : Window
     ///     What <c>ctrl-q</c> does. Passed in rather than reached for, because the application is the thing that owns
     ///     the run loop and this window is one of the things running in it.
     /// </param>
-    /// <param name="pictures">
-    ///     Where a drawn attachment's pixels come from, or <see langword="null" /> to draw none — which is what a
-    ///     terminal is left with when the whole of a post's media is a description and a link anyway.
-    /// </param>
-    public ShellWindow(
-        Shell.Shell shell,
-        ITheme theme,
-        TimeProvider clock,
-        Action quit,
-        IPictures? pictures = null)
+    /// <param name="pictures">Where a drawn attachment's pixels come from.</param>
+    public ShellWindow(Shell.Shell shell, ITheme theme, TimeProvider clock, Action quit, IPictures pictures)
     {
         _shell = shell;
         _clock = clock;

@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats;
@@ -214,6 +215,77 @@ public class PicturesTests
         pictures.Of(APost.APicture(id: "m0"));
 
         Assert.Equal(Pictures.MostHeld + 2, asks);
+    }
+
+    /// <summary>
+    ///     The adapter over <see cref="HttpClient" />, tested at the one seam under it (ADR-0005): what a file server
+    ///     answers is what gets decoded.
+    /// </summary>
+    [Fact]
+    public async Task Over_FetchesAPreviewAndDecodesWhatCameBack()
+    {
+        var network = new ScriptedHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new ByteArrayContent(APng(6, 4)),
+        });
+
+        var landed = new TaskCompletionSource();
+
+        using var http = new HttpClient(network);
+        using var pictures = Pictures.Over(http, landed.SetResult);
+
+        pictures.Of(APost.APicture());
+
+        await landed.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        var picture = pictures.Of(APost.APicture());
+
+        Assert.NotNull(picture);
+        Assert.Equal(6, picture.Width);
+        Assert.Equal(APost.APicture().Preview, Assert.Single(network.Requests).RequestUri?.ToString());
+    }
+
+    /// <summary>A file server that answers with anything but a picture is answered with no picture, not an exception.</summary>
+    [Fact]
+    public void Over_TakesARefusalAsNoPicture()
+    {
+        var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Status(HttpStatusCode.NotFound));
+
+        using var http = new HttpClient(network);
+        using var pictures = Pictures.Over(http, () => { });
+
+        Assert.Null(pictures.Of(APost.APicture()));
+    }
+
+    /// <summary>
+    ///     A body larger than any preview could be is refused, and refused by counting the bytes rather than by
+    ///     believing the header — a server that declares no length, or declares one and sends another, would otherwise
+    ///     be deciding how much of this client's memory to use.
+    /// </summary>
+    [Fact]
+    public async Task Over_RefusesABodyLargerThanAnyPreviewCouldBe()
+    {
+        var landed = false;
+
+        // Chunked: no Content-Length at all, so the only way to know it is too big is to have counted.
+        var network = new ScriptedHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StreamContent(new MemoryStream(new byte[Pictures.MostBytes + 1])),
+        });
+
+        using var http = new HttpClient(network);
+        using var pictures = Pictures.Over(http, () => landed = true);
+
+        pictures.Of(APost.APicture());
+
+        // Nothing announces a refusal, so the wait is for the request to have been made and answered.
+        while (network.Requests.Count == 0)
+        {
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+
+        Assert.Null(pictures.Of(APost.APicture()));
+        Assert.False(landed);
     }
 
     private static byte[] APng(int width, int height) => Encoded(width, height, new PngEncoder());

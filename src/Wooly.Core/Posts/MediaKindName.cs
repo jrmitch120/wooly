@@ -24,4 +24,21 @@ public static class MediaKindName
         // processing. There is still something there, so it is still named.
         _ => "an attachment",
     };
+
+    /// <summary>
+    ///     How <paramref name="kind" /> is spelled where another program reads it: one lower-case word, no article.
+    /// </summary>
+    /// <remarks>
+    ///     Written out rather than taken off the enum, for the reason every other spelling here is written out: these
+    ///     words are a contract with whatever is parsing them, and renaming a member of <see cref="MediaKind" /> must
+    ///     not silently rename somebody's <c>jq</c> filter.
+    /// </remarks>
+    public static string Written(MediaKind kind) => kind switch
+    {
+        MediaKind.Image => "image",
+        MediaKind.Animation => "animation",
+        MediaKind.Video => "video",
+        MediaKind.Audio => "audio",
+        _ => "unknown",
+    };
 }

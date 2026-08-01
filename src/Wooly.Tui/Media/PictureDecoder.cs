@@ -23,12 +23,6 @@ internal static class PictureDecoder
     public const int LongestSide = 320;
 
     /// <summary>
-    ///     How many bytes of a download are worth reading. A preview is tens of kilobytes; anything of this size is
-    ///     either not a preview or not worth the memory of finding out.
-    /// </summary>
-    public const int MostBytes = 8 * 1024 * 1024;
-
-    /// <summary>
     ///     The picture <paramref name="bytes" /> hold, scaled down to something a terminal has room for — or
     ///     <see langword="null" /> where they are not a picture this client can read. A file that will not decode is
     ///     not an error worth showing anybody: the post still says what is attached to it, and a reader who cannot see

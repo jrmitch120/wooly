@@ -17,7 +17,15 @@ where it mattered.
 Both surfaces read that one rule and one phrase off the attachment itself, rather than each keeping its own table.
 `Shows` is what an attachment says it is — its author's description, or `a picture, undescribed` where they gave none —
 and the CLI writes it after the address while the TUI writes it under the box. Two tables is how `post show` comes to
-describe a file one way and the timeline another.
+describe a file one way and the timeline another. On the TUI the address is wrapped over as many rows as it takes
+rather than clipped: a real attachment address runs to about a hundred characters, the contract gives a screen 61, and
+a link with its end cut off has not been shown as a link.
+
+An attachment's address is written on every post the CLI prints, including a timeline's, which is deliberately unlike
+the post's *own* web address — that one is written only for a post asked for by id, because a line of it per post on a
+timeline is a line of noise per post. The two are not the same thing: a post's address is a second way to reach what is
+already on screen, and an attachment's address is the only way to reach the attachment at all. `--json` grows a `media`
+array for the same reason, which also closes the gap story 15 left open once #28 taught `Post` to carry media at all.
 
 **A picture's box is kept before the picture arrives, and kept when it never does.** A post's rows say how many columns
 and rows each of its pictures gets; whether there are pixels to put in the box is asked separately, on every frame. The
@@ -45,6 +53,16 @@ half scrolled off — is not reachable from outside the library anyway. It tries
 story 49's order reversed. Rather than reimplement the ladder to swap two rungs of it, `RasterProtocol.PreferSixel`
 sets Kitty support aside on a terminal that reports both, so that sixel is what is left; a terminal with only one of
 them is untouched, and one with neither still draws cells.
+
+That preference is *subscribed to*, not set once, and the difference is the whole of why it is a module rather than two
+lines in `Program`. Both capabilities are found out by asking the terminal and waiting: the detectors queue ANSI
+requests whose answers arrive on the input loop some frames after the application starts, and `IDriver.SixelSupport` is
+null until one does. A preference expressed at startup would therefore be expressed against two nulls, and then
+overwritten by whichever answer landed second. So `PreferSixel` hooks `SixelSupportChanged` and
+`KittyGraphicsSupportChanged` and re-settles on each; setting Kitty aside raises the event it is subscribed to, which
+comes back and finds nothing left to do. Which rung a given pair of answers picks is `RasterProtocol.Chosen`, a
+function of the two results and nothing else — which is exactly the "fallback chain's selection logic, not the actual
+pixel rendering" that #2's testing decisions name as worth a test, and it has one.
 
 What Terminal.Gui does not do is decode a file: `ImageView` takes a `Color[,]` and has no image library. So this ticket
 adds one — SixLabors.ImageSharp, held at 3.x. It is fully managed, which matters for #32's self-contained

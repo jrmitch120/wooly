@@ -28,6 +28,12 @@ public sealed class Pictures(
     public const int MostHeld = 32;
 
     /// <summary>
+    ///     How many bytes of a download are worth reading. A preview is tens of kilobytes; anything of this size is
+    ///     either not a preview or not worth the memory of finding out which.
+    /// </summary>
+    public const int MostBytes = 8 * 1024 * 1024;
+
+    /// <summary>
     ///     How long a preview is waited for. Short, because nothing is waiting on it: the post is already on screen
     ///     saying what is attached to it, and a picture that has not arrived by now is one the reader has read past.
     /// </summary>
@@ -52,14 +58,18 @@ public sealed class Pictures(
     public static Pictures Over(HttpClient http, Action arrived) => new(
         async (address, cancellation) =>
         {
-            using var response = await http.GetAsync(address, cancellation);
+            // Headers first, so that a length worth refusing is refused before the body is read rather than after it
+            // has already been held in memory.
+            using var response = await http.GetAsync(address, HttpCompletionOption.ResponseHeadersRead, cancellation);
 
-            if (!response.IsSuccessStatusCode || response.Content.Headers.ContentLength > PictureDecoder.MostBytes)
+            if (!response.IsSuccessStatusCode || response.Content.Headers.ContentLength > MostBytes)
             {
                 return null;
             }
 
-            return await response.Content.ReadAsByteArrayAsync(cancellation);
+            await using var body = await response.Content.ReadAsStreamAsync(cancellation);
+
+            return await Read(body, cancellation);
         },
         arrived);
 
@@ -91,6 +101,32 @@ public sealed class Pictures(
     /// </summary>
     private static string AddressOf(PostMedia media) => media.Preview ?? media.Url;
 
+    /// <summary>
+    ///     What <paramref name="body" /> holds, or <see langword="null" /> where it holds more than
+    ///     <see cref="MostBytes" />. Read in pieces and counted as it goes rather than taken whole, because a server
+    ///     that declares no length — or declares one and sends another — would otherwise decide how much of this
+    ///     client's memory to use.
+    /// </summary>
+    private static async Task<byte[]?> Read(Stream body, CancellationToken cancellation)
+    {
+        using var bytes = new MemoryStream();
+        var piece = new byte[64 * 1024];
+
+        while (bytes.Length <= MostBytes)
+        {
+            var read = await body.ReadAsync(piece, cancellation);
+
+            if (read == 0)
+            {
+                return bytes.ToArray();
+            }
+
+            bytes.Write(piece, 0, read);
+        }
+
+        return null;
+    }
+
     private async Task Fetch(PostMedia media)
     {
         Picture? picture = null;
@@ -108,9 +144,10 @@ public sealed class Pictures(
             // attached to it, and an error row where a photograph was meant to be would be worse than the description.
         }
 
-        if (picture is null)
+        // Already remembered as nothing by Of, and left that way so it is not asked for again. A shell that has been
+        // closed is not told about a picture either: there is nothing left to draw it on.
+        if (picture is null || _abandoned.IsCancellationRequested)
         {
-            // Already remembered as nothing by Of, and left that way so it is not asked for again.
             return;
         }
 

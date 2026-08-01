@@ -121,6 +121,13 @@ internal static class PostReport
     ///     One line per attachment, so that a script picking media out of a post can take it a line at a time. The
     ///     description follows the address rather than leading it, because the address is the fixed-shape part and a
     ///     description is whatever length its author made it.
+    ///     <para>
+    ///         Written on every post, including a timeline's, which <see cref="Shown" /> declines to do with a post's
+    ///         own web address. The two are not the same thing: a post's address is another way to reach what is
+    ///         already on screen, so a line of it per post is a line of noise per post, whereas an attachment's address
+    ///         is the only way to reach the attachment at all. Leaving it off a timeline would make <c>timeline home</c>
+    ///         the one place a picture is mentioned and cannot be opened.
+    ///     </para>
     /// </remarks>
     private static void WriteMedia(IAnsiConsole console, Post post)
     {

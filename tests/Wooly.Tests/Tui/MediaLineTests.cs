@@ -88,6 +88,35 @@ public class MediaLineTests
     }
 
     /// <summary>
+    ///     A real attachment address is longer than the 61 columns the contract gives a screen, so it is wrapped over
+    ///     however many rows it takes rather than clipped. A link with its end cut off is a link nobody can follow,
+    ///     which is not "shown as a link" (story 51).
+    /// </summary>
+    [Fact]
+    public void Feed_WrapsALinkTooLongForTheRowRatherThanCuttingItsEndOff()
+    {
+        const string address =
+            "https://files.mastodon.social/media_attachments/files/113/427/981/002/443/original/"
+            + "0f6a1c2b3d4e5f60.mp4";
+
+        var lines = PostLines.Feed(
+            APost.With(media: [APost.Attached(MediaKind.Video) with { Url = address }]),
+            61,
+            revealed: false,
+            Now);
+
+        // The rows under the ⏵ that says what it is, which are the address and nothing else.
+        var written = string.Concat(
+            lines.SkipWhile(line => !line.Text.StartsWith("⏵ ", StringComparison.Ordinal))
+                 .Skip(1)
+                 .TakeWhile(line => line.Text.StartsWith("  ", StringComparison.Ordinal))
+                 .Select(line => line.Text.Trim()));
+
+        Assert.Equal(address, written);
+        Assert.All(lines, line => Assert.True(line.Width <= 61, $"'{line.Text}' is {line.Width} columns"));
+    }
+
+    /// <summary>
     ///     A post carrying both draws the one it can and links the other, rather than treating the post as one kind of
     ///     thing because of what it happens to lead with.
     /// </summary>

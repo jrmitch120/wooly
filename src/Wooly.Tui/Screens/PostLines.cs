@@ -16,7 +16,10 @@ namespace Wooly.Tui.Screens;
 /// </summary>
 public static class PostLines
 {
-    /// <summary>What stands in for a picture until — or unless — its pixels arrive.</summary>
+    /// <summary>
+    ///     What marks a picture: the whole of what a reader has until its pixels arrive, and the whole of what they
+    ///     have if none ever do — which on a terminal drawing coloured cells is nearly a picture anyway.
+    /// </summary>
     private const string MediaMark = "▒▒▒▒";
 
     /// <summary>What stands in front of an attachment that is linked rather than drawn.</summary>
@@ -175,9 +178,13 @@ public static class PostLines
         {
             yield return Described(attached, LinkMark, width);
 
-            // The address on its own row: at 61 columns it is longer than what is left of a row that already says
-            // what the thing is, and a link cut off in the middle is a link nobody can follow.
-            yield return Line.Of(TextWrap.Clip($"  {attached.Url}", width), Role.Muted);
+            // The address on rows of its own, wrapped rather than clipped: at 61 columns a real attachment address is
+            // longer than the row, and a link with its end cut off is a link nobody can follow. Indented under the
+            // mark, so a reader can see where it starts and where it stops.
+            foreach (var row in TextWrap.Wrap(attached.Url, Math.Max(1, width - 2)))
+            {
+                yield return Line.Of($"  {row}", Role.Muted);
+            }
         }
     }
 
