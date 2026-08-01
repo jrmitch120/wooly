@@ -154,6 +154,11 @@ timeline's fetch is relying on. They are asked for once each, held to a bounded 
 scaled down as they are decoded — a terminal draws a few hundred pixels across, and at four bytes a pixel a client that
 held a morning's scrolling at full size would be holding a morning's scrolling.
 
+Holding a too-tall post at its top leaves the rest of it out of reach, because nothing scrolls *within* a post — `j`
+and `k` move between posts, and the arrow keys are bound to the same thing. On a post with four attachments, which is
+five screens tall, the later pictures cannot be got to at all. That is a shortcoming of the shell's one movement rather
+than of anything here, and #51 splits it in two: arrows to walk rows, `j` and `k` to walk posts.
+
 Nothing about a picture is ever reported as an error. A fetch that fails, a file that will not decode, a format this
 build has no decoder for: all of them are "no picture", the box stays empty, and the row that says what is attached is
 what the reader has — which is the same thing the reader has on a terminal that cannot draw at all.
