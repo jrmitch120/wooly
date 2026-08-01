@@ -24,7 +24,11 @@ public static class DirectMessage
     ///     accounts the text mentions and a reply that named only the last speaker would drop the rest of the
     ///     conversation out of it.
     /// </summary>
-    /// <returns>The text, or an empty string where no account was named — nobody to write to is nothing to write.</returns>
+    /// <returns>
+    ///     The text with every account named in front of it, or the text exactly as it was where no account was named
+    ///     — a caller with nobody to address has composed a post rather than a message, and putting words it did not
+    ///     write in front of it would be worse than leaving it alone.
+    /// </returns>
     public static string To(IReadOnlyList<AccountAddress> accounts, string text)
     {
         if (accounts.Count == 0)

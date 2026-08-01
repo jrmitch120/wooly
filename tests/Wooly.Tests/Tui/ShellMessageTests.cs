@@ -283,6 +283,37 @@ public class ShellMessageTests
     }
 
     /// <summary>
+    ///     A message in a thread is an ordinary post, so a mark put on one lands on the row the thread was opened from
+    ///     as well — the two screens are on the stack together and hold the same message.
+    /// </summary>
+    [Fact]
+    public async Task Mark_ShowsOnTheRowTheThreadWasOpenedFrom()
+    {
+        var message = AConversation.DirectPost(id: "110");
+        var thread = AConversation.Thread(AConversation.With(id: "7", latest: message), message);
+
+        var shell = new AShell
+        {
+            Messages = FakeDirectMessages.Threading(thread),
+            Engagement = FakePostEngagement.Answering(message with { Marks = APost.Marked(favorited: true) }),
+        };
+
+        var opened = await shell.Opened();
+
+        opened.Step(ToMessages);
+        shell.Host.Settle();
+
+        await opened.Press(ShellKey.Enter);
+        await opened.Mark(PostMark.Favorite);
+
+        opened.Back();
+
+        var listed = Assert.IsType<DirectMessagesScreen>(opened.Screen);
+
+        Assert.True(listed.Conversations[0].Latest?.Marks.Favorited);
+    }
+
+    /// <summary>
     ///     A message taken down goes from the thread and from the row the thread was opened from — the conversation
     ///     itself stays, because it is still there to be read or written to.
     /// </summary>
@@ -441,6 +472,13 @@ public class ShellMessageTests
         var screen = Assert.IsType<ConversationScreen>(opened.Screen);
 
         Assert.Equal(["110", "112"], screen.Posts.Select(post => post.Id));
+
+        opened.Back();
+
+        // And on the row it was opened from, since what was just said is the conversation's last word.
+        var listed = Assert.IsType<DirectMessagesScreen>(opened.Screen);
+
+        Assert.Equal("112", listed.Conversations[0].Latest?.Id);
     }
 
     /// <summary>

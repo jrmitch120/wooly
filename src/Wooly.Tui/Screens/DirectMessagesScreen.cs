@@ -21,12 +21,6 @@ namespace Wooly.Tui.Screens;
 /// </remarks>
 public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversations, string? notice = null) : Screen
 {
-    /// <summary>
-    ///     What a conversation whose posts have all been taken down says. The alternative is a heading with nothing
-    ///     under it, which reads as a screen that went wrong rather than a conversation that was emptied.
-    /// </summary>
-    private const string NothingLeft = "Nothing left in this conversation.";
-
     private readonly List<Conversation> _conversations = [.. conversations];
 
     /// <inheritdoc />
@@ -75,46 +69,28 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
         }
     }
 
-    /// <summary>Puts <paramref name="conversation" /> in place of the copy this screen is holding, once it changed.</summary>
-    public void Marked(Conversation conversation)
-    {
-        for (var at = 0; at < _conversations.Count; at++)
-        {
-            if (_conversations[at].Id == conversation.Id)
-            {
-                _conversations[at] = conversation;
-            }
-        }
-    }
+    /// <summary>
+    ///     Puts <paramref name="conversation" /> in place of the copy this screen is holding, once it has changed —
+    ///     marked read, or spoken in again from the thread it opened onto.
+    /// </summary>
+    public void Marked(Conversation conversation) =>
+        Rewrite(held => held.Id == conversation.Id, _ => conversation);
 
     /// <inheritdoc />
-    /// <remarks>A mark put on a message in the thread shows on the row the thread was opened from.</remarks>
-    public override void Replace(Post post)
-    {
-        for (var at = 0; at < _conversations.Count; at++)
-        {
-            if (_conversations[at].Latest?.Id == post.Id)
-            {
-                _conversations[at] = _conversations[at] with { Latest = post };
-            }
-        }
-    }
+    /// <remarks>
+    ///     A mark put on a message in the thread shows on the row the thread was opened from: the two screens are on
+    ///     the stack together, and the shell hands a changed post to both.
+    /// </remarks>
+    public override void Replace(Post post) =>
+        Rewrite(held => held.Latest?.Id == post.Id, held => held with { Latest = post });
 
     /// <inheritdoc />
     /// <remarks>
     ///     The conversation stays and loses its last post, which is what a conversation whose posts have been taken
     ///     down looks like — it is still there to be read or written to, and saying so is more honest than dropping it.
     /// </remarks>
-    public override void Remove(string postId)
-    {
-        for (var at = 0; at < _conversations.Count; at++)
-        {
-            if (_conversations[at].Latest?.Id == postId)
-            {
-                _conversations[at] = _conversations[at] with { Latest = null };
-            }
-        }
-    }
+    public override void Remove(string postId) =>
+        Rewrite(held => held.Latest?.Id == postId, held => held with { Latest = null });
 
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(int width, DateTimeOffset now)
@@ -133,7 +109,7 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
         {
             var conversation = _conversations[at];
 
-            lines.Add(With(conversation, room).After(PickedPosts.Gutter(at == At)));
+            lines.Add(ConversationLines.With(conversation, room).After(PickedPosts.Gutter(at == At)));
 
             if (conversation.Latest is { } latest)
             {
@@ -144,7 +120,8 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
             }
             else
             {
-                lines.Add(Line.Of(NothingLeft, Role.Muted).After(PickedPosts.Gutter(at == At), new Span("  ", Role.Body)));
+                lines.Add(Line.Of(ConversationLines.NothingLeft, Role.Muted)
+                              .After(PickedPosts.Gutter(at == At), new Span("  ", Role.Body)));
             }
 
             lines.Add(Line.Blank);
@@ -154,31 +131,18 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
     }
 
     /// <summary>
-    ///     Who the conversation is with, and whether anything in it is unread. The mark is the word rather than a
-    ///     glyph: this client's glyphs already say who can see a post, and a second circle beside <c>●</c> would be one
-    ///     mark too many to tell apart at a glance.
+    ///     Puts <paramref name="changed" /> in place of every conversation <paramref name="which" /> picks out. Said
+    ///     once, because a conversation on this screen changes in three ways — marked read, its last post replaced,
+    ///     its last post taken down — and three walks of the same list would be three chances to walk it differently.
     /// </summary>
-    public static Line With(Conversation conversation, int width)
+    private void Rewrite(Func<Conversation, bool> which, Func<Conversation, Conversation> changed)
     {
-        // An instance says who a conversation is with rather than who is having it, so one with nobody in it is one
-        // whose only other account has been taken down — said out loud rather than drawn as an empty row.
-        var with = conversation.With.Count == 0
-            ? "nobody"
-            : string.Join(", ", conversation.With.Select(account => $"@{account}"));
-
-        if (!conversation.Unread)
+        for (var at = 0; at < _conversations.Count; at++)
         {
-            return Line.Of(TextWrap.Clip(with, width), Role.BylineHandle);
+            if (which(_conversations[at]))
+            {
+                _conversations[at] = changed(_conversations[at]);
+            }
         }
-
-        const string mark = "unread";
-
-        var who = TextWrap.Clip(with, Math.Max(0, width - mark.Length - 1));
-
-        return Line.Of([
-            new Span(who, Role.BylineHandle),
-            new Span(new string(' ', Math.Max(1, width - who.Length - mark.Length)), Role.Body),
-            new Span(mark, Role.RailUnread),
-        ]);
     }
 }

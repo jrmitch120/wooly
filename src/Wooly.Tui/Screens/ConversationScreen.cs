@@ -23,8 +23,7 @@ public sealed class ConversationScreen(ConversationThread thread) : Screen
     private readonly PickedPosts _posts = new(thread.Posts);
 
     /// <inheritdoc />
-    public override string Crumb =>
-        $"with {(Conversation.With.Count == 0 ? "nobody" : string.Join(", ", Conversation.With.Select(account => $"@{account}")))}";
+    public override string Crumb => $"with {ConversationLines.Who(Conversation)}";
 
     /// <inheritdoc />
     /// <remarks>
@@ -56,7 +55,16 @@ public sealed class ConversationScreen(ConversationThread thread) : Screen
     ///     Puts a message that has just been sent at the end of the thread, so a reply lands where the reader is
     ///     looking rather than only in the next read of the conversation.
     /// </summary>
-    public void Said(Post post) => _posts.Add(post);
+    /// <remarks>
+    ///     It is the conversation's last word as well as the thread's last message, so the conversation itself moves
+    ///     with it — which is what the shell hands back to the list this thread was opened from.
+    /// </remarks>
+    public void Said(Post post)
+    {
+        _posts.Add(post);
+
+        Conversation = Conversation with { Latest = post };
+    }
 
     /// <inheritdoc />
     public override void Move(int by) => _posts.Move(by);
@@ -75,13 +83,13 @@ public sealed class ConversationScreen(ConversationThread thread) : Screen
     {
         var lines = new List<Line>
         {
-            DirectMessagesScreen.With(Conversation, width),
+            ConversationLines.With(Conversation, width),
             Line.Blank,
         };
 
         if (_posts.Count == 0)
         {
-            lines.Add(Line.Of("Nothing left in this conversation.", Role.Muted));
+            lines.Add(Line.Of(ConversationLines.NothingLeft, Role.Muted));
 
             return lines;
         }

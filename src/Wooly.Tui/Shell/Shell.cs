@@ -521,26 +521,7 @@ public sealed class Shell
                 return;
             }
 
-            // Every screen holding this conversation, which is the list and the thread opened from it: the two are on
-            // the stack together and a row that still said "unread" under a thread just marked would be the shell
-            // arguing with itself.
-            foreach (var screen in _stack)
-            {
-                switch (screen)
-                {
-                    case DirectMessagesScreen listed:
-                        listed.Marked(marked);
-                        Counted(DestinationKind.Messages, listed.Unread);
-
-                        break;
-
-                    case ConversationScreen reading:
-                        reading.Marked(marked);
-
-                        break;
-                }
-            }
-
+            Replace(marked);
             Say("Marked as read.", isError: false);
         });
     }
@@ -729,8 +710,10 @@ public sealed class Shell
             else if (compose.Purpose == ComposeFor.Reply && Screen is ConversationScreen conversation)
             {
                 // A conversation is read in the order it was said in, so what was just said belongs at the end of it —
-                // otherwise a reply written in the thread appears nowhere until the conversation is read again.
+                // otherwise a reply written in the thread appears nowhere until the conversation is read again. It is
+                // the conversation's last word too, which is what the row it was opened from shows.
                 conversation.Said(written);
+                Replace(conversation.Conversation);
             }
 
             Say(compose.Purpose == ComposeFor.Edit ? "Saved." : "Sent.", isError: false);
@@ -1312,6 +1295,9 @@ public sealed class Shell
             _ => IsMine(about) ? [] : [about.Account],
         };
 
+        // An address this client cannot make sense of is left out rather than thrown over the reply, since a handle
+        // an instance sent is not something the reader can do anything about. What is left is in the editor in front
+        // of them, so a mention that is missing is missing where they can see it and type it themselves.
         var accounts = with.Where(AccountAddress.IsWellFormed).Select(AccountAddress.Parse).ToList();
 
         return accounts.Count == 0 ? null : DirectMessage.To(accounts, string.Empty);
@@ -1339,6 +1325,36 @@ public sealed class Shell
         _stack.Clear();
         _stack.Add(screen);
         Notice = null;
+
+        Changed?.Invoke();
+    }
+
+    /// <summary>
+    ///     The same, for a conversation that has just changed — marked read, or spoken in. The list and the thread
+    ///     opened from it are on the stack together, so a row that still said <c>unread</c> under a thread just marked,
+    ///     or still showed the message before the one just sent, would be the shell arguing with itself.
+    /// </summary>
+    /// <remarks>
+    ///     The badge goes with it, because a count and the list under it are one fact (<c>docs/tui-shell.md</c>).
+    /// </remarks>
+    private void Replace(Conversation conversation)
+    {
+        foreach (var screen in _stack)
+        {
+            switch (screen)
+            {
+                case DirectMessagesScreen listed:
+                    listed.Marked(conversation);
+                    Counted(DestinationKind.Messages, listed.Unread);
+
+                    break;
+
+                case ConversationScreen reading when reading.Conversation.Id == conversation.Id:
+                    reading.Marked(conversation);
+
+                    break;
+            }
+        }
 
         Changed?.Invoke();
     }

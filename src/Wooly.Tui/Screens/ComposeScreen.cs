@@ -25,29 +25,44 @@ public enum ComposeFor
 ///     The text itself lives here rather than in the editor widget, so that what is being written is a fact about the
 ///     shell — something a test can set and read — rather than something only a terminal knows.
 /// </remarks>
-/// <param name="purpose">What this screen was opened to do.</param>
-/// <param name="about">The post being replied to or edited.</param>
-/// <param name="opening">
-///     What is already in the editor when it opens, for a reply the shell has to address: a direct message reaches the
-///     accounts its text mentions and nobody else (ADR-0013), so the mention is put where the reader can see and edit
-///     it rather than added silently on the way out.
-/// </param>
-public sealed class ComposeScreen(ComposeFor purpose, Post? about = null, string? opening = null) : Screen
+public sealed class ComposeScreen : Screen
 {
+    /// <param name="purpose">What this screen was opened to do.</param>
+    /// <param name="about">The post being replied to or edited.</param>
+    /// <param name="addressing">
+    ///     Who a reply has to be written to, as the mentions that reach them, or <see langword="null" /> for a post
+    ///     that addresses nobody. A direct message reaches the accounts its text mentions and nobody else (ADR-0013),
+    ///     so the mention is put where the reader can see and edit it rather than added silently on the way out — with
+    ///     a space after it, because their own words go after the recipient rather than into their name.
+    /// </param>
+    public ComposeScreen(ComposeFor purpose, Post? about = null, string? addressing = null)
+    {
+        Purpose = purpose;
+        About = about;
+
+        Opening = purpose switch
+        {
+            ComposeFor.Edit => about?.Content ?? string.Empty,
+            _ => string.IsNullOrEmpty(addressing) ? string.Empty : $"{addressing} ",
+        };
+
+        Text = Opening;
+    }
+
     /// <summary>What this screen was opened to do.</summary>
-    public ComposeFor Purpose { get; } = purpose;
+    public ComposeFor Purpose { get; }
 
     /// <summary>The post being replied to or edited, or <see langword="null" /> for one answering nothing.</summary>
-    public Post? About { get; } = about;
+    public Post? About { get; }
 
     /// <summary>
-    ///     What was in the editor before anybody typed: the post itself for an edit, the mention for a reply that had
-    ///     to be addressed, and nothing for anything else.
+    ///     What was in the editor before anybody typed: the post itself for an edit, the mention for a reply this
+    ///     client had to address, and nothing for anything else.
     /// </summary>
-    public string Opening { get; } = Opened(purpose, about, opening);
+    public string Opening { get; }
 
     /// <summary>What has been written so far.</summary>
-    public string Text { get; set; } = Opened(purpose, about, opening);
+    public string Text { get; set; }
 
     /// <summary>
     ///     Whether there is anything here worth sending — which for a reply this client addressed means anything
@@ -73,18 +88,6 @@ public sealed class ComposeScreen(ComposeFor purpose, Post? about = null, string
         new("esc", "throw it away"),
         new("?", "keys"),
     ];
-
-    /// <summary>
-    ///     What the editor opens with. A mention gets a space after it, because the reader's own words go after the
-    ///     recipient rather than into their name — which is the one place this differs from
-    ///     <see cref="Wooly.Core.Conversations.DirectMessage.To(Wooly.Core.Accounts.AccountAddress,string)" />, whose
-    ///     job is what gets sent rather than what is being typed into.
-    /// </summary>
-    private static string Opened(ComposeFor purpose, Post? about, string? opening) => purpose switch
-    {
-        ComposeFor.Edit => about?.Content ?? string.Empty,
-        _ => string.IsNullOrEmpty(opening) ? string.Empty : $"{opening} ",
-    };
 
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(int width, DateTimeOffset now)

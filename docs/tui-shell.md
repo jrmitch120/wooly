@@ -132,9 +132,12 @@ The last two screens, and the one place a screen writes words of its own into wh
   its text mentions and to nobody else, so a reply that named nobody would reach nobody. It is written where the reader
   can see and edit it rather than added silently on the way out, by the same `DirectMessage.To` that `dm send` uses —
   and a reply that is nothing but the mention it opened with is refused as nothing written. Every account in the
-  conversation is named, not only whoever spoke last, and nothing is added to a reply that is not direct.
-- **A reply lands at the end of the thread it answers**, rather than appearing nowhere until the conversation is read
-  again. A conversation is read in the order it was said in, and what was just said is part of it.
+  conversation is named, not only whoever spoke last; an address this client cannot parse is left out of the mention
+  rather than thrown over the reply, where the reader can see that it is missing. Nothing is added to a reply that is
+  not direct.
+- **A reply lands at the end of the thread it answers, and on the row it was opened from** — rather than appearing
+  nowhere until the conversation is read again. A conversation is read in the order it was said in, what was just said
+  is part of it, and it is the conversation's last word as well as the thread's last message.
 - **The unread indicator is the word, not a glyph.** This client's glyphs already say who can see a post — `○ ◌ ● ✉` —
   and a second circle beside `●` is one mark too many to tell apart at a glance. The word takes `rail-unread`, the same
   role as the badge counting it on the rail.
@@ -175,7 +178,7 @@ glyph or a position that carries the same meaning when colour is gone.
 | `favorite` / `favorite-mine` | The favorite mark, and it when it is yours | `★`, and the count |
 | `selection` | The selected row | `▌` in the gutter |
 | `rail` / `rail-current` | Destinations, and the one selected | `▸`, with `▶` for the cursor |
-| `rail-unread` | An unread count | the number's presence |
+| `rail-unread` | An unread count, and the word on an unread conversation | the number, and the word |
 | `quota` / `quota-low` | Rate-limit budget left, and nearly spent | the number |
 | `chrome` | Breadcrumb and status rows | position |
 | `loading` | Stale content while a fetch lands | the breadcrumb says `fetching…` |
