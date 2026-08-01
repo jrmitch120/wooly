@@ -1,4 +1,3 @@
-using System.Globalization;
 using Wooly.Core.Accounts;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Theme;
@@ -35,7 +34,7 @@ public static class AccountLines
     /// <summary>How much of a presence they have: posts, and the two follow counts.</summary>
     public static Line Presence(Account account, int width) => Line.Of(
         TextWrap.Clip(
-            $"{Number(account.Posts)} posts · {Number(account.Following)} following · {Number(account.Followers)} followers",
+            $"{Number.Of(account.Posts)} posts · {Number.Of(account.Following)} following · {Number.Of(account.Followers)} followers",
             width),
         Role.Muted);
 
@@ -80,6 +79,4 @@ public static class AccountLines
             ? Line.Of("No ties either way.", Role.Muted)
             : Line.Of(TextWrap.Clip(string.Join(" · ", said), width), Role.Muted);
     }
-
-    private static string Number(long count) => count.ToString("N0", CultureInfo.CurrentCulture);
 }

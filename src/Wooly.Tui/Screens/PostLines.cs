@@ -1,4 +1,3 @@
-using System.Globalization;
 using Wooly.Core.Posts;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Theme;
@@ -179,17 +178,15 @@ public static class PostLines
     ///     one does not need the word; the post screen has room for both.
     /// </param>
     private static Line Counts(Post post, bool spelledOut) => Line.Of([
-        new Span($"↺ {Number(post.Boosts)}{Word(" boosts", spelledOut)}", post.Marks.Boosted ? Role.BoostMine : Role.Boost),
+        new Span($"↺ {Number.Of(post.Boosts)}{Word(" boosts", spelledOut)}", post.Marks.Boosted ? Role.BoostMine : Role.Boost),
         new Span("   ", Role.Muted),
         new Span(
-            $"★ {Number(post.Favorites)}{Word(" favorites", spelledOut)}",
+            $"★ {Number.Of(post.Favorites)}{Word(" favorites", spelledOut)}",
             post.Marks.Favorited ? Role.FavoriteMine : Role.Favorite),
         new Span("   ", Role.Muted),
-        new Span($"↩ {Number(post.Replies)}{Word(" replies", spelledOut)}", Role.Muted),
+        new Span($"↩ {Number.Of(post.Replies)}{Word(" replies", spelledOut)}", Role.Muted),
         new Span(post.Marks.Pinned ? "   pinned" : string.Empty, Role.Muted),
     ]);
 
     private static string Word(string word, bool spelledOut) => spelledOut ? word : string.Empty;
-
-    private static string Number(long count) => count.ToString("N0", CultureInfo.CurrentCulture);
 }

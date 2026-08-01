@@ -17,11 +17,8 @@ namespace Wooly.Tui.Screens;
 /// </remarks>
 public sealed class NotificationsScreen(IReadOnlyList<Notification> notifications, string? notice = null) : Screen
 {
-    /// <summary>
-    ///     The warnings the reader has asked past, kept the way a list of posts keeps them — by the id of the post the
-    ///     warning is on, so that the same post mentioned twice is revealed once.
-    /// </summary>
-    private readonly PickedPosts _revealed = new([]);
+    /// <summary>The warnings the reader has asked past, so that a post mentioned twice is revealed once.</summary>
+    private readonly Revealed _revealed = new();
 
     private readonly List<Notification> _notifications = [.. notifications];
 
@@ -30,13 +27,10 @@ public sealed class NotificationsScreen(IReadOnlyList<Notification> notification
 
     /// <inheritdoc />
     public override IReadOnlyList<KeyHint> Keys =>
-    [
-        new("j/k", "notification"),
-        .. PostKeys.Saying(new KeyHint("d", "dismiss")),
-        new("D", "clear all"),
-        new("tab", "destination"),
-        new("?", "keys"),
-    ];
+        PostKeys.Around(
+            new KeyHint("j/k", "notification"),
+            [new KeyHint("d", "dismiss"), new KeyHint("D", "clear all")],
+            new KeyHint("tab", "destination"));
 
     /// <summary>Which notification is picked out, as an index into what is on screen.</summary>
     public int At { get; private set; }
@@ -70,7 +64,7 @@ public sealed class NotificationsScreen(IReadOnlyList<Notification> notification
     }
 
     /// <inheritdoc />
-    public override bool Reveal() => Picked is { } picked && _revealed.Reveal(picked);
+    public override bool Reveal() => Picked is { } picked && _revealed.Ask(picked);
 
     /// <inheritdoc />
     public override void Replace(Post post)
@@ -123,7 +117,7 @@ public sealed class NotificationsScreen(IReadOnlyList<Notification> notification
 
             if (notification.Post is { } post)
             {
-                foreach (var line in PostLines.Feed(post, Math.Max(1, room - 2), _revealed.IsRevealed(post), now))
+                foreach (var line in PostLines.Feed(post, Math.Max(1, room - 2), _revealed.Has(post), now))
                 {
                     lines.Add(line.After(PickedPosts.Gutter(at == At), new Span("  ", Role.Body)));
                 }
@@ -136,14 +130,15 @@ public sealed class NotificationsScreen(IReadOnlyList<Notification> notification
     }
 
     /// <summary>
-    ///     What happened, in one row: who did it, what they did, and how long ago. The kind is a word rather than an
-    ///     enum member, so one this client has never heard of is drawn under the instance's own word for it rather
-    ///     than dropped from a list whose whole job is to say what is waiting (ADR-0010).
+    ///     What happened, in one row: who did it, what they did, and how long ago. What they did is asked of the kind
+    ///     itself, so that a mention is described here in the same words the CLI's report describes it in — and a kind
+    ///     this client has never heard of is drawn under the instance's own word rather than dropped from a list whose
+    ///     whole job is to say what is waiting (ADR-0010).
     /// </summary>
     private static Line Happened(Notification notification, int width, DateTimeOffset now)
     {
         var age = Elapsed.Since(notification.ReceivedAt, now);
-        var did = Did(notification.Kind);
+        var did = $" {notification.Kind.Does}";
         var room = Math.Max(0, width - age.Length - did.Length - 2);
 
         var name = TextWrap.Clip(notification.Author, room);
@@ -156,11 +151,4 @@ public sealed class NotificationsScreen(IReadOnlyList<Notification> notification
             new Span(age, Role.Muted),
         ]);
     }
-
-    private static string Did(NotificationKind kind) =>
-        kind == NotificationKind.Mention ? " mentioned you"
-        : kind == NotificationKind.Follow ? " followed you"
-        : kind == NotificationKind.Boost ? " boosted your post"
-        : kind == NotificationKind.Favorite ? " favorited your post"
-        : $" — {kind.Name}";
 }

@@ -211,7 +211,7 @@ public class ShellSearchTests
 
         opened.Search();
 
-        Assert.Equal(["⏎", "esc"], opened.Keys.Select(key => key.Key));
+        Assert.Equal(["⏎", "tab"], opened.Keys.Select(key => key.Key));
 
         await Found(opened, "cats");
 

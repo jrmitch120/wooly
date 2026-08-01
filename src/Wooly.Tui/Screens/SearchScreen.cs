@@ -1,4 +1,3 @@
-using System.Globalization;
 using Wooly.Core.Accounts;
 using Wooly.Core.Posts;
 using Wooly.Core.Search;
@@ -39,21 +38,38 @@ public sealed class SearchScreen : Screen
 
     /// <inheritdoc />
     /// <remarks>
-    ///     While the prompt is taking letters it says only the two keys that are not letters, because every other key
-    ///     would go into the query rather than act on anything.
+    ///     While the prompt is taking letters it says only the keys that are not letters, because every other one goes
+    ///     into the query rather than acting on anything — including <c>/</c> and <c>?</c>, which a web address and a
+    ///     question are both entitled to contain.
+    ///     <para>
+    ///         No <c>esc</c> on either: search is a rail destination, so it is the bottom of the stack and there is
+    ///         nothing under it to walk back to. <c>tab</c> is how you leave, the same as on every other destination.
+    ///     </para>
     /// </remarks>
-    public override IReadOnlyList<KeyHint> Keys => IsTyping
-        ? [new KeyHint("⏎", "search"), new KeyHint("esc", "back")]
-        : Picked is not null
-            ? PostKeys.Around(new KeyHint("j/k", "result"), new KeyHint("/", "search again"), new KeyHint("esc", "back"))
-            :
-            [
-                new KeyHint("j/k", "result"),
-                new KeyHint("⏎", "open"),
-                new KeyHint("/", "search again"),
-                new KeyHint("esc", "back"),
-                new KeyHint("?", "keys"),
-            ];
+    public override IReadOnlyList<KeyHint> Keys
+    {
+        get
+        {
+            if (IsTyping)
+            {
+                return [new KeyHint("⏎", "search"), new KeyHint("tab", "destination")];
+            }
+
+            return Picked is not null
+                ? PostKeys.Around(
+                    new KeyHint("j/k", "result"),
+                    [new KeyHint("/", "search again")],
+                    new KeyHint("tab", "destination"))
+                :
+                [
+                    new KeyHint("j/k", "result"),
+                    new KeyHint("⏎", "open"),
+                    new KeyHint("/", "search again"),
+                    new KeyHint("tab", "destination"),
+                    new KeyHint("?", "keys"),
+                ];
+        }
+    }
 
     /// <inheritdoc />
     public override bool IsTyping => _typing;
@@ -80,20 +96,27 @@ public sealed class SearchScreen : Screen
     public IReadOnlyList<Post> Posts => _posts.Posts;
 
     /// <summary>The account picked out, or <see langword="null" /> where the picked result is not one.</summary>
-    public Account? PickedAccount => At < _accounts.Count ? _accounts[At] : null;
+    public Account? PickedAccount => At < FirstHashtag ? _accounts[At] : null;
 
     /// <summary>The hashtag picked out, or <see langword="null" /> where the picked result is not one.</summary>
     public Hashtag? PickedHashtag =>
-        At >= _accounts.Count && At < _accounts.Count + _hashtags.Count ? _hashtags[At - _accounts.Count] : null;
+        At >= FirstHashtag && At < FirstPost ? _hashtags[At - FirstHashtag] : null;
 
     /// <inheritdoc />
     /// <remarks>
     ///     The post picked out, so that reading, answering and marking one a search found mean what they mean on a
     ///     feed. An account or a hashtag is not a post, and picking one leaves this empty rather than guessing.
     /// </remarks>
-    public override Post? Picked => At >= _accounts.Count + _hashtags.Count && At < Count
-        ? _posts.Posts[At - _accounts.Count - _hashtags.Count]
-        : null;
+    public override Post? Picked => At >= FirstPost && At < Count ? _posts.Posts[At - FirstPost] : null;
+
+    /// <summary>
+    ///     Where each kind starts in the one list the selection walks. Asked here rather than counted again at each
+    ///     site, so that the order the results are drawn in and the order they are picked out in cannot drift apart.
+    /// </summary>
+    private int FirstHashtag => _accounts.Count;
+
+    /// <inheritdoc cref="FirstHashtag" />
+    private int FirstPost => _accounts.Count + _hashtags.Count;
 
     /// <summary>Puts a letter into the query.</summary>
     public void Type(char letter) => Query += letter;
@@ -167,34 +190,34 @@ public sealed class SearchScreen : Screen
         }
 
         var room = Math.Max(1, width - 1);
-        var at = 0;
 
         lines.AddRange(Heading("── accounts ──", _accounts.Count));
 
-        foreach (var account in _accounts)
+        for (var at = 0; at < _accounts.Count; at++)
         {
-            lines.Add(AccountLines.Byline(account, room).After(PickedPosts.Gutter(at++ == At)));
+            lines.Add(AccountLines.Byline(_accounts[at], room).After(PickedPosts.Gutter(at == At)));
             lines.Add(Line.Blank);
         }
 
         lines.AddRange(Heading("── hashtags ──", _hashtags.Count));
 
-        foreach (var hashtag in _hashtags)
+        for (var at = 0; at < _hashtags.Count; at++)
         {
-            lines.Add(Tag(hashtag, room).After(PickedPosts.Gutter(at++ == At)));
+            lines.Add(Tag(_hashtags[at], room).After(PickedPosts.Gutter(FirstHashtag + at == At)));
             lines.Add(Line.Blank);
         }
 
         lines.AddRange(Heading("── posts ──", _posts.Count));
 
-        foreach (var post in _posts.Posts)
+        for (var at = 0; at < _posts.Count; at++)
         {
+            var post = _posts.Posts[at];
+
             foreach (var line in PostLines.Feed(post, room, _posts.IsRevealed(post), now))
             {
-                lines.Add(line.After(PickedPosts.Gutter(at == At)));
+                lines.Add(line.After(PickedPosts.Gutter(FirstPost + at == At)));
             }
 
-            at++;
             lines.Add(Line.Blank);
         }
 
@@ -209,15 +232,13 @@ public sealed class SearchScreen : Screen
     private static Line Tag(Hashtag hashtag, int width)
     {
         var name = TextWrap.Clip($"#{hashtag.Name}", width);
-        var used = $"  {Number(hashtag.RecentPosts)} posts · {Number(hashtag.RecentAccounts)} accounts";
+        var used = $"  {Number.Of(hashtag.RecentPosts)} posts · {Number.Of(hashtag.RecentAccounts)} accounts";
 
         return Line.Of([
             new Span(name, Role.BylineHandle),
             new Span(TextWrap.Clip(used, Math.Max(0, width - name.Length)), Role.Muted),
         ]);
     }
-
-    private static string Number(long count) => count.ToString("N0", CultureInfo.CurrentCulture);
 
     /// <summary>
     ///     What is being searched for, with the caret where the next letter lands. The caret is a mark rather than a

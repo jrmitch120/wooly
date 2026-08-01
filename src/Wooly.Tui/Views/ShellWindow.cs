@@ -189,10 +189,17 @@ internal sealed class ShellWindow : Window
     }
 
     /// <summary>
-    ///     A key going into a prompt rather than at the shell: a letter, or a backspace taking one back out. Anything
-    ///     else — <c>⏎</c>, <c>esc</c>, <c>tab</c>, <c>ctrl-q</c> — is left to fall through, because those mean the
-    ///     same thing while typing as they do everywhere else.
+    ///     A key going into a prompt rather than at the shell: a printable character, or a backspace taking one back
+    ///     out. Anything that is not printable — <c>⏎</c>, <c>esc</c>, <c>tab</c>, <c>ctrl-q</c> — falls through,
+    ///     because those mean the same thing while typing as they do everywhere else.
     /// </summary>
+    /// <remarks>
+    ///     Two of the frame's own keys do not: <c>/</c> and <c>?</c> are typed here rather than acted on, because a
+    ///     web address and a question are both things somebody is entitled to search for, and a prompt that could not
+    ///     take a slash would be a prompt that refuses the one query most likely to be pasted into it. It is the only
+    ///     place in the shell where a frame key means something else, and the screen says so on the status row
+    ///     (<c>docs/tui-shell.md</c>).
+    /// </remarks>
     private bool Typing(Key key)
     {
         if (key == Key.Backspace)

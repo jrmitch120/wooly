@@ -248,6 +248,35 @@ public class RoleTests
         Assert.Equal(Role.Muted, said.Role);
     }
 
+    /// <summary>
+    ///     The status row is one row, and a list longer than it is cut off at the right — so a screen's own keys have
+    ///     to be on the part that survives. The keys #29 adds are exactly the ones that would otherwise be lost behind
+    ///     ten keys a reader has already met on every timeline.
+    /// </summary>
+    [Fact]
+    public void Status_KeepsAScreensOwnKeysOnTheRowAtEightyColumns()
+    {
+        var account = new AccountScreen(
+            AnAccount.With(standing: AnAccount.Standing(following: true)),
+            [APost.With()]);
+
+        var inbox = new NotificationsScreen([ANotification.With()]);
+
+        var onAnAccount = ChromeLines.Status(account.Keys, null, noticeIsError: false, asking: null, 80).Text;
+        var onTheInbox = ChromeLines.Status(inbox.Keys, null, noticeIsError: false, asking: null, 80).Text;
+
+        Assert.Contains("F unfollow", onAnAccount);
+        Assert.Contains("M mute", onAnAccount);
+        Assert.Contains("B block", onAnAccount);
+
+        Assert.Contains("d dismiss", onTheInbox);
+        Assert.Contains("D clear all", onTheInbox);
+
+        // And the row is still one row, which is what makes the cut necessary in the first place.
+        Assert.True(onAnAccount.Length <= 80);
+        Assert.True(onTheInbox.Length <= 80);
+    }
+
     /// <summary>Nothing to say means the keys, which is what the status row is for the rest of the time.</summary>
     [Fact]
     public void Status_SaysWhatThisScreensKeysAre()
@@ -315,13 +344,13 @@ public class RoleTests
     }
 
     /// <summary>
-    ///     The narrow case the whole shape was chosen for: 61 columns is what an 80-column terminal leaves, and no row
-    ///     may run past it (ADR-0014).
+    ///     The same rule, of every screen this ticket brought: 61 columns is what an 80-column terminal leaves, and a
+    ///     screen that ran past it would be one the shape was not chosen for (ADR-0014, docs/tui-shell.md).
     /// </summary>
     [Fact]
     public void EveryScreenReadsAtSixtyOneColumns()
     {
-        var long_ = APost.With(
+        var wordy = APost.With(
             author: "Somebody With A Very Long Display Name Indeed",
             account: "somebody@an-extremely-long-instance-domain.example",
             content: "Finally shipped the terminal client rewrite, which took rather longer than anybody expected.");
@@ -340,14 +369,14 @@ public class RoleTests
                 SearchKind.Everything,
                 [account],
                 [AHashtag.With("an-extremely-long-hashtag-somebody-really-did-use", 1_204_887, 90_112)],
-                [long_]));
+                [wordy]));
 
         Screen[] screens =
         [
-            new NotificationsScreen([ANotification.With(author: "Somebody With A Very Long Display Name", post: long_)]),
+            new NotificationsScreen([ANotification.With(author: "Somebody With A Very Long Display Name", post: wordy)]),
             new FollowRequestsScreen([account]),
             search,
-            new AccountScreen(account, [long_]),
+            new AccountScreen(account, [wordy]),
         ];
 
         foreach (var screen in screens)

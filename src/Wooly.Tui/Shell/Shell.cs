@@ -127,14 +127,18 @@ public sealed class Shell
     public void Step(int by) => Rail.Step(by);
 
     /// <summary>
-    ///     What a key that means different things on different screens means <em>here</em>. The whole of the collision
-    ///     the contract allows, in one table, so that a reader can see at once that <c>d</c> is dismiss on one screen
-    ///     and delete on every other (<c>docs/tui-shell.md</c>).
+    ///     What a key that means different things on different screens means <em>here</em>. Every collision the
+    ///     contract allows, in one table, so that a reader can see at once that <c>d</c> is dismiss on one screen and
+    ///     delete on every other (<c>docs/tui-shell.md</c>).
     /// </summary>
     /// <remarks>
-    ///     It lives on the shell rather than in the window because the window binds keys and knows nothing about
-    ///     screens — and each arm below is a public verb of its own, so a test can ask for the meaning it is about
-    ///     without going through a keypress to get at it.
+    ///     Only the four keys that collide come through here. A screen's own key that nothing else uses — <c>F</c>,
+    ///     <c>M</c>, <c>B</c>, <c>D</c> — is a verb of its own and needs no table to tell it apart from anything.
+    ///     <para>
+    ///         It lives on the shell rather than in the window because the window binds keys and knows nothing about
+    ///         screens — and each arm below is a public verb of its own, so a test can ask for the meaning it is
+    ///         about without going through a keypress to get at it.
+    ///     </para>
     /// </remarks>
     public Task Press(ShellKey key) => (key, Screen) switch
     {
@@ -347,6 +351,8 @@ public sealed class Shell
             return;
         }
 
+        var from = _asked;
+
         if (!await Did(token => _ports.Notifications.Dismiss(_profile, picked.Id, token)))
         {
             return;
@@ -355,6 +361,14 @@ public sealed class Shell
         Apply(() =>
         {
             _cache.Forget(DestinationKind.Notifications);
+
+            // Overtaken. It was dismissed on the instance either way, but a reader who has tabbed away since must not
+            // have the badge of a destination they have left written from a list they are no longer looking at.
+            if (Overtaken(from))
+            {
+                return;
+            }
+
             notifications.Forget([picked.Id]);
             Counted(DestinationKind.Notifications, notifications.Notifications.Count);
 
@@ -387,6 +401,8 @@ public sealed class Shell
             return;
         }
 
+        var from = _asked;
+
         // By id, as the list reports it, because that is what answering one takes: an address would cost a lookup to
         // arrive back at the id already in hand (ADR-0012).
         var answered = await Ask(token => _ports.Accounts.Answer(_profile, picked.Id, accepted, token));
@@ -399,6 +415,14 @@ public sealed class Shell
         Apply(() =>
         {
             _cache.Forget(DestinationKind.Requests);
+
+            // Answered on the instance either way; what must not happen is a badge or a notice landing on a
+            // destination the reader has walked away from since.
+            if (Overtaken(from))
+            {
+                return;
+            }
+
             requests.Answered(picked.Id);
             Counted(DestinationKind.Requests, requests.Waiting.Count);
 
@@ -722,7 +746,11 @@ public sealed class Shell
     {
         if (_cache.Fresh<Notification>(DestinationKind.Notifications) is { } held)
         {
-            Apply(() => Reset(new NotificationsScreen(held, Emptiness(held.Count, "Nothing is waiting for you."))));
+            Apply(() =>
+            {
+                Reset(new NotificationsScreen(held, Emptiness(held.Count, "Nothing is waiting for you.")));
+                Counted(DestinationKind.Notifications, held.Count);
+            });
 
             return;
         }
@@ -758,7 +786,11 @@ public sealed class Shell
     {
         if (_cache.Fresh<Account>(DestinationKind.Requests) is { } held)
         {
-            Apply(() => Reset(new FollowRequestsScreen(held, Emptiness(held.Count, "Nobody is waiting to follow you."))));
+            Apply(() =>
+            {
+                Reset(new FollowRequestsScreen(held, Emptiness(held.Count, "Nobody is waiting to follow you.")));
+                Counted(DestinationKind.Requests, held.Count);
+            });
 
             return;
         }

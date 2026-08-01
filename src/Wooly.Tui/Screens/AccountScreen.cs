@@ -26,9 +26,11 @@ public sealed class AccountScreen(Account account, IReadOnlyList<Post> posts) : 
     public override IReadOnlyList<KeyHint> Keys =>
         PostKeys.Around(
             new KeyHint("j/k", "post"),
-            new KeyHint("F", Says(Follows, "unfollow", "follow")),
-            new KeyHint("M", Says(Account.Standing?.Muting, "unmute", "mute")),
-            new KeyHint("B", Says(Account.Standing?.Blocking, "unblock", "block")),
+            [
+                new KeyHint("F", Says(Follows, "unfollow", "follow")),
+                new KeyHint("M", Says(Account.Standing?.Muting, "unmute", "mute")),
+                new KeyHint("B", Says(Account.Standing?.Blocking, "unblock", "block")),
+            ],
             new KeyHint("esc", "back"));
 
     /// <summary>The account being shown, as the instance last answered about them.</summary>

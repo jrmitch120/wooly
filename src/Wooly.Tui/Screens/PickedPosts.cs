@@ -13,7 +13,7 @@ namespace Wooly.Tui.Screens;
 public sealed class PickedPosts(IReadOnlyList<Post> posts)
 {
     private readonly List<Post> _posts = [.. posts];
-    private readonly HashSet<string> _revealed = [];
+    private readonly Revealed _revealed = new();
 
     /// <summary>Which post is picked out, as an index into what is on screen.</summary>
     public int At { get; private set; }
@@ -51,15 +51,10 @@ public sealed class PickedPosts(IReadOnlyList<Post> posts)
     public bool Reveal() => Picked is { } picked && Reveal(picked);
 
     /// <summary>Shows what <paramref name="post" />'s content warning is hiding.</summary>
-    public bool Reveal(Post post)
-    {
-        var shown = post.Boosted ?? post;
-
-        return shown.ContentWarning is not null && _revealed.Add(shown.Id);
-    }
+    public bool Reveal(Post post) => _revealed.Ask(post);
 
     /// <summary>Whether the reader has asked to see past <paramref name="post" />'s warning.</summary>
-    public bool IsRevealed(Post post) => _revealed.Contains((post.Boosted ?? post).Id);
+    public bool IsRevealed(Post post) => _revealed.Has(post);
 
     /// <summary>Puts <paramref name="post" /> in place of the copy this list is holding, after a mark changed it.</summary>
     public void Replace(Post post)

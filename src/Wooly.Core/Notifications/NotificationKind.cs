@@ -13,6 +13,14 @@ namespace Wooly.Core.Notifications;
 /// </summary>
 public sealed record NotificationKind
 {
+    private static readonly Dictionary<string, string> Sentences = new(StringComparer.Ordinal)
+    {
+        ["mention"] = "mentioned you",
+        ["follow"] = "followed you",
+        ["boost"] = "boosted your post",
+        ["favorite"] = "favorited your post",
+    };
+
     private NotificationKind(string name) => Name = name;
 
     /// <summary>
@@ -40,4 +48,15 @@ public sealed record NotificationKind
     /// </summary>
     /// <param name="reported">What the instance called it, e.g. <c>poll</c> or <c>admin.report</c>.</param>
     public static NotificationKind Reported(string reported) => new(reported);
+
+    /// <summary>
+    ///     What the account did, said the way this project says it, for a front end writing a sentence about it —
+    ///     <c>Alice mentioned you</c>.
+    /// </summary>
+    /// <remarks>
+    ///     One table, here rather than one per front end, so that the four kinds this client names cannot come to be
+    ///     described in more than four ways — and so that a kind it has no word for is described the same way in the
+    ///     CLI's report and on the TUI's inbox, rather than each inventing a phrasing for it.
+    /// </remarks>
+    public string Does => Sentences.GetValueOrDefault(Name, $"notified you ({Name})");
 }

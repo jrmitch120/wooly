@@ -102,8 +102,16 @@ not answer them differently:
   it is confirmed on the same terms `post delete` is — the same confirmation, saying `clear` rather than `delete`.
 - **A count and the list under it are one fact.** Arriving at a destination sets its badge from the same answer the
   screen is drawn from, and dismissing or answering something moves both.
-- **`/` from the search screen starts a fresh prompt** rather than doing nothing, since that is the one place the key
-  is most likely to be pressed twice.
+- **A prompt taking letters takes `/` and `?` too**, which is the one exception to the frame keys above. A web address
+  and a question are both things somebody is entitled to search for, and a prompt that could not take a slash would
+  refuse the query most likely to be pasted into it. Every other frame key — `esc`, `ctrl-q`, `tab` — still means what
+  it means everywhere, and the status row says what the prompt answers to.
+- **`/` from the search screen's results starts a fresh prompt** rather than doing nothing, since that is the one place
+  the key is most likely to be pressed twice.
+- **A screen's own keys go in front of the shared ones on the status row.** The row is one row and a longer list is cut
+  off at the right, so the keys a reader can find on no other screen are the ones that have to survive the cut.
+- **A rail destination's screen says `tab` rather than `esc`**, because it is the bottom of the stack and there is
+  nothing under it to walk back to.
 - **A hashtag a search found opens as a screen on the stack**, not as the rail's hashtag destination. Which tag the
   rail keeps a place for is a setting the reader wrote down, and a search result is not them changing their mind.
 - **`⏎` on a follow request opens whoever is asking**, because the question is about a person and the answer to it is
