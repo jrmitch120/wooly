@@ -4,13 +4,13 @@ using Wooly.Tui.Theme;
 namespace Wooly.Tui.Screens;
 
 /// <summary>
-///     A screen that has something to say and nothing to do: a destination whose screen belongs to a later ticket, or
-///     a hashtag nobody has named yet.
+///     A screen that has something to say and nothing to do, which is now only the rail's hashtag before anybody has
+///     named one.
 /// </summary>
 /// <remarks>
-///     A destination that swallowed a keypress and drew the last screen again would read as a bug, so the four the
-///     rail lists ahead of their screens land here and say so. Which is also why they are on the rail from the start —
-///     the shape of the rail is what this ticket settles, and a rail that grows four entries later is a different rail.
+///     A destination that swallowed a keypress and drew the last screen again would read as a bug, so a destination
+///     with nothing to show lands here and says so. Every other one of the nine has a list of its own; this held the
+///     four of them that arrived ahead of their screens, which is why the rail could carry its whole shape from #28.
 /// </remarks>
 public sealed class NoticeScreen(string crumb, string headline, string? aside = null) : Screen
 {

@@ -25,19 +25,52 @@ public enum ComposeFor
 ///     The text itself lives here rather than in the editor widget, so that what is being written is a fact about the
 ///     shell — something a test can set and read — rather than something only a terminal knows.
 /// </remarks>
-public sealed class ComposeScreen(ComposeFor purpose, Post? about = null) : Screen
+public sealed class ComposeScreen : Screen
 {
+    /// <param name="purpose">What this screen was opened to do.</param>
+    /// <param name="about">The post being replied to or edited.</param>
+    /// <param name="addressing">
+    ///     Who a reply has to be written to, as the mentions that reach them, or <see langword="null" /> for a post
+    ///     that addresses nobody. A direct message reaches the accounts its text mentions and nobody else (ADR-0013),
+    ///     so the mention is put where the reader can see and edit it rather than added silently on the way out — with
+    ///     a space after it, because their own words go after the recipient rather than into their name.
+    /// </param>
+    public ComposeScreen(ComposeFor purpose, Post? about = null, string? addressing = null)
+    {
+        Purpose = purpose;
+        About = about;
+
+        Opening = purpose switch
+        {
+            ComposeFor.Edit => about?.Content ?? string.Empty,
+            _ => string.IsNullOrEmpty(addressing) ? string.Empty : $"{addressing} ",
+        };
+
+        Text = Opening;
+    }
+
     /// <summary>What this screen was opened to do.</summary>
-    public ComposeFor Purpose { get; } = purpose;
+    public ComposeFor Purpose { get; }
 
     /// <summary>The post being replied to or edited, or <see langword="null" /> for one answering nothing.</summary>
-    public Post? About { get; } = about;
+    public Post? About { get; }
+
+    /// <summary>
+    ///     What was in the editor before anybody typed: the post itself for an edit, the mention for a reply this
+    ///     client had to address, and nothing for anything else.
+    /// </summary>
+    public string Opening { get; }
 
     /// <summary>What has been written so far.</summary>
-    public string Text { get; set; } = purpose == ComposeFor.Edit ? about?.Content ?? string.Empty : string.Empty;
+    public string Text { get; set; }
 
-    /// <summary>Whether there is anything here worth sending.</summary>
-    public bool IsEmpty => string.IsNullOrWhiteSpace(Text);
+    /// <summary>
+    ///     Whether there is anything here worth sending — which for a reply this client addressed means anything
+    ///     beyond the mention it opened with, since a message that is nothing but its recipient's name says nothing.
+    /// </summary>
+    public bool IsEmpty =>
+        string.IsNullOrWhiteSpace(Text)
+        || (Purpose == ComposeFor.Reply && string.Equals(Text.Trim(), Opening.Trim(), StringComparison.Ordinal));
 
     /// <inheritdoc />
     public override string Crumb => Purpose switch

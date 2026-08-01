@@ -1,4 +1,5 @@
 using Wooly.Core.Accounts;
+using Wooly.Core.Conversations;
 using Wooly.Core.Errors;
 using Wooly.Core.Http;
 using Wooly.Core.Notifications;
@@ -35,6 +36,12 @@ public sealed class Shell
     ///     counts up to before it stops counting.
     /// </summary>
     private const int CountedAtMost = 40;
+
+    /// <summary>
+    ///     What an account nobody has written to is told. Said once, because arriving at the destination and stepping
+    ///     back onto what it held both say it.
+    /// </summary>
+    private const string NobodyHasWritten = "No direct conversations yet.";
 
     /// <summary>What a call that answers with nothing answers with, so that one retry loop serves both kinds.</summary>
     private static readonly object Done = new();
@@ -114,6 +121,17 @@ public sealed class Shell
     /// <summary>The keys the current screen answers to, for the status row.</summary>
     public IReadOnlyList<KeyHint> Keys => Screen.Keys;
 
+    /// <summary>
+    ///     The conversation <c>m</c> would mark read: the one being read, or the one picked out on the list. The two
+    ///     screens that have one, in one place, so that the key means the same thing on both.
+    /// </summary>
+    private Conversation? Reading => Screen switch
+    {
+        ConversationScreen conversation => conversation.Conversation,
+        DirectMessagesScreen messages => messages.PickedConversation,
+        _ => null,
+    };
+
     /// <summary>Opens the shell onto its first destination, and reads the counts the rail carries.</summary>
     public async Task Open()
     {
@@ -144,6 +162,7 @@ public sealed class Shell
     {
         (ShellKey.Enter, SearchScreen search) => search.IsTyping ? Find() : OpenResult(),
         (ShellKey.Enter, FollowRequestsScreen) => OpenAsker(),
+        (ShellKey.Enter, DirectMessagesScreen) => OpenConversation(),
         (ShellKey.Author, FollowRequestsScreen) => AnswerRequest(accepted: true),
         (ShellKey.Discard, NotificationsScreen) => Dismiss(),
         (ShellKey.Reject, FollowRequestsScreen) => AnswerRequest(accepted: false),
@@ -430,6 +449,83 @@ public sealed class Shell
         });
     }
 
+    /// <summary>
+    ///     Opens the picked conversation: the thread its last post is in, oldest first. Named by the conversation's
+    ///     own id, which is not the id of any post in it (CONTEXT.md).
+    /// </summary>
+    /// <remarks>
+    ///     Reading one does not mark it read (ADR-0013). A client that cleared the mark on the way past would make
+    ///     "what have I not read" unanswerable for anything that looked afterwards, so <see cref="MarkRead" /> is what
+    ///     takes it off and nothing else does.
+    /// </remarks>
+    public async Task OpenConversation()
+    {
+        if (Screen is not DirectMessagesScreen messages || messages.PickedConversation is not { } picked)
+        {
+            return;
+        }
+
+        var from = _asked;
+        var thread = await Ask(token => _ports.Messages.Show(_profile, picked.Id, token));
+
+        if (thread is null)
+        {
+            return;
+        }
+
+        Apply(() =>
+        {
+            if (!Overtaken(from))
+            {
+                Push(new ConversationScreen(thread));
+            }
+        });
+    }
+
+    /// <summary>
+    ///     Takes the unread mark off the conversation being read, or the one picked out on the list — the conversation
+    ///     carries the mark, so the conversation's own id is what clears it.
+    /// </summary>
+    public async Task MarkRead()
+    {
+        if (Reading is not { } conversation)
+        {
+            return;
+        }
+
+        if (!conversation.Unread)
+        {
+            // A key that did nothing and said nothing reads as a shell that missed the press, and asking an instance
+            // to clear a mark it does not have would spend a request to be told what is already on screen.
+            Say("Already read.", isError: false);
+
+            return;
+        }
+
+        var from = _asked;
+        var marked = await Ask(token => _ports.Messages.MarkRead(_profile, conversation.Id, token));
+
+        if (marked is null)
+        {
+            return;
+        }
+
+        Apply(() =>
+        {
+            _cache.Forget(DestinationKind.Messages);
+
+            // Marked on the instance either way; what must not happen is a badge landing on a destination the reader
+            // has walked away from since.
+            if (Overtaken(from))
+            {
+                return;
+            }
+
+            Replace(marked);
+            Say("Marked as read.", isError: false);
+        });
+    }
+
     /// <summary>Opens the account of whoever is asking to follow, so the question can be answered knowing who asked.</summary>
     public async Task OpenAsker()
     {
@@ -611,6 +707,14 @@ public sealed class Shell
             {
                 Replace(written);
             }
+            else if (compose.Purpose == ComposeFor.Reply && Screen is ConversationScreen conversation)
+            {
+                // A conversation is read in the order it was said in, so what was just said belongs at the end of it —
+                // otherwise a reply written in the thread appears nowhere until the conversation is read again. It is
+                // the conversation's last word too, which is what the row it was opened from shows.
+                conversation.Said(written);
+                Replace(conversation.Conversation);
+            }
 
             Say(compose.Purpose == ComposeFor.Edit ? "Saved." : "Sent.", isError: false);
         });
@@ -662,6 +766,11 @@ public sealed class Shell
 
             case DestinationKind.Requests:
                 await OpenRequests(token);
+
+                return;
+
+            case DestinationKind.Messages:
+                await OpenMessages(token);
 
                 return;
         }
@@ -816,6 +925,50 @@ public sealed class Shell
                 Emptiness(fetch.Accounts.Count, "Nobody is waiting to follow you.", fetch.StoppedBy)));
 
             Counted(DestinationKind.Requests, fetch.Accounts.Count);
+        });
+    }
+
+    /// <summary>Arriving at the direct messages destination: who has written, and how much of it is unread.</summary>
+    private async Task OpenMessages(int token)
+    {
+        if (_cache.Fresh<Conversation>(DestinationKind.Messages) is { } held)
+        {
+            Apply(() =>
+            {
+                var screen = new DirectMessagesScreen(held, Emptiness(held.Count, NobodyHasWritten));
+
+                Reset(screen);
+                Counted(DestinationKind.Messages, screen.Unread);
+            });
+
+            return;
+        }
+
+        var fetch = await Ask(cancellation => _ports.Messages.List(_profile, CountedAtMost, cancellation));
+
+        if (fetch is null)
+        {
+            return;
+        }
+
+        Apply(() =>
+        {
+            if (Overtaken(token))
+            {
+                return;
+            }
+
+            _cache.Keep(DestinationKind.Messages, fetch.Conversations);
+
+            var screen = new DirectMessagesScreen(
+                fetch.Conversations,
+                Emptiness(fetch.Conversations.Count, NobodyHasWritten, fetch.StoppedBy));
+
+            Reset(screen);
+
+            // The badge counts the conversations with something unread in them, and counts them from the list it is
+            // drawn beside — so the rail cannot say two over a list of one.
+            Counted(DestinationKind.Messages, screen.Unread);
         });
     }
 
@@ -1021,17 +1174,14 @@ public sealed class Shell
 
     /// <summary>
     ///     What a destination puts on screen the moment it is arrived at: an empty list for the ones whose contents
-    ///     land a moment later, a prompt for search, and a standing notice for the one whose screen #30 brings.
+    ///     land a moment later, a prompt for search, and a standing notice for the hashtag nobody has named.
     /// </summary>
     private Screen OnArrival(Destination destination) => destination.Kind switch
     {
         DestinationKind.Notifications => new NotificationsScreen([]),
         DestinationKind.Requests => new FollowRequestsScreen([]),
+        DestinationKind.Messages => new DirectMessagesScreen([]),
         DestinationKind.Search => new SearchScreen(),
-        DestinationKind.Messages => new NoticeScreen(
-            "direct messages",
-            "Conversations land here in a later release.",
-            "For now: wooly dm list"),
         DestinationKind.Hashtag when destination.Timeline is null => new NoticeScreen(
             "hashtag",
             "No hashtag is set for the rail.",
@@ -1110,7 +1260,47 @@ public sealed class Shell
                 return;
         }
 
-        Push(new ComposeScreen(purpose, purpose == ComposeFor.Post ? null : about));
+        Push(new ComposeScreen(
+            purpose,
+            purpose == ComposeFor.Post ? null : about,
+            purpose == ComposeFor.Reply ? Addressed(about!) : null));
+    }
+
+    /// <summary>
+    ///     What a reply has to be written to, or <see langword="null" /> where it is nobody's business but the
+    ///     reader's. Mastodon delivers a direct post to the accounts its text mentions and to nobody else (ADR-0013),
+    ///     so a direct reply that named nobody would reach nobody — the mention is what makes it a message rather than
+    ///     a note to self, which is why <c>dm send</c> writes one too.
+    /// </summary>
+    /// <remarks>
+    ///     Only a direct message is addressed. Putting a mention on a public reply would be this client writing words
+    ///     nobody asked it to, and the instance delivers that one to the thread without any help.
+    ///     <para>
+    ///         Who it goes to is the conversation where there is one, rather than whoever spoke last: a thread with
+    ///         three accounts in it answered to only one of them is a reply that dropped the rest of the conversation.
+    ///     </para>
+    /// </remarks>
+    private string? Addressed(Post about)
+    {
+        if (about.Visibility != PostVisibility.Direct)
+        {
+            return null;
+        }
+
+        // An instance says who a conversation is with rather than who is having it, so the profile's own account is
+        // already not among them. Answering a direct message read anywhere else names whoever wrote it.
+        IReadOnlyList<string> with = Screen switch
+        {
+            ConversationScreen conversation => conversation.Conversation.With,
+            _ => IsMine(about) ? [] : [about.Account],
+        };
+
+        // An address this client cannot make sense of is left out rather than thrown over the reply, since a handle
+        // an instance sent is not something the reader can do anything about. What is left is in the editor in front
+        // of them, so a mention that is missing is missing where they can see it and type it themselves.
+        var accounts = with.Where(AccountAddress.IsWellFormed).Select(AccountAddress.Parse).ToList();
+
+        return accounts.Count == 0 ? null : DirectMessage.To(accounts, string.Empty);
     }
 
     /// <summary>
@@ -1135,6 +1325,36 @@ public sealed class Shell
         _stack.Clear();
         _stack.Add(screen);
         Notice = null;
+
+        Changed?.Invoke();
+    }
+
+    /// <summary>
+    ///     The same, for a conversation that has just changed — marked read, or spoken in. The list and the thread
+    ///     opened from it are on the stack together, so a row that still said <c>unread</c> under a thread just marked,
+    ///     or still showed the message before the one just sent, would be the shell arguing with itself.
+    /// </summary>
+    /// <remarks>
+    ///     The badge goes with it, because a count and the list under it are one fact (<c>docs/tui-shell.md</c>).
+    /// </remarks>
+    private void Replace(Conversation conversation)
+    {
+        foreach (var screen in _stack)
+        {
+            switch (screen)
+            {
+                case DirectMessagesScreen listed:
+                    listed.Marked(conversation);
+                    Counted(DestinationKind.Messages, listed.Unread);
+
+                    break;
+
+                case ConversationScreen reading when reading.Conversation.Id == conversation.Id:
+                    reading.Marked(conversation);
+
+                    break;
+            }
+        }
 
         Changed?.Invoke();
     }
