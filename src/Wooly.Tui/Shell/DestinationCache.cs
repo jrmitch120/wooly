@@ -1,5 +1,3 @@
-using Wooly.Core.Posts;
-
 namespace Wooly.Tui.Shell;
 
 /// <summary>
@@ -12,6 +10,11 @@ namespace Wooly.Tui.Shell;
 ///     age is the whole of its judgement, and the age is set where a timeline is still the timeline you just left
 ///     rather than where it is still current — those are different questions and only the first one is answerable
 ///     here. Anything older is fetched again.
+///     <para>
+///         One cache for every kind of thing a destination holds — posts, notifications, the accounts waiting to be
+///         let in — rather than one per kind, for the same reason <c>docs/tui-shell.md</c> gives for one cache age:
+///         the question is "is this still what I just left", and that has the same answer wherever you left from.
+///     </para>
 /// </remarks>
 public sealed class DestinationCache(TimeProvider clock, TimeSpan freshFor)
 {
@@ -23,18 +26,24 @@ public sealed class DestinationCache(TimeProvider clock, TimeSpan freshFor)
     /// <summary>
     ///     What <paramref name="kind" /> held, if it held anything recently enough to draw without asking again.
     /// </summary>
-    public IReadOnlyList<Post>? Fresh(DestinationKind kind) =>
-        _held.TryGetValue(kind, out var held) && clock.GetUtcNow() - held.At < FreshFor ? held.Posts : null;
+    /// <typeparam name="T">
+    ///     What that destination holds. A destination holds one kind of thing and always the same one, so asking for
+    ///     the wrong one reads as a miss and costs a fetch, rather than throwing at somebody who is only reading.
+    /// </typeparam>
+    public IReadOnlyList<T>? Fresh<T>(DestinationKind kind) =>
+        _held.TryGetValue(kind, out var held) && clock.GetUtcNow() - held.At < FreshFor
+            ? held.What as IReadOnlyList<T>
+            : null;
 
     /// <summary>Takes down what <paramref name="kind" /> holds now.</summary>
-    public void Keep(DestinationKind kind, IReadOnlyList<Post> posts) =>
-        _held[kind] = new Held(clock.GetUtcNow(), posts);
+    public void Keep<T>(DestinationKind kind, IReadOnlyList<T> what) => _held[kind] = new Held(clock.GetUtcNow(), what);
 
     /// <summary>
     ///     Forgets what <paramref name="kind" /> held, for when this client is the thing that changed it — a post
-    ///     published, deleted or marked makes the timeline it is on stale at once, whatever its age says.
+    ///     published, deleted or marked makes the timeline it is on stale at once, whatever its age says, and so do a
+    ///     notification dismissed and a follow request answered.
     /// </summary>
     public void Forget(DestinationKind kind) => _held.Remove(kind);
 
-    private sealed record Held(DateTimeOffset At, IReadOnlyList<Post> Posts);
+    private sealed record Held(DateTimeOffset At, object What);
 }

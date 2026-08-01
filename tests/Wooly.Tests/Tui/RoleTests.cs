@@ -1,5 +1,7 @@
 using Wooly.Core.Http;
+using Wooly.Core.Notifications;
 using Wooly.Core.Posts;
+using Wooly.Core.Search;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
@@ -246,6 +248,35 @@ public class RoleTests
         Assert.Equal(Role.Muted, said.Role);
     }
 
+    /// <summary>
+    ///     The status row is one row, and a list longer than it is cut off at the right — so a screen's own keys have
+    ///     to be on the part that survives. The keys #29 adds are exactly the ones that would otherwise be lost behind
+    ///     ten keys a reader has already met on every timeline.
+    /// </summary>
+    [Fact]
+    public void Status_KeepsAScreensOwnKeysOnTheRowAtEightyColumns()
+    {
+        var account = new AccountScreen(
+            AnAccount.With(standing: AnAccount.Standing(following: true)),
+            [APost.With()]);
+
+        var inbox = new NotificationsScreen([ANotification.With()]);
+
+        var onAnAccount = ChromeLines.Status(account.Keys, null, noticeIsError: false, asking: null, 80).Text;
+        var onTheInbox = ChromeLines.Status(inbox.Keys, null, noticeIsError: false, asking: null, 80).Text;
+
+        Assert.Contains("F unfollow", onAnAccount);
+        Assert.Contains("M mute", onAnAccount);
+        Assert.Contains("B block", onAnAccount);
+
+        Assert.Contains("d dismiss", onTheInbox);
+        Assert.Contains("D clear all", onTheInbox);
+
+        // And the row is still one row, which is what makes the cut necessary in the first place.
+        Assert.True(onAnAccount.Length <= 80);
+        Assert.True(onTheInbox.Length <= 80);
+    }
+
     /// <summary>Nothing to say means the keys, which is what the status row is for the rest of the time.</summary>
     [Fact]
     public void Status_SaysWhatThisScreensKeysAre()
@@ -260,6 +291,100 @@ public class RoleTests
         Assert.Contains("⏎ read", keys.Text);
         Assert.Contains("a author", keys.Text);
         Assert.Equal(Role.Chrome, keys.Role);
+    }
+
+    /// <summary>
+    ///     A notification says who did what before it says anything else, and the name takes the same role it takes on
+    ///     a post — the byline of a mention and the byline of the post under it are the same thing said twice.
+    /// </summary>
+    [Fact]
+    public void Notifications_DrawWhoDidWhatInTheBylineRole()
+    {
+        var screen = new NotificationsScreen([ANotification.With(author: "Alice"), ANotification.Follow()]);
+        var lines = screen.Lines(61, Now);
+
+        var said = lines.First(line => line.Has(Role.BylineName));
+
+        Assert.Contains("Alice", said.Text);
+        Assert.Contains("mentioned you", said.Text);
+        Assert.Contains(lines, line => line.Text.Contains("followed you", StringComparison.Ordinal));
+
+        // The row picked out is told apart by a mark as well as by a role, exactly as a feed's is.
+        Assert.Contains(lines.Where(line => line.Has(Role.Selection)), line => line.Text.StartsWith('▌'));
+    }
+
+    /// <summary>A kind this client has never heard of is drawn under the instance's own word for it (ADR-0010).</summary>
+    [Fact]
+    public void Notifications_DrawAKindThisClientHasNoWordForUnderTheInstancesOwn()
+    {
+        var screen = new NotificationsScreen([ANotification.With(kind: NotificationKind.Reported("poll"))]);
+
+        Assert.Contains(screen.Lines(61, Now), line => line.Text.Contains("poll", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    ///     The search prompt says where the next letter lands with a mark rather than a colour, so a terminal with
+    ///     none still shows where the typing is going.
+    /// </summary>
+    [Fact]
+    public void Search_DrawsACaretWhileThePromptIsTakingLetters()
+    {
+        var screen = new SearchScreen();
+
+        screen.Type('c');
+
+        var prompt = screen.Lines(61, Now)[0];
+
+        Assert.Contains("Search: c", prompt.Text);
+        Assert.Contains(prompt.Spans, span => span is { Role: Role.Selection, Text: "▌" });
+
+        screen.Found("c", SearchResults.Matching(SearchKind.Everything, [], [], []));
+
+        Assert.DoesNotContain(screen.Lines(61, Now)[0].Spans, span => span.Role == Role.Selection);
+    }
+
+    /// <summary>
+    ///     The same rule, of every screen this ticket brought: 61 columns is what an 80-column terminal leaves, and a
+    ///     screen that ran past it would be one the shape was not chosen for (ADR-0014, docs/tui-shell.md).
+    /// </summary>
+    [Fact]
+    public void EveryScreenReadsAtSixtyOneColumns()
+    {
+        var wordy = APost.With(
+            author: "Somebody With A Very Long Display Name Indeed",
+            account: "somebody@an-extremely-long-instance-domain.example",
+            content: "Finally shipped the terminal client rewrite, which took rather longer than anybody expected.");
+
+        var account = AnAccount.With(
+            address: "somebody@an-extremely-long-instance-domain.example",
+            author: "Somebody With A Very Long Display Name Indeed",
+            followers: 1_203_004,
+            following: 187_452,
+            posts: 4_210_889);
+
+        var search = new SearchScreen();
+        search.Found(
+            "a query somebody typed that is itself far longer than the prompt has room for",
+            SearchResults.Matching(
+                SearchKind.Everything,
+                [account],
+                [AHashtag.With("an-extremely-long-hashtag-somebody-really-did-use", 1_204_887, 90_112)],
+                [wordy]));
+
+        Screen[] screens =
+        [
+            new NotificationsScreen([ANotification.With(author: "Somebody With A Very Long Display Name", post: wordy)]),
+            new FollowRequestsScreen([account]),
+            search,
+            new AccountScreen(account, [wordy]),
+        ];
+
+        foreach (var screen in screens)
+        {
+            Assert.All(
+                screen.Lines(61, Now),
+                line => Assert.True(line.Width <= 61, $"{screen.Crumb}: '{line.Text}' is {line.Width} columns"));
+        }
     }
 
     /// <summary>

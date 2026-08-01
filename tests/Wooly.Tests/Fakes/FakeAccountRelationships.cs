@@ -35,6 +35,13 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
     public List<Shown> Reads { get; } = [];
 
     /// <summary>
+    ///     What putting a tie on or taking one off answers with, where that is not what reading the account answers
+    ///     with. An instance answers <c>Set</c> with the standing as it now is, so this is how a test says what
+    ///     changed — without it, a follow would read back as the standing before it.
+    /// </summary>
+    public Account? Becoming { get; set; }
+
+    /// <summary>
     ///     An instance that takes whatever it is asked, answers about <paramref name="subject" />, and holds
     ///     <paramref name="listing" /> in every list it is asked for.
     /// </summary>
@@ -65,7 +72,7 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
     {
         Ties.Add(new Tied(profile.Name, account, tie, wanted));
 
-        return Answer(_subject);
+        return Answer(Becoming ?? _subject);
     }
 
     public Task<Account> Show(ActiveProfile profile, AccountAddress account, CancellationToken cancellationToken)

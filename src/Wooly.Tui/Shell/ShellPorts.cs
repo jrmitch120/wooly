@@ -3,6 +3,7 @@ using Wooly.Core.Http;
 using Wooly.Core.Notifications;
 using Wooly.Core.Posts;
 using Wooly.Core.Relationships;
+using Wooly.Core.Search;
 using Wooly.Core.Timelines;
 
 namespace Wooly.Tui.Shell;
@@ -15,9 +16,12 @@ namespace Wooly.Tui.Shell;
 /// <param name="Timelines">Reads a timeline, including an account's own posts.</param>
 /// <param name="Author">Publishes, changes and takes down the profile's own posts.</param>
 /// <param name="Engagement">Puts the three marks on a post, reads one, and reads what answered it.</param>
-/// <param name="Accounts">Reads an account and where the profile stands with it.</param>
-/// <param name="Notifications">What is waiting, for the rail's count.</param>
+/// <param name="Accounts">
+///     Reads an account and where the profile stands with it, changes a tie, and lists and answers the follows waiting.
+/// </param>
+/// <param name="Notifications">What is waiting: the rail's count, and the screen that clears it.</param>
 /// <param name="Messages">The conversations this profile is in, for the rail's count.</param>
+/// <param name="Search">Finding accounts, hashtags and posts, for the screen <c>/</c> opens.</param>
 /// <param name="RateLimit">What the instance last said is left of the budget, for the rail's foot.</param>
 public sealed record ShellPorts(
     ITimelineReader Timelines,
@@ -26,4 +30,5 @@ public sealed record ShellPorts(
     IAccountRelationships Accounts,
     INotificationInbox Notifications,
     IDirectMessages Messages,
+    IInstanceSearch Search,
     IRateLimitReport RateLimit);

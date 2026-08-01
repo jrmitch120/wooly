@@ -1,6 +1,6 @@
-using System.Globalization;
 using Wooly.Core.Accounts;
 using Wooly.Core.Posts;
+using Wooly.Core.Relationships;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Theme;
 
@@ -12,22 +12,29 @@ namespace Wooly.Tui.Screens;
 /// </summary>
 /// <remarks>
 ///     This is what the rejected right-hand context pane held — who wrote this, where you stand with them — at full
-///     width and one keystroke away instead of costing the feed 24 columns (ADR-0014). The three tie actions it lists
-///     are #29's; the screen, and the standing it draws, are this ticket's.
+///     width and one keystroke away instead of costing the feed 24 columns (ADR-0014). The three tie actions are
+///     capitals, so that a lower-case mark key can never fire one by accident (<c>docs/tui-shell.md</c>).
 /// </remarks>
 public sealed class AccountScreen(Account account, IReadOnlyList<Post> posts) : Screen
 {
     private readonly PickedPosts _picked = new(posts);
 
     /// <inheritdoc />
-    public override string Crumb => $"@{account.Address}";
+    public override string Crumb => $"@{Account.Address}";
 
     /// <inheritdoc />
     public override IReadOnlyList<KeyHint> Keys =>
-        PostKeys.Around(new KeyHint("j/k", "post"), new KeyHint("esc", "back"));
+        PostKeys.Around(
+            new KeyHint("j/k", "post"),
+            [
+                new KeyHint("F", Says(Follows, "unfollow", "follow")),
+                new KeyHint("M", Says(Account.Standing?.Muting, "unmute", "mute")),
+                new KeyHint("B", Says(Account.Standing?.Blocking, "unblock", "block")),
+            ],
+            new KeyHint("esc", "back"));
 
-    /// <summary>The account being shown.</summary>
-    public Account Account => account;
+    /// <summary>The account being shown, as the instance last answered about them.</summary>
+    public Account Account { get; private set; } = account;
 
     /// <summary>Which of their posts is picked out.</summary>
     public int At => _picked.At;
@@ -37,6 +44,29 @@ public sealed class AccountScreen(Account account, IReadOnlyList<Post> posts) : 
 
     /// <inheritdoc />
     public override Post? Picked => _picked.Picked;
+
+    /// <summary>
+    ///     Whether the tie <paramref name="tie" /> names is in place, which is what settles whether pressing its key
+    ///     puts it on or takes it off — three ties that are each on or off, rather than six acts (ADR-0012).
+    /// </summary>
+    /// <remarks>
+    ///     A follow this account has not answered yet counts as in place: what <c>F</c> undoes on a locked account is
+    ///     the request, and offering to follow somebody you have already asked would be offering to ask twice.
+    /// </remarks>
+    public bool Has(AccountTie tie) => tie switch
+    {
+        AccountTie.Follow => Follows,
+        AccountTie.Block => Account.Standing?.Blocking ?? false,
+        AccountTie.Mute => Account.Standing?.Muting ?? false,
+        _ => false,
+    };
+
+    /// <summary>Puts the account as the instance now has it in place of the copy this screen is holding.</summary>
+    /// <remarks>
+    ///     What stops a follow reading as un-followed until the screen is opened again — the same reason a marked post
+    ///     replaces the copy a feed is holding.
+    /// </remarks>
+    public void Stands(Account account) => Account = account;
 
     /// <inheritdoc />
     public override void Move(int by) => _picked.Move(by);
@@ -53,17 +83,11 @@ public sealed class AccountScreen(Account account, IReadOnlyList<Post> posts) : 
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(int width, DateTimeOffset now)
     {
-        var lines = new List<Line>
+        var lines = new List<Line>(AccountLines.Who(Account, width))
         {
-            Line.Of(TextWrap.Clip(account.Author, width), Role.BylineName),
-            Line.Of(TextWrap.Clip($"@{account.Address}", width), Role.BylineHandle),
             Line.Blank,
-            Line.Of(
-                TextWrap.Clip(
-                    $"{Number(account.Posts)} posts · {Number(account.Following)} following · {Number(account.Followers)} followers",
-                    width),
-                Role.Muted),
-            Standing(width),
+            AccountLines.Presence(Account, width),
+            AccountLines.Standing(Account, width),
             Line.Blank,
             Line.Of("── their posts ──", Role.Muted),
             Line.Blank,
@@ -81,47 +105,12 @@ public sealed class AccountScreen(Account account, IReadOnlyList<Post> posts) : 
         return lines;
     }
 
-    private static string Number(long count) => count.ToString("N0", CultureInfo.CurrentCulture);
+    /// <summary>Whether a follow is in place or waiting to be let in, which <c>F</c> treats the same way.</summary>
+    private bool Follows => Account.Standing is { } standing && (standing.Following || standing.FollowRequested);
 
     /// <summary>
-    ///     Where the profile stands with them, or the fact that the instance was not asked. Absent is not the same as
-    ///     nothing (CONTEXT.md), and five silences would say the profile follows nobody.
+    ///     What a tie key offers: taking the tie off where it is on. A standing the instance was not asked for reads
+    ///     as no tie, which is the only thing that can be offered without inventing an answer.
     /// </summary>
-    private Line Standing(int width)
-    {
-        if (account.Standing is not { } standing)
-        {
-            return Line.Of("Standing not asked for.", Role.Muted);
-        }
-
-        var said = new List<string>();
-
-        if (standing.Following)
-        {
-            said.Add("you follow them");
-        }
-        else if (standing.FollowRequested)
-        {
-            said.Add("you have asked to follow them");
-        }
-
-        if (standing.FollowedBy)
-        {
-            said.Add("they follow you");
-        }
-
-        if (standing.Blocking)
-        {
-            said.Add("blocked");
-        }
-
-        if (standing.Muting)
-        {
-            said.Add("muted");
-        }
-
-        return said.Count == 0
-            ? Line.Of("No ties either way.", Role.Muted)
-            : Line.Of(TextWrap.Clip(string.Join(" · ", said), width), Role.Muted);
-    }
+    private static string Says(bool? inPlace, string undo, string put) => inPlace == true ? undo : put;
 }

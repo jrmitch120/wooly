@@ -10,18 +10,6 @@ namespace Wooly.Cli.Output;
 /// </summary>
 internal static class NotificationReport
 {
-    /// <summary>
-    ///     What each kind is called in a sentence about who did it. One table, so that the four kinds this client names
-    ///     cannot come to be described in more than four ways.
-    /// </summary>
-    private static readonly Dictionary<NotificationKind, string> Words = new()
-    {
-        [NotificationKind.Mention] = "mentioned you",
-        [NotificationKind.Follow] = "followed you",
-        [NotificationKind.Boost] = "boosted your post",
-        [NotificationKind.Favorite] = "favorited your post",
-    };
-
     /// <summary>Writes what is waiting, one notification after another with a blank line between them.</summary>
     public static void Write(IAnsiConsole console, NotificationFetch fetch)
     {
@@ -58,7 +46,7 @@ internal static class NotificationReport
         // The id leads, because it is the one thing on this line that cannot be worked out from the rest of it, and
         // the one thing the next command — notification dismiss — asks the user to type.
         console.MarkupLineInterpolated(
-            $"[bold]{notification.Id}[/]  {notification.Account} {WhatWasDone(notification.Kind)}  [dim]{LocalMoment.Of(notification.ReceivedAt)}[/]");
+            $"[bold]{notification.Id}[/]  {notification.Account} {notification.Kind.Does}  [dim]{LocalMoment.Of(notification.ReceivedAt)}[/]");
 
         // A follow is somebody arriving rather than something they wrote, and has nothing to show underneath.
         if (notification.Post is not null)
@@ -68,11 +56,4 @@ internal static class NotificationReport
 
         console.WriteLine();
     }
-
-    /// <summary>
-    ///     What the account did, said the way this project says it. A kind this client has no word for keeps the
-    ///     instance's own word, which is more than it could say by dropping the notification altogether.
-    /// </summary>
-    private static string WhatWasDone(NotificationKind kind) =>
-        Words.TryGetValue(kind, out var words) ? words : $"notified you ({kind.Name})";
 }
