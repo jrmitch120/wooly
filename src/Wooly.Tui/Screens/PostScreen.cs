@@ -1,4 +1,5 @@
 using Wooly.Core.Posts;
+using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Theme;
 
@@ -58,12 +59,12 @@ public sealed class PostScreen(Post post, IReadOnlyList<Post> replies) : Screen
     }
 
     /// <inheritdoc />
-    public override IReadOnlyList<Line> Lines(int width, DateTimeOffset now)
+    public override IReadOnlyList<Line> Lines(int width, DateTimeOffset now, IPictures? pictures = null)
     {
         var room = Math.Max(1, width - 1);
         var lines = new List<Line>();
 
-        foreach (var line in PostLines.Whole(Post, room, _itself.IsRevealed(Post), now))
+        foreach (var line in PostLines.Whole(Post, room, _itself.IsRevealed(Post), now, pictures))
         {
             lines.Add(line.After(PickedPosts.Gutter(At == 0)));
         }
@@ -86,7 +87,7 @@ public sealed class PostScreen(Post post, IReadOnlyList<Post> replies) : Screen
         {
             var reply = _replies.Posts[at];
 
-            foreach (var line in PostLines.Feed(reply, room, _replies.IsRevealed(reply), now))
+            foreach (var line in PostLines.Feed(reply, room, _replies.IsRevealed(reply), now, pictures))
             {
                 lines.Add(line.After(PickedPosts.Gutter(At == at + 1)));
             }

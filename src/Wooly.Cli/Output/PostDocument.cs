@@ -15,6 +15,11 @@ namespace Wooly.Cli.Output;
 ///     </para>
 /// </summary>
 /// <param name="Visibility">Who can see it, in the same words <c>--visibility</c> takes.</param>
+/// <param name="Media">
+///     What is attached, in the order the author attached it, and empty where nothing is. Written out even though the
+///     human output links it too, because the whole point of <c>--json</c> is that a script does not have to read the
+///     human output to find out what a post carries.
+/// </param>
 internal sealed record PostDocument(
     [property: JsonPropertyName("id")] string Id,
     [property: JsonPropertyName("account")] string Account,
@@ -27,6 +32,7 @@ internal sealed record PostDocument(
     [property: JsonPropertyName("favorites")] long Favorites,
     [property: JsonPropertyName("replies")] long Replies,
     [property: JsonPropertyName("url")] string? Url,
+    [property: JsonPropertyName("media")] IReadOnlyList<MediaDocument> Media,
     [property: JsonPropertyName("boosted")] PostDocument? Boosted)
 {
     /// <summary>How <paramref name="post" /> is written down.</summary>
@@ -42,5 +48,6 @@ internal sealed record PostDocument(
         post.Favorites,
         post.Replies,
         post.Url,
+        [.. post.Media.Select(MediaDocument.Of)],
         post.Boosted is null ? null : Of(post.Boosted));
 }

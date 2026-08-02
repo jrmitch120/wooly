@@ -8,6 +8,15 @@ A cross-platform (.NET) terminal client for Mastodon — a scriptable CLI comman
 A single unit of user-authored content on Mastodon (text, media, poll, content warning). The API's wire format calls this a `status`; older community usage calls it a "toot". This project always says "post" in the spec, domain code, and CLI command/output text — `status`/`toot` may still appear at the literal API-wire-format layer (e.g. deserializing the API's `status` JSON field) but never in user-facing language or domain vocabulary.
 _Avoid_: status, toot
 
+**Attachment**:
+Something on a post besides its text — a picture, an animation, a video, a sound. Two records rather than one, because
+the same subject is a different thing at each end: on its way up it is a file on this machine with a description
+(`MediaAttachment`), and read back off an instance it is an id, a kind, an address and a description (`PostMedia`).
+Only a still picture is **drawn**, and only in a TUI on a terminal that speaks sixel or the Kitty graphics protocol;
+everything else is **linked** — its address, and what its author said it shows — on the CLI and the TUI alike
+(ADR-0016).
+_Avoid_: media file, image (where the kind has not been settled)
+
 **Boost**:
 Re-sharing another account's post to your own followers. The API calls this a `reblog`. This project always says "boost" in user-facing language and domain code; `reblog` may still appear as the literal API field name at the wire layer.
 _Avoid_: reblog, repost, retweet

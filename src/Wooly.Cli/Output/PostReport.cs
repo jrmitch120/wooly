@@ -106,7 +106,37 @@ internal static class PostReport
             console.MarkupLineInterpolated($"  {line}");
         }
 
+        WriteMedia(console, shown);
+
         console.MarkupLineInterpolated($"  [dim]{Counts(shown)}[/]");
+    }
+
+    /// <summary>
+    ///     What is attached, as a link and what it shows — a picture no differently from a video (stories 50 and 51).
+    ///     The CLI never attempts to draw anything: this output is as likely to be in a pipe or a log as on a terminal,
+    ///     and a client that drew a picture where the terminal happened to allow it would make the same command produce
+    ///     different bytes on two machines.
+    /// </summary>
+    /// <remarks>
+    ///     One line per attachment, so that a script picking media out of a post can take it a line at a time. The
+    ///     description follows the address rather than leading it, because the address is the fixed-shape part and a
+    ///     description is whatever length its author made it.
+    ///     <para>
+    ///         Written on every post, including a timeline's, which <see cref="Shown" /> declines to do with a post's
+    ///         own web address. The two are not the same thing: a post's address is another way to reach what is
+    ///         already on screen, so a line of it per post is a line of noise per post, whereas an attachment's address
+    ///         is the only way to reach the attachment at all. Leaving it off a timeline would make <c>timeline home</c>
+    ///         the one place a picture is mentioned and cannot be opened.
+    ///     </para>
+    /// </remarks>
+    private static void WriteMedia(IAnsiConsole console, Post post)
+    {
+        foreach (var attached in post.Media)
+        {
+            // Interpolated rather than concatenated, so the address and the description are escaped on the way in:
+            // both are somebody else's text, and a square bracket in either is a character rather than a colour tag.
+            console.MarkupLineInterpolated($"  ⏵ {attached.Url} — {attached.Shows}");
+        }
     }
 
     /// <summary>

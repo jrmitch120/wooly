@@ -1,3 +1,4 @@
+using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Theme;
 
@@ -29,7 +30,7 @@ public sealed class HelpScreen(Screen about) : Screen
     public override IReadOnlyList<KeyHint> Keys => [new("esc", "back")];
 
     /// <inheritdoc />
-    public override IReadOnlyList<Line> Lines(int width, DateTimeOffset now)
+    public override IReadOnlyList<Line> Lines(int width, DateTimeOffset now, IPictures? pictures = null)
     {
         var lines = new List<Line> { Line.Of($"On {about.Crumb}", Role.BylineName), Line.Blank };
 

@@ -4,6 +4,7 @@ using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
 using Wooly.Core.Posts;
 using Wooly.Core.Relationships;
+using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
@@ -27,7 +28,8 @@ internal sealed class ShellWindow : Window
     ///     What <c>ctrl-q</c> does. Passed in rather than reached for, because the application is the thing that owns
     ///     the run loop and this window is one of the things running in it.
     /// </param>
-    public ShellWindow(Shell.Shell shell, ITheme theme, TimeProvider clock, Action quit)
+    /// <param name="pictures">Where a drawn attachment's pixels come from.</param>
+    public ShellWindow(Shell.Shell shell, ITheme theme, TimeProvider clock, Action quit, IPictures pictures)
     {
         _shell = shell;
         _clock = clock;
@@ -56,7 +58,11 @@ internal sealed class ShellWindow : Window
             CanFocus = false,
         };
 
-        var content = new PaintedView(theme, (width, _) => shell.Screen.Lines(width, clock.GetUtcNow()))
+        // The one region that shows posts, so the one region with pictures to draw in place (docs/tui-shell.md).
+        var content = new PaintedView(
+            theme,
+            (width, _) => shell.Screen.Lines(width, clock.GetUtcNow(), pictures),
+            pictures)
         {
             X = RailLines.Width + 1,
             Y = 1,

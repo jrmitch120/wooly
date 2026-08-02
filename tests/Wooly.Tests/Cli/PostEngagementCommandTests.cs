@@ -201,6 +201,41 @@ public class PostEngagementCommandTests : IDisposable
         Assert.Contains("The boosted post", run.Output);
     }
 
+    /// <summary>
+    ///     Stories 50 and 51: the CLI links an attachment and says what it shows, whatever kind it is and whatever the
+    ///     terminal could have drawn. Nothing here is conditional on a capability, because the same command run twice
+    ///     on two machines has to produce the same bytes.
+    /// </summary>
+    [Theory]
+    [InlineData(MediaKind.Image)]
+    [InlineData(MediaKind.Animation)]
+    [InlineData(MediaKind.Video)]
+    [InlineData(MediaKind.Audio)]
+    [InlineData(MediaKind.Unknown)]
+    public void Show_LinksAnAttachmentAndSaysWhatItShows(MediaKind kind)
+    {
+        AddProfile();
+        _posts = FakePostEngagement.Answering(APost.With(media: [APost.Attached(kind)]));
+
+        var run = Run(["post", "show", "110"]);
+
+        Assert.Contains("https://files.mastodon.social/m1/original.png", run.Output);
+        Assert.Contains("A cartoon sheep", run.Output);
+    }
+
+    /// <summary>An attachment nobody described says so, rather than trailing off after the address.</summary>
+    [Fact]
+    public void Show_SaysWhereNobodyDescribedAnAttachment()
+    {
+        AddProfile();
+        _posts = FakePostEngagement.Answering(APost.With(
+            media: [APost.Attached(MediaKind.Video, description: null)]));
+
+        var run = Run(["post", "show", "110"]);
+
+        Assert.Contains("a video, undescribed", run.Output);
+    }
+
     [Fact]
     public void Show_WritesThePostAsMachineReadableJson()
     {
@@ -215,6 +250,49 @@ public class PostEngagementCommandTests : IDisposable
         Assert.Equal("110", post.GetProperty("id").GetString());
         Assert.Equal("Hello world", post.GetProperty("content").GetString());
         Assert.Equal("public", post.GetProperty("visibility").GetString());
+    }
+
+    /// <summary>
+    ///     A script asking what a post carries gets the answer from <c>--json</c> rather than from the human output —
+    ///     including whether the attachment was described at all, which is the question the human line answers with a
+    ///     phrase of this client's own.
+    /// </summary>
+    [Fact]
+    public void Show_WritesWhatIsAttachedAsMachineReadableJson()
+    {
+        AddProfile();
+        _posts = FakePostEngagement.Answering(APost.With(media:
+        [
+            APost.APicture(description: "A cartoon sheep"),
+            APost.Attached(MediaKind.Video, id: "m2", description: null),
+        ]));
+
+        var media = JsonDocument.Parse(Run(["post", "show", "110", "--json"]).Output)
+                                .RootElement.GetProperty("media");
+
+        Assert.Equal(2, media.GetArrayLength());
+
+        Assert.Equal("m1", media[0].GetProperty("id").GetString());
+        Assert.Equal("image", media[0].GetProperty("kind").GetString());
+        Assert.Equal("https://files.mastodon.social/m1/original.png", media[0].GetProperty("url").GetString());
+        Assert.Equal("https://files.mastodon.social/m1/small.png", media[0].GetProperty("preview").GetString());
+        Assert.Equal("A cartoon sheep", media[0].GetProperty("description").GetString());
+
+        // Left out rather than written as null, which is how this client says "does not apply" everywhere else.
+        Assert.Equal("video", media[1].GetProperty("kind").GetString());
+        Assert.False(media[1].TryGetProperty("description", out _));
+    }
+
+    /// <summary>A post carrying nothing says so with an empty list, rather than leaving the key out.</summary>
+    [Fact]
+    public void Show_WritesAnEmptyListForAPostWithNothingAttached()
+    {
+        AddProfile();
+
+        var media = JsonDocument.Parse(Run(["post", "show", "110", "--json"]).Output)
+                                .RootElement.GetProperty("media");
+
+        Assert.Equal(0, media.GetArrayLength());
     }
 
     [Fact]

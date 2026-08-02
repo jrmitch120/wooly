@@ -1,4 +1,5 @@
 using System.Text;
+using Wooly.Core.Posts;
 using Wooly.Tui.Theme;
 
 namespace Wooly.Tui.Rendering;
@@ -14,6 +15,26 @@ public sealed record Line
 
     /// <summary>The runs across the row, left to right.</summary>
     public IReadOnlyList<Span> Spans { get; }
+
+    /// <summary>
+    ///     The pictures whose boxes start on this row, and nothing on the rows they go on to cover. A band is named
+    ///     once, at its top, so that a view has a single place to read a box's whole shape from — including when the
+    ///     top of it has been scrolled off and only its lower rows are still on screen.
+    /// </summary>
+    public IReadOnlyList<Inset> Insets { get; init; } = [];
+
+    /// <summary>
+    ///     The attachment this row stands in for, where it is one a terminal could draw — set whether or not its
+    ///     picture has arrived, which is the point of it.
+    /// </summary>
+    /// <remarks>
+    ///     What a post is made of does not depend on where the reader has scrolled to, so every post in a list works
+    ///     out its rows whether or not it is anywhere near the screen. Sending for a picture from there would send for
+    ///     an account's whole gallery to draw the four of it that fit. So the rows only say which attachments <em>want</em>
+    ///     a picture, and whatever knows where the scroll has got to — the view — decides which of those are worth
+    ///     asking for (ADR-0016).
+    /// </remarks>
+    public PostMedia? Wants { get; init; }
 
     /// <summary>What the row reads as with the roles taken off — what a test asserts against, and what a screenshot shows.</summary>
     public string Text
@@ -50,5 +71,18 @@ public sealed record Line
     public bool Has(Role role) => Spans.Any(span => span.Role == role);
 
     /// <summary>This row with <paramref name="spans" /> put in front of it.</summary>
-    public Line After(params Span[] spans) => new([.. spans, .. Spans]);
+    /// <remarks>
+    ///     Anything put in front moves the rest of the row along, so a picture's box moves with it. A gutter added to a
+    ///     row and a picture drawn where the gutter used to be is what this exists to prevent.
+    /// </remarks>
+    public Line After(params Span[] spans)
+    {
+        var shift = spans.Sum(span => span.Width);
+
+        return new([.. spans, .. Spans])
+        {
+            Insets = Insets.Count == 0 ? Insets : [.. Insets.Select(inset => inset.ShiftedBy(shift))],
+            Wants = Wants,
+        };
+    }
 }

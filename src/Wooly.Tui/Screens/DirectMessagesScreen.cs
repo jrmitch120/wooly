@@ -1,5 +1,6 @@
 using Wooly.Core.Conversations;
 using Wooly.Core.Posts;
+using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Theme;
 
@@ -93,7 +94,7 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
         Rewrite(held => held.Latest?.Id == postId, held => held with { Latest = null });
 
     /// <inheritdoc />
-    public override IReadOnlyList<Line> Lines(int width, DateTimeOffset now)
+    public override IReadOnlyList<Line> Lines(int width, DateTimeOffset now, IPictures? pictures = null)
     {
         var lines = new List<Line>();
 
@@ -113,7 +114,7 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
 
             if (conversation.Latest is { } latest)
             {
-                foreach (var line in PostLines.Feed(latest, Math.Max(1, room - 2), revealed: false, now))
+                foreach (var line in PostLines.Feed(latest, Math.Max(1, room - 2), revealed: false, now, pictures))
                 {
                     lines.Add(line.After(PickedPosts.Gutter(at == At), new Span("  ", Role.Body)));
                 }
