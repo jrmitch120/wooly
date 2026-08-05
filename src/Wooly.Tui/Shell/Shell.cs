@@ -218,14 +218,19 @@ public sealed class Shell
     }
 
     /// <summary>Opens the picked post, with what has been said in answer to it.</summary>
+    /// <remarks>
+    ///     What it opens is the screen's <see cref="Screen.Opens" /> rather than what is picked out, which are the same
+    ///     post everywhere except inside a post: there, the post picked out at the top is the one already on screen
+    ///     (#48).
+    /// </remarks>
     public async Task Enter()
     {
-        if (Screen.Picked is not { } picked)
+        if (Screen.Opens is not { } opening)
         {
             return;
         }
 
-        var about = picked.Boosted ?? picked;
+        var about = opening.Boosted ?? opening;
 
         // Which destination this drill started from. A reader who tabbed away while the replies were in flight is
         // somewhere else now, and a post screen appearing over it would be the same stale-answer problem the rail's
@@ -239,7 +244,7 @@ public sealed class Shell
             {
                 if (!Overtaken(from))
                 {
-                    Push(new PostScreen(picked, replies));
+                    Push(new PostScreen(opening, replies));
                 }
             });
         }

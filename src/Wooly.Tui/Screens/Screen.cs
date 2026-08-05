@@ -29,6 +29,17 @@ public abstract class Screen
     public virtual Post? Picked => null;
 
     /// <summary>
+    ///     The post <c>⏎</c> opens, which is the picked one everywhere but the post screen: the post that screen is
+    ///     about is already on it, so opening it again would push a second copy of the screen the reader is standing on
+    ///     (#48).
+    /// </summary>
+    /// <remarks>
+    ///     Told apart from <see cref="Picked" /> rather than folded into it, because every other key — boost,
+    ///     favorite, reply, the author — still means the post being read. It is only drilling that has nowhere to go.
+    /// </remarks>
+    public virtual Post? Opens => Picked;
+
+    /// <summary>
     ///     Whether this screen is taking what is typed, which is only ever a search prompt taking a query. A fact
     ///     about the screen rather than a mode the window keeps, so that the keys which act on a post cannot fire
     ///     while somebody is writing the word <c>backfeed</c>.

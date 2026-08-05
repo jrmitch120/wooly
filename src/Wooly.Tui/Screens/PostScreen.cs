@@ -22,8 +22,19 @@ public sealed class PostScreen(Post post, IReadOnlyList<Post> replies) : Screen
     public override string Crumb => $"post by @{(Post.Boosted ?? Post).Account}";
 
     /// <inheritdoc />
-    public override IReadOnlyList<KeyHint> Keys =>
-        PostKeys.Around(new KeyHint("j/k", "post · replies"), new KeyHint("esc", "back"));
+    /// <remarks>
+    ///     <c>⏎</c> comes off the row while the post itself is picked out, since there is nothing for it to open —
+    ///     announcing a key and then refusing it reads as a shell that missed the press (#48).
+    /// </remarks>
+    public override IReadOnlyList<KeyHint> Keys
+    {
+        get
+        {
+            var keys = PostKeys.Around(new KeyHint("j/k", "post · replies"), new KeyHint("esc", "back"));
+
+            return Opens is null ? [.. keys.Where(key => key != PostKeys.Opening)] : keys;
+        }
+    }
 
     /// <summary>Which of the post and its replies is picked out: 0 is the post, and the rest are the answers in order.</summary>
     public int At { get; private set; }
@@ -36,6 +47,13 @@ public sealed class PostScreen(Post post, IReadOnlyList<Post> replies) : Screen
 
     /// <inheritdoc />
     public override Post? Picked => At == 0 ? Post : _replies.Posts[At - 1];
+
+    /// <inheritdoc />
+    /// <remarks>
+    ///     Only an answer. The post at index 0 is the one this screen is about and is already whole on it, so drilling
+    ///     into it would push a copy of this same screen and put a place nobody went on the breadcrumb (#48).
+    /// </remarks>
+    public override Post? Opens => At == 0 ? null : Picked;
 
     /// <inheritdoc />
     public override void Move(int by) => At = PickedPosts.Clamped(At, by, _replies.Count);
