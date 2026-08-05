@@ -65,6 +65,15 @@ public sealed class NotificationsScreen(IReadOnlyList<Notification> notification
     }
 
     /// <inheritdoc />
+    public override void Pick(int at)
+    {
+        if (_notifications.Count > 0)
+        {
+            At = PickedPosts.Chosen(at, _notifications.Count - 1);
+        }
+    }
+
+    /// <inheritdoc />
     public override bool Reveal() => Picked is { } picked && _revealed.Ask(picked);
 
     /// <inheritdoc />
@@ -114,13 +123,13 @@ public sealed class NotificationsScreen(IReadOnlyList<Notification> notification
         {
             var notification = _notifications[at];
 
-            lines.Add(Happened(notification, room, now).After(PickedPosts.Gutter(at == At)));
+            lines.Add(Happened(notification, room, now).After(PickedPosts.Gutter(at == At)).PartOf(at));
 
             if (notification.Post is { } post)
             {
                 foreach (var line in PostLines.Feed(post, Math.Max(1, room - 2), _revealed.Has(post), now, pictures))
                 {
-                    lines.Add(line.After(PickedPosts.Gutter(at == At), new Span("  ", Role.Body)));
+                    lines.Add(line.After(PickedPosts.Gutter(at == At), new Span("  ", Role.Body)).PartOf(at));
                 }
             }
 

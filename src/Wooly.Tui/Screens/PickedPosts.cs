@@ -44,8 +44,20 @@ public sealed class PickedPosts(IReadOnlyList<Post> posts)
         }
     }
 
+    /// <summary>Picks the <paramref name="at" />th post out, stopping at either end.</summary>
+    public void Pick(int at)
+    {
+        if (_posts.Count > 0)
+        {
+            At = Chosen(at, _posts.Count - 1);
+        }
+    }
+
     /// <summary>The same clamp, for a screen whose selection is not a plain index into a list of posts.</summary>
     public static int Clamped(int at, int by, int most) => (int)Math.Clamp((long)at + by, 0, most);
+
+    /// <summary>The same, for a selection said outright rather than stepped to.</summary>
+    public static int Chosen(int at, int most) => Math.Clamp(at, 0, most);
 
     /// <summary>Shows what the picked post's content warning is hiding.</summary>
     /// <returns>Whether there was anything to reveal, which settles whether the key was used.</returns>
@@ -90,9 +102,13 @@ public sealed class PickedPosts(IReadOnlyList<Post> posts)
     }
 
     /// <summary>
-    ///     The posts as rows, each behind a gutter that says whether it is the one picked out. One column of gutter is
-    ///     always taken, so that moving the selection down does not shift every post sideways as it goes.
+    ///     The posts as rows, each behind a gutter that says whether it is the one picked out and each naming the post
+    ///     it belongs to. One column of gutter is always taken, so that moving the selection down does not shift every
+    ///     post sideways as it goes.
     /// </summary>
+    /// <remarks>
+    ///     The blank between two posts belongs to neither, so a page that begins on one begins on the post under it.
+    /// </remarks>
     public IReadOnlyList<Line> Lines(int width, DateTimeOffset now, IPictures? pictures = null)
     {
         var room = Math.Max(1, width - 1);
@@ -104,7 +120,7 @@ public sealed class PickedPosts(IReadOnlyList<Post> posts)
 
             foreach (var line in PostLines.Feed(post, room, IsRevealed(post), now, pictures))
             {
-                lines.Add(line.After(Gutter(at == At)));
+                lines.Add(line.After(Gutter(at == At)).PartOf(at));
             }
 
             lines.Add(Line.Blank);

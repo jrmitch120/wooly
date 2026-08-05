@@ -180,6 +180,34 @@ public sealed class Shell
         Changed?.Invoke();
     }
 
+    /// <summary>
+    ///     What <c>j</c> and <c>k</c> do: walk the selection by <paramref name="by" /> posts — or, where the reader
+    ///     has scrolled it off the page with the arrows, take back the post they are actually looking at (#51).
+    /// </summary>
+    /// <remarks>
+    ///     Only a view knows how tall the terminal is and where the rows have been scrolled to, so the view is what
+    ///     works out <paramref name="reclaiming" /> and this is what does something about it. The first press
+    ///     reclaims and the next moves on from there, because after the first there is nothing left to reclaim.
+    /// </remarks>
+    /// <param name="by">How many posts to move, where the selection is still on the page.</param>
+    /// <param name="reclaiming">
+    ///     The topmost post on the page, where the selection has none of its rows on it, or <see langword="null" />
+    ///     while it is still visible.
+    /// </param>
+    public void Walk(int by, int? reclaiming)
+    {
+        if (reclaiming is { } at)
+        {
+            Screen.Pick(at);
+        }
+        else
+        {
+            Screen.Move(by);
+        }
+
+        Changed?.Invoke();
+    }
+
     /// <summary>Shows what the picked post's content warning is hiding.</summary>
     public void Reveal()
     {

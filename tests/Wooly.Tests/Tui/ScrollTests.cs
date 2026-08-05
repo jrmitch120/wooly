@@ -88,10 +88,90 @@ public class ScrollTests
         Assert.Equal(30, Scroll.To(lines, 20, from: 30));
     }
 
+    /// <summary>
+    ///     And stays where it is even at the foot of the rows, where the arrows can leave it: a keymap read to its end
+    ///     and then walked with <c>j</c> must not be pulled back up a page by a scroll that has nothing to scroll to.
+    /// </summary>
+    [Fact]
+    public void To_LeavesAScreenWithNothingPickedOutWhereTheArrowsPutIt()
+    {
+        var lines = Rows(100, at: -1, tall: 0);
+
+        Assert.Equal(99, Scroll.To(lines, 20, from: Scroll.By(lines, from: 0, rows: 500)));
+    }
+
     /// <summary>A region with no room in it has nowhere to scroll to.</summary>
     [Fact]
     public void To_AnswersTheTopForARegionWithNoRoom() =>
         Assert.Equal(0, Scroll.To(Rows(100, at: 40, tall: 3), height: 0, from: 10));
+
+    /// <summary>What the arrows do: one row at a time, and never off either end of the rows there are.</summary>
+    [Theory]
+    [InlineData(30, 1, 31)]
+    [InlineData(30, -1, 29)]
+    [InlineData(0, -1, 0)]
+    [InlineData(99, 1, 99)]
+    public void By_MovesTheScreenARowAndStopsAtEitherEnd(int from, int rows, int expected) =>
+        Assert.Equal(expected, Scroll.By(Rows(100, at: 0, tall: 3), from, rows));
+
+    /// <summary>
+    ///     An offset left over from a taller screen is brought back within the rows there are, which is what asking to
+    ///     move by nothing is for: rows are worked out afresh every frame, and a post taken down shortens them.
+    /// </summary>
+    [Fact]
+    public void By_ClampsAnOffsetLeftOverFromMoreRowsThanThereAreNow() =>
+        Assert.Equal(9, Scroll.By(Rows(10, at: 0, tall: 3), from: 400, rows: 0));
+
+    /// <summary>
+    ///     Whether the selection is still on the page, which is what settles whether <c>j</c> moves or reclaims. Its
+    ///     first row and its last are both enough — a post whose middle is showing has not been scrolled away from.
+    /// </summary>
+    [Theory]
+    [InlineData(0, false)]
+    [InlineData(3, true)]
+    [InlineData(22, true)]
+    [InlineData(23, false)]
+    public void Shows_SaysWhetherAnyRowOfTheSelectionIsOnThePage(int from, bool expected) =>
+        Assert.Equal(expected, Scroll.Shows(Rows(100, at: 20, tall: 3), height: 20, from));
+
+    /// <summary>A screen with nothing picked out shows no selection at any offset, and nothing to reclaim either.</summary>
+    [Fact]
+    public void Shows_IsFalseWhereNothingIsPickedOut() =>
+        Assert.False(Scroll.Shows(Rows(100, at: -1, tall: 0), height: 20, from: 0));
+
+    /// <summary>The topmost item on the page is the one <c>j</c> reclaims, by the ordinal its rows were named with.</summary>
+    [Fact]
+    public void Topmost_NamesTheItemTheFirstRowOnThePageBelongsTo() =>
+        Assert.Equal(3, Scroll.Topmost(Numbered(items: 5, tall: 10), from: 30));
+
+    /// <summary>
+    ///     A post whose top has been scrolled off but which still has rows on the page counts as the topmost one, so
+    ///     that <c>↓ ↓ ↓ j</c> selects the post being read rather than the one after it.
+    /// </summary>
+    [Fact]
+    public void Topmost_NamesAPostWhoseTopHasBeenScrolledOff() =>
+        Assert.Equal(3, Scroll.Topmost(Numbered(items: 5, tall: 10), from: 35));
+
+    /// <summary>
+    ///     A row belonging to no item — a heading, a notice, the blank between two posts — is not an item, so the
+    ///     answer is the first one under it rather than whatever was above.
+    /// </summary>
+    [Fact]
+    public void Topmost_LooksPastRowsThatBelongToNoItem() =>
+        Assert.Equal(0, Scroll.Topmost([Line.Blank, Line.Blank, .. Numbered(items: 2, tall: 3)], from: 0));
+
+    /// <summary>
+    ///     Scrolled to the very foot of a screen, where what is left is the blank after the last post, the answer is
+    ///     that last post — not nothing, which would put <c>j</c> back to moving from a post that is off the page.
+    /// </summary>
+    [Fact]
+    public void Topmost_LooksBackUpWhereNothingIsAtOrBelowTheOffset() =>
+        Assert.Equal(1, Scroll.Topmost([.. Numbered(items: 2, tall: 3), Line.Blank], from: 6));
+
+    /// <summary>A screen with no items on it at all has nothing to reclaim, and <c>j</c> moves as it always does.</summary>
+    [Fact]
+    public void Topmost_AnswersNothingWhereTheScreenHoldsNoItems() =>
+        Assert.Null(Scroll.Topmost([Line.Blank, Line.Blank], from: 1));
 
     /// <summary>
     ///     <paramref name="count" /> rows, of which <paramref name="tall" /> starting at <paramref name="at" /> carry
@@ -103,5 +183,12 @@ public class ScrollTests
                          .Select(row => row >= at && row < at + tall
                              ? Line.Of("▌", Role.Selection)
                              : Line.Of("text", Role.Body)),
+        ];
+
+    /// <summary><paramref name="items" /> posts of <paramref name="tall" /> rows each, every row naming its own.</summary>
+    private static IReadOnlyList<Line> Numbered(int items, int tall) =>
+        [
+            .. Enumerable.Range(0, items * tall)
+                         .Select(row => Line.Of("text", Role.Body).PartOf(row / tall)),
         ];
 }

@@ -69,7 +69,9 @@ Feed and post:
 
 | Key | Does | Note |
 |---|---|---|
-| `j` `k` / `↓` `↑` | Move the selection | `PgUp`/`PgDn`/`Home`/`End` too |
+| `k` `j` | The next post / the one before it, with the screen following the selection | `Home`/`End` too, for the first and the last |
+| `↓` `↑` | Move the screen by a few rows, leaving the selection alone | The only way to read a post taller than the terminal to its end |
+| `PgDn` `PgUp` | The same, a screenful at a time | A screenful is however many rows there is room for |
 | `⏎` | Open the post | |
 | `a` | Open the author's account | |
 | `c` | Compose | |
@@ -141,6 +143,40 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
   is no box: a picture on its way is its `▒▒▒▒` description and nothing else.
 - **Nothing about a picture is ever an error.** A fetch that fails and a file that will not decode both leave the
   description standing on its own, which is what a terminal that cannot draw shows anyway.
+
+### What moving settled
+
+`j`/`k` and `↓`/`↑` were one key until a post with pictures on it grew taller than a terminal, at which point the
+selection was the only scroll position a screen had and the foot of such a post could not be reached at all (#51):
+
+- **The screen has a scroll position of its own, and the reader owns it.** `↓` and `↑` move it and leave the selection
+  where it is; `j` and `k` move the selection and ask for it to be scrolled back into view. Between those presses the
+  offset is whatever the arrows made it, so `Scroll.To` answers a request rather than every frame.
+- **An arrow press is a wheel notch, not a row.** Three rows, because a picture is sixteen and a row a press is
+  sixteen presses to get past one — and it is the post nobody could reach the foot of that these keys exist for. The
+  number is one constant in `ShellWindow`. The far end of the scroll is clamped when the rows are drawn rather than
+  when a key is pressed, since working them out to clamp against would lay out every post on screen twice for one
+  keypress, and that cost is what a reader feels as a slow scroll.
+- **`j` and `k` reclaim a selection that has scrolled off screen.** With no row of the selected post on the page, the
+  next `j` or `k` selects the topmost post on the page instead of moving from a post the reader can no longer see;
+  pressing it again moves normally from there. A post whose top has scrolled off but which still has rows showing *is*
+  the topmost post, so `↓ ↓ ↓ j` picks out the post being read rather than the one after it — and a page scrolled past
+  the last post entirely, which is the blank under it, reclaims that last post rather than nothing.
+- **A row says which post it is part of.** `Role.Selection` marks only the post already picked out and so cannot name
+  any other; every screen holding a selection numbers its rows with the same ordinal `Screen.Pick` takes, including the
+  four that do not number a plain list of posts — the post screen, where 0 is the post itself, search across its three
+  kinds, notifications, and direct messages.
+- **The offset starts again whenever the screen is replaced.** Pushing a screen, popping back to one and arriving at a
+  destination all mean different rows, and an offset made on the last lot says nothing about this one.
+- **`PgUp`/`PgDn` walk the screen, `Home`/`End` walk the selection.** A page is a screenful of rows, because that is
+  what a page is: somebody asking for the next one is asking about what they are looking at, not about how many posts
+  happen to be on it. They used to move the selection by ten posts, which on a feed with pictures on it was several
+  screens at once. The ends of a list are things rather than places, so `Home` and `End` still pick out the first post
+  and the last, and neither of the four reclaims anything — a reader asking for the top of the list is not asking about
+  the page they were on.
+- **`k` is the next post and `j` is the one before it**, which is the opposite way round from vim. Asked for
+  deliberately, and written down because the vim reading is the one anybody will assume — so a future "fix" would
+  silently reverse what `j` does on every screen in the shell.
 
 ### What conversations settled
 

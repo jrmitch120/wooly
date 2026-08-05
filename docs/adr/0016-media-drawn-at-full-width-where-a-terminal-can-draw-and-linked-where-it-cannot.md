@@ -146,6 +146,12 @@ The rule is now said outright rather than left to fall out of the arithmetic: a 
 its top and held there, which is what the code's own comment had claimed all along. It lives in `Rendering.Scroll` with
 one property asserted above all others — asked twice over the same rows it answers the same thing twice.
 
+The property still holds and is still what stops the flicker; what has changed since is what it is asked of. #51 gave
+the reader a scroll position of their own — `↓` and `↑` move the screen by a row and leave the selection alone — so
+`Scroll.To` now answers a `j` or `k` press asking for the selection to be brought back into view, rather than answering
+every frame. That is a weaker demand on it, not a different one: the screen goes on following the selection for as long
+as the arrows leave the offset alone, so a `To` that disagreed with itself would flicker exactly as it used to.
+
 ## Consequences
 
 Previews are fetched on their own `HttpClient`, not through the one every Mastodon call goes through: a file server
@@ -154,10 +160,13 @@ timeline's fetch is relying on. They are asked for once each, held to a bounded 
 scaled down as they are decoded — a terminal draws a few hundred pixels across, and at four bytes a pixel a client that
 held a morning's scrolling at full size would be holding a morning's scrolling.
 
-Holding a too-tall post at its top leaves the rest of it out of reach, because nothing scrolls *within* a post — `j`
-and `k` move between posts, and the arrow keys are bound to the same thing. On a post with four attachments, which is
-five screens tall, the later pictures cannot be got to at all. That is a shortcoming of the shell's one movement rather
-than of anything here, and #51 splits it in two: arrows to walk rows, `j` and `k` to walk posts.
+Holding a too-tall post at its top left the rest of it out of reach, because nothing scrolled *within* a post — `j` and
+`k` moved between posts and the arrow keys were bound to the same thing, so on a post with four attachments, five
+screens tall, the later pictures could not be got to at all. That was a shortcoming of the shell's one movement rather
+than of anything here, and #51 has since split it in two: the arrows walk rows, `j` and `k` walk posts, and a `j` after
+the arrows have carried the selection off screen takes back the topmost post on the page (`docs/tui-shell.md`). The
+bound on what is fetched is unchanged by it — a screen's worth of rows either side of wherever the scroll has got to,
+which is now wherever the reader has put it.
 
 Nothing about a picture is ever reported as an error. A fetch that fails, a file that will not decode, a format this
 build has no decoder for: all of them are "no picture", the box stays empty, and the row that says what is attached is

@@ -33,6 +33,7 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
         new("j/k", "conversation"),
         new("⏎", "open"),
         new("m", "mark read"),
+        PostKeys.Scrolling,
         new("tab", "destination"),
         new("?", "keys"),
     ];
@@ -67,6 +68,15 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
         if (_conversations.Count > 0)
         {
             At = PickedPosts.Clamped(At, by, _conversations.Count - 1);
+        }
+    }
+
+    /// <inheritdoc />
+    public override void Pick(int at)
+    {
+        if (_conversations.Count > 0)
+        {
+            At = PickedPosts.Chosen(at, _conversations.Count - 1);
         }
     }
 
@@ -110,19 +120,20 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
         {
             var conversation = _conversations[at];
 
-            lines.Add(ConversationLines.With(conversation, room).After(PickedPosts.Gutter(at == At)));
+            lines.Add(ConversationLines.With(conversation, room).After(PickedPosts.Gutter(at == At)).PartOf(at));
 
             if (conversation.Latest is { } latest)
             {
                 foreach (var line in PostLines.Feed(latest, Math.Max(1, room - 2), revealed: false, now, pictures))
                 {
-                    lines.Add(line.After(PickedPosts.Gutter(at == At), new Span("  ", Role.Body)));
+                    lines.Add(line.After(PickedPosts.Gutter(at == At), new Span("  ", Role.Body)).PartOf(at));
                 }
             }
             else
             {
                 lines.Add(Line.Of(ConversationLines.NothingLeft, Role.Muted)
-                              .After(PickedPosts.Gutter(at == At), new Span("  ", Role.Body)));
+                              .After(PickedPosts.Gutter(at == At), new Span("  ", Role.Body))
+                              .PartOf(at));
             }
 
             lines.Add(Line.Blank);
