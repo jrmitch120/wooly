@@ -68,6 +68,28 @@ public class ContentScrollTests
     }
 
     /// <summary>
+    ///     A page is a screenful and no more: what was under the last row of one page is the first row of the next.
+    ///     It used to be ten posts, which on a feed with pictures on it is several screens at a time.
+    /// </summary>
+    [Fact]
+    public void Turn_MovesTheScreenByExactlyOneScreenful()
+    {
+        var content = Laid(new PaintedView(Themes.Plain, (_, _) => Numbered()) { Scrolls = true });
+
+        content.Turn(1);
+
+        Assert.Equal(Room, content.Reclaimable);
+
+        content.Turn(1);
+
+        Assert.Equal(Room * 2, content.Reclaimable);
+
+        content.Turn(-1);
+
+        Assert.Equal(Room, content.Reclaimable);
+    }
+
+    /// <summary>
     ///     A region that does not scroll — the rail, the breadcrumb, the status row — has no offset to move and
     ///     nothing to reclaim, whatever is pressed at it.
     /// </summary>
@@ -84,6 +106,15 @@ public class ContentScrollTests
     /// <summary>The content region, laid out at ten rows of room over the rows below.</summary>
     private static PaintedView Content() =>
         Laid(new PaintedView(Themes.Plain, (_, _) => Rows()) { Scrolls = true });
+
+    /// <summary>
+    ///     A hundred rows, each its own item and none of them picked out — so that
+    ///     <see cref="PaintedView.Reclaimable" /> reads back the row the screen starts at, which is otherwise the
+    ///     view's own business. With nothing selected there is always something to reclaim, and the topmost item at an
+    ///     offset is the row at it.
+    /// </summary>
+    private static IReadOnlyList<Line> Numbered() =>
+        [.. Enumerable.Range(0, 100).Select(row => Line.Of("text", Role.Body).PartOf(row))];
 
     /// <summary>Two posts of ten rows each, the first picked out — a screen twice as tall as the room for it.</summary>
     private static IReadOnlyList<Line> Rows() =>

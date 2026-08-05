@@ -185,14 +185,14 @@ internal sealed class ShellWindow : Window
 
         if (key == Key.PageDown)
         {
-            Jump(10);
+            Turned(1);
 
             return true;
         }
 
         if (key == Key.PageUp)
         {
-            Jump(-10);
+            Turned(-1);
 
             return true;
         }
@@ -250,8 +250,21 @@ internal sealed class ShellWindow : Window
     }
 
     /// <summary>
-    ///     <c>PgUp</c>, <c>PgDn</c>, <c>Home</c> and <c>End</c>: a longer step of the same walk. Nothing is reclaimed,
-    ///     because a reader asking for the top of the list is not asking about the page they were on.
+    ///     <c>PgUp</c> and <c>PgDn</c>: the same movement a screenful at a time, rather than a run of posts. They walk
+    ///     the screen because that is what a page is — a reader asking for the next page is asking about what they are
+    ///     looking at, not about how many posts happen to be on it.
+    /// </summary>
+    private void Turned(int pages)
+    {
+        _content.Turn(pages);
+
+        SetNeedsDraw();
+    }
+
+    /// <summary>
+    ///     <c>Home</c> and <c>End</c>: the first post and the last. These move the selection rather than the screen,
+    ///     since the ends of a list are things rather than places, and nothing is reclaimed — a reader asking for the
+    ///     top of the list is not asking about the page they were on.
     /// </summary>
     private void Jump(int by)
     {

@@ -61,6 +61,42 @@ public class ShellKeyTests
     }
 
     /// <summary>
+    ///     <c>PgDn</c> is a screenful of the same movement, so it leaves the selection alone too — it used to walk it
+    ///     ten posts, which is several screens on a feed with pictures on it.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ThePageKeysLeaveTheSelectionAlone(bool down)
+    {
+        var (window, shell) = await Opened();
+
+        using (window)
+        {
+            window.NewKeyDownEvent(Key.K);
+            window.NewKeyDownEvent(down ? Key.PageDown : Key.PageUp);
+
+            Assert.Equal("220", shell.Screen.Picked?.Id);
+        }
+    }
+
+    /// <summary><c>Home</c> and <c>End</c> are the ends of the list, which are things rather than places.</summary>
+    [Theory]
+    [InlineData(true, "440")]
+    [InlineData(false, "110")]
+    public async Task HomeAndEndPickOutTheFirstPostAndTheLast(bool end, string expected)
+    {
+        var (window, shell) = await Opened();
+
+        using (window)
+        {
+            window.NewKeyDownEvent(end ? Key.End : Key.Home);
+
+            Assert.Equal(expected, shell.Screen.Picked?.Id);
+        }
+    }
+
+    /// <summary>
     ///     And the two together: arrows far enough to lose the selection, then <c>k</c>, which takes back the post on
     ///     screen rather than moving on from the one that is not.
     /// </summary>

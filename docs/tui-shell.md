@@ -69,8 +69,9 @@ Feed and post:
 
 | Key | Does | Note |
 |---|---|---|
-| `k` `j` | The next post / the one before it, with the screen following the selection | `PgUp`/`PgDn`/`Home`/`End` too |
+| `k` `j` | The next post / the one before it, with the screen following the selection | `Home`/`End` too, for the first and the last |
 | `↓` `↑` | Move the screen by one row, leaving the selection alone | The only way to read a post taller than the terminal to its end |
+| `PgDn` `PgUp` | The same, a screenful at a time | A screenful is however many rows there is room for |
 | `⏎` | Open the post | |
 | `a` | Open the author's account | |
 | `c` | Compose | |
@@ -162,8 +163,12 @@ selection was the only scroll position a screen had and the foot of such a post 
   kinds, notifications, and direct messages.
 - **The offset starts again whenever the screen is replaced.** Pushing a screen, popping back to one and arriving at a
   destination all mean different rows, and an offset made on the last lot says nothing about this one.
-- **`PgUp`/`PgDn`/`Home`/`End` still move the selection**, and reclaim nothing: a reader asking for the top of the list
-  is not asking about the page they were on.
+- **`PgUp`/`PgDn` walk the screen, `Home`/`End` walk the selection.** A page is a screenful of rows, because that is
+  what a page is: somebody asking for the next one is asking about what they are looking at, not about how many posts
+  happen to be on it. They used to move the selection by ten posts, which on a feed with pictures on it was several
+  screens at once. The ends of a list are things rather than places, so `Home` and `End` still pick out the first post
+  and the last, and neither of the four reclaims anything — a reader asking for the top of the list is not asking about
+  the page they were on.
 - **`k` is the next post and `j` is the one before it**, which is the opposite way round from vim. Asked for
   deliberately, and written down because the vim reading is the one anybody will assume — so a future "fix" would
   silently reverse what `j` does on every screen in the shell.

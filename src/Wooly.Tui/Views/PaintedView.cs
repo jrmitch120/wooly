@@ -122,6 +122,12 @@ internal sealed class PaintedView : View
     }
 
     /// <summary>
+    ///     The same, a screenful at a time, which is what <c>PgUp</c> and <c>PgDn</c> do. A screenful is however many
+    ///     rows there is room for, so what was at the bottom of the page is at the top of the next one.
+    /// </summary>
+    public void Turn(int pages) => Step(pages * Viewport.Height);
+
+    /// <summary>
     ///     Puts the screen back to following the selection, which is what moving the selection means: from here it is
     ///     brought into view again and kept there until the arrows take the scroll back over.
     /// </summary>
