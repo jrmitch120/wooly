@@ -6,14 +6,13 @@ namespace Wooly.Tests.Core;
 public class ClientInfoTests
 {
     [Fact]
-    public void AddWoolyCore_RegistersClientInfoWithANameAndVersion()
+    public void AddWoolyCore_RegistersClientInfoWithAVersion()
     {
         var services = new ServiceCollection();
         services.AddWoolyCore();
 
         var clientInfo = services.BuildServiceProvider().GetRequiredService<IClientInfo>();
 
-        Assert.Equal("mastodon-cli", clientInfo.Name);
         Assert.NotEmpty(clientInfo.Version);
     }
 

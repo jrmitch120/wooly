@@ -17,9 +17,6 @@ public sealed class AssemblyClientInfo : IClientInfo
     }
 
     /// <inheritdoc />
-    public string Name => WoolyClient.Name;
-
-    /// <inheritdoc />
     public string Version { get; }
 
     private static string ReadVersion(Assembly assembly)

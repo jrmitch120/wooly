@@ -21,7 +21,7 @@ public class BrowserAuthorizerTests
 {
     private const string AppJson =
         """
-        {"id":"1","name":"mastodon-cli","client_id":"client-abc","client_secret":"secret-abc",
+        {"id":"1","name":"wooly","client_id":"client-abc","client_secret":"secret-abc",
          "redirect_uri":"http://127.0.0.1/","scope":"read write follow"}
         """;
 
@@ -38,6 +38,22 @@ public class BrowserAuthorizerTests
         var registration = network.Requests[0];
         Assert.Equal("https://mastodon.social/api/v1/apps", registration.RequestUri?.ToString());
         Assert.Null(registration.Headers.Authorization);
+    }
+
+    /// <summary>
+    ///     What is registered here is the client, not the front end doing the registering: this name is what the
+    ///     instance shows on the page listing the applications an account has approved, and the same name the OS
+    ///     keyring keeps tokens under. Were either front end to send the command it was invoked as instead, the two
+    ///     would authorize as different applications and neither could read the other's tokens.
+    /// </summary>
+    [Fact]
+    public async Task Begin_RegistersUnderTheOneNameBothFrontEndsShare()
+    {
+        var network = AnInstanceThatAuthorizes();
+
+        using var authorization = await Begin(network);
+
+        Assert.Equal("wooly", HttpUtility.ParseQueryString(network.Bodies[0])["client_name"]);
     }
 
     [Fact]

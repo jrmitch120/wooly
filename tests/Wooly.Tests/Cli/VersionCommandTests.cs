@@ -16,7 +16,7 @@ public class VersionCommandTests
         Assert.Equal(0, exitCode);
         // Matched rather than hard-coded: the version is stamped at build time, so pinning it here would turn every
         // release bump into a test failure.
-        Assert.Matches(@"^mastodon-cli \d+\.\d+\.\d+", console.Output.Trim());
+        Assert.Matches(@"^wooly-cli \d+\.\d+\.\d+", console.Output.Trim());
     }
 
     [Fact]
@@ -39,7 +39,7 @@ public class VersionCommandTests
         var exitCode = app.Run(["--help"], TestContext.Current.CancellationToken);
 
         Assert.Equal(0, exitCode);
-        Assert.Contains("mastodon-cli", console.Output);
+        Assert.Contains("wooly-cli", console.Output);
         Assert.Contains("version", console.Output);
     }
 }

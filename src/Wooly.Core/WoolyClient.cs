@@ -4,10 +4,16 @@ namespace Wooly.Core;
 public static class WoolyClient
 {
     /// <summary>
-    ///     The name this client is invoked and identified by. Single source of truth for the CLI's help text, the TUI's
-    ///     title bar, and the version banner.
+    ///     The one name this client is known by outside itself: what an instance registers and then shows on the page
+    ///     listing the applications an account has approved (ADR-0004), and the namespace the OS keyring keeps tokens
+    ///     under (ADR-0003).
+    ///     <para>
+    ///         Deliberately not the name either front end is invoked as. <c>wooly-cli</c> and <c>wooly-tui</c> are two
+    ///         ways into one client, and were each to introduce itself as the command it was typed as, they would
+    ///         authorize as two different applications and neither could read the tokens the other stored.
+    ///     </para>
     /// </summary>
-    public const string Name = "mastodon-cli";
+    public const string Name = "wooly";
 
     /// <summary>
     ///     Where a user who wants to know what this client is can go and read about it. Registered with every instance
