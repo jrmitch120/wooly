@@ -69,7 +69,7 @@ Feed and post:
 
 | Key | Does | Note |
 |---|---|---|
-| `j` `k` | Move the selection between posts, and scroll to it | `PgUp`/`PgDn`/`Home`/`End` too |
+| `k` `j` | The next post / the one before it, with the screen following the selection | `PgUp`/`PgDn`/`Home`/`End` too |
 | `↓` `↑` | Move the screen by one row, leaving the selection alone | The only way to read a post taller than the terminal to its end |
 | `⏎` | Open the post | |
 | `a` | Open the author's account | |
@@ -164,6 +164,9 @@ selection was the only scroll position a screen had and the foot of such a post 
   destination all mean different rows, and an offset made on the last lot says nothing about this one.
 - **`PgUp`/`PgDn`/`Home`/`End` still move the selection**, and reclaim nothing: a reader asking for the top of the list
   is not asking about the page they were on.
+- **`k` is the next post and `j` is the one before it**, which is the opposite way round from vim. Asked for
+  deliberately, and written down because the vim reading is the one anybody will assume — so a future "fix" would
+  silently reverse what `j` does on every screen in the shell.
 
 ### What conversations settled
 
