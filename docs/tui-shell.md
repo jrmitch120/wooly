@@ -70,7 +70,7 @@ Feed and post:
 | Key | Does | Note |
 |---|---|---|
 | `k` `j` | The next post / the one before it, with the screen following the selection | `Home`/`End` too, for the first and the last |
-| `↓` `↑` | Move the screen by one row, leaving the selection alone | The only way to read a post taller than the terminal to its end |
+| `↓` `↑` | Move the screen by a few rows, leaving the selection alone | The only way to read a post taller than the terminal to its end |
 | `PgDn` `PgUp` | The same, a screenful at a time | A screenful is however many rows there is room for |
 | `⏎` | Open the post | |
 | `a` | Open the author's account | |
@@ -149,9 +149,14 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
 `j`/`k` and `↓`/`↑` were one key until a post with pictures on it grew taller than a terminal, at which point the
 selection was the only scroll position a screen had and the foot of such a post could not be reached at all (#51):
 
-- **The screen has a scroll position of its own, and the reader owns it.** `↓` and `↑` move it by a row and leave the
-  selection where it is; `j` and `k` move the selection and ask for it to be scrolled back into view. Between those
-  presses the offset is whatever the arrows made it, so `Scroll.To` answers a request rather than every frame.
+- **The screen has a scroll position of its own, and the reader owns it.** `↓` and `↑` move it and leave the selection
+  where it is; `j` and `k` move the selection and ask for it to be scrolled back into view. Between those presses the
+  offset is whatever the arrows made it, so `Scroll.To` answers a request rather than every frame.
+- **An arrow press is a wheel notch, not a row.** Three rows, because a picture is sixteen and a row a press is
+  sixteen presses to get past one — and it is the post nobody could reach the foot of that these keys exist for. The
+  number is one constant in `ShellWindow`. The far end of the scroll is clamped when the rows are drawn rather than
+  when a key is pressed, since working them out to clamp against would lay out every post on screen twice for one
+  keypress, and that cost is what a reader feels as a slow scroll.
 - **`j` and `k` reclaim a selection that has scrolled off screen.** With no row of the selected post on the page, the
   next `j` or `k` selects the topmost post on the page instead of moving from a post the reader can no longer see;
   pressing it again moves normally from there. A post whose top has scrolled off but which still has rows showing *is*

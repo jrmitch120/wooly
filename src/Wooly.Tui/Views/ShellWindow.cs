@@ -19,6 +19,13 @@ namespace Wooly.Tui.Views;
 /// </summary>
 internal sealed class ShellWindow : Window
 {
+    /// <summary>
+    ///     How far one press of <c>↓</c> or <c>↑</c> moves the screen. A wheel notch's worth rather than a single row:
+    ///     a picture is sixteen rows, so a row a press is sixteen presses to get past one — and it is a post nobody
+    ///     could reach the foot of that these keys exist for (#51).
+    /// </summary>
+    private const int RowsAPress = 3;
+
     private readonly PaintedView _content;
     private readonly ComposeEditor _editor;
     private readonly Shell.Shell _shell;
@@ -171,14 +178,14 @@ internal sealed class ShellWindow : Window
 
         if (key == Key.CursorDown)
         {
-            Scrolled(1);
+            Scrolled(RowsAPress);
 
             return true;
         }
 
         if (key == Key.CursorUp)
         {
-            Scrolled(-1);
+            Scrolled(-RowsAPress);
 
             return true;
         }

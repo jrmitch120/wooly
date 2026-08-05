@@ -105,17 +105,20 @@ internal sealed class PaintedView : View
     ///     Moves the screen by <paramref name="rows" /> and leaves the selection where it is, which is what <c>↓</c>
     ///     and <c>↑</c> do — and the only way to read a post taller than the terminal to its end.
     /// </summary>
+    /// <remarks>
+    ///     Not held to the rows there are until it draws, which is the one place that knows them. Working them out
+    ///     here to clamp against would lay out every post on the screen twice for one keypress — and a keypress is
+    ///     what this is answering, so that cost is the whole of what a reader feels as a slow scroll. The far end is
+    ///     the draw's to enforce, and it already does; only the near end is free to settle here.
+    /// </remarks>
     public void Step(int rows)
     {
-        var width = Viewport.Width;
-        var height = Viewport.Height;
-
-        if (!Scrolls || width <= 0 || height <= 0)
+        if (!Scrolls || Viewport.Width <= 0 || Viewport.Height <= 0)
         {
             return;
         }
 
-        _top = Scroll.By(_rows(width, height), _top, rows);
+        _top = (int)Math.Clamp((long)_top + rows, 0, int.MaxValue);
         _following = false;
 
         SetNeedsDraw();
