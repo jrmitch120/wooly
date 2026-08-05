@@ -153,14 +153,16 @@ internal sealed class ShellWindow : Window
         // The two movements that used to be one key (#51). j and k walk posts and the screen follows them; the arrows
         // walk the screen and leave the selection alone, which is the only way to read a post taller than the
         // terminal to its end.
-        if (key == Key.J)
+        //
+        // k is the next post and j the one before it, which is the other way round from vim (docs/tui-shell.md).
+        if (key == Key.K)
         {
             Walk(1);
 
             return true;
         }
 
-        if (key == Key.K)
+        if (key == Key.J)
         {
             Walk(-1);
 
@@ -169,14 +171,14 @@ internal sealed class ShellWindow : Window
 
         if (key == Key.CursorDown)
         {
-            _content.Step(1);
+            Scrolled(1);
 
             return true;
         }
 
         if (key == Key.CursorUp)
         {
-            _content.Step(-1);
+            Scrolled(-1);
 
             return true;
         }
@@ -228,6 +230,23 @@ internal sealed class ShellWindow : Window
     {
         _shell.Walk(by, _content.Reclaimable);
         _content.Follow();
+    }
+
+    /// <summary>
+    ///     <c>↓</c> and <c>↑</c>: the screen moves and the selection stays where it is.
+    /// </summary>
+    /// <remarks>
+    ///     The whole frame is redrawn, not the content region alone. Every other key that changes what is on screen
+    ///     ends at the shell's <c>Changed</c>, which redraws everything; these two change nothing the shell knows
+    ///     about, so they are the only keys that could have redrawn one region — and the column between the rail and
+    ///     the content belongs to no region. It is the window's own background, so a region redrawn on its own leaves
+    ///     it holding whatever the terminal last put there, which beside a picture is part of the picture.
+    /// </remarks>
+    private void Scrolled(int rows)
+    {
+        _content.Step(rows);
+
+        SetNeedsDraw();
     }
 
     /// <summary>
