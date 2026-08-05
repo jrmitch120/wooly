@@ -55,6 +55,20 @@ public abstract class Screen
     {
     }
 
+    /// <summary>
+    ///     Picks the <paramref name="at" />th thing on this screen out, stopping at either end. What <c>j</c> does
+    ///     when the arrows have scrolled the selection off the page: a step from where the selection was left would
+    ///     take the reader back to a post they can no longer see (#51).
+    /// </summary>
+    /// <remarks>
+    ///     The ordinal is the one this screen's rows are named with (<see cref="Line.Item" />), which for the screens
+    ///     whose selection is not a plain index into a list of posts — the post screen, search, notifications, direct
+    ///     messages, follow requests — is theirs to keep in step rather than an index into anything else.
+    /// </remarks>
+    public virtual void Pick(int at)
+    {
+    }
+
     /// <summary>Shows what the picked post's content warning is hiding.</summary>
     /// <returns>Whether there was anything to reveal, which is what settles whether the key was used.</returns>
     public virtual bool Reveal() => false;

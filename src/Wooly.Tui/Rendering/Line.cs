@@ -36,6 +36,18 @@ public sealed record Line
     /// </remarks>
     public PostMedia? Wants { get; init; }
 
+    /// <summary>
+    ///     Which of the screen's things this row is part of — the same ordinal <see cref="Screens.Screen.Pick" />
+    ///     takes — or <see langword="null" /> for a row that is part of none: a heading, a notice, the blank between
+    ///     two posts.
+    /// </summary>
+    /// <remarks>
+    ///     What answers "which post is this row" once the reader has scrolled away from the one they picked.
+    ///     <see cref="Role.Selection" /> cannot: by definition it marks the one post already selected, so a page it
+    ///     has scrolled off is a page on which nothing says what is on it.
+    /// </remarks>
+    public int? Item { get; init; }
+
     /// <summary>What the row reads as with the roles taken off — what a test asserts against, and what a screenshot shows.</summary>
     public string Text
     {
@@ -70,6 +82,9 @@ public sealed record Line
     /// <summary>Whether any span on this row takes <paramref name="role" />.</summary>
     public bool Has(Role role) => Spans.Any(span => span.Role == role);
 
+    /// <summary>This row, said to be part of the <paramref name="item" />th thing on the screen.</summary>
+    public Line PartOf(int item) => this with { Item = item };
+
     /// <summary>This row with <paramref name="spans" /> put in front of it.</summary>
     /// <remarks>
     ///     Anything put in front moves the rest of the row along, so a picture's box moves with it. A gutter added to a
@@ -83,6 +98,7 @@ public sealed record Line
         {
             Insets = Insets.Count == 0 ? Insets : [.. Insets.Select(inset => inset.ShiftedBy(shift))],
             Wants = Wants,
+            Item = Item,
         };
     }
 }

@@ -51,6 +51,8 @@ public sealed class SearchScreen : Screen
     {
         get
         {
+            // Nothing to walk while the prompt is taking letters: what is on screen is the prompt and the sentence
+            // under it, so the arrows are left unsaid rather than offered against three rows.
             if (IsTyping)
             {
                 return [new KeyHint("⏎", "search"), new KeyHint("tab", "destination")];
@@ -64,6 +66,7 @@ public sealed class SearchScreen : Screen
                 :
                 [
                     new KeyHint("j/k", "result"),
+                    PostKeys.Scrolling,
                     new KeyHint("⏎", "open"),
                     new KeyHint("/", "search again"),
                     new KeyHint("tab", "destination"),
@@ -156,6 +159,15 @@ public sealed class SearchScreen : Screen
     }
 
     /// <inheritdoc />
+    public override void Pick(int at)
+    {
+        if (Count > 0)
+        {
+            At = PickedPosts.Chosen(at, Count - 1);
+        }
+    }
+
+    /// <inheritdoc />
     public override bool Reveal() => Picked is { } picked && _posts.Reveal(picked);
 
     /// <inheritdoc />
@@ -196,7 +208,7 @@ public sealed class SearchScreen : Screen
 
         for (var at = 0; at < _accounts.Count; at++)
         {
-            lines.Add(AccountLines.Byline(_accounts[at], room).After(PickedPosts.Gutter(at == At)));
+            lines.Add(AccountLines.Byline(_accounts[at], room).After(PickedPosts.Gutter(at == At)).PartOf(at));
             lines.Add(Line.Blank);
         }
 
@@ -204,7 +216,10 @@ public sealed class SearchScreen : Screen
 
         for (var at = 0; at < _hashtags.Count; at++)
         {
-            lines.Add(Tag(_hashtags[at], room).After(PickedPosts.Gutter(FirstHashtag + at == At)));
+            lines.Add(Tag(_hashtags[at], room)
+                      .After(PickedPosts.Gutter(FirstHashtag + at == At))
+                      .PartOf(FirstHashtag + at));
+
             lines.Add(Line.Blank);
         }
 
@@ -216,7 +231,7 @@ public sealed class SearchScreen : Screen
 
             foreach (var line in PostLines.Feed(post, room, _posts.IsRevealed(post), now, pictures))
             {
-                lines.Add(line.After(PickedPosts.Gutter(FirstPost + at == At)));
+                lines.Add(line.After(PickedPosts.Gutter(FirstPost + at == At)).PartOf(FirstPost + at));
             }
 
             lines.Add(Line.Blank);

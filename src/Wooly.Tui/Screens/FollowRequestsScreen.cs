@@ -25,6 +25,7 @@ public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string?
     public override IReadOnlyList<KeyHint> Keys =>
     [
         new("j/k", "request"),
+        PostKeys.Scrolling,
         new("⏎", "read them"),
         new("a", "accept"),
         new("x", "reject"),
@@ -59,6 +60,15 @@ public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string?
         }
     }
 
+    /// <inheritdoc />
+    public override void Pick(int at)
+    {
+        if (_waiting.Count > 0)
+        {
+            At = PickedPosts.Chosen(at, _waiting.Count - 1);
+        }
+    }
+
     /// <summary>Takes the account <paramref name="accountId" /> names off the list, once their request was answered.</summary>
     public void Answered(string accountId)
     {
@@ -84,8 +94,8 @@ public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string?
         {
             var account = _waiting[at];
 
-            lines.Add(AccountLines.Byline(account, room).After(PickedPosts.Gutter(at == At)));
-            lines.Add(AccountLines.Presence(account, room).After(PickedPosts.Gutter(at == At)));
+            lines.Add(AccountLines.Byline(account, room).After(PickedPosts.Gutter(at == At)).PartOf(at));
+            lines.Add(AccountLines.Presence(account, room).After(PickedPosts.Gutter(at == At)).PartOf(at));
             lines.Add(Line.Blank);
         }
 

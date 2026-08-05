@@ -275,6 +275,10 @@ public class RoleTests
         Assert.Contains("d dismiss", onTheInbox);
         Assert.Contains("D clear all", onTheInbox);
 
+        // And the two movements #51 split apart are both said, since neither key does what the other one does.
+        Assert.Contains("j/k post", onAnAccount);
+        Assert.Contains("↓/↑ row", onAnAccount);
+
         // And the row is still one row, which is what makes the cut necessary in the first place.
         Assert.True(onAnAccount.Length <= 80);
         Assert.True(onTheInbox.Length <= 80);

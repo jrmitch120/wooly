@@ -69,7 +69,8 @@ Feed and post:
 
 | Key | Does | Note |
 |---|---|---|
-| `j` `k` / `↓` `↑` | Move the selection | `PgUp`/`PgDn`/`Home`/`End` too |
+| `j` `k` | Move the selection between posts, and scroll to it | `PgUp`/`PgDn`/`Home`/`End` too |
+| `↓` `↑` | Move the screen by one row, leaving the selection alone | The only way to read a post taller than the terminal to its end |
 | `⏎` | Open the post | |
 | `a` | Open the author's account | |
 | `c` | Compose | |
@@ -141,6 +142,27 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
   is no box: a picture on its way is its `▒▒▒▒` description and nothing else.
 - **Nothing about a picture is ever an error.** A fetch that fails and a file that will not decode both leave the
   description standing on its own, which is what a terminal that cannot draw shows anyway.
+
+### What moving settled
+
+`j`/`k` and `↓`/`↑` were one key until a post with pictures on it grew taller than a terminal, at which point the
+selection was the only scroll position a screen had and the foot of such a post could not be reached at all (#51):
+
+- **The screen has a scroll position of its own, and the reader owns it.** `↓` and `↑` move it by a row and leave the
+  selection where it is; `j` and `k` move the selection and ask for it to be scrolled back into view. Between those
+  presses the offset is whatever the arrows made it, so `Scroll.To` answers a request rather than every frame.
+- **`j` and `k` reclaim a selection that has scrolled off screen.** With no row of the selected post on the page, the
+  next `j` or `k` selects the topmost post on the page instead of moving from a post the reader can no longer see;
+  pressing it again moves normally from there. A post whose top has scrolled off but which still has rows showing *is*
+  the topmost post, so `↓ ↓ ↓ j` picks out the post being read rather than the one after it.
+- **A row says which post it is part of.** `Role.Selection` marks only the post already picked out and so cannot name
+  any other; every screen holding a selection numbers its rows with the same ordinal `Screen.Pick` takes, including the
+  four that do not number a plain list of posts — the post screen, where 0 is the post itself, search across its three
+  kinds, notifications, and direct messages.
+- **The offset starts again whenever the screen is replaced.** Pushing a screen, popping back to one and arriving at a
+  destination all mean different rows, and an offset made on the last lot says nothing about this one.
+- **`PgUp`/`PgDn`/`Home`/`End` still move the selection**, and reclaim nothing: a reader asking for the top of the list
+  is not asking about the page they were on.
 
 ### What conversations settled
 

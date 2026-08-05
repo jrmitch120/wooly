@@ -22,6 +22,14 @@ public static class PostKeys
         new("x", "show warning"),
     ];
 
+    /// <summary>
+    ///     Walking the screen a row at a time, which every screen with rows on it answers to and none of them owns.
+    ///     Said beside whatever the screen calls walking its own things, because the two are one movement split in
+    ///     half and a status row naming only one of them would be the half that cannot reach the foot of a tall post
+    ///     (#51).
+    /// </summary>
+    public static KeyHint Scrolling { get; } = new("↓/↑", "row");
+
     /// <summary>Those keys, after whatever this screen calls moving the selection and before the way out of it.</summary>
     public static IReadOnlyList<KeyHint> Around(KeyHint moving, params KeyHint[] after) =>
         Around(moving, [], after);
@@ -45,6 +53,7 @@ public static class PostKeys
         return
         [
             moving,
+            Scrolling,
             .. its,
             .. OnAPost.Where(key => !taken.Contains(key.Key)),
             .. after,

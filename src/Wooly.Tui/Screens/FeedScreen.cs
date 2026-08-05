@@ -40,6 +40,9 @@ public sealed class FeedScreen(Destination destination, IReadOnlyList<Post> post
     public override void Move(int by) => _picked.Move(by);
 
     /// <inheritdoc />
+    public override void Pick(int at) => _picked.Pick(at);
+
+    /// <inheritdoc />
     public override bool Reveal() => _picked.Reveal();
 
     /// <inheritdoc />

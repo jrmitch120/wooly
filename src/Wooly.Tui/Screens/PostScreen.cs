@@ -41,6 +41,9 @@ public sealed class PostScreen(Post post, IReadOnlyList<Post> replies) : Screen
     public override void Move(int by) => At = PickedPosts.Clamped(At, by, _replies.Count);
 
     /// <inheritdoc />
+    public override void Pick(int at) => At = PickedPosts.Chosen(at, _replies.Count);
+
+    /// <inheritdoc />
     public override bool Reveal() => Picked is { } picked && Held(picked).Reveal(picked);
 
     /// <inheritdoc />
@@ -66,7 +69,7 @@ public sealed class PostScreen(Post post, IReadOnlyList<Post> replies) : Screen
 
         foreach (var line in PostLines.Whole(Post, room, _itself.IsRevealed(Post), now, pictures))
         {
-            lines.Add(line.After(PickedPosts.Gutter(At == 0)));
+            lines.Add(line.After(PickedPosts.Gutter(At == 0)).PartOf(0));
         }
 
         lines.Add(Line.Blank);
@@ -82,14 +85,15 @@ public sealed class PostScreen(Post post, IReadOnlyList<Post> replies) : Screen
         }
 
         // The replies draw their own gutter from their own index, which is one behind this screen's: the post itself
-        // is what index zero picks out.
+        // is what index zero picks out. Their rows are named with this screen's ordinal rather than that index, since
+        // that is the number Pick takes.
         for (var at = 0; at < _replies.Count; at++)
         {
             var reply = _replies.Posts[at];
 
             foreach (var line in PostLines.Feed(reply, room, _replies.IsRevealed(reply), now, pictures))
             {
-                lines.Add(line.After(PickedPosts.Gutter(At == at + 1)));
+                lines.Add(line.After(PickedPosts.Gutter(At == at + 1)).PartOf(at + 1));
             }
 
             lines.Add(Line.Blank);

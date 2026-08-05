@@ -39,6 +39,7 @@ internal sealed class PaintedView : View
 
     private IReadOnlyList<Line>? _settled;
     private int _top;
+    private bool _following = true;
 
     /// <param name="theme">What answers the roles.</param>
     /// <param name="rows">The rows to draw, given how much room there is.</param>
@@ -67,10 +68,74 @@ internal sealed class PaintedView : View
     }
 
     /// <summary>
-    ///     Whether this view scrolls to keep the selected row on screen. The content region does; the rail and the two
-    ///     chrome rows are always as tall as what they hold.
+    ///     Whether this view scrolls at all. The content region does; the rail and the two chrome rows are always as
+    ///     tall as what they hold.
     /// </summary>
-    public bool FollowsSelection { get; init; }
+    public bool Scrolls { get; init; }
+
+    /// <summary>
+    ///     The item <c>j</c> and <c>k</c> should take back — the topmost one on the page — or <see langword="null" />
+    ///     while the selection is still on screen and they can simply move from it.
+    /// </summary>
+    /// <remarks>
+    ///     Asked of the view because the view is the only thing that knows how much room there is and where the arrows
+    ///     have left the scroll. The rows are worked out again to answer it, which costs what one frame costs and is
+    ///     paid once per keypress rather than once per redraw.
+    /// </remarks>
+    public int? Lost
+    {
+        get
+        {
+            var width = Viewport.Width;
+            var height = Viewport.Height;
+
+            if (!Scrolls || width <= 0 || height <= 0)
+            {
+                return null;
+            }
+
+            var lines = _rows(width, height);
+
+            return Scroll.Shows(lines, height, _top) ? null : Scroll.Topmost(lines, _top);
+        }
+    }
+
+    /// <summary>
+    ///     Moves the screen by <paramref name="rows" /> and leaves the selection where it is, which is what <c>↓</c>
+    ///     and <c>↑</c> do — and the only way to read a post taller than the terminal to its end.
+    /// </summary>
+    public void Step(int rows)
+    {
+        var width = Viewport.Width;
+        var height = Viewport.Height;
+
+        if (!Scrolls || width <= 0 || height <= 0)
+        {
+            return;
+        }
+
+        _top = Scroll.By(_rows(width, height), _top, rows);
+        _following = false;
+
+        SetNeedsDraw();
+    }
+
+    /// <summary>
+    ///     Puts the screen back to following the selection, which is what moving the selection means: from here it is
+    ///     brought into view again and kept there until the arrows take the scroll back over.
+    /// </summary>
+    public void Follow() => _following = true;
+
+    /// <summary>
+    ///     Starts again at the top, following. What a screen being replaced does — pushed, popped back to, or a
+    ///     destination arrived at — because a row offset is about the rows it was made on and means nothing on
+    ///     somebody else's.
+    /// </summary>
+    public void Restart()
+    {
+        _top = 0;
+        _following = true;
+    }
 
     /// <summary>
     ///     Where the pictures are put, which has to be before the boxes holding them draw — and Terminal.Gui draws a
@@ -207,12 +272,19 @@ internal sealed class PaintedView : View
         }
     }
 
-    /// <summary>The rows to draw, and where the scroll has to be for the selected one to be among them.</summary>
+    /// <summary>The rows to draw, and where the scroll has got to.</summary>
+    /// <remarks>
+    ///     Following, that is the scroll that brings the selection into view; walked away from with the arrows, it is
+    ///     wherever they left it, clamped to the rows there now — since a post taken down under a reader who had
+    ///     scrolled to the foot of the screen leaves an offset past the end of it.
+    /// </remarks>
     private IReadOnlyList<Line> Rows(int width, int height)
     {
         var lines = _rows(width, height);
 
-        _top = FollowsSelection ? Scroll.To(lines, height, _top) : 0;
+        _top = Scrolls
+            ? _following ? Scroll.To(lines, height, _top) : Scroll.By(lines, _top, 0)
+            : 0;
 
         return lines;
     }

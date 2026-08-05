@@ -19,10 +19,17 @@ namespace Wooly.Tui.Views;
 /// </summary>
 internal sealed class ShellWindow : Window
 {
+    private readonly PaintedView _content;
     private readonly ComposeEditor _editor;
     private readonly Shell.Shell _shell;
     private readonly TimeProvider _clock;
     private readonly Action _quit;
+
+    /// <summary>
+    ///     Which screen the content region is showing, so that a screen being replaced can be told apart from the same
+    ///     one changing. The scroll starts again on the first and is left alone on the second.
+    /// </summary>
+    private Screen? _showing;
 
     /// <param name="quit">
     ///     What <c>ctrl-q</c> does. Passed in rather than reached for, because the application is the thing that owns
@@ -58,8 +65,9 @@ internal sealed class ShellWindow : Window
             CanFocus = false,
         };
 
-        // The one region that shows posts, so the one region with pictures to draw in place (docs/tui-shell.md).
-        var content = new PaintedView(
+        // The one region that shows posts, so the one region with pictures to draw in place (docs/tui-shell.md) — and
+        // the one that scrolls, which is why the arrow keys below are handed to it and to nothing else.
+        _content = new PaintedView(
             theme,
             (width, _) => shell.Screen.Lines(width, clock.GetUtcNow(), pictures),
             pictures)
@@ -69,7 +77,7 @@ internal sealed class ShellWindow : Window
             Width = Dim.Fill(),
             Height = Dim.Fill(1),
             CanFocus = false,
-            FollowsSelection = true,
+            Scrolls = true,
         };
 
         _editor = new ComposeEditor(() => _ = Send(), () => shell.Back())
@@ -92,7 +100,7 @@ internal sealed class ShellWindow : Window
             CanFocus = false,
         };
 
-        Add(rail, breadcrumb, content, _editor, status);
+        Add(rail, breadcrumb, _content, _editor, status);
 
         shell.Changed += Refresh;
     }
@@ -142,44 +150,61 @@ internal sealed class ShellWindow : Window
             return true;
         }
 
-        if (key == Key.CursorDown || key == Key.J)
+        // The two movements that used to be one key (#51). j and k walk posts and the screen follows them; the arrows
+        // walk the screen and leave the selection alone, which is the only way to read a post taller than the
+        // terminal to its end.
+        if (key == Key.J)
         {
-            _shell.Move(1);
+            Walk(1);
 
             return true;
         }
 
-        if (key == Key.CursorUp || key == Key.K)
+        if (key == Key.K)
         {
-            _shell.Move(-1);
+            Walk(-1);
+
+            return true;
+        }
+
+        if (key == Key.CursorDown)
+        {
+            _content.Step(1);
+
+            return true;
+        }
+
+        if (key == Key.CursorUp)
+        {
+            _content.Step(-1);
 
             return true;
         }
 
         if (key == Key.PageDown)
         {
-            _shell.Move(10);
+            Jump(10);
 
             return true;
         }
 
         if (key == Key.PageUp)
         {
-            _shell.Move(-10);
+            Jump(-10);
 
             return true;
         }
 
         if (key == Key.Home)
         {
-            _shell.Move(int.MinValue);
+            Jump(int.MinValue);
 
             return true;
         }
 
         if (key == Key.End)
         {
-            _shell.Move(int.MaxValue);
+            Jump(int.MaxValue);
 
             return true;
         }
@@ -192,6 +217,27 @@ internal sealed class ShellWindow : Window
         }
 
         return Content(key) || base.OnKeyDown(key);
+    }
+
+    /// <summary>
+    ///     <c>j</c> and <c>k</c>: the selection walks, and the screen goes back to following it. Whether this press
+    ///     moves or reclaims is the content region's to answer, since it is the only thing that knows what is on
+    ///     screen — this window binds keys and knows nothing about screens (ADR-0014).
+    /// </summary>
+    private void Walk(int by)
+    {
+        _shell.Walk(by, _content.Lost);
+        _content.Follow();
+    }
+
+    /// <summary>
+    ///     <c>PgUp</c>, <c>PgDn</c>, <c>Home</c> and <c>End</c>: a longer step of the same walk. Nothing is reclaimed,
+    ///     because a reader asking for the top of the list is not asking about the page they were on.
+    /// </summary>
+    private void Jump(int by)
+    {
+        _shell.Move(by);
+        _content.Follow();
     }
 
     /// <summary>
@@ -320,8 +366,20 @@ internal sealed class ShellWindow : Window
     ///     Puts the editor in front of the content while a post is being written, and takes it away again. Which of
     ///     the two is showing is a fact about the stack, not a mode this view keeps of its own.
     /// </summary>
+    /// <remarks>
+    ///     Also where a screen being replaced is noticed, which is what puts the scroll back to the top: pushing a
+    ///     screen, popping back to one and arriving at a destination all mean different rows, and an offset the arrows
+    ///     made on the last lot says nothing about this one.
+    /// </remarks>
     private void Refresh()
     {
+        if (!ReferenceEquals(_showing, _shell.Screen))
+        {
+            _showing = _shell.Screen;
+
+            _content.Restart();
+        }
+
         var composing = _shell.Screen is ComposeScreen;
 
         if (composing && !_editor.Visible)

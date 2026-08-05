@@ -71,6 +71,9 @@ public sealed class ConversationScreen(ConversationThread thread) : Screen
     public override void Move(int by) => _posts.Move(by);
 
     /// <inheritdoc />
+    public override void Pick(int at) => _posts.Pick(at);
+
+    /// <inheritdoc />
     public override bool Reveal() => _posts.Reveal();
 
     /// <inheritdoc />
