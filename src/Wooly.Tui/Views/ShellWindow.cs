@@ -226,7 +226,7 @@ internal sealed class ShellWindow : Window
     /// </summary>
     private void Walk(int by)
     {
-        _shell.Walk(by, _content.Lost);
+        _shell.Walk(by, _content.Reclaimable);
         _content.Follow();
     }
 

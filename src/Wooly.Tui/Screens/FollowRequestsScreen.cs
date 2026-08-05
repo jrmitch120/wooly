@@ -25,10 +25,10 @@ public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string?
     public override IReadOnlyList<KeyHint> Keys =>
     [
         new("j/k", "request"),
-        PostKeys.Scrolling,
         new("⏎", "read them"),
         new("a", "accept"),
         new("x", "reject"),
+        PostKeys.Scrolling,
         new("tab", "destination"),
         new("?", "keys"),
     ];

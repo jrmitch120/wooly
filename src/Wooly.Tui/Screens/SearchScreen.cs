@@ -66,9 +66,9 @@ public sealed class SearchScreen : Screen
                 :
                 [
                     new KeyHint("j/k", "result"),
-                    PostKeys.Scrolling,
                     new KeyHint("⏎", "open"),
                     new KeyHint("/", "search again"),
+                    PostKeys.Scrolling,
                     new KeyHint("tab", "destination"),
                     new KeyHint("?", "keys"),
                 ];

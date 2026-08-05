@@ -31,9 +31,9 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
     public override IReadOnlyList<KeyHint> Keys =>
     [
         new("j/k", "conversation"),
-        PostKeys.Scrolling,
         new("⏎", "open"),
         new("m", "mark read"),
+        PostKeys.Scrolling,
         new("tab", "destination"),
         new("?", "keys"),
     ];

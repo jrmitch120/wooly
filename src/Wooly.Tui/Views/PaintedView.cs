@@ -75,14 +75,15 @@ internal sealed class PaintedView : View
 
     /// <summary>
     ///     The item <c>j</c> and <c>k</c> should take back — the topmost one on the page — or <see langword="null" />
-    ///     while the selection is still on screen and they can simply move from it.
+    ///     while the selection is still on screen and they can simply move from it. Never a row of its own: what is
+    ///     reclaimed is the whole post the page begins on.
     /// </summary>
     /// <remarks>
     ///     Asked of the view because the view is the only thing that knows how much room there is and where the arrows
     ///     have left the scroll. The rows are worked out again to answer it, which costs what one frame costs and is
     ///     paid once per keypress rather than once per redraw.
     /// </remarks>
-    public int? Lost
+    public int? Reclaimable
     {
         get
         {

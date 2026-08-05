@@ -52,10 +52,12 @@ public static class Scroll
             last = at;
         }
 
-        // Nothing picked out — a screen with no posts on it, or one that is all prose. Stay where we are.
+        // Nothing picked out — a screen with no posts on it, or one that is all prose. Stay exactly where the arrows
+        // left us: with nothing to bring into view, the only wrong answer is moving. Clamped the way they clamp, so
+        // that pressing j on a screen with no selection cannot yank a keymap read to its foot back up a page.
         if (first < 0)
         {
-            return Math.Clamp(from, 0, Math.Max(0, lines.Count - height));
+            return By(lines, from, 0);
         }
 
         // A post taller than the terminal is shown from its top rather than its bottom: the byline is what says whose
@@ -110,17 +112,30 @@ public static class Scroll
     }
 
     /// <summary>
-    ///     Which item the page starting at <paramref name="from" /> begins on, or <see langword="null" /> where no row
-    ///     from there down is part of one. What <c>j</c> reclaims after the arrows have walked away from the selection.
+    ///     Which item the page starting at <paramref name="from" /> begins on, or <see langword="null" /> for a screen
+    ///     with no items on it at all. What <c>j</c> reclaims after the arrows have walked away from the selection.
     /// </summary>
     /// <remarks>
     ///     A post whose top has been scrolled off but whose lower rows are still on the page is the topmost post,
     ///     because its rows are the first ones here — decided that way rather than left to fall out, so that
     ///     <c>↓ ↓ ↓ j</c> selects the post being read rather than the one after it (#51).
+    ///     <para>
+    ///         Looking back up when there is nothing below is what a screen scrolled to its very foot needs: the rows
+    ///         there are the blank after the last post and nothing else, and answering "no item" would put <c>j</c>
+    ///         back to moving from a selection the reader cannot see — the one thing it must not do.
+    ///     </para>
     /// </remarks>
     public static int? Topmost(IReadOnlyList<Line> lines, int from)
     {
         for (var at = Math.Max(0, from); at < lines.Count; at++)
+        {
+            if (lines[at].Item is { } item)
+            {
+                return item;
+            }
+        }
+
+        for (var at = Math.Min(lines.Count, from) - 1; at >= 0; at--)
         {
             if (lines[at].Item is { } item)
             {

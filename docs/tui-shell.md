@@ -154,7 +154,8 @@ selection was the only scroll position a screen had and the foot of such a post 
 - **`j` and `k` reclaim a selection that has scrolled off screen.** With no row of the selected post on the page, the
   next `j` or `k` selects the topmost post on the page instead of moving from a post the reader can no longer see;
   pressing it again moves normally from there. A post whose top has scrolled off but which still has rows showing *is*
-  the topmost post, so `↓ ↓ ↓ j` picks out the post being read rather than the one after it.
+  the topmost post, so `↓ ↓ ↓ j` picks out the post being read rather than the one after it — and a page scrolled past
+  the last post entirely, which is the blank under it, reclaims that last post rather than nothing.
 - **A row says which post it is part of.** `Role.Selection` marks only the post already picked out and so cannot name
   any other; every screen holding a selection numbers its rows with the same ordinal `Screen.Pick` takes, including the
   four that do not number a plain list of posts — the post screen, where 0 is the post itself, search across its three

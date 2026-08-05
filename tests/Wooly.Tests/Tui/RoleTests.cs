@@ -275,9 +275,14 @@ public class RoleTests
         Assert.Contains("d dismiss", onTheInbox);
         Assert.Contains("D clear all", onTheInbox);
 
-        // And the two movements #51 split apart are both said, since neither key does what the other one does.
+        // And the two movements #51 split apart are both said, since neither key does what the other one does — the
+        // shared one behind the screen's own keys, which is the order the cut at the right exists for.
         Assert.Contains("j/k post", onAnAccount);
         Assert.Contains("↓/↑ row", onAnAccount);
+
+        Assert.True(
+            onTheInbox.IndexOf("D clear all", StringComparison.Ordinal)
+            < onTheInbox.IndexOf("↓/↑ row", StringComparison.Ordinal));
 
         // And the row is still one row, which is what makes the cut necessary in the first place.
         Assert.True(onAnAccount.Length <= 80);

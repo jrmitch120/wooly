@@ -23,11 +23,15 @@ public static class PostKeys
     ];
 
     /// <summary>
-    ///     Walking the screen a row at a time, which every screen with rows on it answers to and none of them owns.
-    ///     Said beside whatever the screen calls walking its own things, because the two are one movement split in
-    ///     half and a status row naming only one of them would be the half that cannot reach the foot of a tall post
-    ///     (#51).
+    ///     Walking the screen a row at a time, which every screen with rows on it answers to and none of them owns —
+    ///     the other half of the movement <c>j</c> and <c>k</c> make, and the half that can reach the foot of a post
+    ///     taller than the terminal (#51).
     /// </summary>
+    /// <remarks>
+    ///     Shared, so it goes behind a screen's own keys rather than in front of them, for the reason
+    ///     <see cref="Around(KeyHint, IReadOnlyList{KeyHint}, KeyHint[])" /> gives: it means the same thing everywhere
+    ///     and can be learned somewhere else, and the row is cut off at the right.
+    /// </remarks>
     public static KeyHint Scrolling { get; } = new("↓/↑", "row");
 
     /// <summary>Those keys, after whatever this screen calls moving the selection and before the way out of it.</summary>
@@ -53,8 +57,8 @@ public static class PostKeys
         return
         [
             moving,
-            Scrolling,
             .. its,
+            Scrolling,
             .. OnAPost.Where(key => !taken.Contains(key.Key)),
             .. after,
             new KeyHint("?", "keys"),

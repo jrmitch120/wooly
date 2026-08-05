@@ -88,6 +88,18 @@ public class ScrollTests
         Assert.Equal(30, Scroll.To(lines, 20, from: 30));
     }
 
+    /// <summary>
+    ///     And stays where it is even at the foot of the rows, where the arrows can leave it: a keymap read to its end
+    ///     and then walked with <c>j</c> must not be pulled back up a page by a scroll that has nothing to scroll to.
+    /// </summary>
+    [Fact]
+    public void To_LeavesAScreenWithNothingPickedOutWhereTheArrowsPutIt()
+    {
+        var lines = Rows(100, at: -1, tall: 0);
+
+        Assert.Equal(99, Scroll.To(lines, 20, from: Scroll.By(lines, from: 0, rows: 500)));
+    }
+
     /// <summary>A region with no room in it has nowhere to scroll to.</summary>
     [Fact]
     public void To_AnswersTheTopForARegionWithNoRoom() =>
@@ -148,10 +160,18 @@ public class ScrollTests
     public void Topmost_LooksPastRowsThatBelongToNoItem() =>
         Assert.Equal(0, Scroll.Topmost([Line.Blank, Line.Blank, .. Numbered(items: 2, tall: 3)], from: 0));
 
-    /// <summary>Scrolled past everything there is, there is nothing to reclaim and <c>j</c> moves as it always does.</summary>
+    /// <summary>
+    ///     Scrolled to the very foot of a screen, where what is left is the blank after the last post, the answer is
+    ///     that last post — not nothing, which would put <c>j</c> back to moving from a post that is off the page.
+    /// </summary>
     [Fact]
-    public void Topmost_AnswersNothingWhereNoItemIsAtOrBelowTheOffset() =>
-        Assert.Null(Scroll.Topmost([Line.Blank, Line.Blank], from: 0));
+    public void Topmost_LooksBackUpWhereNothingIsAtOrBelowTheOffset() =>
+        Assert.Equal(1, Scroll.Topmost([.. Numbered(items: 2, tall: 3), Line.Blank], from: 6));
+
+    /// <summary>A screen with no items on it at all has nothing to reclaim, and <c>j</c> moves as it always does.</summary>
+    [Fact]
+    public void Topmost_AnswersNothingWhereTheScreenHoldsNoItems() =>
+        Assert.Null(Scroll.Topmost([Line.Blank, Line.Blank], from: 1));
 
     /// <summary>
     ///     <paramref name="count" /> rows, of which <paramref name="tall" /> starting at <paramref name="at" /> carry
