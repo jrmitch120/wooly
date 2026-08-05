@@ -9,7 +9,8 @@ public sealed class WoolyPaths(string configDirectory)
 {
     /// <summary>
     ///     The paths a real user's files live at: the OS's roaming application-data folder, under this client's own
-    ///     directory. On Linux and macOS .NET resolves that to <c>~/.config</c>; on Windows to <c>%APPDATA%</c>.
+    ///     directory. .NET resolves that per platform, and the three do not agree: <c>~/Library/Application Support</c>
+    ///     on macOS, <c>~/.config</c> on Linux, <c>%APPDATA%</c> on Windows.
     /// </summary>
     public static WoolyPaths ForCurrentUser()
     {

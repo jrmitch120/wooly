@@ -5,7 +5,7 @@ namespace Wooly.Core.Credentials;
 /// <summary>
 ///     Access tokens held by the OS's own secure store, reached through <c>Devlooped.CredentialManager</c> (ADR-0003).
 ///     That library speaks in (service, account) pairs and prefixes the service with the namespace it was opened
-///     under, so this client's entries read as <c>mastodon-cli:access-token</c> in Keychain or Credential Manager,
+///     under, so this client's entries read as <c>wooly:access-token</c> in Keychain or Credential Manager,
 ///     one per profile.
 ///     <para>
 ///         Only <see cref="Open()" /> can build one, so the name on this class is a promise rather than a hope: there
@@ -16,7 +16,7 @@ public sealed class OsKeyringCredentialStore : ICredentialStore
 {
     /// <summary>
     ///     What each entry holds. Names the secret rather than the client, because the namespace
-    ///     <see cref="GcmKeyring.Open" /> opens under already supplies the <c>mastodon-cli</c> half of the label the
+    ///     <see cref="GcmKeyring.Open" /> opens under already supplies the <c>wooly</c> half of the label the
     ///     OS displays.
     /// </summary>
     private const string Service = "access-token";

@@ -1,0 +1,213 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: ${{ matrix.product.label }} (${{ matrix.target.label }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        product:
+          - label: CLI
+            asset: wooly-cli
+            executable: Wooly.Cli
+            project: src/Wooly.Cli/Wooly.Cli.csproj
+          - label: TUI
+            asset: wooly-tui
+            executable: Wooly.Tui
+            project: src/Wooly.Tui/Wooly.Tui.csproj
+        # The extension travels with the target rather than being worked out again in each step that needs it: it is a
+        # fact about the platform, and the steps below differ on nothing else.
+        target:
+          - label: linux-x64
+            runtime: linux-x64
+            extension: ""
+          - label: macos-x64
+            runtime: osx-x64
+            extension: ""
+          - label: macos-arm64
+            runtime: osx-arm64
+            extension: ""
+          - label: windows-x64
+            runtime: win-x64
+            extension: ".exe"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      # Every target is built here on Linux. A self-contained publish carries the runtime libraries of the platform it
+      # names rather than the one it runs on, so one runner builds all four instead of three runners building one each.
+      - name: Publish a self-contained single file
+        env:
+          RUNTIME: ${{ matrix.target.runtime }}
+          TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          # Symbols are dropped rather than shipped: a .pdb left beside the executable would break the single-file
+          # promise the next step checks, and there is nowhere yet to publish one to.
+          dotnet publish "${{ matrix.product.project }}" \
+            --configuration Release \
+            --runtime "$RUNTIME" \
+            --self-contained true \
+            -p:PublishSingleFile=true \
+            -p:IncludeNativeLibrariesForSelfExtract=true \
+            -p:DebugType=None \
+            -p:DebugSymbols=false \
+            -p:Version="${TAG#v}" \
+            --output publish
+
+      - name: Verify the publish output has one executable
+        env:
+          EXECUTABLE: ${{ matrix.product.executable }}${{ matrix.target.extension }}
+        shell: bash
+        run: |
+          test -f "publish/$EXECUTABLE"
+
+          count="$(find publish -mindepth 1 -maxdepth 1 | wc -l | tr -d '[:space:]')"
+          if [[ "$count" != 1 ]]; then
+            echo "Expected one published file, found $count."
+            find publish -mindepth 1 -maxdepth 1 -print
+            exit 1
+          fi
+
+      - name: Package the executable for its platform
+        env:
+          ASSET: ${{ matrix.product.asset }}-${{ matrix.target.label }}
+          EXECUTABLE: ${{ matrix.product.executable }}${{ matrix.target.extension }}
+          EXTENSION: ${{ matrix.target.extension }}
+          PRODUCT: ${{ matrix.product.asset }}${{ matrix.target.extension }}
+        shell: bash
+        run: |
+          mkdir release
+
+          if [[ -n "$EXTENSION" ]]; then
+            # A Windows executable ships bare. Its extension is what makes it runnable, and a download cannot take
+            # that away, so there is nothing for an archive to protect.
+            mv "publish/$EXECUTABLE" "release/$ASSET$EXTENSION"
+          else
+            # Elsewhere the executable bit is what a download does not preserve, and a tarball is the smallest thing
+            # that carries it.
+            mkdir package
+            mv "publish/$EXECUTABLE" "package/$PRODUCT"
+            tar --create --gzip --file "release/$ASSET.tar.gz" --directory package "$PRODUCT"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.product.asset }}-${{ matrix.target.label }}
+          path: release/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # Only the CLI is run. The TUI takes the terminal and waits for a keystroke, so it has no answer to give a runner
+  # that will never send one; what the two front ends share — the runtime they carry — is what is under test here.
+  smoke:
+    name: Run the CLI (${{ matrix.platform.label }})
+    needs: publish
+    runs-on: ${{ matrix.platform.host }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - label: linux-x64
+            host: ubuntu-latest
+            asset: wooly-cli-linux-x64.tar.gz
+          - label: macos-arm64
+            host: macos-latest
+            asset: wooly-cli-macos-arm64.tar.gz
+          - label: windows-x64
+            host: windows-latest
+            asset: wooly-cli-windows-x64.exe
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: wooly-cli-${{ matrix.platform.label }}
+          path: release
+
+      - name: Unpack the asset a user would download
+        env:
+          ASSET: ${{ matrix.platform.asset }}
+        shell: bash
+        run: |
+          mkdir extracted
+
+          if [[ "$ASSET" == *.tar.gz ]]; then
+            tar --extract --gzip --file "release/$ASSET" --directory extracted
+          else
+            mv "release/$ASSET" extracted/wooly-cli.exe
+          fi
+
+      - name: Read the version back out of it
+        env:
+          LABEL: ${{ matrix.platform.label }}
+          TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          if [[ "$LABEL" == linux-x64 ]]; then
+            # The runner has a .NET SDK on it, so running the executable here would prove only that it runs beside
+            # one. This container holds the native libraries a self-contained app needs and no .NET at all, which
+            # makes a version banner printed out of it the acceptance criterion itself. It is named down to the
+            # distribution rather than left at the bare 10.0 tag because that default is free to move to a chiseled
+            # image, which drops the ICU libraries .NET reads locale data from and would fail a release over
+            # something the build never did.
+            printed="$(docker run --rm \
+              --volume "$PWD/extracted:/wooly:ro" \
+              mcr.microsoft.com/dotnet/runtime-deps:10.0-noble \
+              /wooly/wooly-cli version)"
+          else
+            # macOS and Windows are cross-built on Linux, and neither has a runner without .NET to be tried on. What
+            # is checked here is the narrower thing still worth knowing: that a binary built on one platform starts
+            # on the one it was built for.
+            printed="$(extracted/wooly-cli* version)"
+          fi
+
+          echo "$printed"
+
+          # The banner is read rather than merely awaited, because a build that starts but reports a version other
+          # than the tag being released is its own kind of wrong.
+          if [[ "$printed" != *"${TAG#v}"* ]]; then
+            echo "Expected the version banner to carry ${TAG#v}."
+            exit 1
+          fi
+
+  release:
+    name: Publish GitHub Release
+    needs: smoke
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: true
+
+      - name: Create the release
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          # A release may already exist for this tag: publishing from the GitHub UI writes the release first and
+          # pushes the tag — which starts this workflow — second. Uploading into it reaches the same place, so that
+          # order is not a failure.
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" release/* --clobber
+          else
+            gh release create "$TAG" release/* --generate-notes --title "$TAG"
+          fi

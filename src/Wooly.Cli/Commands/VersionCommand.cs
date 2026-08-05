@@ -22,7 +22,7 @@ internal sealed class VersionCommand(IAnsiConsole console, IClientInfo clientInf
 
     protected override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
     {
-        console.WriteLine($"{clientInfo.Name} {clientInfo.Version}");
+        console.WriteLine($"{WoolyCommandApp.CommandName} {clientInfo.Version}");
 
         if (!string.IsNullOrWhiteSpace(settings.Instance))
         {

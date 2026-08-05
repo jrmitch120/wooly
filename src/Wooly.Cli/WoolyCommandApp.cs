@@ -14,6 +14,13 @@ namespace Wooly.Cli;
 /// </summary>
 public static class WoolyCommandApp
 {
+    /// <summary>
+    ///     The name this front end is invoked as: the executable a release publishes, and so the only name help text
+    ///     and the version banner can honestly answer to. Distinct from <see cref="WoolyClient.Name" />, which is what
+    ///     an instance knows the client as no matter which front end reached it.
+    /// </summary>
+    public const string CommandName = "wooly-cli";
+
     /// <summary>Builds the configured command app.</summary>
     /// <param name="console">
     ///     Where command output is rendered. Defaults to the real terminal's stdout; tests pass an in-memory console.
@@ -43,7 +50,7 @@ public static class WoolyCommandApp
 
         app.Configure(config =>
         {
-            config.SetApplicationName(WoolyClient.Name);
+            config.SetApplicationName(CommandName);
             config.ConfigureConsole(console);
 
             // An option this client does not have is a user expecting something of it that it does not do — most

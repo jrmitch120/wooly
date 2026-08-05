@@ -11,6 +11,8 @@
 
   <PropertyGroup>
     <Product>Wooly</Product>
+    <!-- What a local build reports. A release overrides it from the tag being built (see docs/releases.md), so this
+         value is the developer's default rather than the number users see. -->
     <Version>0.1.0</Version>
     <Authors>Jeff Mitchell</Authors>
     <Company>Wooly</Company>
