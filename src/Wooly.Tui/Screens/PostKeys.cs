@@ -5,12 +5,23 @@ namespace Wooly.Tui.Screens;
 ///     <see cref="Screen.Picked" /> without caring which screen it came from — so a screen whose status row left one
 ///     of these out would be a screen where a key fires unannounced.
 /// </summary>
+/// <remarks>
+///     The rule runs the other way too, which is the one reason a screen may leave one of these off: a key that has
+///     nothing to act on here must not be announced either. Only <see cref="Opening" /> is ever in that position, and
+///     only inside a post (#48).
+/// </remarks>
 public static class PostKeys
 {
+    /// <summary>
+    ///     Drilling into the picked post. Named on its own because it is the one key of these a screen may have a post
+    ///     to act on and still nothing to do with: inside a post, the post itself is already open (#48).
+    /// </summary>
+    public static KeyHint Opening { get; } = new("⏎", "read");
+
     /// <summary>What every screen with posts on it answers to, in the order the status row reads best.</summary>
     public static IReadOnlyList<KeyHint> OnAPost { get; } =
     [
-        new("⏎", "read"),
+        Opening,
         new("a", "author"),
         new("c", "compose"),
         new("r", "reply"),

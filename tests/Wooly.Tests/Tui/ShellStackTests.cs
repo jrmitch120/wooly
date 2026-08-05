@@ -192,17 +192,23 @@ public class ShellStackTests
         };
 
         var opened = await shell.Opened();
-        var acting = PostKeys.OnAPost.Select(key => key.Key).ToList();
+        var acting = PostKeys.OnAPost.Select(key => key.Key).ToHashSet();
 
-        Assert.Subset(opened.Keys.Select(key => key.Key).ToHashSet(), acting.ToHashSet());
+        Assert.Subset(opened.Keys.Select(key => key.Key).ToHashSet(), acting);
 
         await opened.Enter();
 
-        Assert.Subset(opened.Keys.Select(key => key.Key).ToHashSet(), acting.ToHashSet());
+        // Inside a post, ⏎ is the one key of the lot left off, because the post it would open is the one already on
+        // screen (#48). Every other key still acts on it, so every other key is still announced.
+        Assert.Subset(
+            opened.Keys.Select(key => key.Key).ToHashSet(),
+            acting.Except([PostKeys.Opening.Key]).ToHashSet());
+
+        Assert.DoesNotContain(PostKeys.Opening.Key, opened.Keys.Select(key => key.Key));
 
         await opened.OpenAuthor();
 
-        Assert.Subset(opened.Keys.Select(key => key.Key).ToHashSet(), acting.ToHashSet());
+        Assert.Subset(opened.Keys.Select(key => key.Key).ToHashSet(), acting);
     }
 
     /// <summary>
@@ -289,5 +295,105 @@ public class ShellStackTests
 
         Assert.Equal(1, opened.Depth);
         Assert.Empty(shell.Engagement.RepliesRead);
+    }
+
+    /// <summary>
+    ///     Inside a post, <c>⏎</c> on the post itself does nothing. It is the post already on screen, so opening it
+    ///     would push a second copy of the screen the reader is on — and pressing again would push a third (#48).
+    /// </summary>
+    [Fact]
+    public async Task Enter_DoesNotOpenThePostItsOwnScreenIsAbout()
+    {
+        var shell = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(APost.With(id: "110", account: "ben@hachyderm.io")),
+            Engagement = FakePostEngagement.Answered(APost.With(id: "110"), APost.With(id: "111")),
+        };
+
+        var opened = await shell.Opened();
+
+        await opened.Enter();
+
+        Assert.Equal(2, opened.Depth);
+
+        await opened.Enter();
+        await opened.Enter();
+
+        Assert.Equal(2, opened.Depth);
+        Assert.Equal("home › post by @ben@hachyderm.io", opened.Breadcrumb);
+
+        // One read, which is the one that opened the screen: a ⏎ with nothing to open asks the instance for nothing.
+        Assert.Single(shell.Engagement.RepliesRead);
+    }
+
+    /// <summary>
+    ///     The same where nobody has answered it, which is the case where the post itself is the only thing there is to
+    ///     pick out and so the only thing <c>⏎</c> could act on.
+    /// </summary>
+    [Fact]
+    public async Task Enter_DoesNotOpenThePostAgainWhereNobodyHasAnsweredIt()
+    {
+        var shell = new AShell { Engagement = FakePostEngagement.Answering(APost.With(id: "110")) };
+        var opened = await shell.Opened();
+
+        await opened.Enter();
+
+        Assert.Empty(Assert.IsType<PostScreen>(opened.Screen).Replies);
+
+        // Walking down goes nowhere, since there is nothing under the post to walk to.
+        opened.Move(1);
+
+        await opened.Enter();
+
+        Assert.Equal(2, opened.Depth);
+        Assert.Single(shell.Engagement.RepliesRead);
+    }
+
+    /// <summary><c>⏎</c> on an answer opens that answer's own screen, the way it does anywhere else.</summary>
+    [Fact]
+    public async Task Enter_OpensTheReplyPickedOutInsideAPost()
+    {
+        var shell = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(APost.With(id: "110")),
+            Engagement = FakePostEngagement.Answered(
+                APost.With(id: "110"),
+                APost.With(id: "111", account: "ben@hachyderm.io")),
+        };
+
+        var opened = await shell.Opened();
+
+        await opened.Enter();
+
+        opened.Move(1);
+
+        await opened.Enter();
+
+        Assert.Equal(3, opened.Depth);
+        Assert.Equal("111", Assert.IsType<PostScreen>(opened.Screen).Post.Id);
+        Assert.Equal(["110", "111"], shell.Engagement.RepliesRead.Select(read => read.PostId));
+    }
+
+    /// <summary>
+    ///     The status row leaves <c>⏎</c> off while the post itself is picked, rather than announcing a key and then
+    ///     refusing it — which is what a reader would read as a shell that missed the press.
+    /// </summary>
+    [Fact]
+    public async Task Keys_LeaveOutEnterWhileThePostItselfIsPicked()
+    {
+        var shell = new AShell
+        {
+            Engagement = FakePostEngagement.Answered(APost.With(id: "110"), APost.With(id: "111")),
+        };
+
+        var opened = await shell.Opened();
+
+        await opened.Enter();
+
+        Assert.DoesNotContain(PostKeys.Opening, opened.Keys);
+
+        opened.Move(1);
+
+        Assert.Contains(PostKeys.Opening, opened.Keys);
     }
 }

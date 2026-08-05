@@ -72,7 +72,7 @@ Feed and post:
 | `k` `j` | The next post / the one before it, with the screen following the selection | `Home`/`End` too, for the first and the last |
 | `↓` `↑` | Move the screen by a few rows, leaving the selection alone | The only way to read a post taller than the terminal to its end |
 | `PgDn` `PgUp` | The same, a screenful at a time | A screenful is however many rows there is room for |
-| `⏎` | Open the post | |
+| `⏎` | Open the post | Answers only, inside a post: the post itself is already open (#48) |
 | `a` | Open the author's account | |
 | `c` | Compose | |
 | `r` | Reply | |
@@ -119,6 +119,11 @@ not answer them differently:
   rail keeps a place for is a setting the reader wrote down, and a search result is not them changing their mind.
 - **`⏎` on a follow request opens whoever is asking**, because the question is about a person and the answer to it is
   on their account screen.
+- **`⏎` inside a post opens an answer, never the post itself.** The post at the top is the one the screen is already
+  about, so opening it would push a copy of the screen the reader is standing on — and pressing again would push
+  another, stacking duplicates and a breadcrumb of places nobody went (#48). It is left off the status row while that
+  post is picked rather than announced and refused; every other key on the row still acts on it, since a post being
+  read is still a post to boost, favorite, answer or take down.
 
 ### What media settled
 
