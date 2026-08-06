@@ -18,7 +18,8 @@ namespace Wooly.Tui.Screens;
 /// </remarks>
 public sealed class AccountScreen(Account account, IReadOnlyList<Post> posts) : Screen
 {
-    private readonly PickedPosts _picked = new(posts);
+    private readonly Revealed _revealed = new();
+    private readonly Picked<Post> _posts = new(posts);
 
     /// <inheritdoc />
     public override string Crumb => $"@{Account.Address}";
@@ -38,13 +39,16 @@ public sealed class AccountScreen(Account account, IReadOnlyList<Post> posts) : 
     public Account Account { get; private set; } = account;
 
     /// <summary>Which of their posts is picked out.</summary>
-    public int At => _picked.At;
+    public int At => _posts.At;
 
     /// <summary>The posts of theirs that were read, newest first.</summary>
-    public IReadOnlyList<Post> Posts => _picked.Posts;
+    public IReadOnlyList<Post> Posts => _posts.All;
 
     /// <inheritdoc />
-    public override Post? Picked => _picked.Picked;
+    public override Post? Picked => _posts.Out;
+
+    /// <inheritdoc />
+    protected override IPicked Walking => _posts;
 
     /// <summary>
     ///     Whether the tie <paramref name="tie" /> names is in place, which is what settles whether pressing its key
@@ -70,19 +74,13 @@ public sealed class AccountScreen(Account account, IReadOnlyList<Post> posts) : 
     public void Stands(Account account) => Account = account;
 
     /// <inheritdoc />
-    public override void Move(int by) => _picked.Move(by);
+    public override bool Reveal() => Picked is { } picked && _revealed.Ask(picked);
 
     /// <inheritdoc />
-    public override void Pick(int at) => _picked.Pick(at);
+    public override void Replace(Post post) => _posts.Rewrite(held => PostChange.Replaced(held, post));
 
     /// <inheritdoc />
-    public override bool Reveal() => _picked.Reveal();
-
-    /// <inheritdoc />
-    public override void Replace(Post post) => _picked.Replace(post);
-
-    /// <inheritdoc />
-    public override void Remove(string postId) => _picked.Remove(postId);
+    public override void Remove(string postId) => _posts.Remove(held => PostChange.Names(held, postId));
 
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(int width, DateTimeOffset now, IPictures? pictures = null)
@@ -97,14 +95,16 @@ public sealed class AccountScreen(Account account, IReadOnlyList<Post> posts) : 
             Line.Blank,
         };
 
-        if (_picked.Count == 0)
+        if (_posts.Count == 0)
         {
             lines.Add(Line.Of("Nothing to read here yet.", Role.Muted));
 
             return lines;
         }
 
-        lines.AddRange(_picked.Lines(width, now, pictures));
+        lines.AddRange(_posts.Rows(
+            width,
+            (post, _, room) => PostLines.Feed(post, room, _revealed.Has(post), now, pictures)));
 
         return lines;
     }

@@ -23,15 +23,16 @@ namespace Wooly.Tui.Screens;
 /// </remarks>
 public sealed class SearchScreen : Screen
 {
-    /// <summary>
-    ///     The posts a search turned up, held the way a feed holds its own so that marking one, revealing its warning
-    ///     and taking it down after a delete mean here exactly what they mean on a timeline. Its own selection is
-    ///     unused: what is picked out on this screen is one of three kinds, and <see cref="At" /> counts across them.
-    /// </summary>
-    private PickedPosts _posts = new([]);
+    /// <summary>The warnings the reader has asked past, so that a post found twice over is revealed once.</summary>
+    private readonly Revealed _revealed = new();
 
-    private IReadOnlyList<Account> _accounts = [];
-    private IReadOnlyList<Hashtag> _hashtags = [];
+    /// <summary>
+    ///     What the search found, all three kinds as the one list the reader walks. Held this way so that the order
+    ///     the results are drawn in and the order they are picked out in are the same order by construction, rather
+    ///     than two counts kept in step by hand.
+    /// </summary>
+    private Picked<Result> _results = new([]);
+
     private bool _typing = true;
 
     /// <inheritdoc />
@@ -85,42 +86,35 @@ public sealed class SearchScreen : Screen
     public string? Asked { get; private set; }
 
     /// <summary>Which result is picked out, counted across all three kinds as one list.</summary>
-    public int At { get; private set; }
+    public int At => _results.At;
 
     /// <summary>How many results there are, of all three kinds together.</summary>
-    public int Count => _accounts.Count + _hashtags.Count + _posts.Count;
+    public int Count => _results.Count;
 
     /// <summary>The accounts that were found.</summary>
-    public IReadOnlyList<Account> Accounts => _accounts;
+    public IReadOnlyList<Account> Accounts => [.. _results.All.OfType<Result.OfAccount>().Select(one => one.Account)];
 
     /// <summary>The hashtags that were found.</summary>
-    public IReadOnlyList<Hashtag> Hashtags => _hashtags;
+    public IReadOnlyList<Hashtag> Hashtags => [.. _results.All.OfType<Result.OfHashtag>().Select(one => one.Hashtag)];
 
     /// <summary>The posts that were found.</summary>
-    public IReadOnlyList<Post> Posts => _posts.Posts;
+    public IReadOnlyList<Post> Posts => [.. _results.All.OfType<Result.OfPost>().Select(one => one.Post)];
 
     /// <summary>The account picked out, or <see langword="null" /> where the picked result is not one.</summary>
-    public Account? PickedAccount => At < FirstHashtag ? _accounts[At] : null;
+    public Account? PickedAccount => _results.Out is Result.OfAccount(var account) ? account : null;
 
     /// <summary>The hashtag picked out, or <see langword="null" /> where the picked result is not one.</summary>
-    public Hashtag? PickedHashtag =>
-        At >= FirstHashtag && At < FirstPost ? _hashtags[At - FirstHashtag] : null;
+    public Hashtag? PickedHashtag => _results.Out is Result.OfHashtag(var hashtag) ? hashtag : null;
 
     /// <inheritdoc />
     /// <remarks>
     ///     The post picked out, so that reading, answering and marking one a search found mean what they mean on a
     ///     feed. An account or a hashtag is not a post, and picking one leaves this empty rather than guessing.
     /// </remarks>
-    public override Post? Picked => At >= FirstPost && At < Count ? _posts.Posts[At - FirstPost] : null;
+    public override Post? Picked => _results.Out is Result.OfPost(var post) ? post : null;
 
-    /// <summary>
-    ///     Where each kind starts in the one list the selection walks. Asked here rather than counted again at each
-    ///     site, so that the order the results are drawn in and the order they are picked out in cannot drift apart.
-    /// </summary>
-    private int FirstHashtag => _accounts.Count;
-
-    /// <inheritdoc cref="FirstHashtag" />
-    private int FirstPost => _accounts.Count + _hashtags.Count;
+    /// <inheritdoc />
+    protected override IPicked Walking => _results;
 
     /// <summary>Puts a letter into the query.</summary>
     public void Type(char letter) => Query += letter;
@@ -138,48 +132,32 @@ public sealed class SearchScreen : Screen
     ///     What the instance answered, which is also what stops the prompt taking letters: from here the keys act on
     ///     the results, and <c>/</c> starts a new search.
     /// </summary>
+    /// <remarks>
+    ///     Accounts, then hashtags, then posts — the order <see cref="SearchResults" /> holds them in, and from here
+    ///     the only order there is.
+    /// </remarks>
     public void Found(string asked, SearchResults results)
     {
         Asked = asked;
         _typing = false;
-        At = 0;
 
-        _accounts = results.Accounts ?? [];
-        _hashtags = results.Hashtags ?? [];
-        _posts = new PickedPosts(results.Posts ?? []);
+        _results = new Picked<Result>([
+            .. (results.Accounts ?? []).Select(Result (account) => new Result.OfAccount(account)),
+            .. (results.Hashtags ?? []).Select(Result (hashtag) => new Result.OfHashtag(hashtag)),
+            .. (results.Posts ?? []).Select(Result (post) => new Result.OfPost(post)),
+        ]);
     }
 
     /// <inheritdoc />
-    public override void Move(int by)
-    {
-        if (Count > 0)
-        {
-            At = PickedPosts.Clamped(At, by, Count - 1);
-        }
-    }
+    public override bool Reveal() => Picked is { } picked && _revealed.Ask(picked);
 
     /// <inheritdoc />
-    public override void Pick(int at)
-    {
-        if (Count > 0)
-        {
-            At = PickedPosts.Chosen(at, Count - 1);
-        }
-    }
+    public override void Replace(Post post) => _results.Rewrite(found =>
+        found is Result.OfPost(var held) ? new Result.OfPost(PostChange.Replaced(held, post)) : found);
 
     /// <inheritdoc />
-    public override bool Reveal() => Picked is { } picked && _posts.Reveal(picked);
-
-    /// <inheritdoc />
-    public override void Replace(Post post) => _posts.Replace(post);
-
-    /// <inheritdoc />
-    public override void Remove(string postId)
-    {
-        _posts.Remove(postId);
-
-        At = Count == 0 ? 0 : Math.Clamp(At, 0, Count - 1);
-    }
+    public override void Remove(string postId) =>
+        _results.Remove(found => found is Result.OfPost(var held) && PostChange.Names(held, postId));
 
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(int width, DateTimeOffset now, IPictures? pictures = null)
@@ -202,47 +180,46 @@ public sealed class SearchScreen : Screen
             return lines;
         }
 
-        var room = Math.Max(1, width - 1);
-
-        lines.AddRange(Heading("── accounts ──", _accounts.Count));
-
-        for (var at = 0; at < _accounts.Count; at++)
+        for (var at = 0; at < _results.Count; at++)
         {
-            lines.Add(AccountLines.Byline(_accounts[at], room).After(PickedPosts.Gutter(at == At)).PartOf(at));
-            lines.Add(Line.Blank);
-        }
-
-        lines.AddRange(Heading("── hashtags ──", _hashtags.Count));
-
-        for (var at = 0; at < _hashtags.Count; at++)
-        {
-            lines.Add(Tag(_hashtags[at], room)
-                      .After(PickedPosts.Gutter(FirstHashtag + at == At))
-                      .PartOf(FirstHashtag + at));
-
-            lines.Add(Line.Blank);
-        }
-
-        lines.AddRange(Heading("── posts ──", _posts.Count));
-
-        for (var at = 0; at < _posts.Count; at++)
-        {
-            var post = _posts.Posts[at];
-
-            foreach (var line in PostLines.Feed(post, room, _posts.IsRevealed(post), now, pictures))
-            {
-                lines.Add(line.After(PickedPosts.Gutter(FirstPost + at == At)).PartOf(FirstPost + at));
-            }
-
+            lines.AddRange(Heading(at));
+            lines.AddRange(_results.RowsOf(at, width, Draw));
             lines.Add(Line.Blank);
         }
 
         return lines;
+
+        IReadOnlyList<Line> Draw(Result result, int at, int room) => result switch
+        {
+            Result.OfAccount(var account) => [AccountLines.Byline(account, room)],
+            Result.OfHashtag(var hashtag) => [Tag(hashtag, room)],
+            Result.OfPost(var post) => PostLines.Feed(post, room, _revealed.Has(post), now, pictures),
+            _ => [],
+        };
     }
 
-    /// <summary>A kind nothing was found of gets no heading, rather than a heading over nothing.</summary>
-    private static IReadOnlyList<Line> Heading(string said, int count) =>
-        count == 0 ? [] : [Line.Of(said, Role.Muted), Line.Blank];
+    /// <summary>What a kind of result is called, which is what the heading over the run of them says.</summary>
+    private static string Called(Result result) => result switch
+    {
+        Result.OfAccount => "── accounts ──",
+        Result.OfHashtag => "── hashtags ──",
+        _ => "── posts ──",
+    };
+
+    /// <summary>
+    ///     The heading over the result at <paramref name="at" />, where it is the first of its kind — so a kind
+    ///     nothing was found of gets no heading, rather than a heading over nothing.
+    /// </summary>
+    private IReadOnlyList<Line> Heading(int at)
+    {
+        var result = _results.All[at];
+
+        // Asked of the kind rather than of what its heading says, so that two kinds could never come to share one
+        // heading by being called the same thing.
+        return at > 0 && _results.All[at - 1].GetType() == result.GetType()
+            ? []
+            : [Line.Of(Called(result), Role.Muted), Line.Blank];
+    }
 
     /// <summary>A tag and how much use it has had lately, which is what makes one result worth reading over another.</summary>
     private static Line Tag(Hashtag hashtag, int width)

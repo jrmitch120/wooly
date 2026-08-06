@@ -392,7 +392,8 @@ public class MediaLineTests
                                                .SelectMany(line => line.Insets)
                                                .Single();
 
-        Assert.Equal(withoutGutter.Column + PickedPosts.Gutter(picked: false).Width, onScreen.Column);
+        // One column of gutter, which is what the screen is drawn a column narrower than the region to leave room for.
+        Assert.Equal(withoutGutter.Column + 1, onScreen.Column);
         Assert.Equal(withoutGutter.Columns, onScreen.Columns);
     }
 

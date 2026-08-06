@@ -2,39 +2,36 @@ using Wooly.Core.Search;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
-using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 
 namespace Wooly.Tests.Tui;
 
 /// <summary>
-///     Picking an item by its number rather than by a step from wherever the selection was — which is what <c>j</c>
-///     does once the arrows have scrolled the selected post off the page (#51).
+///     The three screens that put rows of their own between the things they hold: search, whose three kinds each get a
+///     heading, the post screen, which says how many replies follow the post itself, and the direct messages screen,
+///     whose notice sits above the list.
 /// </summary>
 /// <remarks>
-///     The property that matters is that a screen's rows and its <see cref="Screen.Pick" /> count the same things in
-///     the same order. Four screens number something other than a plain list of posts — the post screen, where 0 is
-///     the post itself; search, with its three kinds; notifications; direct messages — and a row naming a different
-///     ordinal from the one <c>Pick</c> takes would select a post the reader was not looking at.
+///     Stamping a row is <see cref="Picked{T}" />'s and asserted there (<see cref="PickedTests" />), so what is left
+///     here is only the splicing — that a screen putting a heading or a notice among the rows has not thereby put a
+///     row of its own where a thing should be, or numbered what follows it from somewhere other than zero.
+///     <para>
+///         Worth revisiting: if this never catches anything now that no screen numbers its own rows, it can go.
+///     </para>
 /// </remarks>
 public class ScreenPickTests
 {
-    /// <summary>Every screen that holds a selection, with how many things there are on it to pick.</summary>
+    /// <summary>The three screens that splice, with how many things there are on each to pick.</summary>
     public static TheoryData<string, int> Screens => new()
     {
-        { "feed", 3 },
         { "post", 3 },
-        { "account", 3 },
-        { "conversation", 3 },
         { "search", 4 },
-        { "notifications", 3 },
         { "messages", 3 },
-        { "requests", 3 },
     };
 
     /// <summary>
-    ///     The rows and the pick agree: after picking the <c>at</c>th thing, the rows carrying the selection are
-    ///     exactly the rows that say they are part of it.
+    ///     The rows and the pick agree across the spliced rows: after picking the <c>at</c>th thing, the rows carrying
+    ///     the mark are exactly the rows that say they are part of it.
     /// </summary>
     [Theory]
     [MemberData(nameof(Screens))]
@@ -48,62 +45,28 @@ public class ScreenPickTests
 
             var lines = screen.Lines(61, AShell.Now);
 
-            var selected = lines.Where(line => line.Has(Role.Selection)).ToList();
+            var marked = lines.Where(line => line.Has(Role.Selection)).ToList();
             var named = lines.Where(line => line.Item == at).ToList();
 
             Assert.NotEmpty(named);
-            Assert.Equal(named, selected);
+            Assert.Equal(named, marked);
         }
     }
 
-    /// <summary>Every row that is part of something says which, so that no row on a page is unaccounted for.</summary>
+    /// <summary>
+    ///     Every thing on the screen is named and nothing else is, so a heading or a notice spliced among the rows is
+    ///     part of none of them — a page that begins on one begins on a thing.
+    /// </summary>
     [Theory]
     [MemberData(nameof(Screens))]
-    public void Pick_NamesEveryItemOnTheScreen(string kind, int count)
+    public void Pick_NamesEveryItemOnTheScreenAndNothingSplicedBetweenThem(string kind, int count)
     {
         var items = Of(kind).Lines(61, AShell.Now).Select(line => line.Item).OfType<int>().Distinct().Order();
 
         Assert.Equal(Enumerable.Range(0, count), items);
     }
 
-    /// <summary>A number off either end of the list is clamped, the same way stepping off the end of one is.</summary>
-    [Theory]
-    [MemberData(nameof(Screens))]
-    public void Pick_StopsAtEitherEnd(string kind, int count)
-    {
-        var screen = Of(kind);
-
-        screen.Pick(int.MaxValue);
-
-        Assert.Contains(screen.Lines(61, AShell.Now), line => line.Item == count - 1 && line.Has(Role.Selection));
-
-        screen.Pick(int.MinValue);
-
-        Assert.Contains(screen.Lines(61, AShell.Now), line => line.Item == 0 && line.Has(Role.Selection));
-    }
-
-    /// <summary>A screen with nothing on it has nothing to pick, and picking anyway is not a crash.</summary>
-    [Theory]
-    [InlineData("feed")]
-    [InlineData("notifications")]
-    [InlineData("messages")]
-    [InlineData("requests")]
-    public void Pick_DoesNothingOnAScreenWithNothingOnIt(string kind)
-    {
-        var screen = kind switch
-        {
-            "feed" => new FeedScreen(new Destination(DestinationKind.Home, "Home"), []),
-            "notifications" => new NotificationsScreen([]),
-            "messages" => new DirectMessagesScreen([]),
-            _ => (Screen)new FollowRequestsScreen([]),
-        };
-
-        screen.Pick(2);
-
-        Assert.DoesNotContain(screen.Lines(61, AShell.Now), line => line.Item is not null);
-    }
-
-    /// <summary>One of each screen that holds a selection, each with three things on it to pick out.</summary>
+    /// <summary>One of each screen that splices, each with things on it to pick out.</summary>
     private static Screen Of(string kind)
     {
         var posts = new[]
@@ -115,21 +78,12 @@ public class ScreenPickTests
 
         switch (kind)
         {
-            case "feed":
-                return new FeedScreen(new Destination(DestinationKind.Home, "Home"), posts);
-
             case "post":
-                // Its own post is 0 and the replies follow it, so two replies make three things to pick.
+                // Its own post is 0 and the replies follow it under a heading, so two replies make three to pick.
                 return new PostScreen(posts[0], [posts[1], posts[2]]);
 
-            case "account":
-                return new AccountScreen(AnAccount.With(), posts);
-
-            case "conversation":
-                return new ConversationScreen(AConversation.Thread(AConversation.With(), posts));
-
             case "search":
-                // One of each kind and then some, so that the three sections are numbered as one list.
+                // One of each kind and then some, so that the three headed sections are numbered as one list.
                 var search = new SearchScreen();
 
                 search.Found(
@@ -143,29 +97,15 @@ public class ScreenPickTests
 
                 return search;
 
-            case "notifications":
-                return new NotificationsScreen(
-                [
-                    ANotification.With(id: "1"),
-                    ANotification.Follow(id: "2"),
-                    ANotification.With(id: "3"),
-                ]);
-
-            case "messages":
-                return new DirectMessagesScreen(
-                [
-                    AConversation.With(id: "1"),
-                    AConversation.Emptied(id: "2"),
-                    AConversation.With(id: "3"),
-                ]);
-
             default:
-                return new FollowRequestsScreen(
-                [
-                    AnAccount.With(id: "1", address: "alice@hachyderm.io"),
-                    AnAccount.With(id: "2", address: "ben@hachyderm.io"),
-                    AnAccount.With(id: "3", address: "cass@hachyderm.io"),
-                ]);
+                // A notice above the list, which is about the list rather than about anything on it.
+                return new DirectMessagesScreen(
+                    [
+                        AConversation.With(id: "1"),
+                        AConversation.Emptied(id: "2"),
+                        AConversation.With(id: "3"),
+                    ],
+                    "A rate limit cut this short.");
         }
     }
 }

@@ -12,11 +12,19 @@ namespace Wooly.Tui.Screens;
 ///     The post itself is the first thing picked out, and <c>j</c> walks down into the replies — so every key that
 ///     acts on a post (boost, favorite, reply, delete) means the same thing here as on the feed, and a reply can be
 ///     answered without leaving the thread it is in.
+///     <para>
+///         One list of the post and its replies rather than two, because that is what the reader walks: how the first
+///         of them is drawn is a fact about the row and not about which container it came out of.
+///     </para>
 /// </remarks>
-public sealed class PostScreen(Post post, IReadOnlyList<Post> replies) : Screen
+public sealed class PostScreen : Screen
 {
-    private readonly PickedPosts _replies = new(replies);
-    private readonly PickedPosts _itself = new([post]);
+    private readonly Revealed _revealed = new();
+    private readonly Picked<Post> _posts;
+
+    /// <param name="post">The post this screen is about, which is the first thing on it.</param>
+    /// <param name="replies">What has been said in answer to it, oldest first.</param>
+    public PostScreen(Post post, IReadOnlyList<Post> replies) => _posts = new Picked<Post>([post, .. replies]);
 
     /// <inheritdoc />
     public override string Crumb => $"post by @{(Post.Boosted ?? Post).Account}";
@@ -37,92 +45,80 @@ public sealed class PostScreen(Post post, IReadOnlyList<Post> replies) : Screen
     }
 
     /// <summary>Which of the post and its replies is picked out: 0 is the post, and the rest are the answers in order.</summary>
-    public int At { get; private set; }
+    public int At => _posts.At;
 
     /// <summary>The post this screen is about.</summary>
-    public Post Post => _itself.Posts[0];
+    public Post Post => _posts.All[0];
 
     /// <summary>What has been said in answer to it, oldest first.</summary>
-    public IReadOnlyList<Post> Replies => _replies.Posts;
+    public IReadOnlyList<Post> Replies => [.. _posts.All.Skip(1)];
 
     /// <inheritdoc />
-    public override Post? Picked => At == 0 ? Post : _replies.Posts[At - 1];
+    public override Post? Picked => _posts.Out;
 
     /// <inheritdoc />
     /// <remarks>
     ///     Only an answer. The post at index 0 is the one this screen is about and is already whole on it, so drilling
-    ///     into it would push a copy of this same screen and put a place nobody went on the breadcrumb (#48).
+    ///     into it would push a copy of this same screen and put a place nobody went on the breadcrumb (#48) — which
+    ///     with the post and its replies in one list is a fact about where in the list the pick is.
     /// </remarks>
     public override Post? Opens => At == 0 ? null : Picked;
 
     /// <inheritdoc />
-    public override void Move(int by) => At = PickedPosts.Clamped(At, by, _replies.Count);
+    protected override IPicked Walking => _posts;
 
     /// <inheritdoc />
-    public override void Pick(int at) => At = PickedPosts.Chosen(at, _replies.Count);
+    public override bool Reveal() => Picked is { } picked && _revealed.Ask(picked);
 
     /// <inheritdoc />
-    public override bool Reveal() => Picked is { } picked && Held(picked).Reveal(picked);
+    public override void Replace(Post post) => _posts.Rewrite(held => PostChange.Replaced(held, post));
 
     /// <inheritdoc />
-    public override void Replace(Post post)
-    {
-        _itself.Replace(post);
-        _replies.Replace(post);
-    }
-
-    /// <inheritdoc />
+    /// <remarks>
+    ///     Only the replies go. A post screen showing a post that is no longer there is a screen about nothing, and
+    ///     the shell walks out of it rather than leaving this one to draw a thread with no head to it.
+    /// </remarks>
     public override void Remove(string postId)
     {
-        _replies.Remove(postId);
+        // Read before the list is walked rather than inside the asking, so that what counts as the head of the thread
+        // cannot depend on how far a removal has already got through it.
+        var head = Post;
 
-        At = Math.Clamp(At, 0, _replies.Count);
+        _posts.Remove(held => held.Id != head.Id && PostChange.Names(held, postId));
     }
 
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(int width, DateTimeOffset now, IPictures? pictures = null)
     {
-        var room = Math.Max(1, width - 1);
-        var lines = new List<Line>();
-
-        foreach (var line in PostLines.Whole(Post, room, _itself.IsRevealed(Post), now, pictures))
+        var lines = new List<Line>(_posts.RowsOf(0, width, Draw))
         {
-            lines.Add(line.After(PickedPosts.Gutter(At == 0)).PartOf(0));
-        }
+            Line.Blank,
+            Line.Of(Heading(width), Role.Muted),
+            Line.Blank,
+        };
 
-        lines.Add(Line.Blank);
-        lines.Add(Line.Of(Heading(width), Role.Muted));
-        lines.Add(Line.Blank);
-
-        if (_replies.Count == 0)
+        if (_posts.Count == 1)
         {
-            lines.Add(Line.Of("Nobody has answered this yet.", Role.Muted)
-                          .After(PickedPosts.Gutter(picked: false)));
+            // Indented into step with the rows above it, which are a gutter column wider than they are drawn. Part of
+            // nothing: there is no reply here for it to be part of.
+            lines.Add(Line.Of("Nobody has answered this yet.", Role.Muted).After(new Span(" ", Role.Body)));
 
             return lines;
         }
 
-        // The replies draw their own gutter from their own index, which is one behind this screen's: the post itself
-        // is what index zero picks out. Their rows are named with this screen's ordinal rather than that index, since
-        // that is the number Pick takes.
-        for (var at = 0; at < _replies.Count; at++)
+        for (var at = 1; at < _posts.Count; at++)
         {
-            var reply = _replies.Posts[at];
-
-            foreach (var line in PostLines.Feed(reply, room, _replies.IsRevealed(reply), now, pictures))
-            {
-                lines.Add(line.After(PickedPosts.Gutter(At == at + 1)).PartOf(at + 1));
-            }
-
+            lines.AddRange(_posts.RowsOf(at, width, Draw));
             lines.Add(Line.Blank);
         }
 
         return lines;
+
+        IReadOnlyList<Line> Draw(Post post, int at, int room) => at == 0
+            ? PostLines.Whole(post, room, _revealed.Has(post), now, pictures)
+            : PostLines.Feed(post, room, _revealed.Has(post), now, pictures);
     }
 
-    /// <summary>Which of the two lists a post on this screen belongs to, since the post itself is not one of its replies.</summary>
-    private PickedPosts Held(Post post) => post.Id == Post.Id ? _itself : _replies;
-
     private string Heading(int width) =>
-        TextWrap.Clip(_replies.Count == 0 ? "── replies ──" : $"── {_replies.Count} replies ──", width);
+        TextWrap.Clip(_posts.Count == 1 ? "── replies ──" : $"── {_posts.Count - 1} replies ──", width);
 }
