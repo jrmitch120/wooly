@@ -12,7 +12,6 @@ namespace Wooly.Tui.Screens;
 /// </summary>
 public sealed class FeedScreen(Destination destination, IReadOnlyList<Post> posts, string? notice = null) : Screen
 {
-    private readonly Revealed _revealed = new();
     private readonly Picked<Post> _posts = new(posts);
 
     /// <inheritdoc />
@@ -41,9 +40,6 @@ public sealed class FeedScreen(Destination destination, IReadOnlyList<Post> post
     protected override IPicked Walking => _posts;
 
     /// <inheritdoc />
-    public override bool Reveal() => Picked is { } picked && _revealed.Ask(picked);
-
-    /// <inheritdoc />
     public override void Replace(Post post) => _posts.Rewrite(held => PostChange.Replaced(held, post));
 
     /// <inheritdoc />
@@ -54,7 +50,7 @@ public sealed class FeedScreen(Destination destination, IReadOnlyList<Post> post
     {
         var rows = _posts.Rows(
             width,
-            (post, _, room) => PostLines.Feed(post, room, _revealed.Has(post), now, pictures));
+            (post, _, room) => PostLines.Feed(post, room, Revealed.Has(post), now, pictures));
 
         if (Notice is not { } notice)
         {

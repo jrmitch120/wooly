@@ -23,9 +23,6 @@ namespace Wooly.Tui.Screens;
 /// </remarks>
 public sealed class SearchScreen : Screen
 {
-    /// <summary>The warnings the reader has asked past, so that a post found twice over is revealed once.</summary>
-    private readonly Revealed _revealed = new();
-
     /// <summary>
     ///     What the search found, all three kinds as the one list the reader walks. Held this way so that the order
     ///     the results are drawn in and the order they are picked out in are the same order by construction, rather
@@ -149,9 +146,6 @@ public sealed class SearchScreen : Screen
     }
 
     /// <inheritdoc />
-    public override bool Reveal() => Picked is { } picked && _revealed.Ask(picked);
-
-    /// <inheritdoc />
     public override void Replace(Post post) => _results.Rewrite(found =>
         found is Result.OfPost(var held) ? new Result.OfPost(PostChange.Replaced(held, post)) : found);
 
@@ -193,7 +187,7 @@ public sealed class SearchScreen : Screen
         {
             Result.OfAccount(var account) => [AccountLines.Byline(account, room)],
             Result.OfHashtag(var hashtag) => [Tag(hashtag, room)],
-            Result.OfPost(var post) => PostLines.Feed(post, room, _revealed.Has(post), now, pictures),
+            Result.OfPost(var post) => PostLines.Feed(post, room, Revealed.Has(post), now, pictures),
             _ => [],
         };
     }

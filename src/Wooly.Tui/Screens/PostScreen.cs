@@ -19,7 +19,6 @@ namespace Wooly.Tui.Screens;
 /// </remarks>
 public sealed class PostScreen : Screen
 {
-    private readonly Revealed _revealed = new();
     private readonly Picked<Post> _posts;
 
     /// <param name="post">The post this screen is about, which is the first thing on it.</param>
@@ -68,9 +67,6 @@ public sealed class PostScreen : Screen
     protected override IPicked Walking => _posts;
 
     /// <inheritdoc />
-    public override bool Reveal() => Picked is { } picked && _revealed.Ask(picked);
-
-    /// <inheritdoc />
     public override void Replace(Post post) => _posts.Rewrite(held => PostChange.Replaced(held, post));
 
     /// <inheritdoc />
@@ -115,8 +111,8 @@ public sealed class PostScreen : Screen
         return lines;
 
         IReadOnlyList<Line> Draw(Post post, int at, int room) => at == 0
-            ? PostLines.Whole(post, room, _revealed.Has(post), now, pictures)
-            : PostLines.Feed(post, room, _revealed.Has(post), now, pictures);
+            ? PostLines.Whole(post, room, Revealed.Has(post), now, pictures)
+            : PostLines.Feed(post, room, Revealed.Has(post), now, pictures);
     }
 
     private string Heading(int width) =>

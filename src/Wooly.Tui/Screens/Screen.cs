@@ -87,9 +87,21 @@ public abstract class Screen
     /// </remarks>
     public void Pick(int at) => Walking?.Pick(at);
 
+    /// <summary>The content warnings the reader has asked past on this screen, by the id of the post each is on.</summary>
+    /// <remarks>
+    ///     Held here rather than six times over, because what <c>x</c> does turned out not to vary by screen at all —
+    ///     it is <see cref="Picked" /> and one question. Kept out of <see cref="Picked{T}" /> for the opposite reason:
+    ///     only posts carry a warning, and a list of conversations or of accounts would be holding it for nothing.
+    /// </remarks>
+    protected Revealed Revealed { get; } = new();
+
     /// <summary>Shows what the picked post's content warning is hiding.</summary>
     /// <returns>Whether there was anything to reveal, which is what settles whether the key was used.</returns>
-    public virtual bool Reveal() => false;
+    /// <remarks>
+    ///     A screen with no posts on it picks none, so it reveals nothing without having to say so — the same reason
+    ///     <see cref="Move" /> and <see cref="Pick" /> need no override on one.
+    /// </remarks>
+    public bool Reveal() => Picked is { } picked && Revealed.Ask(picked);
 
     /// <summary>
     ///     Puts <paramref name="post" /> in place of the copy this screen is holding, after a mark changed it. What

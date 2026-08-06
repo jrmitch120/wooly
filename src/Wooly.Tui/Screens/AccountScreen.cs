@@ -18,7 +18,6 @@ namespace Wooly.Tui.Screens;
 /// </remarks>
 public sealed class AccountScreen(Account account, IReadOnlyList<Post> posts) : Screen
 {
-    private readonly Revealed _revealed = new();
     private readonly Picked<Post> _posts = new(posts);
 
     /// <inheritdoc />
@@ -74,9 +73,6 @@ public sealed class AccountScreen(Account account, IReadOnlyList<Post> posts) : 
     public void Stands(Account account) => Account = account;
 
     /// <inheritdoc />
-    public override bool Reveal() => Picked is { } picked && _revealed.Ask(picked);
-
-    /// <inheritdoc />
     public override void Replace(Post post) => _posts.Rewrite(held => PostChange.Replaced(held, post));
 
     /// <inheritdoc />
@@ -104,7 +100,7 @@ public sealed class AccountScreen(Account account, IReadOnlyList<Post> posts) : 
 
         lines.AddRange(_posts.Rows(
             width,
-            (post, _, room) => PostLines.Feed(post, room, _revealed.Has(post), now, pictures)));
+            (post, _, room) => PostLines.Feed(post, room, Revealed.Has(post), now, pictures)));
 
         return lines;
     }

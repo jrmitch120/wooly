@@ -18,9 +18,6 @@ namespace Wooly.Tui.Screens;
 /// </remarks>
 public sealed class NotificationsScreen(IReadOnlyList<Notification> notifications, string? notice = null) : Screen
 {
-    /// <summary>The warnings the reader has asked past, so that a post mentioned twice is revealed once.</summary>
-    private readonly Revealed _revealed = new();
-
     private readonly Picked<Notification> _notifications = new(notifications);
 
     /// <inheritdoc />
@@ -57,9 +54,6 @@ public sealed class NotificationsScreen(IReadOnlyList<Notification> notification
 
     /// <inheritdoc />
     protected override IPicked Walking => _notifications;
-
-    /// <inheritdoc />
-    public override bool Reveal() => Picked is { } picked && _revealed.Ask(picked);
 
     /// <inheritdoc />
     public override void Replace(Post post) => _notifications.Rewrite(
@@ -105,7 +99,7 @@ public sealed class NotificationsScreen(IReadOnlyList<Notification> notification
             if (notification.Post is { } post)
             {
                 rows.AddRange(PostLines
-                              .Feed(post, Math.Max(1, room - 2), _revealed.Has(post), now, pictures)
+                              .Feed(post, Math.Max(1, room - 2), Revealed.Has(post), now, pictures)
                               .Select(line => line.After(new Span("  ", Role.Body))));
             }
 
