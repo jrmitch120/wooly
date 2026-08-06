@@ -61,28 +61,47 @@ public abstract class Screen
     /// </param>
     public abstract IReadOnlyList<Line> Lines(int width, DateTimeOffset now, IPictures? pictures = null);
 
+    /// <summary>
+    ///     The things on this screen with one of them picked out, or <see langword="null" /> where there is nothing on
+    ///     it to walk — the compose editor, the keymap, a notice.
+    /// </summary>
+    /// <remarks>
+    ///     The one member a screen exposes for the sake of <see cref="Move" /> and <see cref="Pick" />, which is what
+    ///     lets those two be the same two lines everywhere rather than an override apiece that could number its rows
+    ///     one way and its picks another (#51).
+    /// </remarks>
+    protected virtual IPicked? Walking => null;
+
     /// <summary>Moves what is picked out by <paramref name="by" /> items, stopping at either end.</summary>
-    public virtual void Move(int by)
-    {
-    }
+    public void Move(int by) => Walking?.Move(by);
 
     /// <summary>
     ///     Picks the <paramref name="at" />th thing on this screen out, stopping at either end. What <c>j</c> does
-    ///     when the arrows have scrolled the selection off the page: a step from where the selection was left would
+    ///     when the arrows have scrolled what is picked off the page: a step from where the pick was left would
     ///     take the reader back to a post they can no longer see (#51).
     /// </summary>
     /// <remarks>
-    ///     The ordinal is the one this screen's rows are named with (<see cref="Line.Item" />), which for the screens
-    ///     whose selection is not a plain index into a list of posts — the post screen, search, notifications, direct
-    ///     messages, follow requests — is theirs to keep in step rather than an index into anything else.
+    ///     The ordinal is the one this screen's rows are named with (<see cref="Line.Item" />), and it is the same
+    ///     ordinal by construction: the rows are stamped by whatever <see cref="Walking" /> is, from the index it is
+    ///     keeping.
     /// </remarks>
-    public virtual void Pick(int at)
-    {
-    }
+    public void Pick(int at) => Walking?.Pick(at);
+
+    /// <summary>The content warnings the reader has asked past on this screen, by the id of the post each is on.</summary>
+    /// <remarks>
+    ///     Held here rather than six times over, because what <c>x</c> does turned out not to vary by screen at all —
+    ///     it is <see cref="Picked" /> and one question. Kept out of <see cref="Picked{T}" /> for the opposite reason:
+    ///     only posts carry a warning, and a list of conversations or of accounts would be holding it for nothing.
+    /// </remarks>
+    protected Revealed Revealed { get; } = new();
 
     /// <summary>Shows what the picked post's content warning is hiding.</summary>
     /// <returns>Whether there was anything to reveal, which is what settles whether the key was used.</returns>
-    public virtual bool Reveal() => false;
+    /// <remarks>
+    ///     A screen with no posts on it picks none, so it reveals nothing without having to say so — the same reason
+    ///     <see cref="Move" /> and <see cref="Pick" /> need no override on one.
+    /// </remarks>
+    public bool Reveal() => Picked is { } picked && Revealed.Ask(picked);
 
     /// <summary>
     ///     Puts <paramref name="post" /> in place of the copy this screen is holding, after a mark changed it. What

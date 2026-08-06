@@ -12,7 +12,7 @@ namespace Wooly.Tui.Screens;
 /// </summary>
 public sealed class FeedScreen(Destination destination, IReadOnlyList<Post> posts, string? notice = null) : Screen
 {
-    private readonly PickedPosts _picked = new(posts);
+    private readonly Picked<Post> _posts = new(posts);
 
     /// <inheritdoc />
     public override string Crumb => destination.Label.ToLowerInvariant();
@@ -22,10 +22,10 @@ public sealed class FeedScreen(Destination destination, IReadOnlyList<Post> post
         PostKeys.Around(new KeyHint("j/k", "post"), new KeyHint("tab", "destination"));
 
     /// <summary>Which post is picked out, as an index into what is on screen.</summary>
-    public int At => _picked.At;
+    public int At => _posts.At;
 
     /// <summary>The posts on the timeline, newest first.</summary>
-    public IReadOnlyList<Post> Posts => _picked.Posts;
+    public IReadOnlyList<Post> Posts => _posts.All;
 
     /// <summary>
     ///     Something the shell has to say about this timeline rather than about a post on it — that it is empty, or
@@ -34,31 +34,29 @@ public sealed class FeedScreen(Destination destination, IReadOnlyList<Post> post
     public string? Notice { get; } = notice;
 
     /// <inheritdoc />
-    public override Post? Picked => _picked.Picked;
+    public override Post? Picked => _posts.Out;
 
     /// <inheritdoc />
-    public override void Move(int by) => _picked.Move(by);
+    protected override IPicked Walking => _posts;
 
     /// <inheritdoc />
-    public override void Pick(int at) => _picked.Pick(at);
+    public override void Replace(Post post) => _posts.Rewrite(held => PostChange.Replaced(held, post));
 
     /// <inheritdoc />
-    public override bool Reveal() => _picked.Reveal();
-
-    /// <inheritdoc />
-    public override void Replace(Post post) => _picked.Replace(post);
-
-    /// <inheritdoc />
-    public override void Remove(string postId) => _picked.Remove(postId);
+    public override void Remove(string postId) => _posts.Remove(held => PostChange.Names(held, postId));
 
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(int width, DateTimeOffset now, IPictures? pictures = null)
     {
+        var rows = _posts.Rows(
+            width,
+            (post, _, room) => PostLines.Feed(post, room, Revealed.Has(post), now, pictures));
+
         if (Notice is not { } notice)
         {
-            return _picked.Lines(width, now, pictures);
+            return rows;
         }
 
-        return [Line.Of(TextWrap.Clip(notice, width), Role.Muted), Line.Blank, .. _picked.Lines(width, now, pictures)];
+        return [Line.Of(TextWrap.Clip(notice, width), Role.Muted), Line.Blank, .. rows];
     }
 }

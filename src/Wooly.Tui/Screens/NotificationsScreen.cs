@@ -18,10 +18,7 @@ namespace Wooly.Tui.Screens;
 /// </remarks>
 public sealed class NotificationsScreen(IReadOnlyList<Notification> notifications, string? notice = null) : Screen
 {
-    /// <summary>The warnings the reader has asked past, so that a post mentioned twice is revealed once.</summary>
-    private readonly Revealed _revealed = new();
-
-    private readonly List<Notification> _notifications = [.. notifications];
+    private readonly Picked<Notification> _notifications = new(notifications);
 
     /// <inheritdoc />
     public override string Crumb => "notifications";
@@ -34,10 +31,10 @@ public sealed class NotificationsScreen(IReadOnlyList<Notification> notification
             new KeyHint("tab", "destination"));
 
     /// <summary>Which notification is picked out, as an index into what is on screen.</summary>
-    public int At { get; private set; }
+    public int At => _notifications.At;
 
     /// <summary>What is waiting, newest first.</summary>
-    public IReadOnlyList<Notification> Notifications => _notifications;
+    public IReadOnlyList<Notification> Notifications => _notifications.All;
 
     /// <summary>
     ///     Something the shell has to say about the inbox rather than about anything in it — that it is empty, or that
@@ -46,7 +43,7 @@ public sealed class NotificationsScreen(IReadOnlyList<Notification> notification
     public string? Notice { get; } = notice;
 
     /// <summary>The notification picked out, or <see langword="null" /> where nothing is waiting.</summary>
-    public Notification? PickedNotification => _notifications.Count == 0 ? null : _notifications[At];
+    public Notification? PickedNotification => _notifications.Out;
 
     /// <inheritdoc />
     /// <remarks>
@@ -56,54 +53,26 @@ public sealed class NotificationsScreen(IReadOnlyList<Notification> notification
     public override Post? Picked => PickedNotification?.Post;
 
     /// <inheritdoc />
-    public override void Move(int by)
-    {
-        if (_notifications.Count > 0)
-        {
-            At = PickedPosts.Clamped(At, by, _notifications.Count - 1);
-        }
-    }
+    protected override IPicked Walking => _notifications;
 
     /// <inheritdoc />
-    public override void Pick(int at)
-    {
-        if (_notifications.Count > 0)
-        {
-            At = PickedPosts.Chosen(at, _notifications.Count - 1);
-        }
-    }
-
-    /// <inheritdoc />
-    public override bool Reveal() => Picked is { } picked && _revealed.Ask(picked);
-
-    /// <inheritdoc />
-    public override void Replace(Post post)
-    {
-        for (var at = 0; at < _notifications.Count; at++)
-        {
-            if (_notifications[at].Post?.Id == post.Id)
-            {
-                _notifications[at] = _notifications[at] with { Post = post };
-            }
-        }
-    }
+    public override void Replace(Post post) => _notifications.Rewrite(
+        held => held.Post?.Id == post.Id ? held with { Post = post } : held);
 
     /// <inheritdoc />
     /// <remarks>
     ///     A notification about a post that is no longer there is a row about nothing, so it goes with it — the
     ///     instance still has the notification, and the next read will say so, which is the honest thing to draw.
     /// </remarks>
-    public override void Remove(string postId) => Forget(
-        _notifications.Where(notification => notification.Post?.Id == postId).Select(notification => notification.Id));
+    public override void Remove(string postId) =>
+        _notifications.Remove(notification => notification.Post?.Id == postId);
 
     /// <summary>Takes the notifications <paramref name="ids" /> names off the screen, once the instance has cleared them.</summary>
     public void Forget(IEnumerable<string> ids)
     {
         var going = ids.ToHashSet(StringComparer.Ordinal);
 
-        _notifications.RemoveAll(notification => going.Contains(notification.Id));
-
-        At = _notifications.Count == 0 ? 0 : Math.Clamp(At, 0, _notifications.Count - 1);
+        _notifications.Remove(notification => going.Contains(notification.Id));
     }
 
     /// <inheritdoc />
@@ -117,26 +86,25 @@ public sealed class NotificationsScreen(IReadOnlyList<Notification> notification
             lines.Add(Line.Blank);
         }
 
-        var room = Math.Max(1, width - 1);
+        lines.AddRange(_notifications.Rows(width, Draw));
 
-        for (var at = 0; at < _notifications.Count; at++)
+        return lines;
+
+        // What happened, and under it the post it happened to — indented, so that the row saying who did what reads
+        // as the heading of the two rather than as another message in the list.
+        IReadOnlyList<Line> Draw(Notification notification, int at, int room)
         {
-            var notification = _notifications[at];
-
-            lines.Add(Happened(notification, room, now).After(PickedPosts.Gutter(at == At)).PartOf(at));
+            var rows = new List<Line> { Happened(notification, room, now) };
 
             if (notification.Post is { } post)
             {
-                foreach (var line in PostLines.Feed(post, Math.Max(1, room - 2), _revealed.Has(post), now, pictures))
-                {
-                    lines.Add(line.After(PickedPosts.Gutter(at == At), new Span("  ", Role.Body)).PartOf(at));
-                }
+                rows.AddRange(PostLines
+                              .Feed(post, Math.Max(1, room - 2), Revealed.Has(post), now, pictures)
+                              .Select(line => line.After(new Span("  ", Role.Body))));
             }
 
-            lines.Add(Line.Blank);
+            return rows;
         }
-
-        return lines;
     }
 
     /// <summary>

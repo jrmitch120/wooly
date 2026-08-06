@@ -75,6 +75,13 @@ rail, a screen is what the content region is showing, and drilling from a post i
 without changing the destination.
 _Avoid_: tab, section, page
 
+**Picked**:
+Which of the things on a screen the reader has walked to with `j` and `k`, and what every key that acts on something
+acts on. Distinct from the rail's **cursor** and its **selection** (ADR-0014): those are about which **destination**
+you are going to, this is about what you are looking at once you are there. A screen showing an empty list has nothing
+picked, which is a fact about the list rather than a place in it.
+_Avoid_: cursor, selection, highlight, current row
+
 **Role**:
 What a piece of the TUI is, said in a way a **theme** can answer: a byline's name, a handle, a content warning, a boost
 mark, an unread count, the selected row. Views name roles and never colours, so that the same screen can be themed,

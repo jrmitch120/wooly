@@ -16,7 +16,7 @@ namespace Wooly.Tui.Screens;
 /// </remarks>
 public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string? notice = null) : Screen
 {
-    private readonly List<Account> _waiting = [.. waiting];
+    private readonly Picked<Account> _waiting = new(waiting);
 
     /// <inheritdoc />
     public override string Crumb => "follow requests";
@@ -34,10 +34,10 @@ public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string?
     ];
 
     /// <summary>Which request is picked out, as an index into what is on screen.</summary>
-    public int At { get; private set; }
+    public int At => _waiting.At;
 
     /// <summary>Who is waiting, in the order the instance listed them.</summary>
-    public IReadOnlyList<Account> Waiting => _waiting;
+    public IReadOnlyList<Account> Waiting => _waiting.All;
 
     /// <summary>
     ///     Something the shell has to say about the list rather than about anybody on it — that nobody is waiting, or
@@ -49,33 +49,13 @@ public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string?
     ///     Whoever is picked out, or <see langword="null" /> where nobody is waiting. What <c>a</c> and <c>x</c>
     ///     answer, named by their id — which is what answering a request takes (ADR-0012).
     /// </summary>
-    public Account? PickedAccount => _waiting.Count == 0 ? null : _waiting[At];
+    public Account? PickedAccount => _waiting.Out;
 
     /// <inheritdoc />
-    public override void Move(int by)
-    {
-        if (_waiting.Count > 0)
-        {
-            At = PickedPosts.Clamped(At, by, _waiting.Count - 1);
-        }
-    }
-
-    /// <inheritdoc />
-    public override void Pick(int at)
-    {
-        if (_waiting.Count > 0)
-        {
-            At = PickedPosts.Chosen(at, _waiting.Count - 1);
-        }
-    }
+    protected override IPicked Walking => _waiting;
 
     /// <summary>Takes the account <paramref name="accountId" /> names off the list, once their request was answered.</summary>
-    public void Answered(string accountId)
-    {
-        _waiting.RemoveAll(account => account.Id == accountId);
-
-        At = _waiting.Count == 0 ? 0 : Math.Clamp(At, 0, _waiting.Count - 1);
-    }
+    public void Answered(string accountId) => _waiting.Remove(account => account.Id == accountId);
 
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(int width, DateTimeOffset now, IPictures? pictures = null)
@@ -88,16 +68,9 @@ public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string?
             lines.Add(Line.Blank);
         }
 
-        var room = Math.Max(1, width - 1);
-
-        for (var at = 0; at < _waiting.Count; at++)
-        {
-            var account = _waiting[at];
-
-            lines.Add(AccountLines.Byline(account, room).After(PickedPosts.Gutter(at == At)).PartOf(at));
-            lines.Add(AccountLines.Presence(account, room).After(PickedPosts.Gutter(at == At)).PartOf(at));
-            lines.Add(Line.Blank);
-        }
+        lines.AddRange(_waiting.Rows(
+            width,
+            (account, _, room) => [AccountLines.Byline(account, room), AccountLines.Presence(account, room)]));
 
         return lines;
     }

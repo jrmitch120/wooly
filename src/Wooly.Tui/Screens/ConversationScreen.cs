@@ -21,7 +21,7 @@ namespace Wooly.Tui.Screens;
 /// </remarks>
 public sealed class ConversationScreen(ConversationThread thread) : Screen
 {
-    private readonly PickedPosts _posts = new(thread.Posts);
+    private readonly Picked<Post> _posts = new(thread.Posts);
 
     /// <inheritdoc />
     public override string Crumb => $"with {ConversationLines.Who(Conversation)}";
@@ -41,13 +41,16 @@ public sealed class ConversationScreen(ConversationThread thread) : Screen
     public Conversation Conversation { get; private set; } = thread.Conversation;
 
     /// <summary>What was said in it, oldest first.</summary>
-    public IReadOnlyList<Post> Posts => _posts.Posts;
+    public IReadOnlyList<Post> Posts => _posts.All;
 
     /// <summary>Which message is picked out, as an index into the thread.</summary>
     public int At => _posts.At;
 
     /// <inheritdoc />
-    public override Post? Picked => _posts.Picked;
+    public override Post? Picked => _posts.Out;
+
+    /// <inheritdoc />
+    protected override IPicked Walking => _posts;
 
     /// <summary>Puts the conversation as the instance now has it in place of the one this screen opened with.</summary>
     public void Marked(Conversation conversation) => Conversation = conversation;
@@ -68,19 +71,10 @@ public sealed class ConversationScreen(ConversationThread thread) : Screen
     }
 
     /// <inheritdoc />
-    public override void Move(int by) => _posts.Move(by);
+    public override void Replace(Post post) => _posts.Rewrite(held => PostChange.Replaced(held, post));
 
     /// <inheritdoc />
-    public override void Pick(int at) => _posts.Pick(at);
-
-    /// <inheritdoc />
-    public override bool Reveal() => _posts.Reveal();
-
-    /// <inheritdoc />
-    public override void Replace(Post post) => _posts.Replace(post);
-
-    /// <inheritdoc />
-    public override void Remove(string postId) => _posts.Remove(postId);
+    public override void Remove(string postId) => _posts.Remove(held => PostChange.Names(held, postId));
 
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(int width, DateTimeOffset now, IPictures? pictures = null)
@@ -98,7 +92,9 @@ public sealed class ConversationScreen(ConversationThread thread) : Screen
             return lines;
         }
 
-        lines.AddRange(_posts.Lines(width, now, pictures));
+        lines.AddRange(_posts.Rows(
+            width,
+            (post, _, room) => PostLines.Feed(post, room, Revealed.Has(post), now, pictures)));
 
         return lines;
     }
