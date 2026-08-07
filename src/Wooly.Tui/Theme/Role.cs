@@ -14,6 +14,21 @@ public enum Role
     /// <summary>A post's text.</summary>
     Body,
 
+    /// <summary>A tag inside a post's text. Carried without colour by the <c>#</c>.</summary>
+    Hashtag,
+
+    /// <summary>
+    ///     An account named inside a post's text. Carried without colour by the <c>@</c>. Kept apart from
+    ///     <see cref="BylineHandle" />: a byline is who wrote this, a mention is somebody else being named.
+    /// </summary>
+    Mention,
+
+    /// <summary>
+    ///     An address inside a post's text. Carried without colour by the scheme. Kept apart from
+    ///     <see cref="Media" />, which paints the address of something attached.
+    /// </summary>
+    Link,
+
     /// <summary>Timestamps, counts nobody acted on, hints. Carried without colour by position.</summary>
     Muted,
 

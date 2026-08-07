@@ -85,21 +85,5 @@ public partial class NoHardCodedColourTests
                  .Where(file => !file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
                  .Where(file => !file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal));
 
-    private static string TuiSources() => Path.Combine(RepositoryRoot(), "src", "Wooly.Tui");
-
-    /// <summary>
-    ///     The repository, found by walking up from wherever the test assembly ended up until the solution file turns
-    ///     up. A path relative to the test binary would break the first time the build layout changed.
-    /// </summary>
-    private static string RepositoryRoot()
-    {
-        var here = new DirectoryInfo(AppContext.BaseDirectory);
-
-        while (here is not null && !File.Exists(Path.Combine(here.FullName, "Wooly.slnx")))
-        {
-            here = here.Parent;
-        }
-
-        return here?.FullName ?? throw new InvalidOperationException("Could not find the repository from the test binary.");
-    }
+    private static string TuiSources() => Path.Combine(RepositoryRoot.Path, "src", "Wooly.Tui");
 }

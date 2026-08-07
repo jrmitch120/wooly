@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Wooly.Core.Http;
 using Wooly.Core.Notifications;
 using Wooly.Core.Posts;
@@ -15,7 +16,7 @@ namespace Wooly.Tests.Tui;
 ///     terminal, and the part where a mistake shows up as the wrong thing being emphasised on somebody's screen —
 ///     a boost of the reader's own drawn as if it were anybody's, an unread count drawn as ordinary text.
 /// </summary>
-public class RoleTests
+public partial class RoleTests
 {
     private static readonly DateTimeOffset Now = new(2026, 7, 29, 12, 30, 0, TimeSpan.Zero);
 
@@ -29,9 +30,51 @@ public class RoleTests
 
             // Would throw if the built-in theme had forgotten one, which is what a role table exists to prevent.
             Themes.Dark.For(role);
+            Themes.Light.For(role);
             Themes.Plain.For(role);
         }
     }
+
+    /// <summary>
+    ///     The vocabulary is written down three times — the enum, the names a config file uses, and the table in
+    ///     <c>docs/tui-shell.md</c> — and the third is the one nothing could enforce until this test. A role added to
+    ///     the code and not to the table is a role nobody can find out how to theme; a row in the table with no role
+    ///     behind it is a key somebody will write and be told does not exist.
+    /// </summary>
+    [Fact]
+    public void TheRoleTableInTheContractIsTheRolesThereAre()
+    {
+        var documented = DocumentedRoles();
+        var named = Enum.GetValues<Role>().Select(RoleName.Of).Order().ToList();
+
+        Assert.Equal(named, documented);
+    }
+
+    /// <summary>
+    ///     The role names in the table in <c>docs/tui-shell.md</c>, taken from the first column. Two of its rows name
+    ///     no role — a drawn picture's own pixels, and the rail's cursor — and say so in words rather than in
+    ///     backticks, which is what leaves them out of this.
+    /// </summary>
+    private static IReadOnlyList<string> DocumentedRoles()
+    {
+        var lines = File.ReadAllLines(Path.Combine(RepositoryRoot.Path, "docs", "tui-shell.md"))
+                        .SkipWhile(line => line != "## Roles")
+                        .Skip(1)
+                        .SkipWhile(line => !line.StartsWith('|'))
+                        .TakeWhile(line => line.StartsWith('|'))
+                        .ToList();
+
+        Assert.True(lines.Count > 10, $"Found only {lines.Count} rows of the role table in docs/tui-shell.md.");
+
+        return lines.Select(line => line.Split('|')[1])
+                    .SelectMany(cell => Quoted().Matches(cell).Select(match => match.Groups[1].Value))
+                    .Order()
+                    .ToList();
+    }
+
+    /// <summary>A name in backticks, which is how the table writes a role and how it writes nothing else.</summary>
+    [GeneratedRegex("`([a-z-]+)`")]
+    private static partial Regex Quoted();
 
     /// <summary>A name written in C# is not the key somebody has in their config file, so the two are kept apart.</summary>
     [Theory]
@@ -75,6 +118,47 @@ public class RoleTests
         Assert.Contains(byline.Spans, span => span is { Role: Role.BylineName, Text: "Maria Ochoa" });
         Assert.Contains(byline.Spans, span => span.Role == Role.BylineHandle && span.Text.Contains('@'));
         Assert.Contains(byline.Spans, span => span.Role == Role.Audience);
+    }
+
+    /// <summary>
+    ///     The three roles inside a post's text (#46). Asserted on the feed and again in a conversation, because the
+    ///     whole point of putting the split at the one place a body is wrapped is that every screen showing a post
+    ///     gets it — the feed, the post screen, a thread and the notification list alike.
+    /// </summary>
+    [Fact]
+    public void EveryScreenShowingAPostDrawsItsTagsMentionsAndAddresses()
+    {
+        const string Said = "Thanks @maria@fosstodon.org — notes at https://example.com/notes #dotnet";
+
+        var feed = PostLines.Feed(APost.With(content: Said), 61, revealed: false, Now);
+        var thread = new ConversationScreen(
+            AConversation.Thread(AConversation.With(), APost.With(content: Said, visibility: PostVisibility.Direct)))
+            .Lines(61, Now);
+
+        foreach (var lines in (IReadOnlyList<Line>[])[feed, thread])
+        {
+            var spans = lines.SelectMany(line => line.Spans).ToList();
+
+            Assert.Contains(spans, span => span is { Role: Role.Mention, Text: "@maria@fosstodon.org" });
+            Assert.Contains(spans, span => span is { Role: Role.Link, Text: "https://example.com/notes" });
+            Assert.Contains(spans, span => span is { Role: Role.Hashtag, Text: "#dotnet" });
+        }
+    }
+
+    /// <summary>
+    ///     The editor stays plain, deliberately: a mention lights and goes out again as it is typed, and this client
+    ///     has not resolved what somebody is halfway through writing, so a role there would assert something it has
+    ///     not checked (#46).
+    /// </summary>
+    [Fact]
+    public void Compose_DrawsWhatIsBeingTypedAsPlainText()
+    {
+        var editor = new ComposeScreen(ComposeFor.Post) { Text = "Thanks @maria@fosstodon.org #dotnet" };
+
+        var spans = editor.Lines(61, Now).SelectMany(line => line.Spans).ToList();
+
+        Assert.DoesNotContain(spans, span => span.Role is Role.Mention or Role.Hashtag or Role.Link);
+        Assert.Contains(spans, span => span.Role == Role.Body);
     }
 
     /// <summary>A warning is a warning whether or not there is colour to draw it in, so it carries its own glyph.</summary>
