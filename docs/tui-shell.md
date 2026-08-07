@@ -232,6 +232,9 @@ glyph or a position that carries the same meaning when colour is gone.
 | Role | Paints | Carried without colour by |
 |---|---|---|
 | `body` | A post's text | — |
+| `hashtag` | A tag inside a post's text | the `#` |
+| `mention` | An account named inside a post's text | the `@` |
+| `link` | An address inside a post's text | the scheme |
 | `muted` | Timestamps, counts nobody acted on, hints | position |
 | `byline-name` | A display name | position |
 | `byline-handle` | `username@instance` | the `@` |
@@ -244,19 +247,43 @@ glyph or a position that carries the same meaning when colour is gone.
 | `favorite` / `favorite-mine` | The favorite mark, and it when it is yours | `★`, and the count |
 | `selection` | The selected row | `▌` in the gutter |
 | `rail` / `rail-current` | Destinations, and the one selected | `▸`, with `▶` for the cursor |
+| *(none — the rail's cursor)* | Where the tabbing has got to | `▶`, and only `▶` |
 | `rail-unread` | An unread count, and the word on an unread conversation | the number, and the word |
 | `quota` / `quota-low` | Rate-limit budget left, and nearly spent | the number |
 | `chrome` | Breadcrumb and status rows | position |
-| `loading` | Stale content while a fetch lands | the breadcrumb says `fetching…` |
+| `loading` | The `fetching…` mark on the breadcrumb | the word itself |
 | `destructive` | A delete affordance and its confirmation | the word |
 | `error` | A failure the shell has to say out loud | the word |
 
 Role selection is testable without a terminal and is expected to be tested: *a post of mine offers delete in the
 destructive role*, *an unread conversation's badge takes `rail-unread`*. Drawing is not tested (ADR-0005, ADR-0014).
 
+The table above is the contract, and the three places it is written down — this table, the `Role` enum, and the
+`RoleName` table of what each one is called in a config file — are checked against each other by a test rather than by
+a reader.
+
 The one thing that carries colour without naming a role is a drawn picture, whose pixels are the content rather than an
 emphasis somebody chose — there is no sense in which `dark` and `light` would answer them differently. The scan that
 enforces "no view constructs a colour" names the one file allowed to (ADR-0016); every screen is still caught.
+
+`muted` is the broad one — timestamps, hints, counts, empty-list notices, editor chrome — and stays broad on purpose. A
+themer cannot make an empty-list notice dimmer than a timestamp, and that is a smaller loss than a vocabulary nobody
+can hold in their head.
+
+### The three inside a post's text
+
+`hashtag`, `mention` and `link` are found in the flattened plain text of a post's body, at the one place a body is
+wrapped, so the feed, the post screen, a conversation and the notification list all draw them without knowing about
+them. Three things follow from where they are found:
+
+- **A mention is not a `byline-handle`.** The byline is who wrote this; a mention is somebody else being named. A theme
+  that wants them alike writes the colour twice. `link` is likewise not `media`, which paints attachment links.
+- **An address is matched by pattern**, since an instance elides part of the one it displays: a scheme, a `www.`, or a
+  domain with a path on it. So a bare domain somebody typed as prose is painted as a link, and a domain with nothing
+  after it — `Node.js`, `config.toml` — is not. The imprecision is deliberate and costs nothing but colour.
+- **The compose editor stays plain.** The three patterns start matching at three different points in a word, so text
+  would change colour under the cursor and a would-be mention would light and go out again; and this client has not
+  resolved what somebody is halfway through typing, so a role there would assert something it has not checked.
 
 ## A theme
 
@@ -274,14 +301,17 @@ muted           = "#7c7891"
 byline-name     = "#f2f0f7"
 byline-handle   = "#8fa8ff"
 content-warning = "#e0af68"
+hashtag         = "#6fcf97"
+mention         = "#e0af68"
+link            = "#8fa8ff"
 boost           = "#6fcf97"
 boost-mine      = "#9ef2b8"
 favorite        = "#c58fe8"
 favorite-mine   = "#e0b6ff"
-rail-unread     = "#ff7a93"
+rail-unread     = "bright-red"
 destructive     = "#ff7a93"
 
-# A role may set its own background; anything unset falls back to the theme's.
+# A role may set its own background; a half it leaves out keeps whatever it was overriding.
 [themes.midnight.selection]
 foreground = "#f2f0f7"
 background = "#2a2942"
@@ -289,14 +319,27 @@ background = "#2a2942"
 
 Rules:
 
-- A colour is a hex triple or one of the sixteen ANSI names (`red`, `bright-blue`, …). Named colours let a theme follow
-  whatever the terminal's own palette is set to; hex does not.
-- Any role a theme leaves out falls back to the built-in of the same brightness — a theme is an override, not a
-  complete set, so adding a role later does not break every user's config.
-- A theme naming a role that does not exist is a config error with the role named, not a silent no-op.
+- A colour is a hex triple (`#8fa8ff`) or one of the sixteen ANSI names (`red`, `bright-blue`, …). Named colours let a
+  theme follow whatever the terminal's own palette is set to; hex does not. ANSI's `white` is the dim one a terminal
+  writes its text in — the bright one is `bright-white`, and `bright-black` is the dark grey.
 - `Terminal.Gui` quantises hex to the nearest of 16 on a 16-colour terminal, so a theme is authored once.
-- When the driver reports no colour at all (`NO_COLOR`, `TERM=dumb`) every role resolves to the terminal's default pair
-  and the glyphs above carry everything.
+- A theme is an override rather than a complete set, so adding a role later does not break every user's config. Any
+  role it leaves out falls back to the built-in it is read against: the one it shares a name with — a `[themes.dark]`
+  table is the built-in `dark` with changes on top — or, for a theme with a name of its own, the one whose brightness
+  its `background` matches.
+- A role may be a colour or a table of `foreground` and `background`. A half it leaves out keeps what the built-in had
+  there: the theme's page for nearly every role, and its own band for the selected row and the current rail entry — so
+  restating the selection's foreground does not silently take away the band it is drawn in.
+- `background` is the theme's, not a role: setting it moves everything that was sitting on the page. A theme cannot
+  decline to have one and inherit the terminal's own — `Terminal.Gui` attributes are a foreground/background pair with
+  no "leave it alone" in them, and its own default pair is a concrete white on black rather than a sentinel. So the
+  page is always written down: this theme's, or the built-in's.
+- A theme naming a role that does not exist is a config error with the role named, not a silent no-op — and so is a
+  colour this client cannot read, and a `theme = "…"` naming a theme nobody wrote. Every theme in the file is read,
+  not only the one in use, so a typo is reported the day it is written rather than the day it is switched to.
+- `NO_COLOR` and `TERM=dumb` beat `theme = "…"`, always: every role resolves to one pair and the glyphs above carry
+  everything. The file is still read on such a terminal, so that a mistake in it is reported to everybody rather than
+  only to the readers whose terminals happen to have colour.
 
 ## Fetching, since the rail loads on arrival
 
@@ -336,9 +379,11 @@ the timeline I just left", not "is this still current", and that has the same an
 
 ## Open questions
 
-1. **Whether a theme can decline to set a background** and inherit the terminal's own. `Terminal.Gui` attributes are a
-   foreground/background pair, so "inherit" needs checking against the driver rather than assuming. #46's, along with
-   the rest of the theme file.
+1. ~~**Whether a theme can decline to set a background** and inherit the terminal's own.~~ Settled by #46: it cannot.
+   A `Terminal.Gui` attribute is a foreground/background pair with nothing in it meaning "whatever was there", and its
+   `Attribute.Default` is a concrete white on black rather than a sentinel the driver reads as "leave it". So a
+   background is always written down — the theme's own, or the built-in's — and a terminal that wants no colour is
+   answered by not colouring anything (`NO_COLOR`), which is a different question and already settled above.
 2. ~~**Where compose lives.**~~ Settled by ADR-0015: a screen on the stack, like everything else. A reply draws the
    first rows of what it is answering above the editor, which is the part of the split region that was worth keeping.
 3. ~~**How long the settle window and the cache should be.**~~ Settled above.

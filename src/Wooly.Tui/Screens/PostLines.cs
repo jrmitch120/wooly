@@ -165,7 +165,10 @@ public static class PostLines
             ]));
         }
 
-        lines.AddRange(TextWrap.Wrap(post.Content, width).Select(row => Line.Of(row, Role.Body)));
+        // Wrapped first and split afterwards, one row at a time: the one place a post's text is drawn, so a tag, a
+        // mention and an address take their own roles on a feed, inside a post, in a conversation and in the
+        // notification list from this one line (#46).
+        lines.AddRange(TextWrap.Wrap(post.Content, width).Select(row => new Line(BodyText.Spans(row))));
 
         return lines;
     }

@@ -27,7 +27,11 @@ try
     // Resolved the way a command's scope resolves one, including --profile: naming a profile here acts as that
     // profile for this run without changing which one is current (story 9).
     var profile = provider.GetRequiredService<IProfileRegistry>().Resolve(StartupProfile.NamedIn(args));
-    var preferences = provider.GetRequiredService<IConfigStore>().Load().Preferences;
+    var config = provider.GetRequiredService<IConfigStore>().Load();
+
+    // Read before a screen exists, because a theme naming a role or a colour this client cannot make sense of is a
+    // config error, and the place to say one is here — where there is still a console to say it on.
+    var theme = Themes.ForCurrentTerminal(config, provider.GetRequiredService<WoolyPaths>().ConfigFile);
 
     // Terminal.Gui v2's instance-based application: no static/global shell state, so the TUI owns its own lifetime
     // (ADR-0002).
@@ -52,7 +56,7 @@ try
         new TerminalHost(application),
         clock,
         ShellTiming.Default,
-        preferences.Hashtag);
+        config.Preferences.Hashtag);
 
     // Story 49 asks for sixel first and Kitty where sixel is not there, which is the other way round from the order
     // Terminal.Gui tries them in. Settled once, here, before anything has been drawn (ADR-0016).
@@ -89,7 +93,7 @@ try
 
     using var window = new ShellWindow(
         shell,
-        Themes.ForCurrentTerminal(),
+        theme,
         clock,
         application.RequestStop,
         pictures);

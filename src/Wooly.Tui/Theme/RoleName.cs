@@ -1,15 +1,18 @@
 namespace Wooly.Tui.Theme;
 
 /// <summary>
-///     What each <see cref="Role" /> is called outside the code: in <c>docs/tui-shell.md</c>'s table, and — when #46
-///     arrives — as the key a user writes in a <c>[themes.*]</c> table. Written out rather than derived from the enum
-///     member's name, so that renaming a member in C# cannot silently rename the key somebody has in their config file.
+///     What each <see cref="Role" /> is called outside the code: in <c>docs/tui-shell.md</c>'s table, and as the key a
+///     user writes in a <c>[themes.*]</c> table. Written out rather than derived from the enum member's name, so that
+///     renaming a member in C# cannot silently rename the key somebody has in their config file.
 /// </summary>
 public static class RoleName
 {
     private static readonly Dictionary<Role, string> Names = new()
     {
         [Role.Body] = "body",
+        [Role.Hashtag] = "hashtag",
+        [Role.Mention] = "mention",
+        [Role.Link] = "link",
         [Role.Muted] = "muted",
         [Role.BylineName] = "byline-name",
         [Role.BylineHandle] = "byline-handle",
@@ -44,8 +47,8 @@ public static class RoleName
 
     /// <summary>The role <paramref name="name" /> names, or <see langword="null" /> where nothing does.</summary>
     /// <remarks>
-    ///     What #46 needs to turn a user's <c>[themes.midnight]</c> key into a role, and to say which key was wrong
-    ///     rather than ignoring it.
+    ///     What turns a key in somebody's <c>[themes.midnight]</c> table into a role — and what lets a key that is not
+    ///     one be named in the config error rather than quietly ignored.
     /// </remarks>
     public static Role? For(string name) =>
         Names.Where(entry => entry.Value == name).Select(entry => (Role?)entry.Key).FirstOrDefault();

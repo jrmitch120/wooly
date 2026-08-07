@@ -22,4 +22,14 @@ public sealed record WoolyConfig
 
     /// <summary>Settings that are not tied to any one profile.</summary>
     public Preferences Preferences { get; init; } = new();
+
+    /// <summary>
+    ///     The theme the TUI draws in, by name, or <see langword="null" /> where none has been chosen. A built-in name
+    ///     or one of <see cref="Themes" />; which, and whether it names one that exists at all, is the TUI's to say.
+    /// </summary>
+    public string? Theme { get; init; }
+
+    /// <summary>Every theme written in the config file, keyed by the name its table was given.</summary>
+    public IReadOnlyDictionary<string, ThemeConfig> Themes { get; init; } =
+        new Dictionary<string, ThemeConfig>(StringComparer.Ordinal);
 }

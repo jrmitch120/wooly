@@ -21,6 +21,13 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
     /// <summary>The hashtag the TUI's rail keeps a destination for.</summary>
     private const string HashtagKey = "hashtag";
 
+    /// <summary>The theme the TUI draws in, and the themes written in this same file (#46).</summary>
+    private const string ThemeKey = "theme";
+
+    private const string ThemesKey = "themes";
+    private const string BackgroundKey = "background";
+    private const string ForegroundKey = "foreground";
+
     /// <inheritdoc />
     public WoolyConfig Load()
     {
@@ -31,6 +38,8 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
             CurrentProfile = ReadString(root, CurrentProfileKey),
             Profiles = ReadProfiles(root),
             Preferences = ReadPreferences(root),
+            Theme = ReadString(root, ThemeKey),
+            Themes = ReadThemes(root),
         };
     }
 
@@ -42,6 +51,13 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
         if (config.CurrentProfile is not null)
         {
             root[CurrentProfileKey] = config.CurrentProfile;
+        }
+
+        // With the other loose key, and before every table, because TOML reads a key written after one as belonging
+        // to it.
+        if (config.Theme is not null)
+        {
+            root[ThemeKey] = config.Theme;
         }
 
         // Inserted before the profiles so the writer emits the short, general section above the long, per-profile one.
@@ -81,7 +97,60 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
             root[ProfilesKey] = profiles;
         }
 
+        // Last, because a theme is the longest thing in the file and the shortest way to find anything else is for it
+        // not to be above them.
+        if (config.Themes.Count > 0)
+        {
+            var themes = new TomlTable();
+
+            foreach (var (name, theme) in config.Themes)
+            {
+                themes[name] = Written(theme);
+            }
+
+            root[ThemesKey] = themes;
+        }
+
         TomlFile.Write(paths.ConfigFile, TomlSerializer.Serialize(root));
+    }
+
+    /// <summary>
+    ///     A theme as its table: the background, then every role that is one colour, then the roles that are a table
+    ///     of their own.
+    /// </summary>
+    /// <remarks>
+    ///     In that order because TOML reads a loose key written after a table as belonging to it — a role written
+    ///     after <c>[themes.midnight.selection]</c> would come back as part of the selection.
+    /// </remarks>
+    private static TomlTable Written(ThemeConfig theme)
+    {
+        var written = new TomlTable();
+
+        if (theme.Background is not null)
+        {
+            written[BackgroundKey] = theme.Background;
+        }
+
+        // A role saying neither is a role saying nothing, and is left out rather than written back as an empty colour.
+        foreach (var (role, colour) in theme.Roles.Where(role => role.Value is { Foreground: not null, Background: null }))
+        {
+            written[role] = colour.Foreground!;
+        }
+
+        foreach (var (role, colour) in theme.Roles.Where(role => role.Value.Background is not null))
+        {
+            var pair = new TomlTable();
+
+            if (colour.Foreground is not null)
+            {
+                pair[ForegroundKey] = colour.Foreground;
+            }
+
+            pair[BackgroundKey] = colour.Background!;
+            written[role] = pair;
+        }
+
+        return written;
     }
 
     private Dictionary<string, ProfileConfig> ReadProfiles(TomlTable root)
@@ -109,6 +178,71 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
         }
 
         return profiles;
+    }
+
+    /// <summary>
+    ///     The themes written in the file. Every name a theme uses is carried through as written: this store knows
+    ///     that a theme is names against colours, and the TUI knows which names are roles (#46).
+    /// </summary>
+    private Dictionary<string, ThemeConfig> ReadThemes(TomlTable root)
+    {
+        var themes = new Dictionary<string, ThemeConfig>(StringComparer.Ordinal);
+
+        if (ReadTable(root, ThemesKey) is not { } stored)
+        {
+            return themes;
+        }
+
+        foreach (var name in stored.Keys)
+        {
+            var entry = ReadTable(stored, name)
+                        ?? throw new ConfigurationException(paths.ConfigFile, $"theme '{name}' is not a section.");
+
+            var roles = new Dictionary<string, ThemeRole>(StringComparer.Ordinal);
+
+            foreach (var key in entry.Keys.Where(key => key != BackgroundKey))
+            {
+                roles[key] = ReadRole(entry[key], name, key);
+            }
+
+            themes[name] = new ThemeConfig
+            {
+                Background = ReadString(entry, BackgroundKey),
+                Roles = roles,
+            };
+        }
+
+        return themes;
+    }
+
+    /// <summary>
+    ///     What a theme puts against one role: a colour, or a table naming a foreground, a background, or both.
+    /// </summary>
+    private ThemeRole ReadRole(object? written, string theme, string role)
+    {
+        if (written is string colour)
+        {
+            return new ThemeRole(colour);
+        }
+
+        if (written is not TomlTable pair)
+        {
+            throw new ConfigurationException(
+                paths.ConfigFile,
+                $"theme '{theme}' gives '{role}' something that is not a colour. "
+                + "A colour is a hex triple like \"#8fa8ff\" or a name like \"bright-blue\".");
+        }
+
+        // A stray key is said rather than ignored: somebody who wrote 'forground' meant something by it, and a theme
+        // that drops what it cannot read leaves its author looking for a colour that never arrives.
+        if (pair.Keys.FirstOrDefault(key => key != ForegroundKey && key != BackgroundKey) is { } stray)
+        {
+            throw new ConfigurationException(
+                paths.ConfigFile,
+                $"theme '{theme}' gives '{role}' a '{stray}', which is neither a foreground nor a background.");
+        }
+
+        return new ThemeRole(ReadString(pair, ForegroundKey), ReadString(pair, BackgroundKey));
     }
 
     private Preferences ReadPreferences(TomlTable root)

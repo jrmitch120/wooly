@@ -182,6 +182,155 @@ public class TomlConfigStoreTests : IDisposable
         Assert.Contains("unlisted", exception.Message);
     }
 
+    /// <summary>
+    ///     A theme is a table in this same file (ADR-0003, #46). What the colours mean is the TUI's to say; what this
+    ///     store owes is the shape — which theme was chosen, and what each one puts against each name it uses.
+    /// </summary>
+    [Fact]
+    public void Load_ReadsTheChosenThemeAndTheThemesWrittenBesideIt()
+    {
+        WriteConfigFile(
+            """
+            theme = "midnight"
+
+            [themes.midnight]
+            background = "#12111a"
+            body = "#d5d2e0"
+            rail-unread = "bright-red"
+
+            [themes.midnight.selection]
+            foreground = "#f2f0f7"
+            background = "#2a2942"
+            """);
+
+        var config = NewStore().Load();
+
+        Assert.Equal("midnight", config.Theme);
+
+        var midnight = config.Themes["midnight"];
+
+        Assert.Equal("#12111a", midnight.Background);
+        Assert.Equal(new ThemeRole("#d5d2e0"), midnight.Roles["body"]);
+        Assert.Equal(new ThemeRole("bright-red"), midnight.Roles["rail-unread"]);
+        Assert.Equal(new ThemeRole("#f2f0f7", "#2a2942"), midnight.Roles["selection"]);
+    }
+
+    /// <summary>
+    ///     A role that names only a background is a role naming what it wants and leaving the rest to the theme, not a
+    ///     half-written one.
+    /// </summary>
+    [Fact]
+    public void Load_ReadsARoleThatNamesOnlyABackground()
+    {
+        WriteConfigFile(
+            """
+            [themes.midnight.selection]
+            background = "#2a2942"
+            """);
+
+        Assert.Equal(new ThemeRole(null, "#2a2942"), NewStore().Load().Themes["midnight"].Roles["selection"]);
+    }
+
+    /// <summary>
+    ///     Every command that writes this file writes the whole of it, so a theme somebody hand-wrote has to survive a
+    ///     profile being added — otherwise the first <c>profile add</c> after theming quietly deletes their theme.
+    /// </summary>
+    [Fact]
+    public void Save_ThenLoad_RoundTripsTheThemesSomebodyWroteByHand()
+    {
+        var store = NewStore();
+
+        store.Save(new WoolyConfig
+        {
+            CurrentProfile = "personal",
+            Theme = "midnight",
+            Themes = new Dictionary<string, ThemeConfig>
+            {
+                ["midnight"] = new()
+                {
+                    Background = "#12111a",
+                    Roles = new Dictionary<string, ThemeRole>
+                    {
+                        ["body"] = new("#d5d2e0"),
+                        ["selection"] = new("#f2f0f7", "#2a2942"),
+                        ["rail-unread"] = new(null, "bright-red"),
+                    },
+                },
+            },
+            Profiles = new Dictionary<string, ProfileConfig> { ["personal"] = new() { Instance = "hachyderm.io" } },
+        });
+
+        var config = store.Load();
+
+        Assert.Equal("midnight", config.Theme);
+        Assert.Equal("#12111a", config.Themes["midnight"].Background);
+        Assert.Equal(new ThemeRole("#d5d2e0"), config.Themes["midnight"].Roles["body"]);
+        Assert.Equal(new ThemeRole("#f2f0f7", "#2a2942"), config.Themes["midnight"].Roles["selection"]);
+        Assert.Equal(new ThemeRole(null, "bright-red"), config.Themes["midnight"].Roles["rail-unread"]);
+        Assert.Equal("hachyderm.io", config.Profiles["personal"].Instance);
+    }
+
+    /// <summary>The theme somebody wrote is theirs to read afterwards, so it goes back as the tables they wrote.</summary>
+    [Fact]
+    public void Save_WritesAThemeAsTheTableItWasWrittenAs()
+    {
+        NewStore().Save(new WoolyConfig
+        {
+            Theme = "midnight",
+            Themes = new Dictionary<string, ThemeConfig>
+            {
+                ["midnight"] = new()
+                {
+                    Background = "#12111a",
+                    Roles = new Dictionary<string, ThemeRole> { ["selection"] = new("#f2f0f7", "#2a2942") },
+                },
+            },
+        });
+
+        var toml = File.ReadAllText(Path.Combine(_directory.Path, "config.toml"));
+
+        Assert.Contains("theme = \"midnight\"", toml);
+        Assert.Contains("[themes.midnight]", toml);
+        Assert.Contains("background = \"#12111a\"", toml);
+        Assert.Contains("[themes.midnight.selection]", toml);
+        Assert.Contains("foreground = \"#f2f0f7\"", toml);
+    }
+
+    /// <summary>
+    ///     A theme is a table of colours and nothing else, so a value that is neither a colour nor a role's own table
+    ///     is said out loud with the theme and the key named — the same rule the rest of this file is read by.
+    /// </summary>
+    [Fact]
+    public void Load_ReportsAThemeGivingARoleSomethingThatIsNotAColour()
+    {
+        WriteConfigFile(
+            """
+            [themes.midnight]
+            body = 12
+            """);
+
+        var exception = Assert.Throws<ConfigurationException>(() => NewStore().Load());
+
+        Assert.Contains("midnight", exception.Message);
+        Assert.Contains("body", exception.Message);
+    }
+
+    /// <summary>A role's own table holds a foreground and a background; a third key is a typo worth saying.</summary>
+    [Fact]
+    public void Load_ReportsAKeyARolesOwnTableHasNoMeaningFor()
+    {
+        WriteConfigFile(
+            """
+            [themes.midnight.selection]
+            forground = "#f2f0f7"
+            """);
+
+        var exception = Assert.Throws<ConfigurationException>(() => NewStore().Load());
+
+        Assert.Contains("selection", exception.Message);
+        Assert.Contains("forground", exception.Message);
+    }
+
     private TomlConfigStore NewStore() => new(new WoolyPaths(_directory.Path));
 
     private void WriteConfigFile(string toml) => File.WriteAllText(Path.Combine(_directory.Path, "config.toml"), toml);

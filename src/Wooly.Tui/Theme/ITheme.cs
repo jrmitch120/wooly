@@ -8,9 +8,9 @@ namespace Wooly.Tui.Theme;
 ///     every view names roles and this resolves them (ADR-0014).
 /// </summary>
 /// <remarks>
-///     One theme ships behind this seam for now. The <c>[themes.*]</c> config, the light variant and a user's own
-///     theme are #46 — this ticket introduces the seam and nothing else, which is what lets #46 be a new
-///     implementation rather than a change to every screen.
+///     Three kinds of thing answer it: the built-ins, a theme somebody wrote in the config file, and the single pair a
+///     terminal that has asked for no colour gets. Because every screen names roles and nothing else, all three
+///     arrived without a screen changing.
 /// </remarks>
 public interface ITheme
 {
