@@ -1,5 +1,4 @@
 using System.Text.RegularExpressions;
-using Wooly.Tests.Fakes;
 
 namespace Wooly.Tests.Tui;
 
@@ -86,5 +85,5 @@ public partial class NoHardCodedColourTests
                  .Where(file => !file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
                  .Where(file => !file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal));
 
-    private static string TuiSources() => Path.Combine(Repository.Root, "src", "Wooly.Tui");
+    private static string TuiSources() => Path.Combine(RepositoryRoot.Path, "src", "Wooly.Tui");
 }

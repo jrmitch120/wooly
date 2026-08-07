@@ -164,13 +164,7 @@ public static class Themes
     /// <summary>One theme as written, over the built-in it is read against.</summary>
     private static Palette Read(string name, ThemeConfig theme, string configFile)
     {
-        var background = theme.Background is null
-            ? (Color?)null
-            : ColourName.Parse(theme.Background)
-              ?? throw new ConfigurationException(
-                  configFile,
-                  $"theme '{name}' has a background this client cannot read: {ColourName.Rejection(theme.Background)}");
-
+        var background = Colour($"the background of theme '{name}'", theme.Background, configFile);
         var named = new Dictionary<Role, (Color? Foreground, Color? Background)>();
 
         foreach (var (key, colour) in theme.Roles)
@@ -184,24 +178,25 @@ public static class Themes
                            + "are listed in docs/tui-shell.md.");
 
             named[role] = (
-                Colour(name, key, colour.Foreground, configFile),
-                Colour(name, key, colour.Background, configFile));
+                Colour($"'{key}' in theme '{name}'", colour.Foreground, configFile),
+                Colour($"the background of '{key}' in theme '{name}'", colour.Background, configFile));
         }
 
         return Beneath(name, background).Overlaid(background, named);
     }
 
     /// <summary>
-    ///     The built-in a theme is read against: the one it shares a name with, or — for a theme with a name of its
-    ///     own — the one of its own brightness.
+    ///     The built-in a theme is read against: the one whose brightness its page matches, or — for a theme that
+    ///     names no page — the one it shares a name with.
     /// </summary>
     /// <remarks>
-    ///     Its brightness is its background's, since that is the only thing a theme says about the page it is drawn
-    ///     on. Without this rule a theme naming a light page and nothing else would be light text on light paper,
-    ///     which is the one thing a fallback must not produce.
+    ///     The page comes first, and beats the name, because the failure it is guarding against is the only one a
+    ///     fallback must never produce: light text on light paper. A theme that names a light background is a light
+    ///     theme whatever it is called, <c>[themes.dark]</c> included.
     /// </remarks>
-    private static Palette Beneath(string name, Color? background) =>
-        BuiltIn(name) ?? (background is { } page && IsLight(page) ? LightPalette : DarkPalette);
+    private static Palette Beneath(string name, Color? background) => background is { } page
+        ? IsLight(page) ? LightPalette : DarkPalette
+        : BuiltIn(name) ?? DarkPalette;
 
     private static Palette? BuiltIn(string name) => name switch
     {
@@ -214,7 +209,11 @@ public static class Themes
     private static bool IsLight(Color colour) =>
         ((0.2126 * colour.R) + (0.7152 * colour.G) + (0.0722 * colour.B)) / 255 > 0.5;
 
-    private static Color? Colour(string theme, string role, string? written, string configFile)
+    /// <summary>
+    ///     One colour as somebody wrote it, or nothing where they wrote none. <paramref name="what" /> is what the
+    ///     colour was for, said in the error so that a file with a dozen colours in it says which one.
+    /// </summary>
+    private static Color? Colour(string what, string? written, string configFile)
     {
         if (written is null)
         {
@@ -222,9 +221,7 @@ public static class Themes
         }
 
         return ColourName.Parse(written)
-               ?? throw new ConfigurationException(
-                   configFile,
-                   $"theme '{theme}' gives '{role}' a colour this client cannot read: {ColourName.Rejection(written)}");
+               ?? throw new ConfigurationException(configFile, $"{what}: {ColourName.Rejection(written)}");
     }
 
     /// <summary>Whether this terminal wants colour at all.</summary>

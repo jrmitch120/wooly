@@ -324,9 +324,10 @@ Rules:
   writes its text in — the bright one is `bright-white`, and `bright-black` is the dark grey.
 - `Terminal.Gui` quantises hex to the nearest of 16 on a 16-colour terminal, so a theme is authored once.
 - A theme is an override rather than a complete set, so adding a role later does not break every user's config. Any
-  role it leaves out falls back to the built-in it is read against: the one it shares a name with — a `[themes.dark]`
-  table is the built-in `dark` with changes on top — or, for a theme with a name of its own, the one whose brightness
-  its `background` matches.
+  role it leaves out falls back to the built-in it is read against: the one whose brightness its `background` matches,
+  or — for a theme naming no background — the one it shares a name with, so a `[themes.dark]` table is the built-in
+  `dark` with changes on top. The page beats the name because the failure being guarded against is the one a fallback
+  must never produce: a theme naming a light page and nothing else, drawn in light text.
 - A role may be a colour or a table of `foreground` and `background`. A half it leaves out keeps what the built-in had
   there: the theme's page for nearly every role, and its own band for the selected row and the current rail entry — so
   restating the selection's foreground does not silently take away the band it is drawn in.

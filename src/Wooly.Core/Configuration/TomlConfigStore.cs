@@ -227,10 +227,12 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
 
         if (written is not TomlTable pair)
         {
+            // What it is not, rather than what a colour looks like: which words name a colour is the TUI's to say,
+            // and saying it twice is how the two come to say different things.
             throw new ConfigurationException(
                 paths.ConfigFile,
-                $"theme '{theme}' gives '{role}' something that is not a colour. "
-                + "A colour is a hex triple like \"#8fa8ff\" or a name like \"bright-blue\".");
+                $"theme '{theme}' gives '{role}' something that is neither a colour nor a table of "
+                + $"'{ForegroundKey}' and '{BackgroundKey}'.");
         }
 
         // A stray key is said rather than ignored: somebody who wrote 'forground' meant something by it, and a theme

@@ -26,12 +26,22 @@ public class ThemeTests
         }
     }
 
-    /// <summary>The two are told apart by what they are drawn on, which is what a reader chose one of them for.</summary>
+    /// <summary>
+    ///     The two are told apart by what they are drawn on, which is what a reader chose one of them for: the light
+    ///     one's page is brighter than the dark one's in every channel, and its text is darker than its own page.
+    /// </summary>
     [Fact]
     public void TheLightThemeIsDrawnOnLightAndTheDarkOneOnDark()
     {
-        Assert.True(Brightness(Themes.Light.For(Role.Body).Background) > 0.5);
-        Assert.True(Brightness(Themes.Dark.For(Role.Body).Background) < 0.5);
+        var light = Themes.Light.For(Role.Body);
+        var dark = Themes.Dark.For(Role.Body);
+
+        Assert.True(light.Background.R > dark.Background.R);
+        Assert.True(light.Background.G > dark.Background.G);
+        Assert.True(light.Background.B > dark.Background.B);
+
+        Assert.True(light.Foreground.R < light.Background.R);
+        Assert.True(dark.Foreground.R > dark.Background.R);
     }
 
     [Fact]
@@ -83,6 +93,18 @@ public class ThemeTests
     [InlineData("red", ColorName16.Red)]
     public void TheSixteenNamesAreTheAnsiSixteen(string written, ColorName16 expected) =>
         Assert.Equal(new Color(expected), ColourName.Parse(written));
+
+    /// <summary>
+    ///     A triple and nothing else. A gap in the middle of one is a typo, and the worst thing to do with a typo
+    ///     that reads as a hex number is to draw whatever it happens to say.
+    /// </summary>
+    [Theory]
+    [InlineData("# ff000")]
+    [InlineData("#fff")]
+    [InlineData("#8fa8f")]
+    [InlineData("8fa8ff")]
+    [InlineData("brightblue")]
+    public void AColourIsRefusedWhereItIsNotWrittenAsOne(string written) => Assert.Null(ColourName.Parse(written));
 
     /// <summary>
     ///     The background is a property of the theme rather than a role, so naming one moves everything that was on
@@ -138,7 +160,7 @@ public class ThemeTests
         Assert.Equal(Themes.Light.For(Role.Body).Foreground, theme.For(Role.Body).Foreground);
     }
 
-    /// <summary>A theme named after a built-in is that built-in with the theme's own changes on top of it.</summary>
+    /// <summary>A theme named after a built-in, and naming no page of its own, is that built-in with changes on it.</summary>
     [Fact]
     public void AThemeNamedAfterABuiltInIsReadAgainstIt()
     {
@@ -149,6 +171,18 @@ public class ThemeTests
 
         Assert.Equal(Themes.Light.For(Role.Body), theme.For(Role.Body));
         Assert.Equal(new Color(255, 0, 0), theme.For(Role.Error).Foreground);
+    }
+
+    /// <summary>
+    ///     And the page beats the name where they disagree, because what a theme called <c>dark</c> with a white page
+    ///     must not get is the built-in dark's near-white text on it.
+    /// </summary>
+    [Fact]
+    public void APageBeatsTheNameItWasWrittenUnder()
+    {
+        var theme = Chosen(Written("dark", new ThemeConfig { Background = "#faf9fb" }));
+
+        Assert.Equal(Themes.Light.For(Role.Body).Foreground, theme.For(Role.Body).Foreground);
     }
 
     /// <summary>
@@ -271,7 +305,4 @@ public class ThemeTests
         Theme = name,
         Themes = new Dictionary<string, ThemeConfig> { [name] = theme },
     };
-
-    private static double Brightness(Color colour) =>
-        ((0.2126 * colour.R) + (0.7152 * colour.G) + (0.0722 * colour.B)) / 255;
 }

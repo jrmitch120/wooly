@@ -57,7 +57,7 @@ public partial class RoleTests
     /// </summary>
     private static IReadOnlyList<string> DocumentedRoles()
     {
-        var lines = File.ReadAllLines(Path.Combine(Repository.Root, "docs", "tui-shell.md"))
+        var lines = File.ReadAllLines(Path.Combine(RepositoryRoot.Path, "docs", "tui-shell.md"))
                         .SkipWhile(line => line != "## Roles")
                         .Skip(1)
                         .SkipWhile(line => !line.StartsWith('|'))

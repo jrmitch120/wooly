@@ -62,7 +62,9 @@ public static class ColourName
             return null;
         }
 
-        return int.TryParse(value.AsSpan(1), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var rgb)
+        // The hex specifier alone, without the leading and trailing whitespace NumberStyles.HexNumber would wave
+        // through: "# ff000" is a typo rather than a colour, and one that would otherwise parse as a different one.
+        return int.TryParse(value.AsSpan(1), NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out var rgb)
             ? new Color((rgb >> 16) & 0xff, (rgb >> 8) & 0xff, rgb & 0xff)
             : null;
     }
