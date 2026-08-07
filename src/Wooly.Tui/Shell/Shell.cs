@@ -21,6 +21,12 @@ namespace Wooly.Tui.Shell;
 /// <remarks>
 ///     Views observe this and draw it. Nothing here holds a Terminal.Gui type, and the two things it needs a terminal
 ///     for — waiting, and getting back onto the drawing thread — come in through <see cref="IShellHost" />.
+///     <para>
+///         Every question a reader is waiting on is put through <see cref="Enquiry" />, which is what makes the
+///         rate-limit wait, the failure notice and the drop-on-arrival rule the same at all of them rather than
+///         copied at each. The counts the rail carries are the exception, and read their ports directly: nobody is
+///         waiting on a badge, so one that could not be read is drawn as no count rather than counted down over.
+///     </para>
 /// </remarks>
 public sealed class Shell
 {
@@ -43,23 +49,15 @@ public sealed class Shell
     /// </summary>
     private const string NobodyHasWritten = "No direct conversations yet.";
 
-    /// <summary>What a call that answers with nothing answers with, so that one retry loop serves both kinds.</summary>
-    private static readonly object Done = new();
-
     private readonly DestinationCache _cache;
-    private readonly TimeProvider _clock;
+
+    /// <summary>Everything this reaches an instance through, and the one place the stale-answer rule is stated.</summary>
+    private readonly Enquiry _enquiry;
+
     private readonly IShellHost _host;
     private readonly ActiveProfile _profile;
     private readonly ShellPorts _ports;
     private readonly List<Screen> _stack = [];
-    private readonly ShellTiming _timing;
-
-    /// <summary>
-    ///     What the last destination fetch was, so that an answer arriving after the reader has moved on can be told
-    ///     apart and dropped. A reader two destinations further along must not have a stale timeline appear underneath
-    ///     them (ADR-0014).
-    /// </summary>
-    private int _asked;
 
     private Func<Task>? _confirming;
 
@@ -74,9 +72,11 @@ public sealed class Shell
         _profile = profile;
         _ports = ports;
         _host = host;
-        _clock = clock;
-        _timing = timing;
         _cache = new DestinationCache(clock, timing.CacheFor);
+
+        _enquiry = new Enquiry(host, clock, timing.CountdownStep);
+        _enquiry.Said += Say;
+        _enquiry.Changed += () => Changed?.Invoke();
 
         Rail = new Rail(Destinations(profile, hashtag), host, timing.Settle);
         Rail.Selected += destination => _ = Go(destination);
@@ -101,7 +101,7 @@ public sealed class Shell
     public string Breadcrumb => string.Join(" › ", _stack.Select(screen => screen.Crumb));
 
     /// <summary>Whether a fetch is in flight, which the breadcrumb says once and the rail never does.</summary>
-    public bool Fetching { get; private set; }
+    public bool Fetching => _enquiry.Fetching;
 
     /// <summary>
     ///     Something the shell has to say out loud that is not a screen: a refusal, or the countdown on a rate limit
@@ -232,22 +232,9 @@ public sealed class Shell
 
         var about = opening.Boosted ?? opening;
 
-        // Which destination this drill started from. A reader who tabbed away while the replies were in flight is
-        // somewhere else now, and a post screen appearing over it would be the same stale-answer problem the rail's
-        // own discard rule solves.
-        var from = _asked;
-        var replies = await Ask(cancellation => _ports.Engagement.Replies(_profile, about.Id, cancellation));
-
-        if (replies is not null)
-        {
-            Apply(() =>
-            {
-                if (!Overtaken(from))
-                {
-                    Push(new PostScreen(opening, replies));
-                }
-            });
-        }
+        await _enquiry.Put(
+            ask => ask.Of(token => _ports.Engagement.Replies(_profile, about.Id, token)),
+            ifStillHere: replies => Push(new PostScreen(opening, replies)));
     }
 
     /// <summary>Opens the account that wrote the picked post.</summary>
@@ -258,7 +245,7 @@ public sealed class Shell
             return;
         }
 
-        await OpenAccount(AccountAddress.Parse((picked.Boosted ?? picked).Account), _asked);
+        await OpenAccount(AccountAddress.Parse((picked.Boosted ?? picked).Account));
     }
 
     /// <summary>Walks back up one level of the stack. Never quits, and never leaves the shell with nothing on it.</summary>
@@ -324,7 +311,7 @@ public sealed class Shell
     /// <summary>Asks the instance for what has been typed into the prompt.</summary>
     /// <remarks>
     ///     A search is one call, so a rate limit leaves nothing to draw and is waited out rather than half-answered
-    ///     (ADR-0011) — which <see cref="Ask{T}" /> already does, and is why this reads like every other fetch here.
+    ///     (ADR-0011) — which <see cref="Enquiry" /> already does, and is why this reads like every other fetch here.
     /// </remarks>
     public async Task Find()
     {
@@ -343,24 +330,19 @@ public sealed class Shell
         }
 
         var query = SearchQuery.For(search.Query);
-        var from = _asked;
-        var found = await Ask(token => _ports.Search.Find(_profile, query, token));
 
-        if (found is null)
-        {
-            return;
-        }
-
-        Apply(() =>
-        {
-            if (Overtaken(from) || Screen is not SearchScreen still)
+        await _enquiry.Put(
+            ask => ask.Of(token => _ports.Search.Find(_profile, query, token)),
+            ifStillHere: found =>
             {
-                return;
-            }
+                if (Screen is not SearchScreen still)
+                {
+                    return;
+                }
 
-            still.Found(query.Text, found);
-            Changed?.Invoke();
-        });
+                still.Found(query.Text, found);
+                Changed?.Invoke();
+            });
     }
 
     /// <summary>
@@ -380,14 +362,14 @@ public sealed class Shell
 
         if (search.PickedAccount is { } account)
         {
-            await OpenAccount(AccountAddress.Parse(account.Address), _asked);
+            await OpenAccount(AccountAddress.Parse(account.Address));
 
             return;
         }
 
         if (search.PickedHashtag is { } hashtag)
         {
-            await OpenTag(hashtag.Name, _asked);
+            await OpenTag(hashtag.Name);
 
             return;
         }
@@ -403,29 +385,16 @@ public sealed class Shell
             return;
         }
 
-        var from = _asked;
-
-        if (!await Did(token => _ports.Notifications.Dismiss(_profile, picked.Id, token)))
-        {
-            return;
-        }
-
-        Apply(() =>
-        {
-            _cache.Forget(DestinationKind.Notifications);
-
-            // Overtaken. It was dismissed on the instance either way, but a reader who has tabbed away since must not
-            // have the badge of a destination they have left written from a list they are no longer looking at.
-            if (Overtaken(from))
+        await _enquiry.Put(
+            ask => ask.Of(token => _ports.Notifications.Dismiss(_profile, picked.Id, token)),
+            eitherWay: () => _cache.Forget(DestinationKind.Notifications),
+            ifStillHere: () =>
             {
-                return;
-            }
+                notifications.Forget([picked.Id]);
+                Counted(DestinationKind.Notifications, notifications.Notifications.Count);
 
-            notifications.Forget([picked.Id]);
-            Counted(DestinationKind.Notifications, notifications.Notifications.Count);
-
-            Changed?.Invoke();
-        });
+                Changed?.Invoke();
+            });
     }
 
     /// <summary>
@@ -453,33 +422,20 @@ public sealed class Shell
             return;
         }
 
-        var from = _asked;
-
         // By id, as the list reports it, because that is what answering one takes: an address would cost a lookup to
         // arrive back at the id already in hand (ADR-0012).
-        var answered = await Ask(token => _ports.Accounts.Answer(_profile, picked.Id, accepted, token));
-
-        if (answered is null)
-        {
-            return;
-        }
-
-        Apply(() =>
-        {
-            _cache.Forget(DestinationKind.Requests);
-
-            // Answered on the instance either way; what must not happen is a badge or a notice landing on a
-            // destination the reader has walked away from since.
-            if (Overtaken(from))
+        await _enquiry.Put(
+            ask => ask.Of(token => _ports.Accounts.Answer(_profile, picked.Id, accepted, token)),
+            eitherWay: _ => _cache.Forget(DestinationKind.Requests),
+            ifStillHere: _ =>
             {
-                return;
-            }
+                requests.Answered(picked.Id);
+                Counted(DestinationKind.Requests, requests.Waiting.Count);
 
-            requests.Answered(picked.Id);
-            Counted(DestinationKind.Requests, requests.Waiting.Count);
-
-            Say(accepted ? $"@{picked.Address} can follow you." : $"@{picked.Address} was turned away.", isError: false);
-        });
+                Say(
+                    accepted ? $"@{picked.Address} can follow you." : $"@{picked.Address} was turned away.",
+                    isError: false);
+            });
     }
 
     /// <summary>
@@ -498,21 +454,9 @@ public sealed class Shell
             return;
         }
 
-        var from = _asked;
-        var thread = await Ask(token => _ports.Messages.Show(_profile, picked.Id, token));
-
-        if (thread is null)
-        {
-            return;
-        }
-
-        Apply(() =>
-        {
-            if (!Overtaken(from))
-            {
-                Push(new ConversationScreen(thread));
-            }
-        });
+        await _enquiry.Put(
+            ask => ask.Of(token => _ports.Messages.Show(_profile, picked.Id, token)),
+            ifStillHere: thread => Push(new ConversationScreen(thread)));
     }
 
     /// <summary>
@@ -535,28 +479,14 @@ public sealed class Shell
             return;
         }
 
-        var from = _asked;
-        var marked = await Ask(token => _ports.Messages.MarkRead(_profile, conversation.Id, token));
-
-        if (marked is null)
-        {
-            return;
-        }
-
-        Apply(() =>
-        {
-            _cache.Forget(DestinationKind.Messages);
-
-            // Marked on the instance either way; what must not happen is a badge landing on a destination the reader
-            // has walked away from since.
-            if (Overtaken(from))
+        await _enquiry.Put(
+            ask => ask.Of(token => _ports.Messages.MarkRead(_profile, conversation.Id, token)),
+            eitherWay: _ => _cache.Forget(DestinationKind.Messages),
+            ifStillHere: marked =>
             {
-                return;
-            }
-
-            Replace(marked);
-            Say("Marked as read.", isError: false);
-        });
+                Replace(marked);
+                Say("Marked as read.", isError: false);
+            });
     }
 
     /// <summary>Opens the account of whoever is asking to follow, so the question can be answered knowing who asked.</summary>
@@ -564,7 +494,7 @@ public sealed class Shell
     {
         if (Screen is FollowRequestsScreen { PickedAccount: { } picked })
         {
-            await OpenAccount(AccountAddress.Parse(picked.Address), _asked);
+            await OpenAccount(AccountAddress.Parse(picked.Address));
         }
     }
 
@@ -586,23 +516,18 @@ public sealed class Shell
         var address = AccountAddress.Parse(account.Account.Address);
         var wanted = !account.Has(tie);
 
-        var stands = await Ask(token => _ports.Accounts.Set(_profile, address, tie, wanted, token));
+        await _enquiry.Put(
+            ask => ask.Of(token => _ports.Accounts.Set(_profile, address, tie, wanted, token)),
+            eitherWay: stands =>
+            {
+                account.Stands(stands);
 
-        if (stands is null)
-        {
-            return;
-        }
+                // Home is the profile's own following, so a follow or a block changes what belongs on it — and a mute
+                // changes what belongs on all of them.
+                _cache.Forget(DestinationKind.Home);
 
-        Apply(() =>
-        {
-            account.Stands(stands);
-
-            // Home is the profile's own following, so a follow or a block changes what belongs on it — and a mute
-            // changes what belongs on all of them.
-            _cache.Forget(DestinationKind.Home);
-
-            Say(Said(tie, wanted, stands), isError: false);
-        });
+                Say(Said(tie, wanted, stands), isError: false);
+            });
     }
 
     /// <summary>Shows the current screen's keymap, which is itself a place in the stack.</summary>
@@ -634,13 +559,9 @@ public sealed class Shell
             return;
         }
 
-        var marked = await Ask(token =>
-            _ports.Engagement.Mark(_profile, about.Id, mark, !about.Marks.Has(mark), token));
-
-        if (marked is not null)
-        {
-            Apply(() => Replace(marked));
-        }
+        await _enquiry.Put(
+            ask => ask.Of(token => _ports.Engagement.Mark(_profile, about.Id, mark, !about.Marks.Has(mark), token)),
+            eitherWay: marked => Replace(marked));
     }
 
     /// <summary>Opens an editor answering the picked post.</summary>
@@ -709,48 +630,44 @@ public sealed class Shell
             return;
         }
 
-        var written = await (compose.Purpose == ComposeFor.Edit
-            ? Ask(token => _ports.Author.Edit(_profile, compose.About!.Id, new PostEdit { Text = compose.Text }, token))
-            : Ask(token => _ports.Author.Publish(
-                _profile,
-                new PostDraft
+        await _enquiry.Put(
+            ask => compose.Purpose == ComposeFor.Edit
+                ? ask.Of(token =>
+                    _ports.Author.Edit(_profile, compose.About!.Id, new PostEdit { Text = compose.Text }, token))
+                : ask.Of(token => _ports.Author.Publish(
+                    _profile,
+                    new PostDraft
+                    {
+                        Text = compose.Text,
+
+                        // Silence rather than a visibility of the shell's choosing. A reply is answered as narrowly as
+                        // the post it answers, and a post says nothing so that the account's own default on the
+                        // instance decides — this shell has no visibility picker to have been told anything by.
+                        InReplyTo = compose.Purpose == ComposeFor.Reply ? compose.About?.Id : null,
+                    },
+                    token)),
+            eitherWay: written =>
+            {
+                // This client is what changed the timeline, so its age says nothing useful about it any more.
+                _cache.Forget(Rail.Showing.Kind);
+
+                _stack.RemoveAt(_stack.Count - 1);
+
+                if (compose.Purpose == ComposeFor.Edit)
                 {
-                    Text = compose.Text,
+                    Replace(written);
+                }
+                else if (compose.Purpose == ComposeFor.Reply && Screen is ConversationScreen conversation)
+                {
+                    // A conversation is read in the order it was said in, so what was just said belongs at the end of
+                    // it — otherwise a reply written in the thread appears nowhere until the conversation is read
+                    // again. It is the conversation's last word too, which is what the row it was opened from shows.
+                    conversation.Said(written);
+                    Replace(conversation.Conversation);
+                }
 
-                    // Silence rather than a visibility of the shell's choosing. A reply is answered as narrowly as
-                    // the post it answers, and a post says nothing so that the account's own default on the instance
-                    // decides — this shell has no visibility picker to have been told anything by.
-                    InReplyTo = compose.Purpose == ComposeFor.Reply ? compose.About?.Id : null,
-                },
-                token)));
-
-        if (written is null)
-        {
-            return;
-        }
-
-        Apply(() =>
-        {
-            // This client is what changed the timeline, so its age says nothing useful about it any more.
-            _cache.Forget(Rail.Showing.Kind);
-
-            _stack.RemoveAt(_stack.Count - 1);
-
-            if (compose.Purpose == ComposeFor.Edit)
-            {
-                Replace(written);
-            }
-            else if (compose.Purpose == ComposeFor.Reply && Screen is ConversationScreen conversation)
-            {
-                // A conversation is read in the order it was said in, so what was just said belongs at the end of it —
-                // otherwise a reply written in the thread appears nowhere until the conversation is read again. It is
-                // the conversation's last word too, which is what the row it was opened from shows.
-                conversation.Said(written);
-                Replace(conversation.Conversation);
-            }
-
-            Say(compose.Purpose == ComposeFor.Edit ? "Saved." : "Sent.", isError: false);
-        });
+                Say(compose.Purpose == ComposeFor.Edit ? "Saved." : "Sent.", isError: false);
+            });
     }
 
     /// <summary>The nine, in the order the rail draws them.</summary>
@@ -773,10 +690,10 @@ public sealed class Shell
     /// <summary>Arriving at a destination, which is what moving the rail's selection means.</summary>
     private async Task Go(Destination destination)
     {
-        // Taken before anything else, and by every arrival rather than only the ones that fetch. A destination that
+        // Said before anything else, and by every arrival rather than only the ones that fetch. A destination that
         // asks the instance for nothing still overtakes what the last one asked for — otherwise a timeline still in
         // flight lands on top of the notice screen the reader has since walked to.
-        var token = ++_asked;
+        _enquiry.Arrived();
 
         // Walking to a destination is arriving somewhere, so whatever was drilled into from the last one is left
         // behind: the stack is where you went from here, and this is a different here.
@@ -787,23 +704,23 @@ public sealed class Shell
             case DestinationKind.Profile:
                 if (_profile.Account is { } account)
                 {
-                    await OpenAccount(AccountAddress.Parse(account), token, replacing: true);
+                    await OpenAccount(AccountAddress.Parse(account), replacing: true);
                 }
 
                 return;
 
             case DestinationKind.Notifications:
-                await OpenNotifications(token);
+                await OpenNotifications();
 
                 return;
 
             case DestinationKind.Requests:
-                await OpenRequests(token);
+                await OpenRequests();
 
                 return;
 
             case DestinationKind.Messages:
-                await OpenMessages(token);
+                await OpenMessages();
 
                 return;
         }
@@ -820,71 +737,46 @@ public sealed class Shell
             return;
         }
 
-        var fetch = await Ask(cancellation => _ports.Timelines.Read(_profile, timeline, PostsWanted, cancellation));
-
-        if (fetch is null)
-        {
-            return;
-        }
-
-        Apply(() =>
-        {
-            // Overtaken. The reader has asked for somewhere else since, and drawing this now would put a timeline
-            // they have left underneath the destination they are on.
-            if (Overtaken(token))
+        await _enquiry.Put(
+            ask => ask.Of(token => _ports.Timelines.Read(_profile, timeline, PostsWanted, token)),
+            ifStillHere: fetch =>
             {
-                return;
-            }
-
-            _cache.Keep(destination.Kind, fetch.Posts);
-            Reset(new FeedScreen(destination, fetch.Posts, Emptiness(fetch.Posts, destination, fetch.StoppedBy)));
-        });
+                _cache.Keep(destination.Kind, fetch.Posts);
+                Reset(new FeedScreen(destination, fetch.Posts, Emptiness(fetch.Posts, destination, fetch.StoppedBy)));
+            });
     }
 
     /// <summary>Opens an account screen: who they are, their standing, and their posts.</summary>
-    /// <param name="token">
-    ///     Which arrival this belongs to. Two calls deep, so it is checked once at the end rather than after each:
-    ///     what matters is whether the reader is still where they were when they asked, not how far the answer got.
-    /// </param>
-    private async Task OpenAccount(AccountAddress address, int token, bool replacing = false)
-    {
-        var account = await Ask(token => _ports.Accounts.Show(_profile, address, token));
-
-        if (account is null)
-        {
-            return;
-        }
-
-        var posts = await Ask(token =>
-            _ports.Timelines.Read(_profile, Timeline.By(address), PostsWanted, token));
-
-        if (posts is null)
-        {
-            return;
-        }
-
-        Apply(() =>
-        {
-            if (Overtaken(token))
+    /// <remarks>
+    ///     Two calls under one enquiry, so it is checked once at the end rather than after each: what matters is
+    ///     whether the reader is still where they were when they asked, not how far the answer got.
+    /// </remarks>
+    private Task OpenAccount(AccountAddress address, bool replacing = false) =>
+        _enquiry.Put(
+            async ask =>
             {
-                return;
-            }
+                var account = await ask.Of(token => _ports.Accounts.Show(_profile, address, token));
+                var posts = await ask.Of(token =>
+                    _ports.Timelines.Read(_profile, Timeline.By(address), PostsWanted, token));
 
-            var screen = new AccountScreen(account, posts.Posts);
+                return (Account: account, Posts: posts.Posts);
+            },
+            ifStillHere: found =>
+            {
+                var screen = new AccountScreen(found.Account, found.Posts);
 
-            if (replacing)
-            {
-                Reset(screen);
-            }
-            else
-            {
-                Push(screen);
-            }
-        });
-    }
+                if (replacing)
+                {
+                    Reset(screen);
+                }
+                else
+                {
+                    Push(screen);
+                }
+            });
 
     /// <summary>Arriving at the notifications destination: what is waiting, and the count that says so on the rail.</summary>
-    private async Task OpenNotifications(int token)
+    private async Task OpenNotifications()
     {
         if (_cache.Fresh<Notification>(DestinationKind.Notifications) is { } held)
         {
@@ -897,34 +789,24 @@ public sealed class Shell
             return;
         }
 
-        var fetch = await Ask(cancellation => _ports.Notifications.Read(_profile, CountedAtMost, cancellation));
-
-        if (fetch is null)
-        {
-            return;
-        }
-
-        Apply(() =>
-        {
-            if (Overtaken(token))
+        await _enquiry.Put(
+            ask => ask.Of(token => _ports.Notifications.Read(_profile, CountedAtMost, token)),
+            ifStillHere: fetch =>
             {
-                return;
-            }
+                _cache.Keep(DestinationKind.Notifications, fetch.Notifications);
 
-            _cache.Keep(DestinationKind.Notifications, fetch.Notifications);
+                Reset(new NotificationsScreen(
+                    fetch.Notifications,
+                    Emptiness(fetch.Notifications.Count, "Nothing is waiting for you.", fetch.StoppedBy)));
 
-            Reset(new NotificationsScreen(
-                fetch.Notifications,
-                Emptiness(fetch.Notifications.Count, "Nothing is waiting for you.", fetch.StoppedBy)));
-
-            // The count and the screen are read from the same answer, so the badge cannot say four over a list of
-            // three.
-            Counted(DestinationKind.Notifications, fetch.Notifications.Count);
-        });
+                // The count and the screen are read from the same answer, so the badge cannot say four over a list of
+                // three.
+                Counted(DestinationKind.Notifications, fetch.Notifications.Count);
+            });
     }
 
     /// <summary>Arriving at the follow-requests destination: who is waiting to be let in.</summary>
-    private async Task OpenRequests(int token)
+    private async Task OpenRequests()
     {
         if (_cache.Fresh<Account>(DestinationKind.Requests) is { } held)
         {
@@ -937,32 +819,22 @@ public sealed class Shell
             return;
         }
 
-        var fetch = await Ask(cancellation => _ports.Accounts.PendingRequests(_profile, CountedAtMost, cancellation));
-
-        if (fetch is null)
-        {
-            return;
-        }
-
-        Apply(() =>
-        {
-            if (Overtaken(token))
+        await _enquiry.Put(
+            ask => ask.Of(token => _ports.Accounts.PendingRequests(_profile, CountedAtMost, token)),
+            ifStillHere: fetch =>
             {
-                return;
-            }
+                _cache.Keep(DestinationKind.Requests, fetch.Accounts);
 
-            _cache.Keep(DestinationKind.Requests, fetch.Accounts);
+                Reset(new FollowRequestsScreen(
+                    fetch.Accounts,
+                    Emptiness(fetch.Accounts.Count, "Nobody is waiting to follow you.", fetch.StoppedBy)));
 
-            Reset(new FollowRequestsScreen(
-                fetch.Accounts,
-                Emptiness(fetch.Accounts.Count, "Nobody is waiting to follow you.", fetch.StoppedBy)));
-
-            Counted(DestinationKind.Requests, fetch.Accounts.Count);
-        });
+                Counted(DestinationKind.Requests, fetch.Accounts.Count);
+            });
     }
 
     /// <summary>Arriving at the direct messages destination: who has written, and how much of it is unread.</summary>
-    private async Task OpenMessages(int token)
+    private async Task OpenMessages()
     {
         if (_cache.Fresh<Conversation>(DestinationKind.Messages) is { } held)
         {
@@ -977,108 +849,75 @@ public sealed class Shell
             return;
         }
 
-        var fetch = await Ask(cancellation => _ports.Messages.List(_profile, CountedAtMost, cancellation));
-
-        if (fetch is null)
-        {
-            return;
-        }
-
-        Apply(() =>
-        {
-            if (Overtaken(token))
+        await _enquiry.Put(
+            ask => ask.Of(token => _ports.Messages.List(_profile, CountedAtMost, token)),
+            ifStillHere: fetch =>
             {
-                return;
-            }
+                _cache.Keep(DestinationKind.Messages, fetch.Conversations);
 
-            _cache.Keep(DestinationKind.Messages, fetch.Conversations);
+                var screen = new DirectMessagesScreen(
+                    fetch.Conversations,
+                    Emptiness(fetch.Conversations.Count, NobodyHasWritten, fetch.StoppedBy));
 
-            var screen = new DirectMessagesScreen(
-                fetch.Conversations,
-                Emptiness(fetch.Conversations.Count, NobodyHasWritten, fetch.StoppedBy));
+                Reset(screen);
 
-            Reset(screen);
-
-            // The badge counts the conversations with something unread in them, and counts them from the list it is
-            // drawn beside — so the rail cannot say two over a list of one.
-            Counted(DestinationKind.Messages, screen.Unread);
-        });
+                // The badge counts the conversations with something unread in them, and counts them from the list it
+                // is drawn beside — so the rail cannot say two over a list of one.
+                Counted(DestinationKind.Messages, screen.Unread);
+            });
     }
 
     /// <summary>Opens a hashtag's timeline as a screen on the stack, which is what a search result for one does.</summary>
-    private async Task OpenTag(string name, int token)
-    {
-        var posts = await Ask(cancellation =>
-            _ports.Timelines.Read(_profile, Timeline.Tag(name), PostsWanted, cancellation));
-
-        if (posts is null)
-        {
-            return;
-        }
-
-        Apply(() =>
-        {
-            if (Overtaken(token))
+    private Task OpenTag(string name) =>
+        _enquiry.Put(
+            ask => ask.Of(token => _ports.Timelines.Read(_profile, Timeline.Tag(name), PostsWanted, token)),
+            ifStillHere: posts =>
             {
-                return;
-            }
+                // A destination of its own rather than the rail's, so that the breadcrumb says which tag this is
+                // without the rail's own hashtag entry changing under a reader who did not ask it to.
+                var showing = new Destination(DestinationKind.Hashtag, $"#{name}", Timeline.Tag(name));
 
-            // A destination of its own rather than the rail's, so that the breadcrumb says which tag this is without
-            // the rail's own hashtag entry changing under a reader who did not ask it to.
-            var showing = new Destination(DestinationKind.Hashtag, $"#{name}", Timeline.Tag(name));
-
-            Push(new FeedScreen(showing, posts.Posts, Emptiness(posts.Posts, showing, posts.StoppedBy)));
-        });
-    }
+                Push(new FeedScreen(showing, posts.Posts, Emptiness(posts.Posts, showing, posts.StoppedBy)));
+            });
 
     /// <summary>Empties the inbox, once it has been said twice.</summary>
-    private async Task Clear()
-    {
-        if (!await Did(token => _ports.Notifications.Clear(_profile, token)))
-        {
-            return;
-        }
-
-        Apply(() =>
-        {
-            _cache.Forget(DestinationKind.Notifications);
-
-            if (Screen is NotificationsScreen notifications)
+    private Task Clear() =>
+        _enquiry.Put(
+            ask => ask.Of(token => _ports.Notifications.Clear(_profile, token)),
+            eitherWay: () =>
             {
-                notifications.Forget(notifications.Notifications.Select(notification => notification.Id).ToList());
-            }
+                _cache.Forget(DestinationKind.Notifications);
 
-            Counted(DestinationKind.Notifications, 0);
-            Say("Cleared.", isError: false);
-        });
-    }
+                if (Screen is NotificationsScreen notifications)
+                {
+                    notifications.Forget(notifications.Notifications.Select(notification => notification.Id).ToList());
+                }
 
-    private async Task Delete(string postId)
-    {
-        if (!await Did(token => _ports.Author.Delete(_profile, postId, token)))
-        {
-            return;
-        }
+                Counted(DestinationKind.Notifications, 0);
+                Say("Cleared.", isError: false);
+            });
 
-        Apply(() =>
-        {
-            _cache.Forget(Rail.Showing.Kind);
-
-            // Walked out of first, because a post screen showing a post that is no longer there is a screen about
-            // nothing.
-            if (Screen is PostScreen post && (post.Post.Boosted ?? post.Post).Id == postId && _stack.Count > 1)
+    private Task Delete(string postId) =>
+        _enquiry.Put(
+            ask => ask.Of(token => _ports.Author.Delete(_profile, postId, token)),
+            eitherWay: () =>
             {
-                _stack.RemoveAt(_stack.Count - 1);
-            }
+                _cache.Forget(Rail.Showing.Kind);
 
-            foreach (var screen in _stack)
-            {
-                screen.Remove(postId);
-            }
+                // Walked out of first, because a post screen showing a post that is no longer there is a screen about
+                // nothing.
+                if (Screen is PostScreen post && (post.Post.Boosted ?? post.Post).Id == postId && _stack.Count > 1)
+                {
+                    _stack.RemoveAt(_stack.Count - 1);
+                }
 
-            Say("Deleted.", isError: false);
-        });
-    }
+                foreach (var screen in _stack)
+                {
+                    screen.Remove(postId);
+                }
+
+                Say("Deleted.", isError: false);
+            });
 
     /// <summary>Reads the counts the rail carries, none of which is worth failing the shell over.</summary>
     private async Task Counts()
@@ -1119,91 +958,6 @@ public sealed class Shell
     /// </summary>
     private void Counted(DestinationKind kind, int unread) =>
         Rail.Update(Rail.Destinations.First(destination => destination.Kind == kind) with { Unread = unread });
-
-    /// <summary>
-    ///     Makes a call, waiting out a rate limit with a visible countdown rather than failing on it (story 53) — the
-    ///     opposite of the CLI's fail-fast, which is right there because a script cannot be told to wait and wrong
-    ///     here because a person can see that it is (ADR-0006).
-    /// </summary>
-    /// <returns>What the call answered, or <see langword="null" /> where it failed for a reason waiting cannot mend.</returns>
-    private async Task<T?> Ask<T>(Func<CancellationToken, Task<T>> call)
-        where T : class
-    {
-        Apply(() =>
-        {
-            Fetching = true;
-            Changed?.Invoke();
-        });
-
-        try
-        {
-            while (true)
-            {
-                try
-                {
-                    return await call(CancellationToken.None);
-                }
-                catch (RateLimitedException limit)
-                {
-                    await WaitOut(limit);
-                }
-            }
-        }
-        catch (WoolyException failure)
-        {
-            Apply(() => Say(failure.Message, isError: true));
-
-            return null;
-        }
-        finally
-        {
-            Apply(() =>
-            {
-                Fetching = false;
-                Changed?.Invoke();
-            });
-        }
-    }
-
-    /// <summary>
-    ///     The same as <see cref="Ask{T}" /> for a call that answers with nothing, which is only ever a delete.
-    /// </summary>
-    /// <returns>Whether it went through.</returns>
-    private async Task<bool> Did(Func<CancellationToken, Task> call) =>
-        await Ask<object>(async token =>
-        {
-            await call(token);
-
-            return Done;
-        }) is not null;
-
-    /// <summary>Counts a rate limit down where the reader can see it, then lets the call be made again.</summary>
-    private async Task WaitOut(RateLimitedException limit)
-    {
-        // An instance that named no reset is waited on for as long as it usually takes one to roll a window over,
-        // rather than given up on: the reader asked for something, and "try again yourself" is the CLI's answer.
-        var until = limit.ResetsAt ?? _clock.GetUtcNow() + TimeSpan.FromMinutes(5);
-
-        while (_clock.GetUtcNow() < until)
-        {
-            var left = (int)Math.Ceiling((until - _clock.GetUtcNow()).TotalSeconds);
-
-            Apply(() => Say($"Rate limited by {limit.Instance}. Trying again in {left}s.", isError: false));
-
-            await Wait(_timing.CountdownStep);
-        }
-
-        Apply(() => Say(null, isError: false));
-    }
-
-    private Task Wait(TimeSpan howLong)
-    {
-        var waited = new TaskCompletionSource();
-
-        _host.After(howLong, () => waited.TrySetResult());
-
-        return waited.Task;
-    }
 
     /// <summary>
     ///     What a destination puts on screen the moment it is arrived at: an empty list for the ones whose contents
@@ -1412,12 +1166,6 @@ public sealed class Shell
 
         Changed?.Invoke();
     }
-
-    /// <summary>
-    ///     Whether the reader has arrived somewhere else since <paramref name="token" /> was taken, which makes
-    ///     whatever it belongs to an answer to a question nobody is asking any more.
-    /// </summary>
-    private bool Overtaken(int token) => token != _asked;
 
     private void Apply(Action work) => _host.OnUiThread(work);
 }

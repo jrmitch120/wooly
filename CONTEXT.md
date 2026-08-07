@@ -75,6 +75,13 @@ rail, a screen is what the content region is showing, and drilling from a post i
 without changing the destination.
 _Avoid_: tab, section, page
 
+**Enquiry**:
+A question put to an **instance** on a reader's behalf, which survives neither their patience nor their attention: it
+waits out a rate limit where they can watch it count down, turns a failure into a notice rather than an exception, and
+is dropped unread if they have arrived at another **destination** since it was sent (ADR-0014). One enquiry may put
+several calls to an instance, and is overtaken, or not, as a whole.
+_Avoid_: request (which is a follow request), query (which is what a search takes)
+
 **Picked**:
 Which of the things on a screen the reader has walked to with `j` and `k`, and what every key that acts on something
 acts on. Distinct from the rail's **cursor** and its **selection** (ADR-0014): those are about which **destination**
