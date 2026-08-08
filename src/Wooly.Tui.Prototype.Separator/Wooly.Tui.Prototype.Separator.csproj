@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Wooly.Tui.Prototype.Separator</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Wooly.Core\Wooly.Core.csproj" />
+    <ProjectReference Include="..\Wooly.Tui\Wooly.Tui.csproj" />
+  </ItemGroup>
+
+</Project>
