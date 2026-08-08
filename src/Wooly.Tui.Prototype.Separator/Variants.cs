@@ -188,12 +188,17 @@ internal static class Variants
     }
 
     /// <summary>
-    ///     The rest of what <see cref="PostLines.Feed" /> draws once its own one-row byline is dropped — body, media,
-    ///     counts, unchanged. An approximation: a boosted post's own note stays part of the byline being replaced here,
+    ///     The rest of what <see cref="PostLines.Feed" /> draws once its own one-row byline is dropped — body and
+    ///     media unchanged, with a blank ahead of counts so the three marks read as a footer rather than one more line
+    ///     of the body. An approximation: a boosted post's own note stays part of the byline being replaced here,
     ///     which none of the fakes exercise.
     /// </summary>
-    private static IReadOnlyList<Line> RestOfFeed(Post post, int room, DateTimeOffset now, IPictures pictures) =>
-        [.. PostLines.Feed(post, room, revealed: false, now, pictures).Skip(post.Boosted is null ? 1 : 2)];
+    private static IReadOnlyList<Line> RestOfFeed(Post post, int room, DateTimeOffset now, IPictures pictures)
+    {
+        var rest = PostLines.Feed(post, room, revealed: false, now, pictures).Skip(post.Boosted is null ? 1 : 2).ToList();
+
+        return [.. rest[..^1], Line.Blank, rest[^1]];
+    }
 
     /// <summary>
     ///     A fake avatar — pixels a real terminal would paint, same as the media band — beside a byline split across
