@@ -7,7 +7,20 @@ needs Docker.
 
 ## Running it locally
 
-Requires Docker and `docker compose`. From the repository root:
+Requires Docker and `docker compose`.
+
+```sh
+tests/integration/run.sh
+```
+
+Seeds the instance, runs the suite against it, and tears it down again on the way out — win or lose, its exit code
+is `dotnet test`'s own. The first run is slower — pulling images and loading the Mastodon schema — after which it
+takes well under a minute.
+
+### Iterating without paying the seed cost every time
+
+`run.sh` tears the instance down after one run, which is wasteful if you are fixing a failing test and want to run
+it again a minute later. Do the same three steps by hand instead, and leave the instance up between runs:
 
 ```sh
 eval "$(tests/integration/seed.sh 2>/dev/null)"
@@ -18,10 +31,8 @@ dotnet test tests/Wooly.Tests/Wooly.Tests.csproj --filter "Category=Integration"
 stdout — `WOOLY_INTEGRATION_INSTANCE=<host:port>` and `WOOLY_INTEGRATION_TOKEN=<token>` — with everything else it
 does going to stderr. The `eval` above discards stderr and exports those two lines, which is what the tests read the
 live instance's coordinates from (see `tests/Wooly.Tests/Integration/LiveInstance.cs`). Run `seed.sh` on its own
-first if you would rather see its progress, then export its two lines yourself.
-
-The first run is slower — pulling images and loading the Mastodon schema — after which it takes well under a
-minute.
+first if you would rather see its progress, then export its two lines yourself. Re-run the `dotnet test` line as
+many times as you like against the same instance; run `seed.sh` again only once the instance is gone.
 
 Tear the instance down when finished:
 

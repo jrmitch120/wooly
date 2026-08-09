@@ -13,5 +13,6 @@
     <File Path="tests/integration/Caddyfile" />
     <File Path="tests/integration/mastodon.env" />
     <File Path="tests/integration/seed.sh" />
+    <File Path="tests/integration/run.sh" />
   </Folder>
 </Solution>
