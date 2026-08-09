@@ -1,0 +1,82 @@
+# A throwaway Mastodon instance for the integration suite (ADR-0005), never for anything else: it carries no real
+# accounts, is torn down after every run, and the secrets in mastodon.env are fixed and checked in on purpose — there
+# is nothing behind them worth protecting.
+#
+# Mastonet hardcodes "https://" onto every request it makes (see AGENTS notes / ADR-0005), so a plain-HTTP Mastodon
+# would not be reachable through the same client code the product itself uses. `caddy` terminates TLS with a
+# self-signed certificate for that reason alone — it is not standing in for a real deployment's proxy, only for the
+# scheme Mastonet insists on.
+services:
+  db:
+    image: postgres:14-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mastodon
+      POSTGRES_PASSWORD: wooly-integration-test
+      POSTGRES_DB: mastodon_test
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "mastodon"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+    networks:
+      - internal
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+    networks:
+      - internal
+
+  web:
+    image: ghcr.io/mastodon/mastodon:v4.6.5
+    restart: unless-stopped
+    env_file: mastodon.env
+    command: bundle exec puma -C config/puma.rb
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - internal
+
+  sidekiq:
+    image: ghcr.io/mastodon/mastodon:v4.6.5
+    restart: unless-stopped
+    env_file: mastodon.env
+    command: bundle exec sidekiq
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - internal
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    ports:
+      # Bound to loopback only — this stack is for a test runner on the same machine, never for another host.
+      - "127.0.0.1:34443:443"
+    depends_on:
+      web:
+        condition: service_healthy
+    networks:
+      - internal
+
+networks:
+  internal:

@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  # Every unit test in the repository, filtered down to exclude the live-instance suite below — this is the run a
+  # contributor waits on, so nothing here talks to a network.
+  test:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Run the fast suite
+        run: dotnet test tests/Wooly.Tests/Wooly.Tests.csproj --filter "Category!=Integration"
+
+  # Its own stage rather than a step in the job above: a dockerized Mastodon instance takes long enough to boot that
+  # bundling it with the fast suite would make every contributor wait on it, which is exactly what ADR-0005 keeps the
+  # two apart to avoid.
+  integration:
+    name: Integration tests (live Mastodon instance)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      # seed.sh prints exactly two "NAME=value" lines on success (see its own header comment) — the same shape
+      # GITHUB_ENV takes, so appending its stdout there is what carries the instance and token into every step after
+      # this one without a second place naming the same two variables.
+      - name: Seed a throwaway Mastodon instance
+        run: tests/integration/seed.sh >> "$GITHUB_ENV"
+
+      - name: Run the integration suite
+        run: dotnet test tests/Wooly.Tests/Wooly.Tests.csproj --filter "Category=Integration"
+
+      - name: Tear down the instance
+        if: always()
+        run: docker compose -f tests/integration/docker-compose.yml down --volumes

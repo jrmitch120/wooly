@@ -1,0 +1,11 @@
+# Terminates TLS with Caddy's self-signed internal CA so Mastonet's hardcoded "https://" has something to land on.
+# The site address names the host rather than being left bare (":443"): "tls internal" provisions a certificate for
+# whatever the address names at startup, and a bare port gives it nothing to provision one for — Caddy then has no
+# certificate to answer a "localhost" ClientHello with and the handshake fails with "no certificate available". The
+# port a test dials (127.0.0.1:34443, mapped in docker-compose.yml) is outside this file's business — Caddy only
+# needs to know what it listens on inside the container.
+localhost:443 {
+	tls internal
+
+	reverse_proxy web:3000
+}
