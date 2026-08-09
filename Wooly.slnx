@@ -7,4 +7,11 @@
   <Folder Name="/tests/">
     <Project Path="tests/Wooly.Tests/Wooly.Tests.csproj" />
   </Folder>
+  <Folder Name="/tests/integration/">
+    <File Path="tests/integration/README.md" />
+    <File Path="tests/integration/docker-compose.yml" />
+    <File Path="tests/integration/Caddyfile" />
+    <File Path="tests/integration/mastodon.env" />
+    <File Path="tests/integration/seed.sh" />
+  </Folder>
 </Solution>
