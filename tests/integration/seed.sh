@@ -9,6 +9,7 @@
 #   WOOLY_INTEGRATION_INSTANCE=<host:port>
 #   WOOLY_INTEGRATION_TOKEN=<access token>
 # which the caller is expected to export before running `dotnet test --filter Category=Integration`.
+# See README.md in this directory for the full walkthrough, including teardown.
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
