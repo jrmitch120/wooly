@@ -328,6 +328,115 @@ public class PostAuthorTests : IDisposable
     }
 
     [Fact]
+    public async Task Publish_ReportsThePostsAvatarUrl()
+    {
+        var network = Answering(StatusJson("110", avatarUrl: "https://mastodon.social/avatars/jeff.png"));
+
+        var post = await NewAuthor(network).Publish(Profile, Draft("Hello world"), TestContext.Current.CancellationToken);
+
+        Assert.Equal("https://mastodon.social/avatars/jeff.png", post.AvatarUrl);
+    }
+
+    /// <summary>
+    ///     The common case: the account being answered is one the post itself names, so the reply target can be
+    ///     resolved with no extra fetch.
+    /// </summary>
+    [Fact]
+    public async Task Publish_ResolvesTheReplyTargetsHandleFromTheMentionItMatches()
+    {
+        var network = Answering(StatusJson(
+            "110",
+            inReplyToId: "99",
+            inReplyToAccountId: "42",
+            mentionsJson: """{"id":"42","username":"maria","acct":"maria@fosstodon.org","url":"https://fosstodon.org/@maria"}"""));
+
+        var post = await NewAuthor(network).Publish(Profile, Draft("Quite so"), TestContext.Current.CancellationToken);
+
+        Assert.Equal("99", post.InReplyTo?.PostId);
+        Assert.Equal("maria@fosstodon.org", post.InReplyTo?.Handle);
+    }
+
+    /// <summary>A self-reply's handle is the post's own author, since Mastodon does not mention an author on their own post.</summary>
+    [Fact]
+    public async Task Publish_ResolvesASelfReplysHandleAsThePostsOwnAuthor()
+    {
+        var network = Answering(StatusJson("110", inReplyToId: "99", inReplyToAccountId: "1"));
+
+        var post = await NewAuthor(network).Publish(Profile, Draft("Quite so"), TestContext.Current.CancellationToken);
+
+        Assert.Equal("99", post.InReplyTo?.PostId);
+        Assert.Equal(post.Account, post.InReplyTo?.Handle);
+    }
+
+    /// <summary>
+    ///     An account this client cannot name — reachable only by an id the post never mentions — leaves the handle
+    ///     null rather than guessed at.
+    /// </summary>
+    [Fact]
+    public async Task Publish_LeavesTheReplyTargetsHandleNullWhenTheAnsweredAccountIsNotInMentions()
+    {
+        var network = Answering(StatusJson("110", inReplyToId: "99", inReplyToAccountId: "42"));
+
+        var post = await NewAuthor(network).Publish(Profile, Draft("Quite so"), TestContext.Current.CancellationToken);
+
+        Assert.Equal("99", post.InReplyTo?.PostId);
+        Assert.Null(post.InReplyTo?.Handle);
+    }
+
+    [Fact]
+    public async Task Publish_ReadsNoReplyTargetForAPostThatAnswersNothing()
+    {
+        var network = Answering(StatusJson("110"));
+
+        var post = await NewAuthor(network).Publish(Profile, Draft("Hello world"), TestContext.Current.CancellationToken);
+
+        Assert.Null(post.InReplyTo);
+    }
+
+    /// <summary>
+    ///     The withheld state some instances report until this profile votes or the poll closes — a real third state
+    ///     for an option's own count, distinct from a genuine zero.
+    /// </summary>
+    [Fact]
+    public async Task Publish_ReadsAPollsWithheldOptionCountAsNullRatherThanZero()
+    {
+        var network = Answering(StatusJson(
+            "110",
+            pollJson: """{"id":"p1","expired":false,"multiple":false,"votes_count":5,"options":[{"title":"Cats","votes_count":null},{"title":"Dogs","votes_count":5}]}"""));
+
+        var post = await NewAuthor(network).Publish(Profile, Draft("Cats or dogs?"), TestContext.Current.CancellationToken);
+
+        Assert.Equal(5, post.Poll?.Votes);
+        Assert.Null(post.Poll?.Options[0].Votes);
+        Assert.Equal(5, post.Poll?.Options[1].Votes);
+    }
+
+    [Fact]
+    public async Task Publish_ReadsThePollsShapeOffTheInstance()
+    {
+        var network = Answering(StatusJson(
+            "110",
+            pollJson: """
+                      {
+                        "id": "p1", "expired": true, "multiple": true, "votes_count": 9, "voters_count": 7,
+                        "voted": true, "expires_at": "2026-08-01T00:00:00.000Z", "own_votes": [1],
+                        "options": [{"title":"Cats","votes_count":4},{"title":"Dogs","votes_count":5}]
+                      }
+                      """));
+
+        var post = await NewAuthor(network).Publish(Profile, Draft("Cats or dogs?"), TestContext.Current.CancellationToken);
+
+        var poll = post.Poll!;
+        Assert.True(poll.MultipleChoice);
+        Assert.True(poll.Closed);
+        Assert.True(poll.Voted);
+        Assert.Equal(7, poll.Voters);
+        Assert.Equal(new DateTimeOffset(2026, 8, 1, 0, 0, 0, TimeSpan.Zero), poll.ExpiresAt);
+        Assert.False(poll.Options[0].Picked);
+        Assert.True(poll.Options[1].Picked);
+    }
+
+    [Fact]
     public async Task Publish_AttachesAPollWithItsAnswersAndHowLongItStaysOpen()
     {
         var network = Answering(StatusJson("110"));
@@ -336,7 +445,7 @@ public class PostAuthorTests : IDisposable
             Profile,
             Draft("Cats or dogs?") with
             {
-                Poll = PostPoll.Of(["Cats", "Dogs"], TimeSpan.FromHours(6), multipleChoice: true),
+                Poll = PollDraft.Of(["Cats", "Dogs"], TimeSpan.FromHours(6), multipleChoice: true),
             },
             TestContext.Current.CancellationToken);
 
@@ -535,7 +644,12 @@ public class PostAuthorTests : IDisposable
         string visibility = "public",
         string[]? attachmentIds = null,
         bool sensitive = false,
-        bool poll = false)
+        bool poll = false,
+        string? pollJson = null,
+        string? avatarUrl = null,
+        string? inReplyToId = null,
+        string? inReplyToAccountId = null,
+        string? mentionsJson = null)
     {
         var attachments = string.Join(",", (attachmentIds ?? []).Select(AttachmentJson));
 
@@ -545,7 +659,7 @@ public class PostAuthorTests : IDisposable
                    "uri": "https://mastodon.social/users/jeff/statuses/{{id}}",
                    "url": "https://mastodon.social/@jeff/{{id}}",
                    "created_at": "2026-07-29T12:00:00.000Z",
-                   "account": { "id": "1", "username": "jeff", "acct": "jeff", "display_name": "Jeff" },
+                   "account": { "id": "1", "username": "jeff", "acct": "jeff", "display_name": "Jeff", "avatar": "{{avatarUrl}}" },
                    "content": "{{content}}",
                    "spoiler_text": "{{contentWarning}}",
                    "sensitive": {{(sensitive ? "true" : "false")}},
@@ -554,7 +668,10 @@ public class PostAuthorTests : IDisposable
                    "favourites_count": 0,
                    "replies_count": 0,
                    "media_attachments": [{{attachments}}],
-                   "poll": {{(poll ? """{"id":"p1","expired":false,"multiple":false,"votes_count":2,"options":[{"title":"Cats","votes_count":1},{"title":"Dogs","votes_count":1}]}""" : "null")}}
+                   "in_reply_to_id": {{(inReplyToId is null ? "null" : $"\"{inReplyToId}\"")}},
+                   "in_reply_to_account_id": {{(inReplyToAccountId is null ? "null" : $"\"{inReplyToAccountId}\"")}},
+                   "mentions": [{{mentionsJson}}],
+                   "poll": {{(pollJson ?? (poll ? """{"id":"p1","expired":false,"multiple":false,"votes_count":2,"options":[{"title":"Cats","votes_count":1},{"title":"Dogs","votes_count":1}]}""" : "null"))}}
                  }
                  """;
     }

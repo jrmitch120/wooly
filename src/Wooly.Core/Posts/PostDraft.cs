@@ -47,11 +47,11 @@ public sealed record PostDraft
     public IReadOnlyList<MediaAttachment> Media { get; init; } = [];
 
     /// <summary>A poll to attach, or <see langword="null" /> for a post that asks nothing.</summary>
-    public PostPoll? Poll { get; init; }
+    public PollDraft? Poll { get; init; }
 
     /// <summary>
     ///     What is wrong with this draft, or <see langword="null" /> if nothing is. The one place the rule lives, asked
-    ///     twice for the reason <see cref="PostPoll.Problem" /> gives: once by the argument parser, so the user reads
+    ///     twice for the reason <see cref="PollDraft.Problem" /> gives: once by the argument parser, so the user reads
     ///     the answer where they typed the mistake, and once by the adapter, so a draft that reaches an instance is one
     ///     it can be asked to publish.
     /// </summary>

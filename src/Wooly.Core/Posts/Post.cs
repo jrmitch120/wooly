@@ -66,6 +66,18 @@ public sealed record Post
     /// <summary>Where to read it on the web, or <see langword="null" /> if the instance did not say.</summary>
     public string? Url { get; init; }
 
+    /// <summary>
+    ///     Where to read the author's avatar, or <see langword="null" /> if the instance did not say — the wire says
+    ///     "no avatar" with an empty string, the same way it says "no warning" for <see cref="ContentWarning" />.
+    /// </summary>
+    public string? AvatarUrl { get; init; }
+
+    /// <summary>The post this one answers, or <see langword="null" /> if it answers nothing.</summary>
+    public PostReplyTarget? InReplyTo { get; init; }
+
+    /// <summary>A poll attached to the post, or <see langword="null" /> if it carries none.</summary>
+    public PostPoll? Poll { get; init; }
+
     /// <summary>Whether this post is a boost of somebody else's.</summary>
     public bool IsBoost => Boosted is not null;
 }

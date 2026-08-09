@@ -296,6 +296,152 @@ public class PostEngagementCommandTests : IDisposable
     }
 
     [Fact]
+    public void Show_MarksAReplyAsAnsweringTheAccountItNames()
+    {
+        AddProfile();
+        _posts = FakePostEngagement.Answering(APost.With(
+            inReplyTo: new PostReplyTarget { PostId = "99", Handle = "maria@fosstodon.org" }));
+
+        var run = Run(["post", "show", "110"]);
+
+        Assert.Contains("↳ answering @maria@fosstodon.org", run.Output);
+    }
+
+    /// <summary>A self-reply is marked as continuing rather than naming the author back to themself.</summary>
+    [Fact]
+    public void Show_MarksASelfReplyAsContinuing()
+    {
+        AddProfile();
+        _posts = FakePostEngagement.Answering(APost.With(
+            account: "jeff@mastodon.social",
+            inReplyTo: new PostReplyTarget { PostId = "99", Handle = "jeff@mastodon.social" }));
+
+        var run = Run(["post", "show", "110"]);
+
+        Assert.Contains("↳ continuing", run.Output);
+    }
+
+    /// <summary>The bare mark for a reply whose answered account this client cannot name.</summary>
+    [Fact]
+    public void Show_MarksAnUnresolvableReplyAsTheBareFactOfReplying()
+    {
+        AddProfile();
+        _posts = FakePostEngagement.Answering(APost.With(
+            inReplyTo: new PostReplyTarget { PostId = "99", Handle = null }));
+
+        var run = Run(["post", "show", "110"]);
+
+        Assert.Contains("↳ reply", run.Output);
+        Assert.DoesNotContain("↳ answering", run.Output);
+    }
+
+    /// <summary>A post that answers nothing carries no reply mark at all.</summary>
+    [Fact]
+    public void Show_CarriesNoReplyMarkForAPostThatAnswersNothing()
+    {
+        AddProfile();
+
+        var run = Run(["post", "show", "110"]);
+
+        Assert.DoesNotContain("↳", run.Output);
+    }
+
+    /// <summary>Each option's bar, its share and raw count, and a leading mark on the one this profile picked.</summary>
+    [Fact]
+    public void Show_DrawsABarWithThePercentageAndRawCountForEachOption()
+    {
+        AddProfile();
+        _posts = FakePostEngagement.Answering(APost.With(poll: APost.APoll(
+            options: [APost.AnAnswer("Cats", 4), APost.AnAnswer("Dogs", 6, picked: true)],
+            votes: 10)));
+
+        var run = Run(["post", "show", "110"]);
+
+        Assert.Contains("▓▓▓▓░░░░░░ 40% (4)  Cats", run.Output);
+        Assert.Contains("✓ ▓▓▓▓▓▓░░░░ 60% (6)  Dogs", run.Output);
+    }
+
+    /// <summary>A genuinely unvoted option still draws a bar, at 0% — not the same thing as a withheld count.</summary>
+    [Fact]
+    public void Show_DrawsAnEmptyBarAndZeroPercentForAGenuinelyUnvotedOption()
+    {
+        AddProfile();
+        _posts = FakePostEngagement.Answering(APost.With(poll: APost.APoll(
+            options: [APost.AnAnswer("Cats", 0), APost.AnAnswer("Dogs", 6)],
+            votes: 6)));
+
+        var run = Run(["post", "show", "110"]);
+
+        Assert.Contains("░░░░░░░░░░ 0% (0)  Cats", run.Output);
+    }
+
+    /// <summary>
+    ///     An instance withholds a per-option breakdown until this profile votes or the poll closes — a third state,
+    ///     distinct from a genuine zero, that draws no bar at all rather than guess at one.
+    /// </summary>
+    [Fact]
+    public void Show_DrawsNoBarAtAllForAnOptionWhoseCountIsWithheld()
+    {
+        AddProfile();
+        _posts = FakePostEngagement.Answering(APost.With(poll: APost.APoll(
+            options: [APost.AnAnswer("Cats", null), APost.AnAnswer("Dogs", null)],
+            votes: 0)));
+
+        var run = Run(["post", "show", "110"]);
+
+        Assert.Contains("Cats", run.Output);
+        Assert.Contains("Dogs", run.Output);
+        Assert.DoesNotContain("▓", run.Output);
+        Assert.DoesNotContain("░", run.Output);
+    }
+
+    [Fact]
+    public void Show_ReportsAClosedPollInPlaceOfWhenItCloses()
+    {
+        AddProfile();
+        _posts = FakePostEngagement.Answering(APost.With(poll: APost.APoll(closed: true)));
+
+        var run = Run(["post", "show", "110"]);
+
+        Assert.Contains("Poll closed", run.Output);
+    }
+
+    [Fact]
+    public void Show_ReportsAnOpenPollsClosingTime()
+    {
+        AddProfile();
+        _posts = FakePostEngagement.Answering(APost.With(poll: APost.APoll(
+            expiresAt: new DateTimeOffset(2026, 8, 10, 12, 0, 0, TimeSpan.Zero))));
+
+        var run = Run(["post", "show", "110"]);
+
+        Assert.Contains("Poll closes", run.Output);
+    }
+
+    [Fact]
+    public void Show_SaysNothingAboutClosingWhenThePollHasNoEndDate()
+    {
+        AddProfile();
+        _posts = FakePostEngagement.Answering(APost.With(poll: APost.APoll()));
+
+        var run = Run(["post", "show", "110"]);
+
+        Assert.DoesNotContain("Poll closes", run.Output);
+        Assert.DoesNotContain("Poll closed", run.Output);
+    }
+
+    [Fact]
+    public void Show_NotesWhenAPollLetsAVoterChooseMoreThanOneAnswer()
+    {
+        AddProfile();
+        _posts = FakePostEngagement.Answering(APost.With(poll: APost.APoll(multipleChoice: true)));
+
+        var run = Run(["post", "show", "110"]);
+
+        Assert.Contains("Choose as many as you like.", run.Output);
+    }
+
+    [Fact]
     public void Show_ReportsAMissingPostIdAsAUsageError()
     {
         AddProfile();

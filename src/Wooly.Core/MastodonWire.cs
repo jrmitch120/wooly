@@ -16,8 +16,13 @@ internal static class MastodonWire
     ///     they are about in two different ways.
     /// </summary>
     /// <param name="instance">The instance being read, which is the one whose accounts arrive unqualified.</param>
-    public static string Qualify(Account account, string instance) =>
-        account.AccountName.Contains('@') ? account.AccountName : $"{account.AccountName}@{instance}";
+    public static string Qualify(Account account, string instance) => Qualify(account.AccountName, instance);
+
+    /// <summary>
+    ///     The same qualifying <see cref="Qualify(Account,string)" /> does, for an <c>acct</c> read off anything else
+    ///     that names an account — a mention, not just a status's own.
+    /// </summary>
+    public static string Qualify(string acct, string instance) => acct.Contains('@') ? acct : $"{acct}@{instance}";
 
     /// <summary>The name an account chose to be shown as, falling back to its username where it chose none.</summary>
     public static string DisplayName(Account account) =>

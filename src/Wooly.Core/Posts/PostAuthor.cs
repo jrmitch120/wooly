@@ -196,7 +196,7 @@ public sealed class PostAuthor(IMastodonClientFactory clientFactory) : IPostAuth
         return ids;
     }
 
-    private static PollParameters ToWire(PostPoll poll) => new()
+    private static PollParameters ToWire(PollDraft poll) => new()
     {
         Options = poll.Answers,
         ExpiresIn = poll.OpenFor,
