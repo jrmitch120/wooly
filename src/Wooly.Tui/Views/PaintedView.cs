@@ -20,17 +20,23 @@ namespace Wooly.Tui.Views;
 internal sealed class PaintedView : View
 {
     /// <summary>
-    ///     How many pictures can be on screen at once. A picture is at least a few rows tall and a post's text stands
-    ///     between one and the next, so a terminal cannot show many; this is generous for the tallest terminal anybody
-    ///     reads a feed on.
+    ///     How many pictures can be on screen at once. Generous for the tallest terminal anybody reads a feed on.
     /// </summary>
     /// <remarks>
-    ///     Fixed, and every one of them built before anything is drawn, because the alternative is adding a subview
-    ///     from inside a draw — which mutates the tree the draw is walking, and leaves the release of a vanished
-    ///     picture depending on whether this frame happened to be the one that grew the pool. A stale Kitty placement
-    ///     is not erased by drawing text over it (ADR-0016), so that shows up as a picture stuck over somebody's post.
+    ///     Eight until a byline gained an avatar (#77), which is the change that made this a count of posts rather
+    ///     than a count of attachments: an attachment is a few rows tall and a post's text stands between one and the
+    ///     next, so a screen could only ever hold a handful — but every post wants a box now, and a tall terminal
+    ///     shows a dozen posts before it shows a single photograph. A screen wanting more pictures than there are
+    ///     boxes draws what it can and drops the rest, which is a picture silently missing.
+    ///     <para>
+    ///         Fixed, and every one of them built before anything is drawn, because the alternative is adding a
+    ///         subview from inside a draw — which mutates the tree the draw is walking, and leaves the release of a
+    ///         vanished picture depending on whether this frame happened to be the one that grew the pool. A stale
+    ///         Kitty placement is not erased by drawing text over it (ADR-0016), so that shows up as a picture stuck
+    ///         over somebody's post.
+    ///     </para>
     /// </remarks>
-    private const int MostBoxes = 8;
+    private const int MostBoxes = 24;
 
     private readonly ITheme _theme;
     private readonly Func<int, int, IReadOnlyList<Line>> _rows;
@@ -311,7 +317,10 @@ internal sealed class PaintedView : View
     ///     <para>
     ///         Every box is either given a place here or released here, on every frame and with no path out that does
     ///         neither — and everything is released before anything is placed, so a picture is never put on screen over
-    ///         one the terminal has not yet been told to drop.
+    ///         one the terminal has not yet been told to drop. That invariant is the whole of what keeps a picture from
+    ///         sticking, and it holds because <see cref="Boxes" /> answers for every box at once: a box is kept only
+    ///         where it has been given the very picture it is already holding, so being kept and being placed are the
+    ///         same list rather than two lists that can disagree.
     ///     </para>
     /// </remarks>
     private void Place(IReadOnlyList<Line> lines, int height)
@@ -323,37 +332,43 @@ internal sealed class PaintedView : View
 
         var wanted = Wanted(lines, height);
 
-        // Let go first, and of everything, before anything is put anywhere. A box is released the moment its picture
-        // stops being wanted, which is what tells the terminal to drop what is on it — doing that after placing the
-        // rest would leave a frame in which the old placement is still on screen under the new one.
-        var freed = new List<PictureView>();
+        // Who draws what, settled for the whole frame before anything moves — see Boxes. Asking box by box is what
+        // this used to do, and it could not see that one picture was wanted once and held twice.
+        var drawing = Boxes(
+            [.. _boxes.Select(box => box.PictureId)],
+            [.. wanted.Select(want => want.Inset.Drawn.Id)]);
 
-        foreach (var box in _boxes)
+        // Which boxes are already holding the picture they have been given, and so have nothing to be told.
+        var keeping = new HashSet<int>();
+
+        for (var at = 0; at < wanted.Count; at++)
         {
-            if (box.PictureId is { } held && wanted.Any(want => want.Inset.Drawn.Id == held))
+            if (drawing[at] is { } which && _boxes[which].PictureId == wanted[at].Inset.Drawn.Id)
             {
-                continue;
+                keeping.Add(which);
             }
-
-            if (box.PictureId is not null)
-            {
-                freed.Add(box);
-            }
-
-            box.Release();
         }
 
-        var taken = new List<PictureView>();
-
-        foreach (var (inset, top, picture) in wanted)
+        // Let go first, and of everything else, before anything is put anywhere. A box is released the moment it stops
+        // holding a picture that is wanted where it is holding it — doing that after placing the rest would leave a
+        // frame in which the old placement is still on screen under the new one.
+        for (var box = 0; box < _boxes.Count; box++)
         {
-            if (Free(inset.Drawn.Id, freed, taken) is not { } box)
+            if (!keeping.Contains(box))
+            {
+                _boxes[box].Release();
+            }
+        }
+
+        for (var at = 0; at < wanted.Count; at++)
+        {
+            if (drawing[at] is not { } which)
             {
                 continue;
             }
 
-            taken.Add(box);
-
+            var (inset, top, picture) = wanted[at];
+            var box = _boxes[which];
             var frame = new Rectangle(inset.Column, top, inset.Columns, inset.Rows);
 
             box.Show(inset.Drawn.Id, picture);
@@ -367,6 +382,74 @@ internal sealed class PaintedView : View
 
             // Never drawn as coloured cells, whatever ImageView would have been willing to do (ADR-0016).
             box.Visible = box.CanDraw;
+        }
+    }
+
+    /// <summary>
+    ///     Which box draws which of the pictures wanted this frame: the box already holding one where there is one,
+    ///     and never the same box twice.
+    /// </summary>
+    /// <remarks>
+    ///     One picture may be wanted more than once on a page — an account's avatar over a run of their posts, or a
+    ///     boost and the post it boosts — so a box is matched to a <em>place</em> a picture is wanted rather than to
+    ///     the picture. Deciding box by box instead is what put a stuck avatar over somebody's post: asked whether the
+    ///     picture it held was still wanted <em>anywhere</em>, both of two boxes holding one avatar said yes, one of
+    ///     them was given the single place left, and the other was neither moved nor released — and a Kitty placement
+    ///     nobody deletes is not erased by drawing text over it (ADR-0016).
+    ///     <para>
+    ///         A box holding nothing is preferred over one being released this frame, so that a view never goes from
+    ///         one picture straight to another within a frame: the terminal is told to drop the first, and only a
+    ///         frame later is the second put there. Reusing a released box is the last resort, there so that a screen
+    ///         with more pictures on it than there are boxes draws what it can rather than dropping one.
+    ///     </para>
+    /// </remarks>
+    /// <param name="held">What each box is holding, by index, and <see langword="null" /> for one holding nothing.</param>
+    /// <param name="wanted">The pictures to draw, in the order they appear, by id — the same id may appear twice.</param>
+    /// <returns>
+    ///     The box drawing each wanted picture, by index into <paramref name="held" />, or <see langword="null" />
+    ///     where there was no box left for it.
+    /// </returns>
+    internal static int?[] Boxes(IReadOnlyList<string?> held, IReadOnlyList<string> wanted)
+    {
+        var drawing = new int?[wanted.Count];
+        var spoken = new bool[held.Count];
+
+        // Three passes, in the order a box is preferred: one already holding this very picture, then one holding
+        // nothing, then one whose picture is being dropped this frame anyway.
+        for (var at = 0; at < wanted.Count; at++)
+        {
+            Take(at, box => held[box] == wanted[at]);
+        }
+
+        for (var at = 0; at < wanted.Count; at++)
+        {
+            Take(at, box => held[box] is null);
+        }
+
+        for (var at = 0; at < wanted.Count; at++)
+        {
+            Take(at, _ => true);
+        }
+
+        return drawing;
+
+        void Take(int at, Func<int, bool> suits)
+        {
+            if (drawing[at] is not null)
+            {
+                return;
+            }
+
+            for (var box = 0; box < held.Count; box++)
+            {
+                if (!spoken[box] && suits(box))
+                {
+                    drawing[at] = box;
+                    spoken[box] = true;
+
+                    return;
+                }
+            }
         }
     }
 
@@ -401,22 +484,4 @@ internal sealed class PaintedView : View
         return wanted;
     }
 
-    /// <summary>
-    ///     The box to draw <paramref name="pictureId" /> in: the one already holding it, or one holding nothing.
-    /// </summary>
-    /// <remarks>
-    ///     A box freed this very frame is the last resort, so that a view never goes from one picture straight to
-    ///     another within a frame — the terminal is told to drop the first, and only a frame later is the second put
-    ///     there. With room for eight and a terminal able to show a handful, that fallback is not reached in practice;
-    ///     it is there so that a screen full of pictures draws them rather than dropping one.
-    ///     <para>
-    ///         A box already <paramref name="taken" /> this frame is never handed out again, because the same picture
-    ///         can be on screen twice — one account's avatar over a run of their posts, or a boost and the post it
-    ///         boosts — and two boxes sharing one view would be one picture drawn and the other silently lost.
-    ///     </para>
-    /// </remarks>
-    private PictureView? Free(string pictureId, List<PictureView> freed, List<PictureView> taken) =>
-        _boxes.FirstOrDefault(box => box.PictureId == pictureId && !taken.Contains(box))
-        ?? _boxes.FirstOrDefault(box => box.PictureId is null && !freed.Contains(box) && !taken.Contains(box))
-        ?? _boxes.FirstOrDefault(box => box.PictureId is null && !taken.Contains(box));
 }
