@@ -97,14 +97,14 @@ public class PicturesTests
 
         var media = APost.APicture();
 
-        pictures.Want(media);
+        pictures.Want(Drawn.Attached(media));
 
         await landed.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
-        Assert.NotNull(pictures.Of(media));
-        Assert.NotNull(pictures.Of(media));
+        Assert.NotNull(pictures.Of(Drawn.Attached(media)));
+        Assert.NotNull(pictures.Of(Drawn.Attached(media)));
 
-        pictures.Want(media);
+        pictures.Want(Drawn.Attached(media));
 
         Assert.Equal(media.Preview, Assert.Single(asked));
     }
@@ -128,7 +128,7 @@ public class PicturesTests
             ADrawingTerminal,
             () => { });
 
-        pictures.Want(APost.APicture() with { Preview = null });
+        pictures.Want(Drawn.Attached(APost.APicture() with { Preview = null }));
 
         Assert.Equal(APost.APicture().Url, Assert.Single(asked));
     }
@@ -152,11 +152,11 @@ public class PicturesTests
             ADrawingTerminal,
             () => { });
 
-        pictures.Want(APost.APicture());
-        pictures.Want(APost.APicture());
-        pictures.Want(APost.APicture());
+        pictures.Want(Drawn.Attached(APost.APicture()));
+        pictures.Want(Drawn.Attached(APost.APicture()));
+        pictures.Want(Drawn.Attached(APost.APicture()));
 
-        Assert.Null(pictures.Of(APost.APicture()));
+        Assert.Null(pictures.Of(Drawn.Attached(APost.APicture())));
         Assert.Equal(1, asks);
     }
 
@@ -178,13 +178,13 @@ public class PicturesTests
                 }
             });
 
-        pictures.Want(APost.APicture(id: "m1"));
-        pictures.Want(APost.APicture(id: "m2"));
+        pictures.Want(Drawn.Attached(APost.APicture(id: "m1")));
+        pictures.Want(Drawn.Attached(APost.APicture(id: "m2")));
 
         await both.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
-        Assert.NotNull(pictures.Of(APost.APicture(id: "m1")));
-        Assert.NotNull(pictures.Of(APost.APicture(id: "m2")));
+        Assert.NotNull(pictures.Of(Drawn.Attached(APost.APicture(id: "m1"))));
+        Assert.NotNull(pictures.Of(Drawn.Attached(APost.APicture(id: "m2"))));
     }
 
     /// <summary>
@@ -209,18 +209,18 @@ public class PicturesTests
         // One more than there is room for, which drops the first.
         for (var at = 0; at <= Pictures.MostHeld; at++)
         {
-            pictures.Want(APost.APicture(id: $"m{at}"));
+            pictures.Want(Drawn.Attached(APost.APicture(id: $"m{at}")));
         }
 
         Assert.Equal(Pictures.MostHeld + 1, asks);
 
         // The most recent is still remembered, so wanting it again sends for nothing.
-        pictures.Want(APost.APicture(id: $"m{Pictures.MostHeld}"));
+        pictures.Want(Drawn.Attached(APost.APicture(id: $"m{Pictures.MostHeld}")));
 
         Assert.Equal(Pictures.MostHeld + 1, asks);
 
         // The first is gone, so wanting it again sends for it again — which is what having dropped it means.
-        pictures.Want(APost.APicture(id: "m0"));
+        pictures.Want(Drawn.Attached(APost.APicture(id: "m0")));
 
         Assert.Equal(Pictures.MostHeld + 2, asks);
     }
@@ -242,11 +242,11 @@ public class PicturesTests
         using var http = new HttpClient(network);
         using var pictures = Pictures.Over(http, ADrawingTerminal, landed.SetResult);
 
-        pictures.Want(APost.APicture());
+        pictures.Want(Drawn.Attached(APost.APicture()));
 
         await landed.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
-        var picture = pictures.Of(APost.APicture());
+        var picture = pictures.Of(Drawn.Attached(APost.APicture()));
 
         Assert.NotNull(picture);
         Assert.Equal(6, picture.Width);
@@ -262,9 +262,9 @@ public class PicturesTests
         using var http = new HttpClient(network);
         using var pictures = Pictures.Over(http, ADrawingTerminal, () => { });
 
-        pictures.Want(APost.APicture());
+        pictures.Want(Drawn.Attached(APost.APicture()));
 
-        Assert.Null(pictures.Of(APost.APicture()));
+        Assert.Null(pictures.Of(Drawn.Attached(APost.APicture())));
     }
 
     /// <summary>
@@ -286,7 +286,7 @@ public class PicturesTests
         using var http = new HttpClient(network);
         using var pictures = Pictures.Over(http, ADrawingTerminal, () => landed = true);
 
-        pictures.Want(APost.APicture());
+        pictures.Want(Drawn.Attached(APost.APicture()));
 
         // Nothing announces a refusal, so the wait is for the request to have been made and answered.
         while (network.Requests.Count == 0)
@@ -294,7 +294,7 @@ public class PicturesTests
             await Task.Delay(10, TestContext.Current.CancellationToken);
         }
 
-        Assert.Null(pictures.Of(APost.APicture()));
+        Assert.Null(pictures.Of(Drawn.Attached(APost.APicture())));
         Assert.False(landed);
     }
 

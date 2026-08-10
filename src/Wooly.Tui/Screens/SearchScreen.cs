@@ -178,7 +178,7 @@ public sealed class SearchScreen : Screen
         {
             lines.AddRange(Heading(at));
             lines.AddRange(_results.RowsOf(at, width, Draw));
-            lines.Add(Line.Blank);
+            lines.Add(Line.Rule(width));
         }
 
         return lines;

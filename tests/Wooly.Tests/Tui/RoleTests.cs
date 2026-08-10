@@ -108,16 +108,20 @@ public partial class RoleTests
         Assert.DoesNotContain(mine, line => line.Has(Role.Boost));
     }
 
-    /// <summary>A byline is two different things side by side, and they are two roles rather than one.</summary>
+    /// <summary>
+    ///     A byline is two different things one above the other since #77, and they are two roles rather than one —
+    ///     the name with the audience beside it, and the handle on the row under it.
+    /// </summary>
     [Fact]
     public void Feed_DrawsANameAndAHandleInTheirOwnRoles()
     {
         var lines = PostLines.Feed(APost.With(author: "Maria Ochoa", account: "maria@fosstodon.org"), 61, false, Now);
-        var byline = lines.First(line => line.Has(Role.BylineName));
+        var name = lines.First(line => line.Has(Role.BylineName));
+        var handle = lines.First(line => line.Has(Role.BylineHandle));
 
-        Assert.Contains(byline.Spans, span => span is { Role: Role.BylineName, Text: "Maria Ochoa" });
-        Assert.Contains(byline.Spans, span => span.Role == Role.BylineHandle && span.Text.Contains('@'));
-        Assert.Contains(byline.Spans, span => span.Role == Role.Audience);
+        Assert.Contains(name.Spans, span => span is { Role: Role.BylineName, Text: "Maria Ochoa" });
+        Assert.Contains(name.Spans, span => span.Role == Role.Audience);
+        Assert.Contains(handle.Spans, span => span.Role == Role.BylineHandle && span.Text.Contains('@'));
     }
 
     /// <summary>

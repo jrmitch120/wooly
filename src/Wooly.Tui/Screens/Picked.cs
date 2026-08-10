@@ -134,10 +134,17 @@ public sealed class Picked<T>(IReadOnlyList<T> things) : IPicked
 
     /// <summary>
     ///     The things as rows, each behind a gutter that says whether it is the one picked out and each naming the
-    ///     thing it belongs to, with a blank between them.
+    ///     thing it belongs to, with a <see cref="Line.Rule" /> between them.
     /// </summary>
     /// <remarks>
-    ///     The blank between two things belongs to neither, so a page that begins on one begins on the thing under it.
+    ///     A rule rather than the blank row this used to be — variant F of the six put on screen for #62. A feed of
+    ///     short posts read as one undifferentiated column of text, and finding where a post ended was work the reader
+    ///     did rather than work the screen did; the rule costs the same one row the blank did.
+    ///     <para>
+    ///         The rule between two things belongs to neither, so a page that begins on one begins on the thing under
+    ///         it — and being a row of no thing is also what keeps it clear of <see cref="Role.Selection" />'s
+    ///         <c>▌</c>, which is only ever stamped on a thing's own rows.
+    ///     </para>
     /// </remarks>
     /// <param name="width">How wide the content region is — 61 at an 80-column terminal.</param>
     /// <param name="draw">How one thing draws itself.</param>
@@ -148,13 +155,13 @@ public sealed class Picked<T>(IReadOnlyList<T> things) : IPicked
         for (var at = 0; at < _things.Count; at++)
         {
             lines.AddRange(RowsOf(at, width, draw));
-            lines.Add(Line.Blank);
+            lines.Add(Line.Rule(width));
         }
 
         return lines;
     }
 
-    /// <summary>The <paramref name="at" />th thing's rows on their own, stamped the same way and with no blank after.</summary>
+    /// <summary>The <paramref name="at" />th thing's rows on their own, stamped the same way and with no rule after.</summary>
     /// <remarks>
     ///     For the two screens that put something of their own between the things — search, whose three kinds each get
     ///     a heading, and the post screen, which says how many replies follow the post itself. Splicing rows between

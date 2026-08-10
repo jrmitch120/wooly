@@ -32,7 +32,7 @@ public class MediaLineTests
 
         var inset = Assert.Single(lines.SelectMany(line => line.Insets));
 
-        Assert.Equal("m1", inset.Media.Id);
+        Assert.Equal("m1", inset.Drawn.Id);
         Assert.Equal(0, inset.Column);
         Assert.True(inset.Columns > 0);
         Assert.True(inset.Rows > 0);
@@ -325,7 +325,7 @@ public class MediaLineTests
             Now,
             FakePictures.With().Holding("m2", 400, 300));
 
-        Assert.Equal("m2", Assert.Single(lines.SelectMany(line => line.Insets)).Media.Id);
+        Assert.Equal("m2", Assert.Single(lines.SelectMany(line => line.Insets)).Drawn.Id);
         Assert.Contains(lines, line => line.Text.StartsWith("⏵ ", StringComparison.Ordinal));
     }
 
@@ -346,7 +346,7 @@ public class MediaLineTests
                               .SelectMany(line => line.Insets)
                               .ToList();
 
-        Assert.Equal(["m1", "m2", "m3", "m4"], insets.Select(inset => inset.Media.Id));
+        Assert.Equal(["m1", "m2", "m3", "m4"], insets.Select(inset => inset.Drawn.Id));
     }
 
     /// <summary>

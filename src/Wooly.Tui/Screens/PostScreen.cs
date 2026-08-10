@@ -86,6 +86,8 @@ public sealed class PostScreen : Screen
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(int width, DateTimeOffset now, IPictures? pictures = null)
     {
+        // A blank rather than the rule that separates two replies below: the heading is already a ruled row, and two
+        // of them stacked would read as a boundary twice over.
         var lines = new List<Line>(_posts.RowsOf(0, width, Draw))
         {
             Line.Blank,
@@ -105,7 +107,7 @@ public sealed class PostScreen : Screen
         for (var at = 1; at < _posts.Count; at++)
         {
             lines.AddRange(_posts.RowsOf(at, width, Draw));
-            lines.Add(Line.Blank);
+            lines.Add(Line.Rule(width));
         }
 
         return lines;

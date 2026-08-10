@@ -1,5 +1,5 @@
 using System.Text;
-using Wooly.Core.Posts;
+using Wooly.Tui.Media;
 using Wooly.Tui.Theme;
 
 namespace Wooly.Tui.Rendering;
@@ -24,17 +24,17 @@ public sealed record Line
     public IReadOnlyList<Inset> Insets { get; init; } = [];
 
     /// <summary>
-    ///     The attachment this row stands in for, where it is one a terminal could draw — set whether or not its
-    ///     picture has arrived, which is the point of it.
+    ///     The picture this row stands in for, where it is one a terminal could draw — set whether or not the pixels
+    ///     have arrived, which is the point of it.
     /// </summary>
     /// <remarks>
     ///     What a post is made of does not depend on where the reader has scrolled to, so every post in a list works
     ///     out its rows whether or not it is anywhere near the screen. Sending for a picture from there would send for
-    ///     an account's whole gallery to draw the four of it that fit. So the rows only say which attachments <em>want</em>
-    ///     a picture, and whatever knows where the scroll has got to — the view — decides which of those are worth
+    ///     an account's whole gallery to draw the four of it that fit. So the rows only say which pictures they
+    ///     <em>want</em>, and whatever knows where the scroll has got to — the view — decides which of those are worth
     ///     asking for (ADR-0016).
     /// </remarks>
-    public PostMedia? Wants { get; init; }
+    public Drawn? Wants { get; init; }
 
     /// <summary>
     ///     Which of the screen's things this row is part of — the same ordinal <see cref="Screens.Screen.Pick" />
@@ -72,6 +72,17 @@ public sealed record Line
 
     /// <summary>A row of one span, which is most of them.</summary>
     public static Line Of(string text, Role role) => new([new Span(text, role)]);
+
+    /// <summary>
+    ///     A row ruled across its whole width, which is what says one thing on a screen has ended and the next begun.
+    /// </summary>
+    /// <remarks>
+    ///     Said here rather than by whatever puts one between two things, so that the separator a list draws and the
+    ///     separator a screen splicing headings between things draws cannot come to be two different separators
+    ///     (<see cref="Screens.Picked{T}.Rows" />).
+    /// </remarks>
+    /// <param name="width">How wide the content region is — 61 at an 80-column terminal.</param>
+    public static Line Rule(int width) => Of(new string('─', Math.Max(0, width)), Theme.Role.Muted);
 
     /// <summary>
     ///     The role every span on this row takes, or <see langword="null" /> where they do not agree. What a test asks
