@@ -104,25 +104,42 @@ public sealed class ComposeScreen : Screen
         IPictures? pictures = null,
         bool hideDrawnCaption = false)
     {
-        var lines = new List<Line>();
-
-        if (About is { } answered && Purpose == ComposeFor.Reply)
-        {
-            // What is being answered stays on screen, which is the thing the rejected "editor under the feed" was for.
-            // It costs four rows here and no layout at all. The label reads the same as the feed's own reply mark
-            // (#82) — no bare "↳ reply" here, since compose always holds the full post it answers.
-            var label = _aboutIsMine ? "↳ continuing" : $"↳ answering @{answered.Account}";
-            lines.Add(Line.Of(TextWrap.Clip(label, width), Role.Muted));
-
-            foreach (var row in TextWrap.Wrap(answered.Content, Math.Max(1, width - 2)).Take(3))
-            {
-                lines.Add(Line.Of($"  {row}", Role.Muted));
-            }
-
-            lines.Add(Line.Blank);
-        }
+        var lines = new List<Line>(AboveEditor(width));
 
         lines.AddRange(TextWrap.Wrap(Text.Length == 0 ? " " : Text, width).Select(row => Line.Of(row, Role.Body)));
+
+        return lines;
+    }
+
+    /// <summary>
+    ///     How many rows <see cref="AboveEditor" /> takes up at <paramref name="width" /> — the room the shell has to
+    ///     leave above the live editor so the two do not draw over one another, since the editor is a separate view
+    ///     laid on top of the one these rows are painted on rather than a row range inside it.
+    /// </summary>
+    public int AboveEditorHeight(int width) => AboveEditor(width).Count;
+
+    /// <summary>
+    ///     What is being answered, which stays on screen above the editor — the thing the rejected "editor under the
+    ///     feed" was for. It costs four rows here and no layout at all. The label reads the same as the feed's own
+    ///     reply mark (#82) — no bare "↳ reply" here, since compose always holds the full post it answers.
+    /// </summary>
+    private IReadOnlyList<Line> AboveEditor(int width)
+    {
+        if (About is not { } answered || Purpose != ComposeFor.Reply)
+        {
+            return [];
+        }
+
+        var lines = new List<Line>();
+        var label = _aboutIsMine ? "↳ continuing" : $"↳ answering @{answered.Account}";
+        lines.Add(Line.Of(TextWrap.Clip(label, width), Role.Muted));
+
+        foreach (var row in TextWrap.Wrap(answered.Content, Math.Max(1, width - 2)).Take(3))
+        {
+            lines.Add(Line.Of($"  {row}", Role.Muted));
+        }
+
+        lines.Add(Line.Blank);
 
         return lines;
     }

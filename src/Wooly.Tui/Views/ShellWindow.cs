@@ -100,7 +100,13 @@ internal sealed class ShellWindow : Window
         _editor = new ComposeEditor(() => _ = Send(), () => shell.Back())
         {
             X = RailLines.Width + 1,
-            Y = 1,
+            // A reply's "answering" block is painted on _content, which this sits in front of and exactly the same
+            // size as (below) — so without this, the block is never seen: the editor is opaque and covers it on every
+            // frame it is visible. Dim.Fill(1) starting from here still reaches the same floor it always did.
+            // The second argument is "the view where the data will be retrieved" (Pos.Func's own words) — omitting it
+            // defaults to null, which is what the first attempt at this did: EditorTop got no Viewport to measure, so
+            // Y silently stayed 1 forever.
+            Y = Pos.Func(EditorTop, this),
             Width = Dim.Fill(),
             Height = Dim.Fill(1),
             Visible = false,
@@ -399,6 +405,22 @@ internal sealed class ShellWindow : Window
         return true;
     }
 
+    /// <summary>
+    ///     Where the editor starts: row 1, plus however many rows the screen it is covering wants for what it is
+    ///     answering — the block <see cref="ComposeScreen.AboveEditorHeight" /> counts, painted on <see cref="_content" />
+    ///     underneath and otherwise hidden by the editor sitting on top of it at the same position.
+    /// </summary>
+    private int EditorTop(View? view)
+    {
+        // view is this window itself (passed as Pos.Func's second argument), whose Viewport is the whole frame —
+        // rail included — so the rail's width has to come off before this matches what _content wraps against.
+        var contentWidth = (view?.Viewport.Width ?? 0) - (RailLines.Width + 1);
+
+        return 1 + (contentWidth > 0 && _shell.Screen is ComposeScreen compose
+            ? compose.AboveEditorHeight(contentWidth)
+            : 0);
+    }
+
     private async Task Send()
     {
         if (_shell.Screen is ComposeScreen compose)
@@ -436,6 +458,10 @@ internal sealed class ShellWindow : Window
             _editor.Text = ((ComposeScreen)_shell.Screen).Text;
             _editor.Visible = true;
             _editor.SetFocus();
+
+            // Y is Pos.Func(EditorTop), read afresh only on a layout pass — and this screen's "answering" block may
+            // be a different height than the last one that pushed the editor open.
+            _editor.SetNeedsLayout();
         }
         else if (!composing && _editor.Visible)
         {
