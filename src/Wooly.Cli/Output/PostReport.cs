@@ -149,9 +149,6 @@ internal static class PostReport
         }
     }
 
-    /// <summary>How many cells the block bar spends per option, filled or not.</summary>
-    private const int PollBarWidth = 10;
-
     /// <summary>
     ///     A poll in full: one line per option — a block bar, the share and raw count beside it, and a leading mark on
     ///     the option this profile picked — followed by whether and when it closes, and a note where more than one
@@ -177,7 +174,18 @@ internal static class PostReport
         {
             console.WriteLine("  Choose as many as you like.");
         }
+
+        console.WriteLine($"  {VoteCountLine(poll)}");
     }
+
+    /// <summary>
+    ///     How many votes the poll has drawn. Multiple choice lets one account cast several, so the count says how
+    ///     many accounts that was too — but only once an instance has actually reported that number, which
+    ///     <see cref="PostPoll.Voters" /> being <see langword="null" /> says it has not.
+    /// </summary>
+    private static string VoteCountLine(PostPoll poll) => poll.MultipleChoice && poll.Voters is { } voters
+        ? $"{Plural.Of(poll.Votes, "vote")} from {Plural.Of(voters, "account")}"
+        : Plural.Of(poll.Votes, "vote");
 
     /// <summary>
     ///     One option's line: a leading <c>✓</c> where this profile picked it, then a <c>▓</c>/<c>░</c> bar sized to
@@ -194,11 +202,9 @@ internal static class PostReport
             return $"{mark}{option.Text}";
         }
 
-        var percent = poll.Votes == 0 ? 0 : (int)Math.Round(votes * 100.0 / poll.Votes);
-        var filled = Math.Clamp(percent / 10, 0, PollBarWidth);
-        var bar = new string('▓', filled) + new string('░', PollBarWidth - filled);
+        var percent = PollBar.PercentOf(poll, votes);
 
-        return $"{mark}{bar} {percent}% ({votes})  {option.Text}";
+        return $"{mark}{PollBar.Of(percent)} {percent}% ({votes})  {option.Text}";
     }
 
     /// <summary>

@@ -70,6 +70,7 @@ public static class PostLines
             ],
             Body(shown, width, revealed),
             .. Media(shown, width, pictures, Inset.FeedRows),
+            Poll(shown, width),
             [Counts(shown, spelledOut: false)],
         ]);
     }
@@ -111,6 +112,7 @@ public static class PostLines
             ],
             Body(shown, width, revealed),
             .. Media(shown, width, pictures, Inset.WholeRows),
+            Poll(shown, width),
             [Counts(shown, spelledOut: true)],
         ]);
     }
@@ -428,6 +430,68 @@ public static class PostLines
             TextWrap.Clip(attached.Shows, width - mark.Length - 1),
             attached.Description is null ? Role.Muted : Role.Media),
     ]);
+
+    /// <summary>
+    ///     A poll in full, on both the feed and the post screen alike: one row per option — a block bar carrying
+    ///     <see cref="Role.Poll" />, the share and raw count beside it, and a leading <c>✓ </c> on the option this
+    ///     profile picked — followed by whether and when it closes, a note where more than one answer may be chosen,
+    ///     and the vote count. Nothing at all for a post with no poll.
+    /// </summary>
+    private static IEnumerable<Line> Poll(Post post, int width)
+    {
+        if (post.Poll is not { } poll)
+        {
+            yield break;
+        }
+
+        foreach (var option in poll.Options)
+        {
+            yield return PollOptionLine(poll, option, width);
+        }
+
+        if (poll.Closed)
+        {
+            yield return Line.Of(TextWrap.Clip("Closed", width), Role.Muted);
+        }
+        else if (poll.ExpiresAt is { } expires)
+        {
+            yield return Line.Of(TextWrap.Clip($"Closes {Elapsed.Moment(expires)}", width), Role.Muted);
+        }
+
+        if (poll.MultipleChoice)
+        {
+            yield return Line.Of(TextWrap.Clip("Choose as many as you like", width), Role.Muted);
+        }
+
+        yield return Line.Of(TextWrap.Clip(VoteCountText(poll), width), Role.Muted);
+    }
+
+    /// <summary>
+    ///     One option's row: a leading <c>✓ </c> where this profile picked it, then a <c>▓</c>/<c>░</c> bar sized to
+    ///     the share of the vote it drew, the percentage and raw count, and the option's own text — all in
+    ///     <see cref="Role.Poll" />. An option whose count is withheld draws no bar at all rather than one guessed at,
+    ///     which is what tells it apart from a genuinely unvoted option's empty, <c>0%</c> bar.
+    /// </summary>
+    private static Line PollOptionLine(PostPoll poll, PostPollOption option, int width)
+    {
+        var mark = option.Picked ? "✓ " : "  ";
+
+        if (option.Votes is not { } votes)
+        {
+            return Line.Of(TextWrap.Clip($"{mark}{option.Text}", width), Role.Poll);
+        }
+
+        var percent = PollBar.PercentOf(poll, votes);
+
+        return Line.Of(
+            TextWrap.Clip($"{mark}{PollBar.Of(percent)} {percent}% ({Number.Of(votes)})  {option.Text}", width),
+            Role.Poll);
+    }
+
+    /// <summary>How many votes the poll has drawn, and from how many accounts where that can differ from the count.</summary>
+    private static string VoteCountText(PostPoll poll) => poll.MultipleChoice && poll.Voters is { } voters
+        ? $"{Number.Of(poll.Votes)} votes from {Number.Of(voters)} accounts"
+        : $"{Number.Of(poll.Votes)} votes";
 
     /// <summary>
     ///     The three counts. Each takes the role that says whether this profile is one of the accounts in it, which is

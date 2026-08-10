@@ -441,6 +441,49 @@ public class PostEngagementCommandTests : IDisposable
         Assert.Contains("Choose as many as you like.", run.Output);
     }
 
+    /// <summary>The vote count normally says only itself, however many accounts cast the votes.</summary>
+    [Fact]
+    public void Show_ReportsTheVoteCount()
+    {
+        AddProfile();
+        _posts = FakePostEngagement.Answering(APost.With(poll: APost.APoll(votes: 10)));
+
+        var run = Run(["post", "show", "110"]);
+
+        Assert.Contains("10 votes", run.Output);
+        Assert.DoesNotContain("accounts", run.Output);
+    }
+
+    /// <summary>
+    ///     Multiple choice lets one account cast several votes, so the count says both — but only once an instance has
+    ///     actually reported how many accounts that was.
+    /// </summary>
+    [Fact]
+    public void Show_ReportsVotesAndVotersForAMultipleChoicePollThatNamesBoth()
+    {
+        AddProfile();
+        _posts = FakePostEngagement.Answering(
+            APost.With(poll: APost.APoll(votes: 16, voters: 7, multipleChoice: true)));
+
+        var run = Run(["post", "show", "110"]);
+
+        Assert.Contains("16 votes from 7 accounts", run.Output);
+    }
+
+    /// <summary>A multiple-choice poll whose instance withheld the voter count still says just the vote count.</summary>
+    [Fact]
+    public void Show_ReportsOnlyTheVoteCountForMultipleChoiceWithNoVoterCount()
+    {
+        AddProfile();
+        _posts = FakePostEngagement.Answering(
+            APost.With(poll: APost.APoll(votes: 16, voters: null, multipleChoice: true)));
+
+        var run = Run(["post", "show", "110"]);
+
+        Assert.Contains("16 votes", run.Output);
+        Assert.DoesNotContain("accounts", run.Output);
+    }
+
     [Fact]
     public void Show_ReportsAMissingPostIdAsAUsageError()
     {
