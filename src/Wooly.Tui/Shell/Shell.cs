@@ -1050,7 +1050,8 @@ public sealed class Shell
         Push(new ComposeScreen(
             purpose,
             purpose == ComposeFor.Post ? null : about,
-            purpose == ComposeFor.Reply ? Addressed(about!) : null));
+            purpose == ComposeFor.Reply ? Addressed(about!) : null,
+            aboutIsMine: purpose == ComposeFor.Reply && IsMine(about!)));
     }
 
     /// <summary>

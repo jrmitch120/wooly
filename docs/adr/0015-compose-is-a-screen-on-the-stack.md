@@ -43,5 +43,26 @@ enough of what you're answering to answer it accurately without leaving the scre
 above them changes, to match the wording a feed's own reply mark settled on (`docs/tui-shell.md`, "What a post's
 byline settled"): `Answering @handle:` becomes `↳ answering @handle` (no trailing colon), or `↳ continuing` for a
 self-reply. Compose always holds the full post it answers, so the bare `↳ reply` variant a feed sometimes falls back
-to never applies here. This is a wording amendment only — row count, layout, and everything below the label are
-unchanged.
+to never applies here. The row count is unchanged, and so is everything below the label.
+
+### What changing the wording turned up
+
+The block was never on screen. "A reply screen draws what it is answering at the top ... and then the editor
+underneath" is what this ADR has said since it was written, and the rows were being painted — but the editor is a
+separate view laid over the region they are painted on, starting at the same row and opaque, so it covered every one
+of them on every frame. Nobody had noticed, because the only way to see the block is to reply to something and the
+only thing the block does is be seen.
+
+So the editor now starts below it rather than on top of it. That is a layout change this ticket did not ask for, and
+it is the change that makes the ticket's own acceptance — the label reading `↳ answering @handle` — mean anything at
+all. It costs the editor up to five rows: this ADR priced the split region at "six rows of editor is not enough
+editor", and five off a 24-row terminal leaves eighteen, so the price the split region was rejected over is not being
+paid here. Below that the block gives way instead — the editor keeps three rows whatever a terminal's height, since
+an editor pushed off the foot is worse than a truncated quote of what is being answered.
+
+The block also stops scrolling, which is "What this costs" above finally being true rather than merely intended. The
+region it is painted on is the one the arrows scroll, and it was left scrolling under the editor: everything below
+the block is behind the editor, so a scroll could only lift the block off the top and leave rows in its place that
+are the middle of something with no way to see the rest. It did not come back, either — a compose screen has nothing
+picked out on it, so the scroll never corrects itself. Composing now turns the region's scrolling off outright, which
+also pins it back to the top.

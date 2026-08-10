@@ -222,6 +222,35 @@ public class ShellActionTests
         Assert.Equal("220", Assert.Single(shell.Author.Published).Draft.InReplyTo);
     }
 
+    /// <summary>
+    ///     Compose's reply label reads the same as the feed's own reply mark (#82) — settled by
+    ///     <c>Shell.IsMine</c>, already computed where compose is pushed, so no lookup is spent to say it.
+    /// </summary>
+    [Fact]
+    public async Task Reply_LabelsWhatIsBeingAnsweredTheWayTheFeedDoes()
+    {
+        var shell = new AShell { Timelines = FakeTimelineReader.Holding(Somebody) };
+        var opened = await shell.Opened();
+
+        opened.Reply();
+
+        var label = opened.Screen.Lines(61, AShell.Now)[0].Text;
+        Assert.Equal("↳ answering @ben@hachyderm.io", label);
+    }
+
+    /// <summary>A reply to the profile's own post says it is being continued, not answered.</summary>
+    [Fact]
+    public async Task Reply_LabelsAReplyToOnesOwnPostAsContinuing()
+    {
+        var shell = new AShell { Timelines = FakeTimelineReader.Holding(Mine) };
+        var opened = await shell.Opened();
+
+        opened.Reply();
+
+        var label = opened.Screen.Lines(61, AShell.Now)[0].Text;
+        Assert.Equal("↳ continuing", label);
+    }
+
     /// <summary>Editing starts from what the post already says, because an edit is a change rather than a rewrite.</summary>
     [Fact]
     public async Task Send_SavesAnEditOfTheProfilesOwnPost()
