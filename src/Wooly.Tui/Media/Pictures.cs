@@ -29,12 +29,15 @@ public sealed class Pictures(
     ///     sent for, so this is a scroll or two of slack rather than a gallery — and a picture is megabytes once it is
     ///     pixels, so a client holding a morning's scrolling would be holding a morning's scrolling in memory.
     ///     <para>
-    ///         Roomy enough for a screen's worth of posts to hold their attachments and their authors' avatars at
-    ///         once: a cache too small for both would drop and re-fetch an avatar every frame, which is a fetch per
-    ///         keypress — the very thing holding pictures at all exists to prevent.
+    ///         Raised from sixteen when a byline gained an avatar (#77), which about doubled how many pictures a
+    ///         screenful wants: the three screens either side of the viewport that <c>Want</c> reaches over are some
+    ///         ten posts, and ten posts can want ten avatars and their attachments besides. A cache too small for both
+    ///         would drop and re-fetch an avatar every frame, which is a fetch per keypress — the very thing holding
+    ///         pictures at all exists to prevent. An avatar is a thumbnail rather than a photograph, so the memory
+    ///         this admits is nothing like twice what sixteen did.
     ///     </para>
     /// </summary>
-    public const int MostHeld = 48;
+    public const int MostHeld = 32;
 
     /// <summary>
     ///     How many bytes of a download are worth reading. A preview is tens of kilobytes; anything of this size is

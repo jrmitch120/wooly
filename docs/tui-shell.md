@@ -397,7 +397,7 @@ glyph or a position that carries the same meaning when colour is gone.
 | `byline-handle` | `username@instance` | the `@` |
 | `audience` | The visibility mark | `○ ◌ ● ✉` |
 | `content-warning` | A warning and its text | `⚠` |
-| `media` | Image placeholders and attachment links | `▒▒▒▒`, `⏵` |
+| `media` | Image placeholders, attachment links, and the columns a byline holds for an avatar | `▒▒▒▒`, `⏵` |
 | *(none — a picture's own pixels)* | A drawn picture | it is the picture |
 | `poll` | Options and their bars | the bar itself, and `✓ `/`[x]` marking a picked one |
 | `reference-picked` | The brackets around a picked reference | `‹ ›`, always drawn |

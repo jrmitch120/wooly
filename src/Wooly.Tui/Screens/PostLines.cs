@@ -109,19 +109,20 @@ public static class PostLines
 
         lines.AddRange(Answering(shown, width));
 
-        var avatar = Portrait.Of(shown, pictures);
+        var avatar = Avatar.Of(shown, pictures);
         var room = Math.Max(0, width - avatar.Columns);
 
-        lines.Add(avatar.Beside(Line.Of(TextWrap.Clip(shown.Author, room), Role.BylineName), top: true));
-        lines.Add(avatar.Beside(Line.Of(TextWrap.Clip($"@{shown.Account}", room), Role.BylineHandle)));
-
-        // The moment said exactly rather than as an age. Stepped in with the two rows above it though the avatar's box
-        // has run out: three rows starting in one column and a fourth starting in another would read as two things.
-        lines.Add(avatar.Beside(Line.Of([
-            new Span(Elapsed.Moment(shown.PostedAt), Role.Muted),
-            new Span(" · ", Role.Muted),
-            new Span($"{Audience(shown.Visibility)} {PostVisibilityName.Of(shown.Visibility)}", Role.Audience),
-        ])));
+        // Three rows rather than the feed's two, the third being the moment said exactly rather than as an age — and
+        // stepped in with the other two though the avatar's box has run out below it, because two rows starting in one
+        // column and a third starting in another would read as two things.
+        lines.AddRange(avatar.Across(
+            Line.Of(TextWrap.Clip(shown.Author, room), Role.BylineName),
+            Line.Of(TextWrap.Clip($"@{shown.Account}", room), Role.BylineHandle),
+            Line.Of([
+                new Span(Elapsed.Moment(shown.PostedAt), Role.Muted),
+                new Span(" · ", Role.Muted),
+                new Span($"{Audience(shown.Visibility)} {PostVisibilityName.Of(shown.Visibility)}", Role.Audience),
+            ])));
 
         lines.Add(Line.Blank);
         lines.AddRange(Body(shown, width, revealed));
@@ -176,23 +177,23 @@ public static class PostLines
     /// </remarks>
     private static IEnumerable<Line> Byline(Post post, int width, DateTimeOffset now, IPictures? pictures)
     {
-        var avatar = Portrait.Of(post, pictures);
+        var avatar = Avatar.Of(post, pictures);
         var room = Math.Max(0, width - avatar.Columns);
 
         var tail = $"{Audience(post.Visibility)} {Elapsed.Since(post.PostedAt, now)}";
         var name = TextWrap.Clip(post.Author, Math.Max(0, room - tail.Length - 1));
 
-        yield return avatar.Beside(
-            Line.Of([
-                new Span(name, Role.BylineName),
-                new Span(new string(' ', Math.Max(1, room - name.Length - tail.Length)), Role.Body),
-                new Span(tail, Role.Audience),
-            ]),
-            top: true);
-
-        yield return avatar.Beside(Line.Of(TextWrap.Clip($"@{post.Account}", room), Role.BylineHandle));
-
-        yield return Line.Blank;
+        return
+        [
+            .. avatar.Across(
+                Line.Of([
+                    new Span(name, Role.BylineName),
+                    new Span(new string(' ', Math.Max(1, room - name.Length - tail.Length)), Role.Body),
+                    new Span(tail, Role.Audience),
+                ]),
+                Line.Of(TextWrap.Clip($"@{post.Account}", room), Role.BylineHandle)),
+            Line.Blank,
+        ];
     }
 
     /// <summary>
@@ -200,9 +201,11 @@ public static class PostLines
     ///     draw it in once the pixels are here.
     /// </summary>
     /// <remarks>
-    ///     Nothing at all where no avatar will ever appear — a terminal offering neither sixel nor the Kitty graphics
-    ///     protocol, or an instance that named no avatar for this account. Five of sixty-one columns is too much to
-    ///     spend holding a space open for a picture that is never coming (ADR-0016).
+    ///     Nothing at all where this client can already tell no avatar is coming — a terminal offering neither sixel
+    ///     nor the Kitty graphics protocol, or an instance that named no avatar for this account. Five of sixty-one
+    ///     columns is too much to spend holding a space open for a picture that will never fill it (ADR-0016). An
+    ///     avatar that was named and then could not be fetched keeps its columns, because the two answers
+    ///     <see cref="IPictures.Of" /> gives — not here yet, and never coming — are the same answer.
     ///     <para>
     ///         Where one <em>is</em> coming the columns are taken from the first frame, before the pixels land, which
     ///         is the opposite of what <see cref="Media" /> does with an attachment: an attachment's box appears under
@@ -210,48 +213,56 @@ public static class PostLines
     ///         shove the name across the row as the reader was reading it.
     ///     </para>
     /// </remarks>
-    /// <param name="Wants">The avatar to send for, or <see langword="null" /> where none is drawn.</param>
+    /// <param name="Wanted">The avatar to send for, or <see langword="null" /> where none is drawn.</param>
     /// <param name="Box">Where to draw it, or <see langword="null" /> while the pixels are still on their way.</param>
-    private readonly record struct Portrait(Drawn? Wants, Inset? Box)
+    private readonly record struct Avatar(Drawn? Wanted, Inset? Box)
     {
         /// <summary>How many columns it costs: the picture and the gap after it, or none.</summary>
-        public int Columns => Wants is null ? 0 : AvatarColumns + 1;
+        public int Columns => Wanted is null ? 0 : AvatarColumns + 1;
 
         /// <summary>What <paramref name="post" />'s byline has to spend on its author's face.</summary>
-        public static Portrait Of(Post post, IPictures? pictures)
+        public static Avatar Of(Post post, IPictures? pictures)
         {
             if (pictures?.Cell is null || post.AvatarUrl is not { } url)
             {
                 return default;
             }
 
-            var avatar = Drawn.Avatar(post.Account, url);
+            var wanted = Drawn.Avatar(post.Account, url);
 
-            return new Portrait(
-                avatar,
-                pictures.Of(avatar) is null ? null : new Inset(avatar, Column: 0, AvatarColumns, AvatarRows));
+            return new Avatar(
+                wanted,
+                pictures.Of(wanted) is null ? null : new Inset(wanted, Column: 0, AvatarColumns, AvatarRows));
         }
 
-        /// <summary><paramref name="line" /> moved along to sit beside the avatar.</summary>
+        /// <summary><paramref name="rows" /> stepped in to sit beside the avatar, in the order they were given.</summary>
         /// <remarks>
-        ///     The picture is named on the upper of the two rows and on neither where there is no avatar: a band is
-        ///     named once, at its top. <see cref="Line.After" /> is what shifts it along with everything else, so the
-        ///     gutter and the picture cannot come to disagree about which column they are in.
+        ///     Asked for the whole byline at once rather than a row at a time, so that which row carries the box is
+        ///     settled here instead of at each of the two callers — a feed and a post screen laying out different
+        ///     bylines is the point, and their laying them out differently is what #62 spent its budget preventing.
+        ///     <para>
+        ///         The box goes on the first row and on none of the rest: a band is named once, at its top.
+        ///         <see cref="Line.After" /> is what shifts it along with everything else, so the gutter and the
+        ///         picture cannot come to disagree about which column they are in.
+        ///     </para>
         /// </remarks>
-        /// <param name="line">The row to move along.</param>
-        /// <param name="top">Whether this is the upper row — where the box is named and the picture sent for.</param>
-        public Line Beside(Line line, bool top = false)
+        public IEnumerable<Line> Across(params Line[] rows)
         {
-            if (Wants is null)
+            if (Wanted is not { } wanted)
             {
-                return line;
+                return rows;
             }
 
-            var beside = line.After(
-                new Span(new string(' ', AvatarColumns), Role.Media),
-                new Span(" ", Role.Body));
+            var box = Box;
 
-            return top ? beside with { Insets = Box is null ? [] : [Box], Wants = Wants } : beside;
+            return rows.Select((row, at) =>
+            {
+                var beside = row.After(
+                    new Span(new string(' ', AvatarColumns), Role.Media),
+                    new Span(" ", Role.Body));
+
+                return at > 0 ? beside : beside with { Insets = box is null ? [] : [box], Wants = wanted };
+            });
         }
     }
 

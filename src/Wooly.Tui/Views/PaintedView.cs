@@ -330,12 +330,12 @@ internal sealed class PaintedView : View
 
         foreach (var box in _boxes)
         {
-            if (box.MediaId is { } held && wanted.Any(want => want.Inset.Drawn.Id == held))
+            if (box.PictureId is { } held && wanted.Any(want => want.Inset.Drawn.Id == held))
             {
                 continue;
             }
 
-            if (box.MediaId is not null)
+            if (box.PictureId is not null)
             {
                 freed.Add(box);
             }
@@ -402,7 +402,7 @@ internal sealed class PaintedView : View
     }
 
     /// <summary>
-    ///     The box to draw <paramref name="mediaId" /> in: the one already holding it, or one holding nothing.
+    ///     The box to draw <paramref name="pictureId" /> in: the one already holding it, or one holding nothing.
     /// </summary>
     /// <remarks>
     ///     A box freed this very frame is the last resort, so that a view never goes from one picture straight to
@@ -410,13 +410,13 @@ internal sealed class PaintedView : View
     ///     there. With room for eight and a terminal able to show a handful, that fallback is not reached in practice;
     ///     it is there so that a screen full of pictures draws them rather than dropping one.
     ///     <para>
-    ///         A box already <paramref name="taken" /> this frame is never handed out again, because the same
-    ///         attachment can be on screen twice — a boost and the post it boosts, both in one feed — and two boxes
-    ///         sharing one view would be one picture drawn and the other silently lost.
+    ///         A box already <paramref name="taken" /> this frame is never handed out again, because the same picture
+    ///         can be on screen twice — one account's avatar over a run of their posts, or a boost and the post it
+    ///         boosts — and two boxes sharing one view would be one picture drawn and the other silently lost.
     ///     </para>
     /// </remarks>
-    private PictureView? Free(string mediaId, List<PictureView> freed, List<PictureView> taken) =>
-        _boxes.FirstOrDefault(box => box.MediaId == mediaId && !taken.Contains(box))
-        ?? _boxes.FirstOrDefault(box => box.MediaId is null && !freed.Contains(box) && !taken.Contains(box))
-        ?? _boxes.FirstOrDefault(box => box.MediaId is null && !taken.Contains(box));
+    private PictureView? Free(string pictureId, List<PictureView> freed, List<PictureView> taken) =>
+        _boxes.FirstOrDefault(box => box.PictureId == pictureId && !taken.Contains(box))
+        ?? _boxes.FirstOrDefault(box => box.PictureId is null && !freed.Contains(box) && !taken.Contains(box))
+        ?? _boxes.FirstOrDefault(box => box.PictureId is null && !taken.Contains(box));
 }

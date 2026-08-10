@@ -29,22 +29,22 @@ internal sealed class PictureView : ImageView
     /// <summary>Whether this can be drawn at all, which on a terminal with neither protocol it cannot.</summary>
     public bool CanDraw => IsUsingRasterGraphics;
 
-    /// <summary>The instance's id for the attachment being shown, or <see langword="null" /> while it is showing none.</summary>
-    public string? MediaId { get; private set; }
+    /// <summary>Which picture is being shown, as <see cref="Drawn.Id" />, or <see langword="null" /> while none is.</summary>
+    public string? PictureId { get; private set; }
 
-    /// <summary>Shows <paramref name="picture" /> as the attachment <paramref name="mediaId" /> names.</summary>
+    /// <summary>Shows <paramref name="picture" /> as the one <paramref name="pictureId" /> names.</summary>
     /// <remarks>
-    ///     Only ever called on a view holding this attachment already or holding nothing at all: one of these never
-    ///     goes straight from one picture to another. <see cref="Release" /> says why.
+    ///     Only ever called on a view holding this picture already or holding nothing at all: one of these never goes
+    ///     straight from one picture to another. <see cref="Release" /> says why.
     /// </remarks>
-    public void Show(string mediaId, Picture picture)
+    public void Show(string pictureId, Picture picture)
     {
-        if (MediaId == mediaId)
+        if (PictureId == pictureId)
         {
             return;
         }
 
-        MediaId = mediaId;
+        PictureId = pictureId;
         Image = picture.Pixels;
     }
 
@@ -58,12 +58,12 @@ internal sealed class PictureView : ImageView
     /// </remarks>
     public void Release()
     {
-        if (MediaId is null && !Visible)
+        if (PictureId is null && !Visible)
         {
             return;
         }
 
-        MediaId = null;
+        PictureId = null;
         Visible = false;
         Image = null;
     }

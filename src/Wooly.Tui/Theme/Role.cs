@@ -44,7 +44,10 @@ public enum Role
     /// <summary>A warning and its text. Carried without colour by <c>⚠</c>.</summary>
     ContentWarning,
 
-    /// <summary>Image placeholders and attachment links. Carried without colour by <c>▒▒▒▒</c> and <c>⏵</c>.</summary>
+    /// <summary>
+    ///     Image placeholders, attachment links, and the columns a byline holds open for an author's avatar. Carried
+    ///     without colour by <c>▒▒▒▒</c> and <c>⏵</c>.
+    /// </summary>
     Media,
 
     /// <summary>A poll's options and their bars. Carried without colour by the bar itself.</summary>

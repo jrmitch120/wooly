@@ -17,11 +17,18 @@ public static class PostReplyName
     ///     the handle was resolved off the post's mentions as it crossed the wire (<see cref="PostWire" />), so a
     ///     whole timeline of replies is named for free.
     /// </remarks>
-    public static string? Of(Post post) => post.InReplyTo?.Handle switch
+    public static string? Of(Post post)
     {
-        _ when post.InReplyTo is null => null,
-        null => "↳ reply",
-        var handle when handle == post.Account => "↳ continuing",
-        var handle => $"↳ answering @{handle}",
-    };
+        if (post.InReplyTo is not { } answered)
+        {
+            return null;
+        }
+
+        return answered.Handle switch
+        {
+            null => "↳ reply",
+            var handle when handle == post.Account => "↳ continuing",
+            var handle => $"↳ answering @{handle}",
+        };
+    }
 }

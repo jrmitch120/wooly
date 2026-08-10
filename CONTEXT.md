@@ -17,6 +17,15 @@ everything else is **linked** — its address, and what its author said it shows
 (ADR-0016).
 _Avoid_: media file, image (where the kind has not been settled)
 
+**Drawn**:
+A picture the TUI paints in place, said as the thing rather than the adjective: which one it is, and where its pixels
+are fetched from (`Drawn`). What the TUI's whole picture path turns on — what is held, what is sent for, and what a box
+on a row stands in for — because two different things are painted and only one of them is an **Attachment**. A post's
+picture hangs off the post; an author's avatar hangs off the author, and calling the second one an attachment would
+have made "something on a post besides its text" mean something else wherever an avatar went. Nothing outside a TUI
+has one: the CLI **links** everything (ADR-0016).
+_Avoid_: image, media (for the avatar half of this)
+
 **Boost**:
 Re-sharing another account's post to your own followers. The API calls this a `reblog`. This project always says "boost" in user-facing language and domain code; `reblog` may still appear as the literal API field name at the wire layer.
 _Avoid_: reblog, repost, retweet
