@@ -83,6 +83,11 @@ internal static class PostReport
             console.MarkupLineInterpolated($"[bold]{shown.Account}[/]  [dim]{PostedAt(shown)}[/]");
         }
 
+        if (shown.InReplyTo is { } replyTarget)
+        {
+            console.MarkupLineInterpolated($"  [dim]{ReplyMark(shown.Account, replyTarget)}[/]");
+        }
+
         if (shown.ContentWarning is not null)
         {
             console.MarkupLineInterpolated($"  [yellow]content warning:[/] {shown.ContentWarning}");
@@ -108,8 +113,24 @@ internal static class PostReport
 
         WriteMedia(console, shown);
 
+        if (shown.Poll is { } poll)
+        {
+            WritePoll(console, poll);
+        }
+
         console.MarkupLineInterpolated($"  [dim]{Counts(shown)}[/]");
     }
+
+    /// <summary>
+    ///     What a reply says it answers: the common case names the account, a self-reply says so instead, and the
+    ///     account being answered not being one the post itself names falls back to the bare fact of replying.
+    /// </summary>
+    private static string ReplyMark(string account, PostReplyTarget target) => target.Handle switch
+    {
+        null => "↳ reply",
+        var handle when handle == account => "↳ continuing",
+        var handle => $"↳ answering @{handle}",
+    };
 
     /// <summary>
     ///     What is attached, as a link and what it shows — a picture no differently from a video (stories 50 and 51).
@@ -137,6 +158,58 @@ internal static class PostReport
             // both are somebody else's text, and a square bracket in either is a character rather than a colour tag.
             console.MarkupLineInterpolated($"  ⏵ {attached.Url} — {attached.Shows}");
         }
+    }
+
+    /// <summary>How many cells the block bar spends per option, filled or not.</summary>
+    private const int PollBarWidth = 10;
+
+    /// <summary>
+    ///     A poll in full: one line per option — a block bar, the share and raw count beside it, and a leading mark on
+    ///     the option this profile picked — followed by whether and when it closes, and a note where more than one
+    ///     answer may be chosen. Plain text throughout: this is a post's own content, not something the CLI themes.
+    /// </summary>
+    private static void WritePoll(IAnsiConsole console, PostPoll poll)
+    {
+        foreach (var option in poll.Options)
+        {
+            console.MarkupLineInterpolated($"  {PollOptionLine(poll, option)}");
+        }
+
+        if (poll.Closed)
+        {
+            console.WriteLine("  Poll closed.");
+        }
+        else if (poll.ExpiresAt is { } expires)
+        {
+            console.WriteLine($"  Poll closes {LocalMoment.Of(expires)}.");
+        }
+
+        if (poll.MultipleChoice)
+        {
+            console.WriteLine("  Choose as many as you like.");
+        }
+    }
+
+    /// <summary>
+    ///     One option's line: a leading <c>✓</c> where this profile picked it, then a <c>▓</c>/<c>░</c> bar sized to
+    ///     the share of the vote it drew, the percentage and raw count, and the option's own text. An option whose
+    ///     count is withheld — real until this profile votes or the poll closes, not the same thing as a genuine zero
+    ///     — gets no bar at all rather than one guessed at.
+    /// </summary>
+    private static string PollOptionLine(PostPoll poll, PostPollOption option)
+    {
+        var mark = option.Picked ? "✓ " : "  ";
+
+        if (option.Votes is not { } votes)
+        {
+            return $"{mark}{option.Text}";
+        }
+
+        var percent = poll.Votes == 0 ? 0 : (int)Math.Round(votes * 100.0 / poll.Votes);
+        var filled = Math.Clamp(percent / 10, 0, PollBarWidth);
+        var bar = new string('▓', filled) + new string('░', PollBarWidth - filled);
+
+        return $"{mark}{bar} {percent}% ({votes})  {option.Text}";
     }
 
     /// <summary>

@@ -180,7 +180,7 @@ internal abstract class PostComposeSettings : ProfileScopedSettings
     ///     The poll these settings describe, or <see langword="null" /> if they describe none — which is not the same as
     ///     describing a broken one, hence <paramref name="problem" /> rather than a null for both.
     /// </summary>
-    private PostPoll? ComposePoll(out string? problem)
+    private PollDraft? ComposePoll(out string? problem)
     {
         problem = null;
 
@@ -210,8 +210,8 @@ internal abstract class PostComposeSettings : ProfileScopedSettings
             openFor = given;
         }
 
-        problem = PostPoll.Problem(PollAnswers, openFor);
+        problem = PollDraft.Problem(PollAnswers, openFor);
 
-        return problem is null ? PostPoll.Of(PollAnswers, openFor, PollMultipleChoice) : null;
+        return problem is null ? PollDraft.Of(PollAnswers, openFor, PollMultipleChoice) : null;
     }
 }

@@ -37,7 +37,7 @@ public class PostDraftTests
         {
             Text = "Cats or dogs?",
             Media = [new MediaAttachment { Path = "cat.png" }],
-            Poll = PostPoll.Of(["Cats", "Dogs"], TimeSpan.FromDays(1)),
+            Poll = PollDraft.Of(["Cats", "Dogs"], TimeSpan.FromDays(1)),
         }.Problem);
 
     /// <summary>

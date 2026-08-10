@@ -18,7 +18,10 @@ internal static class APost
         PostVisibility visibility = PostVisibility.Public,
         Post? boosted = null,
         PostMarks? marks = null,
-        IReadOnlyList<PostMedia>? media = null) => new()
+        IReadOnlyList<PostMedia>? media = null,
+        string? avatarUrl = null,
+        PostReplyTarget? inReplyTo = null,
+        PostPoll? poll = null) => new()
     {
         Id = id,
         Account = account,
@@ -34,6 +37,9 @@ internal static class APost
         Media = media ?? [],
         Boosted = boosted,
         Url = $"https://mastodon.social/@jeff/{id}",
+        AvatarUrl = avatarUrl,
+        InReplyTo = inReplyTo,
+        Poll = poll,
     };
 
     /// <summary>A picture attached to a post, with the description its author gave it.</summary>
@@ -56,4 +62,27 @@ internal static class APost
     /// <summary>The three marks, said one at a time, for a test that is about one of them.</summary>
     public static PostMarks Marked(bool boosted = false, bool favorited = false, bool pinned = false) =>
         new() { Boosted = boosted, Favorited = favorited, Pinned = pinned };
+
+    /// <summary>A poll with two answers, for a test that is about the poll rather than about composing one.</summary>
+    public static PostPoll APoll(
+        IReadOnlyList<PostPollOption>? options = null,
+        long votes = 10,
+        long? voters = null,
+        bool multipleChoice = false,
+        bool closed = false,
+        DateTimeOffset? expiresAt = null,
+        bool voted = false) => new()
+    {
+        Options = options ?? [AnAnswer("Cats", 4), AnAnswer("Dogs", 6)],
+        Votes = votes,
+        Voters = voters,
+        MultipleChoice = multipleChoice,
+        Closed = closed,
+        ExpiresAt = expiresAt,
+        Voted = voted,
+    };
+
+    /// <summary>One answer on a poll, with its vote count — or none, for an answer whose count is withheld.</summary>
+    public static PostPollOption AnAnswer(string text, long? votes, bool picked = false) =>
+        new() { Text = text, Votes = votes, Picked = picked };
 }

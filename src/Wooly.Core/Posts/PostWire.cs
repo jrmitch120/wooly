@@ -44,7 +44,65 @@ internal static class PostWire
         Media = status.MediaAttachments?.Select(ToMedia).ToList() ?? [],
         Boosted = status.Reblog is null ? null : ToPost(status.Reblog, instance),
         Url = status.Url,
+
+        // The wire says "no avatar" with an empty string, the same as it says "no warning" above.
+        AvatarUrl = string.IsNullOrWhiteSpace(status.Account.AvatarUrl) ? null : status.Account.AvatarUrl,
+        InReplyTo = ToReplyTarget(status, instance),
+        Poll = status.Poll is null ? null : ToPoll(status.Poll),
     };
+
+    /// <summary>
+    ///     What a reply answers, or <see langword="null" /> for a post that answers nothing. A self-reply's handle is
+    ///     read off the post's own account, since Mastodon does not list an author among their own post's mentions;
+    ///     any other answered account is read off <see cref="Status.Mentions" />, which is where an instance lists
+    ///     everyone a post names — the account it answers included, unless that account is only reachable by an id the
+    ///     post never names.
+    /// </summary>
+    private static PostReplyTarget? ToReplyTarget(Status status, string instance)
+    {
+        if (status.InReplyToId is not { } postId)
+        {
+            return null;
+        }
+
+        if (status.InReplyToAccountId == status.Account.Id)
+        {
+            return new PostReplyTarget { PostId = postId, Handle = MastodonWire.Qualify(status.Account, instance) };
+        }
+
+        var answered = status.Mentions.FirstOrDefault(mention => mention.Id == status.InReplyToAccountId);
+
+        return new PostReplyTarget
+        {
+            PostId = postId,
+            Handle = answered is null ? null : MastodonWire.Qualify(answered.AccountName, instance),
+        };
+    }
+
+    /// <summary>The poll as it stands, options and all — the read-side counterpart to what a draft sends up.</summary>
+    private static PostPoll ToPoll(Poll poll)
+    {
+        var picked = poll.OwnVotes.ToHashSet();
+
+        return new PostPoll
+        {
+            Options = poll.Options.Select((option, index) => new PostPollOption
+            {
+                Text = option.Title,
+                Votes = option.VotesCount,
+                Picked = picked.Contains(index),
+            }).ToList(),
+            Votes = poll.VotesCount,
+            Voters = poll.VotersCount,
+            MultipleChoice = poll.Multiple,
+            Closed = poll.Expired,
+            ExpiresAt = poll.ExpiresAt is { } expires ? MastodonWire.AsUtc(expires) : null,
+
+            // The wire leaves this null where a read has nobody to answer it about, the same silence Marks treats as
+            // "not voted" rather than "unknown" — every call this client makes is signed in.
+            Voted = poll.Voted ?? false,
+        };
+    }
 
     /// <summary>One attachment as it came down, which is a different thing from one on its way up (<see cref="PostMedia" />).</summary>
     private static PostMedia ToMedia(Attachment attachment) => new()
