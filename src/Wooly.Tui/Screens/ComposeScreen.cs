@@ -36,10 +36,15 @@ public sealed class ComposeScreen : Screen
     ///     so the mention is put where the reader can see and edit it rather than added silently on the way out — with
     ///     a space after it, because their own words go after the recipient rather than into their name.
     /// </param>
-    public ComposeScreen(ComposeFor purpose, Post? about = null, string? addressing = null)
+    /// <param name="aboutIsMine">
+    ///     Whether <paramref name="about" /> is the profile's own post — settled by <c>Shell.IsMine</c> where this
+    ///     screen is pushed, so the reply label below costs no lookup of its own.
+    /// </param>
+    public ComposeScreen(ComposeFor purpose, Post? about = null, string? addressing = null, bool aboutIsMine = false)
     {
         Purpose = purpose;
         About = about;
+        _aboutIsMine = aboutIsMine;
 
         Opening = purpose switch
         {
@@ -49,6 +54,8 @@ public sealed class ComposeScreen : Screen
 
         Text = Opening;
     }
+
+    private readonly bool _aboutIsMine;
 
     /// <summary>What this screen was opened to do.</summary>
     public ComposeFor Purpose { get; }
@@ -102,8 +109,10 @@ public sealed class ComposeScreen : Screen
         if (About is { } answered && Purpose == ComposeFor.Reply)
         {
             // What is being answered stays on screen, which is the thing the rejected "editor under the feed" was for.
-            // It costs four rows here and no layout at all.
-            lines.Add(Line.Of(TextWrap.Clip($"Answering @{answered.Account}:", width), Role.Muted));
+            // It costs four rows here and no layout at all. The label reads the same as the feed's own reply mark
+            // (#82) — no bare "↳ reply" here, since compose always holds the full post it answers.
+            var label = _aboutIsMine ? "↳ continuing" : $"↳ answering @{answered.Account}";
+            lines.Add(Line.Of(TextWrap.Clip(label, width), Role.Muted));
 
             foreach (var row in TextWrap.Wrap(answered.Content, Math.Max(1, width - 2)).Take(3))
             {
