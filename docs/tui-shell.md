@@ -39,8 +39,9 @@ A screen is a place in the stack, not a window. Entering one pushes, `esc` pops,
 
 | Screen | Reached by | Ticket |
 |---|---|---|
-| Feed — home, local, federated, a hashtag | A rail destination | #28 |
-| Post — the post whole, with its replies | `⏎` on a feed item | #28 |
+| Feed — home, local, federated, the rail's own hashtag | A rail destination | #28 |
+| Hashtag — a tag walked to, not the rail's own | A search result, or `⏎` on a picked hashtag reference | #29, reference #65 |
+| Post — the post whole, its ancestor chain above and its replies below | `⏎` on a feed item | #28, ancestors #72 |
 | Account — who wrote it, standing, their posts | `a` on a feed item or inside a post | shell #28, tie actions #29 |
 | Notifications | A rail destination | #29 |
 | Search — prompt and results | A rail destination, or `/` | #29 |
@@ -62,7 +63,7 @@ workable only because the status row always shows the current screen's keys. Wha
 | `esc` | Up one level of the stack. Never quits. |
 | `ctrl-q` | Quit. |
 | `?` | The keymap for this screen. The spec has no in-app help story; this is the shell adding one, and #28 carries it — every other screen inherits it for free. |
-| `tab` / `shift-tab` | Moves the cursor (`▶`) at once. The selection (`▸`) follows it, and that destination loads, once the tabbing has stopped for ~250ms. |
+| `tab` / `shift-tab` | Moves the cursor (`▶`) at once. The selection follows it (`▷` while it lags behind), and that destination loads, once the tabbing has stopped for ~250ms. |
 | `/` | Search. Goes to the search destination; what it opens onto is #29's. |
 
 Feed and post:
@@ -82,6 +83,9 @@ Feed and post:
 | `e` | Edit | Own posts only |
 | `d` | Delete | Own posts only, **confirmation required** (story 43) |
 | `x` | Reveal a content warning | |
+| `←` `→` | Walk the references (hashtag, mention, link) inside the picked post | Clamps at the ends; `esc`/`j`/`k` clear the pick; `⏎` opens what's picked (below) |
+| `1`-`9` `0` | Toggle the 1st-10th option of the picked post's poll | No-op with no poll on the picked post |
+| `v` | Cast the toggled poll vote | **Confirmation required** (story 43), same as delete |
 
 Screen-local, and deliberately colliding with the above because they are never on screen together:
 
@@ -92,6 +96,7 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Follow requests | `a` accept · `x` reject |
 | Direct messages | `⏎` open the conversation · `m` mark read — `m` again inside the thread, where a reader who has just read it is most likely to press it |
 | Conversation | `m` mark read, and every key that acts on a post, since each message in it is one |
+| Home, local, federated, hashtag, Notifications, Messages, Requests, Post, Account | `g` refresh — evicts the destination's cache entry (where one exists) and re-runs the same fetch its own arrival runs |
 
 ### What the four screens settled
 
@@ -113,6 +118,16 @@ not answer them differently:
   the key is most likely to be pressed twice.
 - **A screen's own keys go in front of the shared ones on the status row.** The row is one row and a longer list is cut
   off at the right, so the keys a reader can find on no other screen are the ones that have to survive the cut.
+- **A status row's key and its explanation are visually split**: the key stays `Role.Chrome`, the words explaining it
+  take `Role.Muted` — reusing `Muted`'s existing "hints" job rather than adding a role — joined by a tight colon
+  (`j/k:post`) in place of the plain space used before. The colon is the no-colour carrier and costs nothing: it is
+  the same width as the space it replaces (#66). Brackets and capitalising the key were prototyped and rejected —
+  brackets cost two columns per hint and collide with `‹reference›`'s bracket vocabulary below; capitalising would
+  misrepresent a case-significant key (`d` deletes, `D` clears all). The confirmation and notice rows show no keys
+  and are untouched. This is `KeyHint`'s own rendering, so a future `?` keymap screen inherits it for free.
+- **`esc` is always up one level, of whichever kind of level is currently open** — amended from "up one level of the
+  stack" now that a reference pick is a level of its own. With a reference picked, the first `esc` clears the pick;
+  the next pops the screen (#64). This is the one addition ADR-0014's frame keys have taken since being settled.
 - **A rail destination's screen says `tab` rather than `esc`**, because it is the bottom of the stack and there is
   nothing under it to walk back to.
 - **A hashtag a search found opens as a screen on the stack**, not as the rail's hashtag destination. Which tag the
@@ -124,6 +139,139 @@ not answer them differently:
   another, stacking duplicates and a breadcrumb of places nobody went (#48). It is left off the status row while that
   post is picked rather than announced and refused; every other key on the row still acts on it, since a post being
   read is still a post to boost, favorite, answer or take down.
+
+### What a post's byline settled
+
+A feed of short posts used to read as one undifferentiated column of text; the boundary between posts, and what a
+post answers, are both drawn into the byline now (#62, #63):
+
+- **A rule, not a blank line, separates two posts** — variant F of six prototyped on
+  [`prototype/feed-separator`](https://github.com/jrmitch120/wooly/tree/prototype/feed-separator). Costs **+1 row**
+  against the blank row it replaces.
+- **The byline is two rows, not one**, with a 4-column avatar thumbnail beside both (after the shape `tut` draws):
+  name, the audience/age tail, on the first; `@handle` on the second. Costs **+2 rows** (the split, plus the blank
+  row the two-row shape wants between byline and body) and **+5 columns**, spent only on those two rows — the
+  avatar and the gap after it. Body, media and counts stay full width.
+- **`Counts` gets a blank row of its own** ahead of it, so it reads as a footer rather than one more line of the
+  post. **+1 row.**
+- **A reply carries a `↳` mark above its byline**, in the slot the boost row already owns, all `Role.Muted`:
+  `↳ answering @handle` (the common case, named off `Post.Mentions`, no extra fetch), `↳ continuing` (a self-reply),
+  or the bare `↳ reply` (the answered account isn't in `Mentions`). If a post is both a boost and a reply, the boost
+  row comes first. **+1 row**, only on a post that is a reply. Drawn on every screen that shares `PostLines.Feed` /
+  `PostLines.Whole` — feed, post, conversation, search, direct messages, account — none suppresses it, **except**
+  the post screen's own subject-post row once its ancestor is drawn whole immediately above it (below).
+- **The picked post's `▌` gutter sits to the left of the avatar** — no collision with the avatar or the rule.
+- **This needs `Post` to carry an avatar and a reply target that do not exist yet** — `AvatarUrl` (or similar,
+  fetched and drawn through `IPictures` the way `Media` already is) and `InReplyTo` (`PostId`, and a `Handle?` that
+  is `null` when unresolvable). Both are read back off the instance, resolved once in `PostWire.ToPost`.
+- **Compose's own three-row reply preview adopts the same label**, replacing `Answering @handle:` with
+  `↳ answering @handle` (no trailing colon) or `↳ continuing`, via `Shell.IsMine` — already computed where compose
+  is pushed for `r`. The bare `↳ reply` variant never applies here: compose always holds the full post it answers,
+  never a wire-level guess. The three rows themselves stay — ADR-0015's reason for them (seeing enough to answer
+  accurately without leaving the screen) is a different job than this mark's, which is identification while
+  scrolling, and nothing since cheapens leaving the screen. An amendment to ADR-0015's wording, not a supersession.
+
+### What the post screen's ancestor settled
+
+`PostScreen` shows a post's replies underneath it; it now shows what the post itself answers, above it, all the way
+back to the thread's root (#72):
+
+- **The whole ancestor chain, uncapped** — not just the immediate parent. Free: `PostEngagement.Replies` already
+  calls `GetStatusContext`, discarding `context.Ancestors` while keeping `context.Descendants`; ancestors ride the
+  same call, at zero extra cost.
+- **Drawn whole**, via `PostLines.Feed`, the same way a reply already draws — not as the compact `↳` mark above,
+  whose cost argument (one fetch per reply, on a whole timeline) does not apply to a single already-fetched screen.
+- **Joins the same `Picked<Post>` list** replies already sit in: `[...ancestors, post, ...replies]`. Walked with
+  `j`/`k`, opened with `⏎` — pushing a fresh `PostScreen` — through the same mechanics a reply already uses. No new
+  interaction axis, and no overlap with reference-walking: an ancestor is a whole separate post, not text inside
+  this post's body.
+- **The default pick still lands on the subject post**, not the top of the thread — index `ancestors.Count`.
+- **A `── {n} up ──` heading** stands above the post, mirroring `── {n} replies ──` below it.
+- **Costs one whole post's rows per ancestor** — the same bill a reply already pays, not a new category — plus one
+  heading row when any ancestor exists.
+
+### What references settled
+
+`←` and `→` walk the things inside a post's text that point somewhere else. **Reference** is the word — a hashtag,
+mention, or address inside a post's text — replacing `BodyText`'s internal "marks" language, which collided with
+`Post.Marks` (boost/favorite/pin) (#64, #65):
+
+- **Every screen with a picked post**, not just feed and post — the same breadth `PostKeys.OnAPost` already has.
+- **Walkable**: hashtag, mention, and address — the three `BodyText.Marks()` already finds. **Not walkable**: an
+  attachment's link, which sits outside the post's own text and renders in a separate path (`PostLines.Linked`).
+- **`→` enters at the first reference, `←` at the last**; further motion in the same direction at either end
+  **clamps**, matching `Picked<T>`'s existing convention rather than wrapping.
+- **`esc` clears the pick first**, popping the screen on the next press (above). **`j`/`k` clear it too**, since the
+  reader has left the post. **`↓`/`↑` (page scroll) do not** — they leave the selection alone by the existing
+  "What moving settled" contract, and a reference pick lives inside the selected post, not on a row.
+- **Marked `‹reference›`** — brackets, always drawn, in colour and no-colour terminals alike. The brackets take
+  their own role (`Role.ReferencePicked`), independent of whatever role the bracketed text already carries, so a
+  picked hashtag stays hashtag-coloured and only the brackets shift. Underline was considered — a separate SGR
+  attribute, zero width cost — and set aside in favour of brackets; the two added columns on the one row a pick
+  lands on are an accepted cost.
+- **The status row swaps** to a reference-mode row while one's picked — `←/→ reference · ⏎ open · esc back`-shaped,
+  ahead of the screen's shared keys.
+- **`⏎` does three different things, refusals share one notice.** A hashtag opens exactly the way `Shell.OpenTag`
+  already opens one found by search — same `FeedScreen`, same breadcrumb, no new screen type. A mention opens the
+  account screen, resolved off `Post.Mentions`; unresolvable, `⏎` does nothing and the status row says
+  **"That mention couldn't be resolved."** `c` with a mention picked opens a fresh compose with `@handle ` pre-filled,
+  whether or not it resolved; `a` still means the post's author, never the picked mention. An address opens the
+  platform's browser (Windows/macOS/Linux, each its own call) for `http`/`https` only — a refused scheme says
+  **"That kind of address isn't opened."**, no browser available says **"No browser available"** — both through the
+  shell's existing `Say(notice, isError: true)` mechanism, no new shell state. This is the first thing in the shell
+  that leaves the terminal, and lives in its own small seam rather than folded into `ShellPorts` (which is
+  specifically "everything the shell reaches an instance through" — a browser launch reaches outside the instance).
+- **What this costs**: nothing permanent. The pick itself spends two columns, transiently, only on the row a
+  reference is picked on.
+
+### What a poll settled
+
+`Post` was write-only for a poll — `Role.Poll` was themed and documented with nothing that ever emitted it. Reading
+one back, and voting on one, are both built now (#69, #74):
+
+- **`Post` gains a read-side pair**, `PostPoll`/`PostPollOption`, matching `MediaAttachment`/`PostMedia`'s mnemonic.
+  The existing write-side type a draft carries renames `PostPoll` → `PollDraft`, freeing the name.
+  `PostPollOption.Votes` is `long?` — `null` is a real third state, distinct from a genuine zero, for the instances
+  that withhold the per-option breakdown until this profile votes or the poll closes.
+- **Drawn on both the feed and the post screen**, full detail on both, and in the CLI's `PostReport.Write`: a
+  ~10-cell `▓`/`░` block bar per option carrying `Role.Poll` (unchanged in the contract — nothing new needed there,
+  beyond a leading `✓ ` marking a picked option), percentage and raw count beside it (`▓▓▓▓▓▓░░░░ 62% (145)`), `0%`
+  and an empty bar for a genuinely unvoted option versus no bar at all for one whose count is withheld, `Closed` in
+  place of the end-time line when shut, silence when there is no end date, and a muted "choose as many as you like"
+  line when multiple-choice.
+- **Voting takes digits, not a new walkable axis.** `1`-`9` then `0` address up to ten options directly on the
+  picked post; a digit toggles a local unsent selection — `[x]`/`[ ]` in place of the bar's leading mark — the same
+  mechanic for single- and multiple-choice (single-choice toggling is exclusive: picking a new option clears the
+  last). `j`/`k`/`esc` discard an uncommitted toggle, the same rule references use for a picked reference above.
+- **`v` casts it**, through the existing `Confirmation`/story-43 pattern — a cast vote qualifies more than delete
+  does, since the API refuses a second vote outright rather than allowing recovery.
+- **No refetch.** `POST /api/v1/polls/:id/votes` returns the complete updated poll in the same response; that feeds
+  the same `Replace(...)` call `Mark` already uses.
+- **`Vote(...)` lands on `IPostEngagement`** beside `Mark`/`Show`/`Replies`. The CLI gets `post vote <post-id>
+  <choice>...`, joining the boost/favorite/pin command family, confirming via `Consent.Given`.
+- **A role-emission contract test is worth having** — one that walks every `Role` and asserts some view can produce
+  it, the thing that would have caught `Role.Poll` sitting dead in the contract in the first place.
+
+### What refresh settled
+
+There was no way to ask a destination for fresh posts short of leaving and coming back, or waiting out the 1-minute
+cache. Streaming stays out of scope (below); a manual refresh is the in-scope answer (#68):
+
+- **`g`, screen-local** — not a frame key, no `F5`, no dual binding; this shell has no existing precedent for either,
+  and both would cut against internal consistency. The status row shows `g refresh` only on a screen that has one.
+- **Lives on nine destinations**: the four cached feed destinations (home, local, federated, the hashtag), plus
+  Notifications, Messages, Requests, the post screen, and the account screen. The conversation screen and search
+  results are left out — a live thread and a live search are each their own, smaller question, not decided here.
+- **Evicts the destination's cache entry, then re-runs the same fetch its own arrival runs** — `Go()`'s fetch for
+  the four feeds and Notifications/Messages/Requests, `Replies` for the post screen, both of `OpenAccount`'s calls
+  for the account screen.
+- **The reader's place follows the post it was on**, matched by id, or clamps at the same ordinal if it's gone. The
+  scroll offset resets to 0, matching "the offset starts again whenever the screen is replaced."
+- **The badge moves with the count**, from the same answer the screen redraws from — the same rule every other
+  arrival already follows.
+- **A refresh goes through `Enquiry` like every other fetch**, discarded unread if the reader has moved on. No new
+  in-flight UI beyond the breadcrumb's existing `fetching…` marker; a second `g` while one is already in flight is a
+  silent no-op.
 
 ### What media settled
 
@@ -148,6 +296,11 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
   is no box: a picture on its way is its `▒▒▒▒` description and nothing else.
 - **Nothing about a picture is ever an error.** A fetch that fails and a file that will not decode both leave the
   description standing on its own, which is what a terminal that cannot draw shows anyway.
+- **A drawn picture's caption can hide, behind a preference that defaults off.** `hide_drawn_caption` (below) hides
+  `Described` only once a picture is *actually drawn* — the same branch that emits `Box(inset)`. A terminal that
+  cannot draw at all and one that can but hasn't gotten this picture yet are treated identically, so there is no
+  arrival flicker to weigh. Applies the same to a feed item and the post screen; there is no reveal key once
+  hidden — the preference itself is the opt-in (#71).
 
 ### What moving settled
 
@@ -219,7 +372,11 @@ business but the reader's, so it is a setting in the same TOML file everything e
 ```toml
 [preferences]
 hashtag = "dotnet"
+hide_drawn_caption = true
 ```
+
+`hide_drawn_caption` is the other reader-owned preference in this section (#71) — a picture's caption, `false` (the
+default) shows it always, `true` hides it once a picture is actually drawn, per "What media settled" above.
 
 With none set, the destination is still on the rail — it says no tag has been named and asks the instance for nothing,
 rather than being a rail entry that swallows a keypress.
@@ -235,19 +392,19 @@ glyph or a position that carries the same meaning when colour is gone.
 | `hashtag` | A tag inside a post's text | the `#` |
 | `mention` | An account named inside a post's text | the `@` |
 | `link` | An address inside a post's text | the scheme |
-| `muted` | Timestamps, counts nobody acted on, hints | position |
+| `muted` | Timestamps, counts nobody acted on, hints, a status row key's explanation | position |
 | `byline-name` | A display name | position |
 | `byline-handle` | `username@instance` | the `@` |
 | `audience` | The visibility mark | `○ ◌ ● ✉` |
 | `content-warning` | A warning and its text | `⚠` |
 | `media` | Image placeholders and attachment links | `▒▒▒▒`, `⏵` |
 | *(none — a picture's own pixels)* | A drawn picture | it is the picture |
-| `poll` | Options and their bars | the bar itself |
+| `poll` | Options and their bars | the bar itself, and `✓ `/`[x]` marking a picked one |
+| `reference-picked` | The brackets around a picked reference | `‹ ›`, always drawn |
 | `boost` / `boost-mine` | The boost mark, and it when it is yours | `↺`, and the count |
 | `favorite` / `favorite-mine` | The favorite mark, and it when it is yours | `★`, and the count |
 | `selection` | The selected row | `▌` in the gutter |
-| `rail` / `rail-current` | Destinations, and the one selected | `▸`, with `▶` for the cursor |
-| *(none — the rail's cursor)* | Where the tabbing has got to | `▶`, and only `▶` |
+| `rail` / `rail-current` | Destinations, and the one loaded | one glyph, one column: `▶` where the tabbing has got to, `▷` where it settled if that differs — they coincide at rest, so only `▶` shows |
 | `rail-unread` | An unread count, and the word on an unread conversation | the number, and the word |
 | `quota` / `quota-low` | Rate-limit budget left, and nearly spent | the number |
 | `chrome` | Breadcrumb and status rows | position |
@@ -269,6 +426,14 @@ enforces "no view constructs a colour" names the one file allowed to (ADR-0016);
 `muted` is the broad one — timestamps, hints, counts, empty-list notices, editor chrome — and stays broad on purpose. A
 themer cannot make an empty-list notice dimmer than a timestamp, and that is a smaller loss than a vocabulary nobody
 can hold in their head.
+
+The rail used to reserve two columns — `▶` for the cursor, `▸` for the selection — and showed them adjacent almost
+all the time, since the two coincide at rest and differ only for the ~250ms settle window. It now reserves one:
+`▶` (filled) on the cursor's row, `▷` (hollow, U+25B7) on the settled row only while the two differ, extending the
+audience row's filled/hollow vocabulary (`○`/`●`) rather than teaching a third shape. This retires the no-colour
+risk the old scheme carried outright rather than mitigating it: the design never reads `Role.RailCurrent`'s band for
+"which one's current", so `NO_COLOR` and a themed terminal show identical marks. The freed column goes to the
+destination label (#67).
 
 ### The three inside a post's text
 
@@ -355,10 +520,11 @@ the keyboard feel slow:
 - **An overtaken fetch is discarded, never drawn.** A reader who has moved on must not have a stale timeline appear
   underneath them.
 
-The rail carries exactly two marks for this, both in the left column with the destination names: `▶` where the tabbing
-has got to, `▸` what is selected. It carries no third mark for *chosen but not loaded* and none for a fetch in flight —
-the right-hand column is unread counts and nothing else, and a fetch is announced once on the breadcrumb. A rail
-somebody is reading should hold still.
+The rail carries one column for this, in the left column with the destination names, whose glyph depends on the row:
+`▶` where the tabbing has got to, `▷` where it settled if that differs, blank otherwise — the two coincide at rest,
+so only `▶` shows (#67, amending ADR-0014's earlier two-column, two-mark description below). It carries no third
+mark for *chosen but not loaded* and none for a fetch in flight — the right-hand column is unread counts and nothing
+else, and a fetch is announced once on the breadcrumb. A rail somebody is reading should hold still.
 
 The alternatives were built and measured — a cursor that moves free until `⏎` commits, a key per destination, a jump
 list — and all cost one fetch against cycling's six *before* the settle rule, which is what closed the gap. They are on

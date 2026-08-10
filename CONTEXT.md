@@ -89,6 +89,18 @@ you are going to, this is about what you are looking at once you are there. A sc
 picked, which is a fact about the list rather than a place in it.
 _Avoid_: cursor, selection, highlight, current row
 
+**Reference**:
+A hashtag, a mention, or an address found inside a post's text — the things `←`/`→` walk and `⏎` opens. Distinct from
+**Picked**, which is which post the reader has walked to; a reference is walked *inside* the picked post, one level
+in. Replaces what `BodyText` used to call a "mark," a word this project had already spent on `Post.Marks`
+(boost/favorite/pin).
+_Avoid_: mark (for this; reserved for boost/favorite/pin)
+
+**Vote**:
+Casting a choice on a post's poll, Mastodon's own word for the act. Distinct from **Picked** and from toggling an
+option before it is cast — the toggle and the cast key are both plain interaction words, not glossary entries;
+"vote" is the one term this earns because it is the domain fact an instance records, not a keystroke describing it.
+
 **Role**:
 What a piece of the TUI is, said in a way a **theme** can answer: a byline's name, a handle, a content warning, a boost
 mark, an unread count, the selected row. Views name roles and never colours, so that the same screen can be themed,

@@ -35,3 +35,13 @@ that shows more of what is being answered, not a second layout.
 Every screen that takes text — a search prompt (#29), a direct message (#30) — is a screen on the stack, entered the
 same way and left the same way. There is one arrangement in this shell and the answer to "where does this new thing
 go" is always the same.
+
+## Amendment: the label line's wording (map #61, ticket #73)
+
+The three rows still stand — nothing since this ADR has made leaving the compose screen any cheaper, so "seeing
+enough of what you're answering to answer it accurately without leaving the screen" still holds. Only the label
+above them changes, to match the wording a feed's own reply mark settled on (`docs/tui-shell.md`, "What a post's
+byline settled"): `Answering @handle:` becomes `↳ answering @handle` (no trailing colon), or `↳ continuing` for a
+self-reply. Compose always holds the full post it answers, so the bare `↳ reply` variant a feed sometimes falls back
+to never applies here. This is a wording amendment only — row count, layout, and everything below the label are
+unchanged.

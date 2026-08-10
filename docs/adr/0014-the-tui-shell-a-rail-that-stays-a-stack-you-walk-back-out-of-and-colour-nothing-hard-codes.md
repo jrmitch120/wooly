@@ -89,3 +89,36 @@ changed since that was written, though, and is worth recording where somebody wi
 `IApplication.GetInputInjector()` and a virtual time provider, and the prototype uses them to drive a shell and capture
 its screen with nobody at the keyboard. That does not make pixels worth asserting, but it does make "this key on this
 screen leaves the app in that state" cheap enough to reconsider when the shell settles.
+
+## Amendment: three things this ADR said, tightened by driving the shell (map #61)
+
+The frame this ADR set stood up to a round of use — a rail, a stack, roles instead of colours. Three places in it
+turned out to be one clause too narrow once real posts, real polls and a real keyboard were driven through it. Each
+is a correction to wording this ADR already committed to, not a change of shape; `docs/tui-shell.md` carries the
+enumerable detail, this records what changed and why.
+
+**`esc` gains a first job.** This ADR said `esc` is up one level of the stack, full stop. Walking the references
+inside a post's text (ticket #64) needed a mode of its own — a picked hashtag, mention or address, distinct from the
+picked post itself — and `esc` was the obvious key to leave it with. So the rule is now "up one level, of whichever
+kind of level is currently open": a reference pick is a level below the screen it lives on, and `esc` clears the
+nearer one first. Every other frame key is untouched, and a screen with no reference picked behaves exactly as this
+ADR described.
+
+**The rail carries one mark, not two.** This ADR said the rail "carries exactly two marks... both in the left column"
+— one for the cursor (`▶`), one for the selection (`▸`) — and that a third mark, for anything else, was deliberately
+left out. Driving it (ticket #67) found that the two coincide at rest and differ only for the ~250ms settle window,
+so a reader looking at the rail almost always saw `▶▸` side by side where one glyph would do. The rail now spends one
+column: `▶` on the cursor's row, its hollow twin `▷` on the settled row only while the two differ, blank otherwise.
+The reasoning underneath is exactly what it was — no marker for *chosen but not loaded*, none for a fetch in flight,
+a rail somebody is reading should hold still — only the count of marks changes, from two columns to one.
+
+**The shell gains an action that leaves the terminal.** This ADR is silent on anything past the process boundary —
+every port it describes (`ShellPorts`) reaches an instance, and nothing in the shell was ever asked to reach outside
+it. Opening an address found inside a post (ticket #65) is the first thing that does: `⏎` on a picked reference that
+is an `http`/`https` link launches the platform's own browser. It is deliberately **not** folded into `ShellPorts`,
+which this ADR scoped to "everything the shell reaches an instance through" — a browser launch reaches past the
+instance entirely, so it gets its own small seam, tested the way role selection is (was the right platform call
+requested, was a hostile scheme refused) without ever actually launching one.
+
+None of this reopens what the ADR decided: the shell is still a rail that stays, a stack you walk back out of, and
+colour nothing hard-codes.
