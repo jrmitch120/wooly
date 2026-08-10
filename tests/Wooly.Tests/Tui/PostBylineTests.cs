@@ -185,6 +185,50 @@ public class PostBylineTests
         Assert.Empty(lines[counts - 1].Spans);
     }
 
+    /// <summary>
+    ///     Every part of a post stands off the one before it: the byline, the text, each attachment, the counts. Two
+    ///     pictures used to run the body into the first caption and the first picture's last row into the second.
+    /// </summary>
+    [Fact]
+    public void Feed_LeavesABlankRowBetweenEveryPartOfAPost()
+    {
+        var lines = Feed(
+            By() with
+            {
+                Content = "Two of them.",
+                Media = [APost.APicture(id: "m1"), APost.APicture(id: "m2", description: "A second one")],
+            },
+            pictures: FakePictures.With().Holding("m1", 400, 300).Holding("m2", 400, 300));
+
+        // Every row that opens a part has a blank above it, and no part opens on the row under another part's last.
+        foreach (var opens in new[] { "Two of them.", "▒▒▒▒ A cartoon sheep", "▒▒▒▒ A second one", "↺ 3" })
+        {
+            var at = Row(lines, line => line.Text.StartsWith(opens, StringComparison.Ordinal));
+
+            Assert.True(at > 0, $"'{opens}' is not on any row");
+            Assert.Empty(lines[at - 1].Spans);
+        }
+    }
+
+    /// <summary>
+    ///     A part with nothing in it is skipped rather than separated, so a post carrying a picture and no text does
+    ///     not open on two blank rows where its words would have been.
+    /// </summary>
+    [Fact]
+    public void Feed_DoesNotDoubleTheBlankWhereAPostHasNoText()
+    {
+        var lines = Feed(
+            By() with { Content = string.Empty, Media = [APost.APicture()] },
+            pictures: FakePictures.With().Holding("m1", 400, 300));
+
+        // Straight from the handle to the one blank to the caption. The rows under the caption are blank because they
+        // are the picture's own, which is a different thing from a doubled separator.
+        var handle = Row(lines, line => line.Has(Role.BylineHandle));
+
+        Assert.Empty(lines[handle + 1].Spans);
+        Assert.StartsWith("▒▒▒▒", lines[handle + 2].Text, StringComparison.Ordinal);
+    }
+
     /// <summary>Whole draws the same avatar beside the same two rows, so a post reads the same drilled into.</summary>
     [Fact]
     public void Whole_DrawsTheAvatarBesideItsOwnTwoBylineRows()

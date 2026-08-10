@@ -154,6 +154,13 @@ post answers, are both drawn into the byline now (#62, #63):
   avatar and the gap after it. Body, media and counts stay full width.
 - **`Counts` gets a blank row of its own** ahead of it, so it reads as a footer rather than one more line of the
   post. **+1 row.**
+- **A post is a run of parts, and a blank row stands between each** — the byline, the text, *each attachment on its
+  own*, the counts. Generalised from the two blanks above once a post carrying two pictures showed the rule was
+  needed at seams nobody had put one at by hand: the body ran into the first caption, and the first picture's last
+  row into the second caption. One rule in `PostLines.Parts` rather than a `Line.Blank` per seam, so a part added
+  later is spaced without anyone remembering to. **+1 row per attachment**, and nothing on a post carrying none —
+  which is most of them. A part with nothing in it is skipped rather than separated, so a post that is a picture and
+  no words does not open on a doubled blank.
 - **A reply carries a `↳` mark above its byline**, in the slot the boost row already owns, all `Role.Muted`:
   `↳ answering @handle` (the common case, named off `Post.Mentions`, no extra fetch), `↳ continuing` (a self-reply),
   or the bare `↳ reply` (the answered account isn't in `Mentions`). If a post is both a boost and a reply, the boost

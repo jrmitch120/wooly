@@ -60,28 +60,18 @@ public static class PostLines
         DateTimeOffset now,
         IPictures? pictures = null)
     {
-        var lines = new List<Line>();
         var shown = post.Boosted ?? post;
 
-        if (post.Boosted is not null)
-        {
-            lines.Add(Line.Of([
-                new Span("↺ ", post.Marks.Boosted ? Role.BoostMine : Role.Boost),
-                new Span(TextWrap.Clip($"{post.Author} boosted", width - 2), Role.Muted),
-            ]));
-        }
-
-        lines.AddRange(Answering(shown, width));
-        lines.AddRange(Byline(shown, width, now, pictures));
-        lines.AddRange(Body(shown, width, revealed));
-        lines.AddRange(Media(shown, width, pictures, Inset.FeedRows));
-
-        // A blank ahead of the counts, so the three marks read as a footer rather than as one more line of the post
-        // — which is how they read with nothing between them and the body (#62).
-        lines.Add(Line.Blank);
-        lines.Add(Counts(shown, spelledOut: false));
-
-        return lines;
+        return Parts([
+            [
+                .. Boosted(post, $"{post.Author} boosted", width),
+                .. Answering(shown, width),
+                .. Byline(shown, width, now, pictures),
+            ],
+            Body(shown, width, revealed),
+            .. Media(shown, width, pictures, Inset.FeedRows),
+            [Counts(shown, spelledOut: false)],
+        ]);
     }
 
     /// <summary>
@@ -97,40 +87,91 @@ public static class PostLines
         IPictures? pictures = null)
     {
         var shown = post.Boosted ?? post;
-        var lines = new List<Line>();
-
-        if (post.Boosted is not null)
-        {
-            lines.Add(Line.Of([
-                new Span("↺ ", post.Marks.Boosted ? Role.BoostMine : Role.Boost),
-                new Span(TextWrap.Clip($"boosted by {post.Author}", width - 2), Role.Muted),
-            ]));
-        }
-
-        lines.AddRange(Answering(shown, width));
-
         var avatar = Avatar.Of(shown, pictures);
         var room = Math.Max(0, width - avatar.Columns);
 
-        // Three rows rather than the feed's two, the third being the moment said exactly rather than as an age — and
-        // stepped in with the other two though the avatar's box has run out below it, because two rows starting in one
-        // column and a third starting in another would read as two things.
-        lines.AddRange(avatar.Across(
-            Line.Of(TextWrap.Clip(shown.Author, room), Role.BylineName),
-            Line.Of(TextWrap.Clip($"@{shown.Account}", room), Role.BylineHandle),
-            Line.Of([
-                new Span(Elapsed.Moment(shown.PostedAt), Role.Muted),
-                new Span(" · ", Role.Muted),
-                new Span($"{Audience(shown.Visibility)} {PostVisibilityName.Of(shown.Visibility)}", Role.Audience),
-            ])));
+        return Parts([
+            [
+                .. Boosted(post, $"boosted by {post.Author}", width),
+                .. Answering(shown, width),
 
-        lines.Add(Line.Blank);
-        lines.AddRange(Body(shown, width, revealed));
-        lines.AddRange(Media(shown, width, pictures, Inset.WholeRows));
-        lines.Add(Line.Blank);
-        lines.Add(Counts(shown, spelledOut: true));
+                // Three byline rows rather than the feed's two, the third being the moment said exactly rather than as
+                // an age — and stepped in with the other two though the avatar's box has run out below it, because two
+                // rows starting in one column and a third starting in another would read as two things.
+                .. avatar.Across(
+                    Line.Of(TextWrap.Clip(shown.Author, room), Role.BylineName),
+                    Line.Of(TextWrap.Clip($"@{shown.Account}", room), Role.BylineHandle),
+                    Line.Of([
+                        new Span(Elapsed.Moment(shown.PostedAt), Role.Muted),
+                        new Span(" · ", Role.Muted),
+                        new Span(
+                            $"{Audience(shown.Visibility)} {PostVisibilityName.Of(shown.Visibility)}",
+                            Role.Audience),
+                    ])),
+            ],
+            Body(shown, width, revealed),
+            .. Media(shown, width, pictures, Inset.WholeRows),
+            [Counts(shown, spelledOut: true)],
+        ]);
+    }
+
+    /// <summary>
+    ///     The parts of a post one after another, with a blank row between each — and none before the first, after the
+    ///     last, or around a part there is nothing in.
+    /// </summary>
+    /// <remarks>
+    ///     What keeps a post reading as a few things rather than one wall of ink. Said once here rather than as a
+    ///     <see cref="Line.Blank" /> at each of the seams, because the seams are what kept being missed: the blank
+    ///     between the byline and the body and the one ahead of the counts were put in by hand and the ones around the
+    ///     attachments were not, so a post with two pictures ran its body into the first caption and the first
+    ///     picture's last row into the second caption.
+    ///     <para>
+    ///         Each attachment is a part of its own, which is what puts a row between one picture and the next one's
+    ///         caption. It costs one row per attachment, and only on a post that carries any — which is most of the
+    ///         reason it is affordable at all, most posts being text.
+    ///     </para>
+    ///     <para>
+    ///         An empty part is skipped rather than separated, so a post with nothing but a picture does not open on
+    ///         two blank rows where its text would have been.
+    ///     </para>
+    /// </remarks>
+    private static IReadOnlyList<Line> Parts(IEnumerable<IEnumerable<Line>> parts)
+    {
+        var lines = new List<Line>();
+
+        foreach (var part in parts)
+        {
+            var rows = part.ToList();
+
+            if (rows.Count == 0)
+            {
+                continue;
+            }
+
+            if (lines.Count > 0)
+            {
+                lines.Add(Line.Blank);
+            }
+
+            lines.AddRange(rows);
+        }
 
         return lines;
+    }
+
+    /// <summary>
+    ///     Who boosted this, where somebody did — <paramref name="said" /> because a feed names the booster first and
+    ///     a post screen puts them after the fact, and the role turns on whether the booster was the reader.
+    /// </summary>
+    private static IEnumerable<Line> Boosted(Post post, string said, int width)
+    {
+        if (post.Boosted is not null)
+        {
+            yield return Line.Of([
+                new Span("↺ ", post.Marks.Boosted ? Role.BoostMine : Role.Boost),
+                new Span(TextWrap.Clip(said, width - 2), Role.Muted),
+            ]);
+        }
     }
 
     /// <summary>The mark for who can see a post, which says it where colour cannot.</summary>
@@ -192,7 +233,6 @@ public static class PostLines
                     new Span(tail, Role.Audience),
                 ]),
                 Line.Of(TextWrap.Clip($"@{post.Account}", room), Role.BylineHandle)),
-            Line.Blank,
         ];
     }
 
@@ -294,6 +334,15 @@ public static class PostLines
             ]));
         }
 
+        // Nothing at all rather than the one empty row wrapping an empty string gives back. A post whose whole content
+        // is a picture has no words, and a blank row standing in for them is a part of the post that is not there —
+        // which Parts would then space off on both sides. An author's own blank line inside a post they wrote that way
+        // is a different thing and is kept.
+        if (string.IsNullOrWhiteSpace(post.Content))
+        {
+            return lines;
+        }
+
         // Wrapped first and split afterwards, one row at a time: the one place a post's text is drawn, so a tag, a
         // mention and an address take their own roles on a feed, inside a post, in a conversation and in the
         // notification list from this one line (#46).
@@ -317,16 +366,17 @@ public static class PostLines
     /// </remarks>
     /// <param name="pictures">What can be drawn and what is here, or <see langword="null" /> where nothing can be.</param>
     /// <param name="mostRows">The most rows a picture may take, which is what a feed and a whole post differ on.</param>
-    private static IEnumerable<Line> Media(Post post, int width, IPictures? pictures, int mostRows)
+    /// <returns>
+    ///     One run of rows per attachment, rather than one run for all of them, so that <see cref="Parts" /> puts a
+    ///     blank row between each — which is the row between one picture and the next one's caption.
+    /// </returns>
+    private static IEnumerable<IReadOnlyList<Line>> Media(Post post, int width, IPictures? pictures, int mostRows)
     {
         foreach (var attached in post.Media)
         {
             if (!attached.IsDrawable || pictures?.Cell is not { } cell)
             {
-                foreach (var line in Linked(attached, width))
-                {
-                    yield return line;
-                }
+                yield return [.. Linked(attached, width)];
 
                 continue;
             }
@@ -334,17 +384,12 @@ public static class PostLines
             // The description first, so it does not move when the picture lands underneath it — and marked as wanting
             // a picture, which is how the view knows to send for one if this post is near enough to the screen.
             var drawn = Drawn.Attached(attached);
+            var described = Described(attached, MediaMark, width) with { Wants = drawn };
 
-            yield return Described(attached, MediaMark, width) with { Wants = drawn };
-
-            if (pictures.Of(drawn) is { } picture
-                && Inset.For(drawn, picture, cell, width, mostRows) is { } inset)
-            {
-                foreach (var line in Box(inset))
-                {
-                    yield return line;
-                }
-            }
+            yield return pictures.Of(drawn) is { } picture
+                         && Inset.For(drawn, picture, cell, width, mostRows) is { } inset
+                ? [described, .. Box(inset)]
+                : [described];
         }
     }
 
