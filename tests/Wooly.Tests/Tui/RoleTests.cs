@@ -436,21 +436,21 @@ public partial class RoleTests
         var onAnAccount = ChromeLines.Status(account.Keys, null, noticeIsError: false, asking: null, 80).Text;
         var onTheInbox = ChromeLines.Status(inbox.Keys, null, noticeIsError: false, asking: null, 80).Text;
 
-        Assert.Contains("F unfollow", onAnAccount);
-        Assert.Contains("M mute", onAnAccount);
-        Assert.Contains("B block", onAnAccount);
+        Assert.Contains("F:unfollow", onAnAccount);
+        Assert.Contains("M:mute", onAnAccount);
+        Assert.Contains("B:block", onAnAccount);
 
-        Assert.Contains("d dismiss", onTheInbox);
-        Assert.Contains("D clear all", onTheInbox);
+        Assert.Contains("d:dismiss", onTheInbox);
+        Assert.Contains("D:clear all", onTheInbox);
 
         // And the two movements #51 split apart are both said, since neither key does what the other one does — the
         // shared one behind the screen's own keys, which is the order the cut at the right exists for.
-        Assert.Contains("j/k post", onAnAccount);
-        Assert.Contains("↓/↑ row", onAnAccount);
+        Assert.Contains("j/k:post", onAnAccount);
+        Assert.Contains("↓/↑:row", onAnAccount);
 
         Assert.True(
-            onTheInbox.IndexOf("D clear all", StringComparison.Ordinal)
-            < onTheInbox.IndexOf("↓/↑ row", StringComparison.Ordinal));
+            onTheInbox.IndexOf("D:clear all", StringComparison.Ordinal)
+            < onTheInbox.IndexOf("↓/↑:row", StringComparison.Ordinal));
 
         // And the row is still one row, which is what makes the cut necessary in the first place.
         Assert.True(onAnAccount.Length <= 80);
@@ -468,9 +468,13 @@ public partial class RoleTests
             asking: null,
             80);
 
-        Assert.Contains("⏎ read", keys.Text);
-        Assert.Contains("a author", keys.Text);
-        Assert.Equal(Role.Chrome, keys.Role);
+        Assert.Contains("⏎:read", keys.Text);
+        Assert.Contains("a:author", keys.Text);
+
+        // The key stays Chrome and the explanation takes Muted — the split #66 draws them in — rather than one role
+        // for the whole row.
+        Assert.Contains(keys.Spans, span => span is { Role: Role.Chrome, Text: "⏎" });
+        Assert.Contains(keys.Spans, span => span is { Role: Role.Muted, Text: ":read" });
     }
 
     /// <summary>
