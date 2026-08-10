@@ -154,7 +154,11 @@ public sealed class SearchScreen : Screen
         _results.Remove(found => found is Result.OfPost(var held) && PostChange.Names(held, postId));
 
     /// <inheritdoc />
-    public override IReadOnlyList<Line> Lines(int width, DateTimeOffset now, IPictures? pictures = null)
+    public override IReadOnlyList<Line> Lines(
+        int width,
+        DateTimeOffset now,
+        IPictures? pictures = null,
+        bool hideDrawnCaption = false)
     {
         var lines = new List<Line> { Prompt(width), Line.Blank };
 
@@ -187,7 +191,7 @@ public sealed class SearchScreen : Screen
         {
             Result.OfAccount(var account) => [AccountLines.Byline(account, room)],
             Result.OfHashtag(var hashtag) => [Tag(hashtag, room)],
-            Result.OfPost(var post) => PostLines.Feed(post, room, Revealed.Has(post), now, pictures),
+            Result.OfPost(var post) => PostLines.Feed(post, room, Revealed.Has(post), now, pictures, hideDrawnCaption),
             _ => [],
         };
     }

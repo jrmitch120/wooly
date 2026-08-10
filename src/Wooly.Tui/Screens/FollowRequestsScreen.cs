@@ -58,7 +58,11 @@ public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string?
     public void Answered(string accountId) => _waiting.Remove(account => account.Id == accountId);
 
     /// <inheritdoc />
-    public override IReadOnlyList<Line> Lines(int width, DateTimeOffset now, IPictures? pictures = null)
+    public override IReadOnlyList<Line> Lines(
+        int width,
+        DateTimeOffset now,
+        IPictures? pictures = null,
+        bool hideDrawnCaption = false)
     {
         var lines = new List<Line>();
 

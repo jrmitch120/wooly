@@ -79,7 +79,11 @@ public sealed class AccountScreen(Account account, IReadOnlyList<Post> posts) : 
     public override void Remove(string postId) => _posts.Remove(held => PostChange.Names(held, postId));
 
     /// <inheritdoc />
-    public override IReadOnlyList<Line> Lines(int width, DateTimeOffset now, IPictures? pictures = null)
+    public override IReadOnlyList<Line> Lines(
+        int width,
+        DateTimeOffset now,
+        IPictures? pictures = null,
+        bool hideDrawnCaption = false)
     {
         var lines = new List<Line>(AccountLines.Who(Account, width))
         {
@@ -100,7 +104,7 @@ public sealed class AccountScreen(Account account, IReadOnlyList<Post> posts) : 
 
         lines.AddRange(_posts.Rows(
             width,
-            (post, _, room) => PostLines.Feed(post, room, Revealed.Has(post), now, pictures)));
+            (post, _, room) => PostLines.Feed(post, room, Revealed.Has(post), now, pictures, hideDrawnCaption)));
 
         return lines;
     }
