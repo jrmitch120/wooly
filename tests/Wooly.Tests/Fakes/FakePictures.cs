@@ -1,13 +1,12 @@
 using Terminal.Gui.Drawing;
-using Wooly.Core.Posts;
 using Wooly.Tui.Media;
 
 namespace Wooly.Tests.Fakes;
 
 /// <summary>
 ///     A terminal's answer about pictures, said outright: whether it draws them at all, how big its cells are, and
-///     which attachments' pixels have arrived. Stands in for the real one so a screen can be laid out with no terminal
-///     and no network, which is the whole reason <see cref="IPictures" /> is a port.
+///     whose pixels have arrived. Stands in for the real one so a screen can be laid out with no terminal and no
+///     network, which is the whole reason <see cref="IPictures" /> is a port.
 /// </summary>
 internal sealed class FakePictures : IPictures
 {
@@ -15,10 +14,10 @@ internal sealed class FakePictures : IPictures
 
     private FakePictures(CellSize? cell) => Cell = cell;
 
-    /// <summary>Every attachment whose picture was looked up, in order.</summary>
+    /// <summary>Every picture looked up, by id, in order.</summary>
     public List<string> Asked { get; } = [];
 
-    /// <summary>Every attachment sent for, in order — what proves only what is near the screen is fetched.</summary>
+    /// <summary>Every picture sent for, by id, in order — what proves only what is near the screen is fetched.</summary>
     public List<string> Sent { get; } = [];
 
     /// <inheritdoc />
@@ -33,22 +32,28 @@ internal sealed class FakePictures : IPictures
     /// </summary>
     public static FakePictures With(CellSize? cell = null) => new(cell ?? new CellSize(10, 20));
 
-    /// <summary>Says that the picture for <paramref name="mediaId" /> has arrived, at the given size in pixels.</summary>
-    public FakePictures Holding(string mediaId, int width, int height)
+    /// <summary>Says that the picture for the attachment <paramref name="mediaId" /> has arrived, at the given size in pixels.</summary>
+    public FakePictures Holding(string mediaId, int width, int height) => Held(mediaId, width, height);
+
+    /// <summary>Says that <paramref name="account" />'s avatar has arrived, at the given size in pixels.</summary>
+    public FakePictures HoldingAvatarOf(string account, int width = 96, int height = 96) =>
+        Held(Drawn.Avatar(account, "https://files.mastodon.social/avatars/original.png").Id, width, height);
+
+    /// <inheritdoc />
+    public Picture? Of(Drawn drawn)
     {
-        _held[mediaId] = new Picture(new Color[width, height]);
+        Asked.Add(drawn.Id);
+
+        return _held.GetValueOrDefault(drawn.Id);
+    }
+
+    /// <inheritdoc />
+    public void Want(Drawn drawn) => Sent.Add(drawn.Id);
+
+    private FakePictures Held(string id, int width, int height)
+    {
+        _held[id] = new Picture(new Color[width, height]);
 
         return this;
     }
-
-    /// <inheritdoc />
-    public Picture? Of(PostMedia media)
-    {
-        Asked.Add(media.Id);
-
-        return _held.GetValueOrDefault(media.Id);
-    }
-
-    /// <inheritdoc />
-    public void Want(PostMedia media) => Sent.Add(media.Id);
 }

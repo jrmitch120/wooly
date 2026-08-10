@@ -1,4 +1,3 @@
-using Wooly.Core.Posts;
 using Wooly.Tui.Media;
 
 namespace Wooly.Tui.Rendering;
@@ -13,11 +12,11 @@ namespace Wooly.Tui.Rendering;
 ///     cell-by-cell fallback: a photograph reduced to one coloured block per cell is not a picture of anything, and an
 ///     attachment a terminal cannot draw reads better as the link and description the CLI gives it (ADR-0016).
 /// </remarks>
-/// <param name="Media">The attachment to draw.</param>
+/// <param name="Drawn">The picture to draw.</param>
 /// <param name="Column">How far in from the left of the row the box starts.</param>
 /// <param name="Columns">How wide the box is.</param>
 /// <param name="Rows">How tall the box is, counting the row this inset is on.</param>
-public sealed record Inset(PostMedia Media, int Column, int Columns, int Rows)
+public sealed record Inset(Drawn Drawn, int Column, int Columns, int Rows)
 {
     /// <summary>
     ///     The most rows a picture takes in a feed item, where it is one post among many and the reader is scanning
@@ -41,13 +40,13 @@ public sealed record Inset(PostMedia Media, int Column, int Columns, int Rows)
     ///     and the height that follows from its proportions is what it costs. The cap is what stops a tall picture
     ///     taking a screen and a half of a feed.
     /// </remarks>
-    /// <param name="media">The attachment being drawn.</param>
+    /// <param name="drawn">The picture being drawn.</param>
     /// <param name="picture">Its pixels, whose proportions settle the shape of the box.</param>
     /// <param name="cell">How many pixels one cell is, which is what turns those proportions into rows and columns.</param>
     /// <param name="width">How many columns there are to draw in.</param>
     /// <param name="mostRows">The most rows this box may take.</param>
     /// <returns>The box, or <see langword="null" /> where there is no room for one.</returns>
-    public static Inset? For(PostMedia media, Picture picture, CellSize cell, int width, int mostRows)
+    public static Inset? For(Drawn drawn, Picture picture, CellSize cell, int width, int mostRows)
     {
         if (width < 1 || mostRows < 1 || picture.Width < 1 || picture.Height < 1
             || cell.Width < 1 || cell.Height < 1)
@@ -66,7 +65,7 @@ public sealed record Inset(PostMedia Media, int Column, int Columns, int Rows)
             columns = Math.Clamp(columns, 1, width);
         }
 
-        return new Inset(media, Column: 0, Columns: columns, Rows: Math.Max(1, rows));
+        return new Inset(drawn, Column: 0, Columns: columns, Rows: Math.Max(1, rows));
     }
 
     /// <summary>How wide the whole band is, which is what the row standing in for it has to measure.</summary>

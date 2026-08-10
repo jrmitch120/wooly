@@ -1,5 +1,3 @@
-using Wooly.Core.Posts;
-
 namespace Wooly.Tui.Media;
 
 /// <summary>
@@ -22,22 +20,22 @@ public interface IPictures
     CellSize? Cell { get; }
 
     /// <summary>
-    ///     The picture for <paramref name="media" /> if it is here, and <see langword="null" /> while it is not.
+    ///     The picture for <paramref name="drawn" /> if it is here, and <see langword="null" /> while it is not.
     /// </summary>
     /// <remarks>
     ///     A lookup and nothing else — asking does not send for anything. The rows of every post on a screen are worked
     ///     out whether or not that post is anywhere near the viewport, so a lookup that also fetched would fetch an
     ///     account's whole gallery to draw the four of it a reader can see (ADR-0016).
     /// </remarks>
-    Picture? Of(PostMedia media);
+    Picture? Of(Drawn drawn);
 
     /// <summary>
-    ///     Says that <paramref name="media" /> is on screen, or nearly, and its picture is worth having.
+    ///     Says that <paramref name="drawn" /> is on screen, or nearly, and its picture is worth having.
     /// </summary>
     /// <remarks>
-    ///     Safe to call on every frame: an attachment is sent for once, a redraw is how the picture appears when it
+    ///     Safe to call on every frame: a picture is sent for once, a redraw is how the picture appears when it
     ///     lands, and one that cannot be had is not asked for again. Said by whatever knows where the scroll has got
     ///     to, which is the view rather than the post.
     /// </remarks>
-    void Want(PostMedia media);
+    void Want(Drawn drawn);
 }

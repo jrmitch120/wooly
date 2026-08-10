@@ -275,9 +275,9 @@ internal sealed class PaintedView : View
 
         for (var at = Math.Max(0, from); at < Math.Min(lines.Count, to); at++)
         {
-            if (lines[at].Wants is { } media)
+            if (lines[at].Wants is { } drawn)
             {
-                _pictures.Want(media);
+                _pictures.Want(drawn);
             }
         }
     }
@@ -330,7 +330,7 @@ internal sealed class PaintedView : View
 
         foreach (var box in _boxes)
         {
-            if (box.MediaId is { } held && wanted.Any(want => want.Inset.Media.Id == held))
+            if (box.MediaId is { } held && wanted.Any(want => want.Inset.Drawn.Id == held))
             {
                 continue;
             }
@@ -347,7 +347,7 @@ internal sealed class PaintedView : View
 
         foreach (var (inset, top, picture) in wanted)
         {
-            if (Free(inset.Media.Id, freed, taken) is not { } box)
+            if (Free(inset.Drawn.Id, freed, taken) is not { } box)
             {
                 continue;
             }
@@ -356,7 +356,7 @@ internal sealed class PaintedView : View
 
             var frame = new Rectangle(inset.Column, top, inset.Columns, inset.Rows);
 
-            box.Show(inset.Media.Id, picture);
+            box.Show(inset.Drawn.Id, picture);
 
             // Only when it has actually moved: setting it throws away the scaled copy and re-encodes the picture,
             // which on a feed redrawn per keypress would be a re-transmission per keypress.
@@ -391,7 +391,7 @@ internal sealed class PaintedView : View
                     continue;
                 }
 
-                if (_pictures!.Of(inset.Media) is { } picture)
+                if (_pictures!.Of(inset.Drawn) is { } picture)
                 {
                     wanted.Add((inset, top, picture));
                 }

@@ -1,5 +1,3 @@
-using Wooly.Core.Posts;
-
 namespace Wooly.Tui.Media;
 
 /// <summary>
@@ -30,8 +28,13 @@ public sealed class Pictures(
     ///     How many pictures are held at once. Only a handful can be on screen and only what is near the screen is ever
     ///     sent for, so this is a scroll or two of slack rather than a gallery — and a picture is megabytes once it is
     ///     pixels, so a client holding a morning's scrolling would be holding a morning's scrolling in memory.
+    ///     <para>
+    ///         Roomy enough for a screen's worth of posts to hold their attachments and their authors' avatars at
+    ///         once: a cache too small for both would drop and re-fetch an avatar every frame, which is a fetch per
+    ///         keypress — the very thing holding pictures at all exists to prevent.
+    ///     </para>
     /// </summary>
-    public const int MostHeld = 16;
+    public const int MostHeld = 48;
 
     /// <summary>
     ///     How many bytes of a download are worth reading. A preview is tens of kilobytes; anything of this size is
@@ -92,20 +95,20 @@ public sealed class Pictures(
         arrived);
 
     /// <inheritdoc />
-    public Picture? Of(PostMedia media)
+    public Picture? Of(Drawn drawn)
     {
         lock (_gate)
         {
-            return _held.GetValueOrDefault(media.Id);
+            return _held.GetValueOrDefault(drawn.Id);
         }
     }
 
     /// <inheritdoc />
-    public void Want(PostMedia media)
+    public void Want(Drawn drawn)
     {
         lock (_gate)
         {
-            if (_held.ContainsKey(media.Id))
+            if (_held.ContainsKey(drawn.Id))
             {
                 return;
             }
@@ -113,18 +116,11 @@ public sealed class Pictures(
             // Written down before the fetch goes out, and holding null until it lands: that is what makes asking on
             // every frame cost one fetch rather than one a frame, and what stops a picture that cannot be had from
             // being asked for again for as long as it is remembered.
-            Remember(media.Id, picture: null);
+            Remember(drawn.Id, picture: null);
         }
 
-        _ = Fetch(media);
+        _ = Fetch(drawn);
     }
-
-    /// <summary>
-    ///     The smaller copy where the instance offered one, and the file itself where it did not. A terminal draws a
-    ///     few hundred pixels across at most, and fetching a photograph at full size to throw nine tenths of it away is
-    ///     somebody's data allowance.
-    /// </summary>
-    private static string AddressOf(PostMedia media) => media.Preview ?? media.Url;
 
     /// <summary>
     ///     What <paramref name="body" /> holds, or <see langword="null" /> where it holds more than
@@ -152,7 +148,7 @@ public sealed class Pictures(
         return null;
     }
 
-    private async Task Fetch(PostMedia media)
+    private async Task Fetch(Drawn drawn)
     {
         Picture? picture = null;
 
@@ -165,7 +161,7 @@ public sealed class Pictures(
 
             try
             {
-                if (await fetch(AddressOf(media), _abandoned.Token) is { } bytes)
+                if (await fetch(drawn.Address, _abandoned.Token) is { } bytes)
                 {
                     picture = PictureDecoder.From(bytes);
                 }
@@ -192,13 +188,13 @@ public sealed class Pictures(
         {
             // Remembered afresh where it has since been dropped, so that what is held and the order it is dropped in
             // cannot come apart and leave the cache growing without a bound.
-            if (_held.ContainsKey(media.Id))
+            if (_held.ContainsKey(drawn.Id))
             {
-                _held[media.Id] = picture;
+                _held[drawn.Id] = picture;
             }
             else
             {
-                Remember(media.Id, picture);
+                Remember(drawn.Id, picture);
             }
         }
 

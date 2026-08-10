@@ -88,7 +88,7 @@ public sealed class PostScreen : Screen
     {
         var lines = new List<Line>(_posts.RowsOf(0, width, Draw))
         {
-            Line.Blank,
+            Line.Rule(width),
             Line.Of(Heading(width), Role.Muted),
             Line.Blank,
         };
@@ -105,7 +105,7 @@ public sealed class PostScreen : Screen
         for (var at = 1; at < _posts.Count; at++)
         {
             lines.AddRange(_posts.RowsOf(at, width, Draw));
-            lines.Add(Line.Blank);
+            lines.Add(Line.Rule(width));
         }
 
         return lines;

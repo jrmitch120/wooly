@@ -26,7 +26,25 @@ public static class PostLines
     /// <summary>What stands in front of an attachment that is linked rather than drawn.</summary>
     private const string LinkMark = "⏵";
 
-    /// <summary>One post as a feed shows it: a byline, the text, what is attached, and the three counts.</summary>
+    /// <summary>
+    ///     How many columns an author's avatar takes, beside the two rows of their byline — four wide and two tall
+    ///     being about square in a cell twice as tall as it is wide, which is the shape an avatar is.
+    /// </summary>
+    /// <remarks>
+    ///     Fixed rather than worked out from the picture's own proportions the way an attachment's box is
+    ///     (<see cref="Inset.For" />), because this box is not sized to a picture: it is a slot in a byline, and a
+    ///     byline whose height depended on how square somebody's avatar happened to be would be a feed whose rows
+    ///     moved as it scrolled.
+    /// </remarks>
+    private const int AvatarColumns = 4;
+
+    /// <summary>How many rows the avatar stands beside, which is the two the byline takes.</summary>
+    private const int AvatarRows = 2;
+
+    /// <summary>
+    ///     One post as a feed shows it: what it boosts and what it answers, a two-row byline with the author's avatar
+    ///     beside it, the text, what is attached, and the three counts behind a blank of their own.
+    /// </summary>
     /// <param name="post">The post, which may be a boost of another one.</param>
     /// <param name="width">How many columns there are, which at an 80-column terminal is 61.</param>
     /// <param name="revealed">Whether the reader has asked to see past a content warning.</param>
@@ -53,17 +71,22 @@ public static class PostLines
             ]));
         }
 
-        lines.Add(Byline(shown, width, now));
+        lines.AddRange(Answering(shown, width));
+        lines.AddRange(Byline(shown, width, now, pictures));
         lines.AddRange(Body(shown, width, revealed));
         lines.AddRange(Media(shown, width, pictures, Inset.FeedRows));
+
+        // A blank ahead of the counts, so the three marks read as a footer rather than as one more line of the post
+        // — which is how they read with nothing between them and the body (#62).
+        lines.Add(Line.Blank);
         lines.Add(Counts(shown, spelledOut: false));
 
         return lines;
     }
 
     /// <summary>
-    ///     The post whole, as the screen you drilled into: the same content, with the byline broken across two rows
-    ///     and the moment said exactly rather than as an age.
+    ///     The post whole, as the screen you drilled into: the same content and the same rows above the byline, with
+    ///     the moment said exactly rather than as an age and the counts spelled out.
     /// </summary>
     /// <inheritdoc cref="Feed" />
     public static IReadOnlyList<Line> Whole(
@@ -74,27 +97,33 @@ public static class PostLines
         IPictures? pictures = null)
     {
         var shown = post.Boosted ?? post;
-
-        var lines = new List<Line>
-        {
-            Line.Of(TextWrap.Clip(shown.Author, width), Role.BylineName),
-            Line.Of(TextWrap.Clip($"@{shown.Account}", width), Role.BylineHandle),
-            Line.Of([
-                new Span(Elapsed.Moment(shown.PostedAt), Role.Muted),
-                new Span(" · ", Role.Muted),
-                new Span($"{Audience(shown.Visibility)} {PostVisibilityName.Of(shown.Visibility)}", Role.Audience),
-            ]),
-            Line.Blank,
-        };
+        var lines = new List<Line>();
 
         if (post.Boosted is not null)
         {
-            lines.Insert(0, Line.Of([
+            lines.Add(Line.Of([
                 new Span("↺ ", post.Marks.Boosted ? Role.BoostMine : Role.Boost),
                 new Span(TextWrap.Clip($"boosted by {post.Author}", width - 2), Role.Muted),
             ]));
         }
 
+        lines.AddRange(Answering(shown, width));
+
+        var avatar = Portrait.Of(shown, pictures);
+        var room = Math.Max(0, width - avatar.Columns);
+
+        lines.Add(avatar.Beside(Line.Of(TextWrap.Clip(shown.Author, room), Role.BylineName), top: true));
+        lines.Add(avatar.Beside(Line.Of(TextWrap.Clip($"@{shown.Account}", room), Role.BylineHandle)));
+
+        // The moment said exactly rather than as an age. Stepped in with the two rows above it though the avatar's box
+        // has run out: three rows starting in one column and a fourth starting in another would read as two things.
+        lines.Add(avatar.Beside(Line.Of([
+            new Span(Elapsed.Moment(shown.PostedAt), Role.Muted),
+            new Span(" · ", Role.Muted),
+            new Span($"{Audience(shown.Visibility)} {PostVisibilityName.Of(shown.Visibility)}", Role.Audience),
+        ])));
+
+        lines.Add(Line.Blank);
         lines.AddRange(Body(shown, width, revealed));
         lines.AddRange(Media(shown, width, pictures, Inset.WholeRows));
         lines.Add(Line.Blank);
@@ -114,27 +143,116 @@ public static class PostLines
     };
 
     /// <summary>
-    ///     The name, the handle, and — pushed to the right — the audience and how long ago. The right-hand pair is laid
-    ///     out first and the byline gets whatever is left, because a name is the thing there is most of and the least
-    ///     harm in cutting.
+    ///     What a reply answers, on the row above the byline — or nothing at all, for a post that answers nothing.
     /// </summary>
-    private static Line Byline(Post post, int width, DateTimeOffset now)
+    /// <remarks>
+    ///     Worded by <see cref="PostReplyName" /> rather than here, because the CLI's post report says the same thing
+    ///     about the same post and the two saying it differently is the whole reason that lives in <c>Wooly.Core</c>
+    ///     (#63).
+    ///     <para>
+    ///         The slot the boost row already owns, and under it where a post is both: boost first, then this, then
+    ///         the byline, so the two rows above a byline are always in the same two places. All
+    ///         <see cref="Role.Muted" /> — it says which post this is, not what the post says.
+    ///     </para>
+    /// </remarks>
+    private static IEnumerable<Line> Answering(Post post, int width)
     {
-        var age = Elapsed.Since(post.PostedAt, now);
-        var tail = $"{Audience(post.Visibility)} {age}";
-        var room = Math.Max(0, width - tail.Length - 1);
+        if (PostReplyName.Of(post) is { } mark)
+        {
+            yield return Line.Of(TextWrap.Clip(mark, width), Role.Muted);
+        }
+    }
 
-        var name = TextWrap.Clip(post.Author, room);
-        var handle = TextWrap.Clip($"@{post.Account}", Math.Max(0, room - name.Length - 1));
+    /// <summary>
+    ///     Two rows: the name with the audience and how long ago pushed to the right of it, then the handle — with the
+    ///     author's avatar standing beside both. The right-hand pair is laid out first and the name gets whatever is
+    ///     left, because a name is the thing there is most of and the least harm in cutting.
+    /// </summary>
+    /// <remarks>
+    ///     One row until #62, where a feed of short posts turned out to read as one undifferentiated column of text
+    ///     and the byline was the whole of what said where a post began. Costs two rows — the split, plus the blank
+    ///     the two-row shape wants ahead of the body — and five columns, spent on these rows alone: the body, the
+    ///     media and the counts stay full width, because this is a byline with a picture in it rather than an indent.
+    /// </remarks>
+    private static IEnumerable<Line> Byline(Post post, int width, DateTimeOffset now, IPictures? pictures)
+    {
+        var avatar = Portrait.Of(post, pictures);
+        var room = Math.Max(0, width - avatar.Columns);
 
-        var used = name.Length + (handle.Length > 0 ? handle.Length + 1 : 0);
+        var tail = $"{Audience(post.Visibility)} {Elapsed.Since(post.PostedAt, now)}";
+        var name = TextWrap.Clip(post.Author, Math.Max(0, room - tail.Length - 1));
 
-        return Line.Of([
-            new Span(name, Role.BylineName),
-            new Span(handle.Length > 0 ? $" {handle}" : string.Empty, Role.BylineHandle),
-            new Span(new string(' ', Math.Max(1, width - used - tail.Length)), Role.Body),
-            new Span(tail, Role.Audience),
-        ]);
+        yield return avatar.Beside(
+            Line.Of([
+                new Span(name, Role.BylineName),
+                new Span(new string(' ', Math.Max(1, room - name.Length - tail.Length)), Role.Body),
+                new Span(tail, Role.Audience),
+            ]),
+            top: true);
+
+        yield return avatar.Beside(Line.Of(TextWrap.Clip($"@{post.Account}", room), Role.BylineHandle));
+
+        yield return Line.Blank;
+    }
+
+    /// <summary>
+    ///     The author's avatar as a byline spends it: the columns it takes, the picture to send for, and the box to
+    ///     draw it in once the pixels are here.
+    /// </summary>
+    /// <remarks>
+    ///     Nothing at all where no avatar will ever appear — a terminal offering neither sixel nor the Kitty graphics
+    ///     protocol, or an instance that named no avatar for this account. Five of sixty-one columns is too much to
+    ///     spend holding a space open for a picture that is never coming (ADR-0016).
+    ///     <para>
+    ///         Where one <em>is</em> coming the columns are taken from the first frame, before the pixels land, which
+    ///         is the opposite of what <see cref="Media" /> does with an attachment: an attachment's box appears under
+    ///         its description and pushes nothing sideways, where a byline that gained five columns on arrival would
+    ///         shove the name across the row as the reader was reading it.
+    ///     </para>
+    /// </remarks>
+    /// <param name="Wants">The avatar to send for, or <see langword="null" /> where none is drawn.</param>
+    /// <param name="Box">Where to draw it, or <see langword="null" /> while the pixels are still on their way.</param>
+    private readonly record struct Portrait(Drawn? Wants, Inset? Box)
+    {
+        /// <summary>How many columns it costs: the picture and the gap after it, or none.</summary>
+        public int Columns => Wants is null ? 0 : AvatarColumns + 1;
+
+        /// <summary>What <paramref name="post" />'s byline has to spend on its author's face.</summary>
+        public static Portrait Of(Post post, IPictures? pictures)
+        {
+            if (pictures?.Cell is null || post.AvatarUrl is not { } url)
+            {
+                return default;
+            }
+
+            var avatar = Drawn.Avatar(post.Account, url);
+
+            return new Portrait(
+                avatar,
+                pictures.Of(avatar) is null ? null : new Inset(avatar, Column: 0, AvatarColumns, AvatarRows));
+        }
+
+        /// <summary><paramref name="line" /> moved along to sit beside the avatar.</summary>
+        /// <remarks>
+        ///     The picture is named on the upper of the two rows and on neither where there is no avatar: a band is
+        ///     named once, at its top. <see cref="Line.After" /> is what shifts it along with everything else, so the
+        ///     gutter and the picture cannot come to disagree about which column they are in.
+        /// </remarks>
+        /// <param name="line">The row to move along.</param>
+        /// <param name="top">Whether this is the upper row — where the box is named and the picture sent for.</param>
+        public Line Beside(Line line, bool top = false)
+        {
+            if (Wants is null)
+            {
+                return line;
+            }
+
+            var beside = line.After(
+                new Span(new string(' ', AvatarColumns), Role.Media),
+                new Span(" ", Role.Body));
+
+            return top ? beside with { Insets = Box is null ? [] : [Box], Wants = Wants } : beside;
+        }
     }
 
     /// <summary>
@@ -204,10 +322,12 @@ public static class PostLines
 
             // The description first, so it does not move when the picture lands underneath it — and marked as wanting
             // a picture, which is how the view knows to send for one if this post is near enough to the screen.
-            yield return Described(attached, MediaMark, width) with { Wants = attached };
+            var drawn = Drawn.Attached(attached);
 
-            if (pictures.Of(attached) is { } picture
-                && Inset.For(attached, picture, cell, width, mostRows) is { } inset)
+            yield return Described(attached, MediaMark, width) with { Wants = drawn };
+
+            if (pictures.Of(drawn) is { } picture
+                && Inset.For(drawn, picture, cell, width, mostRows) is { } inset)
             {
                 foreach (var line in Box(inset))
                 {

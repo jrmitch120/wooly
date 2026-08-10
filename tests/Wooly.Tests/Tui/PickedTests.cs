@@ -56,14 +56,44 @@ public class PickedTests
         Assert.Equal([0, 1, 2], items);
     }
 
-    /// <summary>The blank between two things belongs to neither, so a page that begins on one begins on a thing.</summary>
+    /// <summary>
+    ///     A rule, not a blank line, is what says one thing has ended and the next begun — variant F of the six
+    ///     prototyped for #62. A feed of short posts read as one undifferentiated column of text without it.
+    /// </summary>
     [Fact]
-    public void Rows_LeavesTheBlankBetweenTwoThingsPartOfNeither()
+    public void Rows_SeparatesTwoThingsWithARuleRatherThanABlank()
+    {
+        var lines = Three().Rows(61, Draw);
+
+        var rules = lines.Where(line => line.Item is null).ToList();
+
+        Assert.Equal(3, rules.Count);
+        Assert.All(rules, rule => Assert.Equal(new string('─', 61), rule.Text));
+        Assert.All(rules, rule => Assert.Equal(Role.Muted, rule.Role));
+    }
+
+    /// <summary>The rule between two things belongs to neither, so a page that begins on one begins on a thing.</summary>
+    [Fact]
+    public void Rows_LeavesTheRuleBetweenTwoThingsPartOfNeither()
     {
         var lines = Three().Rows(61, Draw);
 
         Assert.Equal(6, lines.Count);
-        Assert.All(lines.Where(line => line.Spans.Count == 0), line => Assert.Null(line.Item));
+        Assert.All(lines.Where(line => line.Item is null), line => Assert.False(line.Has(Role.Selection)));
+    }
+
+    /// <summary>
+    ///     The rule runs the whole width, gutter column included — which is where it cannot collide with
+    ///     <see cref="Role.Selection" />'s <c>▌</c>, since the two are never on the same row.
+    /// </summary>
+    [Fact]
+    public void Rule_RunsTheWholeWidthAndCarriesNoSelection()
+    {
+        var rule = Line.Rule(61);
+
+        Assert.Equal(61, rule.Width);
+        Assert.Null(rule.Item);
+        Assert.False(rule.Has(Role.Selection));
     }
 
     /// <summary>
@@ -220,7 +250,7 @@ public class PickedTests
     ///     so that interleaving something is still not stamping anything.
     /// </summary>
     [Fact]
-    public void RowsOf_StampsOneThingAndLeavesTheBlankToTheScreen()
+    public void RowsOf_StampsOneThingAndLeavesTheRuleToTheScreen()
     {
         var picked = Three();
 

@@ -121,7 +121,13 @@ public class ShellKeyTests
         }
     }
 
-    /// <summary>A shell of four posts on a window with room for ten rows, laid out and ready for keys.</summary>
+    /// <summary>A shell of four posts on a window with room for eighteen rows, laid out and ready for keys.</summary>
+    /// <remarks>
+    ///     Room enough for two and a half of them, which is what these tests need: a window is laid out here but never
+    ///     painted, so the scroll stays where it started and a selection walked past the foot of the page is one
+    ///     <c>j</c> reclaims rather than steps from. A post takes seven rows since #77 gave it a two-row byline, a
+    ///     footer blank and a rule.
+    /// </remarks>
     private static async Task<(ShellWindow Window, Wooly.Tui.Shell.Shell Shell)> Opened()
     {
         var built = new AShell
@@ -138,7 +144,7 @@ public class ShellKeyTests
         var window = new ShellWindow(shell, Themes.Plain, built.Clock, () => { }, FakePictures.DrawingNothing())
         {
             Width = 80,
-            Height = 12,
+            Height = 20,
         };
 
         window.Layout();
