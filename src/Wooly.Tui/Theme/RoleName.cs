@@ -20,6 +20,7 @@ public static class RoleName
         [Role.ContentWarning] = "content-warning",
         [Role.Media] = "media",
         [Role.Poll] = "poll",
+        [Role.ReferencePicked] = "reference-picked",
         [Role.Boost] = "boost",
         [Role.BoostMine] = "boost-mine",
         [Role.Favorite] = "favorite",

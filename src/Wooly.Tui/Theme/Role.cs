@@ -50,6 +50,13 @@ public enum Role
     /// <summary>A poll's options and their bars. Carried without colour by the bar itself.</summary>
     Poll,
 
+    /// <summary>
+    ///     The brackets around a picked reference — a hashtag, mention, or address picked inside a post's text.
+    ///     Independent of whatever role the bracketed text already carries. Carried without colour by <c>‹ ›</c>,
+    ///     always drawn.
+    /// </summary>
+    ReferencePicked,
+
     /// <summary>The boost mark. Carried without colour by <c>↺</c>.</summary>
     Boost,
 
