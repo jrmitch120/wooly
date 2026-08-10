@@ -20,6 +20,86 @@ public partial class RoleTests
 {
     private static readonly DateTimeOffset Now = new(2026, 7, 29, 12, 30, 0, TimeSpan.Zero);
 
+    /// <summary>
+    ///     Walks every role in the contract and asserts some view actually emits it — the test that would have caught
+    ///     <see cref="Role.Poll" /> sitting dead in the contract, themed and documented with nothing ever drawing it,
+    ///     before this ticket wired a poll's block bars to it (#80).
+    /// </summary>
+    /// <remarks>
+    ///     <see cref="Role.ReferencePicked" /> is the contract's one other still-dead role, and is exempted here
+    ///     rather than left to fail a test this ticket did not touch: walking references is #83/#85, tracked and
+    ///     unstarted, not a role this poll work has any business wiring up. Removing the exemption is the acceptance
+    ///     criterion of whichever of those lands the walk.
+    /// </remarks>
+    [Fact]
+    public void EveryRoleInTheContractIsEmittedBySomeView()
+    {
+        var seen = new HashSet<Role>();
+
+        void Collect(IEnumerable<Line> lines)
+        {
+            foreach (var line in lines)
+            {
+                foreach (var span in line.Spans)
+                {
+                    seen.Add(span.Role);
+                }
+            }
+        }
+
+        var mine = APost.With(
+            marks: APost.Marked(boosted: true, favorited: true, pinned: true),
+            contentWarning: "spoilers",
+            content: "Thanks @maria@fosstodon.org — notes at https://example.com/notes #dotnet",
+            media: [APost.APicture()],
+            poll: APost.APoll(multipleChoice: true, voters: 4));
+
+        // Revealed, so the content warning's own row and the text behind it — carrying the hashtag, mention and
+        // address roles — are both drawn; an unrevealed warning stands in front of the text instead.
+        Collect(PostLines.Feed(mine, 61, revealed: true, Now, FakePictures.With()));
+        Collect(PostLines.Feed(
+            APost.With(media: [APost.APicture(description: null)]),
+            61,
+            revealed: false,
+            Now,
+            FakePictures.With()));
+        Collect(PostLines.Whole(mine, 61, revealed: true, Now));
+
+        var feedScreen = new FeedScreen(
+            new Destination(DestinationKind.Home, "Home", Wooly.Core.Timelines.Timeline.Home),
+            [APost.With(id: "1"), APost.With(id: "2")]);
+        Collect(feedScreen.Lines(61, Now));
+
+        var host = new FakeShellHost();
+        var rail = new Rail(
+            [
+                new Destination(DestinationKind.Home, "Home"),
+                new Destination(DestinationKind.Notifications, "Notifications") { Unread = 4 },
+            ],
+            host,
+            TimeSpan.FromMilliseconds(250));
+        rail.Step(1);
+        Collect(RailLines.Of(rail, new RateLimitQuota(213, 300, null), 10));
+        Collect(RailLines.Of(rail, new RateLimitQuota(5, 300, null), 10));
+
+        Collect([ChromeLines.Breadcrumb("home", fetching: true, 61)]);
+        Collect([
+            ChromeLines.Status(
+                [],
+                notice: null,
+                noticeIsError: false,
+                new Confirmation("Delete post 110? This cannot be undone."),
+                80),
+        ]);
+        Collect([ChromeLines.Status([], "Only your own posts can be deleted.", noticeIsError: true, null, 80)]);
+        Collect([ChromeLines.Status([new KeyHint("⏎", "read")], null, noticeIsError: false, asking: null, 80)]);
+
+        var exempt = new[] { Role.ReferencePicked };
+        var missing = Enum.GetValues<Role>().Except(seen).Except(exempt).ToList();
+
+        Assert.Empty(missing);
+    }
+
     /// <summary>Every role in the contract has a name, and the built-in theme has an answer for it.</summary>
     [Fact]
     public void Theme_AnswersEveryRoleInTheContract()
