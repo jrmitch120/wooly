@@ -1,8 +1,10 @@
 namespace Wooly.Tui.Shell;
 
 /// <summary>
-///     The rail, and the two marks it carries. <c>▶</c> is the cursor, where the tabbing has got to; <c>▸</c> is the
-///     selection, what is actually being shown. They are separate because they answer to different things (ADR-0014).
+///     The rail, and the cursor and selection it tracks separately because they answer to different things
+///     (ADR-0014). <c>Cursor</c> is where the tabbing has got to, drawn <c>▶</c>; <c>Current</c> is what is actually
+///     being shown, drawn <c>▷</c> only while it differs from the cursor — the two coincide at rest, so a row shows
+///     at most one mark (#78).
 ///     <para>
 ///         The cursor moves on every press, immediately, because a key that draws nothing for a quarter of a second
 ///         reads as lag however much work it is saving. The selection follows it only when the pressing stops for
@@ -54,7 +56,7 @@ public sealed class Rail
     /// <summary>Where the tabbing has got to, drawn as <c>▶</c>.</summary>
     public int Cursor { get; private set; }
 
-    /// <summary>What is being shown, drawn as <c>▸</c>.</summary>
+    /// <summary>What is being shown, drawn as <c>▷</c> only while it differs from <see cref="Cursor" />.</summary>
     public int Current { get; private set; }
 
     /// <summary>The destination being shown.</summary>

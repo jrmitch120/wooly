@@ -78,7 +78,10 @@ public enum Role
     /// <summary>A rail destination.</summary>
     Rail,
 
-    /// <summary>The rail destination that is selected. Carried without colour by <c>▸</c>, with <c>▶</c> for the cursor.</summary>
+    /// <summary>
+    ///     The rail destination that is selected. Carried without colour by <c>▷</c> while it differs from the
+    ///     cursor's row, which takes <c>▶</c>; the two coincide at rest, so only <c>▶</c> shows.
+    /// </summary>
     RailCurrent,
 
     /// <summary>An unread count on the rail. Carried without colour by the number's presence.</summary>

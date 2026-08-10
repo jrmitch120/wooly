@@ -15,11 +15,14 @@ public static class RailLines
     /// <summary>How wide the rail is, which is what leaves the content 61 columns at an 80-column terminal.</summary>
     public const int Width = 18;
 
-    /// <summary>Where the cursor is — where the tabbing has got to.</summary>
+    /// <summary>Where the cursor is — where the tabbing has got to. Shown on the cursor's row however it stands.</summary>
     private const string CursorMark = "▶";
 
-    /// <summary>What is selected — what is actually on screen.</summary>
-    private const string SelectedMark = "▸";
+    /// <summary>
+    ///     Where the selection has settled, shown only while it differs from the cursor — the ~250ms of a settle
+    ///     window, and never at rest, since the two coincide there and the filled mark already covers the row (#78).
+    /// </summary>
+    private const string SettledMark = "▷";
 
     /// <summary>Below this share of the budget, the quota is drawn as nearly spent.</summary>
     private const double NearlySpent = 0.1;
@@ -70,13 +73,13 @@ public static class RailLines
         var destination = rail.Destinations[at];
         var role = at == rail.Current ? Role.RailCurrent : Role.Rail;
 
-        var marks = $"{(at == rail.Cursor ? CursorMark : " ")}{(at == rail.Current ? SelectedMark : " ")}";
+        var mark = at == rail.Cursor ? CursorMark : at == rail.Current ? SettledMark : " ";
         var unread = destination.Unread > 0 ? destination.Unread.ToString(CultureInfo.CurrentCulture) : string.Empty;
-        var room = Width - marks.Length - 1 - unread.Length;
+        var room = Width - mark.Length - 1 - unread.Length;
         var label = TextWrap.Clip(destination.Label, room).PadRight(room);
 
         return Line.Of([
-            new Span($"{marks} ", role),
+            new Span($"{mark} ", role),
             new Span(label, role),
             new Span(unread, unread.Length > 0 ? Role.RailUnread : role),
         ]);

@@ -239,9 +239,9 @@ public partial class RoleTests
         Assert.NotEqual(picked.Count + after.Count, screen.Lines(61, Now).Count);
     }
 
-    /// <summary>The rail's two marks live in the same left column, and the unread count takes its own role.</summary>
+    /// <summary>The rail's one mark column, and the unread count taking its own role.</summary>
     [Fact]
-    public void Rail_DrawsItsTwoMarksAndItsUnreadCounts()
+    public void Rail_DrawsItsOneMarkColumnAndItsUnreadCounts()
     {
         var host = new FakeShellHost();
         var rail = new Rail(
@@ -257,8 +257,8 @@ public partial class RoleTests
 
         var lines = RailLines.Of(rail, quota: null, height: 10);
 
-        // The cursor has moved and the selection has not, so the two marks are on different rows.
-        Assert.StartsWith(" ▸", lines[0].Text, StringComparison.Ordinal);
+        // The cursor has moved and the selection has not, so the hollow and filled marks are on different rows.
+        Assert.StartsWith("▷ ", lines[0].Text, StringComparison.Ordinal);
         Assert.StartsWith("▶ ", lines[1].Text, StringComparison.Ordinal);
 
         Assert.Equal(Role.RailCurrent, lines[0].Spans[0].Role);
