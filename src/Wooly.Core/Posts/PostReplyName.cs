@@ -27,8 +27,22 @@ public static class PostReplyName
         return answered.Handle switch
         {
             null => "↳ reply",
-            var handle when handle == post.Account => "↳ continuing",
-            var handle => $"↳ answering @{handle}",
+            var handle => Answering(handle, mine: handle == post.Account),
         };
     }
+
+    /// <summary>
+    ///     The mark for a reply to <paramref name="handle" />, said by whoever already knows whose post is being
+    ///     answered rather than working it back off a wire field.
+    /// </summary>
+    /// <remarks>
+    ///     Split out for the compose screen (#82), which holds the whole post it answers and is told by
+    ///     <c>Shell.IsMine</c> whether it is the profile's own — so it can say this without a post whose
+    ///     <see cref="Post.InReplyTo" /> has been filled in, which a reply still being written has not got. The bare
+    ///     "↳ reply" of <see cref="Of" /> has no caller here: that one is for an answered account a post does not
+    ///     itself name, and compose is never missing the name.
+    /// </remarks>
+    /// <param name="handle">Whose post is being answered.</param>
+    /// <param name="mine">Whether that post is the answering account's own, which makes this a thread continued.</param>
+    public static string Answering(string handle, bool mine) => mine ? "↳ continuing" : $"↳ answering @{handle}";
 }

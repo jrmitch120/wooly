@@ -28,6 +28,8 @@ public enum ComposeFor
 /// </remarks>
 public sealed class ComposeScreen : Screen
 {
+    private readonly bool _aboutIsMine;
+
     /// <param name="purpose">What this screen was opened to do.</param>
     /// <param name="about">The post being replied to or edited.</param>
     /// <param name="addressing">
@@ -54,8 +56,6 @@ public sealed class ComposeScreen : Screen
 
         Text = Opening;
     }
-
-    private readonly bool _aboutIsMine;
 
     /// <summary>What this screen was opened to do.</summary>
     public ComposeFor Purpose { get; }
@@ -104,7 +104,7 @@ public sealed class ComposeScreen : Screen
         IPictures? pictures = null,
         bool hideDrawnCaption = false)
     {
-        var lines = new List<Line>(AboveEditor(width));
+        var lines = new List<Line>(Answering(width));
 
         lines.AddRange(TextWrap.Wrap(Text.Length == 0 ? " " : Text, width).Select(row => Line.Of(row, Role.Body)));
 
@@ -112,18 +112,19 @@ public sealed class ComposeScreen : Screen
     }
 
     /// <summary>
-    ///     How many rows <see cref="AboveEditor" /> takes up at <paramref name="width" /> — the room the shell has to
+    ///     How many rows <see cref="Answering" /> takes up at <paramref name="width" /> — the room the shell has to
     ///     leave above the live editor so the two do not draw over one another, since the editor is a separate view
     ///     laid on top of the one these rows are painted on rather than a row range inside it.
     /// </summary>
-    public int AboveEditorHeight(int width) => AboveEditor(width).Count;
+    public int AnsweringHeight(int width) => Answering(width).Count;
 
     /// <summary>
     ///     What is being answered, which stays on screen above the editor — the thing the rejected "editor under the
-    ///     feed" was for. It costs four rows here and no layout at all. The label reads the same as the feed's own
-    ///     reply mark (#82) — no bare "↳ reply" here, since compose always holds the full post it answers.
+    ///     feed" was for. It costs four rows here and no layout at all. The label is the feed's own reply mark, said
+    ///     by the one thing that says it (<see cref="PostReplyName" />, #82) — never the bare "↳ reply", since compose
+    ///     always holds the full post it answers.
     /// </summary>
-    private IReadOnlyList<Line> AboveEditor(int width)
+    private IReadOnlyList<Line> Answering(int width)
     {
         if (About is not { } answered || Purpose != ComposeFor.Reply)
         {
@@ -131,7 +132,7 @@ public sealed class ComposeScreen : Screen
         }
 
         var lines = new List<Line>();
-        var label = _aboutIsMine ? "↳ continuing" : $"↳ answering @{answered.Account}";
+        var label = PostReplyName.Answering(answered.Account, _aboutIsMine);
         lines.Add(Line.Of(TextWrap.Clip(label, width), Role.Muted));
 
         foreach (var row in TextWrap.Wrap(answered.Content, Math.Max(1, width - 2)).Take(3))

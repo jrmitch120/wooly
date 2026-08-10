@@ -77,7 +77,13 @@ internal sealed class PaintedView : View
     ///     Whether this view scrolls at all. The content region does; the rail and the two chrome rows are always as
     ///     tall as what they hold.
     /// </summary>
-    public bool Scrolls { get; init; }
+    /// <remarks>
+    ///     Settable rather than fixed at construction because the content region stops scrolling while a post is being
+    ///     written, which ADR-0015 settled ("You cannot scroll the timeline while composing") and nothing enforced.
+    ///     Turning it off pins the offset back to the top on the next frame, so a region already scrolled away is put
+    ///     right rather than merely frozen where it was left.
+    /// </remarks>
+    public bool Scrolls { get; set; }
 
     /// <summary>
     ///     The item <c>j</c> and <c>k</c> should take back — the topmost one on the page — or <see langword="null" />

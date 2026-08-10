@@ -26,6 +26,21 @@ internal sealed class ShellWindow : Window
     /// </summary>
     private const int RowsAPress = 3;
 
+    /// <summary>The first row under the breadcrumb, where the content region and anything laid over it begin.</summary>
+    private const int ContentTop = 1;
+
+    /// <summary>
+    ///     What the content region answers to among its siblings — four regions are painted the same way and only
+    ///     this one shows posts, so it is the one worth being able to name.
+    /// </summary>
+    internal const string ContentId = "content";
+
+    /// <summary>
+    ///     The fewest rows the editor is ever left with, however much of what is being answered wants to sit above it
+    ///     (<see cref="EditorTop" />). Three: a line being written, and one either side of it to see.
+    /// </summary>
+    private const int LeastEditorRows = 3;
+
     private readonly PaintedView _content;
     private readonly ComposeEditor _editor;
     private readonly Shell.Shell _shell;
@@ -83,14 +98,16 @@ internal sealed class ShellWindow : Window
         };
 
         // The one region that shows posts, so the one region with pictures to draw in place (docs/tui-shell.md) — and
-        // the one that scrolls, which is why the arrow keys below are handed to it and to nothing else.
+        // the one that scrolls, which is why the arrow keys below are handed to it and to nothing else. It stops
+        // scrolling while a post is being written, which Refresh settles.
         _content = new PaintedView(
             theme,
             (width, _) => shell.Screen.Lines(width, clock.GetUtcNow(), pictures, hideDrawnCaption),
             pictures)
         {
+            Id = ContentId,
             X = RailLines.Width + 1,
-            Y = 1,
+            Y = ContentTop,
             Width = Dim.Fill(),
             Height = Dim.Fill(1),
             CanFocus = false,
@@ -103,10 +120,11 @@ internal sealed class ShellWindow : Window
             // A reply's "answering" block is painted on _content, which this sits in front of and exactly the same
             // size as (below) — so without this, the block is never seen: the editor is opaque and covers it on every
             // frame it is visible. Dim.Fill(1) starting from here still reaches the same floor it always did.
-            // The second argument is "the view where the data will be retrieved" (Pos.Func's own words) — omitting it
-            // defaults to null, which is what the first attempt at this did: EditorTop got no Viewport to measure, so
-            // Y silently stayed 1 forever.
-            Y = Pos.Func(EditorTop, this),
+            // The second argument is the view the function is handed (Pos.Func's own words: "the view where the data
+            // will be retrieved") — _content, because it is _content's own width the block is wrapped against, and
+            // measuring anything else means deriving that width a second way. Omitting it defaults to null, which is
+            // what the first attempt at this did: EditorTop got no Viewport to measure, so Y silently stayed 1 forever.
+            Y = Pos.Func(EditorTop, _content),
             Width = Dim.Fill(),
             Height = Dim.Fill(1),
             Visible = false,
@@ -406,19 +424,37 @@ internal sealed class ShellWindow : Window
     }
 
     /// <summary>
-    ///     Where the editor starts: row 1, plus however many rows the screen it is covering wants for what it is
-    ///     answering — the block <see cref="ComposeScreen.AboveEditorHeight" /> counts, painted on <see cref="_content" />
-    ///     underneath and otherwise hidden by the editor sitting on top of it at the same position.
+    ///     Where the editor starts: the top of the content region, plus however many rows the screen underneath wants
+    ///     for what it is answering — the block <see cref="ComposeScreen.AnsweringHeight" /> counts, painted on
+    ///     <see cref="_content" /> and otherwise hidden by the editor sitting on top of it at the same position.
     /// </summary>
-    private int EditorTop(View? view)
+    /// <remarks>
+    ///     Never so far down that there is no editor left. The block is up to five rows and ADR-0015 priced the
+    ///     editor's share of a 24-row terminal at more than that, but a terminal can be any size, and
+    ///     <c>Dim.Fill(1)</c> from a row past the bottom is an editor nobody can type in. Pushed off the foot, what
+    ///     goes is the tail of what is being answered rather than the room to answer it.
+    /// </remarks>
+    /// <param name="content">
+    ///     <see cref="_content" />, handed over by <c>Pos.Func</c>. Its viewport is the region the block is wrapped
+    ///     against and shares a foot with the editor, so both the width to measure at and the room to leave come off
+    ///     the one view — rather than off this window, whose own viewport counts the rail and would have to have it
+    ///     taken back off.
+    /// </param>
+    private int EditorTop(View? content)
     {
-        // view is this window itself (passed as Pos.Func's second argument), whose Viewport is the whole frame —
-        // rail included — so the rail's width has to come off before this matches what _content wraps against.
-        var contentWidth = (view?.Viewport.Width ?? 0) - (RailLines.Width + 1);
+        var width = content?.Viewport.Width ?? 0;
+        var height = content?.Viewport.Height ?? 0;
 
-        return 1 + (contentWidth > 0 && _shell.Screen is ComposeScreen compose
-            ? compose.AboveEditorHeight(contentWidth)
-            : 0);
+        if (width <= 0 || _shell.Screen is not ComposeScreen compose)
+        {
+            return ContentTop;
+        }
+
+        // The editor runs from here to the same foot _content does, so whatever is spent above it comes straight off
+        // its own height — which makes the room to leave a subtraction rather than a second layout.
+        var answering = Math.Min(compose.AnsweringHeight(width), Math.Max(0, height - LeastEditorRows));
+
+        return ContentTop + answering;
     }
 
     private async Task Send()
@@ -452,6 +488,13 @@ internal sealed class ShellWindow : Window
         }
 
         var composing = _shell.Screen is ComposeScreen;
+
+        // Nothing below the block being answered is readable while composing — the editor is in front of all of it —
+        // so scrolling the region can only take that block away and put rows nobody can place in its stead. ADR-0015
+        // priced this as "you cannot scroll the timeline while composing" and left it to the editor to make true,
+        // which it does not: a key the editor declines at the end of its own text still reaches this window, and a
+        // screen with nothing picked out on it is one Scroll.To never scrolls back.
+        _content.Scrolls = !composing;
 
         if (composing && !_editor.Visible)
         {

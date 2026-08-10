@@ -1051,7 +1051,7 @@ public sealed class Shell
             purpose,
             purpose == ComposeFor.Post ? null : about,
             purpose == ComposeFor.Reply ? Addressed(about!) : null,
-            purpose == ComposeFor.Reply && IsMine(about!)));
+            aboutIsMine: purpose == ComposeFor.Reply && IsMine(about!)));
     }
 
     /// <summary>
