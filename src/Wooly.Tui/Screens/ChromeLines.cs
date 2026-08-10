@@ -57,6 +57,64 @@ public static class ChromeLines
             return Line.Of(TextWrap.Clip($" {said}", width), noticeIsError ? Role.Error : Role.Muted);
         }
 
-        return Line.Of(TextWrap.Clip($" {string.Join(" · ", keys.Select(key => key.ToString()))}", width), Role.Chrome);
+        return new Line(Clipped([new Span(" ", Role.Chrome), .. KeySpans(keys)], width));
+    }
+
+    /// <summary>
+    ///     The status row's keys, each glued to its explanation (<see cref="KeyHint.Spans" />) and separated from the
+    ///     next by the same looser dot the rest of the shell uses.
+    /// </summary>
+    private static IEnumerable<Span> KeySpans(IReadOnlyList<KeyHint> keys)
+    {
+        for (var i = 0; i < keys.Count; i++)
+        {
+            if (i > 0)
+            {
+                yield return new Span(" · ", Role.Chrome);
+            }
+
+            foreach (var span in keys[i].Spans)
+            {
+                yield return span;
+            }
+        }
+    }
+
+    /// <summary>
+    ///     <paramref name="spans" /> cut to <paramref name="width" /> columns, each run kept in its own role up to the
+    ///     cut and the run straddling it clipped in place — the same one-ellipsis-at-the-edge rule
+    ///     <see cref="TextWrap.Clip" /> applies to a single string, spread across however many roles the text carries.
+    /// </summary>
+    private static IReadOnlyList<Span> Clipped(IReadOnlyList<Span> spans, int width)
+    {
+        var result = new List<Span>();
+        var used = 0;
+
+        foreach (var span in spans)
+        {
+            if (used >= width)
+            {
+                break;
+            }
+
+            if (used + span.Width <= width)
+            {
+                result.Add(span);
+                used += span.Width;
+
+                continue;
+            }
+
+            var clipped = TextWrap.Clip(span.Text, width - used);
+
+            if (clipped.Length > 0)
+            {
+                result.Add(new Span(clipped, span.Role));
+            }
+
+            break;
+        }
+
+        return result;
     }
 }
