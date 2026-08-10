@@ -43,7 +43,17 @@ internal sealed class ShellWindow : Window
     ///     the run loop and this window is one of the things running in it.
     /// </param>
     /// <param name="pictures">Where a drawn attachment's pixels come from.</param>
-    public ShellWindow(Shell.Shell shell, ITheme theme, TimeProvider clock, Action quit, IPictures pictures)
+    /// <param name="hideDrawnCaption">
+    ///     The reader's <c>hide_drawn_caption</c> preference (#71): whether a picture's caption hides once it is
+    ///     actually drawn.
+    /// </param>
+    public ShellWindow(
+        Shell.Shell shell,
+        ITheme theme,
+        TimeProvider clock,
+        Action quit,
+        IPictures pictures,
+        bool hideDrawnCaption = false)
     {
         _shell = shell;
         _clock = clock;
@@ -76,7 +86,7 @@ internal sealed class ShellWindow : Window
         // the one that scrolls, which is why the arrow keys below are handed to it and to nothing else.
         _content = new PaintedView(
             theme,
-            (width, _) => shell.Screen.Lines(width, clock.GetUtcNow(), pictures),
+            (width, _) => shell.Screen.Lines(width, clock.GetUtcNow(), pictures, hideDrawnCaption),
             pictures)
         {
             X = RailLines.Width + 1,

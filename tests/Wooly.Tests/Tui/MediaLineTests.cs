@@ -425,4 +425,87 @@ public class MediaLineTests
         Assert.Empty(Line.Blank.Insets);
         Assert.Empty(Line.Of("anything", Role.Body).Insets);
     }
+
+    /// <summary>
+    ///     Issue #71. The second acceptance criterion: <c>hide_drawn_caption</c> hides <c>Described</c> only once a
+    ///     picture is actually drawn — the same branch that emits <c>Box(inset)</c>.
+    /// </summary>
+    [Fact]
+    public void Feed_HidesTheCaptionOnceThePictureIsActuallyDrawnWhenAskedTo()
+    {
+        var lines = PostLines.Feed(
+            APost.With(media: [APost.APicture(description: "A cartoon sheep")]),
+            61,
+            revealed: false,
+            Now,
+            FakePictures.With().Holding("m1", 400, 300),
+            hideDrawnCaption: true);
+
+        Assert.NotEmpty(lines.SelectMany(line => line.Insets));
+        Assert.DoesNotContain(lines, line => line.Text.Contains("A cartoon sheep", StringComparison.Ordinal));
+    }
+
+    /// <summary>The default: absent (or explicitly off) still shows the caption above a drawn picture.</summary>
+    [Fact]
+    public void Feed_KeepsTheCaptionOnceDrawnByDefault()
+    {
+        var lines = PostLines.Feed(
+            APost.With(media: [APost.APicture(description: "A cartoon sheep")]),
+            61,
+            revealed: false,
+            Now,
+            FakePictures.With().Holding("m1", 400, 300));
+
+        Assert.Contains(lines, line => line.Text.Contains("▒▒▒▒ A cartoon sheep", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    ///     The third acceptance criterion, first half: a terminal that cannot draw at all keeps showing the caption —
+    ///     the preference only ever removes what a box already stands in for.
+    /// </summary>
+    [Fact]
+    public void Feed_StillShowsTheCaptionOnATerminalThatCannotDrawEvenWhenAskedToHideIt()
+    {
+        var lines = PostLines.Feed(
+            APost.With(media: [APost.APicture(description: "A cartoon sheep")]),
+            61,
+            revealed: false,
+            Now,
+            FakePictures.DrawingNothing(),
+            hideDrawnCaption: true);
+
+        Assert.Contains(lines, line => line.Text.Contains("A cartoon sheep", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    ///     The third acceptance criterion, second half: a terminal that can draw but has not gotten this picture yet is
+    ///     treated the same as one that cannot draw at all — both keep the caption, so there is no arrival flicker.
+    /// </summary>
+    [Fact]
+    public void Feed_StillShowsTheCaptionWhileThePictureIsOnItsWayEvenWhenAskedToHideIt()
+    {
+        var lines = PostLines.Feed(
+            APost.With(media: [APost.APicture(description: "A cartoon sheep")]),
+            61,
+            revealed: false,
+            Now,
+            FakePictures.With(),
+            hideDrawnCaption: true);
+
+        Assert.Empty(lines.SelectMany(line => line.Insets));
+        Assert.Contains(lines, line => line.Text.Contains("▒▒▒▒ A cartoon sheep", StringComparison.Ordinal));
+    }
+
+    /// <summary>The fourth acceptance criterion: a feed item and the post screen hide it exactly alike.</summary>
+    [Fact]
+    public void Whole_HidesTheCaptionOnceThePictureIsActuallyDrawnTheSameAsAFeedItem()
+    {
+        var post = APost.With(media: [APost.APicture(description: "A cartoon sheep")]);
+        var pictures = FakePictures.With().Holding("m1", 400, 300);
+
+        var lines = PostLines.Whole(post, 61, revealed: false, Now, pictures, hideDrawnCaption: true);
+
+        Assert.NotEmpty(lines.SelectMany(line => line.Insets));
+        Assert.DoesNotContain(lines, line => line.Text.Contains("A cartoon sheep", StringComparison.Ordinal));
+    }
 }

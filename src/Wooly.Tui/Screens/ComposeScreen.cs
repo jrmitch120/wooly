@@ -91,7 +91,11 @@ public sealed class ComposeScreen : Screen
     ];
 
     /// <inheritdoc />
-    public override IReadOnlyList<Line> Lines(int width, DateTimeOffset now, IPictures? pictures = null)
+    public override IReadOnlyList<Line> Lines(
+        int width,
+        DateTimeOffset now,
+        IPictures? pictures = null,
+        bool hideDrawnCaption = false)
     {
         var lines = new List<Line>();
 

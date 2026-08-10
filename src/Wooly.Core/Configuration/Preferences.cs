@@ -17,4 +17,12 @@ public sealed record Preferences
     ///     same four for everybody and a tag worth a permanent place on the rail is not.
     /// </summary>
     public string? Hashtag { get; init; }
+
+    /// <summary>
+    ///     Whether a picture's caption, <c>Described</c>, hides once the picture is actually drawn on screen.
+    ///     <see langword="false" /> (absent, today's behavior) always shows it. A terminal that cannot draw at all and
+    ///     one that can but has not gotten this picture yet both keep showing it — there is no reveal key once hidden
+    ///     (#71, <c>docs/tui-shell.md</c> "What media settled").
+    /// </summary>
+    public bool HideDrawnCaption { get; init; }
 }

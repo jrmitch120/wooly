@@ -59,7 +59,15 @@ public abstract class Screen
     ///         attachment on a terminal that draws nothing becomes a link and a description instead (ADR-0016).
     ///     </para>
     /// </param>
-    public abstract IReadOnlyList<Line> Lines(int width, DateTimeOffset now, IPictures? pictures = null);
+    /// <param name="hideDrawnCaption">
+    ///     The reader's <c>hide_drawn_caption</c> preference: whether a picture's caption hides once it is actually
+    ///     drawn (#71). Ignored by a screen with no posts on it.
+    /// </param>
+    public abstract IReadOnlyList<Line> Lines(
+        int width,
+        DateTimeOffset now,
+        IPictures? pictures = null,
+        bool hideDrawnCaption = false);
 
     /// <summary>
     ///     The things on this screen with one of them picked out, or <see langword="null" /> where there is nothing on

@@ -21,6 +21,9 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
     /// <summary>The hashtag the TUI's rail keeps a destination for.</summary>
     private const string HashtagKey = "hashtag";
 
+    /// <summary>Whether a drawn picture's caption hides once the picture is actually drawn (#71).</summary>
+    private const string HideDrawnCaptionKey = "hide_drawn_caption";
+
     /// <summary>The theme the TUI draws in, and the themes written in this same file (#46).</summary>
     private const string ThemeKey = "theme";
 
@@ -61,7 +64,7 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
         }
 
         // Inserted before the profiles so the writer emits the short, general section above the long, per-profile one.
-        if (config.Preferences is { DefaultVisibility: not null } or { Hashtag: not null })
+        if (config.Preferences is { DefaultVisibility: not null } or { Hashtag: not null } or { HideDrawnCaption: true })
         {
             var preferences = new TomlTable();
 
@@ -73,6 +76,13 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
             if (config.Preferences.Hashtag is { } hashtag)
             {
                 preferences[HashtagKey] = hashtag;
+            }
+
+            // Absent rather than written as false: false is what an absent key already reads back as, and the reader
+            // who never asked for this should not find a new line in a file nothing else touched.
+            if (config.Preferences.HideDrawnCaption)
+            {
+                preferences[HideDrawnCaptionKey] = true;
             }
 
             root[PreferencesKey] = preferences;
@@ -258,6 +268,7 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
         {
             DefaultVisibility = ReadVisibility(stored),
             Hashtag = ReadHashtag(stored),
+            HideDrawnCaption = ReadBool(stored, HideDrawnCaptionKey),
         };
     }
 
@@ -293,6 +304,10 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
     private string? ReadString(TomlTable table, string key) => table.TryGetValue(key, out var value)
         ? value as string ?? throw new ConfigurationException(paths.ConfigFile, $"'{key}' must be text.")
         : null;
+
+    private bool ReadBool(TomlTable table, string key) => table.TryGetValue(key, out var value)
+        ? value as bool? ?? throw new ConfigurationException(paths.ConfigFile, $"'{key}' must be true or false.")
+        : false;
 
     private TomlTable? ReadTable(TomlTable table, string key) => table.TryGetValue(key, out var value)
         ? value as TomlTable ?? throw new ConfigurationException(paths.ConfigFile, $"'{key}' must be a section.")

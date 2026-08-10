@@ -84,7 +84,11 @@ public sealed class PostScreen : Screen
     }
 
     /// <inheritdoc />
-    public override IReadOnlyList<Line> Lines(int width, DateTimeOffset now, IPictures? pictures = null)
+    public override IReadOnlyList<Line> Lines(
+        int width,
+        DateTimeOffset now,
+        IPictures? pictures = null,
+        bool hideDrawnCaption = false)
     {
         // A blank rather than the rule that separates two replies below: the heading is already a ruled row, and two
         // of them stacked would read as a boundary twice over.
@@ -113,8 +117,8 @@ public sealed class PostScreen : Screen
         return lines;
 
         IReadOnlyList<Line> Draw(Post post, int at, int room) => at == 0
-            ? PostLines.Whole(post, room, Revealed.Has(post), now, pictures)
-            : PostLines.Feed(post, room, Revealed.Has(post), now, pictures);
+            ? PostLines.Whole(post, room, Revealed.Has(post), now, pictures, hideDrawnCaption)
+            : PostLines.Feed(post, room, Revealed.Has(post), now, pictures, hideDrawnCaption);
     }
 
     private string Heading(int width) =>

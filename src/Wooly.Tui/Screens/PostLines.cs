@@ -53,12 +53,17 @@ public static class PostLines
     ///     What this terminal can draw and what has arrived, or <see langword="null" /> where nothing is drawn — which
     ///     is what every attachment falls back to being linked means.
     /// </param>
+    /// <param name="hideDrawnCaption">
+    ///     Whether a picture's caption hides once the picture is actually drawn (#71) — the reader's
+    ///     <c>hide_drawn_caption</c> preference.
+    /// </param>
     public static IReadOnlyList<Line> Feed(
         Post post,
         int width,
         bool revealed,
         DateTimeOffset now,
-        IPictures? pictures = null)
+        IPictures? pictures = null,
+        bool hideDrawnCaption = false)
     {
         var shown = post.Boosted ?? post;
 
@@ -69,7 +74,7 @@ public static class PostLines
                 .. Byline(shown, width, now, pictures),
             ],
             Body(shown, width, revealed),
-            .. Media(shown, width, pictures, Inset.FeedRows),
+            .. Media(shown, width, pictures, Inset.FeedRows, hideDrawnCaption),
             Poll(shown, width),
             [Counts(shown, spelledOut: false)],
         ]);
@@ -85,7 +90,8 @@ public static class PostLines
         int width,
         bool revealed,
         DateTimeOffset now,
-        IPictures? pictures = null)
+        IPictures? pictures = null,
+        bool hideDrawnCaption = false)
     {
         var shown = post.Boosted ?? post;
         var avatar = Avatar.Of(shown, pictures);
@@ -111,7 +117,7 @@ public static class PostLines
                     ])),
             ],
             Body(shown, width, revealed),
-            .. Media(shown, width, pictures, Inset.WholeRows),
+            .. Media(shown, width, pictures, Inset.WholeRows, hideDrawnCaption),
             Poll(shown, width),
             [Counts(shown, spelledOut: true)],
         ]);
@@ -368,11 +374,21 @@ public static class PostLines
     /// </remarks>
     /// <param name="pictures">What can be drawn and what is here, or <see langword="null" /> where nothing can be.</param>
     /// <param name="mostRows">The most rows a picture may take, which is what a feed and a whole post differ on.</param>
+    /// <param name="hideDrawnCaption">
+    ///     Whether the description drops once a picture is actually drawn under it (#71). A picture still on its way
+    ///     keeps its description regardless — that is the whole of what a reader has while the pixels are not here yet,
+    ///     and hiding it would be an arrival flicker rather than a quieter post.
+    /// </param>
     /// <returns>
     ///     One run of rows per attachment, rather than one run for all of them, so that <see cref="Parts" /> puts a
     ///     blank row between each — which is the row between one picture and the next one's caption.
     /// </returns>
-    private static IEnumerable<IReadOnlyList<Line>> Media(Post post, int width, IPictures? pictures, int mostRows)
+    private static IEnumerable<IReadOnlyList<Line>> Media(
+        Post post,
+        int width,
+        IPictures? pictures,
+        int mostRows,
+        bool hideDrawnCaption)
     {
         foreach (var attached in post.Media)
         {
@@ -388,10 +404,14 @@ public static class PostLines
             var drawn = Drawn.Attached(attached);
             var described = Described(attached, MediaMark, width) with { Wants = drawn };
 
-            yield return pictures.Of(drawn) is { } picture
-                         && Inset.For(drawn, picture, cell, width, mostRows) is { } inset
-                ? [described, .. Box(inset)]
-                : [described];
+            if (pictures.Of(drawn) is not { } picture || Inset.For(drawn, picture, cell, width, mostRows) is not { } inset)
+            {
+                yield return [described];
+
+                continue;
+            }
+
+            yield return hideDrawnCaption ? [.. Box(inset)] : [described, .. Box(inset)];
         }
     }
 

@@ -96,7 +96,8 @@ try
         theme,
         clock,
         application.RequestStop,
-        pictures);
+        pictures,
+        config.Preferences.HideDrawnCaption);
 
     // Started rather than awaited: the first timeline arrives while the shell is already on screen, which is what the
     // breadcrumb's fetching mark is for.

@@ -46,11 +46,15 @@ public sealed class FeedScreen(Destination destination, IReadOnlyList<Post> post
     public override void Remove(string postId) => _posts.Remove(held => PostChange.Names(held, postId));
 
     /// <inheritdoc />
-    public override IReadOnlyList<Line> Lines(int width, DateTimeOffset now, IPictures? pictures = null)
+    public override IReadOnlyList<Line> Lines(
+        int width,
+        DateTimeOffset now,
+        IPictures? pictures = null,
+        bool hideDrawnCaption = false)
     {
         var rows = _posts.Rows(
             width,
-            (post, _, room) => PostLines.Feed(post, room, Revealed.Has(post), now, pictures));
+            (post, _, room) => PostLines.Feed(post, room, Revealed.Has(post), now, pictures, hideDrawnCaption));
 
         if (Notice is not { } notice)
         {

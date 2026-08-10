@@ -20,6 +20,56 @@ public class TomlConfigStoreTests : IDisposable
         Assert.Null(config.CurrentProfile);
         Assert.Empty(config.Profiles);
         Assert.Null(config.Preferences.DefaultVisibility);
+        Assert.False(config.Preferences.HideDrawnCaption);
+    }
+
+    /// <summary>#71: absent reads as <see langword="false" />, today's behavior — a caption always shows.</summary>
+    [Fact]
+    public void Load_ReadsHideDrawnCaptionAsFalseWhenAbsent()
+    {
+        WriteConfigFile(
+            """
+            [preferences]
+            hashtag = "dotnet"
+            """);
+
+        Assert.False(NewStore().Load().Preferences.HideDrawnCaption);
+    }
+
+    [Fact]
+    public void Save_ThenLoad_RoundTripsHideDrawnCaption()
+    {
+        var store = NewStore();
+
+        store.Save(new WoolyConfig { Preferences = new Preferences { HideDrawnCaption = true } });
+
+        Assert.True(store.Load().Preferences.HideDrawnCaption);
+    }
+
+    /// <summary>
+    ///     Written only when set: a reader who never asked for this should find no new line in a file nothing else
+    ///     touched.
+    /// </summary>
+    [Fact]
+    public void Save_OmitsHideDrawnCaptionWhenFalse()
+    {
+        NewStore().Save(new WoolyConfig { Preferences = new Preferences { HideDrawnCaption = false } });
+
+        Assert.Empty(File.ReadAllText(Path.Combine(_directory.Path, "config.toml")));
+    }
+
+    [Fact]
+    public void Load_RefusesASpellingOfHideDrawnCaptionThatIsNotABoolean()
+    {
+        WriteConfigFile(
+            """
+            [preferences]
+            hide_drawn_caption = "yes"
+            """);
+
+        var exception = Assert.Throws<ConfigurationException>(() => NewStore().Load());
+
+        Assert.Contains("hide_drawn_caption", exception.Message);
     }
 
     [Fact]

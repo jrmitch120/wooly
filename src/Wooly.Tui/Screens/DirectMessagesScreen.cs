@@ -89,7 +89,11 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
         _conversations.Rewrite(held => held.Latest?.Id == postId ? held with { Latest = null } : held);
 
     /// <inheritdoc />
-    public override IReadOnlyList<Line> Lines(int width, DateTimeOffset now, IPictures? pictures = null)
+    public override IReadOnlyList<Line> Lines(
+        int width,
+        DateTimeOffset now,
+        IPictures? pictures = null,
+        bool hideDrawnCaption = false)
     {
         var lines = new List<Line>();
 
@@ -110,7 +114,7 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
             var indent = new Span("  ", Role.Body);
 
             var said = conversation.Latest is { } latest
-                ? PostLines.Feed(latest, Math.Max(1, room - 2), revealed: false, now, pictures)
+                ? PostLines.Feed(latest, Math.Max(1, room - 2), revealed: false, now, pictures, hideDrawnCaption)
                 : [Line.Of(ConversationLines.NothingLeft, Role.Muted)];
 
             return [ConversationLines.With(conversation, room), .. said.Select(line => line.After(indent))];
