@@ -54,14 +54,7 @@ public sealed class FeedScreen(Destination destination, IReadOnlyList<Post> post
     {
         var rows = _posts.Rows(
             width,
-            (post, at, room) => PostLines.Feed(
-                post,
-                room,
-                Revealed.Has(post),
-                now,
-                pictures,
-                hideDrawnCaption,
-                ReferenceOn(at)));
+            (post, at, room) => PostLines.Feed(post, room, ReadingOf(post, at), now, pictures, hideDrawnCaption));
 
         if (Notice is not { } notice)
         {

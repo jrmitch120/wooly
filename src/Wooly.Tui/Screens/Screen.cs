@@ -169,7 +169,24 @@ public abstract class Screen
     ///     Which reference is picked out on the <paramref name="at" />th thing on this screen — none, unless it is the
     ///     thing picked out, since a reference pick lives inside the picked post and nowhere else.
     /// </summary>
+    /// <remarks>
+    ///     Wanted on its own only by the conversations list, which does pick references inside the message it draws
+    ///     but can never have revealed it — what it picks out is a conversation, so <c>x</c> has no post to ask about.
+    ///     Every other screen asks for the whole of <see cref="ReadingOf" /> instead.
+    /// </remarks>
     protected Reference? ReferenceOn(int at) => Walking?.At == at ? Reference : null;
+
+    /// <summary>
+    ///     What this reader has done to <paramref name="post" />, the <paramref name="at" />th thing on this screen —
+    ///     which is what drawing it takes.
+    /// </summary>
+    /// <remarks>
+    ///     The one place the parts of it are put together, so that a screen draws a post by saying which post and
+    ///     where it is rather than by answering the same two questions each screen used to answer for itself — and so
+    ///     that the next thing a reader can do to a post is filled in here rather than threaded through every drawing
+    ///     site again (#95).
+    /// </remarks>
+    protected Reading ReadingOf(Post post, int at) => new(Revealed.Has(post), ReferenceOn(at));
 
     /// <summary>Moves what is picked out by <paramref name="by" /> items, stopping at either end.</summary>
     /// <remarks>

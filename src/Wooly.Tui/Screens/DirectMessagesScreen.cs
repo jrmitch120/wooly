@@ -123,14 +123,16 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
             var indent = new Span("  ", Role.Body);
 
             var said = conversation.Latest is { } latest
+                // A reference the reader has walked to, and nothing else: what this screen picks out is a
+                // conversation, so there is no post here for x to have asked past and no warning it could be drawn
+                // without. Deliberately not ReadingOf, which would be asking a question this screen cannot answer.
                 ? PostLines.Feed(
                     latest,
                     Math.Max(1, room - 2),
-                    revealed: false,
+                    new Reading(Reference: ReferenceOn(at)),
                     now,
                     pictures,
-                    hideDrawnCaption,
-                    ReferenceOn(at))
+                    hideDrawnCaption)
                 : [Line.Of(ConversationLines.NothingLeft, Role.Muted)];
 
             return [ConversationLines.With(conversation, room), .. said.Select(line => line.After(indent))];

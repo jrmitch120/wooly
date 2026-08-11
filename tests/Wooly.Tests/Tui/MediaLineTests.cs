@@ -26,7 +26,7 @@ public class MediaLineTests
         var lines = PostLines.Feed(
             APost.With(media: [APost.APicture()]),
             61,
-            revealed: false,
+            default,
             Now,
             FakePictures.With().Holding("m1", 400, 300));
 
@@ -60,7 +60,7 @@ public class MediaLineTests
         var lines = PostLines.Feed(
             APost.With(media: [APost.APicture()]),
             61,
-            revealed: false,
+            default,
             Now,
             FakePictures.With(new CellSize(10, 20)).Holding("m1", pictureWidth, pictureHeight));
 
@@ -80,7 +80,7 @@ public class MediaLineTests
         var lines = PostLines.Feed(
             APost.With(media: [APost.APicture()]),
             120,
-            revealed: false,
+            default,
             Now,
             FakePictures.With(new CellSize(10, 20)).Holding("m1", 300, 900));
 
@@ -103,8 +103,8 @@ public class MediaLineTests
         var pictures = FakePictures.With(new CellSize(10, 20)).Holding("m1", 400, 400);
         var post = APost.With(media: [APost.APicture()]);
 
-        var inFeed = Assert.Single(PostLines.Feed(post, 61, false, Now, pictures).SelectMany(line => line.Insets));
-        var inWhole = Assert.Single(PostLines.Whole(post, 61, false, Now, pictures).SelectMany(line => line.Insets));
+        var inFeed = Assert.Single(PostLines.Feed(post, 61, default, Now, pictures).SelectMany(line => line.Insets));
+        var inWhole = Assert.Single(PostLines.Whole(post, 61, default, Now, pictures).SelectMany(line => line.Insets));
 
         // The feed's cap is what the picture hits; the post screen's is roomy enough that it does not.
         Assert.Equal(Inset.FeedRows, inFeed.Rows);
@@ -123,7 +123,7 @@ public class MediaLineTests
         var lines = PostLines.Feed(
             APost.With(media: [APost.APicture(description: "A cartoon sheep")]),
             61,
-            revealed: false,
+            default,
             Now,
             FakePictures.DrawingNothing());
 
@@ -143,7 +143,7 @@ public class MediaLineTests
     {
         var pictures = FakePictures.DrawingNothing();
 
-        PostLines.Feed(APost.With(media: [APost.APicture()]), 61, revealed: false, Now, pictures);
+        PostLines.Feed(APost.With(media: [APost.APicture()]), 61, default, Now, pictures);
 
         Assert.Empty(pictures.Asked);
         Assert.Empty(pictures.Sent);
@@ -181,7 +181,7 @@ public class MediaLineTests
         var waiting = PostLines.Feed(
             APost.With(media: [APost.APicture()]),
             61,
-            revealed: false,
+            default,
             Now,
             FakePictures.With());
 
@@ -191,7 +191,7 @@ public class MediaLineTests
         var linked = PostLines.Feed(
             APost.With(media: [APost.APicture()]),
             61,
-            revealed: false,
+            default,
             Now,
             FakePictures.DrawingNothing());
 
@@ -216,7 +216,7 @@ public class MediaLineTests
     [Fact]
     public void Feed_LinksEverythingWhenThereIsNothingToDrawWith()
     {
-        var lines = PostLines.Feed(APost.With(media: [APost.APicture()]), 61, revealed: false, Now);
+        var lines = PostLines.Feed(APost.With(media: [APost.APicture()]), 61, default, Now);
 
         Assert.Empty(lines.SelectMany(line => line.Insets));
         Assert.Contains(lines, line => line.Text.StartsWith("⏵ ", StringComparison.Ordinal));
@@ -232,7 +232,7 @@ public class MediaLineTests
         var lines = PostLines.Feed(
             APost.With(media: [APost.APicture(description: "A cartoon sheep")]),
             61,
-            revealed: false,
+            default,
             Now,
             FakePictures.With());
 
@@ -250,7 +250,7 @@ public class MediaLineTests
         var lines = PostLines.Feed(
             APost.With(media: [APost.APicture()]),
             61,
-            revealed: false,
+            default,
             Now,
             FakePictures.With().Holding("m1", 400, 300));
 
@@ -274,7 +274,7 @@ public class MediaLineTests
         var lines = PostLines.Feed(
             APost.With(media: [APost.Attached(kind, description: "Sheep, at length")]),
             61,
-            revealed: false,
+            default,
             Now,
             FakePictures.With().Holding("m1", 400, 300));
 
@@ -297,7 +297,7 @@ public class MediaLineTests
         var lines = PostLines.Feed(
             APost.With(media: [APost.Attached(MediaKind.Video) with { Url = address }]),
             61,
-            revealed: false,
+            default,
             Now);
 
         // The rows under the ⏵ that says what it is, which are the address and nothing else.
@@ -321,7 +321,7 @@ public class MediaLineTests
         var lines = PostLines.Feed(
             APost.With(media: [APost.Attached(MediaKind.Video, id: "m1"), APost.APicture(id: "m2")]),
             61,
-            revealed: false,
+            default,
             Now,
             FakePictures.With().Holding("m2", 400, 300));
 
@@ -342,7 +342,7 @@ public class MediaLineTests
             pictures.Holding($"m{at}", 400, 300);
         }
 
-        var insets = PostLines.Feed(APost.With(media: media), 61, revealed: false, Now, pictures)
+        var insets = PostLines.Feed(APost.With(media: media), 61, default, Now, pictures)
                               .SelectMany(line => line.Insets)
                               .ToList();
 
@@ -365,7 +365,7 @@ public class MediaLineTests
 
         var pictures = FakePictures.With().Holding("m1", 400, 300).Holding("m2", 300, 900);
 
-        var lines = PostLines.Feed(post, width, revealed: false, Now, pictures);
+        var lines = PostLines.Feed(post, width, default, Now, pictures);
 
         foreach (var line in lines.Where(line => line.Insets.Count > 0))
         {
@@ -384,7 +384,7 @@ public class MediaLineTests
         var post = APost.With(media: [APost.APicture()]);
         var pictures = FakePictures.With().Holding("m1", 400, 300);
 
-        var withoutGutter = PostLines.Whole(post, 60, revealed: false, Now, pictures)
+        var withoutGutter = PostLines.Whole(post, 60, default, Now, pictures)
                                      .SelectMany(line => line.Insets)
                                      .Single();
 
@@ -436,7 +436,7 @@ public class MediaLineTests
         var lines = PostLines.Feed(
             APost.With(media: [APost.APicture(description: "A cartoon sheep")]),
             61,
-            revealed: false,
+            default,
             Now,
             FakePictures.With().Holding("m1", 400, 300),
             hideDrawnCaption: true);
@@ -452,7 +452,7 @@ public class MediaLineTests
         var lines = PostLines.Feed(
             APost.With(media: [APost.APicture(description: "A cartoon sheep")]),
             61,
-            revealed: false,
+            default,
             Now,
             FakePictures.With().Holding("m1", 400, 300));
 
@@ -469,7 +469,7 @@ public class MediaLineTests
         var lines = PostLines.Feed(
             APost.With(media: [APost.APicture(description: "A cartoon sheep")]),
             61,
-            revealed: false,
+            default,
             Now,
             FakePictures.DrawingNothing(),
             hideDrawnCaption: true);
@@ -487,7 +487,7 @@ public class MediaLineTests
         var lines = PostLines.Feed(
             APost.With(media: [APost.APicture(description: "A cartoon sheep")]),
             61,
-            revealed: false,
+            default,
             Now,
             FakePictures.With(),
             hideDrawnCaption: true);
@@ -503,7 +503,7 @@ public class MediaLineTests
         var post = APost.With(media: [APost.APicture(description: "A cartoon sheep")]);
         var pictures = FakePictures.With().Holding("m1", 400, 300);
 
-        var lines = PostLines.Whole(post, 61, revealed: false, Now, pictures, hideDrawnCaption: true);
+        var lines = PostLines.Whole(post, 61, default, Now, pictures, hideDrawnCaption: true);
 
         Assert.NotEmpty(lines.SelectMany(line => line.Insets));
         Assert.DoesNotContain(lines, line => line.Text.Contains("A cartoon sheep", StringComparison.Ordinal));

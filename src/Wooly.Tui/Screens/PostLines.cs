@@ -47,7 +47,10 @@ public static class PostLines
     /// </summary>
     /// <param name="post">The post, which may be a boost of another one.</param>
     /// <param name="width">How many columns there are, which at an 80-column terminal is 61.</param>
-    /// <param name="revealed">Whether the reader has asked to see past a content warning.</param>
+    /// <param name="reading">
+    ///     What this reader has done to this post — asked past its warning, walked to a reference in it — which is
+    ///     <see langword="default" /> for the posts nobody has touched (#95).
+    /// </param>
     /// <param name="now">What to measure the timestamp against.</param>
     /// <param name="pictures">
     ///     What this terminal can draw and what has arrived, or <see langword="null" /> where nothing is drawn — which
@@ -57,18 +60,13 @@ public static class PostLines
     ///     Whether a picture's caption hides once the picture is actually drawn (#71) — the reader's
     ///     <c>hide_drawn_caption</c> preference.
     /// </param>
-    /// <param name="reference">
-    ///     The reference in this post's text the reader has walked to, or <see langword="null" /> where none is picked
-    ///     — which is every post but the one being read (#83).
-    /// </param>
     public static IReadOnlyList<Line> Feed(
         Post post,
         int width,
-        bool revealed,
+        Reading reading,
         DateTimeOffset now,
         IPictures? pictures = null,
-        bool hideDrawnCaption = false,
-        Reference? reference = null)
+        bool hideDrawnCaption = false)
     {
         var shown = post.Boosted ?? post;
 
@@ -78,7 +76,7 @@ public static class PostLines
                 .. Answering(shown, width),
                 .. Byline(shown, width, now, pictures),
             ],
-            Body(shown, width, revealed, reference),
+            Body(shown, width, reading),
             .. Media(shown, width, pictures, Inset.FeedRows, hideDrawnCaption),
             Poll(shown, width),
             [Counts(shown, spelledOut: false)],
@@ -93,11 +91,10 @@ public static class PostLines
     public static IReadOnlyList<Line> Whole(
         Post post,
         int width,
-        bool revealed,
+        Reading reading,
         DateTimeOffset now,
         IPictures? pictures = null,
-        bool hideDrawnCaption = false,
-        Reference? reference = null)
+        bool hideDrawnCaption = false)
     {
         var shown = post.Boosted ?? post;
         var avatar = Avatar.Of(shown, pictures);
@@ -122,7 +119,7 @@ public static class PostLines
                             Role.Audience),
                     ])),
             ],
-            Body(shown, width, revealed, reference),
+            Body(shown, width, reading),
             .. Media(shown, width, pictures, Inset.WholeRows, hideDrawnCaption),
             Poll(shown, width),
             [Counts(shown, spelledOut: true)],
@@ -324,10 +321,10 @@ public static class PostLines
     ///     The text, or the warning standing in front of it. A warning is honoured rather than printed past: the
     ///     author put the post behind it, and a client that showed both would have made the warning pointless.
     /// </summary>
-    /// <param name="reference">The reference in the text that is picked out, or <see langword="null" /> for none (#83).</param>
-    private static IEnumerable<Line> Body(Post post, int width, bool revealed, Reference? reference)
+    /// <param name="reading">What the reader has done to this post: asked past its warning, picked a reference in it.</param>
+    private static IEnumerable<Line> Body(Post post, int width, Reading reading)
     {
-        if (post.ContentWarning is { } warning && !revealed)
+        if (post.ContentWarning is { } warning && !reading.Revealed)
         {
             return
             [
@@ -368,7 +365,7 @@ public static class PostLines
         var references = BodyText.References(post.Content);
 
         lines.AddRange(TextWrap.Rows(post.Content, width)
-                               .Select(row => new Line(BodyText.Spans(row, references, reference))));
+                               .Select(row => new Line(BodyText.Spans(row, references, reading.Reference))));
 
         return lines;
     }

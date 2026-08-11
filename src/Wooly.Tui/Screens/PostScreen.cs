@@ -117,8 +117,8 @@ public sealed class PostScreen : Screen
         return lines;
 
         IReadOnlyList<Line> Draw(Post post, int at, int room) => at == 0
-            ? PostLines.Whole(post, room, Revealed.Has(post), now, pictures, hideDrawnCaption, ReferenceOn(at))
-            : PostLines.Feed(post, room, Revealed.Has(post), now, pictures, hideDrawnCaption, ReferenceOn(at));
+            ? PostLines.Whole(post, room, ReadingOf(post, at), now, pictures, hideDrawnCaption)
+            : PostLines.Feed(post, room, ReadingOf(post, at), now, pictures, hideDrawnCaption);
     }
 
     private string Heading(int width) =>

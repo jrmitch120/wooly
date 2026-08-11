@@ -191,14 +191,7 @@ public sealed class SearchScreen : Screen
         {
             Result.OfAccount(var account) => [AccountLines.Byline(account, room)],
             Result.OfHashtag(var hashtag) => [Tag(hashtag, room)],
-            Result.OfPost(var post) => PostLines.Feed(
-                post,
-                room,
-                Revealed.Has(post),
-                now,
-                pictures,
-                hideDrawnCaption,
-                ReferenceOn(at)),
+            Result.OfPost(var post) => PostLines.Feed(post, room, ReadingOf(post, at), now, pictures, hideDrawnCaption),
             _ => [],
         };
     }
