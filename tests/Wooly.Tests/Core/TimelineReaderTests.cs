@@ -98,6 +98,32 @@ public class TimelineReaderTests
         Assert.Equal(["jeff@mastodon.social", "alice@hachyderm.io"], fetch.Posts.Select(post => post.Account));
     }
 
+    /// <summary>
+    ///     Everyone a post names comes down with the post, qualified the same way its author is — which is what lets a
+    ///     reader walk to a <c>@maria</c> in the text and open that account without a lookup (#85).
+    /// </summary>
+    [Fact]
+    public async Task Read_ReportsEveryoneAPostNames()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(Page(PostJson("110", mentions: MentionsJson()))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        Assert.Equal(["maria@fosstodon.org", "ben@mastodon.social"], Assert.Single(fetch.Posts).Mentions);
+    }
+
+    /// <summary>And a post that names nobody names nobody, which is most of them.</summary>
+    [Fact]
+    public async Task Read_ReportsNobodyForAPostThatNamesNobody()
+    {
+        var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Json(Page(PostJson("110"))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        Assert.Empty(Assert.Single(fetch.Posts).Mentions);
+    }
+
     /// <summary>A content warning is what the post's text is hidden behind, so it has to survive as its own field.</summary>
     [Fact]
     public async Task Read_ReportsAPostsContentWarningApartFromItsText()
@@ -569,6 +595,18 @@ public class TimelineReaderTests
           }]
           """;
 
+    /// <summary>
+    ///     Two accounts a post names, as the wire lists them: one on another instance, written in full, and one of
+    ///     this instance's own, written bare.
+    /// </summary>
+    private static string MentionsJson() =>
+        """
+        [
+          { "id": "2", "username": "maria", "acct": "maria@fosstodon.org", "url": "https://fosstodon.org/@maria" },
+          { "id": "3", "username": "ben", "acct": "ben", "url": "https://mastodon.social/@ben" }
+        ]
+        """;
+
     /// <param name="marks">
     ///     What the instance said this profile has already done to the post, as the wire spells the three flags — or
     ///     <see langword="null" /> for an instance that sent none of them.
@@ -582,12 +620,14 @@ public class TimelineReaderTests
         string visibility = "public",
         string? boosting = null,
         string? marks = null,
-        string? media = null) =>
+        string? media = null,
+        string? mentions = null) =>
         $$"""
           {
             "id": "{{id}}",
             {{marks ?? string.Empty}}
             "media_attachments": {{media ?? "[]"}},
+            "mentions": {{mentions ?? "[]"}},
             "uri": "https://mastodon.social/users/jeff/statuses/{{id}}",
             "url": "https://mastodon.social/@jeff/{{id}}",
             "created_at": "2026-07-29T12:00:00.000Z",

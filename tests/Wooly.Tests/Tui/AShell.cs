@@ -48,6 +48,12 @@ internal sealed class AShell
 
     public FakeRateLimitReport RateLimit { get; set; }
 
+    /// <summary>
+    ///     Where an address goes, which is the one thing the shell does that leaves the terminal (#85). Not one of the
+    ///     ports, for the reason <c>ShellPorts</c> gives: a browser is not on an instance.
+    /// </summary>
+    public FakeWebBrowser Browser { get; set; } = new();
+
     /// <summary>The profile every test acts as, which owns the posts <see cref="APost" /> builds.</summary>
     public ActiveProfile Profile { get; set; } = new()
     {
@@ -71,6 +77,7 @@ internal sealed class AShell
         Profile,
         new ShellPorts(Timelines, Author, Engagement, Accounts, Notifications, Messages, Search, RateLimit),
         Host,
+        Browser,
         Clock,
         Timing,
         Hashtag);

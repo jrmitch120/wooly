@@ -114,11 +114,19 @@ a rail somebody is reading should hold still — only the count of marks changes
 
 **The shell gains an action that leaves the terminal.** This ADR is silent on anything past the process boundary —
 every port it describes (`ShellPorts`) reaches an instance, and nothing in the shell was ever asked to reach outside
-it. Opening an address found inside a post (ticket #65) is the first thing that does: `⏎` on a picked reference that
-is an `http`/`https` link launches the platform's own browser. It is deliberately **not** folded into `ShellPorts`,
-which this ADR scoped to "everything the shell reaches an instance through" — a browser launch reaches past the
-instance entirely, so it gets its own small seam, tested the way role selection is (was the right platform call
-requested, was a hostile scheme refused) without ever actually launching one.
+it. Opening an address found inside a post (ticket #65, built as #85) is the first thing that does: `⏎` on a picked
+reference that is an `http`/`https` link launches the platform's own browser. It is deliberately **not** folded into
+`ShellPorts`, which this ADR scoped to "everything the shell reaches an instance through" — a browser launch reaches
+past the instance entirely, so it gets its own small seam.
+
+That seam turned out to be two things rather than one, and splitting them is what makes it testable the way role
+selection is. `BrowserLaunch` is the decision with no process in it: which addresses are handed to a machine at all
+(`http` and `https`, named — a scheme is the whole of what makes handing text to a shell dangerous) and what each
+platform is asked about the ones that are (the address itself under `UseShellExecute` on Windows, `open` on macOS,
+`xdg-open` on Linux). `IWebBrowser` — which already existed, because the OAuth sign-in has to send somebody to a
+browser too (ADR-0004) — is the act. So "was the right platform call requested" and "was a hostile scheme refused"
+are both asked of a value, on every platform at once, with no process ever starting; and there is one browser
+abstraction in this codebase rather than a second one grown beside it.
 
 None of this reopens what the ADR decided: the shell is still a rail that stays, a stack you walk back out of, and
 colour nothing hard-codes.

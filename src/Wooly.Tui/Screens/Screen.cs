@@ -1,6 +1,7 @@
 using Wooly.Core.Posts;
 using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
+using Wooly.Tui.Theme;
 
 namespace Wooly.Tui.Screens;
 
@@ -128,6 +129,34 @@ public abstract class Screen
             return _reference is { } at && at < references.Count ? references[at] : null;
         }
     }
+
+    /// <summary>
+    ///     Who the picked mention names, in full — <c>maria@fosstodon.org</c> for a <c>@maria</c> — or
+    ///     <see langword="null" /> where nothing is picked, where what is picked is not a mention, or where the post
+    ///     names nobody by that handle (#85).
+    /// </summary>
+    /// <remarks>
+    ///     Answered here rather than by the shell because this is where the post the walk is inside is known: a
+    ///     mention is only somebody in particular because the post it was written in says so
+    ///     (<see cref="PostMentions" />), and a boost's handles are the boosted post's along with its text.
+    /// </remarks>
+    public string? Mentioned => Reference is { Role: Role.Mention } picked && Referencing is { } post
+        ? PostMentions.Named(post, picked.Text)
+        : null;
+
+    /// <summary>
+    ///     The handle the picked mention is written back out as: in full where the post says who it is, and as it was
+    ///     written where it does not — or <see langword="null" /> where what is picked is not a mention. What <c>c</c>
+    ///     addresses a fresh compose to, since a reader who walked to a name meant to write to them either way (#85).
+    /// </summary>
+    /// <remarks>
+    ///     Beside <see cref="Mentioned" /> rather than folded into it, because the two answer different questions and
+    ///     only one of them can be acted on: an account this client could not name cannot be opened, but it can
+    ///     certainly be typed.
+    /// </remarks>
+    public string? MentionedAs => Reference is { Role: Role.Mention } picked
+        ? Mentioned ?? picked.Text.TrimStart('@')
+        : null;
 
     /// <summary>
     ///     Walks the references by <paramref name="by" />: <c>→</c> enters at the first and <c>←</c> at the last, and

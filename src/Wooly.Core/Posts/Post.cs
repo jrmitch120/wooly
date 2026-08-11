@@ -58,6 +58,13 @@ public sealed record Post
     public IReadOnlyList<PostMedia> Media { get; init; } = [];
 
     /// <summary>
+    ///     Everyone the post names, as <c>username@instance</c>, and empty where it names nobody. What the instance
+    ///     itself resolved the handles in <see cref="Content" /> to — which is the only thing that says which
+    ///     <c>@maria</c> a bare <c>@maria</c> is (#85).
+    /// </summary>
+    public IReadOnlyList<string> Mentions { get; init; } = [];
+
+    /// <summary>
     ///     The post this one boosts, or <see langword="null" /> if it is not a boost. A boost carries no text of its
     ///     own — <see cref="Account" /> is who boosted, and everything worth reading is in here.
     /// </summary>

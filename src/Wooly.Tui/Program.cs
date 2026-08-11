@@ -54,6 +54,10 @@ try
         profile,
         ports,
         new TerminalHost(application),
+
+        // The same browser the sign-in sends somebody to (ADR-0004), and deliberately not one of the ports above:
+        // those are what the shell reaches an instance through, and a browser is not on one (#85).
+        provider.GetRequiredService<IWebBrowser>(),
         clock,
         ShellTiming.Default,
         config.Preferences.Hashtag);

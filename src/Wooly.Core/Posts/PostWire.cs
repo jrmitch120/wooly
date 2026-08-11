@@ -42,6 +42,12 @@ internal static class PostWire
         // Mastonet leaves this null rather than empty where a post carries nothing, and a timeline is mostly posts
         // that carry nothing.
         Media = status.MediaAttachments?.Select(ToMedia).ToList() ?? [],
+
+        // Qualified the same way the post's own author is, and for the same reason: an instance names its own
+        // accounts bare, so a mention left as it arrived would say who it is about in a different way on every second
+        // post.
+        Mentions = status.Mentions?.Select(mention => MastodonWire.Qualify(mention.AccountName, instance)).ToList()
+                   ?? [],
         Boosted = status.Reblog is null ? null : ToPost(status.Reblog, instance),
         Url = status.Url,
 
