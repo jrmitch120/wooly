@@ -22,6 +22,12 @@ public delegate IReadOnlyList<Line> Draws<in T>(T thing, int at, int room);
 /// </remarks>
 public interface IPicked
 {
+    /// <summary>
+    ///     Which thing is picked out, as an index into what is on screen — the same ordinal the rows are stamped with,
+    ///     so a screen can ask whether the thing it is drawing is the one being read (<see cref="Screen.ReferenceOn" />).
+    /// </summary>
+    int At { get; }
+
     /// <summary>Moves what is picked out by <paramref name="by" /> things, stopping at either end.</summary>
     void Move(int by);
 
@@ -48,7 +54,7 @@ public sealed class Picked<T>(IReadOnlyList<T> things) : IPicked
 {
     private readonly List<T> _things = [.. things];
 
-    /// <summary>Which thing is picked out, as an index into what is on screen.</summary>
+    /// <inheritdoc />
     public int At { get; private set; }
 
     /// <summary>The things, in the order they are drawn and walked.</summary>

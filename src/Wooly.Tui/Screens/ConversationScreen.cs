@@ -31,7 +31,7 @@ public sealed class ConversationScreen(ConversationThread thread) : Screen
     ///     <c>m</c> in front of the shared keys, because it is the one a reader can find on no other screen and the
     ///     status row is cut off at the right (<c>docs/tui-shell.md</c>).
     /// </remarks>
-    public override IReadOnlyList<KeyHint> Keys =>
+    protected override IReadOnlyList<KeyHint> OwnKeys =>
         PostKeys.Around(
             new KeyHint("j/k", "message"),
             [new KeyHint("m", "mark read")],
@@ -98,7 +98,14 @@ public sealed class ConversationScreen(ConversationThread thread) : Screen
 
         lines.AddRange(_posts.Rows(
             width,
-            (post, _, room) => PostLines.Feed(post, room, Revealed.Has(post), now, pictures, hideDrawnCaption)));
+            (post, at, room) => PostLines.Feed(
+                post,
+                room,
+                Revealed.Has(post),
+                now,
+                pictures,
+                hideDrawnCaption,
+                ReferenceOn(at))));
 
         return lines;
     }

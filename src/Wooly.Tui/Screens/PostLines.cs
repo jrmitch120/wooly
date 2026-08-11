@@ -57,13 +57,18 @@ public static class PostLines
     ///     Whether a picture's caption hides once the picture is actually drawn (#71) — the reader's
     ///     <c>hide_drawn_caption</c> preference.
     /// </param>
+    /// <param name="reference">
+    ///     The reference in this post's text the reader has walked to, or <see langword="null" /> where none is picked
+    ///     — which is every post but the one being read (#83).
+    /// </param>
     public static IReadOnlyList<Line> Feed(
         Post post,
         int width,
         bool revealed,
         DateTimeOffset now,
         IPictures? pictures = null,
-        bool hideDrawnCaption = false)
+        bool hideDrawnCaption = false,
+        Reference? reference = null)
     {
         var shown = post.Boosted ?? post;
 
@@ -73,7 +78,7 @@ public static class PostLines
                 .. Answering(shown, width),
                 .. Byline(shown, width, now, pictures),
             ],
-            Body(shown, width, revealed),
+            Body(shown, width, revealed, reference),
             .. Media(shown, width, pictures, Inset.FeedRows, hideDrawnCaption),
             Poll(shown, width),
             [Counts(shown, spelledOut: false)],
@@ -91,7 +96,8 @@ public static class PostLines
         bool revealed,
         DateTimeOffset now,
         IPictures? pictures = null,
-        bool hideDrawnCaption = false)
+        bool hideDrawnCaption = false,
+        Reference? reference = null)
     {
         var shown = post.Boosted ?? post;
         var avatar = Avatar.Of(shown, pictures);
@@ -116,7 +122,7 @@ public static class PostLines
                             Role.Audience),
                     ])),
             ],
-            Body(shown, width, revealed),
+            Body(shown, width, revealed, reference),
             .. Media(shown, width, pictures, Inset.WholeRows, hideDrawnCaption),
             Poll(shown, width),
             [Counts(shown, spelledOut: true)],
@@ -318,7 +324,8 @@ public static class PostLines
     ///     The text, or the warning standing in front of it. A warning is honoured rather than printed past: the
     ///     author put the post behind it, and a client that showed both would have made the warning pointless.
     /// </summary>
-    private static IEnumerable<Line> Body(Post post, int width, bool revealed)
+    /// <param name="reference">The reference in the text that is picked out, or <see langword="null" /> for none (#83).</param>
+    private static IEnumerable<Line> Body(Post post, int width, bool revealed, Reference? reference)
     {
         if (post.ContentWarning is { } warning && !revealed)
         {
@@ -351,10 +358,17 @@ public static class PostLines
             return lines;
         }
 
-        // Wrapped first and split afterwards, one row at a time: the one place a post's text is drawn, so a tag, a
-        // mention and an address take their own roles on a feed, inside a post, in a conversation and in the
-        // notification list from this one line (#46).
-        lines.AddRange(TextWrap.Wrap(post.Content, width).Select(row => new Line(BodyText.Spans(row))));
+        // The references found once on the whole text and the rows sliced out of it afterwards: the one place a post's
+        // text is drawn, so a tag, a mention and an address take their own roles on a feed, inside a post, in a
+        // conversation and in the notification list from this one line (#46) — and an address the wrap cut in two is
+        // still one reference, because what it is was settled before the cut (#83).
+        // The picked one is passed in as itself rather than as a place in this list, so a pick left over from a post
+        // that has since been edited matches nothing here — a pick on nothing rather than a bracket around whatever
+        // is now written in that place.
+        var references = BodyText.References(post.Content);
+
+        lines.AddRange(TextWrap.Rows(post.Content, width)
+                               .Select(row => new Line(BodyText.Spans(row, references, reference))));
 
         return lines;
     }

@@ -28,7 +28,7 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
     public override string Crumb => "direct messages";
 
     /// <inheritdoc />
-    public override IReadOnlyList<KeyHint> Keys =>
+    protected override IReadOnlyList<KeyHint> OwnKeys =>
     [
         new("j/k", "conversation"),
         new("⏎", "open"),
@@ -64,6 +64,15 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
 
     /// <inheritdoc />
     protected override IPicked Walking => _conversations;
+
+    /// <inheritdoc />
+    /// <remarks>
+    ///     The one screen where this is not <see cref="Screen.Picked" />, which here is nothing: a row is a
+    ///     conversation rather than a post, so none of the keys that act on a post act here. The last thing said is
+    ///     still drawn through <see cref="PostLines" /> though, and an address in it is as walkable as an address
+    ///     anywhere else (#83).
+    /// </remarks>
+    protected override Post? Referencing => PickedConversation?.Latest;
 
     /// <summary>
     ///     Puts <paramref name="conversation" /> in place of the copy this screen is holding, once it has changed —
@@ -114,7 +123,14 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
             var indent = new Span("  ", Role.Body);
 
             var said = conversation.Latest is { } latest
-                ? PostLines.Feed(latest, Math.Max(1, room - 2), revealed: false, now, pictures, hideDrawnCaption)
+                ? PostLines.Feed(
+                    latest,
+                    Math.Max(1, room - 2),
+                    revealed: false,
+                    now,
+                    pictures,
+                    hideDrawnCaption,
+                    ReferenceOn(at))
                 : [Line.Of(ConversationLines.NothingLeft, Role.Muted)];
 
             return [ConversationLines.With(conversation, room), .. said.Select(line => line.After(indent))];

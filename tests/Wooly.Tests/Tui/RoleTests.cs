@@ -26,10 +26,8 @@ public partial class RoleTests
     ///     before this ticket wired a poll's block bars to it (#80).
     /// </summary>
     /// <remarks>
-    ///     <see cref="Role.ReferencePicked" /> is the contract's one other still-dead role, and is exempted here
-    ///     rather than left to fail a test this ticket did not touch: walking references is #83/#85, tracked and
-    ///     unstarted, not a role this poll work has any business wiring up. Removing the exemption is the acceptance
-    ///     criterion of whichever of those lands the walk.
+    ///     Nothing is exempt: <see cref="Role.ReferencePicked" /> was the contract's one other dead role until #83
+    ///     wired the brackets a picked reference is drawn in, and the exemption came off with it.
     /// </remarks>
     [Fact]
     public void EveryRoleInTheContractIsEmittedBySomeView()
@@ -65,6 +63,9 @@ public partial class RoleTests
             FakePictures.With()));
         Collect(PostLines.Whole(mine, 61, revealed: true, Now));
 
+        // With the first reference in the text picked out, which is the only thing that draws the brackets (#83).
+        Collect(PostLines.Feed(mine, 61, revealed: true, Now, reference: BodyText.References(mine.Content)[0]));
+
         var feedScreen = new FeedScreen(
             new Destination(DestinationKind.Home, "Home", Wooly.Core.Timelines.Timeline.Home),
             [APost.With(id: "1"), APost.With(id: "2")]);
@@ -94,10 +95,7 @@ public partial class RoleTests
         Collect([ChromeLines.Status([], "Only your own posts can be deleted.", noticeIsError: true, null, 80)]);
         Collect([ChromeLines.Status([new KeyHint("⏎", "read")], null, noticeIsError: false, asking: null, 80)]);
 
-        var exempt = new[] { Role.ReferencePicked };
-        var missing = Enum.GetValues<Role>().Except(seen).Except(exempt).ToList();
-
-        Assert.Empty(missing);
+        Assert.Empty(Enum.GetValues<Role>().Except(seen));
     }
 
     /// <summary>Every role in the contract has a name, and the built-in theme has an answer for it.</summary>

@@ -45,7 +45,7 @@ public sealed class SearchScreen : Screen
     ///         nothing under it to walk back to. <c>tab</c> is how you leave, the same as on every other destination.
     ///     </para>
     /// </remarks>
-    public override IReadOnlyList<KeyHint> Keys
+    protected override IReadOnlyList<KeyHint> OwnKeys
     {
         get
         {
@@ -191,7 +191,14 @@ public sealed class SearchScreen : Screen
         {
             Result.OfAccount(var account) => [AccountLines.Byline(account, room)],
             Result.OfHashtag(var hashtag) => [Tag(hashtag, room)],
-            Result.OfPost(var post) => PostLines.Feed(post, room, Revealed.Has(post), now, pictures, hideDrawnCaption),
+            Result.OfPost(var post) => PostLines.Feed(
+                post,
+                room,
+                Revealed.Has(post),
+                now,
+                pictures,
+                hideDrawnCaption,
+                ReferenceOn(at)),
             _ => [],
         };
     }

@@ -1,9 +1,10 @@
 namespace Wooly.Tui.Screens;
 
 /// <summary>
-///     The keys that act on whichever post is picked out. Listed once, because the shell acts on
-///     <see cref="Screen.Picked" /> without caring which screen it came from — so a screen whose status row left one
-///     of these out would be a screen where a key fires unannounced.
+///     The keys that act on whichever post is picked out — and, since #83, the ones that act on a reference picked
+///     out inside it. Listed once, because the shell acts on <see cref="Screen.Picked" /> without caring which screen
+///     it came from — so a screen whose status row left one of these out would be a screen where a key fires
+///     unannounced.
 /// </summary>
 /// <remarks>
 ///     The rule runs the other way too, which is the one reason a screen may leave one of these off: a key that has
@@ -32,6 +33,34 @@ public static class PostKeys
         new("d", "delete"),
         new("x", "show warning"),
     ];
+
+    /// <summary>
+    ///     What a picked reference answers to: walking the references inside the post, opening the one picked out, and
+    ///     letting it go again (#83). What <c>⏎</c> opens is #85's; it is announced here because the key is announced
+    ///     on the row a pick is made on, and a pick can be made now.
+    /// </summary>
+    private static IReadOnlyList<KeyHint> Walking { get; } =
+    [
+        new("←/→", "reference"),
+        new("⏎", "open"),
+        new("esc", "back"),
+    ];
+
+    /// <summary>
+    ///     Those keys in front of <paramref name="keys" />, standing in for any of them they share a key with — so that
+    ///     <c>⏎</c> is announced once, as what it does to the reference rather than to the post it is inside.
+    /// </summary>
+    /// <remarks>
+    ///     In front for the reason <see cref="Around(KeyHint, IReadOnlyList{KeyHint}, KeyHint[])" /> gives: the status
+    ///     row is one row and a longer list is cut off at the right, so the keys that only mean something right now
+    ///     are the ones that have to survive the cut.
+    /// </remarks>
+    public static IReadOnlyList<KeyHint> OnAReference(IReadOnlyList<KeyHint> keys)
+    {
+        var taken = Walking.Select(key => key.Key).ToHashSet(StringComparer.Ordinal);
+
+        return [.. Walking, .. keys.Where(key => !taken.Contains(key.Key))];
+    }
 
     /// <summary>
     ///     Walking the screen a row at a time, which every screen with rows on it answers to and none of them owns —

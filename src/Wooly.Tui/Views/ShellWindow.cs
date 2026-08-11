@@ -224,6 +224,19 @@ internal sealed class ShellWindow : Window
             return true;
         }
 
+        // The third movement, and the one that goes inside a post rather than along it: the references in the picked
+        // post's text (#83). Consumed only where there are any to walk, so that a screen with none — the compose
+        // editor above all, where ← and → move the caret — still gets its own arrows.
+        if (key == Key.CursorRight && _shell.WalkReference(1))
+        {
+            return true;
+        }
+
+        if (key == Key.CursorLeft && _shell.WalkReference(-1))
+        {
+            return true;
+        }
+
         if (key == Key.PageDown)
         {
             Turned(1);

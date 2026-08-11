@@ -16,11 +16,27 @@ namespace Wooly.Tui.Screens;
 /// </remarks>
 public abstract class Screen
 {
+    /// <summary>
+    ///     Which reference inside the picked post the walk has got to, as an index into <see cref="References" /> —
+    ///     before it is checked against what is written there now, which <see cref="Reference" /> is.
+    /// </summary>
+    private int? _reference;
+
     /// <summary>What this screen is called on the breadcrumb, e.g. <c>post by @ben</c>.</summary>
     public abstract string Crumb { get; }
 
-    /// <summary>The keys this screen answers to, for the status row and for <c>?</c>.</summary>
-    public abstract IReadOnlyList<KeyHint> Keys { get; }
+    /// <summary>
+    ///     The keys this screen answers to, for the status row and for <c>?</c> — which while a reference is picked
+    ///     out are the three that act on it, ahead of the screen's own (<c>docs/tui-shell.md</c>, #83).
+    /// </summary>
+    /// <remarks>
+    ///     Said here rather than by each screen, because a reference is picked the same way on all of them and a
+    ///     screen that forgot the swap would be a screen where <c>←</c> and <c>→</c> fire unannounced.
+    /// </remarks>
+    public IReadOnlyList<KeyHint> Keys => Reference is null ? OwnKeys : PostKeys.OnAReference(OwnKeys);
+
+    /// <summary>The keys this screen alone settles, which is every key that does not act on a picked reference.</summary>
+    protected abstract IReadOnlyList<KeyHint> OwnKeys { get; }
 
     /// <summary>
     ///     The post the reader has picked out, or <see langword="null" /> where this screen has no posts on it. What
@@ -80,8 +96,90 @@ public abstract class Screen
     /// </remarks>
     protected virtual IPicked? Walking => null;
 
+    /// <summary>
+    ///     The post whose text <c>←</c> and <c>→</c> walk the references of — the picked one on every screen but the
+    ///     conversations list, where a row is a conversation and the post drawn on it is its last message (#83).
+    /// </summary>
+    protected virtual Post? Referencing => Picked;
+
+    /// <summary>
+    ///     The references inside that post, in the order they were written — which is the order they are walked in,
+    ///     and the order an index into them means anything in.
+    /// </summary>
+    /// <remarks>
+    ///     None at all while the post's text is still behind a content warning: the brackets a picked reference is
+    ///     drawn in would be behind it too, so a pick there is one nobody can see (<c>docs/tui-shell.md</c>).
+    /// </remarks>
+    public IReadOnlyList<Reference> References => Referencing is { } post && Readable(post)
+        ? BodyText.References((post.Boosted ?? post).Content)
+        : [];
+
+    /// <summary>
+    ///     The one the reader has walked to, or <see langword="null" /> where none is — including where the post has
+    ///     since been edited out from under the walk, which is a pick on nothing rather than a pick on whatever is
+    ///     written in that place now.
+    /// </summary>
+    public Reference? Reference
+    {
+        get
+        {
+            var references = References;
+
+            return _reference is { } at && at < references.Count ? references[at] : null;
+        }
+    }
+
+    /// <summary>
+    ///     Walks the references by <paramref name="by" />: <c>→</c> enters at the first and <c>←</c> at the last, and
+    ///     further motion in the same direction at either end clamps rather than wrapping, which is the convention
+    ///     <see cref="Picked{T}" /> already walks a list by.
+    /// </summary>
+    /// <returns>
+    ///     Whether there was anything to walk, which is what settles whether the key was used — a screen with no
+    ///     references on it leaves <c>←</c> and <c>→</c> to whatever else wants them, the compose editor above all.
+    /// </returns>
+    public bool WalkReference(int by)
+    {
+        var references = References;
+
+        if (references.Count == 0)
+        {
+            return false;
+        }
+
+        _reference = _reference is { } at && at < references.Count
+            ? Math.Clamp(at + by, 0, references.Count - 1)
+            : by > 0 ? 0 : references.Count - 1;
+
+        return true;
+    }
+
+    /// <summary>Lets the picked reference go, which <c>esc</c> does before it pops and <c>j</c> and <c>k</c> do on the way past.</summary>
+    /// <returns>Whether there was one, which is what settles whether <c>esc</c> was spent on it.</returns>
+    public bool ClearReference()
+    {
+        var had = Reference is not null;
+
+        _reference = null;
+
+        return had;
+    }
+
+    /// <summary>
+    ///     Which reference is picked out on the <paramref name="at" />th thing on this screen — none, unless it is the
+    ///     thing picked out, since a reference pick lives inside the picked post and nowhere else.
+    /// </summary>
+    protected Reference? ReferenceOn(int at) => Walking?.At == at ? Reference : null;
+
     /// <summary>Moves what is picked out by <paramref name="by" /> items, stopping at either end.</summary>
-    public void Move(int by) => Walking?.Move(by);
+    /// <remarks>
+    ///     The picked reference goes with it: the reader has left the post it was inside (<c>docs/tui-shell.md</c>).
+    /// </remarks>
+    public void Move(int by)
+    {
+        ClearReference();
+        Walking?.Move(by);
+    }
 
     /// <summary>
     ///     Picks the <paramref name="at" />th thing on this screen out, stopping at either end. What <c>j</c> does
@@ -93,7 +191,11 @@ public abstract class Screen
     ///     ordinal by construction: the rows are stamped by whatever <see cref="Walking" /> is, from the index it is
     ///     keeping.
     /// </remarks>
-    public void Pick(int at) => Walking?.Pick(at);
+    public void Pick(int at)
+    {
+        ClearReference();
+        Walking?.Pick(at);
+    }
 
     /// <summary>The content warnings the reader has asked past on this screen, by the id of the post each is on.</summary>
     /// <remarks>
@@ -110,6 +212,9 @@ public abstract class Screen
     ///     <see cref="Move" /> and <see cref="Pick" /> need no override on one.
     /// </remarks>
     public bool Reveal() => Picked is { } picked && Revealed.Ask(picked);
+
+    /// <summary>Whether <paramref name="post" />'s own text is on screen rather than behind its content warning.</summary>
+    private bool Readable(Post post) => (post.Boosted ?? post).ContentWarning is null || Revealed.Has(post);
 
     /// <summary>
     ///     Puts <paramref name="post" /> in place of the copy this screen is holding, after a mark changed it. What

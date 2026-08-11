@@ -203,21 +203,34 @@ back to the thread's root (#72):
 mention, or address inside a post's text — replacing `BodyText`'s internal "marks" language, which collided with
 `Post.Marks` (boost/favorite/pin) (#64, #65):
 
-- **Every screen with a picked post**, not just feed and post — the same breadth `PostKeys.OnAPost` already has.
-- **Walkable**: hashtag, mention, and address — the three `BodyText.Marks()` already finds. **Not walkable**: an
-  attachment's link, which sits outside the post's own text and renders in a separate path (`PostLines.Linked`).
+- **Every screen with a post drawn on it**, not just feed and post — the breadth `PostKeys.OnAPost` has, plus the
+  conversations list, where the row is a conversation and the post drawn under it is its last message. That one is
+  `Screen.Referencing` rather than `Screen.Picked`: widening `Picked` there would have handed `d`, `b` and `f` a post
+  the screen never offered them (#83).
+- **Walkable**: hashtag, mention, and address — the three references `BodyText` finds. **Not walkable**: an
+  attachment's link, which sits outside the post's own text and renders in a separate path (`PostLines.Linked`); and
+  text still behind a content warning, which has no references until `x` shows it, since the brackets marking a pick
+  would be behind the warning too (#83).
+- **Matched once per post, on the flattened text before the wrap** rather than per wrapped row, which is what gives
+  them an order and a place to be walked by. `TextWrap` carries each row's offset into that text and every row is a
+  slice of it at that offset, so a row's spans are the post's references sliced by its own range. An address longer
+  than the content region used to be cut into two halves that each matched nothing and drew as prose; it is now one
+  reference drawn across two rows (#83).
 - **`→` enters at the first reference, `←` at the last**; further motion in the same direction at either end
   **clamps**, matching `Picked<T>`'s existing convention rather than wrapping.
 - **`esc` clears the pick first**, popping the screen on the next press (above). **`j`/`k` clear it too**, since the
   reader has left the post. **`↓`/`↑` (page scroll) do not** — they leave the selection alone by the existing
   "What moving settled" contract, and a reference pick lives inside the selected post, not on a row.
-- **Marked `‹reference›`** — brackets, always drawn, in colour and no-colour terminals alike. The brackets take
+- **Bracketed `‹reference›`** — brackets, always drawn, in colour and no-colour terminals alike. ("Marked" is the
+  word `Post.Marks` has, which is the collision the rename was about — CONTEXT.md.) The brackets take
   their own role (`Role.ReferencePicked`), independent of whatever role the bracketed text already carries, so a
   picked hashtag stays hashtag-coloured and only the brackets shift. Underline was considered — a separate SGR
   attribute, zero width cost — and set aside in favour of brackets; the two added columns on the one row a pick
   lands on are an accepted cost.
 - **The status row swaps** to a reference-mode row while one's picked — `←/→ reference · ⏎ open · esc back`-shaped,
-  ahead of the screen's shared keys.
+  ahead of the screen's shared keys, and standing in for any of them it shares a key with, so `⏎` is announced once
+  (`PostKeys.OnAReference`). Said by `Screen` itself rather than by each screen, which is why a screen's own list is
+  `OwnKeys` and `Keys` is what the status row reads (#83).
 - **`⏎` does three different things, refusals share one notice.** A hashtag opens exactly the way `Shell.OpenTag`
   already opens one found by search — same `FeedScreen`, same breadcrumb, no new screen type. A mention opens the
   account screen, resolved off `Post.Mentions`; unresolvable, `⏎` does nothing and the status row says

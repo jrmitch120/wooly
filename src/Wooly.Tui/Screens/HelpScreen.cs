@@ -31,7 +31,7 @@ public sealed class HelpScreen(Screen about) : Screen
     ///     The arrows, because a keymap is often taller than the terminal and this is the screen a reader arrives at
     ///     precisely because they do not know how to move around yet.
     /// </remarks>
-    public override IReadOnlyList<KeyHint> Keys => [PostKeys.Scrolling, new("esc", "back")];
+    protected override IReadOnlyList<KeyHint> OwnKeys => [PostKeys.Scrolling, new("esc", "back")];
 
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(
