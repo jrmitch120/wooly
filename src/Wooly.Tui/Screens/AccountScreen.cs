@@ -24,7 +24,7 @@ public sealed class AccountScreen(Account account, IReadOnlyList<Post> posts) : 
     public override string Crumb => $"@{Account.Address}";
 
     /// <inheritdoc />
-    public override IReadOnlyList<KeyHint> Keys =>
+    protected override IReadOnlyList<KeyHint> OwnKeys =>
         PostKeys.Around(
             new KeyHint("j/k", "post"),
             [
@@ -104,7 +104,14 @@ public sealed class AccountScreen(Account account, IReadOnlyList<Post> posts) : 
 
         lines.AddRange(_posts.Rows(
             width,
-            (post, _, room) => PostLines.Feed(post, room, Revealed.Has(post), now, pictures, hideDrawnCaption)));
+            (post, at, room) => PostLines.Feed(
+                post,
+                room,
+                Revealed.Has(post),
+                now,
+                pictures,
+                hideDrawnCaption,
+                ReferenceOn(at))));
 
         return lines;
     }

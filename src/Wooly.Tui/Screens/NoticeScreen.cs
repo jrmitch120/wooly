@@ -19,7 +19,7 @@ public sealed class NoticeScreen(string crumb, string headline, string? aside = 
     public override string Crumb => crumb;
 
     /// <inheritdoc />
-    public override IReadOnlyList<KeyHint> Keys => [new("tab", "destination"), new("?", "keys")];
+    protected override IReadOnlyList<KeyHint> OwnKeys => [new("tab", "destination"), new("?", "keys")];
 
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(

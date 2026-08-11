@@ -33,7 +33,7 @@ public sealed class PostScreen : Screen
     ///     <c>⏎</c> comes off the row while the post itself is picked out, since there is nothing for it to open —
     ///     announcing a key and then refusing it reads as a shell that missed the press (#48).
     /// </remarks>
-    public override IReadOnlyList<KeyHint> Keys
+    protected override IReadOnlyList<KeyHint> OwnKeys
     {
         get
         {
@@ -117,8 +117,8 @@ public sealed class PostScreen : Screen
         return lines;
 
         IReadOnlyList<Line> Draw(Post post, int at, int room) => at == 0
-            ? PostLines.Whole(post, room, Revealed.Has(post), now, pictures, hideDrawnCaption)
-            : PostLines.Feed(post, room, Revealed.Has(post), now, pictures, hideDrawnCaption);
+            ? PostLines.Whole(post, room, Revealed.Has(post), now, pictures, hideDrawnCaption, ReferenceOn(at))
+            : PostLines.Feed(post, room, Revealed.Has(post), now, pictures, hideDrawnCaption, ReferenceOn(at));
     }
 
     private string Heading(int width) =>

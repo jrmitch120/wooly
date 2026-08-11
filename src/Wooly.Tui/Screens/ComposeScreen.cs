@@ -90,7 +90,7 @@ public sealed class ComposeScreen : Screen
     };
 
     /// <inheritdoc />
-    public override IReadOnlyList<KeyHint> Keys =>
+    protected override IReadOnlyList<KeyHint> OwnKeys =>
     [
         new("ctrl-s", Purpose == ComposeFor.Edit ? "save" : "send"),
         new("esc", "throw it away"),

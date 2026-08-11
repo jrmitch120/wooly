@@ -34,6 +34,34 @@ public static class PostKeys
     ];
 
     /// <summary>
+    ///     What a picked reference answers to: walking the references inside the post, opening the one picked out, and
+    ///     letting it go again (#83). What <c>⏎</c> opens is #85's; the row says it here because the key is announced
+    ///     on the row a pick is made on.
+    /// </summary>
+    private static readonly IReadOnlyList<KeyHint> OnOne =
+    [
+        new KeyHint("←/→", "reference"),
+        new KeyHint("⏎", "open"),
+        new KeyHint("esc", "back"),
+    ];
+
+    /// <summary>
+    ///     Those keys in front of <paramref name="keys" />, standing in for any of them they share a key with — so that
+    ///     <c>⏎</c> is announced once, as what it does to the reference rather than to the post it is inside.
+    /// </summary>
+    /// <remarks>
+    ///     In front for the reason <see cref="Around(KeyHint, IReadOnlyList{KeyHint}, KeyHint[])" /> gives: the status
+    ///     row is one row and a longer list is cut off at the right, so the keys that only mean something right now
+    ///     are the ones that have to survive the cut.
+    /// </remarks>
+    public static IReadOnlyList<KeyHint> OnAReference(IReadOnlyList<KeyHint> keys)
+    {
+        var taken = OnOne.Select(key => key.Key).ToHashSet(StringComparer.Ordinal);
+
+        return [.. OnOne, .. keys.Where(key => !taken.Contains(key.Key))];
+    }
+
+    /// <summary>
     ///     Walking the screen a row at a time, which every screen with rows on it answers to and none of them owns —
     ///     the other half of the movement <c>j</c> and <c>k</c> make, and the half that can reach the foot of a post
     ///     taller than the terminal (#51).

@@ -24,7 +24,7 @@ public sealed class NotificationsScreen(IReadOnlyList<Notification> notification
     public override string Crumb => "notifications";
 
     /// <inheritdoc />
-    public override IReadOnlyList<KeyHint> Keys =>
+    protected override IReadOnlyList<KeyHint> OwnKeys =>
         PostKeys.Around(
             new KeyHint("j/k", "notification"),
             [new KeyHint("d", "dismiss"), new KeyHint("D", "clear all")],
@@ -103,7 +103,13 @@ public sealed class NotificationsScreen(IReadOnlyList<Notification> notification
             if (notification.Post is { } post)
             {
                 rows.AddRange(PostLines
-                              .Feed(post, Math.Max(1, room - 2), Revealed.Has(post), now, pictures)
+                              .Feed(
+                                  post,
+                                  Math.Max(1, room - 2),
+                                  Revealed.Has(post),
+                                  now,
+                                  pictures,
+                                  reference: ReferenceOn(at))
                               .Select(line => line.After(new Span("  ", Role.Body))));
             }
 

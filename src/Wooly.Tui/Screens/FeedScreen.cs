@@ -18,7 +18,7 @@ public sealed class FeedScreen(Destination destination, IReadOnlyList<Post> post
     public override string Crumb => destination.Label.ToLowerInvariant();
 
     /// <inheritdoc />
-    public override IReadOnlyList<KeyHint> Keys =>
+    protected override IReadOnlyList<KeyHint> OwnKeys =>
         PostKeys.Around(new KeyHint("j/k", "post"), new KeyHint("tab", "destination"));
 
     /// <summary>Which post is picked out, as an index into what is on screen.</summary>
@@ -54,7 +54,14 @@ public sealed class FeedScreen(Destination destination, IReadOnlyList<Post> post
     {
         var rows = _posts.Rows(
             width,
-            (post, _, room) => PostLines.Feed(post, room, Revealed.Has(post), now, pictures, hideDrawnCaption));
+            (post, at, room) => PostLines.Feed(
+                post,
+                room,
+                Revealed.Has(post),
+                now,
+                pictures,
+                hideDrawnCaption,
+                ReferenceOn(at)));
 
         if (Notice is not { } notice)
         {

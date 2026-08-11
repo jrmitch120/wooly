@@ -208,6 +208,26 @@ public sealed class Shell
         Changed?.Invoke();
     }
 
+    /// <summary>
+    ///     What <c>←</c> and <c>→</c> do: walk the references inside the picked post — <c>→</c> entering at the first
+    ///     and <c>←</c> at the last, clamping at either end (#83).
+    /// </summary>
+    /// <returns>
+    ///     Whether the screen had any references to walk, which is what settles whether the key was used: a screen
+    ///     with none — the compose editor above all — leaves the arrows to whatever else wants them.
+    /// </returns>
+    public bool WalkReference(int by)
+    {
+        if (!Screen.WalkReference(by))
+        {
+            return false;
+        }
+
+        Changed?.Invoke();
+
+        return true;
+    }
+
     /// <summary>Shows what the picked post's content warning is hiding.</summary>
     public void Reveal()
     {
@@ -257,6 +277,15 @@ public sealed class Shell
             Asking = null;
             _confirming = null;
 
+            Changed?.Invoke();
+
+            return;
+        }
+
+        // A reference pick is a level of its own, so esc is up one level of whichever kind is open: the first press
+        // lets the pick go and the next pops the screen (docs/tui-shell.md, #83).
+        if (Screen.ClearReference())
+        {
             Changed?.Invoke();
 
             return;

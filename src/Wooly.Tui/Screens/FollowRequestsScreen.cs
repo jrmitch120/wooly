@@ -22,7 +22,7 @@ public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string?
     public override string Crumb => "follow requests";
 
     /// <inheritdoc />
-    public override IReadOnlyList<KeyHint> Keys =>
+    protected override IReadOnlyList<KeyHint> OwnKeys =>
     [
         new("j/k", "request"),
         new("⏎", "read them"),
