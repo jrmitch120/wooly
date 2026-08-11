@@ -189,6 +189,28 @@ public partial class RoleTests
     }
 
     /// <summary>
+    ///     A boost or favorite that is mine carries a glyph a colour cannot draw on top of — the closed circle arrow
+    ///     and the filled star — rather than only the role, which a terminal reporting no colour draws identically to
+    ///     anybody else's.
+    /// </summary>
+    [Fact]
+    public void Feed_DrawsMineAsAClosedArrowAndAFilledStar()
+    {
+        var anybodys = PostLines.Feed(APost.With(), 61, default, Now);
+        var mine = PostLines.Feed(
+            APost.With(marks: APost.Marked(boosted: true, favorited: true)),
+            61,
+            default,
+            Now);
+
+        Assert.Contains(anybodys, line => line.Text.Contains("↺ 3", StringComparison.Ordinal));
+        Assert.Contains(anybodys, line => line.Text.Contains("☆ 5", StringComparison.Ordinal));
+
+        Assert.Contains(mine, line => line.Text.Contains("⥀ 3", StringComparison.Ordinal));
+        Assert.Contains(mine, line => line.Text.Contains("★ 5", StringComparison.Ordinal));
+    }
+
+    /// <summary>
     ///     A byline is two different things one above the other since #77, and they are two roles rather than one —
     ///     the name with the audience beside it, and the handle on the row under it.
     /// </summary>

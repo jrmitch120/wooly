@@ -10,9 +10,10 @@ namespace Wooly.Tui.Screens;
 ///     screen. Both name roles and neither knows what a colour is (ADR-0014).
 ///     <para>
 ///         Every state here has a glyph before it has a colour — <c>○ ◌ ● ✉</c> for the four audiences, <c>⚠</c> for a
-///         warning, <c>↺</c> and <c>★</c> for the two marks, <c>▒▒▒▒</c> for a picture, <c>⏵</c> for an attachment
-///         that is linked rather than drawn. That is not decoration: on a terminal reporting no colour, and to a reader
-///         who cannot tell this green from that grey, the glyphs are the whole of what is being said.
+///         warning, <c>↺</c>/<c>⥀</c> and <c>☆</c>/<c>★</c> for whether a boost or favorite is the reader's own,
+///         <c>▒▒▒▒</c> for a picture, <c>⏵</c> for an attachment that is linked rather than drawn. That is not
+///         decoration: on a terminal reporting no colour, and to a reader who cannot tell this green from that grey,
+///         the glyphs are the whole of what is being said.
 ///     </para>
 /// </summary>
 public static class PostLines
@@ -179,11 +180,24 @@ public static class PostLines
         if (post.Boosted is not null)
         {
             yield return Line.Of([
-                new Span("↺ ", post.Marks.Boosted ? Role.BoostMine : Role.Boost),
+                new Span($"{BoostMark(post.Marks.Boosted)} ", post.Marks.Boosted ? Role.BoostMine : Role.Boost),
                 new Span(TextWrap.Clip(said, width - 2), Role.Muted),
             ]);
         }
     }
+
+    /// <summary>
+    ///     The boost mark: the closed circle arrow where the boost is this profile's own, and the open one — its
+    ///     ordinary reading — where it is anybody else's. The same rotation either way, so a reader is told whose
+    ///     boost this is by whether the circle is open or shut rather than by which way it turns.
+    /// </summary>
+    private static string BoostMark(bool mine) => mine ? "⥀" : "↺";
+
+    /// <summary>
+    ///     The favorite mark: a filled star where this profile favorited the post, and a hollow one where nobody
+    ///     reading it did or somebody else did without them.
+    /// </summary>
+    private static string FavoriteMark(bool mine) => mine ? "★" : "☆";
 
     /// <summary>The mark for who can see a post, which says it where colour cannot.</summary>
     public static string Audience(PostVisibility visibility) => visibility switch
@@ -533,10 +547,12 @@ public static class PostLines
     ///     one does not need the word; the post screen has room for both.
     /// </param>
     private static Line Counts(Post post, bool spelledOut) => Line.Of([
-        new Span($"↺ {Number.Of(post.Boosts)}{Word(" boosts", spelledOut)}", post.Marks.Boosted ? Role.BoostMine : Role.Boost),
+        new Span(
+            $"{BoostMark(post.Marks.Boosted)} {Number.Of(post.Boosts)}{Word(" boosts", spelledOut)}",
+            post.Marks.Boosted ? Role.BoostMine : Role.Boost),
         new Span("   ", Role.Muted),
         new Span(
-            $"★ {Number.Of(post.Favorites)}{Word(" favorites", spelledOut)}",
+            $"{FavoriteMark(post.Marks.Favorited)} {Number.Of(post.Favorites)}{Word(" favorites", spelledOut)}",
             post.Marks.Favorited ? Role.FavoriteMine : Role.Favorite),
         new Span("   ", Role.Muted),
         new Span($"↩ {Number.Of(post.Replies)}{Word(" replies", spelledOut)}", Role.Muted),

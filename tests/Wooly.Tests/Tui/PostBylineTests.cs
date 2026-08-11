@@ -305,6 +305,15 @@ public class PostBylineTests
         Assert.True(lines[2].Has(Role.BylineName));
     }
 
+    /// <summary>The boost row's own arrow is closed rather than open where the boost is this profile's own.</summary>
+    [Fact]
+    public void Feed_ClosesTheBoostRowsArrowWhereTheBoostIsMine()
+    {
+        var lines = Feed(APost.With(author: "Jeff", boosted: By(), marks: APost.Marked(boosted: true)));
+
+        Assert.Equal("⥀ Jeff boosted", lines[0].Text);
+    }
+
     /// <summary>
     ///     The mark is drawn identically wherever the rows are shared — the feed, the post screen, a conversation,
     ///     search, direct messages and an account all read it off the same two methods, and neither suppresses it.

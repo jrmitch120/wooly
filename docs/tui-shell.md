@@ -421,8 +421,8 @@ glyph or a position that carries the same meaning when colour is gone.
 | *(none — a picture's own pixels)* | A drawn picture | it is the picture |
 | `poll` | Options and their bars | the bar itself, and `✓ `/`[x]` marking a picked one |
 | `reference-picked` | The brackets around a picked reference | `‹ ›`, always drawn |
-| `boost` / `boost-mine` | The boost mark, and it when it is yours | `↺`, and the count |
-| `favorite` / `favorite-mine` | The favorite mark, and it when it is yours | `★`, and the count |
+| `boost` / `boost-mine` | The boost mark, and it when it is yours | `↺` (open) vs `⥀` (closed) |
+| `favorite` / `favorite-mine` | The favorite mark, and it when it is yours | `☆` (hollow) vs `★` (filled) |
 | `selection` | The selected row | `▌` in the gutter |
 | `rail` / `rail-current` | Destinations, and the one loaded | one glyph, one column: `▶` where the tabbing has got to, `▷` where it settled if that differs — they coincide at rest, so only `▶` shows |
 | `rail-unread` | An unread count, and the word on an unread conversation | the number, and the word |
