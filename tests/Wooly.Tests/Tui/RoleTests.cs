@@ -64,7 +64,7 @@ public partial class RoleTests
         Collect(PostLines.Whole(mine, 61, revealed: true, Now));
 
         // With the first reference in the text picked out, which is the only thing that draws the brackets (#83).
-        Collect(PostLines.Feed(mine, 61, revealed: true, Now, reference: 0));
+        Collect(PostLines.Feed(mine, 61, revealed: true, Now, reference: BodyText.References(mine.Content)[0]));
 
         var feedScreen = new FeedScreen(
             new Destination(DestinationKind.Home, "Home", Wooly.Core.Timelines.Timeline.Home),

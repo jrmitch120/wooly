@@ -37,11 +37,17 @@ public class ReferenceWalkTests
         "account",
     ];
 
+    /// <summary>The three references in <see cref="Said" />, in the order they are walked.</summary>
+    private const string First = "@maria@fosstodon.org";
+
+    /// <inheritdoc cref="First" />
+    private const string Last = "#dotnet";
+
     /// <summary><c>→</c> enters at the first reference and <c>←</c> at the last.</summary>
     [Theory]
-    [InlineData(true, 0)]
-    [InlineData(false, 2)]
-    public async Task TheArrowsEnterAtOneEndOrTheOther(bool forwards, int expected)
+    [InlineData(true, First)]
+    [InlineData(false, Last)]
+    public async Task TheArrowsEnterAtOneEndOrTheOther(bool forwards, string expected)
     {
         var (window, shell) = await Opened();
 
@@ -51,7 +57,7 @@ public class ReferenceWalkTests
 
             window.NewKeyDownEvent(forwards ? Key.CursorRight : Key.CursorLeft);
 
-            Assert.Equal(expected, shell.Screen.Reference);
+            Assert.Equal(expected, shell.Screen.Reference?.Text);
         }
     }
 
@@ -60,9 +66,9 @@ public class ReferenceWalkTests
     ///     <see cref="Picked{T}" /> already walks a list by.
     /// </summary>
     [Theory]
-    [InlineData(true, 2)]
-    [InlineData(false, 0)]
-    public async Task TheArrowsClampAtTheEndsRatherThanWrapping(bool forwards, int expected)
+    [InlineData(true, Last)]
+    [InlineData(false, First)]
+    public async Task TheArrowsClampAtTheEndsRatherThanWrapping(bool forwards, string expected)
     {
         var (window, shell) = await Opened();
 
@@ -73,7 +79,7 @@ public class ReferenceWalkTests
                 window.NewKeyDownEvent(forwards ? Key.CursorRight : Key.CursorLeft);
             }
 
-            Assert.Equal(expected, shell.Screen.Reference);
+            Assert.Equal(expected, shell.Screen.Reference?.Text);
         }
     }
 
@@ -94,7 +100,7 @@ public class ReferenceWalkTests
 
             window.NewKeyDownEvent(Key.CursorRight);
 
-            Assert.Equal(0, shell.Screen.Reference);
+            Assert.Equal(First, shell.Screen.Reference?.Text);
 
             window.NewKeyDownEvent(Key.Esc);
 
@@ -123,7 +129,7 @@ public class ReferenceWalkTests
             window.NewKeyDownEvent(Key.CursorRight);
             window.NewKeyDownEvent(down ? Key.CursorDown : Key.CursorUp);
 
-            Assert.Equal(0, shell.Screen.Reference);
+            Assert.Equal(First, shell.Screen.Reference?.Text);
 
             window.NewKeyDownEvent(down ? Key.K : Key.J);
 
@@ -163,11 +169,11 @@ public class ReferenceWalkTests
         Assert.Equal(3, screen.References.Count);
 
         Assert.True(screen.WalkReference(1));
-        Assert.Equal(0, screen.Reference);
+        Assert.Equal(First, screen.Reference?.Text);
 
         screen.WalkReference(1);
 
-        Assert.Equal(1, screen.Reference);
+        Assert.Equal("https://example.com/notes", screen.Reference?.Text);
 
         Assert.True(screen.ClearReference());
         Assert.Null(screen.Reference);

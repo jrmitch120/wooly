@@ -16,7 +16,10 @@ namespace Wooly.Tui.Screens;
 /// </remarks>
 public abstract class Screen
 {
-    /// <summary>Which reference inside the picked post is walked to, before it is checked against what is there.</summary>
+    /// <summary>
+    ///     Which reference inside the picked post the walk has got to, as an index into <see cref="References" /> —
+    ///     before it is checked against what is written there now, which <see cref="Reference" /> is.
+    /// </summary>
     private int? _reference;
 
     /// <summary>What this screen is called on the breadcrumb, e.g. <c>post by @ben</c>.</summary>
@@ -112,11 +115,19 @@ public abstract class Screen
         : [];
 
     /// <summary>
-    ///     Which of them the reader has walked to, or <see langword="null" /> where none is — including where the post
-    ///     has since been edited out from under a pick, which is a pick on nothing rather than on whatever is at that
-    ///     index now.
+    ///     The one the reader has walked to, or <see langword="null" /> where none is — including where the post has
+    ///     since been edited out from under the walk, which is a pick on nothing rather than a pick on whatever is
+    ///     written in that place now.
     /// </summary>
-    public int? Reference => _reference is { } at && at < References.Count ? at : null;
+    public Reference? Reference
+    {
+        get
+        {
+            var references = References;
+
+            return _reference is { } at && at < references.Count ? references[at] : null;
+        }
+    }
 
     /// <summary>
     ///     Walks the references by <paramref name="by" />: <c>→</c> enters at the first and <c>←</c> at the last, and
@@ -136,7 +147,7 @@ public abstract class Screen
             return false;
         }
 
-        _reference = Reference is { } at
+        _reference = _reference is { } at && at < references.Count
             ? Math.Clamp(at + by, 0, references.Count - 1)
             : by > 0 ? 0 : references.Count - 1;
 
@@ -156,9 +167,9 @@ public abstract class Screen
 
     /// <summary>
     ///     Which reference is picked out on the <paramref name="at" />th thing on this screen — none, unless it is the
-    ///     one picked out, since a reference pick lives inside the picked post and nowhere else.
+    ///     thing picked out, since a reference pick lives inside the picked post and nowhere else.
     /// </summary>
-    protected int? ReferenceOn(int at) => Walking?.At == at ? Reference : null;
+    protected Reference? ReferenceOn(int at) => Walking?.At == at ? Reference : null;
 
     /// <summary>Moves what is picked out by <paramref name="by" /> items, stopping at either end.</summary>
     /// <remarks>

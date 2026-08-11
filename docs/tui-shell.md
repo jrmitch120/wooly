@@ -221,7 +221,8 @@ mention, or address inside a post's text — replacing `BodyText`'s internal "ma
 - **`esc` clears the pick first**, popping the screen on the next press (above). **`j`/`k` clear it too**, since the
   reader has left the post. **`↓`/`↑` (page scroll) do not** — they leave the selection alone by the existing
   "What moving settled" contract, and a reference pick lives inside the selected post, not on a row.
-- **Marked `‹reference›`** — brackets, always drawn, in colour and no-colour terminals alike. The brackets take
+- **Bracketed `‹reference›`** — brackets, always drawn, in colour and no-colour terminals alike. ("Marked" is the
+  word `Post.Marks` has, which is the collision the rename was about — CONTEXT.md.) The brackets take
   their own role (`Role.ReferencePicked`), independent of whatever role the bracketed text already carries, so a
   picked hashtag stays hashtag-coloured and only the brackets shift. Underline was considered — a separate SGR
   attribute, zero width cost — and set aside in favour of brackets; the two added columns on the one row a pick

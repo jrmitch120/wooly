@@ -48,7 +48,7 @@ public static partial class BodyText
     {
         var references = new List<Reference>();
 
-        foreach (Match match in Matches().Matches(text))
+        foreach (Match match in Referenced().Matches(text))
         {
             if (Found(match) is { Text.Length: > 0 } reference)
             {
@@ -106,16 +106,16 @@ public static partial class BodyText
                 spans.Add(new Span(text[at..starts], Role.Body));
             }
 
-            var marked = picked == reference;
+            var bracketed = picked == reference;
 
-            if (marked && from >= 0)
+            if (bracketed && from >= 0)
             {
                 spans.Add(new Span(Opening, Role.ReferencePicked));
             }
 
             spans.Add(new Span(text[starts..stops], reference.Role));
 
-            if (marked && to <= text.Length)
+            if (bracketed && to <= text.Length)
             {
                 spans.Add(new Span(Closing, Role.ReferencePicked));
             }
@@ -174,5 +174,5 @@ public static partial class BodyText
         |(?<hashtag>(?<![\w#])\#\w+)
         """,
         RegexOptions.IgnorePatternWhitespace)]
-    private static partial Regex Matches();
+    private static partial Regex Referenced();
 }

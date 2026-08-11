@@ -58,9 +58,8 @@ public static class PostLines
     ///     <c>hide_drawn_caption</c> preference.
     /// </param>
     /// <param name="reference">
-    ///     Which of the references in this post's text the reader has walked to, as an index into
-    ///     <see cref="BodyText.References" /> of it — or <see langword="null" /> where none is picked, which is every
-    ///     post but the one being read (#83).
+    ///     The reference in this post's text the reader has walked to, or <see langword="null" /> where none is picked
+    ///     — which is every post but the one being read (#83).
     /// </param>
     public static IReadOnlyList<Line> Feed(
         Post post,
@@ -69,7 +68,7 @@ public static class PostLines
         DateTimeOffset now,
         IPictures? pictures = null,
         bool hideDrawnCaption = false,
-        int? reference = null)
+        Reference? reference = null)
     {
         var shown = post.Boosted ?? post;
 
@@ -98,7 +97,7 @@ public static class PostLines
         DateTimeOffset now,
         IPictures? pictures = null,
         bool hideDrawnCaption = false,
-        int? reference = null)
+        Reference? reference = null)
     {
         var shown = post.Boosted ?? post;
         var avatar = Avatar.Of(shown, pictures);
@@ -325,8 +324,8 @@ public static class PostLines
     ///     The text, or the warning standing in front of it. A warning is honoured rather than printed past: the
     ///     author put the post behind it, and a client that showed both would have made the warning pointless.
     /// </summary>
-    /// <param name="reference">Which reference in the text is picked out, or <see langword="null" /> for none (#83).</param>
-    private static IEnumerable<Line> Body(Post post, int width, bool revealed, int? reference)
+    /// <param name="reference">The reference in the text that is picked out, or <see langword="null" /> for none (#83).</param>
+    private static IEnumerable<Line> Body(Post post, int width, bool revealed, Reference? reference)
     {
         if (post.ContentWarning is { } warning && !revealed)
         {
@@ -363,14 +362,13 @@ public static class PostLines
         // text is drawn, so a tag, a mention and an address take their own roles on a feed, inside a post, in a
         // conversation and in the notification list from this one line (#46) — and an address the wrap cut in two is
         // still one reference, because what it is was settled before the cut (#83).
+        // The picked one is passed in as itself rather than as a place in this list, so a pick left over from a post
+        // that has since been edited matches nothing here — a pick on nothing rather than a bracket around whatever
+        // is now written in that place.
         var references = BodyText.References(post.Content);
 
-        // Read out of the list rather than passed in as itself, so that a pick left over from a post that has since
-        // been edited is a pick on nothing rather than a bracket around whatever now sits at that index.
-        var picked = reference is { } at && at >= 0 && at < references.Count ? references[at] : (Reference?)null;
-
         lines.AddRange(TextWrap.Rows(post.Content, width)
-                               .Select(row => new Line(BodyText.Spans(row, references, picked))));
+                               .Select(row => new Line(BodyText.Spans(row, references, reference))));
 
         return lines;
     }

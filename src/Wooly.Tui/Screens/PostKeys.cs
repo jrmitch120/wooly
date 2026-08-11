@@ -1,9 +1,10 @@
 namespace Wooly.Tui.Screens;
 
 /// <summary>
-///     The keys that act on whichever post is picked out. Listed once, because the shell acts on
-///     <see cref="Screen.Picked" /> without caring which screen it came from — so a screen whose status row left one
-///     of these out would be a screen where a key fires unannounced.
+///     The keys that act on whichever post is picked out — and, since #83, the ones that act on a reference picked
+///     out inside it. Listed once, because the shell acts on <see cref="Screen.Picked" /> without caring which screen
+///     it came from — so a screen whose status row left one of these out would be a screen where a key fires
+///     unannounced.
 /// </summary>
 /// <remarks>
 ///     The rule runs the other way too, which is the one reason a screen may leave one of these off: a key that has
@@ -35,14 +36,14 @@ public static class PostKeys
 
     /// <summary>
     ///     What a picked reference answers to: walking the references inside the post, opening the one picked out, and
-    ///     letting it go again (#83). What <c>⏎</c> opens is #85's; the row says it here because the key is announced
-    ///     on the row a pick is made on.
+    ///     letting it go again (#83). What <c>⏎</c> opens is #85's; it is announced here because the key is announced
+    ///     on the row a pick is made on, and a pick can be made now.
     /// </summary>
-    private static readonly IReadOnlyList<KeyHint> OnOne =
+    private static IReadOnlyList<KeyHint> Walking { get; } =
     [
-        new KeyHint("←/→", "reference"),
-        new KeyHint("⏎", "open"),
-        new KeyHint("esc", "back"),
+        new("←/→", "reference"),
+        new("⏎", "open"),
+        new("esc", "back"),
     ];
 
     /// <summary>
@@ -56,9 +57,9 @@ public static class PostKeys
     /// </remarks>
     public static IReadOnlyList<KeyHint> OnAReference(IReadOnlyList<KeyHint> keys)
     {
-        var taken = OnOne.Select(key => key.Key).ToHashSet(StringComparer.Ordinal);
+        var taken = Walking.Select(key => key.Key).ToHashSet(StringComparer.Ordinal);
 
-        return [.. OnOne, .. keys.Where(key => !taken.Contains(key.Key))];
+        return [.. Walking, .. keys.Where(key => !taken.Contains(key.Key))];
     }
 
     /// <summary>
