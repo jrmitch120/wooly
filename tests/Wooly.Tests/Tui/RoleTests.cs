@@ -54,17 +54,19 @@ public partial class RoleTests
 
         // Revealed, so the content warning's own row and the text behind it — carrying the hashtag, mention and
         // address roles — are both drawn; an unrevealed warning stands in front of the text instead.
-        Collect(PostLines.Feed(mine, 61, revealed: true, Now, FakePictures.With()));
+        var revealed = new Reading(Revealed: true);
+
+        Collect(PostLines.Feed(mine, 61, revealed, Now, FakePictures.With()));
         Collect(PostLines.Feed(
             APost.With(media: [APost.APicture(description: null)]),
             61,
-            revealed: false,
+            default,
             Now,
             FakePictures.With()));
-        Collect(PostLines.Whole(mine, 61, revealed: true, Now));
+        Collect(PostLines.Whole(mine, 61, revealed, Now));
 
         // With the first reference in the text picked out, which is the only thing that draws the brackets (#83).
-        Collect(PostLines.Feed(mine, 61, revealed: true, Now, reference: BodyText.References(mine.Content)[0]));
+        Collect(PostLines.Feed(mine, 61, revealed with { Reference = BodyText.References(mine.Content)[0] }, Now));
 
         var feedScreen = new FeedScreen(
             new Destination(DestinationKind.Home, "Home", Wooly.Core.Timelines.Timeline.Home),
@@ -170,11 +172,11 @@ public partial class RoleTests
     [Fact]
     public void Feed_DrawsAMarkOfTheReadersOwnInItsOwnRole()
     {
-        var anybodys = PostLines.Feed(APost.With(), 61, revealed: false, Now);
+        var anybodys = PostLines.Feed(APost.With(), 61, default, Now);
         var mine = PostLines.Feed(
             APost.With(marks: APost.Marked(boosted: true, favorited: true)),
             61,
-            revealed: false,
+            default,
             Now);
 
         Assert.Contains(anybodys, line => line.Has(Role.Boost));
@@ -193,7 +195,7 @@ public partial class RoleTests
     [Fact]
     public void Feed_DrawsANameAndAHandleInTheirOwnRoles()
     {
-        var lines = PostLines.Feed(APost.With(author: "Maria Ochoa", account: "maria@fosstodon.org"), 61, false, Now);
+        var lines = PostLines.Feed(APost.With(author: "Maria Ochoa", account: "maria@fosstodon.org"), 61, default, Now);
         var name = lines.First(line => line.Has(Role.BylineName));
         var handle = lines.First(line => line.Has(Role.BylineHandle));
 
@@ -212,7 +214,7 @@ public partial class RoleTests
     {
         const string Said = "Thanks @maria@fosstodon.org — notes at https://example.com/notes #dotnet";
 
-        var feed = PostLines.Feed(APost.With(content: Said), 61, revealed: false, Now);
+        var feed = PostLines.Feed(APost.With(content: Said), 61, default, Now);
         var thread = new ConversationScreen(
             AConversation.Thread(AConversation.With(), APost.With(content: Said, visibility: PostVisibility.Direct)))
             .Lines(61, Now);
@@ -247,7 +249,7 @@ public partial class RoleTests
     [Fact]
     public void Feed_DrawsAContentWarningInItsOwnRoleAndWithItsOwnGlyph()
     {
-        var lines = PostLines.Feed(APost.With(contentWarning: "spoilers"), 61, revealed: false, Now);
+        var lines = PostLines.Feed(APost.With(contentWarning: "spoilers"), 61, default, Now);
         var warned = lines.First(line => line.Has(Role.ContentWarning));
 
         Assert.Contains("⚠", warned.Text);
@@ -262,7 +264,7 @@ public partial class RoleTests
     [InlineData(PostVisibility.Direct, "✉")]
     public void Feed_MarksWhoCanSeeAPostWithAGlyph(PostVisibility visibility, string glyph)
     {
-        var lines = PostLines.Feed(APost.With(visibility: visibility), 61, revealed: false, Now);
+        var lines = PostLines.Feed(APost.With(visibility: visibility), 61, default, Now);
 
         Assert.Contains(lines, line => line.Text.Contains(glyph, StringComparison.Ordinal));
         Assert.Equal(glyph, PostLines.Audience(visibility));
@@ -276,14 +278,14 @@ public partial class RoleTests
         var described = PostLines.Feed(
             APost.With(media: [APost.APicture(description: "A cartoon sheep")]),
             61,
-            revealed: false,
+            default,
             Now,
             FakePictures.With());
 
         var undescribed = PostLines.Feed(
             APost.With(media: [APost.APicture(description: null)]),
             61,
-            revealed: false,
+            default,
             Now,
             FakePictures.With());
 
@@ -628,7 +630,7 @@ public partial class RoleTests
                      + "model made the whole shell testable — no more static state leaking between test runs.",
             media: [APost.APicture(description: "A screenshot of a terminal showing a great deal of text indeed")]);
 
-        var lines = PostLines.Feed(post, 61, revealed: false, Now);
+        var lines = PostLines.Feed(post, 61, default, Now);
 
         Assert.All(lines, line => Assert.True(line.Width <= 61, $"'{line.Text}' is {line.Width} columns"));
     }

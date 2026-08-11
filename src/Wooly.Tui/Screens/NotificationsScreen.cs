@@ -103,13 +103,7 @@ public sealed class NotificationsScreen(IReadOnlyList<Notification> notification
             if (notification.Post is { } post)
             {
                 rows.AddRange(PostLines
-                              .Feed(
-                                  post,
-                                  Math.Max(1, room - 2),
-                                  Revealed.Has(post),
-                                  now,
-                                  pictures,
-                                  reference: ReferenceOn(at))
+                              .Feed(post, Math.Max(1, room - 2), ReadingOf(post, at), now, pictures)
                               .Select(line => line.After(new Span("  ", Role.Body))));
             }
 

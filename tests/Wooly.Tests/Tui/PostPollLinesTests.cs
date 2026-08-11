@@ -20,10 +20,10 @@ public class PostPollLinesTests
     private static Post With(PostPoll poll) => APost.With(poll: poll);
 
     private static IReadOnlyList<Line> Feed(Post post, int width = 61) =>
-        PostLines.Feed(post, width, revealed: false, Now);
+        PostLines.Feed(post, width, default, Now);
 
     private static IReadOnlyList<Line> Whole(Post post, int width = 61) =>
-        PostLines.Whole(post, width, revealed: false, Now);
+        PostLines.Whole(post, width, default, Now);
 
     /// <summary>A post carrying no poll draws none of this at all.</summary>
     [Fact]

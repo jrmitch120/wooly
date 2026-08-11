@@ -105,6 +105,13 @@ in. Replaces what `BodyText` used to call a "mark," a word this project had alre
 (boost/favorite/pin).
 _Avoid_: mark (for this; reserved for boost/favorite/pin)
 
+**Reading**:
+What this reader has done to one post — asked past its content warning, walked to a **reference** inside it — carried
+as one thing, keyed by which post it is (#95). Distinct from **Picked**, which is which post: a post nobody has
+touched is `default`, and every post on a screen but the picked one is. Nothing to do with `Shell`'s own private
+sense of the word, which is the **conversation** being read.
+_Avoid_: state, reader state
+
 **Vote**:
 Casting a choice on a post's poll, Mastodon's own word for the act. Distinct from **Picked** and from toggling an
 option before it is cast — the toggle and the cast key are both plain interaction words, not glossary entries;

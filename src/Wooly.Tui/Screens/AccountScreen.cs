@@ -104,14 +104,7 @@ public sealed class AccountScreen(Account account, IReadOnlyList<Post> posts) : 
 
         lines.AddRange(_posts.Rows(
             width,
-            (post, at, room) => PostLines.Feed(
-                post,
-                room,
-                Revealed.Has(post),
-                now,
-                pictures,
-                hideDrawnCaption,
-                ReferenceOn(at))));
+            (post, at, room) => PostLines.Feed(post, room, ReadingOf(post, at), now, pictures, hideDrawnCaption)));
 
         return lines;
     }
