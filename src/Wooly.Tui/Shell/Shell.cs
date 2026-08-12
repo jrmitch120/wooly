@@ -3,7 +3,6 @@ using Wooly.Core.Accounts;
 using Wooly.Core.Conversations;
 using Wooly.Core.Errors;
 using Wooly.Core.Http;
-using Wooly.Core.Notifications;
 using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
 using Wooly.Core.Relationships;
@@ -33,25 +32,6 @@ namespace Wooly.Tui.Shell;
 public sealed class Shell
 {
     /// <summary>
-    ///     How many posts a screen asks for. A timeline's page, which is the most an instance serves in one call — so
-    ///     arriving at a destination is one request rather than several, which matters most for the mechanism that can
-    ///     spend the rate-limit budget by accident.
-    /// </summary>
-    private const int PostsWanted = 40;
-
-    /// <summary>
-    ///     How many notifications, conversations or requests are asked for: what a screen lists, and what a count
-    ///     counts up to before it stops counting.
-    /// </summary>
-    private const int CountedAtMost = 40;
-
-    /// <summary>
-    ///     What an account nobody has written to is told. Said once, because arriving at the destination and stepping
-    ///     back onto what it held both say it.
-    /// </summary>
-    private const string NobodyHasWritten = "No direct conversations yet.";
-
-    /// <summary>
     ///     What a reader is told when a picked reference goes nowhere. Three of them, because there are three ways
     ///     for <c>⏎</c> to have nothing to open: a handle the post never named, an address no browser can be handed,
     ///     and a machine with no browser on it (<c>docs/tui-shell.md</c>, #85).
@@ -63,6 +43,12 @@ public sealed class Shell
 
     /// <inheritdoc cref="MentionUnresolved" />
     private const string NoBrowser = "No browser available.";
+
+    /// <summary>
+    ///     What arriving at a destination means, which is the same six steps at every one of them that reads a list
+    ///     (#100).
+    /// </summary>
+    private readonly Arrival _arrival;
 
     /// <summary>
     ///     Where an address goes. The one thing this shell does that leaves the terminal, and deliberately not one of
@@ -101,6 +87,12 @@ public sealed class Shell
         _enquiry = new Enquiry(host, clock, timing.CountdownStep);
         _enquiry.Said += Say;
         _enquiry.Changed += () => Changed?.Invoke();
+
+        // An arrival settles what a destination is on screen and what its badge says; putting either there is this
+        // shell's own business, since the stack and the rail are its.
+        _arrival = new Arrival(profile, ports, _enquiry, _cache, host);
+        _arrival.Shows += Reset;
+        _arrival.Counts += Counted;
 
         Rail = new Rail(Destinations(profile, hashtag), host, timing.Settle);
         Rail.Selected += destination => _ = Go(destination);
@@ -787,21 +779,24 @@ public sealed class Shell
         new(DestinationKind.Profile, profile.Account is { } account ? $"@{account.Split('@')[0]}" : "Profile"),
     ];
 
-    /// <summary>Arriving at a destination, which is what moving the rail's selection means.</summary>
+    /// <summary>
+    ///     Arriving at a destination, which is what moving the rail's selection means. Every destination that reads a
+    ///     list goes through <see cref="Arrival" /> and is nothing here but the four things it says about itself; the
+    ///     three arms below are the ones that read none (#100).
+    /// </summary>
+    /// <remarks>
+    ///     Walking to a destination is arriving somewhere, so whatever was drilled into from the last one is left
+    ///     behind: the stack is where you went from here, and this is a different here.
+    /// </remarks>
     private async Task Go(Destination destination)
     {
-        // Said before anything else, and by every arrival rather than only the ones that fetch. A destination that
-        // asks the instance for nothing still overtakes what the last one asked for — otherwise a timeline still in
-        // flight lands on top of the notice screen the reader has since walked to.
-        _enquiry.Arrived();
-
-        // Walking to a destination is arriving somewhere, so whatever was drilled into from the last one is left
-        // behind: the stack is where you went from here, and this is a different here.
-        Apply(() => Reset(OnArrival(destination)));
-
-        switch (destination.Kind)
+        switch (destination)
         {
-            case DestinationKind.Profile:
+            // The profile's own account, which is one account rather than a list of anything — and arrived at by
+            // replacing what is on the stack rather than pushing onto it, since arriving is not drilling in.
+            case { Kind: DestinationKind.Profile }:
+                _arrival.At(new FeedScreen(destination, []));
+
                 if (_profile.Account is { } account)
                 {
                     await OpenAccount(AccountAddress.Parse(account), replacing: true);
@@ -809,41 +804,27 @@ public sealed class Shell
 
                 return;
 
-            case DestinationKind.Notifications:
-                await OpenNotifications();
+            // A prompt, which asks the instance for nothing until something has been typed into it.
+            case { Kind: DestinationKind.Search }:
+                _arrival.At(new SearchScreen());
 
                 return;
 
-            case DestinationKind.Requests:
-                await OpenRequests();
+            // A rail entry for a hashtag nobody has named has nothing to ask about, so what stands here is the line
+            // that would name one rather than an empty timeline.
+            case { Kind: DestinationKind.Hashtag, Timeline: null }:
+                _arrival.At(new NoticeScreen(
+                    "hashtag",
+                    "No hashtag is set for the rail.",
+                    """Put hashtag = "cats" under [preferences] in your config file to keep one here."""));
 
                 return;
 
-            case DestinationKind.Messages:
-                await OpenMessages();
+            default:
+                await _arrival.At(destination);
 
                 return;
         }
-
-        if (destination.Timeline is not { } timeline)
-        {
-            return;
-        }
-
-        if (_cache.Fresh<Post>(destination.Kind) is { } held)
-        {
-            Apply(() => Reset(new FeedScreen(destination, held, Emptiness(held, destination))));
-
-            return;
-        }
-
-        await _enquiry.Put(
-            ask => ask.Of(token => _ports.Timelines.Read(_profile, timeline, PostsWanted, token)),
-            ifStillHere: fetch =>
-            {
-                _cache.Keep(destination.Kind, fetch.Posts);
-                Reset(new FeedScreen(destination, fetch.Posts, Emptiness(fetch.Posts, destination, fetch.StoppedBy)));
-            });
     }
 
     /// <summary>Opens an account screen: who they are, their standing, and their posts.</summary>
@@ -857,7 +838,7 @@ public sealed class Shell
             {
                 var account = await ask.Of(token => _ports.Accounts.Show(_profile, address, token));
                 var posts = await ask.Of(token =>
-                    _ports.Timelines.Read(_profile, Timeline.By(address), PostsWanted, token));
+                    _ports.Timelines.Read(_profile, Timeline.By(address), Arrival.PostsWanted, token));
 
                 return (Account: account, Posts: posts.Posts);
             },
@@ -874,98 +855,6 @@ public sealed class Shell
                     Push(screen);
                 }
             });
-
-    /// <summary>Arriving at the notifications destination: what is waiting, and the count that says so on the rail.</summary>
-    private async Task OpenNotifications()
-    {
-        if (_cache.Fresh<Notification>(DestinationKind.Notifications) is { } held)
-        {
-            Apply(() =>
-            {
-                Reset(new NotificationsScreen(held, Emptiness(held.Count, "Nothing is waiting for you.")));
-                Counted(DestinationKind.Notifications, held.Count);
-            });
-
-            return;
-        }
-
-        await _enquiry.Put(
-            ask => ask.Of(token => _ports.Notifications.Read(_profile, CountedAtMost, token)),
-            ifStillHere: fetch =>
-            {
-                _cache.Keep(DestinationKind.Notifications, fetch.Notifications);
-
-                Reset(new NotificationsScreen(
-                    fetch.Notifications,
-                    Emptiness(fetch.Notifications.Count, "Nothing is waiting for you.", fetch.StoppedBy)));
-
-                // The count and the screen are read from the same answer, so the badge cannot say four over a list of
-                // three.
-                Counted(DestinationKind.Notifications, fetch.Notifications.Count);
-            });
-    }
-
-    /// <summary>Arriving at the follow-requests destination: who is waiting to be let in.</summary>
-    private async Task OpenRequests()
-    {
-        if (_cache.Fresh<Account>(DestinationKind.Requests) is { } held)
-        {
-            Apply(() =>
-            {
-                Reset(new FollowRequestsScreen(held, Emptiness(held.Count, "Nobody is waiting to follow you.")));
-                Counted(DestinationKind.Requests, held.Count);
-            });
-
-            return;
-        }
-
-        await _enquiry.Put(
-            ask => ask.Of(token => _ports.Accounts.PendingRequests(_profile, CountedAtMost, token)),
-            ifStillHere: fetch =>
-            {
-                _cache.Keep(DestinationKind.Requests, fetch.Accounts);
-
-                Reset(new FollowRequestsScreen(
-                    fetch.Accounts,
-                    Emptiness(fetch.Accounts.Count, "Nobody is waiting to follow you.", fetch.StoppedBy)));
-
-                Counted(DestinationKind.Requests, fetch.Accounts.Count);
-            });
-    }
-
-    /// <summary>Arriving at the direct messages destination: who has written, and how much of it is unread.</summary>
-    private async Task OpenMessages()
-    {
-        if (_cache.Fresh<Conversation>(DestinationKind.Messages) is { } held)
-        {
-            Apply(() =>
-            {
-                var screen = new DirectMessagesScreen(held, Emptiness(held.Count, NobodyHasWritten));
-
-                Reset(screen);
-                Counted(DestinationKind.Messages, screen.Unread);
-            });
-
-            return;
-        }
-
-        await _enquiry.Put(
-            ask => ask.Of(token => _ports.Messages.List(_profile, CountedAtMost, token)),
-            ifStillHere: fetch =>
-            {
-                _cache.Keep(DestinationKind.Messages, fetch.Conversations);
-
-                var screen = new DirectMessagesScreen(
-                    fetch.Conversations,
-                    Emptiness(fetch.Conversations.Count, NobodyHasWritten, fetch.StoppedBy));
-
-                Reset(screen);
-
-                // The badge counts the conversations with something unread in them, and counts them from the list it
-                // is drawn beside — so the rail cannot say two over a list of one.
-                Counted(DestinationKind.Messages, screen.Unread);
-            });
-    }
 
     /// <summary>
     ///     Opens the account the picked mention names, off the post itself rather than out of a fetch: an instance
@@ -1017,16 +906,25 @@ public sealed class Shell
     }
 
     /// <summary>Opens a hashtag's timeline as a screen on the stack, which is what a search result for one does.</summary>
+    /// <remarks>
+    ///     A screen pushed onto the stack rather than a destination arrived at, so it goes nowhere near
+    ///     <see cref="Arrival" />: nothing here is overtaken, cached, reset or counted — but what an empty tag is told
+    ///     is the same sentence the rail's own timelines are told, and is said in the one place.
+    /// </remarks>
     private Task OpenTag(string name) =>
         _enquiry.Put(
-            ask => ask.Of(token => _ports.Timelines.Read(_profile, Timeline.Tag(name), PostsWanted, token)),
+            ask => ask.Of(token => _ports.Timelines.Read(_profile, Timeline.Tag(name), Arrival.PostsWanted, token)),
             ifStillHere: posts =>
             {
                 // A destination of its own rather than the rail's, so that the breadcrumb says which tag this is
                 // without the rail's own hashtag entry changing under a reader who did not ask it to.
-                var showing = new Destination(DestinationKind.Hashtag, $"#{name}", Timeline.Tag(name));
+                var tag = Timeline.Tag(name);
+                var showing = new Destination(DestinationKind.Hashtag, $"#{name}", tag);
 
-                Push(new FeedScreen(showing, posts.Posts, Emptiness(posts.Posts, showing, posts.StoppedBy)));
+                Push(new FeedScreen(
+                    showing,
+                    posts.Posts,
+                    Arrival.Emptiness(posts.Posts.Count, Arrival.NothingOn(tag), tag.Description, posts.StoppedBy)));
             });
 
     /// <summary>Empties the inbox, once it has been said twice.</summary>
@@ -1073,16 +971,16 @@ public sealed class Shell
     {
         await Count(
             DestinationKind.Notifications,
-            async token => (await _ports.Notifications.Read(_profile, CountedAtMost, token)).Notifications.Count);
+            async token => (await _ports.Notifications.Read(_profile, Arrival.CountedAtMost, token)).Notifications.Count);
 
         await Count(
             DestinationKind.Messages,
-            async token => (await _ports.Messages.List(_profile, CountedAtMost, token))
+            async token => (await _ports.Messages.List(_profile, Arrival.CountedAtMost, token))
                 .Conversations.Count(conversation => conversation.Unread));
 
         await Count(
             DestinationKind.Requests,
-            async token => (await _ports.Accounts.PendingRequests(_profile, CountedAtMost, token)).Accounts.Count);
+            async token => (await _ports.Accounts.PendingRequests(_profile, Arrival.CountedAtMost, token)).Accounts.Count);
     }
 
     private async Task Count(DestinationKind kind, Func<CancellationToken, Task<int>> read)
@@ -1107,52 +1005,6 @@ public sealed class Shell
     /// </summary>
     private void Counted(DestinationKind kind, int unread) =>
         Rail.Update(Rail.Destinations.First(destination => destination.Kind == kind) with { Unread = unread });
-
-    /// <summary>
-    ///     What a destination puts on screen the moment it is arrived at: an empty list for the ones whose contents
-    ///     land a moment later, a prompt for search, and a standing notice for the hashtag nobody has named.
-    /// </summary>
-    private Screen OnArrival(Destination destination) => destination.Kind switch
-    {
-        DestinationKind.Notifications => new NotificationsScreen([]),
-        DestinationKind.Requests => new FollowRequestsScreen([]),
-        DestinationKind.Messages => new DirectMessagesScreen([]),
-        DestinationKind.Search => new SearchScreen(),
-        DestinationKind.Hashtag when destination.Timeline is null => new NoticeScreen(
-            "hashtag",
-            "No hashtag is set for the rail.",
-            """Put hashtag = "cats" under [preferences] in your config file to keep one here."""),
-        _ => new FeedScreen(destination, []),
-    };
-
-    /// <summary>What to say about a timeline that came back with little or nothing on it.</summary>
-    private static string? Emptiness(
-        IReadOnlyList<Post> posts,
-        Destination destination,
-        RateLimitedException? stoppedBy = null)
-    {
-        if (stoppedBy is not null)
-        {
-            return $"Rate limited part way through — this is what arrived of {destination.Timeline?.Description}.";
-        }
-
-        return posts.Count == 0 ? $"Nothing on {destination.Timeline?.Description} yet." : null;
-    }
-
-    /// <summary>
-    ///     The same, for a list that is not a timeline. A rate limit that stopped the read part way through is said
-    ///     out loud rather than drawn as an empty list, which is the whole reason a fetch reports what stopped it
-    ///     (ADR-0007): a reader told "nothing is waiting" would believe it.
-    /// </summary>
-    private static string? Emptiness(int howMany, string whenEmpty, RateLimitedException? stoppedBy = null)
-    {
-        if (stoppedBy is not null)
-        {
-            return "Rate limited part way through — this is what arrived.";
-        }
-
-        return howMany == 0 ? whenEmpty : null;
-    }
 
     /// <summary>What a tie that has just gone on or come off is worth saying about, in this project's words.</summary>
     /// <remarks>

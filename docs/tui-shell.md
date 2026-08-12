@@ -298,9 +298,9 @@ cache. Streaming stays out of scope (below); a manual refresh is the in-scope an
 - **Lives on nine destinations**: the four cached feed destinations (home, local, federated, the hashtag), plus
   Notifications, Messages, Requests, the post screen, and the account screen. The conversation screen and search
   results are left out — a live thread and a live search are each their own, smaller question, not decided here.
-- **Evicts the destination's cache entry, then re-runs the same fetch its own arrival runs** — `Go()`'s fetch for
-  the four feeds and Notifications/Messages/Requests, `Replies` for the post screen, both of `OpenAccount`'s calls
-  for the account screen.
+- **Evicts the destination's cache entry, then re-runs the same fetch its own arrival runs** — `Arrival.At()` for the
+  four feeds and Notifications/Messages/Requests, which is one arrival for all seven (#100), `Replies` for the post
+  screen, both of `OpenAccount`'s calls for the account screen.
 - **The reader's place follows the post it was on**, matched by id, or clamps at the same ordinal if it's gone. The
   scroll offset resets to 0, matching "the offset starts again whenever the screen is replaced."
 - **The badge moves with the count**, from the same answer the screen redraws from — the same rule every other

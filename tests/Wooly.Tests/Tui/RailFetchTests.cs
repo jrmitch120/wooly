@@ -321,4 +321,35 @@ public class RailFetchTests
         Assert.Equal(steps, opened.Rail.Current);
         Assert.IsType(screen, opened.Screen);
     }
+
+    /// <summary>
+    ///     A timeline carries no badge, and arriving at one puts none there — nor disturbs the count a destination
+    ///     that has one is already carrying. What a destination counts is its own to say (#100), so the four timelines
+    ///     saying they count nothing is what leaves the rail alone here.
+    /// </summary>
+    [Fact]
+    public async Task Step_PutsNoCountOnADestinationThatCountsNothing()
+    {
+        var shell = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(APost.With(id: "110"), APost.With(id: "111")),
+            Notifications = FakeNotificationInbox.Holding(ANotification.With(id: "1")),
+        };
+
+        var opened = await shell.Opened();
+
+        opened.Step(1);
+        shell.Host.Settle();
+
+        var feed = Assert.IsType<FeedScreen>(opened.Screen);
+
+        Assert.Equal(2, feed.Posts.Count);
+        Assert.All(
+            opened.Rail.Destinations.Where(destination => destination.Timeline is not null),
+            destination => Assert.Equal(0, destination.Unread));
+
+        Assert.Equal(
+            1,
+            opened.Rail.Destinations.First(destination => destination.Kind == DestinationKind.Notifications).Unread);
+    }
 }

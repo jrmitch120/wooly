@@ -84,6 +84,15 @@ rail, a screen is what the content region is showing, and drilling from a post i
 without changing the destination.
 _Avoid_: tab, section, page
 
+**Arrival**:
+Landing on a **destination**, which is one thing however many destinations there are: whatever is in flight is
+overtaken, an empty screen goes up at once, what the destination holds is drawn from what it last held or asked for
+under an **enquiry**, and its unread count moves with the list it is drawn beside (#100). A destination says only what
+it reads, what that becomes on screen, what an empty one is told and what it counts — a timeline saying it counts
+nothing, rather than an arrival that leaves the count out. Distinct from drilling in: an arrival puts the stack back to
+one **screen**, and the profile's own account is arrived at by replacing what is on it rather than pushing onto it.
+_Avoid_: load, navigate (for this; a screen is opened _from_ a destination, and a destination is arrived at)
+
 **Enquiry**:
 A question put to an **instance** on a reader's behalf, which survives neither their patience nor their attention: it
 waits out a rate limit where they can watch it count down, turns a failure into a notice rather than an exception, and
