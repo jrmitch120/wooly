@@ -1,3 +1,5 @@
+using Wooly.Core.Paging;
+using Wooly.Core.Posts;
 using Wooly.Core.Timelines;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
@@ -146,13 +148,13 @@ public class RailFetchTests
     [Fact]
     public async Task Step_DiscardsAnAnswerTheReaderHasAlreadyMovedOnFrom()
     {
-        var held = new TaskCompletionSource<TimelineFetch>();
+        var held = new TaskCompletionSource<Fetch<Post>>();
         var shell = new AShell
         {
             Timelines = FakeTimelineReader.Awaiting(timeline => timeline.Scope switch
             {
                 TimelineScope.Local => held.Task,
-                _ => Task.FromResult(TimelineFetch.Complete([APost.With(id: $"{timeline.Scope}")])),
+                _ => Task.FromResult(Fetch<Post>.Complete([APost.With(id: $"{timeline.Scope}")])),
             }),
         };
 
@@ -166,7 +168,7 @@ public class RailFetchTests
         shell.Host.Settle();
 
         // Local's answer finally lands, two destinations too late.
-        held.SetResult(TimelineFetch.Complete([APost.With(id: "stale")]));
+        held.SetResult(Fetch<Post>.Complete([APost.With(id: "stale")]));
 
         Assert.Equal(TimelineScope.Federated, opened.Rail.Showing.Timeline?.Scope);
         Assert.Equal("federated", opened.Breadcrumb);
@@ -183,13 +185,13 @@ public class RailFetchTests
     [Fact]
     public async Task Step_DiscardsAnAnswerOvertakenByADestinationThatFetchesNothing()
     {
-        var held = new TaskCompletionSource<TimelineFetch>();
+        var held = new TaskCompletionSource<Fetch<Post>>();
         var shell = new AShell
         {
             Timelines = FakeTimelineReader.Awaiting(timeline => timeline.Scope switch
             {
                 TimelineScope.Local => held.Task,
-                _ => Task.FromResult(TimelineFetch.Complete([APost.With()])),
+                _ => Task.FromResult(Fetch<Post>.Complete([APost.With()])),
             }),
         };
 
@@ -204,7 +206,7 @@ public class RailFetchTests
 
         Assert.IsType<SearchScreen>(opened.Screen);
 
-        held.SetResult(TimelineFetch.Complete([APost.With(id: "stale")]));
+        held.SetResult(Fetch<Post>.Complete([APost.With(id: "stale")]));
 
         Assert.IsType<SearchScreen>(opened.Screen);
         Assert.Equal("search", opened.Breadcrumb);

@@ -76,7 +76,7 @@ public sealed class AccountRelationships(IMastodonClientFactory clientFactory) :
     }
 
     /// <inheritdoc />
-    public async Task<AccountFetch> List(
+    public async Task<Fetch<Account>> List(
         ActiveProfile profile,
         FollowSide side,
         AccountAddress? account,
@@ -88,20 +88,15 @@ public sealed class AccountRelationships(IMastodonClientFactory clientFactory) :
             ? await Own(client, cancellationToken)
             : (await AccountLookup.Resolve(client, account, profile.Instance, cancellationToken)).Id;
 
-        return await Collect(
-            options => side switch
-            {
-                FollowSide.Followers => client.GetAccountFollowers(accountId, options),
-                FollowSide.Following => client.GetAccountFollowing(accountId, options),
-                _ => throw new ArgumentOutOfRangeException(nameof(side), side, "Not a side of a follow this client lists."),
-            },
-            profile.Instance,
-            limit,
-            cancellationToken);
+        var readPage = side.Either<Func<ArrayOptions, Task<MastodonList<WireAccount>>>>(
+            options => client.GetAccountFollowers(accountId, options),
+            options => client.GetAccountFollowing(accountId, options));
+
+        return await Collect(readPage, profile.Instance, limit, cancellationToken);
     }
 
     /// <inheritdoc />
-    public async Task<AccountFetch> PendingRequests(
+    public async Task<Fetch<Account>> PendingRequests(
         ActiveProfile profile,
         int limit,
         CancellationToken cancellationToken)
@@ -165,13 +160,12 @@ public sealed class AccountRelationships(IMastodonClientFactory clientFactory) :
         };
 
     /// <summary>Collects a list of accounts a page at a time, however many pages the caller's limit takes.</summary>
-    private static async Task<AccountFetch> Collect(
+    private static Task<Fetch<Account>> Collect(
         Func<ArrayOptions, Task<MastodonList<WireAccount>>> readPage,
         string instance,
         int limit,
-        CancellationToken cancellationToken)
-    {
-        var read = await PagedReading.Collect(
+        CancellationToken cancellationToken) =>
+        PagedReading.Collect(
             limit,
             PageSize,
             readPage,
@@ -182,11 +176,6 @@ public sealed class AccountRelationships(IMastodonClientFactory clientFactory) :
             // ended the list, and guessing one would silently skip or repeat accounts.
             idOf: null,
             cancellationToken);
-
-        return read.StoppedBy is null
-            ? AccountFetch.Complete(read.Items)
-            : AccountFetch.StoppedShort(read.Items, read.StoppedBy);
-    }
 
     /// <summary>The id of the account the profile signs in as, which is whose lists a user who named nobody meant.</summary>
     /// <remarks>

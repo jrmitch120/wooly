@@ -80,3 +80,23 @@ There is no `--kind` filter. The instance could do that filtering, through the s
 not send, and a client-side filter over what came back would silently under-fill `--limit`. Whichever way a later ticket
 goes, it should note that Mastodon's exclusion list only names the kinds Mastonet knows about, so an instance-side filter
 cannot exclude the very kinds this ADR is careful not to drop.
+
+## Amendment: a fetch that names its own contents, reopened (ticket #101)
+
+This ADR said each adapter hands back a fetch naming what it holds (`TimelineFetch.Posts`,
+`NotificationFetch.Notifications`), "because `Items` is the right word inside the loop and the wrong word at every place
+a caller reads one." That was written with two lists in existence. By the fourth — accounts and conversations followed —
+the naming cost four records identical bar one property, four adapters unwrapping `Paged<T>` back into them, four
+private JSON envelope records saying `complete` / `rateLimit` / the plural, and five commands repeating the tail that
+throws what stopped the read. The word `Posts` was being bought at four call sites and paid for at seventeen.
+
+So there is now one `Fetch<T>` in `Wooly.Core.Paging`, which is what `PagedReading.Collect` returns and what every port
+answers with: `Fetch<Post>`, `Fetch<Notification>`, `Fetch<Account>`, `Fetch<Conversation>`. What a fetch holds is said
+by what the caller asked for, and `Items` is what they are called on the way past. The envelope is `ListDocument`, which
+takes the plural as an argument — ADR-0007's decision that the wire names are settled at the serialization seam is
+exactly what makes that possible, and the JSON is unchanged to the byte. The `throw fetch.StoppedBy` tail is
+`PagedListCommand`'s, once.
+
+Nothing ADR-0007 decided changed: a caller still asks for posts rather than pages, a rate limit part way through is
+still a partial result carrying the instance's own exception, `--json` is still an object with `complete` and
+`rateLimit` beside the items, and the CLI still throws so that one handler writes the message and the exit code.

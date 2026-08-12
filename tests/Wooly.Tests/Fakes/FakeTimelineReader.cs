@@ -1,4 +1,5 @@
 using Wooly.Core.Errors;
+using Wooly.Core.Paging;
 using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
 using Wooly.Core.Timelines;
@@ -11,11 +12,11 @@ namespace Wooly.Tests.Fakes;
 /// </summary>
 internal sealed class FakeTimelineReader : ITimelineReader
 {
-    private readonly Func<Timeline, Task<TimelineFetch>> _answer;
+    private readonly Func<Timeline, Task<Fetch<Post>>> _answer;
 
-    private FakeTimelineReader(Func<Timeline, Task<TimelineFetch>> answer) => _answer = answer;
+    private FakeTimelineReader(Func<Timeline, Task<Fetch<Post>>> answer) => _answer = answer;
 
-    public FakeTimelineReader(TimelineFetch fetch) : this(_ => Task.FromResult(fetch))
+    public FakeTimelineReader(Fetch<Post> fetch) : this(_ => Task.FromResult(fetch))
     {
     }
 
@@ -23,28 +24,28 @@ internal sealed class FakeTimelineReader : ITimelineReader
     public List<Call> Reads { get; } = [];
 
     /// <summary>A timeline holding <paramref name="posts" />, read to the end of whatever was asked for.</summary>
-    public static FakeTimelineReader Holding(params Post[] posts) => new(TimelineFetch.Complete(posts));
+    public static FakeTimelineReader Holding(params Post[] posts) => new(Fetch<Post>.Complete(posts));
 
     /// <summary>
     ///     An instance that answers each timeline differently — where a test proves that the destination it drew is
     ///     the destination it asked for.
     /// </summary>
-    public static FakeTimelineReader Answering(Func<Timeline, TimelineFetch> answer) =>
+    public static FakeTimelineReader Answering(Func<Timeline, Fetch<Post>> answer) =>
         new(timeline => Task.FromResult(answer(timeline)));
 
     /// <summary>
     ///     An instance whose answer a test finishes by hand — where the question is what happens to one that lands
     ///     after the reader has moved on.
     /// </summary>
-    public static FakeTimelineReader Awaiting(Func<Timeline, Task<TimelineFetch>> answer) => new(answer);
+    public static FakeTimelineReader Awaiting(Func<Timeline, Task<Fetch<Post>>> answer) => new(answer);
 
     /// <summary>An instance whose rate limit stopped the read with <paramref name="posts" /> already in hand.</summary>
     public static FakeTimelineReader RateLimitedAfter(params Post[] posts) =>
-        new(TimelineFetch.StoppedShort(
+        new(Fetch<Post>.StoppedShort(
             posts,
             new RateLimitedException("mastodon.social", new DateTimeOffset(2026, 7, 29, 13, 0, 0, TimeSpan.Zero))));
 
-    public Task<TimelineFetch> Read(
+    public Task<Fetch<Post>> Read(
         ActiveProfile profile,
         Timeline timeline,
         int limit,

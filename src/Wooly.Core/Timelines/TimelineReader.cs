@@ -23,7 +23,7 @@ public sealed class TimelineReader(IMastodonClientFactory clientFactory) : ITime
     private const int PageSize = 40;
 
     /// <inheritdoc />
-    public async Task<TimelineFetch> Read(
+    public async Task<Fetch<Post>> Read(
         ActiveProfile profile,
         Timeline timeline,
         int limit,
@@ -38,20 +38,16 @@ public sealed class TimelineReader(IMastodonClientFactory clientFactory) : ITime
             ? null
             : (await AccountLookup.Resolve(client, timeline.Account, profile.Instance, cancellationToken)).Id;
 
-        var read = await PagedReading.Collect(
+        return await PagedReading.Collect(
             limit,
             PageSize,
-            options => Fetch(client, timeline, accountId, options),
+            options => Page(client, timeline, accountId, options),
             status => PostWire.ToPost(status, profile.Instance),
             status => status.Id,
             cancellationToken);
-
-        return read.StoppedBy is null
-            ? TimelineFetch.Complete(read.Items)
-            : TimelineFetch.StoppedShort(read.Items, read.StoppedBy);
     }
 
-    private static Task<MastodonList<Status>> Fetch(
+    private static Task<MastodonList<Status>> Page(
         IMastodonClient client,
         Timeline timeline,
         string? accountId,

@@ -1,4 +1,6 @@
 using Wooly.Core.Errors;
+using Wooly.Core.Paging;
+using Wooly.Core.Posts;
 using Wooly.Core.Timelines;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
@@ -25,9 +27,9 @@ public class RateLimitWaitTests
             attempts++;
 
             return attempts == 1
-                ? Task.FromException<TimelineFetch>(
+                ? Task.FromException<Fetch<Post>>(
                     new RateLimitedException("mastodon.social", AShell.Now + TimeSpan.FromSeconds(3)))
-                : Task.FromResult(TimelineFetch.Complete([APost.With(id: "110")]));
+                : Task.FromResult(Fetch<Post>.Complete([APost.With(id: "110")]));
         });
 
         var opened = shell.Build();
@@ -62,9 +64,9 @@ public class RateLimitWaitTests
             attempts++;
 
             return attempts == 1
-                ? Task.FromException<TimelineFetch>(
+                ? Task.FromException<Fetch<Post>>(
                     new RateLimitedException("mastodon.social", AShell.Now + TimeSpan.FromSeconds(5)))
-                : Task.FromResult(TimelineFetch.Complete([]));
+                : Task.FromResult(Fetch<Post>.Complete([]));
         });
 
         var opened = shell.Build();
@@ -95,7 +97,7 @@ public class RateLimitWaitTests
         var shell = new AShell
         {
             Timelines = FakeTimelineReader.Awaiting(_ =>
-                Task.FromException<TimelineFetch>(new AuthenticationException("That token has been revoked."))),
+                Task.FromException<Fetch<Post>>(new AuthenticationException("That token has been revoked."))),
         };
 
         var opened = await shell.Opened();

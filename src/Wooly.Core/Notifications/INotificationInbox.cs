@@ -1,3 +1,4 @@
+using Wooly.Core.Paging;
 using Wooly.Core.Profiles;
 
 namespace Wooly.Core.Notifications;
@@ -25,7 +26,7 @@ public interface INotificationInbox
     ///     The notifications, and whether the fetch ran to the end of what was asked for — a rate limit part way through
     ///     stops it and is reported alongside what had already arrived, rather than losing it.
     /// </returns>
-    Task<NotificationFetch> Read(ActiveProfile profile, int limit, CancellationToken cancellationToken);
+    Task<Fetch<Notification>> Read(ActiveProfile profile, int limit, CancellationToken cancellationToken);
 
     /// <summary>Clears the single notification <paramref name="notificationId" /> names.</summary>
     /// <param name="notificationId">

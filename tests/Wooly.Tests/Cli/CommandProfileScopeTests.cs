@@ -75,13 +75,18 @@ public class CommandProfileScopeTests
     ///     The <c>TSettings</c> a command was closed over, or <see langword="null" /> for one taking no settings at all
     ///     — which is no more able to carry <c>--profile</c> than settings of the wrong type.
     /// </summary>
+    /// <remarks>
+    ///     Picked out by what it is rather than by being the only one: a base can be generic over more than its
+    ///     settings — <see cref="PagedListCommand{TSettings,TItem}" /> is also generic over what it lists — and only
+    ///     one of those arguments is ever settings.
+    /// </remarks>
     private static Type? SettingsTypeOf(Type command)
     {
         for (var type = command; type is not null; type = type.BaseType)
         {
             if (type.IsGenericType && typeof(ICommand).IsAssignableFrom(type))
             {
-                return type.GetGenericArguments().Single();
+                return type.GetGenericArguments().Single(typeof(CommandSettings).IsAssignableFrom);
             }
         }
 

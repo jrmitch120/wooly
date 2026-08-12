@@ -35,7 +35,7 @@ public class TimelineReaderTests
 
         var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
 
-        var post = Assert.Single(fetch.Posts);
+        var post = Assert.Single(fetch.Items);
         Assert.Equal("110", post.Id);
         Assert.Equal("jeff@mastodon.social", post.Account);
         Assert.Equal("Hello world", post.Content);
@@ -52,7 +52,7 @@ public class TimelineReaderTests
 
         var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
 
-        var post = Assert.Single(fetch.Posts);
+        var post = Assert.Single(fetch.Items);
         Assert.Equal("Jeff", post.Author);
         Assert.Equal(new DateTimeOffset(2026, 7, 29, 12, 0, 0, TimeSpan.Zero), post.PostedAt);
         Assert.Equal(3, post.Boosts);
@@ -79,7 +79,7 @@ public class TimelineReaderTests
 
         var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
 
-        Assert.Equal(expected, Assert.Single(fetch.Posts).Visibility);
+        Assert.Equal(expected, Assert.Single(fetch.Items).Visibility);
     }
 
     /// <summary>
@@ -95,7 +95,7 @@ public class TimelineReaderTests
 
         var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
 
-        Assert.Equal(["jeff@mastodon.social", "alice@hachyderm.io"], fetch.Posts.Select(post => post.Account));
+        Assert.Equal(["jeff@mastodon.social", "alice@hachyderm.io"], fetch.Items.Select(post => post.Account));
     }
 
     /// <summary>
@@ -110,7 +110,7 @@ public class TimelineReaderTests
 
         var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
 
-        Assert.Equal(["maria@fosstodon.org", "ben@mastodon.social"], Assert.Single(fetch.Posts).Mentions);
+        Assert.Equal(["maria@fosstodon.org", "ben@mastodon.social"], Assert.Single(fetch.Items).Mentions);
     }
 
     /// <summary>And a post that names nobody names nobody, which is most of them.</summary>
@@ -121,7 +121,7 @@ public class TimelineReaderTests
 
         var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
 
-        Assert.Empty(Assert.Single(fetch.Posts).Mentions);
+        Assert.Empty(Assert.Single(fetch.Items).Mentions);
     }
 
     /// <summary>A content warning is what the post's text is hidden behind, so it has to survive as its own field.</summary>
@@ -133,7 +133,7 @@ public class TimelineReaderTests
 
         var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
 
-        var post = Assert.Single(fetch.Posts);
+        var post = Assert.Single(fetch.Items);
         Assert.Equal("spoilers", post.ContentWarning);
         Assert.Equal("Hello world", post.Content);
     }
@@ -151,7 +151,7 @@ public class TimelineReaderTests
 
         var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
 
-        var boost = Assert.Single(fetch.Posts);
+        var boost = Assert.Single(fetch.Items);
         Assert.True(boost.IsBoost);
         Assert.Equal("jeff@mastodon.social", boost.Account);
         Assert.Equal("alice@hachyderm.io", boost.Boosted?.Account);
@@ -173,7 +173,7 @@ public class TimelineReaderTests
 
         var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
 
-        var post = Assert.Single(fetch.Posts);
+        var post = Assert.Single(fetch.Items);
         Assert.True(post.Marks.Boosted);
         Assert.True(post.Marks.Favorited);
         Assert.True(post.Marks.Pinned);
@@ -194,7 +194,7 @@ public class TimelineReaderTests
 
         var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
 
-        var post = Assert.Single(fetch.Posts);
+        var post = Assert.Single(fetch.Items);
         Assert.True(post.Marks.Has(mark));
         Assert.Equal(
             [mark],
@@ -213,7 +213,7 @@ public class TimelineReaderTests
 
         var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
 
-        Assert.Equal(PostMarks.None, Assert.Single(fetch.Posts).Marks);
+        Assert.Equal(PostMarks.None, Assert.Single(fetch.Items).Marks);
     }
 
     /// <summary>
@@ -228,7 +228,7 @@ public class TimelineReaderTests
 
         var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
 
-        var attached = Assert.Single(Assert.Single(fetch.Posts).Media);
+        var attached = Assert.Single(Assert.Single(fetch.Items).Media);
         Assert.Equal("m1", attached.Id);
         Assert.Equal(MediaKind.Image, attached.Kind);
         Assert.Equal("https://files.mastodon.social/m1/original.png", attached.Url);
@@ -249,7 +249,7 @@ public class TimelineReaderTests
 
         var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
 
-        Assert.Equal(expected, Assert.Single(Assert.Single(fetch.Posts).Media).Kind);
+        Assert.Equal(expected, Assert.Single(Assert.Single(fetch.Items).Media).Kind);
     }
 
     /// <summary>
@@ -264,7 +264,7 @@ public class TimelineReaderTests
 
         var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
 
-        var attached = Assert.Single(Assert.Single(fetch.Posts).Media);
+        var attached = Assert.Single(Assert.Single(fetch.Items).Media);
         Assert.Equal(MediaKind.Unknown, attached.Kind);
         Assert.Equal("https://files.mastodon.social/m1/original.png", attached.Url);
     }
@@ -278,7 +278,7 @@ public class TimelineReaderTests
 
         var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
 
-        Assert.Null(Assert.Single(Assert.Single(fetch.Posts).Media).Description);
+        Assert.Null(Assert.Single(Assert.Single(fetch.Items).Media).Description);
     }
 
     /// <summary>A post carrying nothing carries an empty list, which is not a hole for a caller to check for.</summary>
@@ -289,7 +289,7 @@ public class TimelineReaderTests
 
         var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
 
-        Assert.Empty(Assert.Single(fetch.Posts).Media);
+        Assert.Empty(Assert.Single(fetch.Items).Media);
     }
 
     /// <summary>
@@ -311,7 +311,7 @@ public class TimelineReaderTests
 
         var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
 
-        var boosted = Assert.Single(fetch.Posts).Boosted;
+        var boosted = Assert.Single(fetch.Items).Boosted;
         Assert.NotNull(boosted);
         Assert.True(boosted.Marks.Favorited);
         Assert.Equal("A cartoon sheep", Assert.Single(boosted.Media).Description);
@@ -361,7 +361,7 @@ public class TimelineReaderTests
             "https://mastodon.social/api/v1/accounts/42/statuses?exclude_replies=true&limit=20",
             network.Requests[1].RequestUri?.ToString());
 
-        Assert.Single(fetch.Posts);
+        Assert.Single(fetch.Items);
     }
 
     /// <summary>
@@ -382,7 +382,7 @@ public class TimelineReaderTests
             45,
             TestContext.Current.CancellationToken);
 
-        Assert.Equal(45, fetch.Posts.Count);
+        Assert.Equal(45, fetch.Items.Count);
         Assert.Equal(3, network.Requests.Count);
         Assert.Equal(
             "https://mastodon.social/api/v1/accounts/42/statuses?exclude_replies=true&max_id=150&limit=5",
@@ -413,7 +413,7 @@ public class TimelineReaderTests
 
         var fetch = await NewReader(network).Read(Profile, Timeline.Home, 45, TestContext.Current.CancellationToken);
 
-        Assert.Equal(45, fetch.Posts.Count);
+        Assert.Equal(45, fetch.Items.Count);
         Assert.True(fetch.IsComplete);
         Assert.Equal(2, network.Requests.Count);
 
@@ -435,7 +435,7 @@ public class TimelineReaderTests
 
         var fetch = await NewReader(network).Read(Profile, Timeline.Home, 45, TestContext.Current.CancellationToken);
 
-        Assert.Equal(45, fetch.Posts.Count);
+        Assert.Equal(45, fetch.Items.Count);
         Assert.Equal(
             "https://mastodon.social/api/v1/timelines/home?max_id=161&limit=5",
             network.Requests[1].RequestUri?.ToString());
@@ -452,7 +452,7 @@ public class TimelineReaderTests
 
         var fetch = await NewReader(network).Read(Profile, Timeline.Home, 45, TestContext.Current.CancellationToken);
 
-        Assert.Equal(3, fetch.Posts.Count);
+        Assert.Equal(3, fetch.Items.Count);
         Assert.True(fetch.IsComplete);
         Assert.Single(network.Requests);
     }
@@ -472,7 +472,7 @@ public class TimelineReaderTests
 
         var fetch = await NewReader(network).Read(Profile, Timeline.Home, 40, TestContext.Current.CancellationToken);
 
-        Assert.Equal(20, fetch.Posts.Count);
+        Assert.Equal(20, fetch.Items.Count);
         Assert.True(fetch.IsComplete);
         Assert.Equal(2, network.Requests.Count);
         Assert.Equal(
@@ -491,7 +491,7 @@ public class TimelineReaderTests
 
         var fetch = await NewReader(network).Read(Profile, Timeline.Home, 40, TestContext.Current.CancellationToken);
 
-        Assert.Empty(fetch.Posts);
+        Assert.Empty(fetch.Items);
         Assert.True(fetch.IsComplete);
         Assert.Single(network.Requests);
     }
@@ -509,7 +509,7 @@ public class TimelineReaderTests
 
         var fetch = await NewReader(network).Read(Profile, Timeline.Home, 45, TestContext.Current.CancellationToken);
 
-        Assert.Equal(40, fetch.Posts.Count);
+        Assert.Equal(40, fetch.Items.Count);
         Assert.False(fetch.IsComplete);
         Assert.Equal("mastodon.social", fetch.StoppedBy?.Instance);
 
@@ -525,7 +525,7 @@ public class TimelineReaderTests
 
         var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
 
-        Assert.Empty(fetch.Posts);
+        Assert.Empty(fetch.Items);
         Assert.False(fetch.IsComplete);
         Assert.NotNull(fetch.StoppedBy);
     }
