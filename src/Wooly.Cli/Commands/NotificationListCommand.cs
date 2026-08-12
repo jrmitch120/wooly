@@ -21,7 +21,7 @@ internal sealed class NotificationListCommand(
         protected override string Counted => "notification";
     }
 
-    protected override PagedList<Notification> Listing(ActiveProfile profile, Settings settings) =>
+    protected override Listing<Notification> ListingFor(ActiveProfile profile, Settings settings) =>
         new(
             token => notifications.Read(profile, settings.Limit, token),
             fetch => NotificationJson.Write(console, fetch),

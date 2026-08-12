@@ -40,13 +40,13 @@ internal abstract class AccountListCommand(
                 : ValidationResult.Error(AccountAddress.Rejection(Account));
     }
 
-    protected override PagedList<Account> Listing(ActiveProfile profile, Settings settings)
+    protected override Listing<Account> ListingFor(ActiveProfile profile, Settings settings)
     {
         // Whose list this is, said the way the user would read it back: what they typed, or — where they named nobody
         // — the account the profile signs in as, which is who the instance was asked about.
         var whose = settings.Address?.Text ?? profile.Account;
 
-        return new PagedList<Account>(
+        return new Listing<Account>(
             token => relationships.List(profile, side, settings.Address, settings.Limit, token),
             fetch => AccountJson.Write(console, side, whose, fetch),
             fetch => AccountReport.Write(console, side, whose, fetch));

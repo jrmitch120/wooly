@@ -22,7 +22,7 @@ internal sealed class AccountRequestListCommand(
         protected override string Counted => "request";
     }
 
-    protected override PagedList<Account> Listing(ActiveProfile profile, Settings settings) =>
+    protected override Listing<Account> ListingFor(ActiveProfile profile, Settings settings) =>
         new(
             token => relationships.PendingRequests(profile, settings.Limit, token),
             fetch => AccountJson.WriteRequests(console, fetch),

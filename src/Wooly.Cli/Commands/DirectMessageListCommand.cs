@@ -14,7 +14,7 @@ internal sealed class DirectMessageListCommand(
     IProfileRegistry profiles,
     IDirectMessages messages) : PagedListCommand<DirectMessageListCommand.Settings, Conversation>(profiles)
 {
-    protected override PagedList<Conversation> Listing(ActiveProfile profile, Settings settings) =>
+    protected override Listing<Conversation> ListingFor(ActiveProfile profile, Settings settings) =>
         new(
             token => messages.List(profile, settings.Limit, token),
             fetch => ConversationJson.Write(console, fetch),

@@ -20,13 +20,13 @@ internal abstract class TimelineCommand<TSettings>(
     /// <summary>Which timeline this command reads, given what the user typed.</summary>
     protected abstract Timeline TimelineToRead(TSettings settings);
 
-    protected override PagedList<Post> Listing(ActiveProfile profile, TSettings settings)
+    protected override Listing<Post> ListingFor(ActiveProfile profile, TSettings settings)
     {
         // Settled once and closed over by all three, so that the timeline read and the timeline named in the output
         // cannot be worked out twice and disagree.
         var timeline = TimelineToRead(settings);
 
-        return new PagedList<Post>(
+        return new Listing<Post>(
             token => timelines.Read(profile, timeline, settings.Limit, token),
             fetch => TimelineJson.Write(console, timeline, fetch),
             fetch => TimelineReport.Write(console, timeline, fetch));

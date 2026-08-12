@@ -349,6 +349,29 @@ public class TimelineCommandTests : IDisposable
     }
 
     /// <summary>
+    ///     What a script reading this sees, field by field and in order. Asserted because the envelope is built by
+    ///     naming its fields at run time rather than by declaring a record (<c>ListDocument</c>): nothing in the type
+    ///     system now holds these names, this order, or the rule that a field which does not apply is left out
+    ///     entirely rather than written as <c>null</c> (#101).
+    /// </summary>
+    [Fact]
+    public void Timeline_WritesTheEnvelopesFieldsInOneOrder()
+    {
+        AddProfile();
+        _timelines = FakeTimelineReader.RateLimitedAfter();
+
+        var stopped = FieldsOf(Run(["timeline", "tag", "#cats", "--json"]));
+
+        Assert.Equal(["timeline", "hashtag", "complete", "rateLimit", "posts"], stopped);
+
+        // No hashtag was asked for and no limit stopped anything, so neither field is there at all — a null in either
+        // place would say something a script would have to read past.
+        _timelines = FakeTimelineReader.Holding(APost.With());
+
+        Assert.Equal(["timeline", "complete", "posts"], FieldsOf(Run(["timeline", "home", "--json"])));
+    }
+
+    /// <summary>
     ///     Under a pipe, a rate limit has to be readable from the output itself — the exit code is gone by the time
     ///     the JSON reaches whatever is parsing it, and an empty <c>posts</c> would otherwise read as a quiet timeline.
     /// </summary>
@@ -389,6 +412,13 @@ public class TimelineCommandTests : IDisposable
                                                        .GetProperty("content")
                                                        .GetString());
     }
+
+    /// <summary>The top-level fields of what was written, in the order they were written.</summary>
+    private static IReadOnlyList<string> FieldsOf(CommandRun run) =>
+        JsonDocument.Parse(run.Output)
+                    .RootElement.EnumerateObject()
+                    .Select(field => field.Name)
+                    .ToList();
 
     private void AddProfile(string name = "personal", string instance = "mastodon.social") =>
         Run(["profile", "add", name, "--instance", instance, "--token", $"token-{name}"]);

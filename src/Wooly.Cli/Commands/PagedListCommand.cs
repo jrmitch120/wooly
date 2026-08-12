@@ -19,7 +19,7 @@ internal abstract class PagedListCommand<TSettings, TItem>(IProfileRegistry prof
     where TSettings : PagedListSettings
 {
     /// <summary>Which list this command reads, given the profile to read as and what the user typed.</summary>
-    protected abstract PagedList<TItem> Listing(ActiveProfile profile, TSettings settings);
+    protected abstract Listing<TItem> ListingFor(ActiveProfile profile, TSettings settings);
 
     protected override async Task<int> ExecuteAsync(
         CommandContext context,
@@ -27,7 +27,7 @@ internal abstract class PagedListCommand<TSettings, TItem>(IProfileRegistry prof
         CancellationToken cancellationToken)
     {
         var profile = profiles.Resolve(settings.Profile);
-        var listing = Listing(profile, settings);
+        var listing = ListingFor(profile, settings);
         var fetch = await listing.Reads(cancellationToken);
 
         if (settings.Json)

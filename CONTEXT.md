@@ -76,6 +76,15 @@ account may carry none — which says the question was not put, not that the ans
 A named local credential/config entry in this CLI tool, pointing at one Mastodon account. A user may have multiple profiles (e.g. personal + work accounts, possibly on different instances). One profile is the "current" profile used by default; commands may override it per-invocation.
 _Avoid_: account (when referring to the CLI's local credential entry, to keep it distinct from the Mastodon account itself)
 
+**Fetch**:
+Some of a list, and the rate limit that stopped the rest if one did (`Fetch<T>`). One thing rather than two, because
+the pair is what tells a list nobody has anything on from a list nothing was read of: a fetch a rate limit stopped on
+its first page holds nothing at all, and a caller that could not tell those apart would report an empty timeline to
+somebody who has a full one (ADR-0007). One type for every list this client reads — posts, notifications, accounts,
+conversations — with what it holds said by what was asked for rather than by a name of its own (ADR-0010's amendment,
+#101). What is in it is `Items`; paging is how it was filled, and no caller sees a page or a cursor.
+_Avoid_: page, result, batch
+
 **Destination**:
 One of the places the TUI's rail can send you — a timeline, notifications, direct messages, follow requests, search,
 the profile's own account. A destination is what carries an unread count and what costs a fetch to arrive at, which is

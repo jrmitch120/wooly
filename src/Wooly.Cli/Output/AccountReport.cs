@@ -123,9 +123,9 @@ internal static class AccountReport
     };
 
     /// <summary>What an empty list says, in the words of the side that was asked for and about whoever was asked about.</summary>
-    private static string Nobody(FollowSide side, string? whose) => side.Either(
-        whose is null ? "No followers." : $"Nobody follows {whose}.",
-        whose is null ? "Following nobody." : $"{whose} follows nobody.");
+    private static string Nobody(FollowSide side, string? whose) => whose is null
+        ? side.Either("No followers.", "Following nobody.")
+        : side.Either($"Nobody follows {whose}.", $"{whose} follows nobody.");
 
     /// <summary>The part of an account that reads the same whichever line named it: its presence, and its address.</summary>
     private static void WriteRest(IAnsiConsole console, Account account)

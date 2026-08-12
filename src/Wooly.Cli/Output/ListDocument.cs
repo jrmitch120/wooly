@@ -41,7 +41,8 @@ internal static class ListDocument
     {
         // Written field by field rather than as a record because the plural is only known at the call site, and a
         // record's field names are attributes fixed at compile time. Ordered, because the order these come out in is
-        // as much a part of the output as the names are.
+        // as much a part of the output as the names are — and added rather than assigned, so that a caller naming one
+        // of the envelope's own fields as its own is a failure rather than a field quietly overwritten.
         var document = new OrderedDictionary<string, object?>();
 
         foreach (var (field, value) in about)
@@ -50,18 +51,18 @@ internal static class ListDocument
             // reaches nothing put in here.
             if (value is not null)
             {
-                document[field] = value;
+                document.Add(field, value);
             }
         }
 
-        document["complete"] = fetch.IsComplete;
+        document.Add("complete", fetch.IsComplete);
 
         if (RateLimitDocument.Of(fetch.StoppedBy) is { } rateLimit)
         {
-            document["rateLimit"] = rateLimit;
+            document.Add("rateLimit", rateLimit);
         }
 
-        document[plural] = fetch.Items.Select(asDocument).ToList();
+        document.Add(plural, fetch.Items.Select(asDocument).ToList());
 
         JsonOutput.Write(console, document);
     }

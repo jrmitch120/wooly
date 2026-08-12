@@ -13,8 +13,14 @@ namespace Wooly.Cli.Output;
 internal static class AccountJson
 {
     /// <summary>Writes one side of an account's follows, saying which side and whose it is.</summary>
+    /// <remarks>
+    ///     Which list it is goes out as <c>list</c> — <c>followers</c>, <c>following</c>, or the pending
+    ///     <c>requests</c> — spelled here rather than derived from the enum's member names, for the same reason the
+    ///     field names are: renaming a member would silently change a value somebody is matching on.
+    /// </remarks>
     /// <param name="whose">
-    ///     Whose list it is, so that an answer read on its own — out of a file, or a log — still says who it is about.
+    ///     Whose list it is, written as <c>account</c> so that an answer read on its own — out of a file, or a log —
+    ///     still says who it is about. Absent for the pending requests, which are only ever the profile's own.
     /// </param>
     public static void Write(IAnsiConsole console, FollowSide side, string? whose, Fetch<Account> fetch) =>
         Write(console, side.Either("followers", "following"), whose, fetch);

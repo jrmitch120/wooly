@@ -12,6 +12,10 @@ namespace Wooly.Cli.Output;
 /// </summary>
 internal static class TimelineJson
 {
+    /// <remarks>
+    ///     Which timeline this was leads the envelope, as <c>timeline</c> and — where one was asked for — the
+    ///     <c>hashtag</c>, so that a timeline read out of a file still says which one it is.
+    /// </remarks>
     public static void Write(IAnsiConsole console, Timeline timeline, Fetch<Post> fetch) =>
         ListDocument.Write(
             console,
