@@ -214,8 +214,14 @@ public abstract class Screen
     ///     where it is rather than by answering the same two questions each screen used to answer for itself — and so
     ///     that the next thing a reader can do to a post is filled in here rather than threaded through every drawing
     ///     site again (#95).
+    ///     <para>
+    ///         Reachable inside this assembly rather than by a screen alone, because <see cref="PostList" /> is what
+    ///         asks it for the four screens holding a list of posts and is not itself a screen (#99). Wider than the
+    ///         one caller wants, which is as narrow as it goes — and narrower than <see langword="protected" /> was,
+    ///         since nothing outside this assembly is a screen.
+    ///     </para>
     /// </remarks>
-    protected Reading ReadingOf(Post post, int at) => new(Revealed.Has(post), ReferenceOn(at));
+    internal Reading ReadingOf(Post post, int at) => new(Revealed.Has(post), ReferenceOn(at));
 
     /// <summary>Moves what is picked out by <paramref name="by" /> items, stopping at either end.</summary>
     /// <remarks>

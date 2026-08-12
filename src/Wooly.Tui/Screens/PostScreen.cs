@@ -19,11 +19,11 @@ namespace Wooly.Tui.Screens;
 /// </remarks>
 public sealed class PostScreen : Screen
 {
-    private readonly Picked<Post> _posts;
+    private readonly PostList _posts;
 
     /// <param name="post">The post this screen is about, which is the first thing on it.</param>
     /// <param name="replies">What has been said in answer to it, oldest first.</param>
-    public PostScreen(Post post, IReadOnlyList<Post> replies) => _posts = new Picked<Post>([post, .. replies]);
+    public PostScreen(Post post, IReadOnlyList<Post> replies) => _posts = new PostList(this, [post, .. replies]);
 
     /// <inheritdoc />
     public override string Crumb => $"post by @{(Post.Boosted ?? Post).Account}";
@@ -67,21 +67,14 @@ public sealed class PostScreen : Screen
     protected override IPicked Walking => _posts;
 
     /// <inheritdoc />
-    public override void Replace(Post post) => _posts.Rewrite(held => PostChange.Replaced(held, post));
+    public override void Replace(Post post) => _posts.Replace(post);
 
     /// <inheritdoc />
     /// <remarks>
     ///     Only the replies go. A post screen showing a post that is no longer there is a screen about nothing, and
     ///     the shell walks out of it rather than leaving this one to draw a thread with no head to it.
     /// </remarks>
-    public override void Remove(string postId)
-    {
-        // Read before the list is walked rather than inside the asking, so that what counts as the head of the thread
-        // cannot depend on how far a removal has already got through it.
-        var head = Post;
-
-        _posts.Remove(held => held.Id != head.Id && PostChange.Names(held, postId));
-    }
+    public override void Remove(string postId) => _posts.Remove(postId, Post);
 
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(
@@ -92,7 +85,7 @@ public sealed class PostScreen : Screen
     {
         // A blank rather than the rule that separates two replies below: the heading is already a ruled row, and two
         // of them stacked would read as a boundary twice over.
-        var lines = new List<Line>(_posts.RowsOf(0, width, Draw))
+        var lines = new List<Line>(_posts.RowsOf(0, width, Whole))
         {
             Line.Blank,
             Line.Of(Heading(width), Role.Muted),
@@ -110,15 +103,17 @@ public sealed class PostScreen : Screen
 
         for (var at = 1; at < _posts.Count; at++)
         {
-            lines.AddRange(_posts.RowsOf(at, width, Draw));
+            lines.AddRange(_posts.RowsOf(at, width, now, pictures, hideDrawnCaption));
             lines.Add(Line.Rule(width));
         }
 
         return lines;
 
-        IReadOnlyList<Line> Draw(Post post, int at, int room) => at == 0
-            ? PostLines.Whole(post, room, ReadingOf(post, at), now, pictures, hideDrawnCaption)
-            : PostLines.Feed(post, room, ReadingOf(post, at), now, pictures, hideDrawnCaption);
+        // The one post on this screen drawn any way but as a feed item: the replies are what the list draws by
+        // default, and which of the two a row gets is settled by which of them asked for it rather than by an
+        // ordinal inside a drawing that could answer differently.
+        IReadOnlyList<Line> Whole(Post post, int at, int room) =>
+            PostLines.Whole(post, room, ReadingOf(post, at), now, pictures, hideDrawnCaption);
     }
 
     private string Heading(int width) =>

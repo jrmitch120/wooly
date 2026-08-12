@@ -16,9 +16,17 @@ namespace Wooly.Tui.Screens;
 ///     width and one keystroke away instead of costing the feed 24 columns (ADR-0014). The three tie actions are
 ///     capitals, so that a lower-case mark key can never fire one by accident (<c>docs/tui-shell.md</c>).
 /// </remarks>
-public sealed class AccountScreen(Account account, IReadOnlyList<Post> posts) : Screen
+public sealed class AccountScreen : Screen
 {
-    private readonly Picked<Post> _posts = new(posts);
+    private readonly PostList _posts;
+
+    /// <param name="account">The account being shown, as the instance last answered about them.</param>
+    /// <param name="posts">The posts of theirs that were read, newest first.</param>
+    public AccountScreen(Account account, IReadOnlyList<Post> posts)
+    {
+        Account = account;
+        _posts = new PostList(this, posts);
+    }
 
     /// <inheritdoc />
     public override string Crumb => $"@{Account.Address}";
@@ -35,10 +43,7 @@ public sealed class AccountScreen(Account account, IReadOnlyList<Post> posts) : 
             new KeyHint("esc", "back"));
 
     /// <summary>The account being shown, as the instance last answered about them.</summary>
-    public Account Account { get; private set; } = account;
-
-    /// <summary>Which of their posts is picked out.</summary>
-    public int At => _posts.At;
+    public Account Account { get; private set; }
 
     /// <summary>The posts of theirs that were read, newest first.</summary>
     public IReadOnlyList<Post> Posts => _posts.All;
@@ -73,10 +78,10 @@ public sealed class AccountScreen(Account account, IReadOnlyList<Post> posts) : 
     public void Stands(Account account) => Account = account;
 
     /// <inheritdoc />
-    public override void Replace(Post post) => _posts.Rewrite(held => PostChange.Replaced(held, post));
+    public override void Replace(Post post) => _posts.Replace(post);
 
     /// <inheritdoc />
-    public override void Remove(string postId) => _posts.Remove(held => PostChange.Names(held, postId));
+    public override void Remove(string postId) => _posts.Remove(postId);
 
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(
@@ -102,9 +107,7 @@ public sealed class AccountScreen(Account account, IReadOnlyList<Post> posts) : 
             return lines;
         }
 
-        lines.AddRange(_posts.Rows(
-            width,
-            (post, at, room) => PostLines.Feed(post, room, ReadingOf(post, at), now, pictures, hideDrawnCaption)));
+        lines.AddRange(_posts.Rows(width, now, pictures, hideDrawnCaption));
 
         return lines;
     }

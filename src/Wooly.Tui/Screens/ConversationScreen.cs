@@ -19,9 +19,16 @@ namespace Wooly.Tui.Screens;
 ///         screen's, and an older root is still reachable by its own post id.
 ///     </para>
 /// </remarks>
-public sealed class ConversationScreen(ConversationThread thread) : Screen
+public sealed class ConversationScreen : Screen
 {
-    private readonly Picked<Post> _posts = new(thread.Posts);
+    private readonly PostList _posts;
+
+    /// <param name="thread">The conversation and what was said in it, oldest first.</param>
+    public ConversationScreen(ConversationThread thread)
+    {
+        Conversation = thread.Conversation;
+        _posts = new PostList(this, thread.Posts);
+    }
 
     /// <inheritdoc />
     public override string Crumb => $"with {ConversationLines.Who(Conversation)}";
@@ -38,13 +45,10 @@ public sealed class ConversationScreen(ConversationThread thread) : Screen
             new KeyHint("esc", "back"));
 
     /// <summary>The conversation itself: its id, who it is with, and whether it is still unread.</summary>
-    public Conversation Conversation { get; private set; } = thread.Conversation;
+    public Conversation Conversation { get; private set; }
 
     /// <summary>What was said in it, oldest first.</summary>
     public IReadOnlyList<Post> Posts => _posts.All;
-
-    /// <summary>Which message is picked out, as an index into the thread.</summary>
-    public int At => _posts.At;
 
     /// <inheritdoc />
     public override Post? Picked => _posts.Out;
@@ -71,10 +75,10 @@ public sealed class ConversationScreen(ConversationThread thread) : Screen
     }
 
     /// <inheritdoc />
-    public override void Replace(Post post) => _posts.Rewrite(held => PostChange.Replaced(held, post));
+    public override void Replace(Post post) => _posts.Replace(post);
 
     /// <inheritdoc />
-    public override void Remove(string postId) => _posts.Remove(held => PostChange.Names(held, postId));
+    public override void Remove(string postId) => _posts.Remove(postId);
 
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(
@@ -96,9 +100,7 @@ public sealed class ConversationScreen(ConversationThread thread) : Screen
             return lines;
         }
 
-        lines.AddRange(_posts.Rows(
-            width,
-            (post, at, room) => PostLines.Feed(post, room, ReadingOf(post, at), now, pictures, hideDrawnCaption)));
+        lines.AddRange(_posts.Rows(width, now, pictures, hideDrawnCaption));
 
         return lines;
     }

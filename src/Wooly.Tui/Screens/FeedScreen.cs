@@ -10,19 +10,28 @@ namespace Wooly.Tui.Screens;
 ///     A timeline: the posts on it, one of them picked out, and the gutter that says which. The screen a rail
 ///     destination opens onto, and the one the shell starts on.
 /// </summary>
-public sealed class FeedScreen(Destination destination, IReadOnlyList<Post> posts, string? notice = null) : Screen
+public sealed class FeedScreen : Screen
 {
-    private readonly Picked<Post> _posts = new(posts);
+    private readonly Destination _destination;
+
+    private readonly PostList _posts;
+
+    /// <param name="destination">Which timeline this is, which is what the breadcrumb says.</param>
+    /// <param name="posts">The posts on it, newest first.</param>
+    /// <param name="notice">Something the shell has to say about the timeline rather than about a post on it.</param>
+    public FeedScreen(Destination destination, IReadOnlyList<Post> posts, string? notice = null)
+    {
+        _destination = destination;
+        _posts = new PostList(this, posts);
+        Notice = notice;
+    }
 
     /// <inheritdoc />
-    public override string Crumb => destination.Label.ToLowerInvariant();
+    public override string Crumb => _destination.Label.ToLowerInvariant();
 
     /// <inheritdoc />
     protected override IReadOnlyList<KeyHint> OwnKeys =>
         PostKeys.Around(new KeyHint("j/k", "post"), new KeyHint("tab", "destination"));
-
-    /// <summary>Which post is picked out, as an index into what is on screen.</summary>
-    public int At => _posts.At;
 
     /// <summary>The posts on the timeline, newest first.</summary>
     public IReadOnlyList<Post> Posts => _posts.All;
@@ -31,7 +40,7 @@ public sealed class FeedScreen(Destination destination, IReadOnlyList<Post> post
     ///     Something the shell has to say about this timeline rather than about a post on it — that it is empty, or
     ///     that a rate limit cut it short.
     /// </summary>
-    public string? Notice { get; } = notice;
+    public string? Notice { get; }
 
     /// <inheritdoc />
     public override Post? Picked => _posts.Out;
@@ -40,10 +49,10 @@ public sealed class FeedScreen(Destination destination, IReadOnlyList<Post> post
     protected override IPicked Walking => _posts;
 
     /// <inheritdoc />
-    public override void Replace(Post post) => _posts.Rewrite(held => PostChange.Replaced(held, post));
+    public override void Replace(Post post) => _posts.Replace(post);
 
     /// <inheritdoc />
-    public override void Remove(string postId) => _posts.Remove(held => PostChange.Names(held, postId));
+    public override void Remove(string postId) => _posts.Remove(postId);
 
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(
@@ -52,9 +61,7 @@ public sealed class FeedScreen(Destination destination, IReadOnlyList<Post> post
         IPictures? pictures = null,
         bool hideDrawnCaption = false)
     {
-        var rows = _posts.Rows(
-            width,
-            (post, at, room) => PostLines.Feed(post, room, ReadingOf(post, at), now, pictures, hideDrawnCaption));
+        var rows = _posts.Rows(width, now, pictures, hideDrawnCaption);
 
         if (Notice is not { } notice)
         {
