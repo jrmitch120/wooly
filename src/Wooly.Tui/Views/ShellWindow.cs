@@ -515,6 +515,11 @@ internal sealed class ShellWindow : Window
             _editor.Visible = true;
             _editor.SetFocus();
 
+            // After whatever the screen opened with rather than in front of it: an editor opened on `@maria ` or on
+            // a post being edited puts the caret where the reader's next word goes, which is the end of what is
+            // already written (ADR-0013, #85). A caret left at nought types into somebody's name.
+            _editor.MoveEnd();
+
             // Y is Pos.Func(EditorTop), read afresh only on a layout pass — and this screen's "answering" block may
             // be a different height than the last one that pushed the editor open.
             _editor.SetNeedsLayout();

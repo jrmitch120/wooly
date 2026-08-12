@@ -19,6 +19,7 @@ internal static class APost
         Post? boosted = null,
         PostMarks? marks = null,
         IReadOnlyList<PostMedia>? media = null,
+        IReadOnlyList<string>? mentions = null,
         string? avatarUrl = null,
         PostReplyTarget? inReplyTo = null,
         PostPoll? poll = null) => new()
@@ -35,6 +36,7 @@ internal static class APost
         Replies = 1,
         Marks = marks ?? PostMarks.None,
         Media = media ?? [],
+        Mentions = mentions ?? [],
         Boosted = boosted,
         Url = $"https://mastodon.social/@jeff/{id}",
         AvatarUrl = avatarUrl,

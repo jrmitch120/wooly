@@ -231,16 +231,32 @@ mention, or address inside a post's text — replacing `BodyText`'s internal "ma
   ahead of the screen's shared keys, and standing in for any of them it shares a key with, so `⏎` is announced once
   (`PostKeys.OnAReference`). Said by `Screen` itself rather than by each screen, which is why a screen's own list is
   `OwnKeys` and `Keys` is what the status row reads (#83).
-- **`⏎` does three different things, refusals share one notice.** A hashtag opens exactly the way `Shell.OpenTag`
-  already opens one found by search — same `FeedScreen`, same breadcrumb, no new screen type. A mention opens the
-  account screen, resolved off `Post.Mentions`; unresolvable, `⏎` does nothing and the status row says
-  **"That mention couldn't be resolved."** `c` with a mention picked opens a fresh compose with `@handle ` pre-filled,
-  whether or not it resolved; `a` still means the post's author, never the picked mention. An address opens the
-  platform's browser (Windows/macOS/Linux, each its own call) for `http`/`https` only — a refused scheme says
-  **"That kind of address isn't opened."**, no browser available says **"No browser available"** — both through the
-  shell's existing `Say(notice, isError: true)` mechanism, no new shell state. This is the first thing in the shell
-  that leaves the terminal, and lives in its own small seam rather than folded into `ShellPorts` (which is
-  specifically "everything the shell reaches an instance through" — a browser launch reaches outside the instance).
+- **`⏎` does three different things, refusals share one notice** (#85). Which of the three is the role the reference
+  draws in, since that vocabulary already tells them apart. A hashtag opens exactly the way `Shell.OpenTag` already
+  opens one found by search — same `FeedScreen`, same breadcrumb, no new screen type, and the rail's own hashtag
+  destination left alone. A mention opens the account screen, resolved off `Post.Mentions` — which the wire carries
+  down with every post, so no fetch is spent working out who a `@maria` is; a handle written bare is whoever the post
+  names by that username, and where two accounts share one the first the post lists wins. Unresolvable, `⏎` does
+  nothing and the status row says **"That mention couldn't be resolved."** `c` with a mention picked opens a fresh
+  compose (not a reply) with `@handle ` pre-filled — in full where the post resolved it, since a bare handle written
+  back out would reach whoever this profile's own instance has by that name, and as written where it did not; `a`
+  still means the post's author, never the picked mention. An address opens the platform's browser
+  (Windows/macOS/Linux, each its own call) for `http`/`https` only — a refused scheme says
+  **"That kind of address isn't opened."**, no browser available says **"No browser available."** — both through the
+  shell's existing `Say(notice, isError: true)` mechanism, no new shell state. The address arm is the one that pushes
+  nothing: the reader has been sent somewhere this client does not draw, so there is nothing to `esc` back from.
+- **The launch is decided apart from the act, and outside `ShellPorts`.** This is the first thing in the shell that
+  leaves the terminal, so it lives in its own small seam rather than folded into the ports (which are specifically
+  "everything the shell reaches an *instance* through" — a browser reaches outside the instance). `BrowserLaunch`
+  holds both decisions with no process in them — which addresses are opened at all, and what each platform is asked
+  to do about the ones that are — and `IWebBrowser`, the seam the OAuth sign-in already sends somebody to a browser
+  through (ADR-0004), is what runs it. That is what makes a hostile scheme and a wrong platform call both assertable
+  without a process ever starting, the way role selection is the assertable part of drawing (ADR-0014). What is
+  painted as an address is matched by pattern, so what arrives is not necessarily an address at all: the elided forms
+  an instance serves (`example.com/notes`, `www.example.com/notes`) are read as `https`, and an address handed over
+  that names a scheme and does not name one of the two is refused rather than repaired. A colon before the path is a
+  port where digits follow it and a scheme where anything else does — `Uri` alone reads `www.example.com:8080/notes`
+  as a scheme called `www.example.com`, which would refuse an ordinary page for having a port on it.
 - **What this costs**: nothing permanent. The pick itself spends two columns, transiently, only on the row a
   reference is picked on.
 

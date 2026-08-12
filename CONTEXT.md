@@ -105,6 +105,13 @@ in. Replaces what `BodyText` used to call a "mark," a word this project had alre
 (boost/favorite/pin).
 _Avoid_: mark (for this; reserved for boost/favorite/pin)
 
+**Mention**:
+Two things one word, told apart by which side of the wire they are on. `Post.Mentions` is everyone a post names, as
+the instance resolved them (`username@instance`) and sent down with the post; a mention **Reference** is the `@maria`
+a reader walked to in the text, which is only somebody in particular because the post's list says so (#85). Crossing
+from the second to the first is a lookup and never a fetch — a bare handle means nothing without an instance to put
+after it, and guessing this profile's own would open somebody else under somebody's name.
+
 **Reading**:
 What this reader has done to one post — asked past its content warning, walked to a **reference** inside it — carried
 as one thing, keyed by which post it is (#95). Distinct from **Picked**, which is which post: a post nobody has

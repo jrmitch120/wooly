@@ -1,3 +1,4 @@
+using Wooly.Core;
 using Wooly.Core.Accounts;
 using Wooly.Core.Conversations;
 using Wooly.Core.Errors;
@@ -9,6 +10,7 @@ using Wooly.Core.Relationships;
 using Wooly.Core.Search;
 using Wooly.Core.Timelines;
 using Wooly.Tui.Screens;
+using Wooly.Tui.Theme;
 
 namespace Wooly.Tui.Shell;
 
@@ -49,6 +51,26 @@ public sealed class Shell
     /// </summary>
     private const string NobodyHasWritten = "No direct conversations yet.";
 
+    /// <summary>
+    ///     What a reader is told when a picked reference goes nowhere. Three of them, because there are three ways
+    ///     for <c>⏎</c> to have nothing to open: a handle the post never named, an address no browser can be handed,
+    ///     and a machine with no browser on it (<c>docs/tui-shell.md</c>, #85).
+    /// </summary>
+    private const string MentionUnresolved = "That mention couldn't be resolved.";
+
+    /// <inheritdoc cref="MentionUnresolved" />
+    private const string AddressRefused = "That kind of address isn't opened.";
+
+    /// <inheritdoc cref="MentionUnresolved" />
+    private const string NoBrowser = "No browser available.";
+
+    /// <summary>
+    ///     Where an address goes. The one thing this shell does that leaves the terminal, and deliberately not one of
+    ///     <see cref="ShellPorts" />: those are what the shell reaches an <em>instance</em> through, and a browser is
+    ///     not on one (ADR-0014, #85).
+    /// </summary>
+    private readonly IWebBrowser _browser;
+
     private readonly DestinationCache _cache;
 
     /// <summary>Everything this reaches an instance through, and the one place the stale-answer rule is stated.</summary>
@@ -65,6 +87,7 @@ public sealed class Shell
         ActiveProfile profile,
         ShellPorts ports,
         IShellHost host,
+        IWebBrowser browser,
         TimeProvider clock,
         ShellTiming timing,
         string? hashtag = null)
@@ -72,6 +95,7 @@ public sealed class Shell
         _profile = profile;
         _ports = ports;
         _host = host;
+        _browser = browser;
         _cache = new DestinationCache(clock, timing.CacheFor);
 
         _enquiry = new Enquiry(host, clock, timing.CountdownStep);
@@ -160,6 +184,10 @@ public sealed class Shell
     /// </remarks>
     public Task Press(ShellKey key) => (key, Screen) switch
     {
+        // A picked reference is a level of its own inside the screen, so ⏎ means the reference wherever one is picked
+        // — which is what the status row says while one is, ahead of whatever the screen's own ⏎ would have meant
+        // (docs/tui-shell.md, #85).
+        (ShellKey.Enter, _) when Screen.Reference is not null => OpenReference(),
         (ShellKey.Enter, SearchScreen search) => search.IsTyping ? Find() : OpenResult(),
         (ShellKey.Enter, FollowRequestsScreen) => OpenAsker(),
         (ShellKey.Enter, DirectMessagesScreen) => OpenConversation(),
@@ -255,6 +283,49 @@ public sealed class Shell
         await _enquiry.Put(
             ask => ask.Of(token => _ports.Engagement.Replies(_profile, about.Id, token)),
             ifStillHere: replies => Push(new PostScreen(opening, replies)));
+    }
+
+    /// <summary>
+    ///     Opens whatever the picked reference points at, which is three different things: a hashtag's timeline, the
+    ///     account a mention names, or an address, in the platform's own browser (#85).
+    /// </summary>
+    /// <remarks>
+    ///     Which of the three it is, is the role the reference draws in — one vocabulary rather than two, which is the
+    ///     bargain <c>Reference</c> already struck: a second enum saying the same thing would be a second place to add
+    ///     the fourth kind to.
+    ///     <para>
+    ///         Only the address arm leaves the terminal, and it is the only arm that pushes nothing: the reader has
+    ///         been sent somewhere this client does not draw, so there is nothing to come back from with <c>esc</c>.
+    ///     </para>
+    /// </remarks>
+    public Task OpenReference()
+    {
+        if (Screen.Reference is not { } reference)
+        {
+            return Task.CompletedTask;
+        }
+
+        switch (reference.Role)
+        {
+            case Role.Hashtag:
+                // The same screen and the same breadcrumb a search result for a tag opens, and the rail's own hashtag
+                // destination left alone — that is a setting the reader wrote down, not something a keypress changes.
+                return OpenTag(reference.Text.TrimStart('#'));
+
+            case Role.Mention:
+                return OpenMention();
+
+            case Role.Link:
+                OpenAddress(reference.Text);
+
+                return Task.CompletedTask;
+
+            default:
+                // Named rather than left as the fall-through, because the fall-through here is the one path that
+                // leaves the machine: a fourth kind of reference added to BodyText and forgotten about must open
+                // nothing rather than be handed to a browser as an address.
+                return Task.CompletedTask;
+        }
     }
 
     /// <summary>Opens the account that wrote the picked post.</summary>
@@ -896,6 +967,55 @@ public sealed class Shell
             });
     }
 
+    /// <summary>
+    ///     Opens the account the picked mention names, off the post itself rather than out of a fetch: an instance
+    ///     sends everyone a post names along with the post, so the account is already in hand (#85).
+    /// </summary>
+    /// <remarks>
+    ///     A handle the post never named opens nothing and says so. Asking an instance to look one up instead would
+    ///     spend a request on a guess — a bare <c>@maria</c> means nothing without an instance to put after it, and
+    ///     guessing this profile's own would open somebody else under somebody's name.
+    /// </remarks>
+    private Task OpenMention()
+    {
+        // Well-formed as well as named, because a handle an instance sent is not something a reader can do anything
+        // about, and one this client cannot look up is as good as one it was never given.
+        if (Screen.Mentioned is not { } handle || !AccountAddress.IsWellFormed(handle))
+        {
+            Say(MentionUnresolved, isError: true);
+
+            return Task.CompletedTask;
+        }
+
+        return OpenAccount(AccountAddress.Parse(handle));
+    }
+
+    /// <summary>
+    ///     Sends <paramref name="written" /> to the platform's browser — the one thing this shell does that leaves the
+    ///     terminal (#85).
+    /// </summary>
+    /// <remarks>
+    ///     Two refusals, told apart because a reader can do something about one of them: an address this client will
+    ///     not hand to a machine is the post's doing, and no browser to hand it to is the machine's. What is painted
+    ///     as an address is matched by pattern (<c>BodyText</c>), so what arrives here is not necessarily an address
+    ///     at all — which is the same refusal as a scheme nothing should hand to a shell, and is why the check is
+    ///     <see cref="BrowserLaunch" />'s rather than a guess made here.
+    /// </remarks>
+    private void OpenAddress(string written)
+    {
+        if (BrowserLaunch.Address(written) is not { } address)
+        {
+            Say(AddressRefused, isError: true);
+
+            return;
+        }
+
+        if (!_browser.TryOpen(address))
+        {
+            Say(NoBrowser, isError: true);
+        }
+    }
+
     /// <summary>Opens a hashtag's timeline as a screen on the stack, which is what a search result for one does.</summary>
     private Task OpenTag(string name) =>
         _enquiry.Put(
@@ -1065,6 +1185,15 @@ public sealed class Shell
     private void Compose(ComposeFor purpose)
     {
         var about = Screen.Picked?.Boosted ?? Screen.Picked;
+
+        // A mention picked out is an account the reader walked to, so c writes to them — a fresh post rather than a
+        // reply, since what they picked is somebody named in the post rather than the post itself (#85).
+        if (purpose == ComposeFor.Post && Screen.MentionedAs is { } handle)
+        {
+            Push(new ComposeScreen(purpose, addressing: $"@{handle}"));
+
+            return;
+        }
 
         switch (purpose)
         {
