@@ -270,10 +270,8 @@ public sealed class Shell
             return;
         }
 
-        var about = opening.Boosted ?? opening;
-
         await _enquiry.Put(
-            ask => ask.Of(token => _ports.Engagement.Replies(_profile, about.Id, token)),
+            ask => ReadReplies(ask, opening),
             ifStillHere: replies => Push(new PostScreen(opening, replies)));
     }
 
@@ -902,24 +900,41 @@ public sealed class Shell
     ///     Asking a destination for what is there now, which is the arrival it already arrives by with what it last
     ///     held taken away first — one refresh for all seven of them (#84).
     /// </summary>
+    /// <remarks>
+    ///     The destination is the rail's own rather than one read off the screen, and the two cannot differ here: only
+    ///     a destination's screen answers to <c>g</c>, and a destination's screen is only ever the bottom of the stack
+    ///     — anything drilled into from one is a screen of some other kind, which is refreshed by the two below.
+    /// </remarks>
     private Task RefreshDestination(Place place)
     {
         _cache.Forget(Rail.Showing.Kind);
 
-        return _arrival.At(Rail.Showing, place);
+        return _arrival.Again(Rail.Showing, place);
     }
 
     /// <summary>
     ///     The same for the post screen, which no arrival reaches: the <c>Replies</c> call <see cref="Enter" /> ran to
     ///     open it, about the same post it is already about.
     /// </summary>
-    private Task RefreshPost(PostScreen showing, Place place)
-    {
-        var about = showing.Post.Boosted ?? showing.Post;
-
-        return _enquiry.Put(
-            ask => ask.Of(token => _ports.Engagement.Replies(_profile, about.Id, token)),
+    private Task RefreshPost(PostScreen showing, Place place) =>
+        _enquiry.Put(
+            ask => ReadReplies(ask, showing.Post),
             ifStillHere: replies => Freshened(showing, new PostScreen(showing.Post, replies), place));
+
+    /// <summary>
+    ///     What has been said in answer to a post — asked about the post itself where what is in hand is a boost of
+    ///     it, since a boost is the same post as far as its answers go.
+    /// </summary>
+    /// <remarks>
+    ///     Said here rather than at both places that ask, for the reason <see cref="ReadAccount" /> gives: a refresh
+    ///     is the same call the screen was opened by rather than a second opinion about what a post screen holds
+    ///     (#84).
+    /// </remarks>
+    private Task<IReadOnlyList<Post>> ReadReplies(Enquiry.Ask ask, Post post)
+    {
+        var about = post.Boosted ?? post;
+
+        return ask.Of(token => _ports.Engagement.Replies(_profile, about.Id, token));
     }
 
     /// <summary>And for the account screen, which is both of the calls that opened it.</summary>

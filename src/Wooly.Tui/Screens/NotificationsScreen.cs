@@ -32,7 +32,7 @@ public sealed class NotificationsScreen(IReadOnlyList<Notification> notification
     protected override IReadOnlyList<KeyHint> OwnKeys =>
         PostKeys.Around(
             new KeyHint("j/k", "notification"),
-            [new KeyHint("d", "dismiss"), new KeyHint("D", "clear all"), Screen.Refreshing],
+            [new KeyHint("d", "dismiss"), new KeyHint("D", "clear all"), Refreshing],
             new KeyHint("tab", "destination"));
 
     /// <summary>Which notification is picked out, as an index into what is on screen.</summary>

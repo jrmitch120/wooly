@@ -1,5 +1,6 @@
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
+using Wooly.Core.Errors;
 using Wooly.Core.Paging;
 using Wooly.Core.Posts;
 using Wooly.Core.Search;
@@ -114,6 +115,38 @@ public class ShellRefreshTests
 
         Assert.NotSame(before, opened.Screen);
         Assert.Equal(1, opened.Depth);
+    }
+
+    /// <summary>
+    ///     A refresh that fails leaves the reader reading. An arrival puts an empty screen up at once because what was
+    ///     on screen is about somewhere else; here it is about exactly where they are, so it stands until there is
+    ///     something fresher to put in its place — and a rate limit or a refusal is a notice over the list rather than
+    ///     an empty screen where it used to be.
+    /// </summary>
+    [Fact]
+    public async Task Refresh_LeavesTheListUpWhereTheInstanceRefuses()
+    {
+        var reads = 0;
+
+        var shell = new AShell
+        {
+            Timelines = FakeTimelineReader.Awaiting(_ => reads++ == 0
+                ? Task.FromResult(Fetch<Post>.Complete([APost.With(id: "110"), APost.With(id: "220")]))
+                : Task.FromException<Fetch<Post>>(new AuthenticationException("No."))),
+        };
+
+        var opened = await shell.Opened();
+
+        opened.Move(1);
+
+        await opened.Refresh();
+
+        var feed = Assert.IsType<FeedScreen>(opened.Screen);
+
+        Assert.Equal(["110", "220"], feed.Posts.Select(post => post.Id));
+        Assert.Equal("220", opened.Screen.Picked?.Id);
+        Assert.Equal("No.", opened.Notice);
+        Assert.True(opened.NoticeIsError);
     }
 
     /// <summary>The badge moves with the list it is drawn beside, the same as at any other arrival.</summary>
@@ -438,6 +471,9 @@ public class ShellRefreshTests
 
         Assert.Equal(refreshes, screen.Refreshes);
         Assert.Equal(refreshes, screen.Keys.Contains(Screen.Refreshing));
+
+        // And the words on the row are the contract's, not each screen's own.
+        Assert.Equal("g:refresh", Screen.Refreshing.ToString());
     }
 
     /// <summary>Every screen there is, and whether <c>g</c> means anything on it (<c>docs/tui-shell.md</c>).</summary>
@@ -461,10 +497,62 @@ public class ShellRefreshTests
     [Fact]
     public async Task G_AsksTheDestinationAgain()
     {
-        var built = new AShell { Timelines = FakeTimelineReader.Holding(APost.With(id: "110")) };
+        var (window, shell, built) = await Laid();
+
+        using (window)
+        {
+            var reads = built.Timelines.Reads.Count;
+
+            window.NewKeyDownEvent(Key.G);
+
+            Assert.Equal(reads + 1, built.Timelines.Reads.Count);
+            Assert.IsType<FeedScreen>(shell.Screen);
+        }
+    }
+
+    /// <summary>
+    ///     The scroll offset starts again, which is the half of this no shell can answer: only the view knows where
+    ///     the arrows left the rows. A refresh replaces the screen rather than changing it, and a screen replaced is
+    ///     one the content region scrolls back to the top of (<c>docs/tui-shell.md</c>).
+    /// </summary>
+    [Fact]
+    public async Task G_PutsTheScrollBackToWhatIsPickedOut()
+    {
+        var (window, _, _) = await Laid();
+
+        using (window)
+        {
+            var content = window.SubViews.OfType<PaintedView>().Single(view => view.Id == ShellWindow.ContentId);
+
+            // Far enough down that what is picked out has no row left on the page.
+            for (var pressed = 0; pressed < 30; pressed++)
+            {
+                window.NewKeyDownEvent(Key.CursorDown);
+            }
+
+            Assert.NotNull(content.Reclaimable);
+
+            window.NewKeyDownEvent(Key.G);
+
+            Assert.Null(content.Reclaimable);
+        }
+    }
+
+    /// <summary>A shell of four posts on a window with room for eighteen rows, laid out and ready for keys.</summary>
+    private static async Task<(ShellWindow Window, Wooly.Tui.Shell.Shell Shell, AShell Built)> Laid()
+    {
+        var built = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(
+                APost.With(id: "110"),
+                APost.With(id: "220"),
+                APost.With(id: "330"),
+                APost.With(id: "440")),
+        };
+
         var shell = await built.Opened();
 
-        using var window = new ShellWindow(shell, Themes.Plain, built.Clock, () => { }, FakePictures.DrawingNothing())
+        var window = new ShellWindow(shell, Themes.Plain, built.Clock, () => { }, FakePictures.DrawingNothing())
         {
             Width = 80,
             Height = 20,
@@ -472,64 +560,48 @@ public class ShellRefreshTests
 
         window.Layout();
 
-        var reads = built.Timelines.Reads.Count;
-
-        window.NewKeyDownEvent(Key.G);
-
-        Assert.Equal(reads + 1, built.Timelines.Reads.Count);
+        return (window, shell, built);
     }
 
     private static int Badge(Wooly.Tui.Shell.Shell shell, DestinationKind kind) =>
         shell.Rail.Destinations.First(destination => destination.Kind == kind).Unread;
 
     /// <summary>One of each screen, built with as little as it takes to have one.</summary>
-    private static Screen Of(string kind)
+    /// <remarks>
+    ///     Every kind named, including the last: a kind nobody said what to build would otherwise be whichever screen
+    ///     the fall-through happened to name, and a typo in the table above would pass green over the wrong screen.
+    /// </remarks>
+    private static Screen Of(string kind) => kind switch
     {
-        var post = APost.With(id: "110");
+        "feed" => new FeedScreen(
+            new Destination(DestinationKind.Home, "Home", Timeline.Home),
+            [APost.With(id: "110")],
+            refreshes: true),
 
-        switch (kind)
-        {
-            case "feed":
-                return new FeedScreen(new Destination(DestinationKind.Home, "Home", Timeline.Home), [post], refreshes: true);
+        "hashtag" => new FeedScreen(
+            new Destination(DestinationKind.Hashtag, "#dotnet", Timeline.Tag("dotnet")),
+            [APost.With(id: "110")]),
 
-            case "hashtag":
-                return new FeedScreen(
-                    new Destination(DestinationKind.Hashtag, "#dotnet", Timeline.Tag("dotnet")),
-                    [post]);
+        "notifications" => new NotificationsScreen([ANotification.With()]),
+        "messages" => new DirectMessagesScreen([AConversation.With()]),
+        "requests" => new FollowRequestsScreen([AnAccount.With()]),
+        "post" => new PostScreen(APost.With(id: "110"), []),
+        "account" => new AccountScreen(AnAccount.With(), [APost.With(id: "110")]),
+        "conversation" => new ConversationScreen(AConversation.Thread()),
+        "search" => Searched(),
+        "compose" => new ComposeScreen(ComposeFor.Post),
+        "notice" => new NoticeScreen("hashtag", "No hashtag is set for the rail."),
+        "help" => new HelpScreen(new PostScreen(APost.With(id: "110"), [])),
+        _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "No screen of that kind."),
+    };
 
-            case "notifications":
-                return new NotificationsScreen([ANotification.With()]);
+    /// <summary>A search that has been answered, which is the screen its results are on rather than its prompt.</summary>
+    private static SearchScreen Searched()
+    {
+        var search = new SearchScreen();
 
-            case "messages":
-                return new DirectMessagesScreen([AConversation.With()]);
+        search.Found("dotnet", new SearchResults { Accounts = [], Hashtags = [], Posts = [APost.With(id: "110")] });
 
-            case "requests":
-                return new FollowRequestsScreen([AnAccount.With()]);
-
-            case "post":
-                return new PostScreen(post, []);
-
-            case "account":
-                return new AccountScreen(AnAccount.With(), [post]);
-
-            case "conversation":
-                return new ConversationScreen(AConversation.Thread());
-
-            case "search":
-                var search = new SearchScreen();
-
-                search.Found("dotnet", new SearchResults { Accounts = [], Hashtags = [], Posts = [post] });
-
-                return search;
-
-            case "compose":
-                return new ComposeScreen(ComposeFor.Post);
-
-            case "notice":
-                return new NoticeScreen("hashtag", "No hashtag is set for the rail.");
-
-            default:
-                return new HelpScreen(new PostScreen(post, []));
-        }
+        return search;
     }
 }
