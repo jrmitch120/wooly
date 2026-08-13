@@ -1,5 +1,6 @@
 using Wooly.Core.Accounts;
 using Wooly.Core.Errors;
+using Wooly.Core.Paging;
 using Wooly.Core.Profiles;
 using Wooly.Core.Relationships;
 
@@ -11,11 +12,11 @@ namespace Wooly.Tests.Fakes;
 /// </summary>
 internal sealed class FakeAccountRelationships : IAccountRelationships
 {
-    private readonly AccountFetch _list;
+    private readonly Fetch<Account> _list;
     private readonly Exception? _refusal;
     private readonly Account _subject;
 
-    private FakeAccountRelationships(Account subject, AccountFetch list, Exception? refusal = null)
+    private FakeAccountRelationships(Account subject, Fetch<Account> list, Exception? refusal = null)
     {
         _subject = subject;
         _list = list;
@@ -46,22 +47,22 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
     ///     <paramref name="listing" /> in every list it is asked for.
     /// </summary>
     public static FakeAccountRelationships Holding(Account? subject = null, params Account[] listing) =>
-        new(subject ?? AnAccount.With(), AccountFetch.Complete(listing.Length == 0 ? [AnAccount.With()] : listing));
+        new(subject ?? AnAccount.With(), Fetch<Account>.Complete(listing.Length == 0 ? [AnAccount.With()] : listing));
 
     /// <summary>An instance whose lists have nobody on them.</summary>
-    public static FakeAccountRelationships HoldingNobody() => new(AnAccount.With(), AccountFetch.Complete([]));
+    public static FakeAccountRelationships HoldingNobody() => new(AnAccount.With(), Fetch<Account>.Complete([]));
 
     /// <summary>An instance whose rate limit stopped the list with <paramref name="listing" /> already in hand.</summary>
     public static FakeAccountRelationships RateLimitedAfter(params Account[] listing) =>
         new(
             AnAccount.With(),
-            AccountFetch.StoppedShort(
+            Fetch<Account>.StoppedShort(
                 listing,
                 new RateLimitedException("mastodon.social", new DateTimeOffset(2026, 7, 29, 13, 0, 0, TimeSpan.Zero))));
 
     /// <summary>An instance that refuses everything with <paramref name="refusal" />, having recorded the attempt.</summary>
     public static FakeAccountRelationships Refusing(Exception refusal) =>
-        new(AnAccount.With(), AccountFetch.Complete([]), refusal);
+        new(AnAccount.With(), Fetch<Account>.Complete([]), refusal);
 
     public Task<Account> Set(
         ActiveProfile profile,
@@ -82,7 +83,7 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
         return Answer(_subject);
     }
 
-    public Task<AccountFetch> List(
+    public Task<Fetch<Account>> List(
         ActiveProfile profile,
         FollowSide side,
         AccountAddress? account,
@@ -91,14 +92,14 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
     {
         Lists.Add(new Listed(profile.Name, side, account, limit));
 
-        return _refusal is null ? Task.FromResult(_list) : Task.FromException<AccountFetch>(_refusal);
+        return _refusal is null ? Task.FromResult(_list) : Task.FromException<Fetch<Account>>(_refusal);
     }
 
-    public Task<AccountFetch> PendingRequests(ActiveProfile profile, int limit, CancellationToken cancellationToken)
+    public Task<Fetch<Account>> PendingRequests(ActiveProfile profile, int limit, CancellationToken cancellationToken)
     {
         Lists.Add(new Listed(profile.Name, Side: null, Account: null, limit));
 
-        return _refusal is null ? Task.FromResult(_list) : Task.FromException<AccountFetch>(_refusal);
+        return _refusal is null ? Task.FromResult(_list) : Task.FromException<Fetch<Account>>(_refusal);
     }
 
     public Task<Account> Answer(

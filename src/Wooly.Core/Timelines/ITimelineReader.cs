@@ -1,3 +1,4 @@
+using Wooly.Core.Paging;
 using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
 
@@ -19,5 +20,5 @@ public interface ITimelineReader
     ///     The posts, and whether the fetch ran to the end of what was asked for — a rate limit part way through stops
     ///     it and is reported alongside what had already arrived, rather than losing it.
     /// </returns>
-    Task<TimelineFetch> Read(ActiveProfile profile, Timeline timeline, int limit, CancellationToken cancellationToken);
+    Task<Fetch<Post>> Read(ActiveProfile profile, Timeline timeline, int limit, CancellationToken cancellationToken);
 }

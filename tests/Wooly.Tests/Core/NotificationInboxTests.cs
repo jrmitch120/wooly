@@ -34,7 +34,7 @@ public class NotificationInboxTests
 
         var fetch = await NewInbox(network).Read(Profile, 20, TestContext.Current.CancellationToken);
 
-        var notification = Assert.Single(fetch.Notifications);
+        var notification = Assert.Single(fetch.Items);
         Assert.Equal("34", notification.Id);
         Assert.Equal("alice@hachyderm.io", notification.Account);
         Assert.Equal("Alice", notification.Author);
@@ -57,7 +57,7 @@ public class NotificationInboxTests
 
         var fetch = await NewInbox(network).Read(Profile, 20, TestContext.Current.CancellationToken);
 
-        Assert.Equal(expected, Assert.Single(fetch.Notifications).Kind.Name);
+        Assert.Equal(expected, Assert.Single(fetch.Items).Kind.Name);
     }
 
     /// <summary>
@@ -76,7 +76,7 @@ public class NotificationInboxTests
 
         var fetch = await NewInbox(network).Read(Profile, 20, TestContext.Current.CancellationToken);
 
-        Assert.Equal(type, Assert.Single(fetch.Notifications).Kind.Name);
+        Assert.Equal(type, Assert.Single(fetch.Items).Kind.Name);
     }
 
     /// <summary>
@@ -91,7 +91,7 @@ public class NotificationInboxTests
 
         var fetch = await NewInbox(network).Read(Profile, 20, TestContext.Current.CancellationToken);
 
-        Assert.NotEqual(NotificationKind.Follow, Assert.Single(fetch.Notifications).Kind);
+        Assert.NotEqual(NotificationKind.Follow, Assert.Single(fetch.Items).Kind);
     }
 
     /// <summary>
@@ -106,7 +106,7 @@ public class NotificationInboxTests
 
         var fetch = await NewInbox(network).Read(Profile, 20, TestContext.Current.CancellationToken);
 
-        var post = Assert.Single(fetch.Notifications).Post;
+        var post = Assert.Single(fetch.Items).Post;
         Assert.Equal("110", post?.Id);
         Assert.Equal("Hello world", post?.Content);
         Assert.Equal("jeff@mastodon.social", post?.Account);
@@ -121,7 +121,7 @@ public class NotificationInboxTests
 
         var fetch = await NewInbox(network).Read(Profile, 20, TestContext.Current.CancellationToken);
 
-        Assert.Null(Assert.Single(fetch.Notifications).Post);
+        Assert.Null(Assert.Single(fetch.Items).Post);
     }
 
     /// <summary>
@@ -139,7 +139,7 @@ public class NotificationInboxTests
 
         Assert.Equal(
             ["alice@hachyderm.io", "bob@mastodon.social"],
-            fetch.Notifications.Select(notification => notification.Account));
+            fetch.Items.Select(notification => notification.Account));
     }
 
     [Fact]
@@ -170,7 +170,7 @@ public class NotificationInboxTests
 
         var fetch = await NewInbox(network).Read(Profile, 35, TestContext.Current.CancellationToken);
 
-        Assert.Equal(35, fetch.Notifications.Count);
+        Assert.Equal(35, fetch.Items.Count);
         Assert.True(fetch.IsComplete);
         Assert.Equal(2, network.Requests.Count);
         Assert.Equal("https://mastodon.social/api/v1/notifications?limit=30", network.Requests[0].RequestUri?.ToString());
@@ -207,7 +207,7 @@ public class NotificationInboxTests
 
         var fetch = await NewInbox(network).Read(Profile, 35, TestContext.Current.CancellationToken);
 
-        Assert.Equal(35, fetch.Notifications.Count);
+        Assert.Equal(35, fetch.Items.Count);
         Assert.Equal(
             "https://mastodon.social/api/v1/notifications?max_id=171&limit=5",
             network.Requests[1].RequestUri?.ToString());
@@ -220,7 +220,7 @@ public class NotificationInboxTests
 
         var fetch = await NewInbox(network).Read(Profile, 45, TestContext.Current.CancellationToken);
 
-        Assert.Equal(3, fetch.Notifications.Count);
+        Assert.Equal(3, fetch.Items.Count);
         Assert.True(fetch.IsComplete);
         Assert.Single(network.Requests);
     }
@@ -238,7 +238,7 @@ public class NotificationInboxTests
 
         var fetch = await NewInbox(network).Read(Profile, 35, TestContext.Current.CancellationToken);
 
-        Assert.Equal(30, fetch.Notifications.Count);
+        Assert.Equal(30, fetch.Items.Count);
         Assert.False(fetch.IsComplete);
         Assert.Equal("mastodon.social", fetch.StoppedBy?.Instance);
 
@@ -254,7 +254,7 @@ public class NotificationInboxTests
 
         var fetch = await NewInbox(network).Read(Profile, 20, TestContext.Current.CancellationToken);
 
-        Assert.Empty(fetch.Notifications);
+        Assert.Empty(fetch.Items);
         Assert.False(fetch.IsComplete);
         Assert.NotNull(fetch.StoppedBy);
     }

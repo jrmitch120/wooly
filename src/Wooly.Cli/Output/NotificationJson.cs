@@ -1,26 +1,19 @@
 using System.Text.Json.Serialization;
 using Spectre.Console;
 using Wooly.Core.Notifications;
+using Wooly.Core.Paging;
 
 namespace Wooly.Cli.Output;
 
 /// <summary>
-///     Writes notifications for another program to read. An object rather than a bare array, per ADR-0007: a fetch cut
-///     short by a rate limit and an inbox with nothing in it would otherwise both be <c>[]</c>, and under a pipe the exit
-///     code is gone by the time the JSON is parsed. The post inside each one is a <see cref="PostDocument" />, spelled
-///     the one way every command spells a post.
+///     Writes notifications for another program to read: <see cref="ListDocument" />'s envelope, with nothing ahead of
+///     it — there is only ever the one inbox. The post inside each one is a <see cref="PostDocument" />, spelled the
+///     one way every command spells a post.
 /// </summary>
 internal static class NotificationJson
 {
-    public static void Write(IAnsiConsole console, NotificationFetch fetch)
-    {
-        var document = new InboxDocument(
-            fetch.IsComplete,
-            RateLimitDocument.Of(fetch.StoppedBy),
-            fetch.Notifications.Select(Of).ToList());
-
-        JsonOutput.Write(console, document);
-    }
+    public static void Write(IAnsiConsole console, Fetch<Notification> fetch) =>
+        ListDocument.Write(console, fetch, Of, "notifications");
 
     private static NotificationDocument Of(Notification notification) => new(
         notification.Id,
@@ -32,15 +25,6 @@ internal static class NotificationJson
         notification.Account,
         notification.Author,
         notification.Post is null ? null : PostDocument.Of(notification.Post));
-
-    /// <param name="Complete">
-    ///     Whether every notification asked for was read. False says the rest was cut short, which an empty
-    ///     <c>notifications</c> otherwise could not be told from an inbox with nothing in it.
-    /// </param>
-    private sealed record InboxDocument(
-        [property: JsonPropertyName("complete")] bool Complete,
-        [property: JsonPropertyName("rateLimit")] RateLimitDocument? RateLimit,
-        [property: JsonPropertyName("notifications")] IReadOnlyList<NotificationDocument> Notifications);
 
     /// <param name="Kind">
     ///     What happened: <c>mention</c>, <c>follow</c>, <c>boost</c> or <c>favorite</c> — this project's vocabulary,

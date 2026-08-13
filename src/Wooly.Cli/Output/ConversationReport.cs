@@ -1,6 +1,7 @@
 using Spectre.Console;
 using Wooly.Core.Accounts;
 using Wooly.Core.Conversations;
+using Wooly.Core.Paging;
 using Wooly.Core.Posts;
 
 namespace Wooly.Cli.Output;
@@ -23,9 +24,9 @@ internal static class ConversationReport
     private const string NothingLeft = "Nothing left in this conversation.";
 
     /// <summary>Writes the conversations, one after another with a blank line between them.</summary>
-    public static void Write(IAnsiConsole console, ConversationFetch fetch)
+    public static void Write(IAnsiConsole console, Fetch<Conversation> fetch)
     {
-        if (fetch.Conversations.Count == 0)
+        if (fetch.Items.Count == 0)
         {
             // Only when there really are none. A listing a rate limit stopped before anything arrived is reported as
             // that failure, and saying "no conversations" as well would be saying the opposite of what happened.
@@ -37,7 +38,7 @@ internal static class ConversationReport
             return;
         }
 
-        foreach (var conversation in fetch.Conversations)
+        foreach (var conversation in fetch.Items)
         {
             Heading(console, conversation);
 

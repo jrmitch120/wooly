@@ -40,7 +40,7 @@ internal static class PagedReading
     ///     What arrived, and the rate limit that stopped the rest if one did. Nothing waits here — ADR-0006 leaves that
     ///     choice to whichever front end is reading.
     /// </returns>
-    public static async Task<Paged<TItem>> Collect<TWire, TItem>(
+    public static async Task<Fetch<TItem>> Collect<TWire, TItem>(
         int limit,
         int pageSize,
         Func<ArrayOptions, Task<MastodonList<TWire>>> readPage,
@@ -68,7 +68,7 @@ internal static class PagedReading
             }
             catch (RateLimitedException rateLimit)
             {
-                return new Paged<TItem>(items, rateLimit);
+                return Fetch<TItem>.StoppedShort(items, rateLimit);
             }
 
             var arrived = page.Select(asItem).ToList();
@@ -103,6 +103,6 @@ internal static class PagedReading
             }
         }
 
-        return new Paged<TItem>(items, null);
+        return Fetch<TItem>.Complete(items);
     }
 }

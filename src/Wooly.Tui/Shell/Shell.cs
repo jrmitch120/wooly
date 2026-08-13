@@ -840,7 +840,7 @@ public sealed class Shell
                 var posts = await ask.Of(token =>
                     _ports.Timelines.Read(_profile, Timeline.By(address), Arrival.PostsWanted, token));
 
-                return (Account: account, Posts: posts.Posts);
+                return (Account: account, Posts: posts.Items);
             },
             ifStillHere: found =>
             {
@@ -923,8 +923,8 @@ public sealed class Shell
 
                 Push(new FeedScreen(
                     showing,
-                    posts.Posts,
-                    Arrival.Emptiness(posts.Posts.Count, Arrival.NothingOn(tag), tag.Description, posts.StoppedBy)));
+                    posts.Items,
+                    Arrival.Emptiness(posts.Items.Count, Arrival.NothingOn(tag), tag.Description, posts.StoppedBy)));
             });
 
     /// <summary>Empties the inbox, once it has been said twice.</summary>
@@ -971,16 +971,16 @@ public sealed class Shell
     {
         await Count(
             DestinationKind.Notifications,
-            async token => (await _ports.Notifications.Read(_profile, Arrival.CountedAtMost, token)).Notifications.Count);
+            async token => (await _ports.Notifications.Read(_profile, Arrival.CountedAtMost, token)).Items.Count);
 
         await Count(
             DestinationKind.Messages,
             async token => (await _ports.Messages.List(_profile, Arrival.CountedAtMost, token))
-                .Conversations.Count(conversation => conversation.Unread));
+                .Items.Count(conversation => conversation.Unread));
 
         await Count(
             DestinationKind.Requests,
-            async token => (await _ports.Accounts.PendingRequests(_profile, Arrival.CountedAtMost, token)).Accounts.Count);
+            async token => (await _ports.Accounts.PendingRequests(_profile, Arrival.CountedAtMost, token)).Items.Count);
     }
 
     private async Task Count(DestinationKind kind, Func<CancellationToken, Task<int>> read)

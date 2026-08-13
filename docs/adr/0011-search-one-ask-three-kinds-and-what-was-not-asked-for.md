@@ -26,7 +26,8 @@ boundary, because the report a person reads needs it too: `search cats --type ac
 accounts matching 'cats'", which is a smaller claim than "Nothing matching 'cats'" and the only true one.
 
 **A search is one call, so a rate limit is a failure rather than a partial answer.** There is no `SearchFetch` beside
-`TimelineFetch` and `NotificationFetch`, and no `complete` field in the JSON. Those exist because a paged read can be
+`TimelineFetch` and `NotificationFetch` (one `Fetch<T>` since ADR-0010's amendment), and no `complete` field in the
+JSON. Those exist because a paged read can be
 stopped half way and still be holding most of what was asked for; a search that is refused is holding nothing, and an
 envelope saying `complete: false` next to three empty lists would be a more elaborate way of saying what the exit code
 and the message on stderr already say (ADR-0006). The command therefore catches nothing and lets the limit reach the one

@@ -39,21 +39,17 @@ public sealed class DirectMessages(IMastodonClientFactory clientFactory) : IDire
     private const int ConversationsSearched = 200;
 
     /// <inheritdoc />
-    public async Task<ConversationFetch> List(ActiveProfile profile, int limit, CancellationToken cancellationToken)
+    public async Task<Fetch<Conversation>> List(ActiveProfile profile, int limit, CancellationToken cancellationToken)
     {
         var client = clientFactory.CreateClient(profile.Instance, profile.AccessToken);
 
-        var read = await PagedReading.Collect(
+        return await PagedReading.Collect(
             limit,
             PageSize,
             client.GetConversations,
             conversation => ConversationWire.ToConversation(conversation, profile.Instance),
             conversation => conversation.Id,
             cancellationToken);
-
-        return read.StoppedBy is null
-            ? ConversationFetch.Complete(read.Items)
-            : ConversationFetch.StoppedShort(read.Items, read.StoppedBy);
     }
 
     /// <inheritdoc />

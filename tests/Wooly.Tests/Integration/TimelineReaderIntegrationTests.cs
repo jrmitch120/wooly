@@ -36,7 +36,7 @@ public class TimelineReaderIntegrationTests
             for (var attempt = 0; attempt < 10; attempt++)
             {
                 var fetch = await reader.Read(profile, Timeline.Home, limit: 20, cancellationToken);
-                posts = fetch.Posts;
+                posts = fetch.Items;
 
                 if (posts.Any(post => post.Id == published.Id))
                 {

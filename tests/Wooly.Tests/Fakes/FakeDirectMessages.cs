@@ -1,5 +1,6 @@
 using Wooly.Core.Conversations;
 using Wooly.Core.Errors;
+using Wooly.Core.Paging;
 using Wooly.Core.Profiles;
 
 namespace Wooly.Tests.Fakes;
@@ -10,7 +11,7 @@ namespace Wooly.Tests.Fakes;
 ///     fakes HTTP to do it.
 /// </summary>
 internal sealed class FakeDirectMessages(
-    ConversationFetch fetch,
+    Fetch<Conversation> fetch,
     ConversationThread? thread = null,
     Exception? refusal = null) : IDirectMessages
 {
@@ -25,27 +26,27 @@ internal sealed class FakeDirectMessages(
 
     /// <summary>Conversations there to be listed, read to the end of whatever was asked for.</summary>
     public static FakeDirectMessages Holding(params Conversation[] conversations) =>
-        new(ConversationFetch.Complete(conversations));
+        new(Fetch<Conversation>.Complete(conversations));
 
     /// <summary>An instance whose rate limit stopped the listing with <paramref name="conversations" /> in hand.</summary>
     public static FakeDirectMessages RateLimitedAfter(params Conversation[] conversations) =>
-        new(ConversationFetch.StoppedShort(
+        new(Fetch<Conversation>.StoppedShort(
             conversations,
             new RateLimitedException("mastodon.social", new DateTimeOffset(2026, 7, 29, 13, 0, 0, TimeSpan.Zero))));
 
     /// <summary>An instance answering a request to show one conversation with <paramref name="thread" />.</summary>
     public static FakeDirectMessages Threading(ConversationThread thread) =>
-        new(ConversationFetch.Complete([thread.Conversation]), thread);
+        new(Fetch<Conversation>.Complete([thread.Conversation]), thread);
 
     /// <summary>An instance that refuses everything with <paramref name="refusal" />, having recorded the attempt.</summary>
     public static FakeDirectMessages Refusing(Exception refusal) =>
-        new(ConversationFetch.Complete([]), thread: null, refusal);
+        new(Fetch<Conversation>.Complete([]), thread: null, refusal);
 
-    public Task<ConversationFetch> List(ActiveProfile profile, int limit, CancellationToken cancellationToken)
+    public Task<Fetch<Conversation>> List(ActiveProfile profile, int limit, CancellationToken cancellationToken)
     {
         Listings.Add(new Call(profile.Name, limit));
 
-        return refusal is null ? Task.FromResult(fetch) : Task.FromException<ConversationFetch>(refusal);
+        return refusal is null ? Task.FromResult(fetch) : Task.FromException<Fetch<Conversation>>(refusal);
     }
 
     public Task<ConversationThread> Show(

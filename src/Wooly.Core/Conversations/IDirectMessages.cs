@@ -1,3 +1,4 @@
+using Wooly.Core.Paging;
 using Wooly.Core.Profiles;
 
 namespace Wooly.Core.Conversations;
@@ -26,7 +27,7 @@ public interface IDirectMessages
     ///     The conversations, and whether the listing ran to the end of what was asked for — a rate limit part way
     ///     through stops it and is reported alongside what had already arrived, rather than losing it.
     /// </returns>
-    Task<ConversationFetch> List(ActiveProfile profile, int limit, CancellationToken cancellationToken);
+    Task<Fetch<Conversation>> List(ActiveProfile profile, int limit, CancellationToken cancellationToken);
 
     /// <summary>Reads one conversation: the thread its last post belongs to, oldest first.</summary>
     /// <param name="conversationId">

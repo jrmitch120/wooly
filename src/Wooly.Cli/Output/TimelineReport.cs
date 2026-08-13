@@ -1,4 +1,6 @@
 using Spectre.Console;
+using Wooly.Core.Paging;
+using Wooly.Core.Posts;
 using Wooly.Core.Timelines;
 
 namespace Wooly.Cli.Output;
@@ -10,9 +12,9 @@ namespace Wooly.Cli.Output;
 /// </summary>
 internal static class TimelineReport
 {
-    public static void Write(IAnsiConsole console, Timeline timeline, TimelineFetch fetch)
+    public static void Write(IAnsiConsole console, Timeline timeline, Fetch<Post> fetch)
     {
-        if (fetch.Posts.Count == 0)
+        if (fetch.Items.Count == 0)
         {
             // Only when the timeline really is empty. A fetch a rate limit stopped before anything arrived is
             // reported as that failure, and saying "no posts" as well would be saying the opposite of what happened.
@@ -24,7 +26,7 @@ internal static class TimelineReport
             return;
         }
 
-        foreach (var post in fetch.Posts)
+        foreach (var post in fetch.Items)
         {
             PostReport.Write(console, post);
             console.WriteLine();

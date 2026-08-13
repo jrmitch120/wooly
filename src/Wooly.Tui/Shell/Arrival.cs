@@ -2,6 +2,7 @@ using Wooly.Core.Accounts;
 using Wooly.Core.Conversations;
 using Wooly.Core.Errors;
 using Wooly.Core.Notifications;
+using Wooly.Core.Paging;
 using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
 using Wooly.Core.Relationships;
@@ -112,7 +113,7 @@ public sealed class Arrival(
             return Arrive(
                 destination,
                 new Arriving<Post>(
-                    Reads: async token => Of(await ports.Timelines.Read(profile, timeline, PostsWanted, token)),
+                    Reads: token => ports.Timelines.Read(profile, timeline, PostsWanted, token),
                     Becomes: (posts, notice) => new FeedScreen(destination, posts, notice),
                     WhenEmpty: NothingOn(timeline),
 
@@ -126,7 +127,7 @@ public sealed class Arrival(
             DestinationKind.Notifications => Arrive(
                 destination,
                 new Arriving<Notification>(
-                    Reads: async token => Of(await ports.Notifications.Read(profile, CountedAtMost, token)),
+                    Reads: token => ports.Notifications.Read(profile, CountedAtMost, token),
                     Becomes: (waiting, notice) => new NotificationsScreen(waiting, notice),
                     WhenEmpty: "Nothing is waiting for you.",
                     Counting: waiting => waiting.Count)),
@@ -134,7 +135,7 @@ public sealed class Arrival(
             DestinationKind.Requests => Arrive(
                 destination,
                 new Arriving<Account>(
-                    Reads: async token => Of(await ports.Accounts.PendingRequests(profile, CountedAtMost, token)),
+                    Reads: token => ports.Accounts.PendingRequests(profile, CountedAtMost, token),
                     Becomes: (asking, notice) => new FollowRequestsScreen(asking, notice),
                     WhenEmpty: "Nobody is waiting to follow you.",
                     Counting: asking => asking.Count)),
@@ -142,7 +143,7 @@ public sealed class Arrival(
             DestinationKind.Messages => Arrive(
                 destination,
                 new Arriving<Conversation>(
-                    Reads: async token => Of(await ports.Messages.List(profile, CountedAtMost, token)),
+                    Reads: token => ports.Messages.List(profile, CountedAtMost, token),
                     Becomes: (written, notice) => new DirectMessagesScreen(written, notice),
                     WhenEmpty: "No direct conversations yet.",
 
@@ -161,18 +162,6 @@ public sealed class Arrival(
         };
     }
 
-    /// <summary>What each kind of read came back with, in the one shape an arrival runs on.</summary>
-    private static Fetched<Post> Of(TimelineFetch fetch) => new(fetch.Posts, fetch.StoppedBy);
-
-    /// <inheritdoc cref="Of(TimelineFetch)" />
-    private static Fetched<Notification> Of(NotificationFetch fetch) => new(fetch.Notifications, fetch.StoppedBy);
-
-    /// <inheritdoc cref="Of(TimelineFetch)" />
-    private static Fetched<Account> Of(AccountFetch fetch) => new(fetch.Accounts, fetch.StoppedBy);
-
-    /// <inheritdoc cref="Of(TimelineFetch)" />
-    private static Fetched<Conversation> Of(ConversationFetch fetch) => new(fetch.Conversations, fetch.StoppedBy);
-
     /// <summary>The six steps, over whatever <paramref name="arriving" /> says this destination is.</summary>
     /// <remarks>
     ///     A destination fetched recently enough draws at once and asks for nothing, which is what makes walking out
@@ -185,7 +174,7 @@ public sealed class Arrival(
         if (cache.Fresh<T>(destination.Kind) is { } held)
         {
             // What was held is an answer that cost nothing, and nothing cut it short.
-            Apply(() => Landed(destination, arriving, new Fetched<T>(held, StoppedBy: null)));
+            Apply(() => Landed(destination, arriving, Fetch<T>.Complete(held)));
 
             return;
         }
@@ -194,7 +183,7 @@ public sealed class Arrival(
             ask => ask.Of(arriving.Reads),
             ifStillHere: fetch =>
             {
-                cache.Keep(destination.Kind, fetch.What);
+                cache.Keep(destination.Kind, fetch.Items);
                 Landed(destination, arriving, fetch);
             });
     }
@@ -203,21 +192,21 @@ public sealed class Arrival(
     ///     What both halves of an arrival end with: the screen on the stack, and the badge beside it read off the same
     ///     answer — so the rail cannot say four over a list of three.
     /// </summary>
-    private void Landed<T>(Destination destination, Arriving<T> arriving, Fetched<T> answer)
+    private void Landed<T>(Destination destination, Arriving<T> arriving, Fetch<T> answer)
     {
         // What the list is of is the destination's own to say, and only a timeline has a name worth putting in the
         // sentence — so it is read off the destination rather than being a fifth thing an arrival states about itself.
         var notice = Emptiness(
-            answer.What.Count,
+            answer.Items.Count,
             arriving.WhenEmpty,
             destination.Timeline?.Description,
             answer.StoppedBy);
 
-        Shows?.Invoke(arriving.Becomes(answer.What, notice));
+        Shows?.Invoke(arriving.Becomes(answer.Items, notice));
 
         if (arriving.Counting is { } counting)
         {
-            Counts?.Invoke(destination.Kind, counting(answer.What));
+            Counts?.Invoke(destination.Kind, counting(answer.Items));
         }
     }
 
@@ -234,11 +223,8 @@ public sealed class Arrival(
     ///     which a timeline says here rather than leaving the count out at its own call site.
     /// </param>
     private sealed record Arriving<T>(
-        Func<CancellationToken, Task<Fetched<T>>> Reads,
+        Func<CancellationToken, Task<Fetch<T>>> Reads,
         Func<IReadOnlyList<T>, string?, Screen> Becomes,
         string WhenEmpty,
         Func<IReadOnlyList<T>, int>? Counting);
-
-    /// <summary>What one read came back with: what was there, and the rate limit that cut it short, if one did.</summary>
-    private readonly record struct Fetched<T>(IReadOnlyList<T> What, RateLimitedException? StoppedBy);
 }

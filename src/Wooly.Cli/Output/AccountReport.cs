@@ -1,5 +1,6 @@
 using Spectre.Console;
 using Wooly.Core.Accounts;
+using Wooly.Core.Paging;
 using Wooly.Core.Relationships;
 
 namespace Wooly.Cli.Output;
@@ -31,9 +32,9 @@ internal static class AccountReport
     ///     The account whose list this is, so that an empty one says whose it was — read on its own, "no followers"
     ///     could as easily be about the account that was named as about the profile that asked.
     /// </param>
-    public static void Write(IAnsiConsole console, FollowSide side, string? whose, AccountFetch fetch)
+    public static void Write(IAnsiConsole console, FollowSide side, string? whose, Fetch<Account> fetch)
     {
-        if (fetch.Accounts.Count == 0)
+        if (fetch.Items.Count == 0)
         {
             // Only when the list really is empty. A fetch a rate limit stopped before anything arrived is reported as
             // that failure, and saying "no followers" as well would be saying the opposite of what happened.
@@ -45,7 +46,7 @@ internal static class AccountReport
             return;
         }
 
-        foreach (var account in fetch.Accounts)
+        foreach (var account in fetch.Items)
         {
             Write(console, account);
             console.WriteLine();
@@ -53,9 +54,9 @@ internal static class AccountReport
     }
 
     /// <summary>Writes the accounts waiting to be let in, each led by the id that answers it.</summary>
-    public static void WriteRequests(IAnsiConsole console, AccountFetch fetch)
+    public static void WriteRequests(IAnsiConsole console, Fetch<Account> fetch)
     {
-        if (fetch.Accounts.Count == 0)
+        if (fetch.Items.Count == 0)
         {
             if (fetch.IsComplete)
             {
@@ -65,7 +66,7 @@ internal static class AccountReport
             return;
         }
 
-        foreach (var account in fetch.Accounts)
+        foreach (var account in fetch.Items)
         {
             // The id leads, for the reason a notification's does: it is the one thing on the line that cannot be
             // worked out from the rest of it, and the one thing the next command asks the user to type.
@@ -122,14 +123,9 @@ internal static class AccountReport
     };
 
     /// <summary>What an empty list says, in the words of the side that was asked for and about whoever was asked about.</summary>
-    private static string Nobody(FollowSide side, string? whose) => (side, whose) switch
-    {
-        (FollowSide.Followers, null) => "No followers.",
-        (FollowSide.Followers, _) => $"Nobody follows {whose}.",
-        (FollowSide.Following, null) => "Following nobody.",
-        (FollowSide.Following, _) => $"{whose} follows nobody.",
-        _ => throw new ArgumentOutOfRangeException(nameof(side), side, "Not a side of a follow this client lists."),
-    };
+    private static string Nobody(FollowSide side, string? whose) => whose is null
+        ? side.Either("No followers.", "Following nobody.")
+        : side.Either($"Nobody follows {whose}.", $"{whose} follows nobody.");
 
     /// <summary>The part of an account that reads the same whichever line named it: its presence, and its address.</summary>
     private static void WriteRest(IAnsiConsole console, Account account)

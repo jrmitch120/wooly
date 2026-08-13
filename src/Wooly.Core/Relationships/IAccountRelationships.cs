@@ -1,4 +1,5 @@
 using Wooly.Core.Accounts;
+using Wooly.Core.Paging;
 using Wooly.Core.Profiles;
 
 namespace Wooly.Core.Relationships;
@@ -56,7 +57,7 @@ public interface IAccountRelationships
     /// </param>
     /// <param name="limit">How many accounts to collect, across as many pages as it takes.</param>
     /// <exception cref="Errors.UnknownAccountException">The instance knows no account by that address.</exception>
-    Task<AccountFetch> List(
+    Task<Fetch<Account>> List(
         ActiveProfile profile,
         FollowSide side,
         AccountAddress? account,
@@ -67,7 +68,7 @@ public interface IAccountRelationships
     ///     Lists the accounts waiting to be let in, which only a locked account ever has any of: an unlocked one is
     ///     followed rather than asked.
     /// </summary>
-    Task<AccountFetch> PendingRequests(ActiveProfile profile, int limit, CancellationToken cancellationToken);
+    Task<Fetch<Account>> PendingRequests(ActiveProfile profile, int limit, CancellationToken cancellationToken);
 
     /// <summary>Accepts or rejects one pending follow request.</summary>
     /// <param name="accountId">

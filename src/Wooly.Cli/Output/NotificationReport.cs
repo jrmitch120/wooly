@@ -1,5 +1,6 @@
 using Spectre.Console;
 using Wooly.Core.Notifications;
+using Wooly.Core.Paging;
 
 namespace Wooly.Cli.Output;
 
@@ -11,9 +12,9 @@ namespace Wooly.Cli.Output;
 internal static class NotificationReport
 {
     /// <summary>Writes what is waiting, one notification after another with a blank line between them.</summary>
-    public static void Write(IAnsiConsole console, NotificationFetch fetch)
+    public static void Write(IAnsiConsole console, Fetch<Notification> fetch)
     {
-        if (fetch.Notifications.Count == 0)
+        if (fetch.Items.Count == 0)
         {
             // Only when the inbox really is empty. A fetch a rate limit stopped before anything arrived is reported as
             // that failure, and saying "nothing waiting" as well would be saying the opposite of what happened.
@@ -25,7 +26,7 @@ internal static class NotificationReport
             return;
         }
 
-        foreach (var notification in fetch.Notifications)
+        foreach (var notification in fetch.Items)
         {
             Write(console, notification);
         }

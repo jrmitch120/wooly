@@ -178,7 +178,7 @@ public class AccountRelationshipsTests
 
         Assert.Equal("https://mastodon.social/api/v1/accounts/verify_credentials", network.Requests[0].RequestUri?.ToString());
         Assert.StartsWith($"https://mastodon.social/api/v1/accounts/1/{endpoint}", network.Requests[1].RequestUri?.ToString());
-        Assert.Equal("alice@hachyderm.io", Assert.Single(fetch.Accounts).Address);
+        Assert.Equal("alice@hachyderm.io", Assert.Single(fetch.Items).Address);
         Assert.True(fetch.IsComplete);
     }
 
@@ -196,7 +196,7 @@ public class AccountRelationshipsTests
             TestContext.Current.CancellationToken);
 
         Assert.StartsWith("https://mastodon.social/api/v1/accounts/42/followers", network.Requests[1].RequestUri?.ToString());
-        Assert.Equal("bob@mastodon.social", Assert.Single(fetch.Accounts).Address);
+        Assert.Equal("bob@mastodon.social", Assert.Single(fetch.Items).Address);
     }
 
     /// <summary>
@@ -213,7 +213,7 @@ public class AccountRelationshipsTests
 
         var fetch = await Relationships(network).List(Profile, FollowSide.Following, account: null, 100, TestContext.Current.CancellationToken);
 
-        Assert.Equal(81, fetch.Accounts.Count);
+        Assert.Equal(81, fetch.Items.Count);
         Assert.Contains("limit=80", network.Requests[1].RequestUri?.Query);
         Assert.Contains("max_id=4801", network.Requests[2].RequestUri?.Query);
     }
@@ -233,7 +233,7 @@ public class AccountRelationshipsTests
 
         var fetch = await Relationships(network).List(Profile, FollowSide.Followers, account: null, 100, TestContext.Current.CancellationToken);
 
-        Assert.Equal(80, fetch.Accounts.Count);
+        Assert.Equal(80, fetch.Items.Count);
         Assert.True(fetch.IsComplete);
         Assert.Equal(2, network.Requests.Count);
     }
@@ -252,7 +252,7 @@ public class AccountRelationshipsTests
 
         var fetch = await Relationships(network).List(Profile, FollowSide.Followers, account: null, 100, TestContext.Current.CancellationToken);
 
-        Assert.Equal(80, fetch.Accounts.Count);
+        Assert.Equal(80, fetch.Items.Count);
         Assert.False(fetch.IsComplete);
         Assert.Equal("mastodon.social", fetch.StoppedBy!.Instance);
     }
@@ -266,7 +266,7 @@ public class AccountRelationshipsTests
 
         Assert.StartsWith("https://mastodon.social/api/v1/follow_requests", network.Requests[0].RequestUri?.ToString());
 
-        var waiting = Assert.Single(fetch.Accounts);
+        var waiting = Assert.Single(fetch.Items);
         Assert.Equal("42", waiting.Id);
         Assert.Equal("alice@hachyderm.io", waiting.Address);
     }

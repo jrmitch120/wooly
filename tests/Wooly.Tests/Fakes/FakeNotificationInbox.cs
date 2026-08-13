@@ -1,5 +1,6 @@
 using Wooly.Core.Errors;
 using Wooly.Core.Notifications;
+using Wooly.Core.Paging;
 using Wooly.Core.Profiles;
 
 namespace Wooly.Tests.Fakes;
@@ -9,7 +10,7 @@ namespace Wooly.Tests.Fakes;
 ///     command test says what was waiting and then asks what was read, dismissed or cleared, and never fakes HTTP to
 ///     do it.
 /// </summary>
-internal sealed class FakeNotificationInbox(NotificationFetch fetch) : INotificationInbox
+internal sealed class FakeNotificationInbox(Fetch<Notification> fetch) : INotificationInbox
 {
     /// <summary>Every read it was asked for, in order — where a test proves what a command went looking for.</summary>
     public List<Call> Reads { get; } = [];
@@ -22,15 +23,15 @@ internal sealed class FakeNotificationInbox(NotificationFetch fetch) : INotifica
 
     /// <summary>An inbox holding <paramref name="notifications" />, read to the end of whatever was asked for.</summary>
     public static FakeNotificationInbox Holding(params Notification[] notifications) =>
-        new(NotificationFetch.Complete(notifications));
+        new(Fetch<Notification>.Complete(notifications));
 
     /// <summary>An instance whose rate limit stopped the read with <paramref name="notifications" /> already in hand.</summary>
     public static FakeNotificationInbox RateLimitedAfter(params Notification[] notifications) =>
-        new(NotificationFetch.StoppedShort(
+        new(Fetch<Notification>.StoppedShort(
             notifications,
             new RateLimitedException("mastodon.social", new DateTimeOffset(2026, 7, 29, 13, 0, 0, TimeSpan.Zero))));
 
-    public Task<NotificationFetch> Read(ActiveProfile profile, int limit, CancellationToken cancellationToken)
+    public Task<Fetch<Notification>> Read(ActiveProfile profile, int limit, CancellationToken cancellationToken)
     {
         Reads.Add(new Call(profile.Name, limit));
 

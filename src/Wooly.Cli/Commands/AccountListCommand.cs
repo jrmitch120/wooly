@@ -9,15 +9,15 @@ using Wooly.Core.Relationships;
 namespace Wooly.Cli.Commands;
 
 /// <summary>
-///     Everything the two list commands do, which is everything except which side of a follow they list. That one
-///     difference is what a subclass supplies; the rest — resolving the profile, deciding that nobody named means the
-///     profile's own account, asking for the accounts, and what a rate limit means — happens identically.
+///     What the two list commands read, which is one side of an account's follows and differs only in which side. That
+///     one difference is what a subclass supplies, along with deciding that nobody named means the profile's own
+///     account; the rest is <see cref="PagedListCommand{TSettings,TItem}" />'s.
 /// </summary>
 internal abstract class AccountListCommand(
     IAnsiConsole console,
     IProfileRegistry profiles,
     IAccountRelationships relationships,
-    FollowSide side) : AsyncCommand<AccountListCommand.Settings>
+    FollowSide side) : PagedListCommand<AccountListCommand.Settings, Account>(profiles)
 {
     internal sealed class Settings : PagedListSettings
     {
@@ -40,35 +40,15 @@ internal abstract class AccountListCommand(
                 : ValidationResult.Error(AccountAddress.Rejection(Account));
     }
 
-    protected override async Task<int> ExecuteAsync(
-        CommandContext context,
-        Settings settings,
-        CancellationToken cancellationToken)
+    protected override Listing<Account> ListingFor(ActiveProfile profile, Settings settings)
     {
-        var profile = profiles.Resolve(settings.Profile);
-        var fetch = await relationships.List(profile, side, settings.Address, settings.Limit, cancellationToken);
-
         // Whose list this is, said the way the user would read it back: what they typed, or — where they named nobody
         // — the account the profile signs in as, which is who the instance was asked about.
         var whose = settings.Address?.Text ?? profile.Account;
 
-        if (settings.Json)
-        {
-            AccountJson.Write(console, side, whose, fetch);
-        }
-        else
-        {
-            AccountReport.Write(console, side, whose, fetch);
-        }
-
-        // The accounts that did arrive are worth having, so they are written before the limit that stopped the rest is
-        // reported at all. Reporting it is ADR-0006's one handler's job — hence throwing rather than printing, which is
-        // also what puts the rate-limited exit code on the process.
-        if (fetch.StoppedBy is not null)
-        {
-            throw fetch.StoppedBy;
-        }
-
-        return (int)ExitCode.Success;
+        return new Listing<Account>(
+            token => relationships.List(profile, side, settings.Address, settings.Limit, token),
+            fetch => AccountJson.Write(console, side, whose, fetch),
+            fetch => AccountReport.Write(console, side, whose, fetch));
     }
 }

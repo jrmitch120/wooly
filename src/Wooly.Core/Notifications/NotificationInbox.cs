@@ -24,21 +24,17 @@ public sealed class NotificationInbox(IMastodonClientFactory clientFactory) : IN
     private const int PageSize = 30;
 
     /// <inheritdoc />
-    public async Task<NotificationFetch> Read(ActiveProfile profile, int limit, CancellationToken cancellationToken)
+    public async Task<Fetch<Notification>> Read(ActiveProfile profile, int limit, CancellationToken cancellationToken)
     {
         var client = clientFactory.CreateClient(profile.Instance, profile.AccessToken);
 
-        var read = await PagedReading.Collect(
+        return await PagedReading.Collect(
             limit,
             PageSize,
             options => client.GetNotifications(options),
             notification => NotificationWire.ToNotification(notification, profile.Instance),
             notification => notification.Id,
             cancellationToken);
-
-        return read.StoppedBy is null
-            ? NotificationFetch.Complete(read.Items)
-            : NotificationFetch.StoppedShort(read.Items, read.StoppedBy);
     }
 
     /// <inheritdoc />

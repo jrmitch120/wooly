@@ -37,7 +37,7 @@ public class DirectMessagesTests
 
         var fetch = await NewMessages(network).List(Profile, 20, TestContext.Current.CancellationToken);
 
-        var conversation = Assert.Single(fetch.Conversations);
+        var conversation = Assert.Single(fetch.Items);
         Assert.Equal("7", conversation.Id);
         Assert.Equal(["alice@hachyderm.io"], conversation.With);
         Assert.True(conversation.Unread);
@@ -69,7 +69,7 @@ public class DirectMessagesTests
 
         var fetch = await NewMessages(network).List(Profile, 20, TestContext.Current.CancellationToken);
 
-        Assert.Equal(["alice@hachyderm.io", "bob@mastodon.social"], Assert.Single(fetch.Conversations).With);
+        Assert.Equal(["alice@hachyderm.io", "bob@mastodon.social"], Assert.Single(fetch.Items).With);
     }
 
     /// <summary>
@@ -84,7 +84,7 @@ public class DirectMessagesTests
 
         var fetch = await NewMessages(network).List(Profile, 20, TestContext.Current.CancellationToken);
 
-        var conversation = Assert.Single(fetch.Conversations);
+        var conversation = Assert.Single(fetch.Items);
         Assert.Equal("7", conversation.Id);
         Assert.Null(conversation.Latest);
     }
@@ -102,7 +102,7 @@ public class DirectMessagesTests
 
         var fetch = await NewMessages(network).List(Profile, 45, TestContext.Current.CancellationToken);
 
-        Assert.Equal(45, fetch.Conversations.Count);
+        Assert.Equal(45, fetch.Items.Count);
         Assert.True(fetch.IsComplete);
         Assert.Equal("https://mastodon.social/api/v1/conversations?limit=40", network.Requests[0].RequestUri?.ToString());
         Assert.Equal(
@@ -123,7 +123,7 @@ public class DirectMessagesTests
 
         var fetch = await NewMessages(network).List(Profile, 45, TestContext.Current.CancellationToken);
 
-        Assert.Equal(40, fetch.Conversations.Count);
+        Assert.Equal(40, fetch.Items.Count);
         Assert.False(fetch.IsComplete);
         Assert.Equal("mastodon.social", fetch.StoppedBy?.Instance);
         Assert.Equal(2, network.Requests.Count);
