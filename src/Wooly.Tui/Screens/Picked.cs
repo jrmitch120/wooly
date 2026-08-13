@@ -14,6 +14,22 @@ namespace Wooly.Tui.Screens;
 /// </remarks>
 public delegate IReadOnlyList<Line> Draws<in T>(T thing, int at, int room);
 
+/// <summary>
+///     Where a reader was standing on a screen: what they had picked out, by its own id, and where it sat on the list.
+///     What a screen replaced by a fresher copy of itself puts them back to (<c>docs/tui-shell.md</c>, #84).
+/// </summary>
+/// <remarks>
+///     Both halves, in that order, because either alone moves somebody who did not ask to be moved: the ordinal on its
+///     own leaves them on whatever has arrived above what they were reading, and the id on its own puts a reader whose
+///     post has been taken down back at the top of the list.
+/// </remarks>
+/// <param name="Id">
+///     What was picked out, as the id of the thing itself — a post's, a notification's, a conversation's — or
+///     <see langword="null" /> where the screen had nothing on it to pick.
+/// </param>
+/// <param name="At">Where it sat, which is what stands in when the thing itself is no longer there.</param>
+public readonly record struct Place(string? Id, int At);
+
 /// <summary>What a screen's reader walks with <c>j</c> and <c>k</c>, said without saying what it is a list of.</summary>
 /// <remarks>
 ///     What lets <see cref="Screen.Move" /> and <see cref="Screen.Pick" /> be the same two lines for every screen
@@ -28,11 +44,20 @@ public interface IPicked
     /// </summary>
     int At { get; }
 
+    /// <summary>Where the reader is standing, which is what a refresh puts them back to (#84).</summary>
+    Place Place { get; }
+
     /// <summary>Moves what is picked out by <paramref name="by" /> things, stopping at either end.</summary>
     void Move(int by);
 
     /// <summary>Picks the <paramref name="at" />th thing out, stopping at either end.</summary>
     void Pick(int at);
+
+    /// <summary>
+    ///     Puts the pick back where <paramref name="place" /> says: on the thing it names where that is still on the
+    ///     list, and at the same ordinal where it is gone.
+    /// </summary>
+    void Resume(Place place);
 }
 
 /// <summary>
@@ -50,12 +75,20 @@ public interface IPicked
 ///         all, and <see cref="Revealed" /> is already the thing that answers for them.
 ///     </para>
 /// </remarks>
-public sealed class Picked<T>(IReadOnlyList<T> things) : IPicked
+public sealed class Picked<T>(IReadOnlyList<T> things, Func<T, string>? named = null) : IPicked
 {
     private readonly List<T> _things = [.. things];
 
     /// <inheritdoc />
     public int At { get; private set; }
+
+    /// <inheritdoc />
+    /// <remarks>
+    ///     A list whose things this screen cannot name — a search result, which is three different things under one
+    ///     word — reports where the pick sat and nothing more, and is resumed by ordinal alone. That is a fact about
+    ///     the list rather than a screen forgetting to say something: none of them is refreshed (#84).
+    /// </remarks>
+    public Place Place => new(Out is { } thing && named is not null ? named(thing) : null, At);
 
     /// <summary>The things, in the order they are drawn and walked.</summary>
     public IReadOnlyList<T> All => _things;
@@ -97,6 +130,28 @@ public sealed class Picked<T>(IReadOnlyList<T> things) : IPicked
         {
             At = Math.Clamp(at, 0, _things.Count - 1);
         }
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    ///     By id first and by ordinal after it, because the two answer different halves of the same question: a reader
+    ///     who was reading something is put back on it wherever it has moved to, and a reader whose something has gone
+    ///     is left looking at whatever has taken its place rather than at the top of the list.
+    /// </remarks>
+    public void Resume(Place place)
+    {
+        if (_things.Count == 0)
+        {
+            At = 0;
+
+            return;
+        }
+
+        var found = place.Id is { } id && named is not null
+            ? _things.FindIndex(thing => string.Equals(named(thing), id, StringComparison.Ordinal))
+            : -1;
+
+        At = found >= 0 ? found : Math.Clamp(place.At, 0, _things.Count - 1);
     }
 
     /// <summary>

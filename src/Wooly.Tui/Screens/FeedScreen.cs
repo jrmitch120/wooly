@@ -19,19 +19,37 @@ public sealed class FeedScreen : Screen
     /// <param name="destination">Which timeline this is, which is what the breadcrumb says.</param>
     /// <param name="posts">The posts on it, newest first.</param>
     /// <param name="notice">Something the shell has to say about the timeline rather than about a post on it.</param>
-    public FeedScreen(Destination destination, IReadOnlyList<Post> posts, string? notice = null)
+    /// <param name="refreshes">
+    ///     Whether this feed is a destination the rail arrived at, which is what settles whether <c>g</c> means
+    ///     anything on it: a hashtag walked to from a search or a reference is the same screen over a destination the
+    ///     rail keeps no place for, and there is nothing there for a refresh to evict and ask again (#84). The two are
+    ///     told apart by how the screen was reached rather than by what is in it, because a tag the reader named and a
+    ///     tag they walked to are the same destination by value.
+    /// </param>
+    public FeedScreen(
+        Destination destination,
+        IReadOnlyList<Post> posts,
+        string? notice = null,
+        bool refreshes = false)
     {
         _destination = destination;
         _posts = new PostList(this, posts);
         Notice = notice;
+        Refreshes = refreshes;
     }
 
     /// <inheritdoc />
     public override string Crumb => _destination.Label.ToLowerInvariant();
 
     /// <inheritdoc />
+    public override bool Refreshes { get; }
+
+    /// <inheritdoc />
     protected override IReadOnlyList<KeyHint> OwnKeys =>
-        PostKeys.Around(new KeyHint("j/k", "post"), new KeyHint("tab", "destination"));
+        PostKeys.Around(
+            new KeyHint("j/k", "post"),
+            Refreshes ? [Screen.Refreshing] : [],
+            new KeyHint("tab", "destination"));
 
     /// <summary>The posts on the timeline, newest first.</summary>
     public IReadOnlyList<Post> Posts => _posts.All;

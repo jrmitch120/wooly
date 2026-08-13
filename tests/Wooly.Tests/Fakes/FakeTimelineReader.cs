@@ -12,7 +12,7 @@ namespace Wooly.Tests.Fakes;
 /// </summary>
 internal sealed class FakeTimelineReader : ITimelineReader
 {
-    private readonly Func<Timeline, Task<Fetch<Post>>> _answer;
+    private Func<Timeline, Task<Fetch<Post>>> _answer;
 
     private FakeTimelineReader(Func<Timeline, Task<Fetch<Post>>> answer) => _answer = answer;
 
@@ -44,6 +44,17 @@ internal sealed class FakeTimelineReader : ITimelineReader
         new(Fetch<Post>.StoppedShort(
             posts,
             new RateLimitedException("mastodon.social", new DateTimeOffset(2026, 7, 29, 13, 0, 0, TimeSpan.Zero))));
+
+    /// <summary>
+    ///     What every timeline holds from here on: what the instance did while the reader was reading it, which is
+    ///     what a refresh is asked to notice (#84).
+    /// </summary>
+    public void NowHolding(params Post[] posts)
+    {
+        var fetch = Fetch<Post>.Complete(posts);
+
+        _answer = _ => Task.FromResult(fetch);
+    }
 
     public Task<Fetch<Post>> Read(
         ActiveProfile profile,

@@ -37,11 +37,17 @@ public sealed class PostScreen : Screen
     {
         get
         {
-            var keys = PostKeys.Around(new KeyHint("j/k", "post · replies"), new KeyHint("esc", "back"));
+            var keys = PostKeys.Around(
+                new KeyHint("j/k", "post · replies"),
+                [Refreshing],
+                new KeyHint("esc", "back"));
 
             return Opens is null ? [.. keys.Where(key => key != PostKeys.Opening)] : keys;
         }
     }
+
+    /// <inheritdoc />
+    public override bool Refreshes => true;
 
     /// <summary>Which of the post and its replies is picked out: 0 is the post, and the rest are the answers in order.</summary>
     public int At => _posts.At;

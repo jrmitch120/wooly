@@ -29,10 +29,15 @@ namespace Wooly.Tui.Screens;
 /// <param name="posts">The posts, in the order they are drawn and walked.</param>
 public sealed class PostList(Screen screen, IReadOnlyList<Post> posts) : IPicked
 {
-    private readonly Picked<Post> _posts = new(posts);
+    // Named by the post's own id, which is what a refresh matches the reader's place against — a boost by the id it
+    // was passed on under, since that is the thing on the list rather than the post inside it (#84).
+    private readonly Picked<Post> _posts = new(posts, post => post.Id);
 
     /// <inheritdoc />
     public int At => _posts.At;
+
+    /// <inheritdoc />
+    public Place Place => _posts.Place;
 
     /// <summary>The posts, in the order they are drawn and walked.</summary>
     public IReadOnlyList<Post> All => _posts.All;
@@ -48,6 +53,9 @@ public sealed class PostList(Screen screen, IReadOnlyList<Post> posts) : IPicked
 
     /// <inheritdoc />
     public void Pick(int at) => _posts.Pick(at);
+
+    /// <inheritdoc />
+    public void Resume(Place place) => _posts.Resume(place);
 
     /// <inheritdoc cref="Picked{T}.Add" />
     public void Add(Post post) => _posts.Add(post);

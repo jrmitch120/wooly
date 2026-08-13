@@ -39,8 +39,12 @@ public sealed class AccountScreen : Screen
                 new KeyHint("F", Says(Follows, "unfollow", "follow")),
                 new KeyHint("M", Says(Account.Standing?.Muting, "unmute", "mute")),
                 new KeyHint("B", Says(Account.Standing?.Blocking, "unblock", "block")),
+                Refreshing,
             ],
             new KeyHint("esc", "back"));
+
+    /// <inheritdoc />
+    public override bool Refreshes => true;
 
     /// <summary>The account being shown, as the instance last answered about them.</summary>
     public Account Account { get; private set; }

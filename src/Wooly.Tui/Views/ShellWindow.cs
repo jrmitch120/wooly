@@ -412,6 +412,12 @@ internal sealed class ShellWindow : Window
         {
             _shell.Edit();
         }
+        else if (key == Key.G)
+        {
+            // Screen-local rather than a frame key, so it is handed over like any other and the shell turns it down
+            // where the screen on top has nothing to ask again (docs/tui-shell.md, #84).
+            _ = _shell.Refresh();
+        }
         else if (key == Key.D)
         {
             _ = _shell.Press(ShellKey.Discard);

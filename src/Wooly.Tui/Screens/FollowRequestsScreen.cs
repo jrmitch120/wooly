@@ -16,10 +16,15 @@ namespace Wooly.Tui.Screens;
 /// </remarks>
 public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string? notice = null) : Screen
 {
-    private readonly Picked<Account> _waiting = new(waiting);
+    // Named by the id the instance listed them under, which is what answering a request takes (ADR-0012) — and what a
+    // refresh puts the reader back on (#84).
+    private readonly Picked<Account> _waiting = new(waiting, account => account.Id);
 
     /// <inheritdoc />
     public override string Crumb => "follow requests";
+
+    /// <inheritdoc />
+    public override bool Refreshes => true;
 
     /// <inheritdoc />
     protected override IReadOnlyList<KeyHint> OwnKeys =>
@@ -28,6 +33,7 @@ public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string?
         new("⏎", "read them"),
         new("a", "accept"),
         new("x", "reject"),
+        Refreshing,
         PostKeys.Scrolling,
         new("tab", "destination"),
         new("?", "keys"),

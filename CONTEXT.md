@@ -109,6 +109,22 @@ is dropped unread if they have arrived at another **destination** since it was s
 several calls to an instance, and is overtaken, or not, as a whole.
 _Avoid_: request (which is a follow request), query (which is what a search takes)
 
+**Refresh**:
+Asking for what is there now, by hand: `g`, screen-local, on the nine screens that have something to ask again (#84).
+Evicts what the **destination** last held and puts the same question its own **arrival** puts — so a refresh is one
+thing for the seven destinations that read a list, and the two screens no arrival reaches each put their own question
+again and recheck that the reader is still standing on them. Distinct from an arrival: nobody has gone anywhere, so
+the stack keeps its depth and the screen is replaced where it stands rather than becoming the whole of it. A live
+conversation and a live search are each their own question and are not this.
+_Avoid_: reload, poll, sync, refetch
+
+**Place**:
+Where a reader was standing on a screen: what they had **picked** out, by its own id, and where it sat on the list.
+What a **refresh** hands to the screen replacing the one it was taken off, so that a fresher list opens on the post
+they were reading — matched by id, and clamped to the same ordinal where the thing itself is gone. Distinct from
+**picked**, which is the pick as it stands now; a place is a pick written down to be put back.
+_Avoid_: position, index, state
+
 **Picked**:
 Which of the things on a screen the reader has walked to with `j` and `k`, and what every key that acts on something
 acts on. Distinct from the rail's **cursor** and its **selection** (ADR-0014): those are about which **destination**

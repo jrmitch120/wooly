@@ -306,8 +306,19 @@ cache. Streaming stays out of scope (below); a manual refresh is the in-scope an
 - **The badge moves with the count**, from the same answer the screen redraws from — the same rule every other
   arrival already follows.
 - **A refresh goes through `Enquiry` like every other fetch**, discarded unread if the reader has moved on. No new
-  in-flight UI beyond the breadcrumb's existing `fetching…` marker; a second `g` while one is already in flight is a
-  silent no-op.
+  in-flight UI beyond the breadcrumb's existing `fetching…` marker; a second `g` while anything at all is in flight is
+  a silent no-op — the guard is the breadcrumb's own `Fetching`, since a refresh landing on top of a boost or a
+  deletion still in flight is the same stale answer by another route.
+- **The post and account screens are replaced where they stand**, rather than pushed or reset: nobody has gone
+  anywhere, so what was drilled through to get there is still under them and `esc` still walks back out of it. Neither
+  is reached through an arrival, so neither is overtaken by one — each rechecks that the top of the stack is still the
+  screen it was asked about, the same idiom `Find()` and `OpenResult()` use. Both build a new screen rather than
+  changing the one on the stack, which is what puts the scroll offset back to 0: the view notices a screen has been
+  replaced by identity.
+- **A hashtag walked to from a search has no refresh**, though it is the same `FeedScreen` the rail's own hashtag
+  destination opens onto. Which of the two a screen is cannot be read off what is in it — a tag the reader named and a
+  tag they walked to are the same destination by value — so it is settled by who built it: an arrival's feed refreshes
+  and a pushed one does not. It is out of scope with the search results it was opened from.
 
 ### What media settled
 

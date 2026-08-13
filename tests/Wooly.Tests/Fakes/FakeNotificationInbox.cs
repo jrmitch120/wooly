@@ -12,6 +12,8 @@ namespace Wooly.Tests.Fakes;
 /// </summary>
 internal sealed class FakeNotificationInbox(Fetch<Notification> fetch) : INotificationInbox
 {
+    private Fetch<Notification> _fetch = fetch;
+
     /// <summary>Every read it was asked for, in order — where a test proves what a command went looking for.</summary>
     public List<Call> Reads { get; } = [];
 
@@ -31,11 +33,18 @@ internal sealed class FakeNotificationInbox(Fetch<Notification> fetch) : INotifi
             notifications,
             new RateLimitedException("mastodon.social", new DateTimeOffset(2026, 7, 29, 13, 0, 0, TimeSpan.Zero))));
 
+    /// <summary>
+    ///     What the inbox holds from here on: what arrived while the reader was reading it, which is what a refresh is
+    ///     asked to notice (#84).
+    /// </summary>
+    public void NowHolding(params Notification[] notifications) =>
+        _fetch = Fetch<Notification>.Complete(notifications);
+
     public Task<Fetch<Notification>> Read(ActiveProfile profile, int limit, CancellationToken cancellationToken)
     {
         Reads.Add(new Call(profile.Name, limit));
 
-        return Task.FromResult(fetch);
+        return Task.FromResult(_fetch);
     }
 
     public Task Dismiss(ActiveProfile profile, string notificationId, CancellationToken cancellationToken)
