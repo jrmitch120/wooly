@@ -122,12 +122,13 @@ public sealed class Arrival(
     ///     Where they were standing on the screen this one replaces: the same destination asked again is somewhere
     ///     they never left, so the pick follows the post it was on rather than going back to the top.
     /// </param>
-    public Task Again(Destination destination, Place resuming) => Reads(destination, resuming, arriving: false);
+    /// <returns>Whether a fresher screen went up, which a rate limit or a refusal answers no.</returns>
+    public Task<bool> Again(Destination destination, Place resuming) => Reads(destination, resuming, arriving: false);
 
     /// <summary>
     ///     What the two of them read and what it becomes, which is the same table however the reader got here.
     /// </summary>
-    private Task Reads(Destination destination, Place resuming, bool arriving)
+    private Task<bool> Reads(Destination destination, Place resuming, bool arriving)
     {
         // The four timeline destinations are one arrival with a different timeline in it, and which timeline that is
         // the destination already says — so there is one arm here rather than four saying the same thing about a
@@ -208,7 +209,8 @@ public sealed class Arrival(
     ///     Whether the reader is landing here rather than asking again where they already are, which settles the two
     ///     steps a refresh does not take: the overtake, and the empty screen (<see cref="Again" />).
     /// </param>
-    private async Task Arrive<T>(Destination destination, Place resuming, bool arriving, Arriving<T> reads)
+    /// <returns>Whether a screen went up, which a rate limit, a refusal or an overtaken answer all say no to.</returns>
+    private async Task<bool> Arrive<T>(Destination destination, Place resuming, bool arriving, Arriving<T> reads)
     {
         if (arriving)
         {
@@ -220,8 +222,10 @@ public sealed class Arrival(
             // What was held is an answer that cost nothing, and nothing cut it short.
             Apply(() => Landed(destination, reads, Fetch<T>.Complete(held), resuming));
 
-            return;
+            return true;
         }
+
+        var landed = false;
 
         await enquiry.Put(
             ask => ask.Of(reads.Reads),
@@ -229,7 +233,11 @@ public sealed class Arrival(
             {
                 cache.Keep(destination.Kind, fetch.Items);
                 Landed(destination, reads, fetch, resuming);
+
+                landed = true;
             });
+
+        return landed;
     }
 
     /// <summary>

@@ -295,11 +295,18 @@ public sealed class Shell
     ///     — the same thing <see cref="Walk" /> is given, worked out the same way and for the same reason (#51).
     ///     <see langword="null" /> while the pick is still on screen, which is when it is already what they are on.
     /// </param>
-    public Task Refresh(int? reclaiming = null)
+    /// <returns>
+    ///     Whether a fresher screen went up in place of the one that was showing — no for a key this screen does not
+    ///     answer to, for a question already in flight, and for an answer that failed or was overtaken. What the view
+    ///     needs in order to put the reader back at the row they were on, which is the half of their place it holds
+    ///     and this does not (#84). The same shape <see cref="WalkReference" /> answers in, and for the same reason:
+    ///     only the shell knows whether the key was used.
+    /// </returns>
+    public Task<bool> Refresh(int? reclaiming = null)
     {
         if (!Screen.Refreshes || Fetching)
         {
-            return Task.CompletedTask;
+            return Task.FromResult(false);
         }
 
         // What a reader is standing on is the post in front of them, which is not the picked one where they have read
@@ -919,7 +926,7 @@ public sealed class Shell
     ///     a destination's screen answers to <c>g</c>, and a destination's screen is only ever the bottom of the stack
     ///     — anything drilled into from one is a screen of some other kind, which is refreshed by the two below.
     /// </remarks>
-    private Task RefreshDestination(Place place)
+    private Task<bool> RefreshDestination(Place place)
     {
         _cache.Forget(Rail.Showing.Kind);
 
@@ -930,10 +937,17 @@ public sealed class Shell
     ///     The same for the post screen, which no arrival reaches: the <c>Replies</c> call <see cref="Enter" /> ran to
     ///     open it, about the same post it is already about.
     /// </summary>
-    private Task RefreshPost(PostScreen showing, Place place) =>
-        _enquiry.Put(
+    private async Task<bool> RefreshPost(PostScreen showing, Place place)
+    {
+        var freshened = false;
+
+        await _enquiry.Put(
             ask => ReadReplies(ask, showing.Post),
-            ifStillHere: replies => Freshened(showing, new PostScreen(showing.Post, replies), place));
+            ifStillHere: replies =>
+                freshened = Freshened(showing, new PostScreen(showing.Post, replies), place));
+
+        return freshened;
+    }
 
     /// <summary>
     ///     What has been said in answer to a post — asked about the post itself where what is in hand is a boost of
@@ -952,11 +966,17 @@ public sealed class Shell
     }
 
     /// <summary>And for the account screen, which is both of the calls that opened it.</summary>
-    private Task RefreshAccount(AccountScreen showing, Place place) =>
-        _enquiry.Put(
+    private async Task<bool> RefreshAccount(AccountScreen showing, Place place)
+    {
+        var freshened = false;
+
+        await _enquiry.Put(
             ask => ReadAccount(ask, AccountAddress.Parse(showing.Account.Address)),
             ifStillHere: found =>
-                Freshened(showing, new AccountScreen(found.Account, found.Posts), place));
+                freshened = Freshened(showing, new AccountScreen(found.Account, found.Posts), place));
+
+        return freshened;
+    }
 
     /// <summary>
     ///     Puts <paramref name="fresh" /> in place of the screen it is a fresher copy of, with the reader put back
@@ -975,11 +995,12 @@ public sealed class Shell
     ///         offset starts again whenever the screen is replaced (<c>docs/tui-shell.md</c>).
     ///     </para>
     /// </remarks>
-    private void Freshened(Screen showing, Screen fresh, Place place)
+    /// <returns>Whether it went up, which is no for a reader who has walked out of the screen it is about.</returns>
+    private bool Freshened(Screen showing, Screen fresh, Place place)
     {
         if (!ReferenceEquals(Screen, showing))
         {
-            return;
+            return false;
         }
 
         fresh.Resume(place);
@@ -991,6 +1012,8 @@ public sealed class Shell
         Notice = null;
 
         Changed?.Invoke();
+
+        return true;
     }
 
     /// <summary>

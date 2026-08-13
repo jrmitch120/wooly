@@ -149,6 +149,39 @@ internal sealed class PaintedView : View
     public void Follow() => _following = true;
 
     /// <summary>
+    ///     How far into the post being read the page has got, which is the half of a reader's place that only a view
+    ///     holds — the shell keeps which post it is (#84).
+    /// </summary>
+    public int Into
+    {
+        get
+        {
+            var width = Viewport.Width;
+            var height = Viewport.Height;
+
+            return Scrolls && width > 0 && height > 0 ? Scroll.Into(_rows(width, height), _top) : 0;
+        }
+    }
+
+    /// <summary>
+    ///     Puts the reader back exactly where they were on a screen that has been replaced by a fresher copy of
+    ///     itself: <paramref name="into" /> rows into the post they were reading, wherever it has moved to (#84).
+    /// </summary>
+    /// <remarks>
+    ///     Left not following, because a reader who has scrolled has taken the offset over and this is that offset
+    ///     restored — and because following would put a post taller than the terminal back to its own first row, which
+    ///     is <see cref="Scroll.To" /> honouring "shown from the top" over an offset the reader made themselves. The
+    ///     next <c>j</c> or <c>k</c> takes the screen back to following, which is what those keys already do.
+    /// </remarks>
+    public void Resume(int into)
+    {
+        Restart();
+
+        _top = Math.Max(0, _top + into);
+        _following = false;
+    }
+
+    /// <summary>
     ///     Starts again at what is picked out, following. What a screen being replaced does — pushed, popped back to,
     ///     a destination arrived at, or the same one asked again — because a row offset is about the rows it was made
     ///     on and means nothing on somebody else's.

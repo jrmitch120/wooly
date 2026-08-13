@@ -99,6 +99,36 @@ public static class Scroll
     }
 
     /// <summary>
+    ///     How far into the topmost thing on the page the offset has got: nought where the page begins exactly on it,
+    ///     and the rows of it already scrolled past otherwise.
+    /// </summary>
+    /// <remarks>
+    ///     The other half of a reader's place, and the half only a view can hold: <see cref="Topmost" /> says which
+    ///     post they are reading and this says whereabouts in it they have got to. A screen replaced by a fresher copy
+    ///     of itself keeps both, which is what makes a refresh leave the page alone — keeping only the post moves it
+    ///     to the top of the page, which is a page that jumped for somebody who asked for newer posts (#84).
+    /// </remarks>
+    public static int Into(IReadOnlyList<Line> lines, int from)
+    {
+        var at = By(lines, from, 0);
+
+        if (Topmost(lines, at) is not { } item)
+        {
+            return 0;
+        }
+
+        for (var row = 0; row < lines.Count; row++)
+        {
+            if (lines[row].Item == item)
+            {
+                return at - row;
+            }
+        }
+
+        return 0;
+    }
+
+    /// <summary>
     ///     Where <paramref name="rows" /> of scrolling from <paramref name="from" /> lands: what <c>↓</c> and <c>↑</c>
     ///     do, which is move the screen and leave the selection alone.
     /// </summary>

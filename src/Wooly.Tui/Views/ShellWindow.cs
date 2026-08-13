@@ -414,12 +414,7 @@ internal sealed class ShellWindow : Window
         }
         else if (key == Key.G)
         {
-            // Screen-local rather than a frame key, so it is handed over like any other and the shell turns it down
-            // where the screen on top has nothing to ask again (docs/tui-shell.md, #84).
-            //
-            // Told which post is being read, the same as j and k are (#51): the arrows leave the pick behind, and a
-            // refresh has to put the reader back where they are rather than where the pick was left.
-            _ = _shell.Refresh(_content.Reclaimable);
+            _ = Refreshed();
         }
         else if (key == Key.D)
         {
@@ -477,6 +472,38 @@ internal sealed class ShellWindow : Window
         var answering = Math.Min(compose.AnsweringHeight(width), Math.Max(0, height - LeastEditorRows));
 
         return ContentTop + answering;
+    }
+
+    /// <summary>
+    ///     <c>g</c>: ask this screen for what is there now, and leave the reader looking at exactly what they were
+    ///     looking at (<c>docs/tui-shell.md</c>, #84).
+    /// </summary>
+    /// <remarks>
+    ///     Screen-local rather than a frame key, so it is handed over like any other and the shell turns it down where
+    ///     the screen on top has nothing to ask again.
+    ///     <para>
+    ///         A reader's place is in two halves and this window holds one of them. Which post they are on is the
+    ///         shell's, and it is told which one the same way <c>j</c> and <c>k</c> tell it — the arrows leave the pick
+    ///         behind, so the post being read is the region's to name. How far <em>into</em> that post the page has got
+    ///         is the region's alone, and is taken before the question is put and put back after it is answered — the
+    ///         rows in between are a different screen's.
+    ///     </para>
+    ///     <para>
+    ///         Only where a fresher screen actually went up, which is what the shell answers: a refusal, a rate limit
+    ///         or an answer the reader has walked away from all leave the region alone, and the last of those has left
+    ///         it showing somewhere else entirely.
+    ///     </para>
+    /// </remarks>
+    private async Task Refreshed()
+    {
+        var into = _content.Into;
+
+        if (await _shell.Refresh(_content.Reclaimable))
+        {
+            _content.Resume(into);
+
+            SetNeedsDraw();
+        }
     }
 
     private async Task Send()

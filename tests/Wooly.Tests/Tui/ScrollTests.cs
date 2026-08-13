@@ -135,6 +135,32 @@ public class ScrollTests
     public void Begins_IsTheTopWhereNothingIsPickedOut() =>
         Assert.Equal(0, Scroll.Begins(Rows(100, at: -1, tall: 0)));
 
+    /// <summary>
+    ///     How far into the topmost post the page has got, which is the other half of a reader's place: nought where
+    ///     the page begins exactly on a post, and the rows of it scrolled past otherwise (#84).
+    /// </summary>
+    [Theory]
+    [InlineData(0, 0)]
+    [InlineData(4, 4)]
+    [InlineData(9, 9)]
+    [InlineData(10, 0)]
+    [InlineData(37, 7)]
+    public void Into_CountsTheRowsOfTheTopmostPostAlreadyScrolledPast(int from, int expected) =>
+        Assert.Equal(expected, Scroll.Into(Numbered(items: 5, tall: 10), from));
+
+    /// <summary>
+    ///     An offset past the last row — which the arrows can leave, since they are not held to the rows there are —
+    ///     is measured against the rows there are now rather than answering about a page nobody can see.
+    /// </summary>
+    [Fact]
+    public void Into_MeasuresAnOffsetPastTheEndAgainstTheRowsThereAre() =>
+        Assert.Equal(9, Scroll.Into(Numbered(items: 2, tall: 10), from: 400));
+
+    /// <summary>A screen with no posts on it has no post to be part way into.</summary>
+    [Fact]
+    public void Into_IsNoughtWhereTheScreenHoldsNoItems() =>
+        Assert.Equal(0, Scroll.Into([Line.Blank, Line.Blank], from: 1));
+
     /// <summary>What the arrows do: one row at a time, and never off either end of the rows there are.</summary>
     [Theory]
     [InlineData(30, 1, 31)]

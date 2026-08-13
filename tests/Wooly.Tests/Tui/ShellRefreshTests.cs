@@ -521,7 +521,7 @@ public class ShellRefreshTests
     ///     screenful, so a couple of presses is well past what is picked out however tall the posts are.
     /// </remarks>
     [Fact]
-    public async Task G_PutsTheScrollOffsetBackOntoThePostBeingRead()
+    public async Task G_LeavesThePageExactlyWhereTheReaderHadIt()
     {
         var (window, shell, _) = await Laid();
 
@@ -532,17 +532,22 @@ public class ShellRefreshTests
             window.NewKeyDownEvent(Key.PageDown);
 
             var reading = content.Reclaimable;
+            var into = content.Into;
 
             Assert.NotNull(reading);
+
+            // Part way into the post at the top of the page rather than exactly on its first row, which is what makes
+            // this able to tell "left alone" from "moved to the top of that post".
+            Assert.NotEqual(0, into);
 
             window.NewKeyDownEvent(Key.G);
 
             var feed = Assert.IsType<FeedScreen>(shell.Screen);
 
-            // On the page rather than off it, which is the offset having moved with the pick — and the pick is the
-            // post that was being read rather than the one that was picked out a page above it.
-            Assert.Null(content.Reclaimable);
+            // The same rows, still: the post being read is still the post being read, and the page has got exactly as
+            // far into it as it had. A refresh asks for newer posts; it does not scroll anybody anywhere.
             Assert.Equal(feed.Posts[reading.Value].Id, shell.Screen.Picked?.Id);
+            Assert.Equal(into, content.Into);
         }
     }
 
