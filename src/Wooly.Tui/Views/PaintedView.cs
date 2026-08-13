@@ -149,13 +149,23 @@ internal sealed class PaintedView : View
     public void Follow() => _following = true;
 
     /// <summary>
-    ///     Starts again at the top, following. What a screen being replaced does — pushed, popped back to, or a
-    ///     destination arrived at — because a row offset is about the rows it was made on and means nothing on
-    ///     somebody else's.
+    ///     Starts again at what is picked out, following. What a screen being replaced does — pushed, popped back to,
+    ///     a destination arrived at, or the same one asked again — because a row offset is about the rows it was made
+    ///     on and means nothing on somebody else's.
     /// </summary>
+    /// <remarks>
+    ///     At the selection rather than at row nought, which is the same row for every screen that opens with the
+    ///     first thing on it picked out — a pushed post, an arrival, a keymap. It is a different row only where the
+    ///     replacing screen has put the pick further down, which is a refresh restoring the post its reader was
+    ///     reading: starting at nought and letting the next frame bring that post into view lands it at the foot of
+    ///     the page, and a reader who had it at the top is thrown backwards a screenful for pressing <c>g</c> (#84).
+    /// </remarks>
     public void Restart()
     {
-        _top = 0;
+        var width = Viewport.Width;
+        var height = Viewport.Height;
+
+        _top = Scrolls && width > 0 && height > 0 ? Scroll.Begins(_rows(width, height)) : 0;
         _following = true;
     }
 

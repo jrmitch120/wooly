@@ -75,6 +75,30 @@ public static class Scroll
     }
 
     /// <summary>
+    ///     Which row what is picked out begins on, or nought where nothing is — the top of the page for a screen
+    ///     starting again (<see cref="Line.Has" />).
+    /// </summary>
+    /// <remarks>
+    ///     Told apart from <see cref="To" />, which brings the selection <em>into view</em> from wherever the scroll
+    ///     already is and so lands it at the foot of the page when it is below. That is the right answer for a reader
+    ///     walking down a list with <c>j</c> — they are moving one post at a time and the page should follow — and the
+    ///     wrong one for a screen being replaced under somebody who was reading: what they had at the top of the page
+    ///     comes back at the bottom of it, which reads as being thrown backwards a screenful (#84).
+    /// </remarks>
+    public static int Begins(IReadOnlyList<Line> lines)
+    {
+        for (var at = 0; at < lines.Count; at++)
+        {
+            if (lines[at].Has(Role.Selection))
+            {
+                return at;
+            }
+        }
+
+        return 0;
+    }
+
+    /// <summary>
     ///     Where <paramref name="rows" /> of scrolling from <paramref name="from" /> lands: what <c>↓</c> and <c>↑</c>
     ///     do, which is move the screen and leave the selection alone.
     /// </summary>

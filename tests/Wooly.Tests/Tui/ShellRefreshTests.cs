@@ -513,33 +513,36 @@ public class ShellRefreshTests
     /// <summary>
     ///     The scroll offset starts again, which is the half of this no shell can answer: only the view knows where
     ///     the arrows left the rows. A refresh replaces the screen rather than changing it, and a screen replaced is
-    ///     one the content region puts its offset back on (<c>docs/tui-shell.md</c>).
+    ///     one the content region puts its offset back on (<c>docs/tui-shell.md</c>) — at the post the reader was
+    ///     reading, which is where the pick has just been put.
     /// </summary>
     /// <remarks>
-    ///     Asserted as the offset rather than as what is on screen, because those are two moments: the offset goes
-    ///     back to nought here and the frame that follows scrolls from there to what is picked out
-    ///     (<see cref="PaintedView.Restart" />). What proves it is that the page now begins on the first post — an
-    ///     offset the arrows had left thirty rows down would begin part way through the list.
+    ///     <c>PgDn</c> rather than the arrows, which is how the report that found this was written: a page is a
+    ///     screenful, so a couple of presses is well past what is picked out however tall the posts are.
     /// </remarks>
     [Fact]
-    public async Task G_PutsTheScrollOffsetBack()
+    public async Task G_PutsTheScrollOffsetBackOntoThePostBeingRead()
     {
-        var (window, _, _) = await Laid();
+        var (window, shell, _) = await Laid();
 
         using (window)
         {
             var content = window.SubViews.OfType<PaintedView>().Single(view => view.Id == ShellWindow.ContentId);
 
-            for (var pressed = 0; pressed < 30; pressed++)
-            {
-                window.NewKeyDownEvent(Key.CursorDown);
-            }
+            window.NewKeyDownEvent(Key.PageDown);
 
-            Assert.NotEqual(0, content.Reclaimable);
+            var reading = content.Reclaimable;
+
+            Assert.NotNull(reading);
 
             window.NewKeyDownEvent(Key.G);
 
-            Assert.Equal(0, content.Reclaimable);
+            var feed = Assert.IsType<FeedScreen>(shell.Screen);
+
+            // On the page rather than off it, which is the offset having moved with the pick — and the pick is the
+            // post that was being read rather than the one that was picked out a page above it.
+            Assert.Null(content.Reclaimable);
+            Assert.Equal(feed.Posts[reading.Value].Id, shell.Screen.Picked?.Id);
         }
     }
 

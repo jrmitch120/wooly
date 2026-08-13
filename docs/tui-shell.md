@@ -302,15 +302,21 @@ cache. Streaming stays out of scope (below); a manual refresh is the in-scope an
   four feeds and Notifications/Messages/Requests, which is one arrival for all seven (#100), `Replies` for the post
   screen, both of `OpenAccount`'s calls for the account screen.
 - **The reader's place follows the post it was on**, matched by id, or clamps at the same ordinal if it's gone. The
-  scroll offset resets to 0, matching "the offset starts again whenever the screen is replaced."
+  scroll offset starts again, matching "the offset starts again whenever the screen is replaced" — which is row 0 on
+  every screen that opens with its first thing picked out, and the post below where the two rules meet (below).
 - **The post it was on is the one being _read_, not the one picked out**, where those differ — which on a feed read
   the way feeds are read is most of the time. `↓`/`↑` and `PgDn` move the screen and leave the pick alone on purpose
   (#51), so a reader who has read half way down a timeline still has the pick sitting on its first post; restoring
   *that* is a refresh that scrolls them back to the top and calls it their place. `g` is told which post is on screen
   the same way `j` and `k` are — the view's `Reclaimable`, since only a view knows where the arrows left the rows —
   and takes the pick there first. With the pick still visible there is nothing to reclaim and it is already what they
-  are on. The offset still resets to 0 and the next frame scrolls from there to the post, so what the reader keeps is
-  the post rather than the row it sat on.
+  are on.
+- **The offset starts again _at what is picked out_**, which is the same row nought for every screen that opens with
+  its first thing picked — a pushed post, an arrival, the keymap — and a different one only for a refresh, which has
+  just put the pick back where its reader was. Starting at nought and letting the next frame bring that post into
+  view is not the same thing: `Scroll.To` scrolls no further than it must, so a post below the page lands at the
+  *foot* of it, and a reader who had it at the top is thrown backwards a screenful by the key meant to leave them
+  where they were. `Scroll.Begins` is that row, and `Restart` is what asks for it.
 - **The badge moves with the count**, from the same answer the screen redraws from — the same rule every other
   arrival already follows.
 - **A refresh goes through `Enquiry` like every other fetch**, discarded unread if the reader has moved on. No new
@@ -328,8 +334,8 @@ cache. Streaming stays out of scope (below); a manual refresh is the in-scope an
   anywhere, so what was drilled through to get there is still under them and `esc` still walks back out of it. Neither
   is reached through an arrival, so neither is overtaken by one — each rechecks that the top of the stack is still the
   screen it was asked about, the same idiom `Find()` and `OpenResult()` use. Every refresh builds a new screen rather
-  than changing the one on the stack, which is what puts the scroll offset back to 0: the view notices a screen has
-  been replaced by identity.
+  than changing the one on the stack, which is what starts the scroll offset again: the view notices a screen has been
+  replaced by identity.
 - **A hashtag walked to from a search has no refresh**, though it is the same `FeedScreen` the rail's own hashtag
   destination opens onto. Which of the two a screen is cannot be read off what is in it — a tag the reader named and a
   tag they walked to are the same destination by value — so it is settled by who built it: an arrival's feed refreshes
@@ -387,7 +393,9 @@ selection was the only scroll position a screen had and the foot of such a post 
   four that do not number a plain list of posts — the post screen, where 0 is the post itself, search across its three
   kinds, notifications, and direct messages.
 - **The offset starts again whenever the screen is replaced.** Pushing a screen, popping back to one and arriving at a
-  destination all mean different rows, and an offset made on the last lot says nothing about this one.
+  destination all mean different rows, and an offset made on the last lot says nothing about this one. It starts again
+  *at what the replacing screen has picked out*, which is row 0 for every one of those three — they open with their
+  first thing picked — and is only a different row for a refresh, which puts the pick back where its reader was (#84).
 - **`PgUp`/`PgDn` walk the screen, `Home`/`End` walk the selection.** A page is a screenful of rows, because that is
   what a page is: somebody asking for the next one is asking about what they are looking at, not about how many posts
   happen to be on it. They used to move the selection by ten posts, which on a feed with pictures on it was several

@@ -105,6 +105,36 @@ public class ScrollTests
     public void To_AnswersTheTopForARegionWithNoRoom() =>
         Assert.Equal(0, Scroll.To(Rows(100, at: 40, tall: 3), height: 0, from: 10));
 
+    /// <summary>
+    ///     Where a screen starting again begins: the first row of what is picked out, so that what a reader was
+    ///     reading comes back at the top of the page rather than at the foot of it (#84).
+    /// </summary>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(40)]
+    [InlineData(99)]
+    public void Begins_IsTheFirstRowOfWhatIsPickedOut(int at) =>
+        Assert.Equal(at, Scroll.Begins(Rows(100, at, tall: 3)));
+
+    /// <summary>
+    ///     Which is what <see cref="Scroll.To" /> would not have answered: it brings the selection into view from
+    ///     where the scroll already is, and from the top that puts a selection below the page at its foot — a reader
+    ///     thrown backwards a screenful by the very key that was meant to leave them where they were.
+    /// </summary>
+    [Fact]
+    public void Begins_IsAboveWhereScrollingToItFromTheTopWouldLand()
+    {
+        var lines = Rows(100, at: 40, tall: 3);
+
+        Assert.Equal(40, Scroll.Begins(lines));
+        Assert.Equal(23, Scroll.To(lines, 20, from: 0));
+    }
+
+    /// <summary>A screen with nothing picked out begins at its own top, which is where it always began.</summary>
+    [Fact]
+    public void Begins_IsTheTopWhereNothingIsPickedOut() =>
+        Assert.Equal(0, Scroll.Begins(Rows(100, at: -1, tall: 0)));
+
     /// <summary>What the arrows do: one row at a time, and never off either end of the rows there are.</summary>
     [Theory]
     [InlineData(30, 1, 31)]
