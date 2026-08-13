@@ -121,10 +121,12 @@ are not this.
 _Avoid_: reload, poll, sync, refetch
 
 **Place**:
-Where a reader was standing on a screen: what they had **picked** out, by its own id, and where it sat on the list.
+Where a reader was standing on a screen: the thing they were reading, by its own id, and where it sat on the list.
 What a **refresh** hands to the screen replacing the one it was taken off, so that a fresher list opens on the post
-they were reading — matched by id, and clamped to the same ordinal where the thing itself is gone. Distinct from
-**picked**, which is the pick as it stands now; a place is a pick written down to be put back.
+they were reading — matched by id, and clamped to the same ordinal where the thing itself is gone. The thing being
+read is the one **picked** out only while the pick is on screen: the arrows move the screen and leave the pick behind,
+so a place is taken from the post in front of the reader, the same one `j` and `k` reclaim (#51). Distinct from
+**picked**, which is the pick as it stands now; a place is where somebody was, written down to be put back.
 _Avoid_: position, index, state
 
 **Picked**:

@@ -290,11 +290,25 @@ public sealed class Shell
     ///         its own question again.
     ///     </para>
     /// </remarks>
-    public Task Refresh()
+    /// <param name="reclaiming">
+    ///     The post the reader is actually looking at, where the arrows have scrolled what is picked out off the page
+    ///     — the same thing <see cref="Walk" /> is given, worked out the same way and for the same reason (#51).
+    ///     <see langword="null" /> while the pick is still on screen, which is when it is already what they are on.
+    /// </param>
+    public Task Refresh(int? reclaiming = null)
     {
         if (!Screen.Refreshes || Fetching)
         {
             return Task.CompletedTask;
+        }
+
+        // What a reader is standing on is the post in front of them, which is not the picked one where they have read
+        // on down the page with the arrows: those move the screen and leave the pick where it was, on purpose (#51),
+        // so on a feed read the way feeds are read the pick is still on the first post while the reader is half way
+        // down it. Taking the pick there would put them back at the top of the timeline and call it their place.
+        if (reclaiming is { } at)
+        {
+            Screen.Pick(at);
         }
 
         // Taken down before anything is asked, because the arrival below puts an empty screen up at once and the

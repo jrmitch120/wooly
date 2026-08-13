@@ -513,10 +513,16 @@ public class ShellRefreshTests
     /// <summary>
     ///     The scroll offset starts again, which is the half of this no shell can answer: only the view knows where
     ///     the arrows left the rows. A refresh replaces the screen rather than changing it, and a screen replaced is
-    ///     one the content region scrolls back to the top of (<c>docs/tui-shell.md</c>).
+    ///     one the content region puts its offset back on (<c>docs/tui-shell.md</c>).
     /// </summary>
+    /// <remarks>
+    ///     Asserted as the offset rather than as what is on screen, because those are two moments: the offset goes
+    ///     back to nought here and the frame that follows scrolls from there to what is picked out
+    ///     (<see cref="PaintedView.Restart" />). What proves it is that the page now begins on the first post — an
+    ///     offset the arrows had left thirty rows down would begin part way through the list.
+    /// </remarks>
     [Fact]
-    public async Task G_PutsTheScrollBackToWhatIsPickedOut()
+    public async Task G_PutsTheScrollOffsetBack()
     {
         var (window, _, _) = await Laid();
 
@@ -524,17 +530,57 @@ public class ShellRefreshTests
         {
             var content = window.SubViews.OfType<PaintedView>().Single(view => view.Id == ShellWindow.ContentId);
 
-            // Far enough down that what is picked out has no row left on the page.
             for (var pressed = 0; pressed < 30; pressed++)
             {
                 window.NewKeyDownEvent(Key.CursorDown);
             }
 
-            Assert.NotNull(content.Reclaimable);
+            Assert.NotEqual(0, content.Reclaimable);
 
             window.NewKeyDownEvent(Key.G);
 
-            Assert.Null(content.Reclaimable);
+            Assert.Equal(0, content.Reclaimable);
+        }
+    }
+
+    /// <summary>
+    ///     A reader who has read down the page with the arrows is left reading where they were, not carried back to
+    ///     the top. The arrows move the screen and leave the pick where it was on purpose (#51), so on a feed read the
+    ///     way feeds are read the pick is still on the first post while the reader is half way down — and a refresh
+    ///     that put them back on <em>that</em> would be a refresh that scrolls them to the top of the timeline.
+    /// </summary>
+    /// <remarks>
+    ///     The post they are looking at is the view's to name, exactly as it is for <c>j</c> and <c>k</c>, so this is
+    ///     asked of the window rather than of the shell.
+    /// </remarks>
+    [Fact]
+    public async Task G_KeepsAReaderWhoScrolledWithTheArrowsWhereTheyWereReading()
+    {
+        var (window, shell, built) = await Laid();
+
+        using (window)
+        {
+            var content = window.SubViews.OfType<PaintedView>().Single(view => view.Id == ShellWindow.ContentId);
+
+            // Read on down the page without ever moving the pick, which is what the arrows are for.
+            for (var pressed = 0; pressed < 10; pressed++)
+            {
+                window.NewKeyDownEvent(Key.CursorDown);
+            }
+
+            var reading = content.Reclaimable;
+
+            Assert.NotNull(reading);
+            Assert.Equal("110", shell.Screen.Picked?.Id);
+
+            var reads = built.Timelines.Reads.Count;
+
+            window.NewKeyDownEvent(Key.G);
+
+            var feed = Assert.IsType<FeedScreen>(shell.Screen);
+
+            Assert.Equal(reads + 1, built.Timelines.Reads.Count);
+            Assert.Equal(feed.Posts[reading.Value].Id, shell.Screen.Picked?.Id);
         }
     }
 

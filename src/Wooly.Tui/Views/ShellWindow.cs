@@ -416,7 +416,10 @@ internal sealed class ShellWindow : Window
         {
             // Screen-local rather than a frame key, so it is handed over like any other and the shell turns it down
             // where the screen on top has nothing to ask again (docs/tui-shell.md, #84).
-            _ = _shell.Refresh();
+            //
+            // Told which post is being read, the same as j and k are (#51): the arrows leave the pick behind, and a
+            // refresh has to put the reader back where they are rather than where the pick was left.
+            _ = _shell.Refresh(_content.Reclaimable);
         }
         else if (key == Key.D)
         {

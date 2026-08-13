@@ -303,6 +303,14 @@ cache. Streaming stays out of scope (below); a manual refresh is the in-scope an
   screen, both of `OpenAccount`'s calls for the account screen.
 - **The reader's place follows the post it was on**, matched by id, or clamps at the same ordinal if it's gone. The
   scroll offset resets to 0, matching "the offset starts again whenever the screen is replaced."
+- **The post it was on is the one being _read_, not the one picked out**, where those differ — which on a feed read
+  the way feeds are read is most of the time. `↓`/`↑` and `PgDn` move the screen and leave the pick alone on purpose
+  (#51), so a reader who has read half way down a timeline still has the pick sitting on its first post; restoring
+  *that* is a refresh that scrolls them back to the top and calls it their place. `g` is told which post is on screen
+  the same way `j` and `k` are — the view's `Reclaimable`, since only a view knows where the arrows left the rows —
+  and takes the pick there first. With the pick still visible there is nothing to reclaim and it is already what they
+  are on. The offset still resets to 0 and the next frame scrolls from there to the post, so what the reader keeps is
+  the post rather than the row it sat on.
 - **The badge moves with the count**, from the same answer the screen redraws from — the same rule every other
   arrival already follows.
 - **A refresh goes through `Enquiry` like every other fetch**, discarded unread if the reader has moved on. No new
