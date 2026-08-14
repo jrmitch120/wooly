@@ -283,6 +283,71 @@ public class ShellStackTests
         Assert.Equal("112", opened.Screen.Picked?.Id);
     }
 
+    /// <summary>
+    ///     What the post answers rides the same call its answers do, and lands above it on the screen — with the
+    ///     reader still standing on the post they opened rather than at the top of the thread (#86).
+    /// </summary>
+    [Fact]
+    public async Task Enter_OpensThePickedPostWithTheThreadAboveItAsWellAsBelow()
+    {
+        var shell = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(APost.With(id: "110")),
+            Engagement = FakePostEngagement.Threaded(
+                APost.With(id: "110"),
+                [APost.With(id: "100"), APost.With(id: "105")],
+                APost.With(id: "111")),
+        };
+
+        var opened = await shell.Opened();
+
+        await opened.Enter();
+        shell.Host.Drain();
+
+        var post = Assert.IsType<PostScreen>(opened.Screen);
+
+        Assert.Equal(["100", "105"], post.Ancestors.Select(ancestor => ancestor.Id));
+        Assert.Equal("110", post.Post.Id);
+        Assert.Equal("110", opened.Screen.Picked?.Id);
+
+        // One call for the whole thread, not one for each end of it.
+        Assert.Equal("110", Assert.Single(shell.Engagement.RepliesRead).PostId);
+    }
+
+    /// <summary>
+    ///     <c>k</c> walks up into the chain and <c>⏎</c> opens an ancestor onto a screen of its own, the same way it
+    ///     opens an answer (#86).
+    /// </summary>
+    [Fact]
+    public async Task Enter_OpensTheAncestorPickedOutInsideAPost()
+    {
+        var shell = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(APost.With(id: "110")),
+            Engagement = FakePostEngagement.Threaded(
+                APost.With(id: "110"),
+                [APost.With(id: "100", account: "ben@hachyderm.io")],
+                APost.With(id: "111")),
+        };
+
+        var opened = await shell.Opened();
+
+        await opened.Enter();
+        shell.Host.Drain();
+
+        opened.Move(-1);
+
+        Assert.Equal("100", opened.Screen.Picked?.Id);
+        Assert.Contains(PostKeys.Opening, opened.Keys);
+
+        await opened.Enter();
+        shell.Host.Drain();
+
+        Assert.Equal(3, opened.Depth);
+        Assert.Equal("100", Assert.IsType<PostScreen>(opened.Screen).Post.Id);
+        Assert.Equal(["110", "100"], shell.Engagement.RepliesRead.Select(read => read.PostId));
+    }
+
     /// <summary>A post nobody has answered says so, rather than showing a heading over nothing.</summary>
     [Fact]
     public async Task Enter_SaysSoWhereNobodyHasAnsweredThePost()

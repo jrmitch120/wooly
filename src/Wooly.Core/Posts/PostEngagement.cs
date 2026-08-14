@@ -50,21 +50,21 @@ public sealed class PostEngagement(IMastodonClientFactory clientFactory) : IPost
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyList<Post>> Replies(
-        ActiveProfile profile,
-        string postId,
-        CancellationToken cancellationToken)
+    public async Task<PostThread> Thread(ActiveProfile profile, string postId, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
         var client = clientFactory.CreateClient(profile.Instance, profile.AccessToken);
 
-        // Mastodon answers with what came before the post as well as what came after it. Only the answers are asked
-        // for here: a caller reached this post by choosing it, so what it is a reply to is a place it can walk to
-        // rather than something to draw underneath it.
+        // Mastodon answers with what came before the post as well as what came after it, on the one call. Both are
+        // kept: what a post answers is drawn above it and what answered it below, and the chain arrives whole — as
+        // far back as the instance knows the thread — rather than cut to the nearest parent (#86).
         var context = await client.GetStatusContext(postId);
 
-        return context.Descendants.Select(status => PostWire.ToPost(status, profile.Instance)).ToList();
+        return new PostThread(Posts(context.Ancestors), Posts(context.Descendants));
+
+        IReadOnlyList<Post> Posts(IEnumerable<Status> statuses) =>
+            [.. statuses.Select(status => PostWire.ToPost(status, profile.Instance))];
     }
 
     /// <summary>

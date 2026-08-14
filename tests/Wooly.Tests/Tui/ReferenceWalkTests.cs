@@ -276,7 +276,7 @@ public class ReferenceWalkTests
         switch (kind)
         {
             case "post":
-                return new PostScreen(post, [APost.With(id: "2")]);
+                return new PostScreen(post, new PostThread([], [APost.With(id: "2")]));
 
             case "conversation":
                 return new ConversationScreen(
