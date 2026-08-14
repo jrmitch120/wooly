@@ -257,6 +257,26 @@ public sealed class Shell
         }
     }
 
+    /// <summary>
+    ///     What <c>1</c>-<c>9</c> and <c>0</c> do: toggle the <paramref name="option" />th answer of the picked post's
+    ///     poll, counted from zero. Nothing is sent — the toggle is local until <c>v</c> casts it (#87).
+    /// </summary>
+    /// <returns>
+    ///     Whether there was an answer there to toggle, which is what settles whether the key was used: a digit on a
+    ///     post with no poll on it leaves the key to whatever else wants it.
+    /// </returns>
+    public bool Toggle(int option)
+    {
+        if (!Screen.Toggle(option))
+        {
+            return false;
+        }
+
+        Changed?.Invoke();
+
+        return true;
+    }
+
     /// <summary>Opens the picked post, with what has been said in answer to it.</summary>
     /// <remarks>
     ///     What it opens is the screen's <see cref="Screen.Opens" /> rather than what is picked out, which are the same
@@ -386,9 +406,11 @@ public sealed class Shell
             return;
         }
 
-        // A reference pick is a level of its own, so esc is up one level of whichever kind is open: the first press
-        // lets the pick go and the next pops the screen (docs/tui-shell.md, #83).
-        if (Screen.ClearReference())
+        // A reference pick and an uncast vote are each a level of their own inside the picked post, so esc is up one
+        // level of whichever kind is open: the first press lets what is inside go and the next pops the screen
+        // (docs/tui-shell.md, #83, #87). Both at once, because both are the same half-finished sentence about the same
+        // post — leaving one of them standing would make the next esc do nothing anybody asked for.
+        if (Screen.ClearReference() | Screen.ClearChoices())
         {
             Changed?.Invoke();
 
@@ -728,6 +750,45 @@ public sealed class Shell
 
         Asking = new Confirmation($"Delete post {about.Id}? This cannot be undone.");
         _confirming = () => Delete(about.Id);
+
+        Changed?.Invoke();
+    }
+
+    /// <summary>
+    ///     Asks before casting what the digits have toggled. Story 43's rule, and this qualifies for it more than a
+    ///     delete does: an instance refuses a second vote outright rather than replacing the first, so a vote cast by
+    ///     accident is not something the reader can put right by voting again (<c>docs/tui-shell.md</c>, #87).
+    /// </summary>
+    public void AskToVote()
+    {
+        // The poll rather than the post, because it is the poll that settles whether this key means anything — and a
+        // post carrying one always has a post to vote on.
+        if (Screen.Poll is null || Screen.Picked is not { } picked)
+        {
+            return;
+        }
+
+        if (Screen.Chosen.Count == 0)
+        {
+            // The key is announced wherever there is a poll, so it has to answer wherever it is announced: a v that
+            // did nothing and said nothing reads as a shell that missed the press.
+            Say("Choose an answer first, with 1-9 or 0.", isError: false);
+
+            return;
+        }
+
+        var screen = Screen;
+        var about = picked.Boosted ?? picked;
+
+        // Taken now rather than read back when the question is answered: what is being agreed to is what was on the
+        // ballot when it was put, and in the order the poll lists its answers rather than the order they were pressed.
+        var choices = Screen.Chosen.Order().ToList();
+
+        Asking = new Confirmation(
+            $"Cast this vote on post {about.Id}? A vote cannot be changed or taken back.",
+            Going: "vote");
+
+        _confirming = () => Cast(screen, about, choices);
 
         Changed?.Invoke();
     }
@@ -1096,6 +1157,36 @@ public sealed class Shell
 
                 Say("Deleted.", isError: false);
             });
+
+    /// <summary>
+    ///     Sends the agreed vote, and puts the poll the instance answers with in place of the one on screen.
+    /// </summary>
+    /// <remarks>
+    ///     No refetch: Mastodon answers a vote with the complete updated poll, which the port grafts back onto the
+    ///     post — so this is the same <see cref="Replace(Post)" /> a mark already makes, over an answer that cost one
+    ///     call rather than two.
+    ///     <para>
+    ///         The ballot is let go as the vote leaves rather than when it lands. What is on screen from here on is
+    ///         what the instance says the poll is, and a refusal is not something a reader can put right by leaving
+    ///         their boxes ticked — the instance has already settled it.
+    ///     </para>
+    /// </remarks>
+    /// <param name="screen">
+    ///     The screen the vote was toggled on, which is where the ballot is. Named rather than read back off the
+    ///     stack, so that a vote agreed to cannot clear a ballot on some screen the reader has since walked to.
+    /// </param>
+    private Task Cast(Screen screen, Post about, IReadOnlyList<int> choices)
+    {
+        screen.ClearChoices();
+
+        return _enquiry.Put(
+            ask => ask.Of(token => _ports.Engagement.Vote(_profile, about, choices, token)),
+            eitherWay: voted =>
+            {
+                Replace(voted);
+                Say("Vote cast.", isError: false);
+            });
+    }
 
     /// <summary>Reads the counts the rail carries, none of which is worth failing the shell over.</summary>
     private async Task Counts()

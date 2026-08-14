@@ -73,8 +73,10 @@ internal static class APost
         bool multipleChoice = false,
         bool closed = false,
         DateTimeOffset? expiresAt = null,
-        bool voted = false) => new()
+        bool voted = false,
+        string id = "7") => new()
     {
+        Id = id,
         Options = options ?? [AnAnswer("Cats", 4), AnAnswer("Dogs", 6)],
         Votes = votes,
         Voters = voters,

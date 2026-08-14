@@ -86,12 +86,18 @@ internal static class PostWire
     }
 
     /// <summary>The poll as it stands, options and all — the read-side counterpart to what a draft sends up.</summary>
-    private static PostPoll ToPoll(Poll poll)
+    /// <remarks>
+    ///     Reachable on its own as well as through <see cref="ToPost" />, because a vote is answered with the poll
+    ///     alone: Mastodon hands back the whole poll as it now stands and nothing of the post around it, and that
+    ///     answer is grafted onto the post the caller already holds (<see cref="PostEngagement.Vote" />).
+    /// </remarks>
+    public static PostPoll ToPoll(Poll poll)
     {
         var picked = poll.OwnVotes.ToHashSet();
 
         return new PostPoll
         {
+            Id = poll.Id,
             Options = poll.Options.Select((option, index) => new PostPollOption
             {
                 Text = option.Title,

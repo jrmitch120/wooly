@@ -113,6 +113,9 @@ public static class WoolyCommandApp
                 post.AddCommand<PostUnfavoriteCommand>("unfavorite")
                     .WithDescription("Take a favorite back off a post.");
 
+                post.AddCommand<PostVoteCommand>("vote")
+                    .WithDescription("Vote in the poll on a post. A vote cannot be taken back.");
+
                 post.AddCommand<PostPinCommand>("pin")
                     .WithDescription("Hold one of your own posts at the top of your profile.");
 

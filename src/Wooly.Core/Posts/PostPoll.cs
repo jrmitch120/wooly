@@ -6,6 +6,12 @@ namespace Wooly.Core.Posts;
 /// </summary>
 public sealed record PostPoll
 {
+    /// <summary>
+    ///     The instance's own id for the poll, which is not the id of the post carrying it and is what voting in it
+    ///     takes (<see cref="IPostEngagement.Vote" />).
+    /// </summary>
+    public required string Id { get; init; }
+
     /// <summary>The answers to choose between, in the order the instance gave them.</summary>
     public required IReadOnlyList<PostPollOption> Options { get; init; }
 

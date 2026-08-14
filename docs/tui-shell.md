@@ -84,7 +84,7 @@ Feed and post:
 | `d` | Delete | Own posts only, **confirmation required** (story 43) |
 | `x` | Reveal a content warning | |
 | `←` `→` | Walk the references (hashtag, mention, link) inside the picked post | Clamps at the ends; `esc`/`j`/`k` clear the pick; `⏎` opens what's picked (below) |
-| `1`-`9` `0` | Toggle the 1st-10th option of the picked post's poll | No-op with no poll on the picked post |
+| `1`-`9` `0` | Toggle the 1st-10th option of the picked post's poll | No-op with no poll on the picked post, and off the status row there too; `esc`/`j`/`k` discard the toggle |
 | `v` | Cast the toggled poll vote | **Confirmation required** (story 43), same as delete |
 
 Screen-local, and deliberately colliding with the above because they are never on screen together:
@@ -293,11 +293,22 @@ one back, and voting on one, are both built now (#69, #74):
   mechanic for single- and multiple-choice (single-choice toggling is exclusive: picking a new option clears the
   last). `j`/`k`/`esc` discard an uncommitted toggle, the same rule references use for a picked reference above.
 - **`v` casts it**, through the existing `Confirmation`/story-43 pattern — a cast vote qualifies more than delete
-  does, since the API refuses a second vote outright rather than allowing recovery.
+  does, since the API refuses a second vote outright rather than allowing recovery. The two keys are on the status row
+  only while the picked post carries a poll, the same swap a picked reference already makes and for the same reason: a
+  key announced where it does nothing reads as a shell that missed the press. A picked reference wins over a poll,
+  being the level the reader is standing on.
 - **No refetch.** `POST /api/v1/polls/:id/votes` returns the complete updated poll in the same response; that feeds
   the same `Replace(...)` call `Mark` already uses.
-- **`Vote(...)` lands on `IPostEngagement`** beside `Mark`/`Show`/`Replies`. The CLI gets `post vote <post-id>
-  <choice>...`, joining the boost/favorite/pin command family, confirming via `Consent.Given`.
+- **`Vote(...)` lands on `IPostEngagement`** beside `Mark`/`Show`/`Replies` — and is the one call there that takes the
+  post rather than its id, because Mastodon votes on the *poll*, whose id is not the post's and is only knowable from
+  the post itself. A reader who can see the options they are voting on is already holding it, so the TUI pays one call;
+  the CLI, which holds an id, reads the post first. The CLI gets `post vote <post-id> <choice>...`, joining the
+  boost/favorite/pin command family, confirming via `Consent.Given`, and numbering the answers from 1 as they are
+  printed rather than from the zero the API counts by.
+- **A refusal is a notice, not a crash.** An instance that will not take a vote — a second one, above all — says why,
+  and that answer is named as a failure of this client's own (`VoteRefusedException`) so the shell draws it over what
+  the reader was reading. It is the one refusal in `PostEngagement` that is retyped rather than passed on; nothing else
+  there can be refused in a way the reader cannot simply try differently.
 - **A role-emission contract test is worth having** — one that walks every `Role` and asserts some view can produce
   it, the thing that would have caught `Role.Poll` sitting dead in the contract in the first place.
 

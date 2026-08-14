@@ -48,6 +48,27 @@ public static class PostKeys
     ];
 
     /// <summary>
+    ///     What a poll on the picked post answers to: the digits that address its answers, and the key that casts what
+    ///     they toggled (#87). <c>1</c>-<c>9</c> then <c>0</c> reach up to ten options, said as the range rather than
+    ///     as ten hints — a status row listing every digit would be the whole row.
+    /// </summary>
+    private static IReadOnlyList<KeyHint> Voting { get; } =
+    [
+        new("1-0", "option"),
+        new("v", "vote"),
+    ];
+
+    /// <summary>
+    ///     Those two in front of <paramref name="keys" />, on a screen whose picked post carries a poll — and nowhere
+    ///     else, since a digit pressed on a post with no poll does nothing and must not be announced as if it did.
+    /// </summary>
+    /// <remarks>
+    ///     In front for the reason <see cref="Around(KeyHint, IReadOnlyList{KeyHint}, KeyHint[])" /> gives: the row is
+    ///     cut off at the right, and these two mean something only on the post being read right now.
+    /// </remarks>
+    public static IReadOnlyList<KeyHint> OnAPoll(IReadOnlyList<KeyHint> keys) => InFrontOf(Voting, keys);
+
+    /// <summary>
     ///     Those keys in front of <paramref name="keys" />, standing in for any of them they share a key with — so that
     ///     <c>⏎</c> is announced once, as what it does to the reference rather than to the post it is inside.
     /// </summary>
@@ -56,11 +77,23 @@ public static class PostKeys
     ///     row is one row and a longer list is cut off at the right, so the keys that only mean something right now
     ///     are the ones that have to survive the cut.
     /// </remarks>
-    public static IReadOnlyList<KeyHint> OnAReference(IReadOnlyList<KeyHint> keys)
-    {
-        var taken = Walking.Select(key => key.Key).ToHashSet(StringComparer.Ordinal);
+    public static IReadOnlyList<KeyHint> OnAReference(IReadOnlyList<KeyHint> keys) => InFrontOf(Walking, keys);
 
-        return [.. Walking, .. keys.Where(key => !taken.Contains(key.Key))];
+    /// <summary>
+    ///     <paramref name="inside" /> ahead of <paramref name="keys" />, standing in for any of them it shares a key
+    ///     with — so that a key doing two things at once is announced as the innermost of them.
+    /// </summary>
+    /// <remarks>
+    ///     Said once for both of the things a reader can be inside on the picked post, a reference and a poll: two
+    ///     copies of this would be two chances for one of them to announce <c>⏎</c> twice.
+    /// </remarks>
+    private static IReadOnlyList<KeyHint> InFrontOf(
+        IReadOnlyList<KeyHint> inside,
+        IReadOnlyList<KeyHint> keys)
+    {
+        var taken = inside.Select(key => key.Key).ToHashSet(StringComparer.Ordinal);
+
+        return [.. inside, .. keys.Where(key => !taken.Contains(key.Key))];
     }
 
     /// <summary>

@@ -71,3 +71,29 @@ status, and every one of the commands here already returns a post that has just 
 so nothing in this ticket has a question those fields would answer. The screens that will (#33, #28 — a TUI that has to
 draw a post's current state before anyone presses a key) are where adding them belongs, together with what a timeline's
 `--json` should say when the field is absent because nobody is signed in.
+
+## Amendment: a vote, which is the one call here that reads first (ticket #87)
+
+Voting joined this family (#87) — `IPostEngagement.Vote`, and `post vote <post-id> <choice>...` beside the six marks —
+and departs from what is written above in three ways worth naming, each forced by the endpoint rather than chosen.
+
+`Vote` takes the `Post` where every other call here takes an id. Mastodon votes on the **poll**, at
+`POST /api/v1/polls/:id/votes`, and a poll's id is neither the post's nor knowable from it: the only place it is written
+is on the post itself. A port taking a post id would have to read the post to find the poll, which is a round trip the
+TUI has already paid — every reader who can see the answers they are voting on is holding the post. So the caller passes
+what it has, and what comes back is that same post with the poll the vote endpoint answered with grafted on. That is
+also why there is no second read after the vote: the response is the complete updated poll, and it feeds the same
+`Replace(...)` a mark already feeds.
+
+The CLI holds an id rather than a post, so `post vote` does read first — the one command in this family that does. It
+buys two things besides the poll's id: a number that is not one of the answers is answered where it was typed, with the
+usage exit code, rather than sent to be turned down; and the answers are numbered from 1 as they are printed, rather
+than from the zero the API counts by. Nothing further is checked. Whether the poll is open, whether this account has
+already voted, and what naming the same answer twice means all remain the instance's, exactly as this ADR says.
+
+The refusal is the one in this family that is retyped. A mark refused reaches the CLI's handler as Mastonet's own
+`ServerErrorException` and is printed in the instance's own words; that still happens, but the TUI's `Enquiry` draws a
+`WoolyException` as a notice over what the reader was reading and treats anything else as a defect. A second vote is
+refused outright and cannot be tried differently, so it has to be sayable in both front ends: `VoteRefusedException`
+carries the instance's wording and nothing else. No other call here has that problem, which is why nothing else was
+retyped along with it.

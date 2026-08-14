@@ -23,18 +23,38 @@ public abstract class Screen
     /// </summary>
     private int? _reference;
 
+    /// <summary>
+    ///     Which of the picked post's poll options have been toggled and not yet cast, as indices into its answers.
+    /// </summary>
+    /// <remarks>
+    ///     One set on the screen rather than one per post, for the reason a reference pick is one index: it belongs to
+    ///     the post being read, and walking off that post is what discards it. Unlike <see cref="Revealed" />, which
+    ///     survives being walked past because asking to see a warning is a decision about the post, a toggle is a
+    ///     half-finished sentence — and a vote nobody meant to cast is exactly what confirming one is for (#87).
+    /// </remarks>
+    private readonly HashSet<int> _chosen = [];
+
     /// <summary>What this screen is called on the breadcrumb, e.g. <c>post by @ben</c>.</summary>
     public abstract string Crumb { get; }
 
     /// <summary>
     ///     The keys this screen answers to, for the status row and for <c>?</c> — which while a reference is picked
-    ///     out are the three that act on it, ahead of the screen's own (<c>docs/tui-shell.md</c>, #83).
+    ///     out are the three that act on it, ahead of the screen's own (<c>docs/tui-shell.md</c>, #83), and on a post
+    ///     carrying a poll are the two that vote in it (#87).
     /// </summary>
     /// <remarks>
     ///     Said here rather than by each screen, because a reference is picked the same way on all of them and a
     ///     screen that forgot the swap would be a screen where <c>←</c> and <c>→</c> fire unannounced.
+    ///     <para>
+    ///         A reference wins where both apply: it is the level the reader is standing on, and the poll keys are
+    ///         still there when they let it go. The poll keys are announced only where there is a poll to vote in, for
+    ///         the rule <see cref="PostKeys" /> states in the other direction — a key that acts on nothing here must
+    ///         not be on the row.
+    ///     </para>
     /// </remarks>
-    public IReadOnlyList<KeyHint> Keys => Reference is null ? OwnKeys : PostKeys.OnAReference(OwnKeys);
+    public IReadOnlyList<KeyHint> Keys => Reference is not null
+        ? PostKeys.OnAReference(OwnKeys)
+        : Poll is not null ? PostKeys.OnAPoll(OwnKeys) : OwnKeys;
 
     /// <summary>The keys this screen alone settles, which is every key that does not act on a picked reference.</summary>
     protected abstract IReadOnlyList<KeyHint> OwnKeys { get; }
@@ -218,6 +238,74 @@ public abstract class Screen
     }
 
     /// <summary>
+    ///     The poll on the post being read, or <see langword="null" /> where the picked post carries none — which is
+    ///     what settles whether the digits and <c>v</c> mean anything here, and whether the status row says so.
+    /// </summary>
+    /// <remarks>
+    ///     The post inside a boost, since that is what carries the poll and what a vote is cast in: a boost of a poll
+    ///     is the same poll, the same way a boost of a post is the same post to every mark.
+    /// </remarks>
+    public PostPoll? Poll => Picked is { } picked ? (picked.Boosted ?? picked).Poll : null;
+
+    /// <summary>
+    ///     Which of that poll's options are toggled and uncast, as indices into its answers — empty where none are,
+    ///     which is what a poll being read rather than voted in looks like.
+    /// </summary>
+    public IReadOnlySet<int> Chosen => _chosen;
+
+    /// <summary>
+    ///     Toggles the <paramref name="option" />th answer of the picked post's poll, counted from zero — what the
+    ///     digits <c>1</c>-<c>9</c> and <c>0</c> address directly (<c>docs/tui-shell.md</c>, #87).
+    /// </summary>
+    /// <remarks>
+    ///     Exclusive on a single-choice poll: picking a new answer lets the last one go, because a ballot showing two
+    ///     boxes ticked on a poll that takes one would be promising something the instance will refuse.
+    ///     <para>
+    ///         Whether the poll is closed, and whether this profile has already voted in it, are deliberately not
+    ///         asked here. Those are the instance's to settle and it settles them on the cast (ADR-0005), so a reader
+    ///         is left free to tick a box and be told no — rather than pressing a key that silently does nothing
+    ///         because this client held its own copy of the rules.
+    ///     </para>
+    /// </remarks>
+    /// <returns>
+    ///     Whether there was an answer there to toggle, which is what settles whether the key was used: a digit on a
+    ///     post with no poll, or past the end of a short one, does nothing at all.
+    /// </returns>
+    public bool Toggle(int option)
+    {
+        if (Poll is not { } poll || option < 0 || option >= poll.Options.Count)
+        {
+            return false;
+        }
+
+        if (!_chosen.Remove(option))
+        {
+            if (!poll.MultipleChoice)
+            {
+                _chosen.Clear();
+            }
+
+            _chosen.Add(option);
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    ///     Lets an uncast vote go, which <c>esc</c> does before it pops and <c>j</c> and <c>k</c> do on the way past —
+    ///     the same rule a picked reference follows, and for the same reason.
+    /// </summary>
+    /// <returns>Whether there was one, which is what settles whether <c>esc</c> was spent on it.</returns>
+    public bool ClearChoices()
+    {
+        var had = _chosen.Count > 0;
+
+        _chosen.Clear();
+
+        return had;
+    }
+
+    /// <summary>
     ///     Which reference is picked out on the <paramref name="at" />th thing on this screen — none, unless it is the
     ///     thing picked out, since a reference pick lives inside the picked post and nowhere else.
     /// </summary>
@@ -244,15 +332,18 @@ public abstract class Screen
     ///         since nothing outside this assembly is a screen.
     ///     </para>
     /// </remarks>
-    internal Reading ReadingOf(Post post, int at) => new(Revealed.Has(post), ReferenceOn(at));
+    internal Reading ReadingOf(Post post, int at) =>
+        new(Revealed.Has(post), ReferenceOn(at), Walking?.At == at ? Chosen : null);
 
     /// <summary>Moves what is picked out by <paramref name="by" /> items, stopping at either end.</summary>
     /// <remarks>
-    ///     The picked reference goes with it: the reader has left the post it was inside (<c>docs/tui-shell.md</c>).
+    ///     The picked reference goes with it, and so does an uncast vote: the reader has left the post both were
+    ///     inside (<c>docs/tui-shell.md</c>).
     /// </remarks>
     public void Move(int by)
     {
         ClearReference();
+        ClearChoices();
         Walking?.Move(by);
     }
 
@@ -269,6 +360,7 @@ public abstract class Screen
     public void Pick(int at)
     {
         ClearReference();
+        ClearChoices();
         Walking?.Pick(at);
     }
 

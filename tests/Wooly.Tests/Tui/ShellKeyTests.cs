@@ -121,6 +121,67 @@ public class ShellKeyTests
         }
     }
 
+    /// <summary>
+    ///     The digits address the answers of the picked post's poll directly: <c>1</c>-<c>9</c> then <c>0</c>, so that
+    ///     ten of them are reachable along one row of keys and the tenth is where a person's own counting puts it
+    ///     (<c>docs/tui-shell.md</c>, #87).
+    /// </summary>
+    [Theory]
+    [InlineData('1', 0)]
+    [InlineData('3', 2)]
+    [InlineData('9', 8)]
+    [InlineData('0', 9)]
+    public async Task TheDigitsToggleTheAnswerTheyAddress(char digit, int answer)
+    {
+        var (window, shell) = await Polled();
+
+        using (window)
+        {
+            window.NewKeyDownEvent(new Key(digit));
+
+            Assert.Equal([answer], shell.Screen.Chosen);
+        }
+    }
+
+    /// <summary><c>v</c> puts the question, and nothing is cast until it has been answered (story 43).</summary>
+    [Fact]
+    public async Task V_AsksBeforeCastingTheToggledVote()
+    {
+        var (window, shell) = await Polled();
+
+        using (window)
+        {
+            window.NewKeyDownEvent(new Key('2'));
+            window.NewKeyDownEvent(Key.V);
+
+            Assert.NotNull(shell.Asking);
+            Assert.Equal("vote", shell.Asking.Going);
+        }
+    }
+
+    /// <summary>A shell showing one post with a ten-answer poll on it, laid out and ready for keys.</summary>
+    private static async Task<(ShellWindow Window, Wooly.Tui.Shell.Shell Shell)> Polled()
+    {
+        var answers = Enumerable.Range(1, 10).Select(at => APost.AnAnswer($"Answer {at}", at)).ToList();
+
+        var built = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(APost.With(id: "110", poll: APost.APoll(options: answers))),
+        };
+
+        var shell = await built.Opened();
+
+        var window = new ShellWindow(shell, Themes.Plain, built.Clock, () => { }, FakePictures.DrawingNothing())
+        {
+            Width = 80,
+            Height = 20,
+        };
+
+        window.Layout();
+
+        return (window, shell);
+    }
+
     /// <summary>A shell of four posts on a window with room for eighteen rows, laid out and ready for keys.</summary>
     /// <remarks>
     ///     Room enough for two and a half of them, which is what these tests need: a window is laid out here but never

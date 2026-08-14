@@ -19,8 +19,12 @@ public class PostPollLinesTests
     /// <summary>A post with nothing but a poll on it, so a row's text is unambiguously the poll's own.</summary>
     private static Post With(PostPoll poll) => APost.With(poll: poll);
 
-    private static IReadOnlyList<Line> Feed(Post post, int width = 61) =>
-        PostLines.Feed(post, width, default, Now);
+    /// <param name="chosen">
+    ///     Which answers the reader has toggled and not yet cast, or <see langword="null" /> for the poll being read
+    ///     rather than voted in — which is what <see langword="default" /> says everywhere else.
+    /// </param>
+    private static IReadOnlyList<Line> Feed(Post post, int[]? chosen = null, int width = 61) =>
+        PostLines.Feed(post, width, new Reading(Chosen: chosen?.ToHashSet()), Now);
 
     private static IReadOnlyList<Line> Whole(Post post, int width = 61) =>
         PostLines.Whole(post, width, default, Now);
@@ -192,7 +196,98 @@ public class PostPollLinesTests
                 multipleChoice: true,
                 voters: 8,
                 expiresAt: new DateTimeOffset(2026, 8, 10, 12, 0, 0, TimeSpan.Zero))),
-            width);
+            width: width);
+
+        Assert.All(lines, line => Assert.True(line.Width <= width, $"'{line.Text}' is {line.Width} columns"));
+    }
+
+    /// <summary>
+    ///     A toggled vote turns the poll into a ballot: the answer chosen is boxed and ticked, and every other answer
+    ///     is boxed and empty — a tick means nothing on its own, only against the boxes beside it (#87).
+    /// </summary>
+    [Fact]
+    public void Feed_DrawsTheToggledAnswerAsATickedBoxAndTheRestAsEmptyOnes()
+    {
+        var lines = Feed(With(APost.APoll(
+            options: [APost.AnAnswer("Cats", 4), APost.AnAnswer("Dogs", 6)],
+            votes: 10)), chosen: [1]);
+
+        Assert.Contains(lines, line => line.Text == "[ ] ▓▓▓▓░░░░░░ 40% (4)  Cats");
+        Assert.Contains(lines, line => line.Text == "[x] ▓▓▓▓▓▓░░░░ 60% (6)  Dogs");
+    }
+
+    /// <summary>A poll that takes several answers boxes every one of them the reader has ticked.</summary>
+    [Fact]
+    public void Feed_TicksEveryAnswerAToggledMultipleChoiceVoteHolds()
+    {
+        var lines = Feed(
+            With(APost.APoll(
+                options: [APost.AnAnswer("Cats", 4), APost.AnAnswer("Dogs", 6), APost.AnAnswer("Sheep", 0)],
+                votes: 10,
+                multipleChoice: true)),
+            chosen: [0, 2]);
+
+        Assert.Contains(lines, line => line.Text.StartsWith("[x]", StringComparison.Ordinal) && line.Text.EndsWith("Cats", StringComparison.Ordinal));
+        Assert.Contains(lines, line => line.Text.StartsWith("[ ]", StringComparison.Ordinal) && line.Text.EndsWith("Dogs", StringComparison.Ordinal));
+        Assert.Contains(lines, line => line.Text.StartsWith("[x]", StringComparison.Ordinal) && line.Text.EndsWith("Sheep", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    ///     The ballot stands in for the mark rather than beside it: what this profile voted for last time is not what
+    ///     they are about to vote for now, and two ticks on one row would be the poll arguing with itself.
+    /// </summary>
+    [Fact]
+    public void Feed_DrawsNoPickedMarkOnAnAnswerWhileAVoteIsToggled()
+    {
+        var lines = Feed(
+            With(APost.APoll(options: [APost.AnAnswer("Cats", 4), APost.AnAnswer("Dogs", 6, picked: true)])),
+            chosen: [0]);
+
+        Assert.DoesNotContain(lines, line => line.Text.Contains('✓'));
+    }
+
+    /// <summary>
+    ///     A poll nobody is voting in draws exactly what it drew before: an empty toggle is a reader reading, not a
+    ///     reader half way through a ballot.
+    /// </summary>
+    [Fact]
+    public void Feed_DrawsTheOrdinaryMarksWhereNothingIsToggled()
+    {
+        var post = With(APost.APoll(options: [APost.AnAnswer("Cats", 4), APost.AnAnswer("Dogs", 6, picked: true)]));
+
+        Assert.Equal(
+            Feed(post).Select(line => line.Text),
+            Feed(post, chosen: []).Select(line => line.Text));
+    }
+
+    /// <summary>A ballot is boxes and text, and the boxes are the poll's own role — nothing new was themed for them.</summary>
+    [Fact]
+    public void Feed_DrawsABallotInThePollsOwnRole()
+    {
+        var lines = Feed(With(APost.APoll()), chosen: [0]);
+
+        var ticked = lines.First(line => line.Text.StartsWith("[x]", StringComparison.Ordinal));
+
+        Assert.True(ticked.Has(Role.Poll));
+    }
+
+    /// <summary>A ballot is two columns wider than the poll it replaces, and still fits the room it was given.</summary>
+    [Theory]
+    [InlineData(20)]
+    [InlineData(40)]
+    [InlineData(61)]
+    public void Feed_KeepsABallotInsideTheRoomItWasGiven(int width)
+    {
+        var lines = Feed(
+            With(APost.APoll(
+                options:
+                [
+                    APost.AnAnswer("An answer with rather more to say for itself than the others", 4),
+                    APost.AnAnswer("Dogs", 6),
+                ],
+                votes: 10)),
+            chosen: [0],
+            width: width);
 
         Assert.All(lines, line => Assert.True(line.Width <= width, $"'{line.Text}' is {line.Width} columns"));
     }
