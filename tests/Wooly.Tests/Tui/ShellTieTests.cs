@@ -22,6 +22,7 @@ public class ShellTieTests
         var (fakes, opened) = await OnTheAccountScreen(AnAccount.Standing());
 
         await opened.Tie(tie);
+        fakes.Host.Drain();
 
         var tied = Assert.Single(fakes.Accounts.Ties);
         Assert.Equal("ben@hachyderm.io", tied.Account.Text);
@@ -39,6 +40,7 @@ public class ShellTieTests
         var (fakes, opened) = await OnTheAccountScreen(standing);
 
         await opened.Tie(tie);
+        fakes.Host.Drain();
 
         Assert.False(Assert.Single(fakes.Accounts.Ties).Wanted);
     }
@@ -53,6 +55,7 @@ public class ShellTieTests
         var (fakes, opened) = await OnTheAccountScreen(AnAccount.Standing(followRequested: true));
 
         await opened.Tie(AccountTie.Follow);
+        fakes.Host.Drain();
 
         Assert.False(Assert.Single(fakes.Accounts.Ties).Wanted);
     }
@@ -65,9 +68,10 @@ public class ShellTieTests
     public async Task Tie_DrawsTheStandingAsTheInstanceNowHasIt()
     {
         var followed = AnAccount.With(address: "ben@hachyderm.io", standing: AnAccount.Standing(following: true));
-        var (_, opened) = await OnTheAccountScreen(AnAccount.Standing(), becoming: followed);
+        var (fakes, opened) = await OnTheAccountScreen(AnAccount.Standing(), becoming: followed);
 
         await opened.Tie(AccountTie.Follow);
+        fakes.Host.Drain();
 
         var account = Assert.IsType<AccountScreen>(opened.Screen);
         Assert.True(account.Account.Standing?.Following);
@@ -88,9 +92,10 @@ public class ShellTieTests
             address: "ben@hachyderm.io",
             standing: AnAccount.Standing(followRequested: true));
 
-        var (_, opened) = await OnTheAccountScreen(AnAccount.Standing(), becoming: waiting);
+        var (fakes, opened) = await OnTheAccountScreen(AnAccount.Standing(), becoming: waiting);
 
         await opened.Tie(AccountTie.Follow);
+        fakes.Host.Drain();
 
         Assert.Equal("Asked to follow @ben@hachyderm.io.", opened.Notice);
         Assert.False(opened.NoticeIsError);
@@ -99,9 +104,10 @@ public class ShellTieTests
     [Fact]
     public async Task Tie_SaysWhatWentOnOrCameOff()
     {
-        var (_, opened) = await OnTheAccountScreen(AnAccount.Standing(muting: true));
+        var (fakes, opened) = await OnTheAccountScreen(AnAccount.Standing(muting: true));
 
         await opened.Tie(AccountTie.Mute);
+        fakes.Host.Drain();
 
         Assert.Equal("Unmuted @ben@hachyderm.io.", opened.Notice);
     }
@@ -115,6 +121,8 @@ public class ShellTieTests
 
         await opened.Tie(AccountTie.Block);
 
+        shell.Host.Drain();
+
         Assert.Empty(shell.Accounts.Ties);
     }
 
@@ -125,7 +133,7 @@ public class ShellTieTests
     [Fact]
     public async Task Keys_SayWhichWayRoundEachTieKeyMeans()
     {
-        var (_, opened) = await OnTheAccountScreen(AnAccount.Standing(following: true, muting: true));
+        var (fakes, opened) = await OnTheAccountScreen(AnAccount.Standing(following: true, muting: true));
 
         Assert.Contains(opened.Keys, key => key is { Key: "F", Does: "unfollow" });
         Assert.Contains(opened.Keys, key => key is { Key: "M", Does: "unmute" });
@@ -155,6 +163,8 @@ public class ShellTieTests
         var opened = await fakes.Opened();
 
         await opened.OpenAuthor();
+
+        fakes.Host.Drain();
 
         return (fakes, opened);
     }

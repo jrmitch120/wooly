@@ -27,6 +27,11 @@ public class EnquiryTests
             eitherWay: answer => ran.Add($"either way: {answer}"),
             ifStillHere: answer => ran.Add($"still here: {answer}"));
 
+        // Neither has run yet: both callbacks are put on the drawing thread, which is a queue and not this one.
+        Assert.Empty(ran);
+
+        enquiry.Host.Drain();
+
         Assert.Equal(["either way: answered", "still here: answered"], ran);
     }
 
@@ -50,6 +55,8 @@ public class EnquiryTests
         held.SetResult("late");
 
         await putting;
+
+        enquiry.Host.Drain();
 
         Assert.Equal(["either way"], ran);
     }
@@ -101,6 +108,8 @@ public class EnquiryTests
             },
             ifStillHere: answer => landed = answer);
 
+        enquiry.Host.Drain();
+
         Assert.Equal("one two", landed);
     }
 
@@ -124,6 +133,8 @@ public class EnquiryTests
                         new RateLimitedException("mastodon.social", AnEnquiry.Now + TimeSpan.FromSeconds(3)))
                     : Task.FromResult("answered");
             }));
+
+        enquiry.Host.Drain();
 
         Assert.Contains("Rate limited by mastodon.social", enquiry.Notice);
         Assert.Contains("3s", enquiry.Notice);
@@ -159,6 +170,8 @@ public class EnquiryTests
             eitherWay: _ => ran.Add("either way"),
             ifStillHere: _ => ran.Add("still here"));
 
+        enquiry.Host.Drain();
+
         Assert.Equal("That token has been revoked.", enquiry.Notice);
         Assert.True(enquiry.NoticeIsError);
         Assert.Empty(ran);
@@ -181,6 +194,8 @@ public class EnquiryTests
         held.SetException(new AuthenticationException("No."));
 
         await putting;
+
+        enquiry.Host.Drain();
 
         Assert.Equal("No.", enquiry.Notice);
         Assert.True(enquiry.NoticeIsError);
@@ -206,15 +221,21 @@ public class EnquiryTests
             return await ask.Of(_ => second.Task);
         });
 
+        enquiry.Host.Drain();
+
         Assert.True(enquiry.It.Fetching);
 
         first.SetResult("one");
+
+        enquiry.Host.Drain();
 
         Assert.True(enquiry.It.Fetching);
 
         second.SetResult("two");
 
         await putting;
+
+        enquiry.Host.Drain();
 
         Assert.False(enquiry.It.Fetching);
         Assert.True(enquiry.Changes > 0);
@@ -238,6 +259,8 @@ public class EnquiryTests
             eitherWay: () => ran.Add("either way"),
             ifStillHere: () => ran.Add("still here"));
 
+        enquiry.Host.Drain();
+
         Assert.True(made);
         Assert.Equal(["either way", "still here"], ran);
     }
@@ -259,6 +282,8 @@ public class EnquiryTests
         held.SetResult();
 
         await putting;
+
+        enquiry.Host.Drain();
 
         Assert.Equal(["either way"], ran);
     }

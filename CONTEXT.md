@@ -109,6 +109,21 @@ is dropped unread if they have arrived at another **destination** since it was s
 several calls to an instance, and is overtaken, or not, as a whole.
 _Avoid_: request (which is a follow request), query (which is what a search takes)
 
+**Refresh**:
+Asking for what is there now, by hand: `g`, screen-local, on the nine screens that have something to ask again (#84).
+Evicts what the **destination** last held and puts the same question its own **arrival** puts — so a refresh is one
+thing for the seven destinations that read a list, and the two screens no arrival reaches each put their own question
+again and recheck that the reader is still standing on them. Distinct from an **arrival**: nobody has gone anywhere,
+so the stack keeps its depth, the screen is replaced where it stands rather than becoming the whole of it, and what is
+showing stands until there is something fresher to put in its place — where an arrival empties the screen at once,
+because what was on it is about somewhere else. A live conversation and a live search are each their own question and
+are not this.
+**Opens at the top**, on the newest of what came back, and keeps nothing of where the reader was standing. That is the
+whole of what the key is for: somebody pressing it is asking to see what has arrived, and what has arrived is above
+everything they have already read — so a refresh that held their place would fetch the new posts and leave them off the
+top of the page, which is fetched and invisible.
+_Avoid_: reload, poll, sync, refetch
+
 **Picked**:
 Which of the things on a screen the reader has walked to with `j` and `k`, and what every key that acts on something
 acts on. Distinct from the rail's **cursor** and its **selection** (ADR-0014): those are about which **destination**

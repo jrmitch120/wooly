@@ -22,10 +22,15 @@ namespace Wooly.Tui.Screens;
 /// </remarks>
 public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversations, string? notice = null) : Screen
 {
+    // Named by the conversation's own id, which is not the id of any post in it (CONTEXT.md) — and is what a refresh
+    // puts the reader back on (#84).
     private readonly Picked<Conversation> _conversations = new(conversations);
 
     /// <inheritdoc />
     public override string Crumb => "direct messages";
+
+    /// <inheritdoc />
+    public override bool Refreshes => true;
 
     /// <inheritdoc />
     protected override IReadOnlyList<KeyHint> OwnKeys =>
@@ -33,6 +38,7 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
         new("j/k", "conversation"),
         new("⏎", "open"),
         new("m", "mark read"),
+        Refreshing,
         PostKeys.Scrolling,
         new("tab", "destination"),
         new("?", "keys"),

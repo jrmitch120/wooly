@@ -18,16 +18,21 @@ namespace Wooly.Tui.Screens;
 /// </remarks>
 public sealed class NotificationsScreen(IReadOnlyList<Notification> notifications, string? notice = null) : Screen
 {
+    // Named by the notification's own id, which is not the id of the post it is about (CONTEXT.md) — and is what a
+    // refresh puts the reader back on (#84).
     private readonly Picked<Notification> _notifications = new(notifications);
 
     /// <inheritdoc />
     public override string Crumb => "notifications";
 
     /// <inheritdoc />
+    public override bool Refreshes => true;
+
+    /// <inheritdoc />
     protected override IReadOnlyList<KeyHint> OwnKeys =>
         PostKeys.Around(
             new KeyHint("j/k", "notification"),
-            [new KeyHint("d", "dismiss"), new KeyHint("D", "clear all")],
+            [new KeyHint("d", "dismiss"), new KeyHint("D", "clear all"), Refreshing],
             new KeyHint("tab", "destination"));
 
     /// <summary>Which notification is picked out, as an index into what is on screen.</summary>

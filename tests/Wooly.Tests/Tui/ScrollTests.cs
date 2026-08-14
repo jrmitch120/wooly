@@ -105,6 +105,12 @@ public class ScrollTests
     public void To_AnswersTheTopForARegionWithNoRoom() =>
         Assert.Equal(0, Scroll.To(Rows(100, at: 40, tall: 3), height: 0, from: 10));
 
+
+
+
+
+
+
     /// <summary>What the arrows do: one row at a time, and never off either end of the rows there are.</summary>
     [Theory]
     [InlineData(30, 1, 31)]

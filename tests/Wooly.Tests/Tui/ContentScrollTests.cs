@@ -53,11 +53,11 @@ public class ContentScrollTests
     }
 
     /// <summary>
-    ///     A screen being replaced starts again at the selection, rather than at a row offset made on somebody else's
-    ///     rows — the pushed screen would otherwise open half way down.
+    ///     A screen being replaced starts again at the top, rather than at a row offset made on somebody else's rows —
+    ///     the pushed screen would otherwise open half way down.
     /// </summary>
     [Fact]
-    public void Restart_PutsTheScrollBackToTheSelection()
+    public void Restart_PutsTheScrollBackToTheTop()
     {
         var content = Content();
 
@@ -65,7 +65,9 @@ public class ContentScrollTests
         content.Restart();
 
         Assert.Null(content.Reclaimable);
+        Assert.Equal(0, content.Top);
     }
+
 
     /// <summary>
     ///     A page is a screenful and no more: what was under the last row of one page is the first row of the next.
@@ -122,6 +124,7 @@ public class ContentScrollTests
             .. Enumerable.Range(0, 20)
                          .Select(row => Line.Of("text", row < 10 ? Role.Selection : Role.Body).PartOf(row / 10)),
         ];
+
 
     /// <summary>The view at a size, since a view with no frame has no room and answers nothing.</summary>
     private static PaintedView Laid(PaintedView view)

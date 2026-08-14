@@ -74,6 +74,8 @@ public static class Scroll
         return Math.Clamp(top, 0, Math.Max(0, lines.Count - 1));
     }
 
+
+
     /// <summary>
     ///     Where <paramref name="rows" /> of scrolling from <paramref name="from" /> lands: what <c>↓</c> and <c>↑</c>
     ///     do, which is move the screen and leave the selection alone.

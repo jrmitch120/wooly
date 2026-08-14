@@ -35,6 +35,8 @@ public class RateLimitWaitTests
         var opened = shell.Build();
         var opening = opened.Open();
 
+        shell.Host.Drain();
+
         // The limit is being waited out, and the reader is told what for and for how long.
         Assert.Contains("Rate limited by mastodon.social", opened.Notice);
         Assert.Contains("3s", opened.Notice);
@@ -44,6 +46,7 @@ public class RateLimitWaitTests
         shell.Host.SettleAll();
 
         await opening;
+        shell.Host.Drain();
 
         Assert.Equal(2, attempts);
         Assert.Null(opened.Notice);
@@ -72,6 +75,8 @@ public class RateLimitWaitTests
         var opened = shell.Build();
         var opening = opened.Open();
 
+        shell.Host.Drain();
+
         Assert.Contains("5s", opened.Notice);
 
         shell.Clock.Advance(TimeSpan.FromSeconds(2));
@@ -83,6 +88,7 @@ public class RateLimitWaitTests
         shell.Host.SettleAll();
 
         await opening;
+        shell.Host.Drain();
 
         Assert.Null(opened.Notice);
     }

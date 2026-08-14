@@ -89,7 +89,10 @@ public static class PostKeys
     ///     survive the cut; the ones that mean the same thing everywhere can be learned somewhere else.
     /// </remarks>
     /// <param name="moving">What this screen calls moving the selection.</param>
-    /// <param name="its">The keys this screen alone answers to.</param>
+    /// <param name="its">
+    ///     The keys this screen answers to that the shared ones below do not carry — the ones a reader can find
+    ///     nowhere else, and <see cref="Screen.Refreshing" /> where this screen has something to ask again (#84).
+    /// </param>
     /// <param name="after">The way out of it, and anything else that belongs at the end.</param>
     public static IReadOnlyList<KeyHint> Around(KeyHint moving, IReadOnlyList<KeyHint> its, params KeyHint[] after)
     {

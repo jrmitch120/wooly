@@ -149,10 +149,29 @@ internal sealed class PaintedView : View
     public void Follow() => _following = true;
 
     /// <summary>
+    ///     Which row the page begins on: the one fact this view owns outright, and the one every other answer here is
+    ///     derived from.
+    /// </summary>
+    /// <remarks>
+    ///     Readable so that a test can see where the page actually is, rather than only what the view says about it.
+    ///     <see cref="Into" /> is measured from whatever post is topmost and so agrees with itself wherever the page
+    ///     has landed — it cannot tell "left alone" from "jumped by exactly one post", which is the shape every wrong
+    ///     answer to #84 has taken.
+    /// </remarks>
+    internal int Top => _top;
+
+
+
+    /// <summary>
     ///     Starts again at the top, following. What a screen being replaced does — pushed, popped back to, or a
     ///     destination arrived at — because a row offset is about the rows it was made on and means nothing on
     ///     somebody else's.
     /// </summary>
+    /// <remarks>
+    ///     A refresh is the one replacement this is not: it puts the same screen up again under a reader who has gone
+    ///     nowhere, so their offset still means something and <see cref="Resume" /> puts it back. Everything else
+    ///     opens with its first thing picked out, which is this row anyway.
+    /// </remarks>
     public void Restart()
     {
         _top = 0;

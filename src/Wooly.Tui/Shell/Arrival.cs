@@ -103,7 +103,27 @@ public sealed class Arrival(
     }
 
     /// <summary>Arriving at a destination that reads a list, which is the six steps and what each of them is here.</summary>
-    public Task At(Destination destination)
+    public Task At(Destination destination) => Reads(destination, arriving: true);
+
+    /// <summary>
+    ///     Asking the destination the reader is already on for what is there now: the same steps, less the two an
+    ///     arrival owes to having gone somewhere (#84).
+    /// </summary>
+    /// <remarks>
+    ///     Nothing is overtaken, because nothing is in flight — a refresh is refused while anything is — and nothing
+    ///     is overtaking: the reader has not left, so an answer still coming is about where they are. And no empty
+    ///     screen goes up: an arrival puts one there because what was on screen is about somewhere else, which is
+    ///     exactly what is not true here. What is showing stands until a fresher copy of it is ready to take its
+    ///     place, so a refresh a rate limit or a failure ends is a notice over the list the reader was reading rather
+    ///     than an empty screen where it used to be.
+    /// </remarks>
+    /// <param name="destination">Where they already are, which is what is asked again.</param>
+    public Task Again(Destination destination) => Reads(destination, arriving: false);
+
+    /// <summary>
+    ///     What the two of them read and what it becomes, which is the same table however the reader got here.
+    /// </summary>
+    private Task Reads(Destination destination, bool arriving)
     {
         // The four timeline destinations are one arrival with a different timeline in it, and which timeline that is
         // the destination already says — so there is one arm here rather than four saying the same thing about a
@@ -112,9 +132,12 @@ public sealed class Arrival(
         {
             return Arrive(
                 destination,
+                arriving,
                 new Arriving<Post>(
                     Reads: token => ports.Timelines.Read(profile, timeline, PostsWanted, token),
-                    Becomes: (posts, notice) => new FeedScreen(destination, posts, notice),
+                    // Refreshed, because this is the timeline as a destination arrived at: a tag walked to from a
+                    // search is the same screen and is not one, so which it is comes from who built it (#84).
+                    Becomes: (posts, notice) => new FeedScreen(destination, posts, notice, refreshes: true),
                     WhenEmpty: NothingOn(timeline),
 
                     // A timeline carries no badge, which is something this destination says rather than a step its
@@ -126,6 +149,7 @@ public sealed class Arrival(
         {
             DestinationKind.Notifications => Arrive(
                 destination,
+                arriving,
                 new Arriving<Notification>(
                     Reads: token => ports.Notifications.Read(profile, CountedAtMost, token),
                     Becomes: (waiting, notice) => new NotificationsScreen(waiting, notice),
@@ -134,6 +158,7 @@ public sealed class Arrival(
 
             DestinationKind.Requests => Arrive(
                 destination,
+                arriving,
                 new Arriving<Account>(
                     Reads: token => ports.Accounts.PendingRequests(profile, CountedAtMost, token),
                     Becomes: (asking, notice) => new FollowRequestsScreen(asking, notice),
@@ -142,6 +167,7 @@ public sealed class Arrival(
 
             DestinationKind.Messages => Arrive(
                 destination,
+                arriving,
                 new Arriving<Conversation>(
                     Reads: token => ports.Messages.List(profile, CountedAtMost, token),
                     Becomes: (written, notice) => new DirectMessagesScreen(written, notice),
@@ -162,29 +188,44 @@ public sealed class Arrival(
         };
     }
 
-    /// <summary>The six steps, over whatever <paramref name="arriving" /> says this destination is.</summary>
+    /// <summary>The six steps, over whatever <paramref name="reads" /> says this destination is.</summary>
     /// <remarks>
     ///     A destination fetched recently enough draws at once and asks for nothing, which is what makes walking out
     ///     along the rail and back one fetch per destination rather than one per arrival (ADR-0014).
     /// </remarks>
-    private async Task Arrive<T>(Destination destination, Arriving<T> arriving)
+    /// <param name="destination">Which destination this is.</param>
+    /// <param name="reads">What this destination is: what it reads, what that becomes, and what it counts.</param>
+    /// <param name="arriving">
+    ///     Whether the reader is landing here rather than asking again where they already are, which settles the two
+    ///     steps a refresh does not take: the overtake, and the empty screen (<see cref="Again" />).
+    /// </param>
+    /// <remarks>
+    ///     Answers with nothing, for the reason <see cref="Shell.Refresh" /> gives: every arm of this lands its screen
+    ///     inside a callback the host runs on the drawing thread, which is after the task this hands back has already
+    ///     completed. Whether a screen went up is a fact about the drawing thread, and it is said there — by
+    ///     <see cref="Shows" /> — rather than carried back across the await to a caller that would read it too early.
+    /// </remarks>
+    private Task Arrive<T>(Destination destination, bool arriving, Arriving<T> reads)
     {
-        At(arriving.Becomes([], null));
+        if (arriving)
+        {
+            At(reads.Becomes([], null));
+        }
 
         if (cache.Fresh<T>(destination.Kind) is { } held)
         {
             // What was held is an answer that cost nothing, and nothing cut it short.
-            Apply(() => Landed(destination, arriving, Fetch<T>.Complete(held)));
+            Apply(() => Landed(destination, reads, Fetch<T>.Complete(held)));
 
-            return;
+            return Task.CompletedTask;
         }
 
-        await enquiry.Put(
-            ask => ask.Of(arriving.Reads),
+        return enquiry.Put(
+            ask => ask.Of(reads.Reads),
             ifStillHere: fetch =>
             {
                 cache.Keep(destination.Kind, fetch.Items);
-                Landed(destination, arriving, fetch);
+                Landed(destination, reads, fetch);
             });
     }
 
@@ -192,19 +233,21 @@ public sealed class Arrival(
     ///     What both halves of an arrival end with: the screen on the stack, and the badge beside it read off the same
     ///     answer — so the rail cannot say four over a list of three.
     /// </summary>
-    private void Landed<T>(Destination destination, Arriving<T> arriving, Fetch<T> answer)
+    private void Landed<T>(Destination destination, Arriving<T> reads, Fetch<T> answer)
     {
         // What the list is of is the destination's own to say, and only a timeline has a name worth putting in the
         // sentence — so it is read off the destination rather than being a fifth thing an arrival states about itself.
         var notice = Emptiness(
             answer.Items.Count,
-            arriving.WhenEmpty,
+            reads.WhenEmpty,
             destination.Timeline?.Description,
             answer.StoppedBy);
 
-        Shows?.Invoke(arriving.Becomes(answer.Items, notice));
+        var screen = reads.Becomes(answer.Items, notice);
 
-        if (arriving.Counting is { } counting)
+        Shows?.Invoke(screen);
+
+        if (reads.Counting is { } counting)
         {
             Counts?.Invoke(destination.Kind, counting(answer.Items));
         }

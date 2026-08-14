@@ -11,13 +11,20 @@ internal sealed class FakePostEngagement : IPostEngagement
 {
     private readonly Post _answer;
     private readonly Exception? _refusal;
-    private readonly IReadOnlyList<Post> _replies;
+
+    private Func<Task<IReadOnlyList<Post>>> _replies;
 
     private FakePostEngagement(Post answer, Exception? refusal = null, IReadOnlyList<Post>? replies = null)
     {
         _answer = answer;
         _refusal = refusal;
-        _replies = replies ?? [];
+        _replies = () => Task.FromResult<IReadOnlyList<Post>>(replies ?? []);
+    }
+
+    private FakePostEngagement(Post answer, Func<Task<IReadOnlyList<Post>>> replies)
+    {
+        _answer = answer;
+        _replies = replies;
     }
 
     /// <summary>Every mark it was asked to put on or take off, in order — where a test proves what a command asked for.</summary>
@@ -38,6 +45,19 @@ internal sealed class FakePostEngagement : IPostEngagement
 
     /// <summary>An instance that refuses everything with <paramref name="refusal" />, having recorded the attempt.</summary>
     public static FakePostEngagement Refusing(Exception refusal) => new(APost.With(), refusal);
+
+    /// <summary>
+    ///     An instance whose answers a test finishes by hand — where the question is what happens to replies that land
+    ///     after the reader has walked out of the screen that asked for them (#84).
+    /// </summary>
+    public static FakePostEngagement Awaiting(Func<Task<IReadOnlyList<Post>>> replies) => new(APost.With(), replies);
+
+    /// <summary>
+    ///     What the post is answered with from here on: what was said while the reader was reading it, which is what a
+    ///     refresh is asked to notice (#84).
+    /// </summary>
+    public void NowAnswered(params Post[] replies) =>
+        _replies = () => Task.FromResult<IReadOnlyList<Post>>(replies);
 
     public Task<Post> Mark(
         ActiveProfile profile,
@@ -62,9 +82,7 @@ internal sealed class FakePostEngagement : IPostEngagement
     {
         RepliesRead.Add(new Shown(profile.Name, postId));
 
-        return _refusal is null
-            ? Task.FromResult(_replies)
-            : Task.FromException<IReadOnlyList<Post>>(_refusal);
+        return _refusal is null ? _replies() : Task.FromException<IReadOnlyList<Post>>(_refusal);
     }
 
     private Task<Post> Answer() =>

@@ -270,11 +270,52 @@ public sealed class Shell
             return;
         }
 
-        var about = opening.Boosted ?? opening;
-
         await _enquiry.Put(
-            ask => ask.Of(token => _ports.Engagement.Replies(_profile, about.Id, token)),
+            ask => ReadReplies(ask, opening),
             ifStillHere: replies => Push(new PostScreen(opening, replies)));
+    }
+
+    /// <summary>
+    ///     Asks for what is there now: evicts what the destination last held, puts the same question its own arrival
+    ///     puts, and opens the answer at the top so that what has just arrived is what the reader is looking at
+    ///     (<c>docs/tui-shell.md</c>, #84).
+    /// </summary>
+    /// <remarks>
+    ///     Only where the screen says it answers to <c>g</c>, which is the nine the contract names. A second press
+    ///     while anything is already in flight does nothing at all — no second question, and no in-flight UI beyond
+    ///     the <c>fetching…</c> marker the breadcrumb already carries.
+    ///     <para>
+    ///         Seven of the nine are destinations and go back through <see cref="Arrival" />, which is one refresh for
+    ///         all of them: what to evict, what to read, what it becomes and what it counts are all things the
+    ///         destination already says (#100). The other two are screens the stack was drilled into, and each puts
+    ///         its own question again.
+    ///     </para>
+    ///     <para>
+    ///         Nothing about where the reader was standing is carried over, and that is the whole point of the key: a
+    ///         refresh is somebody asking to see what is new, and what is new is at the top. Keeping their place would
+    ///         leave the new posts above the page, which is to say fetched and invisible.
+    ///     </para>
+    ///     <para>
+    ///         Answers with nothing, and deliberately. Everything a refresh does happens on the drawing thread, in the
+    ///         callback <see cref="Enquiry.Put" /> hands to the host — which is queued there and run by the main loop
+    ///         <em>after</em> this task has already completed. A flag set inside that callback and returned from here
+    ///         would be read before it was ever written. What the view needs to know is that a screen was replaced,
+    ///         and it already learns that from <see cref="Changed" /> — in the right order, on the right thread.
+    ///     </para>
+    /// </remarks>
+    public Task Refresh()
+    {
+        if (!Screen.Refreshes || Fetching)
+        {
+            return Task.CompletedTask;
+        }
+
+        return Screen switch
+        {
+            PostScreen post => RefreshPost(post),
+            AccountScreen account => RefreshAccount(account),
+            _ => RefreshDestination(),
+        };
     }
 
     /// <summary>
@@ -828,20 +869,9 @@ public sealed class Shell
     }
 
     /// <summary>Opens an account screen: who they are, their standing, and their posts.</summary>
-    /// <remarks>
-    ///     Two calls under one enquiry, so it is checked once at the end rather than after each: what matters is
-    ///     whether the reader is still where they were when they asked, not how far the answer got.
-    /// </remarks>
     private Task OpenAccount(AccountAddress address, bool replacing = false) =>
         _enquiry.Put(
-            async ask =>
-            {
-                var account = await ask.Of(token => _ports.Accounts.Show(_profile, address, token));
-                var posts = await ask.Of(token =>
-                    _ports.Timelines.Read(_profile, Timeline.By(address), Arrival.PostsWanted, token));
-
-                return (Account: account, Posts: posts.Items);
-            },
+            ask => ReadAccount(ask, address),
             ifStillHere: found =>
             {
                 var screen = new AccountScreen(found.Account, found.Posts);
@@ -855,6 +885,106 @@ public sealed class Shell
                     Push(screen);
                 }
             });
+
+    /// <summary>What an account screen is read with: who they are, and what they have posted.</summary>
+    /// <remarks>
+    ///     Two calls under one enquiry, so it is checked once at the end rather than after each: what matters is
+    ///     whether the reader is still where they were when they asked, not how far the answer got.
+    ///     <para>
+    ///         Said here rather than at each of the two places that read an account — opening one, and asking it for
+    ///         what is there now — so that a refresh is the same pair of calls the screen was opened by rather than a
+    ///         second opinion about what an account screen is made of (#84).
+    ///     </para>
+    /// </remarks>
+    private async Task<(Account Account, IReadOnlyList<Post> Posts)> ReadAccount(Enquiry.Ask ask, AccountAddress address)
+    {
+        var account = await ask.Of(token => _ports.Accounts.Show(_profile, address, token));
+        var posts = await ask.Of(token =>
+            _ports.Timelines.Read(_profile, Timeline.By(address), Arrival.PostsWanted, token));
+
+        return (Account: account, Posts: posts.Items);
+    }
+
+    /// <summary>
+    ///     Asking a destination for what is there now, which is the arrival it already arrives by with what it last
+    ///     held taken away first — one refresh for all seven of them (#84).
+    /// </summary>
+    /// <remarks>
+    ///     The destination is the rail's own rather than one read off the screen, and the two cannot differ here: only
+    ///     a destination's screen answers to <c>g</c>, and a destination's screen is only ever the bottom of the stack
+    ///     — anything drilled into from one is a screen of some other kind, which is refreshed by the two below.
+    /// </remarks>
+    private Task RefreshDestination()
+    {
+        _cache.Forget(Rail.Showing.Kind);
+
+        return _arrival.Again(Rail.Showing);
+    }
+
+    /// <summary>
+    ///     The same for the post screen, which no arrival reaches: the <c>Replies</c> call <see cref="Enter" /> ran to
+    ///     open it, about the same post it is already about.
+    /// </summary>
+    private Task RefreshPost(PostScreen showing) =>
+        _enquiry.Put(
+            ask => ReadReplies(ask, showing.Post),
+            ifStillHere: replies => Freshened(showing, new PostScreen(showing.Post, replies)));
+
+    /// <summary>
+    ///     What has been said in answer to a post — asked about the post itself where what is in hand is a boost of
+    ///     it, since a boost is the same post as far as its answers go.
+    /// </summary>
+    /// <remarks>
+    ///     Said here rather than at both places that ask, for the reason <see cref="ReadAccount" /> gives: a refresh
+    ///     is the same call the screen was opened by rather than a second opinion about what a post screen holds
+    ///     (#84).
+    /// </remarks>
+    private Task<IReadOnlyList<Post>> ReadReplies(Enquiry.Ask ask, Post post)
+    {
+        var about = post.Boosted ?? post;
+
+        return ask.Of(token => _ports.Engagement.Replies(_profile, about.Id, token));
+    }
+
+    /// <summary>And for the account screen, which is both of the calls that opened it.</summary>
+    private Task RefreshAccount(AccountScreen showing) =>
+        _enquiry.Put(
+            ask => ReadAccount(ask, AccountAddress.Parse(showing.Account.Address)),
+            ifStillHere: found => Freshened(showing, new AccountScreen(found.Account, found.Posts)));
+
+    /// <summary>
+    ///     Puts <paramref name="fresh" /> in place of the screen it is a fresher copy of, with the reader put back
+    ///     where they were standing on it.
+    /// </summary>
+    /// <remarks>
+    ///     Neither of the two screens refreshed this way is reached through an arrival, so neither is overtaken by
+    ///     one: an <see cref="Enquiry" /> answers about the destination the reader is on, and drilling in and walking
+    ///     back out again happen inside one. So the top of the stack is rechecked before anything is put on it — the
+    ///     same idiom <see cref="Find" /> and <see cref="OpenResult" /> use, and what stops a screen the reader has
+    ///     pressed <c>esc</c> out of landing on top of the one they walked back to.
+    ///     <para>
+    ///         In place of the top rather than pushed or reset: a refresh redraws where somebody is standing, so the
+    ///         way they got there is still under them and <c>esc</c> still walks back out of it. A different screen
+    ///         object rather than the same one changed, which is how the view is told the screen was replaced at all
+    ///         (<c>docs/tui-shell.md</c>) — and a refresh is the one replacement whose offset is put back rather than
+    ///         started again, which the view settles from the place it is holding.
+    ///     </para>
+    /// </remarks>
+    private void Freshened(Screen showing, Screen fresh)
+    {
+        if (!ReferenceEquals(Screen, showing))
+        {
+            return;
+        }
+
+        _stack[^1] = fresh;
+
+        // Gone with the screen it was said over, the same as at a push or an arrival: what a reader was told about the
+        // list they were looking at is not about the one in front of them now.
+        Notice = null;
+
+        Changed?.Invoke();
+    }
 
     /// <summary>
     ///     Opens the account the picked mention names, off the post itself rather than out of a fetch: an instance

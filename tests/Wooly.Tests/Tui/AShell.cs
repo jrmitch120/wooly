@@ -89,6 +89,8 @@ internal sealed class AShell
 
         await shell.Open();
 
+        Host.Drain();
+
         return shell;
     }
 }

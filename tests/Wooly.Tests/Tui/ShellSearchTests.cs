@@ -20,7 +20,10 @@ public class ShellSearchTests
         var opened = await shell.Opened();
 
         await opened.Enter();
+        shell.Host.Drain();
         opened.Search();
+
+        shell.Host.Drain();
 
         var search = Assert.IsType<SearchScreen>(opened.Screen);
         Assert.True(search.IsTyping);
@@ -37,6 +40,8 @@ public class ShellSearchTests
 
         opened.Search();
 
+        shell.Host.Drain();
+
         foreach (var letter in "cats")
         {
             opened.Type(letter);
@@ -46,6 +51,7 @@ public class ShellSearchTests
         opened.Backspace();
 
         await opened.Press(ShellKey.Enter);
+        shell.Host.Drain();
 
         var asked = Assert.Single(shell.Search.Searches);
         Assert.Equal("cats", asked.Query.Text);
@@ -70,7 +76,10 @@ public class ShellSearchTests
 
         opened.Search();
 
+        shell.Host.Drain();
+
         await opened.Press(ShellKey.Enter);
+        shell.Host.Drain();
 
         Assert.Empty(shell.Search.Searches);
         Assert.Equal(SearchQuery.Rejection, opened.Notice);
@@ -90,9 +99,11 @@ public class ShellSearchTests
 
         var opened = await shell.Opened();
 
-        await Found(opened, "alice");
+        await Found(shell, opened, "alice");
+        shell.Host.Drain();
 
         await opened.Press(ShellKey.Enter);
+        shell.Host.Drain();
 
         var account = Assert.IsType<AccountScreen>(opened.Screen);
         Assert.Equal("alice@hachyderm.io", account.Account.Address);
@@ -109,9 +120,11 @@ public class ShellSearchTests
         var shell = new AShell { Search = FakeInstanceSearch.Finding(accounts: [], hashtags: [AHashtag.With("cats")]) };
         var opened = await shell.Opened();
 
-        await Found(opened, "cats");
+        await Found(shell, opened, "cats");
+        shell.Host.Drain();
 
         await opened.Press(ShellKey.Enter);
+        shell.Host.Drain();
 
         Assert.Equal("cats", shell.Timelines.Reads[^1].Timeline.Hashtag);
         Assert.Equal("search cats › #cats", opened.Breadcrumb);
@@ -130,11 +143,13 @@ public class ShellSearchTests
 
         var opened = await shell.Opened();
 
-        await Found(opened, "sheep");
+        await Found(shell, opened, "sheep");
+        shell.Host.Drain();
 
         Assert.Equal("110", opened.Screen.Picked?.Id);
 
         await opened.Press(ShellKey.Enter);
+        shell.Host.Drain();
 
         Assert.Equal("110", Assert.IsType<PostScreen>(opened.Screen).Post.Id);
     }
@@ -146,7 +161,8 @@ public class ShellSearchTests
         var shell = new AShell();
         var opened = await shell.Opened();
 
-        await Found(opened, "cats");
+        await Found(shell, opened, "cats");
+        shell.Host.Drain();
 
         var search = Assert.IsType<SearchScreen>(opened.Screen);
 
@@ -176,9 +192,11 @@ public class ShellSearchTests
         var shell = new AShell();
         var opened = await shell.Opened();
 
-        await Found(opened, "cats");
+        await Found(shell, opened, "cats");
 
         opened.Search();
+
+        shell.Host.Drain();
 
         var again = Assert.IsType<SearchScreen>(opened.Screen);
         Assert.True(again.IsTyping);
@@ -192,7 +210,8 @@ public class ShellSearchTests
         var shell = new AShell { Search = FakeInstanceSearch.FindingNothing() };
         var opened = await shell.Opened();
 
-        await Found(opened, "nobody");
+        await Found(shell, opened, "nobody");
+        shell.Host.Drain();
 
         var drawn = opened.Screen.Lines(61, AShell.Now).Select(line => line.Text);
 
@@ -211,17 +230,22 @@ public class ShellSearchTests
 
         opened.Search();
 
+        shell.Host.Drain();
+
         Assert.Equal(["⏎", "tab"], opened.Keys.Select(key => key.Key));
 
-        await Found(opened, "cats");
+        await Found(shell, opened, "cats");
+        shell.Host.Drain();
 
         Assert.Contains(opened.Keys, key => key.Key == "/");
     }
 
     /// <summary>A search screen, having searched for <paramref name="text" />.</summary>
-    private static async Task Found(Shell shell, string text)
+    private static async Task Found(AShell built, Shell shell, string text)
     {
         shell.Search();
+
+        built.Host.Drain();
 
         foreach (var letter in text)
         {
@@ -229,5 +253,7 @@ public class ShellSearchTests
         }
 
         await shell.Find();
+
+        built.Host.Drain();
     }
 }

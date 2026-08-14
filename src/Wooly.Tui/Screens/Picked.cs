@@ -28,11 +28,13 @@ public interface IPicked
     /// </summary>
     int At { get; }
 
+
     /// <summary>Moves what is picked out by <paramref name="by" /> things, stopping at either end.</summary>
     void Move(int by);
 
     /// <summary>Picks the <paramref name="at" />th thing out, stopping at either end.</summary>
     void Pick(int at);
+
 }
 
 /// <summary>
@@ -98,6 +100,7 @@ public sealed class Picked<T>(IReadOnlyList<T> things) : IPicked
             At = Math.Clamp(at, 0, _things.Count - 1);
         }
     }
+
 
     /// <summary>
     ///     Puts <paramref name="thing" /> at the end of the list, which is where a message this profile has just sent

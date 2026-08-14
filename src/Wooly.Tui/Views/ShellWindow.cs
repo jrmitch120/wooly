@@ -51,7 +51,13 @@ internal sealed class ShellWindow : Window
     ///     Which screen the content region is showing, so that a screen being replaced can be told apart from the same
     ///     one changing. The scroll starts again on the first and is left alone on the second.
     /// </summary>
+    /// <remarks>
+    ///     Set from the shell it is built over rather than left empty until the first change, because the region draws
+    ///     <see cref="Shell.Shell.Screen" /> from the moment it exists — a window built over a shell that has already
+    ///     opened is showing that screen, and calling it "none" makes the very next replacement look like the first.
+    /// </remarks>
     private Screen? _showing;
+
 
     /// <param name="quit">
     ///     What <c>ctrl-q</c> does. Passed in rather than reached for, because the application is the thing that owns
@@ -142,6 +148,8 @@ internal sealed class ShellWindow : Window
         };
 
         Add(rail, breadcrumb, _content, _editor, status);
+
+        _showing = shell.Screen;
 
         shell.Changed += Refresh;
     }
@@ -412,6 +420,10 @@ internal sealed class ShellWindow : Window
         {
             _shell.Edit();
         }
+        else if (key == Key.G)
+        {
+            Refreshed();
+        }
         else if (key == Key.D)
         {
             _ = _shell.Press(ShellKey.Discard);
@@ -470,6 +482,21 @@ internal sealed class ShellWindow : Window
         return ContentTop + answering;
     }
 
+    /// <summary>
+    ///     <c>g</c>: ask this screen for what is there now, and leave the reader looking at exactly what they were
+    ///     looking at (<c>docs/tui-shell.md</c>, #84).
+    /// </summary>
+    /// <remarks>
+    ///     Screen-local rather than a frame key, so it is handed over like any other and the shell turns it down where
+    ///     the screen on top has nothing to ask again.
+    ///     <para>
+    ///         Nothing is held and nothing is awaited. The reader has asked to see what is new, and what is new is at
+    ///         the top — so the answer is a screen change like any other, and <see cref="Refresh" /> starts the page
+    ///         again at row 0 when it arrives.
+    ///     </para>
+    /// </remarks>
+    private void Refreshed() => _ = _shell.Refresh();
+
     private async Task Send()
     {
         if (_shell.Screen is ComposeScreen compose)
@@ -490,6 +517,10 @@ internal sealed class ShellWindow : Window
     ///     Also where a screen being replaced is noticed, which is what puts the scroll back to the top: pushing a
     ///     screen, popping back to one and arriving at a destination all mean different rows, and an offset the arrows
     ///     made on the last lot says nothing about this one.
+    ///     <para>
+    ///         A refresh is a replacement like any other here, which is what puts the reader at the top of a freshly
+    ///         read list — the thing <c>g</c> is for (#84).
+    ///     </para>
     /// </remarks>
     private void Refresh()
     {

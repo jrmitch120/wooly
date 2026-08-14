@@ -301,13 +301,41 @@ cache. Streaming stays out of scope (below); a manual refresh is the in-scope an
 - **Evicts the destination's cache entry, then re-runs the same fetch its own arrival runs** — `Arrival.At()` for the
   four feeds and Notifications/Messages/Requests, which is one arrival for all seven (#100), `Replies` for the post
   screen, both of `OpenAccount`'s calls for the account screen.
-- **The reader's place follows the post it was on**, matched by id, or clamps at the same ordinal if it's gone. The
-  scroll offset resets to 0, matching "the offset starts again whenever the screen is replaced."
+- **It opens at the top, on the newest of what came back.** Nothing about where the reader was standing is carried
+  over — not the scroll offset, not which post was picked. That is the whole of what the key is for: somebody pressing
+  `g` is asking to see what has arrived, and what has arrived is above everything they have already read. A refresh
+  that held their place would fetch the new posts and leave them off the top of the page, which is fetched and
+  invisible. So a refreshed screen is a screen replaced, and a screen replaced starts its offset again (below) with its
+  first thing picked out — which needs no special case at all, and is why there is none.
+- **Nothing is awaited, and `Shell.Refresh` answers with nothing.** Everything a refresh does happens in a callback the
+  host queues onto the main loop, which runs *after* the task `Refresh` hands back has completed. A flag set in that
+  callback and returned across the await is read before it is written — always false in a terminal, always true under a
+  test fake that runs the callback inline — so a refresh must not report anything that way. The window hears the answer
+  as a screen change on `Changed`, in the right order and on the drawing thread, the same way it hears every other
+  screen change.
 - **The badge moves with the count**, from the same answer the screen redraws from — the same rule every other
   arrival already follows.
 - **A refresh goes through `Enquiry` like every other fetch**, discarded unread if the reader has moved on. No new
-  in-flight UI beyond the breadcrumb's existing `fetching…` marker; a second `g` while one is already in flight is a
-  silent no-op.
+  in-flight UI beyond the breadcrumb's existing `fetching…` marker; a second `g` while anything at all is in flight is
+  a silent no-op — the guard is the breadcrumb's own `Fetching`, since a refresh landing on top of a boost or a
+  deletion still in flight is the same stale answer by another route.
+- **What is on screen stands until there is something fresher to put in its place.** An arrival puts an empty screen
+  up at once because what was showing is about somewhere the reader has left; a refresh is the one case where that is
+  not true, so it takes neither that step nor the overtake — nothing is in flight to overtake, since the key is
+  refused while anything is. A refresh a rate limit or a refusal ends is then a notice over the list they were
+  reading rather than an empty screen where it used to be, with the cache already evicted. This is the only place a
+  destination is read without `Arrival`'s first two steps, and it is `Arrival.Again` rather than a second reading of
+  the same table.
+- **The post and account screens are replaced where they stand**, rather than pushed or reset: nobody has gone
+  anywhere, so what was drilled through to get there is still under them and `esc` still walks back out of it. Neither
+  is reached through an arrival, so neither is overtaken by one — each rechecks that the top of the stack is still the
+  screen it was asked about, the same idiom `Find()` and `OpenResult()` use. Every refresh builds a new screen rather
+  than changing the one on the stack, which is what starts the scroll offset again: the view notices a screen has been
+  replaced by identity.
+- **A hashtag walked to from a search has no refresh**, though it is the same `FeedScreen` the rail's own hashtag
+  destination opens onto. Which of the two a screen is cannot be read off what is in it — a tag the reader named and a
+  tag they walked to are the same destination by value — so it is settled by who built it: an arrival's feed refreshes
+  and a pushed one does not. It is out of scope with the search results it was opened from.
 
 ### What media settled
 
@@ -360,8 +388,11 @@ selection was the only scroll position a screen had and the foot of such a post 
   any other; every screen holding a selection numbers its rows with the same ordinal `Screen.Pick` takes, including the
   four that do not number a plain list of posts — the post screen, where 0 is the post itself, search across its three
   kinds, notifications, and direct messages.
-- **The offset starts again whenever the screen is replaced.** Pushing a screen, popping back to one and arriving at a
-  destination all mean different rows, and an offset made on the last lot says nothing about this one.
+- **The offset starts again whenever the screen is replaced, with no exceptions.** Pushing a screen, popping back to
+  one, arriving at a destination and refreshing all mean different rows, and an offset made on the last lot says
+  nothing about this one — so it starts at row 0 and follows the pick again (`Restart`). Every replacing screen opens
+  with its first thing picked out, so row 0 is where the pick is too, and the two agree without either being a special
+  case.
 - **`PgUp`/`PgDn` walk the screen, `Home`/`End` walk the selection.** A page is a screenful of rows, because that is
   what a page is: somebody asking for the next one is asking about what they are looking at, not about how many posts
   happen to be on it. They used to move the selection by ten posts, which on a feed with pictures on it was several

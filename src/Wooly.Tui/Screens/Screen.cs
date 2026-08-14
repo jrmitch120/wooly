@@ -40,6 +40,29 @@ public abstract class Screen
     protected abstract IReadOnlyList<KeyHint> OwnKeys { get; }
 
     /// <summary>
+    ///     Asking for what is there now, on the nine screens that have anything to ask again — screen-local, and shown
+    ///     on the status row only where it applies (<c>docs/tui-shell.md</c>, #84).
+    /// </summary>
+    /// <remarks>
+    ///     Said once here rather than written out on each of them, so that the key and the words explaining it cannot
+    ///     come to differ by screen.
+    /// </remarks>
+    public static KeyHint Refreshing { get; } = new("g", "refresh");
+
+    /// <summary>
+    ///     Whether <c>g</c> means anything here: whether this screen can be asked for a fresher copy of what it is
+    ///     showing. The nine the contract names, and nothing else — a live conversation and a live search are each
+    ///     their own question and are deliberately left out (#84).
+    /// </summary>
+    /// <remarks>
+    ///     A screen saying so owes <see cref="Refreshing" /> on its status row, and one that does not owes its absence:
+    ///     a key announced and then refused reads as a shell that missed the press. The two are asserted against each
+    ///     other rather than derived from one another, since each is what a different reader — the person and the
+    ///     shell — goes looking for.
+    /// </remarks>
+    public virtual bool Refreshes => false;
+
+    /// <summary>
     ///     The post the reader has picked out, or <see langword="null" /> where this screen has no posts on it. What
     ///     <c>⏎</c>, <c>a</c> and the marks act on.
     /// </summary>
@@ -248,6 +271,8 @@ public abstract class Screen
         ClearReference();
         Walking?.Pick(at);
     }
+
+
 
     /// <summary>The content warnings the reader has asked past on this screen, by the id of the post each is on.</summary>
     /// <remarks>
