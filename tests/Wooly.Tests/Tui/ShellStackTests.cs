@@ -30,7 +30,7 @@ public class ShellStackTests
         var post = Assert.IsType<PostScreen>(opened.Screen);
         Assert.Equal("110", post.Post.Id);
         Assert.Equal(["111"], post.Replies.Select(reply => reply.Id));
-        Assert.Equal("110", Assert.Single(shell.Engagement.RepliesRead).PostId);
+        Assert.Equal("110", Assert.Single(shell.Engagement.ThreadsRead).PostId);
     }
 
     /// <summary>The trail along the top is the stack, which is the whole of how somebody knows where they are.</summary>
@@ -283,6 +283,71 @@ public class ShellStackTests
         Assert.Equal("112", opened.Screen.Picked?.Id);
     }
 
+    /// <summary>
+    ///     What the post answers rides the same call its answers do, and lands above it on the screen — with the
+    ///     reader still standing on the post they opened rather than at the top of the thread (#86).
+    /// </summary>
+    [Fact]
+    public async Task Enter_OpensThePickedPostWithTheThreadAboveItAsWellAsBelow()
+    {
+        var shell = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(APost.With(id: "110")),
+            Engagement = FakePostEngagement.Threaded(
+                APost.With(id: "110"),
+                [APost.With(id: "100"), APost.With(id: "105")],
+                APost.With(id: "111")),
+        };
+
+        var opened = await shell.Opened();
+
+        await opened.Enter();
+        shell.Host.Drain();
+
+        var post = Assert.IsType<PostScreen>(opened.Screen);
+
+        Assert.Equal(["100", "105"], post.Ancestors.Select(ancestor => ancestor.Id));
+        Assert.Equal("110", post.Post.Id);
+        Assert.Equal("110", opened.Screen.Picked?.Id);
+
+        // One call for the whole thread, not one for each end of it.
+        Assert.Equal("110", Assert.Single(shell.Engagement.ThreadsRead).PostId);
+    }
+
+    /// <summary>
+    ///     <c>k</c> walks up into the chain and <c>⏎</c> opens an ancestor onto a screen of its own, the same way it
+    ///     opens an answer (#86).
+    /// </summary>
+    [Fact]
+    public async Task Enter_OpensTheAncestorPickedOutInsideAPost()
+    {
+        var shell = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(APost.With(id: "110")),
+            Engagement = FakePostEngagement.Threaded(
+                APost.With(id: "110"),
+                [APost.With(id: "100", account: "ben@hachyderm.io")],
+                APost.With(id: "111")),
+        };
+
+        var opened = await shell.Opened();
+
+        await opened.Enter();
+        shell.Host.Drain();
+
+        opened.Move(-1);
+
+        Assert.Equal("100", opened.Screen.Picked?.Id);
+        Assert.Contains(PostKeys.Opening, opened.Keys);
+
+        await opened.Enter();
+        shell.Host.Drain();
+
+        Assert.Equal(3, opened.Depth);
+        Assert.Equal("100", Assert.IsType<PostScreen>(opened.Screen).Post.Id);
+        Assert.Equal(["110", "100"], shell.Engagement.ThreadsRead.Select(read => read.PostId));
+    }
+
     /// <summary>A post nobody has answered says so, rather than showing a heading over nothing.</summary>
     [Fact]
     public async Task Enter_SaysSoWhereNobodyHasAnsweredThePost()
@@ -308,7 +373,7 @@ public class ShellStackTests
         await opened.Enter();
 
         Assert.Equal(1, opened.Depth);
-        Assert.Empty(shell.Engagement.RepliesRead);
+        Assert.Empty(shell.Engagement.ThreadsRead);
     }
 
     /// <summary>
@@ -340,7 +405,7 @@ public class ShellStackTests
         Assert.Equal("home › post by @ben@hachyderm.io", opened.Breadcrumb);
 
         // One read, which is the one that opened the screen: a ⏎ with nothing to open asks the instance for nothing.
-        Assert.Single(shell.Engagement.RepliesRead);
+        Assert.Single(shell.Engagement.ThreadsRead);
     }
 
     /// <summary>
@@ -365,7 +430,7 @@ public class ShellStackTests
         shell.Host.Drain();
 
         Assert.Equal(2, opened.Depth);
-        Assert.Single(shell.Engagement.RepliesRead);
+        Assert.Single(shell.Engagement.ThreadsRead);
     }
 
     /// <summary><c>⏎</c> on an answer opens that answer's own screen, the way it does anywhere else.</summary>
@@ -392,7 +457,7 @@ public class ShellStackTests
 
         Assert.Equal(3, opened.Depth);
         Assert.Equal("111", Assert.IsType<PostScreen>(opened.Screen).Post.Id);
-        Assert.Equal(["110", "111"], shell.Engagement.RepliesRead.Select(read => read.PostId));
+        Assert.Equal(["110", "111"], shell.Engagement.ThreadsRead.Select(read => read.PostId));
     }
 
     /// <summary>

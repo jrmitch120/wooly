@@ -1,3 +1,4 @@
+using Wooly.Core.Posts;
 using Wooly.Core.Search;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Rendering;
@@ -80,7 +81,7 @@ public class ScreenPickTests
         {
             case "post":
                 // Its own post is 0 and the replies follow it under a heading, so two replies make three to pick.
-                return new PostScreen(posts[0], [posts[1], posts[2]]);
+                return new PostScreen(posts[0], new PostThread([], [posts[1], posts[2]]));
 
             case "search":
                 // One of each kind and then some, so that the three headed sections are numbered as one list.

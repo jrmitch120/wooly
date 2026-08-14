@@ -316,7 +316,9 @@ public class PostBylineTests
 
     /// <summary>
     ///     The mark is drawn identically wherever the rows are shared — the feed, the post screen, a conversation,
-    ///     search, direct messages and an account all read it off the same two methods, and neither suppresses it.
+    ///     search, direct messages and an account all read it off the same two methods, and neither leaves it off
+    ///     unasked. The one place it is asked for is the post screen's own subject row, whose ancestor is drawn whole
+    ///     immediately above it instead (#86, <see cref="PostThreadTests" />).
     /// </summary>
     [Fact]
     public void FeedAndWhole_DrawTheSameReplyMark()

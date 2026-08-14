@@ -134,11 +134,13 @@ not answer them differently:
   rail keeps a place for is a setting the reader wrote down, and a search result is not them changing their mind.
 - **`⏎` on a follow request opens whoever is asking**, because the question is about a person and the answer to it is
   on their account screen.
-- **`⏎` inside a post opens an answer, never the post itself.** The post at the top is the one the screen is already
-  about, so opening it would push a copy of the screen the reader is standing on — and pressing again would push
-  another, stacking duplicates and a breadcrumb of places nobody went (#48). It is left off the status row while that
-  post is picked rather than announced and refused; every other key on the row still acts on it, since a post being
-  read is still a post to boost, favorite, answer or take down.
+- **`⏎` inside a post opens anything on the thread but the post itself** — an answer below it, or an ancestor above it
+  (#86). That one post is what the screen is already about, so opening it would push a copy of the screen the reader
+  is standing on — and pressing again would push another, stacking duplicates and a breadcrumb of places nobody went
+  (#48). It is left off the status row while that post is picked rather than announced and refused; every other key on
+  the row still acts on it, since a post being read is still a post to boost, favorite, answer or take down. Which row
+  that is is found by the post's id rather than by an ordinal: it stopped being the first thing on the screen when the
+  ancestors landed above it, and a deletion higher up the chain moves it again.
 
 ### What a post's byline settled
 
@@ -183,9 +185,11 @@ post answers, are both drawn into the byline now (#62, #63):
 `PostScreen` shows a post's replies underneath it; it now shows what the post itself answers, above it, all the way
 back to the thread's root (#72):
 
-- **The whole ancestor chain, uncapped** — not just the immediate parent. Free: `PostEngagement.Replies` already
-  calls `GetStatusContext`, discarding `context.Ancestors` while keeping `context.Descendants`; ancestors ride the
-  same call, at zero extra cost.
+- **The whole ancestor chain, uncapped** — not just the immediate parent. Free: `PostEngagement` already calls
+  `GetStatusContext`, discarding `context.Ancestors` while keeping `context.Descendants`; ancestors ride the same
+  call, at zero extra cost. The port's method is `IPostEngagement.Thread` and it answers with a **thread**
+  (`PostThread`, CONTEXT.md) — both halves around the post, since it was never one call's worth of question to ask
+  what a post answers separately from what answered it.
 - **Drawn whole**, via `PostLines.Feed`, the same way a reply already draws — not as the compact `↳` mark above,
   whose cost argument (one fetch per reply, on a whole timeline) does not apply to a single already-fetched screen.
 - **Joins the same `Picked<Post>` list** replies already sit in: `[...ancestors, post, ...replies]`. Walked with
@@ -193,7 +197,16 @@ back to the thread's root (#72):
   interaction axis, and no overlap with reference-walking: an ancestor is a whole separate post, not text inside
   this post's body.
 - **The default pick still lands on the subject post**, not the top of the thread — index `ancestors.Count`.
-- **A `── {n} up ──` heading** stands above the post, mirroring `── {n} replies ──` below it.
+- **A `── {n} up ──` heading** stands above the post, mirroring `── {n} replies ──` below it, with a blank either side
+  of it rather than a rule: a heading is already a ruled row.
+- **The subject post's own `↳` mark comes off only where the chain came back.** Taking it off is paid for by the
+  ancestor drawn whole immediately above it, so a reply whose chain came back empty — a deleted parent, an instance
+  that did not send it — keeps the mark, which is then the only thing on the screen saying the post answers anything.
+- **The subject post is found by its id, not by an ordinal.** Both of `PostScreen`'s index-0 assumptions — which post
+  the screen is about, and which row `⏎` refuses — were wrong the moment anything was drawn above it, and a count
+  taken once at construction would go stale the moment an ancestor was deleted out from under the reader.
+- **The status row says `j/k:thread`** rather than `j/k:post · replies`, which stopped being all of what the walk
+  reaches.
 - **Costs one whole post's rows per ancestor** — the same bill a reply already pays, not a new category — plus one
   heading row when any ancestor exists.
 
@@ -386,13 +399,14 @@ selection was the only scroll position a screen had and the foot of such a post 
   the last post entirely, which is the blank under it, reclaims that last post rather than nothing.
 - **A row says which post it is part of.** `Role.Selection` marks only the post already picked out and so cannot name
   any other; every screen holding a selection numbers its rows with the same ordinal `Screen.Pick` takes, including the
-  four that do not number a plain list of posts — the post screen, where 0 is the post itself, search across its three
-  kinds, notifications, and direct messages.
+  four that do not number a plain list of posts — the post screen, where the ancestors come first and the post itself
+  is at `ancestors.Count` (#86), search across its three kinds, notifications, and direct messages.
 - **The offset starts again whenever the screen is replaced, with no exceptions.** Pushing a screen, popping back to
   one, arriving at a destination and refreshing all mean different rows, and an offset made on the last lot says
-  nothing about this one — so it starts at row 0 and follows the pick again (`Restart`). Every replacing screen opens
-  with its first thing picked out, so row 0 is where the pick is too, and the two agree without either being a special
-  case.
+  nothing about this one — so it starts at row 0 and follows the pick again (`Restart`). On every screen but one that
+  is also where the pick is, since they open on their first thing; the post screen opens on a post with its ancestors
+  above it, and following the pick is what carries the page down to it on the first draw rather than opening the
+  reader onto the top of somebody else's thread (#86).
 - **`PgUp`/`PgDn` walk the screen, `Home`/`End` walk the selection.** A page is a screenful of rows, because that is
   what a page is: somebody asking for the next one is asking about what they are looking at, not about how many posts
   happen to be on it. They used to move the selection by ten posts, which on a feed with pictures on it was several

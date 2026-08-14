@@ -89,13 +89,18 @@ public static class PostLines
     ///     the moment said exactly rather than as an age and the counts spelled out.
     /// </summary>
     /// <inheritdoc cref="Feed" />
+    /// <param name="saysWhatItAnswers">
+    ///     Whether the <c>↳</c> row above the byline is drawn. On for every post anywhere, and off for exactly one:
+    ///     the post a post screen is about, whose ancestor chain is drawn whole above it instead (#86).
+    /// </param>
     public static IReadOnlyList<Line> Whole(
         Post post,
         int width,
         Reading reading,
         DateTimeOffset now,
         IPictures? pictures = null,
-        bool hideDrawnCaption = false)
+        bool hideDrawnCaption = false,
+        bool saysWhatItAnswers = true)
     {
         var shown = post.Boosted ?? post;
         var avatar = Avatar.Of(shown, pictures);
@@ -104,7 +109,7 @@ public static class PostLines
         return Parts([
             [
                 .. Boosted(post, $"boosted by {post.Author}", width),
-                .. Answering(shown, width),
+                .. saysWhatItAnswers ? Answering(shown, width) : [],
 
                 // Three byline rows rather than the feed's two, the third being the moment said exactly rather than as
                 // an age — and stepped in with the other two though the avatar's box has run out below it, because two

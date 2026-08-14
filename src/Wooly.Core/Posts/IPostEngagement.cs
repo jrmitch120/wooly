@@ -43,17 +43,28 @@ public interface IPostEngagement
     /// </returns>
     Task<Post> Show(ActiveProfile profile, string postId, CancellationToken cancellationToken);
 
-    /// <summary>Reads what has been said in answer to the post <paramref name="postId" /> names.</summary>
+    /// <summary>
+    ///     Reads the thread the post <paramref name="postId" /> names stands in: what it answers, and what has been
+    ///     said in answer to it.
+    /// </summary>
     /// <remarks>
     ///     Alongside <see cref="Show" /> rather than folded into it, because a caller that already has the post — which
     ///     is every caller that got here by pressing enter on one — would otherwise pay for reading it a second time.
-    ///     A screen showing a post with its replies makes one call, not two.
+    ///     A screen showing a post with its thread around it makes one call, not two.
     ///     <para>
-    ///         What comes back is the whole subtree flattened, oldest first, and not just the direct answers: that is
-    ///         the shape Mastodon serves and the shape a thread reads in. A reply to a reply is still an answer to the
-    ///         post, and dropping it would show a conversation with its middle missing.
+    ///         Both halves rather than the answers alone, because the instance sends both for the one call either way:
+    ///         a caller that wanted what a post answers used to have to ask again for what it already had thrown away
+    ///         (#86).
+    ///     </para>
+    ///     <para>
+    ///         What comes back below the post is the whole subtree flattened, oldest first, and not just the direct
+    ///         answers: that is the shape Mastodon serves and the shape a thread reads in. A reply to a reply is still
+    ///         an answer to the post, and dropping it would show a conversation with its middle missing.
     ///     </para>
     /// </remarks>
-    /// <returns>The replies, or an empty list where nothing has answered it.</returns>
-    Task<IReadOnlyList<Post>> Replies(ActiveProfile profile, string postId, CancellationToken cancellationToken);
+    /// <returns>
+    ///     The thread around the post, whose two halves are empty rather than absent where nothing answered it and it
+    ///     answers nothing.
+    /// </returns>
+    Task<PostThread> Thread(ActiveProfile profile, string postId, CancellationToken cancellationToken);
 }

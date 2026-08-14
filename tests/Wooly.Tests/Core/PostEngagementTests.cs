@@ -116,37 +116,56 @@ public class PostEngagementTests
     }
 
     /// <summary>
-    ///     Mastodon serves what came before a post as well as what came after it, on one endpoint. Only the answers
-    ///     are what a post screen draws underneath it.
+    ///     Mastodon serves what came before a post as well as what came after it, on one endpoint, and both halves are
+    ///     drawn on the post screen — the ancestors above it and the answers below (#86).
     /// </summary>
     [Fact]
-    public async Task Replies_ReadsWhatAnsweredThePostAndNotWhatItAnswered()
+    public async Task Thread_ReadsWhatThePostAnswersAsWellAsWhatAnsweredIt()
     {
         var network = Answering($$"""
                                  {
-                                   "ancestors": [{{StatusJson("100")}}],
+                                   "ancestors": [{{StatusJson("100")}}, {{StatusJson("105")}}],
                                    "descendants": [{{StatusJson("111")}}, {{StatusJson("112")}}]
                                  }
                                  """);
 
-        var replies = await NewEngagement(network).Replies(Profile, "110", TestContext.Current.CancellationToken);
+        var thread = await NewEngagement(network).Thread(Profile, "110", TestContext.Current.CancellationToken);
 
         var request = Assert.Single(network.Requests);
         Assert.Equal(HttpMethod.Get, request.Method);
         Assert.Equal("https://mastodon.social/api/v1/statuses/110/context", request.RequestUri?.ToString());
 
-        Assert.Equal(["111", "112"], replies.Select(reply => reply.Id));
+        Assert.Equal(["100", "105"], thread.Ancestors.Select(ancestor => ancestor.Id));
+        Assert.Equal(["111", "112"], thread.Replies.Select(reply => reply.Id));
     }
 
-    /// <summary>A post nobody has answered has an empty list of answers, which is not a hole for a caller to check for.</summary>
+    /// <summary>
+    ///     The whole chain back to the root, uncapped: a reader who opened the fifth post in a thread is shown the four
+    ///     above it, not just the one it answers (#86).
+    /// </summary>
     [Fact]
-    public async Task Replies_ReportsNothingWhereNobodyHasAnsweredThePost()
+    public async Task Thread_ReadsTheWholeAncestorChainRatherThanTheNearestOne()
+    {
+        var ancestors = string.Join(", ", new[] { "100", "101", "102", "103" }.Select(id => StatusJson(id)));
+        var network = Answering($$"""{"ancestors": [{{ancestors}}], "descendants": []}""");
+
+        var thread = await NewEngagement(network).Thread(Profile, "110", TestContext.Current.CancellationToken);
+
+        Assert.Equal(["100", "101", "102", "103"], thread.Ancestors.Select(ancestor => ancestor.Id));
+    }
+
+    /// <summary>
+    ///     A post standing on its own has empty lists at both ends, which are not holes for a caller to check for.
+    /// </summary>
+    [Fact]
+    public async Task Thread_ReportsNothingWhereNobodyHasAnsweredThePostAndItAnswersNothing()
     {
         var network = Answering("""{"ancestors": [], "descendants": []}""");
 
-        var replies = await NewEngagement(network).Replies(Profile, "110", TestContext.Current.CancellationToken);
+        var thread = await NewEngagement(network).Thread(Profile, "110", TestContext.Current.CancellationToken);
 
-        Assert.Empty(replies);
+        Assert.Empty(thread.Ancestors);
+        Assert.Empty(thread.Replies);
     }
 
     private static ScriptedHttpMessageHandler Answering(string json) =>

@@ -204,7 +204,7 @@ public class MediaLineTests
     {
         var post = APost.With(media: [APost.APicture()]);
 
-        var lines = new PostScreen(post, []).Lines(61, Now, FakePictures.With());
+        var lines = new PostScreen(post, PostThread.Alone).Lines(61, Now, FakePictures.With());
 
         Assert.Equal("m1", Assert.Single(lines, line => line.Wants is not null).Wants?.Id);
     }
@@ -388,7 +388,7 @@ public class MediaLineTests
                                      .SelectMany(line => line.Insets)
                                      .Single();
 
-        var onScreen = new PostScreen(post, []).Lines(61, Now, pictures)
+        var onScreen = new PostScreen(post, PostThread.Alone).Lines(61, Now, pictures)
                                                .SelectMany(line => line.Insets)
                                                .Single();
 
@@ -407,8 +407,8 @@ public class MediaLineTests
         var post = APost.With(media: [APost.APicture()]);
         var pictures = FakePictures.With().Holding("m1", 400, 300);
 
-        Assert.NotEmpty(new PostScreen(post, []).Lines(61, Now, pictures).SelectMany(line => line.Insets));
-        Assert.NotEmpty(new PostScreen(APost.With(id: "1"), [post]).Lines(61, Now, pictures).SelectMany(line => line.Insets));
+        Assert.NotEmpty(new PostScreen(post, PostThread.Alone).Lines(61, Now, pictures).SelectMany(line => line.Insets));
+        Assert.NotEmpty(new PostScreen(APost.With(id: "1"), new PostThread([], [post])).Lines(61, Now, pictures).SelectMany(line => line.Insets));
 
         var home = new Destination(DestinationKind.Home, "Home", Timeline.Home);
 

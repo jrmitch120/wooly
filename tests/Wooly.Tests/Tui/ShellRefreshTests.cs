@@ -249,7 +249,7 @@ public class ShellRefreshTests
 
         Assert.Equal("110", post.Post.Id);
         Assert.Equal(["111", "112"], post.Replies.Select(reply => reply.Id));
-        Assert.Equal(2, shell.Engagement.RepliesRead.Count);
+        Assert.Equal(2, shell.Engagement.ThreadsRead.Count);
 
         // Still one level in: a refresh redraws the screen the reader is on rather than putting them somewhere else.
         Assert.Equal(2, opened.Depth);
@@ -368,14 +368,14 @@ public class ShellRefreshTests
     [Fact]
     public async Task Refresh_DropsAnswersTheReaderHasWalkedOutOfThePostScreenBefore()
     {
-        var held = new TaskCompletionSource<IReadOnlyList<Post>>();
+        var held = new TaskCompletionSource<PostThread>();
         var reads = 0;
 
         var shell = new AShell
         {
             Timelines = FakeTimelineReader.Holding(APost.With(id: "110")),
             Engagement = FakePostEngagement.Awaiting(() => reads++ == 0
-                ? Task.FromResult<IReadOnlyList<Post>>([APost.With(id: "111")])
+                ? Task.FromResult(new PostThread([], [APost.With(id: "111")]))
                 : held.Task),
         };
 
@@ -387,7 +387,7 @@ public class ShellRefreshTests
 
         opened.Back();
 
-        held.SetResult([APost.With(id: "112")]);
+        held.SetResult(new PostThread([], [APost.With(id: "112")]));
 
         await refreshing;
 
@@ -698,13 +698,13 @@ public class ShellRefreshTests
         "notifications" => new NotificationsScreen([ANotification.With()]),
         "messages" => new DirectMessagesScreen([AConversation.With()]),
         "requests" => new FollowRequestsScreen([AnAccount.With()]),
-        "post" => new PostScreen(APost.With(id: "110"), []),
+        "post" => new PostScreen(APost.With(id: "110"), PostThread.Alone),
         "account" => new AccountScreen(AnAccount.With(), [APost.With(id: "110")]),
         "conversation" => new ConversationScreen(AConversation.Thread()),
         "search" => Searched(),
         "compose" => new ComposeScreen(ComposeFor.Post),
         "notice" => new NoticeScreen("hashtag", "No hashtag is set for the rail."),
-        "help" => new HelpScreen(new PostScreen(APost.With(id: "110"), [])),
+        "help" => new HelpScreen(new PostScreen(APost.With(id: "110"), PostThread.Alone)),
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "No screen of that kind."),
     };
 

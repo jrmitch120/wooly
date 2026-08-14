@@ -8,6 +8,15 @@ A cross-platform (.NET) terminal client for Mastodon — a scriptable CLI comman
 A single unit of user-authored content on Mastodon (text, media, poll, content warning). The API's wire format calls this a `status`; older community usage calls it a "toot". This project always says "post" in the spec, domain code, and CLI command/output text — `status`/`toot` may still appear at the literal API-wire-format layer (e.g. deserializing the API's `status` JSON field) but never in user-facing language or domain vocabulary.
 _Avoid_: status, toot
 
+**Thread**:
+What stands either side of one post on its instance: the **ancestors** it answers, back to the root and uncapped, and
+the replies said in answer to it (`PostThread`). One thing rather than two lists, because an instance serves both
+halves on the one call and the post screen draws both — the chain above the post and the answers below. The post it is
+a thread *around* is not on it: whoever asked for it already holds that post, and a second copy would be a round trip
+older than the one on screen. Distinct from a **conversation**, which is a thread of direct messages the instance keeps
+an id for; a thread has no id of its own and is only ever asked for by naming a post in it.
+_Avoid_: context (Mastodon's own word for the endpoint), descendants (for the replies half)
+
 **Attachment**:
 Something on a post besides its text — a picture, an animation, a video, a sound. Two records rather than one, because
 the same subject is a different thing at each end: on its way up it is a file on this machine with a description

@@ -168,9 +168,10 @@ internal sealed class PaintedView : View
     ///     somebody else's.
     /// </summary>
     /// <remarks>
-    ///     A refresh is the one replacement this is not: it puts the same screen up again under a reader who has gone
-    ///     nowhere, so their offset still means something and <see cref="Resume" /> puts it back. Everything else
-    ///     opens with its first thing picked out, which is this row anyway.
+    ///     A refresh included, since what <c>g</c> is for is seeing what has arrived and what has arrived is above
+    ///     everything already read (#84). Most screens open with their first thing picked out, so this row is where
+    ///     the pick is anyway; the post screen is the one that does not, opening on a post with its ancestors drawn
+    ///     above it — and following is what carries the page down to it on the first draw (#86).
     /// </remarks>
     public void Restart()
     {
