@@ -249,7 +249,7 @@ public class ShellRefreshTests
 
         Assert.Equal("110", post.Post.Id);
         Assert.Equal(["111", "112"], post.Replies.Select(reply => reply.Id));
-        Assert.Equal(2, shell.Engagement.RepliesRead.Count);
+        Assert.Equal(2, shell.Engagement.ThreadsRead.Count);
 
         // Still one level in: a refresh redraws the screen the reader is on rather than putting them somewhere else.
         Assert.Equal(2, opened.Depth);

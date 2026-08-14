@@ -199,6 +199,9 @@ back to the thread's root (#72):
 - **The default pick still lands on the subject post**, not the top of the thread — index `ancestors.Count`.
 - **A `── {n} up ──` heading** stands above the post, mirroring `── {n} replies ──` below it, with a blank either side
   of it rather than a rule: a heading is already a ruled row.
+- **The subject post's own `↳` mark comes off only where the chain came back.** Taking it off is paid for by the
+  ancestor drawn whole immediately above it, so a reply whose chain came back empty — a deleted parent, an instance
+  that did not send it — keeps the mark, which is then the only thing on the screen saying the post answers anything.
 - **The subject post is found by its id, not by an ordinal.** Both of `PostScreen`'s index-0 assumptions — which post
   the screen is about, and which row `⏎` refuses — were wrong the moment anything was drawn above it, and a count
   taken once at construction would go stale the moment an ancestor was deleted out from under the reader.
@@ -396,13 +399,14 @@ selection was the only scroll position a screen had and the foot of such a post 
   the last post entirely, which is the blank under it, reclaims that last post rather than nothing.
 - **A row says which post it is part of.** `Role.Selection` marks only the post already picked out and so cannot name
   any other; every screen holding a selection numbers its rows with the same ordinal `Screen.Pick` takes, including the
-  four that do not number a plain list of posts — the post screen, where 0 is the post itself, search across its three
-  kinds, notifications, and direct messages.
+  four that do not number a plain list of posts — the post screen, where the ancestors come first and the post itself
+  is at `ancestors.Count` (#86), search across its three kinds, notifications, and direct messages.
 - **The offset starts again whenever the screen is replaced, with no exceptions.** Pushing a screen, popping back to
   one, arriving at a destination and refreshing all mean different rows, and an offset made on the last lot says
-  nothing about this one — so it starts at row 0 and follows the pick again (`Restart`). Every replacing screen opens
-  with its first thing picked out, so row 0 is where the pick is too, and the two agree without either being a special
-  case.
+  nothing about this one — so it starts at row 0 and follows the pick again (`Restart`). On every screen but one that
+  is also where the pick is, since they open on their first thing; the post screen opens on a post with its ancestors
+  above it, and following the pick is what carries the page down to it on the first draw rather than opening the
+  reader onto the top of somebody else's thread (#86).
 - **`PgUp`/`PgDn` walk the screen, `Home`/`End` walk the selection.** A page is a screenful of rows, because that is
   what a page is: somebody asking for the next one is asking about what they are looking at, not about how many posts
   happen to be on it. They used to move the selection by ten posts, which on a feed with pictures on it was several

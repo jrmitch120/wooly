@@ -94,8 +94,14 @@ public sealed class PostScreen : Screen
     ///     Worked out afresh rather than counted once at construction, because a deletion takes a post off the list
     ///     and everything below it moves up. The post itself never goes — <see cref="Remove" /> keeps it — so the
     ///     search always finds it, and a boost of it is named by its own id, which is the id the row carries.
+    ///     <para>
+    ///         The top of the list where it somehow does not: a screen that has lost the post it is about is a screen
+    ///         about nothing and the shell walks out of it, and falling back is one row drawn wrong where throwing
+    ///         from a draw is a client that stops drawing.
+    ///     </para>
     /// </remarks>
-    private int Subject => _posts.All.TakeWhile(post => post.Id != _postId).Count();
+    private int Subject =>
+        _posts.All.TakeWhile(post => post.Id != _postId).Count() is var at && at < _posts.Count ? at : 0;
 
     /// <inheritdoc />
     public override Post? Picked => _posts.Out;
@@ -154,7 +160,7 @@ public sealed class PostScreen : Screen
 
         // A blank either side rather than the rule that separates two replies below: the heading is already a ruled
         // row, and two of them stacked would read as a boundary twice over.
-        lines.AddRange(Headed(RepliesHeading(subject), width));
+        lines.AddRange(Headed(RepliesHeading(_posts.Count - subject - 1), width));
 
         if (subject == _posts.Count - 1)
         {
@@ -176,11 +182,18 @@ public sealed class PostScreen : Screen
         // The one post on this screen drawn any way but as a feed item: everything else here is what the list draws
         // by default, and which of the two a row gets is settled by which of them asked for it rather than by an
         // ordinal inside a drawing that could answer differently.
-        // Its own ↳ mark comes off with it: what that mark points at is either drawn whole immediately above — this
-        // is the one screen where it is — or is not on this screen at all, and neither case wants the post naming
-        // twice over (#86).
-        IReadOnlyList<Line> Whole(Post post, int at, int room) =>
-            PostLines.Whole(post, room, ReadingOf(post, at), now, pictures, hideDrawnCaption, saysWhatItAnswers: false);
+        // Its own ↳ mark comes off it once — and only once — what the mark points at is drawn whole immediately
+        // above, which is the whole of the reason to take it off (docs/tui-shell.md, #86). A reply whose chain came
+        // back empty, because what it answered has been deleted or because the instance did not send it, keeps the
+        // mark: there is nothing above it saying the same thing, and the row is then all the reader has.
+        IReadOnlyList<Line> Whole(Post post, int at, int room) => PostLines.Whole(
+            post,
+            room,
+            ReadingOf(post, at),
+            now,
+            pictures,
+            hideDrawnCaption,
+            saysWhatItAnswers: subject == 0);
     }
 
     /// <summary>A heading of this screen's own, standing clear of the posts either side of it.</summary>
@@ -192,6 +205,5 @@ public sealed class PostScreen : Screen
     ];
 
     /// <summary>How many answered the post, or the bare word where nobody has.</summary>
-    private string RepliesHeading(int subject) =>
-        _posts.Count - subject - 1 is var replies and > 0 ? $"── {replies} replies ──" : "── replies ──";
+    private static string RepliesHeading(int replies) => replies > 0 ? $"── {replies} replies ──" : "── replies ──";
 }

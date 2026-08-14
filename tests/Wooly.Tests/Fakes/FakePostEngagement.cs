@@ -34,7 +34,7 @@ internal sealed class FakePostEngagement : IPostEngagement
     public List<Shown> Reads { get; } = [];
 
     /// <summary>Every post it was asked for the thread around, in order.</summary>
-    public List<Shown> RepliesRead { get; } = [];
+    public List<Shown> ThreadsRead { get; } = [];
 
     /// <summary>An instance that takes whatever it is asked and answers with <paramref name="answer" />.</summary>
     public static FakePostEngagement Answering(Post? answer = null) => new(answer ?? APost.With());
@@ -87,7 +87,7 @@ internal sealed class FakePostEngagement : IPostEngagement
 
     public Task<PostThread> Thread(ActiveProfile profile, string postId, CancellationToken cancellationToken)
     {
-        RepliesRead.Add(new Shown(profile.Name, postId));
+        ThreadsRead.Add(new Shown(profile.Name, postId));
 
         return _refusal is null ? _thread() : Task.FromException<PostThread>(_refusal);
     }

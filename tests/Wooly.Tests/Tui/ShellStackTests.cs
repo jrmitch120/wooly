@@ -30,7 +30,7 @@ public class ShellStackTests
         var post = Assert.IsType<PostScreen>(opened.Screen);
         Assert.Equal("110", post.Post.Id);
         Assert.Equal(["111"], post.Replies.Select(reply => reply.Id));
-        Assert.Equal("110", Assert.Single(shell.Engagement.RepliesRead).PostId);
+        Assert.Equal("110", Assert.Single(shell.Engagement.ThreadsRead).PostId);
     }
 
     /// <summary>The trail along the top is the stack, which is the whole of how somebody knows where they are.</summary>
@@ -311,7 +311,7 @@ public class ShellStackTests
         Assert.Equal("110", opened.Screen.Picked?.Id);
 
         // One call for the whole thread, not one for each end of it.
-        Assert.Equal("110", Assert.Single(shell.Engagement.RepliesRead).PostId);
+        Assert.Equal("110", Assert.Single(shell.Engagement.ThreadsRead).PostId);
     }
 
     /// <summary>
@@ -345,7 +345,7 @@ public class ShellStackTests
 
         Assert.Equal(3, opened.Depth);
         Assert.Equal("100", Assert.IsType<PostScreen>(opened.Screen).Post.Id);
-        Assert.Equal(["110", "100"], shell.Engagement.RepliesRead.Select(read => read.PostId));
+        Assert.Equal(["110", "100"], shell.Engagement.ThreadsRead.Select(read => read.PostId));
     }
 
     /// <summary>A post nobody has answered says so, rather than showing a heading over nothing.</summary>
@@ -373,7 +373,7 @@ public class ShellStackTests
         await opened.Enter();
 
         Assert.Equal(1, opened.Depth);
-        Assert.Empty(shell.Engagement.RepliesRead);
+        Assert.Empty(shell.Engagement.ThreadsRead);
     }
 
     /// <summary>
@@ -405,7 +405,7 @@ public class ShellStackTests
         Assert.Equal("home › post by @ben@hachyderm.io", opened.Breadcrumb);
 
         // One read, which is the one that opened the screen: a ⏎ with nothing to open asks the instance for nothing.
-        Assert.Single(shell.Engagement.RepliesRead);
+        Assert.Single(shell.Engagement.ThreadsRead);
     }
 
     /// <summary>
@@ -430,7 +430,7 @@ public class ShellStackTests
         shell.Host.Drain();
 
         Assert.Equal(2, opened.Depth);
-        Assert.Single(shell.Engagement.RepliesRead);
+        Assert.Single(shell.Engagement.ThreadsRead);
     }
 
     /// <summary><c>⏎</c> on an answer opens that answer's own screen, the way it does anywhere else.</summary>
@@ -457,7 +457,7 @@ public class ShellStackTests
 
         Assert.Equal(3, opened.Depth);
         Assert.Equal("111", Assert.IsType<PostScreen>(opened.Screen).Post.Id);
-        Assert.Equal(["110", "111"], shell.Engagement.RepliesRead.Select(read => read.PostId));
+        Assert.Equal(["110", "111"], shell.Engagement.ThreadsRead.Select(read => read.PostId));
     }
 
     /// <summary>

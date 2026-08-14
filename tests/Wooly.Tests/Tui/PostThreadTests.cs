@@ -39,6 +39,10 @@ public class PostThreadTests
     private static IReadOnlyList<int> Items(IReadOnlyList<Line> lines) =>
         [.. lines.Select(line => line.Item).OfType<int>()];
 
+    /// <summary>Whether a row is the <c>↳</c> mark, behind the gutter column every row is drawn after.</summary>
+    private static bool SaysWhatItAnswers(Line line) =>
+        line.Text.TrimStart(' ', '▌').StartsWith("↳", StringComparison.Ordinal);
+
     /// <summary>
     ///     The chain the post answers is drawn above it, in the same list its replies are in: the root first, the post
     ///     itself in the middle, and what answered it last.
@@ -152,7 +156,7 @@ public class PostThreadTests
 
         var mine = lines.Where(line => line.Item == 2).ToList();
 
-        Assert.DoesNotContain(mine, line => line.Text.TrimStart().StartsWith("↳", StringComparison.Ordinal));
+        Assert.DoesNotContain(mine, line => SaysWhatItAnswers(line));
     }
 
     /// <summary>Every other post on the screen keeps its mark: an ancestor and a reply are posts like any other.</summary>
@@ -161,8 +165,37 @@ public class PostThreadTests
     {
         var lines = Opened().Lines(61, Now);
 
-        Assert.Contains(lines, line => line.Item == 1 && line.Text.TrimStart().StartsWith("↳", StringComparison.Ordinal));
-        Assert.Contains(lines, line => line.Item == 3 && line.Text.TrimStart().StartsWith("↳", StringComparison.Ordinal));
+        Assert.Contains(lines, line => line.Item == 1 && SaysWhatItAnswers(line));
+        Assert.Contains(lines, line => line.Item == 3 && SaysWhatItAnswers(line));
+    }
+
+    /// <summary>
+    ///     And the post itself keeps its own where nothing came back above it — what it answers has been deleted, or
+    ///     the instance did not send the chain. The mark comes off because its ancestor is drawn whole immediately
+    ///     above it (<c>docs/tui-shell.md</c>), and with no ancestor there the row is all the reader has.
+    /// </summary>
+    [Fact]
+    public void Lines_KeepTheReplyMarkOnAPostWithNoAncestorsAboveIt()
+    {
+        var lines = Opened(ancestors: 0).Lines(61, Now);
+
+        Assert.Contains(lines, line => line.Item == 0 && SaysWhatItAnswers(line));
+    }
+
+    /// <summary>
+    ///     The reader opens onto their own post rather than onto the top of somebody else's thread: the offset starts
+    ///     at nought and following the pick is what carries the page down to it on the first draw
+    ///     (<c>docs/tui-shell.md</c>).
+    /// </summary>
+    [Fact]
+    public void Lines_OpenOnThePostItselfEvenWhereTheChainAboveItFillsThePage()
+    {
+        var lines = Opened(ancestors: 4).Lines(61, Now);
+
+        var at = Scroll.To(lines, 20, from: 0);
+
+        Assert.NotEqual(0, at);
+        Assert.True(Scroll.Shows(lines, 20, at), "the post the screen is about is off the page it opens on");
     }
 
     /// <summary>
