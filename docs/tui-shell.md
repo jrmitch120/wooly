@@ -84,8 +84,8 @@ Feed and post:
 | `d` | Delete | Own posts only, **confirmation required** (story 43) |
 | `x` | Reveal a content warning | |
 | `←` `→` | Walk the references (hashtag, mention, link) inside the picked post | Clamps at the ends; `esc`/`j`/`k` clear the pick; `⏎` opens what's picked (below) |
-| `1`-`9` `0` | Toggle the 1st-10th option of the picked post's poll | No-op with no poll on the picked post, and off the status row there too; `esc`/`j`/`k` discard the toggle |
-| `v` | Cast the toggled poll vote | **Confirmation required** (story 43), same as delete |
+| `1`-`9` `0` | Toggle the 1st-10th option of the picked post's poll | Only where the poll would still take a vote — no-op otherwise, and off the status row there too; `esc`/`j`/`k` discard the toggle |
+| `v` | Cast the toggled poll vote | **Confirmation required** (story 43), same as delete. On a poll already voted in or closed, says which rather than asking |
 
 Screen-local, and deliberately colliding with the above because they are never on screen together:
 
@@ -125,6 +125,11 @@ not answer them differently:
   brackets cost two columns per hint and collide with `‹reference›`'s bracket vocabulary below; capitalising would
   misrepresent a case-significant key (`d` deletes, `D` clears all). The confirmation and notice rows show no keys
   and are untouched. This is `KeyHint`'s own rendering, so a future `?` keymap screen inherits it for free.
+- **A notice takes the whole row, so it goes as soon as it is spent.** The row holds a notice or the keymap and never
+  both, which makes a remark left standing every key the screen answers to, hidden. So a remark goes when the reader
+  walks to another thing — it was about the one they left — and when they do the thing it asked for, as toggling a poll
+  answer does. It already went on `esc` and on arriving anywhere; those two are the same rule said earlier (#87
+  follow-up).
 - **`esc` is always up one level, of whichever kind of level is currently open** — amended from "up one level of the
   stack" now that a reference pick is a level of its own. With a reference picked, the first `esc` clears the pick;
   the next pops the screen (#64). This is the one addition ADR-0014's frame keys have taken since being settled.
@@ -294,9 +299,16 @@ one back, and voting on one, are both built now (#69, #74):
   last). `j`/`k`/`esc` discard an uncommitted toggle, the same rule references use for a picked reference above.
 - **`v` casts it**, through the existing `Confirmation`/story-43 pattern — a cast vote qualifies more than delete
   does, since the API refuses a second vote outright rather than allowing recovery. The two keys are on the status row
-  only while the picked post carries a poll, the same swap a picked reference already makes and for the same reason: a
-  key announced where it does nothing reads as a shell that missed the press. A picked reference wins over a poll,
-  being the level the reader is standing on.
+  only while the picked post carries a poll **that would still take a vote** — one that has not closed and that this
+  profile has not already voted in (`PostPoll.TakesAVote`) — the same swap a picked reference already makes and for the
+  same reason: a key announced where it does nothing reads as a shell that missed the press. A picked reference wins
+  over a poll, being the level the reader is standing on. An answered poll is a result to read: the digits do nothing
+  there, and `v` says which of the two reasons it is rather than nothing at all, the way `m` answers on a conversation
+  already read. Whether a vote would *land* is still the instance's (ADR-0009) — this is only about what is offered.
+- **The ballot says how to cast it**, in a muted row of its own under the boxes: `v casts this vote, esc discards it`.
+  On the poll rather than only on the status row, because this is the one moment in the shell where a key has to be
+  found rather than remembered — the reader is looking at the boxes they have just ticked, not at the foot of the
+  screen. It costs one row, and only while a vote is standing uncast.
 - **No refetch.** `POST /api/v1/polls/:id/votes` returns the complete updated poll in the same response; that feeds
   the same `Replace(...)` call `Mark` already uses.
 - **`Vote(...)` lands on `IPostEngagement`** beside `Mark`/`Show`/`Replies` — and is the one call there that takes the

@@ -54,7 +54,7 @@ public abstract class Screen
     /// </remarks>
     public IReadOnlyList<KeyHint> Keys => Reference is not null
         ? PostKeys.OnAReference(OwnKeys)
-        : Poll is not null ? PostKeys.OnAPoll(OwnKeys) : OwnKeys;
+        : Poll is { TakesAVote: true } ? PostKeys.OnAPoll(OwnKeys) : OwnKeys;
 
     /// <summary>The keys this screen alone settles, which is every key that does not act on a picked reference.</summary>
     protected abstract IReadOnlyList<KeyHint> OwnKeys { get; }
@@ -261,19 +261,19 @@ public abstract class Screen
     ///     Exclusive on a single-choice poll: picking a new answer lets the last one go, because a ballot showing two
     ///     boxes ticked on a poll that takes one would be promising something the instance will refuse.
     ///     <para>
-    ///         Whether the poll is closed, and whether this profile has already voted in it, are deliberately not
-    ///         asked here. Those are the instance's to settle and it settles them on the cast (ADR-0005), so a reader
-    ///         is left free to tick a box and be told no — rather than pressing a key that silently does nothing
-    ///         because this client held its own copy of the rules.
+    ///         A poll that has closed, or that this profile has already voted in, has nothing to toggle: it is a
+    ///         result to read rather than a question to answer, and its own <c>✓</c> is already saying which answer
+    ///         this profile gave. Whether a vote would <em>land</em> is still the instance's (ADR-0009) — this is only
+    ///         about not offering a ballot over an answered poll (#87 follow-up).
     ///     </para>
     /// </remarks>
     /// <returns>
     ///     Whether there was an answer there to toggle, which is what settles whether the key was used: a digit on a
-    ///     post with no poll, or past the end of a short one, does nothing at all.
+    ///     post with no poll, on a poll already answered, or past the end of a short one, does nothing at all.
     /// </returns>
     public bool Toggle(int option)
     {
-        if (Poll is not { } poll || option < 0 || option >= poll.Options.Count)
+        if (Poll is not { TakesAVote: true } poll || option < 0 || option >= poll.Options.Count)
         {
             return false;
         }

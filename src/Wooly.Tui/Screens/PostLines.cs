@@ -514,6 +514,14 @@ public static class PostLines
             yield return PollOptionLine(poll, option, width, mark);
         }
 
+        if (chosen is not null)
+        {
+            // Under the ballot rather than only on the status row, which is where the reader is not looking: they are
+            // looking at the boxes they have just ticked, and this is the one moment in the shell where a key has to
+            // be found rather than remembered. It costs a row, and only while a vote is standing uncast.
+            yield return Line.Of(TextWrap.Clip("v casts this vote, esc discards it", width), Role.Muted);
+        }
+
         if (poll.Closed)
         {
             yield return Line.Of(TextWrap.Clip("Closed", width), Role.Muted);

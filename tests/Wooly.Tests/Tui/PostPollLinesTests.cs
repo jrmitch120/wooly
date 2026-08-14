@@ -260,6 +260,30 @@ public class PostPollLinesTests
             Feed(post, chosen: []).Select(line => line.Text));
     }
 
+    /// <summary>
+    ///     The ballot says how to cast it, under the boxes rather than only on the status row: this is the one moment
+    ///     in the shell where a key has to be found rather than remembered, and the reader is looking at the poll.
+    /// </summary>
+    [Fact]
+    public void Feed_SaysHowToCastAndHowToDiscardWhileAVoteIsToggled()
+    {
+        var lines = Feed(With(APost.APoll()), chosen: [0]);
+
+        var said = lines.First(line => line.Text.Contains("casts this vote", StringComparison.Ordinal));
+
+        Assert.Equal("v casts this vote, esc discards it", said.Text);
+        Assert.Equal(Role.Muted, said.Role);
+    }
+
+    /// <summary>And says it only then: a poll nobody is voting in has no key to press.</summary>
+    [Fact]
+    public void Feed_SaysNothingAboutCastingWhereNoVoteIsToggled()
+    {
+        Assert.DoesNotContain(
+            Feed(With(APost.APoll())),
+            line => line.Text.Contains("casts this vote", StringComparison.Ordinal));
+    }
+
     /// <summary>A ballot is boxes and text, and the boxes are the poll's own role — nothing new was themed for them.</summary>
     [Fact]
     public void Feed_DrawsABallotInThePollsOwnRole()

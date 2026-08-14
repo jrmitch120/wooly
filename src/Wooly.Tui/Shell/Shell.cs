@@ -197,7 +197,9 @@ public sealed class Shell
     public void Move(int by)
     {
         Screen.Move(by);
-        Changed?.Invoke();
+
+        // The remark goes with the post it was said over, for the reason <see cref="Walk" /> gives.
+        Say(null, isError: false);
     }
 
     /// <summary>
@@ -225,7 +227,11 @@ public sealed class Shell
             Screen.Move(by);
         }
 
-        Changed?.Invoke();
+        // A remark is about the post it was said over, and the reader has walked off it — so it goes with them, the
+        // same way esc takes it off on the way out of a screen. It is not a small thing to leave standing: the status
+        // row holds either a notice or the keymap, never both, so a stale one is every key the screen answers to,
+        // hidden until the reader happens to go somewhere.
+        Say(null, isError: false);
     }
 
     /// <summary>
@@ -272,7 +278,10 @@ public sealed class Shell
             return false;
         }
 
-        Changed?.Invoke();
+        // The status row holds one thing at a time and a notice wins it, so a remark left standing is the whole keymap
+        // gone — including the v the reader is being told to press next. A remark is about what had just happened, and
+        // what had just happened is over (#87 follow-up).
+        Say(null, isError: false);
 
         return true;
     }
@@ -763,8 +772,18 @@ public sealed class Shell
     {
         // The poll rather than the post, because it is the poll that settles whether this key means anything — and a
         // post carrying one always has a post to vote on.
-        if (Screen.Poll is null || Screen.Picked is not { } picked)
+        if (Screen.Poll is not { } poll || Screen.Picked is not { } picked)
         {
+            return;
+        }
+
+        if (!poll.TakesAVote)
+        {
+            // Said rather than passed over in silence, the same way m answers on a conversation already read: the
+            // poll is on screen and the key is on the keyboard, so a press that did nothing at all would read as a
+            // shell that missed it. Which of the two reasons it is, is the part worth saying.
+            Say(poll.Closed ? "That poll has closed." : "You have already voted in this poll.", isError: false);
+
             return;
         }
 

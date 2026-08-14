@@ -396,6 +396,107 @@ public class ShellVoteTests
         Assert.True(ticked.Has(Role.Poll));
     }
 
+    /// <summary>
+    ///     A poll this profile has already voted in, or one that has closed, is a result to read rather than a
+    ///     question to answer — so neither key is offered over it and neither does anything.
+    /// </summary>
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task APollThatTakesNoVoteOffersNeitherKey(bool voted, bool closed)
+    {
+        var opened = await Reading(APost.With(
+            id: "220",
+            poll: APost.APoll(voted: voted, closed: closed)));
+
+        Assert.DoesNotContain(opened.Keys, key => key.Key == "1-0");
+        Assert.DoesNotContain(opened.Keys, key => key.Key == "v");
+
+        Assert.False(opened.Toggle(0));
+        Assert.Empty(opened.Screen.Chosen);
+    }
+
+    /// <summary>
+    ///     Which of the two reasons it is, is worth saying: the poll is on screen and the key is on the keyboard, so a
+    ///     press answered with nothing at all reads as a shell that missed it.
+    /// </summary>
+    [Theory]
+    [InlineData(true, false, "already voted")]
+    [InlineData(false, true, "has closed")]
+    public async Task AskToVote_SaysWhyAPollWillTakeNoVote(bool voted, bool closed, string said)
+    {
+        var shell = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(APost.With(id: "220", poll: APost.APoll(voted: voted, closed: closed))),
+        };
+
+        var opened = await shell.Opened();
+
+        opened.AskToVote();
+
+        Assert.Null(opened.Asking);
+        Assert.Contains(said, opened.Notice);
+        Assert.Empty(shell.Engagement.Votes);
+    }
+
+    /// <summary>
+    ///     And once a vote lands, the poll it landed in is one of those: the answer the instance sent back says this
+    ///     profile has voted, so the keys come off the row rather than inviting a second one it would refuse.
+    /// </summary>
+    [Fact]
+    public async Task Answer_TakesTheVotingKeysOffTheRowOnceTheVoteHasLanded()
+    {
+        var shell = new AShell { Timelines = FakeTimelineReader.Holding(Polled) };
+
+        shell.Engagement.Voted = APost.With(
+            id: "220",
+            account: "ben@hachyderm.io",
+            poll: APost.APoll(voted: true));
+
+        var opened = await shell.Opened();
+
+        opened.Toggle(1);
+        opened.AskToVote();
+        await opened.Answer(agreed: true);
+        shell.Host.Drain();
+
+        Assert.DoesNotContain(opened.Keys, key => key.Key == "v");
+    }
+
+    /// <summary>
+    ///     The status row holds a notice or the keymap and never both, so a remark left standing is every key the
+    ///     screen answers to, hidden — including the <c>v</c> the remark itself just asked for.
+    /// </summary>
+    [Fact]
+    public async Task Toggle_TakesAStaleRemarkOffTheRowSoTheKeysAreBackOnIt()
+    {
+        var opened = await Reading(Polled);
+
+        opened.AskToVote();
+
+        Assert.NotNull(opened.Notice);
+
+        opened.Toggle(1);
+
+        Assert.Null(opened.Notice);
+    }
+
+    /// <summary>A remark is about the post it was said over, so walking off that post takes it away too.</summary>
+    [Fact]
+    public async Task Walking_LeavesARemarkBehindWithThePostItWasSaidOver()
+    {
+        var shell = new AShell { Timelines = FakeTimelineReader.Holding(Polled, APost.With(id: "330")) };
+        var opened = await shell.Opened();
+
+        opened.AskToVote();
+
+        Assert.NotNull(opened.Notice);
+
+        opened.Walk(1, reclaiming: null);
+
+        Assert.Null(opened.Notice);
+    }
+
     /// <summary>A shell opened onto a feed holding one post, which is the post every one of these is about.</summary>
     private static async Task<Wooly.Tui.Shell.Shell> Reading(Post post) =>
         await new AShell { Timelines = FakeTimelineReader.Holding(post) }.Opened();

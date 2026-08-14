@@ -35,4 +35,21 @@ public sealed record PostPoll
 
     /// <summary>Whether the profile reading the post has already voted in it.</summary>
     public required bool Voted { get; init; }
+
+    /// <summary>
+    ///     Whether this poll would still take a vote from the profile that read it: one that has not closed, and that
+    ///     they have not already voted in.
+    /// </summary>
+    /// <remarks>
+    ///     The two reasons a poll is finished with a reader are one question, because nothing that acts on the answer
+    ///     tells them apart: a front end offering a vote offers it in a poll that takes one, and the difference between
+    ///     "closed" and "already answered" is something to say rather than something to branch on.
+    ///     <para>
+    ///         Said off what the instance last sent rather than asked for, so it is exactly as fresh as the post
+    ///         carrying it. It is what makes a key worth offering, not what makes a vote legal — the instance settles
+    ///         that when one is cast, and still refuses one this says it would take if the poll shut in between
+    ///         (ADR-0009).
+    ///     </para>
+    /// </remarks>
+    public bool TakesAVote => !Closed && !Voted;
 }
