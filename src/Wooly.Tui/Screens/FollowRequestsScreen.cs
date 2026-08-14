@@ -18,7 +18,7 @@ public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string?
 {
     // Named by the id the instance listed them under, which is what answering a request takes (ADR-0012) — and what a
     // refresh puts the reader back on (#84).
-    private readonly Picked<Account> _waiting = new(waiting, account => account.Id);
+    private readonly Picked<Account> _waiting = new(waiting);
 
     /// <inheritdoc />
     public override string Crumb => "follow requests";

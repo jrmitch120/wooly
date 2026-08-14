@@ -301,31 +301,18 @@ cache. Streaming stays out of scope (below); a manual refresh is the in-scope an
 - **Evicts the destination's cache entry, then re-runs the same fetch its own arrival runs** — `Arrival.At()` for the
   four feeds and Notifications/Messages/Requests, which is one arrival for all seven (#100), `Replies` for the post
   screen, both of `OpenAccount`'s calls for the account screen.
-- **The reader's place follows the post it was on**, matched by id, or clamps at the same ordinal if it's gone — and
-  the page keeps the row it was on within that post, so a refresh moves nothing the reader can see. This is the one
-  exception to "the offset starts again whenever the screen is replaced": that rule is about rows made on *somebody
-  else's* screen, and a fresher copy of the screen you are reading is not somebody else's.
-- **The post it was on is the one being _read_, not the one picked out**, where those differ — which on a feed read
-  the way feeds are read is most of the time. `↓`/`↑` and `PgDn` move the screen and leave the pick alone on purpose
-  (#51), so a reader who has read half way down a timeline still has the pick sitting on its first post; restoring
-  *that* is a refresh that scrolls them back to the top and calls it their place. `g` is told which post is on screen
-  the same way `j` and `k` are — the view's `Reclaimable`, since only a view knows where the arrows left the rows —
-  and takes the pick there first. With the pick still visible there is nothing to reclaim and it is already what they
-  are on.
-- **A place is in two halves, and the view holds one of them.** Which post the reader is on is the shell's, restored
-  by id. How far *into* that post the page has got is the region's alone — `Scroll.Into` before the question is put,
-  `PaintedView.Resume` after it is answered — and without it a refresh snaps the page to the top of that post, which
-  is a page that jumped for somebody who only asked for newer posts. The two halves together are what make the rows
-  on screen the same rows, wherever the post has moved to in a list with newer things above it.
-- **The view is told to keep its half only where a fresher screen actually went up**, which is what `Shell.Refresh`
-  answers — no for a key the screen does not take, a question already in flight, a failure, and an answer overtaken
-  by a reader who has walked somewhere else, the last of which has left the region showing something different
-  entirely. The same shape `WalkReference` answers in, and for the same reason: only the shell knows whether the key
-  was used.
-- **The page stops following the pick when its offset is restored**, which is the state a reader who has scrolled is
-  already in. Following would put a post taller than the terminal back to its own first row — `Scroll.To` honouring
-  "a too-tall post is shown from its top" over an offset the reader made by hand. The next `j` or `k` takes the
-  screen back to following, which is what those keys already do.
+- **It opens at the top, on the newest of what came back.** Nothing about where the reader was standing is carried
+  over — not the scroll offset, not which post was picked. That is the whole of what the key is for: somebody pressing
+  `g` is asking to see what has arrived, and what has arrived is above everything they have already read. A refresh
+  that held their place would fetch the new posts and leave them off the top of the page, which is fetched and
+  invisible. So a refreshed screen is a screen replaced, and a screen replaced starts its offset again (below) with its
+  first thing picked out — which needs no special case at all, and is why there is none.
+- **Nothing is awaited, and `Shell.Refresh` answers with nothing.** Everything a refresh does happens in a callback the
+  host queues onto the main loop, which runs *after* the task `Refresh` hands back has completed. A flag set in that
+  callback and returned across the await is read before it is written — always false in a terminal, always true under a
+  test fake that runs the callback inline — so a refresh must not report anything that way. The window hears the answer
+  as a screen change on `Changed`, in the right order and on the drawing thread, the same way it hears every other
+  screen change.
 - **The badge moves with the count**, from the same answer the screen redraws from — the same rule every other
   arrival already follows.
 - **A refresh goes through `Enquiry` like every other fetch**, discarded unread if the reader has moved on. No new
@@ -401,11 +388,11 @@ selection was the only scroll position a screen had and the foot of such a post 
   any other; every screen holding a selection numbers its rows with the same ordinal `Screen.Pick` takes, including the
   four that do not number a plain list of posts — the post screen, where 0 is the post itself, search across its three
   kinds, notifications, and direct messages.
-- **The offset starts again whenever the screen is replaced.** Pushing a screen, popping back to one and arriving at a
-  destination all mean different rows, and an offset made on the last lot says nothing about this one. It starts at
-  *what the replacing screen has picked out* — row 0 for all three of those, since they open with their first thing
-  picked. A refresh is the exception and keeps the offset it had, because the rows are the same rows: it is the screen
-  you were reading, read again (#84).
+- **The offset starts again whenever the screen is replaced, with no exceptions.** Pushing a screen, popping back to
+  one, arriving at a destination and refreshing all mean different rows, and an offset made on the last lot says
+  nothing about this one — so it starts at row 0 and follows the pick again (`Restart`). Every replacing screen opens
+  with its first thing picked out, so row 0 is where the pick is too, and the two agree without either being a special
+  case.
 - **`PgUp`/`PgDn` walk the screen, `Home`/`End` walk the selection.** A page is a screenful of rows, because that is
   what a page is: somebody asking for the next one is asking about what they are looking at, not about how many posts
   happen to be on it. They used to move the selection by ten posts, which on a feed with pictures on it was several

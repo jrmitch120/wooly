@@ -276,8 +276,9 @@ public sealed class Shell
     }
 
     /// <summary>
-    ///     Asks for what is there now: evicts what the destination last held and puts the same question its own
-    ///     arrival puts, keeping the reader on the post they were reading (<c>docs/tui-shell.md</c>, #84).
+    ///     Asks for what is there now: evicts what the destination last held, puts the same question its own arrival
+    ///     puts, and opens the answer at the top so that what has just arrived is what the reader is looking at
+    ///     (<c>docs/tui-shell.md</c>, #84).
     /// </summary>
     /// <remarks>
     ///     Only where the screen says it answers to <c>g</c>, which is the nine the contract names. A second press
@@ -289,44 +290,31 @@ public sealed class Shell
     ///         destination already says (#100). The other two are screens the stack was drilled into, and each puts
     ///         its own question again.
     ///     </para>
+    ///     <para>
+    ///         Nothing about where the reader was standing is carried over, and that is the whole point of the key: a
+    ///         refresh is somebody asking to see what is new, and what is new is at the top. Keeping their place would
+    ///         leave the new posts above the page, which is to say fetched and invisible.
+    ///     </para>
+    ///     <para>
+    ///         Answers with nothing, and deliberately. Everything a refresh does happens on the drawing thread, in the
+    ///         callback <see cref="Enquiry.Put" /> hands to the host — which is queued there and run by the main loop
+    ///         <em>after</em> this task has already completed. A flag set inside that callback and returned from here
+    ///         would be read before it was ever written. What the view needs to know is that a screen was replaced,
+    ///         and it already learns that from <see cref="Changed" /> — in the right order, on the right thread.
+    ///     </para>
     /// </remarks>
-    /// <param name="reclaiming">
-    ///     The post the reader is actually looking at, where the arrows have scrolled what is picked out off the page
-    ///     — the same thing <see cref="Walk" /> is given, worked out the same way and for the same reason (#51).
-    ///     <see langword="null" /> while the pick is still on screen, which is when it is already what they are on.
-    /// </param>
-    /// <returns>
-    ///     Whether a fresher screen went up in place of the one that was showing — no for a key this screen does not
-    ///     answer to, for a question already in flight, and for an answer that failed or was overtaken. What the view
-    ///     needs in order to put the reader back at the row they were on, which is the half of their place it holds
-    ///     and this does not (#84). The same shape <see cref="WalkReference" /> answers in, and for the same reason:
-    ///     only the shell knows whether the key was used.
-    /// </returns>
-    public Task<bool> Refresh(int? reclaiming = null)
+    public Task Refresh()
     {
         if (!Screen.Refreshes || Fetching)
         {
-            return Task.FromResult(false);
+            return Task.CompletedTask;
         }
-
-        // What a reader is standing on is the post in front of them, which is not the picked one where they have read
-        // on down the page with the arrows: those move the screen and leave the pick where it was, on purpose (#51),
-        // so on a feed read the way feeds are read the pick is still on the first post while the reader is half way
-        // down it. Taking the pick there would put them back at the top of the timeline and call it their place.
-        if (reclaiming is { } at)
-        {
-            Screen.Pick(at);
-        }
-
-        // Taken down before anything is asked, because the arrival below puts an empty screen up at once and the
-        // reader's place goes with the screen it was on.
-        var place = Screen.Place;
 
         return Screen switch
         {
-            PostScreen post => RefreshPost(post, place),
-            AccountScreen account => RefreshAccount(account, place),
-            _ => RefreshDestination(place),
+            PostScreen post => RefreshPost(post),
+            AccountScreen account => RefreshAccount(account),
+            _ => RefreshDestination(),
         };
     }
 
@@ -926,28 +914,21 @@ public sealed class Shell
     ///     a destination's screen answers to <c>g</c>, and a destination's screen is only ever the bottom of the stack
     ///     — anything drilled into from one is a screen of some other kind, which is refreshed by the two below.
     /// </remarks>
-    private Task<bool> RefreshDestination(Place place)
+    private Task RefreshDestination()
     {
         _cache.Forget(Rail.Showing.Kind);
 
-        return _arrival.Again(Rail.Showing, place);
+        return _arrival.Again(Rail.Showing);
     }
 
     /// <summary>
     ///     The same for the post screen, which no arrival reaches: the <c>Replies</c> call <see cref="Enter" /> ran to
     ///     open it, about the same post it is already about.
     /// </summary>
-    private async Task<bool> RefreshPost(PostScreen showing, Place place)
-    {
-        var freshened = false;
-
-        await _enquiry.Put(
+    private Task RefreshPost(PostScreen showing) =>
+        _enquiry.Put(
             ask => ReadReplies(ask, showing.Post),
-            ifStillHere: replies =>
-                freshened = Freshened(showing, new PostScreen(showing.Post, replies), place));
-
-        return freshened;
-    }
+            ifStillHere: replies => Freshened(showing, new PostScreen(showing.Post, replies)));
 
     /// <summary>
     ///     What has been said in answer to a post — asked about the post itself where what is in hand is a boost of
@@ -966,17 +947,10 @@ public sealed class Shell
     }
 
     /// <summary>And for the account screen, which is both of the calls that opened it.</summary>
-    private async Task<bool> RefreshAccount(AccountScreen showing, Place place)
-    {
-        var freshened = false;
-
-        await _enquiry.Put(
+    private Task RefreshAccount(AccountScreen showing) =>
+        _enquiry.Put(
             ask => ReadAccount(ask, AccountAddress.Parse(showing.Account.Address)),
-            ifStillHere: found =>
-                freshened = Freshened(showing, new AccountScreen(found.Account, found.Posts), place));
-
-        return freshened;
-    }
+            ifStillHere: found => Freshened(showing, new AccountScreen(found.Account, found.Posts)));
 
     /// <summary>
     ///     Puts <paramref name="fresh" /> in place of the screen it is a fresher copy of, with the reader put back
@@ -991,19 +965,17 @@ public sealed class Shell
     ///     <para>
     ///         In place of the top rather than pushed or reset: a refresh redraws where somebody is standing, so the
     ///         way they got there is still under them and <c>esc</c> still walks back out of it. A different screen
-    ///         object rather than the same one changed, which is what puts the scroll offset back to nought — the
-    ///         offset starts again whenever the screen is replaced (<c>docs/tui-shell.md</c>).
+    ///         object rather than the same one changed, which is how the view is told the screen was replaced at all
+    ///         (<c>docs/tui-shell.md</c>) — and a refresh is the one replacement whose offset is put back rather than
+    ///         started again, which the view settles from the place it is holding.
     ///     </para>
     /// </remarks>
-    /// <returns>Whether it went up, which is no for a reader who has walked out of the screen it is about.</returns>
-    private bool Freshened(Screen showing, Screen fresh, Place place)
+    private void Freshened(Screen showing, Screen fresh)
     {
         if (!ReferenceEquals(Screen, showing))
         {
-            return false;
+            return;
         }
-
-        fresh.Resume(place);
 
         _stack[^1] = fresh;
 
@@ -1012,8 +984,6 @@ public sealed class Shell
         Notice = null;
 
         Changed?.Invoke();
-
-        return true;
     }
 
     /// <summary>

@@ -272,23 +272,7 @@ public abstract class Screen
         Walking?.Pick(at);
     }
 
-    /// <summary>
-    ///     Where the reader is standing on this screen, or nowhere on one with nothing to walk — what a refresh takes
-    ///     down before the screen is replaced, and hands to whatever replaces it (#84).
-    /// </summary>
-    public Place Place => Walking?.Place ?? default;
 
-    /// <summary>
-    ///     Puts the reader back where <paramref name="place" /> says, which is how a screen a refresh has just built
-    ///     opens on the post its predecessor was left on rather than at the top.
-    /// </summary>
-    /// <remarks>
-    ///     The same two lines for every screen, for the reason <see cref="Move" /> and <see cref="Pick" /> give: a
-    ///     screen resuming its own way could put the reader somewhere its rows are numbered differently. A place taken
-    ///     off a screen with nothing on it names nothing and sits at nought, which is where a fresh screen starts
-    ///     anyway — so an ordinary arrival passing one through changes nothing.
-    /// </remarks>
-    public void Resume(Place place) => Walking?.Resume(place);
 
     /// <summary>The content warnings the reader has asked past on this screen, by the id of the post each is on.</summary>
     /// <remarks>

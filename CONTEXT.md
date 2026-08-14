@@ -118,18 +118,11 @@ so the stack keeps its depth, the screen is replaced where it stands rather than
 showing stands until there is something fresher to put in its place — where an arrival empties the screen at once,
 because what was on it is about somewhere else. A live conversation and a live search are each their own question and
 are not this.
+**Opens at the top**, on the newest of what came back, and keeps nothing of where the reader was standing. That is the
+whole of what the key is for: somebody pressing it is asking to see what has arrived, and what has arrived is above
+everything they have already read — so a refresh that held their place would fetch the new posts and leave them off the
+top of the page, which is fetched and invisible.
 _Avoid_: reload, poll, sync, refetch
-
-**Place**:
-Where a reader was standing on a screen, in two halves: the thing they were reading — by its own id, and where it sat
-on the list — and how far down into it the page had got, which is the view's half, since only a view knows its rows.
-What a **refresh** hands to the screen replacing the one it was taken off, so that a fresher list opens on the post
-they were reading — matched by id, and clamped to the same ordinal where the thing itself is gone. The thing being
-read is the one **picked** out only while the pick is on screen: the arrows move the screen and leave the pick behind,
-so a place is taken from the post in front of the reader, the same one `j` and `k` reclaim (#51). Both halves are put
-back, which is what makes a **refresh** move nothing on screen. Distinct from **picked**, which is the pick as it
-stands now; a place is where somebody was, written down to be put back.
-_Avoid_: position, index, state
 
 **Picked**:
 Which of the things on a screen the reader has walked to with `j` and `k`, and what every key that acts on something

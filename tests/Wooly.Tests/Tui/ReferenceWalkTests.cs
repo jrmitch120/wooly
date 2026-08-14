@@ -49,7 +49,7 @@ public class ReferenceWalkTests
     [InlineData(false, Last)]
     public async Task TheArrowsEnterAtOneEndOrTheOther(bool forwards, string expected)
     {
-        var (window, shell) = await Opened();
+        var (window, shell, host) = await Opened();
 
         using (window)
         {
@@ -70,7 +70,7 @@ public class ReferenceWalkTests
     [InlineData(false, First)]
     public async Task TheArrowsClampAtTheEndsRatherThanWrapping(bool forwards, string expected)
     {
-        var (window, shell) = await Opened();
+        var (window, shell, host) = await Opened();
 
         using (window)
         {
@@ -90,11 +90,13 @@ public class ReferenceWalkTests
     [Fact]
     public async Task Esc_LetsThePickGoBeforeItPopsTheScreen()
     {
-        var (window, shell) = await Opened();
+        var (window, shell, host) = await Opened();
 
         using (window)
         {
             window.NewKeyDownEvent(Key.Enter);
+
+            host.Drain();
 
             Assert.Equal(2, shell.Depth);
 
@@ -122,7 +124,7 @@ public class ReferenceWalkTests
     [InlineData(false)]
     public async Task WalkingOffThePostLetsThePickGoAndScrollingDoesNot(bool down)
     {
-        var (window, shell) = await Opened();
+        var (window, shell, host) = await Opened();
 
         using (window)
         {
@@ -302,7 +304,7 @@ public class ReferenceWalkTests
     }
 
     /// <summary>A shell on a feed whose first post carries all three kinds of reference, ready for keys.</summary>
-    private static async Task<(ShellWindow Window, Wooly.Tui.Shell.Shell Shell)> Opened()
+    private static async Task<(ShellWindow Window, Wooly.Tui.Shell.Shell Shell, FakeShellHost Host)> Opened()
     {
         var built = new AShell
         {
@@ -321,6 +323,6 @@ public class ReferenceWalkTests
 
         window.Layout();
 
-        return (window, shell);
+        return (window, shell, built.Host);
     }
 }

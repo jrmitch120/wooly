@@ -20,7 +20,7 @@ public sealed class NotificationsScreen(IReadOnlyList<Notification> notification
 {
     // Named by the notification's own id, which is not the id of the post it is about (CONTEXT.md) — and is what a
     // refresh puts the reader back on (#84).
-    private readonly Picked<Notification> _notifications = new(notifications, notification => notification.Id);
+    private readonly Picked<Notification> _notifications = new(notifications);
 
     /// <inheritdoc />
     public override string Crumb => "notifications";

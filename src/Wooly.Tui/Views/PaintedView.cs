@@ -149,56 +149,32 @@ internal sealed class PaintedView : View
     public void Follow() => _following = true;
 
     /// <summary>
-    ///     How far into the post being read the page has got, which is the half of a reader's place that only a view
-    ///     holds — the shell keeps which post it is (#84).
-    /// </summary>
-    public int Into
-    {
-        get
-        {
-            var width = Viewport.Width;
-            var height = Viewport.Height;
-
-            return Scrolls && width > 0 && height > 0 ? Scroll.Into(_rows(width, height), _top) : 0;
-        }
-    }
-
-    /// <summary>
-    ///     Puts the reader back exactly where they were on a screen that has been replaced by a fresher copy of
-    ///     itself: <paramref name="into" /> rows into the post they were reading, wherever it has moved to (#84).
+    ///     Which row the page begins on: the one fact this view owns outright, and the one every other answer here is
+    ///     derived from.
     /// </summary>
     /// <remarks>
-    ///     Left not following, because a reader who has scrolled has taken the offset over and this is that offset
-    ///     restored — and because following would put a post taller than the terminal back to its own first row, which
-    ///     is <see cref="Scroll.To" /> honouring "shown from the top" over an offset the reader made themselves. The
-    ///     next <c>j</c> or <c>k</c> takes the screen back to following, which is what those keys already do.
+    ///     Readable so that a test can see where the page actually is, rather than only what the view says about it.
+    ///     <see cref="Into" /> is measured from whatever post is topmost and so agrees with itself wherever the page
+    ///     has landed — it cannot tell "left alone" from "jumped by exactly one post", which is the shape every wrong
+    ///     answer to #84 has taken.
     /// </remarks>
-    public void Resume(int into)
-    {
-        Restart();
+    internal int Top => _top;
 
-        _top = Math.Max(0, _top + into);
-        _following = false;
-    }
+
 
     /// <summary>
-    ///     Starts again at what is picked out, following. What a screen being replaced does — pushed, popped back to,
-    ///     a destination arrived at, or the same one asked again — because a row offset is about the rows it was made
-    ///     on and means nothing on somebody else's.
+    ///     Starts again at the top, following. What a screen being replaced does — pushed, popped back to, or a
+    ///     destination arrived at — because a row offset is about the rows it was made on and means nothing on
+    ///     somebody else's.
     /// </summary>
     /// <remarks>
-    ///     At the selection rather than at row nought, which is the same row for every screen that opens with the
-    ///     first thing on it picked out — a pushed post, an arrival, a keymap. It is a different row only where the
-    ///     replacing screen has put the pick further down, which is a refresh restoring the post its reader was
-    ///     reading: starting at nought and letting the next frame bring that post into view lands it at the foot of
-    ///     the page, and a reader who had it at the top is thrown backwards a screenful for pressing <c>g</c> (#84).
+    ///     A refresh is the one replacement this is not: it puts the same screen up again under a reader who has gone
+    ///     nowhere, so their offset still means something and <see cref="Resume" /> puts it back. Everything else
+    ///     opens with its first thing picked out, which is this row anyway.
     /// </remarks>
     public void Restart()
     {
-        var width = Viewport.Width;
-        var height = Viewport.Height;
-
-        _top = Scrolls && width > 0 && height > 0 ? Scroll.Begins(_rows(width, height)) : 0;
+        _top = 0;
         _following = true;
     }
 

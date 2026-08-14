@@ -54,6 +54,7 @@ public class ShellRequestTests
         shell.Host.Settle();
 
         await opened.Press(key);
+        shell.Host.Drain();
 
         var answered = Assert.Single(shell.Accounts.Answers);
         Assert.Equal("42", answered.AccountId);
@@ -83,6 +84,7 @@ public class ShellRequestTests
         shell.Host.Settle();
 
         await opened.Press(ShellKey.Enter);
+        shell.Host.Drain();
 
         var account = Assert.IsType<AccountScreen>(opened.Screen);
         Assert.Equal("alice@hachyderm.io", account.Account.Address);

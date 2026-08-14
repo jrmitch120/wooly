@@ -74,59 +74,7 @@ public static class Scroll
         return Math.Clamp(top, 0, Math.Max(0, lines.Count - 1));
     }
 
-    /// <summary>
-    ///     Which row what is picked out begins on, or nought where nothing is — the top of the page for a screen
-    ///     starting again (<see cref="Line.Has" />).
-    /// </summary>
-    /// <remarks>
-    ///     Told apart from <see cref="To" />, which brings the selection <em>into view</em> from wherever the scroll
-    ///     already is and so lands it at the foot of the page when it is below. That is the right answer for a reader
-    ///     walking down a list with <c>j</c> — they are moving one post at a time and the page should follow — and the
-    ///     wrong one for a screen being replaced under somebody who was reading: what they had at the top of the page
-    ///     comes back at the bottom of it, which reads as being thrown backwards a screenful (#84).
-    /// </remarks>
-    public static int Begins(IReadOnlyList<Line> lines)
-    {
-        for (var at = 0; at < lines.Count; at++)
-        {
-            if (lines[at].Has(Role.Selection))
-            {
-                return at;
-            }
-        }
 
-        return 0;
-    }
-
-    /// <summary>
-    ///     How far into the topmost thing on the page the offset has got: nought where the page begins exactly on it,
-    ///     and the rows of it already scrolled past otherwise.
-    /// </summary>
-    /// <remarks>
-    ///     The other half of a reader's place, and the half only a view can hold: <see cref="Topmost" /> says which
-    ///     post they are reading and this says whereabouts in it they have got to. A screen replaced by a fresher copy
-    ///     of itself keeps both, which is what makes a refresh leave the page alone — keeping only the post moves it
-    ///     to the top of the page, which is a page that jumped for somebody who asked for newer posts (#84).
-    /// </remarks>
-    public static int Into(IReadOnlyList<Line> lines, int from)
-    {
-        var at = By(lines, from, 0);
-
-        if (Topmost(lines, at) is not { } item)
-        {
-            return 0;
-        }
-
-        for (var row = 0; row < lines.Count; row++)
-        {
-            if (lines[row].Item == item)
-            {
-                return at - row;
-            }
-        }
-
-        return 0;
-    }
 
     /// <summary>
     ///     Where <paramref name="rows" /> of scrolling from <paramref name="from" /> lands: what <c>↓</c> and <c>↑</c>

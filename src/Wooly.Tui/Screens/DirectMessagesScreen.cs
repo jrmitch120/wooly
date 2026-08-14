@@ -24,7 +24,7 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
 {
     // Named by the conversation's own id, which is not the id of any post in it (CONTEXT.md) — and is what a refresh
     // puts the reader back on (#84).
-    private readonly Picked<Conversation> _conversations = new(conversations, conversation => conversation.Id);
+    private readonly Picked<Conversation> _conversations = new(conversations);
 
     /// <inheritdoc />
     public override string Crumb => "direct messages";

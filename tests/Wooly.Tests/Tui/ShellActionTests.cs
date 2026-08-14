@@ -71,6 +71,7 @@ public class ShellActionTests
         var opened = await shell.Opened();
 
         await opened.Mark(PostMark.Favorite);
+        shell.Host.Drain();
 
         Assert.True(opened.Screen.Picked?.Marks.Favorited);
     }
@@ -144,6 +145,7 @@ public class ShellActionTests
         var opened = await shell.Opened();
 
         await opened.Enter();
+        shell.Host.Drain();
         opened.AskToDelete();
 
         opened.Back();
@@ -176,6 +178,7 @@ public class ShellActionTests
 
         opened.AskToDelete();
         await opened.Answer(agreed: true);
+        shell.Host.Drain();
 
         var feed = Assert.IsType<FeedScreen>(opened.Screen);
         Assert.Equal(["220"], feed.Posts.Select(post => post.Id));
@@ -196,6 +199,7 @@ public class ShellActionTests
         compose.Text = "Hello from the rail";
 
         await opened.Send();
+        shell.Host.Drain();
 
         var published = Assert.Single(shell.Author.Published);
         Assert.Equal("Hello from the rail", published.Draft.Text);

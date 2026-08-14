@@ -14,12 +14,15 @@ using Wooly.Tui.Views;
 namespace Wooly.Tests.Tui;
 
 /// <summary>
-///     Asking a destination for fresh posts by hand: <c>g</c> evicts what the destination last held and puts the same
-///     question its own arrival puts, keeping the reader on the post they were reading (<c>docs/tui-shell.md</c>, #84).
+///     Asking a destination for fresh posts by hand: <c>g</c> evicts what the destination last held, puts the same
+///     question its own arrival puts, and opens the answer at the top — on what has just arrived, which is what the
+///     key is for (<c>docs/tui-shell.md</c>, #84).
 /// </summary>
 /// <remarks>
 ///     No terminal, except where the question is which key a reader pressed: what a refresh costs, what it draws and
-///     where it leaves the pick are all facts about the shell.
+///     where it leaves the pick are all facts about the shell. The <c>G_</c> tests draw real frames, because the row
+///     the page begins on is settled inside <c>Rows()</c> on the draw and a window that is only laid out never runs
+///     it.
 /// </remarks>
 public class ShellRefreshTests
 {
@@ -37,6 +40,7 @@ public class ShellRefreshTests
         shell.Timelines.NowHolding(APost.With(id: "111"), APost.With(id: "110"));
 
         await opened.Refresh();
+        shell.Host.Drain();
 
         Assert.Equal(readsWhenOpened + 1, shell.Timelines.Reads.Count);
 
@@ -46,11 +50,11 @@ public class ShellRefreshTests
     }
 
     /// <summary>
-    ///     The reader is left on the post they were reading, not on whatever has arrived above it since — which is the
-    ///     difference between a refresh and a reload.
+    ///     The reader is put back at the top of the list, on whatever has arrived since — which is what a refresh is
+    ///     for. Keeping them where they were would leave the new posts above the page: fetched, and invisible.
     /// </summary>
     [Fact]
-    public async Task Refresh_KeepsTheReaderOnThePostTheyWereOn()
+    public async Task Refresh_PutsTheReaderAtTheTopOfWhatArrived()
     {
         var shell = new AShell
         {
@@ -74,30 +78,10 @@ public class ShellRefreshTests
 
         await opened.Refresh();
 
-        Assert.Equal("220", opened.Screen.Picked?.Id);
-    }
+        shell.Host.Drain();
 
-    /// <summary>A post taken down while it was being read leaves the pick at the same ordinal rather than at the top.</summary>
-    [Fact]
-    public async Task Refresh_ClampsAtTheSameOrdinalWhereThePostIsGone()
-    {
-        var shell = new AShell
-        {
-            Timelines = FakeTimelineReader.Holding(
-                APost.With(id: "110"),
-                APost.With(id: "220"),
-                APost.With(id: "330")),
-        };
-
-        var opened = await shell.Opened();
-
-        opened.Move(1);
-
-        shell.Timelines.NowHolding(APost.With(id: "110"), APost.With(id: "330"));
-
-        await opened.Refresh();
-
-        Assert.Equal("330", opened.Screen.Picked?.Id);
+        // The newest post, which is the one they pressed g to see — not the 220 they were standing on.
+        Assert.Equal("105", opened.Screen.Picked?.Id);
     }
 
     /// <summary>
@@ -112,6 +96,7 @@ public class ShellRefreshTests
         var before = opened.Screen;
 
         await opened.Refresh();
+        shell.Host.Drain();
 
         Assert.NotSame(before, opened.Screen);
         Assert.Equal(1, opened.Depth);
@@ -140,6 +125,7 @@ public class ShellRefreshTests
         opened.Move(1);
 
         await opened.Refresh();
+        shell.Host.Drain();
 
         var feed = Assert.IsType<FeedScreen>(opened.Screen);
 
@@ -164,6 +150,7 @@ public class ShellRefreshTests
         shell.Notifications.NowHolding(ANotification.With(id: "1"), ANotification.With(id: "2"));
 
         await opened.Refresh();
+        shell.Host.Drain();
 
         var notifications = Assert.IsType<NotificationsScreen>(opened.Screen);
 
@@ -251,10 +238,12 @@ public class ShellRefreshTests
         var opened = await shell.Opened();
 
         await opened.Enter();
+        shell.Host.Drain();
 
         shell.Engagement.NowAnswered(APost.With(id: "111"), APost.With(id: "112"));
 
         await opened.Refresh();
+        shell.Host.Drain();
 
         var post = Assert.IsType<PostScreen>(opened.Screen);
 
@@ -279,11 +268,13 @@ public class ShellRefreshTests
         var opened = await shell.Opened();
 
         await opened.OpenAuthor();
+        shell.Host.Drain();
 
         var reads = shell.Accounts.Reads.Count;
         var timelines = shell.Timelines.Reads.Count;
 
         await opened.Refresh();
+        shell.Host.Drain();
 
         var account = Assert.IsType<AccountScreen>(opened.Screen);
 
@@ -315,15 +306,19 @@ public class ShellRefreshTests
         var refreshing = opened.Refresh();
         var inFlight = shell.Timelines.Reads.Count;
 
+        shell.Host.Drain();
+
         Assert.True(opened.Fetching);
 
         await opened.Refresh();
+        shell.Host.Drain();
 
         Assert.Equal(inFlight, shell.Timelines.Reads.Count);
 
         held.SetResult(Fetch<Post>.Complete([APost.With(id: "111")]));
 
         await refreshing;
+        shell.Host.Drain();
 
         var feed = Assert.IsType<FeedScreen>(opened.Screen);
 
@@ -418,11 +413,13 @@ public class ShellRefreshTests
         shell.Host.Settle();
 
         await opened.OpenConversation();
+        shell.Host.Drain();
 
         var conversation = Assert.IsType<ConversationScreen>(opened.Screen);
         var shown = shell.Messages.Shown.Count;
 
         await opened.Refresh();
+        shell.Host.Drain();
 
         Assert.Same(conversation, opened.Screen);
         Assert.Equal(shown, shell.Messages.Shown.Count);
@@ -443,10 +440,15 @@ public class ShellRefreshTests
         var opened = await shell.Opened();
 
         opened.Search();
+
+        shell.Host.Drain();
+
         opened.Type('d');
 
         await opened.Find();
+        shell.Host.Drain();
         await opened.OpenResult();
+        shell.Host.Drain();
 
         var tag = Assert.IsType<FeedScreen>(opened.Screen);
         var reads = shell.Timelines.Reads.Count;
@@ -454,6 +456,7 @@ public class ShellRefreshTests
         Assert.False(tag.Refreshes);
 
         await opened.Refresh();
+        shell.Host.Drain();
 
         Assert.Same(tag, opened.Screen);
         Assert.Equal(reads, shell.Timelines.Reads.Count);
@@ -511,58 +514,20 @@ public class ShellRefreshTests
     }
 
     /// <summary>
-    ///     The scroll offset starts again, which is the half of this no shell can answer: only the view knows where
-    ///     the arrows left the rows. A refresh replaces the screen rather than changing it, and a screen replaced is
-    ///     one the content region puts its offset back on (<c>docs/tui-shell.md</c>) — at the post the reader was
-    ///     reading, which is where the pick has just been put.
+    ///     <c>g</c> takes the reader to the top of the freshly read list, which is what the key is for: they have
+    ///     asked to see what is new, and what is new is at the top (#84).
     /// </summary>
     /// <remarks>
-    ///     <c>PgDn</c> rather than the arrows, which is how the report that found this was written: a page is a
-    ///     screenful, so a couple of presses is well past what is picked out however tall the posts are.
+    ///     <c>PgDn</c> first, so the page starts well down the list and "went to the top" is a real movement rather
+    ///     than a page that never left. Asserted on <see cref="PaintedView.Top" /> — the row the page begins on, the
+    ///     one fact the region owns outright — and on the pick, since both halves have to arrive at the top together.
+    ///     <para>
+    ///         Real frames are drawn either side, because <c>_top</c> is settled inside <c>Rows()</c> on the draw: a
+    ///         window that is only laid out never runs the clamping or the follow that every actual frame runs.
+    ///     </para>
     /// </remarks>
     [Fact]
-    public async Task G_LeavesThePageExactlyWhereTheReaderHadIt()
-    {
-        var (window, shell, _) = await Laid();
-
-        using (window)
-        {
-            var content = window.SubViews.OfType<PaintedView>().Single(view => view.Id == ShellWindow.ContentId);
-
-            window.NewKeyDownEvent(Key.PageDown);
-
-            var reading = content.Reclaimable;
-            var into = content.Into;
-
-            Assert.NotNull(reading);
-
-            // Part way into the post at the top of the page rather than exactly on its first row, which is what makes
-            // this able to tell "left alone" from "moved to the top of that post".
-            Assert.NotEqual(0, into);
-
-            window.NewKeyDownEvent(Key.G);
-
-            var feed = Assert.IsType<FeedScreen>(shell.Screen);
-
-            // The same rows, still: the post being read is still the post being read, and the page has got exactly as
-            // far into it as it had. A refresh asks for newer posts; it does not scroll anybody anywhere.
-            Assert.Equal(feed.Posts[reading.Value].Id, shell.Screen.Picked?.Id);
-            Assert.Equal(into, content.Into);
-        }
-    }
-
-    /// <summary>
-    ///     A reader who has read down the page with the arrows is left reading where they were, not carried back to
-    ///     the top. The arrows move the screen and leave the pick where it was on purpose (#51), so on a feed read the
-    ///     way feeds are read the pick is still on the first post while the reader is half way down — and a refresh
-    ///     that put them back on <em>that</em> would be a refresh that scrolls them to the top of the timeline.
-    /// </summary>
-    /// <remarks>
-    ///     The post they are looking at is the view's to name, exactly as it is for <c>j</c> and <c>k</c>, so this is
-    ///     asked of the window rather than of the shell.
-    /// </remarks>
-    [Fact]
-    public async Task G_KeepsAReaderWhoScrolledWithTheArrowsWhereTheyWereReading()
+    public async Task G_TakesTheReaderToTheTopOfTheFreshList()
     {
         var (window, shell, built) = await Laid();
 
@@ -570,25 +535,119 @@ public class ShellRefreshTests
         {
             var content = window.SubViews.OfType<PaintedView>().Single(view => view.Id == ShellWindow.ContentId);
 
-            // Read on down the page without ever moving the pick, which is what the arrows are for.
-            for (var pressed = 0; pressed < 10; pressed++)
-            {
-                window.NewKeyDownEvent(Key.CursorDown);
-            }
+            window.Draw();
+            window.NewKeyDownEvent(Key.PageDown);
+            window.Draw();
 
-            var reading = content.Reclaimable;
-
-            Assert.NotNull(reading);
-            Assert.Equal("110", shell.Screen.Picked?.Id);
-
-            var reads = built.Timelines.Reads.Count;
+            Assert.NotEqual(0, content.Top);
 
             window.NewKeyDownEvent(Key.G);
 
+            built.Host.Drain();
+            window.Draw();
+
             var feed = Assert.IsType<FeedScreen>(shell.Screen);
 
-            Assert.Equal(reads + 1, built.Timelines.Reads.Count);
-            Assert.Equal(feed.Posts[reading.Value].Id, shell.Screen.Picked?.Id);
+            Assert.Equal(0, content.Top);
+            Assert.Equal(feed.Posts[0].Id, shell.Screen.Picked?.Id);
+        }
+    }
+
+    /// <summary>
+    ///     And the posts that arrived are the ones now in front of the reader, which is the whole point of the key.
+    /// </summary>
+    [Fact]
+    public async Task G_ShowsThePostsThatArrivedSinceAtTheTop()
+    {
+        var (window, shell, built) = await Laid();
+
+        using (window)
+        {
+            var content = window.SubViews.OfType<PaintedView>().Single(view => view.Id == ShellWindow.ContentId);
+
+            window.Draw();
+            window.NewKeyDownEvent(Key.PageDown);
+            window.NewKeyDownEvent(Key.PageDown);
+            window.Draw();
+
+            built.Timelines.NowHolding(
+                APost.With(id: "990"),
+                APost.With(id: "880"),
+                APost.With(id: "110"),
+                APost.With(id: "220"),
+                APost.With(id: "330"),
+                APost.With(id: "440"));
+
+            window.NewKeyDownEvent(Key.G);
+
+            built.Host.Drain();
+            window.Draw();
+
+            Assert.Equal(0, content.Top);
+            Assert.Equal("990", shell.Screen.Picked?.Id);
+        }
+    }
+
+    /// <summary>
+    ///     The answer to <c>g</c> lands after the task that asked it has finished: nothing goes up until the terminal
+    ///     gets round to it.
+    /// </summary>
+    /// <remarks>
+    ///     Pinned as a fact about <em>when</em> rather than what. A fake host that ran the callback inline would put
+    ///     the screen up here, and every assertion after it would be about an order the terminal never runs in.
+    /// </remarks>
+    [Fact]
+    public async Task G_PutsNothingUpUntilTheTerminalGetsRoundToIt()
+    {
+        var (window, shell, built) = await Laid();
+
+        using (window)
+        {
+            var showing = shell.Screen;
+
+            window.NewKeyDownEvent(Key.G);
+
+            Assert.Same(showing, shell.Screen);
+
+            built.Host.Drain();
+
+            Assert.NotSame(showing, shell.Screen);
+        }
+    }
+
+    /// <summary>
+    ///     And the same on the post screen, which no arrival reaches: <c>Freshened</c> puts the fresher copy on the
+    ///     stack rather than <c>Arrival.Landed</c>, and both leave the reader at the top of it.
+    /// </summary>
+    [Fact]
+    public async Task G_TakesTheReaderToTheTopOfAPostScreenToo()
+    {
+        var (window, shell, built) = await Laid();
+
+        using (window)
+        {
+            var content = window.SubViews.OfType<PaintedView>().Single(view => view.Id == ShellWindow.ContentId);
+
+            window.NewKeyDownEvent(Key.Enter);
+
+            built.Host.Drain();
+            window.Draw();
+
+            var post = Assert.IsType<PostScreen>(shell.Screen);
+
+            window.NewKeyDownEvent(Key.PageDown);
+            window.Draw();
+
+            Assert.NotEqual(0, content.Top);
+
+            window.NewKeyDownEvent(Key.G);
+
+            built.Host.Drain();
+            window.Draw();
+
+            Assert.NotSame(post, shell.Screen);
+            Assert.IsType<PostScreen>(shell.Screen);
+            Assert.Equal(0, content.Top);
         }
     }
 

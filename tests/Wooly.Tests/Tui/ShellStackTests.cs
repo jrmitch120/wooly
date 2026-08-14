@@ -25,6 +25,7 @@ public class ShellStackTests
         var opened = await shell.Opened();
 
         await opened.Enter();
+        shell.Host.Drain();
 
         var post = Assert.IsType<PostScreen>(opened.Screen);
         Assert.Equal("110", post.Post.Id);
@@ -47,10 +48,12 @@ public class ShellStackTests
         Assert.Equal("home", opened.Breadcrumb);
 
         await opened.Enter();
+        shell.Host.Drain();
 
         Assert.Equal("home › post by @ben@hachyderm.io", opened.Breadcrumb);
 
         await opened.OpenAuthor();
+        shell.Host.Drain();
 
         Assert.Equal("home › post by @ben@hachyderm.io › @ben@hachyderm.io", opened.Breadcrumb);
     }
@@ -68,6 +71,7 @@ public class ShellStackTests
         var opened = await shell.Opened();
 
         await opened.OpenAuthor();
+        shell.Host.Drain();
 
         var account = Assert.IsType<AccountScreen>(opened.Screen);
         Assert.Equal("ben@hachyderm.io", account.Account.Address);
@@ -110,7 +114,9 @@ public class ShellStackTests
         var opened = await shell.Opened();
 
         await opened.Enter();
+        shell.Host.Drain();
         await opened.OpenAuthor();
+        shell.Host.Drain();
 
         Assert.Equal(3, opened.Depth);
 
@@ -140,6 +146,7 @@ public class ShellStackTests
         var opened = await shell.Opened();
 
         await opened.Enter();
+        shell.Host.Drain();
 
         Assert.Equal(2, opened.Depth);
 
@@ -197,6 +204,7 @@ public class ShellStackTests
         Assert.Subset(opened.Keys.Select(key => key.Key).ToHashSet(), acting);
 
         await opened.Enter();
+        shell.Host.Drain();
 
         // Inside a post, ⏎ is the one key of the lot left off, because the post it would open is the one already on
         // screen (#48). Every other key still acts on it, so every other key is still announced.
@@ -207,6 +215,7 @@ public class ShellStackTests
         Assert.DoesNotContain(PostKeys.Opening.Key, opened.Keys.Select(key => key.Key));
 
         await opened.OpenAuthor();
+        shell.Host.Drain();
 
         Assert.Subset(opened.Keys.Select(key => key.Key).ToHashSet(), acting);
     }
@@ -222,7 +231,10 @@ public class ShellStackTests
         var opened = await shell.Opened();
 
         await opened.Enter();
+        shell.Host.Drain();
         opened.Search();
+
+        shell.Host.Drain();
 
         Assert.Equal(DestinationKind.Search, opened.Rail.Showing.Kind);
         Assert.Equal("search", opened.Breadcrumb);
@@ -256,6 +268,7 @@ public class ShellStackTests
         var opened = await shell.Opened();
 
         await opened.Enter();
+        shell.Host.Drain();
 
         Assert.Equal("110", opened.Screen.Picked?.Id);
 
@@ -278,6 +291,7 @@ public class ShellStackTests
         var opened = await shell.Opened();
 
         await opened.Enter();
+        shell.Host.Drain();
 
         var drawn = opened.Screen.Lines(61, AShell.Now).Select(line => line.Text);
 
@@ -313,11 +327,14 @@ public class ShellStackTests
         var opened = await shell.Opened();
 
         await opened.Enter();
+        shell.Host.Drain();
 
         Assert.Equal(2, opened.Depth);
 
         await opened.Enter();
+        shell.Host.Drain();
         await opened.Enter();
+        shell.Host.Drain();
 
         Assert.Equal(2, opened.Depth);
         Assert.Equal("home › post by @ben@hachyderm.io", opened.Breadcrumb);
@@ -337,6 +354,7 @@ public class ShellStackTests
         var opened = await shell.Opened();
 
         await opened.Enter();
+        shell.Host.Drain();
 
         Assert.Empty(Assert.IsType<PostScreen>(opened.Screen).Replies);
 
@@ -344,6 +362,7 @@ public class ShellStackTests
         opened.Move(1);
 
         await opened.Enter();
+        shell.Host.Drain();
 
         Assert.Equal(2, opened.Depth);
         Assert.Single(shell.Engagement.RepliesRead);
@@ -364,10 +383,12 @@ public class ShellStackTests
         var opened = await shell.Opened();
 
         await opened.Enter();
+        shell.Host.Drain();
 
         opened.Move(1);
 
         await opened.Enter();
+        shell.Host.Drain();
 
         Assert.Equal(3, opened.Depth);
         Assert.Equal("111", Assert.IsType<PostScreen>(opened.Screen).Post.Id);
@@ -389,6 +410,7 @@ public class ShellStackTests
         var opened = await shell.Opened();
 
         await opened.Enter();
+        shell.Host.Drain();
 
         Assert.DoesNotContain(PostKeys.Opening, opened.Keys);
 

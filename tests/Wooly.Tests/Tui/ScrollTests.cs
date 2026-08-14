@@ -105,61 +105,11 @@ public class ScrollTests
     public void To_AnswersTheTopForARegionWithNoRoom() =>
         Assert.Equal(0, Scroll.To(Rows(100, at: 40, tall: 3), height: 0, from: 10));
 
-    /// <summary>
-    ///     Where a screen starting again begins: the first row of what is picked out, so that what a reader was
-    ///     reading comes back at the top of the page rather than at the foot of it (#84).
-    /// </summary>
-    [Theory]
-    [InlineData(0)]
-    [InlineData(40)]
-    [InlineData(99)]
-    public void Begins_IsTheFirstRowOfWhatIsPickedOut(int at) =>
-        Assert.Equal(at, Scroll.Begins(Rows(100, at, tall: 3)));
 
-    /// <summary>
-    ///     Which is what <see cref="Scroll.To" /> would not have answered: it brings the selection into view from
-    ///     where the scroll already is, and from the top that puts a selection below the page at its foot — a reader
-    ///     thrown backwards a screenful by the very key that was meant to leave them where they were.
-    /// </summary>
-    [Fact]
-    public void Begins_IsAboveWhereScrollingToItFromTheTopWouldLand()
-    {
-        var lines = Rows(100, at: 40, tall: 3);
 
-        Assert.Equal(40, Scroll.Begins(lines));
-        Assert.Equal(23, Scroll.To(lines, 20, from: 0));
-    }
 
-    /// <summary>A screen with nothing picked out begins at its own top, which is where it always began.</summary>
-    [Fact]
-    public void Begins_IsTheTopWhereNothingIsPickedOut() =>
-        Assert.Equal(0, Scroll.Begins(Rows(100, at: -1, tall: 0)));
 
-    /// <summary>
-    ///     How far into the topmost post the page has got, which is the other half of a reader's place: nought where
-    ///     the page begins exactly on a post, and the rows of it scrolled past otherwise (#84).
-    /// </summary>
-    [Theory]
-    [InlineData(0, 0)]
-    [InlineData(4, 4)]
-    [InlineData(9, 9)]
-    [InlineData(10, 0)]
-    [InlineData(37, 7)]
-    public void Into_CountsTheRowsOfTheTopmostPostAlreadyScrolledPast(int from, int expected) =>
-        Assert.Equal(expected, Scroll.Into(Numbered(items: 5, tall: 10), from));
 
-    /// <summary>
-    ///     An offset past the last row — which the arrows can leave, since they are not held to the rows there are —
-    ///     is measured against the rows there are now rather than answering about a page nobody can see.
-    /// </summary>
-    [Fact]
-    public void Into_MeasuresAnOffsetPastTheEndAgainstTheRowsThereAre() =>
-        Assert.Equal(9, Scroll.Into(Numbered(items: 2, tall: 10), from: 400));
-
-    /// <summary>A screen with no posts on it has no post to be part way into.</summary>
-    [Fact]
-    public void Into_IsNoughtWhereTheScreenHoldsNoItems() =>
-        Assert.Equal(0, Scroll.Into([Line.Blank, Line.Blank], from: 1));
 
     /// <summary>What the arrows do: one row at a time, and never off either end of the rows there are.</summary>
     [Theory]

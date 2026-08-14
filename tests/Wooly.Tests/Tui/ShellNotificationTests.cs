@@ -58,6 +58,7 @@ public class ShellNotificationTests
         shell.Host.Settle();
 
         await opened.Press(ShellKey.Discard);
+        shell.Host.Drain();
 
         Assert.Equal("34", Assert.Single(shell.Notifications.Dismissals).NotificationId);
 
@@ -89,6 +90,7 @@ public class ShellNotificationTests
         Assert.Empty(shell.Notifications.Clearances);
 
         await opened.Answer(agreed: true);
+        shell.Host.Drain();
 
         Assert.Equal("personal", Assert.Single(shell.Notifications.Clearances));
 

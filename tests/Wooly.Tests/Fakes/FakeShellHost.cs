@@ -10,6 +10,7 @@ namespace Wooly.Tests.Fakes;
 internal sealed class FakeShellHost : IShellHost
 {
     private readonly List<Wait> _waiting = [];
+    private readonly List<Action> _queued = [];
 
     /// <summary>How many waits are outstanding — where a test proves a run of presses left exactly one.</summary>
     public int Waiting => _waiting.Count(wait => !wait.CalledOff);
@@ -18,8 +19,23 @@ internal sealed class FakeShellHost : IShellHost
     public int Scheduled { get; private set; }
 
     /// <inheritdoc />
-    /// <remarks>Run where it was asked for. A test has one thread, and it is the drawing one.</remarks>
-    public void OnUiThread(Action work) => work();
+    /// <remarks>Queued, because that is what the terminal does — see <see cref="Drain" />.</remarks>
+    public void OnUiThread(Action work) => _queued.Add(work);
+
+    /// <summary>
+    ///     Lets every piece of queued work run, in the order it was asked for, including anything it queues in turn.
+    /// </summary>
+    public void Drain()
+    {
+        for (var rounds = 0; rounds < 1000 && _queued.Count > 0; rounds++)
+        {
+            var due = _queued.ToList();
+
+            _queued.Clear();
+
+            due.ForEach(work => work());
+        }
+    }
 
     /// <inheritdoc />
     public IDisposable After(TimeSpan delay, Action work)
@@ -39,6 +55,8 @@ internal sealed class FakeShellHost : IShellHost
     /// </summary>
     public void Settle()
     {
+        Drain();
+
         var due = _waiting.ToList();
 
         _waiting.Clear();
@@ -47,6 +65,8 @@ internal sealed class FakeShellHost : IShellHost
         {
             wait.Happen();
         }
+
+        Drain();
     }
 
     /// <summary>Lets waits happen until none is left, for a test that wants the end of a countdown rather than a step of it.</summary>

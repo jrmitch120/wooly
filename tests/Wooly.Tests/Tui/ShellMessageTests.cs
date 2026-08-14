@@ -115,6 +115,7 @@ public class ShellMessageTests
         shell.Host.Settle();
 
         await opened.Press(ShellKey.Enter);
+        shell.Host.Drain();
 
         Assert.Equal("7", Assert.Single(shell.Messages.Shown).ConversationId);
 
@@ -155,6 +156,7 @@ public class ShellMessageTests
         shell.Host.Settle();
 
         await opened.Press(ShellKey.Enter);
+        shell.Host.Drain();
 
         Assert.Empty(shell.Messages.MarkedRead);
         Assert.True(Assert.IsType<ConversationScreen>(opened.Screen).Conversation.Unread);
@@ -177,6 +179,7 @@ public class ShellMessageTests
         shell.Host.Settle();
 
         await opened.MarkRead();
+        shell.Host.Drain();
 
         Assert.Equal("7", Assert.Single(shell.Messages.MarkedRead).ConversationId);
 
@@ -199,7 +202,9 @@ public class ShellMessageTests
         shell.Host.Settle();
 
         await opened.Press(ShellKey.Enter);
+        shell.Host.Drain();
         await opened.MarkRead();
+        shell.Host.Drain();
 
         Assert.Equal("7", Assert.Single(shell.Messages.MarkedRead).ConversationId);
         Assert.False(Assert.IsType<ConversationScreen>(opened.Screen).Conversation.Unread);
@@ -304,7 +309,9 @@ public class ShellMessageTests
         shell.Host.Settle();
 
         await opened.Press(ShellKey.Enter);
+        shell.Host.Drain();
         await opened.Mark(PostMark.Favorite);
+        shell.Host.Drain();
 
         opened.Back();
 
@@ -335,9 +342,11 @@ public class ShellMessageTests
         shell.Host.Settle();
 
         await opened.Press(ShellKey.Enter);
+        shell.Host.Drain();
 
         opened.AskToDelete();
         await opened.Answer(agreed: true);
+        shell.Host.Drain();
 
         Assert.Equal("110", Assert.Single(shell.Author.Deletions).PostId);
         Assert.Empty(Assert.IsType<ConversationScreen>(opened.Screen).Posts);
@@ -371,12 +380,14 @@ public class ShellMessageTests
         shell.Host.Settle();
 
         await opened.Press(ShellKey.Enter);
+        shell.Host.Drain();
         opened.Reply();
 
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
         compose.Text += "All week";
 
         await opened.Send();
+        shell.Host.Drain();
 
         var draft = Assert.Single(shell.Author.Published).Draft;
 
@@ -406,6 +417,7 @@ public class ShellMessageTests
         shell.Host.Settle();
 
         await opened.Press(ShellKey.Enter);
+        shell.Host.Drain();
         opened.Reply();
 
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
@@ -415,6 +427,7 @@ public class ShellMessageTests
         compose.Text += "Both of you then";
 
         await opened.Send();
+        shell.Host.Drain();
 
         Assert.StartsWith(
             "@alice@hachyderm.io @ben@hachyderm.io",
@@ -433,9 +446,11 @@ public class ShellMessageTests
         shell.Host.Settle();
 
         await opened.Press(ShellKey.Enter);
+        shell.Host.Drain();
         opened.Reply();
 
         await opened.Send();
+        shell.Host.Drain();
 
         Assert.Empty(shell.Author.Published);
         Assert.True(opened.NoticeIsError);
@@ -463,11 +478,13 @@ public class ShellMessageTests
         shell.Host.Settle();
 
         await opened.Press(ShellKey.Enter);
+        shell.Host.Drain();
         opened.Reply();
 
         ((ComposeScreen)opened.Screen).Text += "All week";
 
         await opened.Send();
+        shell.Host.Drain();
 
         var screen = Assert.IsType<ConversationScreen>(opened.Screen);
 
@@ -519,6 +536,7 @@ public class ShellMessageTests
         Assert.DoesNotContain(opened.Keys, key => key.Key == "esc");
 
         await opened.Press(ShellKey.Enter);
+        shell.Host.Drain();
 
         Assert.Contains(opened.Keys, key => key is { Key: "m", Does: "mark read" });
         Assert.Contains(opened.Keys, key => key is { Key: "r", Does: "reply" });
