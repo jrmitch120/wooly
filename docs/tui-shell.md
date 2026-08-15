@@ -305,6 +305,12 @@ one back, and voting on one, are both built now (#69, #74):
   over a poll, being the level the reader is standing on. An answered poll is a result to read: the digits do nothing
   there, and `v` says which of the two reasons it is rather than nothing at all, the way `m` answers on a conversation
   already read. Whether a vote would *land* is still the instance's (ADR-0009) — this is only about what is offered.
+- **The question names the answer, not the post.** `Vote for "Dogs"? This cannot be undone.` — what a vote can be
+  wrong about is which answer it is for, and the id of the post the poll happens to be on answers a question nobody
+  voting has (unlike a delete, where the id is the whole risk). Several ticked answers are counted rather than listed
+  (`Cast the 3 answers you ticked?`), and one answer is clipped at 25 columns, because the question takes the status
+  row and `y vote · esc keep` takes what is left: a question that pushes the answer key off the right is one nobody
+  knows how to answer. Nothing is lost by counting — the ballot is on screen with every agreed answer drawn `[x]`.
 - **The ballot says how to cast it**, in a muted row of its own under the boxes: `v casts this vote, esc discards it`.
   On the poll rather than only on the status row, because this is the one moment in the shell where a key has to be
   found rather than remembered — the reader is looking at the boxes they have just ticked, not at the foot of the

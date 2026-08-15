@@ -160,7 +160,7 @@ public class ShellVoteTests
         opened.AskToVote();
 
         Assert.NotNull(opened.Asking);
-        Assert.Contains("cannot be changed", opened.Asking.Question);
+        Assert.Contains("cannot be undone", opened.Asking.Question);
         Assert.Equal("vote", opened.Asking.Going);
         Assert.Empty(shell.Engagement.Votes);
 
@@ -394,6 +394,67 @@ public class ShellVoteTests
         var ticked = opened.Screen.Lines(61, AShell.Now).First(line => line.Text.Contains("[x]"));
 
         Assert.True(ticked.Has(Role.Poll));
+    }
+
+    /// <summary>
+    ///     The question names the answer being voted for, in the poll's own words: what a vote can be wrong about is
+    ///     which answer it is for, and the id of the post the poll is on answers a question nobody voting has.
+    /// </summary>
+    [Fact]
+    public async Task AskToVote_AsksAboutTheAnswerRatherThanThePostItIsOn()
+    {
+        var opened = await Reading(Polled);
+
+        opened.Toggle(1);
+        opened.AskToVote();
+
+        Assert.Equal("Vote for \"Dogs\"? This cannot be undone.", opened.Asking?.Question);
+        Assert.DoesNotContain("220", opened.Asking?.Question);
+    }
+
+    /// <summary>
+    ///     Several answers are counted rather than listed, so that the question cannot outgrow the row: the ballot is
+    ///     on screen and every answer being agreed to is drawn <c>[x]</c> on it.
+    /// </summary>
+    [Fact]
+    public async Task AskToVote_CountsTheAnswersWhereMoreThanOneIsTicked()
+    {
+        var opened = await Reading(APost.With(
+            id: "220",
+            poll: APost.APoll(
+                options: [APost.AnAnswer("Cats", 4), APost.AnAnswer("Dogs", 6), APost.AnAnswer("Sheep", 0)],
+                multipleChoice: true)));
+
+        opened.Toggle(0);
+        opened.Toggle(2);
+        opened.AskToVote();
+
+        Assert.Equal("Cast the 2 answers you ticked? This cannot be undone.", opened.Asking?.Question);
+    }
+
+    /// <summary>
+    ///     The question takes the status row and the way to answer it takes what is left, so a question long enough to
+    ///     push <c>y vote · esc keep</c> off the right is one nobody knows how to answer — however long the answer
+    ///     somebody else wrote is.
+    /// </summary>
+    [Fact]
+    public async Task AskToVote_KeepsTheWayToAnswerOnTheRowBesideTheLongestAnswer()
+    {
+        var opened = await Reading(APost.With(
+            id: "220",
+            poll: APost.APoll(options:
+            [
+                APost.AnAnswer("Cats", 4),
+                APost.AnAnswer("An answer with rather more to say for itself than the others", 6),
+            ])));
+
+        opened.Toggle(1);
+        opened.AskToVote();
+
+        var row = ChromeLines.Status(opened.Keys, opened.Notice, opened.NoticeIsError, opened.Asking, 80).Text;
+
+        Assert.Contains("y vote · esc keep", row);
+        Assert.True(row.Length <= 80, row);
     }
 
     /// <summary>

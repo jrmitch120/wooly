@@ -8,6 +8,7 @@ using Wooly.Core.Profiles;
 using Wooly.Core.Relationships;
 using Wooly.Core.Search;
 using Wooly.Core.Timelines;
+using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Theme;
 
@@ -43,6 +44,12 @@ public sealed class Shell
 
     /// <inheritdoc cref="MentionUnresolved" />
     private const string NoBrowser = "No browser available.";
+
+    /// <summary>
+    ///     How much of a poll answer the vote confirmation says, in columns. Twenty-five, because the rest of that
+    ///     question is 33 columns and the way to answer it needs the 19 after that (<see cref="VotingFor" />).
+    /// </summary>
+    private const int LongestAnswerSaid = 25;
 
     /// <summary>
     ///     What arriving at a destination means, which is the same six steps at every one of them that reads a list
@@ -803,9 +810,7 @@ public sealed class Shell
         // ballot when it was put, and in the order the poll lists its answers rather than the order they were pressed.
         var choices = Screen.Chosen.Order().ToList();
 
-        Asking = new Confirmation(
-            $"Cast this vote on post {about.Id}? A vote cannot be changed or taken back.",
-            Going: "vote");
+        Asking = new Confirmation($"{VotingFor(poll, choices)} This cannot be undone.", Going: "vote");
 
         _confirming = () => Cast(screen, about, choices);
 
@@ -1176,6 +1181,23 @@ public sealed class Shell
 
                 Say("Deleted.", isError: false);
             });
+
+    /// <summary>
+    ///     What the reader is being asked to agree to, said in the poll's own words rather than by the id of the post
+    ///     the poll happens to be on: what a vote can be wrong about is which answer it is for, and an id answers a
+    ///     question nobody voting has (#87 follow-up).
+    /// </summary>
+    /// <remarks>
+    ///     One answer is named and several are counted, which is a length rule rather than a taste: the question takes
+    ///     the status row and the way to answer it takes what is left, so a question long enough to push <c>y vote ·
+    ///     esc keep</c> off the right is a question nobody knows how to answer. Naming one answer clipped to
+    ///     <see cref="LongestAnswerSaid" /> holds the whole line inside 60 of the contract's 80 columns; naming three
+    ///     would not. Nothing is lost by counting them — the ballot is on screen, and every answer being agreed to is
+    ///     drawn <c>[x]</c> on it.
+    /// </remarks>
+    private static string VotingFor(PostPoll poll, IReadOnlyList<int> choices) => choices.Count == 1
+        ? $"Vote for \"{TextWrap.Clip(poll.Options[choices[0]].Text, LongestAnswerSaid)}\"?"
+        : $"Cast the {choices.Count} answers you ticked?";
 
     /// <summary>
     ///     Sends the agreed vote, and puts the poll the instance answers with in place of the one on screen.
