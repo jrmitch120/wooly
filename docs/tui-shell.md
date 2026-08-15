@@ -393,12 +393,21 @@ cache. Streaming stays out of scope (below); a manual refresh is the in-scope an
 
 Media is drawn in place inside a feed item or a post, at whatever width the content region has (ADR-0016):
 
-- **Only a still picture is drawn.** Video, audio, an animation and anything this client has no word for get a `⏵`, its
-  kind's own name capitalized — walkable and, since #109 (ADR-0017), what `⏎` opens ("What references settled") — with
-  the description alongside where its author gave one. No raw address is printed for these anymore: it is only ever
-  what `⏎` hands the browser. Never an inline rendering attempt (story 51). An animation is linked rather than drawn as
-  the still its preview happens to be, because a frozen frame with nothing to say it was meant to move is the
-  misleading rendering the story rules out.
+- **Video, audio, an animation and anything this client has no word for get a `⏵`**, its kind's own name capitalized —
+  walkable and, since #109 (ADR-0017), what `⏎` opens ("What references settled") — with the description alongside
+  where its author gave one. No raw address is printed for these anymore: it is only ever what `⏎` hands the browser.
+- **A video's and an animation's own preview is drawn in a box under that label** (#110, ADR-0017), through the exact
+  `Drawn`/`Inset`/`IPictures`/`PictureView` pipeline a picture goes through and gated the same way on the terminal
+  offering sixel or Kitty. `PostMedia.IsDrawable` is what says so, and it is no longer `Opens`' opposite: a video is
+  both drawn and walked. ADR-0016 refused the frame because there was nothing to say it was meant to move; the
+  permanent label beside it is that something. It is always exactly one still image — nothing autoplays, loops, or is
+  decoded in this process.
+- **A `Video`/`Animation` with no preview, and every `Audio`/`Unknown`, stays label-plus-description.** A video's own
+  file is motion rather than a picture, so sending for it would fetch a whole video to fail to decode it; cover art on
+  a sound is not a frame standing in for motion and does not earn a box, and `Unknown` cannot promise a box means
+  anything at all (ADR-0017). Neither is a case in `PostLines` — both are just `IsDrawable` answering no.
+- **The label never moves and never hides**; only the description under it does, behind `hide_drawn_caption` and only
+  once the preview has actually landed. Pending, or never coming, and the description stands.
 - **A still picture that cannot be drawn is unaffected by #109**, and keeps the shape every attachment had before it: a
   `⏵`, the description, and the address on the rows below — wrapped rather than clipped, since a real address is
   longer than 61 columns and a link with its end cut off is not a link. `Image` never joins the walk, so there is
@@ -421,7 +430,8 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
   `Described` only once a picture is *actually drawn* — the same branch that emits `Box(inset)`. A terminal that
   cannot draw at all and one that can but hasn't gotten this picture yet are treated identically, so there is no
   arrival flicker to weigh. Applies the same to a feed item and the post screen; there is no reveal key once
-  hidden — the preference itself is the opt-in (#71).
+  hidden — the preference itself is the opt-in (#71). Since #110 it hides a video's or an animation's *description*
+  on the same branch and on the same terms — never its label, which is what `⏎` acts on rather than a caption.
 
 ### What moving settled
 

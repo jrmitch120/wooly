@@ -390,17 +390,24 @@ public static class PostLines
     }
 
     /// <summary>
-    ///     What is attached: each one behind a mark saying what it shows, and then either the picture itself drawn in
-    ///     place, the address to reach an undrawn picture at, or — a video, a sound, an animation, or an attachment of
-    ///     a kind this client has no word for — the label <c>←</c>/<c>→</c> walks to and <c>⏎</c> opens (ADR-0017).
+    ///     What is attached: a picture drawn in place or the address to reach an undrawn one at, and for everything
+    ///     else — a video, an animation, a sound, or an attachment of a kind this client has no word for — the label
+    ///     <c>←</c>/<c>→</c> walks to and <c>⏎</c> opens, with a video's or an animation's own preview drawn in a box
+    ///     under it where the instance offered one (ADR-0017).
     /// </summary>
     /// <remarks>
     ///     Which case an attachment falls into is settled here rather than at the view, because it changes how many
     ///     rows the post takes. A picture this terminal can draw and has the pixels for gets a box; a picture whose
     ///     pixels have not landed yet, or that this terminal cannot draw at all, gets the link and description the CLI
-    ///     already gives it (ADR-0016). Everything else never had pixels to wait for, so it always gets its kind's own
-    ///     label — the walkable reference — beside its description where its author gave one. There is no cell-by-cell
-    ///     fallback: a photograph reduced to one coloured block per cell is not a picture of anything (ADR-0016).
+    ///     already gives it (ADR-0016). There is no cell-by-cell fallback: a photograph reduced to one coloured block
+    ///     per cell is not a picture of anything (ADR-0016).
+    ///     <para>
+    ///         The split is <see cref="PostMedia.Opens" /> rather than <see cref="PostMedia.IsDrawable" />, and the two
+    ///         stopped being opposites in #110: a video is walked <em>and</em> drawn. What tells the two halves apart
+    ///         is what the row above the box says — a picture's description, which the box stands in for, against a
+    ///         video's label, which says what opening it would reach and is not something a still frame can stand in
+    ///         for at all.
+    ///     </para>
     /// </remarks>
     /// <param name="pictures">What can be drawn and what is here, or <see langword="null" /> where nothing can be.</param>
     /// <param name="mostRows">The most rows a picture may take, which is what a feed and a whole post differ on.</param>
@@ -432,9 +439,16 @@ public static class PostLines
 
         foreach (var attached in post.Media)
         {
-            if (!attached.IsDrawable)
+            if (attached.Opens)
             {
-                yield return [AttachmentReferenceLine(attached, references[at], reading.Reference, width)];
+                yield return Opened(
+                    attached,
+                    references[at],
+                    reading.Reference,
+                    width,
+                    pictures,
+                    mostRows,
+                    hideDrawnCaption);
 
                 at++;
 
@@ -482,15 +496,69 @@ public static class PostLines
     }
 
     /// <summary>
+    ///     An attachment opened rather than shown — a <c>Video</c>, <c>Animation</c>, <c>Audio</c> or <c>Unknown</c>:
+    ///     its label, and under it the preview drawn in a box of its own where there is one and this terminal can draw
+    ///     it (ADR-0017, #110).
+    /// </summary>
+    /// <remarks>
+    ///     The label is the fixed point of all four cases: it is in the same row whether the preview is coming, has
+    ///     landed, or was never going to, because it is what <c>⏎</c> acts on rather than a caption standing in for
+    ///     something. Only the description under it moves, and only behind the same preference a picture's caption
+    ///     already hides behind (#71) — what a box has landed and taken over saying.
+    ///     <para>
+    ///         A sound and an unknown kind never reach the box at all, however much cover art an instance sends with
+    ///         them, and neither does a video the instance offered no preview of — both are
+    ///         <see cref="PostMedia.IsDrawable" />'s answer rather than a case of their own here.
+    ///     </para>
+    /// </remarks>
+    private static IReadOnlyList<Line> Opened(
+        PostMedia attached,
+        Reference reference,
+        Reference? picked,
+        int width,
+        IPictures? pictures,
+        int mostRows,
+        bool hideDrawnCaption)
+    {
+        Line Label(bool saysWhatItShows) =>
+            AttachmentReferenceLine(attached, reference, picked, width, saysWhatItShows);
+
+        if (!attached.IsDrawable || pictures?.Cell is not { } cell)
+        {
+            return [Label(saysWhatItShows: true)];
+        }
+
+        // Marked as wanting the preview whether or not it is here yet, the way a picture's own description is: this
+        // row is what the view reads to decide the pixels are worth sending for.
+        var drawn = Drawn.Attached(attached);
+
+        if (pictures.Of(drawn) is not { } picture || Inset.For(drawn, picture, cell, width, mostRows) is not { } inset)
+        {
+            return [Label(saysWhatItShows: true) with { Wants = drawn }];
+        }
+
+        return [Label(saysWhatItShows: !hideDrawnCaption) with { Wants = drawn }, .. Box(inset)];
+    }
+
+    /// <summary>
     ///     A <c>Video</c>, <c>Animation</c>, <c>Audio</c> or <c>Unknown</c> attachment's own row: the mark, its kind
     ///     capitalized — bracketed where <paramref name="picked" /> names this attachment — and its description
-    ///     alongside where its author gave one (ADR-0017, #109).
+    ///     alongside where its author gave one and <paramref name="saysWhatItShows" /> (ADR-0017, #109).
     /// </summary>
     /// <remarks>
     ///     The address itself is never printed: it is what <c>⏎</c> now opens rather than what the row says, which is
     ///     the whole reason the raw rows <see cref="LinkedImage" /> still prints for a picture are gone from here.
     /// </remarks>
-    private static Line AttachmentReferenceLine(PostMedia attached, Reference reference, Reference? picked, int width)
+    /// <param name="saysWhatItShows">
+    ///     Whether the author's description is written after the label. Off once a preview has landed under it and the
+    ///     reader has asked for that (#71); the label itself is never off, so nothing on the row moves either way.
+    /// </param>
+    private static Line AttachmentReferenceLine(
+        PostMedia attached,
+        Reference reference,
+        Reference? picked,
+        int width,
+        bool saysWhatItShows)
     {
         var bracketed = picked == reference;
         var label = Capitalized(MediaKindName.Written(attached.Kind));
@@ -509,7 +577,7 @@ public static class PostLines
             spans.Add(new Span(BodyText.Closing, Role.ReferencePicked));
         }
 
-        if (attached.Description is { } description)
+        if (saysWhatItShows && attached.Description is { } description)
         {
             var used = spans.Sum(span => span.Text.Length) + 1;
 
