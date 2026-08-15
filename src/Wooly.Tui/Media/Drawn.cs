@@ -24,6 +24,11 @@ public sealed record Drawn(string Id, string Address)
     ///     pixels across at most, and fetching a photograph at full size to throw nine tenths of it away is somebody's
     ///     data allowance.
     /// </summary>
+    /// <remarks>
+    ///     Falling back to the attachment's own file is only ever a still picture's fallback, and the caller is what
+    ///     holds that: <see cref="PostMedia.IsDrawable" /> is false for a video or an animation the instance offered no
+    ///     preview of, so nothing reaches here that would send for a whole video only to fail to decode it (#110).
+    /// </remarks>
     public static Drawn Attached(PostMedia media) => new(media.Id, media.Preview ?? media.Url);
 
     /// <summary>

@@ -271,7 +271,7 @@ public class MediaLineTests
     [Theory]
     [InlineData(MediaKind.Audio, "Audio")]
     [InlineData(MediaKind.Unknown, "Unknown")]
-    public void Feed_LinksWhatItCannotDrawRatherThanDrawingIt(MediaKind kind, string label)
+    public void Feed_LabelsWhatItNeverDrawsRatherThanDrawingIt(MediaKind kind, string label)
     {
         var lines = PostLines.Feed(
             APost.With(media: [APost.Attached(kind, description: "Sheep, at length")]),
@@ -319,7 +319,7 @@ public class MediaLineTests
     ///     thing because of what it happens to lead with.
     /// </summary>
     [Fact]
-    public void Feed_DrawsThePicturesAndLinksTheRestOfWhatOnePostCarries()
+    public void Feed_DrawsThePicturesAndLabelsTheRestOfWhatOnePostCarries()
     {
         var lines = PostLines.Feed(
             APost.With(media: [APost.Attached(MediaKind.Audio, id: "m1"), APost.APicture(id: "m2")]),

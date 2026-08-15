@@ -412,9 +412,10 @@ public static class PostLines
     /// <param name="pictures">What can be drawn and what is here, or <see langword="null" /> where nothing can be.</param>
     /// <param name="mostRows">The most rows a picture may take, which is what a feed and a whole post differ on.</param>
     /// <param name="hideDrawnCaption">
-    ///     Whether the description drops once a picture is actually drawn under it (#71). A picture still on its way
-    ///     keeps its description regardless — that is the whole of what a reader has while the pixels are not here yet,
-    ///     and hiding it would be an arrival flicker rather than a quieter post.
+    ///     Whether what an attachment says it shows drops once its pixels are actually drawn (#71) — a picture's own
+    ///     caption, and since #110 a video's description under its label, on the same terms. Anything still on its way
+    ///     keeps what it says regardless: that is the whole of what a reader has while the pixels are not here yet, and
+    ///     hiding it would be an arrival flicker rather than a quieter post.
     /// </param>
     /// <param name="reading">
     ///     What this reader has done to this post, which is what says whether one of its attachment references is
@@ -467,7 +468,7 @@ public static class PostLines
             var drawn = Drawn.Attached(attached);
             var described = Described(attached, MediaMark, width) with { Wants = drawn };
 
-            if (pictures.Of(drawn) is not { } picture || Inset.For(drawn, picture, cell, width, mostRows) is not { } inset)
+            if (BoxFor(drawn, pictures, cell, width, mostRows) is not { } inset)
             {
                 yield return [described];
 
@@ -532,13 +533,22 @@ public static class PostLines
         // row is what the view reads to decide the pixels are worth sending for.
         var drawn = Drawn.Attached(attached);
 
-        if (pictures.Of(drawn) is not { } picture || Inset.For(drawn, picture, cell, width, mostRows) is not { } inset)
-        {
-            return [Label(saysWhatItShows: true) with { Wants = drawn }];
-        }
-
-        return [Label(saysWhatItShows: !hideDrawnCaption) with { Wants = drawn }, .. Box(inset)];
+        return BoxFor(drawn, pictures, cell, width, mostRows) is not { } inset
+            ? [Label(saysWhatItShows: true) with { Wants = drawn }]
+            : [Label(saysWhatItShows: !hideDrawnCaption) with { Wants = drawn }, .. Box(inset)];
     }
+
+    /// <summary>
+    ///     The box <paramref name="drawn" />'s pixels get, or <see langword="null" /> while they are not here — which
+    ///     is the same answer as a picture that will never arrive, and deliberately so (ADR-0016).
+    /// </summary>
+    /// <remarks>
+    ///     The one lookup-and-size a picture's own rows and a video's preview both go through, said once so the two
+    ///     cannot come to size the same box differently. A lookup and nothing else: asking never sends for anything,
+    ///     and only the view — the one thing that knows where the scroll has got to — may do that (ADR-0016).
+    /// </remarks>
+    private static Inset? BoxFor(Drawn drawn, IPictures pictures, CellSize cell, int width, int mostRows) =>
+        pictures.Of(drawn) is { } picture ? Inset.For(drawn, picture, cell, width, mostRows) : null;
 
     /// <summary>
     ///     A <c>Video</c>, <c>Animation</c>, <c>Audio</c> or <c>Unknown</c> attachment's own row: the mark, its kind

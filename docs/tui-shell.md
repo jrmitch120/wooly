@@ -400,8 +400,8 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
   `Drawn`/`Inset`/`IPictures`/`PictureView` pipeline a picture goes through and gated the same way on the terminal
   offering sixel or Kitty. `PostMedia.IsDrawable` is what says so, and it is no longer `Opens`' opposite: a video is
   both drawn and walked. ADR-0016 refused the frame because there was nothing to say it was meant to move; the
-  permanent label beside it is that something. It is always exactly one still image — nothing autoplays, loops, or is
-  decoded in this process.
+  permanent label beside it is that something. It is always exactly one still picture — nothing autoplays, loops, or
+  is decoded in this process.
 - **A `Video`/`Animation` with no preview, and every `Audio`/`Unknown`, stays label-plus-description.** A video's own
   file is motion rather than a picture, so sending for it would fetch a whole video to fail to decode it; cover art on
   a sound is not a frame standing in for motion and does not earn a box, and `Unknown` cannot promise a box means

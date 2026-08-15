@@ -30,13 +30,8 @@ public static class AttachmentReferences
         var at = shown.Content.Length;
         var references = new List<Reference>();
 
-        foreach (var attached in shown.Media)
+        foreach (var attached in shown.Media.Where(attached => attached.Opens))
         {
-            if (!attached.Opens)
-            {
-                continue;
-            }
-
             references.Add(new Reference(attached.Url, Role.Media, at));
             at++;
         }

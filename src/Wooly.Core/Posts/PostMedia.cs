@@ -64,7 +64,8 @@ public sealed record PostMedia
 
     /// <summary>
     ///     Whether the thing itself is reached by opening its address outside the terminal, which is what makes an
-    ///     attachment one of the <c>Reference</c>s <c>←</c>/<c>→</c> walk and <c>⏎</c> opens (ADR-0017).
+    ///     attachment one of the <c>Reference</c>s <c>←</c>/<c>→</c> walk and <c>⏎</c> opens (ADR-0017, and
+    ///     <c>CONTEXT.md</c>'s <b>Reference</b>, which is where this half of an attachment is named).
     /// </summary>
     /// <remarks>
     ///     Everything but a still picture, and separate from <see cref="IsDrawable" /> rather than its opposite: a
