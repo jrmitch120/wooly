@@ -46,7 +46,10 @@ public enum Role
 
     /// <summary>
     ///     Image placeholders, attachment links, and the columns a byline holds open for an author's avatar. Carried
-    ///     without colour by <c>▒▒▒▒</c> and <c>⏵</c>.
+    ///     without colour by <c>▒▒▒▒</c> and <c>⏵</c>. Also the role a <c>Video</c>/<c>Animation</c>/<c>Audio</c>/
+    ///     <c>Unknown</c> attachment's own <see cref="Rendering.Reference" /> draws and is opened by — the same
+    ///     vocabulary <see cref="Rendering.Reference" /> already struck for <c>Hashtag</c>, <c>Mention</c> and
+    ///     <c>Link</c> (ADR-0017).
     /// </summary>
     Media,
 

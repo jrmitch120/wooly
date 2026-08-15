@@ -261,15 +261,17 @@ public class MediaLineTests
     }
 
     /// <summary>
-    ///     The fourth acceptance criterion. A video and a sound have no frame to draw, so they get a link and what
-    ///     their author said they are — even on a terminal that draws pictures perfectly well.
+    ///     The fourth acceptance criterion. A video and a sound have no frame to draw, so they get their kind's own
+    ///     label and what their author said they are — even on a terminal that draws pictures perfectly well. #109
+    ///     widens this into the walkable reference <see cref="AttachmentReferenceTests" /> covers in full; this is the
+    ///     drawing half of it.
     /// </summary>
     [Theory]
-    [InlineData(MediaKind.Animation)]
-    [InlineData(MediaKind.Video)]
-    [InlineData(MediaKind.Audio)]
-    [InlineData(MediaKind.Unknown)]
-    public void Feed_LinksWhatItCannotDrawRatherThanDrawingIt(MediaKind kind)
+    [InlineData(MediaKind.Animation, "Animation")]
+    [InlineData(MediaKind.Video, "Video")]
+    [InlineData(MediaKind.Audio, "Audio")]
+    [InlineData(MediaKind.Unknown, "Unknown")]
+    public void Feed_LinksWhatItCannotDrawRatherThanDrawingIt(MediaKind kind, string label)
     {
         var lines = PostLines.Feed(
             APost.With(media: [APost.Attached(kind, description: "Sheep, at length")]),
@@ -279,23 +281,24 @@ public class MediaLineTests
             FakePictures.With().Holding("m1", 400, 300));
 
         Assert.Empty(lines.SelectMany(line => line.Insets));
-        Assert.Contains(lines, line => line.Text.Contains("⏵ Sheep, at length", StringComparison.Ordinal));
+        Assert.Contains(lines, line => line.Text.Contains($"⏵ {label} Sheep, at length", StringComparison.Ordinal));
     }
 
     /// <summary>
-    ///     A real attachment address is longer than the 61 columns the contract gives a screen, so it is wrapped over
-    ///     however many rows it takes rather than clipped. A link with its end cut off is a link nobody can follow,
-    ///     which is not "shown as a link" (story 51).
+    ///     A real attachment address is longer than the 61 columns the contract gives a screen, so a picture that
+    ///     cannot be drawn is still wrapped over however many rows it takes rather than clipped. A link with its end
+    ///     cut off is a link nobody can follow, which is not "shown as a link" (story 51). Unaffected by #109: only
+    ///     <c>Image</c> still prints its raw address this way, the CLI's own shape (ADR-0016).
     /// </summary>
     [Fact]
     public void Feed_WrapsALinkTooLongForTheRowRatherThanCuttingItsEndOff()
     {
         const string address =
             "https://files.mastodon.social/media_attachments/files/113/427/981/002/443/original/"
-            + "0f6a1c2b3d4e5f60.mp4";
+            + "0f6a1c2b3d4e5f60.png";
 
         var lines = PostLines.Feed(
-            APost.With(media: [APost.Attached(MediaKind.Video) with { Url = address }]),
+            APost.With(media: [APost.APicture() with { Url = address }]),
             61,
             default,
             Now);

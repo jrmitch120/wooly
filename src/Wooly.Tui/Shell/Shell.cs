@@ -355,16 +355,19 @@ public sealed class Shell
     }
 
     /// <summary>
-    ///     Opens whatever the picked reference points at, which is three different things: a hashtag's timeline, the
-    ///     account a mention names, or an address, in the platform's own browser (#85).
+    ///     Opens whatever the picked reference points at, which is four different things: a hashtag's timeline, the
+    ///     account a mention names, an address in the platform's own browser, or a <c>Video</c>/<c>Animation</c>/
+    ///     <c>Audio</c>/<c>Unknown</c> attachment's own address — in that same browser, the exact way a picked link
+    ///     already reaches it (#85, ADR-0017).
     /// </summary>
     /// <remarks>
-    ///     Which of the three it is, is the role the reference draws in — one vocabulary rather than two, which is the
+    ///     Which of the four it is, is the role the reference draws in — one vocabulary rather than two, which is the
     ///     bargain <c>Reference</c> already struck: a second enum saying the same thing would be a second place to add
-    ///     the fourth kind to.
+    ///     a kind to.
     ///     <para>
-    ///         Only the address arm leaves the terminal, and it is the only arm that pushes nothing: the reader has
-    ///         been sent somewhere this client does not draw, so there is nothing to come back from with <c>esc</c>.
+    ///         Only the two address arms leave the terminal, and each is the only thing in its arm that pushes
+    ///         nothing: the reader has been sent somewhere this client does not draw, so there is nothing to come back
+    ///         from with <c>esc</c>.
     ///     </para>
     /// </remarks>
     public Task OpenReference()
@@ -385,14 +388,18 @@ public sealed class Shell
                 return OpenMention();
 
             case Role.Link:
+            case Role.Media:
+                // Media is an attachment's own address (AttachmentReferences), carried already-well-formed off the
+                // wire rather than matched by pattern out of prose — but it goes through the very same call a Link
+                // reference does, so a refusal reads identically whichever kind of reference it was refused on.
                 OpenAddress(reference.Text);
 
                 return Task.CompletedTask;
 
             default:
                 // Named rather than left as the fall-through, because the fall-through here is the one path that
-                // leaves the machine: a fourth kind of reference added to BodyText and forgotten about must open
-                // nothing rather than be handed to a browser as an address.
+                // leaves the machine: a fifth kind of reference added and forgotten about must open nothing rather
+                // than be handed to a browser as an address.
                 return Task.CompletedTask;
         }
     }

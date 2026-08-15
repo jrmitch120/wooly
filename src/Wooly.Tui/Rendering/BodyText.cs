@@ -33,12 +33,14 @@ public static partial class BodyText
 
     /// <summary>
     ///     The brackets a picked reference is drawn in — always drawn, in colour and no-colour terminals alike, which
-    ///     is the whole of why they are brackets rather than a colour (<c>docs/tui-shell.md</c>).
+    ///     is the whole of why they are brackets rather than a colour (<c>docs/tui-shell.md</c>). Internal rather than
+    ///     private since <c>PostLines</c> brackets an attachment reference the same way, on its own drawing path
+    ///     (ADR-0017).
     /// </summary>
-    private const string Opening = "‹";
+    internal const string Opening = "‹";
 
     /// <inheritdoc cref="Opening" />
-    private const string Closing = "›";
+    internal const string Closing = "›";
 
     /// <summary>
     ///     The references inside <paramref name="text" />, left to right — the order they are walked in, and the order

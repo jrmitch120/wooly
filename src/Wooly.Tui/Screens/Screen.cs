@@ -147,15 +147,21 @@ public abstract class Screen
     protected virtual Post? Referencing => Picked;
 
     /// <summary>
-    ///     The references inside that post, in the order they were written — which is the order they are walked in,
-    ///     and the order an index into them means anything in.
+    ///     The references inside that post, in the order they were written, followed by its attachments' own — which
+    ///     is the order they are walked in, and the order an index into them means anything in.
     /// </summary>
     /// <remarks>
-    ///     None at all while the post's text is still behind a content warning: the brackets a picked reference is
-    ///     drawn in would be behind it too, so a pick there is one nobody can see (<c>docs/tui-shell.md</c>).
+    ///     None of the text ones while the post's text is still behind a content warning: the brackets a picked
+    ///     reference is drawn in would be behind it too, so a pick there is one nobody can see (<c>docs/tui-shell.md</c>).
+    ///     An attachment reference is unaffected by that gate — its box and description already stand outside the
+    ///     warning, on <c>PostLines</c>' own path, so there is nothing for a bracket on it to hide behind (ADR-0017).
     /// </remarks>
-    public IReadOnlyList<Reference> References => Referencing is { } post && Readable(post)
-        ? BodyText.References((post.Boosted ?? post).Content)
+    public IReadOnlyList<Reference> References => Referencing is { } post
+        ?
+        [
+            .. Readable(post) ? BodyText.References((post.Boosted ?? post).Content) : [],
+            .. AttachmentReferences.Of(post),
+        ]
         : [];
 
     /// <summary>
