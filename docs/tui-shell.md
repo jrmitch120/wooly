@@ -225,10 +225,17 @@ mention, or address inside a post's text — replacing `BodyText`'s internal "ma
   conversations list, where the row is a conversation and the post drawn under it is its last message. That one is
   `Screen.Referencing` rather than `Screen.Picked`: widening `Picked` there would have handed `d`, `b` and `f` a post
   the screen never offered them (#83).
-- **Walkable**: hashtag, mention, and address — the three references `BodyText` finds. **Not walkable**: an
-  attachment's link, which sits outside the post's own text and renders in a separate path (`PostLines.Linked`); and
-  text still behind a content warning, which has no references until `x` shows it, since the brackets marking a pick
-  would be behind the warning too (#83).
+- **Walkable**: hashtag, mention, and address — the three references `BodyText` finds — followed, since #109
+  (ADR-0017), by every `Video`, `Animation`, `Audio` or `Unknown` attachment on the post, in attachment order.
+  **Not walkable**: an `Image` attachment, which is drawn or linked but never opened this way; and text still behind a
+  content warning, which has no references until `x` shows it, since the brackets marking a pick would be behind the
+  warning too (#83). An attachment reference is unaffected by the warning — it renders on `PostLines`' own path,
+  outside the text `BodyText` walks, and is walkable whether or not the post's own text is showing.
+- **An attachment reference carries no place in the post's text.** It is appended after every one `BodyText` found,
+  in the order the attachments themselves were sent, and it is drawn on `PostLines`' own path rather than sliced out
+  of a wrapped row — the kind's own name (`MediaKindName.Written`, capitalized) is the whole of the walkable span, with
+  the author's own description alongside it where they gave one. The raw address is not printed at all; it is only
+  ever what `⏎` opens (#109).
 - **Matched once per post, on the flattened text before the wrap** rather than per wrapped row, which is what gives
   them an order and a place to be walked by. `TextWrap` carries each row's offset into that text and every row is a
   slice of it at that offset, so a row's spans are the post's references sliced by its own range. An address longer
@@ -249,20 +256,23 @@ mention, or address inside a post's text — replacing `BodyText`'s internal "ma
   ahead of the screen's shared keys, and standing in for any of them it shares a key with, so `⏎` is announced once
   (`PostKeys.OnAReference`). Said by `Screen` itself rather than by each screen, which is why a screen's own list is
   `OwnKeys` and `Keys` is what the status row reads (#83).
-- **`⏎` does three different things, refusals share one notice** (#85). Which of the three is the role the reference
-  draws in, since that vocabulary already tells them apart. A hashtag opens exactly the way `Shell.OpenTag` already
-  opens one found by search — same `FeedScreen`, same breadcrumb, no new screen type, and the rail's own hashtag
-  destination left alone. A mention opens the account screen, resolved off `Post.Mentions` — which the wire carries
-  down with every post, so no fetch is spent working out who a `@maria` is; a handle written bare is whoever the post
-  names by that username, and where two accounts share one the first the post lists wins. Unresolvable, `⏎` does
-  nothing and the status row says **"That mention couldn't be resolved."** `c` with a mention picked opens a fresh
-  compose (not a reply) with `@handle ` pre-filled — in full where the post resolved it, since a bare handle written
-  back out would reach whoever this profile's own instance has by that name, and as written where it did not; `a`
-  still means the post's author, never the picked mention. An address opens the platform's browser
-  (Windows/macOS/Linux, each its own call) for `http`/`https` only — a refused scheme says
+- **`⏎` does four different things, refusals share one notice** (#85, #109). Which of the four is the role the
+  reference draws in, since that vocabulary already tells them apart. A hashtag opens exactly the way `Shell.OpenTag`
+  already opens one found by search — same `FeedScreen`, same breadcrumb, no new screen type, and the rail's own
+  hashtag destination left alone. A mention opens the account screen, resolved off `Post.Mentions` — which the wire
+  carries down with every post, so no fetch is spent working out who a `@maria` is; a handle written bare is whoever
+  the post names by that username, and where two accounts share one the first the post lists wins. Unresolvable, `⏎`
+  does nothing and the status row says **"That mention couldn't be resolved."** `c` with a mention picked opens a
+  fresh compose (not a reply) with `@handle ` pre-filled — in full where the post resolved it, since a bare handle
+  written back out would reach whoever this profile's own instance has by that name, and as written where it did not;
+  `a` still means the post's author, never the picked mention. An address, and an attachment's own address alike, open
+  the platform's browser (Windows/macOS/Linux, each its own call) for `http`/`https` only — a refused scheme says
   **"That kind of address isn't opened."**, no browser available says **"No browser available."** — both through the
-  shell's existing `Say(notice, isError: true)` mechanism, no new shell state. The address arm is the one that pushes
-  nothing: the reader has been sent somewhere this client does not draw, so there is nothing to `esc` back from.
+  shell's existing `Say(notice, isError: true)` mechanism, no new shell state. Both address arms are the ones that
+  push nothing: the reader has been sent somewhere this client does not draw, so there is nothing to `esc` back from.
+  An attachment's own address needs no elided-form or scheme check the way body text does — it arrives off the wire
+  already well-formed (`PostMedia.Url`) rather than matched by pattern out of prose — so it goes through the exact
+  same `Shell.OpenAddress` call a picked link already does, refusal for refusal.
 - **The launch is decided apart from the act, and outside `ShellPorts`.** This is the first thing in the shell that
   leaves the terminal, so it lives in its own small seam rather than folded into the ports (which are specifically
   "everything the shell reaches an *instance* through" — a browser reaches outside the instance). `BrowserLaunch`
@@ -383,11 +393,16 @@ cache. Streaming stays out of scope (below); a manual refresh is the in-scope an
 
 Media is drawn in place inside a feed item or a post, at whatever width the content region has (ADR-0016):
 
-- **Only a still picture is drawn.** Video, audio, an animation and anything this client has no word for get a `⏵`, the
-  description, and the address on the rows below — wrapped rather than clipped, since a real address is longer than 61
-  columns and a link with its end cut off is not a link. Never an inline rendering attempt (story 51). An animation is
-  linked rather than drawn as the still its preview happens to be, because a frozen frame with nothing to say it was
-  meant to move is the misleading rendering the story rules out.
+- **Only a still picture is drawn.** Video, audio, an animation and anything this client has no word for get a `⏵`, its
+  kind's own name capitalized — walkable and, since #109 (ADR-0017), what `⏎` opens ("What references settled") — with
+  the description alongside where its author gave one. No raw address is printed for these anymore: it is only ever
+  what `⏎` hands the browser. Never an inline rendering attempt (story 51). An animation is linked rather than drawn as
+  the still its preview happens to be, because a frozen frame with nothing to say it was meant to move is the
+  misleading rendering the story rules out.
+- **A still picture that cannot be drawn is unaffected by #109**, and keeps the shape every attachment had before it: a
+  `⏵`, the description, and the address on the rows below — wrapped rather than clipped, since a real address is
+  longer than 61 columns and a link with its end cut off is not a link. `Image` never joins the walk, so there is
+  nothing here for `←`/`→` to reach.
 - **Sixel is preferred over Kitty, and the preference is subscribed to.** Both capabilities are answers the terminal
   sends back some frames after startup, so a preference set once at startup is set against nothing and then overwritten
   (ADR-0016).

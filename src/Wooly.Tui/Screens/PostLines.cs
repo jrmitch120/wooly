@@ -78,7 +78,7 @@ public static class PostLines
                 .. Byline(shown, width, now, pictures),
             ],
             Body(shown, width, reading),
-            .. Media(shown, width, pictures, Inset.FeedRows, hideDrawnCaption),
+            .. Media(shown, width, pictures, Inset.FeedRows, hideDrawnCaption, reading),
             Poll(shown, width, reading),
             [Counts(shown, spelledOut: false)],
         ]);
@@ -126,7 +126,7 @@ public static class PostLines
                     ])),
             ],
             Body(shown, width, reading),
-            .. Media(shown, width, pictures, Inset.WholeRows, hideDrawnCaption),
+            .. Media(shown, width, pictures, Inset.WholeRows, hideDrawnCaption, reading),
             Poll(shown, width, reading),
             [Counts(shown, spelledOut: true)],
         ]);
@@ -391,16 +391,16 @@ public static class PostLines
 
     /// <summary>
     ///     What is attached: each one behind a mark saying what it shows, and then either the picture itself drawn in
-    ///     place or the address to reach it at.
+    ///     place, the address to reach an undrawn picture at, or — a video, a sound, an animation, or an attachment of
+    ///     a kind this client has no word for — the label <c>←</c>/<c>→</c> walks to and <c>⏎</c> opens (ADR-0017).
     /// </summary>
     /// <remarks>
-    ///     Three cases, and which one an attachment falls into is settled here rather than at the view, because it
-    ///     changes how many rows the post takes. A picture this terminal can draw and has the pixels for gets a box; a
-    ///     picture whose pixels have not landed yet gets its description and nothing else, so the rows appear under it
-    ///     when they arrive rather than a hole opening above; and everything else — a video, a sound, an attachment of
-    ///     a kind this client has no word for, and <em>any</em> attachment on a terminal offering neither sixel nor the
-    ///     Kitty graphics protocol — gets the link and description the CLI gives it. There is no cell-by-cell fallback:
-    ///     a photograph reduced to one coloured block per cell is not a picture of anything (ADR-0016).
+    ///     Which case an attachment falls into is settled here rather than at the view, because it changes how many
+    ///     rows the post takes. A picture this terminal can draw and has the pixels for gets a box; a picture whose
+    ///     pixels have not landed yet, or that this terminal cannot draw at all, gets the link and description the CLI
+    ///     already gives it (ADR-0016). Everything else never had pixels to wait for, so it always gets its kind's own
+    ///     label — the walkable reference — beside its description where its author gave one. There is no cell-by-cell
+    ///     fallback: a photograph reduced to one coloured block per cell is not a picture of anything (ADR-0016).
     /// </remarks>
     /// <param name="pictures">What can be drawn and what is here, or <see langword="null" /> where nothing can be.</param>
     /// <param name="mostRows">The most rows a picture may take, which is what a feed and a whole post differ on.</param>
@@ -408,6 +408,10 @@ public static class PostLines
     ///     Whether the description drops once a picture is actually drawn under it (#71). A picture still on its way
     ///     keeps its description regardless — that is the whole of what a reader has while the pixels are not here yet,
     ///     and hiding it would be an arrival flicker rather than a quieter post.
+    /// </param>
+    /// <param name="reading">
+    ///     What this reader has done to this post, which is what says whether one of its attachment references is
+    ///     picked out and drawn in brackets (#109).
     /// </param>
     /// <returns>
     ///     One run of rows per attachment, rather than one run for all of them, so that <see cref="Parts" /> puts a
@@ -418,13 +422,28 @@ public static class PostLines
         int width,
         IPictures? pictures,
         int mostRows,
-        bool hideDrawnCaption)
+        bool hideDrawnCaption,
+        Reading reading)
     {
+        // Built once, off the same formula Screen.References walks, so a bracket here and the pick the reader made
+        // can never come to disagree about which attachment it landed on (AttachmentReferences).
+        var references = AttachmentReferences.Of(post);
+        var at = 0;
+
         foreach (var attached in post.Media)
         {
-            if (!attached.IsDrawable || pictures?.Cell is not { } cell)
+            if (attached.Kind != MediaKind.Image)
             {
-                yield return [.. Linked(attached, width)];
+                yield return [AttachmentReferenceLine(attached, references[at], reading.Reference, width)];
+
+                at++;
+
+                continue;
+            }
+
+            if (pictures?.Cell is not { } cell)
+            {
+                yield return [.. LinkedImage(attached, width)];
 
                 continue;
             }
@@ -445,8 +464,11 @@ public static class PostLines
         }
     }
 
-    /// <summary>An attachment that is not being drawn: what it shows, and where to get it.</summary>
-    private static IEnumerable<Line> Linked(PostMedia attached, int width)
+    /// <summary>
+    ///     A picture that is not being drawn: what it shows, and where to get it. Unaffected by ADR-0017 — <c>Image</c>
+    ///     never joins the walk, so this is exactly what the CLI already prints (ADR-0016).
+    /// </summary>
+    private static IEnumerable<Line> LinkedImage(PostMedia attached, int width)
     {
         yield return Described(attached, LinkMark, width);
 
@@ -458,6 +480,47 @@ public static class PostLines
             yield return Line.Of($"  {row}", Role.Muted);
         }
     }
+
+    /// <summary>
+    ///     A <c>Video</c>, <c>Animation</c>, <c>Audio</c> or <c>Unknown</c> attachment's own row: the mark, its kind
+    ///     capitalized — bracketed where <paramref name="picked" /> names this attachment — and its description
+    ///     alongside where its author gave one (ADR-0017, #109).
+    /// </summary>
+    /// <remarks>
+    ///     The address itself is never printed: it is what <c>⏎</c> now opens rather than what the row says, which is
+    ///     the whole reason the raw rows <see cref="LinkedImage" /> still prints for a picture are gone from here.
+    /// </remarks>
+    private static Line AttachmentReferenceLine(PostMedia attached, Reference reference, Reference? picked, int width)
+    {
+        var bracketed = picked == reference;
+        var label = Capitalized(MediaKindName.Written(attached.Kind));
+
+        var spans = new List<Span> { new($"{LinkMark} ", Role.Media) };
+
+        if (bracketed)
+        {
+            spans.Add(new Span(BodyText.Opening, Role.ReferencePicked));
+        }
+
+        spans.Add(new Span(label, Role.Media));
+
+        if (bracketed)
+        {
+            spans.Add(new Span(BodyText.Closing, Role.ReferencePicked));
+        }
+
+        if (attached.Description is { } description)
+        {
+            var used = spans.Sum(span => span.Text.Length) + 1;
+
+            spans.Add(new Span($" {TextWrap.Clip(description, Math.Max(0, width - used))}", Role.Media));
+        }
+
+        return new Line(spans);
+    }
+
+    /// <summary>One word, its first letter upper-cased — <c>MediaKindName.Written</c>'s own spelling, said out loud.</summary>
+    private static string Capitalized(string word) => $"{char.ToUpperInvariant(word[0])}{word[1..]}";
 
     /// <summary>
     ///     The rows a picture is drawn over. The first carries the box; the rest are rows of the screen the box covers,
