@@ -36,6 +36,19 @@ internal sealed class FakePostEngagement : IPostEngagement
     /// <summary>Every post it was asked for the thread around, in order.</summary>
     public List<Shown> ThreadsRead { get; } = [];
 
+    /// <summary>Every vote it was asked to cast, in order — where a test proves what a front end chose.</summary>
+    public List<Cast> Votes { get; } = [];
+
+    /// <summary>The post a vote is answered with, where a test is about what the poll came back saying.</summary>
+    public Post? Voted { get; set; }
+
+    /// <summary>
+    ///     What a vote is turned down with, where a test is about an instance refusing one — the second vote it will
+    ///     not take. Its own knob rather than <see cref="Refusing" />, because reaching a vote at all means reading the
+    ///     post that carries the poll first, and an instance that refused that read would be a different test.
+    /// </summary>
+    public Exception? VoteRefusal { get; set; }
+
     /// <summary>An instance that takes whatever it is asked and answers with <paramref name="answer" />.</summary>
     public static FakePostEngagement Answering(Post? answer = null) => new(answer ?? APost.With());
 
@@ -92,10 +105,30 @@ internal sealed class FakePostEngagement : IPostEngagement
         return _refusal is null ? _thread() : Task.FromException<PostThread>(_refusal);
     }
 
+    public Task<Post> Vote(
+        ActiveProfile profile,
+        Post post,
+        IReadOnlyList<int> choices,
+        CancellationToken cancellationToken)
+    {
+        Votes.Add(new Cast(profile.Name, post.Id, choices));
+
+        if ((VoteRefusal ?? _refusal) is { } refusal)
+        {
+            return Task.FromException<Post>(refusal);
+        }
+
+        // The post it was handed, unless a test said what the instance answers with — which is what the real adapter
+        // does too: the poll comes back, and the post around it is the caller's own.
+        return Task.FromResult(Voted ?? post);
+    }
+
     private Task<Post> Answer() =>
         _refusal is null ? Task.FromResult(_answer) : Task.FromException<Post>(_refusal);
 
     internal sealed record Marked(string Profile, string PostId, PostMark Mark, bool Wanted);
 
     internal sealed record Shown(string Profile, string PostId);
+
+    internal sealed record Cast(string Profile, string PostId, IReadOnlyList<int> Choices);
 }

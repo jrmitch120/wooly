@@ -53,6 +53,23 @@ internal static class PostReport
         console.WriteAddress(post.Url);
     }
 
+    /// <summary>Reports the vote just cast, and the poll as the instance now has it.</summary>
+    /// <remarks>
+    ///     The poll rather than the whole post, which the voter was looking at when they chose: what they do not yet
+    ///     know is where their vote left the counts, and that is the whole of what came back.
+    /// </remarks>
+    public static void Voted(IAnsiConsole console, Post post)
+    {
+        console.MarkupLineInterpolated($"Voted in the poll on [bold]{post.Id}[/].");
+
+        if (post.Poll is { } poll)
+        {
+            WritePoll(console, poll);
+        }
+
+        console.WriteAddress(post.Url);
+    }
+
     /// <summary>Reports one post asked for by id: the post itself, and where to read it on the web.</summary>
     /// <remarks>
     ///     The address is what a single post gets that a timeline's posts do not. A timeline is read down, and one

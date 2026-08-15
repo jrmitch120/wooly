@@ -79,7 +79,7 @@ public static class PostLines
             ],
             Body(shown, width, reading),
             .. Media(shown, width, pictures, Inset.FeedRows, hideDrawnCaption),
-            Poll(shown, width),
+            Poll(shown, width, reading),
             [Counts(shown, spelledOut: false)],
         ]);
     }
@@ -127,7 +127,7 @@ public static class PostLines
             ],
             Body(shown, width, reading),
             .. Media(shown, width, pictures, Inset.WholeRows, hideDrawnCaption),
-            Poll(shown, width),
+            Poll(shown, width, reading),
             [Counts(shown, spelledOut: true)],
         ]);
     }
@@ -487,16 +487,39 @@ public static class PostLines
     ///     profile picked — followed by whether and when it closes, a note where more than one answer may be chosen,
     ///     and the vote count. Nothing at all for a post with no poll.
     /// </summary>
-    private static IEnumerable<Line> Poll(Post post, int width)
+    /// <remarks>
+    ///     While the reader has a vote toggled and not yet cast, every option leads with a box instead of the mark:
+    ///     the poll they are reading has become the ballot they are filling in, and a checked box on one row is only
+    ///     legible against the empty ones beside it (<c>docs/tui-shell.md</c>, #87).
+    /// </remarks>
+    private static IEnumerable<Line> Poll(Post post, int width, Reading reading)
     {
         if (post.Poll is not { } poll)
         {
             yield break;
         }
 
-        foreach (var option in poll.Options)
+        // Only where something is actually toggled: an empty ballot is a poll nobody is voting in yet, and drawing
+        // boxes down it would say a vote is being cast whenever a post with a poll on it is picked out.
+        var chosen = reading.Chosen is { Count: > 0 } toggled ? toggled : null;
+
+        for (var at = 0; at < poll.Options.Count; at++)
         {
-            yield return PollOptionLine(poll, option, width);
+            var option = poll.Options[at];
+
+            var mark = chosen is null
+                ? option.Picked ? "✓ " : "  "
+                : chosen.Contains(at) ? "[x] " : "[ ] ";
+
+            yield return PollOptionLine(poll, option, width, mark);
+        }
+
+        if (chosen is not null)
+        {
+            // Under the ballot rather than only on the status row, which is where the reader is not looking: they are
+            // looking at the boxes they have just ticked, and this is the one moment in the shell where a key has to
+            // be found rather than remembered. It costs a row, and only while a vote is standing uncast.
+            yield return Line.Of(TextWrap.Clip("v casts this vote, esc discards it", width), Role.Muted);
         }
 
         if (poll.Closed)
@@ -517,15 +540,18 @@ public static class PostLines
     }
 
     /// <summary>
-    ///     One option's row: a leading <c>✓ </c> where this profile picked it, then a <c>▓</c>/<c>░</c> bar sized to
-    ///     the share of the vote it drew, the percentage and raw count, and the option's own text — all in
-    ///     <see cref="Role.Poll" />. An option whose count is withheld draws no bar at all rather than one guessed at,
-    ///     which is what tells it apart from a genuinely unvoted option's empty, <c>0%</c> bar.
+    ///     One option's row: <paramref name="mark" />, then a <c>▓</c>/<c>░</c> bar sized to the share of the vote it
+    ///     drew, the percentage and raw count, and the option's own text — all in <see cref="Role.Poll" />. An option
+    ///     whose count is withheld draws no bar at all rather than one guessed at, which is what tells it apart from a
+    ///     genuinely unvoted option's empty, <c>0%</c> bar.
     /// </summary>
-    private static Line PollOptionLine(PostPoll poll, PostPollOption option, int width)
+    /// <param name="mark">
+    ///     What the row leads with: <c>✓ </c> where this profile has voted for it, or the ballot's <c>[x] </c>/
+    ///     <c>[ ] </c> while a vote is toggled and uncast. Worked out by <see cref="Poll" />, which is what knows
+    ///     whether either applies — the option itself only knows what the instance said about it.
+    /// </param>
+    private static Line PollOptionLine(PostPoll poll, PostPollOption option, int width, string mark)
     {
-        var mark = option.Picked ? "✓ " : "  ";
-
         if (option.Votes is not { } votes)
         {
             return Line.Of(TextWrap.Clip($"{mark}{option.Text}", width), Role.Poll);

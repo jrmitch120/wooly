@@ -367,6 +367,14 @@ internal sealed class ShellWindow : Window
 
     private bool Content(Key key)
     {
+        // The digits address the answers of the picked post's poll directly, and are consumed only where there is one
+        // to address: a digit on a post with no poll does nothing and is left to whatever else wants it, which is the
+        // same bargain the reference arrows strike (#87).
+        if (Digit(key) is { } option)
+        {
+            return _shell.Toggle(option);
+        }
+
         // The capitals first, and matched on the character rather than on a modifier, so that a lower-case mark key
         // can never fire a tie or empty an inbox by accident (docs/tui-shell.md).
         if (key.AsRune.Value is 'F' or 'M' or 'B')
@@ -432,6 +440,10 @@ internal sealed class ShellWindow : Window
         {
             _ = _shell.Press(ShellKey.Reject);
         }
+        else if (key == Key.V)
+        {
+            _shell.AskToVote();
+        }
         else if (key.AsRune.Value == '/')
         {
             _shell.Search();
@@ -447,6 +459,18 @@ internal sealed class ShellWindow : Window
 
         return true;
     }
+
+    /// <summary>
+    ///     Which poll answer a digit addresses, counted from zero, or <see langword="null" /> where the key is not a
+    ///     digit at all. <c>1</c>-<c>9</c> then <c>0</c>, so that ten answers are reachable along one row of keys and
+    ///     the reader counts from where a person counts from (<c>docs/tui-shell.md</c>).
+    /// </summary>
+    private static int? Digit(Key key) => key.AsRune.Value switch
+    {
+        >= '1' and <= '9' => (int)key.AsRune.Value - '1',
+        '0' => 9,
+        _ => null,
+    };
 
     /// <summary>
     ///     Where the editor starts: the top of the content region, plus however many rows the screen underneath wants

@@ -37,9 +37,9 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
-      # seed.sh prints exactly two "NAME=value" lines on success (see its own header comment) — the same shape
-      # GITHUB_ENV takes, so appending its stdout there is what carries the instance and token into every step after
-      # this one without a second place naming the same two variables.
+      # seed.sh prints exactly three "NAME=value" lines on success (see its own header comment) — the same shape
+      # GITHUB_ENV takes, so appending its stdout there is what carries the instance and both tokens into every step
+      # after this one without a second place naming the same variables.
       - name: Seed a throwaway Mastodon instance
         run: tests/integration/seed.sh >> "$GITHUB_ENV"
 

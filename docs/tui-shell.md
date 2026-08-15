@@ -84,8 +84,8 @@ Feed and post:
 | `d` | Delete | Own posts only, **confirmation required** (story 43) |
 | `x` | Reveal a content warning | |
 | `←` `→` | Walk the references (hashtag, mention, link) inside the picked post | Clamps at the ends; `esc`/`j`/`k` clear the pick; `⏎` opens what's picked (below) |
-| `1`-`9` `0` | Toggle the 1st-10th option of the picked post's poll | No-op with no poll on the picked post |
-| `v` | Cast the toggled poll vote | **Confirmation required** (story 43), same as delete |
+| `1`-`9` `0` | Toggle the 1st-10th option of the picked post's poll | Only where the poll would still take a vote — no-op otherwise, and off the status row there too; `esc`/`j`/`k` discard the toggle |
+| `v` | Cast the toggled poll vote | **Confirmation required** (story 43), same as delete. On a poll already voted in or closed, says which rather than asking |
 
 Screen-local, and deliberately colliding with the above because they are never on screen together:
 
@@ -125,6 +125,11 @@ not answer them differently:
   brackets cost two columns per hint and collide with `‹reference›`'s bracket vocabulary below; capitalising would
   misrepresent a case-significant key (`d` deletes, `D` clears all). The confirmation and notice rows show no keys
   and are untouched. This is `KeyHint`'s own rendering, so a future `?` keymap screen inherits it for free.
+- **A notice takes the whole row, so it goes as soon as it is spent.** The row holds a notice or the keymap and never
+  both, which makes a remark left standing every key the screen answers to, hidden. So a remark goes when the reader
+  walks to another thing — it was about the one they left — and when they do the thing it asked for, as toggling a poll
+  answer does. It already went on `esc` and on arriving anywhere; those two are the same rule said earlier (#87
+  follow-up).
 - **`esc` is always up one level, of whichever kind of level is currently open** — amended from "up one level of the
   stack" now that a reference pick is a level of its own. With a reference picked, the first `esc` clears the pick;
   the next pops the screen (#64). This is the one addition ADR-0014's frame keys have taken since being settled.
@@ -293,11 +298,35 @@ one back, and voting on one, are both built now (#69, #74):
   mechanic for single- and multiple-choice (single-choice toggling is exclusive: picking a new option clears the
   last). `j`/`k`/`esc` discard an uncommitted toggle, the same rule references use for a picked reference above.
 - **`v` casts it**, through the existing `Confirmation`/story-43 pattern — a cast vote qualifies more than delete
-  does, since the API refuses a second vote outright rather than allowing recovery.
+  does, since the API refuses a second vote outright rather than allowing recovery. The two keys are on the status row
+  only while the picked post carries a poll **that would still take a vote** — one that has not closed and that this
+  profile has not already voted in (`PostPoll.TakesAVote`) — the same swap a picked reference already makes and for the
+  same reason: a key announced where it does nothing reads as a shell that missed the press. A picked reference wins
+  over a poll, being the level the reader is standing on. An answered poll is a result to read: the digits do nothing
+  there, and `v` says which of the two reasons it is rather than nothing at all, the way `m` answers on a conversation
+  already read. Whether a vote would *land* is still the instance's (ADR-0009) — this is only about what is offered.
+- **The question names the answer, not the post.** `Vote for "Dogs"? This cannot be undone.` — what a vote can be
+  wrong about is which answer it is for, and the id of the post the poll happens to be on answers a question nobody
+  voting has (unlike a delete, where the id is the whole risk). Several ticked answers are counted rather than listed
+  (`Cast the 3 answers you ticked?`), and one answer is clipped at 25 columns, because the question takes the status
+  row and `y vote · esc keep` takes what is left: a question that pushes the answer key off the right is one nobody
+  knows how to answer. Nothing is lost by counting — the ballot is on screen with every agreed answer drawn `[x]`.
+- **The ballot says how to cast it**, in a muted row of its own under the boxes: `v casts this vote, esc discards it`.
+  On the poll rather than only on the status row, because this is the one moment in the shell where a key has to be
+  found rather than remembered — the reader is looking at the boxes they have just ticked, not at the foot of the
+  screen. It costs one row, and only while a vote is standing uncast.
 - **No refetch.** `POST /api/v1/polls/:id/votes` returns the complete updated poll in the same response; that feeds
   the same `Replace(...)` call `Mark` already uses.
-- **`Vote(...)` lands on `IPostEngagement`** beside `Mark`/`Show`/`Replies`. The CLI gets `post vote <post-id>
-  <choice>...`, joining the boost/favorite/pin command family, confirming via `Consent.Given`.
+- **`Vote(...)` lands on `IPostEngagement`** beside `Mark`/`Show`/`Replies` — and is the one call there that takes the
+  post rather than its id, because Mastodon votes on the *poll*, whose id is not the post's and is only knowable from
+  the post itself. A reader who can see the options they are voting on is already holding it, so the TUI pays one call;
+  the CLI, which holds an id, reads the post first. The CLI gets `post vote <post-id> <choice>...`, joining the
+  boost/favorite/pin command family, confirming via `Consent.Given`, and numbering the answers from 1 as they are
+  printed rather than from the zero the API counts by.
+- **A refusal is a notice, not a crash.** An instance that will not take a vote — a second one, above all — says why,
+  and that answer is named as a failure of this client's own (`VoteRefusedException`) so the shell draws it over what
+  the reader was reading. It is the one refusal in `PostEngagement` that is retyped rather than passed on; nothing else
+  there can be refused in a way the reader cannot simply try differently.
 - **A role-emission contract test is worth having** — one that walks every `Role` and asserts some view can produce
   it, the thing that would have caught `Role.Poll` sitting dead in the contract in the first place.
 

@@ -6,6 +6,7 @@ using Spectre.Console.Testing;
 using Wooly.Cli;
 using Wooly.Core;
 using Wooly.Core.Credentials;
+using Wooly.Core.Errors;
 using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
 using Wooly.Tests.Fakes;
@@ -495,6 +496,202 @@ public class PostEngagementCommandTests : IDisposable
         Assert.Empty(_posts.Reads);
     }
 
+    /// <summary>
+    ///     The answers are numbered as a person reads them, from 1, and reach the port as indices into the poll's own
+    ///     options — the zero the API counts by is nothing the command line ever says.
+    /// </summary>
+    [Fact]
+    public void Vote_CastsTheAnswerNamedOnTheCommandLine()
+    {
+        AddProfile();
+        _posts = WithAPoll();
+
+        var run = Run(["post", "vote", "110", "2"]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Empty(run.ErrorOutput.Trim());
+
+        var cast = Assert.Single(_posts.Votes);
+        Assert.Equal("personal", cast.Profile);
+        Assert.Equal("110", cast.PostId);
+        Assert.Equal([1], cast.Choices);
+    }
+
+    /// <summary>A poll that lets a voter choose several takes several, in the order they were typed.</summary>
+    [Fact]
+    public void Vote_CastsEveryAnswerNamedWhereThePollAllowsMoreThanOne()
+    {
+        AddProfile();
+        _posts = WithAPoll(APost.APoll(multipleChoice: true));
+
+        var run = Run(["post", "vote", "110", "2", "1"]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Equal([1, 0], Assert.Single(_posts.Votes).Choices);
+    }
+
+    /// <summary>Mastodon votes on the poll, whose id is only knowable from the post — so the post is read first.</summary>
+    [Fact]
+    public void Vote_ReadsThePostTheIdNamesBeforeVotingInItsPoll()
+    {
+        AddProfile();
+        _posts = WithAPoll();
+
+        Run(["post", "vote", "110", "1"]);
+
+        Assert.Equal("110", Assert.Single(_posts.Reads).PostId);
+    }
+
+    /// <summary>A vote nothing takes back, so a person at a terminal is asked before one is cast.</summary>
+    [Fact]
+    public void Vote_AsksBeforeCastingWhenThereIsSomebodyToAsk()
+    {
+        AddProfile();
+        _posts = WithAPoll();
+
+        var run = Run(["post", "vote", "110", "1"], atATerminal: true, typed: "y");
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Equal([0], Assert.Single(_posts.Votes).Choices);
+    }
+
+    [Fact]
+    public void Vote_LeavesThePollAloneWhenTheAnswerIsNo()
+    {
+        AddProfile();
+        _posts = WithAPoll();
+
+        var run = Run(["post", "vote", "110", "1"], atATerminal: true, typed: "n");
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Empty(_posts.Votes);
+        Assert.Contains("Left the poll", run.Output);
+    }
+
+    [Fact]
+    public void Vote_DoesNotAskWhenTheCommandLineAlreadySaidYes()
+    {
+        AddProfile();
+        _posts = WithAPoll();
+
+        var run = Run(["post", "vote", "110", "1", "--yes"], atATerminal: true);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Single(_posts.Votes);
+    }
+
+    /// <summary>
+    ///     A script has nobody to answer a prompt, and stopping to ask would make the command unusable in the
+    ///     automation the CLI exists for. Typing the command is that invocation's consent.
+    /// </summary>
+    [Fact]
+    public void Vote_CastsWithoutAskingWhereThereIsNoTerminal()
+    {
+        AddProfile();
+        _posts = WithAPoll();
+
+        var run = Run(["post", "vote", "110", "1"], atATerminal: false);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Single(_posts.Votes);
+    }
+
+    /// <summary>
+    ///     The vote endpoint answers with the poll as it now stands, and that is the part the voter does not already
+    ///     know — so it is what gets written back out.
+    /// </summary>
+    [Fact]
+    public void Vote_ReportsThePollAsItNowStands()
+    {
+        AddProfile();
+        _posts = WithAPoll();
+        _posts.Voted = APost.With(poll: APost.APoll(
+            options: [APost.AnAnswer("Cats", 4), APost.AnAnswer("Dogs", 7, picked: true)],
+            votes: 11,
+            voted: true));
+
+        var run = Run(["post", "vote", "110", "2"]);
+
+        Assert.Contains("Voted in the poll on", run.Output);
+        Assert.Contains("✓ ▓▓▓▓▓▓░░░░ 64% (7)  Dogs", run.Output);
+        Assert.Contains("11 votes", run.Output);
+    }
+
+    [Fact]
+    public void Vote_WritesTheVotedPostAsMachineReadableJson()
+    {
+        AddProfile();
+        _posts = WithAPoll();
+
+        var run = Run(["post", "vote", "110", "1", "--json"]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Equal("110", JsonDocument.Parse(run.Output).RootElement.GetProperty("id").GetString());
+    }
+
+    /// <summary>
+    ///     A number that is not one of the answers is a value on the command line that is wrong, which this client can
+    ///     see for itself once it has the poll — rather than a vote sent to be turned down.
+    /// </summary>
+    [Fact]
+    public void Vote_ReportsAnAnswerThatIsNotOnThePollAsAUsageError()
+    {
+        AddProfile();
+        _posts = WithAPoll();
+
+        var run = Run(["post", "vote", "110", "3"]);
+
+        Assert.Equal((int)ExitCode.UsageError, run.ExitCode);
+        Assert.Empty(_posts.Votes);
+        Assert.Contains("no answer 3", run.ErrorOutput);
+    }
+
+    [Fact]
+    public void Vote_ReportsAPostWithNoPollOnItAsAUsageError()
+    {
+        AddProfile();
+
+        var run = Run(["post", "vote", "110", "1"]);
+
+        Assert.Equal((int)ExitCode.UsageError, run.ExitCode);
+        Assert.Empty(_posts.Votes);
+        Assert.Contains("no poll", run.ErrorOutput);
+    }
+
+    [Fact]
+    public void Vote_ReportsAMissingChoiceAsAUsageError()
+    {
+        AddProfile();
+        _posts = WithAPoll();
+
+        var run = Run(["post", "vote", "110"]);
+
+        Assert.Equal((int)ExitCode.UsageError, run.ExitCode);
+        Assert.Empty(_posts.Votes);
+    }
+
+    /// <summary>
+    ///     An instance refuses a second vote outright rather than replacing the first, and says so in its own words —
+    ///     which this client passes on rather than second-guessing.
+    /// </summary>
+    [Fact]
+    public void Vote_ReportsWhatTheInstanceRefusedInTheInstancesOwnWords()
+    {
+        AddProfile();
+        _posts = WithAPoll();
+        _posts.VoteRefusal = new VoteRefusedException(
+            new ServerErrorException(new Error { Description = "You have already voted on this poll" }));
+
+        var run = Run(["post", "vote", "110", "1"]);
+
+        Assert.NotEqual((int)ExitCode.Success, run.ExitCode);
+        Assert.Contains("already voted", run.ErrorOutput);
+    }
+
+    /// <summary>An instance that holds a poll to vote in, which is what every vote test starts from.</summary>
+    private static FakePostEngagement WithAPoll(PostPoll? poll = null) =>
+        FakePostEngagement.Answering(APost.With(poll: poll ?? APost.APoll()));
+
     /// <summary>CONTEXT.md's vocabulary, at the one place a user reads it: nothing on screen says reblog or favourite.</summary>
     [Fact]
     public void Post_NamesWhatItDoesInThisProjectsVocabulary()
@@ -516,10 +713,20 @@ public class PostEngagementCommandTests : IDisposable
     private void AddProfile(string name = "personal", string instance = "mastodon.social") =>
         Run(["profile", "add", name, "--instance", instance, "--token", $"token-{name}"]);
 
-    private CommandRun Run(string[] args)
+    private CommandRun Run(string[] args, bool atATerminal = false, string? typed = null)
     {
         var console = new TestConsole().Width(200);
         var errorConsole = new TestConsole().Width(200);
+
+        if (atATerminal)
+        {
+            console.Interactive();
+        }
+
+        if (typed is not null)
+        {
+            console.Input.PushTextWithEnter(typed);
+        }
 
         var app = WoolyCommandApp.Create(console, errorConsole, services =>
         {

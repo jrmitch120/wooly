@@ -67,4 +67,35 @@ public interface IPostEngagement
     ///     answers nothing.
     /// </returns>
     Task<PostThread> Thread(ActiveProfile profile, string postId, CancellationToken cancellationToken);
+
+    /// <summary>Casts a vote in the poll <paramref name="post" /> carries.</summary>
+    /// <remarks>
+    ///     The post rather than its id, which is the one call here that takes one — because Mastodon votes on the
+    ///     <em>poll</em>, whose id is not the post's and is only knowable from the post itself. A caller holding an id
+    ///     alone reads the post first (<see cref="Show" />); one that already has it, which is every reader who can see
+    ///     the options they are voting on, pays for nothing it already had.
+    ///     <para>
+    ///         Nothing is checked first. Whether the poll is still open, whether this account has already voted, and
+    ///         whether more than one answer may be chosen are all the instance's to settle — and it refuses a second
+    ///         vote outright rather than replacing the first, which is why a front end asks before sending one.
+    ///     </para>
+    /// </remarks>
+    /// <param name="post">
+    ///     The post carrying the poll, which is the post the answer is about. Never a boost: a caller holding one
+    ///     names the post inside it, the same post every other call here answers about.
+    /// </param>
+    /// <param name="choices">
+    ///     Which answers to cast, as indices into <see cref="PostPoll.Options" /> — the order the instance gave them
+    ///     in, counted from zero. More than one only where the poll says so.
+    /// </param>
+    /// <returns>
+    ///     The post with the poll as it now stands. Mastodon answers a vote with the complete updated poll, so the
+    ///     post the caller passed in is brought up to date from that answer rather than read back a second time.
+    /// </returns>
+    /// <exception cref="Errors.VoteRefusedException">The instance would not take the vote, and said why.</exception>
+    Task<Post> Vote(
+        ActiveProfile profile,
+        Post post,
+        IReadOnlyList<int> choices,
+        CancellationToken cancellationToken);
 }
