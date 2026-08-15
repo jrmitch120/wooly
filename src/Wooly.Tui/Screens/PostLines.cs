@@ -432,7 +432,7 @@ public static class PostLines
 
         foreach (var attached in post.Media)
         {
-            if (attached.Kind != MediaKind.Image)
+            if (!attached.IsDrawable)
             {
                 yield return [AttachmentReferenceLine(attached, references[at], reading.Reference, width)];
 

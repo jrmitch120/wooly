@@ -29,7 +29,7 @@ public static class AttachmentReferences
 
         foreach (var attached in shown.Media)
         {
-            if (attached.Kind == MediaKind.Image)
+            if (attached.IsDrawable)
             {
                 continue;
             }
