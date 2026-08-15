@@ -18,9 +18,17 @@ internal static class LiveInstance
 {
     private const string InstanceVariable = "WOOLY_INTEGRATION_INSTANCE";
     private const string TokenVariable = "WOOLY_INTEGRATION_TOKEN";
+    private const string VoterTokenVariable = "WOOLY_INTEGRATION_VOTER_TOKEN";
 
     /// <summary>The account <c>tests/integration/seed.sh</c> creates and mints <see cref="Profile" />'s token for.</summary>
     public const string Username = "woolytester";
+
+    /// <summary>
+    ///     The second account <c>tests/integration/seed.sh</c> mints <see cref="VoterProfile" />'s token for.
+    ///     Mastodon refuses a vote cast in a poll's own author's name, so anything that votes in a poll this suite
+    ///     published needs an account that is not <see cref="Profile" />.
+    /// </summary>
+    public const string VoterUsername = "woolyvoter";
 
     /// <summary>Why a <c>[Fact]</c> guarded by <see cref="Available" /> was skipped — xunit v3 requires a reason.</summary>
     public const string SkipReason =
@@ -33,7 +41,8 @@ internal static class LiveInstance
     /// </summary>
     public static bool Available =>
         !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(InstanceVariable)) &&
-        !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(TokenVariable));
+        !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(TokenVariable)) &&
+        !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(VoterTokenVariable));
 
     /// <summary>The seeded test account, ready to call the live instance with.</summary>
     public static ActiveProfile Profile => new()
@@ -44,6 +53,21 @@ internal static class LiveInstance
         Account = null,
         AccessToken = Environment.GetEnvironmentVariable(TokenVariable)
                       ?? throw new InvalidOperationException($"{TokenVariable} is not set."),
+    };
+
+    /// <summary>
+    ///     A second seeded account on the same instance, ready to call the live instance with. Exists only so
+    ///     something can vote in a poll <see cref="Profile" /> published — Mastodon refuses that from the author's
+    ///     own account outright, so a test that wants to see a vote actually land needs a different one to cast it.
+    /// </summary>
+    public static ActiveProfile VoterProfile => new()
+    {
+        Name = "integration-voter",
+        Instance = Environment.GetEnvironmentVariable(InstanceVariable)
+                   ?? throw new InvalidOperationException($"{InstanceVariable} is not set."),
+        Account = null,
+        AccessToken = Environment.GetEnvironmentVariable(VoterTokenVariable)
+                      ?? throw new InvalidOperationException($"{VoterTokenVariable} is not set."),
     };
 
     /// <summary>

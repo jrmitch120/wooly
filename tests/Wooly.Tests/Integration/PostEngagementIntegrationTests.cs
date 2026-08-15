@@ -65,8 +65,10 @@ public class PostEngagementIntegrationTests
 
     /// <summary>
     ///     The one thing about a vote that can only be seen against a real instance: that it is the poll's own id the
-    ///     endpoint takes, and that what comes back is the whole poll rather than the post around it (#87). Cast in a
-    ///     poll of the seeded account's own, which Mastodon allows, and taken down with the post afterwards.
+    ///     endpoint takes, and that what comes back is the whole poll rather than the post around it (#87). Mastodon
+    ///     refuses a vote cast in the author's own name ("You cannot vote in your own polls"), so the poll is
+    ///     published as <see cref="LiveInstance.Profile" /> and voted in as <see cref="LiveInstance.VoterProfile" />,
+    ///     then taken down by the account that published it.
     /// </summary>
     [Fact(Skip = LiveInstance.SkipReason, SkipType = typeof(LiveInstance), SkipUnless = nameof(LiveInstance.Available))]
     public async Task Vote_CastsAVoteInThePollOnAPost()
@@ -74,6 +76,7 @@ public class PostEngagementIntegrationTests
         var cancellationToken = TestContext.Current.CancellationToken;
         var services = LiveInstance.NewServices();
         var profile = LiveInstance.Profile;
+        var voter = LiveInstance.VoterProfile;
         var author = services.GetRequiredService<IPostAuthor>();
         var engagement = services.GetRequiredService<IPostEngagement>();
 
@@ -86,7 +89,7 @@ public class PostEngagementIntegrationTests
 
         try
         {
-            var voted = await engagement.Vote(profile, published, [1], cancellationToken);
+            var voted = await engagement.Vote(voter, published, [1], cancellationToken);
 
             Assert.Equal(published.Id, voted.Id);
             Assert.True(voted.Poll?.Voted);
