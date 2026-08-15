@@ -21,9 +21,12 @@ _Avoid_: context (Mastodon's own word for the endpoint), descendants (for the re
 Something on a post besides its text — a picture, an animation, a video, a sound. Two records rather than one, because
 the same subject is a different thing at each end: on its way up it is a file on this machine with a description
 (`MediaAttachment`), and read back off an instance it is an id, a kind, an address and a description (`PostMedia`).
-Only a still picture is **drawn**, and only in a TUI on a terminal that speaks sixel or the Kitty graphics protocol;
-everything else is **linked** — its address, and what its author said it shows — on the CLI and the TUI alike
-(ADR-0016).
+A still picture is **drawn** in place; a video's or an animation's own preview is drawn the same way, where an instance
+offers one, but never in place of the thing itself — only beside a **Reference** that opens it. Everything else — an
+attachment of a kind this client has no word for, a sound with no preview worth drawing, and any of these on a
+terminal that speaks neither sixel nor the Kitty graphics protocol — is **linked**: its address, and what its author
+said it shows. The CLI only ever links, whatever the kind (ADR-0016); the TUI draws where it can and opens the rest
+in the reader's own player (ADR-0017).
 _Avoid_: media file, image (where the kind has not been settled)
 
 **Drawn**:
@@ -141,10 +144,13 @@ picked, which is a fact about the list rather than a place in it.
 _Avoid_: cursor, selection, highlight, current row
 
 **Reference**:
-A hashtag, a mention, or an address found inside a post's text — the things `←`/`→` walk and `⏎` opens. Distinct from
-**Picked**, which is which post the reader has walked to; a reference is walked *inside* the picked post, one level
-in. Replaces what `BodyText` used to call a "mark," a word this project had already spent on `Post.Marks`
-(boost/favorite/pin).
+A hashtag, a mention, or an address found inside a post's text — or an **Attachment**'s own address, once it is not
+drawn as a picture in its own right (ADR-0017) — the things `←`/`→` walk and `⏎` opens. Distinct from **Picked**,
+which is which post the reader has walked to; a reference is walked *inside* the picked post, one level in. Widened
+past the post's own text on purpose: a video is walked to and opened exactly the way a link is, because placing,
+picking and opening several things on one screen was already solved for the three that live in the text, and a second
+copy of that solve for the ones that do not would be a second place for it to disagree with the first. Replaces what
+`BodyText` used to call a "mark," a word this project had already spent on `Post.Marks` (boost/favorite/pin).
 _Avoid_: mark (for this; reserved for boost/favorite/pin)
 
 **Mention**:
