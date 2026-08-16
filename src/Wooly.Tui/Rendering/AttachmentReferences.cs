@@ -10,7 +10,10 @@ namespace Wooly.Tui.Rendering;
 /// </summary>
 /// <remarks>
 ///     <c>Image</c> never appears here: a still picture is drawn, or linked the way the CLI already links one, and
-///     neither is a thing <c>←</c>/<c>→</c> walks. Built the same way for <see cref="Screens.Screen.References" />,
+///     neither is a thing <c>←</c>/<c>→</c> walks. Read off <see cref="PostMedia.Opens" /> rather than off
+///     <see cref="PostMedia.IsDrawable" />, because the two stopped being opposites in #110: a video's preview is
+///     drawn <em>and</em> its address is walked, which is the whole shape ADR-0017 settled on — a still frame standing
+///     beside the word that opens the thing itself. Built the same way for <see cref="Screens.Screen.References" />,
 ///     which is what the walk answers to, and for <see cref="PostLines" />, which is what draws the bracket around
 ///     whichever one is picked — one formula rather than two, so the two can never come to disagree about which
 ///     attachment a pick landed on.
@@ -27,13 +30,8 @@ public static class AttachmentReferences
         var at = shown.Content.Length;
         var references = new List<Reference>();
 
-        foreach (var attached in shown.Media)
+        foreach (var attached in shown.Media.Where(attached => attached.Opens))
         {
-            if (attached.IsDrawable)
-            {
-                continue;
-            }
-
             references.Add(new Reference(attached.Url, Role.Media, at));
             at++;
         }

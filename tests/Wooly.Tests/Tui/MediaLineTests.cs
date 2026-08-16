@@ -12,8 +12,9 @@ namespace Wooly.Tests.Tui;
 /// <summary>
 ///     What a post's attachments become in the TUI: which of them get a picture drawn in place, how big its box is,
 ///     and what the rest get instead. The decision, not the drawing — ADR-0005 and ADR-0014 leave pixels to a manual
-///     smoke test, and this is the half a test can hold: <em>a video is linked rather than drawn</em>, <em>a terminal
-///     that draws nothing links everything</em>, <em>a picture keeps its own proportions</em>.
+///     smoke test, and this is the half a test can hold: <em>a sound is labelled rather than drawn</em>, <em>a terminal
+///     that draws nothing links everything</em>, <em>a picture keeps its own proportions</em>. What #110 added on top
+///     of it — a video's own preview in a box beside its label — is <see cref="AttachmentPreviewTests" />'.
 /// </summary>
 public class MediaLineTests
 {
@@ -261,17 +262,16 @@ public class MediaLineTests
     }
 
     /// <summary>
-    ///     The fourth acceptance criterion. A video and a sound have no frame to draw, so they get their kind's own
-    ///     label and what their author said they are — even on a terminal that draws pictures perfectly well. #109
-    ///     widens this into the walkable reference <see cref="AttachmentReferenceTests" /> covers in full; this is the
-    ///     drawing half of it.
+    ///     The fourth acceptance criterion, as #110 leaves it. A sound and an attachment of a kind this client has no
+    ///     word for get their kind's own label and what their author said they are — even on a terminal that draws
+    ///     pictures perfectly well, and even where the instance sent cover art to draw. #109 widened this into the
+    ///     walkable reference <see cref="AttachmentReferenceTests" /> covers, and #110 gave a video and an animation a
+    ///     box under that label (<see cref="AttachmentPreviewTests" />); these two never get one.
     /// </summary>
     [Theory]
-    [InlineData(MediaKind.Animation, "Animation")]
-    [InlineData(MediaKind.Video, "Video")]
     [InlineData(MediaKind.Audio, "Audio")]
     [InlineData(MediaKind.Unknown, "Unknown")]
-    public void Feed_LinksWhatItCannotDrawRatherThanDrawingIt(MediaKind kind, string label)
+    public void Feed_LabelsWhatItNeverDrawsRatherThanDrawingIt(MediaKind kind, string label)
     {
         var lines = PostLines.Feed(
             APost.With(media: [APost.Attached(kind, description: "Sheep, at length")]),
@@ -315,14 +315,14 @@ public class MediaLineTests
     }
 
     /// <summary>
-    ///     A post carrying both draws the one it can and links the other, rather than treating the post as one kind of
+    ///     A post carrying both draws the one it can and labels the other, rather than treating the post as one kind of
     ///     thing because of what it happens to lead with.
     /// </summary>
     [Fact]
-    public void Feed_DrawsThePicturesAndLinksTheRestOfWhatOnePostCarries()
+    public void Feed_DrawsThePicturesAndLabelsTheRestOfWhatOnePostCarries()
     {
         var lines = PostLines.Feed(
-            APost.With(media: [APost.Attached(MediaKind.Video, id: "m1"), APost.APicture(id: "m2")]),
+            APost.With(media: [APost.Attached(MediaKind.Audio, id: "m1"), APost.APicture(id: "m2")]),
             61,
             default,
             Now,

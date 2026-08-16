@@ -36,12 +36,44 @@ public sealed record PostMedia
     public string? Description { get; init; }
 
     /// <summary>
-    ///     Whether a terminal can draw this in place, rather than only say where it is. Only a still picture can:
-    ///     a video and a sound have no single frame to stand for them, and an animation drawn as the one frame its
-    ///     preview happens to be is exactly the misleading inline rendering story 51 asks not to attempt — a reader
-    ///     shown a frozen picture has no way to tell it was meant to move (ADR-0016).
+    ///     Whether there are pixels a terminal can put in a box for this: a still picture, and a video or an animation
+    ///     the instance offered a <see cref="Preview" /> of.
     /// </summary>
-    public bool IsDrawable => Kind is MediaKind.Image;
+    /// <remarks>
+    ///     ADR-0016 held this to a still picture, because a frozen frame with nothing to say it was meant to move is a
+    ///     misleading rendering. ADR-0017 gave a video and an animation the thing that says it — the permanent,
+    ///     walkable label beside the box, which is what <c>⏎</c> opens the whole of the attachment with — so the frame
+    ///     stands beside the word rather than in place of the thing.
+    ///     <para>
+    ///         <c>Audio</c> and <c>Unknown</c> stay out even where an instance sends a preview: cover art is not a
+    ///         frame of motion, so it tells a reader nothing the label and description do not already say, and
+    ///         <c>Unknown</c> cannot promise a box means anything at all (ADR-0017).
+    ///     </para>
+    ///     <para>
+    ///         A still picture is the one kind whose own file stands in for a preview the instance did not send: that
+    ///         file is already a picture. A video's is motion, so a video with no preview has nothing to draw, and
+    ///         sending for it anyway would fetch a whole video only to fail to decode it.
+    ///     </para>
+    /// </remarks>
+    public bool IsDrawable => Kind switch
+    {
+        MediaKind.Image => true,
+        MediaKind.Video or MediaKind.Animation => Preview is not null,
+        _ => false,
+    };
+
+    /// <summary>
+    ///     Whether the thing itself is reached by opening its address outside the terminal, which is what makes an
+    ///     attachment one of the <c>Reference</c>s <c>←</c>/<c>→</c> walk and <c>⏎</c> opens (ADR-0017, and
+    ///     <c>CONTEXT.md</c>'s <b>Reference</b>, which is where this half of an attachment is named).
+    /// </summary>
+    /// <remarks>
+    ///     Everything but a still picture, and separate from <see cref="IsDrawable" /> rather than its opposite: a
+    ///     video is both drawn and opened, and its preview being drawn is precisely why it needs a label saying what
+    ///     opening it would reach. A picture is the whole of itself once drawn, and where it cannot be drawn it is
+    ///     linked exactly as the CLI links it (ADR-0016), so it never joins the walk.
+    /// </remarks>
+    public bool Opens => Kind is not MediaKind.Image;
 
     /// <summary>
     ///     What this shows, in the words its author gave it — or, where they gave none, in this client's, which names
