@@ -82,7 +82,7 @@ Feed and post:
 | `p` | Pin / unpin | Own posts only |
 | `e` | Edit | Own posts only |
 | `d` | Delete | Own posts only, **confirmation required** (story 43) |
-| `x` | Reveal a content warning | |
+| `x` | Show what the post is hiding | Its warned text, its sensitive attachments, or both (#113) |
 | `←` `→` | Walk the references (hashtag, mention, link) inside the picked post | Clamps at the ends; `esc`/`j`/`k` clear the pick; `⏎` opens what's picked (below) |
 | `1`-`9` `0` | Toggle the 1st-10th option of the picked post's poll | Only where the poll would still take a vote — no-op otherwise, and off the status row there too; `esc`/`j`/`k` discard the toggle |
 | `v` | Cast the toggled poll vote | **Confirmation required** (story 43), same as delete. On a poll already voted in or closed, says which rather than asking |
@@ -227,10 +227,12 @@ mention, or address inside a post's text — replacing `BodyText`'s internal "ma
   the screen never offered them (#83).
 - **Walkable**: hashtag, mention, and address — the three references `BodyText` finds — followed, since #109
   (ADR-0017), by every `Video`, `Animation`, `Audio` or `Unknown` attachment on the post, in attachment order.
-  **Not walkable**: an `Image` attachment, which is drawn or linked but never opened this way; and text still behind a
+  **Not walkable**: an `Image` attachment, which is drawn or linked but never opened this way; text still behind a
   content warning, which has no references until `x` shows it, since the brackets marking a pick would be behind the
-  warning too (#83). An attachment reference is unaffected by the warning — it renders on `PostLines`' own path,
-  outside the text `BodyText` walks, and is walkable whether or not the post's own text is showing.
+  warning too (#83); and every attachment on a **warned** post, for the same reason since #113 — its label is behind
+  the warning with the rest of what is attached, so `←`/`→` would walk to something nobody can see and `⏎` would open
+  a video the reader never asked for. The two halves are asked separately: a post marked sensitive with no warning
+  written over it shows its text, so what is written in it goes on being walked while its attachments do not.
 - **An attachment reference carries no place in the post's text.** It is appended after every one `BodyText` found,
   in the order the attachments themselves were sent, and it is drawn on `PostLines`' own path rather than sliced out
   of a wrapped row — the kind's own name (`MediaKindName.Written`, capitalized) is the whole of the walkable span, with
@@ -412,6 +414,13 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
   `⏵`, the description, and the address on the rows below — wrapped rather than clipped, since a real address is
   longer than 61 columns and a link with its end cut off is not a link. `Image` never joins the walk, so there is
   nothing here for `←`/`→` to reach.
+- **A warned post's attachments are drawn only once the reader has asked for them.** A spoiler text, the instance's own
+  sensitive flag, or both, and `x` shows them along with whatever else the post is hiding (#113). Until it is pressed
+  there is no box, no label, no description and no address — and no `Wants`, so nothing is fetched and nothing is
+  decoded, which is the point rather than a side effect: scrolling a feed of sensitive posts costs no data for pixels
+  nobody asked to see. A post carrying only the flag says `⚠ Sensitive media` and `x  show it` where its attachments
+  would be, because a post already showing a warning is already asking and a post showing neither would be hiding
+  something with nothing on screen to say so.
 - **Sixel is preferred over Kitty, and the preference is subscribed to.** Both capabilities are answers the terminal
   sends back some frames after startup, so a preference set once at startup is set against nothing and then overwritten
   (ADR-0016).

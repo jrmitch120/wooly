@@ -47,6 +47,20 @@ public class ScreenRevealTests
     }
 
     /// <summary>
+    ///     A post the instance marked sensitive is asked past by the same key, warning text or no: what <c>x</c> shows
+    ///     is what the post is hiding, and on the commonest sensitive post — a photograph with nothing written over it
+    ///     — the attachments are the whole of that (#113).
+    /// </summary>
+    [Fact]
+    public void Reveal_ShowsWhatASensitivePostIsHidingWithNoWarningWrittenOverIt()
+    {
+        var screen = Feed(APost.With(id: "1", sensitive: true, media: [APost.APicture()]));
+
+        Assert.True(screen.Reveal());
+        Assert.False(screen.Reveal());
+    }
+
+    /// <summary>
     ///     A screen with no posts on it picks none, so it reveals nothing — which is what lets the question be asked
     ///     once on <see cref="Screen" /> rather than answered away on each of them.
     /// </summary>

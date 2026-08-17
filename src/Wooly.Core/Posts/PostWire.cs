@@ -25,6 +25,11 @@ internal static class PostWire
 
         // The wire says "no warning" with an empty string, which is not the same thing as a warning to print.
         ContentWarning = string.IsNullOrWhiteSpace(status.SpoilerText) ? null : status.SpoilerText,
+
+        // The other half of what a post is put behind, and the half with no text to read it off: an instance marks
+        // media sensitive on its own account, and most often with no warning written at all (#113). Nullable on the
+        // way in because that is how the client library types the field, and nothing said is nothing marked.
+        Sensitive = status.Sensitive ?? false,
         Visibility = ToVisibility(status.Visibility),
         Boosts = status.ReblogCount,
         Favorites = status.FavouritesCount,

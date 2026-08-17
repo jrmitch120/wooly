@@ -28,6 +28,18 @@ public sealed record Post
     public string? ContentWarning { get; init; }
 
     /// <summary>
+    ///     Whether the instance marked what is attached to the post as something to hide until it is asked for — the
+    ///     wire's own <c>sensitive</c> flag, which Mastodon carries apart from <see cref="ContentWarning" /> and which
+    ///     a post commonly has without one: a photograph marked sensitive with nothing written over it (#113).
+    /// </summary>
+    /// <remarks>
+    ///     Not <see langword="required" />, and false where the wire left it out — which is a field the client library
+    ///     types as nullable rather than a question an instance declined to answer. Marked is the only thing that has
+    ///     to be said out loud; anything else is a post with nothing to hide, which is most of them.
+    /// </remarks>
+    public bool Sensitive { get; init; }
+
+    /// <summary>
     ///     Who can see it. Read back off a post rather than assumed, which is what lets a client confirm that the
     ///     post it just published went out as narrowly as it was asked to — an author who meant <c>private</c> and got
     ///     <c>public</c> has no way to undo that by the time they find out.
@@ -87,4 +99,22 @@ public sealed record Post
 
     /// <summary>Whether this post is a boost of somebody else's.</summary>
     public bool IsBoost => Boosted is not null;
+
+    /// <summary>
+    ///     Whether the post is put behind something a reader has to ask past: a warning its author wrote, the flag the
+    ///     instance marked its media with, or both.
+    /// </summary>
+    /// <remarks>
+    ///     One question rather than two asked side by side, because the two halves are the same promise made in two
+    ///     fields and a client that honoured one of them would keep half of it — which is what a picture marked
+    ///     sensitive, drawn full width under no warning at all, was (#113). What each half hides is still its own:
+    ///     the text stands behind <see cref="ContentWarning" /> alone, and the attachments behind either.
+    ///     <para>
+    ///         The flag counts for nothing on a post carrying no attachments, which an instance is free to send: it is
+    ///         a mark over the media, so with no media under it there is nothing behind anything and nothing for a
+    ///         reader to ask past. A warning's text is not read that way — an author who wrote one wrote it about the
+    ///         words.
+    ///     </para>
+    /// </remarks>
+    public bool IsWarned => ContentWarning is not null || (Sensitive && Media.Count > 0);
 }

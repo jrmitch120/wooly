@@ -138,6 +138,22 @@ public class TimelineReaderTests
         Assert.Equal("Hello world", post.Content);
     }
 
+    /// <summary>
+    ///     The instance's own "hide this" flag, which is the other half of what a post is put behind: a photograph is
+    ///     commonly marked sensitive with no warning written at all, and a client reading only the spoiler text would
+    ///     draw it in place for exactly the posts that most need hiding (#113).
+    /// </summary>
+    [Fact]
+    public async Task Read_ReportsWhetherTheInstanceMarkedThePostsMediaSensitive()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(Page(PostJson("110", sensitive: true), PostJson("109"))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        Assert.Equal([true, false], fetch.Items.Select(post => post.Sensitive));
+    }
+
     /// <summary>A boost carries no text of its own, so what is worth reading is the post it points at.</summary>
     [Fact]
     public async Task Read_ReportsABoostAsWhoBoostedItAndThePostTheyBoosted()
@@ -621,11 +637,13 @@ public class TimelineReaderTests
         string? boosting = null,
         string? marks = null,
         string? media = null,
-        string? mentions = null) =>
+        string? mentions = null,
+        bool sensitive = false) =>
         $$"""
           {
             "id": "{{id}}",
             {{marks ?? string.Empty}}
+            "sensitive": {{(sensitive ? "true" : "false")}},
             "media_attachments": {{media ?? "[]"}},
             "mentions": {{mentions ?? "[]"}},
             "uri": "https://mastodon.social/users/jeff/statuses/{{id}}",
