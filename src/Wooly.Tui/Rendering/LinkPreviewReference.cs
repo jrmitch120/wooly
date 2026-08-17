@@ -28,16 +28,11 @@ public static class LinkPreviewReference
     /// </summary>
     /// <remarks>
     ///     <see cref="Reference.At" /> is past the end of the text <em>and</em> past every attachment reference, which
-    ///     is what sorts it after all of them. Counted off <see cref="AttachmentReferences" /> rather than off
-    ///     <c>Media</c> directly, so that which attachments earn a reference is settled in the one place: a rule
-    ///     written twice is a rule that comes to disagree with itself.
+    ///     is what sorts it after all of them — asked of <see cref="AttachmentReferences.Past" /> rather than worked
+    ///     out here off <c>Media</c>, so that which attachments earn a reference at all is settled in the one place. A
+    ///     rule written twice is a rule that comes to disagree with itself.
     /// </remarks>
-    public static Reference? Of(Post post)
-    {
-        var shown = post.Boosted ?? post;
-
-        return shown.LinkPreview is { } link
-            ? new Reference(link.Url, Role.Media, shown.Content.Length + AttachmentReferences.Of(post).Count)
-            : null;
-    }
+    public static Reference? Of(Post post) => (post.Boosted ?? post).LinkPreview is { } link
+        ? new Reference(link.Url, Role.Media, AttachmentReferences.Past(post))
+        : null;
 }

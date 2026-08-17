@@ -177,7 +177,7 @@ public abstract class Screen
     ///     attached, and then its link preview's (ADR-0018).
     /// </summary>
     /// <remarks>
-    ///     Shown and hidden together, which is why they are one question here: the preview stands behind a post's
+    ///     Shown and hidden together, which is why they are one question here: the link preview stands behind a post's
     ///     warning on exactly the terms its attachments do since #113, and asking twice would be two places for that to
     ///     be answered differently.
     /// </remarks>

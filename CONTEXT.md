@@ -60,8 +60,8 @@ on a row stands in for — because three different things are painted and only o
 picture hangs off the post; an author's avatar hangs off the author, and calling the second one an attachment would
 have made "something on a post besides its text" mean something else wherever an avatar went. The third is the picture
 an instance chose for a **Link preview**, named by the link's own address the way an avatar is named by its handle, so
-that the same article shared twice is fetched once (#116). Nothing outside a TUI
-has one: the CLI **links** everything (ADR-0016).
+that the same article shared twice is fetched once (#116). Nothing outside a TUI has one: the CLI **links** everything
+(ADR-0016).
 _Avoid_: image, media (for the avatar half of this)
 
 **Boost**:

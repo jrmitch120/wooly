@@ -11,10 +11,9 @@ namespace Wooly.Tui.Screens;
 ///     <para>
 ///         Every state here has a glyph before it has a colour — <c>○ ◌ ● ✉</c> for the four audiences, <c>⚠</c> for a
 ///         warning, <c>↺</c>/<c>⥀</c> and <c>☆</c>/<c>★</c> for whether a boost or favorite is the reader's own,
-///         <c>▒▒▒▒</c> for a picture, <c>⏵</c> for what is walked to and opened rather than drawn — an attachment,
-///         and a link preview's title. That is not
-///         decoration: on a terminal reporting no colour, and to a reader who cannot tell this green from that grey,
-///         the glyphs are the whole of what is being said.
+///         <c>▒▒▒▒</c> for a picture, <c>⏵</c> for what is walked to and opened rather than drawn — an attachment, and
+///         a link preview's title. That is not decoration: on a terminal reporting no colour, and to a reader who
+///         cannot tell this green from that grey, the glyphs are the whole of what is being said.
 ///     </para>
 /// </summary>
 public static class PostLines
@@ -607,7 +606,7 @@ public static class PostLines
         int width,
         bool saysWhatItShows)
     {
-        var spans = Walkable(Capitalized(MediaKindName.Written(attached.Kind)), picked == reference);
+        var spans = MarkAndLabel(Capitalized(MediaKindName.Written(attached.Kind)), picked == reference);
 
         if (saysWhatItShows && attached.Description is { } description)
         {
@@ -621,14 +620,15 @@ public static class PostLines
 
     /// <summary>
     ///     The front of a row <c>←</c>/<c>→</c> walks to: the mark and <paramref name="label" />, in the brackets a
-    ///     picked reference is drawn in where <paramref name="bracketed" />.
+    ///     picked reference is drawn in where <paramref name="bracketed" />. Handed back open, for a caller with more
+    ///     to say on the row — an attachment's description follows it.
     /// </summary>
     /// <remarks>
     ///     Said once for an attachment's kind and a link preview's title, so the two cannot come to mark a pick
     ///     differently — the brackets are what a reader reads a pick off, on a terminal with no colour and to a reader
     ///     who cannot tell one colour from another (ADR-0014).
     /// </remarks>
-    private static List<Span> Walkable(string label, bool bracketed)
+    private static List<Span> MarkAndLabel(string label, bool bracketed)
     {
         var spans = new List<Span> { new($"{LinkMark} ", Role.Media) };
 
@@ -679,8 +679,8 @@ public static class PostLines
     /// </summary>
     /// <remarks>
     ///     After everything the author attached, which is the order Mastodon's own web UI uses. Nothing in its docs
-    ///     says a post carrying attachments is never sent a preview too, so both are drawn and the order between them
-    ///     is settled here rather than found out later.
+    ///     says a post carrying attachments is never sent a link preview too, so both are drawn and the order between
+    ///     them is settled here rather than found out later.
     ///     <para>
     ///         Behind a warned post's warning exactly as an attachment is since #113: no title, no description, no box
     ///         and no <c>Wants</c>, which is what keeps the pixels from being sent for at all. Nothing is said in place
@@ -688,10 +688,17 @@ public static class PostLines
     ///         warning, and a second one under that would be the same offer made twice.
     ///     </para>
     ///     <para>
-    ///         <c>hide_drawn_caption</c> is the one thing an attachment is asked about here and a preview is not. That
-    ///         preference drops what a picture says it shows once the picture itself is on screen saying it (#71); a
-    ///         preview's description is about the page rather than about the picture beside it, so a box landing under
-    ///         the words does not stand in for them.
+    ///         <c>hide_drawn_caption</c> is the one thing an attachment is asked about here and a link preview is not.
+    ///         That preference drops what a picture says it shows once the picture itself is on screen saying it (#71);
+    ///         a link preview's description is about the page rather than about the picture beside it, so a box landing
+    ///         under the words does not stand in for them.
+    ///     </para>
+    ///     <para>
+    ///         No address is printed on any of these rows, which is <see cref="Opened" />'s shape rather than
+    ///         <see cref="LinkedImage" />'s: the address is what <c>⏎</c> hands the browser, and a picture that cannot
+    ///         be drawn falls back to the words above it rather than to rows of a URL nobody typed. The raw rows an
+    ///         undrawn <c>Image</c> still gets are for the one thing here that is <em>not</em> walked to (ADR-0017).
+    ///         The CLI, which has no <c>⏎</c> to offer, prints it instead (ADR-0018, #117).
     ///     </para>
     /// </remarks>
     /// <param name="mostRows">The most rows the picture may take, which is what a feed and a whole post differ on.</param>
@@ -730,21 +737,21 @@ public static class PostLines
     }
 
     /// <summary>
-    ///     The preview's own row: the mark and the page's title, bracketed where <paramref name="picked" /> names this
-    ///     preview. Clipped rather than wrapped, the way an attachment's description is — a title is a label on the
-    ///     thing <c>⏎</c> opens rather than something to be read to the end.
+    ///     The link preview's own row: the mark and the page's title, bracketed where <paramref name="picked" />
+    ///     names this link preview. Clipped rather than wrapped, the way an attachment's description is — a title is a
+    ///     label on the thing <c>⏎</c> opens rather than something to be read to the end.
     /// </summary>
     /// <remarks>
     ///     The site's name stands in for a title the instance made nothing of, and the address itself where it named
-    ///     neither: there is always a row to walk to, because the address is the whole reason a preview is drawn at all
-    ///     (ADR-0018).
+    ///     neither: there is always a row to walk to, because the address is the whole reason a link preview is drawn
+    ///     at all (ADR-0018).
     /// </remarks>
     private static Line LinkPreviewLine(LinkPreview link, Reference? reference, Reference? picked, int width)
     {
         var bracketed = reference is not null && picked == reference;
         var room = width - LinkMark.Length - 1 - (bracketed ? BodyText.Opening.Length + BodyText.Closing.Length : 0);
 
-        return new Line(Walkable(
+        return new Line(MarkAndLabel(
             TextWrap.Clip(link.Title ?? link.ProviderName ?? link.Url, Math.Max(0, room)),
             bracketed));
     }
@@ -762,8 +769,8 @@ public static class PostLines
     {
         string?[] said =
         [
-            // Nothing where the site's own name is already the row above, which is a preview the instance sent no
-            // title with: it has been said once and once is enough.
+            // Nothing where the site's own name is already the row above, which is a link preview the instance sent
+            // no title with: it has been said once and once is enough.
             link.Title is null ? null : link.ProviderName,
             link.Description,
             link.Author is { } author ? $"by {author}" : null,

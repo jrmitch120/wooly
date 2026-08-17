@@ -227,15 +227,14 @@ mention, or address inside a post's text — replacing `BodyText`'s internal "ma
   the screen never offered them (#83).
 - **Walkable**: hashtag, mention, and address — the three references `BodyText` finds — followed, since #109
   (ADR-0017), by every `Video`, `Animation`, `Audio` or `Unknown` attachment on the post, in attachment order, and
-  since #116 (ADR-0018) by the post's link preview, last of all.
-  **Not walkable**: an `Image` attachment, which is drawn or linked but never opened this way; the name a link
-  preview says wrote the page, which is plain text and never an address; text still behind a
-  content warning, which has no references until `x` shows it, since the brackets marking a pick would be behind the
-  warning too (#83); and every attachment on a **warned** post, along with its link preview, for the same reason since
-  #113 — its label is behind
-  the warning with the rest of what is attached, so `←`/`→` would walk to something nobody can see and `⏎` would open
-  a video the reader never asked for. The two halves are asked separately: a post marked sensitive with no warning
-  written over it shows its text, so what is written in it goes on being walked while its attachments do not.
+  since #116 (ADR-0018) by the post's link preview, last of all. **Not walkable**: an `Image` attachment, which is
+  drawn or linked but never opened this way; the name a link preview says wrote the page, which is plain text and
+  never an address; text still behind a content warning, which has no references until `x` shows it, since the
+  brackets marking a pick would be behind the warning too (#83); and every attachment on a **warned** post, along with
+  its link preview, for the same reason since #113 — its label is behind the warning with the rest of what is hidden,
+  so `←`/`→` would walk to something nobody can see and `⏎` would open a video the reader never asked for. The two
+  halves are asked separately: a post marked sensitive with no warning written over it shows its text, so what is
+  written in it goes on being walked while its attachments do not.
 - **An attachment reference carries no place in the post's text.** It is appended after every one `BodyText` found,
   in the order the attachments themselves were sent, and it is drawn on `PostLines`' own path rather than sliced out
   of a wrapped row — the kind's own name (`MediaKindName.Written`, capitalized) is the whole of the walkable span, with
@@ -467,6 +466,10 @@ a picture — is drawn after everything the author attached (#116, ADR-0018):
 - **The author's name is plain text and is never walked to.** Two things opening the same place was the trade already
   made for the preview's own address; a third, which usually differs from it and rarely matters enough to open, is
   where consistency with attachments stopped being the stronger argument (ADR-0018).
+- **No address is printed on any of those rows** — the shape a `Video` label already has since #109, not the wrapped
+  URL rows an undrawn `Image` still gets. The address is what `⏎` hands the browser, and the rows an undrawn `Image`
+  prints are for the one thing on a post that is *not* walked to. The CLI, which has no `⏎` to offer, prints it
+  instead (#117).
 - **Its picture goes through the same `Drawn`/`Inset`/`IPictures`/`PictureView` pipeline an attachment's does** — same
   width-driven box, same 16/32-row cap, same nothing-at-all on a terminal offering neither sixel nor Kitty, where what
   is left is the words. `Drawn.LinkPreview` names it by the *link's* address rather than the picture's, the way an

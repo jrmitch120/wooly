@@ -8,14 +8,14 @@ using Wooly.Tui.Theme;
 namespace Wooly.Tests.Tui;
 
 /// <summary>
-///     What an instance made of a link in a post's own text, as the TUI draws it: after everything the author
-///     attached, its title walked to and opened, its picture in the same box an attachment's goes in, and the rest of
-///     what the instance said about the page as text (#116, ADR-0018).
+///     What an instance made of a link in a post's own text, as the TUI draws it: after everything the author attached,
+///     its title walked to and opened, its picture in the same box an attachment's goes in, and the rest of what the
+///     instance said about the page as text (#116, ADR-0018).
 /// </summary>
 /// <remarks>
 ///     The decision rather than the pixels, the half <see cref="MediaLineTests" /> and
-///     <see cref="AttachmentPreviewTests" /> already hold for an attachment: which rows a preview becomes, what they
-///     say they want, and what is left of them on a terminal that draws nothing. The walk itself is
+///     <see cref="AttachmentPreviewTests" /> already hold for an attachment: which rows a link preview becomes, what
+///     they say they want, and what is left of them on a terminal that draws nothing. The walk itself is
 ///     <see cref="LinkPreviewReferenceTests" />'.
 /// </remarks>
 public class LinkPreviewLineTests
@@ -23,8 +23,8 @@ public class LinkPreviewLineTests
     private static readonly DateTimeOffset Now = new(2026, 7, 29, 12, 30, 0, TimeSpan.Zero);
 
     /// <summary>
-    ///     The first acceptance criterion: the preview is drawn after everything the author attached, which is the
-    ///     order Mastodon's own web UI puts them in — text, then attachments, then the preview (ADR-0018).
+    ///     The first acceptance criterion: the link preview is drawn after everything the author attached, which is the
+    ///     order Mastodon's own web UI puts them in — text, then attachments, then the link preview (ADR-0018).
     /// </summary>
     [Fact]
     public void Feed_DrawsTheLinkPreviewAfterEveryAttachment()
@@ -65,8 +65,8 @@ public class LinkPreviewLineTests
 
     /// <summary>
     ///     The walked row falls back to the site's own name, and then to the address itself, for the instances that
-    ///     send a preview with no title: there is always a row to press <c>⏎</c> on, because the address is the whole
-    ///     reason a preview is drawn at all (ADR-0018).
+    ///     send a link preview with no title: there is always a row to press <c>⏎</c> on, because the address is the
+    ///     whole reason a link preview is drawn at all (ADR-0018).
     /// </summary>
     [Theory]
     [InlineData("Example News", "⏵ Example News")]
@@ -84,8 +84,8 @@ public class LinkPreviewLineTests
     }
 
     /// <summary>
-    ///     And a preview whose site stood in for its title says it once rather than twice — the row that is walked has
-    ///     already said it.
+    ///     And a link preview whose site stood in for its title says it once rather than twice — the row that is walked
+    ///     has already said it.
     /// </summary>
     [Fact]
     public void Feed_NamesTheSiteOnceWhereItStoodInForTheTitle()
@@ -101,11 +101,11 @@ public class LinkPreviewLineTests
     }
 
     /// <summary>
-    ///     The second acceptance criterion: the preview's own picture goes through the exact
+    ///     The second acceptance criterion: the link preview's own picture goes through the exact
     ///     <c>Drawn</c>/<c>Inset</c>/<c>IPictures</c> pipeline an attachment's does — same width-driven box, same cap.
     /// </summary>
     [Fact]
-    public void Feed_DrawsThePreviewsPictureInTheSameBoxAnAttachmentsGoesIn()
+    public void Feed_DrawsTheLinkPreviewsPictureInTheSameBoxAnAttachmentsGoesIn()
     {
         var link = APost.ALinkPreview();
 
@@ -141,8 +141,8 @@ public class LinkPreviewLineTests
     }
 
     /// <summary>
-    ///     A preview the instance chose no picture for is not drawn and is not sent for — and still says everything
-    ///     else it carries, which is the whole of what it is offering.
+    ///     A link preview the instance chose no picture for is not drawn and is not sent for — and still says
+    ///     everything else it carries, which is the whole of what it is offering.
     /// </summary>
     [Fact]
     public void Feed_DrawsNoBoxAndSendsForNothingWhereTheInstanceChoseNoPicture()
@@ -179,8 +179,8 @@ public class LinkPreviewLineTests
     }
 
     /// <summary>
-    ///     The box goes under the row that opens the link, so nothing a reader is looking at moves when the pixels
-    ///     land — the same order an attachment's caption and box are already in.
+    ///     The box goes under the row that opens the link, so nothing a reader is looking at moves when the pixels land
+    ///     — the same order an attachment's caption and box are already in.
     /// </summary>
     [Fact]
     public void Feed_PutsTheBoxUnderTheRowThatOpensTheLink()
@@ -220,7 +220,7 @@ public class LinkPreviewLineTests
         Assert.All(byline.Spans, span => Assert.Equal(Role.Muted, span.Role));
     }
 
-    /// <summary>A preview whose page named no author says nothing where the name would have been.</summary>
+    /// <summary>A link preview whose page named no author says nothing where the name would have been.</summary>
     [Fact]
     public void Feed_SaysNothingWhereThePageNamedNoAuthor()
     {
@@ -237,7 +237,7 @@ public class LinkPreviewLineTests
     /// <summary>
     ///     The description stays put under a picture that has landed, whatever the reader asked of
     ///     <c>hide_drawn_caption</c>: that preference drops a caption a box has taken over saying (#71), and a link
-    ///     preview's description is about the page rather than about its picture.
+    ///     link preview's description is about the page rather than about its picture.
     /// </summary>
     [Fact]
     public void Feed_KeepsTheDescriptionOnceThePictureIsDrawnEvenWhenCaptionsAreHidden()
@@ -257,8 +257,8 @@ public class LinkPreviewLineTests
     }
 
     /// <summary>
-    ///     The post screen draws the same preview with the room it gives an attachment's picture, and brackets the row
-    ///     the reader has walked to — the drawing and the walk being two things about one preview.
+    ///     The post screen draws the same link preview with the room it gives an attachment's picture, and brackets the
+    ///     row the reader has walked to — the drawing and the walk being two things about one link preview.
     /// </summary>
     [Fact]
     public void Whole_BracketsThePickedRowAndDrawsThePictureUnderIt()
@@ -282,7 +282,7 @@ public class LinkPreviewLineTests
         Assert.Contains(lines, line => line.Text.Contains("⏵ ‹Sheep, at length›", StringComparison.Ordinal));
     }
 
-    /// <summary>A boost's preview is the boosted post's, along with its text and everything attached to it.</summary>
+    /// <summary>A boost's link preview is the boosted post's, along with its text and everything attached to it.</summary>
     [Fact]
     public void Feed_DrawsTheLinkPreviewOfThePostInsideABoost()
     {

@@ -10,18 +10,18 @@ namespace Wooly.Tests.Tui;
 ///     A link preview's own address, walked and opened the way an attachment's already is — after every attachment
 ///     reference, and behind the post's warning with them (#116, ADR-0018). The breadth of the walk itself is
 ///     <see cref="ReferenceWalkTests" />'s and <see cref="ReferenceOpenTests" />'s; this is what changes about it once
-///     a preview joins.
+///     a link preview joins.
 /// </summary>
 public class LinkPreviewReferenceTests
 {
     private static readonly DateTimeOffset Now = new(2026, 7, 29, 12, 30, 0, TimeSpan.Zero);
 
-    /// <summary>A post with one of each text reference, walked in #83 already, ahead of what a preview adds.</summary>
+    /// <summary>A post with one of each text reference, walked in #83 already, ahead of what a link preview adds.</summary>
     private const string Said = "Thanks @maria@fosstodon.org — notes at https://example.com/notes #dotnet";
 
     /// <summary>
-    ///     The second acceptance criterion: the walk reaches the preview last of all — after every reference the post's
-    ///     text carries, and after every attachment reference.
+    ///     The second acceptance criterion: the walk reaches the link preview last of all — after every reference the
+    ///     post's text carries, and after every attachment reference.
     /// </summary>
     [Fact]
     public void References_ReachesTheLinkPreviewAfterEveryAttachmentReference()
@@ -47,7 +47,7 @@ public class LinkPreviewReferenceTests
 
     /// <summary>
     ///     The third acceptance criterion: the author's name is not a reference of its own, so a post never carries
-    ///     three things reaching for the same handful of places (ADR-0018). The preview adds exactly one.
+    ///     three things reaching for the same handful of places (ADR-0018). The link preview adds exactly one.
     /// </summary>
     [Fact]
     public void References_NeverWalksToTheAuthorsName()
@@ -60,11 +60,11 @@ public class LinkPreviewReferenceTests
     }
 
     /// <summary>
-    ///     The preview's address is walked even where the post's own text already reaches it, which is the redundancy
-    ///     ADR-0018 accepted deliberately: it is the address that repeats, not what is being offered.
+    ///     The link preview's address is walked even where the post's own text already reaches it, which is the
+    ///     redundancy ADR-0018 accepted deliberately: it is the address that repeats, not what is being offered.
     /// </summary>
     [Fact]
-    public void References_WalksThePreviewEvenWhereTheTextAlreadyReachesTheSameAddress()
+    public void References_WalksTheLinkPreviewEvenWhereTheTextAlreadyReachesTheSameAddress()
     {
         var screen = Feed(APost.With(
             content: "Read this: https://example.com/sheep",
@@ -76,11 +76,11 @@ public class LinkPreviewReferenceTests
     }
 
     /// <summary>
-    ///     The second acceptance criterion's other half: <c>⏎</c> hands the preview's address to the browser through
-    ///     the exact call a picked link and a picked attachment already go through, refusal for refusal.
+    ///     The second acceptance criterion's other half: <c>⏎</c> hands the link preview's address to the browser
+    ///     through the exact call a picked link and a picked attachment already go through, refusal for refusal.
     /// </summary>
     [Fact]
-    public async Task Enter_OpensThePreviewsAddressTheSameWayALinkAlreadyOpens()
+    public async Task Enter_OpensTheLinkPreviewsAddressTheSameWayALinkAlreadyOpens()
     {
         var built = new AShell
         {
@@ -102,7 +102,7 @@ public class LinkPreviewReferenceTests
 
     /// <summary>A refusal — no browser at all — reads exactly the way it does for a picked link (#85).</summary>
     [Fact]
-    public async Task Enter_SaysSoWhenThereIsNoBrowserToOpenThePreviewWith()
+    public async Task Enter_SaysSoWhenThereIsNoBrowserToOpenTheLinkPreviewWith()
     {
         var built = new AShell
         {
@@ -123,9 +123,9 @@ public class LinkPreviewReferenceTests
     }
 
     /// <summary>
-    ///     The fourth acceptance criterion, as the walk sees it: a warned post's preview is not walked to until the
-    ///     reader has asked past the warning, exactly as its attachments are not — <c>←</c>/<c>→</c> would otherwise
-    ///     bracket a row nobody can see.
+    ///     The fourth acceptance criterion, as the walk sees it: a warned post's link preview is not walked to until
+    ///     the reader has asked past the warning, exactly as its attachments are not — <c>←</c>/<c>→</c> would
+    ///     otherwise bracket a row nobody can see.
     /// </summary>
     [Theory]
     [MemberData(nameof(Warned))]
@@ -143,7 +143,7 @@ public class LinkPreviewReferenceTests
     }
 
     /// <summary>
-    ///     The fourth acceptance criterion as the rows see it: nothing about a warned post's preview is drawn, and
+    ///     The fourth acceptance criterion as the rows see it: nothing about a warned post's link preview is drawn, and
     ///     nothing is sent for — no title, no site, no description, no author and no picture (#113's rule, ADR-0018).
     /// </summary>
     [Theory]
@@ -165,7 +165,7 @@ public class LinkPreviewReferenceTests
 
     /// <summary>Asked past, it reads exactly as it does on a post with nothing hiding it — the whole claim.</summary>
     [Fact]
-    public void Feed_ReadsAsAnUnwarnedPostsPreviewOnceTheReaderHasAskedPastTheWarning()
+    public void Feed_ReadsAsAnUnwarnedPostsLinkPreviewOnceTheReaderHasAskedPastTheWarning()
     {
         var pictures = FakePictures.With().HoldingLinkPreview(APost.ALinkPreview(), 400, 300);
 
@@ -182,14 +182,19 @@ public class LinkPreviewReferenceTests
     }
 
     /// <summary>
-    ///     The flag on a post carrying nothing attached hides nothing, a preview included: it is a mark over the media
-    ///     and there is none under it, which is what <see cref="Post.IsWarned" /> already settles (#113). A preview is
-    ///     gated on that one question rather than on a second reading of the flag, so there is nowhere for the two to
-    ///     disagree — and an author who wrote a warning did write it about the link in their own text, which is the
-    ///     half that does hide.
+    ///     The flag on a post carrying nothing attached hides nothing, a link preview included — including the picture
+    ///     the instance chose for the link, which is the one picture on such a post that does reach the screen.
     /// </summary>
+    /// <remarks>
+    ///     ADR-0018 says a link preview is "gated behind <c>IsWarned</c> exactly as an attachment is", and
+    ///     <see cref="Post.IsWarned" /> already settles that the flag counts for nothing where nothing is attached
+    ///     (#113): it is a mark the instance put over the <em>media</em>, and a preview is generated from what the
+    ///     author wrote rather than attached by them. Asking that one question rather than reading the flag a second
+    ///     way here is what leaves nowhere for the two to disagree. A warning its author wrote does hide it, which is
+    ///     the half of <c>IsWarned</c> that was written about the words — and the link is one of them.
+    /// </remarks>
     [Fact]
-    public void Feed_KeepsThePreviewOfASensitivePostThatCarriesNoAttachments()
+    public void Feed_KeepsTheLinkPreviewOfASensitivePostThatCarriesNoAttachments()
     {
         var post = APost.With(sensitive: true, linkPreview: APost.ALinkPreview());
 
@@ -200,11 +205,11 @@ public class LinkPreviewReferenceTests
     }
 
     /// <summary>
-    ///     A boost is asked about by the post inside it, since that is the post the preview was made for — the same
-    ///     rule a warning and an attachment already follow.
+    ///     A boost is asked about by the post inside it, since that is the post the link preview was made for — the
+    ///     same rule a warning and an attachment already follow.
     /// </summary>
     [Fact]
-    public void References_WalksThePreviewOfThePostInsideABoost()
+    public void References_WalksTheLinkPreviewOfThePostInsideABoost()
     {
         var screen = Feed(APost.With(
             id: "1",
@@ -214,9 +219,45 @@ public class LinkPreviewReferenceTests
         Assert.Equal("https://example.com/sheep", Assert.Single(screen.References).Text);
     }
 
-    /// <summary>Walking onto another post lets a picked preview go, the same as it already does a picked link (#83).</summary>
+    /// <summary>
+    ///     <c>esc</c> lets a picked link preview reference go before it pops the screen — the level a picked link
+    ///     already stands on (#83).
+    /// </summary>
     [Fact]
-    public void Move_ClearsAPickedLinkPreviewTheSameWayItClearsALink()
+    public void Esc_ClearsAPickedLinkPreviewReferenceTheSameWayItClearsALink()
+    {
+        var screen = Feed(APost.With(content: "Hello", linkPreview: APost.ALinkPreview()));
+
+        screen.WalkReference(1);
+        Assert.NotNull(screen.Reference);
+
+        Assert.True(screen.ClearReference());
+        Assert.Null(screen.Reference);
+    }
+
+    /// <summary>
+    ///     The post screen hides and shows a warned post's link preview the same way a feed does, since both draw it
+    ///     down the one path.
+    /// </summary>
+    [Fact]
+    public void Whole_HidesAWarnedPostsLinkPreviewAndShowsItOnceAsked()
+    {
+        var post = Hiding(contentWarning: null, sensitive: true);
+        var pictures = FakePictures.With().HoldingLinkPreview(APost.ALinkPreview(), 400, 300);
+
+        var hidden = PostLines.Whole(post, 61, default, Now, pictures);
+        var shown = PostLines.Whole(post, 61, new Reading(Revealed: true), Now, pictures);
+
+        Assert.DoesNotContain(hidden, line => line.Text.Contains("Sheep, at length", StringComparison.Ordinal));
+        Assert.Empty(hidden.SelectMany(line => line.Insets));
+
+        Assert.Contains(shown, line => line.Text.Contains("⏵ Sheep, at length", StringComparison.Ordinal));
+        Assert.NotEmpty(shown.SelectMany(line => line.Insets));
+    }
+
+    /// <summary>Walking onto another post lets a picked link preview go, as it already does a picked link (#83).</summary>
+    [Fact]
+    public void Move_ClearsAPickedLinkPreviewReferenceTheSameWayItClearsALink()
     {
         var screen = Feed(
             APost.With(id: "1", content: "Hello", linkPreview: APost.ALinkPreview()),

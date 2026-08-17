@@ -38,4 +38,15 @@ public static class AttachmentReferences
 
         return references;
     }
+
+    /// <summary>
+    ///     Where a reference sorting after every one of these goes, which is the walk's next free place — what a link
+    ///     preview's own takes (<see cref="LinkPreviewReference" />).
+    /// </summary>
+    /// <remarks>
+    ///     Here rather than worked out again at the caller, because it is the same arithmetic <see cref="Of" /> counts
+    ///     by: whoever comes after these has to know both where the text stopped and how many of the attachments earned
+    ///     a reference at all, and that second question is this class's to answer.
+    /// </remarks>
+    public static int Past(Post post) => (post.Boosted ?? post).Content.Length + Of(post).Count;
 }
