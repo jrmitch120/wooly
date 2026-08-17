@@ -285,7 +285,11 @@ public class PostEngagementTests
     /// <summary>What an instance answers a boost with: a post of the booster's own, carrying the post boosted.</summary>
     private static string BoostJson(string id, string boosted) => StatusJson(id, boosted: boosted);
 
-    /// <summary>What the instance made of a link in a post's text, with the fields ADR-0018 drops sent alongside.</summary>
+    /// <summary>
+    ///     What the instance made of a link in a post's text, as far as this file needs it: that a post asked for by id
+    ///     carries one at all. What is kept and what is dropped is settled where the mapping is covered in full, in
+    ///     <see cref="TimelineReaderTests" />.
+    /// </summary>
     private static string CardJson() =>
         """
         {

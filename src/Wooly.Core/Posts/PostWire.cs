@@ -24,7 +24,7 @@ internal static class PostWire
         Content = PostContent.ToPlainText(status.Content),
 
         // The wire says "no warning" with an empty string, which is not the same thing as a warning to print.
-        ContentWarning = string.IsNullOrWhiteSpace(status.SpoilerText) ? null : status.SpoilerText,
+        ContentWarning = SaidOrNothing(status.SpoilerText),
 
         // The other half of what a post is put behind, and the half with no text to read it off: an instance marks
         // media sensitive on its own account, and most often with no warning written at all (#113). Nullable on the
@@ -57,7 +57,7 @@ internal static class PostWire
         Url = status.Url,
 
         // The wire says "no avatar" with an empty string, the same as it says "no warning" above.
-        AvatarUrl = string.IsNullOrWhiteSpace(status.Account.AvatarUrl) ? null : status.Account.AvatarUrl,
+        AvatarUrl = SaidOrNothing(status.Account.AvatarUrl),
         InReplyTo = ToReplyTarget(status, instance),
         Poll = status.Poll is null ? null : ToPoll(status.Poll),
         LinkPreview = ToLinkPreview(status.Card),
@@ -85,16 +85,19 @@ internal static class PostWire
 
             // The wire says "nothing made of this" with an empty string, the same way it says "no warning" above —
             // every one of these is a field an instance sends blank rather than leaves out.
-            Title = Said(card.Title),
-            Description = Said(card.Description),
-            ProviderName = Said(card.ProviderName),
-            Image = Said(card.Image),
-            Author = Said(card.AuthorName),
+            Title = SaidOrNothing(card.Title),
+            Description = SaidOrNothing(card.Description),
+            ProviderName = SaidOrNothing(card.ProviderName),
+            Image = SaidOrNothing(card.Image),
+            Author = SaidOrNothing(card.AuthorName),
         };
     }
 
-    /// <summary>What the wire said, or <see langword="null" /> where what it said was nothing.</summary>
-    private static string? Said(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
+    /// <summary>
+    ///     What the wire said, or <see langword="null" /> where what it said was nothing — which it spells as an empty
+    ///     string on every field it has nothing to put in, rather than leaving the field out.
+    /// </summary>
+    private static string? SaidOrNothing(string? said) => string.IsNullOrWhiteSpace(said) ? null : said;
 
     /// <summary>
     ///     What a reply answers, or <see langword="null" /> for a post that answers nothing. A self-reply's handle is
@@ -161,11 +164,11 @@ internal static class PostWire
         Id = attachment.Id,
         Kind = ToKind(attachment.Type),
         Url = attachment.Url,
-        Preview = string.IsNullOrWhiteSpace(attachment.PreviewUrl) ? null : attachment.PreviewUrl,
+        Preview = SaidOrNothing(attachment.PreviewUrl),
 
         // The wire says "described as nothing" with an empty string, which is not the same thing as a description to
         // read out.
-        Description = string.IsNullOrWhiteSpace(attachment.Description) ? null : attachment.Description,
+        Description = SaidOrNothing(attachment.Description),
     };
 
     /// <summary>

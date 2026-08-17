@@ -313,21 +313,21 @@ public class TimelineReaderTests
     ///     is enrichment the raw address does not carry (ADR-0018).
     /// </summary>
     [Fact]
-    public async Task Read_ReportsThePreviewTheInstanceMadeOfALinkInAPost()
+    public async Task Read_ReportsTheLinkPreviewTheInstanceMadeOfALinkInAPost()
     {
         var network = new ScriptedHttpMessageHandler(
             ScriptedHttpMessageHandler.Json(Page(PostJson("110", card: CardJson()))));
 
         var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
 
-        var preview = Assert.Single(fetch.Items).LinkPreview;
-        Assert.NotNull(preview);
-        Assert.Equal("https://example.com/sheep", preview.Url);
-        Assert.Equal("The sheep of the world", preview.Title);
-        Assert.Equal("A field guide to every breed.", preview.Description);
-        Assert.Equal("Example", preview.ProviderName);
-        Assert.Equal("https://example.com/sheep.png", preview.Image);
-        Assert.Equal("Maria", preview.Author);
+        var linkPreview = Assert.Single(fetch.Items).LinkPreview;
+        Assert.NotNull(linkPreview);
+        Assert.Equal("https://example.com/sheep", linkPreview.Url);
+        Assert.Equal("The sheep of the world", linkPreview.Title);
+        Assert.Equal("A field guide to every breed.", linkPreview.Description);
+        Assert.Equal("Example", linkPreview.ProviderName);
+        Assert.Equal("https://example.com/sheep.png", linkPreview.Image);
+        Assert.Equal("Maria", linkPreview.Author);
     }
 
     /// <summary>
@@ -358,14 +358,14 @@ public class TimelineReaderTests
 
         var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
 
-        var preview = Assert.Single(fetch.Items).LinkPreview;
-        Assert.NotNull(preview);
-        Assert.Equal("https://example.com/sheep", preview.Url);
-        Assert.Null(preview.Title);
-        Assert.Null(preview.Description);
-        Assert.Null(preview.ProviderName);
-        Assert.Null(preview.Image);
-        Assert.Null(preview.Author);
+        var linkPreview = Assert.Single(fetch.Items).LinkPreview;
+        Assert.NotNull(linkPreview);
+        Assert.Equal("https://example.com/sheep", linkPreview.Url);
+        Assert.Null(linkPreview.Title);
+        Assert.Null(linkPreview.Description);
+        Assert.Null(linkPreview.ProviderName);
+        Assert.Null(linkPreview.Image);
+        Assert.Null(linkPreview.Author);
     }
 
     /// <summary>
@@ -373,7 +373,7 @@ public class TimelineReaderTests
     ///     preview rather than a title with nowhere to press <c>⏎</c> (ADR-0018).
     /// </summary>
     [Fact]
-    public async Task Read_ReportsNoLinkPreviewForACardWithNoAddressToOpen()
+    public async Task Read_ReportsNoLinkPreviewWhereTheInstanceGaveItNoAddressToOpen()
     {
         var network = new ScriptedHttpMessageHandler(
             ScriptedHttpMessageHandler.Json(Page(PostJson("110", card: CardJson(url: "")))));
@@ -707,9 +707,9 @@ public class TimelineReaderTests
           """;
 
     /// <summary>
-    ///     One link preview, as the wire serves one back on a post — with the fields ADR-0018 drops (<c>type</c>,
-    ///     <c>html</c>, the player's size, the author's own address) sent alongside the ones it keeps, so that dropping
-    ///     them is observable rather than assumed.
+    ///     One link preview, as the wire serves one back on a post. Every field ADR-0018 drops is sent alongside the
+    ///     ones it keeps — the player's markup and size, the author's own address, when the page was published — so
+    ///     that a mapping which reached for one of them would have something to reach for.
     /// </summary>
     private static string CardJson(
         string url = "https://example.com/sheep",
@@ -733,7 +733,8 @@ public class TimelineReaderTests
             "height": 480,
             "image": "{{image}}",
             "embed_url": "https://example.com/embed",
-            "blurhash": "UFC?"
+            "blurhash": "UFC?",
+            "published_at": "2026-07-28T09:00:00.000Z"
           }
           """;
 
