@@ -60,7 +60,41 @@ internal static class PostWire
         AvatarUrl = string.IsNullOrWhiteSpace(status.Account.AvatarUrl) ? null : status.Account.AvatarUrl,
         InReplyTo = ToReplyTarget(status, instance),
         Poll = status.Poll is null ? null : ToPoll(status.Poll),
+        LinkPreview = ToLinkPreview(status.Card),
     };
+
+    /// <summary>
+    ///     What the instance made of a link in the post's text, trimmed to what a terminal can use, or
+    ///     <see langword="null" /> where it previewed nothing (ADR-0018).
+    /// </summary>
+    /// <remarks>
+    ///     A card with no address of its own is read as no preview at all rather than as a preview that cannot be
+    ///     opened: its address is the whole reason it is a <c>Reference</c>, and a title with nowhere to press
+    ///     <c>⏎</c> is enrichment this client has no way to offer.
+    /// </remarks>
+    private static LinkPreview? ToLinkPreview(Card? card)
+    {
+        if (card is null || string.IsNullOrWhiteSpace(card.Url))
+        {
+            return null;
+        }
+
+        return new LinkPreview
+        {
+            Url = card.Url,
+
+            // The wire says "nothing made of this" with an empty string, the same way it says "no warning" above —
+            // every one of these is a field an instance sends blank rather than leaves out.
+            Title = Said(card.Title),
+            Description = Said(card.Description),
+            ProviderName = Said(card.ProviderName),
+            Image = Said(card.Image),
+            Author = Said(card.AuthorName),
+        };
+    }
+
+    /// <summary>What the wire said, or <see langword="null" /> where what it said was nothing.</summary>
+    private static string? Said(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
 
     /// <summary>
     ///     What a reply answers, or <see langword="null" /> for a post that answers nothing. A self-reply's handle is

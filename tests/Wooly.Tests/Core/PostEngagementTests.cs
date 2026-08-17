@@ -102,6 +102,22 @@ public class PostEngagementTests
     }
 
     /// <summary>
+    ///     A post asked for by id carries what a post on a timeline does, the link preview included — one crossing off
+    ///     the wire is what keeps a field from being filled in on one screen and empty on the next (ADR-0018).
+    /// </summary>
+    [Fact]
+    public async Task Show_ReportsTheLinkPreviewOnThePostTheIdNames()
+    {
+        var network = Answering(StatusJson("110", card: CardJson()));
+
+        var post = await NewEngagement(network).Show(Profile, "110", TestContext.Current.CancellationToken);
+
+        Assert.Equal("https://example.com/sheep", post.LinkPreview?.Url);
+        Assert.Equal("The sheep of the world", post.LinkPreview?.Title);
+        Assert.Equal("Example", post.LinkPreview?.ProviderName);
+    }
+
+    /// <summary>
     ///     A boost asked for by its own id stays a boost, unlike the one <see cref="IPostEngagement.Mark" /> unwraps: a
     ///     reader who named the boost is shown the boost, the same as a timeline shows it.
     /// </summary>
@@ -269,6 +285,22 @@ public class PostEngagementTests
     /// <summary>What an instance answers a boost with: a post of the booster's own, carrying the post boosted.</summary>
     private static string BoostJson(string id, string boosted) => StatusJson(id, boosted: boosted);
 
+    /// <summary>What the instance made of a link in a post's text, with the fields ADR-0018 drops sent alongside.</summary>
+    private static string CardJson() =>
+        """
+        {
+          "url": "https://example.com/sheep",
+          "title": "The sheep of the world",
+          "description": "A field guide to every breed.",
+          "type": "link",
+          "author_name": "Maria",
+          "provider_name": "Example",
+          "html": "",
+          "image": "https://example.com/sheep.png",
+          "embed_url": ""
+        }
+        """;
+
     /// <summary>What an instance answers a vote with: the whole poll as it now stands, and nothing of the post on it.</summary>
     private static string PollJson(string id, IReadOnlyList<long> votes, IReadOnlyList<int> ownVotes)
     {
@@ -290,10 +322,12 @@ public class PostEngagementTests
                  """;
     }
 
-    private static string StatusJson(string id, long boosts = 0, string? boosted = null) =>
+    /// <param name="card">The wire's <c>card</c>, or <see langword="null" /> for a post the instance previewed no link on.</param>
+    private static string StatusJson(string id, long boosts = 0, string? boosted = null, string? card = null) =>
         $$"""
           {
             "id": "{{id}}",
+            "card": {{card ?? "null"}},
             "uri": "https://mastodon.social/users/jeff/statuses/{{id}}",
             "url": "https://mastodon.social/@jeff/{{id}}",
             "created_at": "2026-07-29T12:00:00.000Z",
