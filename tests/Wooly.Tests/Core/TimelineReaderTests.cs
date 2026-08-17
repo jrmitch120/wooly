@@ -309,6 +309,81 @@ public class TimelineReaderTests
     }
 
     /// <summary>
+    ///     What the instance made of a link the author already wrote — a title, a site name, sometimes a picture — which
+    ///     is enrichment the raw address does not carry (ADR-0018).
+    /// </summary>
+    [Fact]
+    public async Task Read_ReportsTheLinkPreviewTheInstanceMadeOfALinkInAPost()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(Page(PostJson("110", card: CardJson()))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        var linkPreview = Assert.Single(fetch.Items).LinkPreview;
+        Assert.NotNull(linkPreview);
+        Assert.Equal("https://example.com/sheep", linkPreview.Url);
+        Assert.Equal("The sheep of the world", linkPreview.Title);
+        Assert.Equal("A field guide to every breed.", linkPreview.Description);
+        Assert.Equal("Example", linkPreview.ProviderName);
+        Assert.Equal("https://example.com/sheep.png", linkPreview.Image);
+        Assert.Equal("Maria", linkPreview.Author);
+    }
+
+    /// <summary>
+    ///     Most posts link to nothing, and a post the instance previewed nothing on carries nothing — not an empty
+    ///     preview for a reader to be shown a blank box for.
+    /// </summary>
+    [Fact]
+    public async Task Read_ReportsAPostThatLinksToNothingAsCarryingNoLinkPreview()
+    {
+        var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Json(Page(PostJson("110"))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        Assert.Null(Assert.Single(fetch.Items).LinkPreview);
+    }
+
+    /// <summary>
+    ///     An instance sends the fields it made nothing of as empty strings rather than leaving them out, and a title
+    ///     of <c>""</c> is not a title to print — the same distinction an undescribed attachment is read with.
+    /// </summary>
+    [Fact]
+    public async Task Read_ReportsWhatTheInstanceMadeNothingOfAsNothingRatherThanAsEmptyText()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(Page(PostJson(
+                "110",
+                card: CardJson(title: "", description: "", providerName: "", image: "", authorName: "")))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        var linkPreview = Assert.Single(fetch.Items).LinkPreview;
+        Assert.NotNull(linkPreview);
+        Assert.Equal("https://example.com/sheep", linkPreview.Url);
+        Assert.Null(linkPreview.Title);
+        Assert.Null(linkPreview.Description);
+        Assert.Null(linkPreview.ProviderName);
+        Assert.Null(linkPreview.Image);
+        Assert.Null(linkPreview.Author);
+    }
+
+    /// <summary>
+    ///     The address is the whole reason a preview is walked to and opened at all, so a card without one is no
+    ///     preview rather than a title with nowhere to press <c>⏎</c> (ADR-0018).
+    /// </summary>
+    [Fact]
+    public async Task Read_ReportsNoLinkPreviewWhereTheInstanceGaveItNoAddressToOpen()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(Page(PostJson("110", card: CardJson(url: "")))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        Assert.Null(Assert.Single(fetch.Items).LinkPreview);
+    }
+
+    /// <summary>
     ///     A boost carries no text of its own and no pictures of its own either — both belong to the post it points at,
     ///     which is what a feed has to draw.
     /// </summary>
@@ -331,6 +406,26 @@ public class TimelineReaderTests
         Assert.NotNull(boosted);
         Assert.True(boosted.Marks.Favorited);
         Assert.Equal("A cartoon sheep", Assert.Single(boosted.Media).Description);
+    }
+
+    /// <summary>
+    ///     And a boost's preview belongs to the post it points at, for the reason its media does: the instance made it
+    ///     out of that post's text, which is the text a feed draws.
+    /// </summary>
+    [Fact]
+    public async Task Read_ReportsABoostsLinkPreviewOnThePostThatWasBoosted()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(Page(PostJson(
+                "110",
+                content: "",
+                boosting: PostJson("99", account: "alice@hachyderm.io", card: CardJson())))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        var boost = Assert.Single(fetch.Items);
+        Assert.Null(boost.LinkPreview);
+        Assert.Equal("The sheep of the world", boost.Boosted?.LinkPreview?.Title);
     }
 
     [Theory]
@@ -612,6 +707,38 @@ public class TimelineReaderTests
           """;
 
     /// <summary>
+    ///     One link preview, as the wire serves one back on a post. Every field ADR-0018 drops is sent alongside the
+    ///     ones it keeps — the player's markup and size, the author's own address, when the page was published — so
+    ///     that a mapping which reached for one of them would have something to reach for.
+    /// </summary>
+    private static string CardJson(
+        string url = "https://example.com/sheep",
+        string title = "The sheep of the world",
+        string description = "A field guide to every breed.",
+        string providerName = "Example",
+        string image = "https://example.com/sheep.png",
+        string authorName = "Maria") =>
+        $$"""
+          {
+            "url": "{{url}}",
+            "title": "{{title}}",
+            "description": "{{description}}",
+            "type": "link",
+            "author_name": "{{authorName}}",
+            "author_url": "https://example.com/@maria",
+            "provider_name": "{{providerName}}",
+            "provider_url": "https://example.com",
+            "html": "<iframe src=\"https://example.com/embed\"></iframe>",
+            "width": 640,
+            "height": 480,
+            "image": "{{image}}",
+            "embed_url": "https://example.com/embed",
+            "blurhash": "UFC?",
+            "published_at": "2026-07-28T09:00:00.000Z"
+          }
+          """;
+
+    /// <summary>
     ///     Two accounts a post names, as the wire lists them: one on another instance, written in full, and one of
     ///     this instance's own, written bare.
     /// </summary>
@@ -628,6 +755,7 @@ public class TimelineReaderTests
     ///     <see langword="null" /> for an instance that sent none of them.
     /// </param>
     /// <param name="media">The wire's <c>media_attachments</c> array, or <see langword="null" /> for a post carrying none.</param>
+    /// <param name="card">The wire's <c>card</c>, or <see langword="null" /> for a post the instance previewed no link on.</param>
     private static string PostJson(
         string id,
         string account = "jeff",
@@ -638,13 +766,15 @@ public class TimelineReaderTests
         string? marks = null,
         string? media = null,
         string? mentions = null,
-        bool sensitive = false) =>
+        bool sensitive = false,
+        string? card = null) =>
         $$"""
           {
             "id": "{{id}}",
             {{marks ?? string.Empty}}
             "sensitive": {{(sensitive ? "true" : "false")}},
             "media_attachments": {{media ?? "[]"}},
+            "card": {{card ?? "null"}},
             "mentions": {{mentions ?? "[]"}},
             "uri": "https://mastodon.social/users/jeff/statuses/{{id}}",
             "url": "https://mastodon.social/@jeff/{{id}}",
