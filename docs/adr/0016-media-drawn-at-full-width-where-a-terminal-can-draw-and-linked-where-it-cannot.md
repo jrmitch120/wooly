@@ -171,3 +171,57 @@ which is now wherever the reader has put it.
 Nothing about a picture is ever reported as an error. A fetch that fails, a file that will not decode, a format this
 build has no decoder for: all of them are "no picture", the box stays empty, and the row that says what is attached is
 what the reader has — which is the same thing the reader has on a terminal that cannot draw at all.
+
+## Amendment: a post's attachments are part of what its warning covers (ticket #113)
+
+This ADR settled what is drawn and ADR-0017 settled what is opened, and neither of them asked whether the reader wanted
+to see it yet. That is a gap here rather than a feature nobody got to: everything above decides how an attachment is
+*rendered* — a box at full width, or the address and what its author said it shows — and none of it decides *whether*,
+which for media an instance has marked sensitive is the first question. Until #113 the answer was always yes. A
+photograph flagged sensitive was drawn in place, full width, with nothing asked of the reader first, and #110 extended
+that to a video's and an animation's own preview, which is what made it worth writing down.
+
+**A post's attachments are behind its warning, and the warning is either half of one.** Mastodon carries two fields:
+`spoiler_text`, which is the warning an author wrote, and `sensitive`, which is the instance's own flag over the media.
+They are the same promise made twice, and this client was keeping neither half — `PostWire.ToPost` read the spoiler text
+and dropped the flag, and `PostLines.Media` ran outside the warning gate entirely. So `Post` now carries `Sensitive`
+alongside `ContentWarning`, and `Post.IsWarned` is the one question everything else asks: a spoiler text, the flag, or
+both. The flag alone counts for nothing on a post carrying no attachments, which an instance is free to send — it is a
+mark over media, so with none under it nothing is behind anything and `x` is not spent reporting that it acted.
+
+The gate this opens is a gate on rendering, not a filter on the model. A warned post's attachments emit no rows, so
+they carry no `Wants`, so `PaintedView` never asks `IPictures` for them — and *that* is the point rather than a side
+effect. A reader scrolling a feed of sensitive posts should pay no data for pixels they have not asked to see, which is
+the same reasoning that split `IPictures` into `Of` and `Want` in the first place. It is asserted directly, because it
+is the kind of property that silently stops holding: a row emitted "just to reserve the space" would put the fetch back
+without anything on screen looking wrong.
+
+**What each half hides is still its own.** The flag is over the media, not the words: a post marked sensitive with no
+spoiler text shows its text exactly as it always did, and only its attachments are kept back. So `Screen` asks two
+questions where it asked one — `Readable`, which is the text and its references, and `Uncovered`, which is the
+attachments and theirs — and `x` answers both at once, since a reader asking to see what a post is hiding is not asking
+about one field of it.
+
+**The attachment references join the gate, which reverses the exemption they were written.** ADR-0017 said nothing
+about warnings at all; the exemption was made on its behalf, in `Screen.References`' own remarks and in
+`docs/tui-shell.md`, and it gave a reason: an attachment's box and description already stood outside the warning, so
+there was nothing for a bracket on one to hide behind. Hiding the media inverts the reasoning rather than merely
+outweighing it —
+`←`/`→` would walk to a label nobody can see, and `⏎` would open a video the reader never asked for. Nothing about how
+a reference is walked or opened changes; only which ones exist before `x` is pressed.
+
+**A post marked sensitive with nothing written over it says so where its attachments would be.** This is the one thing
+added rather than gated, and it is what makes the rest reachable. On a post carrying a spoiler text the warning is
+already up and already naming the key, so the attachments simply go. On a post carrying only the flag there is no
+warning row at all, and hidden-with-no-sign is not hidden — it is a photograph the reader has no way to know is there
+and a key they have no way to know means anything. So `⚠ Sensitive media` and the same `x  show it` stand in the
+attachments' place, and that row is the whole of what is drawn: no box, no label, no description, no address, and
+nothing sent for.
+
+**The CLI is left exactly as it is, and this is the decision rather than the default.** It links every attachment
+whatever the kind — the address and what its author said it shows — and hiding an address behind a prompt would be
+hiding it from a script, on a surface that has no keystroke to reveal it with and where the output is as often piped as
+read. Nothing is *rendered* there for a warning to be about: the reasoning at the top of this ADR is that a link and a
+description are what a reader gets when pixels are not on the table, and that is precisely what a reader who has not
+asked for the pixels should get too. `--json` grows no `sensitive` field for the same reason it grows nothing else it
+has no consumer for; the field is on `Post` and available to add the day something asks for it.

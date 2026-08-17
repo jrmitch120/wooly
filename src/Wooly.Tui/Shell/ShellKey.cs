@@ -21,6 +21,6 @@ public enum ShellKey
     /// <summary><c>d</c>: dismissing the picked notification, or taking down the picked post.</summary>
     Discard,
 
-    /// <summary><c>x</c>: turning the picked follow request away, or showing what a content warning hides.</summary>
+    /// <summary><c>x</c>: turning the picked follow request away, or showing what the picked post is hiding.</summary>
     Reject,
 }

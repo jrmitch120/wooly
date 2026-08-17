@@ -261,7 +261,7 @@ public sealed class Shell
         return true;
     }
 
-    /// <summary>Shows what the picked post's content warning is hiding.</summary>
+    /// <summary>Shows what the picked post is hiding — its warned text, its sensitive attachments, or both.</summary>
     public void Reveal()
     {
         if (Screen.Reveal())

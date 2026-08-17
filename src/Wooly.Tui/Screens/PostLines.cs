@@ -28,6 +28,18 @@ public static class PostLines
     private const string LinkMark = "⏵";
 
     /// <summary>
+    ///     What a post whose media the instance marked sensitive says where its attachments would have been, on a post
+    ///     carrying no warning of its own to say it (#113).
+    /// </summary>
+    private const string SensitiveMedia = "Sensitive media";
+
+    /// <summary>
+    ///     How a reader asks past whichever of the two a post is hiding behind, said once so that the warning over a
+    ///     post's text and the row standing in for its attachments cannot come to name different keys.
+    /// </summary>
+    private const string AskPastIt = "x  show it";
+
+    /// <summary>
     ///     How many columns an author's avatar takes, beside the two rows of their byline — four wide and two tall
     ///     being about square in a cell twice as tall as it is wide, which is the shape an avatar is.
     /// </summary>
@@ -345,24 +357,14 @@ public static class PostLines
     {
         if (post.ContentWarning is { } warning && !reading.Revealed)
         {
-            return
-            [
-                Line.Of([
-                    new Span("⚠ ", Role.ContentWarning),
-                    new Span(TextWrap.Clip(warning, width - 2), Role.ContentWarning),
-                ]),
-                Line.Of("x  show it", Role.Muted),
-            ];
+            return [Warning(warning, width), Line.Of(AskPastIt, Role.Muted)];
         }
 
         var lines = new List<Line>();
 
         if (post.ContentWarning is { } shown)
         {
-            lines.Add(Line.Of([
-                new Span("⚠ ", Role.ContentWarning),
-                new Span(TextWrap.Clip(shown, width - 2), Role.ContentWarning),
-            ]));
+            lines.Add(Warning(shown, width));
         }
 
         // Nothing at all rather than the one empty row wrapping an empty string gives back. A post whose whole content
@@ -388,6 +390,17 @@ public static class PostLines
 
         return lines;
     }
+
+    /// <summary>
+    ///     One warning, said the one way: the mark and what is being warned about. Written here rather than at each of
+    ///     the three places one goes up — over a warned post's text, over the same text once it is shown, and where a
+    ///     sensitive post's attachments are being kept — so a warning cannot come to look like two different things on
+    ///     one post.
+    /// </summary>
+    private static Line Warning(string said, int width) => Line.Of([
+        new Span("⚠ ", Role.ContentWarning),
+        new Span(TextWrap.Clip(said, width - 2), Role.ContentWarning),
+    ]);
 
     /// <summary>
     ///     What is attached: a picture drawn in place or the address to reach an undrawn one at, and for everything
@@ -433,6 +446,23 @@ public static class PostLines
         bool hideDrawnCaption,
         Reading reading)
     {
+        // A warned post's attachments are part of what the warning covers, and nothing about one is drawn until the
+        // reader has asked past it: no box, no label, no description, no address — and no Wants, which is what keeps
+        // the pixels from being sent for at all (#113, ADR-0016's amendment).
+        if (post.IsWarned && !reading.Revealed)
+        {
+            // Where the post's own warning is not already asking, this is: a photograph marked sensitive under no
+            // warning at all would otherwise be hidden with nothing on screen to say a key meant anything. There is
+            // always something to say it about here — a post warned by the flag alone is one carrying attachments,
+            // which is what Post.IsWarned settles.
+            if (post.ContentWarning is null)
+            {
+                yield return [Warning(SensitiveMedia, width), Line.Of(AskPastIt, Role.Muted)];
+            }
+
+            yield break;
+        }
+
         // Built once, off the same formula Screen.References walks, so a bracket here and the pick the reader made
         // can never come to disagree about which attachment it landed on (AttachmentReferences).
         var references = AttachmentReferences.Of(post);

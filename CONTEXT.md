@@ -26,8 +26,21 @@ offers one, but never in place of the thing itself — only beside a **Reference
 attachment of a kind this client has no word for, a sound with no preview worth drawing, and any of these on a
 terminal that speaks neither sixel nor the Kitty graphics protocol — is **linked**: its address, and what its author
 said it shows. The CLI only ever links, whatever the kind (ADR-0016); the TUI draws where it can and opens the rest
-in the reader's own player (ADR-0017).
+in the reader's own player (ADR-0017). In the TUI none of that happens at all on a **warned** post until the reader
+has asked past it: what is attached is part of what a warning covers, so it is neither drawn, nor sent for, nor walked.
+The CLI is unchanged by that — it prints an address for whatever is attached, warned or not, since there is nothing
+rendered there to be asked for and no key to ask with (#113).
 _Avoid_: media file, image (where the kind has not been settled)
+
+**Warned**:
+Whether a post is put behind something a reader has to ask past — a **content warning** its author wrote, the sensitive
+flag its instance marked the media with, or both (`Post.IsWarned`). One question rather than two, because the two are
+the same promise made in two fields and Mastodon's commonest sensitive post is a photograph with nothing written over
+it: a client honouring only the text would hide nothing on exactly the posts most needing it. What each half hides is
+still its own — the text stands behind the warning text alone, the **Attachment**s behind either — and one `x` shows
+whichever of them is hidden. The flag counts for nothing on a post carrying no attachments, since it is a mark over
+media and there is nothing behind it there (#113).
+_Avoid_: spoilered, blurred, NSFW, hidden (which is what a warning does, not what a post is)
 
 **Drawn**:
 A picture the TUI paints in place, said as the thing rather than the adjective: which one it is, and where its pixels
@@ -161,7 +174,7 @@ from the second to the first is a lookup and never a fetch — a bare handle mea
 after it, and guessing this profile's own would open somebody else under somebody's name.
 
 **Reading**:
-What this reader has done to one post — asked past its content warning, walked to a **reference** inside it — carried
+What this reader has done to one post — asked past what it is **warned** with, walked to a **reference** inside it — carried
 as one thing, keyed by which post it is (#95). Distinct from **Picked**, which is which post: a post nobody has
 touched is `default`, and every post on a screen but the picked one is. Nothing to do with `Shell`'s own private
 sense of the word, which is the **conversation** being read.

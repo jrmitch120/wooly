@@ -1,8 +1,9 @@
 namespace Wooly.Tui.Rendering;
 
 /// <summary>
-///     What this reader has done to one post: asked past its content warning, walked to a reference inside its text.
-///     Everything a post is drawn differently for because of who is reading it, rather than because of what it says.
+///     What this reader has done to one post: asked past what it is warned with, walked to a reference inside its
+///     text. Everything a post is drawn differently for because of who is reading it, rather than because of what it
+///     says.
 /// </summary>
 /// <remarks>
 ///     One thing rather than an argument apiece, because each of them is keyed by the same question — which post is
@@ -14,7 +15,10 @@ namespace Wooly.Tui.Rendering;
 ///         touched, and saying so twice over at each of them was the noise this replaces.
 ///     </para>
 /// </remarks>
-/// <param name="Revealed">Whether the reader has asked to see past this post's content warning.</param>
+/// <param name="Revealed">
+///     Whether the reader has asked to see what this post is hiding — its warned text, its sensitive attachments, or
+///     both, since one <c>x</c> shows whichever of them there is (#113).
+/// </param>
 /// <param name="Reference">
 ///     The reference in this post's text the reader has walked to, or <see langword="null" /> where none is picked —
 ///     which is every post but the one being read (#83).

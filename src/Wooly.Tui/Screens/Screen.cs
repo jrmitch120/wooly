@@ -151,16 +151,24 @@ public abstract class Screen
     ///     is the order they are walked in, and the order an index into them means anything in.
     /// </summary>
     /// <remarks>
-    ///     None of the text ones while the post's text is still behind a content warning: the brackets a picked
-    ///     reference is drawn in would be behind it too, so a pick there is one nobody can see (<c>docs/tui-shell.md</c>).
-    ///     An attachment reference is unaffected by that gate — its box and description already stand outside the
-    ///     warning, on <c>PostLines</c>' own path, so there is nothing for a bracket on it to hide behind (ADR-0017).
+    ///     Nothing that is not on screen, on either half. The text ones go while the post's text is behind a content
+    ///     warning, because the brackets a picked reference is drawn in would be behind it too and a pick there is one
+    ///     nobody can see (<c>docs/tui-shell.md</c>). The attachment ones go on the same reasoning as soon as the post
+    ///     is warned at all: since #113 the attachments are behind the warning with the text, so <c>←</c>/<c>→</c>
+    ///     would be walking to a label nobody can see and <c>⏎</c> opening a video the reader never asked for. That
+    ///     replaces the exemption this remark used to make on ADR-0017's behalf, which held only while their box and
+    ///     description stood outside the warning — as they did until #113 put them behind it (ADR-0016's amendment).
+    ///     <para>
+    ///         Two questions rather than one, because the two halves are hidden by different things: a post marked
+    ///         sensitive with nothing written over it shows its text, so what is written in it goes on being walked
+    ///         while its attachments do not.
+    ///     </para>
     /// </remarks>
     public IReadOnlyList<Reference> References => Referencing is { } post
         ?
         [
             .. Readable(post) ? BodyText.References((post.Boosted ?? post).Content) : [],
-            .. AttachmentReferences.Of(post),
+            .. Uncovered(post) ? AttachmentReferences.Of(post) : [],
         ]
         : [];
 
@@ -372,7 +380,7 @@ public abstract class Screen
 
 
 
-    /// <summary>The content warnings the reader has asked past on this screen, by the id of the post each is on.</summary>
+    /// <summary>The posts the reader has asked past the warning on, by the id of each.</summary>
     /// <remarks>
     ///     Held here rather than six times over, because what <c>x</c> does turned out not to vary by screen at all —
     ///     it is <see cref="Picked" /> and one question. Kept out of <see cref="Picked{T}" /> for the opposite reason:
@@ -380,7 +388,7 @@ public abstract class Screen
     /// </remarks>
     protected Revealed Revealed { get; } = new();
 
-    /// <summary>Shows what the picked post's content warning is hiding.</summary>
+    /// <summary>Shows what the picked post is hiding — its warned text, its sensitive attachments, or both.</summary>
     /// <returns>Whether there was anything to reveal, which is what settles whether the key was used.</returns>
     /// <remarks>
     ///     A screen with no posts on it picks none, so it reveals nothing without having to say so — the same reason
@@ -390,6 +398,12 @@ public abstract class Screen
 
     /// <summary>Whether <paramref name="post" />'s own text is on screen rather than behind its content warning.</summary>
     private bool Readable(Post post) => (post.Boosted ?? post).ContentWarning is null || Revealed.Has(post);
+
+    /// <summary>
+    ///     Whether <paramref name="post" />'s attachments are on screen rather than behind its warning — which is
+    ///     either half of one, since the instance's own sensitive flag hides them with no text to read it off (#113).
+    /// </summary>
+    private bool Uncovered(Post post) => !(post.Boosted ?? post).IsWarned || Revealed.Has(post);
 
     /// <summary>
     ///     Puts <paramref name="post" /> in place of the copy this screen is holding, after a mark changed it. What
