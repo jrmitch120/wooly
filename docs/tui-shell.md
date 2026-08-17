@@ -162,7 +162,7 @@ post answers, are both drawn into the byline now (#62, #63):
 - **`Counts` gets a blank row of its own** ahead of it, so it reads as a footer rather than one more line of the
   post. **+1 row.**
 - **A post is a run of parts, and a blank row stands between each** — the byline, the text, *each attachment on its
-  own*, the counts. Generalised from the two blanks above once a post carrying two pictures showed the rule was
+  own*, the link preview, the counts. Generalised from the two blanks above once a post carrying two pictures showed the rule was
   needed at seams nobody had put one at by hand: the body ran into the first caption, and the first picture's last
   row into the second caption. One rule in `PostLines.Parts` rather than a `Line.Blank` per seam, so a part added
   later is spaced without anyone remembering to. **+1 row per attachment**, and nothing on a post carrying none —
@@ -226,10 +226,13 @@ mention, or address inside a post's text — replacing `BodyText`'s internal "ma
   `Screen.Referencing` rather than `Screen.Picked`: widening `Picked` there would have handed `d`, `b` and `f` a post
   the screen never offered them (#83).
 - **Walkable**: hashtag, mention, and address — the three references `BodyText` finds — followed, since #109
-  (ADR-0017), by every `Video`, `Animation`, `Audio` or `Unknown` attachment on the post, in attachment order.
-  **Not walkable**: an `Image` attachment, which is drawn or linked but never opened this way; text still behind a
+  (ADR-0017), by every `Video`, `Animation`, `Audio` or `Unknown` attachment on the post, in attachment order, and
+  since #116 (ADR-0018) by the post's link preview, last of all.
+  **Not walkable**: an `Image` attachment, which is drawn or linked but never opened this way; the name a link
+  preview says wrote the page, which is plain text and never an address; text still behind a
   content warning, which has no references until `x` shows it, since the brackets marking a pick would be behind the
-  warning too (#83); and every attachment on a **warned** post, for the same reason since #113 — its label is behind
+  warning too (#83); and every attachment on a **warned** post, along with its link preview, for the same reason since
+  #113 — its label is behind
   the warning with the rest of what is attached, so `←`/`→` would walk to something nobody can see and `⏎` would open
   a video the reader never asked for. The two halves are asked separately: a post marked sensitive with no warning
   written over it shows its text, so what is written in it goes on being walked while its attachments do not.
@@ -238,6 +241,11 @@ mention, or address inside a post's text — replacing `BodyText`'s internal "ma
   of a wrapped row — the kind's own name (`MediaKindName.Written`, capitalized) is the whole of the walkable span, with
   the author's own description alongside it where they gave one. The raw address is not printed at all; it is only
   ever what `⏎` opens (#109).
+- **A link preview's reference is placed the same way, after every attachment's** (`LinkPreviewReference`, #116), and
+  its walkable span is the page's title — the site's own name where the instance sent no title, and the address itself
+  where it sent neither, since the address is the whole reason a preview is walked to. Its address will usually be one
+  a `link` reference in the post's own text already reaches, and it is walked anyway: a title is a pointer to the
+  article rather than the article, and hunting a long post for the matching link is not an answer (ADR-0018).
 - **Matched once per post, on the flattened text before the wrap** rather than per wrapped row, which is what gives
   them an order and a place to be walked by. `TextWrap` carries each row's offset into that text and every row is a
   slice of it at that offset, so a row's spans are the post's references sliced by its own range. An address longer
@@ -442,6 +450,37 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
   hidden — the preference itself is the opt-in (#71). Since #110 it hides a video's or an animation's *description*
   on the same branch and on the same terms — never its label, which is what `⏎` acts on rather than a caption.
 
+### What a link preview settled
+
+What an instance made of a link the author already wrote into a post — a title, a site name, a description, sometimes
+a picture — is drawn after everything the author attached (#116, ADR-0018):
+
+- **Text, then attachments, then the preview**, which is the order Mastodon's own web UI uses. Nothing in its docs says
+  a post carrying attachments is never sent a preview too, so both are drawn and the order between them is settled now
+  rather than found out later. It is a part of its own in `PostLines.Parts`, so a blank row stands ahead of it — **+1
+  row**, and nothing on a post the instance previewed no link in.
+- **The title is the row that is walked**, behind the same `⏵` an attachment's label carries and bracketed the same way
+  while it is picked. The site's name stands in for a title the instance made nothing of, and the address itself where
+  it sent neither. Under it, indented past the mark and all `muted`: the site, the description, and `by ` whoever the
+  page says wrote it — one row each, clipped rather than wrapped, and nothing at all for whatever the instance did not
+  say.
+- **The author's name is plain text and is never walked to.** Two things opening the same place was the trade already
+  made for the preview's own address; a third, which usually differs from it and rarely matters enough to open, is
+  where consistency with attachments stopped being the stronger argument (ADR-0018).
+- **Its picture goes through the same `Drawn`/`Inset`/`IPictures`/`PictureView` pipeline an attachment's does** — same
+  width-driven box, same 16/32-row cap, same nothing-at-all on a terminal offering neither sixel nor Kitty, where what
+  is left is the words. `Drawn.LinkPreview` names it by the *link's* address rather than the picture's, the way an
+  avatar is named by its handle: the same article shared by two accounts is one picture however each instance spells
+  the proxy it serves the pixels through.
+- **`hide_drawn_caption` does not touch it**, which is the one thing it does differently from an attachment. That
+  preference drops what a picture says *it shows* once the picture is on screen saying it (#71); a preview's
+  description is about the page rather than about the picture beside it, so a box landing under the words does not
+  stand in for them.
+- **A warned post's preview is behind the warning with its attachments** — no title, no description, no box and no
+  `Wants`, so nothing is fetched for it either, until `x` (#113). Nothing extra is said in place of it: a post hiding
+  anything is already showing its author's warning or the `⚠ Sensitive media` prompt, and a second one under that
+  would be the same offer made twice.
+
 ### What moving settled
 
 `j`/`k` and `↓`/`↑` were one key until a post with pictures on it grew taller than a terminal, at which point the
@@ -541,7 +580,7 @@ glyph or a position that carries the same meaning when colour is gone.
 | `byline-handle` | `username@instance` | the `@` |
 | `audience` | The visibility mark | `○ ◌ ● ✉` |
 | `content-warning` | A warning and its text | `⚠` |
-| `media` | Image placeholders, attachment links, and the columns a byline holds for an avatar | `▒▒▒▒`, `⏵` |
+| `media` | Image placeholders, attachment links, a link preview's title, and the columns a byline holds for an avatar | `▒▒▒▒`, `⏵` |
 | *(none — a picture's own pixels)* | A drawn picture | it is the picture |
 | `poll` | Options and their bars | the bar itself, and `✓ `/`[x]` marking a picked one |
 | `reference-picked` | The brackets around a picked reference | `‹ ›`, always drawn |

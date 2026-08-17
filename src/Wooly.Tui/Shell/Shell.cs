@@ -357,8 +357,8 @@ public sealed class Shell
     /// <summary>
     ///     Opens whatever the picked reference points at, which is four different things: a hashtag's timeline, the
     ///     account a mention names, an address in the platform's own browser, or a <c>Video</c>/<c>Animation</c>/
-    ///     <c>Audio</c>/<c>Unknown</c> attachment's own address — in that same browser, the exact way a picked link
-    ///     already reaches it (#85, ADR-0017).
+    ///     <c>Audio</c>/<c>Unknown</c> attachment's own address and a link preview's alike — in that same browser, the
+    ///     exact way a picked link already reaches it (#85, ADR-0017, ADR-0018).
     /// </summary>
     /// <remarks>
     ///     Which of the four it is, is the role the reference draws in — one vocabulary rather than two, which is the
@@ -389,9 +389,10 @@ public sealed class Shell
 
             case Role.Link:
             case Role.Media:
-                // Media is an attachment's own address (AttachmentReferences), carried already-well-formed off the
-                // wire rather than matched by pattern out of prose — but it goes through the very same call a Link
-                // reference does, so a refusal reads identically whichever kind of reference it was refused on.
+                // Media is an attachment's own address (AttachmentReferences) or a link preview's
+                // (LinkPreviewReference), carried already-well-formed off the wire rather than matched by pattern out
+                // of prose — but it goes through the very same call a Link reference does, so a refusal reads
+                // identically whichever kind of reference it was refused on.
                 OpenAddress(reference.Text);
 
                 return Task.CompletedTask;

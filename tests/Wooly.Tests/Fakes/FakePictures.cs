@@ -1,4 +1,5 @@
 using Terminal.Gui.Drawing;
+using Wooly.Core.Posts;
 using Wooly.Tui.Media;
 
 namespace Wooly.Tests.Fakes;
@@ -34,6 +35,13 @@ internal sealed class FakePictures : IPictures
 
     /// <summary>Says that the picture for the attachment <paramref name="mediaId" /> has arrived, at the given size in pixels.</summary>
     public FakePictures Holding(string mediaId, int width, int height) => Held(mediaId, width, height);
+
+    /// <summary>
+    ///     Says that the picture the instance chose for <paramref name="link" /> has arrived, at the given size in
+    ///     pixels — or holds nothing at all where it chose none, which is a preview with no picture coming.
+    /// </summary>
+    public FakePictures HoldingLinkPreview(LinkPreview link, int width, int height) =>
+        Drawn.LinkPreview(link) is { } drawn ? Held(drawn.Id, width, height) : this;
 
     /// <summary>Says that <paramref name="account" />'s avatar has arrived, at the given size in pixels.</summary>
     public FakePictures HoldingAvatarOf(string account, int width = 96, int height = 96) =>

@@ -56,9 +56,11 @@ _Avoid_: spoilered, blurred, NSFW, hidden (which is what a warning does, not wha
 **Drawn**:
 A picture the TUI paints in place, said as the thing rather than the adjective: which one it is, and where its pixels
 are fetched from (`Drawn`). What the TUI's whole picture path turns on — what is held, what is sent for, and what a box
-on a row stands in for — because two different things are painted and only one of them is an **Attachment**. A post's
+on a row stands in for — because three different things are painted and only one of them is an **Attachment**. A post's
 picture hangs off the post; an author's avatar hangs off the author, and calling the second one an attachment would
-have made "something on a post besides its text" mean something else wherever an avatar went. Nothing outside a TUI
+have made "something on a post besides its text" mean something else wherever an avatar went. The third is the picture
+an instance chose for a **Link preview**, named by the link's own address the way an avatar is named by its handle, so
+that the same article shared twice is fetched once (#116). Nothing outside a TUI
 has one: the CLI **links** everything (ADR-0016).
 _Avoid_: image, media (for the avatar half of this)
 

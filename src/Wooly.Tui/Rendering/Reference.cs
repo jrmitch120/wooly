@@ -4,8 +4,9 @@ namespace Wooly.Tui.Rendering;
 
 /// <summary>
 ///     A hashtag, a mention, or an address inside a post's text — or a <c>Video</c>, <c>Animation</c>, <c>Audio</c> or
-///     <c>Unknown</c> attachment's own address, once it is not drawn as a picture in its own right — one of the things
-///     that point somewhere else, which <c>←</c> and <c>→</c> walk and <c>⏎</c> opens (CONTEXT.md, #83, ADR-0017).
+///     <c>Unknown</c> attachment's own address, once it is not drawn as a picture in its own right, or the address a
+///     link preview was made of — one of the things that point somewhere else, which <c>←</c> and <c>→</c> walk and
+///     <c>⏎</c> opens (CONTEXT.md, #83, ADR-0017, ADR-0018).
 /// </summary>
 /// <remarks>
 ///     The first three are found once on the whole post's flattened text rather than a row at a time, which is what
@@ -28,6 +29,8 @@ namespace Wooly.Tui.Rendering;
 /// <param name="At">
 ///     Where it starts in the post's text — or, for an attachment reference, past the end of it, so that every
 ///     attachment reference sorts after every one the text carries and no two collide (<see cref="Rendering.AttachmentReferences" />).
+///     A link preview's own sorts past those in turn, last of everything on the post
+///     (<see cref="LinkPreviewReference" />).
 /// </param>
 public readonly record struct Reference(string Text, Role Role, int At)
 {

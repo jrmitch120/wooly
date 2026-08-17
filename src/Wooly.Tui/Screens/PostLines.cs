@@ -11,7 +11,8 @@ namespace Wooly.Tui.Screens;
 ///     <para>
 ///         Every state here has a glyph before it has a colour — <c>○ ◌ ● ✉</c> for the four audiences, <c>⚠</c> for a
 ///         warning, <c>↺</c>/<c>⥀</c> and <c>☆</c>/<c>★</c> for whether a boost or favorite is the reader's own,
-///         <c>▒▒▒▒</c> for a picture, <c>⏵</c> for an attachment that is linked rather than drawn. That is not
+///         <c>▒▒▒▒</c> for a picture, <c>⏵</c> for what is walked to and opened rather than drawn — an attachment,
+///         and a link preview's title. That is not
 ///         decoration: on a terminal reporting no colour, and to a reader who cannot tell this green from that grey,
 ///         the glyphs are the whole of what is being said.
 ///     </para>
@@ -24,7 +25,11 @@ public static class PostLines
     /// </summary>
     private const string MediaMark = "▒▒▒▒";
 
-    /// <summary>What stands in front of an attachment that is linked rather than drawn.</summary>
+    /// <summary>
+    ///     What stands in front of a row a reader walks to and opens: an attachment that is linked rather than drawn,
+    ///     and a link preview's title (#116). One mark rather than two, because it says what <c>⏎</c> does here rather
+    ///     than what kind of thing is on the other end of it.
+    /// </summary>
     private const string LinkMark = "⏵";
 
     /// <summary>
@@ -91,6 +96,7 @@ public static class PostLines
             ],
             Body(shown, width, reading),
             .. Media(shown, width, pictures, Inset.FeedRows, hideDrawnCaption, reading),
+            LinkPreview(shown, width, pictures, Inset.FeedRows, reading),
             Poll(shown, width, reading),
             [Counts(shown, spelledOut: false)],
         ]);
@@ -139,6 +145,7 @@ public static class PostLines
             ],
             Body(shown, width, reading),
             .. Media(shown, width, pictures, Inset.WholeRows, hideDrawnCaption, reading),
+            LinkPreview(shown, width, pictures, Inset.WholeRows, reading),
             Poll(shown, width, reading),
             [Counts(shown, spelledOut: true)],
         ]);
@@ -600,9 +607,29 @@ public static class PostLines
         int width,
         bool saysWhatItShows)
     {
-        var bracketed = picked == reference;
-        var label = Capitalized(MediaKindName.Written(attached.Kind));
+        var spans = Walkable(Capitalized(MediaKindName.Written(attached.Kind)), picked == reference);
 
+        if (saysWhatItShows && attached.Description is { } description)
+        {
+            var used = spans.Sum(span => span.Text.Length) + 1;
+
+            spans.Add(new Span($" {TextWrap.Clip(description, Math.Max(0, width - used))}", Role.Media));
+        }
+
+        return new Line(spans);
+    }
+
+    /// <summary>
+    ///     The front of a row <c>←</c>/<c>→</c> walks to: the mark and <paramref name="label" />, in the brackets a
+    ///     picked reference is drawn in where <paramref name="bracketed" />.
+    /// </summary>
+    /// <remarks>
+    ///     Said once for an attachment's kind and a link preview's title, so the two cannot come to mark a pick
+    ///     differently — the brackets are what a reader reads a pick off, on a terminal with no colour and to a reader
+    ///     who cannot tell one colour from another (ADR-0014).
+    /// </remarks>
+    private static List<Span> Walkable(string label, bool bracketed)
+    {
         var spans = new List<Span> { new($"{LinkMark} ", Role.Media) };
 
         if (bracketed)
@@ -617,14 +644,7 @@ public static class PostLines
             spans.Add(new Span(BodyText.Closing, Role.ReferencePicked));
         }
 
-        if (saysWhatItShows && attached.Description is { } description)
-        {
-            var used = spans.Sum(span => span.Text.Length) + 1;
-
-            spans.Add(new Span($" {TextWrap.Clip(description, Math.Max(0, width - used))}", Role.Media));
-        }
-
-        return new Line(spans);
+        return spans;
     }
 
     /// <summary>One word, its first letter upper-cased — <c>MediaKindName.Written</c>'s own spelling, said out loud.</summary>
@@ -651,6 +671,107 @@ public static class PostLines
             TextWrap.Clip(attached.Shows, width - mark.Length - 1),
             attached.Description is null ? Role.Muted : Role.Media),
     ]);
+
+    /// <summary>
+    ///     What the instance made of a link the author wrote into the post: its title on the row <c>←</c>/<c>→</c>
+    ///     walks to and <c>⏎</c> opens, the site's name, the description and the page's own author under it, and the
+    ///     picture the instance chose drawn in a box below where this terminal can draw one (ADR-0018).
+    /// </summary>
+    /// <remarks>
+    ///     After everything the author attached, which is the order Mastodon's own web UI uses. Nothing in its docs
+    ///     says a post carrying attachments is never sent a preview too, so both are drawn and the order between them
+    ///     is settled here rather than found out later.
+    ///     <para>
+    ///         Behind a warned post's warning exactly as an attachment is since #113: no title, no description, no box
+    ///         and no <c>Wants</c>, which is what keeps the pixels from being sent for at all. Nothing is said in place
+    ///         of it — a post hiding anything is already showing <see cref="Media" />'s prompt or its author's own
+    ///         warning, and a second one under that would be the same offer made twice.
+    ///     </para>
+    ///     <para>
+    ///         <c>hide_drawn_caption</c> is the one thing an attachment is asked about here and a preview is not. That
+    ///         preference drops what a picture says it shows once the picture itself is on screen saying it (#71); a
+    ///         preview's description is about the page rather than about the picture beside it, so a box landing under
+    ///         the words does not stand in for them.
+    ///     </para>
+    /// </remarks>
+    /// <param name="mostRows">The most rows the picture may take, which is what a feed and a whole post differ on.</param>
+    private static IReadOnlyList<Line> LinkPreview(
+        Post post,
+        int width,
+        IPictures? pictures,
+        int mostRows,
+        Reading reading)
+    {
+        if (post.LinkPreview is not { } link || (post.IsWarned && !reading.Revealed))
+        {
+            return [];
+        }
+
+        // Null on a terminal that draws nothing and where the instance chose no picture alike — the two answers that
+        // read the same, which is what "linked rather than drawn" already means for an attachment (ADR-0016).
+        var drawn = pictures?.Cell is null ? null : Drawn.LinkPreview(link);
+
+        // The words first and always, so nothing a reader is looking at moves when the pixels land underneath them.
+        // The walked row is what carries the Wants, the way an attachment's own description does.
+        List<Line> lines =
+        [
+            LinkPreviewLine(link, LinkPreviewReference.Of(post), reading.Reference, width) with { Wants = drawn },
+            .. LinkPreviewSays(link, width),
+        ];
+
+        if (drawn is not null
+            && pictures?.Cell is { } cell
+            && BoxFor(drawn, pictures, cell, width, mostRows) is { } inset)
+        {
+            lines.AddRange(Box(inset));
+        }
+
+        return lines;
+    }
+
+    /// <summary>
+    ///     The preview's own row: the mark and the page's title, bracketed where <paramref name="picked" /> names this
+    ///     preview. Clipped rather than wrapped, the way an attachment's description is — a title is a label on the
+    ///     thing <c>⏎</c> opens rather than something to be read to the end.
+    /// </summary>
+    /// <remarks>
+    ///     The site's name stands in for a title the instance made nothing of, and the address itself where it named
+    ///     neither: there is always a row to walk to, because the address is the whole reason a preview is drawn at all
+    ///     (ADR-0018).
+    /// </remarks>
+    private static Line LinkPreviewLine(LinkPreview link, Reference? reference, Reference? picked, int width)
+    {
+        var bracketed = reference is not null && picked == reference;
+        var room = width - LinkMark.Length - 1 - (bracketed ? BodyText.Opening.Length + BodyText.Closing.Length : 0);
+
+        return new Line(Walkable(
+            TextWrap.Clip(link.Title ?? link.ProviderName ?? link.Url, Math.Max(0, room)),
+            bracketed));
+    }
+
+    /// <summary>
+    ///     What the instance said about the page, under the row that opens it and indented past the mark: the site, the
+    ///     description, and who the page says wrote it — one row each, and nothing at all for whatever it did not say.
+    /// </summary>
+    /// <remarks>
+    ///     The author's name is plain text here and nowhere else: it is never walked to and never opened, so a post
+    ///     does not come to carry three things reaching for the same handful of places (ADR-0018). All
+    ///     <see cref="Role.Muted" /> — this says what is on the other end of the row above, not what the post says.
+    /// </remarks>
+    private static IEnumerable<Line> LinkPreviewSays(LinkPreview link, int width)
+    {
+        string?[] said =
+        [
+            // Nothing where the site's own name is already the row above, which is a preview the instance sent no
+            // title with: it has been said once and once is enough.
+            link.Title is null ? null : link.ProviderName,
+            link.Description,
+            link.Author is { } author ? $"by {author}" : null,
+        ];
+
+        return said.OfType<string>()
+                   .Select(row => Line.Of($"  {TextWrap.Clip(row, Math.Max(1, width - 2))}", Role.Muted));
+    }
 
     /// <summary>
     ///     A poll in full, on both the feed and the post screen alike: one row per option — a block bar carrying
