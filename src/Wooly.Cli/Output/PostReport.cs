@@ -129,6 +129,7 @@ internal static class PostReport
         }
 
         WriteMedia(console, shown);
+        WriteLinkPreview(console, shown);
 
         if (shown.Poll is { } poll)
         {
@@ -163,6 +164,58 @@ internal static class PostReport
             // Interpolated rather than concatenated, so the address and the description are escaped on the way in:
             // both are somebody else's text, and a square bracket in either is a character rather than a colour tag.
             console.MarkupLineInterpolated($"  ⏵ {attached.Url} — {attached.Shows}");
+        }
+    }
+
+    /// <summary>
+    ///     What an instance made of a link the post's own text already carries: the address to reach it by and the
+    ///     title beside it, then the site, the description and the page's byline a step further in. Nothing at all
+    ///     for a post the instance made nothing of.
+    /// </summary>
+    /// <remarks>
+    ///     After the attachments, which is the order both surfaces render a post in (ADR-0018), and written the same
+    ///     way one is: the mark, the address, and then whatever there is to say about it — so a script reading media
+    ///     out of a post line by line reads this the same way.
+    ///     <para>
+    ///         Written whether or not the post is <see cref="Post.IsWarned" />, unlike the TUI, which hides it until
+    ///         the reader asks past the warning. The asymmetry is the one #113 already settled for attachments: the
+    ///         CLI draws no picture for a warning to be about, and offers no key to ask past one with, so hiding an
+    ///         address here would only make the link unreachable.
+    ///     </para>
+    ///     <para>
+    ///         The site's name stands in where the instance sent no title — and is then not said again underneath,
+    ///         because once is enough. Where it named neither, the address is the whole of the line, which is still
+    ///         worth writing: reaching the page is what a link preview is for.
+    ///     </para>
+    /// </remarks>
+    private static void WriteLinkPreview(IAnsiConsole console, Post post)
+    {
+        if (post.LinkPreview is not { } link)
+        {
+            return;
+        }
+
+        // Interpolated for the reason WriteMedia gives: every part of this is somebody else's text, and a square
+        // bracket anywhere in it is a character rather than a colour tag.
+        if ((link.Title ?? link.ProviderName) is { } named)
+        {
+            console.MarkupLineInterpolated($"  ⏵ {link.Url} — {named}");
+        }
+        else
+        {
+            console.MarkupLineInterpolated($"  ⏵ {link.Url}");
+        }
+
+        string?[] says =
+        [
+            link.Title is null ? null : link.ProviderName,
+            link.Description,
+            link.Author is { } author ? $"by {author}" : null,
+        ];
+
+        foreach (var said in says.OfType<string>())
+        {
+            console.MarkupLineInterpolated($"    {said}");
         }
     }
 

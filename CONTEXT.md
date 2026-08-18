@@ -43,6 +43,9 @@ the address, not in what it offers, which is enrichment (title, site, descriptio
 on a post carrying nothing attached — a link preview commonly carries a picture, and a flagged picture is the whole of
 what that flag is for (#116). The author's own name is shown as plain text,
 never a reference of its own, so a post never carries three things reaching for the same handful of places.
+The CLI **links** one on every post it writes, a timeline's included — the address with the title beside it, then the
+site, the description and the byline underneath, after whatever is attached and warned or not, which is the asymmetry
+with the TUI that #113 already settled for an attachment: nothing is rendered there for a warning to be about (#117).
 _Avoid_: card, preview (reserved for `PostMedia.Preview`)
 
 **Warned**:

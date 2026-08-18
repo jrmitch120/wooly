@@ -296,6 +296,164 @@ public class PostEngagementCommandTests : IDisposable
         Assert.Equal(0, media.GetArrayLength());
     }
 
+    /// <summary>
+    ///     ADR-0018: the CLI prints what an instance made of a link the author wrote — the address to reach it by, and
+    ///     the title, site and description the raw link does not carry. After whatever is attached, which is the order
+    ///     both surfaces render a post in.
+    /// </summary>
+    [Fact]
+    public void Show_LinksALinkPreviewAfterWhatIsAttached()
+    {
+        AddProfile();
+        _posts = FakePostEngagement.Answering(APost.With(
+            media: [APost.APicture()],
+            linkPreview: APost.ALinkPreview()));
+
+        var output = Run(["post", "show", "110"]).Output.ReplaceLineEndings("\n");
+
+        // The address and the title on the walked line, the way an attachment's are, and what the instance said about
+        // the page a step further in under it.
+        Assert.Contains(
+            "  ⏵ https://example.com/sheep — Sheep, at length\n"
+            + "    Example News\n"
+            + "    What a flock does all winter\n"
+            + "    by Maria Shepherd\n",
+            output);
+
+        Assert.True(
+            output.IndexOf("original.png", StringComparison.Ordinal)
+            < output.IndexOf("example.com/sheep", StringComparison.Ordinal),
+            "The link preview follows what is attached.");
+    }
+
+    /// <summary>
+    ///     The page's own byline, as plain text — never an address of its own, so a post does not come to carry three
+    ///     things reaching for the same handful of places (ADR-0018).
+    /// </summary>
+    [Fact]
+    public void Show_NamesWhoALinkPreviewSaysWroteThePage()
+    {
+        AddProfile();
+        _posts = FakePostEngagement.Answering(APost.With(linkPreview: APost.ALinkPreview()));
+
+        Assert.Contains("by Maria Shepherd", Run(["post", "show", "110"]).Output);
+    }
+
+    /// <summary>
+    ///     The site's name stands in for a title the instance made nothing of, rather than a line with nothing after
+    ///     the dash — and is not then said twice.
+    /// </summary>
+    [Fact]
+    public void Show_StandsTheSitesNameInForALinkPreviewWithNoTitle()
+    {
+        AddProfile();
+        _posts = FakePostEngagement.Answering(APost.With(
+            linkPreview: APost.ALinkPreview(title: null, description: null, author: null)));
+
+        var output = Run(["post", "show", "110"]).Output;
+
+        Assert.Contains("https://example.com/sheep — Example News", output);
+        Assert.Equal(1, output.Split("Example News").Length - 1);
+    }
+
+    /// <summary>
+    ///     A preview the instance sent nothing but an address for is still worth the line: the address is the whole
+    ///     reason a link preview is rendered at all.
+    /// </summary>
+    [Fact]
+    public void Show_LinksALinkPreviewTheInstanceNamedNothingOf()
+    {
+        AddProfile();
+        _posts = FakePostEngagement.Answering(APost.With(linkPreview: APost.ALinkPreview(
+            title: null,
+            description: null,
+            providerName: null,
+            author: null)));
+
+        Assert.Contains("⏵ https://example.com/sheep", Run(["post", "show", "110"]).Output);
+    }
+
+    /// <summary>
+    ///     A post with no preview prints nothing extra — no empty mark, no dangling dash where a title would have
+    ///     been.
+    /// </summary>
+    [Fact]
+    public void Show_PrintsNothingExtraForAPostWithNoLinkPreview()
+    {
+        AddProfile();
+
+        Assert.DoesNotContain("⏵", Run(["post", "show", "110"]).Output);
+    }
+
+    /// <summary>
+    ///     The CLI prints a warned post's link preview like any other, the same asymmetry with the TUI that #113
+    ///     settled for attachments: nothing is rendered here for a warning to be about, and no key to ask past it with.
+    /// </summary>
+    [Fact]
+    public void Show_LinksALinkPreviewOnAWarnedPostToo()
+    {
+        AddProfile();
+        _posts = FakePostEngagement.Answering(APost.With(
+            contentWarning: "spoilers",
+            sensitive: true,
+            linkPreview: APost.ALinkPreview()));
+
+        Assert.Contains("https://example.com/sheep — Sheep, at length", Run(["post", "show", "110"]).Output);
+    }
+
+    /// <summary>
+    ///     What the human output says, for a script — with the field names this client's <c>*Document</c>s use rather
+    ///     than the domain record's, since they are a contract with whatever is parsing them.
+    /// </summary>
+    [Fact]
+    public void Show_WritesTheLinkPreviewAsMachineReadableJson()
+    {
+        AddProfile();
+        _posts = FakePostEngagement.Answering(APost.With(linkPreview: APost.ALinkPreview()));
+
+        var link = JsonDocument.Parse(Run(["post", "show", "110", "--json"]).Output)
+                               .RootElement.GetProperty("linkPreview");
+
+        Assert.Equal("https://example.com/sheep", link.GetProperty("url").GetString());
+        Assert.Equal("Sheep, at length", link.GetProperty("title").GetString());
+        Assert.Equal("Example News", link.GetProperty("provider").GetString());
+        Assert.Equal("What a flock does all winter", link.GetProperty("description").GetString());
+        Assert.Equal("https://files.example.com/sheep/card.png", link.GetProperty("image").GetString());
+        Assert.Equal("Maria Shepherd", link.GetProperty("author").GetString());
+    }
+
+    /// <summary>
+    ///     What the instance said nothing about is left out rather than written as null, which is how this client says
+    ///     "does not apply" everywhere else — including the preview itself, on a post that has none.
+    /// </summary>
+    [Fact]
+    public void Show_LeavesOutWhatALinkPreviewDoesNotSay()
+    {
+        AddProfile();
+        _posts = FakePostEngagement.Answering(APost.With(linkPreview: APost.ALinkPreview(
+            description: null,
+            image: null,
+            author: null)));
+
+        var post = JsonDocument.Parse(Run(["post", "show", "110", "--json"]).Output).RootElement;
+        var link = post.GetProperty("linkPreview");
+
+        Assert.False(link.TryGetProperty("description", out _));
+        Assert.False(link.TryGetProperty("image", out _));
+        Assert.False(link.TryGetProperty("author", out _));
+    }
+
+    /// <summary>A post the instance made nothing of carries no <c>linkPreview</c> key at all.</summary>
+    [Fact]
+    public void Show_LeavesTheLinkPreviewOutForAPostWithNone()
+    {
+        AddProfile();
+
+        var post = JsonDocument.Parse(Run(["post", "show", "110", "--json"]).Output).RootElement;
+
+        Assert.False(post.TryGetProperty("linkPreview", out _));
+    }
+
     [Fact]
     public void Show_MarksAReplyAsAnsweringTheAccountItNames()
     {
