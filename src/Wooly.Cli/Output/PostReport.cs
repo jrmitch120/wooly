@@ -19,6 +19,13 @@ namespace Wooly.Cli.Output;
 /// </summary>
 internal static class PostReport
 {
+    /// <summary>
+    ///     What stands in front of an address the reader can follow for themselves — an attachment's, and a link
+    ///     preview's. One mark rather than two, the same one the TUI puts in front of the rows <c>⏎</c> opens: it says
+    ///     there is somewhere to go from here rather than what is on the other end of it.
+    /// </summary>
+    private const string LinkMark = "⏵";
+
     /// <summary>Reports the post that has just been published.</summary>
     public static void Published(IAnsiConsole console, Post post)
     {
@@ -163,7 +170,7 @@ internal static class PostReport
         {
             // Interpolated rather than concatenated, so the address and the description are escaped on the way in:
             // both are somebody else's text, and a square bracket in either is a character rather than a colour tag.
-            console.MarkupLineInterpolated($"  ⏵ {attached.Url} — {attached.Shows}");
+            console.MarkupLineInterpolated($"  {LinkMark} {attached.Url} — {attached.Shows}");
         }
     }
 
@@ -199,23 +206,23 @@ internal static class PostReport
         // bracket anywhere in it is a character rather than a colour tag.
         if ((link.Title ?? link.ProviderName) is { } named)
         {
-            console.MarkupLineInterpolated($"  ⏵ {link.Url} — {named}");
+            console.MarkupLineInterpolated($"  {LinkMark} {link.Url} — {named}");
         }
         else
         {
-            console.MarkupLineInterpolated($"  ⏵ {link.Url}");
+            console.MarkupLineInterpolated($"  {LinkMark} {link.Url}");
         }
 
-        string?[] says =
+        string?[] said =
         [
             link.Title is null ? null : link.ProviderName,
             link.Description,
             link.Author is { } author ? $"by {author}" : null,
         ];
 
-        foreach (var said in says.OfType<string>())
+        foreach (var row in said.OfType<string>())
         {
-            console.MarkupLineInterpolated($"    {said}");
+            console.MarkupLineInterpolated($"    {row}");
         }
     }
 

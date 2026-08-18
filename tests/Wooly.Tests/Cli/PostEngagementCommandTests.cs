@@ -375,14 +375,18 @@ public class PostEngagementCommandTests : IDisposable
 
     /// <summary>
     ///     A post with no preview prints nothing extra — no empty mark, no dangling dash where a title would have
-    ///     been.
+    ///     been. Said over a post carrying an attachment, since the two share a mark: counting the marks proves the
+    ///     preview added none, where looking for the mark at all would only prove the post had nothing on it.
     /// </summary>
     [Fact]
     public void Show_PrintsNothingExtraForAPostWithNoLinkPreview()
     {
         AddProfile();
+        _posts = FakePostEngagement.Answering(APost.With(media: [APost.APicture()]));
 
-        Assert.DoesNotContain("⏵", Run(["post", "show", "110"]).Output);
+        var output = Run(["post", "show", "110"]).Output;
+
+        Assert.Equal(1, output.Split("⏵").Length - 1);
     }
 
     /// <summary>
