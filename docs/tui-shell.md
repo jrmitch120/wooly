@@ -427,7 +427,8 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
   decoded, which is the point rather than a side effect: scrolling a feed of sensitive posts costs no data for pixels
   nobody asked to see. A post carrying only the flag says `⚠ Sensitive media` and `x  show it` where its attachments
   would be, because a post already showing a warning is already asking and a post showing neither would be hiding
-  something with nothing on screen to say so.
+  something with nothing on screen to say so. Since #116 the flag covers a **link preview** on the same terms, whether
+  or not anything is attached beside it — so that one prompt stands above everything a flagged post is holding back.
 - **Sixel is preferred over Kitty, and the preference is subscribed to.** Both capabilities are answers the terminal
   sends back some frames after startup, so a preference set once at startup is set against nothing and then overwritten
   (ADR-0016).
@@ -479,10 +480,17 @@ a picture — is drawn after everything the author attached (#116, ADR-0018):
   preference drops what a picture says *it shows* once the picture is on screen saying it (#71); a preview's
   description is about the page rather than about the picture beside it, so a box landing under the words does not
   stand in for them.
-- **A warned post's preview is behind the warning with its attachments** — no title, no description, no box and no
-  `Wants`, so nothing is fetched for it either, until `x` (#113). Nothing extra is said in place of it: a post hiding
-  anything is already showing its author's warning or the `⚠ Sensitive media` prompt, and a second one under that
-  would be the same offer made twice.
+- **A warned post's preview is behind the warning with its attachments** — no title, no site, no description, no
+  author, no box and no `Wants`, so nothing is fetched for it either, until `x` (#113). Nothing extra is said in place
+  of it: a post hiding anything is already showing its author's warning or the `⚠ Sensitive media` prompt, and a second
+  one under that would be the same offer made twice.
+- **The sensitive flag counts a link preview as something to hide, attachments or not** (#116, ADR-0016's second
+  amendment). The carve-out #113 wrote — the flag means nothing on a post carrying no attachments — was reasoning about
+  a post with nothing but words on it; an instance picks a picture for a preview and serves it the same way it serves
+  an attachment's, so a flagged post carrying only a preview was a flagged picture drawn full width with nothing asked
+  first. The *whole* preview goes, image or no image: the reader asked to see nothing of what the post is holding, and
+  whether a preview has a picture is not a second question for `IsWarned` and `PostLines` to answer differently. The
+  post's own text is untouched — the flag is not a warning its author wrote about what they said.
 
 ### What moving settled
 

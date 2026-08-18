@@ -182,26 +182,47 @@ public class LinkPreviewReferenceTests
     }
 
     /// <summary>
-    ///     The flag on a post carrying nothing attached hides nothing, a link preview included — including the picture
-    ///     the instance chose for the link, which is the one picture on such a post that does reach the screen.
+    ///     The flag hides a link preview on a post carrying nothing attached at all — a post the flag used to count for
+    ///     nothing on. Nothing about the preview reaches the screen until the reader asks, and the post says it is
+    ///     hiding something so that there is a key to ask with.
     /// </summary>
     /// <remarks>
-    ///     ADR-0018 says a link preview is "gated behind <c>IsWarned</c> exactly as an attachment is", and
-    ///     <see cref="Post.IsWarned" /> already settles that the flag counts for nothing where nothing is attached
-    ///     (#113): it is a mark the instance put over the <em>media</em>, and a preview is generated from what the
-    ///     author wrote rather than attached by them. Asking that one question rather than reading the flag a second
-    ///     way here is what leaves nowhere for the two to disagree. A warning its author wrote does hide it, which is
-    ///     the half of <c>IsWarned</c> that was written about the words — and the link is one of them.
+    ///     The whole of what ADR-0016's second amendment changed. A link preview commonly carries a picture, and a
+    ///     picture an instance flagged is exactly what the flag is for, so a preview is something behind it and
+    ///     <see cref="Post.IsWarned" /> counts it — the same one question everything asks, widened once rather than
+    ///     read a second way here.
     /// </remarks>
     [Fact]
-    public void Feed_KeepsTheLinkPreviewOfASensitivePostThatCarriesNoAttachments()
+    public void Feed_HidesTheLinkPreviewOfASensitivePostCarryingNothingElse()
     {
         var post = APost.With(sensitive: true, linkPreview: APost.ALinkPreview());
+        var pictures = FakePictures.With().HoldingLinkPreview(APost.ALinkPreview(), 400, 300);
 
-        var lines = PostLines.Feed(post, 61, default, Now, FakePictures.DrawingNothing());
+        var lines = PostLines.Feed(post, 61, default, Now, pictures);
+
+        Assert.DoesNotContain(lines, line => line.Text.Contains("Sheep, at length", StringComparison.Ordinal));
+        Assert.Empty(lines.SelectMany(line => line.Insets));
+        Assert.DoesNotContain(lines, line => line.Wants is not null);
+
+        Assert.Contains(lines, line => line.Text.Contains("⚠ Sensitive media", StringComparison.Ordinal));
+        Assert.Contains(lines, line => line.Text.Contains("x  show it", StringComparison.Ordinal));
+
+        Assert.Empty(Feed(post).References);
+    }
+
+    /// <summary>And <c>x</c> shows it, which is what makes the rest of that reachable.</summary>
+    [Fact]
+    public void Reveal_ShowsTheLinkPreviewOfASensitivePostCarryingNothingElse()
+    {
+        var post = APost.With(sensitive: true, linkPreview: APost.ALinkPreview());
+        var screen = Feed(post);
+
+        Assert.True(screen.Reveal());
+
+        var lines = PostLines.Feed(post, 61, new Reading(Revealed: true), Now, FakePictures.DrawingNothing());
 
         Assert.Contains(lines, line => line.Text.Contains("⏵ Sheep, at length", StringComparison.Ordinal));
-        Assert.Single(Feed(post).References);
+        Assert.Single(screen.References);
     }
 
     /// <summary>

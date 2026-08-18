@@ -459,8 +459,10 @@ public static class PostLines
         {
             // Where the post's own warning is not already asking, this is: a photograph marked sensitive under no
             // warning at all would otherwise be hidden with nothing on screen to say a key meant anything. There is
-            // always something to say it about here — a post warned by the flag alone is one carrying attachments,
-            // which is what Post.IsWarned settles.
+            // always something to say it about here — a post warned by the flag alone is one carrying attachments or a
+            // link preview, which is what Post.IsWarned settles. It stands above where both of them would be, and is
+            // said here rather than once for each, because it is one post hiding things rather than a prompt per
+            // thing (#113, #116).
             if (post.ContentWarning is null)
             {
                 yield return [Warning(SensitiveMedia, width), Line.Of(AskPastIt, Role.Muted)];

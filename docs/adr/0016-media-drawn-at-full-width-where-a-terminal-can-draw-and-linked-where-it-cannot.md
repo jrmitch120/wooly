@@ -225,3 +225,32 @@ read. Nothing is *rendered* there for a warning to be about: the reasoning at th
 description are what a reader gets when pixels are not on the table, and that is precisely what a reader who has not
 asked for the pixels should get too. `--json` grows no `sensitive` field for the same reason it grows nothing else it
 has no consumer for; the field is on `Post` and available to add the day something asks for it.
+
+## Amendment: the sensitive flag covers a link preview too, attachments or not (ticket #116)
+
+The amendment above wrote one carve-out into `Post.IsWarned`: the flag alone counts for nothing on a post carrying no
+attachments, because it is a mark over the media and with none under it nothing is behind anything. That reasoning was
+sound about a post with nothing but words on it, and wrong the moment a **Link preview** became something a post
+carries. An instance chooses a picture for a link preview, serves it from the same proxy an attachment's pixels come
+from, and flags the post the same way — a post marked sensitive carrying only a link preview was a flagged picture
+drawn full width with nothing asked of the reader first, which is the exact thing #113 was written to stop.
+
+**So `IsWarned` counts a link preview as something behind the flag, and a flagged post shows nothing of one until it
+is asked for.** `ContentWarning is not null || (Sensitive && (Media.Count > 0 || LinkPreview is not null))`. No title,
+no site, no description, no author, no box, and no `Wants` — the same nothing an attachment already gets, for the same
+reason it is worth asserting: a row emitted "just to reserve the space" would put the fetch back with nothing on
+screen looking wrong.
+
+The whole preview goes, not just its picture. A preview whose instance sent no image is still hidden, which is a
+deliberate widening beyond "the flag is about pixels": the reader asked to see nothing of what a flagged post is
+holding, and a title with a description under it is not the safe half of something the flag was raised over. It also
+keeps one question where there was one — whether a preview *has* an image is not a second thing for `IsWarned` and
+`PostLines` to come to different answers about.
+
+`⚠ Sensitive media` is still the row that says so, unchanged and still said exactly once, standing above where the
+attachments and the preview would both be. A second prompt of its own, or a second wording for the preview's sake,
+would be the same offer made twice on the posts carrying both — and the flag being Mastodon's own word for media is
+what the row is naming, not an inventory of what is behind it.
+
+What does not change: the text. A post marked sensitive with no spoiler text still shows its words and still walks the
+references in them, because the flag is not a warning its author wrote about what they said. That half of #113 stands.
