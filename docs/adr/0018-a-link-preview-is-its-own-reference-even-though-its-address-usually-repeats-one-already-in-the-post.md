@@ -29,7 +29,9 @@ preview's own `Url`; a second address that usually differs from it, and rarely m
 exclusive, so a client can't assume only one is ever sent — text, then attachments, then link preview is the same
 order Mastodon's own web UI uses, and costs nothing to get right now rather than as a surprise later. Its image, where
 present, reuses `IPictures`/`PictureView` exactly as an attachment's does: same width-driven box, same cap, same
-"linked, not drawn" fallback on a terminal or CLI that can't draw one.
+"linked, not drawn" fallback on a terminal or CLI that can't draw one. "Exactly as an attachment is" turned out to cut
+both ways when #116 built it: `IsWarned` itself widened to count a link preview, so the sensitive flag hides one on a
+post carrying nothing attached — see ADR-0016's second amendment.
 
 Both surfaces grow accordingly: the CLI prints a link preview on every post it shows (title, provider, description,
 address), the same reasoning ADR-0016 gave for printing an attachment's address on every post — the preview carries

@@ -32,6 +32,19 @@ public sealed record Drawn(string Id, string Address)
     public static Drawn Attached(PostMedia media) => new(media.Id, media.Preview ?? media.Url);
 
     /// <summary>
+    ///     The picture an instance chose for a link it previewed, or <see langword="null" /> where it chose none —
+    ///     which is the one place a link preview's picture can be absent, so the question is answered here rather than
+    ///     at whoever is about to draw it (ADR-0018).
+    /// </summary>
+    /// <remarks>
+    ///     Named by the link's own address rather than by the picture's, for the reason <see cref="Avatar" /> is named
+    ///     by the handle: the same article shared by two accounts is one picture, however each instance spells the
+    ///     proxy it serves the pixels through.
+    /// </remarks>
+    public static Drawn? LinkPreview(LinkPreview link) =>
+        link.Image is { } image ? new Drawn($"link:{link.Url}", image) : null;
+
+    /// <summary>
     ///     An account's avatar, named by the handle rather than by the address, so that the same author's avatar is
     ///     fetched once for a whole feed of their posts however many times the instance spells the URL.
     /// </summary>

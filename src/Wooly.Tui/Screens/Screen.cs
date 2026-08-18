@@ -168,9 +168,31 @@ public abstract class Screen
         ?
         [
             .. Readable(post) ? BodyText.References((post.Boosted ?? post).Content) : [],
-            .. Uncovered(post) ? AttachmentReferences.Of(post) : [],
+            .. Uncovered(post) ? BeyondTheText(post) : [],
         ]
         : [];
+
+    /// <summary>
+    ///     The references a post carries beyond its own text: its attachments' addresses in the order they were
+    ///     attached, and then its link preview's (ADR-0018).
+    /// </summary>
+    /// <remarks>
+    ///     Shown and hidden together, which is why they are one question here: the link preview stands behind a post's
+    ///     warning on exactly the terms its attachments do since #113, and asking twice would be two places for that to
+    ///     be answered differently.
+    /// </remarks>
+    private static IEnumerable<Reference> BeyondTheText(Post post)
+    {
+        foreach (var attached in AttachmentReferences.Of(post))
+        {
+            yield return attached;
+        }
+
+        if (LinkPreviewReference.Of(post) is { } link)
+        {
+            yield return link;
+        }
+    }
 
     /// <summary>
     ///     The one the reader has walked to, or <see langword="null" /> where none is — including where the post has

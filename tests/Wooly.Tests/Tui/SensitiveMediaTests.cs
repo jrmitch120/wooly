@@ -141,12 +141,14 @@ public class SensitiveMediaTests
     }
 
     /// <summary>
-    ///     The flag counts for nothing on a post carrying no attachments, which an instance is free to send: it marks
-    ///     media, so with none under it there is nothing behind anything. Nothing is said, and <c>x</c> is not spent
-    ///     saying it — a key reported as used is a shell claiming to have acted.
+    ///     The flag counts for nothing on a post carrying neither an attachment nor a link preview, which an instance
+    ///     is free to send: with nothing under it there is nothing behind anything. Nothing is said, and <c>x</c> is
+    ///     not spent saying it — a key reported as used is a shell claiming to have acted. What the flag does hide on a
+    ///     post carrying only a link preview is
+    ///     <see cref="LinkPreviewReferenceTests.Feed_HidesTheLinkPreviewOfASensitivePostCarryingNothingElse" />'s (#116).
     /// </summary>
     [Fact]
-    public void Feed_HidesNothingOnASensitivePostCarryingNoAttachments()
+    public void Feed_HidesNothingOnASensitivePostCarryingNothingToHide()
     {
         var post = APost.With(sensitive: true);
 

@@ -23,7 +23,8 @@ internal static class APost
         IReadOnlyList<string>? mentions = null,
         string? avatarUrl = null,
         PostReplyTarget? inReplyTo = null,
-        PostPoll? poll = null) => new()
+        PostPoll? poll = null,
+        LinkPreview? linkPreview = null) => new()
     {
         Id = id,
         Account = account,
@@ -44,6 +45,27 @@ internal static class APost
         AvatarUrl = avatarUrl,
         InReplyTo = inReplyTo,
         Poll = poll,
+        LinkPreview = linkPreview,
+    };
+
+    /// <summary>
+    ///     What an instance made of a link the author already wrote, with everything filled in — so a test about a
+    ///     preview with no title, or none of its own picture, says only that.
+    /// </summary>
+    public static LinkPreview ALinkPreview(
+        string url = "https://example.com/sheep",
+        string? title = "Sheep, at length",
+        string? description = "What a flock does all winter",
+        string? providerName = "Example News",
+        string? image = "https://files.example.com/sheep/card.png",
+        string? author = "Maria Shepherd") => new()
+    {
+        Url = url,
+        Title = title,
+        Description = description,
+        ProviderName = providerName,
+        Image = image,
+        Author = author,
     };
 
     /// <summary>A picture attached to a post, with the description its author gave it.</summary>

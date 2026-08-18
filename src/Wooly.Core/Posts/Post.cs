@@ -115,13 +115,19 @@ public sealed record Post
     ///     One question rather than two asked side by side, because the two halves are the same promise made in two
     ///     fields and a client that honoured one of them would keep half of it — which is what a picture marked
     ///     sensitive, drawn full width under no warning at all, was (#113). What each half hides is still its own:
-    ///     the text stands behind <see cref="ContentWarning" /> alone, and the attachments behind either.
+    ///     the text stands behind <see cref="ContentWarning" /> alone, and everything else behind either.
     ///     <para>
-    ///         The flag counts for nothing on a post carrying no attachments, which an instance is free to send: it is
-    ///         a mark over the media, so with no media under it there is nothing behind anything and nothing for a
-    ///         reader to ask past. A warning's text is not read that way — an author who wrote one wrote it about the
-    ///         words.
+    ///         "Everything else" is <see cref="Media" /> and <see cref="LinkPreview" /> both (#116). A link preview is
+    ///         not something the author attached, but it commonly carries a picture the instance chose, and a picture
+    ///         an instance flagged is the whole of what the flag is for — so a post flagged sensitive shows nothing of
+    ///         one until it is asked for, whether or not anything is attached beside it.
+    ///     </para>
+    ///     <para>
+    ///         The flag still counts for nothing on a post carrying neither, which an instance is free to send: with
+    ///         nothing under it there is nothing behind anything and nothing for a reader to ask past. A warning's text
+    ///         is not read that way — an author who wrote one wrote it about the words.
     ///     </para>
     /// </remarks>
-    public bool IsWarned => ContentWarning is not null || (Sensitive && Media.Count > 0);
+    public bool IsWarned =>
+        ContentWarning is not null || (Sensitive && (Media.Count > 0 || LinkPreview is not null));
 }
