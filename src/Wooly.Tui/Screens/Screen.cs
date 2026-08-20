@@ -274,14 +274,21 @@ public abstract class Screen
     }
 
     /// <summary>
-    ///     The poll on the post being read, or <see langword="null" /> where the picked post carries none — which is
-    ///     what settles whether the digits and <c>v</c> mean anything here, and whether the status row says so.
+    ///     The poll on the post being read, or <see langword="null" /> where the picked post carries none or is still
+    ///     holding it behind a content warning — which is what settles whether the digits and <c>v</c> mean anything
+    ///     here, and whether the status row says so.
     /// </summary>
     /// <remarks>
     ///     The post inside a boost, since that is what carries the poll and what a vote is cast in: a boost of a poll
     ///     is the same poll, the same way a boost of a post is the same post to every mark.
+    ///     <para>
+    ///         None at all while the post's own text is behind a content warning, which is where its poll is too since
+    ///         #119: a poll nobody has been shown is not a poll to announce <c>v</c> and the digits for, and it is not
+    ///         one a reader can cast a vote in either. <see cref="Readable" /> rather than <see cref="Uncovered" />,
+    ///         because a poll is words — the sensitive flag hides the media of a post and leaves its answers on screen.
+    ///     </para>
     /// </remarks>
-    public PostPoll? Poll => Picked is { } picked ? (picked.Boosted ?? picked).Poll : null;
+    public PostPoll? Poll => Picked is { } picked && Readable(picked) ? (picked.Boosted ?? picked).Poll : null;
 
     /// <summary>
     ///     Which of that poll's options are toggled and uncast, as indices into its answers — empty where none are,
@@ -418,7 +425,10 @@ public abstract class Screen
     /// </remarks>
     public bool Reveal() => Picked is { } picked && Revealed.Ask(picked);
 
-    /// <summary>Whether <paramref name="post" />'s own text is on screen rather than behind its content warning.</summary>
+    /// <summary>
+    ///     Whether what <paramref name="post" />'s author wrote is on screen rather than behind its content warning —
+    ///     its text, and since #119 the answers of its poll, which are words the same author typed.
+    /// </summary>
     private bool Readable(Post post) => (post.Boosted ?? post).ContentWarning is null || Revealed.Has(post);
 
     /// <summary>

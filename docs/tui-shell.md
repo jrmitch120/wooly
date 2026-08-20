@@ -82,10 +82,10 @@ Feed and post:
 | `p` | Pin / unpin | Own posts only |
 | `e` | Edit | Own posts only |
 | `d` | Delete | Own posts only, **confirmation required** (story 43) |
-| `x` | Show what the post is hiding | Its warned text, its sensitive attachments, or both (#113) |
+| `x` | Show what the post is hiding | Its warned text and poll, its sensitive attachments and link preview, or both halves at once (#113, #116, #119) |
 | `←` `→` | Walk the references (hashtag, mention, link) inside the picked post | Clamps at the ends; `esc`/`j`/`k` clear the pick; `⏎` opens what's picked (below) |
-| `1`-`9` `0` | Toggle the 1st-10th option of the picked post's poll | Only where the poll would still take a vote — no-op otherwise, and off the status row there too; `esc`/`j`/`k` discard the toggle |
-| `v` | Cast the toggled poll vote | **Confirmation required** (story 43), same as delete. On a poll already voted in or closed, says which rather than asking |
+| `1`-`9` `0` | Toggle the 1st-10th option of the picked post's poll | Only where the poll is on screen and would still take a vote — no-op otherwise, and off the status row there too; `esc`/`j`/`k` discard the toggle |
+| `v` | Cast the toggled poll vote | **Confirmation required** (story 43), same as delete. Only where the poll is on screen and would still take a vote — and on a poll already voted in or closed, says which rather than asking |
 
 Screen-local, and deliberately colliding with the above because they are never on screen together:
 
@@ -348,6 +348,13 @@ one back, and voting on one, are both built now (#69, #74):
   there can be refused in a way the reader cannot simply try differently.
 - **A role-emission contract test is worth having** — one that walks every `Role` and asserts some view can produce
   it, the thing that would have caught `Role.Poll` sitting dead in the contract in the first place.
+- **A poll goes behind the post's content warning, on the terms its text does** (#119). A post carrying one draws no
+  poll at all until `x` — no options, no bar, no counts, no closing time — and nothing stands in its place, because the
+  warning already up is what asks. Behind the *warning text* alone, not `IsWarned`: the sensitive flag is a mark over
+  media, and a poll's answers are words its author typed, so a post marked sensitive with nothing written over it shows
+  its poll exactly as it shows its text. The two vote keys follow what is on screen — `Screen.Poll` is `null` while the
+  warning stands, which takes the digits and `v` off the status row and makes both no-ops, the same rule stated in the
+  other direction for a poll that would take no vote.
 
 ### What refresh settled
 

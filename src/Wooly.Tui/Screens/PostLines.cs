@@ -782,10 +782,22 @@ public static class PostLines
     ///     While the reader has a vote toggled and not yet cast, every option leads with a box instead of the mark:
     ///     the poll they are reading has become the ballot they are filling in, and a checked box on one row is only
     ///     legible against the empty ones beside it (<c>docs/tui-shell.md</c>, #87).
+    ///     <para>
+    ///         Behind the post's <em>content warning</em> on exactly the terms <see cref="Body" /> is, and behind the
+    ///         instance's sensitive flag on none of them: a poll's answers are words its author typed, which is what
+    ///         that warning is written about, while the flag is a mark over media and says nothing about words (#119).
+    ///         That is the one place this parts company with <see cref="Media" /> and <see cref="LinkPreview" />, which
+    ///         ask <see cref="Post.IsWarned" /> and so answer to either half.
+    ///     </para>
+    ///     <para>
+    ///         Nothing is said in place of it. A post carrying a warning is already showing it and already naming
+    ///         <c>x</c>, and a second prompt under that would be the same offer made twice — the reason
+    ///         <see cref="Media" /> prints its own only where no warning is already asking (#113, #116).
+    ///     </para>
     /// </remarks>
     private static IEnumerable<Line> Poll(Post post, int width, Reading reading)
     {
-        if (post.Poll is not { } poll)
+        if (post.Poll is not { } poll || (post.ContentWarning is not null && !reading.Revealed))
         {
             yield break;
         }
