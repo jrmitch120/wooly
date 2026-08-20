@@ -35,10 +35,10 @@ public sealed class ComposeScreen : Screen
     /// <param name="addressing">
     ///     Who this is being written to, as the mentions that reach them, or <see langword="null" /> for a post that
     ///     addresses nobody — with a space after it, because their own words go after the recipient rather than into
-    ///     their name. Two things ask for one: a direct reply, which reaches the accounts its text mentions and nobody
-    ///     else (ADR-0013), so the mention is put where the reader can see and edit it rather than added silently on
-    ///     the way out; and a fresh post opened on a picked mention, which is a reader saying who they mean to write
-    ///     to before they have written anything (#85).
+    ///     their name. Two things ask for one: a reply, which reaches the accounts its text names and nobody else on a
+    ///     direct post (ADR-0013) and notifies only them on any other (#130), so the mention is put where the reader
+    ///     can see and edit it rather than added silently on the way out; and a fresh post opened on a picked mention,
+    ///     which is a reader saying who they mean to write to before they have written anything (#85).
     /// </param>
     /// <param name="aboutIsMine">
     ///     Whether <paramref name="about" /> is the profile's own post — settled by <c>Shell.IsMine</c> where this

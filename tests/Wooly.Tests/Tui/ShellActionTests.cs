@@ -255,6 +255,145 @@ public class ShellActionTests
         Assert.Equal("↳ continuing", label);
     }
 
+    /// <summary>
+    ///     Mastodon notifies the accounts a post's text mentions; <c>in_reply_to_id</c> threads a reply and notifies
+    ///     nobody at all. A reply opening on an empty editor would therefore be answered to nobody, the answered
+    ///     account included — so every reply opens with them named, whatever the post's visibility (#130).
+    /// </summary>
+    [Theory]
+    [InlineData(PostVisibility.Public)]
+    [InlineData(PostVisibility.Unlisted)]
+    [InlineData(PostVisibility.Private)]
+    public async Task Reply_OpensAddressedToTheAccountItAnswers(PostVisibility visibility)
+    {
+        var post = APost.With(id: "220", account: "ben@hachyderm.io", visibility: visibility);
+
+        var shell = new AShell { Timelines = FakeTimelineReader.Holding(post) };
+        var opened = await shell.Opened();
+
+        opened.Reply();
+
+        var compose = Assert.IsType<ComposeScreen>(opened.Screen);
+
+        Assert.Equal("@ben@hachyderm.io ", compose.Text);
+
+        compose.Text += "Answering you";
+
+        await opened.Send();
+        shell.Host.Drain();
+
+        Assert.StartsWith(
+            "@ben@hachyderm.io",
+            Assert.Single(shell.Author.Published).Draft.Text,
+            StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    ///     Everyone the answered post named is named again after its author, in the order the instance listed them — a
+    ///     reply that dropped them would answer a conversation to one of the accounts having it.
+    /// </summary>
+    [Fact]
+    public async Task Reply_NamesWhoTheAnsweredPostNamesAfterItsAuthor()
+    {
+        var post = APost.With(
+            id: "220",
+            account: "ben@hachyderm.io",
+            mentions: ["maria@example.social", "alice@hachyderm.io"]);
+
+        var shell = new AShell { Timelines = FakeTimelineReader.Holding(post) };
+        var opened = await shell.Opened();
+
+        opened.Reply();
+
+        var compose = Assert.IsType<ComposeScreen>(opened.Screen);
+
+        Assert.Equal("@ben@hachyderm.io @maria@example.social @alice@hachyderm.io ", compose.Text);
+    }
+
+    /// <summary>
+    ///     The profile's own account is never written in: a reader pinging themselves is a notification nobody asked
+    ///     for, whether they wrote the post being continued or were named by it.
+    /// </summary>
+    [Fact]
+    public async Task Reply_NeverNamesTheProfilesOwnAccount()
+    {
+        var post = APost.With(
+            id: "220",
+            account: "ben@hachyderm.io",
+            mentions: ["jeff@mastodon.social", "maria@example.social"]);
+
+        var shell = new AShell { Timelines = FakeTimelineReader.Holding(post) };
+        var opened = await shell.Opened();
+
+        opened.Reply();
+
+        Assert.Equal("@ben@hachyderm.io @maria@example.social ", Assert.IsType<ComposeScreen>(opened.Screen).Text);
+    }
+
+    /// <summary>Continuing one's own post that names nobody else opens on an empty editor, having nobody to answer.</summary>
+    [Fact]
+    public async Task Reply_OpensEmptyWhereTheOnlyAccountToNameIsTheReadersOwn()
+    {
+        var shell = new AShell { Timelines = FakeTimelineReader.Holding(Mine) };
+        var opened = await shell.Opened();
+
+        opened.Reply();
+
+        Assert.Equal(string.Empty, Assert.IsType<ComposeScreen>(opened.Screen).Text);
+    }
+
+    /// <summary>
+    ///     A handle this client cannot parse is left out rather than written in malformed — a mention an instance sent
+    ///     is nothing the reader can do anything about, and what is left is in the editor where they can see it is
+    ///     missing.
+    /// </summary>
+    [Fact]
+    public async Task Reply_LeavesOutAHandleItCannotParse()
+    {
+        var post = APost.With(
+            id: "220",
+            account: "ben@hachyderm.io",
+            mentions: ["not a handle", "maria@example.social"]);
+
+        var shell = new AShell { Timelines = FakeTimelineReader.Holding(post) };
+        var opened = await shell.Opened();
+
+        opened.Reply();
+
+        Assert.Equal("@ben@hachyderm.io @maria@example.social ", Assert.IsType<ComposeScreen>(opened.Screen).Text);
+    }
+
+    /// <summary>
+    ///     A reply that is nothing but the mention it opened with says nothing the reader wrote, so it is refused —
+    ///     which now covers a public reply too, since a public reply opens with one.
+    /// </summary>
+    [Fact]
+    public async Task Send_RefusesAPublicReplyWithNothingButTheMentionItOpenedWith()
+    {
+        var shell = new AShell { Timelines = FakeTimelineReader.Holding(Somebody) };
+        var opened = await shell.Opened();
+
+        opened.Reply();
+
+        await opened.Send();
+        shell.Host.Drain();
+
+        Assert.Empty(shell.Author.Published);
+        Assert.True(opened.NoticeIsError);
+    }
+
+    /// <summary>Composing a post answering nothing is untouched by any of that: it opens on an empty editor.</summary>
+    [Fact]
+    public async Task Compose_OpensEmptyForAPostThatAnswersNothing()
+    {
+        var shell = new AShell { Timelines = FakeTimelineReader.Holding(Somebody) };
+        var opened = await shell.Opened();
+
+        opened.Compose();
+
+        Assert.Equal(string.Empty, Assert.IsType<ComposeScreen>(opened.Screen).Text);
+    }
+
     /// <summary>Editing starts from what the post already says, because an edit is a change rather than a rewrite.</summary>
     [Fact]
     public async Task Send_SavesAnEditOfTheProfilesOwnPost()

@@ -549,13 +549,16 @@ The last two screens, and the one place a screen writes words of its own into wh
 - **A conversation is marked read by its own id**, which is not the id of any post in it (CONTEXT.md). The same id
   opens it, and the two screens holding it — the list and the thread pushed from it — are both moved by one answer, so
   a row cannot still say `unread` under a thread just marked.
-- **A reply in a conversation opens with the mention already in it.** Mastodon delivers a direct post to the accounts
-  its text mentions and to nobody else, so a reply that named nobody would reach nobody. It is written where the reader
-  can see and edit it rather than added silently on the way out, by the same `DirectMessage.To` that `dm send` uses —
-  and a reply that is nothing but the mention it opened with is refused as nothing written. Every account in the
-  conversation is named, not only whoever spoke last; an address this client cannot parse is left out of the mention
-  rather than thrown over the reply, where the reader can see that it is missing. Nothing is added to a reply that is
-  not direct.
+- **Every reply opens with the mention already in it.** Mastodon routes by the handles it parses out of a post's text:
+  a direct post reaches the accounts its text mentions and nobody else, and on every other visibility `in_reply_to_id`
+  threads the reply and notifies nobody at all — so a reply that named nobody would not reach the account it answers
+  (#130). It is written where the reader can see and edit it rather than added silently on the way out, by the same
+  `DirectMessage.To` that `dm send` uses, which is what lets a reader delete a name they did not mean to ping — and a
+  reply that is nothing but the mention it opened with is refused as nothing written. In a conversation every account
+  in it is named, not only whoever spoke last; anywhere else it is the answered account followed by everyone that post
+  named, off `Post.Mentions` already in hand and so costing no fetch. The reader's own account is never written in, and
+  an address this client cannot parse is left out of the mention rather than thrown over the reply, where the reader
+  can see that it is missing.
 - **A reply lands at the end of the thread it answers, and on the row it was opened from** — rather than appearing
   nowhere until the conversation is read again. A conversation is read in the order it was said in, what was just said
   is part of it, and it is the conversation's last word as well as the thread's last message.
