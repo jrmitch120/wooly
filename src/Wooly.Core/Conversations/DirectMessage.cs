@@ -7,6 +7,12 @@ namespace Wooly.Core.Conversations;
 ///     nobody else, so who a message is addressed to is part of what is written rather than a field alongside it. That
 ///     is the whole of what sending one adds to publishing one, and it lives here so both front ends address a message
 ///     the same way.
+///     <para>
+///         Read by a reply of any visibility, not only a direct one: a post at any other visibility is routed to its
+///         thread by an id that notifies nobody, so the account being answered is reached by being named there too
+///         (#130). What the text has to say is the same list of accounts either way, which is why it is written in the
+///         one place.
+///     </para>
 /// </summary>
 public static class DirectMessage
 {

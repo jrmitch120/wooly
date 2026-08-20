@@ -555,8 +555,10 @@ The last two screens, and the one place a screen writes words of its own into wh
   (#130). It is written where the reader can see and edit it rather than added silently on the way out, by the same
   `DirectMessage.To` that `dm send` uses, which is what lets a reader delete a name they did not mean to ping — and a
   reply that is nothing but the mention it opened with is refused as nothing written. In a conversation every account
-  in it is named, not only whoever spoke last; anywhere else it is the answered account followed by everyone that post
-  named, off `Post.Mentions` already in hand and so costing no fetch. The reader's own account is never written in, and
+  in it is named, not only whoever spoke last; a direct message read anywhere else names whoever wrote it, there being
+  no conversation on screen to read the rest of it off. A reply at any wider visibility names the answered account
+  followed by everyone that post named, off `Post.Mentions` already in hand and so costing no fetch. The reader's own
+  account is never written in, and
   an address this client cannot parse is left out of the mention rather than thrown over the reply, where the reader
   can see that it is missing.
 - **A reply lands at the end of the thread it answers, and on the row it was opened from** — rather than appearing

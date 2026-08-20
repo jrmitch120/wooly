@@ -330,6 +330,27 @@ public class ShellActionTests
         Assert.Equal("@ben@hachyderm.io @maria@example.social ", Assert.IsType<ComposeScreen>(opened.Screen).Text);
     }
 
+    /// <summary>
+    ///     An account is named once however many times it is on the list. A post whose author wrote their own handle
+    ///     into it is listed among its own mentions, and a mention written twice is a name the reader has to delete
+    ///     twice for nothing.
+    /// </summary>
+    [Fact]
+    public async Task Reply_NamesAnAccountOnceHoweverOftenTheAnsweredPostNamesIt()
+    {
+        var post = APost.With(
+            id: "220",
+            account: "ben@hachyderm.io",
+            mentions: ["ben@hachyderm.io", "maria@example.social", "Maria@example.social"]);
+
+        var shell = new AShell { Timelines = FakeTimelineReader.Holding(post) };
+        var opened = await shell.Opened();
+
+        opened.Reply();
+
+        Assert.Equal("@ben@hachyderm.io @maria@example.social ", Assert.IsType<ComposeScreen>(opened.Screen).Text);
+    }
+
     /// <summary>Continuing one's own post that names nobody else opens on an empty editor, having nobody to answer.</summary>
     [Fact]
     public async Task Reply_OpensEmptyWhereTheOnlyAccountToNameIsTheReadersOwn()

@@ -1387,9 +1387,9 @@ public sealed class Shell
     /// </summary>
     private bool IsMine(Post post) => IsMe(post.Account);
 
-    /// <summary>Whether a handle is the profile's own, compared the way <see cref="IsMine" /> compares one.</summary>
-    private bool IsMe(string handle) =>
-        _profile.Account is { } account && string.Equals(handle, account, StringComparison.OrdinalIgnoreCase);
+    /// <summary>Whether an account is the profile's own, compared the way <see cref="IsMine" /> compares one.</summary>
+    private bool IsMe(string account) =>
+        _profile.Account is { } mine && string.Equals(account, mine, StringComparison.OrdinalIgnoreCase);
 
     private void Push(Screen screen)
     {
