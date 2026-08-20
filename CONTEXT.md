@@ -66,6 +66,9 @@ still its own — the text and the poll stand behind the warning text alone, bei
 **Attachment**s and the **Link preview** behind either (#119) — and one `x` shows whichever of them is hidden. A
 flagged post shows nothing of either until it is asked for, including the picture an instance chose for a link (#116);
 the flag counts for nothing only on a post carrying neither, since there is then nothing behind it at all (#113).
+What is hidden is hidden on every screen; what is *offered* follows what the screen has **Picked**, so the
+conversations list draws a warned message's warning with no `x` named under it — a row there is a **conversation**, so
+there is no post for that key to be asked about and nothing it could do (#120).
 _Avoid_: spoilered, blurred, NSFW, hidden (which is what a warning does, not what a post is)
 
 **Drawn**:
