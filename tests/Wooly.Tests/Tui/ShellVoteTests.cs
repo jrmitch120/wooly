@@ -314,6 +314,35 @@ public class ShellVoteTests
     }
 
     /// <summary>
+    ///     A poll still behind its post's content warning is not a poll to vote in: <c>v</c> is off the row, so it asks
+    ///     nothing and says nothing — the same silence a post carrying no poll at all answers with. Asked past with
+    ///     <c>x</c>, the key means what it always did (#119).
+    /// </summary>
+    [Fact]
+    public async Task AskToVote_AsksNothingAboutAPollBehindAContentWarning()
+    {
+        var shell = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(
+                APost.With(id: "220", contentWarning: "spoilers", poll: APost.APoll())),
+        };
+
+        var opened = await shell.Opened();
+
+        opened.AskToVote();
+
+        Assert.Null(opened.Asking);
+        Assert.Null(opened.Notice);
+        Assert.DoesNotContain(opened.Keys, key => key.Key == "v");
+
+        opened.Reveal();
+        opened.Toggle(0);
+        opened.AskToVote();
+
+        Assert.NotNull(opened.Asking);
+    }
+
+    /// <summary>
     ///     A vote is cast in the poll on the post inside a boost, since that is what carries it — the same post every
     ///     other key acts on.
     /// </summary>

@@ -62,10 +62,10 @@ Whether a post is put behind something a reader has to ask past — a **content 
 flag its instance marked the media with, or both (`Post.IsWarned`). One question rather than two, because the two are
 the same promise made in two fields and Mastodon's commonest sensitive post is a photograph with nothing written over
 it: a client honouring only the text would hide nothing on exactly the posts most needing it. What each half hides is
-still its own — the text stands behind the warning text alone, the **Attachment**s and the **Link preview** behind
-either — and one `x` shows whichever of them is hidden. A flagged post shows nothing of either until it is asked for,
-including the picture an instance chose for a link (#116); the flag counts for nothing only on a post carrying neither,
-since there is then nothing behind it at all (#113).
+still its own — the text and the poll stand behind the warning text alone, being words the author wrote, and the
+**Attachment**s and the **Link preview** behind either (#119) — and one `x` shows whichever of them is hidden. A
+flagged post shows nothing of either until it is asked for, including the picture an instance chose for a link (#116);
+the flag counts for nothing only on a post carrying neither, since there is then nothing behind it at all (#113).
 _Avoid_: spoilered, blurred, NSFW, hidden (which is what a warning does, not what a post is)
 
 **Drawn**:
@@ -213,6 +213,8 @@ _Avoid_: state, reader state
 Casting a choice on a post's poll, Mastodon's own word for the act. Distinct from **Picked** and from toggling an
 option before it is cast — the toggle and the cast key are both plain interaction words, not glossary entries;
 "vote" is the one term this earns because it is the domain fact an instance records, not a keystroke describing it.
+There is none to cast in a poll standing behind a **warned** post's warning text: what the TUI announces follows what
+it has drawn, so a poll nobody has been shown offers neither key and answers to neither (#119).
 
 **Role**:
 What a piece of the TUI is, said in a way a **theme** can answer: a byline's name, a handle, a content warning, a boost
