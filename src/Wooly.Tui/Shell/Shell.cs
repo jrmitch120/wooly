@@ -1336,38 +1336,46 @@ public sealed class Shell
     }
 
     /// <summary>
-    ///     What a reply has to be written to, or <see langword="null" /> where it is nobody's business but the
-    ///     reader's. Mastodon delivers a direct post to the accounts its text mentions and to nobody else (ADR-0013),
-    ///     so a direct reply that named nobody would reach nobody — the mention is what makes it a message rather than
-    ///     a note to self, which is why <c>dm send</c> writes one too.
+    ///     What a reply has to be written to, or <see langword="null" /> where there is nobody left to name. Mastodon
+    ///     routes by the handles it parses out of a post's <em>text</em>: a direct post reaches the accounts its text
+    ///     mentions and nobody else (ADR-0013), and on every other visibility <c>in_reply_to_id</c> puts the reply in
+    ///     the thread and notifies nobody at all. Either way a reply that named nobody would not reach the account it
+    ///     answers, which is the one thing a reply is for (#130) — so every reply is addressed, and <c>dm send</c>
+    ///     writes its mention for the same reason.
     /// </summary>
     /// <remarks>
-    ///     Only a direct message is addressed. Putting a mention on a public reply would be this client writing words
-    ///     nobody asked it to, and the instance delivers that one to the thread without any help.
+    ///     The mention is written into the editor rather than added on the way out, so a reader who does not want to
+    ///     ping somebody can delete the name before sending — and so this client never sends words the reader could
+    ///     not see.
     ///     <para>
     ///         Who it goes to is the conversation where there is one, rather than whoever spoke last: a thread with
     ///         three accounts in it answered to only one of them is a reply that dropped the rest of the conversation.
+    ///         Elsewhere it is the account being answered followed by everyone their post named, which is that same
+    ///         conversation as the post itself carries it.
     ///     </para>
     /// </remarks>
     private string? Addressed(Post about)
     {
-        if (about.Visibility != PostVisibility.Direct)
-        {
-            return null;
-        }
-
         // An instance says who a conversation is with rather than who is having it, so the profile's own account is
-        // already not among them. Answering a direct message read anywhere else names whoever wrote it.
-        IReadOnlyList<string> with = Screen switch
+        // already not among them. Answering a direct message read anywhere else names whoever wrote it; a reply of any
+        // other visibility names them and everyone the post they wrote named, off the post already in hand.
+        IReadOnlyList<string> with = (about.Visibility, Screen) switch
         {
-            ConversationScreen conversation => conversation.Conversation.With,
-            _ => IsMine(about) ? [] : [about.Account],
+            (PostVisibility.Direct, ConversationScreen conversation) => conversation.Conversation.With,
+            (PostVisibility.Direct, _) => IsMine(about) ? [] : [about.Account],
+            _ => [about.Account, .. about.Mentions],
         };
 
         // An address this client cannot make sense of is left out rather than thrown over the reply, since a handle
         // an instance sent is not something the reader can do anything about. What is left is in the editor in front
-        // of them, so a mention that is missing is missing where they can see it and type it themselves.
-        var accounts = with.Where(AccountAddress.IsWellFormed).Select(AccountAddress.Parse).ToList();
+        // of them, so a mention that is missing is missing where they can see it and type it themselves. The reader's
+        // own account goes the same way: nobody is notified of their own reply, and a post answering a thread they are
+        // in names them where the instance listed them.
+        var accounts = with
+            .Where(account => AccountAddress.IsWellFormed(account) && !IsMe(account))
+            .Select(AccountAddress.Parse)
+            .DistinctBy(account => account.Text, StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
         return accounts.Count == 0 ? null : DirectMessage.To(accounts, string.Empty);
     }
@@ -1377,8 +1385,11 @@ public sealed class Shell
     ///     offered. Compared on the address, because that is the one name for an account that means the same thing on
     ///     two instances.
     /// </summary>
-    private bool IsMine(Post post) =>
-        _profile.Account is { } account && string.Equals(post.Account, account, StringComparison.OrdinalIgnoreCase);
+    private bool IsMine(Post post) => IsMe(post.Account);
+
+    /// <summary>Whether an account is the profile's own, compared the way <see cref="IsMine" /> compares one.</summary>
+    private bool IsMe(string account) =>
+        _profile.Account is { } mine && string.Equals(account, mine, StringComparison.OrdinalIgnoreCase);
 
     private void Push(Screen screen)
     {

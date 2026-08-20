@@ -499,18 +499,25 @@ public class ShellMessageTests
     }
 
     /// <summary>
-    ///     A reply anywhere else in the shell is not addressed by this client. Only a direct message needs the mention,
-    ///     and putting one on a public reply would be this client writing words nobody asked it to.
+    ///     A direct message answered from anywhere but its conversation names whoever wrote it, and only them: there
+    ///     is no conversation on screen to read the rest of it off, and a handle the message's text happened to name is
+    ///     not the same thing as an account the instance is delivering it to (ADR-0013).
     /// </summary>
     [Fact]
-    public async Task Reply_LeavesAPublicPostToBeAnsweredInTheReadersOwnWords()
+    public async Task Reply_AddressesADirectMessageReadOutsideItsConversationToItsAuthor()
     {
-        var shell = new AShell { Timelines = FakeTimelineReader.Holding(APost.With(id: "220", account: "ben@hachyderm.io")) };
+        var message = APost.With(
+            id: "220",
+            account: "alice@hachyderm.io",
+            visibility: PostVisibility.Direct,
+            mentions: ["ben@hachyderm.io"]);
+
+        var shell = new AShell { Timelines = FakeTimelineReader.Holding(message) };
         var opened = await shell.Opened();
 
         opened.Reply();
 
-        Assert.Equal(string.Empty, Assert.IsType<ComposeScreen>(opened.Screen).Text);
+        Assert.Equal("@alice@hachyderm.io ", Assert.IsType<ComposeScreen>(opened.Screen).Text);
     }
 
     /// <summary>
