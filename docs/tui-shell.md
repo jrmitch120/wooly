@@ -436,6 +436,8 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
   would be, because a post already showing a warning is already asking and a post showing neither would be hiding
   something with nothing on screen to say so. Since #116 the flag covers a **link preview** on the same terms, whether
   or not anything is attached beside it — so that one prompt stands above everything a flagged post is holding back.
+  The prompt is the one part of this the conversations list leaves off, `x` having nothing to act on there (#120,
+  below); the warning above it, and the hiding itself, are the same on every screen.
 - **Sixel is preferred over Kitty, and the preference is subscribed to.** Both capabilities are answers the terminal
   sends back some frames after startup, so a preference set once at startup is set against nothing and then overwritten
   (ADR-0016).
@@ -557,6 +559,13 @@ The last two screens, and the one place a screen writes words of its own into wh
 - **A reply lands at the end of the thread it answers, and on the row it was opened from** — rather than appearing
   nowhere until the conversation is read again. A conversation is read in the order it was said in, what was just said
   is part of it, and it is the conversation's last word as well as the thread's last message.
+- **A warned message on the list shows its warning and not the `x  show it` row under it** (#120). The row is an offer
+  of a key, and the key has nothing to act on here: what this screen picks out is a conversation, so `x` finds no post
+  and would do nothing — the same rule the poll keys follow, that a key announced where it does nothing reads as a
+  shell that missed the press. The message stays behind the warning, on both halves of **warned** alike, and the way to
+  read it is `⏎`, which opens the thread where every message *is* picked out and the row and the key are both back.
+  Giving the list its own reveal was the alternative, and was refused for the reason #83 kept `Referencing` apart from
+  `Picked`: it would have `x` acting on something the screen does not offer.
 - **The unread indicator is the word, not a glyph.** This client's glyphs already say who can see a post — `○ ◌ ● ✉` —
   and a second circle beside `●` is one mark too many to tell apart at a glance. The word takes `rail-unread`, the same
   role as the badge counting it on the rail.

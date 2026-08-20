@@ -77,13 +77,20 @@ public static class PostLines
     ///     Whether a picture's caption hides once the picture is actually drawn (#71) — the reader's
     ///     <c>hide_drawn_caption</c> preference.
     /// </param>
+    /// <param name="saysHowToAskPast">
+    ///     Whether the <c>x  show it</c> row is drawn under whatever the post is hiding. On for every screen that picks
+    ///     the post out, and off for exactly one that does not: the conversations list, where a row is a conversation
+    ///     and <c>x</c> has no post to be asked about — so the row would be naming a key that cannot act, which reads
+    ///     as a shell that missed the press (<c>docs/tui-shell.md</c>, #120). The warning itself is drawn either way.
+    /// </param>
     public static IReadOnlyList<Line> Feed(
         Post post,
         int width,
         Reading reading,
         DateTimeOffset now,
         IPictures? pictures = null,
-        bool hideDrawnCaption = false)
+        bool hideDrawnCaption = false,
+        bool saysHowToAskPast = true)
     {
         var shown = post.Boosted ?? post;
 
@@ -93,8 +100,8 @@ public static class PostLines
                 .. Answering(shown, width),
                 .. Byline(shown, width, now, pictures),
             ],
-            Body(shown, width, reading),
-            .. Media(shown, width, pictures, Inset.FeedRows, hideDrawnCaption, reading),
+            Body(shown, width, reading, saysHowToAskPast),
+            .. Media(shown, width, pictures, Inset.FeedRows, hideDrawnCaption, reading, saysHowToAskPast),
             LinkPreview(shown, width, pictures, Inset.FeedRows, reading),
             Poll(shown, width, reading),
             [Counts(shown, spelledOut: false)],
@@ -142,8 +149,9 @@ public static class PostLines
                             Role.Audience),
                     ])),
             ],
-            Body(shown, width, reading),
-            .. Media(shown, width, pictures, Inset.WholeRows, hideDrawnCaption, reading),
+            // The post screen is about this post, so x is always something that can act on it here.
+            Body(shown, width, reading, saysHowToAskPast: true),
+            .. Media(shown, width, pictures, Inset.WholeRows, hideDrawnCaption, reading, saysHowToAskPast: true),
             LinkPreview(shown, width, pictures, Inset.WholeRows, reading),
             Poll(shown, width, reading),
             [Counts(shown, spelledOut: true)],
@@ -359,11 +367,15 @@ public static class PostLines
     ///     author put the post behind it, and a client that showed both would have made the warning pointless.
     /// </summary>
     /// <param name="reading">What the reader has done to this post: asked past its warning, picked a reference in it.</param>
-    private static IEnumerable<Line> Body(Post post, int width, Reading reading)
+    /// <param name="saysHowToAskPast">
+    ///     Whether the row naming <c>x</c> goes under the warning. The text stays behind it either way — what is off on
+    ///     the one screen that says no is the offer, not the hiding (#120).
+    /// </param>
+    private static IEnumerable<Line> Body(Post post, int width, Reading reading, bool saysHowToAskPast)
     {
         if (post.ContentWarning is { } warning && !reading.Revealed)
         {
-            return [Warning(warning, width), Line.Of(AskPastIt, Role.Muted)];
+            return Hiding(warning, width, saysHowToAskPast);
         }
 
         var lines = new List<Line>();
@@ -409,6 +421,15 @@ public static class PostLines
     ]);
 
     /// <summary>
+    ///     What stands in place of what a post is hiding: the warning, and under it the row naming the key that would
+    ///     show it — where there is a key that can act. Both of the things a post hides behind go up this way, so that
+    ///     what asks and whether it is asked at all cannot come to differ between them (#120).
+    /// </summary>
+    private static Line[] Hiding(string said, int width, bool saysHowToAskPast) => saysHowToAskPast
+        ? [Warning(said, width), Line.Of(AskPastIt, Role.Muted)]
+        : [Warning(said, width)];
+
+    /// <summary>
     ///     What is attached: a picture drawn in place or the address to reach an undrawn one at, and for everything
     ///     else — a video, an animation, a sound, or an attachment of a kind this client has no word for — the label
     ///     <c>←</c>/<c>→</c> walks to and <c>⏎</c> opens, with a video's or an animation's own preview drawn in a box
@@ -440,6 +461,11 @@ public static class PostLines
     ///     What this reader has done to this post, which is what says whether one of its attachment references is
     ///     picked out and drawn in brackets (#109).
     /// </param>
+    /// <param name="saysHowToAskPast">
+    ///     Whether the row naming <c>x</c> goes under the <c>⚠ Sensitive media</c> this prints where nothing else is
+    ///     asking. Off on the screen where <c>x</c> has no post to act on, exactly as it is over a warning its author
+    ///     wrote — the attachments are hidden there either way (#120).
+    /// </param>
     /// <returns>
     ///     One run of rows per attachment, rather than one run for all of them, so that <see cref="Parts" /> puts a
     ///     blank row between each — which is the row between one picture and the next one's caption.
@@ -450,7 +476,8 @@ public static class PostLines
         IPictures? pictures,
         int mostRows,
         bool hideDrawnCaption,
-        Reading reading)
+        Reading reading,
+        bool saysHowToAskPast)
     {
         // A warned post's attachments are part of what the warning covers, and nothing about one is drawn until the
         // reader has asked past it: no box, no label, no description, no address — and no Wants, which is what keeps
@@ -465,7 +492,7 @@ public static class PostLines
             // thing (#113, #116).
             if (post.ContentWarning is null)
             {
-                yield return [Warning(SensitiveMedia, width), Line.Of(AskPastIt, Role.Muted)];
+                yield return Hiding(SensitiveMedia, width, saysHowToAskPast);
             }
 
             yield break;

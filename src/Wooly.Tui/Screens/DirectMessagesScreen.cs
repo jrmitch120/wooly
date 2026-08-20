@@ -130,15 +130,18 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
 
             var said = conversation.Latest is { } latest
                 // A reference the reader has walked to, and nothing else: what this screen picks out is a
-                // conversation, so there is no post here for x to have asked past and no warning it could be drawn
-                // without. Deliberately not ReadingOf, which would be asking a question this screen cannot answer.
+                // conversation, so there is no post here for x to have asked past. Deliberately not ReadingOf, which
+                // would be asking a question this screen cannot answer — and the same fact is why the row naming x is
+                // off. A warned message stands behind its warning here with nothing offering to lift it, because the
+                // way to read it is to open the conversation, which is what ⏎ already does (#120).
                 ? PostLines.Feed(
                     latest,
                     Math.Max(1, room - 2),
                     new Reading(Reference: ReferenceOn(at)),
                     now,
                     pictures,
-                    hideDrawnCaption)
+                    hideDrawnCaption,
+                    saysHowToAskPast: false)
                 : [Line.Of(ConversationLines.NothingLeft, Role.Muted)];
 
             return [ConversationLines.With(conversation, room), .. said.Select(line => line.After(indent))];
