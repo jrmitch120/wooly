@@ -30,6 +30,11 @@ in the reader's own player (ADR-0017). In the TUI none of that happens at all on
 has asked past it: what is attached is part of what a warning covers, so it is neither drawn, nor sent for, nor walked.
 The CLI is unchanged by that — it prints an address for whatever is attached, warned or not, since there is nothing
 rendered there to be asked for and no key to ask with (#113).
+What an attachment *shows* — its author's description, or that nobody gave one — is `PostMedia.Shows`, said once and
+read wherever either surface describes one. That is as far as sharing goes here, and deliberately: the two surfaces
+only describe the same attachment where it is **linked**, and everywhere else the TUI says something else entirely —
+a walked label naming the kind, with no address on the row at all. One sentence shared and one surface saying a
+different thing is not the same as a **Link preview**'s rule written out twice, so it was left alone (#125).
 _Avoid_: media file, image (where the kind has not been settled)
 
 **Link preview**:
@@ -47,6 +52,9 @@ All of that hiding is the TUI's: the CLI **links** a preview on every post it wr
 address with the title beside it, then the site, the description and the byline underneath, after whatever is attached
 and whether or not the post is warned, which is the asymmetry #113 already settled for an attachment: nothing is
 rendered there for a warning to be about, and no key to ask past one with (#117).
+*What* is said is the preview's own, the way `PostMedia.Shows` is an **Attachment**'s — the name the page goes by
+(`LinkPreview.Name`, or `.Called` where the address has been written already), and the rows underneath it
+(`LinkPreview.Says`). Both front ends read them, and what is left to each is only the laying out (#125).
 _Avoid_: card, preview (reserved for `PostMedia.Preview`)
 
 **Warned**:

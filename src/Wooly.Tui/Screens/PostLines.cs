@@ -744,18 +744,17 @@ public static class PostLines
     ///     label on the thing <c>⏎</c> opens rather than something to be read to the end.
     /// </summary>
     /// <remarks>
-    ///     The site's name stands in for a title the instance made nothing of, and the address itself where it named
-    ///     neither: there is always a row to walk to, because the address is the whole reason a link preview is drawn
-    ///     at all (ADR-0018).
+    ///     What the row says is <see cref="LinkPreview.Name" />'s — the site's name standing in for a title the
+    ///     instance made nothing of, and the address itself where it named neither, said once for both surfaces
+    ///     (#125). There is always a row to walk to, because the address is the whole reason a link preview is drawn
+    ///     at all (ADR-0018). The clipping and the brackets are this surface's own.
     /// </remarks>
     private static Line LinkPreviewLine(LinkPreview link, Reference? reference, Reference? picked, int width)
     {
         var bracketed = reference is not null && picked == reference;
         var room = width - LinkMark.Length - 1 - (bracketed ? BodyText.Opening.Length + BodyText.Closing.Length : 0);
 
-        return new Line(MarkAndLabel(
-            TextWrap.Clip(link.Title ?? link.ProviderName ?? link.Url, Math.Max(0, room)),
-            bracketed));
+        return new Line(MarkAndLabel(TextWrap.Clip(link.Name, Math.Max(0, room)), bracketed));
     }
 
     /// <summary>
@@ -763,24 +762,15 @@ public static class PostLines
     ///     description, and who the page says wrote it — one row each, and nothing at all for whatever it did not say.
     /// </summary>
     /// <remarks>
-    ///     The author's name is plain text here and nowhere else: it is never walked to and never opened, so a post
-    ///     does not come to carry three things reaching for the same handful of places (ADR-0018). All
-    ///     <see cref="Role.Muted" /> — this says what is on the other end of the row above, not what the post says.
+    ///     Which rows there are and what they say is <see cref="LinkPreview.Says" />'s, so that the CLI writing the
+    ///     same page cannot come to say something else about it (#125) — including the author's name as plain text
+    ///     here and nowhere else, which is what keeps a post from carrying three things reaching for the same handful
+    ///     of places (ADR-0018). What is left here is the indent, the clip and the role: all
+    ///     <see cref="Role.Muted" />, because this says what is on the other end of the row above rather than what the
+    ///     post says.
     /// </remarks>
-    private static IEnumerable<Line> LinkPreviewSays(LinkPreview link, int width)
-    {
-        string?[] said =
-        [
-            // Nothing where the site's own name is already the row above, which is a link preview the instance sent
-            // no title with: it has been said once and once is enough.
-            link.Title is null ? null : link.ProviderName,
-            link.Description,
-            link.Author is { } author ? $"by {author}" : null,
-        ];
-
-        return said.OfType<string>()
-                   .Select(row => Line.Of($"  {TextWrap.Clip(row, Math.Max(1, width - 2))}", Role.Muted));
-    }
+    private static IEnumerable<Line> LinkPreviewSays(LinkPreview link, int width) =>
+        link.Says.Select(row => Line.Of($"  {TextWrap.Clip(row, Math.Max(1, width - 2))}", Role.Muted));
 
     /// <summary>
     ///     A poll in full, on both the feed and the post screen alike: one row per option — a block bar carrying

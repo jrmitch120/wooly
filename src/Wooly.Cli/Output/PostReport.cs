@@ -163,6 +163,15 @@ internal static class PostReport
     ///         is the only way to reach the attachment at all. Leaving it off a timeline would make <c>timeline home</c>
     ///         the one place a picture is mentioned and cannot be opened.
     ///     </para>
+    ///     <para>
+    ///         This row is <em>not</em> the duplication a link preview's was, and stays as it is (#125). The one
+    ///         attachment both surfaces describe the same way is a picture no terminal is drawing, and the sentence
+    ///         they describe it with already lives once — <see cref="PostMedia.Shows" />, which this row and the TUI's
+    ///         <c>LinkedImage</c> both read, differing only in where each puts the address. Every other kind the TUI
+    ///         does not describe at all: it walks to a label naming the kind and prints no address, because <c>⏎</c>
+    ///         opens the thing. So there is one sentence, said once, and a second surface saying something else — not
+    ///         one rule written twice.
+    ///     </para>
     /// </remarks>
     private static void WriteMedia(IAnsiConsole console, Post post)
     {
@@ -190,9 +199,11 @@ internal static class PostReport
     ///         address here would only make the link unreachable.
     ///     </para>
     ///     <para>
-    ///         The site's name stands in where the instance sent no title — and is then not said again underneath,
-    ///         because once is enough. Where it named neither, the address is the whole of the line, which is still
-    ///         worth writing: reaching the page is what a link preview is for.
+    ///         What it says is <see cref="LinkPreview.Called" />'s and <see cref="LinkPreview.Says" />'s, read by the
+    ///         TUI too so that the two cannot come to describe the same page differently (#125). The address is on
+    ///         this row whatever the instance named the page, which is why this asks what it was <c>Called</c> rather
+    ///         than for its <c>Name</c>: the last step of that fallback is the address, and taking it would write the
+    ///         address twice on the one row. The escaping and the two-then-four-space indent are this surface's own.
     ///     </para>
     /// </remarks>
     private static void WriteLinkPreview(IAnsiConsole console, Post post)
@@ -204,7 +215,7 @@ internal static class PostReport
 
         // Interpolated for the reason WriteMedia gives: every part of this is somebody else's text, and a square
         // bracket anywhere in it is a character rather than a colour tag.
-        if ((link.Title ?? link.ProviderName) is { } named)
+        if (link.Called is { } named)
         {
             console.MarkupLineInterpolated($"  {LinkMark} {link.Url} — {named}");
         }
@@ -213,14 +224,7 @@ internal static class PostReport
             console.MarkupLineInterpolated($"  {LinkMark} {link.Url}");
         }
 
-        string?[] said =
-        [
-            link.Title is null ? null : link.ProviderName,
-            link.Description,
-            link.Author is { } author ? $"by {author}" : null,
-        ];
-
-        foreach (var row in said.OfType<string>())
+        foreach (var row in link.Says)
         {
             console.MarkupLineInterpolated($"    {row}");
         }
