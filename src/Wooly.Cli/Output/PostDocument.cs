@@ -20,6 +20,11 @@ namespace Wooly.Cli.Output;
 ///     human output links it too, because the whole point of <c>--json</c> is that a script does not have to read the
 ///     human output to find out what a post carries.
 /// </param>
+/// <param name="LinkPreview">
+///     What the instance made of a link the text already carries, or absent on a post it made nothing of — an object
+///     rather than a list, because a post has at most one (ADR-0018), and so absent rather than empty where there is
+///     none. It follows <see cref="Media" /> here as it does in the human output.
+/// </param>
 internal sealed record PostDocument(
     [property: JsonPropertyName("id")] string Id,
     [property: JsonPropertyName("account")] string Account,
@@ -33,6 +38,7 @@ internal sealed record PostDocument(
     [property: JsonPropertyName("replies")] long Replies,
     [property: JsonPropertyName("url")] string? Url,
     [property: JsonPropertyName("media")] IReadOnlyList<MediaDocument> Media,
+    [property: JsonPropertyName("linkPreview")] LinkPreviewDocument? LinkPreview,
     [property: JsonPropertyName("boosted")] PostDocument? Boosted)
 {
     /// <summary>How <paramref name="post" /> is written down.</summary>
@@ -49,5 +55,6 @@ internal sealed record PostDocument(
         post.Replies,
         post.Url,
         [.. post.Media.Select(MediaDocument.Of)],
+        LinkPreviewDocument.Of(post.LinkPreview),
         post.Boosted is null ? null : Of(post.Boosted));
 }

@@ -176,6 +176,23 @@ public class TimelineCommandTests : IDisposable
         Assert.DoesNotContain("https://mastodon.social/@jeff/110", run.Output);
     }
 
+    /// <summary>
+    ///     A link preview is written on every post the CLI shows, a timeline's included — the same reasoning ADR-0016
+    ///     gave for an attachment's address: what it carries is not reachable from anything else on screen, and leaving
+    ///     it off a timeline would make <c>timeline home</c> the one place a link is enriched and cannot be followed.
+    /// </summary>
+    [Fact]
+    public void Home_LinksALinkPreviewOnThePostsItScrollsPast()
+    {
+        AddProfile();
+        _timelines = FakeTimelineReader.Holding(APost.With(linkPreview: APost.ALinkPreview()));
+
+        var run = Run(["timeline", "home"]);
+
+        Assert.Contains("https://example.com/sheep — Sheep, at length", run.Output);
+        Assert.Contains("What a flock does all winter", run.Output);
+    }
+
     [Fact]
     public void Home_ShowsAContentWarningApartFromThePostsText()
     {
