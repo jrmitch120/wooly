@@ -50,4 +50,59 @@ public sealed record LinkPreview
     ///     the stronger argument (ADR-0018).
     /// </summary>
     public string? Author { get; init; }
+
+    /// <summary>
+    ///     What the instance called the page in its own words — the title where it made something of one, and the
+    ///     site's own name where it did not — or <see langword="null" /> where it called it nothing at all.
+    /// </summary>
+    /// <remarks>
+    ///     The instance's words and only those, for the surface that has the address on the row already and would say
+    ///     it twice by falling through to it: the CLI writes this beside the address, and the address by itself where
+    ///     there is no this. Anywhere the address is not already written, <see cref="Name" /> is the one to ask.
+    /// </remarks>
+    public string? Called => Title ?? ProviderName;
+
+    /// <summary>
+    ///     The name the page goes by, whatever the instance made of it: what it was <see cref="Called" />, or its own
+    ///     address where it was called nothing.
+    /// </summary>
+    /// <remarks>
+    ///     There is always one, because reaching the page is the whole of what a link preview is for and a row standing
+    ///     in for the address has to say something (ADR-0018). What either surface does with it is its own — the TUI
+    ///     clips it to a width and brackets it while it is picked, and the CLI has no width to clip to.
+    /// </remarks>
+    public string Name => Called ?? Url;
+
+    /// <summary>
+    ///     What the instance said about the page, under the row carrying its <see cref="Name" /> and in the order it is
+    ///     said: the site, what the page is about, and who it says wrote it. Empty for a preview carrying nothing but
+    ///     an address.
+    /// </summary>
+    /// <remarks>
+    ///     One sentence read by both surfaces, for the reason <see cref="PostMedia.Shows" /> is: what a post says is the
+    ///     same fact whichever front end is saying it, and a rule written twice is a rule that comes to disagree with
+    ///     itself (#125). Only the order and the words are here; the indent, the clipping and the roles are each
+    ///     surface's own.
+    ///     <para>
+    ///         The byline is <c>by {author}</c> and never an address — the page's own author is plain text here and
+    ///         nowhere else, so a post does not come to carry three things reaching for the same handful of places
+    ///         (ADR-0018).
+    ///     </para>
+    /// </remarks>
+    public IReadOnlyList<string> Says
+    {
+        get
+        {
+            string?[] said =
+            [
+                // Nothing where a missing title is what left the site standing as the Name — the same "made nothing of
+                // a title" Called turns on, and the row above has said it already. Once is enough.
+                Title is null ? null : ProviderName,
+                Description,
+                Author is { } author ? $"by {author}" : null,
+            ];
+
+            return [.. said.OfType<string>()];
+        }
+    }
 }
