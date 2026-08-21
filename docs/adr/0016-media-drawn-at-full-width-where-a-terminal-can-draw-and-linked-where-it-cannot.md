@@ -254,3 +254,42 @@ what the row is naming, not an inventory of what is behind it.
 
 What does not change: the text. A post marked sensitive with no spoiler text still shows its words and still walks the
 references in them, because the flag is not a warning its author wrote about what they said. That half of #113 stands.
+
+## Amendment: the CLI names the flag, though it still hides nothing (ticket #122)
+
+The first amendment left the CLI exactly as it was, and said that was the decision rather than the default: it links
+every attachment whatever the kind, hiding an address behind a prompt would be hiding it from a script, and `--json`
+grows no `sensitive` field for want of anything asking for one. The first half stands and is not reopened here.
+Nothing is hidden on this surface, then or now. The second half is reversed, and #116 is what reversed it: the flag
+now covers a link preview too, which is a thing the CLI *does* print. A reader of `post show` was being shown, with no
+comment of any kind, the title and description of a page the TUI would have kept back — and neither they nor a script
+could tell a flagged post from a clean one, because the two printed identically down to the byte.
+
+**Not hiding something is not the same as not mentioning it.** The reasoning for printing the address is about
+*reach*: a surface with no keystroke, as often piped as read, must not put an address behind a prompt nobody can
+answer. None of that is a reason to withhold the fact that the flag is up. The two questions ran together because the
+flag arrived here as a rendering question, and answering "this surface renders it anyway" closed the file before the
+reporting question had been asked.
+
+**So `marked sensitive` is written under the content warning line, in the same yellow, on every post the CLI writes**
+— a timeline's included, for the same reason an attachment's address is on one. It is a statement rather than an
+offer: there is no `x` here, nothing is behind anything, and the line's whole job is to let a reader tell the two
+posts apart. Beside the warning rather than folded into it, because the wire carries two fields and the commonest
+flagged post carries only this one — a marker that spoke only where a warning already had would say nothing on
+exactly the posts it exists for. The TUI's own wording is not borrowed: `⚠ Sensitive media` names what is behind the
+row and offers the key that shows it, and neither half of that sentence is true here.
+
+**It is said on every flagged post, including one carrying nothing for the flag to be over.** `Post.IsWarned`
+discounts that post — with no attachments and no preview there is nothing behind anything and no reason to spend `x`
+on it — and this surface deliberately does not follow it there. That discount answers "is there anything to ask
+past", which is a question the CLI never asks on any post. What is left when it is not asked is the instance's own
+flag, and reporting it as the instance set it is the only rule a script can hold this output to. It also keeps the
+human line and the `--json` field saying the same thing about the same post, which is what makes them checkable
+against each other.
+
+**`--json` grows `sensitive`, beside `contentWarning`, and writes it on every post rather than only the flagged
+ones.** That is a different rule from `linkPreview`, `description` and everything else this client leaves out where it
+does not apply, and the difference is what the key means: those are absences of a thing, and this is one of the two
+answers to a question every post answers. A script filtering a timeline on `.sensitive` should not have to tell a post
+nobody flagged from a client too old to say. The parity argument that carried #117's `linkPreview` is the same one
+here, and this is it landing the same way rather than the opposite way in an adjacent ticket.
