@@ -7,10 +7,19 @@ namespace Wooly.Tui.Screens;
 ///     post reads.
 /// </summary>
 /// <remarks>
-///     Its own small thing rather than a set inside one screen, because three screens honour a warning — a feed, an
-///     inbox, a page of search results — and a warning asked past on one of them is a decision about that post, not
-///     about the list it happened to be read in. A boost is asked about by the post inside it, since that is what the
-///     warning belongs to.
+///     Its own small thing rather than a set written out inside each screen, because six screens honour a warning — a
+///     feed, a thread, an account, an inbox, a page of search results, a conversation — and what asking past one means
+///     does not vary between them. A boost is asked about by the post inside it, since that is what the warning
+///     belongs to.
+///     <para>
+///         One of these per <see cref="Screen" />, so a reveal belongs to the screen it was made on and lasts exactly
+///         as long as that screen is on the stack — the same lifetime <see cref="Screen.Began" /> has for the page a
+///         screen is showing (#133), and ended by the same three things: <c>esc</c>, a refresh, an arrival. Drilling
+///         into a post asked past in the feed asks again, the post screen being a new screen that has been asked
+///         nothing; walking back out to the feed does not, a pop handing back the very screen the reveal was made on.
+///         Wanted rather than a gap — a warning is a request to be asked before being shown, and honouring it once is
+///         not consent to skip the asking everywhere afterwards (#121, <c>docs/tui-shell.md</c>).
+///     </para>
 /// </remarks>
 public sealed class Revealed
 {
