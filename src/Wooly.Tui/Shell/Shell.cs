@@ -1352,18 +1352,19 @@ public sealed class Shell
     ///         Who it goes to is the conversation where there is one, rather than whoever spoke last: a thread with
     ///         three accounts in it answered to only one of them is a reply that dropped the rest of the conversation.
     ///         Elsewhere it is the account being answered followed by everyone their post named, which is that same
-    ///         conversation as the post itself carries it.
+    ///         conversation as the post itself carries it — a direct message included, since the accounts a direct post
+    ///         names are the accounts its instance delivered it to (#132). The conversation still wins where there is
+    ///         one on screen, being who is left in it rather than who one message in it happened to name.
     ///     </para>
     /// </remarks>
     private string? Addressed(Post about)
     {
         // An instance says who a conversation is with rather than who is having it, so the profile's own account is
-        // already not among them. Answering a direct message read anywhere else names whoever wrote it; a reply of any
-        // other visibility names them and everyone the post they wrote named, off the post already in hand.
+        // already not among them. Everywhere else it is the post itself, whatever its visibility: the account being
+        // answered and everyone their post named, off the post already in hand.
         IReadOnlyList<string> with = (about.Visibility, Screen) switch
         {
             (PostVisibility.Direct, ConversationScreen conversation) => conversation.Conversation.With,
-            (PostVisibility.Direct, _) => IsMine(about) ? [] : [about.Account],
             _ => [about.Account, .. about.Mentions],
         };
 

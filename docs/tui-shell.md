@@ -584,12 +584,15 @@ The last two screens, and the one place a screen writes words of its own into wh
   (#130). It is written where the reader can see and edit it rather than added silently on the way out, by the same
   `DirectMessage.To` that `dm send` uses, which is what lets a reader delete a name they did not mean to ping — and a
   reply that is nothing but the mention it opened with is refused as nothing written. In a conversation every account
-  in it is named, not only whoever spoke last; a direct message read anywhere else names whoever wrote it, there being
-  no conversation on screen to read the rest of it off. A reply at any wider visibility names the answered account
-  followed by everyone that post named, off `Post.Mentions` already in hand and so costing no fetch. The reader's own
-  account is never written in, and
-  an address this client cannot parse is left out of the mention rather than thrown over the reply, where the reader
-  can see that it is missing.
+  in it is named, not only whoever spoke last — an instance says who a conversation is *with*, which is who is still in
+  it rather than who one message in it happened to name. Everywhere else it is the post itself: the answered account
+  followed by everyone that post named, off `Post.Mentions` already in hand and so costing no fetch. That covers a
+  direct message read outside its conversation too (#132) — Mastodon delivers a direct post to the accounts its text
+  mentions and nobody else, so its mentions *are* the rest of the conversation, and naming only its author would answer
+  a three-way message to one of the accounts having it. The reader's own account is never written in — including where
+  the message named them, which is how it reached them, and on a message they wrote themselves, which therefore opens
+  addressed to whoever they sent it to — and an address this client cannot parse is left out of the mention rather than
+  thrown over the reply, where the reader can see that it is missing.
 - **A reply lands at the end of the thread it answers, and on the row it was opened from** — rather than appearing
   nowhere until the conversation is read again. A conversation is read in the order it was said in, what was just said
   is part of it, and it is the conversation's last word as well as the thread's last message.
