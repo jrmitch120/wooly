@@ -499,18 +499,63 @@ public class ShellMessageTests
     }
 
     /// <summary>
-    ///     A direct message answered from anywhere but its conversation names whoever wrote it, and only them: there
-    ///     is no conversation on screen to read the rest of it off, and a handle the message's text happened to name is
-    ///     not the same thing as an account the instance is delivering it to (ADR-0013).
+    ///     A direct message answered from anywhere but its conversation names whoever wrote it and everyone else it was
+    ///     delivered to: Mastodon routes a direct post to the accounts its text mentions and nobody else (ADR-0013), so
+    ///     its mentions <em>are</em> the rest of the conversation (#132). Naming only its author would answer a
+    ///     three-way message to one of the accounts having it.
     /// </summary>
     [Fact]
-    public async Task Reply_AddressesADirectMessageReadOutsideItsConversationToItsAuthor()
+    public async Task Reply_AddressesADirectMessageReadOutsideItsConversationToEveryoneItNames()
     {
         var message = APost.With(
             id: "220",
             account: "alice@hachyderm.io",
             visibility: PostVisibility.Direct,
-            mentions: ["ben@hachyderm.io"]);
+            mentions: ["ben@hachyderm.io", "maria@example.social"]);
+
+        var shell = new AShell { Timelines = FakeTimelineReader.Holding(message) };
+        var opened = await shell.Opened();
+
+        opened.Reply();
+
+        Assert.Equal(
+            "@alice@hachyderm.io @ben@hachyderm.io @maria@example.social ",
+            Assert.IsType<ComposeScreen>(opened.Screen).Text);
+    }
+
+    /// <summary>
+    ///     The reader is among the accounts a direct message they were delivered names — that is how it reached them —
+    ///     and is left out all the same, since nobody is notified of their own reply.
+    /// </summary>
+    [Fact]
+    public async Task Reply_LeavesTheReaderOutOfADirectMessageThatNamedThem()
+    {
+        var message = APost.With(
+            id: "220",
+            account: "alice@hachyderm.io",
+            visibility: PostVisibility.Direct,
+            mentions: ["jeff@mastodon.social", "ben@hachyderm.io"]);
+
+        var shell = new AShell { Timelines = FakeTimelineReader.Holding(message) };
+        var opened = await shell.Opened();
+
+        opened.Reply();
+
+        Assert.Equal("@alice@hachyderm.io @ben@hachyderm.io ", Assert.IsType<ComposeScreen>(opened.Screen).Text);
+    }
+
+    /// <summary>
+    ///     A direct message the reader wrote themselves is answered to whoever they sent it to, off the same list —
+    ///     their own account goes out with everyone else's, and what is left is the recipients.
+    /// </summary>
+    [Fact]
+    public async Task Reply_AddressesTheReadersOwnDirectMessageToWhoTheySentIt()
+    {
+        var message = APost.With(
+            id: "220",
+            account: "jeff@mastodon.social",
+            visibility: PostVisibility.Direct,
+            mentions: ["jeff@mastodon.social", "alice@hachyderm.io"]);
 
         var shell = new AShell { Timelines = FakeTimelineReader.Holding(message) };
         var opened = await shell.Opened();
@@ -518,6 +563,27 @@ public class ShellMessageTests
         opened.Reply();
 
         Assert.Equal("@alice@hachyderm.io ", Assert.IsType<ComposeScreen>(opened.Screen).Text);
+    }
+
+    /// <summary>
+    ///     A handle this client cannot parse is left out of a direct reply rather than written in malformed, exactly as
+    ///     it is at every wider visibility.
+    /// </summary>
+    [Fact]
+    public async Task Reply_LeavesOutAHandleItCannotParseInADirectMessage()
+    {
+        var message = APost.With(
+            id: "220",
+            account: "alice@hachyderm.io",
+            visibility: PostVisibility.Direct,
+            mentions: ["not a handle", "ben@hachyderm.io"]);
+
+        var shell = new AShell { Timelines = FakeTimelineReader.Holding(message) };
+        var opened = await shell.Opened();
+
+        opened.Reply();
+
+        Assert.Equal("@alice@hachyderm.io @ben@hachyderm.io ", Assert.IsType<ComposeScreen>(opened.Screen).Text);
     }
 
     /// <summary>
