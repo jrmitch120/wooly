@@ -121,7 +121,7 @@ internal sealed class ShellWindow : Window
             Scrolls = true,
         };
 
-        _editor = new ComposeEditor(() => _ = Send(), () => shell.Back())
+        _editor = new ComposeEditor(() => _ = Send(), () => shell.Back(), shell.WriteWarning)
         {
             X = RailLines.Width + 1,
             // A reply's "answering" block is painted on _content, which this sits in front of and exactly the same
@@ -177,6 +177,27 @@ internal sealed class ShellWindow : Window
             _quit();
 
             return true;
+        }
+
+        // The two compose keys, bound here as well as on the editor itself, because the editor is not always the thing
+        // holding them: it gives up focus while the warning is taking letters, and from there neither key would reach
+        // it at all. Screen-local rather than frame keys — off a compose screen they are left to whatever else wants
+        // them, the same bargain the poll digits and the reference arrows strike.
+        if (_shell.Screen is ComposeScreen)
+        {
+            if (key == Key.S.WithCtrl)
+            {
+                _ = Send();
+
+                return true;
+            }
+
+            if (key == Key.W.WithCtrl)
+            {
+                _shell.WriteWarning();
+
+                return true;
+            }
         }
 
         if (key == Key.Tab)
@@ -502,9 +523,13 @@ internal sealed class ShellWindow : Window
 
         // The editor runs from here to the same foot _content does, so whatever is spent above it comes straight off
         // its own height — which makes the room to leave a subtraction rather than a second layout.
-        var answering = Math.Min(compose.AnsweringHeight(width), Math.Max(0, height - LeastEditorRows));
+        //
+        // The warning field is the last row to give way rather than the first: it is a row the reader types into, and
+        // one they cannot see is worse than a quote of what is being answered that stops early.
+        var room = Math.Max(0, height - LeastEditorRows - compose.WarningHeight);
+        var answering = Math.Min(compose.AnsweringHeight(width), room);
 
-        return ContentTop + answering;
+        return ContentTop + answering + compose.WarningHeight;
     }
 
     /// <summary>
@@ -575,6 +600,22 @@ internal sealed class ShellWindow : Window
         // which it does not: a key the editor declines at the end of its own text still reaches this window, and a
         // screen with nothing picked out on it is one Scroll.To never scrolls back.
         _content.Scrolls = !composing;
+
+        // The caret is where the typing is going, which while the warning has it is the row above: the editor keeps
+        // its text and its place and gives up focus, so the letters fall through this window's own typing path into
+        // the field, and the terminal's cursor is not left blinking in a body nobody is writing in.
+        //
+        // The two being equal is what says they are out of step — the editor may be focused exactly when the warning
+        // is not being written — so this runs on the frames that change one and passes over every other.
+        if (_shell.Screen is ComposeScreen compose && _editor.CanFocus == compose.WritingTheWarning)
+        {
+            _editor.CanFocus = !compose.WritingTheWarning;
+
+            if (_editor.CanFocus && _editor.Visible)
+            {
+                _editor.SetFocus();
+            }
+        }
 
         if (composing && !_editor.Visible)
         {

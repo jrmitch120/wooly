@@ -27,22 +27,24 @@ public class ShellComposeLayoutTests
 
     /// <summary>
     ///     The editor starts below what is being answered rather than on top of it — three rows here: the label, the
-    ///     one row "Hello world" wraps to, and the blank under it.
+    ///     one row "Hello world" wraps to, and the blank under it — and below the warning field under those (#123).
     /// </summary>
     [Fact]
-    public async Task Reply_StartsTheEditorBelowWhatIsBeingAnswered()
+    public async Task Reply_StartsTheEditorBelowWhatIsBeingAnsweredAndTheWarningField()
     {
         var (window, editor, compose) = await Replying();
 
         using (window)
         {
             Assert.Equal(3, compose.AnsweringHeight(ContentWidth));
-            Assert.Equal(4, editor.Frame.Y);
+            Assert.Equal(1, compose.WarningHeight);
+            Assert.Equal(5, editor.Frame.Y);
         }
     }
 
     /// <summary>
-    ///     And a post with no reply behind it leaves it where it always was, since there is nothing above it to clear.
+    ///     And a post with no reply behind it leaves it where it always was, since there is nothing above it to clear:
+    ///     no block, and no warning field either, that being a reply's (#123).
     /// </summary>
     [Fact]
     public async Task Post_StartsTheEditorAtTheTopOfTheContentRegion()
@@ -60,12 +62,13 @@ public class ShellComposeLayoutTests
 
     /// <summary>
     ///     A terminal too short for both keeps the editor and gives up the tail of what is being answered — the block
-    ///     wants three rows and there is only room for two, because an editor pushed to the foot is one nobody can
+    ///     wants three rows and there is only room for one, because an editor pushed to the foot is one nobody can
     ///     type in.
     /// </summary>
     /// <remarks>
     ///     Seven rows: one for the breadcrumb and one for the status row leave the content region five, of which the
-    ///     editor keeps three.
+    ///     editor keeps three and the warning field one. The field is the last row to give way rather than the first
+    ///     — it is a row the reader types into, and one they cannot see is worse than a quote that stops early.
     /// </remarks>
     [Fact]
     public async Task Reply_NeverPushesTheEditorPastTheRoomLeftToTypeIn()
@@ -107,7 +110,92 @@ public class ShellComposeLayoutTests
             }
 
             Assert.Null(content.Reclaimable);
-            Assert.Equal(4, editor.Frame.Y);
+            Assert.Equal(5, editor.Frame.Y);
+        }
+    }
+
+    /// <summary>
+    ///     <c>ctrl-w</c> hands the keys to the warning field above the editor and takes them back again (#123). The
+    ///     editor keeps its text and its place and gives up focus, so what is typed lands in the field rather than in
+    ///     the post — and the terminal's own cursor is not left blinking in a body nobody is writing in.
+    /// </summary>
+    [Fact]
+    public async Task Warning_TakesWhatIsTypedWhileCtrlWHasIt()
+    {
+        var (window, editor, compose) = await Replying();
+
+        using (window)
+        {
+            Assert.True(editor.CanFocus);
+
+            window.NewKeyDownEvent(Key.W.WithCtrl);
+
+            Assert.True(compose.WritingTheWarning);
+            Assert.False(editor.CanFocus);
+            Assert.False(editor.HasFocus);
+
+            window.NewKeyDownEvent(Key.C);
+            window.NewKeyDownEvent(Key.W);
+
+            Assert.Equal("cw", compose.Warning);
+            Assert.Equal("@ben@hachyderm.io ", compose.Text);
+
+            window.NewKeyDownEvent(Key.W.WithCtrl);
+
+            Assert.False(compose.WritingTheWarning);
+            Assert.True(editor.CanFocus);
+        }
+    }
+
+    /// <summary>
+    ///     A compose thrown away while its warning had the keys gives them back: the next one opens with the editor
+    ///     focused, the way every compose before it did. Worth pinning because the failure is silent — an editor whose
+    ///     focus was refused still draws, still sits in the right place, and takes not one letter.
+    /// </summary>
+    [Fact]
+    public async Task Warning_LeavesTheNextComposeFocusedOnItsEditor()
+    {
+        var (window, shell) = await Opened(height: 20);
+
+        using (window)
+        {
+            shell.Reply();
+            window.NewKeyDownEvent(Key.W.WithCtrl);
+            shell.Back();
+
+            shell.Reply();
+            window.Layout();
+
+            var editor = Editor(window);
+
+            Assert.True(editor.CanFocus);
+            Assert.True(editor.HasFocus);
+            Assert.False(Assert.IsType<ComposeScreen>(shell.Screen).WritingTheWarning);
+        }
+    }
+
+    /// <summary>
+    ///     And the letters that were going into the field stop going anywhere near the post: <c>c</c> is a compose key
+    ///     everywhere else in the shell, and pressing it while writing a warning types a letter rather than opening a
+    ///     second screen over the first.
+    /// </summary>
+    [Fact]
+    public async Task Warning_TakesTheKeysThatWouldOtherwiseActOnTheScreen()
+    {
+        var (window, shell) = await Opened(height: 20);
+
+        using (window)
+        {
+            shell.Reply();
+            window.Layout();
+
+            var compose = Assert.IsType<ComposeScreen>(shell.Screen);
+
+            window.NewKeyDownEvent(Key.W.WithCtrl);
+            window.NewKeyDownEvent(Key.C);
+
+            Assert.Same(compose, shell.Screen);
+            Assert.Equal("c", compose.Warning);
         }
     }
 

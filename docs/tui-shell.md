@@ -96,6 +96,7 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Follow requests | `a` accept · `x` reject |
 | Direct messages | `⏎` open the conversation · `m` mark read — `m` again inside the thread, where a reader who has just read it is most likely to press it |
 | Conversation | `m` mark read, and every key that acts on a post, since each message in it is one |
+| Compose / reply / edit | `ctrl-s` send or save · `esc` throw it away · `ctrl-w` move the typing between the post and the content warning over it — on a reply, the one compose that carries a warning field (#123) |
 | Home, local, federated, hashtag, Notifications, Messages, Requests, Post, Account | `g` refresh — evicts the destination's cache entry (where one exists) and re-runs the same fetch its own arrival runs |
 
 ### What the four screens settled
@@ -606,6 +607,42 @@ The last two screens, and the one place a screen writes words of its own into wh
 - **The unread indicator is the word, not a glyph.** This client's glyphs already say who can see a post — `○ ◌ ● ✉` —
   and a second circle beside `●` is one mark too many to tell apart at a glance. The word takes `rail-unread`, the same
   role as the badge counting it on the rail.
+
+### What a reply's own content warning settled
+
+`r` on a warned post opened an editor with nothing written over it, so a reply to a warned thing went out bare unless
+its author remembered to warn it again by hand — which Mastodon's own clients do not ask of anybody (#123):
+
+- **A reply opens on the warning of the post it answers**, in a field of its own on the row above the editor. A reply
+  to a warned post is usually about the warned thing, and an author who has to re-type the warning is one who sometimes
+  will not. For a boost it is the warning of the post *inside* it — the post the reply targets, and the resolution
+  `Shell.Compose` already makes for every other key.
+- **Pre-filled, not imposed.** The field is the author's from the moment it opens: kept, edited or cleared, and what
+  goes out is whatever it holds when `ctrl-s` is pressed — letter for letter, spaces included, since a client that
+  tidied a warning would be editing the author's words on the way past. Cleared, it sends no warning at all rather than
+  a post behind a blank — an instance reads an empty `spoiler_text` as no warning, which is what
+  `PostDraft.ContentWarning` already says in null.
+- **The instance's sensitive flag is not carried across.** It is a mark an instance put over somebody else's
+  attachments; a fresh compose has none, and nothing about answering a post says the answer's own media is sensitive.
+  Only the words the author wrote cross over, which is the same split **Warned** draws everywhere else.
+- **`r` only, for now.** #123 asked about the warning a reply inherits; `c` and `e` are untouched and still write a
+  post's text alone, so the editor on those two starts where it always did. `e` is the one with a reason of its own to
+  stay out rather than merely not having been asked about: `PostEdit` tells "leave the warning alone" from "take it
+  away" and an empty field says neither, so a change to an already-published warning is a question of its own. Whether
+  `c` should warn a fresh post is open, and is one line of `ComposeScreen.TakesAWarning` away.
+- **`ctrl-w` moves the typing between the two**, because a terminal editor takes the keys of whichever field has them.
+  While the warning has them the editor gives up focus and keeps its text, every printable key goes into the field —
+  `?` and `/` included, the rule the search prompt already keeps — and the status row says `ctrl-w  back to the post`
+  and stops offering the keymap. `esc` still means what it means everywhere: up one level, throwing the whole compose
+  away.
+- **The row says it is there when it is empty**, muted: `⚠ no content warning`. A row a reader can type into is a row
+  they have to be able to find, and the status row's `ctrl-w` is the other half of saying so. Written, it takes the
+  same `⚠` and the same `content-warning` role a warned post's own warning is drawn in, so a warning being written
+  looks like the warning it will become — with a `▌` caret while it is taking letters, a mark rather than a colour, the
+  way the search prompt's is.
+- **It costs one row above the editor, and it is the last row to give way.** ADR-0015's block already gives up its tail
+  on a terminal too short for everything; the warning field does not, being a row the reader types into rather than a
+  quote of something they can see elsewhere.
 
 ## Starting it, and the one destination that needs configuring
 
