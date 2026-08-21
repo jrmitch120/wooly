@@ -193,6 +193,28 @@ public class TimelineCommandTests : IDisposable
         Assert.Contains("What a flock does all winter", run.Output);
     }
 
+    /// <summary>
+    ///     A post the instance flagged says so wherever the CLI writes one, a timeline's posts included (#122):
+    ///     scrolling past a flagged post and a clean one printed the two identically.
+    /// </summary>
+    [Fact]
+    public void Home_SaysWhichPostsTheInstanceFlaggedSensitive()
+    {
+        AddProfile();
+        _timelines = FakeTimelineReader.Holding(
+            APost.With(id: "110", content: "Look away", sensitive: true, media: [APost.APicture()]),
+            APost.With(id: "111", content: "Nothing to see"));
+
+        var output = Run(["timeline", "home"]).Output;
+
+        // Said once, and on the flagged post rather than the clean one below it.
+        Assert.Equal(1, output.Split("marked sensitive").Length - 1);
+        Assert.True(
+            output.IndexOf("marked sensitive", StringComparison.Ordinal)
+            < output.IndexOf("Nothing to see", StringComparison.Ordinal),
+            "The line stands on the post the instance flagged.");
+    }
+
     [Fact]
     public void Home_ShowsAContentWarningApartFromThePostsText()
     {

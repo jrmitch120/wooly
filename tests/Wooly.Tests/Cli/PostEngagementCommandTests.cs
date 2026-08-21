@@ -458,6 +458,130 @@ public class PostEngagementCommandTests : IDisposable
         Assert.False(post.TryGetProperty("linkPreview", out _));
     }
 
+    /// <summary>
+    ///     #122: a post the instance flagged says so, beside the warning its author wrote rather than instead of it.
+    ///     The two are separate fields on the wire and separate promises to a reader, so a report that folded one into
+    ///     the other would print a flagged post exactly like a clean one.
+    /// </summary>
+    [Fact]
+    public void Show_SaysTheInstanceFlaggedThePostBesideTheWarningItsAuthorWrote()
+    {
+        AddProfile();
+        _posts = FakePostEngagement.Answering(APost.With(
+            contentWarning: "spoilers",
+            sensitive: true,
+            media: [APost.APicture()]));
+
+        var output = Run(["post", "show", "110"]).Output.ReplaceLineEndings("\n");
+
+        Assert.Contains("  content warning: spoilers\n  marked sensitive\n", output);
+
+        // Said, not acted on: the address is printed as it always was (ADR-0016).
+        Assert.Contains("https://files.mastodon.social/m1/original.png", output);
+    }
+
+    /// <summary>
+    ///     The flag stands on its own. Mastodon's commonest sensitive post is a picture with nothing written over it,
+    ///     so a report that only spoke where a warning already had would say nothing on exactly those.
+    /// </summary>
+    [Fact]
+    public void Show_SaysSoForAPostFlaggedWithNothingWrittenOverIt()
+    {
+        AddProfile();
+        _posts = FakePostEngagement.Answering(APost.With(sensitive: true, media: [APost.APicture()]));
+
+        Assert.Contains("marked sensitive", Run(["post", "show", "110"]).Output);
+    }
+
+    /// <summary>
+    ///     The flag is reported as the instance set it, including on a post carrying nothing for it to be over — which
+    ///     an instance is free to send. <see cref="Post.IsWarned" /> discounts that post because there is nothing there
+    ///     to ask past; this surface asks past nothing and so has nothing to discount, only a flag to report.
+    /// </summary>
+    [Fact]
+    public void Show_SaysSoEvenWhereThePostCarriesNothingTheFlagCouldBeOver()
+    {
+        AddProfile();
+        _posts = FakePostEngagement.Answering(APost.With(sensitive: true));
+
+        Assert.Contains("marked sensitive", Run(["post", "show", "110"]).Output);
+    }
+
+    /// <summary>
+    ///     A post nobody flagged says nothing: the line is a fact about the post, not a heading over every one.
+    /// </summary>
+    [Fact]
+    public void Show_SaysNothingAboutTheFlagOnAPostTheInstanceDidNotFlag()
+    {
+        AddProfile();
+        _posts = FakePostEngagement.Answering(APost.With(media: [APost.APicture()]));
+
+        Assert.DoesNotContain("marked sensitive", Run(["post", "show", "110"]).Output);
+    }
+
+    /// <summary>
+    ///     A boost carries the flag of the post it points at, like every other thing about it: the boost itself has no
+    ///     media of its own for a flag to be over, and what is on screen is the post underneath.
+    /// </summary>
+    [Fact]
+    public void Show_SaysTheFlagOfThePostABoostPointsAt()
+    {
+        AddProfile();
+        _posts = FakePostEngagement.Answering(APost.With(
+            account: "sam@hachyderm.io",
+            boosted: APost.With(sensitive: true, media: [APost.APicture()])));
+
+        Assert.Contains("marked sensitive", Run(["post", "show", "110"]).Output);
+    }
+
+    /// <summary>
+    ///     And a script reads that flag off the post the boost points at, where the human output reads it — the boost
+    ///     itself answers for the boost, the way <c>contentWarning</c> and <c>media</c> already do.
+    /// </summary>
+    [Fact]
+    public void Show_WritesTheFlagOfABoostOnThePostItPointsAt()
+    {
+        AddProfile();
+        _posts = FakePostEngagement.Answering(APost.With(
+            account: "sam@hachyderm.io",
+            boosted: APost.With(sensitive: true, media: [APost.APicture()])));
+
+        var post = JsonDocument.Parse(Run(["post", "show", "110", "--json"]).Output).RootElement;
+
+        Assert.True(post.GetProperty("boosted").GetProperty("sensitive").GetBoolean());
+        Assert.False(post.GetProperty("sensitive").GetBoolean());
+    }
+
+    /// <summary>
+    ///     The same fact for a script, so <c>--json</c> and the human output agree about a post rather than one of
+    ///     them alone being able to tell a flagged post from a clean one (#122).
+    /// </summary>
+    [Fact]
+    public void Show_WritesTheSensitiveFlagAsMachineReadableJson()
+    {
+        AddProfile();
+        _posts = FakePostEngagement.Answering(APost.With(sensitive: true, media: [APost.APicture()]));
+
+        var post = JsonDocument.Parse(Run(["post", "show", "110", "--json"]).Output).RootElement;
+
+        Assert.True(post.GetProperty("sensitive").GetBoolean());
+    }
+
+    /// <summary>
+    ///     Written on every post rather than only the flagged ones, unlike the keys this client leaves out where they
+    ///     do not apply: <see langword="false" /> is an answer rather than an absence, and a script filtering a
+    ///     timeline on it should not have to tell "not flagged" from "a client too old to say".
+    /// </summary>
+    [Fact]
+    public void Show_WritesTheSensitiveFlagOnAPostNobodyFlaggedToo()
+    {
+        AddProfile();
+
+        var post = JsonDocument.Parse(Run(["post", "show", "110", "--json"]).Output).RootElement;
+
+        Assert.False(post.GetProperty("sensitive").GetBoolean());
+    }
+
     [Fact]
     public void Show_MarksAReplyAsAnsweringTheAccountItNames()
     {

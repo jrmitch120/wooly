@@ -91,6 +91,17 @@ internal static class PostReport
     }
 
     /// <summary>Writes the post itself: who wrote it, when, what it says, and how it has been received.</summary>
+    /// <remarks>
+    ///     Both halves of what a post is put behind are named — the warning its author wrote and the flag its
+    ///     instance raised — and neither hides anything here. That is ADR-0016's asymmetry with the TUI kept and
+    ///     completed rather than reversed (#122): a surface with no key to ask past a warning with must not hold an
+    ///     address back, but printing a flagged post and a clean one identically told the reader nothing at all.
+    ///     <para>
+    ///         Said whatever the post carries, unlike <see cref="Post.IsWarned" />, which discounts the flag on a post
+    ///         with neither attachments nor a link preview under it. That discount is about whether there is anything
+    ///         to ask past; here there is nothing to ask past on any post, and what is left is a flag to report.
+    ///     </para>
+    /// </remarks>
     public static void Write(IAnsiConsole console, Post post)
     {
         // A boost carries none of its own text, so what gets shown is the post it points at — with the account that
@@ -115,6 +126,13 @@ internal static class PostReport
         if (shown.ContentWarning is not null)
         {
             console.MarkupLineInterpolated($"  [yellow]content warning:[/] {shown.ContentWarning}");
+        }
+
+        // Beside the warning rather than folded into it: two fields on the wire, and the flag is commonly the only
+        // one of them a post carries. Nothing is hidden by either here — this line only says what the instance did.
+        if (shown.Sensitive)
+        {
+            console.MarkupLine("  [yellow]marked sensitive[/]");
         }
 
         // A post can have no text at all — one that is nothing but media, or a poll. Splitting an empty string would

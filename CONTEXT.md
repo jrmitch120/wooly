@@ -69,6 +69,11 @@ the flag counts for nothing only on a post carrying neither, since there is then
 What is hidden is hidden on every screen; what is *offered* follows what the screen has **Picked**, so the
 conversations list draws a warned message's warning with no `x` named under it — a row there is a **conversation**, so
 there is no post for that key to be asked about and nothing it could do (#120).
+All of the hiding is the TUI's: the CLI writes both halves and holds nothing back — the warning's text, and
+`marked sensitive` under it on a post the instance flagged, with `sensitive` beside `contentWarning` in `--json`
+(#122). Naming a flag is not honouring it, and a surface with no `x` on it prints a flagged post and a clean one
+identically unless it says which is which. The flag is reported there as the instance set it, on a post carrying
+nothing under it too: the carve-out above answers what there is to ask past, and this surface asks past nothing.
 _Avoid_: spoilered, blurred, NSFW, hidden (which is what a warning does, not what a post is)
 
 **Drawn**:
