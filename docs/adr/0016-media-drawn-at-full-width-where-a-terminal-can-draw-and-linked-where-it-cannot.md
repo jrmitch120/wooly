@@ -279,13 +279,22 @@ flagged post carries only this one — a marker that spoke only where a warning 
 exactly the posts it exists for. The TUI's own wording is not borrowed: `⚠ Sensitive media` names what is behind the
 row and offers the key that shows it, and neither half of that sentence is true here.
 
+A post carrying both prints both lines, and that is the other direction of the same rule rather than an oversight. An
+instance commonly raises the flag whenever a warning is written — this client's own edit does, deliberately, so that
+fixing a typo cannot unblur a picture — so the pairing is the common case rather than a rare one, and a line that
+went quiet whenever a warning stood above it would be unreadable exactly where it was needed: the reader could no
+longer tell a warned post whose media was flagged from a warned post whose media was not. Two facts, two lines, and
+the second of them is two words.
+
 **It is said on every flagged post, including one carrying nothing for the flag to be over.** `Post.IsWarned`
 discounts that post — with no attachments and no preview there is nothing behind anything and no reason to spend `x`
 on it — and this surface deliberately does not follow it there. That discount answers "is there anything to ask
 past", which is a question the CLI never asks on any post. What is left when it is not asked is the instance's own
 flag, and reporting it as the instance set it is the only rule a script can hold this output to. It also keeps the
 human line and the `--json` field saying the same thing about the same post, which is what makes them checkable
-against each other.
+against each other — a boost included, where both read the flag off the post being pointed at: the human report
+writes the post underneath, and the document's own `sensitive` answers for the boost while `boosted.sensitive`
+answers for what is on screen, which is where `contentWarning` and `media` already are.
 
 **`--json` grows `sensitive`, beside `contentWarning`, and writes it on every post rather than only the flagged
 ones.** That is a different rule from `linkPreview`, `description` and everything else this client leaves out where it

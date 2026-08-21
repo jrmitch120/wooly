@@ -14,14 +14,20 @@ namespace Wooly.Cli.Output;
 ///         describe the same post differently.
 ///     </para>
 /// </summary>
-/// <param name="Visibility">Who can see it, in the same words <c>--visibility</c> takes.</param>
 /// <param name="Sensitive">
 ///     Whether the instance flagged what the post carries as something to ask for before seeing (#122). Written on
 ///     every post rather than only the flagged ones, unlike the keys this document leaves out where they do not apply:
 ///     <see langword="false" /> is an answer, and a script filtering on it should not have to tell a post nobody
 ///     flagged from a client too old to say. Beside <c>contentWarning</c>, which is the other half of the same promise
 ///     and the half a post commonly does not carry.
+///     <para>
+///         A boost carries its own, which is the flag on the boost rather than on what it points at: a boost has no
+///         media of its own, so the answer for what is on screen is <c>boosted.sensitive</c>, exactly as it is
+///         <c>boosted.contentWarning</c> for the warning and <c>boosted.media</c> for the attachments. The human
+///         report reads the post underneath for the same reason.
+///     </para>
 /// </param>
+/// <param name="Visibility">Who can see it, in the same words <c>--visibility</c> takes.</param>
 /// <param name="Media">
 ///     What is attached, in the order the author attached it, and empty where nothing is. Written out even though the
 ///     human output links it too, because the whole point of <c>--json</c> is that a script does not have to read the

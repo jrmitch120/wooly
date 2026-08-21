@@ -202,12 +202,17 @@ public class TimelineCommandTests : IDisposable
     {
         AddProfile();
         _timelines = FakeTimelineReader.Holding(
-            APost.With(id: "110", sensitive: true, media: [APost.APicture()]),
+            APost.With(id: "110", content: "Look away", sensitive: true, media: [APost.APicture()]),
             APost.With(id: "111", content: "Nothing to see"));
 
-        var run = Run(["timeline", "home"]);
+        var output = Run(["timeline", "home"]).Output;
 
-        Assert.Equal(1, run.Output.Split("marked sensitive").Length - 1);
+        // Said once, and on the flagged post rather than the clean one below it.
+        Assert.Equal(1, output.Split("marked sensitive").Length - 1);
+        Assert.True(
+            output.IndexOf("marked sensitive", StringComparison.Ordinal)
+            < output.IndexOf("Nothing to see", StringComparison.Ordinal),
+            "The line stands on the post the instance flagged.");
     }
 
     [Fact]

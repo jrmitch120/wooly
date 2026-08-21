@@ -516,7 +516,7 @@ public class PostEngagementCommandTests : IDisposable
         AddProfile();
         _posts = FakePostEngagement.Answering(APost.With(media: [APost.APicture()]));
 
-        Assert.DoesNotContain("sensitive", Run(["post", "show", "110"]).Output);
+        Assert.DoesNotContain("marked sensitive", Run(["post", "show", "110"]).Output);
     }
 
     /// <summary>
@@ -532,6 +532,24 @@ public class PostEngagementCommandTests : IDisposable
             boosted: APost.With(sensitive: true, media: [APost.APicture()])));
 
         Assert.Contains("marked sensitive", Run(["post", "show", "110"]).Output);
+    }
+
+    /// <summary>
+    ///     And a script reads that flag off the post the boost points at, where the human output reads it — the boost
+    ///     itself answers for the boost, the way <c>contentWarning</c> and <c>media</c> already do.
+    /// </summary>
+    [Fact]
+    public void Show_WritesTheFlagOfABoostOnThePostItPointsAt()
+    {
+        AddProfile();
+        _posts = FakePostEngagement.Answering(APost.With(
+            account: "sam@hachyderm.io",
+            boosted: APost.With(sensitive: true, media: [APost.APicture()])));
+
+        var post = JsonDocument.Parse(Run(["post", "show", "110", "--json"]).Output).RootElement;
+
+        Assert.True(post.GetProperty("boosted").GetProperty("sensitive").GetBoolean());
+        Assert.False(post.GetProperty("sensitive").GetBoolean());
     }
 
     /// <summary>
