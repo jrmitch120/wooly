@@ -1,3 +1,4 @@
+using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
@@ -87,6 +88,152 @@ public class ScreenRevealTests
         Assert.False(new FeedScreen(new Destination(DestinationKind.Home, "Home"), []).Reveal());
     }
 
-    private static FeedScreen Feed(params Wooly.Core.Posts.Post[] posts) =>
+    /// <summary>
+    ///     A reveal belongs to the screen it was made on, so drilling into a post asked past in the feed asks again:
+    ///     the post screen is a new screen, and a warning is a request to be asked before being shown (#121).
+    /// </summary>
+    /// <remarks>
+    ///     The key being used a second time is the whole of the assertion — <see cref="Screen.Reveal" /> answers
+    ///     <see langword="false" /> on a warning already asked past, so a <see langword="true" /> down here is the post
+    ///     screen finding it still hidden.
+    /// </remarks>
+    [Fact]
+    public async Task Reveal_AsksAgainOnAScreenDrilledIntoFromTheOneItWasMadeOn()
+    {
+        var built = Warned();
+        var shell = await built.Opened();
+
+        Assert.True(shell.Screen.Reveal());
+
+        await shell.Enter();
+        built.Host.Drain();
+
+        var post = Assert.IsType<PostScreen>(shell.Screen);
+
+        Assert.Equal("110", post.Post.Id);
+        Assert.True(post.Reveal());
+    }
+
+    /// <summary>
+    ///     And walking back out finds it still asked past: a pop hands back the very screen the reveal was made on,
+    ///     the same law the page a screen is on follows (#133, #121).
+    /// </summary>
+    [Fact]
+    public async Task Reveal_StandsOnAScreenWalkedBackOutTo()
+    {
+        var built = Warned();
+        var shell = await built.Opened();
+
+        var feed = shell.Screen;
+
+        Assert.True(feed.Reveal());
+
+        await shell.Enter();
+        built.Host.Drain();
+
+        shell.Back();
+
+        Assert.Same(feed, shell.Screen);
+        Assert.False(shell.Screen.Reveal());
+    }
+
+    /// <summary>
+    ///     And a screen popped is a reveal gone with it, which is the half of the rule the two above do not reach: the
+    ///     reader asks past the warning down on the post screen, walks out, and drills in again to a screen that has
+    ///     been asked nothing (#121).
+    /// </summary>
+    /// <remarks>
+    ///     The one assertion here that a <c>Revealed</c> shared by the whole stack would fail, and so the one that
+    ///     pins which of the two designs this is: under a shared one the second drill-in would find the post already
+    ///     asked past, and <c>x</c> would go unused.
+    /// </remarks>
+    [Fact]
+    public async Task Reveal_LapsesWithTheScreenItWasMadeOnWhenThatScreenIsPopped()
+    {
+        var built = Warned();
+        var shell = await built.Opened();
+
+        await shell.Enter();
+        built.Host.Drain();
+
+        var post = shell.Screen;
+
+        Assert.True(post.Reveal());
+
+        shell.Back();
+
+        await shell.Enter();
+        built.Host.Drain();
+
+        Assert.NotSame(post, shell.Screen);
+        Assert.True(shell.Screen.Reveal());
+    }
+
+    /// <summary>
+    ///     A refresh lapses it, for the reason it opens at the top again: <c>g</c> builds a screen rather than changing
+    ///     the one in hand, and a screen nobody has read yet has been asked nothing (#121).
+    /// </summary>
+    /// <remarks>
+    ///     Both of the ways a refresh replaces a screen, since they are different code: a destination's is the arrival
+    ///     it already arrives by, and the post screen's is <c>Freshened</c> putting a new screen in place of the top of
+    ///     the stack (#84).
+    /// </remarks>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Reveal_LapsesWhenTheScreenIsRefreshed(bool insideThePost)
+    {
+        var built = Warned();
+        var shell = await built.Opened();
+
+        if (insideThePost)
+        {
+            await shell.Enter();
+            built.Host.Drain();
+
+            Assert.IsType<PostScreen>(shell.Screen);
+        }
+
+        var before = shell.Screen;
+
+        Assert.True(before.Reveal());
+
+        await shell.Refresh();
+        built.Host.Drain();
+
+        Assert.NotSame(before, shell.Screen);
+        Assert.True(shell.Screen.Reveal());
+    }
+
+    /// <summary>
+    ///     A mark does not lapse it, which is the other half of "the screen being replaced is what does": favoriting
+    ///     puts a fresh copy of the post on the same screen, and the set is keyed by post id rather than by the copy in
+    ///     hand — so a star lighting up does not put the warning back (#121).
+    /// </summary>
+    [Fact]
+    public async Task Reveal_StandsWhenAMarkReplacesThePostInPlace()
+    {
+        var built = Warned();
+
+        built.Engagement = FakePostEngagement.Answering(Spoilered() with { Marks = APost.Marked(favorited: true) });
+
+        var shell = await built.Opened();
+
+        Assert.True(shell.Screen.Reveal());
+
+        await shell.Mark(PostMark.Favorite);
+        built.Host.Drain();
+
+        Assert.True(shell.Screen.Picked?.Marks.Favorited);
+        Assert.False(shell.Screen.Reveal());
+    }
+
+    /// <summary>A shell over one warned post, which is the whole feed and the post every drill-in opens.</summary>
+    private static AShell Warned() => new() { Timelines = FakeTimelineReader.Holding(Spoilered()) };
+
+    /// <summary>That post: the one thing on the feed, and the only thing any of these presses can act on.</summary>
+    private static Post Spoilered() => APost.With(id: "110", contentWarning: "spoilers");
+
+    private static FeedScreen Feed(params Post[] posts) =>
         new(new Destination(DestinationKind.Home, "Home"), posts);
 }

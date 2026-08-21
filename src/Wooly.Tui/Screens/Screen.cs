@@ -29,8 +29,9 @@ public abstract class Screen
     /// <remarks>
     ///     One set on the screen rather than one per post, for the reason a reference pick is one index: it belongs to
     ///     the post being read, and walking off that post is what discards it. Unlike <see cref="Revealed" />, which
-    ///     survives being walked past because asking to see a warning is a decision about the post, a toggle is a
-    ///     half-finished sentence — and a vote nobody meant to cast is exactly what confirming one is for (#87).
+    ///     survives the pick moving off the post and back onto it, a toggle is a half-finished sentence — and a vote
+    ///     nobody meant to cast is exactly what confirming one is for (#87). Both are the screen's and go with it, but
+    ///     only one of them survives <c>j</c>.
     /// </remarks>
     private readonly HashSet<int> _chosen = [];
 
@@ -438,6 +439,12 @@ public abstract class Screen
     ///     Held here rather than six times over, because what <c>x</c> does turned out not to vary by screen at all —
     ///     it is <see cref="Picked" /> and one question. Kept out of <see cref="Picked{T}" /> for the opposite reason:
     ///     only posts carry a warning, and a list of conversations or of accounts would be holding it for nothing.
+    ///     <para>
+    ///         One per screen, and so a reveal belongs to the screen it was made on and lasts exactly as long as that
+    ///         screen is on the stack — the same lifetime <see cref="Began" /> has, and for the same reason: both are
+    ///         what this reader did to what is in front of them here. Why that rather than one shared by the stack is
+    ///         argued where the rest of the contract is (<c>docs/tui-shell.md</c>, #121).
+    ///     </para>
     /// </remarks>
     protected Revealed Revealed { get; } = new();
 

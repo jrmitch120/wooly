@@ -82,7 +82,7 @@ Feed and post:
 | `p` | Pin / unpin | Own posts only |
 | `e` | Edit | Own posts only |
 | `d` | Delete | Own posts only, **confirmation required** (story 43) |
-| `x` | Show what the post is hiding | Its warned text and poll, its sensitive attachments and link preview, or both halves at once (#113, #116, #119) |
+| `x` | Show what the post is hiding | Its warned text and poll, its sensitive attachments and link preview, or both halves at once (#113, #116, #119). What it showed belongs to the screen it was pressed on (#121, below) |
 | `←` `→` | Walk the references (hashtag, mention, link) inside the picked post | Clamps at the ends; `esc`/`j`/`k` clear the pick; `⏎` opens what's picked (below) |
 | `1`-`9` `0` | Toggle the 1st-10th option of the picked post's poll | Only where the poll is on screen and would still take a vote — no-op otherwise, and off the status row there too; `esc`/`j`/`k` discard the toggle |
 | `v` | Cast the toggled poll vote | **Confirmation required** (story 43), same as delete. Only where the poll is on screen and would still take a vote — and on a poll already voted in or closed, says which rather than asking |
@@ -146,6 +146,21 @@ not answer them differently:
   the row still acts on it, since a post being read is still a post to boost, favorite, answer or take down. Which row
   that is is found by the post's id rather than by an ordinal: it stopped being the first thing on the screen when the
   ancestors landed above it, and a deletion higher up the chain moves it again.
+- **A reveal belongs to the screen it was made on, and lasts exactly as long as that screen does** (#121). `x` writes
+  to a `Revealed` the screen holds, so a warning asked past on the feed stays past for as long as that feed screen is
+  on the stack: through `j`/`k` and the arrows, through a boost or a favorite putting a fresh copy of the post in place
+  — the set is keyed by post id rather than by the copy in hand — and through drilling in and walking back out, since a
+  pop hands back the very screen the reveal was made on rather than building another. **What ends a reveal is that
+  screen ending**, which is three things and no others: `esc` pops it, `g` replaces it with a fresh one, and arriving
+  at a destination clears the stack out from under it. Nothing else prunes anything, and nothing needs to — the same
+  law the page a screen is showing follows (`Screen.Began`, below).
+  Drilling in asks again even though nothing lapsed, which is the other half of the same rule rather than an exception
+  to it: the post screen is a *new* screen and has been asked nothing, and so is the same post reached again through a
+  search result. Two presses of `x` on one post is the expected shape of this. One `Revealed` shared by the whole stack
+  was the alternative — a post asked past staying asked past wherever it was next drawn — and was refused. A warning is
+  a request to be asked before being shown, and honouring it once is not consent to skip the asking everywhere
+  afterwards; showing somebody something on the strength of a press made on a screen they have since left is the one
+  thing this key can get wrong that pressing it again does not undo.
 
 ### What a post's byline settled
 
