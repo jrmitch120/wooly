@@ -523,12 +523,26 @@ selection was the only scroll position a screen had and the foot of such a post 
   any other; every screen holding a selection numbers its rows with the same ordinal `Screen.Pick` takes, including the
   four that do not number a plain list of posts — the post screen, where the ancestors come first and the post itself
   is at `ancestors.Count` (#86), search across its three kinds, notifications, and direct messages.
-- **The offset starts again whenever the screen is replaced, with no exceptions.** Pushing a screen, popping back to
-  one, arriving at a destination and refreshing all mean different rows, and an offset made on the last lot says
-  nothing about this one — so it starts at row 0 and follows the pick again (`Restart`). On every screen but one that
-  is also where the pick is, since they open on their first thing; the post screen opens on a post with its ancestors
-  above it, and following the pick is what carries the page down to it on the first draw rather than opening the
-  reader onto the top of somebody else's thread (#86).
+- **The offset starts again whenever the screen is replaced by another one.** Pushing a screen, arriving at a
+  destination and refreshing all mean different rows, and an offset made on the last lot says nothing about this one —
+  so it starts at row 0 and follows the pick again. On every screen but one that is also where the pick is, since they
+  open on their first thing; the post screen opens on a post with its ancestors above it, and following the pick is
+  what carries the page down to it on the first draw rather than opening the reader onto the top of somebody else's
+  thread (#86).
+- **A screen walked back out to gets its page back, which is the one exception.** A pop is the replacement whose
+  premise is false: the stack hands back the very screen that was drilled off, holding the very list the offset was
+  made on, so starting again moves the page under a reader who has not moved — and the further down the feed they were
+  reading, the further it moves (#133). Each screen keeps the row its page last began on and whether that page was
+  still following the pick (`Screen.Began`, `Screen.Followed`), which the window writes onto the screen it is leaving
+  and resumes on the one it is arriving at (`Resume`). The follow flag is carried as well as the row, because a reader
+  who had walked the page away from the pick with `↓` should come back to what they were reading rather than be
+  snapped onto the pick. Nothing gates this on the pop and nothing needs pruning: a push, an arrival and a refresh
+  each build a *new* screen, which remembers row 0 and following — so `Resume` is the whole of what a replacement
+  does to the offset, and starting again is what it says on a screen nobody has read yet — and a screen is on the
+  stack for precisely as long as there is somewhere to walk back to it from. A remembered offset can be stale by
+  the time it is walked back to, the terminal having been resized or a post deleted out of the screen while the reader
+  was away; the clamp the draw already applies is the whole of the answer to that, since the page is then wrong by at
+  most the height of whatever changed and `j` reclaims — which is strictly closer than starting again.
 - **`PgUp`/`PgDn` walk the screen, `Home`/`End` walk the selection.** A page is a screenful of rows, because that is
   what a page is: somebody asking for the next one is asking about what they are looking at, not about how many posts
   happen to be on it. They used to move the selection by ten posts, which on a feed with pictures on it was several

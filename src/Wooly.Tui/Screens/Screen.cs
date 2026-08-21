@@ -409,6 +409,30 @@ public abstract class Screen
 
 
 
+    /// <summary>
+    ///     The row this screen's page last began on, and whether that page was still following the pick — where the
+    ///     reader was standing when they drilled off it, so that walking back out puts them there again (#133).
+    /// </summary>
+    /// <remarks>
+    ///     Plain data the screen keeps and never reads, the way it keeps <see cref="Revealed" /> without knowing what
+    ///     a terminal is: what a row means is the content region's, and this is only somewhere to leave it. Its
+    ///     lifetime needs no minding either — a screen is on the stack for precisely as long as there is somewhere to
+    ///     walk back to it from.
+    ///     <para>
+    ///         Nought and following on a screen nobody has read yet, which is what makes a push, an arrival and a
+    ///         refresh go on opening at the top with nothing gating them: each of the three builds a new screen, and a
+    ///         new screen remembers nothing.
+    ///     </para>
+    /// </remarks>
+    internal int Began { get; set; }
+
+    /// <summary>
+    ///     Whether that page was still following the pick, or had been walked away from it with <c>↓</c> and <c>↑</c>.
+    ///     Kept beside <see cref="Began" /> because a row on its own is not where somebody was: resumed as following,
+    ///     a page walked away from the pick is snapped back onto it by the very first frame.
+    /// </summary>
+    internal bool Followed { get; set; } = true;
+
     /// <summary>The posts the reader has asked past the warning on, by the id of each.</summary>
     /// <remarks>
     ///     Held here rather than six times over, because what <c>x</c> does turned out not to vary by screen at all —
