@@ -187,6 +187,18 @@ you are going to, this is about what you are looking at once you are there. A sc
 picked, which is a fact about the list rather than a place in it.
 _Avoid_: cursor, selection, highlight, current row
 
+**Page**:
+Which of a screen's rows are in front of the reader: the row the content region begins on, together with whether it is
+still following what is **Picked** or has been walked away from it with `↓`/`↑` (#51). Both halves at once, because a
+row on its own is not where somebody was standing — a page walked away from the pick and put back as following is
+snapped onto the pick by the very next frame. Kept by the screen rather than by the region, since the region only ever
+shows one screen and the offset it is holding is that screen's: walking back out of a drill hands the same screen back,
+and its page with it (#133). Distinct from **Picked**, which survives a pop of its own accord because the stack keeps
+the screen — a page is the other half of standing in the same place. A screen nobody has read yet has a page of row 0,
+following, which is what opens a pushed screen, an **Arrival** and a **Refresh** at the top with nothing having to ask
+which of the three it is.
+_Avoid_: scroll state, viewport
+
 **Reference**:
 A hashtag, a mention, or an address found inside a post's text — or an **Attachment**'s own address, once it is not
 drawn as a picture in its own right (ADR-0017), or a **Link preview**'s own address (ADR-0018) — the things `←`/`→`

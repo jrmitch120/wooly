@@ -1060,8 +1060,9 @@ public sealed class Shell
     ///         In place of the top rather than pushed or reset: a refresh redraws where somebody is standing, so the
     ///         way they got there is still under them and <c>esc</c> still walks back out of it. A different screen
     ///         object rather than the same one changed, which is how the view is told the screen was replaced at all
-    ///         (<c>docs/tui-shell.md</c>) — and a refresh is the one replacement whose offset is put back rather than
-    ///         started again, which the view settles from the place it is holding.
+    ///         (<c>docs/tui-shell.md</c>) — and being a new screen is also what opens it at the top, since the page a
+    ///         screen remembers is its own and a fresh one remembers none. Walking back out is the one replacement
+    ///         that keeps the page it was left on, and a refresh is not one (#133).
     ///     </para>
     /// </remarks>
     private void Freshened(Screen showing, Screen fresh)

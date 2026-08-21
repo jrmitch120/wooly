@@ -160,23 +160,47 @@ internal sealed class PaintedView : View
     /// </remarks>
     internal int Top => _top;
 
-
+    /// <summary>
+    ///     Whether the page is still following the selection, or has been walked away from it with <c>↓</c> and
+    ///     <c>↑</c>. The other half of where a reader was left, which is why a screen being drilled off keeps it
+    ///     beside the row (#133).
+    /// </summary>
+    internal bool Following => _following;
 
     /// <summary>
-    ///     Starts again at the top, following. What a screen being replaced does — pushed, popped back to, or a
-    ///     destination arrived at — because a row offset is about the rows it was made on and means nothing on
-    ///     somebody else's.
+    ///     Puts the page where the screen now being shown was left: at <paramref name="top" />, following the
+    ///     selection again only if it was still following when the reader drilled off it. The one thing a screen being
+    ///     replaced does to the offset, whichever kind of replacement it is (#133).
     /// </summary>
     /// <remarks>
-    ///     A refresh included, since what <c>g</c> is for is seeing what has arrived and what has arrived is above
-    ///     everything already read (#84). Most screens open with their first thing picked out, so this row is where
-    ///     the pick is anyway; the post screen is the one that does not, opening on a post with its ancestors drawn
-    ///     above it — and following is what carries the page down to it on the first draw (#86).
+    ///     Which is what makes the four replacements answer differently without anything here asking which one it is.
+    ///     A screen nobody has read yet remembers row 0 and following, so a push, a destination arrived at and a
+    ///     refresh all start again at the top — a row offset is about the rows it was made on and means nothing on
+    ///     another lot, and what <c>g</c> is for is seeing what has arrived, which is above everything already read
+    ///     (#84). Only a pop hands back a screen that remembers anything, and its rows are the very rows the offset
+    ///     was made on.
+    ///     <para>
+    ///         Starting again at the top is where the pick is on every screen but one, since they open on their first
+    ///         thing; the post screen opens on a post with its ancestors drawn above it, and following is what carries
+    ///         the page down to it on the first draw (#86).
+    ///     </para>
+    ///     <para>
+    ///         Carrying the follow flag matters as much as the row: a reader who had walked the page away from the
+    ///         pick with <c>↓</c> should come back to what they were reading rather than be snapped onto the pick by
+    ///         the first frame.
+    ///     </para>
+    ///     <para>
+    ///         Not held to the rows there are, for the reason <see cref="Step" /> is not: the offset can be stale by
+    ///         the time it is walked back to — the terminal resized, a post deleted out of the screen, a picture
+    ///         changing how tall a post is — and the draw's clamp is what settles that, on rows it has in hand.
+    ///     </para>
     /// </remarks>
-    public void Restart()
+    /// <param name="top">The row the page began on.</param>
+    /// <param name="following">Whether it was still following the selection.</param>
+    public void Resume(int top, bool following)
     {
-        _top = 0;
-        _following = true;
+        _top = top;
+        _following = following;
     }
 
     /// <summary>

@@ -53,21 +53,48 @@ public class ContentScrollTests
     }
 
     /// <summary>
-    ///     A screen being replaced starts again at the top, rather than at a row offset made on somebody else's rows —
-    ///     the pushed screen would otherwise open half way down.
+    ///     A screen being replaced by one nobody has read yet starts again at the top, rather than at a row offset
+    ///     made on somebody else's rows — the pushed screen would otherwise open half way down.
     /// </summary>
     [Fact]
-    public void Restart_PutsTheScrollBackToTheTop()
+    public void Resume_AtTheTopStartsTheScreenAgain()
     {
         var content = Content();
 
         content.Step(10);
-        content.Restart();
+        content.Resume(0, following: true);
 
         Assert.Null(content.Reclaimable);
         Assert.Equal(0, content.Top);
+        Assert.True(content.Following);
     }
 
+    /// <summary>
+    ///     And a screen walked back out to gets its page back where the reader left it: the rows are the very rows the
+    ///     offset was made on, which is the one replacement that is not somebody else's list (#133).
+    /// </summary>
+    [Fact]
+    public void Resume_PutsTheScrollBackWhereItWasLeft()
+    {
+        var content = Content();
+
+        content.Step(10);
+
+        Assert.Equal(10, content.Top);
+        Assert.False(content.Following);
+
+        // What was drilled into took the region to the top of its own rows; this is the walk back out to what the
+        // screen underneath was left at.
+        content.Resume(0, following: true);
+        content.Resume(10, following: false);
+
+        Assert.Equal(10, content.Top);
+        Assert.Equal(1, content.Reclaimable);
+
+        // Carried as well as the row: a reader who had walked the page away from the pick comes back to what they
+        // were looking at rather than being snapped onto it.
+        Assert.False(content.Following);
+    }
 
     /// <summary>
     ///     A page is a screenful and no more: what was under the last row of one page is the first row of the next.

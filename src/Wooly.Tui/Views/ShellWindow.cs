@@ -49,7 +49,8 @@ internal sealed class ShellWindow : Window
 
     /// <summary>
     ///     Which screen the content region is showing, so that a screen being replaced can be told apart from the same
-    ///     one changing. The scroll starts again on the first and is left alone on the second.
+    ///     one changing. The scroll is settled from what the incoming screen remembers on the first — nothing, on one
+    ///     nobody has read yet, which is the top — and left alone on the second.
     /// </summary>
     /// <remarks>
     ///     Set from the shell it is built over rather than left empty until the first change, because the region draws
@@ -515,8 +516,8 @@ internal sealed class ShellWindow : Window
     ///     the screen on top has nothing to ask again.
     ///     <para>
     ///         Nothing is held and nothing is awaited. The reader has asked to see what is new, and what is new is at
-    ///         the top — so the answer is a screen change like any other, and <see cref="Refresh" /> starts the page
-    ///         again at row 0 when it arrives.
+    ///         the top — so the answer is a screen change like any other, and the screen it changes to is a fresh one,
+    ///         which remembers no page and so opens at row 0 when <see cref="Refresh" /> resumes it (#133).
     ///     </para>
     /// </remarks>
     private void Refreshed() => _ = _shell.Refresh();
@@ -538,21 +539,32 @@ internal sealed class ShellWindow : Window
     ///     the two is showing is a fact about the stack, not a mode this view keeps of its own.
     /// </summary>
     /// <remarks>
-    ///     Also where a screen being replaced is noticed, which is what puts the scroll back to the top: pushing a
-    ///     screen, popping back to one and arriving at a destination all mean different rows, and an offset the arrows
-    ///     made on the last lot says nothing about this one.
+    ///     Also where a screen being replaced is noticed, which is what settles the scroll: pushing a screen and
+    ///     arriving at a destination both mean different rows, and an offset the arrows made on the last lot says
+    ///     nothing about this one — so each screen is left where it was and resumed where it was, and a screen nobody
+    ///     has read yet resumes at the top (#133).
     ///     <para>
     ///         A refresh is a replacement like any other here, which is what puts the reader at the top of a freshly
-    ///         read list — the thing <c>g</c> is for (#84).
+    ///         read list — the thing <c>g</c> is for (#84). It builds a new screen, so what it resumes is nought.
+    ///     </para>
+    ///     <para>
+    ///         The row is read off the region rather than kept here, and it is the one the last frame settled: the
+    ///         offset is worked out inside the draw, and a screen is only ever replaced between frames.
     ///     </para>
     /// </remarks>
     private void Refresh()
     {
         if (!ReferenceEquals(_showing, _shell.Screen))
         {
+            if (_showing is { } left)
+            {
+                left.Began = _content.Top;
+                left.Followed = _content.Following;
+            }
+
             _showing = _shell.Screen;
 
-            _content.Restart();
+            _content.Resume(_showing.Began, _showing.Followed);
         }
 
         var composing = _shell.Screen is ComposeScreen;
