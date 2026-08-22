@@ -67,11 +67,12 @@ are the middle of something with no way to see the rest. It did not come back, e
 picked out on it, so the scroll never corrects itself. Composing now turns the region's scrolling off outright, which
 also pins it back to the top.
 
-## Amendment: a compose screen holds two fields, not one (map #61, tickets #123, #139 and #142)
+## Amendment: a compose screen holds two fields, not one (map #61, tickets #123, #139, #140 and #142)
 
 A post being written carries a **content warning** as well as its text: one row above the editor, pre-filled on a
-reply from the post being answered (#123) and empty on a fresh post (#139). This ADR settled where compose lives and
-priced the editor's share of the screen; a second field is a claim on that share, so it is recorded here.
+reply from the post being answered (#123) and on an edit from the post being changed (#140), and empty on a fresh post
+(#139). This ADR settled where compose lives and priced the editor's share of the screen; a second field is a claim on
+that share, so it is recorded here.
 
 **It costs two rows on every compose screen** — the field, and the blank above it — of which the reply block already
 paid one. That blank used to be the block's own trailing row, and moving it onto the warning is what puts it on the
@@ -83,11 +84,11 @@ That is inside the price already accepted above — the block is up to four rows
 than the split region this ADR rejected would have left. Below that the reply block gives way first: the warning is a
 row the reader types into, and one they cannot see is worse than a quote of what is being answered that stops early.
 
-Every screen, including the one with no field to put there. An edit holds both rows blank (#142), which is against
-the habit that a part with nothing in it is skipped rather than spaced — and is the exception that earns it, because
-the alternative is an editor that starts higher depending on which key opened it. Three screens whose only difference
-is what they are for should not differ in where the writing begins, and when #140 gives an edit its own field the band
-is already the right height.
+Every screen, including — while there was one — the screen with no field to put there. An edit held both rows blank
+(#142), which is against the habit that a part with nothing in it is skipped rather than spaced, and was the exception
+that earned it: the alternative is an editor that starts higher depending on which key opened it. Three screens whose
+only difference is what they are for should not differ in where the writing begins. #140 gave the edit its own field
+and the band was already the right height, which is what the row was being held for.
 
 **It is not a second layout.** No region opens, nothing shares the content region with the feed, and the screen is
 still one thing pushed on the stack and popped by `esc`. The row is painted where the "answering" block is painted,
@@ -97,8 +98,11 @@ and the editor starts below it exactly as it starts below the block.
 the warning has them the editor gives up focus and keeps its text, and every printable key goes into the field. That
 is the rule the search prompt already keeps for `/` and `?`, and the status row says which way `ctrl-w` goes next.
 
-**`c` and `r`, not `e`.** Both composes that publish a post carry the field; an edit does not. Changing a warning
-already published has a third state — leave it alone — which `PostEdit` carries and which a field that opens *empty*
-cannot say. That is a fact about an empty field rather than about fields: one opening on the post's own warning says
-all three, since clearing it is the author emptying something that had text in it. #140 is where that is settled, and
-until it is, an edit leaves a post's warning exactly as it found it.
+**All three, `e` included.** Changing a warning already published has a third state — leave it alone — which `PostEdit`
+carries and which a field that opens *empty* cannot say. That was read once as a reason to keep the field off an edit,
+and it was too strong: it is a fact about an empty field rather than about fields. A field opening on the post's own
+warning says all three by construction — left alone it sends the same warning back, cleared it sends empty and the
+warning comes off, typed into where the post had none it puts one on — so the TUI always sets
+`PostEdit.ContentWarning` and `ChangesContentWarning` is always true from this surface (#140). The third state is not
+thereby dead: it is the CLI's, where `--cw` can be absent from the command line. A field the author is
+looking at has no such state, because they saw the row and whatever it holds is what they want.

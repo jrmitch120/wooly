@@ -96,7 +96,7 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Follow requests | `a` accept · `x` reject |
 | Direct messages | `⏎` open the conversation · `m` mark read — `m` again inside the thread, where a reader who has just read it is most likely to press it |
 | Conversation | `m` mark read, and every key that acts on a post, since each message in it is one |
-| Compose / reply / edit | `ctrl-s` send or save · `esc` throw it away · `ctrl-w` move the typing between the post and the content warning over it — on `c` and `r`, the two composes that carry a warning field (#123, #139) |
+| Compose / reply / edit | `ctrl-s` send or save · `esc` throw it away · `ctrl-w` move the typing between the post and the content warning over it — on all three, each carrying a warning field of its own (#123, #139, #140) |
 | Home, local, federated, hashtag, Notifications, Messages, Requests, Post, Account | `g` refresh — evicts the destination's cache entry (where one exists) and re-runs the same fetch its own arrival runs |
 
 ### What the four screens settled
@@ -611,7 +611,7 @@ The last two screens, and the one place a screen writes words of its own into wh
 ### What a compose's own content warning settled
 
 `r` on a warned post opened an editor with nothing written over it, so a reply to a warned thing went out bare unless
-its author remembered to warn it again by hand — which Mastodon's own clients do not ask of anybody (#123, #139):
+its author remembered to warn it again by hand — which Mastodon's own clients do not ask of anybody (#123, #139, #140):
 
 - **A reply opens on the warning of the post it answers**, in a field of its own on the row above the editor. A reply
   to a warned post is usually about the warned thing, and an author who has to re-type the warning is one who sometimes
@@ -627,17 +627,31 @@ its author remembered to warn it again by hand — which Mastodon's own clients 
   Only the words the author wrote cross over, which is the same split **Warned** draws everywhere else.
 - **Both of the composes that publish a post carry the field** — a reply pre-filled (#123), a fresh post empty, having
   nothing to have been filled from (#139). `c` was the gap worth closing on its own account rather than for symmetry:
-  `post create --content-warning` has always been able to warn a post, so the TUI was the one surface of this client
+  `post create --cw` has always been able to warn a post, so the TUI was the one surface of this client
   that could not, and a reader who has just warned a reply reaches for the same key on a fresh post.
-- **`e` has none, and for a reason of its own** rather than for not having been asked about: `PostEdit` tells "leave
-  the warning alone" from "take it away", and a field that opens empty says neither. A field opening on the post's own
-  warning would say both — cleared means taken away, because the author emptied something that had text in it — which
-  is #140 and not this. Until then an edit leaves a post's warning exactly as it found it.
-- **The band is held on all three anyway**, both rows blank where there is no field to put in them (#142). A row that
-  holds a place and says nothing is against the habit `PostLines.Parts` keeps — a part with nothing in it is skipped
-  rather than spaced — and this is the exception that earns it: an editor that starts higher on `e` than on `c` moves
-  the thing the reader is typing into, which is worse than two rows of chrome that are briefly empty. When #140 fills
-  the field in, nothing else shifts.
+- **`e` carries it too, opening on the warning the post is already behind** (#140). `PostEdit` tells "leave the warning
+  alone" from "take it away", and a field that opens *empty* says neither — which is what once kept the field off an
+  edit. A field opening on the post's own warning says all three by construction: left alone it sends the same warning
+  back, cleared it sends empty and the warning comes off, typed into where the post had none it puts one on. So the TUI
+  always sets `PostEdit.ContentWarning` and `ChangesContentWarning` is always true from this surface. The third state
+  is the CLI's, where `--cw` can be absent from the command line; a field somebody is looking at has no such state,
+  because they saw the row and whatever it holds is what they want. What goes out is the field as it stands, letter for
+  letter — `PostEdit.ContentWarningWanted` is what reads a field of nothing but spaces as none at all.
+  - The warning round-trips exactly: `Post.ContentWarning` comes off the wire as `SaidOrNothing(status.SpoilerText)` —
+    plain text, unlike `Content`, which is stripped through `PostContent.ToPlainText`. Re-sending it changes nothing.
+  - Clearing it unblurs nothing. `PostAuthor.Edit` computes `sensitive: existing.Sensitive == true || ...`, so the
+    instance's own flag survives an edit that takes the words away, and its `GetStatus` read stays as it is — the CLI
+    still needs it to keep the "silence leaves it" promise. The other direction is not symmetrical and is not meant to
+    be: a warning typed into a post that had none marks that post sensitive, which is what the same expression has
+    always done for `--cw` and for `post create`. `e` reaches it now, and hiding more is the harmless direction.
+  - The one real exposure is a stale `About`: saving re-sends a warning that may have been changed elsewhere since the
+    timeline was read. The body already carries precisely that, the editor being pre-filled from the same possibly
+    stale post, so it is not a new class of risk.
+- **The band is held on all three anyway**, both rows blank on the edit while there was no field to put in them (#142).
+  A row that holds a place and says nothing is against the habit `PostLines.Parts` keeps — a part with nothing in it is
+  skipped rather than spaced — and it was the exception that earned it: an editor that starts higher on `e` than on `c`
+  moves the thing the reader is typing into, which is worse than two rows of chrome that are briefly empty. #140 filled
+  the field in and nothing else shifted, which is what the row was being held for.
 - **`ctrl-w` moves the typing between the two**, because a terminal editor takes the keys of whichever field has them.
   While the warning has them the editor gives up focus and keeps its text, every printable key goes into the field —
   `?` and `/` included, the rule the search prompt already keeps — and the status row says `ctrl-w  back to the post`

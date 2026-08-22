@@ -499,17 +499,17 @@ public sealed class Shell
     }
 
     /// <summary>
-    ///     <c>ctrl-w</c>: moves the typing between the post being written and the warning over it, on a compose screen
-    ///     that has one to write (#123). Nothing at all where there is none, so the key is inert on a screen with no
-    ///     warning field rather than silently meaning something else.
+    ///     <c>ctrl-w</c>: moves the typing between the post being written and the warning over it (#123), on all three
+    ///     compose screens since #140 gave an edit a field of its own. Nothing at all anywhere else.
     /// </summary>
     public void WriteWarning()
     {
-        if (Screen is not ComposeScreen compose || !compose.WriteTheWarning())
+        if (Screen is not ComposeScreen compose)
         {
             return;
         }
 
+        compose.WriteTheWarning();
         Changed?.Invoke();
     }
 
@@ -884,8 +884,23 @@ public sealed class Shell
 
         await _enquiry.Put(
             ask => compose.Purpose == ComposeFor.Edit
-                ? ask.Of(token =>
-                    _ports.Author.Edit(_profile, compose.About!.Id, new PostEdit { Text = compose.Text }, token))
+                ? ask.Of(token => _ports.Author.Edit(
+                    _profile,
+                    compose.About!.Id,
+                    new PostEdit
+                    {
+                        Text = compose.Text,
+
+                        // Always said, never left silent: the field opened on the post's own warning, so whatever it
+                        // holds now is what the author wants (#140). The raw field rather than `ContentWarning`,
+                        // since an empty one here means "take it away" rather than "say nothing about it" — which is
+                        // the state only the CLI has (`PostEdit.ContentWarning`).
+                        //
+                        // What this re-sends is the warning as the timeline last read it, which may be stale — the
+                        // same exposure the body already carries, the editor being pre-filled from the same post.
+                        ContentWarning = compose.Warning,
+                    },
+                    token))
                 : ask.Of(token => _ports.Author.Publish(
                     _profile,
                     new PostDraft

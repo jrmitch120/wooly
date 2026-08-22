@@ -528,6 +528,26 @@ public class PostAuthorTests : IDisposable
         Assert.Contains("spoiler_text=later+spoilers", network.Bodies[^1]);
     }
 
+    /// <summary>
+    ///     The other direction, and not symmetrical with it: a warning given to a post that had none marks the post as
+    ///     one to hide, which is what the same expression has always done on publish. Worth pinning now that the TUI
+    ///     reaches it — before #140, `e` could not touch this flag at all.
+    /// </summary>
+    [Fact]
+    public async Task Edit_MarksAPostToHideWhenTheEditGivesItAWarningItHadNone()
+    {
+        var network = Answering(StatusJson("110"));
+
+        await NewAuthor(network).Edit(
+            Profile,
+            "110",
+            new PostEdit { Text = "Fixed the typo", ContentWarning = "spoilers" },
+            TestContext.Current.CancellationToken);
+
+        Assert.Contains("spoiler_text=spoilers", network.Bodies[^1]);
+        Assert.Contains("sensitive=true", network.Bodies[^1]);
+    }
+
     /// <summary>An empty warning is how an author says the post no longer needs one.</summary>
     [Fact]
     public async Task Edit_TakesTheContentWarningAwayWhenTheEditAsksForNoWarning()
@@ -561,6 +581,26 @@ public class PostAuthorTests : IDisposable
             new PostEdit { Text = "Fixed the typo" },
             TestContext.Current.CancellationToken);
 
+        Assert.Contains("sensitive=true", network.Bodies[^1]);
+    }
+
+    /// <summary>
+    ///     Nor does taking the warning away un-blur anything: the flag is the instance's mark over the attachments and
+    ///     survives an edit that removes the words. Worth pinning now that the TUI asks for the warning to be taken off
+    ///     every time an author clears the field (#140), where before only an explicit CLI flag could.
+    /// </summary>
+    [Fact]
+    public async Task Edit_KeepsAFlaggedPostHiddenWhenTheWarningIsTakenAway()
+    {
+        var network = Answering(StatusJson("110", contentWarning: "spoilers", sensitive: true, attachmentIds: ["m1"]));
+
+        await NewAuthor(network).Edit(
+            Profile,
+            "110",
+            new PostEdit { Text = "Fixed the typo", ContentWarning = string.Empty },
+            TestContext.Current.CancellationToken);
+
+        Assert.DoesNotContain("spoiler_text=spoilers", network.Bodies[^1]);
         Assert.Contains("sensitive=true", network.Bodies[^1]);
     }
 

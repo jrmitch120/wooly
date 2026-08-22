@@ -6,9 +6,10 @@ using Wooly.Tui.Theme;
 namespace Wooly.Tests.Tui;
 
 /// <summary>
-///     The warning a compose screen carries: pre-filled on a reply from the post being answered, empty everywhere
-///     else, and the author's to keep, edit or clear before it goes out (#123). A reply to a warned post is usually
-///     about the warned thing, and an author who has to remember to re-type the warning is one who sometimes will not.
+///     The warning a compose screen carries: pre-filled from the post being answered on a reply (#123) and from the
+///     post being changed on an edit (#140), empty on a post answering nothing (#139), and in every case the author's
+///     to keep, edit or clear before it goes out. A reply to a warned post is usually about the warned thing, and an
+///     author who has to remember to re-type the warning is one who sometimes will not.
 /// </summary>
 /// <remarks>
 ///     All of it at the compose seam — the screen and the shell over the same ports the CLI uses (ADR-0005) — since
@@ -23,6 +24,14 @@ public class WarnedReplyTests
         contentWarning: "spoilers");
 
     private static readonly Post Plain = APost.With(id: "220", account: "ben@hachyderm.io");
+
+    /// <summary>One of the profile's own, which is the only kind <c>e</c> opens.</summary>
+    private static readonly Post Mine = APost.With(
+        id: "110",
+        account: "jeff@mastodon.social",
+        contentWarning: "spoilers");
+
+    private static readonly Post MinePlain = APost.With(id: "110", account: "jeff@mastodon.social");
 
     /// <summary>The first acceptance criterion: the warning being replied to is what the field opens holding.</summary>
     [Fact]
@@ -103,7 +112,6 @@ public class WarnedReplyTests
 
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
 
-        Assert.True(compose.TakesAWarning);
         Assert.Equal(string.Empty, compose.Warning);
         Assert.Contains(compose.Lines(61, AShell.Now), line => line.Text == "⚠ no content warning");
 
@@ -217,31 +225,119 @@ public class WarnedReplyTests
     }
 
     /// <summary>
-    ///     An edit is left exactly as it was: <see cref="PostEdit" /> says nothing about the warning, which is what
-    ///     leaves the post's own alone (<c>PostEdit.ChangesContentWarning</c>). Changing an edit's warning is its own
-    ///     question and this ticket does not answer it.
+    ///     An edit opens on the warning the post is already behind, which is what lets one field say all three of the
+    ///     things <see cref="PostEdit.ContentWarning" /> distinguishes (#140): a field opening <em>empty</em> could not
+    ///     tell "leave it alone" from "take it away", but one the author is looking at can, because clearing it is
+    ///     emptying something that had text in it.
     /// </summary>
     [Fact]
-    public async Task Edit_TakesNoWarningField()
+    public async Task Edit_OpensOnTheWarningThePostIsAlreadyBehind()
     {
-        var mine = APost.With(id: "110", account: "jeff@mastodon.social", contentWarning: "spoilers");
+        var compose = await Editing(Mine);
 
-        var shell = new AShell { Timelines = FakeTimelineReader.Holding(mine) };
+        Assert.Equal("spoilers", compose.Warning);
+    }
+
+    /// <summary>And a post carrying none opens on an empty field, ready to be given one.</summary>
+    [Fact]
+    public async Task Edit_OpensOnAnEmptyFieldWhereThePostCarriesNoWarning()
+    {
+        var compose = await Editing(MinePlain);
+
+        Assert.Equal(string.Empty, compose.Warning);
+        Assert.Contains(compose.Lines(61, AShell.Now), line => line.Text == "⚠ no content warning");
+    }
+
+    /// <summary>
+    ///     Untouched, the field sends the same warning back and the post keeps it. The edit says something about the
+    ///     warning either way now — what it says is "this one", which is the one it already had.
+    /// </summary>
+    [Fact]
+    public async Task Edit_LeavesTheWarningAsItWasWhereTheFieldWasNotTouched()
+    {
+        var shell = new AShell { Timelines = FakeTimelineReader.Holding(Mine) };
         var opened = await shell.Opened();
 
         opened.Edit();
 
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
-
-        Assert.False(compose.TakesAWarning);
-        Assert.Equal(string.Empty, compose.Warning);
-
         compose.Text = "Hello world, fixed";
 
         await opened.Send();
         shell.Host.Drain();
 
-        Assert.False(Assert.Single(shell.Author.Edits).Edit.ChangesContentWarning);
+        var saved = Assert.Single(shell.Author.Edits).Edit;
+
+        Assert.True(saved.ChangesContentWarning);
+        Assert.Equal("spoilers", saved.ContentWarningWanted);
+    }
+
+    /// <summary>
+    ///     Cleared, the warning comes off the post — unambiguously, because the author emptied a field that had text
+    ///     in it. Spaces amount to none the same way they do on a fresh post.
+    /// </summary>
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task Edit_TakesTheWarningOffWhereTheFieldWasCleared(string cleared)
+    {
+        var shell = new AShell { Timelines = FakeTimelineReader.Holding(Mine) };
+        var opened = await shell.Opened();
+
+        opened.Edit();
+
+        var compose = Assert.IsType<ComposeScreen>(opened.Screen);
+        compose.Warning = cleared;
+
+        await opened.Send();
+        shell.Host.Drain();
+
+        var saved = Assert.Single(shell.Author.Edits).Edit;
+
+        Assert.True(saved.ChangesContentWarning);
+        Assert.Equal(string.Empty, saved.ContentWarningWanted);
+    }
+
+    /// <summary>And a warning typed into a post that had none puts it behind that warning.</summary>
+    [Fact]
+    public async Task Edit_PutsAPostThatHadNoWarningBehindOneTypedIn()
+    {
+        var shell = new AShell { Timelines = FakeTimelineReader.Holding(MinePlain) };
+        var opened = await shell.Opened();
+
+        opened.Edit();
+        opened.WriteWarning();
+
+        foreach (var letter in "spoilers")
+        {
+            opened.Type(letter);
+        }
+
+        await opened.Send();
+        shell.Host.Drain();
+
+        Assert.Equal("spoilers", Assert.Single(shell.Author.Edits).Edit.ContentWarningWanted);
+    }
+
+    /// <summary>
+    ///     Letter for letter here too: the spaces inside a warning an author wrote are theirs, and only a field with
+    ///     nothing but spaces in it amounts to no warning at all.
+    /// </summary>
+    [Fact]
+    public async Task Edit_SavesTheFieldLetterForLetter()
+    {
+        var shell = new AShell { Timelines = FakeTimelineReader.Holding(Mine) };
+        var opened = await shell.Opened();
+
+        opened.Edit();
+
+        var compose = Assert.IsType<ComposeScreen>(opened.Screen);
+        compose.Warning = " spoilers, of a sort ";
+
+        await opened.Send();
+        shell.Host.Drain();
+
+        Assert.Equal(" spoilers, of a sort ", Assert.Single(shell.Author.Edits).Edit.ContentWarningWanted);
     }
 
     /// <summary>
@@ -352,15 +448,11 @@ public class WarnedReplyTests
         Assert.DoesNotContain(compose.Keys, key => key.Key == "?");
     }
 
-    /// <summary>An edit has no field to reach, so it offers no key that would reach one.</summary>
+    /// <summary>An edit reaches its field with the same key, since it now has one to reach (#140).</summary>
     [Fact]
-    public async Task Keys_SayNothingAboutAWarningOnAnEditThatTakesNone()
+    public async Task Keys_NameTheWarningKeyOnAnEditToo()
     {
-        var shell = new AShell
-        {
-            Timelines = FakeTimelineReader.Holding(APost.With(id: "110", account: "jeff@mastodon.social")),
-        };
-
+        var shell = new AShell { Timelines = FakeTimelineReader.Holding(Mine) };
         var opened = await shell.Opened();
 
         opened.Edit();
@@ -368,8 +460,8 @@ public class WarnedReplyTests
 
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
 
-        Assert.False(compose.WritingTheWarning);
-        Assert.DoesNotContain(compose.Keys, key => key.Key == "ctrl-w");
+        Assert.True(compose.WritingTheWarning);
+        Assert.Contains(compose.Keys, key => key is { Key: "ctrl-w", Does: "back to the post" });
     }
 
     /// <summary>A reply to <paramref name="post" />, opened the way <c>r</c> opens one.</summary>
@@ -379,6 +471,17 @@ public class WarnedReplyTests
         var opened = await shell.Opened();
 
         opened.Reply();
+
+        return Assert.IsType<ComposeScreen>(opened.Screen);
+    }
+
+    /// <summary>A change to <paramref name="post" />, opened the way <c>e</c> opens one.</summary>
+    private static async Task<ComposeScreen> Editing(Post post)
+    {
+        var shell = new AShell { Timelines = FakeTimelineReader.Holding(post) };
+        var opened = await shell.Opened();
+
+        opened.Edit();
 
         return Assert.IsType<ComposeScreen>(opened.Screen);
     }
