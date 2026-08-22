@@ -89,11 +89,12 @@ public class WarnedReplyTests
     }
 
     /// <summary>
-    ///     A post answering nothing carries no warning field at all: #123 asked about the warning a reply inherits,
-    ///     and there is nothing here for one to have been filled from. It goes out behind nothing, as it always has.
+    ///     A post answering nothing carries the field too, empty: there is nothing here for it to have been filled
+    ///     from, and the field is the way the TUI warns a post at all (#139). Left alone it sends no warning, which is
+    ///     what a fresh post has always done.
     /// </summary>
     [Fact]
-    public async Task Compose_TakesNoWarningField()
+    public async Task Compose_OpensOnAnEmptyWarningField()
     {
         var shell = new AShell { Timelines = FakeTimelineReader.Holding(Warned) };
         var opened = await shell.Opened();
@@ -102,9 +103,9 @@ public class WarnedReplyTests
 
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
 
-        Assert.False(compose.TakesAWarning);
+        Assert.True(compose.TakesAWarning);
         Assert.Equal(string.Empty, compose.Warning);
-        Assert.DoesNotContain(compose.Lines(61, AShell.Now), line => line.Text.Contains('⚠'));
+        Assert.Contains(compose.Lines(61, AShell.Now), line => line.Text == "⚠ no content warning");
 
         compose.Text = "Saying something of my own";
 
@@ -112,6 +113,36 @@ public class WarnedReplyTests
         shell.Host.Drain();
 
         Assert.Null(Assert.Single(shell.Author.Published).Draft.ContentWarning);
+    }
+
+    /// <summary>
+    ///     And a warning written into it goes out on the post, which is the whole of what #139 adds: before it, the
+    ///     TUI was the one surface of this client that could not warn a post it was composing.
+    /// </summary>
+    [Fact]
+    public async Task Compose_SendsAWarningWrittenIntoTheField()
+    {
+        var shell = new AShell();
+        var opened = await shell.Opened();
+
+        opened.Compose();
+        opened.WriteWarning();
+
+        foreach (var letter in "spoilers")
+        {
+            opened.Type(letter);
+        }
+
+        var compose = Assert.IsType<ComposeScreen>(opened.Screen);
+        compose.Text = "Saying something of my own";
+
+        await opened.Send();
+        shell.Host.Drain();
+
+        var published = Assert.Single(shell.Author.Published);
+
+        Assert.Equal("spoilers", published.Draft.ContentWarning);
+        Assert.Null(published.Draft.InReplyTo);
     }
 
     /// <summary>

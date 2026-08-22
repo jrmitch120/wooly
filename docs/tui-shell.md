@@ -96,7 +96,7 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Follow requests | `a` accept · `x` reject |
 | Direct messages | `⏎` open the conversation · `m` mark read — `m` again inside the thread, where a reader who has just read it is most likely to press it |
 | Conversation | `m` mark read, and every key that acts on a post, since each message in it is one |
-| Compose / reply / edit | `ctrl-s` send or save · `esc` throw it away · `ctrl-w` move the typing between the post and the content warning over it — on a reply, the one compose that carries a warning field (#123) |
+| Compose / reply / edit | `ctrl-s` send or save · `esc` throw it away · `ctrl-w` move the typing between the post and the content warning over it — on `c` and `r`, the two composes that carry a warning field (#123, #139) |
 | Home, local, federated, hashtag, Notifications, Messages, Requests, Post, Account | `g` refresh — evicts the destination's cache entry (where one exists) and re-runs the same fetch its own arrival runs |
 
 ### What the four screens settled
@@ -608,10 +608,10 @@ The last two screens, and the one place a screen writes words of its own into wh
   and a second circle beside `●` is one mark too many to tell apart at a glance. The word takes `rail-unread`, the same
   role as the badge counting it on the rail.
 
-### What a reply's own content warning settled
+### What a compose's own content warning settled
 
 `r` on a warned post opened an editor with nothing written over it, so a reply to a warned thing went out bare unless
-its author remembered to warn it again by hand — which Mastodon's own clients do not ask of anybody (#123):
+its author remembered to warn it again by hand — which Mastodon's own clients do not ask of anybody (#123, #139):
 
 - **A reply opens on the warning of the post it answers**, in a field of its own on the row above the editor. A reply
   to a warned post is usually about the warned thing, and an author who has to re-type the warning is one who sometimes
@@ -625,11 +625,14 @@ its author remembered to warn it again by hand — which Mastodon's own clients 
 - **The instance's sensitive flag is not carried across.** It is a mark an instance put over somebody else's
   attachments; a fresh compose has none, and nothing about answering a post says the answer's own media is sensitive.
   Only the words the author wrote cross over, which is the same split **Warned** draws everywhere else.
-- **`r` only, for now.** #123 asked about the warning a reply inherits; `c` and `e` are untouched and still write a
-  post's text alone, so the editor on those two starts where it always did. `e` is the one with a reason of its own to
-  stay out rather than merely not having been asked about: `PostEdit` tells "leave the warning alone" from "take it
-  away" and an empty field says neither, so a change to an already-published warning is a question of its own. Whether
-  `c` should warn a fresh post is open, and is one line of `ComposeScreen.TakesAWarning` away.
+- **Both of the composes that publish a post carry the field** — a reply pre-filled (#123), a fresh post empty, having
+  nothing to have been filled from (#139). `c` was the gap worth closing on its own account rather than for symmetry:
+  `post create --content-warning` has always been able to warn a post, so the TUI was the one surface of this client
+  that could not, and a reader who has just warned a reply reaches for the same key on a fresh post.
+- **`e` has none, and for a reason of its own** rather than for not having been asked about: `PostEdit` tells "leave
+  the warning alone" from "take it away", and a field that opens empty says neither. A field opening on the post's own
+  warning would say both — cleared means taken away, because the author emptied something that had text in it — which
+  is #140 and not this. Until then an edit leaves a post's warning exactly as it found it.
 - **`ctrl-w` moves the typing between the two**, because a terminal editor takes the keys of whichever field has them.
   While the warning has them the editor gives up focus and keeps its text, every printable key goes into the field —
   `?` and `/` included, the rule the search prompt already keeps — and the status row says `ctrl-w  back to the post`

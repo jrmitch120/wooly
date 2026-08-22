@@ -74,11 +74,12 @@ All of the hiding is the TUI's: the CLI writes both halves and holds nothing bac
 (#122). Naming a flag is not honouring it, and a surface with no `x` on it prints a flagged post and a clean one
 identically unless it says which is which. The flag is reported there as the instance set it, on a post carrying
 nothing under it too: the carve-out above answers what there is to ask past, and this surface asks past nothing.
-Written as well as read, and only ever the half an author owns: a reply opens on the warning of the post it answers —
-never on that post's flag, which is a mark an instance put over somebody else's attachments and says nothing about a
-fresh post's own (#123). Pre-filled rather than imposed: what goes out is whatever the field holds when it is sent,
-letter for letter, and a field cleared sends no warning at all rather than a post behind a blank, which is what
-`PostDraft.ContentWarning` says in null.
+Written as well as read, and only ever the half an author owns: a post being composed carries a warning of its own —
+a reply opening on the warning of the post it answers (#123), a fresh post on nothing (#139) — never on that post's
+flag, which is a mark an instance put over somebody else's attachments and says nothing about a fresh post's own.
+Pre-filled rather than imposed: what goes out is whatever the field holds when it is sent, letter for letter, and a
+field cleared sends no warning at all rather than a post behind a blank, which is what `PostDraft.ContentWarning`
+says in null.
 _Avoid_: spoilered, blurred, NSFW, hidden (which is what a warning does, not what a post is)
 
 **Drawn**:

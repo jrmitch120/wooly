@@ -43,11 +43,11 @@ public class ShellComposeLayoutTests
     }
 
     /// <summary>
-    ///     And a post with no reply behind it leaves it where it always was, since there is nothing above it to clear:
-    ///     no block, and no warning field either, that being a reply's (#123).
+    ///     And a post with no reply behind it starts one row down: nothing above it to clear but the warning field,
+    ///     which both of the composes that publish a post carry (#139).
     /// </summary>
     [Fact]
-    public async Task Post_StartsTheEditorAtTheTopOfTheContentRegion()
+    public async Task Post_StartsTheEditorUnderTheWarningField()
     {
         var (window, shell) = await Opened(height: 20);
 
@@ -56,7 +56,7 @@ public class ShellComposeLayoutTests
             shell.Compose();
             window.Layout();
 
-            Assert.Equal(1, Editor(window).Frame.Y);
+            Assert.Equal(2, Editor(window).Frame.Y);
         }
     }
 

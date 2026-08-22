@@ -64,7 +64,8 @@ public sealed class ComposeScreen : Screen
         // A reply opens on the warning of what it answers, since a reply to a warned post is usually about the warned
         // thing and an author who has to remember to re-type the warning is one who sometimes will not (#123). Only
         // the words the author wrote carry across: the instance's sensitive flag is a mark over somebody else's
-        // attachments, and a fresh compose has none for it to be about.
+        // attachments, and a fresh compose has none for it to be about — which is also why a post answering nothing
+        // opens on an empty field rather than no field at all (#139).
         Warning = purpose == ComposeFor.Reply ? about?.ContentWarning ?? string.Empty : string.Empty;
     }
 
@@ -94,16 +95,16 @@ public sealed class ComposeScreen : Screen
     public string Warning { get; set; }
 
     /// <summary>
-    ///     Whether this screen has a warning to write at all, which for now is a reply and nothing else — the one
-    ///     compose #123 asked about.
+    ///     Whether this screen has a warning to write at all: both of the two that publish a post, which a reply
+    ///     opens pre-filled (#123) and a fresh post opens empty, having nothing to have been filled from (#139).
     /// </summary>
     /// <remarks>
-    ///     <see cref="ComposeFor.Edit" /> is the arm with a reason of its own to stay out rather than merely not
-    ///     having been asked for: <see cref="PostEdit" /> tells "leave the warning alone" from "take it away" and an
-    ///     empty field says neither, so what an edit's warning field would mean is a question this ticket does not
-    ///     answer.
+    ///     <see cref="ComposeFor.Edit" /> is the one left out, and for a reason of its own rather than for not having
+    ///     been asked about: <see cref="PostEdit" /> tells "leave the warning alone" from "take it away", and a field
+    ///     that opens empty says neither. A field opening on the post's own warning would say both — which is #140,
+    ///     and is not this.
     /// </remarks>
-    public bool TakesAWarning => Purpose == ComposeFor.Reply;
+    public bool TakesAWarning => Purpose != ComposeFor.Edit;
 
     /// <summary>
     ///     Whether what is typed is going into the warning rather than into the post. Both are on screen at once and
