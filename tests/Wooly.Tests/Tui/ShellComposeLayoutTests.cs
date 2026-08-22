@@ -115,6 +115,54 @@ public class ShellComposeLayoutTests
     }
 
     /// <summary>
+    ///     Three rows of what was said, and blank ones are not among them (#141). A post's paragraphs arrive as blank
+    ///     lines, so a quote that took its first three rows in order spent one of them on a gap — two rows of words
+    ///     where there was room for three, and, with the warning field underneath, a hole the reader could see.
+    /// </summary>
+    [Fact]
+    public async Task Reply_QuotesThreeRowsOfWordsFromAPostOfSeveralParagraphs()
+    {
+        var paragraphs = APost.With(
+            id: "220",
+            account: "ben@hachyderm.io",
+            content: "The first thing said.\n\nThe second thing said.\n\nThe third thing said.");
+
+        var shell = new AShell { Timelines = FakeTimelineReader.Holding(paragraphs) };
+        var opened = await shell.Opened();
+
+        opened.Reply();
+
+        var compose = Assert.IsType<ComposeScreen>(opened.Screen);
+        var quoted = compose.Lines(ContentWidth, AShell.Now).Take(compose.AnsweringHeight(ContentWidth)).ToList();
+
+        Assert.Equal(
+            [
+                "↳ answering @ben@hachyderm.io",
+                "  The first thing said.",
+                "  The second thing said.",
+                "  The third thing said.",
+                string.Empty,
+            ],
+            quoted.Select(line => line.Text));
+    }
+
+    /// <summary>And the one blank under the quote stays: it is the seam between what is answered and what is written.</summary>
+    [Fact]
+    public async Task Reply_KeepsOneBlankRowBetweenWhatIsAnsweredAndTheWarningField()
+    {
+        var (window, _, compose) = await Replying();
+
+        using (window)
+        {
+            var lines = compose.Lines(ContentWidth, AShell.Now);
+
+            Assert.Equal(3, compose.AnsweringHeight(ContentWidth));
+            Assert.Equal(string.Empty, lines[2].Text);
+            Assert.Equal("⚠ no content warning", lines[3].Text);
+        }
+    }
+
+    /// <summary>
     ///     <c>ctrl-w</c> hands the keys to the warning field above the editor and takes them back again (#123). The
     ///     editor keeps its text and its place and gives up focus, so what is typed lands in the field rather than in
     ///     the post — and the terminal's own cursor is not left blinking in a body nobody is writing in.

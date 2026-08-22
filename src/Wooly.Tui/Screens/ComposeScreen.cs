@@ -258,6 +258,16 @@ public sealed class ComposeScreen : Screen
     ///     by the one thing that says it (<see cref="PostReplyName" />, #82) — never the bare "↳ reply", since compose
     ///     always holds the full post it answers.
     /// </summary>
+    /// <remarks>
+    ///     Three rows of what was said, and blank ones are not among them (#141). A post's paragraphs arrive as blank
+    ///     lines — <c>PostContent.ToPlainText</c> turns <c>&lt;/p&gt;</c> into two newlines and <c>TextWrap</c> keeps
+    ///     the author's own breaks — so a quote that took its three rows in order spent one of them on a gap, and gave
+    ///     the reader two rows of words where there was room for three.
+    ///     <para>
+    ///         The blank underneath is a different thing and stays: it is the seam between what is being answered and
+    ///         what is being written, rather than a hole in the middle of a quotation.
+    ///     </para>
+    /// </remarks>
     private IReadOnlyList<Line> Answering(int width)
     {
         if (About is not { } answered || Purpose != ComposeFor.Reply)
@@ -269,7 +279,11 @@ public sealed class ComposeScreen : Screen
         var label = PostReplyName.Answering(answered.Account, _aboutIsMine);
         lines.Add(Line.Of(TextWrap.Clip(label, width), Role.Muted));
 
-        foreach (var row in TextWrap.Wrap(answered.Content, Math.Max(1, width - 2)).Take(3))
+        var said = TextWrap.Wrap(answered.Content, Math.Max(1, width - 2))
+                           .Where(row => row.Length > 0)
+                           .Take(3);
+
+        foreach (var row in said)
         {
             lines.Add(Line.Of($"  {row}", Role.Muted));
         }
