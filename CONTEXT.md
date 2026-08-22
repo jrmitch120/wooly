@@ -69,6 +69,13 @@ the flag counts for nothing only on a post carrying neither, since there is then
 What is hidden is hidden on every screen; what is *offered* follows what the screen has **Picked**, so the
 conversations list draws a warned message's warning with no `x` named under it — a row there is a **conversation**, so
 there is no post for that key to be asked about and nothing it could do (#120).
+Which of the halves is still standing is settled in one place and read everywhere else: `OnShow`, given a post and a
+**Reading**, says whether the words are on show, whether what hangs off them is, and whether there is anything left to
+ask past — unwrapping a **Boost** on the way, since a warning belongs to the post inside one. The screen reads it for
+what may be walked and which keys are announced, and `PostLines` reads it for what is drawn, rather than each deriving
+it from `ContentWarning` and `IsWarned` at eight sites with no way to check the other (#145). The failure that guards
+against is silent and one-sided — a walk more permissive than the drawing is `←`/`→` reaching a **Reference** inside
+something the reader was never shown, and `⏎` opening it.
 All of the hiding is the TUI's: the CLI writes both halves and holds nothing back — the warning's text, and
 `marked sensitive` under it on a post the instance flagged, with `sensitive` beside `contentWarning` in `--json`
 (#122). Naming a flag is not honouring it, and a surface with no `x` on it prints a flagged post and a clean one

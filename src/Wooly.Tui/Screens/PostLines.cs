@@ -100,7 +100,8 @@ public static class PostLines
         bool hideDrawnCaption = false,
         bool saysHowToAskPast = true)
     {
-        var shown = post.Boosted ?? post;
+        var show = OnShow.Of(post, reading);
+        var shown = show.Shown;
 
         return Parts([
             [
@@ -108,10 +109,10 @@ public static class PostLines
                 .. Answering(shown, width),
                 .. Byline(shown, width, now, pictures),
             ],
-            Body(shown, width, reading, saysHowToAskPast),
-            .. Media(shown, width, pictures, Inset.FeedRows, hideDrawnCaption, reading, saysHowToAskPast),
-            LinkPreview(shown, width, pictures, Inset.FeedRows, reading),
-            Poll(shown, width, reading),
+            Body(show, width, reading, saysHowToAskPast),
+            .. Media(show, width, pictures, Inset.FeedRows, hideDrawnCaption, reading, saysHowToAskPast),
+            LinkPreview(show, width, pictures, Inset.FeedRows, reading),
+            Poll(show, width, reading),
             [Counts(shown, spelledOut: false)],
         ]);
     }
@@ -134,7 +135,8 @@ public static class PostLines
         bool hideDrawnCaption = false,
         bool saysWhatItAnswers = true)
     {
-        var shown = post.Boosted ?? post;
+        var show = OnShow.Of(post, reading);
+        var shown = show.Shown;
         var avatar = Avatar.Of(shown, pictures);
         var room = Math.Max(0, width - avatar.Columns);
 
@@ -158,10 +160,10 @@ public static class PostLines
                     ])),
             ],
             // The post screen is about this post, so x is always something that can act on it here.
-            Body(shown, width, reading, saysHowToAskPast: true),
-            .. Media(shown, width, pictures, Inset.WholeRows, hideDrawnCaption, reading, saysHowToAskPast: true),
-            LinkPreview(shown, width, pictures, Inset.WholeRows, reading),
-            Poll(shown, width, reading),
+            Body(show, width, reading, saysHowToAskPast: true),
+            .. Media(show, width, pictures, Inset.WholeRows, hideDrawnCaption, reading, saysHowToAskPast: true),
+            LinkPreview(show, width, pictures, Inset.WholeRows, reading),
+            Poll(show, width, reading),
             [Counts(shown, spelledOut: true)],
         ]);
     }
@@ -374,23 +376,31 @@ public static class PostLines
     ///     The text, or the warning standing in front of it. A warning is honoured rather than printed past: the
     ///     author put the post behind it, and a client that showed both would have made the warning pointless.
     /// </summary>
+    /// <param name="show">
+    ///     What this post is showing this reader (#145). <see cref="OnShow.Words" /> is what settles this half: the
+    ///     text stands behind the content warning alone, the instance's flag being a mark over media.
+    /// </param>
     /// <param name="reading">What the reader has done to this post: asked past its warning, picked a reference in it.</param>
     /// <param name="saysHowToAskPast">
     ///     Whether the row naming <c>x</c> goes under the warning. The text stays behind it either way — what is off on
     ///     the one screen that says no is the offer, not the hiding (#120).
     /// </param>
-    private static IEnumerable<Line> Body(Post post, int width, Reading reading, bool saysHowToAskPast)
+    private static IEnumerable<Line> Body(OnShow show, int width, Reading reading, bool saysHowToAskPast)
     {
-        if (post.ContentWarning is { } warning && !reading.Revealed)
-        {
-            return Hiding(warning, width, saysHowToAskPast);
-        }
-
+        var post = show.Shown;
         var lines = new List<Line>();
 
-        if (post.ContentWarning is { } shown)
+        // The warning is read for what it says rather than for whether to hide anything, which is show.Words'. A post
+        // showing its words still draws it: the reader asked past it, and taking it down would leave them reading
+        // something they were warned about with the warning gone.
+        if (post.ContentWarning is { } warning)
         {
-            lines.Add(Warning(shown, width));
+            if (!show.Words)
+            {
+                return Hiding(warning, width, saysHowToAskPast);
+            }
+
+            lines.Add(Warning(warning, width));
         }
 
         // Nothing at all rather than the one empty row wrapping an empty string gives back. A post whose whole content
@@ -457,6 +467,11 @@ public static class PostLines
     ///         for at all.
     ///     </para>
     /// </remarks>
+    /// <param name="show">
+    ///     What this post is showing this reader (#145). <see cref="OnShow.Media" /> is what settles this half, and it
+    ///     answers to either part of the warning: the instance's flag hides what is attached with no text to read it
+    ///     off (#113).
+    /// </param>
     /// <param name="pictures">What can be drawn and what is here, or <see langword="null" /> where nothing can be.</param>
     /// <param name="mostRows">The most rows a picture may take, which is what a feed and a whole post differ on.</param>
     /// <param name="hideDrawnCaption">
@@ -479,7 +494,7 @@ public static class PostLines
     ///     blank row between each — which is the row between one picture and the next one's caption.
     /// </returns>
     private static IEnumerable<IReadOnlyList<Line>> Media(
-        Post post,
+        OnShow show,
         int width,
         IPictures? pictures,
         int mostRows,
@@ -487,18 +502,21 @@ public static class PostLines
         Reading reading,
         bool saysHowToAskPast)
     {
+        var post = show.Shown;
+
         // A warned post's attachments are part of what the warning covers, and nothing about one is drawn until the
         // reader has asked past it: no box, no label, no description, no address — and no Wants, which is what keeps
         // the pixels from being sent for at all (#113, ADR-0016's amendment).
-        if (post.IsWarned && !reading.Revealed)
+        if (!show.Media)
         {
             // Where the post's own warning is not already asking, this is: a photograph marked sensitive under no
-            // warning at all would otherwise be hidden with nothing on screen to say a key meant anything. There is
-            // always something to say it about here — a post warned by the flag alone is one carrying attachments or a
-            // link preview, which is what Post.IsWarned settles. It stands above where both of them would be, and is
-            // said here rather than once for each, because it is one post hiding things rather than a prompt per
-            // thing (#113, #116).
-            if (post.ContentWarning is null)
+            // warning at all would otherwise be hidden with nothing on screen to say a key meant anything. Inside this
+            // branch, words still on show is exactly that case — nothing is hidden here but by the instance's flag,
+            // and the flag alone leaves the text where it is. There is always something to say it about, a post
+            // warned by the flag alone being one carrying attachments or a link preview (Post.IsWarned). It stands
+            // above where both of them would be, and is said once rather than per thing, because it is one post hiding
+            // things rather than a prompt for each (#113, #116).
+            if (show.Words)
             {
                 yield return Hiding(SensitiveMedia, width, saysHowToAskPast);
             }
@@ -738,15 +756,21 @@ public static class PostLines
     ///         The CLI, which has no <c>⏎</c> to offer, prints it instead (ADR-0018, #117).
     ///     </para>
     /// </remarks>
+    /// <param name="show">
+    ///     What this post is showing this reader (#145) — <see cref="OnShow.Media" />, the same question its
+    ///     attachments are asked, which is the whole of what "behind the warning exactly as an attachment is" means.
+    /// </param>
     /// <param name="mostRows">The most rows the picture may take, which is what a feed and a whole post differ on.</param>
     private static IReadOnlyList<Line> LinkPreview(
-        Post post,
+        OnShow show,
         int width,
         IPictures? pictures,
         int mostRows,
         Reading reading)
     {
-        if (post.LinkPreview is not { } link || (post.IsWarned && !reading.Revealed))
+        var post = show.Shown;
+
+        if (post.LinkPreview is not { } link || !show.Media)
         {
             return [];
         }
@@ -821,8 +845,10 @@ public static class PostLines
     ///         Behind the post's <em>content warning</em> on exactly the terms <see cref="Body" /> is, and behind the
     ///         instance's sensitive flag on none of them: a poll's answers are words its author typed, which is what
     ///         that warning is written about, while the flag is a mark over media and says nothing about words (#119).
-    ///         That is the one place this parts company with <see cref="Media" /> and <see cref="LinkPreview" />, which
-    ///         ask <see cref="Post.IsWarned" /> and so answer to either half.
+    ///         That is the one place this parts company with <see cref="Media" /> and <see cref="LinkPreview" />: it
+    ///         asks <see cref="OnShow.Words" /> where they ask <see cref="OnShow.Media" />, which answers to either
+    ///         half. A real distinction rather than a drift, which is why the two are separate answers there and this
+    ///         one names the half it wants (#145).
     ///     </para>
     ///     <para>
     ///         Nothing is said in place of it. A post carrying a warning is already showing it and already naming
@@ -830,9 +856,9 @@ public static class PostLines
     ///         <see cref="Media" /> prints its own only where no warning is already asking (#113, #116).
     ///     </para>
     /// </remarks>
-    private static IEnumerable<Line> Poll(Post post, int width, Reading reading)
+    private static IEnumerable<Line> Poll(OnShow show, int width, Reading reading)
     {
-        if (post.Poll is not { } poll || (post.ContentWarning is not null && !reading.Revealed))
+        if (show.Shown.Poll is not { } poll || !show.Words)
         {
             yield break;
         }
