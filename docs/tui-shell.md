@@ -648,9 +648,14 @@ its author remembered to warn it again by hand — which Mastodon's own clients 
   same `⚠` and the same `content-warning` role a warned post's own warning is drawn in, so a warning being written
   looks like the warning it will become — with a `▌` caret while it is taking letters, a mark rather than a colour, the
   way the search prompt's is.
+- **It is spaced the same on every compose**, straight under whatever is above it — the breadcrumb on `c`, the last
+  row of the quote on `r` (#143). ADR-0015's block used to end in a blank, which was its seam with the editor; the
+  warning row stands between the two now, so a blank there was a second separator doing the first one's job and the
+  one thing the two screens have in common was the thing they spaced differently.
 - **It costs one row above the editor, and it is the last row to give way.** ADR-0015's block already gives up its tail
   on a terminal too short for everything; the warning field does not, being a row the reader types into rather than a
-  quote of something they can see elsewhere.
+  quote of something they can see elsewhere. The block is four rows now rather than five, having given the blank up,
+  so the field costs the reply screen nothing on balance.
 
 ## Starting it, and the one destination that needs configuring
 

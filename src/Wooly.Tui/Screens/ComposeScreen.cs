@@ -270,14 +270,20 @@ public sealed class ComposeScreen : Screen
     ///     by the one thing that says it (<see cref="PostReplyName" />, #82) — never the bare "↳ reply", since compose
     ///     always holds the full post it answers.
     /// </summary>
+    /// <returns>
+    ///     The label and up to three rows of what was said, and nothing else: no blank above and none below, so that
+    ///     the warning row underneath is spaced the same here as on a compose that has no block at all.
+    /// </returns>
     /// <remarks>
     ///     Three rows of what was said, and blank ones are not among them (#141). A post's paragraphs arrive as blank
     ///     lines — <c>PostContent.ToPlainText</c> turns <c>&lt;/p&gt;</c> into two newlines and <c>TextWrap</c> keeps
     ///     the author's own breaks — so a quote that took its three rows in order spent one of them on a gap, and gave
     ///     the reader two rows of words where there was room for three.
     ///     <para>
-    ///         The blank underneath is a different thing and stays: it is the seam between what is being answered and
-    ///         what is being written, rather than a hole in the middle of a quotation.
+    ///         Nothing under the last of them, either (#143). A blank row was the seam between what is being answered
+    ///         and what is being written, and it was that only until <see cref="WarningRow" /> came to sit between the
+    ///         two — a second separator doing the first one's job, and one that spaced the warning differently here
+    ///         than on a compose, where the same row sits straight under the breadcrumb.
     ///     </para>
     /// </remarks>
     private IReadOnlyList<Line> Answering(int width)
@@ -299,8 +305,6 @@ public sealed class ComposeScreen : Screen
         {
             lines.Add(Line.Of($"  {row}", Role.Muted));
         }
-
-        lines.Add(Line.Blank);
 
         return lines;
     }

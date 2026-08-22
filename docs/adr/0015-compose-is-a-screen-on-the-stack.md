@@ -73,10 +73,14 @@ A post being written carries a **content warning** as well as its text: one row 
 reply from the post being answered (#123) and empty on a fresh post (#139). This ADR settled where compose lives and
 priced the editor's share of the screen; a second field is a claim on that share, so it is recorded here.
 
-**It costs one row on every compose screen**, on top of the reply block's three. That is inside the price already
-accepted above — the block is up to five rows and 24 minus six is still more editor than the split region this ADR
-rejected would have left. Below that the reply block gives way first: the warning is a row the reader types into, and
-one they cannot see is worse than a quote of what is being answered that stops early.
+**It costs one row on every compose screen**, and takes one back off the reply block. The block used to end in a
+blank — its seam with the editor — and the warning row is what stands between the two now, so a blank there was a
+second separator doing the first one's job and spacing the warning differently on a reply than on a compose (#143).
+Label, quote, warning, editor. The block is four rows rather than five, which leaves this amendment costing nothing
+at all on the screen it costs most on, and the price the split region was rejected over is still not being paid.
+
+Below that the reply block gives way first: the warning is a row the reader types into, and one they cannot see is
+worse than a quote of what is being answered that stops early.
 
 Every screen, including the one with no field to put there. An edit holds the row blank (#142), which is against the
 habit that a part with nothing in it is skipped rather than spaced — and is the exception that earns it, because the

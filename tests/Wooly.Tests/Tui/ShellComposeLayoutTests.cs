@@ -26,8 +26,8 @@ public class ShellComposeLayoutTests
     private const int ContentWidth = 61;
 
     /// <summary>
-    ///     The editor starts below what is being answered rather than on top of it — three rows here: the label, the
-    ///     one row "Hello world" wraps to, and the blank under it — and below the warning field under those (#123).
+    ///     The editor starts below what is being answered rather than on top of it — two rows here: the label and the
+    ///     one row "Hello world" wraps to — and below the warning field under those (#123).
     /// </summary>
     [Fact]
     public async Task Reply_StartsTheEditorBelowWhatIsBeingAnsweredAndTheWarningField()
@@ -36,9 +36,9 @@ public class ShellComposeLayoutTests
 
         using (window)
         {
-            Assert.Equal(3, compose.AnsweringHeight(ContentWidth));
+            Assert.Equal(2, compose.AnsweringHeight(ContentWidth));
             Assert.Equal(1, compose.WarningHeight);
-            Assert.Equal(5, editor.Frame.Y);
+            Assert.Equal(4, editor.Frame.Y);
         }
     }
 
@@ -107,7 +107,7 @@ public class ShellComposeLayoutTests
 
         using (window)
         {
-            Assert.Equal(3, compose.AnsweringHeight(ContentWidth));
+            Assert.Equal(2, compose.AnsweringHeight(ContentWidth));
             Assert.Equal(2, editor.Frame.Y - 1);
             Assert.Equal(3, editor.Frame.Height);
         }
@@ -140,7 +140,7 @@ public class ShellComposeLayoutTests
             }
 
             Assert.Null(content.Reclaimable);
-            Assert.Equal(5, editor.Frame.Y);
+            Assert.Equal(4, editor.Frame.Y);
         }
     }
 
@@ -171,14 +171,17 @@ public class ShellComposeLayoutTests
                 "  The first thing said.",
                 "  The second thing said.",
                 "  The third thing said.",
-                string.Empty,
             ],
             quoted.Select(line => line.Text));
     }
 
-    /// <summary>And the one blank under the quote stays: it is the seam between what is answered and what is written.</summary>
+    /// <summary>
+    ///     And nothing between the quote and the warning row (#143). The warning is spaced the same on a reply as on
+    ///     a compose, where it sits straight under the breadcrumb — the blank that used to be here was the seam
+    ///     between what is answered and what is written, which is the warning row's job now that it sits between them.
+    /// </summary>
     [Fact]
-    public async Task Reply_KeepsOneBlankRowBetweenWhatIsAnsweredAndTheWarningField()
+    public async Task Reply_PutsTheWarningFieldDirectlyUnderWhatIsBeingAnswered()
     {
         var (window, _, compose) = await Replying();
 
@@ -186,9 +189,38 @@ public class ShellComposeLayoutTests
         {
             var lines = compose.Lines(ContentWidth, AShell.Now);
 
-            Assert.Equal(3, compose.AnsweringHeight(ContentWidth));
-            Assert.Equal(string.Empty, lines[2].Text);
-            Assert.Equal("⚠ no content warning", lines[3].Text);
+            Assert.Equal(2, compose.AnsweringHeight(ContentWidth));
+            Assert.Equal("↳ answering @ben@hachyderm.io", lines[0].Text);
+            Assert.Equal("  Hello world", lines[1].Text);
+            Assert.Equal("⚠ no content warning", lines[2].Text);
+        }
+    }
+
+    /// <summary>
+    ///     And it is the same row of the content region on both, once what a reply has above it is taken off: a
+    ///     compose puts the warning straight under the breadcrumb, a reply straight under the block, and neither
+    ///     leaves a gap the other does not.
+    /// </summary>
+    [Fact]
+    public async Task Warning_IsSpacedTheSameOnAComposeAsOnAReply()
+    {
+        var (window, shell) = await Opened(height: 20);
+
+        using (window)
+        {
+            shell.Compose();
+
+            var composing = Assert.IsType<ComposeScreen>(shell.Screen);
+            var first = composing.Lines(ContentWidth, AShell.Now)[composing.AnsweringHeight(ContentWidth)].Text;
+
+            shell.Back();
+            shell.Reply();
+
+            var replying = Assert.IsType<ComposeScreen>(shell.Screen);
+            var second = replying.Lines(ContentWidth, AShell.Now)[replying.AnsweringHeight(ContentWidth)].Text;
+
+            Assert.Equal("⚠ no content warning", first);
+            Assert.Equal(first, second);
         }
     }
 
