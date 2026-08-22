@@ -633,11 +633,11 @@ its author remembered to warn it again by hand — which Mastodon's own clients 
   the warning alone" from "take it away", and a field that opens empty says neither. A field opening on the post's own
   warning would say both — cleared means taken away, because the author emptied something that had text in it — which
   is #140 and not this. Until then an edit leaves a post's warning exactly as it found it.
-- **The row is held on all three anyway**, blank where there is no field to put in it (#142). A row that holds a place
-  and says nothing is against the habit `PostLines.Parts` keeps — a part with nothing in it is skipped rather than
-  spaced — and this is the exception that earns it: an editor that starts a row lower on `c` than on `e` moves the
-  thing the reader is typing into, which is worse than a row of chrome that is briefly empty. When #140 fills it in,
-  nothing else shifts.
+- **The band is held on all three anyway**, both rows blank where there is no field to put in them (#142). A row that
+  holds a place and says nothing is against the habit `PostLines.Parts` keeps — a part with nothing in it is skipped
+  rather than spaced — and this is the exception that earns it: an editor that starts higher on `e` than on `c` moves
+  the thing the reader is typing into, which is worse than two rows of chrome that are briefly empty. When #140 fills
+  the field in, nothing else shifts.
 - **`ctrl-w` moves the typing between the two**, because a terminal editor takes the keys of whichever field has them.
   While the warning has them the editor gives up focus and keeps its text, every printable key goes into the field —
   `?` and `/` included, the rule the search prompt already keeps — and the status row says `ctrl-w  back to the post`
@@ -648,14 +648,13 @@ its author remembered to warn it again by hand — which Mastodon's own clients 
   same `⚠` and the same `content-warning` role a warned post's own warning is drawn in, so a warning being written
   looks like the warning it will become — with a `▌` caret while it is taking letters, a mark rather than a colour, the
   way the search prompt's is.
-- **It is spaced the same on every compose**, straight under whatever is above it — the breadcrumb on `c`, the last
-  row of the quote on `r` (#143). ADR-0015's block used to end in a blank, which was its seam with the editor; the
-  warning row stands between the two now, so a blank there was a second separator doing the first one's job and the
-  one thing the two screens have in common was the thing they spaced differently.
-- **It costs one row above the editor, and it is the last row to give way.** ADR-0015's block already gives up its tail
-  on a terminal too short for everything; the warning field does not, being a row the reader types into rather than a
-  quote of something they can see elsewhere. The block is four rows now rather than five, having given the blank up,
-  so the field costs the reply screen nothing on balance.
+- **A blank row stands above it, on every compose alike** (#143). It was ADR-0015's reply block that used to end in
+  one, which is why `c` and `e` had none: hung off the block, the space appeared on a reply and nowhere else, and the
+  one row all three screens have in common was the row they spaced differently. The blank belongs to the warning now,
+  so a reply reads label, quote, blank, warning, editor and the other two read blank, warning, editor.
+- **It costs two rows above the editor, and they are the last rows to give way.** ADR-0015's block already gives up
+  its tail on a terminal too short for everything; the warning band does not, being a row the reader types into rather
+  than a quote of something they can see elsewhere. One of the two is a row the reply screen was already spending.
 
 ## Starting it, and the one destination that needs configuring
 

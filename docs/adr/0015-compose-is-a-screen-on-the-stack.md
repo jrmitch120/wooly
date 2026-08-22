@@ -73,20 +73,21 @@ A post being written carries a **content warning** as well as its text: one row 
 reply from the post being answered (#123) and empty on a fresh post (#139). This ADR settled where compose lives and
 priced the editor's share of the screen; a second field is a claim on that share, so it is recorded here.
 
-**It costs one row on every compose screen**, and takes one back off the reply block. The block used to end in a
-blank — its seam with the editor — and the warning row is what stands between the two now, so a blank there was a
-second separator doing the first one's job and spacing the warning differently on a reply than on a compose (#143).
-Label, quote, warning, editor. The block is four rows rather than five, which leaves this amendment costing nothing
-at all on the screen it costs most on, and the price the split region was rejected over is still not being paid.
+**It costs two rows on every compose screen** — the field, and the blank above it — of which the reply block already
+paid one. That blank used to be the block's own trailing row, and moving it onto the warning is what puts it on the
+two screens that have no block at all (#143): hung off the block it appeared on a reply and nowhere else, so the one
+row all three screens have in common was the row they spaced differently. A reply reads label, quote, blank, warning,
+editor and is one row deeper than before; a compose and an edit read blank, warning, editor and are two.
 
-Below that the reply block gives way first: the warning is a row the reader types into, and one they cannot see is
-worse than a quote of what is being answered that stops early.
+That is inside the price already accepted above — the block is up to four rows, and 24 minus six is still more editor
+than the split region this ADR rejected would have left. Below that the reply block gives way first: the warning is a
+row the reader types into, and one they cannot see is worse than a quote of what is being answered that stops early.
 
-Every screen, including the one with no field to put there. An edit holds the row blank (#142), which is against the
-habit that a part with nothing in it is skipped rather than spaced — and is the exception that earns it, because the
-alternative is an editor that starts a row lower depending on which key opened it. Three screens whose only difference
-is what they are for should not differ in where the writing begins, and when #140 gives an edit its own field the row
-is already there.
+Every screen, including the one with no field to put there. An edit holds both rows blank (#142), which is against
+the habit that a part with nothing in it is skipped rather than spaced — and is the exception that earns it, because
+the alternative is an editor that starts higher depending on which key opened it. Three screens whose only difference
+is what they are for should not differ in where the writing begins, and when #140 gives an edit its own field the band
+is already the right height.
 
 **It is not a second layout.** No region opens, nothing shares the content region with the feed, and the screen is
 still one thing pushed on the stack and popped by `esc`. The row is painted where the "answering" block is painted,

@@ -27,7 +27,8 @@ public class ShellComposeLayoutTests
 
     /// <summary>
     ///     The editor starts below what is being answered rather than on top of it — two rows here: the label and the
-    ///     one row "Hello world" wraps to — and below the warning field under those (#123).
+    ///     one row "Hello world" wraps to — and below the warning band under those (#123), which is the field and the
+    ///     blank above it.
     /// </summary>
     [Fact]
     public async Task Reply_StartsTheEditorBelowWhatIsBeingAnsweredAndTheWarningField()
@@ -37,14 +38,14 @@ public class ShellComposeLayoutTests
         using (window)
         {
             Assert.Equal(2, compose.AnsweringHeight(ContentWidth));
-            Assert.Equal(1, compose.WarningHeight);
-            Assert.Equal(4, editor.Frame.Y);
+            Assert.Equal(2, compose.WarningHeight);
+            Assert.Equal(5, editor.Frame.Y);
         }
     }
 
     /// <summary>
-    ///     And a post with no reply behind it starts one row down: nothing above it to clear but the warning field,
-    ///     which both of the composes that publish a post carry (#139).
+    ///     And a post with no reply behind it starts two rows down: nothing above it to clear but the warning band,
+    ///     which both of the composes that publish a post carry (#139) and which is the field and the blank over it.
     /// </summary>
     [Fact]
     public async Task Post_StartsTheEditorUnderTheWarningField()
@@ -56,7 +57,7 @@ public class ShellComposeLayoutTests
             shell.Compose();
             window.Layout();
 
-            Assert.Equal(2, Editor(window).Frame.Y);
+            Assert.Equal(3, Editor(window).Frame.Y);
         }
     }
 
@@ -140,7 +141,7 @@ public class ShellComposeLayoutTests
             }
 
             Assert.Null(content.Reclaimable);
-            Assert.Equal(4, editor.Frame.Y);
+            Assert.Equal(5, editor.Frame.Y);
         }
     }
 
@@ -175,13 +176,9 @@ public class ShellComposeLayoutTests
             quoted.Select(line => line.Text));
     }
 
-    /// <summary>
-    ///     And nothing between the quote and the warning row (#143). The warning is spaced the same on a reply as on
-    ///     a compose, where it sits straight under the breadcrumb — the blank that used to be here was the seam
-    ///     between what is answered and what is written, which is the warning row's job now that it sits between them.
-    /// </summary>
+    /// <summary>A blank row stands between the quote and the warning field, which is what a compose has too (#143).</summary>
     [Fact]
-    public async Task Reply_PutsTheWarningFieldDirectlyUnderWhatIsBeingAnswered()
+    public async Task Reply_PutsABlankRowAboveTheWarningField()
     {
         var (window, _, compose) = await Replying();
 
@@ -192,35 +189,50 @@ public class ShellComposeLayoutTests
             Assert.Equal(2, compose.AnsweringHeight(ContentWidth));
             Assert.Equal("↳ answering @ben@hachyderm.io", lines[0].Text);
             Assert.Equal("  Hello world", lines[1].Text);
-            Assert.Equal("⚠ no content warning", lines[2].Text);
+            Assert.Equal(string.Empty, lines[2].Text);
+            Assert.Equal("⚠ no content warning", lines[3].Text);
         }
     }
 
     /// <summary>
-    ///     And it is the same row of the content region on both, once what a reply has above it is taken off: a
-    ///     compose puts the warning straight under the breadcrumb, a reply straight under the block, and neither
-    ///     leaves a gap the other does not.
+    ///     And the band reads the same on all three, once whatever a screen has above it is taken off: a blank, then
+    ///     the field. The blank belongs to the warning rather than to the reply block, which is the whole of what
+    ///     puts it on the two screens that have no block at all (#143).
     /// </summary>
-    [Fact]
-    public async Task Warning_IsSpacedTheSameOnAComposeAsOnAReply()
+    [Theory]
+    [InlineData("compose")]
+    [InlineData("reply")]
+    [InlineData("edit")]
+    public async Task Warning_IsSpacedTheSameOnEveryCompose(string opening)
     {
-        var (window, shell) = await Opened(height: 20);
+        var (window, shell) = await Opened(height: 20, post: APost.With(id: "220", account: "jeff@mastodon.social"));
 
         using (window)
         {
-            shell.Compose();
+            switch (opening)
+            {
+                case "compose":
+                    shell.Compose();
 
-            var composing = Assert.IsType<ComposeScreen>(shell.Screen);
-            var first = composing.Lines(ContentWidth, AShell.Now)[composing.AnsweringHeight(ContentWidth)].Text;
+                    break;
+                case "reply":
+                    shell.Reply();
 
-            shell.Back();
-            shell.Reply();
+                    break;
+                default:
+                    shell.Edit();
 
-            var replying = Assert.IsType<ComposeScreen>(shell.Screen);
-            var second = replying.Lines(ContentWidth, AShell.Now)[replying.AnsweringHeight(ContentWidth)].Text;
+                    break;
+            }
 
-            Assert.Equal("⚠ no content warning", first);
-            Assert.Equal(first, second);
+            var compose = Assert.IsType<ComposeScreen>(shell.Screen);
+            var band = compose.Lines(ContentWidth, AShell.Now)
+                              .Skip(compose.AnsweringHeight(ContentWidth))
+                              .Take(compose.WarningHeight)
+                              .Select(line => line.Text);
+
+            // The edit's own field is #140's; until then its row is blank, and the blank above it is not.
+            Assert.Equal([string.Empty, opening == "edit" ? string.Empty : "⚠ no content warning"], band);
         }
     }
 

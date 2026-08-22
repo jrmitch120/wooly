@@ -162,19 +162,24 @@ public sealed class ComposeScreen : Screen
     ];
 
     /// <summary>
-    ///     How many rows the warning row takes up, which is one on every compose screen — the field where there is
-    ///     one, and a blank held in its place where there is not (#142). Room the shell has to leave above the live
-    ///     editor, the same way <see cref="AnsweringHeight" /> is, and kept whether or not anything has been typed
-    ///     into it, since a field is there to be typed into.
+    ///     How many rows the warning band takes up, which is two on every compose screen: the field, and the blank
+    ///     standing above it. Room the shell has to leave above the live editor, the same way
+    ///     <see cref="AnsweringHeight" /> is, and kept whether or not anything has been typed into it, since a field
+    ///     is there to be typed into.
     /// </summary>
     /// <remarks>
-    ///     A row held empty is not this project's habit — <c>PostLines.Parts</c> skips a part with nothing in it
-    ///     rather than spacing it. This is the exception that earns it: the row is not spacing around a part, it is
-    ///     the one part of a compose screen that is sometimes absent, and an editor that starts a row lower on
-    ///     <c>c</c> than on <c>e</c> moves the thing the reader is typing into. When #140 gives an edit a field of its
-    ///     own, the row is already there and nothing else shifts.
+    ///     The blank is the band's rather than the reply block's (#143). It reads as space above the warning either
+    ///     way, but only one of the two puts it on every screen: hung off the block, it appeared on a reply and
+    ///     nowhere else, and the one row the three screens have in common was the row they spaced differently.
+    ///     <para>
+    ///         Two rows even on a screen with no warning to write, both of them blank (#142). A row held empty is not
+    ///         this project's habit — <c>PostLines.Parts</c> skips a part with nothing in it rather than spacing it —
+    ///         and this is the exception that earns it: an editor that starts higher on <c>e</c> than on <c>c</c>
+    ///         moves the thing the reader is typing into. When #140 gives an edit a field of its own, the band is
+    ///         already the right height and nothing else shifts.
+    ///     </para>
     /// </remarks>
-    public int WarningHeight => 1;
+    public int WarningHeight => 2;
 
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(
@@ -183,8 +188,9 @@ public sealed class ComposeScreen : Screen
         IPictures? pictures = null,
         bool hideDrawnCaption = false)
     {
-        var lines = new List<Line>(Answering(width)) { WarningRow(width) };
+        var lines = new List<Line>(Answering(width));
 
+        lines.AddRange(WarningRows(width));
         lines.AddRange(TextWrap.Wrap(Text.Length == 0 ? " " : Text, width).Select(row => Line.Of(row, Role.Body)));
 
         return lines;
@@ -221,7 +227,14 @@ public sealed class ComposeScreen : Screen
     public int AnsweringHeight(int width) => Answering(width).Count;
 
     /// <summary>
-    ///     The warning field: what this post is going behind, on the row between what is being answered and the
+    ///     The warning band: a blank, then the field. Both rows from the one method, so what is painted and what
+    ///     <see cref="WarningHeight" /> leaves room for cannot come to differ — and the blank lands above the warning
+    ///     on every compose screen rather than only on the one whose block used to end in it (#143).
+    /// </summary>
+    private IReadOnlyList<Line> WarningRows(int width) => [Line.Blank, WarningRow(width)];
+
+    /// <summary>
+    ///     The field itself: what this post is going behind, on the row between what is being answered and the
     ///     editor — or a blank held in its place on a screen with no warning to write (#142). The mark and the role a
     ///     warned post's own warning is drawn in (<see cref="PostLines" />), so that a warning being written looks
     ///     like the warning it will become — but not that row itself, which has neither a caret nor anything to say
@@ -280,10 +293,10 @@ public sealed class ComposeScreen : Screen
     ///     the author's own breaks — so a quote that took its three rows in order spent one of them on a gap, and gave
     ///     the reader two rows of words where there was room for three.
     ///     <para>
-    ///         Nothing under the last of them, either (#143). A blank row was the seam between what is being answered
-    ///         and what is being written, and it was that only until <see cref="WarningRow" /> came to sit between the
-    ///         two — a second separator doing the first one's job, and one that spaced the warning differently here
-    ///         than on a compose, where the same row sits straight under the breadcrumb.
+    ///         Nothing under the last of them, either. The blank that used to end this block belongs to
+    ///         <see cref="WarningRows" /> now (#143): it reads as space above the warning either way, and hung off
+    ///         the block it appeared on a reply and nowhere else — so the one row all three compose screens have in
+    ///         common was the row they spaced differently.
     ///     </para>
     /// </remarks>
     private IReadOnlyList<Line> Answering(int width)
