@@ -113,17 +113,12 @@ public sealed class SearchScreen : Screen
     /// <inheritdoc />
     protected override IPicked Walking => _results;
 
-    /// <summary>Puts a letter into the query.</summary>
-    public void Type(char letter) => Query += letter;
+    /// <inheritdoc />
+    /// <remarks>Into the query, which is the only thing this screen takes letters into.</remarks>
+    public override void Type(char letter) => Query += letter;
 
-    /// <summary>Takes the last letter back out of the query.</summary>
-    public void Backspace()
-    {
-        if (Query.Length > 0)
-        {
-            Query = Query[..^1];
-        }
-    }
+    /// <inheritdoc />
+    public override void Backspace() => Query = Backspaced(Query);
 
     /// <summary>
     ///     What the instance answered, which is also what stops the prompt taking letters: from here the keys act on

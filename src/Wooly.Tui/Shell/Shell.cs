@@ -467,24 +467,50 @@ public sealed class Shell
         Rail.GoTo(DestinationKind.Search);
     }
 
-    /// <summary>Puts a letter into whatever is being typed into, which is only ever the search prompt.</summary>
+    /// <summary>
+    ///     Puts a letter into whatever is being typed into: the search prompt, or a compose screen's content warning
+    ///     while <c>ctrl-w</c> has it. Never a post's own text, which is typed into the editor widget itself.
+    /// </summary>
+    /// <remarks>
+    ///     Which screen it is going to is the screen's own answer (<see cref="Screen.IsTyping" />) rather than a type
+    ///     matched here, so a third screen that takes letters costs this nothing.
+    /// </remarks>
     public void Type(char letter)
     {
-        if (Screen is SearchScreen { IsTyping: true } search)
+        if (!Screen.IsTyping)
         {
-            search.Type(letter);
-            Changed?.Invoke();
+            return;
         }
+
+        Screen.Type(letter);
+        Changed?.Invoke();
     }
 
     /// <summary>Takes the last letter back out of it.</summary>
     public void Backspace()
     {
-        if (Screen is SearchScreen { IsTyping: true } search)
+        if (!Screen.IsTyping)
         {
-            search.Backspace();
-            Changed?.Invoke();
+            return;
         }
+
+        Screen.Backspace();
+        Changed?.Invoke();
+    }
+
+    /// <summary>
+    ///     <c>ctrl-w</c>: moves the typing between the post being written and the warning over it, on a compose screen
+    ///     that has one to write (#123). Nothing at all where there is none, so the key is inert on a screen with no
+    ///     warning field rather than silently meaning something else.
+    /// </summary>
+    public void WriteWarning()
+    {
+        if (Screen is not ComposeScreen compose || !compose.WriteTheWarning())
+        {
+            return;
+        }
+
+        Changed?.Invoke();
     }
 
     /// <summary>Asks the instance for what has been typed into the prompt.</summary>
@@ -865,6 +891,10 @@ public sealed class Shell
                     new PostDraft
                     {
                         Text = compose.Text,
+
+                        // Whatever the field holds at this moment, which on a reply is the answered post's warning
+                        // unless the author changed it: pre-filled, not imposed (#123).
+                        ContentWarning = compose.ContentWarning,
 
                         // Silence rather than a visibility of the shell's choosing. A reply is answered as narrowly as
                         // the post it answers, and a post says nothing so that the account's own default on the

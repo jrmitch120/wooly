@@ -19,6 +19,14 @@ namespace Wooly.Tui.Screens;
 public static class PostLines
 {
     /// <summary>
+    ///     What stands in front of a content warning, wherever one is on screen — over a warned post's text, over the
+    ///     same text once it is shown, where a sensitive post's attachments are being kept, and on the row a reply's
+    ///     own warning is written in (#123). Said here because <see cref="Warning" /> is where a warning is drawn, and
+    ///     shared rather than typed a second time so that a warning being written looks like the warning it becomes.
+    /// </summary>
+    internal const string WarningMark = "⚠ ";
+
+    /// <summary>
     ///     What marks a picture being drawn in place: it stands above the box, and is the whole of what a reader has
     ///     while the pixels are still on their way.
     /// </summary>
@@ -416,8 +424,8 @@ public static class PostLines
     ///     one post.
     /// </summary>
     private static Line Warning(string said, int width) => Line.Of([
-        new Span("⚠ ", Role.ContentWarning),
-        new Span(TextWrap.Clip(said, width - 2), Role.ContentWarning),
+        new Span(WarningMark, Role.ContentWarning),
+        new Span(TextWrap.Clip(said, width - WarningMark.Length), Role.ContentWarning),
     ]);
 
     /// <summary>

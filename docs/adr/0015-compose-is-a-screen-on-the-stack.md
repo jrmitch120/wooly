@@ -66,3 +66,28 @@ the block is behind the editor, so a scroll could only lift the block off the to
 are the middle of something with no way to see the rest. It did not come back, either — a compose screen has nothing
 picked out on it, so the scroll never corrects itself. Composing now turns the region's scrolling off outright, which
 also pins it back to the top.
+
+## Amendment: a reply's screen holds two fields, not one (map #61, ticket #123)
+
+A reply writes a **content warning** as well as its text: one row above the editor, pre-filled from the post being
+answered. This ADR settled where compose lives and priced the editor's share of the screen; a second field is a claim
+on that share, so it is recorded here.
+
+**It costs one row**, on top of the reply block's three. That is inside the price already accepted above — the block is
+up to five rows and 24 minus six is still more editor than the split region this ADR rejected would have left. Below
+that the reply block gives way first: the warning is a row the reader types into, and one they cannot see is worse
+than a quote of what is being answered that stops early.
+
+**It is not a second layout.** No region opens, nothing shares the content region with the feed, and the screen is
+still one thing pushed on the stack and popped by `esc`. The row is painted where the "answering" block is painted,
+and the editor starts below it exactly as it starts below the block.
+
+**`ctrl-w` moves the typing between the two.** A terminal editor takes the keys of whichever field has them, so while
+the warning has them the editor gives up focus and keeps its text, and every printable key goes into the field. That
+is the rule the search prompt already keeps for `/` and `?`, and the status row says which way `ctrl-w` goes next.
+
+**`r` only, for now.** #123 asked about the warning a reply inherits and this answers that; `c` and `e` are unchanged
+and still write a post's text alone. `e` is the one of the two with a reason of its own to stay out rather than merely
+not having been asked about: changing a warning already published has a third state — leave it alone — that no field
+can say, which is what `PostEdit` carries and what an edit's field would have to answer. Whether `c` should warn a
+fresh post is a smaller question and an open one, and the field is one line of `ComposeScreen` away from answering it.

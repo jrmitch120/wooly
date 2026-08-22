@@ -28,6 +28,9 @@ public enum ComposeFor
 /// </remarks>
 public sealed class ComposeScreen : Screen
 {
+    /// <summary>What the warning row says while nobody has written a warning into it.</summary>
+    private const string NoWarningWritten = "no content warning";
+
     private readonly bool _aboutIsMine;
 
     /// <param name="purpose">What this screen was opened to do.</param>
@@ -57,6 +60,12 @@ public sealed class ComposeScreen : Screen
         };
 
         Text = Opening;
+
+        // A reply opens on the warning of what it answers, since a reply to a warned post is usually about the warned
+        // thing and an author who has to remember to re-type the warning is one who sometimes will not (#123). Only
+        // the words the author wrote carry across: the instance's sensitive flag is a mark over somebody else's
+        // attachments, and a fresh compose has none for it to be about.
+        Warning = purpose == ComposeFor.Reply ? about?.ContentWarning ?? string.Empty : string.Empty;
     }
 
     /// <summary>What this screen was opened to do.</summary>
@@ -73,6 +82,50 @@ public sealed class ComposeScreen : Screen
 
     /// <summary>What has been written so far.</summary>
     public string Text { get; set; }
+
+    /// <summary>
+    ///     What the field holds, letter for letter — pre-filled on a reply from the post being answered, and from
+    ///     there the author's to keep, edit or clear. It is their post.
+    /// </summary>
+    /// <remarks>
+    ///     Distinct from <see cref="ContentWarning" />, which is this same warning as it goes out on a draft: this is
+    ///     the row on screen and the thing a keystroke changes, that is what an instance is asked for.
+    /// </remarks>
+    public string Warning { get; set; }
+
+    /// <summary>
+    ///     Whether this screen has a warning to write at all, which for now is a reply and nothing else — the one
+    ///     compose #123 asked about.
+    /// </summary>
+    /// <remarks>
+    ///     <see cref="ComposeFor.Edit" /> is the arm with a reason of its own to stay out rather than merely not
+    ///     having been asked for: <see cref="PostEdit" /> tells "leave the warning alone" from "take it away" and an
+    ///     empty field says neither, so what an edit's warning field would mean is a question this ticket does not
+    ///     answer.
+    /// </remarks>
+    public bool TakesAWarning => Purpose == ComposeFor.Reply;
+
+    /// <summary>
+    ///     Whether what is typed is going into the warning rather than into the post. Both are on screen at once and
+    ///     <c>ctrl-w</c> moves between them, since a terminal editor takes the keys of whichever field has them.
+    /// </summary>
+    public bool WritingTheWarning { get; private set; }
+
+    /// <inheritdoc />
+    /// <remarks>Only while the warning is taking letters, a post's own text being the editor widget's to take.</remarks>
+    public override bool IsTyping => WritingTheWarning;
+
+    /// <summary>
+    ///     What the warning is as it goes out with the draft: nothing at all where the field holds nothing but spaces.
+    ///     An instance reads an empty warning as no warning, so a cleared field sends none rather than putting the
+    ///     post behind a blank (<see cref="PostDraft.ContentWarning" />).
+    /// </summary>
+    /// <remarks>
+    ///     Whitespace decides only between a warning and none; it is not tidied out of one there is. What the author
+    ///     left in the field is what they wrote, and a client that trimmed it would be editing their words on the way
+    ///     past.
+    /// </remarks>
+    public string? ContentWarning => string.IsNullOrWhiteSpace(Warning) ? null : Warning;
 
     /// <summary>
     ///     Whether there is anything here worth sending — which for a reply this client addressed means anything
@@ -92,12 +145,27 @@ public sealed class ComposeScreen : Screen
     };
 
     /// <inheritdoc />
+    /// <remarks>
+    ///     While the warning is taking letters the keymap key goes unsaid, because <c>?</c> is a question somebody is
+    ///     entitled to warn about and every printable key is going into the field — the rule the search prompt already
+    ///     keeps (<c>docs/tui-shell.md</c>).
+    /// </remarks>
     protected override IReadOnlyList<KeyHint> OwnKeys =>
     [
         new("ctrl-s", Purpose == ComposeFor.Edit ? "save" : "send"),
+        .. TakesAWarning
+            ? new KeyHint[] { new("ctrl-w", WritingTheWarning ? "back to the post" : "content warning") }
+            : [],
         new("esc", "throw it away"),
-        new("?", "keys"),
+        .. WritingTheWarning ? [] : new KeyHint[] { new("?", "keys") },
     ];
+
+    /// <summary>
+    ///     How many rows the warning field takes up: one where there is one, and none on a screen that writes none.
+    ///     Room the shell has to leave above the live editor, the same way <see cref="AnsweringHeight" /> is — and
+    ///     kept whether or not anything has been typed into it, since a field is there to be typed into.
+    /// </summary>
+    public int WarningHeight => TakesAWarning ? 1 : 0;
 
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(
@@ -108,9 +176,37 @@ public sealed class ComposeScreen : Screen
     {
         var lines = new List<Line>(Answering(width));
 
+        if (TakesAWarning)
+        {
+            lines.Add(WarningRow(width));
+        }
+
         lines.AddRange(TextWrap.Wrap(Text.Length == 0 ? " " : Text, width).Select(row => Line.Of(row, Role.Body)));
 
         return lines;
+    }
+
+    /// <inheritdoc />
+    /// <remarks>Into the warning, which is the only thing on this screen the shell carries letters into.</remarks>
+    public override void Type(char letter) => Warning += letter;
+
+    /// <inheritdoc />
+    public override void Backspace() => Warning = Backspaced(Warning);
+
+    /// <summary>
+    ///     <c>ctrl-w</c>: hands the typing to the warning, or hands it back. Answers whether it did, so that the key
+    ///     is inert on a screen with no warning field rather than redrawing over nothing.
+    /// </summary>
+    public bool WriteTheWarning()
+    {
+        if (!TakesAWarning)
+        {
+            return false;
+        }
+
+        WritingTheWarning = !WritingTheWarning;
+
+        return true;
     }
 
     /// <summary>
@@ -119,6 +215,42 @@ public sealed class ComposeScreen : Screen
     ///     laid on top of the one these rows are painted on rather than a row range inside it.
     /// </summary>
     public int AnsweringHeight(int width) => Answering(width).Count;
+
+    /// <summary>
+    ///     The warning field: what this post is going behind, on the row between what is being answered and the
+    ///     editor. The mark and the role a warned post's own warning is drawn in (<see cref="PostLines" />), so that a
+    ///     warning being written looks like the warning it will become — but not that row itself, which has neither a
+    ///     caret nor anything to say about a warning nobody has written yet.
+    /// </summary>
+    /// <remarks>
+    ///     Empty, it says so rather than going blank: a row a reader can type into is a row they have to be able to
+    ///     find, and the status row's <c>ctrl-w</c> is the other half of saying so. The caret is a mark rather than a
+    ///     colour, the way the search prompt's is, so a terminal with none still says where the typing is going.
+    /// </remarks>
+    private Line WarningRow(int width)
+    {
+        const string mark = PostLines.WarningMark;
+        var room = Math.Max(0, width - mark.Length);
+
+        if (WritingTheWarning)
+        {
+            // A column left for the caret, which is the one thing on this row that has to stay visible: a reader who
+            // has typed past the width would otherwise be looking at a row with no sign of where their next letter
+            // goes.
+            return Line.Of(
+                new Span(mark, Role.ContentWarning),
+                new Span(TextWrap.Clip(Warning, Math.Max(0, room - 1)), Role.ContentWarning),
+                new Span("▌", Role.Selection));
+        }
+
+        return Warning.Length > 0
+            ? Line.Of(
+                new Span(mark, Role.ContentWarning),
+                new Span(TextWrap.Clip(Warning, room), Role.ContentWarning))
+            : Line.Of(
+                new Span(mark, Role.Muted),
+                new Span(TextWrap.Clip(NoWarningWritten, room), Role.Muted));
+    }
 
     /// <summary>
     ///     What is being answered, which stays on screen above the editor — the thing the rejected "editor under the

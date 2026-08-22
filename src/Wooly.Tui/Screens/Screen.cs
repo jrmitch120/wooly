@@ -101,11 +101,37 @@ public abstract class Screen
     public virtual Post? Opens => Picked;
 
     /// <summary>
-    ///     Whether this screen is taking what is typed, which is only ever a search prompt taking a query. A fact
-    ///     about the screen rather than a mode the window keeps, so that the keys which act on a post cannot fire
-    ///     while somebody is writing the word <c>backfeed</c>.
+    ///     Whether this screen is taking what is typed: a search prompt taking a query, or a compose screen's content
+    ///     warning while <c>ctrl-w</c> has it (#123). A fact about the screen rather than a mode the window keeps, so
+    ///     that the keys which act on a post cannot fire while somebody is writing the word <c>backfeed</c>.
     /// </summary>
+    /// <remarks>
+    ///     Never a post's own text, which is typed into the editor widget laid over the screen rather than through the
+    ///     shell — a real terminal editor with a caret and a word wrap, and the one thing on any screen the shell does
+    ///     not carry the letters of.
+    /// </remarks>
     public virtual bool IsTyping => false;
+
+    /// <summary>
+    ///     Puts a letter into whatever this screen is taking, where it is taking anything. Said here rather than
+    ///     matched on the screen's type where the key arrives, so that a third screen that takes letters is one
+    ///     override rather than another arm in two cascades.
+    /// </summary>
+    public virtual void Type(char letter)
+    {
+    }
+
+    /// <summary>Takes the last letter back out of it.</summary>
+    public virtual void Backspace()
+    {
+    }
+
+    /// <summary>
+    ///     <paramref name="typed" /> with its last letter taken off, or unchanged where there is none to take. A
+    ///     backspace at the start of an empty field is nothing at all rather than an exception or a reach into
+    ///     whatever is behind it.
+    /// </summary>
+    protected static string Backspaced(string typed) => typed.Length > 0 ? typed[..^1] : typed;
 
     /// <summary>The rows to draw, at <paramref name="width" /> columns.</summary>
     /// <param name="width">How wide the content region is — 61 at an 80-column terminal.</param>
