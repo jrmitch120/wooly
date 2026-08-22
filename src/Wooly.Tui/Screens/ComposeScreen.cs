@@ -61,12 +61,13 @@ public sealed class ComposeScreen : Screen
 
         Text = Opening;
 
-        // A reply opens on the warning of what it answers, since a reply to a warned post is usually about the warned
-        // thing and an author who has to remember to re-type the warning is one who sometimes will not (#123). Only
-        // the words the author wrote carry across: the instance's sensitive flag is a mark over somebody else's
-        // attachments, and a fresh compose has none for it to be about — which is also why a post answering nothing
-        // opens on an empty field rather than no field at all (#139).
-        Warning = purpose == ComposeFor.Reply ? about?.ContentWarning ?? string.Empty : string.Empty;
+        // Pre-filled from whatever post this one is about: what a reply answers, since a reply to a warned post is
+        // usually about the warned thing and an author who has to remember to re-type the warning is one who sometimes
+        // will not (#123); and what an edit is changing, which is the same warning coming back to the author who wrote
+        // it (#140). A post answering nothing has no post to have been filled from and opens on an empty field rather
+        // than no field at all (#139). Only the words the author wrote carry across: the instance's sensitive flag is
+        // a mark over the attachments and says nothing a field could hold.
+        Warning = about?.ContentWarning ?? string.Empty;
     }
 
     /// <summary>What this screen was opened to do.</summary>
@@ -85,26 +86,16 @@ public sealed class ComposeScreen : Screen
     public string Text { get; set; }
 
     /// <summary>
-    ///     What the field holds, letter for letter — pre-filled on a reply from the post being answered, and from
-    ///     there the author's to keep, edit or clear. It is their post.
+    ///     What the field holds, letter for letter — pre-filled on a reply from the post being answered and on an edit
+    ///     from the post being changed, and from there the author's to keep, edit or clear. It is their post.
     /// </summary>
     /// <remarks>
     ///     Distinct from <see cref="ContentWarning" />, which is this same warning as it goes out on a draft: this is
-    ///     the row on screen and the thing a keystroke changes, that is what an instance is asked for.
+    ///     the row on screen and the thing a keystroke changes, that is what an instance is asked for. An edit sends
+    ///     this one rather than that, since a field cleared to nothing is an edit that takes the warning away rather
+    ///     than one saying nothing about it (<see cref="PostEdit.ContentWarning" />, #140).
     /// </remarks>
     public string Warning { get; set; }
-
-    /// <summary>
-    ///     Whether this screen has a warning to write at all: both of the two that publish a post, which a reply
-    ///     opens pre-filled (#123) and a fresh post opens empty, having nothing to have been filled from (#139).
-    /// </summary>
-    /// <remarks>
-    ///     <see cref="ComposeFor.Edit" /> is the one left out, and for a reason of its own rather than for not having
-    ///     been asked about: <see cref="PostEdit" /> tells "leave the warning alone" from "take it away", and a field
-    ///     that opens empty says neither. A field opening on the post's own warning would say both — which is #140,
-    ///     and is not this.
-    /// </remarks>
-    public bool TakesAWarning => Purpose != ComposeFor.Edit;
 
     /// <summary>
     ///     Whether what is typed is going into the warning rather than into the post. Both are on screen at once and
@@ -154,9 +145,7 @@ public sealed class ComposeScreen : Screen
     protected override IReadOnlyList<KeyHint> OwnKeys =>
     [
         new("ctrl-s", Purpose == ComposeFor.Edit ? "save" : "send"),
-        .. TakesAWarning
-            ? new KeyHint[] { new("ctrl-w", WritingTheWarning ? "back to the post" : "content warning") }
-            : [],
+        new("ctrl-w", WritingTheWarning ? "back to the post" : "content warning"),
         new("esc", "throw it away"),
         .. WritingTheWarning ? [] : new KeyHint[] { new("?", "keys") },
     ];
@@ -172,11 +161,10 @@ public sealed class ComposeScreen : Screen
     ///     way, but only one of the two puts it on every screen: hung off the block, it appeared on a reply and
     ///     nowhere else, and the one row the three screens have in common was the row they spaced differently.
     ///     <para>
-    ///         Two rows even on a screen with no warning to write, both of them blank (#142). A row held empty is not
-    ///         this project's habit — <c>PostLines.Parts</c> skips a part with nothing in it rather than spacing it —
-    ///         and this is the exception that earns it: an editor that starts higher on <c>e</c> than on <c>c</c>
-    ///         moves the thing the reader is typing into. When #140 gives an edit a field of its own, the band is
-    ///         already the right height and nothing else shifts.
+    ///         Held at two rows on an edit while an edit had no warning to write, both of them blank, against the habit
+    ///         that a part with nothing in it is skipped rather than spaced (#142) — so that the editor did not start
+    ///         higher on <c>e</c> than on <c>c</c>. #140 gave the edit a field of its own and nothing shifted, which is
+    ///         what that row was being held for.
     ///     </para>
     /// </remarks>
     public int WarningHeight => 2;
@@ -203,21 +191,8 @@ public sealed class ComposeScreen : Screen
     /// <inheritdoc />
     public override void Backspace() => Warning = Backspaced(Warning);
 
-    /// <summary>
-    ///     <c>ctrl-w</c>: hands the typing to the warning, or hands it back. Answers whether it did, so that the key
-    ///     is inert on a screen with no warning field rather than redrawing over nothing.
-    /// </summary>
-    public bool WriteTheWarning()
-    {
-        if (!TakesAWarning)
-        {
-            return false;
-        }
-
-        WritingTheWarning = !WritingTheWarning;
-
-        return true;
-    }
+    /// <summary><c>ctrl-w</c>: hands the typing to the warning, or hands it back.</summary>
+    public void WriteTheWarning() => WritingTheWarning = !WritingTheWarning;
 
     /// <summary>
     ///     How many rows <see cref="Answering" /> takes up at <paramref name="width" /> — the room the shell has to
@@ -235,10 +210,9 @@ public sealed class ComposeScreen : Screen
 
     /// <summary>
     ///     The field itself: what this post is going behind, on the row between what is being answered and the
-    ///     editor — or a blank held in its place on a screen with no warning to write (#142). The mark and the role a
-    ///     warned post's own warning is drawn in (<see cref="PostLines" />), so that a warning being written looks
-    ///     like the warning it will become — but not that row itself, which has neither a caret nor anything to say
-    ///     about a warning nobody has written yet.
+    ///     editor. The mark and the role a warned post's own warning is drawn in (<see cref="PostLines" />), so that a
+    ///     warning being written looks like the warning it will become — but not that row itself, which has neither a
+    ///     caret nor anything to say about a warning nobody has written yet.
     /// </summary>
     /// <remarks>
     ///     Empty, it says so rather than going blank: a row a reader can type into is a row they have to be able to
@@ -247,13 +221,6 @@ public sealed class ComposeScreen : Screen
     /// </remarks>
     private Line WarningRow(int width)
     {
-        if (!TakesAWarning)
-        {
-            // An edit has no warning to write until #140 settles what changing an already-published one means. The
-            // row is held anyway, so that the editor starts in the same place whichever key opened the compose.
-            return Line.Blank;
-        }
-
         const string mark = PostLines.WarningMark;
         var room = Math.Max(0, width - mark.Length);
 

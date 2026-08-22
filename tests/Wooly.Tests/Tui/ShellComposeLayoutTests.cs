@@ -62,9 +62,9 @@ public class ShellComposeLayoutTests
     }
 
     /// <summary>
-    ///     An edit starts it in the same place, though it has no warning to write until #140: the row is held blank
-    ///     rather than closed up, because a writing surface that moves depending on which key opened it is worse than
-    ///     a row of chrome that is briefly empty (#142).
+    ///     An edit starts it in the same place, on a band of the same two rows — held blank while an edit had no
+    ///     warning to write (#142) and holding a field of its own since #140, which is the point of having priced the
+    ///     band the same on all three: giving an edit its field moved nothing.
     /// </summary>
     [Fact]
     public async Task Edit_StartsTheEditorWhereAFreshPostDoes()
@@ -84,9 +84,11 @@ public class ShellComposeLayoutTests
 
             var compose = Assert.IsType<ComposeScreen>(shell.Screen);
 
+            var rows = compose.Lines(ContentWidth, AShell.Now);
+
             Assert.Equal(ComposeFor.Edit, compose.Purpose);
-            Assert.False(compose.TakesAWarning);
-            Assert.Equal(string.Empty, compose.Lines(ContentWidth, AShell.Now)[0].Text);
+            Assert.Equal(string.Empty, rows[0].Text);
+            Assert.Equal("⚠ no content warning", rows[1].Text);
             Assert.Equal(composing, Editor(window).Frame.Y);
         }
     }
@@ -197,7 +199,8 @@ public class ShellComposeLayoutTests
     /// <summary>
     ///     And the band reads the same on all three, once whatever a screen has above it is taken off: a blank, then
     ///     the field. The blank belongs to the warning rather than to the reply block, which is the whole of what
-    ///     puts it on the two screens that have no block at all (#143).
+    ///     puts it on the two screens that have no block at all (#143) — and since #140 the field on the edit is a
+    ///     field, where it was a row held blank for one.
     /// </summary>
     [Theory]
     [InlineData("compose")]
@@ -231,8 +234,7 @@ public class ShellComposeLayoutTests
                               .Take(compose.WarningHeight)
                               .Select(line => line.Text);
 
-            // The edit's own field is #140's; until then its row is blank, and the blank above it is not.
-            Assert.Equal([string.Empty, opening == "edit" ? string.Empty : "⚠ no content warning"], band);
+            Assert.Equal([string.Empty, "⚠ no content warning"], band);
         }
     }
 

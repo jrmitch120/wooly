@@ -20,6 +20,11 @@ public sealed record PostEdit
     ///     Silence has to mean "leave it" rather than "take it away", because a warning removed by an edit that never
     ///     mentioned it would show a reader what they had asked not to be shown.
     /// </summary>
+    /// <remarks>
+    ///     Silence is the CLI's to say, and only the CLI's: <c>--cw</c> can be absent from a command line.
+    ///     The TUI edits behind a field pre-filled from the post being changed, and an author looking at that row has
+    ///     no "said nothing about it" left to say — so it fills this in every time (#140).
+    /// </remarks>
     public string? ContentWarning { get; init; }
 
     /// <summary>Whether this edit has anything to say about the content warning.</summary>

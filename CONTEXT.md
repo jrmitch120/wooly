@@ -75,11 +75,16 @@ All of the hiding is the TUI's: the CLI writes both halves and holds nothing bac
 identically unless it says which is which. The flag is reported there as the instance set it, on a post carrying
 nothing under it too: the carve-out above answers what there is to ask past, and this surface asks past nothing.
 Written as well as read, and only ever the half an author owns: a post being composed carries a warning of its own —
-a reply opening on the warning of the post it answers (#123), a fresh post on nothing (#139) — never on that post's
-flag, which is a mark an instance put over somebody else's attachments and says nothing about a fresh post's own.
+a reply opening on the warning of the post it answers (#123), an edit on the warning its post is already behind
+(#140), a fresh post on nothing (#139) — never on that post's flag, which is a mark an instance put over somebody
+else's attachments and says nothing about a fresh post's own.
 Pre-filled rather than imposed: what goes out is whatever the field holds when it is sent, letter for letter, and a
 field cleared sends no warning at all rather than a post behind a blank, which is what `PostDraft.ContentWarning`
-says in null.
+says in null. An edit sends its field as it stands and `PostEdit.ContentWarningWanted` reads a cleared one as the
+empty string rather than as null, because `PostEdit` keeps a third state no field has: null there means "leave it
+alone", which the CLI can say by leaving `--cw` off the command line and a reader looking at the row cannot say at
+all. Adding a warning to a post that had none marks it sensitive, on either surface; taking one away never unmarks
+it, the flag being the instance's rather than the author's.
 _Avoid_: spoilered, blurred, NSFW, hidden (which is what a warning does, not what a post is)
 
 **Drawn**:
