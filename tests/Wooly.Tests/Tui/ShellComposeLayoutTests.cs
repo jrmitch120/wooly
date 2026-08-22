@@ -61,6 +61,36 @@ public class ShellComposeLayoutTests
     }
 
     /// <summary>
+    ///     An edit starts it in the same place, though it has no warning to write until #140: the row is held blank
+    ///     rather than closed up, because a writing surface that moves depending on which key opened it is worse than
+    ///     a row of chrome that is briefly empty (#142).
+    /// </summary>
+    [Fact]
+    public async Task Edit_StartsTheEditorWhereAFreshPostDoes()
+    {
+        var (window, shell) = await Opened(height: 20, post: APost.With(id: "220", account: "jeff@mastodon.social"));
+
+        using (window)
+        {
+            shell.Compose();
+            window.Layout();
+
+            var composing = Editor(window).Frame.Y;
+
+            shell.Back();
+            shell.Edit();
+            window.Layout();
+
+            var compose = Assert.IsType<ComposeScreen>(shell.Screen);
+
+            Assert.Equal(ComposeFor.Edit, compose.Purpose);
+            Assert.False(compose.TakesAWarning);
+            Assert.Equal(string.Empty, compose.Lines(ContentWidth, AShell.Now)[0].Text);
+            Assert.Equal(composing, Editor(window).Frame.Y);
+        }
+    }
+
+    /// <summary>
     ///     A terminal too short for both keeps the editor and gives up the tail of what is being answered — the block
     ///     wants three rows and there is only room for one, because an editor pushed to the foot is one nobody can
     ///     type in.
@@ -267,12 +297,15 @@ public class ShellComposeLayoutTests
         }
     }
 
-    /// <summary>A window showing one post by somebody else, laid out and ready.</summary>
-    private static async Task<(ShellWindow Window, Wooly.Tui.Shell.Shell Shell)> Opened(int height)
+    /// <summary>
+    ///     A window showing one post by somebody else, laid out and ready — or by whoever <paramref name="post" />
+    ///     names, for the one test that needs the profile's own post to have something to edit.
+    /// </summary>
+    private static async Task<(ShellWindow Window, Wooly.Tui.Shell.Shell Shell)> Opened(int height, Post? post = null)
     {
         var built = new AShell
         {
-            Timelines = FakeTimelineReader.Holding(APost.With(id: "220", account: "ben@hachyderm.io")),
+            Timelines = FakeTimelineReader.Holding(post ?? APost.With(id: "220", account: "ben@hachyderm.io")),
         };
 
         var shell = await built.Opened();

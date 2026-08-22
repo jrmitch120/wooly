@@ -633,6 +633,11 @@ its author remembered to warn it again by hand — which Mastodon's own clients 
   the warning alone" from "take it away", and a field that opens empty says neither. A field opening on the post's own
   warning would say both — cleared means taken away, because the author emptied something that had text in it — which
   is #140 and not this. Until then an edit leaves a post's warning exactly as it found it.
+- **The row is held on all three anyway**, blank where there is no field to put in it (#142). A row that holds a place
+  and says nothing is against the habit `PostLines.Parts` keeps — a part with nothing in it is skipped rather than
+  spaced — and this is the exception that earns it: an editor that starts a row lower on `c` than on `e` moves the
+  thing the reader is typing into, which is worse than a row of chrome that is briefly empty. When #140 fills it in,
+  nothing else shifts.
 - **`ctrl-w` moves the typing between the two**, because a terminal editor takes the keys of whichever field has them.
   While the warning has them the editor gives up focus and keeps its text, every printable key goes into the field —
   `?` and `/` included, the rule the search prompt already keeps — and the status row says `ctrl-w  back to the post`

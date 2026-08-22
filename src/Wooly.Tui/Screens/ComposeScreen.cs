@@ -162,11 +162,19 @@ public sealed class ComposeScreen : Screen
     ];
 
     /// <summary>
-    ///     How many rows the warning field takes up: one where there is one, and none on a screen that writes none.
-    ///     Room the shell has to leave above the live editor, the same way <see cref="AnsweringHeight" /> is — and
-    ///     kept whether or not anything has been typed into it, since a field is there to be typed into.
+    ///     How many rows the warning row takes up, which is one on every compose screen — the field where there is
+    ///     one, and a blank held in its place where there is not (#142). Room the shell has to leave above the live
+    ///     editor, the same way <see cref="AnsweringHeight" /> is, and kept whether or not anything has been typed
+    ///     into it, since a field is there to be typed into.
     /// </summary>
-    public int WarningHeight => TakesAWarning ? 1 : 0;
+    /// <remarks>
+    ///     A row held empty is not this project's habit — <c>PostLines.Parts</c> skips a part with nothing in it
+    ///     rather than spacing it. This is the exception that earns it: the row is not spacing around a part, it is
+    ///     the one part of a compose screen that is sometimes absent, and an editor that starts a row lower on
+    ///     <c>c</c> than on <c>e</c> moves the thing the reader is typing into. When #140 gives an edit a field of its
+    ///     own, the row is already there and nothing else shifts.
+    /// </remarks>
+    public int WarningHeight => 1;
 
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(
@@ -175,12 +183,7 @@ public sealed class ComposeScreen : Screen
         IPictures? pictures = null,
         bool hideDrawnCaption = false)
     {
-        var lines = new List<Line>(Answering(width));
-
-        if (TakesAWarning)
-        {
-            lines.Add(WarningRow(width));
-        }
+        var lines = new List<Line>(Answering(width)) { WarningRow(width) };
 
         lines.AddRange(TextWrap.Wrap(Text.Length == 0 ? " " : Text, width).Select(row => Line.Of(row, Role.Body)));
 
@@ -219,9 +222,10 @@ public sealed class ComposeScreen : Screen
 
     /// <summary>
     ///     The warning field: what this post is going behind, on the row between what is being answered and the
-    ///     editor. The mark and the role a warned post's own warning is drawn in (<see cref="PostLines" />), so that a
-    ///     warning being written looks like the warning it will become — but not that row itself, which has neither a
-    ///     caret nor anything to say about a warning nobody has written yet.
+    ///     editor — or a blank held in its place on a screen with no warning to write (#142). The mark and the role a
+    ///     warned post's own warning is drawn in (<see cref="PostLines" />), so that a warning being written looks
+    ///     like the warning it will become — but not that row itself, which has neither a caret nor anything to say
+    ///     about a warning nobody has written yet.
     /// </summary>
     /// <remarks>
     ///     Empty, it says so rather than going blank: a row a reader can type into is a row they have to be able to
@@ -230,6 +234,13 @@ public sealed class ComposeScreen : Screen
     /// </remarks>
     private Line WarningRow(int width)
     {
+        if (!TakesAWarning)
+        {
+            // An edit has no warning to write until #140 settles what changing an already-published one means. The
+            // row is held anyway, so that the editor starts in the same place whichever key opened the compose.
+            return Line.Blank;
+        }
+
         const string mark = PostLines.WarningMark;
         var room = Math.Max(0, width - mark.Length);
 

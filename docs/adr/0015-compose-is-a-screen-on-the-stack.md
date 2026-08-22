@@ -67,16 +67,22 @@ are the middle of something with no way to see the rest. It did not come back, e
 picked out on it, so the scroll never corrects itself. Composing now turns the region's scrolling off outright, which
 also pins it back to the top.
 
-## Amendment: a compose screen holds two fields, not one (map #61, tickets #123 and #139)
+## Amendment: a compose screen holds two fields, not one (map #61, tickets #123, #139 and #142)
 
 A post being written carries a **content warning** as well as its text: one row above the editor, pre-filled on a
 reply from the post being answered (#123) and empty on a fresh post (#139). This ADR settled where compose lives and
 priced the editor's share of the screen; a second field is a claim on that share, so it is recorded here.
 
-**It costs one row**, on top of the reply block's three. That is inside the price already accepted above — the block is
-up to five rows and 24 minus six is still more editor than the split region this ADR rejected would have left. Below
-that the reply block gives way first: the warning is a row the reader types into, and one they cannot see is worse
-than a quote of what is being answered that stops early.
+**It costs one row on every compose screen**, on top of the reply block's three. That is inside the price already
+accepted above — the block is up to five rows and 24 minus six is still more editor than the split region this ADR
+rejected would have left. Below that the reply block gives way first: the warning is a row the reader types into, and
+one they cannot see is worse than a quote of what is being answered that stops early.
+
+Every screen, including the one with no field to put there. An edit holds the row blank (#142), which is against the
+habit that a part with nothing in it is skipped rather than spaced — and is the exception that earns it, because the
+alternative is an editor that starts a row lower depending on which key opened it. Three screens whose only difference
+is what they are for should not differ in where the writing begins, and when #140 gives an edit its own field the row
+is already there.
 
 **It is not a second layout.** No region opens, nothing shares the content region with the feed, and the screen is
 still one thing pushed on the stack and popped by `esc`. The row is painted where the "answering" block is painted,
