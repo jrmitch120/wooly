@@ -18,6 +18,14 @@ namespace Wooly.Tui.Rendering;
 ///         linked rather than drawn.
 ///     </para>
 ///     <para>
+///         <see cref="Width" /> is on it though it is the one of the four that genuinely varies call by call within a
+///         frame — a row is drawn in a column its gutter has already taken, and a message under a conversation in two
+///         more. It is here because it is still a fact about the terminal rather than about the screen, and because
+///         leaving it outside would have left <c>Lines</c> taking two parameters, which is the shape this replaces:
+///         the next fact that varies by call would then have had to choose a side. What varying costs instead is
+///         <see cref="In" />, said in one word at each of the four sites that narrow.
+///     </para>
+///     <para>
 ///         Distinct from a <see cref="Media.Drawn" />, which is one picture the TUI paints in place. This is the
 ///         conditions a screen is drawn under; that is a thing being drawn.
 ///     </para>

@@ -488,4 +488,23 @@ public class MediaLineTests
         Assert.NotEmpty(lines.SelectMany(line => line.Insets));
         Assert.DoesNotContain(lines, line => line.Text.Contains("A cartoon sheep", StringComparison.Ordinal));
     }
+
+    /// <summary>
+    ///     And the notifications screen with it, which until #148 was the one place it did not reach: that screen
+    ///     named the four arguments and passed three, so a reader who had asked for it got it honoured on every screen
+    ///     but their inbox. What a preference means cannot depend on which screen a post is drawn from.
+    /// </summary>
+    [Fact]
+    public void Inbox_HidesTheCaptionOnAPostItIsAboutTheSameAsAFeedItem()
+    {
+        var post = APost.With(media: [APost.APicture(description: "A cartoon sheep")]);
+        var screen = new NotificationsScreen([ANotification.With(post: post)]);
+
+        var drawing = new Drawing(61, Now, FakePictures.With().Holding("m1", 400, 300), HideDrawnCaption: true);
+
+        var lines = screen.Lines(drawing);
+
+        Assert.NotEmpty(lines.SelectMany(line => line.Insets));
+        Assert.DoesNotContain(lines, line => line.Text.Contains("A cartoon sheep", StringComparison.Ordinal));
+    }
 }

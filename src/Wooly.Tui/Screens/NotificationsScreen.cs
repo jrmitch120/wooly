@@ -96,6 +96,9 @@ public sealed class NotificationsScreen(IReadOnlyList<Notification> notification
 
         // What happened, and under it the post it happened to — indented, so that the row saying who did what reads
         // as the heading of the two rather than as another message in the list.
+        // The drawing goes down whole. Before #148 this site named four arguments and passed three, so a reader who
+        // had asked for hide_drawn_caption got it honoured everywhere but here — which is the failure #148 is about
+        // rather than a preference this screen was exempt from (#71).
         IReadOnlyList<Line> Draw(Notification notification, int at, int room)
         {
             var rows = new List<Line> { Happened(notification, room, drawing.Now) };

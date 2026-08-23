@@ -99,7 +99,8 @@ public static class PostLines
         Reading reading,
         bool saysHowToAskPast = true)
     {
-        var (width, now, pictures, hideDrawnCaption) = drawing;
+        var width = drawing.Width;
+        var pictures = drawing.Pictures;
         var show = OnShow.Of(post, reading);
         var shown = show.Shown;
 
@@ -107,10 +108,10 @@ public static class PostLines
             [
                 .. Boosted(post, $"{post.Author} boosted", width),
                 .. Answering(shown, width),
-                .. Byline(shown, width, now, pictures),
+                .. Byline(shown, width, drawing.Now, pictures),
             ],
             Body(show, width, reading, saysHowToAskPast),
-            .. Media(show, width, pictures, Inset.FeedRows, hideDrawnCaption, reading, saysHowToAskPast),
+            .. Media(show, width, pictures, Inset.FeedRows, drawing.HideDrawnCaption, reading, saysHowToAskPast),
             LinkPreview(show, width, pictures, Inset.FeedRows, reading),
             Poll(show, width, reading),
             [Counts(shown, spelledOut: false)],
@@ -132,7 +133,8 @@ public static class PostLines
         Reading reading,
         bool saysWhatItAnswers = true)
     {
-        var (width, now, pictures, hideDrawnCaption) = drawing;
+        var width = drawing.Width;
+        var pictures = drawing.Pictures;
         var show = OnShow.Of(post, reading);
         var shown = show.Shown;
         var avatar = Avatar.Of(shown, pictures);
@@ -159,7 +161,7 @@ public static class PostLines
             ],
             // The post screen is about this post, so x is always something that can act on it here.
             Body(show, width, reading, saysHowToAskPast: true),
-            .. Media(show, width, pictures, Inset.WholeRows, hideDrawnCaption, reading, saysHowToAskPast: true),
+            .. Media(show, width, pictures, Inset.WholeRows, drawing.HideDrawnCaption, reading, saysHowToAskPast: true),
             LinkPreview(show, width, pictures, Inset.WholeRows, reading),
             Poll(show, width, reading),
             [Counts(shown, spelledOut: true)],
