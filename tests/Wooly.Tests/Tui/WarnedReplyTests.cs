@@ -1,5 +1,6 @@
 using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
+using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
@@ -114,7 +115,7 @@ public class WarnedReplyTests
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
 
         Assert.Equal(string.Empty, compose.Warning);
-        Assert.Contains(compose.Lines(61, AShell.Now), line => line.Text == "⚠ no content warning");
+        Assert.Contains(compose.Lines(new Drawing(61, AShell.Now)), line => line.Text == "⚠ no content warning");
 
         compose.Text = "Saying something of my own";
 
@@ -228,7 +229,7 @@ public class WarnedReplyTests
         var compose = await Editing(MinePlain);
 
         Assert.Equal(string.Empty, compose.Warning);
-        Assert.Contains(compose.Lines(61, AShell.Now), line => line.Text == "⚠ no content warning");
+        Assert.Contains(compose.Lines(new Drawing(61, AShell.Now)), line => line.Text == "⚠ no content warning");
     }
 
     /// <summary>
@@ -315,7 +316,7 @@ public class WarnedReplyTests
     public async Task Reply_DrawsTheWarningItOpenedOn()
     {
         var compose = await Replying(Warned);
-        var lines = compose.Lines(61, AShell.Now);
+        var lines = compose.Lines(new Drawing(61, AShell.Now));
 
         var warning = Assert.Single(lines, line => line.Has(Role.ContentWarning));
         Assert.Equal("⚠ spoilers", warning.Text);
@@ -329,7 +330,7 @@ public class WarnedReplyTests
     public async Task Reply_SaysThereIsNoWarningWhereTheFieldIsEmpty()
     {
         var compose = await Replying(Plain);
-        var lines = compose.Lines(61, AShell.Now);
+        var lines = compose.Lines(new Drawing(61, AShell.Now));
 
         Assert.DoesNotContain(lines, line => line.Has(Role.ContentWarning));
         Assert.Contains(lines, line => line.Text == "⚠ no content warning");
@@ -365,13 +366,13 @@ public class WarnedReplyTests
         opened.Backspace();
 
         Assert.Equal("cw", compose.Warning);
-        Assert.Contains(compose.Lines(61, AShell.Now), line => line.Text == "⚠ cw▌");
+        Assert.Contains(compose.Lines(new Drawing(61, AShell.Now)), line => line.Text == "⚠ cw▌");
 
         opened.WriteWarning();
 
         Assert.False(compose.WritingTheWarning);
         Assert.False(compose.IsTyping);
-        Assert.DoesNotContain(compose.Lines(61, AShell.Now), line => line.Text.Contains('▌'));
+        Assert.DoesNotContain(compose.Lines(new Drawing(61, AShell.Now)), line => line.Text.Contains('▌'));
     }
 
     /// <summary>Backspacing an empty field is nothing at all, rather than the letters of the post behind it.</summary>

@@ -28,10 +28,8 @@ public class AttachmentPreviewTests
     {
         var lines = PostLines.Feed(
             APost.With(media: [APost.Attached(kind)]),
-            61,
-            default,
-            Now,
-            FakePictures.With(new CellSize(10, 20)).Holding("m1", 400, 200));
+            new Drawing(61, Now, FakePictures.With(new CellSize(10, 20)).Holding("m1", 400, 200)),
+            default);
 
         var inset = Assert.Single(lines.SelectMany(line => line.Insets));
 
@@ -52,10 +50,8 @@ public class AttachmentPreviewTests
     {
         var lines = PostLines.Feed(
             APost.With(media: [APost.Attached(MediaKind.Video)]),
-            61,
-            default,
-            Now,
-            FakePictures.With());
+            new Drawing(61, Now, FakePictures.With()),
+            default);
 
         var wanted = Assert.Single(lines, line => line.Wants is not null).Wants;
 
@@ -73,10 +69,8 @@ public class AttachmentPreviewTests
     {
         var lines = PostLines.Feed(
             APost.With(media: [APost.Attached(kind) with { Preview = null }]),
-            61,
-            default,
-            Now,
-            FakePictures.With());
+            new Drawing(61, Now, FakePictures.With()),
+            default);
 
         Assert.Empty(lines.SelectMany(line => line.Insets));
         Assert.DoesNotContain(lines, line => line.Wants is not null);
@@ -95,10 +89,8 @@ public class AttachmentPreviewTests
     {
         var lines = PostLines.Feed(
             APost.With(media: [APost.Attached(kind, description: "Sheep, at length")]),
-            61,
-            default,
-            Now,
-            FakePictures.With().Holding("m1", 400, 300));
+            new Drawing(61, Now, FakePictures.With().Holding("m1", 400, 300)),
+            default);
 
         Assert.Empty(lines.SelectMany(line => line.Insets));
         Assert.DoesNotContain(lines, line => line.Wants is not null);
@@ -118,10 +110,8 @@ public class AttachmentPreviewTests
     {
         var lines = PostLines.Feed(
             APost.With(media: [APost.Attached(kind, description: "Sheep, at length")]),
-            61,
-            default,
-            Now,
-            FakePictures.DrawingNothing());
+            new Drawing(61, Now, FakePictures.DrawingNothing()),
+            default);
 
         Assert.Empty(lines.SelectMany(line => line.Insets));
         Assert.DoesNotContain(lines, line => line.Wants is not null);
@@ -138,8 +128,8 @@ public class AttachmentPreviewTests
     {
         var post = APost.With(media: [APost.Attached(MediaKind.Video, description: "Sheep, at length")]);
 
-        var waiting = PostLines.Feed(post, 61, default, Now, FakePictures.With());
-        var landed = PostLines.Feed(post, 61, default, Now, FakePictures.With().Holding("m1", 400, 300));
+        var waiting = PostLines.Feed(post, new Drawing(61, Now, FakePictures.With()), default);
+        var landed = PostLines.Feed(post, new Drawing(61, Now, FakePictures.With().Holding("m1", 400, 300)), default);
 
         Assert.NotEmpty(landed.SelectMany(line => line.Insets));
 
@@ -156,11 +146,8 @@ public class AttachmentPreviewTests
     {
         var lines = PostLines.Feed(
             APost.With(media: [APost.Attached(MediaKind.Video, description: "Sheep, at length")]),
-            61,
-            default,
-            Now,
-            FakePictures.With().Holding("m1", 400, 300),
-            hideDrawnCaption: true);
+            new Drawing(61, Now, FakePictures.With().Holding("m1", 400, 300), HideDrawnCaption: true),
+            default);
 
         Assert.NotEmpty(lines.SelectMany(line => line.Insets));
         Assert.DoesNotContain(lines, line => line.Text.Contains("Sheep, at length", StringComparison.Ordinal));
@@ -176,8 +163,14 @@ public class AttachmentPreviewTests
     {
         var described = APost.With(media: [APost.Attached(MediaKind.Video, description: "Sheep, at length")]);
 
-        var waiting = PostLines.Feed(described, 61, default, Now, FakePictures.With(), hideDrawnCaption: true);
-        var never = PostLines.Feed(described, 61, default, Now, FakePictures.DrawingNothing(), hideDrawnCaption: true);
+        var waiting = PostLines.Feed(
+            described,
+            new Drawing(61, Now, FakePictures.With(), HideDrawnCaption: true),
+            default);
+        var never = PostLines.Feed(
+            described,
+            new Drawing(61, Now, FakePictures.DrawingNothing(), HideDrawnCaption: true),
+            default);
 
         Assert.Empty(waiting.SelectMany(line => line.Insets));
 
@@ -195,10 +188,8 @@ public class AttachmentPreviewTests
     {
         var lines = PostLines.Feed(
             APost.With(media: [APost.Attached(MediaKind.Video, description: "Sheep, at length")]),
-            61,
-            default,
-            Now,
-            FakePictures.With().Holding("m1", 400, 300));
+            new Drawing(61, Now, FakePictures.With().Holding("m1", 400, 300)),
+            default);
 
         Assert.NotEmpty(lines.SelectMany(line => line.Insets));
         Assert.Contains(lines, line => line.Text.Contains("⏵ Video Sheep, at length", StringComparison.Ordinal));
@@ -213,10 +204,8 @@ public class AttachmentPreviewTests
     {
         var lines = PostLines.Feed(
             APost.With(media: [APost.Attached(MediaKind.Video)]),
-            61,
-            default,
-            Now,
-            FakePictures.With().Holding("m1", 400, 300));
+            new Drawing(61, Now, FakePictures.With().Holding("m1", 400, 300)),
+            default);
 
         var box = lines.ToList().FindIndex(line => line.Insets.Count > 0);
 
@@ -236,7 +225,7 @@ public class AttachmentPreviewTests
 
         var reference = AttachmentReferences.Of(post).Single();
 
-        var lines = PostLines.Whole(post, 61, new Reading(Reference: reference), Now, pictures);
+        var lines = PostLines.Whole(post, new Drawing(61, Now, pictures), new Reading(Reference: reference));
 
         var inset = Assert.Single(lines.SelectMany(line => line.Insets));
 
@@ -265,7 +254,7 @@ public class AttachmentPreviewTests
             pictures.Holding($"m{at}", 400, 300);
         }
 
-        var lines = PostLines.Feed(APost.With(media: media), 61, default, Now, pictures);
+        var lines = PostLines.Feed(APost.With(media: media), new Drawing(61, Now, pictures), default);
 
         Assert.Equal(["m0", "m1", "m2"], lines.SelectMany(line => line.Insets).Select(inset => inset.Drawn.Id));
 

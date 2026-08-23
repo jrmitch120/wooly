@@ -1,5 +1,4 @@
 using Wooly.Core.Posts;
-using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Theme;
 
@@ -133,28 +132,15 @@ public abstract class Screen
     /// </summary>
     protected static string Backspaced(string typed) => typed.Length > 0 ? typed[..^1] : typed;
 
-    /// <summary>The rows to draw, at <paramref name="width" /> columns.</summary>
-    /// <param name="width">How wide the content region is — 61 at an 80-column terminal.</param>
-    /// <param name="now">What to measure timestamps against.</param>
-    /// <param name="pictures">
-    ///     What this terminal can draw and which attachments' pixels have arrived, or <see langword="null" /> for a
-    ///     screen being laid out with no terminal in the room — which is every test, and which reads as every
-    ///     attachment being linked rather than drawn.
-    ///     <para>
-    ///         A screen needs this while it is working out its rows rather than while they are being painted, because
-    ///         it changes what the rows are: a picture's own proportions settle how many rows its box takes, and an
-    ///         attachment on a terminal that draws nothing becomes a link and a description instead (ADR-0016).
-    ///     </para>
-    /// </param>
-    /// <param name="hideDrawnCaption">
-    ///     The reader's <c>hide_drawn_caption</c> preference: whether a picture's caption hides once it is actually
-    ///     drawn (#71). Ignored by a screen with no posts on it.
-    /// </param>
-    public abstract IReadOnlyList<Line> Lines(
-        int width,
-        DateTimeOffset now,
-        IPictures? pictures = null,
-        bool hideDrawnCaption = false);
+    /// <summary>The rows to draw, in the room and under the conditions <paramref name="drawing" /> names.</summary>
+    /// <remarks>
+    ///     One parameter rather than four, because none of what a screen is told here is about the screen: the room,
+    ///     the moment, what the terminal can paint and what the reader asked for are the shell's to know and the
+    ///     screen's to pass on. A new one of those facts is a field on <see cref="Drawing" /> rather than a signature
+    ///     edit at eleven overrides and a threading change through <see cref="PostList" /> (#148).
+    /// </remarks>
+    /// <param name="drawing">What this screen is being drawn in and under.</param>
+    public abstract IReadOnlyList<Line> Lines(Drawing drawing);
 
     /// <summary>
     ///     The things on this screen with one of them picked out, or <see langword="null" /> where there is nothing on

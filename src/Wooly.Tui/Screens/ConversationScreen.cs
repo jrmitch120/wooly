@@ -1,6 +1,5 @@
 using Wooly.Core.Conversations;
 using Wooly.Core.Posts;
-using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Theme;
 
@@ -81,15 +80,11 @@ public sealed class ConversationScreen : Screen
     public override void Remove(string postId) => _posts.Remove(postId);
 
     /// <inheritdoc />
-    public override IReadOnlyList<Line> Lines(
-        int width,
-        DateTimeOffset now,
-        IPictures? pictures = null,
-        bool hideDrawnCaption = false)
+    public override IReadOnlyList<Line> Lines(Drawing drawing)
     {
         var lines = new List<Line>
         {
-            ConversationLines.With(Conversation, width),
+            ConversationLines.With(Conversation, drawing.Width),
             Line.Blank,
         };
 
@@ -100,7 +95,7 @@ public sealed class ConversationScreen : Screen
             return lines;
         }
 
-        lines.AddRange(_posts.Rows(width, now, pictures, hideDrawnCaption));
+        lines.AddRange(_posts.Rows(drawing));
 
         return lines;
     }

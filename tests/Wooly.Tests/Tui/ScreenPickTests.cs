@@ -44,7 +44,7 @@ public class ScreenPickTests
         {
             screen.Pick(at);
 
-            var lines = screen.Lines(61, AShell.Now);
+            var lines = screen.Lines(new Drawing(61, AShell.Now));
 
             var marked = lines.Where(line => line.Has(Role.Selection)).ToList();
             var named = lines.Where(line => line.Item == at).ToList();
@@ -62,7 +62,12 @@ public class ScreenPickTests
     [MemberData(nameof(Screens))]
     public void Pick_NamesEveryItemOnTheScreenAndNothingSplicedBetweenThem(string kind, int count)
     {
-        var items = Of(kind).Lines(61, AShell.Now).Select(line => line.Item).OfType<int>().Distinct().Order();
+        var items = Of(kind)
+                    .Lines(new Drawing(61, AShell.Now))
+                    .Select(line => line.Item)
+                    .OfType<int>()
+                    .Distinct()
+                    .Order();
 
         Assert.Equal(Enumerable.Range(0, count), items);
     }

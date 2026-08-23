@@ -1,6 +1,5 @@
 using Wooly.Core.Notifications;
 using Wooly.Core.Posts;
-using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Theme;
 
@@ -81,21 +80,17 @@ public sealed class NotificationsScreen(IReadOnlyList<Notification> notification
     }
 
     /// <inheritdoc />
-    public override IReadOnlyList<Line> Lines(
-        int width,
-        DateTimeOffset now,
-        IPictures? pictures = null,
-        bool hideDrawnCaption = false)
+    public override IReadOnlyList<Line> Lines(Drawing drawing)
     {
         var lines = new List<Line>();
 
         if (Notice is { } notice)
         {
-            lines.Add(Line.Of(TextWrap.Clip(notice, width), Role.Muted));
+            lines.Add(Line.Of(TextWrap.Clip(notice, drawing.Width), Role.Muted));
             lines.Add(Line.Blank);
         }
 
-        lines.AddRange(_notifications.Rows(width, Draw));
+        lines.AddRange(_notifications.Rows(drawing.Width, Draw));
 
         return lines;
 
@@ -103,12 +98,12 @@ public sealed class NotificationsScreen(IReadOnlyList<Notification> notification
         // as the heading of the two rather than as another message in the list.
         IReadOnlyList<Line> Draw(Notification notification, int at, int room)
         {
-            var rows = new List<Line> { Happened(notification, room, now) };
+            var rows = new List<Line> { Happened(notification, room, drawing.Now) };
 
             if (notification.Post is { } post)
             {
                 rows.AddRange(PostLines
-                              .Feed(post, Math.Max(1, room - 2), ReadingOf(post, at), now, pictures)
+                              .Feed(post, drawing.In(Math.Max(1, room - 2)), ReadingOf(post, at))
                               .Select(line => line.After(new Span("  ", Role.Body))));
             }
 

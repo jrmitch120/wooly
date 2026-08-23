@@ -29,7 +29,7 @@ public class PostBylineTests
 
     /// <summary>The post's rows as a feed shows them.</summary>
     private static IReadOnlyList<Line> Feed(Post post, int width = 61, IPictures? pictures = null) =>
-        PostLines.Feed(post, width, default, Now, pictures);
+        PostLines.Feed(post, new Drawing(width, Now, pictures), default);
 
     /// <summary>Which row the first one <paramref name="which" /> picks out is, so a test can say "the row under it".</summary>
     private static int Row(IReadOnlyList<Line> lines, Func<Line, bool> which)
@@ -159,7 +159,7 @@ public class PostBylineTests
         var posts = new Picked<Post>([By(avatar: Avatar)]);
         var pictures = FakePictures.With().HoldingAvatarOf("maria@fosstodon.org");
 
-        var lines = posts.Rows(61, (post, _, room) => PostLines.Feed(post, room, default, Now, pictures));
+        var lines = posts.Rows(61, (post, _, room) => PostLines.Feed(post, new Drawing(room, Now, pictures), default));
 
         var box = Assert.Single(lines.SelectMany(line => line.Insets));
         var name = lines.First(line => line.Has(Role.BylineName));
@@ -235,10 +235,8 @@ public class PostBylineTests
     {
         var lines = PostLines.Whole(
             By(avatar: Avatar),
-            61,
-            default,
-            Now,
-            FakePictures.With().HoldingAvatarOf("maria@fosstodon.org"));
+            new Drawing(61, Now, FakePictures.With().HoldingAvatarOf("maria@fosstodon.org")),
+            default);
 
         var box = Assert.Single(lines.SelectMany(line => line.Insets));
 
@@ -326,7 +324,7 @@ public class PostBylineTests
         var post = By() with { InReplyTo = new PostReplyTarget { PostId = "99", Handle = "sam@hachyderm.io" } };
 
         var feed = Feed(post);
-        var whole = PostLines.Whole(post, 61, default, Now);
+        var whole = PostLines.Whole(post, new Drawing(61, Now), default);
 
         Assert.Equal("↳ answering @sam@hachyderm.io", feed[0].Text);
         Assert.Equal(feed[0].Text, whole[0].Text);

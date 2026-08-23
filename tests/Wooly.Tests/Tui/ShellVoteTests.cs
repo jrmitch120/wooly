@@ -1,6 +1,7 @@
 using Wooly.Core.Errors;
 using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
+using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Theme;
 
@@ -97,7 +98,7 @@ public class ShellVoteTests
 
         opened.Toggle(1);
 
-        var lines = opened.Screen.Lines(61, AShell.Now).Select(line => line.Text).ToList();
+        var lines = opened.Screen.Lines(new Drawing(61, AShell.Now)).Select(line => line.Text).ToList();
 
         Assert.Contains(lines, line => line.Contains("[x]") && line.EndsWith("Dogs", StringComparison.Ordinal));
         Assert.Contains(lines, line => line.Contains("[ ]") && line.EndsWith("Cats", StringComparison.Ordinal));
@@ -255,7 +256,7 @@ public class ShellVoteTests
         shell.Host.Drain();
 
         Assert.Empty(opened.Screen.Chosen);
-        Assert.DoesNotContain(opened.Screen.Lines(61, AShell.Now), line => line.Text.Contains("[x]"));
+        Assert.DoesNotContain(opened.Screen.Lines(new Drawing(61, AShell.Now)), line => line.Text.Contains("[x]"));
     }
 
     /// <summary>
@@ -420,7 +421,7 @@ public class ShellVoteTests
 
         opened.Toggle(1);
 
-        var ticked = opened.Screen.Lines(61, AShell.Now).First(line => line.Text.Contains("[x]"));
+        var ticked = opened.Screen.Lines(new Drawing(61, AShell.Now)).First(line => line.Text.Contains("[x]"));
 
         Assert.True(ticked.Has(Role.Poll));
     }

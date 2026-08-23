@@ -1,6 +1,5 @@
 using Wooly.Core.Accounts;
 using Wooly.Core.Posts;
-using Wooly.Tui.Media;
 using Wooly.Core.Search;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Theme;
@@ -149,12 +148,10 @@ public sealed class SearchScreen : Screen
         _results.Remove(found => found is Result.OfPost(var held) && PostChange.Names(held, postId));
 
     /// <inheritdoc />
-    public override IReadOnlyList<Line> Lines(
-        int width,
-        DateTimeOffset now,
-        IPictures? pictures = null,
-        bool hideDrawnCaption = false)
+    public override IReadOnlyList<Line> Lines(Drawing drawing)
     {
+        var width = drawing.Width;
+
         var lines = new List<Line> { Prompt(width), Line.Blank };
 
         if (IsTyping)
@@ -186,7 +183,7 @@ public sealed class SearchScreen : Screen
         {
             Result.OfAccount(var account) => [AccountLines.Byline(account, room)],
             Result.OfHashtag(var hashtag) => [Tag(hashtag, room)],
-            Result.OfPost(var post) => PostLines.Feed(post, room, ReadingOf(post, at), now, pictures, hideDrawnCaption),
+            Result.OfPost(var post) => PostLines.Feed(post, drawing.In(room), ReadingOf(post, at)),
             _ => [],
         };
     }

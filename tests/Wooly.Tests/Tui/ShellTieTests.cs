@@ -1,6 +1,7 @@
 using Wooly.Core.Accounts;
 using Wooly.Core.Relationships;
 using Wooly.Tests.Fakes;
+using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
 
@@ -77,7 +78,7 @@ public class ShellTieTests
         Assert.True(account.Account.Standing?.Following);
         Assert.True(account.Has(AccountTie.Follow));
 
-        var drawn = account.Lines(61, AShell.Now).Select(line => line.Text);
+        var drawn = account.Lines(new Drawing(61, AShell.Now)).Select(line => line.Text);
         Assert.Contains(drawn, line => line.Contains("you follow them", StringComparison.Ordinal));
     }
 

@@ -24,10 +24,10 @@ public class PostPollLinesTests
     ///     rather than voted in — which is what <see langword="default" /> says everywhere else.
     /// </param>
     private static IReadOnlyList<Line> Feed(Post post, int[]? chosen = null, int width = 61) =>
-        PostLines.Feed(post, width, new Reading(Chosen: chosen?.ToHashSet()), Now);
+        PostLines.Feed(post, new Drawing(width, Now), new Reading(Chosen: chosen?.ToHashSet()));
 
     private static IReadOnlyList<Line> Whole(Post post, int width = 61) =>
-        PostLines.Whole(post, width, default, Now);
+        PostLines.Whole(post, new Drawing(width, Now), default);
 
     /// <summary>A post carrying no poll draws none of this at all.</summary>
     [Fact]

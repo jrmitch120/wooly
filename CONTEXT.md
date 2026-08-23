@@ -110,6 +110,21 @@ that the same article shared twice is fetched once (#116). Nothing outside a TUI
 (ADR-0016).
 _Avoid_: image, media (for the avatar half of this)
 
+**Drawing**:
+The conditions a screen is drawn under, as one thing (`Drawing`): how much room there is, what moment to measure ages
+against, what this terminal can paint and which pixels have arrived, and what the reader asked for. Everything
+`Screen.Lines` is told, and none of it about the screen — which is why it is one record rather than an argument
+apiece: each fact arrived a ticket at a time and each cost a signature edit at eleven overrides plus a threading
+change through `PostList` to carry one new fact (#148). A new one is a field here.
+One value per frame, made by the shell and handed down unchanged but for the room a gutter or an indent leaves, which
+is `In`. What is deliberately *not* on it is the pair of flags saying whether a post draws its `x  show it` row (#120)
+and its `↳` row (#86): those are facts about one drawing of one post, differing between two rows of the same frame, so
+they stay arguments to `PostLines` where the row that changes them is. Put on the record they would be adjustable
+everywhere it goes and would stay adjusted.
+Distinct from **Drawn**, which is one picture the TUI paints in place: this is the conditions, that is a thing being
+drawn under them. Nothing outside a TUI has either — the CLI writes what it writes at whatever width a terminal is.
+_Avoid_: context, render options, layout
+
 **Boost**:
 Re-sharing another account's post to your own followers. The API calls this a `reblog`. This project always says "boost" in user-facing language and domain code; `reblog` may still appear as the literal API field name at the wire layer.
 _Avoid_: reblog, repost, retweet

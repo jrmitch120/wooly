@@ -195,7 +195,9 @@ public class ReferenceWalkTests
         var spans = Drawn(screen);
 
         Assert.Equal(2, spans.Count(span => span.Role == Role.ReferencePicked));
-        Assert.Contains(screen.Lines(61, AShell.Now), line => line.Text.Contains("‹@maria@fosstodon.org›"));
+        Assert.Contains(
+            screen.Lines(new Drawing(61, AShell.Now)),
+            line => line.Text.Contains("‹@maria@fosstodon.org›"));
     }
 
     /// <summary>
@@ -211,7 +213,9 @@ public class ReferenceWalkTests
 
         feed.WalkReference(1);
 
-        Assert.Single(feed.Lines(61, AShell.Now), line => line.Text.Contains("‹@maria@fosstodon.org›"));
+        Assert.Single(
+            feed.Lines(new Drawing(61, AShell.Now)),
+            line => line.Text.Contains("‹@maria@fosstodon.org›"));
     }
 
     /// <summary>
@@ -262,7 +266,7 @@ public class ReferenceWalkTests
 
     /// <summary>The spans of every row of a screen, which is what a role is asserted against.</summary>
     private static IReadOnlyList<Span> Drawn(Screen screen) =>
-        [.. screen.Lines(61, AShell.Now).SelectMany(line => line.Spans)];
+        [.. screen.Lines(new Drawing(61, AShell.Now)).SelectMany(line => line.Spans)];
 
     /// <summary>The status row as it reads at 80 columns, which is the width the contract is written for.</summary>
     private static string Status(Screen screen) =>

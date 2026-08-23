@@ -1,5 +1,4 @@
 using Wooly.Core.Posts;
-using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
 
 namespace Wooly.Tui.Screens;
@@ -84,15 +83,10 @@ public sealed class PostList(Screen screen, IReadOnlyList<Post> posts) : IPicked
     ///         list of posts to walk. #95 named those as the sites this does not fit, and that finding stands.
     ///     </para>
     /// </remarks>
-    /// <param name="width">How wide the content region is — 61 at an 80-column terminal.</param>
-    /// <param name="now">What to measure timestamps against.</param>
-    /// <param name="pictures">What this terminal can draw and which attachments' pixels have arrived.</param>
-    /// <param name="hideDrawnCaption">The reader's <c>hide_drawn_caption</c> preference (#71).</param>
-    public IReadOnlyList<Line> Rows(
-        int width,
-        DateTimeOffset now,
-        IPictures? pictures = null,
-        bool hideDrawnCaption = false) => _posts.Rows(width, Feed(now, pictures, hideDrawnCaption));
+    /// <param name="drawing">
+    ///     What this screen is being drawn in and under, which a row is handed narrowed by its own gutter (#148).
+    /// </param>
+    public IReadOnlyList<Line> Rows(Drawing drawing) => _posts.Rows(drawing.Width, Feed(drawing));
 
     /// <inheritdoc cref="Rows" />
     /// <summary>The <paramref name="at" />th post's rows on their own, with no rule after them.</summary>
@@ -100,12 +94,7 @@ public sealed class PostList(Screen screen, IReadOnlyList<Post> posts) : IPicked
     ///     For the post screen, which puts a heading of its own between the post it is about and the answers to it.
     ///     Splicing rows between posts is that screen's; stamping the posts' own rows is still not.
     /// </remarks>
-    public IReadOnlyList<Line> RowsOf(
-        int at,
-        int width,
-        DateTimeOffset now,
-        IPictures? pictures = null,
-        bool hideDrawnCaption = false) => _posts.RowsOf(at, width, Feed(now, pictures, hideDrawnCaption));
+    public IReadOnlyList<Line> RowsOf(int at, Drawing drawing) => _posts.RowsOf(at, drawing.Width, Feed(drawing));
 
     /// <summary>
     ///     The <paramref name="at" />th post's rows, drawn the screen's own way rather than as a feed row — which one
@@ -120,9 +109,14 @@ public sealed class PostList(Screen screen, IReadOnlyList<Post> posts) : IPicked
     ///         its rows one at a time and never has a whole list to hand a drawing to.
     ///     </para>
     /// </remarks>
-    public IReadOnlyList<Line> RowsOf(int at, int width, Draws<Post> drawing) => _posts.RowsOf(at, width, drawing);
+    public IReadOnlyList<Line> RowsOf(int at, int width, Draws<Post> draw) => _posts.RowsOf(at, width, draw);
 
     /// <summary>How a post on this list draws itself, with what its reader has done to it filled in.</summary>
-    private Draws<Post> Feed(DateTimeOffset now, IPictures? pictures, bool hideDrawnCaption) =>
-        (post, at, room) => PostLines.Feed(post, room, screen.ReadingOf(post, at), now, pictures, hideDrawnCaption);
+    /// <remarks>
+    ///     The drawing goes through as it came, narrowed to the room the gutter leaves: this list adds nothing to it
+    ///     and takes nothing out of it, so a fact the shell puts on one reaches a row here without this file being
+    ///     touched (#148).
+    /// </remarks>
+    private Draws<Post> Feed(Drawing drawing) =>
+        (post, at, room) => PostLines.Feed(post, drawing.In(room), screen.ReadingOf(post, at));
 }

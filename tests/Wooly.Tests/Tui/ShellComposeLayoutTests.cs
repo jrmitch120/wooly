@@ -2,6 +2,7 @@ using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
+using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Theme;
 using Wooly.Tui.Views;
@@ -84,7 +85,7 @@ public class ShellComposeLayoutTests
 
             var compose = Assert.IsType<ComposeScreen>(shell.Screen);
 
-            var rows = compose.Lines(ContentWidth, AShell.Now);
+            var rows = compose.Lines(new Drawing(ContentWidth, AShell.Now));
 
             Assert.Equal(ComposeFor.Edit, compose.Purpose);
             Assert.Equal(string.Empty, rows[0].Text);
@@ -166,7 +167,9 @@ public class ShellComposeLayoutTests
         opened.Reply();
 
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
-        var quoted = compose.Lines(ContentWidth, AShell.Now).Take(compose.AnsweringHeight(ContentWidth)).ToList();
+        var quoted = compose.Lines(new Drawing(ContentWidth, AShell.Now))
+                            .Take(compose.AnsweringHeight(ContentWidth))
+                            .ToList();
 
         Assert.Equal(
             [
@@ -186,7 +189,7 @@ public class ShellComposeLayoutTests
 
         using (window)
         {
-            var lines = compose.Lines(ContentWidth, AShell.Now);
+            var lines = compose.Lines(new Drawing(ContentWidth, AShell.Now));
 
             Assert.Equal(2, compose.AnsweringHeight(ContentWidth));
             Assert.Equal("↳ answering @ben@hachyderm.io", lines[0].Text);
@@ -229,7 +232,7 @@ public class ShellComposeLayoutTests
             }
 
             var compose = Assert.IsType<ComposeScreen>(shell.Screen);
-            var band = compose.Lines(ContentWidth, AShell.Now)
+            var band = compose.Lines(new Drawing(ContentWidth, AShell.Now))
                               .Skip(compose.AnsweringHeight(ContentWidth))
                               .Take(compose.WarningHeight)
                               .Select(line => line.Text);

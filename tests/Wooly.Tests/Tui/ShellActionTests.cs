@@ -1,5 +1,6 @@
 using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
+using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 
 namespace Wooly.Tests.Tui;
@@ -238,7 +239,7 @@ public class ShellActionTests
 
         opened.Reply();
 
-        var label = opened.Screen.Lines(61, AShell.Now)[0].Text;
+        var label = opened.Screen.Lines(new Drawing(61, AShell.Now))[0].Text;
         Assert.Equal("↳ answering @ben@hachyderm.io", label);
     }
 
@@ -251,7 +252,7 @@ public class ShellActionTests
 
         opened.Reply();
 
-        var label = opened.Screen.Lines(61, AShell.Now)[0].Text;
+        var label = opened.Screen.Lines(new Drawing(61, AShell.Now))[0].Text;
         Assert.Equal("↳ continuing", label);
     }
 
@@ -476,13 +477,13 @@ public class ShellActionTests
 
         var opened = await shell.Opened();
 
-        var hidden = opened.Screen.Lines(61, AShell.Now).Select(line => line.Text).ToList();
+        var hidden = opened.Screen.Lines(new Drawing(61, AShell.Now)).Select(line => line.Text).ToList();
         Assert.Contains(hidden, line => line.Contains("spoilers", StringComparison.Ordinal));
         Assert.DoesNotContain(hidden, line => line.Contains("The spoiler itself", StringComparison.Ordinal));
 
         opened.Reveal();
 
-        var shown = opened.Screen.Lines(61, AShell.Now).Select(line => line.Text).ToList();
+        var shown = opened.Screen.Lines(new Drawing(61, AShell.Now)).Select(line => line.Text).ToList();
         Assert.Contains(shown, line => line.Contains("The spoiler itself", StringComparison.Ordinal));
     }
 }

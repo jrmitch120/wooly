@@ -1,4 +1,3 @@
-using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Theme;
 
@@ -22,13 +21,9 @@ public sealed class NoticeScreen(string crumb, string headline, string? aside = 
     protected override IReadOnlyList<KeyHint> OwnKeys => [new("tab", "destination"), new("?", "keys")];
 
     /// <inheritdoc />
-    public override IReadOnlyList<Line> Lines(
-        int width,
-        DateTimeOffset now,
-        IPictures? pictures = null,
-        bool hideDrawnCaption = false)
+    public override IReadOnlyList<Line> Lines(Drawing drawing)
     {
-        var lines = new List<Line>(TextWrap.Wrap(headline, width).Select(row => Line.Of(row, Role.Body)));
+        var lines = new List<Line>(TextWrap.Wrap(headline, drawing.Width).Select(row => Line.Of(row, Role.Body)));
 
         if (aside is null)
         {
@@ -36,7 +31,7 @@ public sealed class NoticeScreen(string crumb, string headline, string? aside = 
         }
 
         lines.Add(Line.Blank);
-        lines.AddRange(TextWrap.Wrap(aside, width).Select(row => Line.Of(row, Role.Muted)));
+        lines.AddRange(TextWrap.Wrap(aside, drawing.Width).Select(row => Line.Of(row, Role.Muted)));
 
         return lines;
     }

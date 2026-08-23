@@ -38,10 +38,8 @@ public class SensitiveMediaTests
     {
         var lines = PostLines.Feed(
             Hiding(contentWarning, sensitive),
-            61,
-            default,
-            Now,
-            FakePictures.With().Holding("m1", 400, 300).Holding("m2", 400, 300));
+            new Drawing(61, Now, FakePictures.With().Holding("m1", 400, 300).Holding("m2", 400, 300)),
+            default);
 
         Assert.Empty(lines.SelectMany(line => line.Insets));
 
@@ -62,7 +60,7 @@ public class SensitiveMediaTests
     {
         var pictures = FakePictures.With();
 
-        var lines = PostLines.Feed(Hiding(contentWarning, sensitive), 61, default, Now, pictures);
+        var lines = PostLines.Feed(Hiding(contentWarning, sensitive), new Drawing(61, Now, pictures), default);
 
         Assert.DoesNotContain(lines, line => line.Wants is not null);
         Assert.Empty(pictures.Asked);
@@ -80,12 +78,13 @@ public class SensitiveMediaTests
 
         var revealed = PostLines.Feed(
             Hiding(contentWarning: null, sensitive: true),
-            61,
-            new Reading(Revealed: true),
-            Now,
-            pictures);
+            new Drawing(61, Now, pictures),
+            new Reading(Revealed: true));
 
-        var plain = PostLines.Feed(Hiding(contentWarning: null, sensitive: false), 61, default, Now, pictures);
+        var plain = PostLines.Feed(
+            Hiding(contentWarning: null, sensitive: false),
+            new Drawing(61, Now, pictures),
+            default);
 
         Assert.Equal(plain.Select(line => line.Text), revealed.Select(line => line.Text));
 
@@ -101,10 +100,10 @@ public class SensitiveMediaTests
         var post = Hiding(contentWarning: null, sensitive: true);
         var pictures = FakePictures.With().Holding("m1", 400, 300);
 
-        Assert.Empty(PostLines.Whole(post, 61, default, Now, pictures).SelectMany(line => line.Insets));
+        Assert.Empty(PostLines.Whole(post, new Drawing(61, Now, pictures), default).SelectMany(line => line.Insets));
 
         Assert.NotEmpty(PostLines
-                        .Whole(post, 61, new Reading(Revealed: true), Now, pictures)
+                        .Whole(post, new Drawing(61, Now, pictures), new Reading(Revealed: true))
                         .SelectMany(line => line.Insets));
     }
 
@@ -116,7 +115,10 @@ public class SensitiveMediaTests
     [Fact]
     public void Feed_SaysASensitivePostIsHidingSomethingWhereNoWarningAlreadyDoes()
     {
-        var lines = PostLines.Feed(Hiding(contentWarning: null, sensitive: true), 61, default, Now, FakePictures.With());
+        var lines = PostLines.Feed(
+            Hiding(contentWarning: null, sensitive: true),
+            new Drawing(61, Now, FakePictures.With()),
+            default);
 
         Assert.Contains(lines, line => line.Text.Contains("⚠ Sensitive media", StringComparison.Ordinal));
         Assert.Contains(lines, line => line.Text.Contains("x  show it", StringComparison.Ordinal));
@@ -131,10 +133,8 @@ public class SensitiveMediaTests
     {
         var lines = PostLines.Feed(
             Hiding(contentWarning: "spoilers", sensitive: true),
-            61,
-            default,
-            Now,
-            FakePictures.With());
+            new Drawing(61, Now, FakePictures.With()),
+            default);
 
         Assert.DoesNotContain(lines, line => line.Text.Contains("Sensitive media", StringComparison.Ordinal));
         Assert.Equal(1, lines.Count(line => line.Text.Contains("x  show it", StringComparison.Ordinal)));
@@ -152,7 +152,7 @@ public class SensitiveMediaTests
     {
         var post = APost.With(sensitive: true);
 
-        var lines = PostLines.Feed(post, 61, default, Now, FakePictures.With());
+        var lines = PostLines.Feed(post, new Drawing(61, Now, FakePictures.With()), default);
 
         Assert.DoesNotContain(lines, line => line.Text.Contains("Sensitive media", StringComparison.Ordinal));
         Assert.False(Feed(post).Reveal());
@@ -167,10 +167,8 @@ public class SensitiveMediaTests
     {
         var lines = PostLines.Feed(
             APost.With(media: [APost.APicture()]),
-            61,
-            default,
-            Now,
-            FakePictures.With().Holding("m1", 400, 300));
+            new Drawing(61, Now, FakePictures.With().Holding("m1", 400, 300)),
+            default);
 
         Assert.NotEmpty(lines.SelectMany(line => line.Insets));
     }
@@ -218,7 +216,7 @@ public class SensitiveMediaTests
     {
         var boost = APost.With(id: "1", content: string.Empty, boosted: Hiding(contentWarning: null, sensitive: true));
 
-        var lines = PostLines.Feed(boost, 61, default, Now, FakePictures.With().Holding("m1", 400, 300));
+        var lines = PostLines.Feed(boost, new Drawing(61, Now, FakePictures.With().Holding("m1", 400, 300)), default);
 
         Assert.Empty(lines.SelectMany(line => line.Insets));
 

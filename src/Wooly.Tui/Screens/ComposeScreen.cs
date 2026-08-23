@@ -1,5 +1,4 @@
 using Wooly.Core.Posts;
-using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Theme;
 
@@ -173,12 +172,10 @@ public sealed class ComposeScreen : Screen
     public int WarningHeight => 2;
 
     /// <inheritdoc />
-    public override IReadOnlyList<Line> Lines(
-        int width,
-        DateTimeOffset now,
-        IPictures? pictures = null,
-        bool hideDrawnCaption = false)
+    public override IReadOnlyList<Line> Lines(Drawing drawing)
     {
+        var width = drawing.Width;
+
         var lines = new List<Line>(Answering(width));
 
         lines.AddRange(WarningRows(width));

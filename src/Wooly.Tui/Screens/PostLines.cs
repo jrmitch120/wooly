@@ -71,35 +71,35 @@ public static class PostLines
     ///     beside it, the text, what is attached, and the three counts behind a blank of their own.
     /// </summary>
     /// <param name="post">The post, which may be a boost of another one.</param>
-    /// <param name="width">How many columns there are, which at an 80-column terminal is 61.</param>
+    /// <param name="drawing">
+    ///     The room, the moment, what this terminal can paint and what the reader asked for — everything about
+    ///     drawing this post that is not about the post (#148).
+    /// </param>
     /// <param name="reading">
     ///     What this reader has done to this post — asked past its warning, walked to a reference in it — which is
     ///     <see langword="default" /> for the posts nobody has touched (#95).
-    /// </param>
-    /// <param name="now">What to measure the timestamp against.</param>
-    /// <param name="pictures">
-    ///     What this terminal can draw and what has arrived, or <see langword="null" /> where nothing is drawn — which
-    ///     is what every attachment falls back to being linked means.
-    /// </param>
-    /// <param name="hideDrawnCaption">
-    ///     Whether a picture's caption hides once the picture is actually drawn (#71) — the reader's
-    ///     <c>hide_drawn_caption</c> preference.
     /// </param>
     /// <param name="saysHowToAskPast">
     ///     Whether the <c>x  show it</c> row is drawn under whatever the post is hiding. On for every screen that picks
     ///     the post out, and off for exactly one that does not: the conversations list, where a row is a conversation
     ///     and <c>x</c> has no post to be asked about — so the row would be naming a key that cannot act, which reads
     ///     as a shell that missed the press (<c>docs/tui-shell.md</c>, #120). The warning itself is drawn either way.
+    ///     <para>
+    ///         An argument of its own rather than a field on <see cref="Drawing" />, along with
+    ///         <see cref="Whole" />'s <c>saysWhatItAnswers</c>: a drawing is one value the shell makes per frame and
+    ///         every screen hands down unchanged but for the room, while these two are facts about <em>this</em>
+    ///         drawing of <em>this</em> post and differ between two rows of the same frame. Put on the record they
+    ///         would be adjustable everywhere it goes and would stay adjusted, which is a row further down quietly
+    ///         drawn under a rule nobody set for it.
+    ///     </para>
     /// </param>
     public static IReadOnlyList<Line> Feed(
         Post post,
-        int width,
+        Drawing drawing,
         Reading reading,
-        DateTimeOffset now,
-        IPictures? pictures = null,
-        bool hideDrawnCaption = false,
         bool saysHowToAskPast = true)
     {
+        var (width, now, pictures, hideDrawnCaption) = drawing;
         var show = OnShow.Of(post, reading);
         var shown = show.Shown;
 
@@ -128,13 +128,11 @@ public static class PostLines
     /// </param>
     public static IReadOnlyList<Line> Whole(
         Post post,
-        int width,
+        Drawing drawing,
         Reading reading,
-        DateTimeOffset now,
-        IPictures? pictures = null,
-        bool hideDrawnCaption = false,
         bool saysWhatItAnswers = true)
     {
+        var (width, now, pictures, hideDrawnCaption) = drawing;
         var show = OnShow.Of(post, reading);
         var shown = show.Shown;
         var avatar = Avatar.Of(shown, pictures);

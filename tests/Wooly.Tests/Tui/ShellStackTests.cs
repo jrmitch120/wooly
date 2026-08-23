@@ -1,5 +1,6 @@
 using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
+using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
 
@@ -170,7 +171,7 @@ public class ShellStackTests
         opened.Help();
 
         var help = Assert.IsType<HelpScreen>(opened.Screen);
-        var drawn = help.Lines(61, AShell.Now).Select(line => line.Text).ToList();
+        var drawn = help.Lines(new Drawing(61, AShell.Now)).Select(line => line.Text).ToList();
 
         Assert.Contains(drawn, line => line.Contains("On home", StringComparison.Ordinal));
         Assert.Contains(drawn, line => line.Contains("boost", StringComparison.Ordinal));
@@ -358,7 +359,7 @@ public class ShellStackTests
         await opened.Enter();
         shell.Host.Drain();
 
-        var drawn = opened.Screen.Lines(61, AShell.Now).Select(line => line.Text);
+        var drawn = opened.Screen.Lines(new Drawing(61, AShell.Now)).Select(line => line.Text);
 
         Assert.Contains(drawn, line => line.Contains("Nobody has answered this yet", StringComparison.Ordinal));
     }

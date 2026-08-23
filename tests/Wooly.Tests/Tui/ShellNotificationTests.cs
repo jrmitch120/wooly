@@ -1,5 +1,6 @@
 using Wooly.Core.Notifications;
 using Wooly.Tests.Fakes;
+using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
 
@@ -140,7 +141,7 @@ public class ShellNotificationTests
         opened.Step(ToNotifications);
         shell.Host.Settle();
 
-        var drawn = opened.Screen.Lines(61, AShell.Now).Select(line => line.Text);
+        var drawn = opened.Screen.Lines(new Drawing(61, AShell.Now)).Select(line => line.Text);
 
         Assert.Contains(drawn, line => line.Contains("Nothing is waiting", StringComparison.Ordinal));
     }
@@ -158,7 +159,7 @@ public class ShellNotificationTests
         opened.Step(ToNotifications);
         shell.Host.Settle();
 
-        var drawn = opened.Screen.Lines(61, AShell.Now).Select(line => line.Text);
+        var drawn = opened.Screen.Lines(new Drawing(61, AShell.Now)).Select(line => line.Text);
 
         Assert.Contains(drawn, line => line.Contains("Rate limited part way through", StringComparison.Ordinal));
     }

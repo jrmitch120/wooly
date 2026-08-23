@@ -74,8 +74,8 @@ public class AttachmentReferenceTests
         var post = APost.With(content: "Hello", media: [APost.Attached(kind, description: "Sheep, at length")]);
         var reference = AttachmentReferences.Of(post).Single();
 
-        var unpicked = PostLines.Feed(post, 61, default, Now);
-        var picked = PostLines.Feed(post, 61, new Reading(Reference: reference), Now);
+        var unpicked = PostLines.Feed(post, new Drawing(61, Now), default);
+        var picked = PostLines.Feed(post, new Drawing(61, Now), new Reading(Reference: reference));
 
         Assert.Contains(unpicked, line => line.Text.Contains($"⏵ {label} Sheep, at length"));
         Assert.Contains(picked, line => line.Text.Contains($"⏵ ‹{label}› Sheep, at length"));
@@ -90,7 +90,7 @@ public class AttachmentReferenceTests
     {
         var post = APost.With(content: "Hello", media: [APost.Attached(MediaKind.Video, description: null)]);
 
-        var lines = PostLines.Feed(post, 61, default, Now);
+        var lines = PostLines.Feed(post, new Drawing(61, Now), default);
 
         Assert.Contains(lines, line => line.Text.Contains("⏵ Video"));
     }
@@ -106,7 +106,7 @@ public class AttachmentReferenceTests
             content: "Hello",
             media: [APost.Attached(MediaKind.Video) with { Url = "https://files.mastodon.social/m1/original.mp4" }]);
 
-        var lines = PostLines.Feed(post, 61, default, Now);
+        var lines = PostLines.Feed(post, new Drawing(61, Now), default);
 
         Assert.DoesNotContain(lines, line => line.Text.Contains("https://files.mastodon.social/m1/original.mp4"));
     }

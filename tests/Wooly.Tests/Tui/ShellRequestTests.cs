@@ -1,4 +1,5 @@
 using Wooly.Tests.Fakes;
+using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
 
@@ -106,7 +107,7 @@ public class ShellRequestTests
         opened.Step(ToRequests);
         shell.Host.Settle();
 
-        var drawn = opened.Screen.Lines(61, AShell.Now).Select(line => line.Text);
+        var drawn = opened.Screen.Lines(new Drawing(61, AShell.Now)).Select(line => line.Text);
 
         Assert.Contains(drawn, line => line.Contains("Nobody is waiting", StringComparison.Ordinal));
     }

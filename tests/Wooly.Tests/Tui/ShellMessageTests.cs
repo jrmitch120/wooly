@@ -1,5 +1,6 @@
 using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
+using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
 
@@ -54,7 +55,7 @@ public class ShellMessageTests
         opened.Step(ToMessages);
         shell.Host.Settle();
 
-        var drawn = opened.Screen.Lines(61, AShell.Now).ToList();
+        var drawn = opened.Screen.Lines(new Drawing(61, AShell.Now)).ToList();
 
         var alice = drawn.First(line => line.Text.Contains("alice", StringComparison.Ordinal));
         var ben = drawn.First(line => line.Text.Contains("ben", StringComparison.Ordinal));
@@ -73,7 +74,7 @@ public class ShellMessageTests
         opened.Step(ToMessages);
         shell.Host.Settle();
 
-        var drawn = opened.Screen.Lines(61, AShell.Now).Select(line => line.Text);
+        var drawn = opened.Screen.Lines(new Drawing(61, AShell.Now)).Select(line => line.Text);
 
         Assert.Contains(drawn, line => line.Contains("No direct conversations", StringComparison.Ordinal));
     }
@@ -91,7 +92,7 @@ public class ShellMessageTests
         opened.Step(ToMessages);
         shell.Host.Settle();
 
-        var drawn = opened.Screen.Lines(61, AShell.Now).Select(line => line.Text);
+        var drawn = opened.Screen.Lines(new Drawing(61, AShell.Now)).Select(line => line.Text);
 
         Assert.Contains(drawn, line => line.Contains("Rate limited part way through", StringComparison.Ordinal));
     }
@@ -358,7 +359,7 @@ public class ShellMessageTests
         Assert.Single(listed.Conversations);
         Assert.Null(listed.Conversations[0].Latest);
         Assert.Contains(
-            listed.Lines(61, AShell.Now),
+            listed.Lines(new Drawing(61, AShell.Now)),
             line => line.Text.Contains("Nothing left", StringComparison.Ordinal));
     }
 

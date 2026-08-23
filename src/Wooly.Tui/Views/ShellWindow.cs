@@ -115,7 +115,7 @@ internal sealed class ShellWindow : Window
         // scrolling while a post is being written, which Refresh settles.
         _content = new PaintedView(
             theme,
-            (width, _) => shell.Screen.Lines(width, clock.GetUtcNow(), pictures, hideDrawnCaption),
+            (width, _) => shell.Screen.Lines(new Drawing(width, clock.GetUtcNow(), pictures, hideDrawnCaption)),
             pictures)
         {
             Id = ContentId,

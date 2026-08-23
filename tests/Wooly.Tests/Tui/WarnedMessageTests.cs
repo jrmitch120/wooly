@@ -73,7 +73,7 @@ public class WarnedMessageTests
         var warned = APost.With(contentWarning: "spoilers", content: "Ewe would not believe it");
         var screen = new ConversationScreen(AConversation.Thread(AConversation.With(), warned));
 
-        var lines = screen.Lines(61, Now);
+        var lines = screen.Lines(new Drawing(61, Now));
 
         Assert.Contains(lines, line => line.Text.Contains("⚠ spoilers", StringComparison.Ordinal));
         Assert.Contains(lines, line => line.Text.Contains("x  show it", StringComparison.Ordinal));
@@ -81,11 +81,11 @@ public class WarnedMessageTests
         Assert.True(screen.Reveal());
 
         Assert.Contains(
-            screen.Lines(61, Now),
+            screen.Lines(new Drawing(61, Now)),
             line => line.Text.Contains("Ewe would not believe it", StringComparison.Ordinal));
     }
 
     /// <summary>The conversations list, with <paramref name="latest" /> as the last thing said in the one on it.</summary>
     private static IReadOnlyList<Line> Listed(Post latest) =>
-        new DirectMessagesScreen([AConversation.With(latest: latest)]).Lines(61, Now, FakePictures.With());
+        new DirectMessagesScreen([AConversation.With(latest: latest)]).Lines(new Drawing(61, Now, FakePictures.With()));
 }

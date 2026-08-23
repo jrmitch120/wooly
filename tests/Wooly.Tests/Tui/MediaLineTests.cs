@@ -26,10 +26,8 @@ public class MediaLineTests
     {
         var lines = PostLines.Feed(
             APost.With(media: [APost.APicture()]),
-            61,
-            default,
-            Now,
-            FakePictures.With().Holding("m1", 400, 300));
+            new Drawing(61, Now, FakePictures.With().Holding("m1", 400, 300)),
+            default);
 
         var inset = Assert.Single(lines.SelectMany(line => line.Insets));
 
@@ -60,10 +58,8 @@ public class MediaLineTests
     {
         var lines = PostLines.Feed(
             APost.With(media: [APost.APicture()]),
-            61,
-            default,
-            Now,
-            FakePictures.With(new CellSize(10, 20)).Holding("m1", pictureWidth, pictureHeight));
+            new Drawing(61, Now, FakePictures.With(new CellSize(10, 20)).Holding("m1", pictureWidth, pictureHeight)),
+            default);
 
         var inset = Assert.Single(lines.SelectMany(line => line.Insets));
 
@@ -80,10 +76,8 @@ public class MediaLineTests
     {
         var lines = PostLines.Feed(
             APost.With(media: [APost.APicture()]),
-            120,
-            default,
-            Now,
-            FakePictures.With(new CellSize(10, 20)).Holding("m1", 300, 900));
+            new Drawing(120, Now, FakePictures.With(new CellSize(10, 20)).Holding("m1", 300, 900)),
+            default);
 
         var inset = Assert.Single(lines.SelectMany(line => line.Insets));
 
@@ -104,8 +98,10 @@ public class MediaLineTests
         var pictures = FakePictures.With(new CellSize(10, 20)).Holding("m1", 400, 400);
         var post = APost.With(media: [APost.APicture()]);
 
-        var inFeed = Assert.Single(PostLines.Feed(post, 61, default, Now, pictures).SelectMany(line => line.Insets));
-        var inWhole = Assert.Single(PostLines.Whole(post, 61, default, Now, pictures).SelectMany(line => line.Insets));
+        var drawing = new Drawing(61, Now, pictures);
+
+        var inFeed = Assert.Single(PostLines.Feed(post, drawing, default).SelectMany(line => line.Insets));
+        var inWhole = Assert.Single(PostLines.Whole(post, drawing, default).SelectMany(line => line.Insets));
 
         // The feed's cap is what the picture hits; the post screen's is roomy enough that it does not.
         Assert.Equal(Inset.FeedRows, inFeed.Rows);
@@ -123,10 +119,8 @@ public class MediaLineTests
     {
         var lines = PostLines.Feed(
             APost.With(media: [APost.APicture(description: "A cartoon sheep")]),
-            61,
-            default,
-            Now,
-            FakePictures.DrawingNothing());
+            new Drawing(61, Now, FakePictures.DrawingNothing()),
+            default);
 
         Assert.Empty(lines.SelectMany(line => line.Insets));
         Assert.Contains(lines, line => line.Text.Contains("⏵ A cartoon sheep", StringComparison.Ordinal));
@@ -144,7 +138,7 @@ public class MediaLineTests
     {
         var pictures = FakePictures.DrawingNothing();
 
-        PostLines.Feed(APost.With(media: [APost.APicture()]), 61, default, Now, pictures);
+        PostLines.Feed(APost.With(media: [APost.APicture()]), new Drawing(61, Now, pictures), default);
 
         Assert.Empty(pictures.Asked);
         Assert.Empty(pictures.Sent);
@@ -167,7 +161,7 @@ public class MediaLineTests
 
         var home = new Destination(DestinationKind.Home, "Home", Timeline.Home);
 
-        new FeedScreen(home, posts).Lines(61, Now, pictures);
+        new FeedScreen(home, posts).Lines(new Drawing(61, Now, pictures));
 
         Assert.Empty(pictures.Sent);
     }
@@ -181,20 +175,16 @@ public class MediaLineTests
     {
         var waiting = PostLines.Feed(
             APost.With(media: [APost.APicture()]),
-            61,
-            default,
-            Now,
-            FakePictures.With());
+            new Drawing(61, Now, FakePictures.With()),
+            default);
 
         Assert.Equal("m1", Assert.Single(waiting, line => line.Wants is not null).Wants?.Id);
 
         // Nothing to wait for where nothing could be drawn: the attachment is linked instead.
         var linked = PostLines.Feed(
             APost.With(media: [APost.APicture()]),
-            61,
-            default,
-            Now,
-            FakePictures.DrawingNothing());
+            new Drawing(61, Now, FakePictures.DrawingNothing()),
+            default);
 
         Assert.DoesNotContain(linked, line => line.Wants is not null);
     }
@@ -205,7 +195,7 @@ public class MediaLineTests
     {
         var post = APost.With(media: [APost.APicture()]);
 
-        var lines = new PostScreen(post, PostThread.Alone).Lines(61, Now, FakePictures.With());
+        var lines = new PostScreen(post, PostThread.Alone).Lines(new Drawing(61, Now, FakePictures.With()));
 
         Assert.Equal("m1", Assert.Single(lines, line => line.Wants is not null).Wants?.Id);
     }
@@ -217,7 +207,7 @@ public class MediaLineTests
     [Fact]
     public void Feed_LinksEverythingWhenThereIsNothingToDrawWith()
     {
-        var lines = PostLines.Feed(APost.With(media: [APost.APicture()]), 61, default, Now);
+        var lines = PostLines.Feed(APost.With(media: [APost.APicture()]), new Drawing(61, Now), default);
 
         Assert.Empty(lines.SelectMany(line => line.Insets));
         Assert.Contains(lines, line => line.Text.StartsWith("⏵ ", StringComparison.Ordinal));
@@ -232,10 +222,8 @@ public class MediaLineTests
     {
         var lines = PostLines.Feed(
             APost.With(media: [APost.APicture(description: "A cartoon sheep")]),
-            61,
-            default,
-            Now,
-            FakePictures.With());
+            new Drawing(61, Now, FakePictures.With()),
+            default);
 
         Assert.Empty(lines.SelectMany(line => line.Insets));
         Assert.Contains(lines, line => line.Text.Contains("▒▒▒▒ A cartoon sheep", StringComparison.Ordinal));
@@ -250,10 +238,8 @@ public class MediaLineTests
     {
         var lines = PostLines.Feed(
             APost.With(media: [APost.APicture()]),
-            61,
-            default,
-            Now,
-            FakePictures.With().Holding("m1", 400, 300));
+            new Drawing(61, Now, FakePictures.With().Holding("m1", 400, 300)),
+            default);
 
         var described = lines.ToList().FindIndex(line => line.Text.StartsWith("▒▒▒▒", StringComparison.Ordinal));
         var drawn = lines.ToList().FindIndex(line => line.Insets.Count > 0);
@@ -275,10 +261,8 @@ public class MediaLineTests
     {
         var lines = PostLines.Feed(
             APost.With(media: [APost.Attached(kind, description: "Sheep, at length")]),
-            61,
-            default,
-            Now,
-            FakePictures.With().Holding("m1", 400, 300));
+            new Drawing(61, Now, FakePictures.With().Holding("m1", 400, 300)),
+            default);
 
         Assert.Empty(lines.SelectMany(line => line.Insets));
         Assert.Contains(lines, line => line.Text.Contains($"⏵ {label} Sheep, at length", StringComparison.Ordinal));
@@ -299,9 +283,8 @@ public class MediaLineTests
 
         var lines = PostLines.Feed(
             APost.With(media: [APost.APicture() with { Url = address }]),
-            61,
-            default,
-            Now);
+            new Drawing(61, Now),
+            default);
 
         // The rows under the ⏵ that says what it is, which are the address and nothing else.
         var written = string.Concat(
@@ -323,10 +306,8 @@ public class MediaLineTests
     {
         var lines = PostLines.Feed(
             APost.With(media: [APost.Attached(MediaKind.Audio, id: "m1"), APost.APicture(id: "m2")]),
-            61,
-            default,
-            Now,
-            FakePictures.With().Holding("m2", 400, 300));
+            new Drawing(61, Now, FakePictures.With().Holding("m2", 400, 300)),
+            default);
 
         Assert.Equal("m2", Assert.Single(lines.SelectMany(line => line.Insets)).Drawn.Id);
         Assert.Contains(lines, line => line.Text.StartsWith("⏵ ", StringComparison.Ordinal));
@@ -345,7 +326,7 @@ public class MediaLineTests
             pictures.Holding($"m{at}", 400, 300);
         }
 
-        var insets = PostLines.Feed(APost.With(media: media), 61, default, Now, pictures)
+        var insets = PostLines.Feed(APost.With(media: media), new Drawing(61, Now, pictures), default)
                               .SelectMany(line => line.Insets)
                               .ToList();
 
@@ -368,7 +349,7 @@ public class MediaLineTests
 
         var pictures = FakePictures.With().Holding("m1", 400, 300).Holding("m2", 300, 900);
 
-        var lines = PostLines.Feed(post, width, default, Now, pictures);
+        var lines = PostLines.Feed(post, new Drawing(width, Now, pictures), default);
 
         foreach (var line in lines.Where(line => line.Insets.Count > 0))
         {
@@ -387,11 +368,11 @@ public class MediaLineTests
         var post = APost.With(media: [APost.APicture()]);
         var pictures = FakePictures.With().Holding("m1", 400, 300);
 
-        var withoutGutter = PostLines.Whole(post, 60, default, Now, pictures)
+        var withoutGutter = PostLines.Whole(post, new Drawing(60, Now, pictures), default)
                                      .SelectMany(line => line.Insets)
                                      .Single();
 
-        var onScreen = new PostScreen(post, PostThread.Alone).Lines(61, Now, pictures)
+        var onScreen = new PostScreen(post, PostThread.Alone).Lines(new Drawing(61, Now, pictures))
                                                .SelectMany(line => line.Insets)
                                                .Single();
 
@@ -410,12 +391,19 @@ public class MediaLineTests
         var post = APost.With(media: [APost.APicture()]);
         var pictures = FakePictures.With().Holding("m1", 400, 300);
 
-        Assert.NotEmpty(new PostScreen(post, PostThread.Alone).Lines(61, Now, pictures).SelectMany(line => line.Insets));
-        Assert.NotEmpty(new PostScreen(APost.With(id: "1"), new PostThread([], [post])).Lines(61, Now, pictures).SelectMany(line => line.Insets));
+        var drawing = new Drawing(61, Now, pictures);
+
+        Assert.NotEmpty(new PostScreen(post, PostThread.Alone).Lines(drawing).SelectMany(line => line.Insets));
+
+        Assert.NotEmpty(new PostScreen(APost.With(id: "1"), new PostThread([], [post]))
+                        .Lines(drawing)
+                        .SelectMany(line => line.Insets));
 
         var home = new Destination(DestinationKind.Home, "Home", Timeline.Home);
 
-        Assert.NotEmpty(new FeedScreen(home, [post]).Lines(61, Now, pictures).SelectMany(line => line.Insets));
+        Assert.NotEmpty(new FeedScreen(home, [post])
+                        .Lines(new Drawing(61, Now, pictures))
+                        .SelectMany(line => line.Insets));
     }
 
     /// <summary>
@@ -438,11 +426,8 @@ public class MediaLineTests
     {
         var lines = PostLines.Feed(
             APost.With(media: [APost.APicture(description: "A cartoon sheep")]),
-            61,
-            default,
-            Now,
-            FakePictures.With().Holding("m1", 400, 300),
-            hideDrawnCaption: true);
+            new Drawing(61, Now, FakePictures.With().Holding("m1", 400, 300), HideDrawnCaption: true),
+            default);
 
         Assert.NotEmpty(lines.SelectMany(line => line.Insets));
         Assert.DoesNotContain(lines, line => line.Text.Contains("A cartoon sheep", StringComparison.Ordinal));
@@ -454,10 +439,8 @@ public class MediaLineTests
     {
         var lines = PostLines.Feed(
             APost.With(media: [APost.APicture(description: "A cartoon sheep")]),
-            61,
-            default,
-            Now,
-            FakePictures.With().Holding("m1", 400, 300));
+            new Drawing(61, Now, FakePictures.With().Holding("m1", 400, 300)),
+            default);
 
         Assert.Contains(lines, line => line.Text.Contains("▒▒▒▒ A cartoon sheep", StringComparison.Ordinal));
     }
@@ -471,11 +454,8 @@ public class MediaLineTests
     {
         var lines = PostLines.Feed(
             APost.With(media: [APost.APicture(description: "A cartoon sheep")]),
-            61,
-            default,
-            Now,
-            FakePictures.DrawingNothing(),
-            hideDrawnCaption: true);
+            new Drawing(61, Now, FakePictures.DrawingNothing(), HideDrawnCaption: true),
+            default);
 
         Assert.Contains(lines, line => line.Text.Contains("A cartoon sheep", StringComparison.Ordinal));
     }
@@ -489,11 +469,8 @@ public class MediaLineTests
     {
         var lines = PostLines.Feed(
             APost.With(media: [APost.APicture(description: "A cartoon sheep")]),
-            61,
-            default,
-            Now,
-            FakePictures.With(),
-            hideDrawnCaption: true);
+            new Drawing(61, Now, FakePictures.With(), HideDrawnCaption: true),
+            default);
 
         Assert.Empty(lines.SelectMany(line => line.Insets));
         Assert.Contains(lines, line => line.Text.Contains("▒▒▒▒ A cartoon sheep", StringComparison.Ordinal));
@@ -506,7 +483,7 @@ public class MediaLineTests
         var post = APost.With(media: [APost.APicture(description: "A cartoon sheep")]);
         var pictures = FakePictures.With().Holding("m1", 400, 300);
 
-        var lines = PostLines.Whole(post, 61, default, Now, pictures, hideDrawnCaption: true);
+        var lines = PostLines.Whole(post, new Drawing(61, Now, pictures, HideDrawnCaption: true), default);
 
         Assert.NotEmpty(lines.SelectMany(line => line.Insets));
         Assert.DoesNotContain(lines, line => line.Text.Contains("A cartoon sheep", StringComparison.Ordinal));
