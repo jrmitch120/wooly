@@ -155,8 +155,11 @@ internal abstract class PostComposeSettings : ProfileScopedSettings
         {
             Text = Text,
 
-            // An empty --cw is a flag somebody passed and left blank, which is not a warning to put a post behind.
-            ContentWarning = string.IsNullOrWhiteSpace(ContentWarning) ? null : ContentWarning,
+            // An empty --cw is a flag somebody passed and left blank, which is not a warning to put a post behind —
+            // the same reading a field being typed into gets, said in the one place both surfaces read (#146). The
+            // third state this surface has is untouched by that: it is --cw being absent from the command line
+            // altogether, which is a fact about the invocation rather than about what was written in the option.
+            ContentWarning = ContentWarnings.Written(ContentWarning),
             Visibility = audience.Visibility,
             VisibilityChosen = audience.Chosen,
             InReplyTo = InReplyTo,

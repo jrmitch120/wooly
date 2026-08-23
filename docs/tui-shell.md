@@ -671,6 +671,16 @@ its author remembered to warn it again by hand — which Mastodon's own clients 
 - **It costs two rows above the editor, and they are the last rows to give way.** ADR-0015's block already gives up
   its tail on a terminal too short for everything; the warning band does not, being a row the reader types into rather
   than a quote of something they can see elsewhere. One of the two is a row the reply screen was already spending.
+- **The screen says what goes out; the shell puts it** (#146). `ComposeScreen.Outgoing` answers an `Outgoing` — a
+  `PostDraft` to publish or a `PostEdit` to save, whole — and `Shell.Send` makes the one call, pops, and says `Sent.`
+  or `Saved.`. It was the shell that used to assemble both, which meant the shell was what had to know which of the
+  screen's two warning members was the right one for which purpose: the raw field on an edit, where empty means *take
+  the warning away*, and the trimmed one on a publish, where empty means *no warning at all*. That is one decision
+  about one field, and it is the field's screen that makes it now. The field itself is nobody else's to write, and the
+  reading that decides between a warning and none is `ContentWarnings.Written` in `Wooly.Core` — one rule that the
+  field, `--cw` and `PostEdit.ContentWarningWanted` all read, rather than the same expression written out three times.
+  The CLI's third state is untouched by that: it is `--cw` being absent from the command line, which is a fact about
+  the invocation rather than about what was written in it.
 
 ## Starting it, and the one destination that needs configuring
 

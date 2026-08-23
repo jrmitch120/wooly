@@ -90,12 +90,11 @@ public sealed class ComposeScreen : Screen
     ///     from the post being changed, and from there the author's to keep, edit or clear. It is their post.
     /// </summary>
     /// <remarks>
-    ///     Distinct from <see cref="ContentWarning" />, which is this same warning as it goes out on a draft: this is
-    ///     the row on screen and the thing a keystroke changes, that is what an instance is asked for. An edit sends
-    ///     this one rather than that, since a field cleared to nothing is an edit that takes the warning away rather
-    ///     than one saying nothing about it (<see cref="PostEdit.ContentWarning" />, #140).
+    ///     The row on screen and the thing a keystroke changes, and nothing else's to set: what it <em>means</em> on
+    ///     the way out is <see cref="Outgoing" />'s, which is the same field read two ways and the reason nobody
+    ///     outside gets to choose between them (#146).
     /// </remarks>
-    public string Warning { get; set; }
+    public string Warning { get; private set; }
 
     /// <summary>
     ///     Whether what is typed is going into the warning rather than into the post. Both are on screen at once and
@@ -108,16 +107,20 @@ public sealed class ComposeScreen : Screen
     public override bool IsTyping => WritingTheWarning;
 
     /// <summary>
-    ///     What the warning is as it goes out with the draft: nothing at all where the field holds nothing but spaces.
-    ///     An instance reads an empty warning as no warning, so a cleared field sends none rather than putting the
-    ///     post behind a blank (<see cref="PostDraft.ContentWarning" />).
+    ///     What goes out when <c>ctrl-s</c> is pressed, whole: the post this screen publishes, or the change it saves
+    ///     to one already published. Said here because this is where the fields are — what is left to the shell is the
+    ///     port, the stack and the notice, which are the three things a screen has none of (#146).
     /// </summary>
     /// <remarks>
-    ///     Whitespace decides only between a warning and none; it is not tidied out of one there is. What the author
-    ///     left in the field is what they wrote, and a client that trimmed it would be editing their words on the way
-    ///     past.
+    ///     Asked for at the moment of sending rather than kept in step with the fields, since the key that asks is the
+    ///     key that ends the screen.
     /// </remarks>
-    public string? ContentWarning => string.IsNullOrWhiteSpace(Warning) ? null : Warning;
+    public Outgoing Outgoing => Purpose switch
+    {
+        // About is the post e was pressed on, which the shell refuses to open an edit without.
+        ComposeFor.Edit => new Outgoing.Saving(About!.Id, Changed()),
+        _ => new Outgoing.Publishing(Drafted()),
+    };
 
     /// <summary>
     ///     Whether there is anything here worth sending — which for a reply this client addressed means anything
@@ -200,6 +203,44 @@ public sealed class ComposeScreen : Screen
     ///     laid on top of the one these rows are painted on rather than a row range inside it.
     /// </summary>
     public int AnsweringHeight(int width) => Answering(width).Count;
+
+    /// <summary>
+    ///     The post this screen publishes: what was written, whatever warning is over it, and the post it answers
+    ///     where it answers one.
+    /// </summary>
+    /// <remarks>
+    ///     A cleared field sends no warning at all rather than putting the post behind a blank, an instance reading an
+    ///     empty warning as none (<see cref="ContentWarnings.Written" />, <see cref="PostDraft.ContentWarning" />).
+    ///     That is the one thing this reads differently from <see cref="Changed" />, and the whole reason both are
+    ///     assembled here: they are one field meaning two things, and the screen holding the field is the only place
+    ///     that can be expected to know which is which.
+    ///     <para>
+    ///         Silence rather than a visibility of the screen's choosing. A reply is answered as narrowly as the post
+    ///         it answers, and a post says nothing so that the account's own default on the instance decides — this
+    ///         shell has no visibility picker to have been told anything by.
+    ///     </para>
+    /// </remarks>
+    private PostDraft Drafted() => new()
+    {
+        Text = Text,
+        ContentWarning = ContentWarnings.Written(Warning),
+        InReplyTo = Purpose == ComposeFor.Reply ? About?.Id : null,
+    };
+
+    /// <summary>The change this screen saves to the post it was opened on: its text, and the warning over it.</summary>
+    /// <remarks>
+    ///     Always said, never left silent: the field opened on the post's own warning, so whatever it holds now is what
+    ///     the author wants (#140). The field as it stands rather than as <see cref="Drafted" /> reads it, since an
+    ///     empty one here means "take the warning away" rather than "say nothing about it" — the third state
+    ///     <see cref="PostEdit.ContentWarning" /> keeps for the CLI, where <c>--cw</c> can be absent from the command
+    ///     line. Whitespace amounts to no warning here too, which
+    ///     <see cref="PostEdit.ContentWarningWanted" /> reads off the same rule rather than a second one.
+    ///     <para>
+    ///         What this re-sends is the warning as the timeline last read it, which may be stale — the same exposure
+    ///         the body already carries, the editor being pre-filled from the same post.
+    ///     </para>
+    /// </remarks>
+    private PostEdit Changed() => new() { Text = Text, ContentWarning = Warning };
 
     /// <summary>
     ///     The warning band: a blank, then the field. Both rows from the one method, so what is painted and what
