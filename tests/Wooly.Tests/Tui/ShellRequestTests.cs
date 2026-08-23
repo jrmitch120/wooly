@@ -36,8 +36,8 @@ public class ShellRequestTests
     }
 
     [Theory]
-    [InlineData(ShellKey.Author, true)]
-    [InlineData(ShellKey.Reject, false)]
+    [InlineData(ShellKey.A, true)]
+    [InlineData(ShellKey.X, false)]
     public async Task Press_AnswersThePickedRequestByTheIdOfTheAccountThatAsked(ShellKey key, bool accepted)
     {
         var shell = new AShell
@@ -53,7 +53,7 @@ public class ShellRequestTests
         opened.Step(ToRequests);
         shell.Host.Settle();
 
-        await opened.Press(key);
+        opened.Press(key);
         shell.Host.Drain();
 
         var answered = Assert.Single(shell.Accounts.Answers);
@@ -83,7 +83,7 @@ public class ShellRequestTests
         opened.Step(ToRequests);
         shell.Host.Settle();
 
-        await opened.Press(ShellKey.Enter);
+        opened.Press(ShellKey.Enter);
         shell.Host.Drain();
 
         var account = Assert.IsType<AccountScreen>(opened.Screen);

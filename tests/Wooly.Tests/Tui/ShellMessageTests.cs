@@ -114,7 +114,7 @@ public class ShellMessageTests
         opened.Step(ToMessages);
         shell.Host.Settle();
 
-        await opened.Press(ShellKey.Enter);
+        opened.Press(ShellKey.Enter);
         shell.Host.Drain();
 
         Assert.Equal("7", Assert.Single(shell.Messages.Shown).ConversationId);
@@ -136,7 +136,7 @@ public class ShellMessageTests
         opened.Step(ToMessages);
         shell.Host.Settle();
 
-        await opened.Press(ShellKey.Enter);
+        opened.Press(ShellKey.Enter);
         opened.Back();
 
         Assert.IsType<DirectMessagesScreen>(opened.Screen);
@@ -155,7 +155,7 @@ public class ShellMessageTests
         opened.Step(ToMessages);
         shell.Host.Settle();
 
-        await opened.Press(ShellKey.Enter);
+        opened.Press(ShellKey.Enter);
         shell.Host.Drain();
 
         Assert.Empty(shell.Messages.MarkedRead);
@@ -201,7 +201,7 @@ public class ShellMessageTests
         opened.Step(ToMessages);
         shell.Host.Settle();
 
-        await opened.Press(ShellKey.Enter);
+        opened.Press(ShellKey.Enter);
         shell.Host.Drain();
         await opened.MarkRead();
         shell.Host.Drain();
@@ -308,7 +308,7 @@ public class ShellMessageTests
         opened.Step(ToMessages);
         shell.Host.Settle();
 
-        await opened.Press(ShellKey.Enter);
+        opened.Press(ShellKey.Enter);
         shell.Host.Drain();
         await opened.Mark(PostMark.Favorite);
         shell.Host.Drain();
@@ -341,7 +341,7 @@ public class ShellMessageTests
         opened.Step(ToMessages);
         shell.Host.Settle();
 
-        await opened.Press(ShellKey.Enter);
+        opened.Press(ShellKey.Enter);
         shell.Host.Drain();
 
         opened.AskToDelete();
@@ -379,7 +379,7 @@ public class ShellMessageTests
         opened.Step(ToMessages);
         shell.Host.Settle();
 
-        await opened.Press(ShellKey.Enter);
+        opened.Press(ShellKey.Enter);
         shell.Host.Drain();
         opened.Reply();
 
@@ -416,7 +416,7 @@ public class ShellMessageTests
         opened.Step(ToMessages);
         shell.Host.Settle();
 
-        await opened.Press(ShellKey.Enter);
+        opened.Press(ShellKey.Enter);
         shell.Host.Drain();
         opened.Reply();
 
@@ -445,7 +445,7 @@ public class ShellMessageTests
         opened.Step(ToMessages);
         shell.Host.Settle();
 
-        await opened.Press(ShellKey.Enter);
+        opened.Press(ShellKey.Enter);
         shell.Host.Drain();
         opened.Reply();
 
@@ -477,7 +477,7 @@ public class ShellMessageTests
         opened.Step(ToMessages);
         shell.Host.Settle();
 
-        await opened.Press(ShellKey.Enter);
+        opened.Press(ShellKey.Enter);
         shell.Host.Drain();
         opened.Reply();
 
@@ -608,7 +608,7 @@ public class ShellMessageTests
         Assert.Contains(opened.Keys, key => key.Key == "tab");
         Assert.DoesNotContain(opened.Keys, key => key.Key == "esc");
 
-        await opened.Press(ShellKey.Enter);
+        opened.Press(ShellKey.Enter);
         shell.Host.Drain();
 
         Assert.Contains(opened.Keys, key => key is { Key: "m", Does: "mark read" });

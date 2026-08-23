@@ -682,6 +682,29 @@ its author remembered to warn it again by hand — which Mastodon's own clients 
   The CLI's third state is untouched by that: it is `--cw` being absent from the command line, which is a fact about
   the invocation rather than about what was written in it.
 
+### Where the code answers this
+
+One module, `Shell/Keymap.cs`, holds the whole of the dispatch above: a `ShellKey` and a `Screen` go in and a `Verb`
+comes out, and it is the only place in the TUI that names a screen type to decide what a key means (#147). It was four
+places before — the window's frame keys, the window's content keys, `Shell.Press` for the four that collide, and the
+compose pair scoped by a type test on the window — and none of the four was this document.
+
+Three things stayed outside it, each deliberately:
+
+- **What a screen announces.** `Screen.Keys` and `PostKeys` are untouched. What a screen offers and what it answers are
+  asserted against each other rather than derived from one another, because a key announced and then refused reads as a
+  shell that missed the press, and one source would make that class of bug untestable.
+- **Whether the press was used.** `←`, `→` and the digits are consumed only where there is something to walk or toggle,
+  and that is the screen's answer, relayed as the `bool` `Shell.Do` returns. The keymap says what a key *means*; only
+  the screen knows what is on the post, and asking it in two places is how two places come to disagree.
+- **The verbs that need a terminal.** `ShellWindow` still carries out `ctrl-q`, the four movements that walk the page
+  rather than the list, `j`/`k` and `Home`/`End` — which move the pick *and* the page — and `ctrl-s`, which has to take
+  the editor widget's text before the shell sends it. Nothing else about a key is the window's: it translates the press
+  and hands the verb on.
+
+The window's remaining knowledge of `ComposeScreen` is geometry and focus — where the editor widget starts, whether it
+has the keys, and what text it opens with. That is a window's question about its own furniture and stays there.
+
 ## Starting it, and the one destination that needs configuring
 
 `wooly-tui` takes one option, `--profile <name>`, and it means what it means everywhere else: act as that profile for

@@ -1,5 +1,6 @@
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
+using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Theme;
@@ -8,13 +9,18 @@ using Wooly.Tui.Views;
 namespace Wooly.Tests.Tui;
 
 /// <summary>
-///     Which key means which movement, asked of the window that binds them — the one thing between a keypress and the
-///     shell, and the one place the two halves of #51 are told apart.
+///     The keys a window still keeps for itself, pressed on a real one: the movements that walk the page rather than
+///     the list, the key that ends the run, and the bargain by which an unused key falls through to whatever else
+///     wants it.
 /// </summary>
 /// <remarks>
 ///     Worth pinning here rather than at the shell, where a test says <c>Walk(1)</c> and proves nothing about what a
 ///     reader pressed. <c>k</c> being the next post and <c>j</c> the one before it is the opposite way round from vim
 ///     (<c>docs/tui-shell.md</c>), which is exactly the kind of thing that gets quietly reversed.
+///     <para>
+///         Everything a window hands straight on is asserted in <see cref="KeymapTests" /> instead, which needs no
+///         terminal at all — what is left here is what a page, an editor widget and a run loop are needed to see.
+///     </para>
 /// </remarks>
 public class ShellKeyTests
 {
@@ -159,6 +165,146 @@ public class ShellKeyTests
         }
     }
 
+    /// <summary><c>ctrl-q</c> is the one key that ends the run, and the application owns the loop it ends.</summary>
+    [Fact]
+    public async Task CtrlQ_EndsTheRun()
+    {
+        var quits = 0;
+        var built = new AShell();
+        var shell = await built.Opened();
+
+        using var window = new ShellWindow(
+            shell,
+            Themes.Plain,
+            built.Clock,
+            () => quits++,
+            FakePictures.DrawingNothing());
+
+        Assert.True(window.NewKeyDownEvent(Key.Q.WithCtrl));
+        Assert.Equal(1, quits);
+    }
+
+    /// <summary>
+    ///     Half the fall-through bargain: a digit addresses a poll answer where there is one to address, and where
+    ///     there is not the window leaves the key to whatever else wants it rather than swallowing it (#87).
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ADigitIsConsumedOnlyWhereThereIsAnAnswerToToggle(bool poll)
+    {
+        var (window, shell) = poll ? await Polled() : await Opened();
+
+        using (window)
+        {
+            Assert.Equal(poll, window.NewKeyDownEvent(new Key('3')));
+            Assert.Equal(poll ? [2] : Array.Empty<int>(), shell.Screen.Chosen.Order());
+        }
+    }
+
+    /// <summary>
+    ///     The other half, and the one it exists for: <c>←</c> and <c>→</c> walk the references inside the picked post
+    ///     where there are any, and on a compose screen — which has none — they are the editor's own caret keys (#83).
+    /// </summary>
+    [Fact]
+    public async Task TheArrowsReachTheComposeEditorWhereThereIsNoReferenceToWalk()
+    {
+        var (window, shell) = await Opened(
+            APost.With(account: "ben@hachyderm.io", content: "Read https://example.com/sheep"));
+
+        using (window)
+        {
+            window.NewKeyDownEvent(Key.CursorRight);
+
+            Assert.NotNull(shell.Screen.Reference);
+
+            shell.Reply();
+            window.Layout();
+
+            // A reply opens on the handle it is answering, with the caret after it — so there is somewhere to the
+            // left of the caret for the key to move it to.
+            var editor = window.SubViews.OfType<ComposeEditor>().Single();
+            var at = editor.CurrentColumn;
+
+            Assert.Equal("@ben@hachyderm.io ".Length, at);
+
+            window.NewKeyDownEvent(Key.CursorLeft);
+
+            // Nothing was walked — a compose screen has no post picked out on it — and the caret moved instead.
+            Assert.Null(shell.Screen.Reference);
+            Assert.Equal(at - 1, editor.CurrentColumn);
+        }
+    }
+
+    /// <summary>
+    ///     The one exception the contract makes to the frame: a prompt taking letters takes <c>/</c> and <c>?</c> too.
+    ///     A web address and a question are both things somebody is entitled to search for, and a prompt that could
+    ///     not take a slash would refuse the query most likely to be pasted into it.
+    /// </summary>
+    /// <remarks>
+    ///     Asserted on a window rather than at the keymap, because that is where the exception lives: the keymap says
+    ///     <c>/</c> is search and <c>?</c> is the keys, on every screen and this one too, and the window takes them
+    ///     first while the screen is taking letters.
+    /// </remarks>
+    [Fact]
+    public async Task APromptTakingLettersTakesSlashAndQuestionToo()
+    {
+        var built = new AShell();
+        var shell = await built.Opened();
+
+        using var window = new ShellWindow(
+            shell,
+            Themes.Plain,
+            built.Clock,
+            () => { },
+            FakePictures.DrawingNothing());
+
+        shell.Search();
+        built.Host.Drain();
+
+        foreach (var letter in "who/what?")
+        {
+            window.NewKeyDownEvent(new Key(letter));
+        }
+
+        var search = Assert.IsType<SearchScreen>(shell.Screen);
+
+        Assert.Equal("who/what?", search.Query);
+
+        // Neither key acted: no fresh prompt was started over the one being typed into, and no keymap screen was
+        // pushed on top of it.
+        Assert.Equal(1, shell.Depth);
+    }
+
+    /// <summary>And the rest of the frame still means what it means everywhere, on that very prompt.</summary>
+    [Fact]
+    public async Task EveryOtherFrameKeyStillMeansWhatItDoesWhileAPromptIsTakingLetters()
+    {
+        var quits = 0;
+        var built = new AShell();
+        var shell = await built.Opened();
+
+        using var window = new ShellWindow(
+            shell,
+            Themes.Plain,
+            built.Clock,
+            () => quits++,
+            FakePictures.DrawingNothing());
+
+        shell.Search();
+        built.Host.Drain();
+
+        var was = shell.Rail.Cursor;
+
+        window.NewKeyDownEvent(Key.Tab);
+
+        Assert.NotEqual(was, shell.Rail.Cursor);
+
+        window.NewKeyDownEvent(Key.Q.WithCtrl);
+
+        Assert.Equal(1, quits);
+    }
+
     /// <summary>A shell showing one post with a ten-answer poll on it, laid out and ready for keys.</summary>
     private static async Task<(ShellWindow Window, Wooly.Tui.Shell.Shell Shell)> Polled()
     {
@@ -189,15 +335,20 @@ public class ShellKeyTests
     ///     <c>j</c> reclaims rather than steps from. A post takes seven rows since #77 gave it a two-row byline, a
     ///     footer blank and a rule.
     /// </remarks>
-    private static async Task<(ShellWindow Window, Wooly.Tui.Shell.Shell Shell)> Opened()
+    /// <param name="only">
+    ///     One post in place of the four, for a test about what is on a post rather than about walking between them.
+    /// </param>
+    private static async Task<(ShellWindow Window, Wooly.Tui.Shell.Shell Shell)> Opened(Post? only = null)
     {
         var built = new AShell
         {
-            Timelines = FakeTimelineReader.Holding(
-                APost.With(id: "110"),
-                APost.With(id: "220"),
-                APost.With(id: "330"),
-                APost.With(id: "440")),
+            Timelines = only is not null
+                ? FakeTimelineReader.Holding(only)
+                : FakeTimelineReader.Holding(
+                    APost.With(id: "110"),
+                    APost.With(id: "220"),
+                    APost.With(id: "330"),
+                    APost.With(id: "440")),
         };
 
         var shell = await built.Opened();
