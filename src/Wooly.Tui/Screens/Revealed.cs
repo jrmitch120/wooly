@@ -1,4 +1,5 @@
 using Wooly.Core.Posts;
+using Wooly.Tui.Rendering;
 
 namespace Wooly.Tui.Screens;
 
@@ -27,16 +28,18 @@ public sealed class Revealed
 
     /// <summary>Asks to see what <paramref name="post" /> is hiding — its warned text, its attachments, or both.</summary>
     /// <remarks>
-    ///     <see cref="Post.IsWarned" /> rather than a warning to print, since #113: a post marked sensitive with
-    ///     nothing written over it hides its attachments and nothing else, and a key that refused there would leave the
-    ///     commonest sensitive post on Mastodon with nothing to press.
+    ///     <see cref="OnShow.Asks" /> rather than a warning to print, since #113: a post marked sensitive with nothing
+    ///     written over it hides its attachments and nothing else, and a key that refused there would leave the
+    ///     commonest sensitive post on Mastodon with nothing to press. Asked of <see cref="OnShow" /> rather than of
+    ///     the post, so that the key is offered for exactly what the screen is holding back and not a field's worth
+    ///     more (#145).
     /// </remarks>
     /// <returns>Whether there was anything to reveal, which is what settles whether the key was used.</returns>
     public bool Ask(Post post)
     {
-        var shown = post.Boosted ?? post;
+        var show = OnShow.Of(post, Has(post));
 
-        return shown.IsWarned && _asked.Add(shown.Id);
+        return show.Asks && _asked.Add(show.Shown.Id);
     }
 
     /// <summary>Whether the reader has asked to see past <paramref name="post" />'s warning.</summary>

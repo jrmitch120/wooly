@@ -302,3 +302,25 @@ does not apply, and the difference is what the key means: those are absences of 
 answers to a question every post answers. A script filtering a timeline on `.sensitive` should not have to tell a post
 nobody flagged from a client too old to say. The parity argument that carried #117's `linkPreview` is the same one
 here, and this is it landing the same way rather than the opposite way in an adjacent ticket.
+
+## Amendment: what a warned post is hiding is answered in one place (ticket #145)
+
+The two questions #113 gave `Screen` — `Readable`, the text and its references, and `Uncovered`, the attachments and
+theirs — are gone, and so is the pair `PostLines` had grown beside them. `OnShow` takes a post and a `Reading` and
+answers both: whether the author's own words are on show, whether what hangs off them is, and whether there is anything
+left for `x` to ask past. `Screen` reads it for what may be walked and which keys are announced; `PostLines` reads it
+for what is drawn.
+
+Nothing about the rule changed. Each of the eight sites the two modules had grown was replaced by the same answer it
+was already working out, and every amendment above stands exactly as written. What changed is that they can no longer
+work it out differently. The failure that guards against is silent and one-sided: a walk more permissive than the
+drawing takes `←`/`→` to a reference inside something the reader was never shown, and `⏎` opens it — the one thing a
+warning exists to prevent. It was also the highest-churn rule here, since #113, #116, #119, #120 and #121 each had to
+edit several of those sites, and each time the question put was which of them this one was rather than what the rule is.
+
+The one deliberate difference survives, and is now a difference between two named answers rather than between two
+predicates that merely happen to be spelled differently: a poll asks `Words` where the attachments and the link preview
+ask `Media`, because a poll's answers are words its author typed and the flag is a mark over media (#119). The boost
+unwrap went inside for the warning questions too — a warning belongs to the post inside a boost, and a caller asking
+the wrapper would find none on a boost of a warned post. The CLI is untouched, which is this ADR's own decision
+restated rather than a gap: it links everything, hides nothing, and never puts the question at all.

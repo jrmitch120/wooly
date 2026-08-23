@@ -250,7 +250,9 @@ mention, or address inside a post's text — replacing `BodyText`'s internal "ma
   its link preview, for the same reason since #113 — its label is behind the warning with the rest of what is hidden,
   so `←`/`→` would walk to something nobody can see and `⏎` would open a video the reader never asked for. The two
   halves are asked separately: a post marked sensitive with no warning written over it shows its text, so what is
-  written in it goes on being walked while its attachments do not.
+  written in it goes on being walked while its attachments do not. Both are asked of `OnShow` — the one module that
+  says what a post is showing this reader — rather than worked out here and again where the rows are drawn, so the walk
+  can never reach past what was put on screen (#145).
 - **An attachment reference carries no place in the post's text.** It is appended after every one `BodyText` found,
   in the order the attachments themselves were sent, and it is drawn on `PostLines`' own path rather than sliced out
   of a wrapped row — the kind's own name (`MediaKindName.Written`, capitalized) is the whole of the walkable span, with

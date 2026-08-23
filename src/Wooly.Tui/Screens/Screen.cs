@@ -186,18 +186,29 @@ public abstract class Screen
     ///     replaces the exemption this remark used to make on ADR-0017's behalf, which held only while their box and
     ///     description stood outside the warning — as they did until #113 put them behind it (ADR-0016's amendment).
     ///     <para>
-    ///         Two questions rather than one, because the two halves are hidden by different things: a post marked
-    ///         sensitive with nothing written over it shows its text, so what is written in it goes on being walked
-    ///         while its attachments do not.
+    ///         Both halves asked of <see cref="OnShow" /> rather than worked out here, because they are the same two
+    ///         questions <see cref="PostLines" /> puts about the same post: what is walked is what was drawn, and the
+    ///         two answering separately is what let a walk reach inside something the reader was never shown (#145).
     ///     </para>
     /// </remarks>
-    public IReadOnlyList<Reference> References => Referencing is { } post
-        ?
-        [
-            .. Readable(post) ? BodyText.References((post.Boosted ?? post).Content) : [],
-            .. Uncovered(post) ? BeyondTheText(post) : [],
-        ]
-        : [];
+    public IReadOnlyList<Reference> References
+    {
+        get
+        {
+            if (Referencing is not { } post)
+            {
+                return [];
+            }
+
+            var show = Showing(post);
+
+            return
+            [
+                .. show.Words ? BodyText.References(show.Shown.Content) : [],
+                .. show.Media ? BeyondTheText(show.Shown) : [],
+            ];
+        }
+    }
 
     /// <summary>
     ///     The references a post carries beyond its own text: its attachments' addresses in the order they were
@@ -311,11 +322,12 @@ public abstract class Screen
     ///     <para>
     ///         None at all while the post's own text is behind a content warning, which is where its poll is too since
     ///         #119: a poll nobody has been shown is not a poll to announce <c>v</c> and the digits for, and it is not
-    ///         one a reader can cast a vote in either. <see cref="Readable" /> rather than <see cref="Uncovered" />,
-    ///         because a poll is words — the sensitive flag hides the media of a post and leaves its answers on screen.
+    ///         one a reader can cast a vote in either. <see cref="OnShow.Words" /> rather than
+    ///         <see cref="OnShow.Media" />, because a poll is words — the sensitive flag hides the media of a post and
+    ///         leaves its answers on screen.
     ///     </para>
     /// </remarks>
-    public PostPoll? Poll => Picked is { } picked && Readable(picked) ? (picked.Boosted ?? picked).Poll : null;
+    public PostPoll? Poll => Picked is { } picked && Showing(picked) is { Words: true } show ? show.Shown.Poll : null;
 
     /// <summary>
     ///     Which of that poll's options are toggled and uncast, as indices into its answers — empty where none are,
@@ -483,16 +495,16 @@ public abstract class Screen
     public bool Reveal() => Picked is { } picked && Revealed.Ask(picked);
 
     /// <summary>
-    ///     Whether what <paramref name="post" />'s author wrote is on screen rather than behind its content warning —
-    ///     its text, and since #119 the answers of its poll, which are words the same author typed.
+    ///     What <paramref name="post" /> is showing this reader — its author's words, what hangs off them, and which
+    ///     post inside a boost either belongs to.
     /// </summary>
-    private bool Readable(Post post) => (post.Boosted ?? post).ContentWarning is null || Revealed.Has(post);
-
-    /// <summary>
-    ///     Whether <paramref name="post" />'s attachments are on screen rather than behind its warning — which is
-    ///     either half of one, since the instance's own sensitive flag hides them with no text to read it off (#113).
-    /// </summary>
-    private bool Uncovered(Post post) => !(post.Boosted ?? post).IsWarned || Revealed.Has(post);
+    /// <remarks>
+    ///     Read rather than worked out here, so that what <c>←</c>/<c>→</c> may walk to and what <c>v</c> may vote in
+    ///     cannot come to differ from what <see cref="PostLines" /> put on screen (#145). The reveal is this screen's
+    ///     own, which is the whole of what the question turns on: a warning asked past belongs to the screen it was
+    ///     asked past on (#121).
+    /// </remarks>
+    private OnShow Showing(Post post) => OnShow.Of(post, Revealed.Has(post));
 
     /// <summary>
     ///     Puts <paramref name="post" /> in place of the copy this screen is holding, after a mark changed it. What
