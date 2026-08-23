@@ -868,6 +868,18 @@ public sealed class Shell
     }
 
     /// <summary>Publishes, replies with, or saves whatever the compose screen is holding.</summary>
+    /// <remarks>
+    ///     <em>Whatever it is holding</em> is the screen's own answer (<see cref="ComposeScreen.Outgoing" />, #146),
+    ///     down to which of the two things the warning field means. What is left here is the part that needs a port
+    ///     and a stack: the call, the pop, and what the reader is told — and the two arms below are the two writes a
+    ///     post author has rather than two ways of putting a post together.
+    ///     <para>
+    ///         Each arm says the whole of what its own landing means, notice included, rather than matching once here
+    ///         and asking <see cref="ComposeScreen.Purpose" /> the same question again afterwards. The one thing left
+    ///         that reads the purpose is a different question: a reply written inside a conversation is put at the end
+    ///         of it, which is about where the reader is standing rather than about what went out.
+    ///     </para>
+    /// </remarks>
     public async Task Send()
     {
         if (Screen is not ComposeScreen compose)
@@ -882,63 +894,50 @@ public sealed class Shell
             return;
         }
 
-        await _enquiry.Put(
-            ask => compose.Purpose == ComposeFor.Edit
-                ? ask.Of(token => _ports.Author.Edit(
-                    _profile,
-                    compose.About!.Id,
-                    new PostEdit
+        switch (compose.Outgoing)
+        {
+            case Outgoing.Saving(var postId, var edit):
+                await _enquiry.Put(
+                    ask => ask.Of(token => _ports.Author.Edit(_profile, postId, edit, token)),
+                    eitherWay: saved =>
                     {
-                        Text = compose.Text,
+                        Popped();
+                        Replace(saved);
+                        Say("Saved.", isError: false);
+                    });
 
-                        // Always said, never left silent: the field opened on the post's own warning, so whatever it
-                        // holds now is what the author wants (#140). The raw field rather than `ContentWarning`,
-                        // since an empty one here means "take it away" rather than "say nothing about it" — which is
-                        // the state only the CLI has (`PostEdit.ContentWarning`).
-                        //
-                        // What this re-sends is the warning as the timeline last read it, which may be stale — the
-                        // same exposure the body already carries, the editor being pre-filled from the same post.
-                        ContentWarning = compose.Warning,
-                    },
-                    token))
-                : ask.Of(token => _ports.Author.Publish(
-                    _profile,
-                    new PostDraft
+                break;
+
+            case Outgoing.Publishing(var draft):
+                await _enquiry.Put(
+                    ask => ask.Of(token => _ports.Author.Publish(_profile, draft, token)),
+                    eitherWay: published =>
                     {
-                        Text = compose.Text,
+                        Popped();
 
-                        // Whatever the field holds at this moment, which on a reply is the answered post's warning
-                        // unless the author changed it: pre-filled, not imposed (#123).
-                        ContentWarning = compose.ContentWarning,
+                        if (compose.Purpose == ComposeFor.Reply && Screen is ConversationScreen conversation)
+                        {
+                            // A conversation is read in the order it was said in, so what was just said belongs at the
+                            // end of it — otherwise a reply written in the thread appears nowhere until the
+                            // conversation is read again. It is the conversation's last word too, which is what the
+                            // row it was opened from shows.
+                            conversation.Said(published);
+                            Replace(conversation.Conversation);
+                        }
 
-                        // Silence rather than a visibility of the shell's choosing. A reply is answered as narrowly as
-                        // the post it answers, and a post says nothing so that the account's own default on the
-                        // instance decides — this shell has no visibility picker to have been told anything by.
-                        InReplyTo = compose.Purpose == ComposeFor.Reply ? compose.About?.Id : null,
-                    },
-                    token)),
-            eitherWay: written =>
-            {
-                // This client is what changed the timeline, so its age says nothing useful about it any more.
-                _cache.Forget(Rail.Showing.Kind);
+                        Say("Sent.", isError: false);
+                    });
 
-                _stack.RemoveAt(_stack.Count - 1);
+                break;
+        }
 
-                if (compose.Purpose == ComposeFor.Edit)
-                {
-                    Replace(written);
-                }
-                else if (compose.Purpose == ComposeFor.Reply && Screen is ConversationScreen conversation)
-                {
-                    // A conversation is read in the order it was said in, so what was just said belongs at the end of
-                    // it — otherwise a reply written in the thread appears nowhere until the conversation is read
-                    // again. It is the conversation's last word too, which is what the row it was opened from shows.
-                    conversation.Said(written);
-                    Replace(conversation.Conversation);
-                }
-
-                Say(compose.Purpose == ComposeFor.Edit ? "Saved." : "Sent.", isError: false);
-            });
+        // What both arms do to get back to where the reader was: the compose screen off the stack, and the timeline no
+        // longer worth its age, this client being what changed it.
+        void Popped()
+        {
+            _cache.Forget(Rail.Showing.Kind);
+            _stack.RemoveAt(_stack.Count - 1);
+        }
     }
 
     /// <summary>The nine, in the order the rail draws them.</summary>

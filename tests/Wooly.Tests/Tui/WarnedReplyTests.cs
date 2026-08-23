@@ -1,6 +1,7 @@
 using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
+using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 
 namespace Wooly.Tests.Tui;
@@ -12,9 +13,11 @@ namespace Wooly.Tests.Tui;
 ///     author who has to remember to re-type the warning is one who sometimes will not.
 /// </summary>
 /// <remarks>
-///     All of it at the compose seam — the screen and the shell over the same ports the CLI uses (ADR-0005) — since
-///     what is pre-filled, what is editable and what is sent are decisions rather than drawing. Where the row sits and
-///     which of the two fields the typing goes into is <see cref="ShellComposeLayoutTests" />'.
+///     Asked of the screen itself, because the screen is what answers what goes out (<see cref="Outgoing" />, #146):
+///     the shell opens the compose, the field is typed into, and the draft-or-edit is read off it directly rather than
+///     through a fake author standing at the port to catch it. That the shell puts that value to the port, pops and
+///     says so is <see cref="ShellActionTests" />'; where the row sits and which of the two fields the typing goes into
+///     is <see cref="ShellComposeLayoutTests" />'.
 /// </remarks>
 public class WarnedReplyTests
 {
@@ -40,7 +43,7 @@ public class WarnedReplyTests
         var compose = await Replying(Warned);
 
         Assert.Equal("spoilers", compose.Warning);
-        Assert.Equal("spoilers", compose.ContentWarning);
+        Assert.Equal("spoilers", Publishing(compose).ContentWarning);
     }
 
     /// <summary>And a post carrying none opens on an empty field, exactly as it did before any of this.</summary>
@@ -50,7 +53,7 @@ public class WarnedReplyTests
         var compose = await Replying(Plain);
 
         Assert.Equal(string.Empty, compose.Warning);
-        Assert.Null(compose.ContentWarning);
+        Assert.Null(Publishing(compose).ContentWarning);
     }
 
     /// <summary>
@@ -66,6 +69,7 @@ public class WarnedReplyTests
 
         Assert.Equal("220", compose.About?.Id);
         Assert.Equal("spoilers", compose.Warning);
+        Assert.Equal("220", Publishing(compose).InReplyTo);
     }
 
     /// <summary>
@@ -91,10 +95,7 @@ public class WarnedReplyTests
 
         compose.Text += "Answering you";
 
-        await opened.Send();
-        shell.Host.Drain();
-
-        Assert.Null(Assert.Single(shell.Author.Published).Draft.ContentWarning);
+        Assert.Null(Publishing(compose).ContentWarning);
     }
 
     /// <summary>
@@ -117,10 +118,7 @@ public class WarnedReplyTests
 
         compose.Text = "Saying something of my own";
 
-        await opened.Send();
-        shell.Host.Drain();
-
-        Assert.Null(Assert.Single(shell.Author.Published).Draft.ContentWarning);
+        Assert.Null(Publishing(compose).ContentWarning);
     }
 
     /// <summary>
@@ -134,23 +132,15 @@ public class WarnedReplyTests
         var opened = await shell.Opened();
 
         opened.Compose();
-        opened.WriteWarning();
-
-        foreach (var letter in "spoilers")
-        {
-            opened.Type(letter);
-        }
+        Writing(opened, "spoilers");
 
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
         compose.Text = "Saying something of my own";
 
-        await opened.Send();
-        shell.Host.Drain();
+        var draft = Publishing(compose);
 
-        var published = Assert.Single(shell.Author.Published);
-
-        Assert.Equal("spoilers", published.Draft.ContentWarning);
-        Assert.Null(published.Draft.InReplyTo);
+        Assert.Equal("spoilers", draft.ContentWarning);
+        Assert.Null(draft.InReplyTo);
     }
 
     /// <summary>
@@ -167,14 +157,12 @@ public class WarnedReplyTests
 
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
         compose.Text += "Answering you";
-        compose.Warning = "spoilers, and one of my own";
+        Writing(opened, "spoilers, and one of my own");
 
-        await opened.Send();
-        shell.Host.Drain();
+        var draft = Publishing(compose);
 
-        var published = Assert.Single(shell.Author.Published);
-        Assert.Equal("spoilers, and one of my own", published.Draft.ContentWarning);
-        Assert.Equal("220", published.Draft.InReplyTo);
+        Assert.Equal("spoilers, and one of my own", draft.ContentWarning);
+        Assert.Equal("220", draft.InReplyTo);
     }
 
     /// <summary>
@@ -193,12 +181,9 @@ public class WarnedReplyTests
 
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
         compose.Text += "Answering you";
-        compose.Warning = cleared;
+        Writing(opened, cleared);
 
-        await opened.Send();
-        shell.Host.Drain();
-
-        Assert.Null(Assert.Single(shell.Author.Published).Draft.ContentWarning);
+        Assert.Null(Publishing(compose).ContentWarning);
     }
 
     /// <summary>
@@ -216,12 +201,9 @@ public class WarnedReplyTests
 
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
         compose.Text += "Answering you";
-        compose.Warning = " spoilers, of a sort ";
+        Writing(opened, " spoilers, of a sort ");
 
-        await opened.Send();
-        shell.Host.Drain();
-
-        Assert.Equal(" spoilers, of a sort ", Assert.Single(shell.Author.Published).Draft.ContentWarning);
+        Assert.Equal(" spoilers, of a sort ", Publishing(compose).ContentWarning);
     }
 
     /// <summary>
@@ -236,6 +218,7 @@ public class WarnedReplyTests
         var compose = await Editing(Mine);
 
         Assert.Equal("spoilers", compose.Warning);
+        Assert.Equal("110", Saving(compose).PostId);
     }
 
     /// <summary>And a post carrying none opens on an empty field, ready to be given one.</summary>
@@ -263,11 +246,9 @@ public class WarnedReplyTests
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
         compose.Text = "Hello world, fixed";
 
-        await opened.Send();
-        shell.Host.Drain();
+        var saved = Saving(compose).Edit;
 
-        var saved = Assert.Single(shell.Author.Edits).Edit;
-
+        Assert.Equal("Hello world, fixed", saved.Text);
         Assert.True(saved.ChangesContentWarning);
         Assert.Equal("spoilers", saved.ContentWarningWanted);
     }
@@ -285,14 +266,9 @@ public class WarnedReplyTests
         var opened = await shell.Opened();
 
         opened.Edit();
+        Writing(opened, cleared);
 
-        var compose = Assert.IsType<ComposeScreen>(opened.Screen);
-        compose.Warning = cleared;
-
-        await opened.Send();
-        shell.Host.Drain();
-
-        var saved = Assert.Single(shell.Author.Edits).Edit;
+        var saved = Saving(Assert.IsType<ComposeScreen>(opened.Screen)).Edit;
 
         Assert.True(saved.ChangesContentWarning);
         Assert.Equal(string.Empty, saved.ContentWarningWanted);
@@ -306,17 +282,11 @@ public class WarnedReplyTests
         var opened = await shell.Opened();
 
         opened.Edit();
-        opened.WriteWarning();
+        Writing(opened, "spoilers");
 
-        foreach (var letter in "spoilers")
-        {
-            opened.Type(letter);
-        }
+        var saved = Saving(Assert.IsType<ComposeScreen>(opened.Screen)).Edit;
 
-        await opened.Send();
-        shell.Host.Drain();
-
-        Assert.Equal("spoilers", Assert.Single(shell.Author.Edits).Edit.ContentWarningWanted);
+        Assert.Equal("spoilers", saved.ContentWarningWanted);
     }
 
     /// <summary>
@@ -330,14 +300,11 @@ public class WarnedReplyTests
         var opened = await shell.Opened();
 
         opened.Edit();
+        Writing(opened, " spoilers, of a sort ");
 
-        var compose = Assert.IsType<ComposeScreen>(opened.Screen);
-        compose.Warning = " spoilers, of a sort ";
+        var saved = Saving(Assert.IsType<ComposeScreen>(opened.Screen)).Edit;
 
-        await opened.Send();
-        shell.Host.Drain();
-
-        Assert.Equal(" spoilers, of a sort ", Assert.Single(shell.Author.Edits).Edit.ContentWarningWanted);
+        Assert.Equal(" spoilers, of a sort ", saved.ContentWarningWanted);
     }
 
     /// <summary>
@@ -485,4 +452,39 @@ public class WarnedReplyTests
 
         return Assert.IsType<ComposeScreen>(opened.Screen);
     }
+
+    /// <summary>
+    ///     Writes <paramref name="warning" /> into the field the way a reader does — <c>ctrl-w</c>, backspace over
+    ///     whatever it opened holding, then the keys — and hands the typing back to the post.
+    /// </summary>
+    /// <remarks>
+    ///     Typed rather than assigned, the field being the screen's own since #146: what goes into it is what the shell
+    ///     carried there, which is the path the warning actually takes on its way to being sent.
+    /// </remarks>
+    private static void Writing(Shell shell, string warning)
+    {
+        var compose = Assert.IsType<ComposeScreen>(shell.Screen);
+
+        shell.WriteWarning();
+
+        while (compose.Warning.Length > 0)
+        {
+            shell.Backspace();
+        }
+
+        foreach (var letter in warning)
+        {
+            shell.Type(letter);
+        }
+
+        shell.WriteWarning();
+    }
+
+    /// <summary>The draft this compose screen answers with, which is what <c>ctrl-s</c> hands the shell to publish.</summary>
+    private static PostDraft Publishing(ComposeScreen compose) =>
+        Assert.IsType<Outgoing.Publishing>(compose.Outgoing).Draft;
+
+    /// <summary>The change it answers with instead, on the screen <c>e</c> opened, and the post that change is to.</summary>
+    private static Outgoing.Saving Saving(ComposeScreen compose) =>
+        Assert.IsType<Outgoing.Saving>(compose.Outgoing);
 }

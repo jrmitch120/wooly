@@ -92,6 +92,11 @@ empty string rather than as null, because `PostEdit` keeps a third state no fiel
 alone", which the CLI can say by leaving `--cw` off the command line and a reader looking at the row cannot say at
 all. Adding a warning to a post that had none marks it sensitive, on either surface; taking one away never unmarks
 it, the flag being the instance's rather than the author's.
+Which of those two readings a field gets is settled where the field is, rather than where it is sent: a compose screen
+answers what goes out whole — a draft or an edit (`Outgoing`) — and the shell puts that to the port, pops and says so,
+so no other module has to know that an empty field means two different things (#146). What counts as an empty one is
+said once for all three places that compose a warning — the TUI's field, the CLI's `--cw`, and an edit —
+in `ContentWarnings.Written`.
 _Avoid_: spoilered, blurred, NSFW, hidden (which is what a warning does, not what a post is)
 
 **Drawn**:

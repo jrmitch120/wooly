@@ -106,3 +106,50 @@ warning comes off, typed into where the post had none it puts one on — so the 
 `PostEdit.ContentWarning` and `ChangesContentWarning` is always true from this surface (#140). The third state is not
 thereby dead: it is the CLI's, where `--cw` can be absent from the command line. A field the author is
 looking at has no such state, because they saw the row and whatever it holds is what they want.
+
+## Amendment: the screen says what goes out, and the shell sends it (ticket #146)
+
+The amendment above gave compose a second field and left the *assembly* where it had always been — in `Shell.Send`,
+which built a `PostDraft` or a `PostEdit` out of the screen's members. So one decision, what goes out when `ctrl-s` is
+pressed, was spread across two modules, and the shell was the module that had to know which of the compose screen's
+two warning members belonged to which purpose: the raw field on an edit, where an empty one means *take the warning
+away*, and the trimmed one on a publish, where an empty one means *no warning at all*. That difference is real and
+this ADR's third amendment is what makes it real — but it took a nine-line comment to explain, sitting in the one
+module that should never have had to care. Five commits in a row touched both files to change one rule about one
+field.
+
+**A compose screen answers what goes out, as a value.** `ComposeScreen.Outgoing` is an `Outgoing`: either
+`Publishing` a `PostDraft` or `Saving` a `PostEdit` against the id of the post being changed. `Shell.Send` refuses an
+empty compose, makes the one call the value names, pops the stack, and says `Sent.` or `Saved.` — the parts that
+genuinely need a port and a stack. It constructs neither a draft nor an edit, and the comment explaining raw versus
+trimmed has moved to the two private methods that assemble them, a dozen lines apart from each other in the file that
+holds the field.
+
+**The field is still readable and no longer writable.** `ContentWarning` — the trimmed reading — is gone from the
+screen's surface entirely, since it existed only for whoever was assembling the draft. `Warning` stays, because it is
+the row on screen and a fact about the screen worth asserting, but its setter is private: what a keystroke changes is
+the screen's own, and with one warning member left there is no longer a pair for anybody outside to choose the wrong
+one of. That is what the split cost — not the field being visible, but two of them being visible to a module with no
+way to tell which was which.
+
+**A value, not a call.** This ADR's rule — a screen reaches no port and knows about no instance — is what makes every
+screen drawable and assertable with no terminal and no network, and it is untouched: `Outgoing` is inert data handed
+to whoever is doing the sending. That is also what lets the compose tests read what would go out directly instead of
+standing a fake author at the port to catch it, which is how they used to have to ask.
+
+**The whitespace rule collapses into `Wooly.Core`.** "A warning of nothing but spaces amounts to no warning" was
+written out three times — the TUI's field, the CLI's `--cw`, and `PostEdit.ContentWarningWanted`. It is
+`ContentWarnings.Written` now, and all three read it. Only the *reading* is shared: what none then looks like on the
+way out stays with the thing being sent, since it differs on purpose (null on a `PostDraft`, the empty string on a
+`PostEdit`, which keeps null for its third state). The CLI's `--cw` keeps that third state whole — it is the option
+being absent from the command line, which is a fact about the invocation and not about what was written in the option,
+so it never was the same question as whitespace.
+
+### What this leaves where it is
+
+`Shell.Addressed` — who a reply names, which is 45 lines of Mastodon reply-routing — stays in the shell. It was worth
+asking about, being a decision about a post rather than about the shell, but it belongs to *opening* a compose screen
+rather than to what leaves one: it runs before the screen exists, and it reads both the profile's own account and the
+`ConversationScreen` the reader is standing on. Moving it would be a second decision in a ticket about the first one,
+and the shape #146 names in passing — nineteen guards naming a concrete screen — is a map-level question rather than
+this ticket's.

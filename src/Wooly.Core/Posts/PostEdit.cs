@@ -32,9 +32,10 @@ public sealed record PostEdit
 
     /// <summary>
     ///     The warning the post should end up behind, for an edit that changes it at all: empty where the author asked
-    ///     for none. Whitespace amounts to none, the same as it does when a post is first composed — a warning made of
-    ///     spaces would hide a post behind nothing, which is worse than either hiding it or not.
+    ///     for none. Whitespace amounts to none, the same as it does when a post is first composed — which is
+    ///     <see cref="ContentWarnings.Written" />'s to say rather than this record's, so that the one rule reads the
+    ///     same wherever a warning is composed (#146). Only the shape of "none" is this record's own: the empty string
+    ///     rather than null, since null is the third state above.
     /// </summary>
-    public string ContentWarningWanted =>
-        string.IsNullOrWhiteSpace(ContentWarning) ? string.Empty : ContentWarning;
+    public string ContentWarningWanted => ContentWarnings.Written(ContentWarning) ?? string.Empty;
 }
