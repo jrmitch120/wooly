@@ -57,7 +57,7 @@ public class ShellNotificationTests
         opened.Step(ToNotifications);
         shell.Host.Settle();
 
-        await opened.Press(ShellKey.Discard);
+        opened.Press(ShellKey.D);
         shell.Host.Drain();
 
         Assert.Equal("34", Assert.Single(shell.Notifications.Dismissals).NotificationId);

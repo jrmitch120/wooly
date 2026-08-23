@@ -168,36 +168,75 @@ public sealed class Shell
     public void Step(int by) => Rail.Step(by);
 
     /// <summary>
-    ///     What a key that means different things on different screens means <em>here</em>. Every collision the
-    ///     contract allows, in one table, so that a reader can see at once that <c>d</c> is dismiss on one screen and
-    ///     delete on every other (<c>docs/tui-shell.md</c>).
+    ///     Carries out what a key meant, once <see cref="Keymap" /> has said what that is. Every verb here is public
+    ///     in its own right, so this is a table of one-line arms rather than anywhere a decision is made.
     /// </summary>
     /// <remarks>
-    ///     Only the four keys that collide come through here. A screen's own key that nothing else uses — <c>F</c>,
-    ///     <c>M</c>, <c>B</c>, <c>D</c> — is a verb of its own and needs no table to tell it apart from anything.
+    ///     Which screen the reader is on has already been accounted for: the collisions the contract allows —
+    ///     <c>d</c> dismissing a notification and deleting a post — are settled in the keymap, so nothing here has to
+    ///     name a screen to know which of them it is.
     ///     <para>
-    ///         It lives on the shell rather than in the window because the window binds keys and knows nothing about
-    ///         screens — and each arm below is a public verb of its own, so a test can ask for the meaning it is
-    ///         about without going through a keypress to get at it.
+    ///         The verbs this does not carry are the ones that need a terminal, and they are taken by
+    ///         <c>ShellWindow</c> before they ever reach here: quitting, the movements that walk the page rather than
+    ///         the list, and the send that has to take the editor widget's text first.
+    ///     </para>
+    ///     <para>
+    ///         Nothing is awaited. A verb that reaches an instance is put through <see cref="Enquiry" />, which lands
+    ///         its answer on the drawing thread — so the press is spent the moment it is sent, and a caller that wants
+    ///         to wait for what came back calls the verb itself.
     ///     </para>
     /// </remarks>
-    public Task Press(ShellKey key) => (key, Screen) switch
+    /// <param name="answer">
+    ///     Which poll answer <see cref="Verb.Toggle" /> addresses (<see cref="Keymap.Answer" />), and nothing to any
+    ///     other verb.
+    /// </param>
+    /// <returns>
+    ///     Whether the press was used. Three verbs can answer no — the two that walk a reference and the one that
+    ///     toggles a poll answer — because there may be nothing on the picked post for them to act on, and an unused
+    ///     key falls back through the window to whatever else wants it: the compose editor's own arrows above all
+    ///     (#83, #87). That is settled here rather than in the keymap because the screen is the only thing that knows
+    ///     what is on the post, and asking it in two places is how two places come to disagree.
+    /// </returns>
+    public bool Do(Verb verb, int? answer) => verb switch
     {
-        // A picked reference is a level of its own inside the screen, so ⏎ means the reference wherever one is picked
-        // — which is what the status row says while one is, ahead of whatever the screen's own ⏎ would have meant
-        // (docs/tui-shell.md, #85).
-        (ShellKey.Enter, _) when Screen.Reference is not null => OpenReference(),
-        (ShellKey.Enter, SearchScreen search) => search.IsTyping ? Find() : OpenResult(),
-        (ShellKey.Enter, FollowRequestsScreen) => OpenAsker(),
-        (ShellKey.Enter, DirectMessagesScreen) => OpenConversation(),
-        (ShellKey.Author, FollowRequestsScreen) => AnswerRequest(accepted: true),
-        (ShellKey.Discard, NotificationsScreen) => Dismiss(),
-        (ShellKey.Reject, FollowRequestsScreen) => AnswerRequest(accepted: false),
-        (ShellKey.Enter, _) => Enter(),
-        (ShellKey.Author, _) => OpenAuthor(),
-        (ShellKey.Discard, _) => AtOnce(AskToDelete),
-        (ShellKey.Reject, _) => AtOnce(Reveal),
-        _ => Task.CompletedTask,
+        Verb.NextReference => WalkReference(1),
+        Verb.PreviousReference => WalkReference(-1),
+        Verb.Toggle => answer is { } option && Toggle(option),
+
+        Verb.Back => Ran(Back),
+        Verb.Help => Ran(Help),
+        Verb.Search => Ran(Search),
+        Verb.NextDestination => Ran(() => Step(1)),
+        Verb.PreviousDestination => Ran(() => Step(-1)),
+        Verb.OpenPost => Ran(Enter),
+        Verb.OpenAuthor => Ran(OpenAuthor),
+        Verb.OpenReference => Ran(OpenReference),
+        Verb.Compose => Ran(() => Compose()),
+        Verb.Reply => Ran(Reply),
+        Verb.Edit => Ran(Edit),
+        Verb.Boost => Ran(() => Mark(PostMark.Boost)),
+        Verb.Favorite => Ran(() => Mark(PostMark.Favorite)),
+        Verb.Pin => Ran(() => Mark(PostMark.Pin)),
+        Verb.Delete => Ran(AskToDelete),
+        Verb.Reveal => Ran(Reveal),
+        Verb.Vote => Ran(AskToVote),
+        Verb.Refresh => Ran(Refresh),
+        Verb.Follow => Ran(() => Tie(AccountTie.Follow)),
+        Verb.Mute => Ran(() => Tie(AccountTie.Mute)),
+        Verb.Block => Ran(() => Tie(AccountTie.Block)),
+        Verb.Dismiss => Ran(Dismiss),
+        Verb.ClearAll => Ran(AskToClear),
+        Verb.AcceptRequest => Ran(() => AnswerRequest(accepted: true)),
+        Verb.RejectRequest => Ran(() => AnswerRequest(accepted: false)),
+        Verb.OpenAsker => Ran(OpenAsker),
+        Verb.OpenConversation => Ran(OpenConversation),
+        Verb.MarkRead => Ran(MarkRead),
+        Verb.Find => Ran(Find),
+        Verb.OpenResult => Ran(OpenResult),
+        Verb.WriteWarning => Ran(WriteWarning),
+
+        // Verb.None, and the terminal's own — which the window has already taken.
+        _ => false,
     };
 
     /// <summary>Moves what is picked out on the current screen.</summary>
@@ -1340,14 +1379,26 @@ public sealed class Shell
     };
 
     /// <summary>
-    ///     An arm of <see cref="Press" /> that reaches no instance, as a task — so that the table above is one shape
-    ///     all the way down rather than a mix of two.
+    ///     An arm of <see cref="Do" /> that answers at once, as a used key — so that the table there is one shape all
+    ///     the way down rather than a mix of two, and so that only the three arms which can decline say so.
     /// </summary>
-    private static Task AtOnce(Action work)
+    private static bool Ran(Action verb)
     {
-        work();
+        verb();
 
-        return Task.CompletedTask;
+        return true;
+    }
+
+    /// <inheritdoc cref="Ran(Action)" />
+    /// <remarks>
+    ///     The same for a verb that reaches an instance. Not awaited, for the reason <see cref="Do" /> gives: what
+    ///     came back lands on the drawing thread of its own accord, and the key was spent on the way out.
+    /// </remarks>
+    private static bool Ran(Func<Task> verb)
+    {
+        _ = verb();
+
+        return true;
     }
 
     private void Compose(ComposeFor purpose)

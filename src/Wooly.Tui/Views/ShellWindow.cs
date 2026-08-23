@@ -15,8 +15,14 @@ namespace Wooly.Tui.Views;
 /// <summary>
 ///     The shell laid out on a terminal: the rail down the left, the breadcrumb above the content, the content, and
 ///     the status row along the bottom (<c>docs/tui-shell.md</c>). Everything it draws it asks the shell for, and
-///     everything a key means it hands to the shell — so this file has no idea what a boost is.
+///     everything a key means it asks <see cref="Keymap" /> — so this file has no idea what a boost is.
 /// </summary>
+/// <remarks>
+///     It names exactly one screen type, and never to decide what a key means (#147): a
+///     <see cref="ComposeScreen" /> is the one screen with a widget of its own laid over the content region, so where
+///     that widget starts, whether it has focus and what text it opens with are this window's questions about its own
+///     furniture. Everything else it knows about screens it knows as <c>Screen</c>.
+/// </remarks>
 internal sealed class ShellWindow : Window
 {
     /// <summary>
@@ -156,8 +162,9 @@ internal sealed class ShellWindow : Window
     }
 
     /// <summary>
-    ///     Every key the shell answers to. The frame's keys mean the same thing everywhere; the rest belong to
-    ///     whichever screen is on top, which is why the status row always says what they are.
+    ///     Every key the shell answers to, in three steps and no bindings of its own: what a terminal sent becomes a
+    ///     <see cref="ShellKey" />, <see cref="Keymap" /> says what that means on the screen on top, and the verb is
+    ///     carried out — here where it needs a terminal, and by the shell where it does not (#147).
     /// </summary>
     protected override bool OnKeyDown(Key key)
     {
@@ -170,145 +177,92 @@ internal sealed class ShellWindow : Window
             return true;
         }
 
-        // The one key that ends the run. Bound explicitly because esc is taken — it walks up the stack and never
-        // quits (docs/tui-shell.md) — and Terminal.Gui's own default quit key is esc, which this window consumes.
-        if (key == Key.Q.WithCtrl)
-        {
-            _quit();
-
-            return true;
-        }
-
-        // The two compose keys, bound here as well as on the editor itself, because the editor is not always the thing
-        // holding them: it gives up focus while the warning is taking letters, and from there neither key would reach
-        // it at all. Screen-local rather than frame keys — off a compose screen they are left to whatever else wants
-        // them, the same bargain the poll digits and the reference arrows strike.
-        if (_shell.Screen is ComposeScreen)
-        {
-            if (key == Key.S.WithCtrl)
-            {
-                _ = Send();
-
-                return true;
-            }
-
-            if (key == Key.W.WithCtrl)
-            {
-                _shell.WriteWarning();
-
-                return true;
-            }
-        }
-
-        if (key == Key.Tab)
-        {
-            _shell.Step(1);
-
-            return true;
-        }
-
-        if (key == Key.Tab.WithShift)
-        {
-            _shell.Step(-1);
-
-            return true;
-        }
-
         // A prompt taking a query takes the letters too, so that searching for "backfeed" is not a boost, an author,
-        // a compose and two more besides. Which screens do that is a fact about the screen, not a mode kept here.
+        // a compose and two more besides. Ahead of the keymap rather than inside it: this is the one place a key the
+        // contract has settled means something else, and what it means instead is a letter rather than another verb.
+        // Which screens do that is a fact about the screen, not a mode kept here.
         if (_shell.Screen.IsTyping && Typing(key))
         {
             return true;
         }
 
-        // The two movements that used to be one key (#51). j and k walk posts and the screen follows them; the arrows
-        // walk the screen and leave the selection alone, which is the only way to read a post taller than the
-        // terminal to its end.
-        //
-        // k is the next post and j the one before it, which is the other way round from vim (docs/tui-shell.md).
-        if (key == Key.K)
+        return ShellKeys.Of(key) is { } pressed && Do(pressed) || base.OnKeyDown(key);
+    }
+
+    /// <summary>
+    ///     What <paramref name="pressed" /> means here, done. The verbs that need a terminal are taken first and the
+    ///     rest are the shell's, which is the whole of the division: this window knows how tall the page is, where the
+    ///     rows have been scrolled to, what the editor widget is holding, and who owns the run loop — and nothing else
+    ///     about what any of it is for.
+    /// </summary>
+    /// <returns>
+    ///     Whether the press was used, which is <see cref="Shell.Shell.Do" />'s answer for everything below: an unused
+    ///     <c>←</c>, <c>→</c> or digit falls through to whatever else wants it, the compose editor above all (#83,
+    ///     #87).
+    /// </returns>
+    private bool Do(ShellKey pressed)
+    {
+        switch (Keymap.Means(pressed, _shell.Screen))
         {
-            Walk(1);
+            case Verb.Quit:
+                _quit();
 
-            return true;
+                return true;
+
+            case Verb.NextPost:
+                Walk(1);
+
+                return true;
+
+            case Verb.PreviousPost:
+                Walk(-1);
+
+                return true;
+
+            case Verb.FirstPost:
+                Jump(int.MinValue);
+
+                return true;
+
+            case Verb.LastPost:
+                Jump(int.MaxValue);
+
+                return true;
+
+            case Verb.ScrollDown:
+                Scrolled(RowsAPress);
+
+                return true;
+
+            case Verb.ScrollUp:
+                Scrolled(-RowsAPress);
+
+                return true;
+
+            case Verb.PageDown:
+                Turned(1);
+
+                return true;
+
+            case Verb.PageUp:
+                Turned(-1);
+
+                return true;
+
+            case Verb.Send:
+                _ = Send();
+
+                return true;
+
+            case var verb:
+                return _shell.Do(verb, Keymap.Answer(pressed));
         }
-
-        if (key == Key.J)
-        {
-            Walk(-1);
-
-            return true;
-        }
-
-        if (key == Key.CursorDown)
-        {
-            Scrolled(RowsAPress);
-
-            return true;
-        }
-
-        if (key == Key.CursorUp)
-        {
-            Scrolled(-RowsAPress);
-
-            return true;
-        }
-
-        // The third movement, and the one that goes inside a post rather than along it: the references in the picked
-        // post's text (#83). Consumed only where there are any to walk, so that a screen with none — the compose
-        // editor above all, where ← and → move the caret — still gets its own arrows.
-        if (key == Key.CursorRight && _shell.WalkReference(1))
-        {
-            return true;
-        }
-
-        if (key == Key.CursorLeft && _shell.WalkReference(-1))
-        {
-            return true;
-        }
-
-        if (key == Key.PageDown)
-        {
-            Turned(1);
-
-            return true;
-        }
-
-        if (key == Key.PageUp)
-        {
-            Turned(-1);
-
-            return true;
-        }
-
-        if (key == Key.Home)
-        {
-            Jump(int.MinValue);
-
-            return true;
-        }
-
-        if (key == Key.End)
-        {
-            Jump(int.MaxValue);
-
-            return true;
-        }
-
-        if (key == Key.Esc)
-        {
-            _shell.Back();
-
-            return true;
-        }
-
-        return Content(key) || base.OnKeyDown(key);
     }
 
     /// <summary>
     ///     <c>j</c> and <c>k</c>: the selection walks, and the screen goes back to following it. Whether this press
     ///     moves or reclaims is the content region's to answer, since it is the only thing that knows what is on
-    ///     screen — this window binds keys and knows nothing about screens (ADR-0014).
+    ///     screen — this window translates keys and leaves what they mean to <see cref="Keymap" /> (ADR-0014, #147).
     /// </summary>
     private void Walk(int by)
     {
@@ -387,113 +341,6 @@ internal sealed class ShellWindow : Window
         return true;
     }
 
-    private bool Content(Key key)
-    {
-        // The digits address the answers of the picked post's poll directly, and are consumed only where there is one
-        // to address: a digit on a post with no poll does nothing and is left to whatever else wants it, which is the
-        // same bargain the reference arrows strike (#87).
-        if (Digit(key) is { } option)
-        {
-            return _shell.Toggle(option);
-        }
-
-        // The capitals first, and matched on the character rather than on a modifier, so that a lower-case mark key
-        // can never fire a tie or empty an inbox by accident (docs/tui-shell.md).
-        if (key.AsRune.Value is 'F' or 'M' or 'B')
-        {
-            _ = _shell.Tie(key.AsRune.Value switch
-            {
-                'F' => AccountTie.Follow,
-                'M' => AccountTie.Mute,
-                _ => AccountTie.Block,
-            });
-        }
-        else if (key.AsRune.Value == 'D')
-        {
-            _shell.AskToClear();
-        }
-        else if (key == Key.Enter)
-        {
-            _ = _shell.Press(ShellKey.Enter);
-        }
-        else if (key == Key.A)
-        {
-            _ = _shell.Press(ShellKey.Author);
-        }
-        else if (key == Key.B)
-        {
-            _ = _shell.Mark(PostMark.Boost);
-        }
-        else if (key == Key.F)
-        {
-            _ = _shell.Mark(PostMark.Favorite);
-        }
-        else if (key == Key.P)
-        {
-            _ = _shell.Mark(PostMark.Pin);
-        }
-        else if (key == Key.M)
-        {
-            // Lower case only: the capitals are matched above, so this cannot be the mute a conversation has no use
-            // for (docs/tui-shell.md).
-            _ = _shell.MarkRead();
-        }
-        else if (key == Key.C)
-        {
-            _shell.Compose();
-        }
-        else if (key == Key.R)
-        {
-            _shell.Reply();
-        }
-        else if (key == Key.E)
-        {
-            _shell.Edit();
-        }
-        else if (key == Key.G)
-        {
-            Refreshed();
-        }
-        else if (key == Key.D)
-        {
-            _ = _shell.Press(ShellKey.Discard);
-        }
-        else if (key == Key.X)
-        {
-            _ = _shell.Press(ShellKey.Reject);
-        }
-        else if (key == Key.V)
-        {
-            _shell.AskToVote();
-        }
-        else if (key.AsRune.Value == '/')
-        {
-            _shell.Search();
-        }
-        else if (key.AsRune.Value == '?')
-        {
-            _shell.Help();
-        }
-        else
-        {
-            return false;
-        }
-
-        return true;
-    }
-
-    /// <summary>
-    ///     Which poll answer a digit addresses, counted from zero, or <see langword="null" /> where the key is not a
-    ///     digit at all. <c>1</c>-<c>9</c> then <c>0</c>, so that ten answers are reachable along one row of keys and
-    ///     the reader counts from where a person counts from (<c>docs/tui-shell.md</c>).
-    /// </summary>
-    private static int? Digit(Key key) => key.AsRune.Value switch
-    {
-        >= '1' and <= '9' => (int)key.AsRune.Value - '1',
-        '0' => 9,
-        _ => null,
-    };
-
     /// <summary>
     ///     Where the editor starts: the top of the content region, plus however many rows the screen underneath wants
     ///     for what it is answering — the block <see cref="ComposeScreen.AnsweringHeight" /> counts, painted on
@@ -531,21 +378,6 @@ internal sealed class ShellWindow : Window
 
         return ContentTop + answering + compose.WarningHeight;
     }
-
-    /// <summary>
-    ///     <c>g</c>: ask this screen for what is there now, and leave the reader looking at exactly what they were
-    ///     looking at (<c>docs/tui-shell.md</c>, #84).
-    /// </summary>
-    /// <remarks>
-    ///     Screen-local rather than a frame key, so it is handed over like any other and the shell turns it down where
-    ///     the screen on top has nothing to ask again.
-    ///     <para>
-    ///         Nothing is held and nothing is awaited. The reader has asked to see what is new, and what is new is at
-    ///         the top — so the answer is a screen change like any other, and the screen it changes to is a fresh one,
-    ///         which remembers no page and so opens at row 0 when <see cref="Refresh" /> resumes it (#133).
-    ///     </para>
-    /// </remarks>
-    private void Refreshed() => _ = _shell.Refresh();
 
     private async Task Send()
     {

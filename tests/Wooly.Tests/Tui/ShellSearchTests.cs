@@ -50,7 +50,7 @@ public class ShellSearchTests
         opened.Type('x');
         opened.Backspace();
 
-        await opened.Press(ShellKey.Enter);
+        opened.Press(ShellKey.Enter);
         shell.Host.Drain();
 
         var asked = Assert.Single(shell.Search.Searches);
@@ -78,7 +78,7 @@ public class ShellSearchTests
 
         shell.Host.Drain();
 
-        await opened.Press(ShellKey.Enter);
+        opened.Press(ShellKey.Enter);
         shell.Host.Drain();
 
         Assert.Empty(shell.Search.Searches);
@@ -102,7 +102,7 @@ public class ShellSearchTests
         await Found(shell, opened, "alice");
         shell.Host.Drain();
 
-        await opened.Press(ShellKey.Enter);
+        opened.Press(ShellKey.Enter);
         shell.Host.Drain();
 
         var account = Assert.IsType<AccountScreen>(opened.Screen);
@@ -123,7 +123,7 @@ public class ShellSearchTests
         await Found(shell, opened, "cats");
         shell.Host.Drain();
 
-        await opened.Press(ShellKey.Enter);
+        opened.Press(ShellKey.Enter);
         shell.Host.Drain();
 
         Assert.Equal("cats", shell.Timelines.Reads[^1].Timeline.Hashtag);
@@ -148,7 +148,7 @@ public class ShellSearchTests
 
         Assert.Equal("110", opened.Screen.Picked?.Id);
 
-        await opened.Press(ShellKey.Enter);
+        opened.Press(ShellKey.Enter);
         shell.Host.Drain();
 
         Assert.Equal("110", Assert.IsType<PostScreen>(opened.Screen).Post.Id);
