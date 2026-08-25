@@ -17,7 +17,8 @@ namespace Wooly.Tests.Tui;
 ///     The key is written here the way the contract writes it — <c>ctrl-w</c>, <c>PgDn</c>, <c>←</c> — and
 ///     <see cref="Sent" /> turns that spelling into the press a terminal makes, so that a test reads down beside the
 ///     table it is asserting. Nothing here builds a <c>Window</c>: what the window still keeps for itself is the
-///     handful of verbs that need a page or a run loop, and those are pressed for real in <see cref="ShellKeyTests" />.
+///     handful of verbs that need a page or a laid-out <c>ShellWindow</c>, and those are pressed for real in
+///     <see cref="ShellKeyTests" />.
 /// </remarks>
 public class KeymapTests
 {
