@@ -19,7 +19,8 @@ namespace Wooly.Tests.Tui;
 ///     (<c>docs/tui-shell.md</c>), which is exactly the kind of thing that gets quietly reversed.
 ///     <para>
 ///         Everything a window hands straight on is asserted in <see cref="KeymapTests" /> instead, which needs no
-///         terminal at all — what is left here is what a page, an editor widget and a run loop are needed to see.
+///         terminal at all — what is left here is what a page, an editor widget and a laid-out <c>ShellWindow</c>
+///         are needed to see.
 ///     </para>
 /// </remarks>
 public class ShellKeyTests

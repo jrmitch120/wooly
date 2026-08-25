@@ -9,8 +9,8 @@ namespace Wooly.Tests.Tui;
 /// <remarks>
 ///     A composition of two production functions rather than a second dispatch — so a test that presses <c>⏎</c> on
 ///     the follow requests screen is still asserting the collision the contract allows, and not a path only tests
-///     take. What it leaves out is the handful of verbs the window keeps for itself, which need a page and a run loop:
-///     those are asserted through a real window in <see cref="ShellKeyTests" />.
+///     take. What it leaves out is the handful of verbs the window keeps for itself, which need a page and a laid-out
+///     <c>ShellWindow</c>: those are asserted through a real window in <see cref="ShellKeyTests" />.
 /// </remarks>
 internal static class Pressing
 {
