@@ -1,3 +1,4 @@
+using Wooly.Core;
 using Wooly.Core.Posts;
 using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
@@ -871,11 +872,13 @@ public static class PostLines
         {
             var option = poll.Options[at];
 
-            var mark = chosen is null
-                ? option.Picked ? "✓ " : "  "
-                : chosen.Contains(at) ? "[x] " : "[ ] ";
+            // The row is the poll's own and the CLI draws the same one; the ballot's boxes are the one thing only
+            // this surface has to lead a row with, and are the only reason it says what leads a row at all (#150).
+            var row = chosen is null
+                ? PollBar.RowOf(poll, option)
+                : PollBar.RowOf(poll, option, chosen.Contains(at) ? "[x] " : "[ ] ");
 
-            yield return PollOptionLine(poll, option, width, mark);
+            yield return Line.Of(TextWrap.Clip(row, width), Role.Poll);
         }
 
         if (chosen is not null)
@@ -901,31 +904,6 @@ public static class PostLines
         }
 
         yield return Line.Of(TextWrap.Clip(VoteCountText(poll), width), Role.Muted);
-    }
-
-    /// <summary>
-    ///     One option's row: <paramref name="mark" />, then a <c>▓</c>/<c>░</c> bar sized to the share of the vote it
-    ///     drew, the percentage and raw count, and the option's own text — all in <see cref="Role.Poll" />. An option
-    ///     whose count is withheld draws no bar at all rather than one guessed at, which is what tells it apart from a
-    ///     genuinely unvoted option's empty, <c>0%</c> bar.
-    /// </summary>
-    /// <param name="mark">
-    ///     What the row leads with: <c>✓ </c> where this profile has voted for it, or the ballot's <c>[x] </c>/
-    ///     <c>[ ] </c> while a vote is toggled and uncast. Worked out by <see cref="Poll" />, which is what knows
-    ///     whether either applies — the option itself only knows what the instance said about it.
-    /// </param>
-    private static Line PollOptionLine(PostPoll poll, PostPollOption option, int width, string mark)
-    {
-        if (option.Votes is not { } votes)
-        {
-            return Line.Of(TextWrap.Clip($"{mark}{option.Text}", width), Role.Poll);
-        }
-
-        var percent = PollBar.PercentOf(poll, votes);
-
-        return Line.Of(
-            TextWrap.Clip($"{mark}{PollBar.Of(percent)} {percent}% ({Number.Of(votes)})  {option.Text}", width),
-            Role.Poll);
     }
 
     /// <summary>How many votes the poll has drawn, and from how many accounts where that can differ from the count.</summary>

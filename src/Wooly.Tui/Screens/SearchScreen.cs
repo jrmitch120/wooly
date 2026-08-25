@@ -1,3 +1,4 @@
+using Wooly.Core;
 using Wooly.Core.Accounts;
 using Wooly.Core.Posts;
 using Wooly.Core.Search;
