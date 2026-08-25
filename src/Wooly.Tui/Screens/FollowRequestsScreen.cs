@@ -1,5 +1,4 @@
 using Wooly.Core.Accounts;
-using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Theme;
 
@@ -64,22 +63,18 @@ public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string?
     public void Answered(string accountId) => _waiting.Remove(account => account.Id == accountId);
 
     /// <inheritdoc />
-    public override IReadOnlyList<Line> Lines(
-        int width,
-        DateTimeOffset now,
-        IPictures? pictures = null,
-        bool hideDrawnCaption = false)
+    public override IReadOnlyList<Line> Lines(Drawing drawing)
     {
         var lines = new List<Line>();
 
         if (Notice is { } notice)
         {
-            lines.Add(Line.Of(TextWrap.Clip(notice, width), Role.Muted));
+            lines.Add(Line.Of(TextWrap.Clip(notice, drawing.Width), Role.Muted));
             lines.Add(Line.Blank);
         }
 
         lines.AddRange(_waiting.Rows(
-            width,
+            drawing.Width,
             (account, _, room) => [AccountLines.Byline(account, room), AccountLines.Presence(account, room)]));
 
         return lines;

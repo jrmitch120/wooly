@@ -1,5 +1,4 @@
 using Wooly.Core.Posts;
-using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
@@ -73,19 +72,15 @@ public sealed class FeedScreen : Screen
     public override void Remove(string postId) => _posts.Remove(postId);
 
     /// <inheritdoc />
-    public override IReadOnlyList<Line> Lines(
-        int width,
-        DateTimeOffset now,
-        IPictures? pictures = null,
-        bool hideDrawnCaption = false)
+    public override IReadOnlyList<Line> Lines(Drawing drawing)
     {
-        var rows = _posts.Rows(width, now, pictures, hideDrawnCaption);
+        var rows = _posts.Rows(drawing);
 
         if (Notice is not { } notice)
         {
             return rows;
         }
 
-        return [Line.Of(TextWrap.Clip(notice, width), Role.Muted), Line.Blank, .. rows];
+        return [Line.Of(TextWrap.Clip(notice, drawing.Width), Role.Muted), Line.Blank, .. rows];
     }
 }

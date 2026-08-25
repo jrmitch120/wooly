@@ -26,7 +26,7 @@ public class ReadingTests
     {
         var post = APost.With(contentWarning: "spoilers", content: "Thanks @maria@fosstodon.org");
 
-        var lines = PostLines.Feed(post, 61, default, DateTimeOffset.UnixEpoch);
+        var lines = PostLines.Feed(post, new Drawing(61, DateTimeOffset.UnixEpoch), default);
 
         Assert.Contains(lines, line => line.Spans.Any(span => span.Role == Role.ContentWarning));
         Assert.DoesNotContain(lines, line => line.Text.Contains('‹'));

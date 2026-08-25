@@ -152,7 +152,7 @@ public class LinkPreviewReferenceTests
     {
         var pictures = FakePictures.With().HoldingLinkPreview(APost.ALinkPreview(), 400, 300);
 
-        var lines = PostLines.Feed(Hiding(contentWarning, sensitive), 61, default, Now, pictures);
+        var lines = PostLines.Feed(Hiding(contentWarning, sensitive), new Drawing(61, Now, pictures), default);
 
         Assert.Empty(lines.SelectMany(line => line.Insets));
         Assert.DoesNotContain(lines, line => line.Wants is not null);
@@ -171,12 +171,13 @@ public class LinkPreviewReferenceTests
 
         var revealed = PostLines.Feed(
             Hiding(contentWarning: null, sensitive: true),
-            61,
-            new Reading(Revealed: true),
-            Now,
-            pictures);
+            new Drawing(61, Now, pictures),
+            new Reading(Revealed: true));
 
-        var plain = PostLines.Feed(Hiding(contentWarning: null, sensitive: false), 61, default, Now, pictures);
+        var plain = PostLines.Feed(
+            Hiding(contentWarning: null, sensitive: false),
+            new Drawing(61, Now, pictures),
+            default);
 
         Assert.Equal(plain.Select(line => line.Text), revealed.Select(line => line.Text));
     }
@@ -198,7 +199,7 @@ public class LinkPreviewReferenceTests
         var post = APost.With(sensitive: true, linkPreview: APost.ALinkPreview());
         var pictures = FakePictures.With().HoldingLinkPreview(APost.ALinkPreview(), 400, 300);
 
-        var lines = PostLines.Feed(post, 61, default, Now, pictures);
+        var lines = PostLines.Feed(post, new Drawing(61, Now, pictures), default);
 
         Assert.DoesNotContain(lines, line => line.Text.Contains("Sheep, at length", StringComparison.Ordinal));
         Assert.Empty(lines.SelectMany(line => line.Insets));
@@ -219,7 +220,10 @@ public class LinkPreviewReferenceTests
 
         Assert.True(screen.Reveal());
 
-        var lines = PostLines.Feed(post, 61, new Reading(Revealed: true), Now, FakePictures.DrawingNothing());
+        var lines = PostLines.Feed(
+            post,
+            new Drawing(61, Now, FakePictures.DrawingNothing()),
+            new Reading(Revealed: true));
 
         Assert.Contains(lines, line => line.Text.Contains("⏵ Sheep, at length", StringComparison.Ordinal));
         Assert.Single(screen.References);
@@ -266,8 +270,8 @@ public class LinkPreviewReferenceTests
         var post = Hiding(contentWarning: null, sensitive: true);
         var pictures = FakePictures.With().HoldingLinkPreview(APost.ALinkPreview(), 400, 300);
 
-        var hidden = PostLines.Whole(post, 61, default, Now, pictures);
-        var shown = PostLines.Whole(post, 61, new Reading(Revealed: true), Now, pictures);
+        var hidden = PostLines.Whole(post, new Drawing(61, Now, pictures), default);
+        var shown = PostLines.Whole(post, new Drawing(61, Now, pictures), new Reading(Revealed: true));
 
         Assert.DoesNotContain(hidden, line => line.Text.Contains("Sheep, at length", StringComparison.Ordinal));
         Assert.Empty(hidden.SelectMany(line => line.Insets));

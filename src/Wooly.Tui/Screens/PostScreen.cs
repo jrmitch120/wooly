@@ -1,5 +1,4 @@
 using Wooly.Core.Posts;
-using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Theme;
 
@@ -130,12 +129,10 @@ public sealed class PostScreen : Screen
     public override void Remove(string postId) => _posts.Remove(postId, Post);
 
     /// <inheritdoc />
-    public override IReadOnlyList<Line> Lines(
-        int width,
-        DateTimeOffset now,
-        IPictures? pictures = null,
-        bool hideDrawnCaption = false)
+    public override IReadOnlyList<Line> Lines(Drawing drawing)
     {
+        var width = drawing.Width;
+
         var subject = Subject;
         var lines = new List<Line>();
 
@@ -148,7 +145,7 @@ public sealed class PostScreen : Screen
                 lines.Add(Line.Rule(width));
             }
 
-            lines.AddRange(_posts.RowsOf(at, width, now, pictures, hideDrawnCaption));
+            lines.AddRange(_posts.RowsOf(at, drawing));
         }
 
         if (subject > 0)
@@ -173,7 +170,7 @@ public sealed class PostScreen : Screen
 
         for (var at = subject + 1; at < _posts.Count; at++)
         {
-            lines.AddRange(_posts.RowsOf(at, width, now, pictures, hideDrawnCaption));
+            lines.AddRange(_posts.RowsOf(at, drawing));
             lines.Add(Line.Rule(width));
         }
 
@@ -188,11 +185,8 @@ public sealed class PostScreen : Screen
         // mark: there is nothing above it saying the same thing, and the row is then all the reader has.
         IReadOnlyList<Line> Whole(Post post, int at, int room) => PostLines.Whole(
             post,
-            room,
+            drawing.In(room),
             ReadingOf(post, at),
-            now,
-            pictures,
-            hideDrawnCaption,
             saysWhatItAnswers: subject == 0);
     }
 

@@ -1,6 +1,5 @@
 using Wooly.Core.Conversations;
 using Wooly.Core.Posts;
-using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Theme;
 
@@ -104,21 +103,17 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
         _conversations.Rewrite(held => held.Latest?.Id == postId ? held with { Latest = null } : held);
 
     /// <inheritdoc />
-    public override IReadOnlyList<Line> Lines(
-        int width,
-        DateTimeOffset now,
-        IPictures? pictures = null,
-        bool hideDrawnCaption = false)
+    public override IReadOnlyList<Line> Lines(Drawing drawing)
     {
         var lines = new List<Line>();
 
         if (Notice is { } notice)
         {
-            lines.Add(Line.Of(TextWrap.Clip(notice, width), Role.Muted));
+            lines.Add(Line.Of(TextWrap.Clip(notice, drawing.Width), Role.Muted));
             lines.Add(Line.Blank);
         }
 
-        lines.AddRange(_conversations.Rows(width, Draw));
+        lines.AddRange(_conversations.Rows(drawing.Width, Draw));
 
         return lines;
 
@@ -136,11 +131,8 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
                 // way to read it is to open the conversation, which is what ⏎ already does (#120).
                 ? PostLines.Feed(
                     latest,
-                    Math.Max(1, room - 2),
+                    drawing.In(Math.Max(1, room - 2)),
                     new Reading(Reference: ReferenceOn(at)),
-                    now,
-                    pictures,
-                    hideDrawnCaption,
                     saysHowToAskPast: false)
                 : [Line.Of(ConversationLines.NothingLeft, Role.Muted)];
 

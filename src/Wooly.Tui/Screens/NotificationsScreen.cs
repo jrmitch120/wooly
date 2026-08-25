@@ -1,6 +1,5 @@
 using Wooly.Core.Notifications;
 using Wooly.Core.Posts;
-using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Theme;
 
@@ -81,34 +80,33 @@ public sealed class NotificationsScreen(IReadOnlyList<Notification> notification
     }
 
     /// <inheritdoc />
-    public override IReadOnlyList<Line> Lines(
-        int width,
-        DateTimeOffset now,
-        IPictures? pictures = null,
-        bool hideDrawnCaption = false)
+    public override IReadOnlyList<Line> Lines(Drawing drawing)
     {
         var lines = new List<Line>();
 
         if (Notice is { } notice)
         {
-            lines.Add(Line.Of(TextWrap.Clip(notice, width), Role.Muted));
+            lines.Add(Line.Of(TextWrap.Clip(notice, drawing.Width), Role.Muted));
             lines.Add(Line.Blank);
         }
 
-        lines.AddRange(_notifications.Rows(width, Draw));
+        lines.AddRange(_notifications.Rows(drawing.Width, Draw));
 
         return lines;
 
         // What happened, and under it the post it happened to — indented, so that the row saying who did what reads
         // as the heading of the two rather than as another message in the list.
+        // The drawing goes down whole. Before #148 this site named four arguments and passed three, so a reader who
+        // had asked for hide_drawn_caption got it honoured everywhere but here — which is the failure #148 is about
+        // rather than a preference this screen was exempt from (#71).
         IReadOnlyList<Line> Draw(Notification notification, int at, int room)
         {
-            var rows = new List<Line> { Happened(notification, room, now) };
+            var rows = new List<Line> { Happened(notification, room, drawing.Now) };
 
             if (notification.Post is { } post)
             {
                 rows.AddRange(PostLines
-                              .Feed(post, Math.Max(1, room - 2), ReadingOf(post, at), now, pictures)
+                              .Feed(post, drawing.In(Math.Max(1, room - 2)), ReadingOf(post, at))
                               .Select(line => line.After(new Span("  ", Role.Body))));
             }
 

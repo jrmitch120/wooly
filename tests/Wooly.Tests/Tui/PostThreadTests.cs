@@ -57,7 +57,7 @@ public class PostThreadTests
         Assert.Equal(["111"], screen.Replies.Select(reply => reply.Id));
 
         // Four posts on one screen, drawn in the order they are walked and none of them numbered twice.
-        Assert.Equal([0, 1, 2, 3], Items(screen.Lines(61, Now)).Distinct());
+        Assert.Equal([0, 1, 2, 3], Items(screen.Lines(new Drawing(61, Now))).Distinct());
     }
 
     /// <summary>
@@ -119,7 +119,7 @@ public class PostThreadTests
     [Fact]
     public void Lines_HeadTheAncestorsWithHowManyStandAboveThePost()
     {
-        var lines = Opened().Lines(61, Now).ToList();
+        var lines = Opened().Lines(new Drawing(61, Now)).ToList();
 
         var at = lines.FindIndex(line => line.Text.EndsWith("up ──", StringComparison.Ordinal));
 
@@ -136,7 +136,7 @@ public class PostThreadTests
     [Fact]
     public void Lines_SayNothingAboveAPostThatAnswersNothing()
     {
-        var lines = Opened(ancestors: 0).Lines(61, Now);
+        var lines = Opened(ancestors: 0).Lines(new Drawing(61, Now));
 
         Assert.DoesNotContain(lines, line => line.Text.EndsWith("up ──", StringComparison.Ordinal));
 
@@ -152,7 +152,7 @@ public class PostThreadTests
     [Fact]
     public void Lines_LeaveTheReplyMarkOffThePostTheScreenIsAbout()
     {
-        var lines = Opened().Lines(61, Now);
+        var lines = Opened().Lines(new Drawing(61, Now));
 
         var mine = lines.Where(line => line.Item == 2).ToList();
 
@@ -163,7 +163,7 @@ public class PostThreadTests
     [Fact]
     public void Lines_KeepTheReplyMarkOnTheAncestorsAndTheReplies()
     {
-        var lines = Opened().Lines(61, Now);
+        var lines = Opened().Lines(new Drawing(61, Now));
 
         Assert.Contains(lines, line => line.Item == 1 && SaysWhatItAnswers(line));
         Assert.Contains(lines, line => line.Item == 3 && SaysWhatItAnswers(line));
@@ -177,7 +177,7 @@ public class PostThreadTests
     [Fact]
     public void Lines_KeepTheReplyMarkOnAPostWithNoAncestorsAboveIt()
     {
-        var lines = Opened(ancestors: 0).Lines(61, Now);
+        var lines = Opened(ancestors: 0).Lines(new Drawing(61, Now));
 
         Assert.Contains(lines, line => line.Item == 0 && SaysWhatItAnswers(line));
     }
@@ -190,7 +190,7 @@ public class PostThreadTests
     [Fact]
     public void Lines_OpenOnThePostItselfEvenWhereTheChainAboveItFillsThePage()
     {
-        var lines = Opened(ancestors: 4).Lines(61, Now);
+        var lines = Opened(ancestors: 4).Lines(new Drawing(61, Now));
 
         var at = Scroll.To(lines, 20, from: 0);
 

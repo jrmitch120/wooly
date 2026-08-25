@@ -1,4 +1,3 @@
-using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Theme;
 
@@ -34,19 +33,15 @@ public sealed class HelpScreen(Screen about) : Screen
     protected override IReadOnlyList<KeyHint> OwnKeys => [PostKeys.Scrolling, new("esc", "back")];
 
     /// <inheritdoc />
-    public override IReadOnlyList<Line> Lines(
-        int width,
-        DateTimeOffset now,
-        IPictures? pictures = null,
-        bool hideDrawnCaption = false)
+    public override IReadOnlyList<Line> Lines(Drawing drawing)
     {
         var lines = new List<Line> { Line.Of($"On {about.Crumb}", Role.BylineName), Line.Blank };
 
-        lines.AddRange(about.Keys.Select(key => Row(key, width)));
+        lines.AddRange(about.Keys.Select(key => Row(key, drawing.Width)));
         lines.Add(Line.Blank);
         lines.Add(Line.Of("Everywhere", Role.BylineName));
         lines.Add(Line.Blank);
-        lines.AddRange(Frame.Select(key => Row(key, width)));
+        lines.AddRange(Frame.Select(key => Row(key, drawing.Width)));
 
         return lines;
     }

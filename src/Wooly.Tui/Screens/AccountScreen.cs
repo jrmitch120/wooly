@@ -1,6 +1,5 @@
 using Wooly.Core.Accounts;
 using Wooly.Core.Posts;
-using Wooly.Tui.Media;
 using Wooly.Core.Relationships;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Theme;
@@ -88,12 +87,10 @@ public sealed class AccountScreen : Screen
     public override void Remove(string postId) => _posts.Remove(postId);
 
     /// <inheritdoc />
-    public override IReadOnlyList<Line> Lines(
-        int width,
-        DateTimeOffset now,
-        IPictures? pictures = null,
-        bool hideDrawnCaption = false)
+    public override IReadOnlyList<Line> Lines(Drawing drawing)
     {
+        var width = drawing.Width;
+
         var lines = new List<Line>(AccountLines.Who(Account, width))
         {
             Line.Blank,
@@ -111,7 +108,7 @@ public sealed class AccountScreen : Screen
             return lines;
         }
 
-        lines.AddRange(_posts.Rows(width, now, pictures, hideDrawnCaption));
+        lines.AddRange(_posts.Rows(drawing));
 
         return lines;
     }

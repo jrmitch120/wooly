@@ -386,7 +386,7 @@ public class ShellResumeTests
     ///     "the last row there is" rather than a number that goes stale the moment a byline changes.
     /// </summary>
     private static IReadOnlyList<Line> Rows(Wooly.Tui.Shell.Shell shell, PaintedView content, AShell built) =>
-        shell.Screen.Lines(content.Viewport.Width, built.Clock.GetUtcNow());
+        shell.Screen.Lines(new Drawing(content.Viewport.Width, built.Clock.GetUtcNow()));
 
     /// <summary>
     ///     A shell over a feed long enough to scroll, on a window with room for eighteen rows — and a thread with

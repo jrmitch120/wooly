@@ -56,22 +56,25 @@ public partial class RoleTests
         // address roles — are both drawn; an unrevealed warning stands in front of the text instead.
         var revealed = new Reading(Revealed: true);
 
-        Collect(PostLines.Feed(mine, 61, revealed, Now, FakePictures.With()));
+        Collect(PostLines.Feed(mine, new Drawing(61, Now, FakePictures.With()), revealed));
         Collect(PostLines.Feed(
             APost.With(media: [APost.APicture(description: null)]),
-            61,
-            default,
-            Now,
-            FakePictures.With()));
-        Collect(PostLines.Whole(mine, 61, revealed, Now));
+            new Drawing(61, Now, FakePictures.With()),
+            default
+        ));
+        Collect(PostLines.Whole(mine, new Drawing(61, Now), revealed));
 
         // With the first reference in the text picked out, which is the only thing that draws the brackets (#83).
-        Collect(PostLines.Feed(mine, 61, revealed with { Reference = BodyText.References(mine.Content)[0] }, Now));
+        Collect(PostLines.Feed(
+            mine,
+            new Drawing(61, Now),
+            revealed with { Reference = BodyText.References(mine.Content)[0] }
+        ));
 
         var feedScreen = new FeedScreen(
             new Destination(DestinationKind.Home, "Home", Wooly.Core.Timelines.Timeline.Home),
             [APost.With(id: "1"), APost.With(id: "2")]);
-        Collect(feedScreen.Lines(61, Now));
+        Collect(feedScreen.Lines(new Drawing(61, Now)));
 
         var host = new FakeShellHost();
         var rail = new Rail(
@@ -172,12 +175,11 @@ public partial class RoleTests
     [Fact]
     public void Feed_DrawsAMarkOfTheReadersOwnInItsOwnRole()
     {
-        var anybodys = PostLines.Feed(APost.With(), 61, default, Now);
+        var anybodys = PostLines.Feed(APost.With(), new Drawing(61, Now), default);
         var mine = PostLines.Feed(
             APost.With(marks: APost.Marked(boosted: true, favorited: true)),
-            61,
-            default,
-            Now);
+            new Drawing(61, Now),
+            default);
 
         Assert.Contains(anybodys, line => line.Has(Role.Boost));
         Assert.Contains(anybodys, line => line.Has(Role.Favorite));
@@ -196,12 +198,11 @@ public partial class RoleTests
     [Fact]
     public void Feed_DrawsMineAsAClosedArrowAndAFilledStar()
     {
-        var anybodys = PostLines.Feed(APost.With(), 61, default, Now);
+        var anybodys = PostLines.Feed(APost.With(), new Drawing(61, Now), default);
         var mine = PostLines.Feed(
             APost.With(marks: APost.Marked(boosted: true, favorited: true)),
-            61,
-            default,
-            Now);
+            new Drawing(61, Now),
+            default);
 
         Assert.Contains(anybodys, line => line.Text.Contains("↺ 3", StringComparison.Ordinal));
         Assert.Contains(anybodys, line => line.Text.Contains("☆ 5", StringComparison.Ordinal));
@@ -217,7 +218,10 @@ public partial class RoleTests
     [Fact]
     public void Feed_DrawsANameAndAHandleInTheirOwnRoles()
     {
-        var lines = PostLines.Feed(APost.With(author: "Maria Ochoa", account: "maria@fosstodon.org"), 61, default, Now);
+        var lines = PostLines.Feed(
+            APost.With(author: "Maria Ochoa", account: "maria@fosstodon.org"),
+            new Drawing(61, Now),
+            default);
         var name = lines.First(line => line.Has(Role.BylineName));
         var handle = lines.First(line => line.Has(Role.BylineHandle));
 
@@ -236,10 +240,10 @@ public partial class RoleTests
     {
         const string Said = "Thanks @maria@fosstodon.org — notes at https://example.com/notes #dotnet";
 
-        var feed = PostLines.Feed(APost.With(content: Said), 61, default, Now);
+        var feed = PostLines.Feed(APost.With(content: Said), new Drawing(61, Now), default);
         var thread = new ConversationScreen(
             AConversation.Thread(AConversation.With(), APost.With(content: Said, visibility: PostVisibility.Direct)))
-            .Lines(61, Now);
+            .Lines(new Drawing(61, Now));
 
         foreach (var lines in (IReadOnlyList<Line>[])[feed, thread])
         {
@@ -261,7 +265,7 @@ public partial class RoleTests
     {
         var editor = new ComposeScreen(ComposeFor.Post) { Text = "Thanks @maria@fosstodon.org #dotnet" };
 
-        var spans = editor.Lines(61, Now).SelectMany(line => line.Spans).ToList();
+        var spans = editor.Lines(new Drawing(61, Now)).SelectMany(line => line.Spans).ToList();
 
         Assert.DoesNotContain(spans, span => span.Role is Role.Mention or Role.Hashtag or Role.Link);
         Assert.Contains(spans, span => span.Role == Role.Body);
@@ -271,7 +275,7 @@ public partial class RoleTests
     [Fact]
     public void Feed_DrawsAContentWarningInItsOwnRoleAndWithItsOwnGlyph()
     {
-        var lines = PostLines.Feed(APost.With(contentWarning: "spoilers"), 61, default, Now);
+        var lines = PostLines.Feed(APost.With(contentWarning: "spoilers"), new Drawing(61, Now), default);
         var warned = lines.First(line => line.Has(Role.ContentWarning));
 
         Assert.Contains("⚠", warned.Text);
@@ -286,7 +290,7 @@ public partial class RoleTests
     [InlineData(PostVisibility.Direct, "✉")]
     public void Feed_MarksWhoCanSeeAPostWithAGlyph(PostVisibility visibility, string glyph)
     {
-        var lines = PostLines.Feed(APost.With(visibility: visibility), 61, default, Now);
+        var lines = PostLines.Feed(APost.With(visibility: visibility), new Drawing(61, Now), default);
 
         Assert.Contains(lines, line => line.Text.Contains(glyph, StringComparison.Ordinal));
         Assert.Equal(glyph, PostLines.Audience(visibility));
@@ -299,17 +303,13 @@ public partial class RoleTests
         // On a terminal that draws, so the mark is the picture's rather than a link's.
         var described = PostLines.Feed(
             APost.With(media: [APost.APicture(description: "A cartoon sheep")]),
-            61,
-            default,
-            Now,
-            FakePictures.With());
+            new Drawing(61, Now, FakePictures.With()),
+            default);
 
         var undescribed = PostLines.Feed(
             APost.With(media: [APost.APicture(description: null)]),
-            61,
-            default,
-            Now,
-            FakePictures.With());
+            new Drawing(61, Now, FakePictures.With()),
+            default);
 
         var first = described.First(line => line.Text.Contains("▒▒▒▒", StringComparison.Ordinal));
         Assert.True(first.Has(Role.Media));
@@ -328,7 +328,7 @@ public partial class RoleTests
             new Destination(DestinationKind.Home, "Home", Wooly.Core.Timelines.Timeline.Home),
             [APost.With(id: "1"), APost.With(id: "2")]);
 
-        var picked = screen.Lines(61, Now).Where(line => line.Has(Role.Selection)).ToList();
+        var picked = screen.Lines(new Drawing(61, Now)).Where(line => line.Has(Role.Selection)).ToList();
 
         Assert.NotEmpty(picked);
         Assert.All(picked, line => Assert.StartsWith("▌", line.Text, StringComparison.Ordinal));
@@ -336,9 +336,9 @@ public partial class RoleTests
         screen.Move(1);
 
         // Exactly one post is picked out at a time, so moving does not leave the last one lit.
-        var after = screen.Lines(61, Now).Where(line => line.Has(Role.Selection)).ToList();
+        var after = screen.Lines(new Drawing(61, Now)).Where(line => line.Has(Role.Selection)).ToList();
         Assert.NotEmpty(after);
-        Assert.NotEqual(picked.Count + after.Count, screen.Lines(61, Now).Count);
+        Assert.NotEqual(picked.Count + after.Count, screen.Lines(new Drawing(61, Now)).Count);
     }
 
     /// <summary>The rail's one mark column, and the unread count taking its own role.</summary>
@@ -507,7 +507,7 @@ public partial class RoleTests
     public void Notifications_DrawWhoDidWhatInTheBylineRole()
     {
         var screen = new NotificationsScreen([ANotification.With(author: "Alice"), ANotification.Follow()]);
-        var lines = screen.Lines(61, Now);
+        var lines = screen.Lines(new Drawing(61, Now));
 
         var said = lines.First(line => line.Has(Role.BylineName));
 
@@ -525,7 +525,9 @@ public partial class RoleTests
     {
         var screen = new NotificationsScreen([ANotification.With(kind: NotificationKind.Reported("poll"))]);
 
-        Assert.Contains(screen.Lines(61, Now), line => line.Text.Contains("poll", StringComparison.Ordinal));
+        Assert.Contains(
+            screen.Lines(new Drawing(61, Now)),
+            line => line.Text.Contains("poll", StringComparison.Ordinal));
     }
 
     /// <summary>
@@ -540,7 +542,7 @@ public partial class RoleTests
             AConversation.With(id: "8", with: ["ben@hachyderm.io"], unread: false),
         ]);
 
-        var lines = screen.Lines(61, Now);
+        var lines = screen.Lines(new Drawing(61, Now));
 
         var unread = lines.First(line => line.Text.Contains("alice", StringComparison.Ordinal));
         var read = lines.First(line => line.Text.Contains("ben", StringComparison.Ordinal));
@@ -564,7 +566,9 @@ public partial class RoleTests
     {
         var screen = new DirectMessagesScreen([AConversation.Emptied()]);
 
-        Assert.Contains(screen.Lines(61, Now), line => line.Text.Contains("Nothing left", StringComparison.Ordinal));
+        Assert.Contains(
+            screen.Lines(new Drawing(61, Now)),
+            line => line.Text.Contains("Nothing left", StringComparison.Ordinal));
     }
 
     /// <summary>
@@ -578,14 +582,14 @@ public partial class RoleTests
 
         screen.Type('c');
 
-        var prompt = screen.Lines(61, Now)[0];
+        var prompt = screen.Lines(new Drawing(61, Now))[0];
 
         Assert.Contains("Search: c", prompt.Text);
         Assert.Contains(prompt.Spans, span => span is { Role: Role.Selection, Text: "▌" });
 
         screen.Found("c", SearchResults.Matching(SearchKind.Everything, [], [], []));
 
-        Assert.DoesNotContain(screen.Lines(61, Now)[0].Spans, span => span.Role == Role.Selection);
+        Assert.DoesNotContain(screen.Lines(new Drawing(61, Now))[0].Spans, span => span.Role == Role.Selection);
     }
 
     /// <summary>
@@ -633,7 +637,7 @@ public partial class RoleTests
         foreach (var screen in screens)
         {
             Assert.All(
-                screen.Lines(61, Now),
+                screen.Lines(new Drawing(61, Now)),
                 line => Assert.True(line.Width <= 61, $"{screen.Crumb}: '{line.Text}' is {line.Width} columns"));
         }
     }
@@ -652,7 +656,7 @@ public partial class RoleTests
                      + "model made the whole shell testable — no more static state leaking between test runs.",
             media: [APost.APicture(description: "A screenshot of a terminal showing a great deal of text indeed")]);
 
-        var lines = PostLines.Feed(post, 61, default, Now);
+        var lines = PostLines.Feed(post, new Drawing(61, Now), default);
 
         Assert.All(lines, line => Assert.True(line.Width <= 61, $"'{line.Text}' is {line.Width} columns"));
     }

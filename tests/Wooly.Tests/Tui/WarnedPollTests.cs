@@ -26,7 +26,7 @@ public class WarnedPollTests
     [Fact]
     public void Feed_DrawsNothingOfAWarnedPostsPoll()
     {
-        var lines = PostLines.Feed(Polled("spoilers"), 61, default, Now);
+        var lines = PostLines.Feed(Polled("spoilers"), new Drawing(61, Now), default);
 
         Assert.DoesNotContain(lines, line => line.Has(Role.Poll));
 
@@ -44,8 +44,8 @@ public class WarnedPollTests
     [Fact]
     public void Feed_ReadsExactlyAsAnUnwarnedPostsPollOnceTheReaderHasAskedPastTheWarning()
     {
-        var revealed = PostLines.Feed(Polled("spoilers"), 61, new Reading(Revealed: true), Now);
-        var plain = PostLines.Feed(Polled(contentWarning: null), 61, default, Now);
+        var revealed = PostLines.Feed(Polled("spoilers"), new Drawing(61, Now), new Reading(Revealed: true));
+        var plain = PostLines.Feed(Polled(contentWarning: null), new Drawing(61, Now), default);
 
         Assert.Equal(PollRows(plain), PollRows(revealed));
         Assert.NotEmpty(PollRows(revealed));
@@ -56,14 +56,14 @@ public class WarnedPollTests
     public void Whole_HidesAWarnedPostsPollAndShowsItOnceAsked()
     {
         var post = Polled("spoilers");
-        var hidden = PostLines.Whole(post, 61, default, Now);
+        var hidden = PostLines.Whole(post, new Drawing(61, Now), default);
 
         Assert.DoesNotContain(hidden, line => line.Has(Role.Poll));
         Assert.DoesNotContain(hidden, line => line.Text.Contains("votes", StringComparison.Ordinal));
 
         Assert.Equal(
-            PollRows(PostLines.Whole(Polled(contentWarning: null), 61, default, Now)),
-            PollRows(PostLines.Whole(post, 61, new Reading(Revealed: true), Now)));
+            PollRows(PostLines.Whole(Polled(contentWarning: null), new Drawing(61, Now), default)),
+            PollRows(PostLines.Whole(post, new Drawing(61, Now), new Reading(Revealed: true))));
     }
 
     /// <summary>
@@ -82,10 +82,8 @@ public class WarnedPollTests
     {
         var lines = PostLines.Feed(
             APost.With(sensitive: true, poll: APost.APoll(), media: attached ? [APost.APicture()] : []),
-            61,
-            default,
-            Now,
-            FakePictures.With());
+            new Drawing(61, Now, FakePictures.With()),
+            default);
 
         Assert.Contains(lines, line => line.Has(Role.Poll));
         Assert.Contains(lines, line => line.Text == "10 votes");
@@ -99,7 +97,7 @@ public class WarnedPollTests
     [Fact]
     public void Feed_LeavesTheWarningAlreadyUpToAskForThePoll()
     {
-        var lines = PostLines.Feed(Polled("spoilers"), 61, default, Now);
+        var lines = PostLines.Feed(Polled("spoilers"), new Drawing(61, Now), default);
 
         Assert.Equal(1, lines.Count(line => line.Text.Contains("x  show it", StringComparison.Ordinal)));
         Assert.DoesNotContain(lines, line => line.Text.Contains("poll", StringComparison.OrdinalIgnoreCase));
@@ -166,7 +164,7 @@ public class WarnedPollTests
     {
         var boost = APost.With(id: "1", content: string.Empty, boosted: Polled("spoilers"));
 
-        Assert.DoesNotContain(PostLines.Feed(boost, 61, default, Now), line => line.Has(Role.Poll));
+        Assert.DoesNotContain(PostLines.Feed(boost, new Drawing(61, Now), default), line => line.Has(Role.Poll));
 
         var screen = Feed(boost);
 

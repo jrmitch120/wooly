@@ -84,7 +84,7 @@ public class PostListTests
 
         screen.Pick(1);
 
-        var lines = screen.Lines(61, AShell.Now);
+        var lines = screen.Lines(new Drawing(61, AShell.Now));
 
         Assert.Contains(lines, line => line.Text.Contains("First"));
         Assert.Contains(lines, line => line.Text.Contains("Second"));
@@ -103,11 +103,13 @@ public class PostListTests
     {
         var screen = new AListOfPosts([APost.With(id: "1", contentWarning: "spoilers", content: "The sheep did it")]);
 
-        Assert.DoesNotContain(screen.Lines(61, AShell.Now), line => line.Text.Contains("The sheep did it"));
+        Assert.DoesNotContain(
+            screen.Lines(new Drawing(61, AShell.Now)),
+            line => line.Text.Contains("The sheep did it"));
 
         screen.Reveal();
 
-        Assert.Contains(screen.Lines(61, AShell.Now), line => line.Text.Contains("The sheep did it"));
+        Assert.Contains(screen.Lines(new Drawing(61, AShell.Now)), line => line.Text.Contains("The sheep did it"));
     }
 
     /// <summary>
@@ -121,7 +123,7 @@ public class PostListTests
 
         screen.WalkReference(1);
 
-        var picked = screen.Lines(61, AShell.Now).Where(line => line.Text.Contains('‹')).ToList();
+        var picked = screen.Lines(new Drawing(61, AShell.Now)).Where(line => line.Text.Contains('‹')).ToList();
 
         Assert.All(picked, line => Assert.Equal(0, line.Item));
         Assert.NotEmpty(picked);
@@ -136,10 +138,10 @@ public class PostListTests
     {
         var screen = new AListOfPosts([APost.With(id: "1", content: "First"), APost.With(id: "2", content: "Second")]);
 
-        var rows = screen.Posts.RowsOf(1, 61, AShell.Now);
+        var rows = screen.Posts.RowsOf(1, new Drawing(61, AShell.Now));
 
         Assert.Equal(
-            screen.Lines(61, AShell.Now).Where(line => line.Item == 1).Select(line => line.Text),
+            screen.Lines(new Drawing(61, AShell.Now)).Where(line => line.Item == 1).Select(line => line.Text),
             rows.Select(line => line.Text));
     }
 
@@ -179,10 +181,6 @@ public class PostListTests
 
         protected override IPicked Walking => Posts;
 
-        public override IReadOnlyList<Line> Lines(
-            int width,
-            DateTimeOffset now,
-            IPictures? pictures = null,
-            bool hideDrawnCaption = false) => Posts.Rows(width, now, pictures, hideDrawnCaption);
+        public override IReadOnlyList<Line> Lines(Drawing drawing) => Posts.Rows(drawing);
     }
 }
