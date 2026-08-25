@@ -39,54 +39,28 @@ public class PostPollLinesTests
     }
 
     /// <summary>
-    ///     Each option's bar, its share and raw count, and a leading mark on the one this profile picked — all in
-    ///     <see cref="Role.Poll" />, the role the contract already themed with nothing ever emitting it.
+    ///     Each option draws the row the poll itself writes (<see cref="PollBar.RowOf" />), with a leading mark on the
+    ///     one this profile picked, in <see cref="Role.Poll" /> — the role the contract already themed with nothing
+    ///     ever emitting it. What the row says is asserted in <see cref="Core.PollBarTests" /> and not restated here:
+    ///     restating it is how this row and the CLI's drifted apart (#150).
     /// </summary>
     [Fact]
-    public void Feed_DrawsABarWithThePercentageAndRawCountForEachOption()
+    public void Feed_DrawsEachOptionAsThePollsOwnRow()
     {
-        var lines = Feed(With(APost.APoll(
+        var poll = APost.APoll(
             options: [APost.AnAnswer("Cats", 4), APost.AnAnswer("Dogs", 6, picked: true)],
-            votes: 10)));
+            votes: 10);
+
+        var lines = Feed(With(poll));
 
         var cats = lines.First(line => line.Text.Contains("Cats", StringComparison.Ordinal));
         var dogs = lines.First(line => line.Text.Contains("Dogs", StringComparison.Ordinal));
 
-        Assert.Equal("  ▓▓▓▓░░░░░░ 40% (4)  Cats", cats.Text);
+        Assert.Equal(PollBar.RowOf(poll, poll.Options[0]), cats.Text);
         Assert.True(cats.Has(Role.Poll));
 
-        Assert.Equal("✓ ▓▓▓▓▓▓░░░░ 60% (6)  Dogs", dogs.Text);
+        Assert.Equal(PollBar.RowOf(poll, poll.Options[1]), dogs.Text);
         Assert.True(dogs.Has(Role.Poll));
-    }
-
-    /// <summary>A genuinely unvoted option still draws a bar, at 0% — not the same thing as a withheld count.</summary>
-    [Fact]
-    public void Feed_DrawsAnEmptyBarAndZeroPercentForAGenuinelyUnvotedOption()
-    {
-        var lines = Feed(With(APost.APoll(
-            options: [APost.AnAnswer("Cats", 0), APost.AnAnswer("Dogs", 6)],
-            votes: 6)));
-
-        Assert.Contains(lines, line => line.Text == "  ░░░░░░░░░░ 0% (0)  Cats");
-    }
-
-    /// <summary>
-    ///     An instance withholds a per-option breakdown until this profile votes or the poll closes — a third state,
-    ///     distinct from a genuine zero, that draws no bar at all rather than guess at one.
-    /// </summary>
-    [Fact]
-    public void Feed_DrawsNoBarAtAllForAnOptionWhoseCountIsWithheld()
-    {
-        var lines = Feed(With(APost.APoll(
-            options: [APost.AnAnswer("Cats", null), APost.AnAnswer("Dogs", null)],
-            votes: 0)));
-
-        var cats = lines.First(line => line.Text.Contains("Cats", StringComparison.Ordinal));
-        var dogs = lines.First(line => line.Text.Contains("Dogs", StringComparison.Ordinal));
-
-        Assert.Equal("  Cats", cats.Text);
-        Assert.Equal("  Dogs", dogs.Text);
-        Assert.DoesNotContain(lines, line => line.Text.Contains('▓') || line.Text.Contains('░'));
     }
 
     [Fact]
@@ -208,12 +182,12 @@ public class PostPollLinesTests
     [Fact]
     public void Feed_DrawsTheToggledAnswerAsATickedBoxAndTheRestAsEmptyOnes()
     {
-        var lines = Feed(With(APost.APoll(
-            options: [APost.AnAnswer("Cats", 4), APost.AnAnswer("Dogs", 6)],
-            votes: 10)), chosen: [1]);
+        var poll = APost.APoll(options: [APost.AnAnswer("Cats", 4), APost.AnAnswer("Dogs", 6)], votes: 10);
 
-        Assert.Contains(lines, line => line.Text == "[ ] ▓▓▓▓░░░░░░ 40% (4)  Cats");
-        Assert.Contains(lines, line => line.Text == "[x] ▓▓▓▓▓▓░░░░ 60% (6)  Dogs");
+        var lines = Feed(With(poll), chosen: [1]);
+
+        Assert.Contains(lines, line => line.Text == PollBar.RowOf(poll, poll.Options[0], "[ ] "));
+        Assert.Contains(lines, line => line.Text == PollBar.RowOf(poll, poll.Options[1], "[x] "));
     }
 
     /// <summary>A poll that takes several answers boxes every one of them the reader has ticked.</summary>

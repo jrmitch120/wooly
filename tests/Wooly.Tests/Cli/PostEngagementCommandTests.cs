@@ -633,53 +633,25 @@ public class PostEngagementCommandTests : IDisposable
         Assert.DoesNotContain("↳", run.Output);
     }
 
-    /// <summary>Each option's bar, its share and raw count, and a leading mark on the one this profile picked.</summary>
-    [Fact]
-    public void Show_DrawsABarWithThePercentageAndRawCountForEachOption()
-    {
-        AddProfile();
-        _posts = FakePostEngagement.Answering(APost.With(poll: APost.APoll(
-            options: [APost.AnAnswer("Cats", 4), APost.AnAnswer("Dogs", 6, picked: true)],
-            votes: 10)));
-
-        var run = Run(["post", "show", "110"]);
-
-        Assert.Contains("▓▓▓▓░░░░░░ 40% (4)  Cats", run.Output);
-        Assert.Contains("✓ ▓▓▓▓▓▓░░░░ 60% (6)  Dogs", run.Output);
-    }
-
-    /// <summary>A genuinely unvoted option still draws a bar, at 0% — not the same thing as a withheld count.</summary>
-    [Fact]
-    public void Show_DrawsAnEmptyBarAndZeroPercentForAGenuinelyUnvotedOption()
-    {
-        AddProfile();
-        _posts = FakePostEngagement.Answering(APost.With(poll: APost.APoll(
-            options: [APost.AnAnswer("Cats", 0), APost.AnAnswer("Dogs", 6)],
-            votes: 6)));
-
-        var run = Run(["post", "show", "110"]);
-
-        Assert.Contains("░░░░░░░░░░ 0% (0)  Cats", run.Output);
-    }
-
     /// <summary>
-    ///     An instance withholds a per-option breakdown until this profile votes or the poll closes — a third state,
-    ///     distinct from a genuine zero, that draws no bar at all rather than guess at one.
+    ///     Each option reads back as the row the poll itself writes (<see cref="PollBar.RowOf" />), indented, and led
+    ///     by a <c>✓</c> on the one this profile picked. What the row says is asserted in
+    ///     <see cref="Core.PollBarTests" /> and not restated here — restating it is how the two surfaces drifted
+    ///     apart in the first place (#150).
     /// </summary>
     [Fact]
-    public void Show_DrawsNoBarAtAllForAnOptionWhoseCountIsWithheld()
+    public void Show_WritesEachOptionAsThePollsOwnRow()
     {
         AddProfile();
-        _posts = FakePostEngagement.Answering(APost.With(poll: APost.APoll(
-            options: [APost.AnAnswer("Cats", null), APost.AnAnswer("Dogs", null)],
-            votes: 0)));
+        var poll = APost.APoll(
+            options: [APost.AnAnswer("Cats", 4), APost.AnAnswer("Dogs", 6, picked: true)],
+            votes: 10);
+        _posts = FakePostEngagement.Answering(APost.With(poll: poll));
 
         var run = Run(["post", "show", "110"]);
 
-        Assert.Contains("Cats", run.Output);
-        Assert.Contains("Dogs", run.Output);
-        Assert.DoesNotContain("▓", run.Output);
-        Assert.DoesNotContain("░", run.Output);
+        Assert.Contains($"  {PollBar.RowOf(poll, poll.Options[0])}", run.Output, StringComparison.Ordinal);
+        Assert.Contains($"  {PollBar.RowOf(poll, poll.Options[1])}", run.Output, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -891,15 +863,16 @@ public class PostEngagementCommandTests : IDisposable
     {
         AddProfile();
         _posts = WithAPoll();
-        _posts.Voted = APost.With(poll: APost.APoll(
+        var voted = APost.APoll(
             options: [APost.AnAnswer("Cats", 4), APost.AnAnswer("Dogs", 7, picked: true)],
             votes: 11,
-            voted: true));
+            voted: true);
+        _posts.Voted = APost.With(poll: voted);
 
         var run = Run(["post", "vote", "110", "2"]);
 
         Assert.Contains("Voted in the poll on", run.Output);
-        Assert.Contains("✓ ▓▓▓▓▓▓░░░░ 64% (7)  Dogs", run.Output);
+        Assert.Contains(PollBar.RowOf(voted, voted.Options[1]), run.Output, StringComparison.Ordinal);
         Assert.Contains("11 votes", run.Output);
     }
 

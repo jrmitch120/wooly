@@ -249,15 +249,19 @@ internal static class PostReport
     }
 
     /// <summary>
-    ///     A poll in full: one line per option — a block bar, the share and raw count beside it, and a leading mark on
-    ///     the option this profile picked — followed by whether and when it closes, and a note where more than one
+    ///     A poll in full: one line per option, as <see cref="PollBar.RowOf" /> writes it and indented the way
+    ///     everything under a post here is — followed by whether and when it closes, and a note where more than one
     ///     answer may be chosen. Plain text throughout: this is a post's own content, not something the CLI themes.
+    ///     <para>
+    ///         The rows are the poll's own and the TUI draws the same ones, so all this surface decides about them is
+    ///         the indent; the sentences underneath are its own, and read as sentences rather than rows (#150).
+    ///     </para>
     /// </summary>
     private static void WritePoll(IAnsiConsole console, PostPoll poll)
     {
         foreach (var option in poll.Options)
         {
-            console.MarkupLineInterpolated($"  {PollOptionLine(poll, option)}");
+            console.MarkupLineInterpolated($"  {PollBar.RowOf(poll, option)}");
         }
 
         if (poll.Closed)
@@ -286,25 +290,6 @@ internal static class PostReport
         ? $"{Plural.Of(poll.Votes, "vote")} from {Plural.Of(voters, "account")}"
         : Plural.Of(poll.Votes, "vote");
 
-    /// <summary>
-    ///     One option's line: a leading <c>✓</c> where this profile picked it, then a <c>▓</c>/<c>░</c> bar sized to
-    ///     the share of the vote it drew, the percentage and raw count, and the option's own text. An option whose
-    ///     count is withheld — real until this profile votes or the poll closes, not the same thing as a genuine zero
-    ///     — gets no bar at all rather than one guessed at.
-    /// </summary>
-    private static string PollOptionLine(PostPoll poll, PostPollOption option)
-    {
-        var mark = option.Picked ? "✓ " : "  ";
-
-        if (option.Votes is not { } votes)
-        {
-            return $"{mark}{option.Text}";
-        }
-
-        var percent = PollBar.PercentOf(poll, votes);
-
-        return $"{mark}{PollBar.Of(percent)} {percent}% ({votes})  {option.Text}";
-    }
 
     /// <summary>
     ///     What just happened, in this project's vocabulary. One table, so that six commands cannot come to describe

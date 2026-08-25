@@ -290,6 +290,13 @@ option before it is cast — the toggle and the cast key are both plain interact
 "vote" is the one term this earns because it is the domain fact an instance records, not a keystroke describing it.
 There is none to cast in a poll standing behind a **warned** post's warning text: what the TUI announces follows what
 it has drawn, so a poll nobody has been shown offers neither key and answers to neither (#119).
+*What* an option's row says is the poll's own, the way a **Link preview**'s rows are — `PollBar.RowOf`: a tick on the
+answer this profile chose, the bar, the share, the count as `Number.Of` writes it, and the option's text. Both front
+ends read it and neither restates it, which is what the two had come to do, one of them grouping a thousand votes and
+the other not (#150). What is left to each is the laying out — the CLI indents a row, the TUI gives it a **role** and
+clips it — and, only where a surface has something else to lead a row with, that: the TUI's ballot draws `[x]`/`[ ]`
+in place of the tick while a vote is toggled and uncast, which the CLI has no equivalent of. The sentences underneath
+are each surface's own and differ on purpose — rows on a screen against sentences in a pipe.
 
 **Role**:
 What a piece of the TUI is, said in a way a **theme** can answer: a byline's name, a handle, a content warning, a boost
