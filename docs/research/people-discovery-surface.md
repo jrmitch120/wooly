@@ -766,9 +766,11 @@ same `POST /api/v1/tags/:id/feature`.
 - `GET /api/v1/featured_tags/suggestions` — tags you use a lot, offered for featuring.
 - `GET /api/v1/accounts/:id/featured_tags` — **anyone's**, public, added 3.3.0.
 
-**Mastonet** covers the first three (`GetFeaturedTags`, `FeatureTag`, `UnfeatureTag`, `GetFeaturedTagsSuggestions`,
-plus `FeatureTag`/`UnfeatureTag` on `/api/v1/tags/{name}/feature`) but **not** `GET /api/v1/accounts/:id/featured_tags`
-— the read-anyone's variant, which is the only half with discovery value.
+**Mastonet** covers the first three — `GetFeaturedTags()` (`GET /api/v1/featured_tags`), `FeatureTag(name)`
+(`POST /api/v1/featured_tags`), `UnfeatureTag(id)` (`DELETE /api/v1/featured_tags/{id}`) and
+`GetFeaturedTagsSuggestions()` — but **not** `GET /api/v1/accounts/:id/featured_tags`, the read-anyone's variant,
+which is the only half with discovery value. Note Mastonet goes via the `featured_tags` collection rather than the
+newer `POST /api/v1/tags/:id/feature`; both reach `CreateFeaturedTagService`.
 
 #159 already parks this: *"Pinned posts and featured hashtags on a profile. Each is a list hanging off an account,
 which is a different question from the header block a profile draws."* Nothing found here changes that; the note is
