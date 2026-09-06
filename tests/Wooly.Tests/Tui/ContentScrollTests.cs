@@ -130,6 +130,27 @@ public class ContentScrollTests
         chrome.Step(10);
 
         Assert.Null(chrome.Reclaimable);
+        Assert.Null(chrome.Along(1));
+    }
+
+    /// <summary>
+    ///     <c>[</c> and <c>]</c> reclaim the way <c>j</c> and <c>k</c> do: with the pick walked off the page, the jump
+    ///     runs from the thing the reader is actually looking at. Working out "the run after this one" from a pick
+    ///     nobody can see is the exact failure reclaiming exists to prevent (#166).
+    /// </summary>
+    [Fact]
+    public void Along_RunsFromTheTopmostThingOnThePageOnceTheArrowsHaveWalkedPastThePick()
+    {
+        var content = Laid(new PaintedView(Themes.Plain, (_, _) => Sectioned()) { Scrolls = true });
+
+        // The pick is the first thing of the first run, so ] is the first thing of the second.
+        Assert.Equal(2, content.Along(1));
+
+        content.Step(25);
+
+        // The page is down among the second run now: ] has nowhere left to go, and [ goes back to the first.
+        Assert.Null(content.Along(1));
+        Assert.Equal(0, content.Along(-1));
     }
 
     /// <summary>The content region, laid out at ten rows of room over the rows below.</summary>
@@ -144,6 +165,31 @@ public class ContentScrollTests
     /// </summary>
     private static IReadOnlyList<Line> Numbered() =>
         [.. Enumerable.Range(0, 100).Select(row => Line.Of("text", Role.Body).PartOf(row))];
+
+    /// <summary>
+    ///     Two headed runs of two things each, every thing ten rows tall and the first of them picked out — the shape
+    ///     a search draws, four times taller than the room for it.
+    /// </summary>
+    private static IReadOnlyList<Line> Sectioned()
+    {
+        var lines = new List<Line>();
+
+        for (var run = 0; run < 2; run++)
+        {
+            lines.Add(Line.Of("── heading ──", Role.Muted).Heading());
+
+            for (var thing = 0; thing < 2; thing++)
+            {
+                var item = (run * 2) + thing;
+
+                lines.AddRange(Enumerable
+                    .Range(0, 10)
+                    .Select(_ => Line.Of("text", item == 0 ? Role.Selection : Role.Body).PartOf(item)));
+            }
+        }
+
+        return lines;
+    }
 
     /// <summary>Two posts of ten rows each, the first picked out — a screen twice as tall as the room for it.</summary>
     private static IReadOnlyList<Line> Rows() =>

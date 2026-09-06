@@ -129,6 +129,65 @@ public class ShellKeyTests
     }
 
     /// <summary>
+    ///     <c>]</c> is the next headed run and <c>[</c> the one before it — the pick moving a whole kind of result at
+    ///     a time rather than a row (#166). Pressed on a real window because the run is read off the rows the region
+    ///     is showing, which is the one thing a shell on its own does not have.
+    /// </summary>
+    [Fact]
+    public async Task TheBracketsMoveThePickBetweenTheKindsASearchFound()
+    {
+        var (window, shell) = await Searched();
+
+        using (window)
+        {
+            var search = Assert.IsType<SearchScreen>(shell.Screen);
+
+            Assert.Equal(0, search.At);
+
+            window.NewKeyDownEvent(new Key(']'));
+
+            Assert.Equal("sheep", search.PickedHashtag?.Name);
+
+            window.NewKeyDownEvent(new Key(']'));
+
+            Assert.Equal("110", search.Picked?.Id);
+
+            window.NewKeyDownEvent(new Key('['));
+
+            Assert.Equal("sheep", search.PickedHashtag?.Name);
+        }
+    }
+
+    /// <summary>
+    ///     And they clamp rather than wrapping: a reader already among the posts presses <c>]</c> and nothing happens,
+    ///     which is the clamp saying so rather than the key being broken.
+    /// </summary>
+    [Fact]
+    public async Task TheBracketsClampAtTheFirstRunAndTheLast()
+    {
+        var (window, shell) = await Searched();
+
+        using (window)
+        {
+            var search = Assert.IsType<SearchScreen>(shell.Screen);
+
+            window.NewKeyDownEvent(new Key('['));
+
+            Assert.Equal(0, search.At);
+
+            window.NewKeyDownEvent(new Key(']'));
+            window.NewKeyDownEvent(new Key(']'));
+
+            var among = search.At;
+
+            window.NewKeyDownEvent(new Key(']'));
+
+            Assert.Equal(among, search.At);
+            Assert.Equal("110", search.Picked?.Id);
+        }
+    }
+
+    /// <summary>
     ///     The digits address the answers of the picked post's poll directly: <c>1</c>-<c>9</c> then <c>0</c>, so that
     ///     ten of them are reachable along one row of keys and the tenth is where a person's own counting puts it
     ///     (<c>docs/tui-shell.md</c>, #87).
@@ -325,6 +384,44 @@ public class ShellKeyTests
         };
 
         window.Layout();
+
+        return (window, shell);
+    }
+
+    /// <summary>
+    ///     A shell showing what a search found — two accounts, two hashtags and two posts, so that all three kinds are
+    ///     runs of their own — laid out and ready for keys.
+    /// </summary>
+    private static async Task<(ShellWindow Window, Wooly.Tui.Shell.Shell Shell)> Searched()
+    {
+        var built = new AShell
+        {
+            Search = FakeInstanceSearch.Finding(
+                accounts: [AnAccount.With(address: "ann@hachyderm.io"), AnAccount.With(address: "bea@hachyderm.io")],
+                hashtags: [AHashtag.With(name: "sheep"), AHashtag.With(name: "wool")],
+                posts: [APost.With(id: "110"), APost.With(id: "220")]),
+        };
+
+        var shell = await built.Opened();
+
+        var window = new ShellWindow(shell, Themes.Plain, built.Clock, () => { }, FakePictures.DrawingNothing())
+        {
+            Width = 80,
+            Height = 20,
+        };
+
+        window.Layout();
+        shell.Search();
+        built.Host.Drain();
+
+        foreach (var letter in "sheep")
+        {
+            shell.Type(letter);
+        }
+
+        await shell.Find();
+
+        built.Host.Drain();
 
         return (window, shell);
     }

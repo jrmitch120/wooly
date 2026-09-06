@@ -46,6 +46,7 @@ internal sealed class PaintedView : View
     private IReadOnlyList<Line>? _settled;
     private int _top;
     private bool _following = true;
+    private bool _anchoring;
 
     /// <param name="theme">What answers the roles.</param>
     /// <param name="rows">The rows to draw, given how much room there is.</param>
@@ -107,11 +108,45 @@ internal sealed class PaintedView : View
                 return null;
             }
 
-            var lines = _rows(width, height);
-
-            return Scroll.Shows(lines, height, _top) ? null : Scroll.Topmost(lines, _top);
+            return Reclaiming(_rows(width, height), height);
         }
     }
+
+    /// <summary>
+    ///     Which thing <c>[</c> or <c>]</c> lands on — the first of the headed run <paramref name="by" /> along — or
+    ///     <see langword="null" /> where there is no run that way and the press does nothing at all (#166).
+    /// </summary>
+    /// <remarks>
+    ///     Asked of the view for the reason <see cref="Reclaimable" /> is, and answered from one lot of rows rather
+    ///     than two: whether the pick is still on the page settles where the jump runs from, and that is a question
+    ///     only something knowing the room and the offset can put.
+    /// </remarks>
+    public int? Along(int by)
+    {
+        var width = Viewport.Width;
+        var height = Viewport.Height;
+
+        if (!Scrolls || width <= 0 || height <= 0)
+        {
+            return null;
+        }
+
+        var lines = _rows(width, height);
+
+        return Sections.Along(lines, by, Reclaiming(lines, height));
+    }
+
+    /// <summary>
+    ///     What a key that moves the pick has to take back before it moves it: the topmost thing on the page, where
+    ///     the pick has none of its rows on it, and <see langword="null" /> while it is still visible.
+    /// </summary>
+    /// <remarks>
+    ///     Said once for the two keys that ask it — <c>j</c>/<c>k</c> through <see cref="Reclaimable" /> and
+    ///     <c>[</c>/<c>]</c> through <see cref="Along" /> — and taking the rows it is to answer over, because the one
+    ///     thing those two must not do is work the rows out twice and reclaim off two different lots.
+    /// </remarks>
+    private int? Reclaiming(IReadOnlyList<Line> lines, int height) =>
+        Scroll.Shows(lines, height, _top) ? null : Scroll.Topmost(lines, _top);
 
     /// <summary>
     ///     Moves the screen by <paramref name="rows" /> and leaves the selection where it is, which is what <c>↓</c>
@@ -147,6 +182,24 @@ internal sealed class PaintedView : View
     ///     brought into view again and kept there until the arrows take the scroll back over.
     /// </summary>
     public void Follow() => _following = true;
+
+    /// <summary>
+    ///     Puts the screen back to following the selection and, on the very next frame only, brings the heading of the
+    ///     run it is in onto the page with it — what <c>[</c> and <c>]</c> ask for over and above what <c>j</c> and
+    ///     <c>k</c> do (#166).
+    /// </summary>
+    /// <remarks>
+    ///     The next frame only, because the anchor is about the press rather than about the position: a reader who
+    ///     walks down out of a long run with <c>k</c> has left its heading behind on purpose, and a page that went on
+    ///     asking for it would be yanked back up the moment the heading scrolled off.
+    /// </remarks>
+    public void Anchor()
+    {
+        _following = true;
+        _anchoring = true;
+
+        SetNeedsDraw();
+    }
 
     /// <summary>
     ///     Which row the page begins on: the one fact this view owns outright, and the one every other answer here is
@@ -343,13 +396,23 @@ internal sealed class PaintedView : View
     ///     Following, that is the scroll that brings the selection into view; walked away from with the arrows, it is
     ///     wherever they left it, clamped to the rows there now — since a post taken down under a reader who had
     ///     scrolled to the foot of the screen leaves an offset past the end of it.
+    ///     <para>
+    ///         An anchor asked for by <c>[</c> or <c>]</c> is spent here, on the one frame that follows the press:
+    ///         this is called once a frame, and the anchor is about that press rather than about where the page has
+    ///         come to rest (<see cref="Anchor" />).
+    ///     </para>
     /// </remarks>
     private IReadOnlyList<Line> Rows(int width, int height)
     {
         var lines = _rows(width, height);
+        var anchoring = _anchoring;
+
+        _anchoring = false;
 
         _top = Scrolls
-            ? _following ? Scroll.To(lines, height, _top) : Scroll.By(lines, _top, 0)
+            ? _following
+                ? anchoring ? Scroll.ToSection(lines, height, _top) : Scroll.To(lines, height, _top)
+                : Scroll.By(lines, _top, 0)
             : 0;
 
         return lines;

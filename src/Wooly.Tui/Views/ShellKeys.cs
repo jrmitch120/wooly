@@ -37,7 +37,10 @@ internal static class ShellKeys
         [Key.W.WithCtrl.KeyCode] = ShellKey.CtrlW,
     };
 
-    /// <summary>The keys that arrive as a character: the letters, the four capitals, the digits, <c>/</c> and <c>?</c>.</summary>
+    /// <summary>
+    ///     The keys that arrive as a character: the letters, the four capitals, the digits, <c>/</c> and <c>?</c>, and
+    ///     the bracket pair that moves between a screen's headed runs.
+    /// </summary>
     private static readonly Dictionary<char, ShellKey> Typed = new()
     {
         ['a'] = ShellKey.A,
@@ -60,6 +63,8 @@ internal static class ShellKeys
         ['M'] = ShellKey.CapitalM,
         ['/'] = ShellKey.Slash,
         ['?'] = ShellKey.Question,
+        ['['] = ShellKey.LeftBracket,
+        [']'] = ShellKey.RightBracket,
         ['1'] = ShellKey.One,
         ['2'] = ShellKey.Two,
         ['3'] = ShellKey.Three,

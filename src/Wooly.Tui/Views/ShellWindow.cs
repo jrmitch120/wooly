@@ -229,6 +229,16 @@ internal sealed class ShellWindow : Window
 
                 return true;
 
+            case Verb.NextSection:
+                Sectioned(1);
+
+                return true;
+
+            case Verb.PreviousSection:
+                Sectioned(-1);
+
+                return true;
+
             case Verb.ScrollDown:
                 Scrolled(RowsAPress);
 
@@ -268,6 +278,26 @@ internal sealed class ShellWindow : Window
     {
         _shell.Walk(by, _content.Reclaimable);
         _content.Follow();
+    }
+
+    /// <summary>
+    ///     <c>[</c> and <c>]</c>: the pick moves to the first thing of the run before or after this one, and the
+    ///     run's heading comes onto the page with it where it is not already there (#166).
+    /// </summary>
+    /// <remarks>
+    ///     Which thing that is comes from the rows, the same way <see cref="Walk" />'s reclaim does — so nothing here
+    ///     knows what a search result is, and a screen that draws no headings simply has no run to answer with. At the
+    ///     ends of the runs there is none, and the press does nothing rather than moving the page on its own.
+    /// </remarks>
+    private void Sectioned(int by)
+    {
+        if (_content.Along(by) is not { } at)
+        {
+            return;
+        }
+
+        _shell.Section(at);
+        _content.Anchor();
     }
 
     /// <summary>

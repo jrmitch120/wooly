@@ -95,7 +95,7 @@ Screen-local, and deliberately colliding with the above because they are never o
 |---|---|
 | Account | `F` follow/unfollow · `M` mute/unmute · `B` block/unblock — capitals, so a lower-case mark key can never fire a tie by accident · `w` who they follow · `[`/`]` section, on an account carrying a pinned run |
 | Follows — following or followers | `f` filter, on a list under the threshold · `s` swap to the other side, in place · `⏎` open that account |
-| Search results | `[`/`]` kind, where two or more kinds found something |
+| Search results | `[`/`]` section, where two or more kinds found something |
 | Discover | `F` follow/unfollow · `d` dismiss, one-way · `[`/`]` section |
 | Notifications | `d` dismiss one · `D` clear all |
 | Follow requests | `a` accept · `x` reject |
@@ -911,8 +911,8 @@ Three things stayed outside it, each deliberately:
   and that is the screen's answer, relayed as the `bool` `Shell.Do` returns. The keymap says what a key *means*; only
   the screen knows what is on the post, and asking it in two places is how two places come to disagree.
 - **The verbs that need a terminal.** `ShellWindow` still carries out `ctrl-q`, the four movements that walk the page
-  rather than the list, `j`/`k` and `Home`/`End` — which move the pick *and* the page — and `ctrl-s`, which has to take
-  the editor widget's text before the shell sends it. Nothing else about a key is the window's: it translates the press
+  rather than the list, `j`/`k`, `Home`/`End` and `[`/`]` — which move the pick *and* the page — and `ctrl-s`, which
+  has to take the editor widget's text before the shell sends it. Nothing else about a key is the window's: it translates the press
   and hands the verb on.
 
 The window's remaining knowledge of `ComposeScreen` is geometry and focus — where the editor widget starts, whether it
