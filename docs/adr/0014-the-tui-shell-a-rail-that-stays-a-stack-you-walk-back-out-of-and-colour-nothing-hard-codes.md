@@ -130,3 +130,37 @@ abstraction in this codebase rather than a second one grown beside it.
 
 None of this reopens what the ADR decided: the shell is still a rail that stays, a stack you walk back out of, and
 colour nothing hard-codes.
+
+## Amendment: the rail carries ten destinations, not nine (map #159)
+
+This ADR settled a rail of nine places and `Destination.cs` records why all nine were listed from the start, before
+four of them had a screen: "a rail that grows four entries later is a different rail." The people-side map (#159)
+grows it by one — **`Discover`**, immediately after `Search` and in its group — and the reasoning is on the record in
+ADR-0019 rather than repeated here. The short of it: a key on the search screen was the cheaper answer and lost,
+because what makes the entry worth its cost is that the screen behind it is built in sections, so the *next* kind of
+suggestion is a heading on it rather than an eleventh entry. The rail is paid for once instead of once per kind.
+
+Everything else about a destination is untouched: `Discover` arrives the way the other nine arrive, resets the stack to
+one screen, caches for the same minute in the same `DestinationCache`, and counts nothing unread — the same answer
+Search gives, since nothing there is waiting for anybody.
+
+Three places in the codebase and its docs enumerate nine and now enumerate ten: `DestinationKind`, `RailLines.Of`'s
+group rules, and `docs/tui-shell.md`. CONTEXT.md's **Destination** term says which one grew and why, so that the next
+person to propose an eleventh finds the bar it has to clear.
+
+## Amendment: a pick is not necessarily a post, and a screen's sections are walkable (map #159)
+
+Two more corrections of wording, in the same spirit as the three above.
+
+**What `←`/`→` walk is asked of the picked thing, not of a post.** This ADR and the reference work under it assumed a
+screen's references come from a `Post?`. The account screen's header block is the first thing that is picked and is not
+a post (ADR-0019): a **Bio** and a **Custom field**'s value carry hashtags and addresses to walk, and the post keys go
+quiet while the block is picked — inherited behaviour rather than new, since a follow notification already leaves them
+with nothing to act on. `Screen` therefore asks the picked thing what it carries, with the post implementation as the
+default.
+
+**`[` and `]` move between the headed runs on a screen**, bringing the run's heading with them when it is not already
+on the page, reclaiming like `j`/`k` and clamping at the ends. They are screen-local rather than frame keys — the
+frame this ADR fixed is untouched — but they mean one thing on every screen that has two or more headed runs, and the
+status row says `[/]:section` on all of them. The mechanism is a heading mark on `Line` and one function beside
+`Scroll.To`, which keeps this ADR's property that a scroll answer is computed from the rows alone.

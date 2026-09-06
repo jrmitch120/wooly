@@ -156,6 +156,27 @@ _Avoid_: server (when referring to a Mastodon instance)
 **Account**:
 A user's identity on a specific instance, addressed as `username@instance` when referenced from outside its home instance. Distinct from a local CLI **profile** (below).
 
+**Bio**:
+What an account wrote about itself on its own profile (`Account.Bio`), flattened to plain text off the wire's `note`
+by the same flattener a **post**'s own text goes through — one rather than two, because a bio is exactly the HTML
+subset a post's content is, and the module doing the flattening was never about posts but about the HTML an instance
+serves. Empty is empty and never "not asked", which is what tells it apart from a **Standing**: Mastodon sends a bio on
+every account entity it serves, from every endpoint this client calls, so there is no state in which the question went
+unput. What is written in one is walked — its hashtags and addresses are **Reference**s like any inside a post — with
+the single exception of a handle, which is drawn and never opened, because a bio carries no resolved list to read it
+off (see **Mention**).
+_Avoid_: note (which is the wire's own word, and is what a **Standing** carries), description, about, profile text
+
+**Custom field**:
+One of the up-to-four rows an account sets under its **Bio**: what it calls the row, what it says there, and — where
+what it says is an address the instance has proved belongs to them — when that proof was made (`AccountField`, whose
+`Verified` is a moment rather than a yes-or-no, since the wire proves *when* and discarding that to keep a bool would
+throw away a fact for nothing). A verified field is marked with a `✓` after its value and takes no **Role** of its
+own: Mastodon only ever verifies a link, so the mark always lands on something already drawn as a **Reference**, and
+a colour there would say what the glyph has already said. An unverified field says nothing extra — absence is the
+honest signal, since a field nobody proved is not a field anybody disproved.
+_Avoid_: attribute, metadata, property, note
+
 **Tie**:
 One of the three things the profile's own account can have with another and undo again: following it, blocking it, or
 muting it. Each is on or off rather than an act of its own, so `unfollow` is a follow taken off rather than a fourth
@@ -168,8 +189,55 @@ what accepting or rejecting one takes.
 
 **Standing**:
 Where the profile's own account stands with another one: whether it follows it, has a **follow request** waiting with
-it, is followed by it, and whether it has blocked or muted it. An instance sends this only where it is asked, so an
-account may carry none — which says the question was not put, not that the answers are all no.
+it, is followed by it, whether it has blocked or muted it, and whatever it has written down about them for itself. An
+instance sends this only where it is asked, so an account may carry none — which says the question was not put, not
+that the answers are all no.
+That last one is the **note**: a private line the profile's own account keeps against another, which nobody else ever
+sees and which the instance sends on the very relationship payload the rest of a standing is built from. It is here
+rather than on **Account** because it is a fact about the pair rather than about the person — two profiles reading the
+same account read different notes — and it costs no call of its own, having always arrived and always been dropped on
+the floor. This client only ever reads one; writing one was weighed on the map and refused, the workflow that wants it
+being reasoned into existence rather than observed.
+
+**Follow list**:
+One side of the follows an account has — everyone it follows, or everyone who follows it (`FollowSide`) — as a thing
+somebody walks rather than a page a command prints. One screen for both sides and for anybody's account, swapped in
+place rather than pushed, because a toggle that pushed would grow the stack on every flip.
+How large it is decides how it can be read, and it is decided before anything is fetched: an **Account** already
+carries both counts, so a list under the threshold is held whole and narrowed live as the reader types, and one over
+it is browsed a page at a time with no narrowing offered at all and a count that says how much of it has been read.
+The threshold exists because the two sides are not the same size in practice — a following count is bounded and a
+followers count is not — and an account with hundreds of thousands of followers is thousands of calls, which is not a
+list to promise a search over. Narrowing is the reader's own, done here rather than asked of the instance: the only
+server-side narrowing Mastodon offers reaches the signed-in account's own follows, matches a handle's opening letters
+and nothing in a **Bio**, and caps at one page, so it can never answer for both sides of this screen.
+A row here says what the list it is on does not already say, which is the rule that keeps a person reading one way
+everywhere: your own following list drops "you follow them", your own followers list drops "they follow you", and
+somebody else's implies nothing and says the whole **Standing**.
+_Avoid_: follower list (for the pair of them), contacts, friends
+
+**Suggestion**:
+Somebody an instance offers this profile to follow, and why it is offering them (`Suggestion` — an **Account** and a
+`SuggestionReason`). The reason is the whole of what makes this worth having: a bare list of strangers is a list of
+strangers, and "followed by people you follow" is an argument. It is the reason, too, that this is read from the
+instance's newer answer rather than its older one, the older one having thrown the reasons away.
+A suggestion carries no **Standing** and costs no call to find one: an instance never suggests somebody already
+followed, already dismissed or already blocked, so the tie is known by construction and the row is left to say who
+somebody is while the heading over it says why. Dismissing one is one-way — there is no un-dismissing it — and says
+"stop suggesting", not "hide": the row stays where it is, still walkable and still followable, because a row that
+vanished would take its own undo with it.
+_Avoid_: recommendation, who to follow (which is a heading on a screen, not the thing), discovery
+
+**Pinned**:
+Two things one word, and both are Mastodon's own. On a **post** it is one of `Post.Marks` — a post its author has
+fastened to the top of their own profile, put there and taken away with `p`, and reported by an instance only on the
+reader's *own* posts: it reads false on everybody else's, whether they have pinned it or not. On an account screen it
+is a **run of posts** of its own, read by naming the account rather than by marking rows already in hand — which is
+the only shape available, precisely because the mark cannot be trusted on somebody else's post.
+The two do not contradict each other and are deliberately both drawn: the heading over the run says what the fetch
+found, and the word on a row says what is true now, so un-pinning something inside the run leaves it where it is and
+takes its word off. That redundancy exists on one screen only — the reader's own — and only until they press `g`.
+_Avoid_: featured (which is Mastodon's word for a *tag* on a profile, and a different thing), sticky, top post
 
 **Profile**:
 A named local credential/config entry in this CLI tool, pointing at one Mastodon account. A user may have multiple profiles (e.g. personal + work accounts, possibly on different instances). One profile is the "current" profile used by default; commands may override it per-invocation.
@@ -186,10 +254,12 @@ _Avoid_: page, result, batch
 
 **Destination**:
 One of the places the TUI's rail can send you — a timeline, notifications, direct messages, follow requests, search,
-the profile's own account. A destination is what carries an unread count and what costs a fetch to arrive at, which is
-why choosing one is a decision of its own (ADR-0014). Distinct from a **screen**: a destination is the entry on the
-rail, a screen is what the content region is showing, and drilling from a post into an account changes the screen
-without changing the destination.
+discover, the profile's own account. A destination is what carries an unread count and what costs a fetch to arrive at,
+which is why choosing one is a decision of its own (ADR-0014). There are ten, the tenth being **Discover**, and it is
+the only entry the rail has ever grown by: it was paid for once, by a screen built in sections so that a second kind of
+suggestion is a heading on it rather than an eleventh entry (ADR-0019). Distinct from a **screen**: a destination is
+the entry on the rail, a screen is what the content region is showing, and drilling from a post into an account changes
+the screen without changing the destination.
 _Avoid_: tab, section, page
 
 **Arrival**:
@@ -209,10 +279,13 @@ several calls to an instance, and is overtaken, or not, as a whole.
 _Avoid_: request (which is a follow request), query (which is what a search takes)
 
 **Refresh**:
-Asking for what is there now, by hand: `g`, screen-local, on the nine screens that have something to ask again (#84).
+Asking for what is there now, by hand: `g`, screen-local, on the eleven screens that have something to ask again (#84,
+widened by the people-side map #159).
 Evicts what the **destination** last held and puts the same question its own **arrival** puts — so a refresh is one
-thing for the seven destinations that read a list, and the two screens no arrival reaches each put their own question
-again and recheck that the reader is still standing on them. Distinct from an **arrival**: nobody has gone anywhere,
+thing for the eight destinations that read a list, and the three screens no arrival reaches — a post, an account and a
+**Follow list** — each put their own question again and recheck that the reader is still standing on them. A follow
+list has a cache of its own rather than the rail's, being the one refreshable screen that is not a destination and not
+reached from one, so `g` there drops its own entry, re-runs the read and clears the filter. Distinct from an **arrival**: nobody has gone anywhere,
 so the stack keeps its depth, the screen is replaced where it stands rather than becoming the whole of it, and what is
 showing stands until there is something fresher to put in its place — where an arrival empties the screen at once,
 because what was on it is about somewhere else. A live conversation and a live search are each their own question and
@@ -242,7 +315,9 @@ _Avoid_: binding, shortcut, command (which is the CLI's word for what it runs)
 
 **Picked**:
 Which of the things on a screen the reader has walked to with `j` and `k`, and what every key that acts on something
-acts on. Distinct from the rail's **cursor** and its **selection** (ADR-0014): those are about which **destination**
+acts on. Not necessarily a post: an account screen's header block is the first thing `j` and `k` land on, and the keys
+that act on a post go quiet while it is there rather than guessing — the same answer a follow **notification** already
+gets, which carries no post either. Distinct from the rail's **cursor** and its **selection** (ADR-0014): those are about which **destination**
 you are going to, this is about what you are looking at once you are there. A screen showing an empty list has nothing
 picked, which is a fact about the list rather than a place in it.
 _Avoid_: cursor, selection, highlight, current row
@@ -260,10 +335,12 @@ which of the three it is.
 _Avoid_: scroll state, viewport
 
 **Reference**:
-A hashtag, a mention, or an address found inside a post's text — or an **Attachment**'s own address, once it is not
-drawn as a picture in its own right (ADR-0017), or a **Link preview**'s own address (ADR-0018) — the things `←`/`→`
-walk and `⏎` opens. Distinct from **Picked**,
-which is which post the reader has walked to; a reference is walked *inside* the picked post, one level in. Widened
+A hashtag, a mention, or an address found inside written text — a post's, and since ADR-0019 an account's **Bio** and
+its **Custom field**s too — or an **Attachment**'s own address, once it is not drawn as a picture in its own right
+(ADR-0017), or a **Link preview**'s own address (ADR-0018) — the things `←`/`→` walk and `⏎` opens. Distinct from
+**Picked**, which is which thing on the screen the reader has walked to; a reference is walked *inside* whatever is
+picked, one level in. What carries them is asked of the picked thing rather than assumed to be a post, a bio being the
+first thing here that is not one. Widened
 past the post's own text on purpose: a video is walked to and opened exactly the way a link is, because placing,
 picking and opening several things on one screen was already solved for the three that live in the text, and a second
 copy of that solve for the ones that do not would be a second place for it to disagree with the first. Replaces what
