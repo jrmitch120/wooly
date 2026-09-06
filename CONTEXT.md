@@ -230,13 +230,18 @@ reports a failure by answering rather than by throwing.
 _Avoid_: mutuals (which is a different relation — both following each other), friends, people you know
 
 **Suggestion**:
-Somebody an instance offers this profile to follow, and why it is offering them (`Suggestion` — an **Account** and a
-`SuggestionReason`). The reason is the whole of what makes this worth having: a bare list of strangers is a list of
+Somebody an instance offers this profile to follow, and why it is offering them (`Suggestion` — an **Account** and its
+`SuggestionReason`s). The reason is the whole of what makes this worth having: a bare list of strangers is a list of
 strangers, and "followed by people you follow" is an argument. It is the reason, too, that this is read from the
 instance's newer answer rather than its older one, the older one having thrown the reasons away.
+Reasons plural, because the instance sends an array and one person can be offered under several at once. Which of them
+they are drawn under, and what to do about the same face arriving twice, is the screen's ranking to do rather than the
+port's — so a **Suggestion** carries all of them and settles none. A reason this client has no heading for is dropped
+and the person kept: an instance that has learned a sixth reason has still named somebody worth showing.
 A suggestion carries no **Standing** and costs no call to find one: an instance never suggests somebody already
 followed, already dismissed or already blocked, so the tie is known by construction and the row is left to say who
-somebody is while the heading over it says why. Dismissing one is one-way — there is no un-dismissing it — and says
+somebody is while the heading over it says why. Checked against a live instance rather than taken from the
+documentation, all three exclusions being what the screen spends to ask once instead of twice. Dismissing one is one-way — there is no un-dismissing it — and says
 "stop suggesting", not "hide": the row stays where it is, still walkable and still followable, because a row that
 vanished would take its own undo with it.
 _Avoid_: recommendation, who to follow (which is a heading on a screen, not the thing), discovery
