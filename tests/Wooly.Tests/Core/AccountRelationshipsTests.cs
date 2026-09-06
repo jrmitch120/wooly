@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Wooly.Core;
 using Wooly.Core.Accounts;
 using Wooly.Core.Errors;
+using Wooly.Core.Http;
 using Wooly.Core.Profiles;
 using Wooly.Core.Relationships;
 using Wooly.Tests.Fakes;
@@ -411,11 +412,121 @@ public class AccountRelationshipsTests
         Assert.Equal("alice@hachyderm.io", account.Address);
     }
 
+    /// <summary>
+    ///     The fifth call on this port, and the only one Mastonet 3.1.3 cannot make: a raw <c>GET</c> over the same
+    ///     named client, carrying the same token, sending the account in the repeated-array form the endpoint takes —
+    ///     the form <c>/accounts/relationships</c> is already asked in.
+    /// </summary>
+    [Fact]
+    public async Task FamiliarFollowers_AsksTheEndpointWhoTheProfileAndTheAccountBothFollow()
+    {
+        var network = Answering(FamiliarJson("42", AccountJson("jon@hachyderm.io", id: "7"), AccountJson("sam", id: "8")));
+
+        var common = await Relationships(network).FamiliarFollowers(Profile, "42", TestContext.Current.CancellationToken);
+
+        Assert.Equal(
+            "https://mastodon.social/api/v1/accounts/familiar_followers?id[]=42",
+            network.Requests[0].RequestUri?.ToString());
+
+        Assert.Equal(HttpMethod.Get, network.Requests[0].Method);
+        Assert.Equal("Bearer token-personal", network.Requests[0].Headers.Authorization?.ToString());
+
+        Assert.Collection(
+            common!,
+            jon => Assert.Equal("jon@hachyderm.io", jon.Address),
+            sam => Assert.Equal("sam@mastodon.social", sam.Address));
+    }
+
+    /// <summary>
+    ///     Nobody in common is an answer. It is the empty list rather than nothing, because nothing is reserved for the
+    ///     question never having been put — ADR-0012's absent-versus-empty distinction, one level further out.
+    /// </summary>
+    [Fact]
+    public async Task FamiliarFollowers_ReadsNobodyInCommonAsEmptyRatherThanAsNothing()
+    {
+        var network = Answering(FamiliarJson("42"));
+
+        var common = await Relationships(network).FamiliarFollowers(Profile, "42", TestContext.Current.CancellationToken);
+
+        Assert.NotNull(common);
+        Assert.Empty(common);
+    }
+
+    /// <summary>
+    ///     An instance that names no entry at all for the account has still answered, and what it answered is nobody.
+    ///     Reading that as "not asked" would leave the screen saying a call it made was never made.
+    /// </summary>
+    [Fact]
+    public async Task FamiliarFollowers_ReadsAnInstanceThatNamedNoEntryAsNobodyInCommon()
+    {
+        var network = Answering("[]");
+
+        var common = await Relationships(network).FamiliarFollowers(Profile, "42", TestContext.Current.CancellationToken);
+
+        Assert.NotNull(common);
+        Assert.Empty(common);
+    }
+
+    /// <summary>
+    ///     A body that is nothing at all is not a list of nobody. It is not a payload this endpoint documents, but it
+    ///     is one an instance can send, and reading it as "nobody in common" would put a claim on screen that the
+    ///     instance never made.
+    /// </summary>
+    [Fact]
+    public async Task FamiliarFollowers_AnswersNothingWhereTheInstanceSentNoBodyToRead()
+    {
+        var network = Answering("null");
+
+        var common = await Relationships(network).FamiliarFollowers(Profile, "42", TestContext.Current.CancellationToken);
+
+        Assert.Null(common);
+    }
+
+    /// <summary>
+    ///     The call that must not take a screen down with it. It is asked last of the four an account screen makes, so
+    ///     a rate limit here costs one decorative row — which is only true if it is answered rather than thrown.
+    /// </summary>
+    [Fact]
+    public async Task FamiliarFollowers_AnswersNothingWhereARateLimitStoppedTheCall()
+    {
+        var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Status(HttpStatusCode.TooManyRequests));
+
+        var common = await Relationships(network).FamiliarFollowers(Profile, "42", TestContext.Current.CancellationToken);
+
+        Assert.Null(common);
+    }
+
+    /// <summary>An instance that turned the call down said nothing about who is in common, which is not nobody.</summary>
+    [Fact]
+    public async Task FamiliarFollowers_AnswersNothingWhereTheInstanceRefusedTheCall()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Refusal(HttpStatusCode.NotFound, "Record not found"));
+
+        var common = await Relationships(network).FamiliarFollowers(Profile, "42", TestContext.Current.CancellationToken);
+
+        Assert.Null(common);
+    }
+
+    /// <summary>A network the retries could not ride out is the same news as a refusal: the question went unput.</summary>
+    [Fact]
+    public async Task FamiliarFollowers_AnswersNothingWhereTheInstanceCouldNotBeReached()
+    {
+        var common = await Relationships(ScriptedHttpMessageHandler.AlwaysUnreachable())
+            .FamiliarFollowers(Profile, "42", TestContext.Current.CancellationToken);
+
+        Assert.Null(common);
+    }
+
     /// <summary>Resolved from the container the app builds, so the wiring is under test alongside the behavior.</summary>
     private static IAccountRelationships Relationships(HttpMessageHandler network)
     {
         var services = new ServiceCollection();
         services.AddWoolyCore();
+
+        // The one thing swapped out of the real container: a test that fakes an unreachable instance would otherwise
+        // spend the retry policy's backoff waiting it out for real.
+        services.AddSingleton<IRetryDelay>(new RecordingRetryDelay());
         services.AddHttpClient(WoolyClient.HttpClientName).ConfigurePrimaryHttpMessageHandler(() => network);
 
         return services.BuildServiceProvider().GetRequiredService<IAccountRelationships>();
@@ -498,6 +609,13 @@ public class AccountRelationshipsTests
           """;
 
     private static string Json(bool flag) => flag.ToString().ToLowerInvariant();
+
+    /// <summary>
+    ///     What <c>/accounts/familiar_followers</c> answers with: one entry per id it was asked about, each naming the
+    ///     id and the accounts in common. Written out here because Mastonet has no entity for this endpoint.
+    /// </summary>
+    private static string FamiliarJson(string id, params string[] accounts) =>
+        $$"""[{"id":"{{id}}","accounts":[{{string.Join(",", accounts)}}]}]""";
 
     /// <param name="note">
     ///     The wire's <c>note</c>, which on a relationship is the profile's own private note about the account — not

@@ -35,6 +35,16 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
     /// <summary>Every account it was asked to read, in order — where a test proves whose account a screen opened.</summary>
     public List<Shown> Reads { get; } = [];
 
+    /// <summary>Every ask for who two accounts have in common, in order.</summary>
+    public List<Familiar> Familiars { get; } = [];
+
+    /// <summary>
+    ///     Who the profile and the account asked about both follow. Nobody by default, since that is the ordinary
+    ///     answer; set to <see langword="null" /> for an instance that never answered the question, which is the state
+    ///     a screen draws nothing at all for.
+    /// </summary>
+    public IReadOnlyList<Account>? InCommon { get; set; } = [];
+
     /// <summary>
     ///     What putting a tie on or taking one off answers with, where that is not what reading the account answers
     ///     with. An instance answers <c>Set</c> with the standing as it now is, so this is how a test says what
@@ -95,6 +105,21 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
         return _refusal is null ? Task.FromResult(_list) : Task.FromException<Fetch<Account>>(_refusal);
     }
 
+    /// <summary>
+    ///     Answers <see cref="InCommon" />, and answers it even when this instance is refusing everything else: the
+    ///     port says a failure here is reported as nothing rather than thrown, and a fake that threw would let a screen
+    ///     be written that only works against an instance that never refuses.
+    /// </summary>
+    public Task<IReadOnlyList<Account>?> FamiliarFollowers(
+        ActiveProfile profile,
+        string accountId,
+        CancellationToken cancellationToken)
+    {
+        Familiars.Add(new Familiar(profile.Name, accountId));
+
+        return Task.FromResult(_refusal is null ? InCommon : null);
+    }
+
     public Task<Fetch<Account>> PendingRequests(ActiveProfile profile, int limit, CancellationToken cancellationToken)
     {
         Lists.Add(new Listed(profile.Name, Side: null, Account: null, limit));
@@ -127,4 +152,7 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
 
     /// <summary>One account read: which profile asked, and whose account they asked about.</summary>
     internal sealed record Shown(string Profile, AccountAddress Account);
+
+    /// <summary>One ask for familiar followers: which profile asked, and whose they asked for.</summary>
+    internal sealed record Familiar(string Profile, string AccountId);
 }

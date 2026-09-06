@@ -216,6 +216,19 @@ everywhere: your own following list drops "you follow them", your own followers 
 somebody else's implies nothing and says the whole **Standing**.
 _Avoid_: follower list (for the pair of them), contacts, friends
 
+**Familiar followers**:
+The accounts the profile follows that also follow the account being read — the people a reader already knows, which is
+what makes a stranger's profile worth reading and is Mastodon's own name for them. They are **Account**s and nothing
+more: one account's worth of familiar followers is a list of them, so there is no record here to hold what a list
+already says. Read by naming an id rather than an address, being asked from a screen that has just read the account
+and holds one.
+The list is nullable, and that is the point of it: it is asked last of the calls an account screen makes and it
+decorates a single row, so an instance that refuses it leaves the screen standing with that row missing. Nothing means
+the question was never put and draws nothing; empty means it was put and the answer is nobody — the same
+absent-versus-empty distinction a **Standing** carries, one level further out. It is the one call in this client that
+reports a failure by answering rather than by throwing.
+_Avoid_: mutuals (which is a different relation — both following each other), friends, people you know
+
 **Suggestion**:
 Somebody an instance offers this profile to follow, and why it is offering them (`Suggestion` — an **Account** and a
 `SuggestionReason`). The reason is the whole of what makes this worth having: a bare list of strangers is a list of
