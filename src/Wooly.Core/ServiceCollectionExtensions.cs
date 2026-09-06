@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Wooly.Core.Configuration;
 using Wooly.Core.Conversations;
 using Wooly.Core.Credentials;
+using Wooly.Core.Discovery;
 using Wooly.Core.Http;
 using Wooly.Core.Notifications;
 using Wooly.Core.Posts;
@@ -60,6 +61,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<INotificationInbox, NotificationInbox>();
         services.AddSingleton<IInstanceSearch, InstanceSearch>();
         services.AddSingleton<IAccountRelationships, AccountRelationships>();
+        services.AddSingleton<IFollowSuggestions, FollowSuggestions>();
         services.AddSingleton<IDirectMessages, DirectMessages>();
 
         // The two ways a profile is connected to an account (ADR-0004): through the browser, and — for a machine with
