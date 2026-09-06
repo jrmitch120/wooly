@@ -5,16 +5,19 @@ using Wooly.Core.Profiles;
 namespace Wooly.Core.Relationships;
 
 /// <summary>
-///     Manages who the profile follows, blocks and mutes, who follows it, and the follows waiting to be answered. The
-///     narrow port ADR-0005 asks for over Mastonet's whole REST surface, alongside
+///     Manages who the profile follows, blocks and mutes, who follows it, the follows waiting to be answered, and who
+///     it has in common with another account. The narrow port ADR-0005 asks for over Mastonet's whole REST surface,
+///     alongside
 ///     <see cref="Timelines.ITimelineReader" />, <see cref="Notifications.INotificationInbox" /> and
 ///     <see cref="Search.IInstanceSearch" /> — front ends depend on this, and their tests fake this rather than the
 ///     network.
 /// </summary>
 /// <remarks>
-///     One port rather than three, because the four calls are one subject reached through one family of endpoints: a
-///     screen showing an account shows what it is to the profile, who follows it, and — for a locked account — who is
-///     waiting, and splitting that across three ports would be three fakes to write for the one screen.
+///     One port rather than three, because the calls are one subject reached through one family of endpoints: a
+///     screen showing an account shows what it is to the profile, who follows it, who it is followed by that the
+///     profile follows too, and — for a locked account — who is waiting, and splitting that across three ports would
+///     be three fakes to write for the one screen. Familiar followers arrived later and landed here by that same test
+///     (ADR-0012's amendment), rather than on a port of its own.
 /// </remarks>
 public interface IAccountRelationships
 {
@@ -69,6 +72,27 @@ public interface IAccountRelationships
     ///     followed rather than asked.
     /// </summary>
     Task<Fetch<Account>> PendingRequests(ActiveProfile profile, int limit, CancellationToken cancellationToken);
+
+    /// <summary>
+    ///     Lists the accounts this profile follows that also follow the account named — the people a reader already
+    ///     knows, which is what makes a stranger's profile worth reading.
+    /// </summary>
+    /// <param name="accountId">
+    ///     Whose familiar followers to read, as <see cref="Show" /> answers with. An id rather than an address for the
+    ///     same reason <see cref="Answer" /> takes one: this is asked from a screen that has just read the account, so
+    ///     the id is in hand and exact, and an address would cost a second lookup to arrive back at it.
+    /// </param>
+    /// <returns>
+    ///     The accounts in common — empty where that is nobody — or <see langword="null" /> where the instance never
+    ///     answered the question, which is the only call on this port that says so rather than throwing. It is asked
+    ///     last of the four an account screen makes and it decorates one row, so a rate limit or a refusal here leaves
+    ///     the screen standing with that row missing (ADR-0012's amendment). Absent is not empty: a null draws nothing
+    ///     and an empty list says nobody is in common.
+    /// </returns>
+    Task<IReadOnlyList<Account>?> FamiliarFollowers(
+        ActiveProfile profile,
+        string accountId,
+        CancellationToken cancellationToken);
 
     /// <summary>Accepts or rejects one pending follow request.</summary>
     /// <param name="accountId">

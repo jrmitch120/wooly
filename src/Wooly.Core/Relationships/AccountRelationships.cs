@@ -1,7 +1,9 @@
+using System.Text.Json;
 using Mastonet;
 using Mastonet.Entities;
 using Wooly.Core.Accounts;
 using Wooly.Core.Errors;
+using Wooly.Core.Http;
 using Wooly.Core.Paging;
 using Wooly.Core.Profiles;
 
@@ -13,7 +15,7 @@ using WireAccount = Mastonet.Entities.Account;
 namespace Wooly.Core.Relationships;
 
 /// <summary>
-///     Manages relationships through Mastonet. Two things happen here that nowhere above has to know about.
+///     Manages relationships through Mastonet. Three things happen here that nowhere above has to know about.
 ///     <para>
 ///         The first is that Mastodon's relationship endpoints all take an account id, and a user types an address. So
 ///         an address is looked up first, through <see cref="AccountLookup" />. That costs a call before every follow,
@@ -24,10 +26,17 @@ namespace Wooly.Core.Relationships;
 ///         The second is that the lists are paged by <see cref="PagedReading" />, the same loop a timeline and an inbox
 ///         are read down, so three lists cannot come to disagree about where a list ends.
 ///     </para>
+///     <para>
+///         The third is that one of the five endpoints is not in Mastonet 3.1.3 at all. Familiar followers is read by
+///         <see cref="RawMastodonCall" /> over the same <see cref="HttpClient" /> the library's own calls go through,
+///         so it is retried and rate-limit-checked like the rest, and a caller cannot tell it apart from the four that
+///         went through the library.
+///     </para>
 ///     Nothing here retries and nothing here waits. A tie the instance answered is never sent again, because ADR-0006
 ///     resends nothing an instance has already taken, and a rate limit is reported rather than slept off.
 /// </summary>
-public sealed class AccountRelationships(IMastodonClientFactory clientFactory) : IAccountRelationships
+public sealed class AccountRelationships(IMastodonClientFactory clientFactory, IHttpClientFactory httpClientFactory)
+    : IAccountRelationships
 {
     /// <summary>
     ///     The most accounts Mastodon serves from a list of them in one call — twice a timeline's page, which these
@@ -104,6 +113,50 @@ public sealed class AccountRelationships(IMastodonClientFactory clientFactory) :
         var client = clientFactory.CreateClient(profile.Instance, profile.AccessToken);
 
         return await Collect(client.GetFollowRequests, profile.Instance, limit, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<Account>?> FamiliarFollowers(
+        ActiveProfile profile,
+        string accountId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            // The endpoint takes many ids at once and this asks about one, because one account is what a screen is
+            // showing. The array form is sent all the same: it is the form the endpoint takes, and a single id is a
+            // list of one.
+            var answered = await RawMastodonCall.Get<IReadOnlyList<FamiliarFollowersWire>>(
+                httpClientFactory,
+                profile,
+                "api/v1/accounts/familiar_followers",
+                [new KeyValuePair<string, string>("id[]", accountId)],
+                cancellationToken);
+
+            // One id asked about is one entry answered, and an instance that named no entry has said that nobody is
+            // in common — which is an answer, and so an empty list rather than the null that means it never answered.
+            // A body that is nothing at all is the other way round: nothing was said, so nothing is what is reported.
+            return answered is null
+                ? null
+                : answered.FirstOrDefault()?
+                      .Accounts
+                      .Select(account => AccountWire.ToAccount(account, profile.Instance))
+                      .ToList()
+                  ?? [];
+        }
+
+        // The one call on this port that swallows a failure, because it is the one whose failure must not cost
+        // anything but itself: it is asked last of the four an account screen makes and it decorates a single row, so
+        // a rate limit here is the difference between a row missing and a screen missing. Everything caught means the
+        // same thing — the instance did not answer the question — and null is how the caller is told so. A
+        // cancellation is deliberately not among them: a reader who left is not a reader owed a row.
+        catch (Exception unanswered) when (unanswered is RateLimitedException
+                                               or TransientNetworkException
+                                               or HttpRequestException
+                                               or JsonException)
+        {
+            return null;
+        }
     }
 
     /// <inheritdoc />
