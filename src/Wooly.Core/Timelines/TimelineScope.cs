@@ -1,6 +1,6 @@
 namespace Wooly.Core.Timelines;
 
-/// <summary>The four timelines a profile can read, which differ only in what an instance is asked for.</summary>
+/// <summary>The six timelines a profile can read, which differ only in what an instance is asked for.</summary>
 public enum TimelineScope
 {
     /// <summary>The posts of the accounts this profile follows.</summary>
@@ -21,4 +21,12 @@ public enum TimelineScope
     ///     that differs is which endpoint is asked.
     /// </summary>
     Account,
+
+    /// <summary>
+    ///     The posts one account has fastened to the top of their own profile. The account's posts again, asked for
+    ///     with both of <see cref="Account" />'s filters flipped: a pin is often a reply and always a pin, so leaving
+    ///     replies out — which is right for a timeline — is what makes a pinned reply unreachable. Complete in one
+    ///     page, and in the order the account chose rather than by date.
+    /// </summary>
+    Pinned,
 }
