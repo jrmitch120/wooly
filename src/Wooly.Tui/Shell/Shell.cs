@@ -281,6 +281,24 @@ public sealed class Shell
     }
 
     /// <summary>
+    ///     What <c>[</c> and <c>]</c> do once the rows have said where they land: pick out the first thing of the run
+    ///     jumped to (#166).
+    /// </summary>
+    /// <remarks>
+    ///     Which thing that is belongs to the view, the way <see cref="Walk" />'s reclaim does: only a view knows how
+    ///     tall the terminal is and where the arrows have left the scroll, and both answers are read off the very rows
+    ///     it is showing. Never called at all where the jump had nowhere to go, so a clamp at either end costs the
+    ///     reader nothing here — not even the notice they were reading.
+    /// </remarks>
+    public void Section(int at)
+    {
+        Screen.Pick(at);
+
+        // The remark goes with the thing it was said over, for the reason Walk gives.
+        Say(null, isError: false);
+    }
+
+    /// <summary>
     ///     What <c>←</c> and <c>→</c> do: walk the references inside the picked post — <c>→</c> entering at the first
     ///     and <c>←</c> at the last, clamping at either end (#83).
     /// </summary>

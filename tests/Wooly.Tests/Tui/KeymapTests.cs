@@ -78,6 +78,21 @@ public class KeymapTests
         Assert.Equal(verb, Means(key, Feed()));
 
     /// <summary>
+    ///     The bracket pair moves between a screen's headed runs, and means that wherever it is pressed — a screen
+    ///     with no runs on it has nothing to move to and turns the key down, rather than the pair coming to mean
+    ///     something else there (#166).
+    /// </summary>
+    [Theory]
+    [InlineData("]", Verb.NextSection)]
+    [InlineData("[", Verb.PreviousSection)]
+    public void TheBracketsMoveBetweenHeadedRunsOnEveryScreen(string key, Verb verb)
+    {
+        Assert.Equal(verb, Means(key, Searched()));
+        Assert.Equal(verb, Means(key, Feed()));
+        Assert.Equal(verb, Means(key, Notifications()));
+    }
+
+    /// <summary>
     ///     The account screen's three, which are capitals so that a lower-case mark key can never fire a tie by
     ///     accident — the one thing about this keymap that a case-blind match would quietly undo.
     /// </summary>

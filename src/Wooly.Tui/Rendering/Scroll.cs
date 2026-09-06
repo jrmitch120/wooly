@@ -3,9 +3,10 @@ using Wooly.Tui.Theme;
 namespace Wooly.Tui.Rendering;
 
 /// <summary>
-///     Which row a scrolling region draws first. Four questions about a page of rows, all of them answered without a
-///     terminal: where to scroll so that what the reader picked out is on screen, where a row of scrolling lands,
-///     whether the selection is still on the page, and what is topmost on it if it is not.
+///     Which row a scrolling region draws first. Five questions about a page of rows, all of them answered without a
+///     terminal: where to scroll so that what the reader picked out is on screen, where to scroll so that the heading
+///     over it is too, where a row of scrolling lands, whether the selection is still on the page, and what is topmost
+///     on it if it is not.
 /// </summary>
 /// <remarks>
 ///     The offset is the reader's, not this class's: <c>↓</c> and <c>↑</c> put it where they like, and the answers
@@ -72,6 +73,65 @@ public static class Scroll
         var top = last - height + 1 > from ? last - height + 1 : Math.Min(from, first);
 
         return Math.Clamp(top, 0, Math.Max(0, lines.Count - 1));
+    }
+
+    /// <summary>
+    ///     The same, with the heading of the selection's run brought onto the page along with it — what <c>[</c> and
+    ///     <c>]</c> ask for, rather than what <c>j</c> and <c>k</c> do (#166).
+    /// </summary>
+    /// <remarks>
+    ///     Anchored on the heading only where the heading is not already on the page, and otherwise left exactly where
+    ///     it is. <see cref="To" /> moves the minimum needed to show the selection, so an unaided jump downwards lands
+    ///     the picked row on the bottom row with the run just left still filling the screen, which reads as a press
+    ///     that did nothing; always anchoring settles cleanly but carries the first run off the top of a search that
+    ///     fits on one screen, for nothing. So the page moves only where it has to.
+    ///     <para>
+    ///         <see cref="To" /> has the last word either way, which is what makes this settle: fed the heading row it
+    ///         answers that same row back on every redraw, and where the run is taller than the room it shows the
+    ///         thing picked out instead — what the reader jumped to has to be on screen, and the anchor is only ever a
+    ///         preference about where.
+    ///     </para>
+    /// </remarks>
+    /// <param name="lines">The rows to be drawn.</param>
+    /// <param name="height">How many rows there is room for.</param>
+    /// <param name="from">Where the scroll is now.</param>
+    public static int ToSection(IReadOnlyList<Line> lines, int height, int from)
+    {
+        if (height < 1)
+        {
+            return 0;
+        }
+
+        var heading = Heading(lines);
+
+        return To(lines, height, heading is { } at && (at < from || at >= from + height) ? at : from);
+    }
+
+    /// <summary>
+    ///     Which row heads the run the selection is in — the nearest one above it — or <see langword="null" /> where
+    ///     nothing does, which is every screen that draws no headings and every thing standing above the first one.
+    /// </summary>
+    private static int? Heading(IReadOnlyList<Line> lines)
+    {
+        for (var at = 0; at < lines.Count; at++)
+        {
+            if (!lines[at].Has(Role.Selection))
+            {
+                continue;
+            }
+
+            for (var above = at; above >= 0; above--)
+            {
+                if (lines[above].Heads)
+                {
+                    return above;
+                }
+            }
+
+            return null;
+        }
+
+        return null;
     }
 
 

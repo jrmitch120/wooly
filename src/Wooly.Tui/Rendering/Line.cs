@@ -48,6 +48,23 @@ public sealed record Line
     /// </remarks>
     public int? Item { get; init; }
 
+    /// <summary>
+    ///     Whether this row heads the run of things under it — <c>── 7 accounts ──</c> over the accounts a search
+    ///     found — which is what <c>[</c> and <c>]</c> move between and what a jump brings onto the page with the
+    ///     thing it lands on.
+    /// </summary>
+    /// <remarks>
+    ///     Marked here, beside <see cref="Item" />, for the reason <see cref="Item" /> is: <see cref="Scroll" /> and
+    ///     <see cref="Sections" /> answer from the rows alone, so the runs a reader can see are the runs the key moves
+    ///     between by construction — rather than a screen keeping a second count of its own sections in step with the
+    ///     headings it draws (#51, #166).
+    ///     <para>
+    ///         The row itself is part of no thing: a heading belongs to the run below it rather than to anything in
+    ///         it, which is why this is a mark of its own and not a value of <see cref="Item" />.
+    ///     </para>
+    /// </remarks>
+    public bool Heads { get; init; }
+
     /// <summary>What the row reads as with the roles taken off — what a test asserts against, and what a screenshot shows.</summary>
     public string Text
     {
@@ -96,6 +113,9 @@ public sealed record Line
     /// <summary>This row, said to be part of the <paramref name="item" />th thing on the screen.</summary>
     public Line PartOf(int item) => this with { Item = item };
 
+    /// <summary>This row, said to head the run of things under it.</summary>
+    public Line Heading() => this with { Heads = true };
+
     /// <summary>This row with <paramref name="spans" /> put in front of it.</summary>
     /// <remarks>
     ///     Anything put in front moves the rest of the row along, so a picture's box moves with it. A gutter added to a
@@ -110,6 +130,7 @@ public sealed record Line
             Insets = Insets.Count == 0 ? Insets : [.. Insets.Select(inset => inset.ShiftedBy(shift))],
             Wants = Wants,
             Item = Item,
+            Heads = Heads,
         };
     }
 }

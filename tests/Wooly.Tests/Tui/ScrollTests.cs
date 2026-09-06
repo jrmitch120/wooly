@@ -105,11 +105,75 @@ public class ScrollTests
     public void To_AnswersTheTopForARegionWithNoRoom() =>
         Assert.Equal(0, Scroll.To(Rows(100, at: 40, tall: 3), height: 0, from: 10));
 
+    /// <summary>
+    ///     What <c>[</c> and <c>]</c> ask for instead: the run's heading on the page along with the thing jumped to.
+    ///     Unaided, <see cref="Scroll.To" /> moves the minimum needed to show the selection, which lands the picked row
+    ///     on the bottom row with the run just left still filling the screen — a press that reads as having done
+    ///     nothing.
+    /// </summary>
+    [Fact]
+    public void ToSection_AnchorsThePageOnAHeadingThatIsOffIt()
+    {
+        var lines = Sectioned(runs: 3, tall: 9, at: 21);
 
+        Assert.Equal(20, Scroll.ToSection(lines, height: 20, from: 0));
+        Assert.Equal(2, Scroll.To(lines, height: 20, from: 0));
+    }
 
+    /// <summary>
+    ///     And leaves the page alone where the heading is already on it, so a search whose runs all fit at once does
+    ///     not scroll at all — always anchoring would carry the first run off the top for nothing.
+    /// </summary>
+    [Fact]
+    public void ToSection_LeavesThePageAloneWhereTheHeadingIsAlreadyOnIt() =>
+        Assert.Equal(0, Scroll.ToSection(Sectioned(runs: 3, tall: 3, at: 9), height: 20, from: 0));
 
+    /// <summary>
+    ///     A run taller than the room shows the thing jumped to rather than the heading over it: what the reader
+    ///     picked out is what has to be on screen, and the anchor is only ever a preference about where.
+    /// </summary>
+    [Fact]
+    public void ToSection_ShowsTheThingPickedOutWhereItsHeadingWillNotFitAboveIt() =>
+        Assert.Equal(23, Scroll.ToSection(Sectioned(runs: 3, tall: 9, at: 27), height: 5, from: 0));
 
+    /// <summary>Rows with no heading over the selection at all are the ordinary answer, which is what a screen with no runs gets.</summary>
+    [Fact]
+    public void ToSection_IsTheOrdinaryAnswerWhereNothingHeadsTheSelection()
+    {
+        var lines = Rows(100, at: 40, tall: 3);
 
+        Assert.Equal(Scroll.To(lines, 20, from: 0), Scroll.ToSection(lines, 20, from: 0));
+    }
+
+    /// <summary>Nothing picked out is nothing to bring into view, so the page stays exactly where the arrows left it.</summary>
+    [Fact]
+    public void ToSection_StaysWhereItIsWhenNothingIsPickedOut() =>
+        Assert.Equal(30, Scroll.ToSection(Rows(100, at: -1, tall: 0), height: 20, from: 30));
+
+    /// <summary>A region with no room in it has nowhere to scroll to, the same as every other answer here.</summary>
+    [Fact]
+    public void ToSection_AnswersTheTopForARegionWithNoRoom() =>
+        Assert.Equal(0, Scroll.ToSection(Sectioned(runs: 3, tall: 9, at: 21), height: 0, from: 10));
+
+    /// <summary>
+    ///     And it settles, which matters as much here as it does for <see cref="Scroll.To" />: the answer is the next
+    ///     frame's input, and one that disagreed with itself would flicker for as long as anything was redrawing.
+    /// </summary>
+    [Theory]
+    [InlineData(1, 0)]
+    [InlineData(11, 0)]
+    [InlineData(21, 0)]
+    [InlineData(21, 25)]
+    [InlineData(1, 25)]
+    public void ToSection_SettlesRatherThanFlippingBetweenTwoPositions(int at, int from)
+    {
+        var lines = Sectioned(runs: 3, tall: 9, at);
+
+        var once = Scroll.ToSection(lines, 20, from);
+
+        Assert.Equal(once, Scroll.To(lines, 20, once));
+        Assert.Equal(once, Scroll.ToSection(lines, 20, once));
+    }
 
     /// <summary>What the arrows do: one row at a time, and never off either end of the rows there are.</summary>
     [Theory]
@@ -190,6 +254,27 @@ public class ScrollTests
                              ? Line.Of("▌", Role.Selection)
                              : Line.Of("text", Role.Body)),
         ];
+
+    /// <summary>
+    ///     <paramref name="runs" /> headed runs of <paramref name="tall" /> rows each, a heading row over every one of
+    ///     them, with the row at <paramref name="at" /> picked out — the shape a search's three kinds draw.
+    /// </summary>
+    private static IReadOnlyList<Line> Sectioned(int runs, int tall, int at)
+    {
+        var lines = new List<Line>();
+
+        for (var run = 0; run < runs; run++)
+        {
+            lines.Add(Line.Of("── heading ──", Role.Muted).Heading());
+
+            for (var row = 0; row < tall; row++)
+            {
+                lines.Add(Line.Of("text", lines.Count == at ? Role.Selection : Role.Body));
+            }
+        }
+
+        return lines;
+    }
 
     /// <summary><paramref name="items" /> posts of <paramref name="tall" /> rows each, every row naming its own.</summary>
     private static IReadOnlyList<Line> Numbered(int items, int tall) =>

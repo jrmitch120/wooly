@@ -9,12 +9,13 @@ namespace Wooly.Tui.Shell;
 ///     are the same key on different screens and one — <see cref="Delete" />, <see cref="Vote" /> — is a question put
 ///     before anything is done.
 ///     <para>
-///         What each becomes is <see cref="Shell.Do" />'s, but for ten of them, which need a terminal and are
+///         What each becomes is <see cref="Shell.Do" />'s, but for twelve of them, which need a terminal and are
 ///         <c>ShellWindow</c>'s: <see cref="Quit" />, which ends a run loop the application owns;
 ///         <see cref="ScrollDown" />, <see cref="ScrollUp" />, <see cref="PageDown" /> and <see cref="PageUp" />,
 ///         which walk the page rather than the list; <see cref="NextPost" />, <see cref="PreviousPost" />,
-///         <see cref="FirstPost" /> and <see cref="LastPost" />, which move the pick and the page both; and
-///         <see cref="Send" />, which has to take the editor widget's text before the shell sends it.
+///         <see cref="FirstPost" />, <see cref="LastPost" />, <see cref="NextSection" /> and
+///         <see cref="PreviousSection" />, which move the pick and the page both; and <see cref="Send" />, which has
+///         to take the editor widget's text before the shell sends it.
 ///     </para>
 /// </remarks>
 public enum Verb
@@ -54,6 +55,15 @@ public enum Verb
 
     /// <summary><c>End</c>: the last.</summary>
     LastPost,
+
+    /// <summary>
+    ///     <c>]</c>: the first thing of the next headed run — the posts a search found, from the accounts it found
+    ///     (#166). The pick moves, and the run's heading comes onto the page with it.
+    /// </summary>
+    NextSection,
+
+    /// <summary><c>[</c>: the first thing of the run before it.</summary>
+    PreviousSection,
 
     /// <summary><c>↓</c>: the screen moves a few rows and the pick stays where it was put.</summary>
     ScrollDown,

@@ -68,6 +68,12 @@ public enum ShellKey
     /// <summary><c>?</c>.</summary>
     Question,
 
+    /// <summary><c>[</c>.</summary>
+    LeftBracket,
+
+    /// <summary><c>]</c>.</summary>
+    RightBracket,
+
     /// <summary><c>a</c>.</summary>
     A,
 

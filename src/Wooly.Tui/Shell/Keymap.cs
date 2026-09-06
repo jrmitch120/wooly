@@ -86,6 +86,12 @@ public static class Keymap
         (ShellKey.Right, _) => Verb.NextReference,
         (ShellKey.Left, _) => Verb.PreviousReference,
 
+        // The fourth, which steps over whole runs of things rather than along them (#166). Bound on every screen for
+        // the reason the marks are: one that draws no headings has no run to move to and turns the key down, rather
+        // than the pair coming to mean something else where there is nothing for it to do.
+        (ShellKey.RightBracket, _) => Verb.NextSection,
+        (ShellKey.LeftBracket, _) => Verb.PreviousSection,
+
         // The keys that mean one thing wherever they are pressed, so that a screen with nothing for them to act on
         // turns them down rather than meaning something else by them.
         (ShellKey.B, _) => Verb.Boost,

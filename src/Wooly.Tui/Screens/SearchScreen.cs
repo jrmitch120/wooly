@@ -59,11 +59,12 @@ public sealed class SearchScreen : Screen
             return Picked is not null
                 ? PostKeys.Around(
                     new KeyHint("j/k", "result"),
-                    [new KeyHint("/", "search again")],
+                    [.. Jumping, new KeyHint("/", "search again")],
                     new KeyHint("tab", "destination"))
                 :
                 [
                     new KeyHint("j/k", "result"),
+                    .. Jumping,
                     new KeyHint("⏎", "open"),
                     new KeyHint("/", "search again"),
                     PostKeys.Scrolling,
@@ -72,6 +73,22 @@ public sealed class SearchScreen : Screen
                 ];
         }
     }
+
+    /// <summary>
+    ///     The key that moves between this screen's sections, said only where two or more kinds found something — and
+    ///     <c>section</c> rather than <c>kind</c>, because one key that means one thing shell-wide is named one way
+    ///     shell-wide (#166, amended by #172).
+    /// </summary>
+    /// <remarks>
+    ///     A key announced where it does nothing reads as a shell that missed the press, which is how the poll digits
+    ///     already behave. Counted as the headed runs this screen draws rather than as the kinds a search has, which
+    ///     are the same number here and would not be on a screen whose runs are not kinds: what the key can reach is
+    ///     what stands under a heading (<see cref="Heads" />), so that is what is counted — a search that turned up
+    ///     nothing but accounts draws one heading, and one run has nowhere to jump to.
+    /// </remarks>
+    private IReadOnlyList<KeyHint> Jumping => Enumerable.Range(0, _results.Count).Count(Heads) > 1
+        ? [new KeyHint("[/]", "section")]
+        : [];
 
     /// <inheritdoc />
     public override bool IsTyping => _typing;
@@ -189,28 +206,58 @@ public sealed class SearchScreen : Screen
         };
     }
 
-    /// <summary>What a kind of result is called, which is what the heading over the run of them says.</summary>
-    private static string Called(Result result) => result switch
+    /// <summary>
+    ///     What a kind of result is called, which is what the heading over the run of them says — with how many were
+    ///     found, the <c>── {n} replies ──</c> vocabulary the post screen already speaks.
+    /// </summary>
+    /// <remarks>
+    ///     The count costs nothing, being in hand already, and it tells a reader whether the run below is worth
+    ///     walking or worth jumping past (#166).
+    /// </remarks>
+    private static string Called(Result result, int found) => result switch
     {
-        Result.OfAccount => "── accounts ──",
-        Result.OfHashtag => "── hashtags ──",
-        _ => "── posts ──",
+        Result.OfAccount => $"── {found} accounts ──",
+        Result.OfHashtag => $"── {found} hashtags ──",
+        _ => $"── {found} posts ──",
     };
 
     /// <summary>
     ///     The heading over the result at <paramref name="at" />, where it is the first of its kind — so a kind
     ///     nothing was found of gets no heading, rather than a heading over nothing.
     /// </summary>
+    /// <remarks>
+    ///     Marked as a heading rather than only drawn like one, which is what <c>[</c> and <c>]</c> move between and
+    ///     what a jump brings onto the page with the result it lands on: the runs the reader can see are then the runs
+    ///     the key knows about, with no second count of them kept anywhere (<see cref="Sections" />).
+    /// </remarks>
     private IReadOnlyList<Line> Heading(int at)
     {
+        if (!Heads(at))
+        {
+            return [];
+        }
+
         var result = _results.All[at];
 
-        // Asked of the kind rather than of what its heading says, so that two kinds could never come to share one
-        // heading by being called the same thing.
-        return at > 0 && _results.All[at - 1].GetType() == result.GetType()
-            ? []
-            : [Line.Of(Called(result), Role.Muted), Line.Blank];
+        // The whole run rather than what is left of it, which is the same number here — the results of a kind are
+        // contiguous, being the order the instance's three lists were laid end to end in.
+        var found = _results.All.Count(one => one.GetType() == result.GetType());
+
+        return [Line.Of(Called(result, found), Role.Muted).Heading(), Line.Blank];
     }
+
+    /// <summary>
+    ///     Whether the result at <paramref name="at" /> is the first of its kind, and so the one a heading stands
+    ///     over — which is the whole of where a run begins on this screen.
+    /// </summary>
+    /// <remarks>
+    ///     Asked of the kind rather than of what a heading says, so that two kinds could never come to share one
+    ///     heading by being called the same thing. Said here rather than twice, because the runs
+    ///     <see cref="Jumping" /> counts have to be the runs <see cref="Heading" /> draws: a status row announcing a
+    ///     key against a second count of its own is how the two come to disagree — on this screen the day a kind stops
+    ///     earning a heading, and on the next screen to take this key the day its runs are not kinds at all.
+    /// </remarks>
+    private bool Heads(int at) => at == 0 || _results.All[at - 1].GetType() != _results.All[at].GetType();
 
     /// <summary>A tag and how much use it has had lately, which is what makes one result worth reading over another.</summary>
     private static Line Tag(Hashtag hashtag, int width)

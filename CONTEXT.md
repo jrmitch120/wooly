@@ -352,6 +352,18 @@ following, which is what opens a pushed screen, an **Arrival** and a **Refresh**
 which of the three it is.
 _Avoid_: scroll state, viewport
 
+**Section**:
+A run of the things on one screen under a heading of its own — the accounts a search found, then its hashtags, then its
+posts — and what `[` and `]` move the **Picked** thing between, a whole run at a time (#166). Said the same way on
+every screen that has them, which is why the status row reads `[/]:section` rather than naming what this screen's runs
+happen to be. A section is a fact about the *rows*: a heading row says it heads what follows (`Line.Heads`) exactly as
+every other row says which thing it is part of, so the sections a reader can see and the sections the key moves between
+are the same sections by construction, with no screen keeping a second count of its own (`Sections`, `Scroll.ToSection`).
+The list underneath is not sectioned at all — one `Picked` across the lot, in the order it is drawn — so a section is a
+way of *reading* a list rather than a way of holding one. A heading carries how many are under it where that total is a
+fact (`── 7 accounts ──`); a run with nothing in it draws no heading, and so is no section.
+_Avoid_: kind (which is what a search result *is*, not where it sits), tab, group, category, fold
+
 **Reference**:
 A hashtag, a mention, or an address found inside written text — a post's, and since ADR-0019 an account's **Bio** and
 its **Custom field**s too — or an **Attachment**'s own address, once it is not drawn as a picture in its own right
