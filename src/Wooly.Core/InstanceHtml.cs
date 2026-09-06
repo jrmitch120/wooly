@@ -1,14 +1,19 @@
 using System.Net;
 using System.Text;
 
-namespace Wooly.Core.Posts;
+namespace Wooly.Core;
 
 /// <summary>
-///     Flattens the HTML an instance serves a post's text as into the plain text a terminal can print. Mastodon emits a
+///     Flattens the HTML an instance serves written text as into the plain text a terminal can print. Mastodon emits a
 ///     small, predictable subset — paragraphs, line breaks, and links — so this reads that subset rather than pulling
 ///     in an HTML parser for a job that never sees arbitrary markup.
+///     <para>
+///         It sits outside <see cref="Posts" /> because a post's content is not the only thing served as that subset:
+///         an account's bio is the same markup, and two flatteners over the one subset is how a bio comes to render
+///         differently from the post beneath it.
+///     </para>
 /// </summary>
-internal static class PostContent
+internal static class InstanceHtml
 {
     /// <summary>Turns <paramref name="html" /> into plain text, preserving where the lines were.</summary>
     public static string ToPlainText(string? html)
@@ -52,8 +57,8 @@ internal static class PostContent
         // Decoded last, so an entity for '<' in the user's own text cannot be read as a tag by the loop above.
         var plain = WebUtility.HtmlDecode(text.ToString());
 
-        // A post is one block of text however many blank lines its HTML implied; three of them in a terminal is the
-        // markup showing through.
+        // What was written is one block of text however many blank lines its HTML implied; three of them in a
+        // terminal is the markup showing through.
         return CollapseBlankLines(plain).Trim();
     }
 

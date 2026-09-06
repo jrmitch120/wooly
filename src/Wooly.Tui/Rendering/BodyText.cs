@@ -9,7 +9,7 @@ namespace Wooly.Tui.Rendering;
 ///     between them (#46, #83).
 /// </summary>
 /// <remarks>
-///     Found on the flattened plain text rather than on the HTML it arrived as: <c>PostContent</c> discards the
+///     Found on the flattened plain text rather than on the HTML it arrived as: <c>InstanceHtml</c> discards the
 ///     instance's own <c>class="mention"</c> on the way through, and keeping that structure would change
 ///     <c>Post.Content</c>, which the CLI prints too. <c>#tag</c> and <c>@user@instance</c> are unambiguous in plain
 ///     text; an address is matched by pattern, so a bare domain somebody typed as prose is painted as a link. That is

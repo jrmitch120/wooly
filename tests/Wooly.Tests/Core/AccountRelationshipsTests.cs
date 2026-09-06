@@ -79,6 +79,128 @@ public class AccountRelationshipsTests
     }
 
     /// <summary>
+    ///     The six facts an account says about itself, off one full payload (ADR-0019). The bio arrives as the same
+    ///     HTML a post's content does and comes out as the same plain text; the joining is a day rather than an
+    ///     instant, since nothing on a profile measures an age in hours.
+    /// </summary>
+    [Fact]
+    public async Task Show_ReadsWhatTheAccountSaysAboutItself()
+    {
+        var network = Answering(
+            Accounts(AccountJson(
+                "alice@hachyderm.io",
+                id: "42",
+                note: "<p>Cat photographer.</p><p>She/her</p>",
+                avatar: "https://hachyderm.io/avatars/alice.png",
+                locked: true,
+                bot: true,
+                fields: [
+                    FieldJson("Site", """<a href="https://alice.test">alice.test</a>""", verifiedAt: "2024-03-04T05:06:07.000+00:00"),
+                    FieldJson("Pronouns", "she/her"),
+                ])),
+            Accounts(Relationship("42")));
+
+        var account = await Relationships(network)
+            .Show(Profile, AccountAddress.Parse("alice@hachyderm.io"), TestContext.Current.CancellationToken);
+
+        Assert.Equal("Cat photographer.\n\nShe/her", account.Bio);
+        Assert.Equal(new DateOnly(2020, 1, 1), account.Joined);
+        Assert.True(account.IsLocked);
+        Assert.True(account.IsBot);
+        Assert.Equal("https://hachyderm.io/avatars/alice.png", account.AvatarUrl);
+
+        Assert.Collection(
+            account.Fields,
+            site =>
+            {
+                Assert.Equal("Site", site.Label);
+                Assert.Equal("alice.test", site.Said);
+                Assert.Equal(new DateTimeOffset(2024, 3, 4, 5, 6, 7, TimeSpan.Zero), site.Verified);
+            },
+            pronouns =>
+            {
+                Assert.Equal("Pronouns", pronouns.Label);
+                Assert.Equal("she/her", pronouns.Said);
+                Assert.Null(pronouns.Verified);
+            });
+    }
+
+    /// <summary>
+    ///     An account that filled none of it in. Empty is empty rather than absent on all of these: Mastodon sends
+    ///     every one of them on every account entity it serves, so there is no state in which the question went
+    ///     unasked — which is what tells them apart from a <see cref="AccountStanding" />.
+    /// </summary>
+    [Fact]
+    public async Task Show_ReadsAnAccountThatFilledNoneOfItInAsEmptyRatherThanAbsent()
+    {
+        var network = Answering(
+            Accounts(AccountJson("alice@hachyderm.io", id: "42", note: "", avatar: "", fields: [])),
+            Accounts(Relationship("42")));
+
+        var account = await Relationships(network)
+            .Show(Profile, AccountAddress.Parse("alice@hachyderm.io"), TestContext.Current.CancellationToken);
+
+        Assert.Equal(string.Empty, account.Bio);
+        Assert.Empty(account.Fields);
+        Assert.Null(account.AvatarUrl);
+        Assert.False(account.IsLocked);
+        Assert.False(account.IsBot);
+    }
+
+    /// <summary>
+    ///     An instance that leaves the lot out entirely — which is not a payload Mastodon sends, but is what a
+    ///     client library hands back for a field it did not find, and reading a missing list as null is how a
+    ///     header comes to throw on an account nobody decorated.
+    /// </summary>
+    [Fact]
+    public async Task Show_ReadsAnAccountTheInstanceSentTheBareMinimumForWithoutFailing()
+    {
+        var network = Answering(
+            Accounts("""{"id":"42","username":"alice","acct":"alice@hachyderm.io","display_name":"Alice"}"""),
+            Accounts(Relationship("42")));
+
+        var account = await Relationships(network)
+            .Show(Profile, AccountAddress.Parse("alice@hachyderm.io"), TestContext.Current.CancellationToken);
+
+        Assert.Equal(string.Empty, account.Bio);
+        Assert.Empty(account.Fields);
+        Assert.Null(account.AvatarUrl);
+        Assert.False(account.IsLocked);
+        Assert.False(account.IsBot);
+    }
+
+    /// <summary>
+    ///     The note the profile wrote about the account, which rides on every relationship this client reads and was
+    ///     being dropped. Read-only: writing one is out of scope (ADR-0012).
+    /// </summary>
+    [Fact]
+    public async Task Show_ReadsThePrivateNoteTheProfileWroteAboutTheAccount()
+    {
+        var network = Answering(
+            Accounts(AccountJson("alice@hachyderm.io", id: "42")),
+            Accounts(Relationship("42", note: "Met at FOSDEM")));
+
+        var account = await Relationships(network)
+            .Show(Profile, AccountAddress.Parse("alice@hachyderm.io"), TestContext.Current.CancellationToken);
+
+        Assert.Equal("Met at FOSDEM", account.Standing?.Note);
+    }
+
+    /// <summary>A profile that wrote no note gets an empty string from the wire, which is nothing rather than "".</summary>
+    [Fact]
+    public async Task Show_ReadsAnUnwrittenNoteAsNothing()
+    {
+        var network = Answering(
+            Accounts(AccountJson("alice@hachyderm.io", id: "42")),
+            Accounts(Relationship("42")));
+
+        var account = await Relationships(network)
+            .Show(Profile, AccountAddress.Parse("alice@hachyderm.io"), TestContext.Current.CancellationToken);
+
+        Assert.Null(account.Standing?.Note);
+    }
+
+    /// <summary>
     ///     Only an exact match is taken, the same way <see cref="IAccountRelationships.Set" /> takes one: showing the
     ///     wrong account is how somebody comes to follow, block or mute the wrong account from the screen it opens.
     /// </summary>
@@ -338,7 +460,14 @@ public class AccountRelationshipsTests
     ///     The wire's <c>acct</c>: bare for an account on the instance being read, <c>username@instance</c> for one
     ///     anywhere else.
     /// </param>
-    private static string AccountJson(string account, string id) =>
+    private static string AccountJson(
+        string account,
+        string id,
+        string note = "<p>Hello</p>",
+        string avatar = "https://hachyderm.io/avatars/default.png",
+        bool locked = false,
+        bool bot = false,
+        string[]? fields = null) =>
         $$"""
           {
             "id": "{{id}}",
@@ -346,6 +475,11 @@ public class AccountRelationshipsTests
             "acct": "{{account}}",
             "display_name": "Alice",
             "url": "https://{{(account.Contains('@') ? account.Split('@')[1] : "mastodon.social")}}/@{{account.Split('@')[0]}}",
+            "note": "{{note.Replace("\"", "\\\"")}}",
+            "avatar": "{{avatar}}",
+            "locked": {{Json(locked)}},
+            "bot": {{Json(bot)}},
+            "fields": [{{string.Join(",", fields ?? [])}}],
             "created_at": "2020-01-01T00:00:00.000Z",
             "followers_count": 1203,
             "following_count": 187,
@@ -353,21 +487,40 @@ public class AccountRelationshipsTests
           }
           """;
 
+    /// <param name="verifiedAt">When the instance proved the row's link belongs to the account, or nothing for a row nobody proved.</param>
+    private static string FieldJson(string label, string said, string? verifiedAt = null) =>
+        $$"""
+          {
+            "name": "{{label}}",
+            "value": "{{said.Replace("\"", "\\\"")}}",
+            "verified_at": {{(verifiedAt is null ? "null" : $"\"{verifiedAt}\"")}}
+          }
+          """;
+
+    private static string Json(bool flag) => flag.ToString().ToLowerInvariant();
+
+    /// <param name="note">
+    ///     The wire's <c>note</c>, which on a relationship is the profile's own private note about the account — not
+    ///     the account's bio, whatever Mastonet's doc comment says. Empty is what an instance sends for a note nobody
+    ///     wrote.
+    /// </param>
     private static string Relationship(
         string id,
         bool following = false,
         bool requested = false,
         bool followedBy = false,
         bool blocking = false,
-        bool muting = false) =>
+        bool muting = false,
+        string note = "") =>
         $$"""
           {
             "id": "{{id}}",
-            "following": {{following.ToString().ToLowerInvariant()}},
-            "requested": {{requested.ToString().ToLowerInvariant()}},
-            "followed_by": {{followedBy.ToString().ToLowerInvariant()}},
-            "blocking": {{blocking.ToString().ToLowerInvariant()}},
-            "muting": {{muting.ToString().ToLowerInvariant()}}
+            "following": {{Json(following)}},
+            "requested": {{Json(requested)}},
+            "followed_by": {{Json(followedBy)}},
+            "blocking": {{Json(blocking)}},
+            "muting": {{Json(muting)}},
+            "note": "{{note}}"
           }
           """;
 }

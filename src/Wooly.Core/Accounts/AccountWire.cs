@@ -27,14 +27,41 @@ internal static class AccountWire
         Followers = account.FollowersCount,
         Following = account.FollowingCount,
         Posts = account.StatusesCount,
+
+        // The same flattener a post's content goes through, because a bio is the same HTML subset an instance serves
+        // that as. Empty in means empty out: an account with no bio has one, and it is nothing.
+        Bio = InstanceHtml.ToPlainText(account.Note),
+
+        // Mastonet leaves this null rather than empty where an account set no rows, the way it does a post's media.
+        Fields = account.Fields?.Select(ToField).ToList() ?? [],
+
+        // Read as the day it was, not the moment: Mastodon stamps this in UTC like everything else, so the day is
+        // taken there rather than wherever this machine happens to be.
+        Joined = DateOnly.FromDateTime(MastodonWire.AsUtc(account.CreatedAt).UtcDateTime),
+        IsLocked = account.Locked,
+
+        // Nullable on the way in because that is how the client library types the field; an instance that said
+        // nothing has an account nobody marked.
+        IsBot = account.Bot ?? false,
         Url = account.ProfileUrl,
+
+        // The wire says "no avatar" with an empty string, the same way it says "no bio" with one.
+        AvatarUrl = MastodonWire.SaidOrNothing(account.AvatarUrl),
         Standing = standing is null ? null : ToStanding(standing),
     };
 
+    /// <summary>One row under an account's bio, with what it says flattened the way the bio above it is.</summary>
+    private static AccountField ToField(Field field) => new()
+    {
+        Label = field.Name,
+        Said = InstanceHtml.ToPlainText(field.Value),
+        Verified = field.VerifiedAt is { } verified ? MastodonWire.AsUtc(verified) : null,
+    };
+
     /// <summary>
-    ///     The five facts this client acts on, out of the thirteen a relationship carries. The rest — endorsements,
-    ///     domain blocks, whether boosts are shown — belong to commands this client does not have, and a record holding
-    ///     them would promise answers no command here can give.
+    ///     The five ties this client acts on and the note it reads, out of the thirteen facts a relationship carries.
+    ///     The rest — endorsements, domain blocks, whether boosts are shown — belong to commands this client does not
+    ///     have, and a record holding them would promise answers no command here can give.
     /// </summary>
     private static AccountStanding ToStanding(Relationship relationship) => new()
     {
@@ -43,5 +70,9 @@ internal static class AccountWire
         FollowedBy = relationship.FollowedBy,
         Blocking = relationship.Blocking,
         Muting = relationship.Muting,
+
+        // The profile's own private note about the account, which Mastonet's doc comment misnames "this user's
+        // profile bio" — the bio is a different field, read off the account above. Empty is a note nobody wrote.
+        Note = MastodonWire.SaidOrNothing(relationship.Note),
     };
 }

@@ -24,6 +24,12 @@ internal static class MastodonWire
     /// </summary>
     public static string Qualify(string acct, string instance) => acct.Contains('@') ? acct : $"{acct}@{instance}";
 
+    /// <summary>
+    ///     What the wire said, or <see langword="null" /> where what it said was nothing — which it spells as an empty
+    ///     string on every field it has nothing to put in, rather than leaving the field out.
+    /// </summary>
+    public static string? SaidOrNothing(string? said) => string.IsNullOrWhiteSpace(said) ? null : said;
+
     /// <summary>The name an account chose to be shown as, falling back to its username where it chose none.</summary>
     public static string DisplayName(Account account) =>
         string.IsNullOrWhiteSpace(account.DisplayName) ? account.UserName : account.DisplayName;

@@ -1,13 +1,14 @@
-using Wooly.Core.Posts;
+using Wooly.Core;
 
 namespace Wooly.Tests.Core;
 
 /// <summary>
-///     A post's text arrives as HTML and has to come out as something a terminal can print. This is a pure function
-///     over a string, and it is tested as one rather than through <c>TimelineReader</c>: the cases that matter are the
-///     shapes of markup an instance sends, and a table of them says that far more plainly than a table of payloads.
+///     A post's text and an account's bio both arrive as HTML and have to come out as something a terminal can print.
+///     This is a pure function over a string, and it is tested as one rather than through <c>TimelineReader</c>: the
+///     cases that matter are the shapes of markup an instance sends, and a table of them says that far more plainly
+///     than a table of payloads.
 /// </summary>
-public class PostContentTests
+public class InstanceHtmlTests
 {
     [Theory]
     // The ordinary case: one paragraph, nothing else.
@@ -37,6 +38,6 @@ public class PostContentTests
     // However many blank lines the markup implied, a post is one block of text — three in a row is the HTML showing
     // through.
     [InlineData("<p>Above</p><p></p><p></p><p>Below</p>", "Above\n\nBelow")]
-    public void ToPlainText_FlattensTheMarkupAnInstanceSendsAPostsTextAs(string? html, string expected) =>
-        Assert.Equal(expected, PostContent.ToPlainText(html));
+    public void ToPlainText_FlattensTheMarkupAnInstanceSendsWrittenTextAs(string? html, string expected) =>
+        Assert.Equal(expected, InstanceHtml.ToPlainText(html));
 }

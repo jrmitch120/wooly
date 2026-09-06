@@ -1,9 +1,9 @@
 namespace Wooly.Core.Accounts;
 
 /// <summary>
-///     One Mastodon account, as an instance describes it: who they are, where to read them, and how much of a presence
-///     they have. Distinct from a local <see cref="Profiles.ProfileSummary" />, which is this client's own credential
-///     entry pointing at one of these (CONTEXT.md).
+///     One Mastodon account, as an instance describes it: who they are, what they say about themselves, where to read
+///     them, and how much of a presence they have. Distinct from a local <see cref="Profiles.ProfileSummary" />, which
+///     is this client's own credential entry pointing at one of these (CONTEXT.md).
 ///     <para>
 ///         The two facts a post already carries about its author — the address and the name shown — are named here with
 ///         the same two words a post names them with, so that <c>account</c> and <c>author</c> mean the same thing
@@ -34,8 +34,37 @@ public sealed record Account
     /// <summary>How many posts it has published.</summary>
     public required long Posts { get; init; }
 
+    /// <summary>
+    ///     The bio (CONTEXT.md), as the plain text a terminal can print, and an empty string where the account wrote
+    ///     none. Never <see langword="null" />: this and the four below it ride on every account entity Mastodon
+    ///     sends, so there is no state in which the question went unput — which is what tells them from
+    ///     <see cref="Standing" />.
+    /// </summary>
+    public required string Bio { get; init; }
+
+    /// <summary>The custom fields the account set, in the order it set them, and empty where it set none.</summary>
+    public required IReadOnlyList<AccountField> Fields { get; init; }
+
+    /// <summary>
+    ///     The day the account was created. A day rather than an instant, because nothing a profile shows measures its
+    ///     age in hours and a time of day here would only invite one to be printed.
+    /// </summary>
+    public required DateOnly Joined { get; init; }
+
+    /// <summary>
+    ///     Whether the account approves its followers by hand, which is what makes following it leave a request behind
+    ///     rather than a follow (<see cref="AccountStanding.IsFollowWaiting" />).
+    /// </summary>
+    public required bool IsLocked { get; init; }
+
+    /// <summary>Whether the account says it posts automatically rather than by hand.</summary>
+    public required bool IsBot { get; init; }
+
     /// <summary>Where to read it on the web, or <see langword="null" /> if the instance did not say.</summary>
     public string? Url { get; init; }
+
+    /// <summary>The account's avatar, or <see langword="null" /> if the instance did not say — the same as <see cref="Url" />.</summary>
+    public string? AvatarUrl { get; init; }
 
     /// <summary>
     ///     Where the profile's own account stands with this one, or <see langword="null" /> where the instance was not

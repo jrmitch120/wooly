@@ -21,10 +21,10 @@ internal static class PostWire
         Account = MastodonWire.Qualify(status.Account, instance),
         Author = MastodonWire.DisplayName(status.Account),
         PostedAt = MastodonWire.AsUtc(status.CreatedAt),
-        Content = PostContent.ToPlainText(status.Content),
+        Content = InstanceHtml.ToPlainText(status.Content),
 
         // The wire says "no warning" with an empty string, which is not the same thing as a warning to print.
-        ContentWarning = SaidOrNothing(status.SpoilerText),
+        ContentWarning = MastodonWire.SaidOrNothing(status.SpoilerText),
 
         // The other half of what a post is put behind, and the half with no text to read it off: an instance marks
         // media sensitive on its own account, and most often with no warning written at all (#113). Nullable on the
@@ -57,7 +57,7 @@ internal static class PostWire
         Url = status.Url,
 
         // The wire says "no avatar" with an empty string, the same as it says "no warning" above.
-        AvatarUrl = SaidOrNothing(status.Account.AvatarUrl),
+        AvatarUrl = MastodonWire.SaidOrNothing(status.Account.AvatarUrl),
         InReplyTo = ToReplyTarget(status, instance),
         Poll = status.Poll is null ? null : ToPoll(status.Poll),
         LinkPreview = ToLinkPreview(status.Card),
@@ -85,19 +85,13 @@ internal static class PostWire
 
             // The wire says "nothing made of this" with an empty string, the same way it says "no warning" above —
             // every one of these is a field an instance sends blank rather than leaves out.
-            Title = SaidOrNothing(card.Title),
-            Description = SaidOrNothing(card.Description),
-            ProviderName = SaidOrNothing(card.ProviderName),
-            Image = SaidOrNothing(card.Image),
-            Author = SaidOrNothing(card.AuthorName),
+            Title = MastodonWire.SaidOrNothing(card.Title),
+            Description = MastodonWire.SaidOrNothing(card.Description),
+            ProviderName = MastodonWire.SaidOrNothing(card.ProviderName),
+            Image = MastodonWire.SaidOrNothing(card.Image),
+            Author = MastodonWire.SaidOrNothing(card.AuthorName),
         };
     }
-
-    /// <summary>
-    ///     What the wire said, or <see langword="null" /> where what it said was nothing — which it spells as an empty
-    ///     string on every field it has nothing to put in, rather than leaving the field out.
-    /// </summary>
-    private static string? SaidOrNothing(string? said) => string.IsNullOrWhiteSpace(said) ? null : said;
 
     /// <summary>
     ///     What a reply answers, or <see langword="null" /> for a post that answers nothing. A self-reply's handle is
@@ -164,11 +158,11 @@ internal static class PostWire
         Id = attachment.Id,
         Kind = ToKind(attachment.Type),
         Url = attachment.Url,
-        Preview = SaidOrNothing(attachment.PreviewUrl),
+        Preview = MastodonWire.SaidOrNothing(attachment.PreviewUrl),
 
         // The wire says "described as nothing" with an empty string, which is not the same thing as a description to
         // read out.
-        Description = SaidOrNothing(attachment.Description),
+        Description = MastodonWire.SaidOrNothing(attachment.Description),
     };
 
     /// <summary>
