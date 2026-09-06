@@ -510,6 +510,70 @@ public class TimelineReaderTests
     }
 
     /// <summary>
+    ///     The sixth scope is the account read with both of its filters flipped: pins are what an account fastened to
+    ///     the top of their profile, they are often replies, and dropping replies is what makes a pinned reply
+    ///     unreachable through <see cref="Timeline.By" />.
+    /// </summary>
+    [Fact]
+    public async Task Read_AsksForAnAccountsPinnedPostsWithTheRepliesLeftIn()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json("""[{"id": "42", "username": "alice", "acct": "alice@hachyderm.io"}]"""),
+            ScriptedHttpMessageHandler.Json(Page(PostJson("110"))));
+
+        var fetch = await NewReader(network).Read(
+            Profile,
+            Timeline.Pinned(AccountAddress.Parse("alice@hachyderm.io")),
+            20,
+            TestContext.Current.CancellationToken);
+
+        // The same lookup the account timeline pays for: this endpoint takes an id where a user has an address.
+        Assert.Equal(
+            "https://mastodon.social/api/v1/accounts/search?q=alice%40hachyderm.io&limit=10&resolve=true",
+            network.Requests[0].RequestUri?.ToString());
+        Assert.Equal(
+            "https://mastodon.social/api/v1/accounts/42/statuses?pinned=true&limit=20",
+            network.Requests[1].RequestUri?.ToString());
+
+        Assert.Single(fetch.Items);
+    }
+
+    /// <summary>
+    ///     A pinned run is complete in one page, and an instance answers it short of the limit and with no link header
+    ///     — so the collecting loop ends on the ordinary rule it ends every scope on, rather than asking for a second
+    ///     page that does not exist. ADR-0007's one paging path handles this without knowing it is special.
+    /// </summary>
+    [Fact]
+    public async Task Read_CollectsTheOnePageOfPinnedPostsAndStops()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json("""[{"id": "42", "username": "alice", "acct": "alice@hachyderm.io"}]"""),
+            PageResponse(PageOf(count: 2, firstId: 110)));
+
+        var fetch = await NewReader(network).Read(
+            Profile,
+            Timeline.Pinned(AccountAddress.Parse("alice@hachyderm.io")),
+            40,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, fetch.Items.Count);
+        Assert.True(fetch.IsComplete);
+        Assert.Equal(2, network.Requests.Count);
+    }
+
+    /// <summary>
+    ///     The sixth scope is named too — <see cref="Timeline.Description" /> throws on an unnamed one by design, so a
+    ///     scope added without coming here is a defect rather than a vague phrase on screen.
+    /// </summary>
+    [Fact]
+    public void Description_NamesAnAccountsPinnedPostsApartFromTheirTimeline()
+    {
+        Assert.Equal(
+            "the pinned posts of @alice@hachyderm.io",
+            Timeline.Pinned(AccountAddress.Parse("alice@hachyderm.io")).Description);
+    }
+
+    /// <summary>
     ///     An instance serves at most a page at a time, so more posts than that is more than one call — and the caller
     ///     asked for posts, not pages.
     /// </summary>

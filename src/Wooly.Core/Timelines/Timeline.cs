@@ -20,7 +20,7 @@ public sealed record Timeline
     public TimelineScope Scope { get; }
 
     /// <summary>
-    ///     The hashtag being read, without its leading <c>#</c>, or <see langword="null" /> for the other three. Always
+    ///     The hashtag being read, without its leading <c>#</c>, or <see langword="null" /> for the other five. Always
     ///     one word, because <see cref="Tag" /> is the only way to set it — which is what makes it safe to put in a
     ///     request path (see <see cref="Timelines.Hashtag" />).
     /// </summary>
@@ -62,6 +62,13 @@ public sealed record Timeline
     public static Timeline By(AccountAddress account) => new(TimelineScope.Account, account: account);
 
     /// <summary>
+    ///     The posts the account <paramref name="account" /> names has pinned to the top of their profile, replies
+    ///     included — a separate reading from <see cref="By" /> rather than a filter over it, because an instance
+    ///     reports a post's own pin mark only to whoever wrote it.
+    /// </summary>
+    public static Timeline Pinned(AccountAddress account) => new(TimelineScope.Pinned, account: account);
+
+    /// <summary>
     ///     What to call this timeline in a sentence, e.g. "No posts in <em>the federated timeline</em>." A hashtag is
     ///     the user's own text, so anything rendering this has to treat it as text rather than markup.
     /// </summary>
@@ -72,6 +79,7 @@ public sealed record Timeline
         TimelineScope.Federated => "the federated timeline",
         TimelineScope.Tag => $"the #{Hashtag} timeline",
         TimelineScope.Account => $"the posts of @{Account}",
+        TimelineScope.Pinned => $"the pinned posts of @{Account}",
 
         // Unreachable, and said so rather than answered with a vague phrase: a timeline this client cannot name is one
         // somebody added to the enum without coming here, which is a defect to read about, not prose to show a user.

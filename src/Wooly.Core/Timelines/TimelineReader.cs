@@ -69,6 +69,19 @@ public sealed class TimelineReader(IMastodonClientFactory clientFactory) : ITime
                 excludeReplies: true,
                 pinned: false,
                 excludeReblogs: false),
+
+            // The same endpoint with both of those flipped. Replies come back because a pin is often one, and leaving
+            // them out above is exactly what puts a pinned reply out of reach. One page, no link header, so the
+            // collecting loop stops of its own accord — ADR-0007's one paging path, unchanged. It never reaches that
+            // loop's max_id cursor either, which would be wrong for a run in the account's pin order rather than
+            // newest first: an instance caps pins far below a page, so the run always arrives short and stops there.
+            TimelineScope.Pinned => client.GetAccountStatuses(
+                accountId!,
+                options,
+                onlyMedia: false,
+                excludeReplies: false,
+                pinned: true,
+                excludeReblogs: false),
             _ => throw new ArgumentOutOfRangeException(nameof(timeline), timeline.Scope, "Not a timeline this client reads."),
         };
 }
