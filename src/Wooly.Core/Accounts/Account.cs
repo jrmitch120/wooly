@@ -63,7 +63,12 @@ public sealed record Account
     /// <summary>Where to read it on the web, or <see langword="null" /> if the instance did not say.</summary>
     public string? Url { get; init; }
 
-    /// <summary>The account's avatar, or <see langword="null" /> if the instance did not say — the same as <see cref="Url" />.</summary>
+    /// <summary>
+    ///     Where the account's avatar is, or <see langword="null" /> if the instance did not say. The one of the six
+    ///     facts ADR-0019 added that is nullable, because it is an address rather than something written: an empty
+    ///     string is nothing to fetch and nothing to open, so it is spelled the way <see cref="Url" /> already is and
+    ///     the way a post spells the same wire field. Nothing is lost — there is no avatar an account wrote as blank.
+    /// </summary>
     public string? AvatarUrl { get; init; }
 
     /// <summary>

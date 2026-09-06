@@ -15,11 +15,6 @@ internal static class AnAccount
         long following = 187,
         long posts = 4210,
         string id = "42",
-        string bio = "Cat photographer.",
-        IReadOnlyList<AccountField>? fields = null,
-        DateOnly? joined = null,
-        bool isLocked = false,
-        bool isBot = false,
         AccountStanding? standing = null) => new()
     {
         Id = id,
@@ -28,19 +23,15 @@ internal static class AnAccount
         Followers = followers,
         Following = following,
         Posts = posts,
-        Bio = bio,
-        Fields = fields ?? [],
-        Joined = joined ?? new DateOnly(2020, 1, 1),
-        IsLocked = isLocked,
-        IsBot = isBot,
+        Bio = "Cat photographer.",
+        Fields = [],
+        Joined = new DateOnly(2020, 1, 1),
+        IsLocked = false,
+        IsBot = false,
         Url = $"https://hachyderm.io/@{address.Split('@')[0]}",
         AvatarUrl = $"https://hachyderm.io/avatars/{address.Split('@')[0]}.png",
         Standing = standing,
     };
-
-    /// <summary>One row under an account's bio, verified or not as a test says.</summary>
-    public static AccountField Field(string label = "Site", string said = "alice.test", DateTimeOffset? verified = null) =>
-        new() { Label = label, Said = said, Verified = verified };
 
     /// <summary>Where the profile stands with an account, with nothing in place but what a test says is.</summary>
     public static AccountStanding Standing(
@@ -48,14 +39,12 @@ internal static class AnAccount
         bool followRequested = false,
         bool followedBy = false,
         bool blocking = false,
-        bool muting = false,
-        string? note = null) => new()
+        bool muting = false) => new()
     {
         Following = following,
         FollowRequested = followRequested,
         FollowedBy = followedBy,
         Blocking = blocking,
         Muting = muting,
-        Note = note,
     };
 }
