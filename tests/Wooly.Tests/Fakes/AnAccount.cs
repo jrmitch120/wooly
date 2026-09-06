@@ -23,7 +23,13 @@ internal static class AnAccount
         Followers = followers,
         Following = following,
         Posts = posts,
+        Bio = "Cat photographer.",
+        Fields = [],
+        Joined = new DateOnly(2020, 1, 1),
+        IsLocked = false,
+        IsBot = false,
         Url = $"https://hachyderm.io/@{address.Split('@')[0]}",
+        AvatarUrl = $"https://hachyderm.io/avatars/{address.Split('@')[0]}.png",
         Standing = standing,
     };
 

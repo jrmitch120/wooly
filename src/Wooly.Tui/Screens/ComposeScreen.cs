@@ -294,7 +294,7 @@ public sealed class ComposeScreen : Screen
     /// </returns>
     /// <remarks>
     ///     Three rows of what was said, and blank ones are not among them (#141). A post's paragraphs arrive as blank
-    ///     lines — <c>PostContent.ToPlainText</c> turns <c>&lt;/p&gt;</c> into two newlines and <c>TextWrap</c> keeps
+    ///     lines — <c>InstanceHtml.ToPlainText</c> turns <c>&lt;/p&gt;</c> into two newlines and <c>TextWrap</c> keeps
     ///     the author's own breaks — so a quote that took its three rows in order spent one of them on a gap, and gave
     ///     the reader two rows of words where there was room for three.
     ///     <para>
