@@ -42,9 +42,11 @@ A screen is a place in the stack, not a window. Entering one pushes, `esc` pops,
 | Feed — home, local, federated, the rail's own hashtag | A rail destination | #28 |
 | Hashtag — a tag walked to, not the rail's own | A search result, or `⏎` on a picked hashtag reference | #29, reference #65 |
 | Post — the post whole, its ancestor chain above and its replies below | `⏎` on a feed item | #28, ancestors #72 |
-| Account — who wrote it, standing, their posts | `a` on a feed item or inside a post | shell #28, tie actions #29 |
+| Account — who they are, what they are to you, their pinned posts and their posts | `a` on a feed item or inside a post | shell #28, tie actions #29, the person #164, pinned #172 |
+| Follows — everyone an account follows, or everyone who follows it | `w` on an account, `s` to swap sides | #165 |
 | Notifications | A rail destination | #29 |
-| Search — prompt and results | A rail destination, or `/` | #29 |
+| Search — prompt and results | A rail destination, or `/` | #29, moving between kinds #166 |
+| Discover — who to follow, in sections by why | A rail destination | #171 |
 | Follow requests | A rail destination | #29 |
 | Direct messages — conversations, then a thread | A rail destination | #30 |
 | Compose / reply / edit — a screen on the stack, like any other | `c`, `r` or `e` | #28 |
@@ -91,13 +93,16 @@ Screen-local, and deliberately colliding with the above because they are never o
 
 | Screen | Keys |
 |---|---|
-| Account | `F` follow/unfollow · `M` mute/unmute · `B` block/unblock — capitals, so a lower-case mark key can never fire a tie by accident |
+| Account | `F` follow/unfollow · `M` mute/unmute · `B` block/unblock — capitals, so a lower-case mark key can never fire a tie by accident · `w` who they follow · `[`/`]` section, on an account carrying a pinned run |
+| Follows — following or followers | `f` filter, on a list under the threshold · `s` swap to the other side, in place · `⏎` open that account |
+| Search results | `[`/`]` kind, where two or more kinds found something |
+| Discover | `F` follow/unfollow · `d` dismiss, one-way · `[`/`]` section |
 | Notifications | `d` dismiss one · `D` clear all |
 | Follow requests | `a` accept · `x` reject |
 | Direct messages | `⏎` open the conversation · `m` mark read — `m` again inside the thread, where a reader who has just read it is most likely to press it |
 | Conversation | `m` mark read, and every key that acts on a post, since each message in it is one |
 | Compose / reply / edit | `ctrl-s` send or save · `esc` throw it away · `ctrl-w` move the typing between the post and the content warning over it — on all three, each carrying a warning field of its own (#123, #139, #140) |
-| Home, local, federated, hashtag, Notifications, Messages, Requests, Post, Account | `g` refresh — evicts the destination's cache entry (where one exists) and re-runs the same fetch its own arrival runs |
+| Home, local, federated, hashtag, Notifications, Messages, Requests, Discover, Post, Account, Follows | `g` refresh — evicts the destination's cache entry (where one exists) and re-runs the same fetch its own arrival runs |
 
 ### What the four screens settled
 
@@ -241,6 +246,15 @@ mention, or address inside a post's text — replacing `BodyText`'s internal "ma
   conversations list, where the row is a conversation and the post drawn under it is its last message. That one is
   `Screen.Referencing` rather than `Screen.Picked`: widening `Picked` there would have handed `d`, `b` and `f` a post
   the screen never offered them (#83).
+- **And, since #164, on something that is not a post at all**: the account screen's header block, whose **Bio** and
+  whose **Custom field** values carry references of their own. `Screen` stops deriving them from a `Post?` and asks the
+  picked thing what it carries, with today's post implementation as the default. A bio is the first source here that is
+  not a post and will not be the last, which is why the generalisation was made rather than a second path added.
+- **A mention in a bio is drawn and never walked.** `⏎` on a mention resolves off `Post.Mentions`, and a bio carries no
+  such list; a bare `@maria` resolved against the reader's own instance opens whoever *their* server has by that name,
+  which is the failure this section already warns about below. Hashtags and addresses need no resolution and walk
+  normally, which is what makes a verified link on somebody's profile reachable — the most useful thing on the screen.
+  The precedent for drawn-but-unwalkable is an `Image` attachment and a link preview's author name.
 - **Walkable**: hashtag, mention, and address — the three references `BodyText` finds — followed, since #109
   (ADR-0017), by every `Video`, `Animation`, `Audio` or `Unknown` attachment on the post, in attachment order, and
   since #116 (ADR-0018) by the post's link preview, last of all. **Not walkable**: an `Image` attachment, which is
@@ -567,6 +581,18 @@ selection was the only scroll position a screen had and the foot of such a post 
   screens at once. The ends of a list are things rather than places, so `Home` and `End` still pick out the first post
   and the last, and neither of the four reclaims anything — a reader asking for the top of the list is not asking about
   the page they were on.
+- **`[` and `]` move the pick between headed runs, and bring the run's heading with them** — but only when that
+  heading is not already on the page (#166). `Scroll.To` moves the minimum needed to show the selection, so an unaided
+  jump downwards lands the picked row on the bottom row with the section just left still filling the screen, which
+  reads as a press that did nothing. Always anchoring the page on the heading fixes that and settles cleanly, but on a
+  screen whose runs all fit at once it scrolls the first of them off the top for nothing. So the page moves only where
+  it has to. The mechanism is a heading mark on `Line` and one function beside `Scroll.To`, which keeps the property
+  the rest of this section rests on: a scroll answer is computed from the rows alone.
+- **`[`/`]` reclaim, like `j`/`k`, and clamp like everything else.** Working out "the run after this one" from a pick
+  the reader can no longer see is the exact failure reclaiming exists to prevent, so after `↓ ↓ ↓ ]` the jump runs from
+  the topmost item on the page. At the ends it clamps and never wraps: nothing in this shell wraps, and with three runs
+  a wrap saves one press at the cost of an ambiguous position. A reader already among the last run presses `]` and
+  nothing happens, which is the clamp saying so rather than the key being broken.
 - **`k` is the next post and `j` is the one before it**, which is the opposite way round from vim. Asked for
   deliberately, and written down because the vim reading is the one anybody will assume — so a future "fix" would
   silently reverse what `j` does on every screen in the shell.
@@ -682,6 +708,193 @@ its author remembered to warn it again by hand — which Mastodon's own clients 
   The CLI's third state is untouched by that: it is `--cw` being absent from the command line, which is a fact about
   the invocation rather than about what was written in it.
 
+### What the account screen settled
+
+The account screen was a scoreboard — a name, a handle, three counts, then posts. It says who somebody is now, and in
+doing so it became the first screen in the shell whose pick is not a post (#164, #172):
+
+- **The header block is the screen's first walkable thing.** `j`/`k` land on it, `←`/`→` walk the hashtags and
+  addresses in the **Bio** and in a **Custom field**'s value, `⏎` opens one, and `b`, `f`, `d` and `r` go quiet while
+  it is picked — the precedent set verbatim by a follow notification, which carries no post and leaves those keys with
+  nothing to act on rather than guessing. **The pick opens on the header**, not on the first post: the screen is about
+  the person, landing below them would make the bio something you walk back to, and it puts a verified link one `→`
+  away on arrival.
+- **The order is who they are, then what they wrote, then what they are to you.** Avatar, name, handle, the presence
+  line, joined and flags; then bio and fields; then standing, familiar followers and your own note, closest to the
+  posts. **Every section brings its own separator**, so an account with none of the middle or bottom collapses to four
+  rows and a divider with no gaps left behind.
+- **It draws whole and cuts nothing.** Worst case is around 29 rows — a long bio wraps to nine, four fields to eight —
+  and that is fine, because the screen scrolls and one `j` puts the posts on screen. A truncated bio would be permanent
+  damage done to solve a problem one keypress already solves.
+- **An avatar is an 8×4 inset that takes its columns back** where the terminal cannot paint one, rather than holding a
+  placeholder open — what #62 already settled on a byline.
+- **A custom field is one row, wrapping, its continuation indented two columns**: `Label: value ✓`, label in
+  `Role.Muted`, value in `Role.Body` or in `Role.Link` where it is an address, which is then walkable. A wrapped
+  address stays one reference across both rows, which `TextWrap`'s row offsets already handle for post text. The `✓` is
+  `Role.Muted` and there is **no verified role** — Mastodon only verifies links, so the mark always lands on something
+  already coloured, and an unverified field says nothing extra.
+- **The flags read `⚙ bot` and `⚿ locked`, and there is no emoji anywhere.** The word carries and the glyph decorates,
+  so a terminal drawing either as a box loses nothing. 🤖 and 🔒 are astral, `TextWrap.Clip` cuts by `char` on
+  `text.Length` so a clip landing mid-pair draws a broken glyph, and their column width is terminal-dependent. Every
+  glyph the TUI uses today is BMP and one column — `○ ◌ ● ✉ ⚠ ▒ ⏵ ★ ↺ ▌ ▷ ▶ ‹ ›` — and it stays that way until
+  something makes `TextWrap` rune-aware, which is a shell-wide change no feature should smuggle in.
+- **Your own note about them is drawn whole**, `Your note: <text>` in `Role.Muted`, wrapped rather than clipped: it is
+  the reader's own writing, and cutting it would be cutting their words. It costs no call — it has been arriving on
+  every relationship payload and being dropped (ADR-0012's amendment).
+- **Familiar followers is one row, two handles and a count** — `Followed by @jon, @sam and 3 others`, `Role.Muted`,
+  clipped at 61. Handles rather than display names, because a display name is not unique and this row is making an
+  identity claim. It is asked **last** of the four calls the arrival makes, so a rate limit costs only this row; the
+  list is nullable, and null draws nothing while empty means nobody in common.
+- **Pinned posts are a run of their own, above the timeline**: `── {n} pinned ──`, then `── their posts ──`
+  uncounted. The pinned run is complete and unpaged so its total is a fact; the timeline run is a page of an unbounded
+  list, and counting it would be a number about the fetch pretending to be a number about the account. One `PostList`
+  with the headings spliced, the way the post screen already splices `[...ancestors, post, ...replies]`.
+- **The duplicate is dropped from the timeline run, never from pinned**, and dropped in the shell's `ReadAccount`, so
+  the screen is handed two disjoint lists and cannot disagree with itself about which run a post is in. Only a recent
+  pinned *normal* post can be in both, the timeline call excluding replies.
+- **Empty draws nothing; not asked draws a row.** No pinned posts is no heading, no rows and no gap, which is the
+  common case. A pinned read a rate limit stopped draws `Pinned posts not asked for.`, the same distinction
+  `AccountLines.Standing` already draws `Standing not asked for.` for — which is why pinned is asked *before* familiar
+  followers: it is content, and the other is one decorative row.
+- **`p` moves nothing.** Un-pinning inside the run leaves the post where it is and takes its `   pinned` word off;
+  pinning one down in the timeline leaves it there and gives it the word; the heading goes on saying what the fetch
+  found until `g`. A post vanishing upward while the reader is looking at it is worse than a stale count. The row keeps
+  saying `pinned` inside the pinned run rather than being suppressed as redundant against the heading: the heading says
+  what the fetch found and the row says what is true now, it is the only signal that an un-pin took, and on every
+  account but the reader's own the word is never drawn at all — Mastodon sends `Status.pinned` only for your own posts.
+
+### What a follow list settled
+
+`w` opens everyone an account follows; `s` swaps to everyone who follows them, in place. One screen, either side,
+anybody's account, and no Core change at all — `IAccountRelationships.List` already takes a `FollowSide` and an
+optional account (#165):
+
+- **One key rather than two, and it swaps rather than pushes.** The account screen is crowded — it inherits the post
+  keys, so `f` is favorite and `b` is boost, and its capitals are spoken for by the three ties. `s` re-asks in place
+  with a new crumb, the pick reset and the filter cleared, because a toggle that pushed would grow the stack on every
+  flip. Someone else's followers therefore costs `w` then `s`, which is the less-asked side from someone else's
+  profile. The crumb reads `@maria following` / `@maria followers`.
+- **The mode is picked from the count before the first fetch.** An `Account` already carries both counts, so the screen
+  knows how large the list is before asking for anything rather than discovering the problem hundreds of calls in.
+  Under the threshold it holds the whole list, fetched progressively at 80 a page and walkable from the first page,
+  with new people landing below a pick that does not move; while it is still reading, the count says both numbers so a
+  thin filter result reads as *still reading* rather than as *nobody matches*. At or above it the screen browses paged
+  on demand — `j` past the bottom fetches the next 80 — **with no filter at all**, `f` off the status row and the count
+  reading `240 of 877K read`.
+- **No filter is offered where it cannot be honest.** Filtering what has already been read is the dishonest filter
+  #162 ruled out, and 240 read of 877K makes "no matches" meaningless. Refusing to open the screen was rejected too:
+  walking the first few hundred of anyone's followers is a real thing to do, on the same rows with the same `⏎`.
+- **The account screen is not marked to say which count leads to a filterable list.** The number is already on screen
+  and the browser's status row says which mode it is in; marking it would mean explaining a threshold to a reader
+  instead of telling them what they have once they arrive.
+- **A row is `AccountLines.Byline` plus a muted standing suffix** — the two-span shape the search screen's hashtag row
+  already uses, built as a shared `AccountLines` method so a person reads one way everywhere. Neither `:id/following`
+  nor `:id/followers` sends a standing, so it is filled by **one batched `/accounts/relationships` call per page**, not
+  per row; where that call did not happen or failed the row stays **silent** rather than implying no tie.
+- **A row never says what the list it is on already says.** Your own following list drops "you follow them", true of
+  every row by construction, and shows "they follow you". Your own followers list drops "they follow you" — the *gap*
+  is the signal there, since what you want is who you have not followed back. Someone else's list implies nothing, so
+  the full compact standing shows.
+- **The screen arrives walkable, not typing.** The search screen opens typing only because it has nothing to show yet.
+  `f` opens the prompt, drawn with the search screen's exact construction — `Filter: ` label, typed text, `▌` caret.
+  Typing narrows on every keystroke, `⏎` returns to walking with the filter still applied, `esc` clears it. `/` was
+  never available: it is a frame key meaning "go to search" everywhere. It reuses `IsTyping`, so the status row swaps
+  to the letters-are-text keymap and the filter is a fact about the shell a test can set and read (ADR-0015).
+- **No per-row rule.** The search screen rules after every result because it is separating a run of accounts from
+  hashtags from posts; there is one kind here and nothing to separate, and at 900 people it would be 1,800 rows, half
+  of them horizontal lines. One rule under the prompt keeps the screen search-shaped.
+- **Its cache is its own**: age only, one minute, keyed by account and side. `DestinationCache` is keyed by
+  `DestinationKind`, one entry per rail destination, and this is the shell's first drill-in cache. `esc` back is
+  already free — the stack hands back the very screen with its page intact (#133) — so the cache only pays on a re-open
+  after popping.
+
+### What moving between kinds and sections settled
+
+A search's results were always labelled — `── accounts ──`, `── hashtags ──`, `── posts ──` have been drawn over the
+first result of each kind since the four destinations landed — and what was missing was a way to move between them.
+The answer generalised: three screens use it (#166, amended by #171 and #172):
+
+- **`]` is the next run, `[` the one before.** Unshifted, which is what a key pressed to get somewhere should be and
+  what the `j`/`k` beside it already are; the vim bracket family, which is move-by-structure and nothing else, so the
+  convention needs no analogy to carry it; and symmetric and directional on sight. `{`/`}` was this decision's first
+  answer, taken only because `[`/`]` were being held against a possible shell-wide swap of `j`/`k`; that reservation
+  was released, **the swap is off rather than deferred**, and `{`/`}` stay free as the fallback if these ever have to
+  move. `K`/`J` lost on making capitals mean movement, where they are the deliberate-act register (`F`, `M`, `B`, `D`)
+  capitalised precisely so a slip cannot fire one. `n`/`N` lost on reading as "next match" — a within-results search
+  that does not exist, and sitting beside `/` it would advertise one.
+- **It moves the pick, not the page**, and brings the heading with it under the rule in "What moving settled" above.
+  It is "take me to the posts", and a reader who arrives at a post wants to press `⏎`, not `j` first.
+- **Headed runs only, and the account screen's header block is not a stop.** The jump brings a run's heading with it,
+  and the header has no heading to bring; `[` from the first pinned post clamps. Nothing is unreachable — `k` from
+  there lands on the header, and `Home` always has.
+- **A heading carries its count where the run's total is a fact** — `── 7 accounts ──`, `── 2 pinned ──`,
+  `── 11 followed by people you follow ──`, the `── {n} replies ──` vocabulary the post screen already speaks. It costs
+  nothing, the counts being in hand, and it tells a reader whether the run below is worth walking or worth jumping. A
+  run that is a page of an unbounded list is left uncounted, which is why `── their posts ──` stays as it is.
+- **A run with nothing in it draws no heading at all.** The post screen's zero-fallback (`── replies ──`) does not
+  apply: three "nothing" headings on a two-result search is noise, and per-kind absence is the ordinary case for almost
+  every query. The screen already says `Nothing found for {asked}.` where all three are empty, which is where "was it
+  even asked?" actually bites. This is deliberately unlike the CLI, where `--type` makes absence meaningful and
+  ADR-0011's null-versus-empty earns its keep — the TUI always asks for everything.
+- **The status row says `[/]:section`, shell-wide**, and only where the screen has two or more headed runs *now*. One
+  key that means one thing everywhere is named one way everywhere, which is why this is `section` rather than the
+  `kind` the search screen alone would have said. A key announced where it does nothing reads as a shell that missed
+  the press, which is how the poll digits and `⏎`-inside-a-post already behave. It goes first in `PostKeys.Around`'s
+  `its` list, immediately after `j/k:post`, so the movement keys sit together and `F`/`M`/`B` stay an unbroken group —
+  and `Around` already puts a screen's own keys ahead of the shared ones, so the nine columns come out of
+  `tab:destination` and `?:keys`, both learnable on any other screen.
+- **One list, still.** `Picked<Result>` is untouched: the jump is an index into the list that already exists, with no
+  per-kind list, no second count and no fold state, so the order results are drawn in and the order they are picked out
+  in stay the same order by construction. The tabbed header row and the collapsing sections both lost on exactly this,
+  and the tabbed shape would also have handed back what ADR-0011 bought the reader — seeing at a glance that the word
+  turned out to be a hashtag.
+- **The TUI never asks for one kind.** `SearchKind` and `SearchResults.Matching` exist and the CLI's `--type` uses
+  them; the TUI sends `Everything` and always will. Narrowing the *ask* is a different answer from moving within the
+  *answer*, and a reader who knew the kind would not be searching a half-remembered word. A kind syntax would also have
+  to share a prompt that must already accept `#tags`, `@handles` and web addresses.
+
+### What discover settled
+
+The tenth rail destination, and the first the rail has ever grown (ADR-0014's amendment). Its one section today is who
+to follow (#171):
+
+- **It is a destination and not a key on the search screen.** What earns the entry is that the screen is sectioned, so
+  a second kind of suggestion later is a heading rather than an eleventh rail entry — the cost is paid once now instead
+  of once per kind. **There is no second door**: no `S` on the search screen, because Discover is an **Arrival** and
+  the stack resets to one screen, and a place that was both a destination and a pushed screen is what CONTEXT.md's
+  **Destination** term exists to prevent.
+- **The reason is a heading, and every reason gets one** — `── 11 followed by people you follow ──`,
+  `── 6 like people you followed lately ──`, `── 4 featured by this instance ──`, `── 9 talked with most here ──`,
+  `── 10 most followed here ──`, in that fixed rank. On a small instance the good two are often empty, and a heading is
+  what makes a weak reason *readable as weak* rather than an unexplained row; the reader discounts "most followed here"
+  themselves. **The server's order inside a section is kept** — it ranked them, and re-sorting would be Wooly asserting
+  a judgement it has no data for. The longest heading is 38 columns, so 61 is never in question.
+- **A person is drawn once, under their best reason.** `sources` is an array per suggestion, and the same face twice
+  would carry a second `F` that does nothing.
+- **Rows are a plain byline and cost no relationships call** — a deliberate departure from a **Follow list**'s row
+  recipe. Mastodon's suggestion sources exclude accounts already followed, dismissed or blocked, so a standing suffix
+  would be blank on every row by construction; the screen is one call, not two. The heading says why and the row says
+  who.
+- **`F` toggles and `d` dismisses, and nothing moves.** `F` appends a muted ` · following` and takes it off again, the
+  same contract it has on the account screen, so a mis-press is undone where it happened. `d` appends ` · dismissed`
+  and is one-way — there is no un-dismiss endpoint, so a second `d` is a no-op — and takes **no confirmation**, nothing
+  of the reader's being destroyed and the cost of a mis-press being one suggestion out of forty on a list the server
+  regenerates. A dismissed row **stays walkable** and still answers `⏎` and `F`: dismissing says "stop suggesting", not
+  "hide", and a row that vanished would take its own undo with it. No row reorders and no heading recounts as you act —
+  the feature was admitted for `j j j F F`, and a list that reflows under your fingers is the one thing that breaks it.
+- **Empty is a real answer, so there is no not-asked to draw.** A destination always asks on arrival, so an empty
+  screen means the instance answered "nobody": one muted `Nobody suggested.`, on the same construction as search's
+  `Nothing found for …`, and no apology for a new account or a small instance. A failure is not an empty screen either
+  — the **Enquiry** turns it into the shell's notice.
+- **Forty of forty, and no paging.** `limit=40`, no `offset`: a screen showing all of what it asked for has nothing to
+  page. It uses `DestinationCache` for free, and **a tie or a dismiss made here forgets Discover's entry**, one line
+  beside the `_cache.Forget(DestinationKind.Home)` `Shell.Tie()` already does — without it, following somebody and
+  coming back inside the minute shows them still suggested, which is worse than the follow browser's equivalent because
+  the server *would* have dropped them.
+- **Its status row puts the acting keys first**: `j/k person · ⏎ open · F follow · d dismiss · [/] section · g refresh ·
+  tab destination`. That is the opposite of the search screen's placement, and deliberately: there, jumping between
+  kinds is the feature that screen gained; here, `F` and `d` are why anyone opened the screen.
+
 ### Where the code answers this
 
 One module, `Shell/Keymap.cs`, holds the whole of the dispatch above: a `ShellKey` and a `Screen` go in and a `Verb`
@@ -711,7 +924,7 @@ has the keys, and what text it opens with. That is a window's question about its
 this run, without changing which one is current (story 9). Everything else about the profile — which instance, which
 token — is resolved through `IProfileRegistry` exactly as a command's scope resolves it.
 
-Eight of the nine destinations are the same eight for everybody. The ninth is a hashtag, and which one is nobody's
+Nine of the ten destinations are the same nine for everybody. The odd one out is a hashtag, and which one is nobody's
 business but the reader's, so it is a setting in the same TOML file everything else lives in (ADR-0003):
 
 ```toml
@@ -756,6 +969,11 @@ glyph or a position that carries the same meaning when colour is gone.
 | `loading` | The `fetching…` mark on the breadcrumb | the word itself |
 | `destructive` | A delete affordance and its confirmation | the word |
 | `error` | A failure the shell has to say out loud | the word |
+
+The people-side work (#159) added no role, deliberately and in four places: a verified **Custom field** takes a `✓`
+after a value already drawn in `link`, the `⚙ bot` / `⚿ locked` flags carry in their words, a **Suggestion**'s reason is
+a heading rather than a colour, and every standing suffix and section heading is `muted`. Each of those reads
+identically under `NO_COLOR`, which is the test a new role has to fail before it is worth adding.
 
 Role selection is testable without a terminal and is expected to be tested: *a post of mine offers delete in the
 destructive role*, *an unread conversation's badge takes `rail-unread`*. Drawing is not tested (ADR-0005, ADR-0014).
@@ -885,6 +1103,7 @@ together.
 | Settle window | 250ms | Long enough that a deliberate double-tap lands as one move; short enough that a single tab does not read as a pause. |
 | Destination cache | 1 minute | Long enough that walking out along the rail and back is free; short enough that a timeline left and returned to a minute later is fetched rather than remembered. This client forgets a destination early when it is the thing that changed it — a post published, deleted or marked. |
 | Countdown step | 1 second | The unit a rate-limit countdown counts in. |
+| Follow-list threshold | 2,000 | Below it a **Follow list** is held whole and narrowed live; at or above it the screen browses a page at a time and offers no narrowing. Set by the shape of real accounts: a following count is bounded and a followers count is not — 877K followers is ~11,000 requests at 80 a page, which is not a list to promise a search over. |
 
 One cache age for everything, rather than one per kind of destination. The question the cache answers is "is this still
 the timeline I just left", not "is this still current", and that has the same answer wherever you left from.

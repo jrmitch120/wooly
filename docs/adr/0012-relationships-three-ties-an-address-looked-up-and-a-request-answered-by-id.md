@@ -96,3 +96,32 @@ later ticket that changes only `AccountRelationships.Apply` — the tie is alrea
 Nothing here reads a relationship without changing it. There is no `account show`, so the only way to see where you
 stand with somebody is to act on them, or to read a list. That is the gap #33's account view fills, and it needs one
 more call on this port — `GetAccountRelationships` — rather than a new port.
+
+## Amendment: a private note is part of a standing, and the port takes a fifth call (map #159)
+
+Two additions from the people-side map (#159, ADR-0019). Neither changes the shape this ADR settled; both are things it
+predicted — "one more call on this port rather than a new port" — arriving.
+
+**`AccountStanding` gains `Note`.** Mastodon's `Relationship` carries `note`, a private line the profile's own account
+keeps against another one that nobody else ever sees, and it has been arriving on every relationship call this client
+makes and being dropped on the floor by `AccountWire.ToStanding`. It belongs here rather than on `Account` for the same
+reason the rest of a standing does: it is a fact about the pair, not about the person — two profiles reading the same
+account read different notes — and it arrives on the very payload the rest of the record is built from, so it costs
+nothing.
+
+Only the **read** half. Writing a note (`POST /accounts/:id/note`) is one endpoint and would be cheap, and it was
+weighed on the map and refused: the workflow that wants it was reasoned into existence rather than observed, and it
+loses to gaps a reader actually falls into. Note that Mastonet's own doc comment on `Relationship.Note` is wrong — it
+says "this user's profile bio", which is a different field and, since ADR-0019, one this client now reads for real and
+draws a few rows away.
+
+**Familiar followers is the fifth call on this port.** `GET /accounts/familiar_followers` answers which of the accounts
+this profile follows also follow a given one, and it lands here by this ADR's own test: it is the relationship family,
+reached the same way, wanted by the same screen. It is **not** in Mastonet 3.1.3, so it is a raw batched `GET` using
+the repeated-`id[]` array pattern `/accounts/relationships` already uses; and it needs no record of its own, because
+the endpoint answers accounts and one account's worth of them is a list of them.
+
+What it does need is a **nullable** answer, and for the same reason `AccountStanding` is nullable: the account screen
+asks for it last, so a rate limit that stops it leaves the whole screen standing and only that row missing — and null
+is what lets that row say "not asked" rather than "nobody in common". That distinction is this ADR's, applied one level
+further out.
