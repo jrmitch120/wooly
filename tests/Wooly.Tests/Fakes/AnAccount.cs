@@ -15,7 +15,13 @@ internal static class AnAccount
         long following = 187,
         long posts = 4210,
         string id = "42",
-        AccountStanding? standing = null) => new()
+        AccountStanding? standing = null,
+        string bio = "Cat photographer.",
+        IReadOnlyList<AccountField>? fields = null,
+        DateOnly? joined = null,
+        bool isLocked = false,
+        bool isBot = false,
+        string? avatarUrl = null) => new()
     {
         Id = id,
         Address = address,
@@ -23,14 +29,22 @@ internal static class AnAccount
         Followers = followers,
         Following = following,
         Posts = posts,
-        Bio = "Cat photographer.",
-        Fields = [],
-        Joined = new DateOnly(2020, 1, 1),
-        IsLocked = false,
-        IsBot = false,
+        Bio = bio,
+        Fields = fields ?? [],
+        Joined = joined ?? new DateOnly(2020, 1, 1),
+        IsLocked = isLocked,
+        IsBot = isBot,
         Url = $"https://hachyderm.io/@{address.Split('@')[0]}",
-        AvatarUrl = $"https://hachyderm.io/avatars/{address.Split('@')[0]}.png",
+        AvatarUrl = avatarUrl ?? $"https://hachyderm.io/avatars/{address.Split('@')[0]}.png",
         Standing = standing,
+    };
+
+    /// <summary>One custom field, verified or not, for the rows an account sets under its bio.</summary>
+    public static AccountField Field(string label, string said, DateTimeOffset? verified = null) => new()
+    {
+        Label = label,
+        Said = said,
+        Verified = verified,
     };
 
     /// <summary>Where the profile stands with an account, with nothing in place but what a test says is.</summary>
@@ -39,12 +53,14 @@ internal static class AnAccount
         bool followRequested = false,
         bool followedBy = false,
         bool blocking = false,
-        bool muting = false) => new()
+        bool muting = false,
+        string? note = null) => new()
     {
         Following = following,
         FollowRequested = followRequested,
         FollowedBy = followedBy,
         Blocking = blocking,
         Muting = muting,
+        Note = note,
     };
 }
