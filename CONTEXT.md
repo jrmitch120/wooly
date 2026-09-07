@@ -339,7 +339,12 @@ gets, which carries no post either. Distinct from the rail's **cursor** and its 
 you are going to, this is about what you are looking at once you are there. A screen showing an empty list has nothing
 picked, which is a fact about the list rather than a place in it — and one the status row honours the same way, since
 the rule is asked once of every screen rather than screen by screen: with nothing picked, every key that acts on a post
-bar `c` comes off the row (#193).
+bar `c` comes off the row (#193), and so does every key of the screen's own that needs something picked to act on —
+`d dismiss` on an inbox with nothing waiting, `a accept` with nobody asking. Each such key says so where it is declared
+(`KeyHint.NeedsAPick`), the walk and `g refresh` staying either way: an empty screen shows its emptiness, and `g` is the
+one key on one that still does something, what it does being to fill the screen (#195). Having nothing picked is not
+the same as having nothing to pick *from* — a compose editor, the keymap and a notice walk nothing at all, and are
+outside the rule rather than permanently inside it.
 _Avoid_: cursor, selection, highlight, current row
 
 **Page**:
