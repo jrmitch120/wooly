@@ -119,7 +119,18 @@ not answer them differently:
   act, and a key means what its screen says it means. The same rule takes the poll digits and `v` off a row with no
   poll to vote in, and `⏎` off a post screen's own post (#48). What it is *not* about is a key that acts and then
   refuses — `p`, `e` and `d` on somebody else's post answer *Only your own posts can be pinned/edited/deleted.*, which
-  is a key doing its job — nor a screen's own key that is idle for its own reasons on an empty screen (#195).
+  is a key doing its job.
+- **And a screen's own keys come off an empty row the same way** (#195, amending #193's answer above, which had put
+  them outside the rule as idle for their own reasons). A key that acts on one of the things a screen
+  walks needs one of them to be there, and no widening of `PostKeys` reaches these: `d` and `D` on an inbox with
+  nothing waiting, `⏎` and `m` with nobody writing, `⏎`, `a` and `x` with nobody asking, `⏎` on a search that found
+  nothing. Each key says so where it is declared (`KeyHint.NeedsAPick`) and `Screen.Keys` drops them while the walk is
+  empty, so this too is inherited rather than remembered. What stays is `j`/`k` and `↓`/`↑` — an empty screen shows its
+  emptiness, which is explanation enough for a walk that does not move, and a row cut back to `g tab ?` reads as broken
+  rather than as empty — and `g`, which on an empty screen is the one key that still does something, the thing it does
+  being to fill the screen. Empty means *a list with nothing on it*: a compose editor, the keymap and a notice walk
+  nothing at all and are untouched, and the search prompt drops its arrows while it is taking letters for that reason
+  rather than this one.
 - **A notification is not the post it is about.** `d` dismisses by the notification's own id; every other key on the
   row acts on the post it carries, so a mention can be answered without leaving the inbox. A follow carries no post,
   and picking one leaves those keys with nothing to act on rather than guessing — which is why they are off its row.

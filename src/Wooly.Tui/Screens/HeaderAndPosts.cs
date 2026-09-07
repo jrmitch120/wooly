@@ -32,6 +32,13 @@ public sealed class HeaderAndPosts(Account account, PostList posts) : IPicked
     /// <remarks>Nought is the header block, and one up are the posts in the order they are drawn.</remarks>
     public int At { get; private set; }
 
+    /// <inheritdoc />
+    /// <remarks>
+    ///     The posts and the header block, which is why an account screen is never empty: there is always somebody to
+    ///     be looking at, whether or not they have posted anything (#195).
+    /// </remarks>
+    public int Count => posts.Count + 1;
+
     /// <summary>Whether what is picked out is the header block rather than one of the posts.</summary>
     public bool OnHeader => At == 0;
 
@@ -49,12 +56,12 @@ public sealed class HeaderAndPosts(Account account, PostList posts) : IPicked
     ///     Counted in <see cref="long" /> for the reason <see cref="Picked{T}.Move" /> is: <c>Home</c> and <c>End</c>
     ///     ask to move by the largest step there is.
     /// </remarks>
-    public void Move(int by) => Pick((int)Math.Clamp((long)At + by, 0, posts.Count));
+    public void Move(int by) => Pick((int)Math.Clamp((long)At + by, 0, Count - 1));
 
     /// <inheritdoc />
     public void Pick(int at)
     {
-        At = Math.Clamp(at, 0, posts.Count);
+        At = Math.Clamp(at, 0, Count - 1);
 
         if (!OnHeader)
         {

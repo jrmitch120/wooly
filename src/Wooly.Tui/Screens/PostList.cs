@@ -39,7 +39,7 @@ public sealed class PostList(Screen screen, IReadOnlyList<Post> posts) : IPicked
     /// <summary>The posts, in the order they are drawn and walked.</summary>
     public IReadOnlyList<Post> All => _posts.All;
 
-    /// <summary>How many there are.</summary>
+    /// <inheritdoc />
     public int Count => _posts.Count;
 
     /// <summary>The post picked out, or <see langword="null" /> where the screen has none on it.</summary>

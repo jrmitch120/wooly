@@ -58,12 +58,31 @@ public abstract class Screen
     ///         (<see cref="PostKeys.OffAPost" />, #193). Once, rather than by each screen saying so, because a screen
     ///         that forgot would be a screen whose row lies and there is nothing to catch that at compile time.
     ///     </para>
+    ///     <para>
+    ///         And the same rule a third time for the keys a screen owns alone, which no widening of
+    ///         <see cref="PostKeys" /> can reach: while the list this screen walks has nothing on it, every key that
+    ///         says it needs something picked comes off (<see cref="KeyHint.NeedsAPick" />, #195). The walk stays, and
+    ///         so does <c>g</c>, which on an empty screen is the one key that still does something and what it does is
+    ///         fill the screen. The two drops compose rather than one standing in for the other, and empty means a
+    ///         list with nothing on it: a screen with no list at all — the compose editor, the keymap, a notice — has
+    ///         no <see cref="Walking" /> and is not empty in this sense.
+    ///     </para>
     /// </remarks>
     public IReadOnlyList<KeyHint> Keys
     {
         get
         {
-            var own = Picked is null ? PostKeys.OffAPost(OwnKeys) : OwnKeys;
+            var own = OwnKeys;
+
+            if (Walking is { Count: 0 })
+            {
+                own = [.. own.Where(key => !key.NeedsAPick)];
+            }
+
+            if (Picked is null)
+            {
+                own = PostKeys.OffAPost(own);
+            }
 
             return Reference is not null
                 ? PostKeys.OnAReference(own)

@@ -28,6 +28,17 @@ public interface IPicked
     /// </summary>
     int At { get; }
 
+    /// <summary>
+    ///     How many things there are to walk, which is nought on a screen with nothing on it — an inbox with nothing
+    ///     waiting, a search that found nothing.
+    /// </summary>
+    /// <remarks>
+    ///     Asked of the walk rather than of each screen, so that whether a screen is empty is one question with one
+    ///     answer: <see cref="Screen.Keys" /> takes a screen's own keys off an empty row by it (#195), and a screen
+    ///     added later inherits that without knowing it exists. Distinct from having nothing to walk <em>at all</em>,
+    ///     which is having none of this rather than a count of nought — a compose editor is not an empty list.
+    /// </remarks>
+    int Count { get; }
 
     /// <summary>Moves what is picked out by <paramref name="by" /> things, stopping at either end.</summary>
     void Move(int by);
@@ -62,7 +73,7 @@ public sealed class Picked<T>(IReadOnlyList<T> things) : IPicked
     /// <summary>The things, in the order they are drawn and walked.</summary>
     public IReadOnlyList<T> All => _things;
 
-    /// <summary>How many there are.</summary>
+    /// <inheritdoc />
     public int Count => _things.Count;
 
     /// <summary>

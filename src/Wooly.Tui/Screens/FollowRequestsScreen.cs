@@ -29,9 +29,9 @@ public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string?
     protected override IReadOnlyList<KeyHint> OwnKeys =>
     [
         new("j/k", "request"),
-        new("⏎", "read them"),
-        new("a", "accept"),
-        new("x", "reject"),
+        new("⏎", "read them", NeedsAPick: true),
+        new("a", "accept", NeedsAPick: true),
+        new("x", "reject", NeedsAPick: true),
         Refreshing,
         PostKeys.Scrolling,
         new("tab", "destination"),

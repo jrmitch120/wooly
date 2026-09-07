@@ -65,7 +65,7 @@ public sealed class SearchScreen : Screen
                 [
                     new KeyHint("j/k", "result"),
                     .. Jumping,
-                    new KeyHint("⏎", "open"),
+                    new KeyHint("⏎", "open", NeedsAPick: true),
                     new KeyHint("/", "search again"),
                     PostKeys.Scrolling,
                     new KeyHint("tab", "destination"),
