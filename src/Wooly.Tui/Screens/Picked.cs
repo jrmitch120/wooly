@@ -157,30 +157,97 @@ public sealed class Picked<T>(IReadOnlyList<T> things) : IPicked
     /// </remarks>
     /// <param name="width">How wide the content region is — 61 at an 80-column terminal.</param>
     /// <param name="draw">How one thing draws itself.</param>
-    public IReadOnlyList<Line> Rows(int width, Draws<T> draw)
+    /// <param name="ordinals">
+    ///     Where these things stand in the numbering of the screen holding them, which is their own numbering on every
+    ///     screen but one (<see cref="Ordinals" />).
+    /// </param>
+    public IReadOnlyList<Line> Rows(int width, Draws<T> draw, Ordinals ordinals = default)
     {
         var lines = new List<Line>();
 
         for (var at = 0; at < _things.Count; at++)
         {
-            lines.AddRange(RowsOf(at, width, draw));
+            lines.AddRange(RowsOf(at, width, draw, ordinals));
             lines.Add(Line.Rule(width));
         }
 
         return lines;
     }
 
+    /// <inheritdoc cref="Rows" />
     /// <summary>The <paramref name="at" />th thing's rows on their own, stamped the same way and with no rule after.</summary>
     /// <remarks>
     ///     For the two screens that put something of their own between the things — search, whose three kinds each get
     ///     a heading, and the post screen, which says how many replies follow the post itself. Splicing rows between
     ///     things is theirs; stamping the things' own rows is still not.
     /// </remarks>
-    public IReadOnlyList<Line> RowsOf(int at, int width, Draws<T> draw)
+    /// <param name="at">Which of these things, counted from the first of them rather than from the screen's own first.</param>
+    public IReadOnlyList<Line> RowsOf(int at, int width, Draws<T> draw, Ordinals ordinals = default)
     {
-        var gutter = Gutter(at == At);
+        var ordinal = ordinals.From + at;
 
-        return [.. draw(_things[at], at, Math.Max(1, width - 1)).Select(line => line.After(gutter).PartOf(at))];
+        return Stamped.Rows(
+            draw(_things[at], ordinal, Stamped.Room(width)),
+            ordinal,
+            ordinal == (ordinals.Picked ?? ordinals.From + At));
+    }
+}
+
+/// <summary>
+///     Where a list's things stand in the numbering of the screen holding them: the ordinal its first thing takes, and
+///     which ordinal the screen has picked out.
+/// </summary>
+/// <remarks>
+///     Nought and the list's own pick everywhere but the account screen, whose first walkable thing is the header
+///     block rather than a post — so its posts are numbered from one, and while the header is picked nothing on the
+///     list is (#179, ADR-0019). Said as one thing rather than two parameters because the two are one fact: a list
+///     that is not the whole of what its screen walks has neither the screen's numbering nor the screen's pick.
+///     <para>
+///         The default is a screen that walks nothing else, which is every other screen — so the parameter is passed
+///         only where it says something.
+///     </para>
+/// </remarks>
+/// <param name="From">The ordinal the first thing on the list takes.</param>
+/// <param name="Picked">
+///     Which ordinal is picked out, or <see langword="null" /> where the list's own pick is the screen's — which is
+///     what makes the default the behaviour every screen had before there was anything else to pick.
+/// </param>
+public readonly record struct Ordinals(int From = 0, int? Picked = null);
+
+/// <summary>
+///     One thing on a screen as rows: behind the one column that says whether it is the thing picked out, and each row
+///     naming the thing it belongs to.
+/// </summary>
+/// <remarks>
+///     Said here rather than by whatever drew the rows, for the reason <see cref="Picked{T}" /> gives about stamping:
+///     <see cref="Scroll" /> finds what is picked by <see cref="Role.Selection" /> and the topmost thing by
+///     <see cref="Line.Item" />, so a screen marking its own rows could break scrolling in a module it never touches.
+///     A list stamps every thing on it this way, and the account screen's header block — a thing on a screen that is on
+///     no list — takes the same treatment through the same call rather than a second gutter of its own (#179).
+/// </remarks>
+internal static class Stamped
+{
+    /// <summary>
+    ///     How much room a thing's own rows get: the content region less the one column its gutter takes, and never
+    ///     nothing at all.
+    /// </summary>
+    /// <remarks>
+    ///     Beside the stamping rather than worked out where each thing is drawn, because the column and the mark put in
+    ///     it are one fact: a caller narrowing by a different amount would draw rows the gutter then pushed past the
+    ///     right of the region.
+    /// </remarks>
+    /// <param name="width">How wide the content region is — 61 at an 80-column terminal.</param>
+    public static int Room(int width) => Math.Max(1, width - 1);
+
+    /// <inheritdoc cref="Stamped" />
+    /// <param name="lines">The rows the thing itself draws, in the room its gutter has already left it.</param>
+    /// <param name="at">Which thing on the screen it is, in the screen's own numbering.</param>
+    /// <param name="picked">Whether it is the one picked out.</param>
+    public static IReadOnlyList<Line> Rows(IReadOnlyList<Line> lines, int at, bool picked)
+    {
+        var gutter = Gutter(picked);
+
+        return [.. lines.Select(line => line.After(gutter).PartOf(at))];
     }
 
     /// <summary>

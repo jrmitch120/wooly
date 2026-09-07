@@ -160,63 +160,27 @@ public abstract class Screen
     protected virtual Post? Referencing => Picked;
 
     /// <summary>
-    ///     The references inside that post, in the order they were written, followed by its attachments' own — which
-    ///     is the order they are walked in, and the order an index into them means anything in.
+    ///     The thing whose references <c>←</c> and <c>→</c> walk, or <see langword="null" /> where the screen has
+    ///     nothing to walk — the post being read, on every screen that has one (#179, ADR-0019).
     /// </summary>
     /// <remarks>
-    ///     Nothing that is not on screen, on either half. The text ones go while the post's text is behind a content
-    ///     warning, because the brackets a picked reference is drawn in would be behind it too and a pick there is one
-    ///     nobody can see (<c>docs/tui-shell.md</c>). The attachment ones go on the same reasoning as soon as the post
-    ///     is warned at all: since #113 the attachments are behind the warning with the text, so <c>←</c>/<c>→</c>
-    ///     would be walking to a label nobody can see and <c>⏎</c> opening a video the reader never asked for. That
-    ///     replaces the exemption this remark used to make on ADR-0017's behalf, which held only while their box and
-    ///     description stood outside the warning — as they did until #113 put them behind it (ADR-0016's amendment).
+    ///     The walk stopped being a post's alone with the account screen's header block, which is the first reference
+    ///     source in this client that is not one and will not be the last. So the picked thing is asked what it
+    ///     carries and a post is what answers by default, rather than a second path being added beside this one —
+    ///     which would have been a second place for what may be walked to come apart from what was drawn.
     ///     <para>
-    ///         Both halves asked of <see cref="OnShow" /> rather than worked out here, because they are the same two
-    ///         questions <see cref="PostLines" /> puts about the same post: what is walked is what was drawn, and the
-    ///         two answering separately is what let a walk reach inside something the reader was never shown (#145).
+    ///         The reveal is this screen's own and is put in here, which is the whole of what a post's answer turns
+    ///         on: a warning asked past belongs to the screen it was asked past on (#121).
     ///     </para>
     /// </remarks>
-    public IReadOnlyList<Reference> References
-    {
-        get
-        {
-            if (Referencing is not { } post)
-            {
-                return [];
-            }
-
-            var show = Showing(post);
-
-            return
-            [
-                .. show.Words ? BodyText.References(show.Shown.Content) : [],
-                .. show.Media ? BeyondTheText(show.Shown) : [],
-            ];
-        }
-    }
+    protected virtual IReferring? Referring =>
+        Referencing is { } post ? new PostReferences(post, Revealed.Has(post)) : null;
 
     /// <summary>
-    ///     The references a post carries beyond its own text: its attachments' addresses in the order they were
-    ///     attached, and then its link preview's (ADR-0018).
+    ///     The references inside it, in the order they are drawn — which is the order they are walked in, and the
+    ///     order an index into them means anything in.
     /// </summary>
-    /// <remarks>
-    ///     Shown and hidden together, which is why they are one question here: the link preview stands behind a post's
-    ///     warning on exactly the terms its attachments do since #113, and asking twice would be two places for that to
-    ///     be answered differently.
-    /// </remarks>
-    private static IEnumerable<Reference> BeyondTheText(Post post)
-    {
-        foreach (var attached in AttachmentReferences.Of(post))
-        {
-            yield return attached;
-        }
-
-        if (LinkPreviewReference.Of(post) is { } link)
-        {
-            yield return link;
-        }
-    }
+    public IReadOnlyList<Reference> References => Referring?.References ?? [];
 
     /// <summary>
     ///     The one the reader has walked to, or <see langword="null" /> where none is — including where the post has
