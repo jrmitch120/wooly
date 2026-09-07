@@ -332,11 +332,11 @@ public sealed class FollowsScreen : Screen
     private string Counted()
     {
         // Both numbers wherever what is on screen is not the whole of the list — still coming, there to be asked
-        // for, or stopped short by a rate limit. Only a list read to the end says the one number, because only then
-        // is the one number true.
+        // for, or stopped where it stopped. Only a list read to the end says the one number, because only then is
+        // the one number true.
         if (Read < Total)
         {
-            var reading = $"{Number.Of(Read)} of {Number.Of(Total)} read";
+            var reading = $"{Number.Of(Read)} of {Number.Of(Total)} read{Shortfall}";
 
             return Filter.Length > 0 ? $"{Number.Of(_walking.Count)} matching · {reading}" : reading;
         }
@@ -345,6 +345,24 @@ public sealed class FollowsScreen : Screen
             ? $"{Number.Of(_walking.Count)} of {Number.Of(Total)} {Called}"
             : $"{Number.Of(Total)} {Called}";
     }
+
+    /// <summary>
+    ///     Why the two numbers differ, where nothing above has already said why: the reading has finished and this
+    ///     instance served less than the profile's own count claims.
+    /// </summary>
+    /// <remarks>
+    ///     Both numbers on their own read as <em>still reading</em>, and on a list of somebody else's follows the
+    ///     reading is usually over long before the numbers meet: an instance can only serve the part of a remote
+    ///     account's follows it holds, which is mostly its own people, so 951 followers arrive as the 16 who are
+    ///     local here. Nothing is wrong and nothing more is coming, and a row that let a reader go on waiting for the
+    ///     other 935 would be the same lie the status row used to tell (#180).
+    ///     <para>
+    ///         Said only where <see cref="Notice" /> is not already saying it. A rate limit stops a read too, and
+    ///         says so in its own row above — a count adding "this instance holds no more" underneath would be
+    ///         contradicting it, and guessing at a cause the notice already knows.
+    ///     </para>
+    /// </remarks>
+    private string Shortfall => More || Notice is not null ? string.Empty : " — this instance holds no more";
 
     /// <summary>
     ///     What is narrowing the list, with the caret where the next letter lands — the search prompt's own

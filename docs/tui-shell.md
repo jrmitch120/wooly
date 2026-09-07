@@ -837,6 +837,13 @@ anybody's account — `IAccountRelationships.List` already takes a `FollowSide` 
   muted row instead, which is what every other list this shell draws already does. Nothing is counted over a list
   nobody has arrived on either: `0 of 5 read` is a subtraction a reader has to do, and the notice above it has already
   said the whole of what it would have told them (#180).
+- **Both numbers on their own read as *still reading*, so a read that has stopped says why.** An instance can only
+  serve the part of a *remote* account's follows it actually holds, which is mostly its own people — so `@lizardbill`'s
+  951 followers arrive as the 16 who are local here, the count coming off their own instance and the list coming off
+  yours. Nothing is wrong and nothing more is coming, and `16 of 951 read` alone leaves a reader waiting for the other
+  935. The row says `16 of 951 read — this instance holds no more` once the reading has finished short. Not where a
+  notice above has already said why: a rate limit stops a read too, and a count blaming the instance's reach
+  underneath that would contradict it and guess at a cause the notice already knows.
 - **An account that lists nobody is not an account that follows nobody.** Mastodon serves an empty list for an account
   that keeps who it follows to itself, while the count on the profile goes on saying five — so the screen says *their
   profile says 5 following, but the instance listed nobody* rather than *they follow nobody yet*, which would report a

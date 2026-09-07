@@ -304,17 +304,45 @@ public class FollowsScreenTests
     }
 
     /// <summary>
-    ///     And a read a rate limit stopped short goes on saying both numbers, rather than putting the whole count
-    ///     over half a list: the reader is looking at 80 of 187 and must not be told they are looking at 187.
+    ///     And a read that stopped short goes on saying both numbers, rather than putting the whole count over half a
+    ///     list — with why they differ, since the reading is over and the numbers will never meet: an instance serves
+    ///     only the part of a remote account's follows it holds.
     /// </summary>
     [Fact]
-    public void Lines_GoOnSayingBothNumbersWhereTheReadingStoppedShort()
+    public void Lines_SayWhyTheReadingStoppedShortOfTheCount()
     {
         var screen = Of();
 
         screen.Arrived([Person("a"), Person("b")], more: false);
 
+        Assert.Contains("2 of 187 read — this instance holds no more", Rows(screen));
+    }
+
+    /// <summary>And says nothing of the sort while there is more of it still coming.</summary>
+    [Fact]
+    public void Lines_SayNothingAboutAShortfallWhileMoreIsComing()
+    {
+        var screen = Of();
+
+        screen.Arrived([Person("a"), Person("b")], more: true);
+
         Assert.Contains("2 of 187 read", Rows(screen));
+        Assert.DoesNotContain(Rows(screen), row => row.Contains("holds no more", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    ///     Nor where the row above has already said why the read is short: a rate limit stopped that one, and a count
+    ///     blaming the instance's reach underneath it would be contradicting the notice and guessing at a cause.
+    /// </summary>
+    [Fact]
+    public void Lines_LeaveTheShortfallToTheNoticeWhereThereIsOne()
+    {
+        var screen = Of();
+
+        screen.Arrived([Person("a")], more: false, notice: "Rate limited part way through — this is what arrived.");
+
+        Assert.Contains("1 of 187 read", Rows(screen));
+        Assert.DoesNotContain(Rows(screen), row => row.Contains("holds no more", StringComparison.Ordinal));
     }
 
     /// <summary>A browsed list always says both numbers, since what has been read is never the whole of it.</summary>
