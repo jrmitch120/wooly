@@ -273,11 +273,15 @@ public class ShellStackTests
         await opened.OpenAuthor();
         shell.Host.Drain();
 
-        // An account screen opens on the header block, which is not a post at all — so the four keys that would act on
-        // one are announced nowhere until the reader walks down onto their posts (#179).
-        Assert.Subset(
-            opened.Keys.Select(key => key.Key).ToHashSet(),
-            acting.Except(["b", "f", "d", "r"]).ToHashSet());
+        // An account screen opens on the header block, which is not a post at all — so every key that would act on one
+        // is announced nowhere until the reader walks down onto their posts (#179, widened to the rest by #193). Only
+        // c survives, a fresh post being written from anywhere.
+        Assert.Contains(PostKeys.Composing, opened.Keys);
+
+        foreach (var key in PostKeys.OnAPost.Where(key => key != PostKeys.Composing))
+        {
+            Assert.DoesNotContain(key, opened.Keys);
+        }
 
         opened.Walk(1, reclaiming: null);
 

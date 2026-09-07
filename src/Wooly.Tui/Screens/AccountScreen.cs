@@ -40,27 +40,21 @@ public sealed class AccountScreen : Screen
 
     /// <inheritdoc />
     /// <remarks>
-    ///     The four keys that act on the picked post alone go quiet while the header block is picked, because there is
-    ///     no post picked out there for them to act on (<see cref="PostKeys.OffAPost" />). The screen's own three stay:
-    ///     a tie is with the person, and this is their screen whichever thing on it the reader is standing on.
+    ///     Every key that acts on the picked post goes quiet while the header block is picked, because there is no
+    ///     post picked out there for them to act on — said by <see cref="Screen.Keys" /> for every screen at once
+    ///     rather than here (#193), so this list is the same whichever thing on the screen is picked. The screen's own
+    ///     three are on it either way: a tie is with the person, and this is their screen wherever the reader stands.
     /// </remarks>
-    protected override IReadOnlyList<KeyHint> OwnKeys
-    {
-        get
-        {
-            var keys = PostKeys.Around(
-                new KeyHint("j/k", "post"),
-                [
-                    new KeyHint("F", Says(Follows, "unfollow", "follow")),
-                    new KeyHint("M", Says(Account.Standing?.Muting, "unmute", "mute")),
-                    new KeyHint("B", Says(Account.Standing?.Blocking, "unblock", "block")),
-                    Refreshing,
-                ],
-                new KeyHint("esc", "back"));
-
-            return _walking.OnHeader ? PostKeys.OffAPost(keys) : keys;
-        }
-    }
+    protected override IReadOnlyList<KeyHint> OwnKeys =>
+        PostKeys.Around(
+            new KeyHint("j/k", "post"),
+            [
+                new KeyHint("F", Says(Follows, "unfollow", "follow")),
+                new KeyHint("M", Says(Account.Standing?.Muting, "unmute", "mute")),
+                new KeyHint("B", Says(Account.Standing?.Blocking, "unblock", "block")),
+                Refreshing,
+            ],
+            new KeyHint("esc", "back"));
 
     /// <inheritdoc />
     public override bool Refreshes => true;

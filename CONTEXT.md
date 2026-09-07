@@ -337,7 +337,9 @@ acts on. Not necessarily a post: an account screen's header block is the first t
 that act on a post go quiet while it is there rather than guessing — the same answer a follow **notification** already
 gets, which carries no post either. Distinct from the rail's **cursor** and its **selection** (ADR-0014): those are about which **destination**
 you are going to, this is about what you are looking at once you are there. A screen showing an empty list has nothing
-picked, which is a fact about the list rather than a place in it.
+picked, which is a fact about the list rather than a place in it — and one the status row honours the same way, since
+the rule is asked once of every screen rather than screen by screen: with nothing picked, every key that acts on a post
+bar `c` comes off the row (#193).
 _Avoid_: cursor, selection, highlight, current row
 
 **Page**:
