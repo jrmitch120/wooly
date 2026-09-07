@@ -105,6 +105,51 @@ public sealed class AccountRelationships(IMastodonClientFactory clientFactory, I
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    ///     One call for the whole page, which is what this endpoint takes many ids for — and the reason a list of
+    ///     people can say where the reader stands with each of them at all. Refused or rate-limited answers nothing:
+    ///     the rows are worth drawing without it.
+    /// </remarks>
+    public async Task<IReadOnlyList<Account>?> Standing(
+        ActiveProfile profile,
+        IReadOnlyList<Account> accounts,
+        CancellationToken cancellationToken)
+    {
+        if (accounts.Count == 0)
+        {
+            return accounts;
+        }
+
+        try
+        {
+            var client = clientFactory.CreateClient(profile.Instance, profile.AccessToken);
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var answered = (await client.GetAccountRelationships(accounts.Select(account => account.Id)))
+                .ToDictionary(relationship => relationship.Id, AccountWire.ToStanding, StringComparer.Ordinal);
+
+            return
+            [
+                .. accounts.Select(account => answered.TryGetValue(account.Id, out var standing)
+                    ? account with { Standing = standing }
+                    : account),
+            ];
+        }
+        // The same four FamiliarFollowers catches, and for the same reason: each of them means the instance did not
+        // answer the question, and silence rather than a failure is what the port promises. Anything else is this
+        // client's own bug and is not a row's to swallow — a row that says there is no tie because the asking broke
+        // would be the one dishonest thing on the screen.
+        catch (Exception unanswered) when (unanswered is RateLimitedException
+                                               or TransientNetworkException
+                                               or HttpRequestException
+                                               or JsonException)
+        {
+            return null;
+        }
+    }
+
+    /// <inheritdoc />
     public async Task<Fetch<Account>> PendingRequests(
         ActiveProfile profile,
         int limit,

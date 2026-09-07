@@ -68,6 +68,28 @@ public interface IAccountRelationships
         CancellationToken cancellationToken);
 
     /// <summary>
+    ///     Where the profile stands with each of <paramref name="accounts" />, all in the one call the endpoint takes
+    ///     many ids for.
+    /// </summary>
+    /// <remarks>
+    ///     Neither side of <see cref="List" /> carries a standing — Mastodon sends one only from the relationship
+    ///     endpoints — so a screen listing people has to ask, and asking per row would be one call per person. Given
+    ///     the accounts rather than their ids, and answering with them, because the standing is only ever wanted
+    ///     attached to the person it is about: a caller matching ids back up itself would be the second place this
+    ///     mapping could be got wrong.
+    /// </remarks>
+    /// <returns>
+    ///     The same accounts, each carrying the standing the instance answered with — or <see langword="null" /> where
+    ///     it never answered, which this reports rather than throws for the reason
+    ///     <see cref="FamiliarFollowers" /> does: it decorates rows that are worth drawing without it, so a rate limit
+    ///     reached here leaves the list standing and silent rather than taking it down (ADR-0012's amendment).
+    /// </returns>
+    Task<IReadOnlyList<Account>?> Standing(
+        ActiveProfile profile,
+        IReadOnlyList<Account> accounts,
+        CancellationToken cancellationToken);
+
+    /// <summary>
     ///     Lists the accounts waiting to be let in, which only a locked account ever has any of: an unlocked one is
     ///     followed rather than asked.
     /// </summary>

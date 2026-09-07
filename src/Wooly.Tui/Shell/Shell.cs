@@ -52,6 +52,12 @@ public sealed class Shell
     private const int LongestAnswerSaid = 25;
 
     /// <summary>
+    ///     How many people a follow list asks for at a time: the most Mastodon serves from a list of accounts in one
+    ///     call, so the most there is any point asking it for (#180).
+    /// </summary>
+    private const int FollowsPage = 80;
+
+    /// <summary>
     ///     What arriving at a destination means, which is the same six steps at every one of them that reads a list
     ///     (#100).
     /// </summary>
@@ -65,6 +71,9 @@ public sealed class Shell
     private readonly IWebBrowser _browser;
 
     private readonly DestinationCache _cache;
+
+    /// <summary>What a follow list last held, which is the one cache over a screen the stack was drilled into (#180).</summary>
+    private readonly FollowsCache _follows;
 
     /// <summary>Everything this reaches an instance through, and the one place the stale-answer rule is stated.</summary>
     private readonly Enquiry _enquiry;
@@ -90,6 +99,7 @@ public sealed class Shell
         _host = host;
         _browser = browser;
         _cache = new DestinationCache(clock, timing.CacheFor);
+        _follows = new FollowsCache(clock, timing.CacheFor);
 
         _enquiry = new Enquiry(host, clock, timing.CountdownStep);
         _enquiry.Said += Say;
@@ -232,6 +242,11 @@ public sealed class Shell
         Verb.OpenConversation => Ran(OpenConversation),
         Verb.MarkRead => Ran(MarkRead),
         Verb.Find => Ran(Find),
+        Verb.OpenFollows => Ran(OpenFollows),
+        Verb.SwapSide => Ran(SwapSide),
+        Verb.Filter => Ran(Filter),
+        Verb.FilterDone => Ran(FilterDone),
+        Verb.OpenPerson => Ran(OpenPerson),
         Verb.OpenResult => Ran(OpenResult),
         Verb.WriteWarning => Ran(WriteWarning),
 
@@ -243,6 +258,8 @@ public sealed class Shell
     public void Move(int by)
     {
         Screen.Move(by);
+
+        Paging();
 
         // The remark goes with the post it was said over, for the reason <see cref="Walk" /> gives.
         Say(null, isError: false);
@@ -272,6 +289,8 @@ public sealed class Shell
         {
             Screen.Move(by);
         }
+
+        Paging();
 
         // A remark is about the post it was said over, and the reader has walked off it — so it goes with them, the
         // same way esc takes it off on the way out of a screen. It is not a small thing to leave standing: the status
@@ -407,6 +426,7 @@ public sealed class Shell
         {
             PostScreen post => RefreshPost(post),
             AccountScreen account => RefreshAccount(account),
+            FollowsScreen follows => RefreshFollows(follows),
             _ => RefreshDestination(),
         };
     }
@@ -473,6 +493,66 @@ public sealed class Shell
         await OpenAccount(AccountAddress.Parse((picked.Boosted ?? picked).Account));
     }
 
+    /// <summary>
+    ///     Opens everyone the account being shown follows, which is what <c>w</c> does from an account screen
+    ///     (<c>docs/tui-shell.md</c>, #180). The other side is one <c>s</c> away.
+    /// </summary>
+    /// <remarks>
+    ///     The following side rather than the followers, that being the one a reader is likelier to have come for on
+    ///     somebody else's profile — and either way the swap costs one key rather than a second one to learn.
+    /// </remarks>
+    public Task OpenFollows() =>
+        Screen is AccountScreen showing ? Follows(showing.Account, FollowSide.Following, replacing: false) : Task.CompletedTask;
+
+    /// <summary>
+    ///     Swaps to the other side of the same account's follows, in place: same screen, new crumb, the pick back at
+    ///     the top and the filter gone. No push, because a toggle that pushed would grow the stack on every flip.
+    /// </summary>
+    public Task SwapSide() => Screen is FollowsScreen showing
+        ? Follows(
+            showing.Whose,
+            showing.Side.Either(followers: FollowSide.Following, following: FollowSide.Followers),
+            replacing: true)
+        : Task.CompletedTask;
+
+    /// <summary>Opens the prompt that narrows a follow list, which is what <c>f</c> does there.</summary>
+    /// <remarks>
+    ///     The screen settles whether there is a filter to open at all: a list too large to hold whole is browsed
+    ///     rather than filtered, and does not announce the key either.
+    /// </remarks>
+    public void Filter()
+    {
+        if (Screen is not FollowsScreen showing)
+        {
+            return;
+        }
+
+        showing.Filtering();
+
+        Changed?.Invoke();
+    }
+
+    /// <summary>Hands a narrowed list back to walking, with what was typed still narrowing it.</summary>
+    public void FilterDone()
+    {
+        if (Screen is not FollowsScreen showing)
+        {
+            return;
+        }
+
+        showing.Done();
+
+        Changed?.Invoke();
+    }
+
+    /// <summary>
+    ///     Opens the account screen of whoever is picked out on a follow list — the same screen <c>a</c> opens from a
+    ///     feed, read the same way, rather than a row that expands where it stands.
+    /// </summary>
+    public Task OpenPerson() => Screen is FollowsScreen { PickedPerson: { } person }
+        ? OpenAccount(AccountAddress.Parse(person.Address))
+        : Task.CompletedTask;
+
     /// <summary>Walks back up one level of the stack. Never quits, and never leaves the shell with nothing on it.</summary>
     public void Back()
     {
@@ -492,6 +572,15 @@ public sealed class Shell
         // (docs/tui-shell.md, #83, #87). Both at once, because both are the same half-finished sentence about the same
         // post — leaving one of them standing would make the next esc do nothing anybody asked for.
         if (Screen.ClearReference() | Screen.ClearChoices())
+        {
+            Changed?.Invoke();
+
+            return;
+        }
+
+        // And a filter is a level of its own in the same sense: the first esc puts the whole list back and the next
+        // one leaves the screen (#180).
+        if (Screen is FollowsScreen follows && follows.Clear())
         {
             Changed?.Invoke();
 
@@ -1113,6 +1202,162 @@ public sealed class Shell
     }
 
     /// <summary>
+    ///     Puts a follow list on screen and starts reading it: the first page, and — on a list held whole — the rest
+    ///     behind the reader.
+    /// </summary>
+    /// <remarks>
+    ///     The screen is on the stack before anything is asked for, so the reader is looking at the list they opened
+    ///     while it fills rather than at the screen they left. Which mode it is in it settles itself, off the counts
+    ///     the account already carries (<see cref="FollowsScreen.Holds" />).
+    /// </remarks>
+    /// <param name="whose">The account whose list it is, as the screen it was opened from was holding them.</param>
+    /// <param name="side">Which side of their follows.</param>
+    /// <param name="replacing">
+    ///     Whether this stands in place of the screen showing rather than on top of it, which is what a swap of sides
+    ///     is and what an open is not.
+    /// </param>
+    private Task Follows(Account whose, FollowSide side, bool replacing)
+    {
+        var showing = Screen;
+        var screen = new FollowsScreen(whose, side, IsMe(whose.Address));
+
+        if (replacing)
+        {
+            Freshened(showing, screen);
+        }
+        else
+        {
+            Push(screen);
+        }
+
+        // Held whole and recently, so there is nothing to ask: the cache pays exactly here, on a list re-opened after
+        // popping out of it (#180).
+        if (_follows.Fresh(whose.Id, side) is { } held)
+        {
+            screen.Arrived(held, more: false);
+
+            Changed?.Invoke();
+
+            return Task.CompletedTask;
+        }
+
+        return Fill(screen, FollowsPage);
+    }
+
+    /// <summary>
+    ///     Reads <paramref name="wanted" /> of a follow list and puts whoever is new on <paramref name="screen" />.
+    /// </summary>
+    /// <remarks>
+    ///     A page is asked for by re-reading the list to a longer limit, the port taking a count rather than a cursor
+    ///     — so what comes back holds every page before it, and only the tail of it is new.
+    /// </remarks>
+    private Task Fill(FollowsScreen screen, int wanted) =>
+        _enquiry.Put(ask => ReadFollows(ask, screen, wanted), ifStillHere: read => Filled(screen, read, wanted));
+
+    /// <summary>
+    ///     The list, and where the profile stands with whoever on it is new — two calls under one enquiry, so it is
+    ///     checked once at the end rather than after each.
+    /// </summary>
+    /// <remarks>
+    ///     Neither side of a follow list carries a standing, Mastodon sending one only from the relationship
+    ///     endpoints, so it is asked for separately — once for the page rather than once a row, which is what that
+    ///     endpoint takes many ids for. It answers with nothing where it was refused, and the rows are drawn silent:
+    ///     a row saying there is no tie because the asking failed would be the one dishonest thing on the screen.
+    /// </remarks>
+    private async Task<Listing> ReadFollows(Enquiry.Ask ask, FollowsScreen screen, int wanted)
+    {
+        var already = screen.Read;
+
+        var fetch = await ask.Of(token => _ports.Accounts.List(
+            _profile,
+            screen.Side,
+            AccountAddress.Parse(screen.Whose.Address),
+            wanted,
+            token));
+
+        var read = fetch.Items.Skip(already).ToList();
+
+        var stood = new List<Account>(read.Count);
+
+        // A page of ids at a time, never one query naming everybody: the endpoint takes many ids and not unboundedly
+        // many, and a held list is read to its whole length in one ask (see Filled) — so the two are chunked apart
+        // rather than one following the other's size (#180).
+        foreach (var page in read.Chunk(FollowsPage))
+        {
+            var answered = await ask.Of(token => _ports.Accounts.Standing(_profile, page, token));
+
+            stood.AddRange(answered ?? page);
+        }
+
+        return new Listing([.. fetch.Items.Take(already), .. stood], fetch.StoppedBy);
+    }
+
+    /// <summary>
+    ///     What one read of a follow list came back with: everyone the instance has listed so far, and whether a rate
+    ///     limit stopped it part way.
+    /// </summary>
+    /// <param name="People">Everyone read so far, whoever is new among them carrying their standing.</param>
+    /// <param name="StoppedBy">The rate limit that cut the read short, or nothing where none did.</param>
+    private sealed record Listing(IReadOnlyList<Account> People, RateLimitedException? StoppedBy);
+
+    /// <summary>Puts what was read on the screen, and asks for the rest where there is more of it to hold.</summary>
+    /// <remarks>
+    ///     Only where that screen is still the one showing, the same recheck <see cref="Freshened" /> makes and for
+    ///     the same reason. A list held whole goes on to read the rest at once, which is what streaming in behind the
+    ///     reader is; a browsed one stops here and waits for <c>j</c> to reach the end of what arrived.
+    /// </remarks>
+    private void Filled(FollowsScreen screen, Listing read, int wanted)
+    {
+        if (!ReferenceEquals(Screen, screen))
+        {
+            return;
+        }
+
+        // More to come only where the instance filled the ask and the list is longer than what is in hand: a short
+        // page is the end of the list, and a rate limit is the end of the reading.
+        var more = read.StoppedBy is null && read.People.Count >= wanted && read.People.Count < screen.Total;
+
+        screen.Arrived(read.People, more);
+
+        Say(Arrival.Emptiness(read.People.Count, screen.Nobody, of: null, read.StoppedBy), isError: false);
+
+        if (more)
+        {
+            if (screen.Holds)
+            {
+                // The rest of it, in one ask rather than 24 more: the port reads to a limit, so asking page by page
+                // would re-read every page before it each time.
+                _ = Fill(screen, (int)screen.Total);
+            }
+
+            return;
+        }
+
+        // Only a list that was read whole is worth handing back later; a page of a browsed one is not what is there.
+        if (screen.Holds && read.StoppedBy is null)
+        {
+            _follows.Keep(screen.Whose.Id, screen.Side, read.People);
+        }
+    }
+
+    /// <summary>
+    ///     Reads the next page where the reader has walked onto the end of a browsed list, which is what <c>j</c>
+    ///     past the bottom means there (#180).
+    /// </summary>
+    /// <remarks>
+    ///     Asked after every walk rather than bound to a key, because the walk is what settles it: the screen answers
+    ///     whether it is standing at the end of what it has with more to be had, and nothing else on any screen
+    ///     answers yes.
+    /// </remarks>
+    private void Paging()
+    {
+        if (Screen is FollowsScreen { WantsMore: true } follows && !Fetching)
+        {
+            _ = Fill(follows, follows.Read + FollowsPage);
+        }
+    }
+
+    /// <summary>
     ///     Asking a destination for what is there now, which is the arrival it already arrives by with what it last
     ///     held taken away first — one refresh for all seven of them (#84).
     /// </summary>
@@ -1160,6 +1405,21 @@ public sealed class Shell
             ask => ReadAccount(ask, AccountAddress.Parse(showing.Account.Address)),
             ifStillHere: found =>
                 Freshened(showing, new AccountScreen(found.Account, found.Posts, found.Familiar)));
+
+    /// <summary>
+    ///     And for a follow list, which is the same read its <c>w</c> or its <c>s</c> ran — off a fresh screen, so
+    ///     the filter goes and the pick is back at the top, which is what a refresh is (#180).
+    /// </summary>
+    private Task RefreshFollows(FollowsScreen showing)
+    {
+        _follows.Forget(showing.Whose.Id, showing.Side);
+
+        var fresh = new FollowsScreen(showing.Whose, showing.Side, showing.Mine);
+
+        Freshened(showing, fresh);
+
+        return Fill(fresh, FollowsPage);
+    }
 
     /// <summary>
     ///     Puts <paramref name="fresh" /> in place of the screen it is a fresher copy of, with the reader put back

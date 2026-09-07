@@ -62,10 +62,15 @@ public static class Keymap
         (ShellKey.Enter, _) when screen.Reference is not null => Verb.OpenReference,
         (ShellKey.Enter, SearchScreen search) => search.IsTyping ? Verb.Find : Verb.OpenResult,
         (ShellKey.Enter, FollowRequestsScreen) => Verb.OpenAsker,
+        (ShellKey.Enter, FollowsScreen follows) => follows.IsTyping ? Verb.FilterDone : Verb.OpenPerson,
         (ShellKey.Enter, DirectMessagesScreen) => Verb.OpenConversation,
         (ShellKey.A, FollowRequestsScreen) => Verb.AcceptRequest,
         (ShellKey.D, NotificationsScreen) => Verb.Dismiss,
         (ShellKey.X, FollowRequestsScreen) => Verb.RejectRequest,
+
+        // And the fifth, which a follow list added: f is favorite wherever there is a post to mark, and on a list of
+        // people it narrows the list instead (#180).
+        (ShellKey.F, FollowsScreen) => Verb.Filter,
         (ShellKey.Enter, _) => Verb.OpenPost,
         (ShellKey.A, _) => Verb.OpenAuthor,
         (ShellKey.D, _) => Verb.Delete,
@@ -103,6 +108,12 @@ public static class Keymap
         (ShellKey.P, _) => Verb.Pin,
         (ShellKey.R, _) => Verb.Reply,
         (ShellKey.V, _) => Verb.Vote,
+
+        // The two a follow list added, each bound where it means something rather than shell-wide — and so each is
+        // announced on exactly the screen that answers it: s swaps sides on the list, and w opens one from the
+        // account screen whose row says so (#180).
+        (ShellKey.S, FollowsScreen) => Verb.SwapSide,
+        (ShellKey.W, AccountScreen) => Verb.OpenFollows,
 
         // The capitals, which are keys of their own for exactly this reason: a lower-case mark key can never fire a
         // tie or empty an inbox by accident (docs/tui-shell.md).

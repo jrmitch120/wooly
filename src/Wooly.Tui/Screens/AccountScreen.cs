@@ -52,6 +52,7 @@ public sealed class AccountScreen : Screen
                 new KeyHint("F", Says(Follows, "unfollow", "follow")),
                 new KeyHint("M", Says(Account.Standing?.Muting, "unmute", "mute")),
                 new KeyHint("B", Says(Account.Standing?.Blocking, "unblock", "block")),
+                new KeyHint("w", "follows"),
                 Refreshing,
             ],
             new KeyHint("esc", "back"));

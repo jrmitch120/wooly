@@ -1,5 +1,6 @@
 using Terminal.Gui.Input;
 using Wooly.Core.Posts;
+using Wooly.Core.Relationships;
 using Wooly.Core.Search;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
@@ -156,6 +157,43 @@ public class KeymapTests
     }
 
     /// <summary>
+    ///     A follow list takes three keys for itself: <c>⏎</c> opens whoever is picked out, <c>f</c> narrows the list
+    ///     rather than favoriting anything, and <c>s</c> swaps sides — the last meaning nothing anywhere else (#180).
+    /// </summary>
+    [Theory]
+    [InlineData("⏎", Verb.OpenPerson)]
+    [InlineData("f", Verb.Filter)]
+    [InlineData("s", Verb.SwapSide)]
+    public void TheFollowsScreenTakesThreeKeysForItself(string key, Verb verb) =>
+        Assert.Equal(verb, Means(key, Follows()));
+
+    /// <summary>And <c>⏎</c> means the other thing while its prompt is taking letters, as the search prompt's does.</summary>
+    [Fact]
+    public void TheFollowsScreenFinishesFilteringOnEnterWhileItIsTyping()
+    {
+        var follows = Follows();
+
+        follows.Filtering();
+
+        Assert.Equal(Verb.FilterDone, Means("⏎", follows));
+    }
+
+    /// <summary>
+    ///     <c>w</c> opens a follow list from the account screen, which is the one screen that announces it — and is
+    ///     turned down everywhere else rather than firing unannounced.
+    /// </summary>
+    [Fact]
+    public void TheFollowsKeyBelongsToTheAccountScreen()
+    {
+        Assert.Equal(Verb.OpenFollows, Means("w", new AccountScreen(AnAccount.With(), [])));
+        Assert.Equal(Verb.None, Means("w", Feed()));
+    }
+
+    /// <summary>And <c>s</c> is nothing off a follow list, there being no other side of anything to swap to.</summary>
+    [Fact]
+    public void TheSwapKeyMeansNothingOffAFollowList() => Assert.Equal(Verb.None, Means("s", Feed()));
+
+    /// <summary>
     ///     A picked reference is a level of its own inside the screen, so <c>⏎</c> means the reference wherever one is
     ///     picked — ahead of whatever the screen's own <c>⏎</c> would have meant (#85).
     /// </summary>
@@ -251,6 +289,16 @@ public class KeymapTests
 
     /// <summary>What <paramref name="key" /> means on <paramref name="screen" />, pressed as a terminal sends it.</summary>
     private static Verb Means(string key, Screen screen) => Keymap.Means(Pressed(key), screen);
+
+    /// <summary>Somebody's following list with one person on it, which is what the three keys act on.</summary>
+    private static FollowsScreen Follows()
+    {
+        var screen = new FollowsScreen(AnAccount.With(), FollowSide.Following, mine: false);
+
+        screen.Arrived([AnAccount.With()], more: false);
+
+        return screen;
+    }
 
     /// <summary>Which of this shell's keys that press is, which every key the contract names has to be one of.</summary>
     private static ShellKey Pressed(string key)

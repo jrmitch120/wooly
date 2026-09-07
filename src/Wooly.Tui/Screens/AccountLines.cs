@@ -80,6 +80,90 @@ public static class AccountLines
         return lines;
     }
 
+    /// <summary>
+    ///     One person on a list of them: their byline, and where the reader stands with them in as few words as the
+    ///     row has room for. What a follow list draws for everyone on it (#180).
+    /// </summary>
+    /// <remarks>
+    ///     The two-span shape the search screen's hashtag row already uses — what the thing is, then a muted word
+    ///     about it — put here rather than on the screen so that a person reads one way everywhere, which is the
+    ///     reason <see cref="Byline" /> is here too.
+    ///     <para>
+    ///         The standing is measured out of the width first and the byline takes what is left, because the byline
+    ///         is the half a reader can still recognise clipped: a name cut short is still that person, and
+    ///         <c>follo</c> is not a standing.
+    ///     </para>
+    /// </remarks>
+    /// <param name="account">
+    ///     Them, carrying the standing the instance answered with — or carrying none, where it was never asked or
+    ///     refused, which draws no suffix at all rather than one saying there is no tie (CONTEXT.md).
+    /// </param>
+    /// <param name="width">How much room the row gets.</param>
+    /// <param name="said">
+    ///     What the list this row is on has already said about everyone on it, which is what the row must not repeat.
+    /// </param>
+    public static Line Person(Account account, int width, Implied said = Implied.Nothing)
+    {
+        var standing = Compact(account.Standing, said);
+
+        if (standing.Length == 0)
+        {
+            return Byline(account, width);
+        }
+
+        var suffix = $"  {standing}";
+        var byline = Byline(account, Math.Max(0, width - suffix.Length));
+
+        return Line.Of([.. byline.Spans, new Span(TextWrap.Clip(suffix, width), Role.Muted)]);
+    }
+
+    /// <summary>
+    ///     Where the reader stands with them, in the fewest words that still tell the five apart — and nothing at all
+    ///     where the instance was never asked, or where what it answered is what the list already said.
+    /// </summary>
+    /// <remarks>
+    ///     The same five facts <see cref="Standing" /> says on an account's own screen, said shorter: that screen has
+    ///     a row to itself and a sentence fits, and here five people fit where one sentence would.
+    /// </remarks>
+    private static string Compact(AccountStanding? standing, Implied said)
+    {
+        if (standing is null)
+        {
+            return string.Empty;
+        }
+
+        var words = new List<string>();
+
+        if (standing.Following)
+        {
+            if (said != Implied.YouFollowThem)
+            {
+                words.Add("following");
+            }
+        }
+        else if (standing.FollowRequested)
+        {
+            words.Add("asked");
+        }
+
+        if (standing.FollowedBy && said != Implied.TheyFollowYou)
+        {
+            words.Add("follows you");
+        }
+
+        if (standing.Blocking)
+        {
+            words.Add("blocked");
+        }
+
+        if (standing.Muting)
+        {
+            words.Add("muted");
+        }
+
+        return string.Join(" · ", words);
+    }
+
     /// <summary>The name and handle on one row, for a list where each account gets as few rows as it can.</summary>
     public static Line Byline(Account account, int width)
     {

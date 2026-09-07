@@ -93,7 +93,7 @@ Screen-local, and deliberately colliding with the above because they are never o
 
 | Screen | Keys |
 |---|---|
-| Account | `F` follow/unfollow · `M` mute/unmute · `B` block/unblock — capitals, so a lower-case mark key can never fire a tie by accident · `w` who they follow · `[`/`]` section, on an account carrying a pinned run |
+| Account | `F` follow/unfollow · `M` mute/unmute · `B` block/unblock — capitals, so a lower-case mark key can never fire a tie by accident · `w` follows, which is everyone they follow with `s` a keypress from everyone who follows them · `[`/`]` section, on an account carrying a pinned run |
 | Follows — following or followers | `f` filter, on a list under the threshold · `s` swap to the other side, in place · `⏎` open that account |
 | Search results | `[`/`]` section, where two or more kinds found something |
 | Discover | `F` follow/unfollow · `d` dismiss, one-way · `[`/`]` section |
@@ -788,8 +788,7 @@ doing so it became the first screen in the shell whose pick is not a post (#164,
 ### What a follow list settled
 
 `w` opens everyone an account follows; `s` swaps to everyone who follows them, in place. One screen, either side,
-anybody's account, and no Core change at all — `IAccountRelationships.List` already takes a `FollowSide` and an
-optional account (#165):
+anybody's account — `IAccountRelationships.List` already takes a `FollowSide` and an optional account (#165):
 
 - **One key rather than two, and it swaps rather than pushes.** The account screen is crowded — it inherits the post
   keys, so `f` is favorite and `b` is boost, and its capitals are spoken for by the three ties. `s` re-asks in place
@@ -798,11 +797,16 @@ optional account (#165):
   profile. The crumb reads `@maria following` / `@maria followers`.
 - **The mode is picked from the count before the first fetch.** An `Account` already carries both counts, so the screen
   knows how large the list is before asking for anything rather than discovering the problem hundreds of calls in.
-  Under the threshold it holds the whole list, fetched progressively at 80 a page and walkable from the first page,
-  with new people landing below a pick that does not move; while it is still reading, the count says both numbers so a
-  thin filter result reads as *still reading* rather than as *nobody matches*. At or above it the screen browses paged
-  on demand — `j` past the bottom fetches the next 80 — **with no filter at all**, `f` off the status row and the count
-  reading `240 of 877K read`.
+  Under the threshold it holds the whole list, walkable from the first page of 80 with the rest landing behind a pick
+  that does not move; while what is on screen is not the whole of it — still coming, or stopped short by a rate limit
+  — the count says both numbers, so a thin filter result reads as *still reading* rather than as *nobody matches*. At
+  or above it the screen browses paged on demand — `j` past the bottom fetches the next 80 — **with no filter at all**,
+  `f` off the status row and the count reading `240 of 877,000 read` (`Number.Of`, which is how this client writes
+  every count).
+  The rest of a held list arrives in **one further ask rather than 24**, which is where the implementation departs from
+  #180's "80 a page": `IAccountRelationships.List` reads to a *limit* rather than from a cursor, so asking page by page
+  re-reads every page before it — 25 asks would cost some 300 requests against the 25 the ticket budgeted. The standing
+  call is still made a page of 80 ids at a time, that endpoint taking many ids and not unboundedly many.
 - **No filter is offered where it cannot be honest.** Filtering what has already been read is the dishonest filter
   #162 ruled out, and 240 read of 877K makes "no matches" meaningless. Refusing to open the screen was rejected too:
   walking the first few hundred of anyone's followers is a real thing to do, on the same rows with the same `⏎`.
@@ -813,6 +817,11 @@ optional account (#165):
   already uses, built as a shared `AccountLines` method so a person reads one way everywhere. Neither `:id/following`
   nor `:id/followers` sends a standing, so it is filled by **one batched `/accounts/relationships` call per page**, not
   per row; where that call did not happen or failed the row stays **silent** rather than implying no tie.
+  That call is **the one Core change this cost**: #165 said there would be none, having priced the listing alone, and
+  no port reached that endpoint for more than one account (`Show` asks about the one it read). So
+  `IAccountRelationships.Standing` was added rather than reached past, which is the rule `ShellPorts` already states —
+  it answers with the accounts it was given carrying their standing, and with nothing where the instance refused,
+  which is the shape `FamiliarFollowers` already set for a call that decorates rows worth drawing without it (#180).
 - **A row never says what the list it is on already says.** Your own following list drops "you follow them", true of
   every row by construction, and shows "they follow you". Your own followers list drops "they follow you" — the *gap*
   is the signal there, since what you want is who you have not followed back. Someone else's list implies nothing, so
