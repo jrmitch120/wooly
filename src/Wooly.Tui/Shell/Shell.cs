@@ -1317,9 +1317,11 @@ public sealed class Shell
         // page is the end of the list, and a rate limit is the end of the reading.
         var more = read.StoppedBy is null && read.People.Count >= wanted && read.People.Count < screen.Total;
 
-        screen.Arrived(read.People, more);
+        screen.Arrived(read.People, more, Arrival.Emptiness(read.People.Count, screen.Nobody, of: null, read.StoppedBy));
 
-        Say(Arrival.Emptiness(read.People.Count, screen.Nobody, of: null, read.StoppedBy), isError: false);
+        // Nothing on the status row: what this read had to say is on the screen, where a list with nobody on it can
+        // go on saying it without costing the reader every key the screen answers to.
+        Say(null, isError: false);
 
         if (more)
         {

@@ -112,12 +112,32 @@ public sealed class FollowsScreen : Screen
     public bool WantsMore => !Holds && More && Read > 0 && _walking.At >= _walking.Count - 1;
 
     /// <summary>
-    ///     What this list is told where nobody is on it, which is a different sentence for each of the four: whose
-    ///     list it is and which side of it are both this screen's to know.
+    ///     What this list is told where nobody is on it: that there is nobody, or — where the profile says otherwise
+    ///     — that the instance listed nobody all the same.
     /// </summary>
-    public string Nobody => Side.Either(
-        followers: Mine ? "Nobody follows you yet." : "Nobody follows them yet.",
-        following: Mine ? "You follow nobody yet." : "They follow nobody yet.");
+    /// <remarks>
+    ///     The two are different facts and must not be said with the same sentence. An account can keep who it
+    ///     follows to itself, and Mastodon answers that by serving an empty list while the count on the profile goes
+    ///     on saying five: telling a reader "they follow nobody" there would be reporting a setting as a fact. Both
+    ///     numbers are said and no cause is guessed at, which is the same honesty an absent standing gets (#180).
+    /// </remarks>
+    public string Nobody => Total > 0
+        ? $"{(Mine ? "Your" : "Their")} profile says {Number.Of(Total)} {Called}, but the instance listed nobody."
+        : Side.Either(
+            followers: Mine ? "Nobody follows you yet." : "Nobody follows them yet.",
+            following: Mine ? "You follow nobody yet." : "They follow nobody yet.");
+
+    /// <summary>
+    ///     What the shell has to say about the list rather than about anybody on it — that nobody is on it, or that a
+    ///     rate limit cut the reading short.
+    /// </summary>
+    /// <remarks>
+    ///     Drawn on the screen rather than said on the status row, which is where every other list this shell draws
+    ///     puts one: the row holds either a notice or the keys and never both, so a notice standing there is every
+    ///     key the screen answers to, hidden — and on a list with nobody on it there is nothing to walk, so nothing
+    ///     ever comes along to take it down again.
+    /// </remarks>
+    public string? Notice { get; private set; }
 
     /// <summary>Whoever is picked out, or nobody where nobody is on screen. What <c>⏎</c> opens.</summary>
     public Account? PickedPerson => _walking.Out;
@@ -181,9 +201,14 @@ public sealed class FollowsScreen : Screen
     /// </remarks>
     /// <param name="people">Everyone the read came back with, from the first of them.</param>
     /// <param name="more">Whether there is more still coming, which is what the count row says while it is.</param>
-    public void Arrived(IReadOnlyList<Account> people, bool more)
+    /// <param name="notice">
+    ///     What the shell has to say about the read — that it found nobody, or that a rate limit stopped it — or
+    ///     nothing, which takes down whatever the last read left standing.
+    /// </param>
+    public void Arrived(IReadOnlyList<Account> people, bool more, string? notice = null)
     {
         More = more;
+        Notice = notice;
 
         foreach (var person in people.Skip(_all.Count))
         {
@@ -264,14 +289,25 @@ public sealed class FollowsScreen : Screen
 
         var lines = new List<Line>();
 
+        if (Notice is { } notice)
+        {
+            lines.Add(Line.Of(TextWrap.Clip(notice, width), Role.Muted));
+            lines.Add(Line.Blank);
+        }
+
         if (_typing || Filter.Length > 0)
         {
             lines.Add(Prompt(width));
             lines.Add(Line.Blank);
         }
 
-        lines.Add(Line.Of(TextWrap.Clip(Counted(), width), Role.Muted));
-        lines.Add(Line.Rule(width));
+        // No count over a list nobody has arrived on: "0 of 5 read" is a sum a reader has to work out, and the
+        // notice above has already said the whole of what it would have told them.
+        if (Read > 0)
+        {
+            lines.Add(Line.Of(TextWrap.Clip(Counted(), width), Role.Muted));
+            lines.Add(Line.Rule(width));
+        }
 
         // No rule between people, and one under the prompt instead: there is one kind of thing on this list and
         // nothing to separate it from, and at 900 people a rule apiece would be 900 rows of horizontal line (#180).

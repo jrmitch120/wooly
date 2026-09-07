@@ -426,6 +426,58 @@ public class FollowsScreenTests
         Assert.Null(screen.Picked);
     }
 
+    /// <summary>
+    ///     What the shell has to say about the list is drawn on the screen, not said on the status row: the row holds
+    ///     either a notice or the keys, and a list with nobody on it has nothing to walk that would ever take one
+    ///     down again.
+    /// </summary>
+    [Fact]
+    public void Lines_CarryTheNoticeAboutTheList()
+    {
+        var screen = Of();
+
+        screen.Arrived([], more: false, notice: "They follow nobody yet.");
+
+        Assert.Contains("They follow nobody yet.", Rows(screen));
+        Assert.Equal(
+            "j/k:person f:filter s:followers g:refresh ↓/↑:row esc:back ?:keys",
+            string.Join(' ', screen.Keys));
+    }
+
+    /// <summary>And no count over a list nobody has arrived on, which would be a sum a reader has to work out.</summary>
+    [Fact]
+    public void Lines_SayNoCountWhereNobodyHasArrived()
+    {
+        var screen = Of();
+
+        screen.Arrived([], more: false, notice: "They follow nobody yet.");
+
+        Assert.DoesNotContain("0 of 187 read", Rows(screen));
+    }
+
+    /// <summary>
+    ///     An account whose profile says it follows people while the instance lists none of them is not an account
+    ///     that follows nobody: both numbers are said and no cause is guessed at, an account being free to keep who
+    ///     it follows to itself.
+    /// </summary>
+    [Theory]
+    [InlineData(false, FollowSide.Following, 5, "Their profile says 5 following, but the instance listed nobody.")]
+    [InlineData(true, FollowSide.Followers, 5, "Your profile says 5 followers, but the instance listed nobody.")]
+    [InlineData(false, FollowSide.Following, 0, "They follow nobody yet.")]
+    [InlineData(true, FollowSide.Following, 0, "You follow nobody yet.")]
+    [InlineData(false, FollowSide.Followers, 0, "Nobody follows them yet.")]
+    [InlineData(true, FollowSide.Followers, 0, "Nobody follows you yet.")]
+    public void Nobody_TellsAnEmptyListFromOneTheInstanceWouldNotServe(
+        bool mine,
+        FollowSide side,
+        int total,
+        string said)
+    {
+        var account = AnAccount.With(followers: total, following: total);
+
+        Assert.Equal(said, new FollowsScreen(account, side, mine).Nobody);
+    }
+
     /// <summary>The rows this screen draws, as the strings a reader sees.</summary>
     private static IReadOnlyList<string> Rows(FollowsScreen screen) =>
         [.. screen.Lines(new Drawing(61, AShell.Now)).Select(line => string.Concat(line.Spans.Select(span => span.Text)).TrimEnd())];

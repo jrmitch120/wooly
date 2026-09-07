@@ -831,6 +831,16 @@ anybody's account — `IAccountRelationships.List` already takes a `FollowSide` 
   Typing narrows on every keystroke, `⏎` returns to walking with the filter still applied, `esc` clears it. `/` was
   never available: it is a frame key meaning "go to search" everywhere. It reuses `IsTyping`, so the status row swaps
   to the letters-are-text keymap and the filter is a fact about the shell a test can set and read (ADR-0015).
+- **What it has to say about the list goes on the screen, not the status row.** The row holds either a notice or the
+  keymap and never both, and a list with nobody on it has nothing to walk — so a notice said there would stand for as
+  long as the screen did, and every key the screen answers to would be hidden behind it. It is drawn as the first
+  muted row instead, which is what every other list this shell draws already does. Nothing is counted over a list
+  nobody has arrived on either: `0 of 5 read` is a subtraction a reader has to do, and the notice above it has already
+  said the whole of what it would have told them (#180).
+- **An account that lists nobody is not an account that follows nobody.** Mastodon serves an empty list for an account
+  that keeps who it follows to itself, while the count on the profile goes on saying five — so the screen says *their
+  profile says 5 following, but the instance listed nobody* rather than *they follow nobody yet*, which would report a
+  setting as a fact. Both numbers, and no cause guessed at: the same honesty an absent standing gets.
 - **No per-row rule.** The search screen rules after every result because it is separating a run of accounts from
   hashtags from posts; there is one kind here and nothing to separate, and at 900 people it would be 1,800 rows, half
   of them horizontal lines. One rule under the prompt keeps the screen search-shaped.

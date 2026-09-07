@@ -305,7 +305,13 @@ public class ShellFollowsTests
         await opened.OpenFollows();
         fakes.Host.Drain();
 
-        Assert.Equal("They follow nobody yet.", opened.Notice);
+        var follows = Assert.IsType<FollowsScreen>(opened.Screen);
+
+        // On the screen rather than on the status row, which would cost the reader every key it answers to — and on
+        // a list with nobody on it there is nothing to walk that would ever take a notice down again.
+        Assert.Contains("but the instance listed nobody", follows.Notice);
+        Assert.Null(opened.Notice);
+        Assert.Contains(follows.Keys, key => key is { Key: "s" });
     }
 
     /// <summary>
