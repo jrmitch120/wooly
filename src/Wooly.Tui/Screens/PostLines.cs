@@ -53,21 +53,6 @@ public static class PostLines
     private const string AskPastIt = "x  show it";
 
     /// <summary>
-    ///     How many columns an author's avatar takes, beside the two rows of their byline — four wide and two tall
-    ///     being about square in a cell twice as tall as it is wide, which is the shape an avatar is.
-    /// </summary>
-    /// <remarks>
-    ///     Fixed rather than worked out from the picture's own proportions the way an attachment's box is
-    ///     (<see cref="Inset.For" />), because this box is not sized to a picture: it is a slot in a byline, and a
-    ///     byline whose height depended on how square somebody's avatar happened to be would be a feed whose rows
-    ///     moved as it scrolled.
-    /// </remarks>
-    private const int AvatarColumns = 4;
-
-    /// <summary>How many rows the avatar stands beside, which is the two the byline takes.</summary>
-    private const int AvatarRows = 2;
-
-    /// <summary>
     ///     One post as a feed shows it: what it boosts and what it answers, a two-row byline with the author's avatar
     ///     beside it, the text, what is attached, and the three counts behind a blank of their own.
     /// </summary>
@@ -138,8 +123,8 @@ public static class PostLines
         var pictures = drawing.Pictures;
         var show = OnShow.Of(post, reading);
         var shown = show.Shown;
-        var avatar = Avatar.Of(shown, pictures);
-        var room = Math.Max(0, width - avatar.Columns);
+        var avatar = Avatar.Byline(shown.Account, shown.AvatarUrl, pictures);
+        var room = Math.Max(0, width - avatar.Width);
 
         return Parts([
             [
@@ -285,8 +270,8 @@ public static class PostLines
     /// </remarks>
     private static IEnumerable<Line> Byline(Post post, int width, DateTimeOffset now, IPictures? pictures)
     {
-        var avatar = Avatar.Of(post, pictures);
-        var room = Math.Max(0, width - avatar.Columns);
+        var avatar = Avatar.Byline(post.Account, post.AvatarUrl, pictures);
+        var room = Math.Max(0, width - avatar.Width);
 
         var tail = $"{Audience(post.Visibility)} {Elapsed.Since(post.PostedAt, now)}";
         var name = TextWrap.Clip(post.Author, Math.Max(0, room - tail.Length - 1));
@@ -301,76 +286,6 @@ public static class PostLines
                 ]),
                 Line.Of(TextWrap.Clip($"@{post.Account}", room), Role.BylineHandle)),
         ];
-    }
-
-    /// <summary>
-    ///     The author's avatar as a byline spends it: the columns it takes, the picture to send for, and the box to
-    ///     draw it in once the pixels are here.
-    /// </summary>
-    /// <remarks>
-    ///     Nothing at all where this client can already tell no avatar is coming — a terminal offering neither sixel
-    ///     nor the Kitty graphics protocol, or an instance that named no avatar for this account. Five of sixty-one
-    ///     columns is too much to spend holding a space open for a picture that will never fill it (ADR-0016). An
-    ///     avatar that was named and then could not be fetched keeps its columns, because the two answers
-    ///     <see cref="IPictures.Of" /> gives — not here yet, and never coming — are the same answer.
-    ///     <para>
-    ///         Where one <em>is</em> coming the columns are taken from the first frame, before the pixels land, which
-    ///         is the opposite of what <see cref="Media" /> does with an attachment: an attachment's box appears under
-    ///         its description and pushes nothing sideways, where a byline that gained five columns on arrival would
-    ///         shove the name across the row as the reader was reading it.
-    ///     </para>
-    /// </remarks>
-    /// <param name="Wanted">The avatar to send for, or <see langword="null" /> where none is drawn.</param>
-    /// <param name="Box">Where to draw it, or <see langword="null" /> while the pixels are still on their way.</param>
-    private readonly record struct Avatar(Drawn? Wanted, Inset? Box)
-    {
-        /// <summary>How many columns it costs: the picture and the gap after it, or none.</summary>
-        public int Columns => Wanted is null ? 0 : AvatarColumns + 1;
-
-        /// <summary>What <paramref name="post" />'s byline has to spend on its author's face.</summary>
-        public static Avatar Of(Post post, IPictures? pictures)
-        {
-            if (pictures?.Cell is null || post.AvatarUrl is not { } url)
-            {
-                return default;
-            }
-
-            var wanted = Drawn.Avatar(post.Account, url);
-
-            return new Avatar(
-                wanted,
-                pictures.Of(wanted) is null ? null : new Inset(wanted, Column: 0, AvatarColumns, AvatarRows));
-        }
-
-        /// <summary><paramref name="rows" /> stepped in to sit beside the avatar, in the order they were given.</summary>
-        /// <remarks>
-        ///     Asked for the whole byline at once rather than a row at a time, so that which row carries the box is
-        ///     settled here instead of at each of the two callers — a feed and a post screen laying out different
-        ///     bylines is the point, and their laying them out differently is what #62 spent its budget preventing.
-        ///     <para>
-        ///         The box goes on the first row and on none of the rest: a band is named once, at its top.
-        ///         <see cref="Line.After" /> is what shifts it along with everything else, so the gutter and the
-        ///         picture cannot come to disagree about which column they are in.
-        ///     </para>
-        /// </remarks>
-        public IEnumerable<Line> Across(params Line[] rows)
-        {
-            if (Wanted is not { } wanted)
-            {
-                return rows;
-            }
-
-            var box = Box;
-
-            return rows.Select((row, at) =>
-            {
-                var beside = row.After(
-                    new Span(new string(' ', AvatarColumns), Role.Media),
-                    new Span(" ", Role.Body));
-
-                return at > 0 ? beside : beside with { Insets = box is null ? [] : [box], Wants = wanted };
-            });
-        }
     }
 
     /// <summary>

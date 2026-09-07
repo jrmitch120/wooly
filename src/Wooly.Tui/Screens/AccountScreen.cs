@@ -21,9 +21,15 @@ public sealed class AccountScreen : Screen
 
     /// <param name="account">The account being shown, as the instance last answered about them.</param>
     /// <param name="posts">The posts of theirs that were read, newest first.</param>
-    public AccountScreen(Account account, IReadOnlyList<Post> posts)
+    /// <param name="familiar">
+    ///     The accounts the reader follows that also follow this one, or <see langword="null" /> where the instance
+    ///     was never asked — which is what a screen built with no answer to that question is handed, and what the
+    ///     shell hands it when a rate limit stops the last of its calls (CONTEXT.md).
+    /// </param>
+    public AccountScreen(Account account, IReadOnlyList<Post> posts, IReadOnlyList<Account>? familiar = null)
     {
         Account = account;
+        Familiar = familiar;
         _posts = new PostList(this, posts);
     }
 
@@ -50,6 +56,13 @@ public sealed class AccountScreen : Screen
 
     /// <summary>The posts of theirs that were read, newest first.</summary>
     public IReadOnlyList<Post> Posts => _posts.All;
+
+    /// <summary>
+    ///     The accounts the reader follows that also follow this one, or <see langword="null" /> where the instance
+    ///     was never asked. Empty and absent draw the same nothing, and are told apart here rather than on the row:
+    ///     the screen holds which of the two it was handed, and neither costs a row it cannot honestly fill.
+    /// </summary>
+    public IReadOnlyList<Account>? Familiar { get; }
 
     /// <inheritdoc />
     public override Post? Picked => _posts.Out;
@@ -89,14 +102,10 @@ public sealed class AccountScreen : Screen
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(Drawing drawing)
     {
-        var width = drawing.Width;
-
-        var lines = new List<Line>(AccountLines.Who(Account, width))
+        var lines = new List<Line>(AccountLines.Header(Account, Familiar, drawing))
         {
-            Line.Blank,
-            AccountLines.Presence(Account, width),
-            AccountLines.Standing(Account, width),
-            Line.Blank,
+            // No blank of its own above the divider: the divider is a separator, and the header block's last section
+            // has already brought the one that separates it from what is above (ADR-0019).
             Line.Of("── their posts ──", Role.Muted),
             Line.Blank,
         };

@@ -82,6 +82,61 @@ public class ShellStackTests
         Assert.Contains(shell.Timelines.Reads, read => read.Timeline.Account?.Text == "ben@hachyderm.io");
     }
 
+    /// <summary>
+    ///     And it asks who they have in common with the reader, by the id the account it just read carries — the last
+    ///     of the calls the arrival makes, and the one that decorates a single row.
+    /// </summary>
+    [Fact]
+    public async Task OpenAuthor_AsksWhoTheReaderAlreadyKnowsAndHandsThemToTheScreen()
+    {
+        var shell = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(APost.With(id: "110", account: "ben@hachyderm.io")),
+            Accounts = FakeAccountRelationships.Holding(AnAccount.With(address: "ben@hachyderm.io", id: "77")),
+        };
+
+        shell.Accounts.InCommon = [AnAccount.With(address: "jon@hachyderm.io")];
+
+        var opened = await shell.Opened();
+
+        await opened.OpenAuthor();
+        shell.Host.Drain();
+
+        var account = Assert.IsType<AccountScreen>(opened.Screen);
+
+        Assert.Equal("77", Assert.Single(shell.Accounts.Familiars).AccountId);
+        Assert.Equal(["jon@hachyderm.io"], account.Familiar?.Select(familiar => familiar.Address));
+    }
+
+    /// <summary>
+    ///     An instance that never answered that last question leaves the screen standing with the row missing, and
+    ///     the screen holds the difference between nobody in common and nobody asked.
+    /// </summary>
+    [Fact]
+    public async Task OpenAuthor_LeavesTheScreenStandingWhereTheInstanceNeverAnsweredWhoIsInCommon()
+    {
+        var shell = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(APost.With(id: "110", account: "ben@hachyderm.io")),
+            Accounts = FakeAccountRelationships.Holding(AnAccount.With(address: "ben@hachyderm.io")),
+        };
+
+        shell.Accounts.InCommon = null;
+
+        var opened = await shell.Opened();
+
+        await opened.OpenAuthor();
+        shell.Host.Drain();
+
+        var account = Assert.IsType<AccountScreen>(opened.Screen);
+
+        Assert.Equal("ben@hachyderm.io", account.Account.Address);
+        Assert.Null(account.Familiar);
+        Assert.DoesNotContain(
+            account.Lines(new Drawing(61, DateTimeOffset.UtcNow)),
+            line => line.Text.StartsWith("Followed by"));
+    }
+
     /// <summary>A boost is somebody passing a post on, so its author is whoever wrote the post rather than who boosted it.</summary>
     [Fact]
     public async Task OpenAuthor_OpensWhoWroteAPostRatherThanWhoBoostedIt()

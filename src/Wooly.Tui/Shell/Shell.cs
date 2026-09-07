@@ -1068,7 +1068,7 @@ public sealed class Shell
             ask => ReadAccount(ask, address),
             ifStillHere: found =>
             {
-                var screen = new AccountScreen(found.Account, found.Posts);
+                var screen = new AccountScreen(found.Account, found.Posts, found.Familiar);
 
                 if (replacing)
                 {
@@ -1080,23 +1080,36 @@ public sealed class Shell
                 }
             });
 
-    /// <summary>What an account screen is read with: who they are, and what they have posted.</summary>
+    /// <summary>
+    ///     What an account screen is read with: who they are, what they have posted, and which of the people the
+    ///     reader follows follow them too.
+    /// </summary>
     /// <remarks>
-    ///     Two calls under one enquiry, so it is checked once at the end rather than after each: what matters is
+    ///     Three calls under one enquiry, so it is checked once at the end rather than after each: what matters is
     ///     whether the reader is still where they were when they asked, not how far the answer got.
     ///     <para>
     ///         Said here rather than at each of the two places that read an account — opening one, and asking it for
-    ///         what is there now — so that a refresh is the same pair of calls the screen was opened by rather than a
-    ///         second opinion about what an account screen is made of (#84).
+    ///         what is there now — so that a refresh is the same calls the screen was opened by rather than a second
+    ///         opinion about what an account screen is made of (#84).
+    ///     </para>
+    ///     <para>
+    ///         Familiar followers is asked <em>last</em>, and is the one of the three that answers rather than throws
+    ///         where the instance refuses it: it decorates a single row, so a rate limit reached here leaves the whole
+    ///         screen standing with that row missing rather than taking the account and its posts down with it
+    ///         (ADR-0012's amendment).
     ///     </para>
     /// </remarks>
-    private async Task<(Account Account, IReadOnlyList<Post> Posts)> ReadAccount(Enquiry.Ask ask, AccountAddress address)
+    private async Task<(Account Account, IReadOnlyList<Post> Posts, IReadOnlyList<Account>? Familiar)> ReadAccount(
+        Enquiry.Ask ask,
+        AccountAddress address)
     {
         var account = await ask.Of(token => _ports.Accounts.Show(_profile, address, token));
         var posts = await ask.Of(token =>
             _ports.Timelines.Read(_profile, Timeline.By(address), Arrival.PostsWanted, token));
 
-        return (Account: account, Posts: posts.Items);
+        var familiar = await ask.Of(token => _ports.Accounts.FamiliarFollowers(_profile, account.Id, token));
+
+        return (Account: account, Posts: posts.Items, Familiar: familiar);
     }
 
     /// <summary>
@@ -1145,7 +1158,8 @@ public sealed class Shell
     private Task RefreshAccount(AccountScreen showing) =>
         _enquiry.Put(
             ask => ReadAccount(ask, AccountAddress.Parse(showing.Account.Address)),
-            ifStillHere: found => Freshened(showing, new AccountScreen(found.Account, found.Posts)));
+            ifStillHere: found =>
+                Freshened(showing, new AccountScreen(found.Account, found.Posts, found.Familiar)));
 
     /// <summary>
     ///     Puts <paramref name="fresh" /> in place of the screen it is a fresher copy of, with the reader put back
