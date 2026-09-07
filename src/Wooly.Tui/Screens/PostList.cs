@@ -86,7 +86,12 @@ public sealed class PostList(Screen screen, IReadOnlyList<Post> posts) : IPicked
     /// <param name="drawing">
     ///     What this screen is being drawn in and under, which a row is handed narrowed by its own gutter (#148).
     /// </param>
-    public IReadOnlyList<Line> Rows(Drawing drawing) => _posts.Rows(drawing.Width, Feed(drawing));
+    /// <param name="ordinals">
+    ///     Where these posts stand in the numbering of the screen holding them — their own numbering everywhere but
+    ///     the account screen, whose first thing is the header block rather than a post (<see cref="Ordinals" />).
+    /// </param>
+    public IReadOnlyList<Line> Rows(Drawing drawing, Ordinals ordinals = default) =>
+        _posts.Rows(drawing.Width, Feed(drawing), ordinals);
 
     /// <inheritdoc cref="Rows" />
     /// <summary>The <paramref name="at" />th post's rows on their own, with no rule after them.</summary>

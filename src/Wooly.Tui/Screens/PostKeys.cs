@@ -8,8 +8,9 @@ namespace Wooly.Tui.Screens;
 /// </summary>
 /// <remarks>
 ///     The rule runs the other way too, which is the one reason a screen may leave one of these off: a key that has
-///     nothing to act on here must not be announced either. Only <see cref="Opening" /> is ever in that position, and
-///     only inside a post (#48).
+///     nothing to act on here must not be announced either. Two are ever in that position — <see cref="Opening" />
+///     inside a post, where the post it would open is the one already on screen (#48), and the four
+///     <see cref="OffAPost" /> names on a screen whose picked thing is not a post at all (#179).
 /// </remarks>
 public static class PostKeys
 {
@@ -67,6 +68,31 @@ public static class PostKeys
     ///     cut off at the right, and these two mean something only on the post being read right now.
     /// </remarks>
     public static IReadOnlyList<KeyHint> OnAPoll(IReadOnlyList<KeyHint> keys) => InFrontOf(Voting, keys);
+
+    /// <summary>
+    ///     The four of these that act on the picked post and nothing else — boosting it, favoriting it, answering it
+    ///     and taking it down — which is what a screen leaves off its row while what is picked out is not a post
+    ///     (<c>docs/tui-shell.md</c>, ADR-0019).
+    /// </summary>
+    /// <remarks>
+    ///     Named here rather than by the one screen that has somewhere else to stand, because the rule they follow is
+    ///     this module's: a key with nothing to act on must not be announced. The account screen's header block is the
+    ///     first thing to stand on that is not a post, and a follow notification is the precedent for what happens
+    ///     when one is picked — the keys act on nothing rather than guessing at something (#179).
+    /// </remarks>
+    private static IReadOnlyList<string> ActingOnAPost { get; } = ["b", "f", "d", "r"];
+
+    /// <summary>
+    ///     <paramref name="keys" /> with those four taken out, for a screen announcing its keys while the thing picked
+    ///     out carries no post.
+    /// </summary>
+    /// <remarks>
+    ///     Taken out by key rather than by hint, so a screen that says something of its own by one of those letters
+    ///     loses it too — which is the point: what is being asked is what the letter would do, and on a screen where
+    ///     it would do nothing it belongs nowhere on the row.
+    /// </remarks>
+    public static IReadOnlyList<KeyHint> OffAPost(IReadOnlyList<KeyHint> keys) =>
+        [.. keys.Where(key => !ActingOnAPost.Contains(key.Key, StringComparer.Ordinal))];
 
     /// <summary>
     ///     Those keys in front of <paramref name="keys" />, standing in for any of them they share a key with — so that

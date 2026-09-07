@@ -19,6 +19,8 @@ public sealed class AccountScreen : Screen
 {
     private readonly PostList _posts;
 
+    private readonly HeaderAndPosts _walking;
+
     /// <param name="account">The account being shown, as the instance last answered about them.</param>
     /// <param name="posts">The posts of theirs that were read, newest first.</param>
     /// <param name="familiar">
@@ -28,31 +30,47 @@ public sealed class AccountScreen : Screen
     /// </param>
     public AccountScreen(Account account, IReadOnlyList<Post> posts, IReadOnlyList<Account>? familiar = null)
     {
-        Account = account;
         Familiar = familiar;
         _posts = new PostList(this, posts);
+        _walking = new HeaderAndPosts(account, _posts);
     }
 
     /// <inheritdoc />
     public override string Crumb => $"@{Account.Address}";
 
     /// <inheritdoc />
-    protected override IReadOnlyList<KeyHint> OwnKeys =>
-        PostKeys.Around(
-            new KeyHint("j/k", "post"),
-            [
-                new KeyHint("F", Says(Follows, "unfollow", "follow")),
-                new KeyHint("M", Says(Account.Standing?.Muting, "unmute", "mute")),
-                new KeyHint("B", Says(Account.Standing?.Blocking, "unblock", "block")),
-                Refreshing,
-            ],
-            new KeyHint("esc", "back"));
+    /// <remarks>
+    ///     The four keys that act on the picked post alone go quiet while the header block is picked, because there is
+    ///     no post picked out there for them to act on (<see cref="PostKeys.OffAPost" />). The screen's own three stay:
+    ///     a tie is with the person, and this is their screen whichever thing on it the reader is standing on.
+    /// </remarks>
+    protected override IReadOnlyList<KeyHint> OwnKeys
+    {
+        get
+        {
+            var keys = PostKeys.Around(
+                new KeyHint("j/k", "post"),
+                [
+                    new KeyHint("F", Says(Follows, "unfollow", "follow")),
+                    new KeyHint("M", Says(Account.Standing?.Muting, "unmute", "mute")),
+                    new KeyHint("B", Says(Account.Standing?.Blocking, "unblock", "block")),
+                    Refreshing,
+                ],
+                new KeyHint("esc", "back"));
+
+            return _walking.OnHeader ? PostKeys.OffAPost(keys) : keys;
+        }
+    }
 
     /// <inheritdoc />
     public override bool Refreshes => true;
 
     /// <summary>The account being shown, as the instance last answered about them.</summary>
-    public Account Account { get; private set; }
+    /// <remarks>
+    ///     Held by the walk rather than beside it, because the header block is the first thing walked on this screen
+    ///     and what it draws is this account: two copies would be a screen that could pick one and draw the other.
+    /// </remarks>
+    public Account Account => _walking.Account;
 
     /// <summary>The posts of theirs that were read, newest first.</summary>
     public IReadOnlyList<Post> Posts => _posts.All;
@@ -65,10 +83,22 @@ public sealed class AccountScreen : Screen
     public IReadOnlyList<Account>? Familiar { get; }
 
     /// <inheritdoc />
-    public override Post? Picked => _posts.Out;
+    /// <remarks>
+    ///     None while the header block is picked, which is what the screen opens on: the reader is standing on the
+    ///     person rather than on anything they wrote, so the keys that act on a post have nothing to act on (#179).
+    /// </remarks>
+    public override Post? Picked => _walking.Picked;
 
     /// <inheritdoc />
-    protected override IPicked Walking => _posts;
+    protected override IPicked Walking => _walking;
+
+    /// <inheritdoc />
+    /// <remarks>
+    ///     The header block is the first reference source in this client that is not a post: the hashtags and
+    ///     addresses in a bio and in a custom field's value, walked in the order they are drawn (ADR-0019).
+    /// </remarks>
+    protected override IReferring? Referring =>
+        _walking.OnHeader ? new HeaderReferences(Account) : base.Referring;
 
     /// <summary>
     ///     Whether the tie <paramref name="tie" /> names is in place, which is what settles whether pressing its key
@@ -91,18 +121,25 @@ public sealed class AccountScreen : Screen
     ///     What stops a follow reading as un-followed until the screen is opened again — the same reason a marked post
     ///     replaces the copy a feed is holding.
     /// </remarks>
-    public void Stands(Account account) => Account = account;
+    public void Stands(Account account) => _walking.Stands(account);
 
     /// <inheritdoc />
     public override void Replace(Post post) => _posts.Replace(post);
 
     /// <inheritdoc />
-    public override void Remove(string postId) => _posts.Remove(postId);
+    /// <remarks>
+    ///     Through the walk rather than straight at the list, so that the pick is brought back inside what is left by
+    ///     whatever is holding it: the header block and the posts are numbered together, and a list re-clamping on its
+    ///     own would leave the screen picking one thing and drawing another (#179).
+    /// </remarks>
+    public override void Remove(string postId) => _walking.Remove(postId);
 
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(Drawing drawing)
     {
-        var lines = new List<Line>(AccountLines.Header(Account, Familiar, drawing))
+        var lines = new List<Line>(_walking.HeaderRows(
+            (account, at, room) => AccountLines.Header(account, Familiar, drawing.In(room), ReferenceOn(at)),
+            drawing.Width))
         {
             // No blank of its own above the divider: the divider is a separator, and the header block's last section
             // has already brought the one that separates it from what is above (ADR-0019).
@@ -117,7 +154,7 @@ public sealed class AccountScreen : Screen
             return lines;
         }
 
-        lines.AddRange(_posts.Rows(drawing));
+        lines.AddRange(_walking.PostRows(drawing));
 
         return lines;
     }

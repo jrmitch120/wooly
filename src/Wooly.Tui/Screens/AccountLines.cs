@@ -46,10 +46,16 @@ public static class AccountLines
     ///     one call it costs (CONTEXT.md).
     /// </param>
     /// <param name="drawing">The room, the moment, and what this terminal can paint.</param>
+    /// <param name="picked">
+    ///     The reference the reader has walked to inside the block, or <see langword="null" /> where none is — which
+    ///     is every screen drawing an account that is not this one, and this one until <c>←</c> or <c>→</c> is pressed
+    ///     (#179).
+    /// </param>
     public static IReadOnlyList<Line> Header(
         Account account,
         IReadOnlyList<Account>? familiar,
-        Drawing drawing)
+        Drawing drawing,
+        Reference? picked = null)
     {
         var width = drawing.Width;
 
@@ -62,8 +68,8 @@ public static class AccountLines
             Presence(account, room),
             Line.Of(TextWrap.Clip(string.Join(" · ", [Joined(account), .. Flags(account)]), room), Role.Muted)));
 
-        Section(lines, Bio(account.Bio, width));
-        Section(lines, account.Fields.SelectMany(field => Field(field, width)));
+        Section(lines, Bio(account, width, picked));
+        Section(lines, account.Fields.SelectMany((_, which) => Field(account, which, width, picked)));
 
         Section(lines, [
             Standing(account, width),
@@ -187,16 +193,18 @@ public static class AccountLines
     ///     What they wrote about themselves, wrapped whole, with the hashtags, handles and addresses in it drawn as
     ///     the references they are — the same rows a post's own text takes, off the same flattened plain text.
     /// </summary>
-    private static IEnumerable<Line> Bio(string bio, int width)
+    private static IEnumerable<Line> Bio(Account account, int width, Reference? picked)
     {
+        var bio = account.Bio;
+
         if (string.IsNullOrWhiteSpace(bio))
         {
             return [];
         }
 
-        var references = BodyText.References(bio);
+        var references = HeaderReferences.InBio(account);
 
-        return TextWrap.Rows(bio, width).Select(row => new Line(BodyText.Spans(row, references)));
+        return TextWrap.Rows(bio, width).Select(row => new Line(BodyText.Spans(row, references, picked)));
     }
 
     /// <summary>
@@ -209,18 +217,28 @@ public static class AccountLines
     ///     this for a post's text, and the references are found on the value alone and moved along by the label, so
     ///     nothing in a label a reader chose to call <c>https</c> is ever painted as a link.
     /// </remarks>
-    private static IEnumerable<Line> Field(AccountField field, int width)
+    private static IEnumerable<Line> Field(Account account, int which, int width, Reference? picked)
     {
-        var label = $"{field.Label}: ";
+        var field = account.Fields[which];
+        var label = HeaderReferences.Label(field);
         var said = label + field.Said + (field.Verified is null ? string.Empty : VerifiedMark);
-        var references = BodyText
-            .References(field.Said)
-            .Select(reference => reference with { At = reference.At + label.Length })
-            .ToList();
+        var references = HeaderReferences.InField(account, which);
+
+        // Where this field's own text stands in the block's numbering, which is what its references are placed by — so
+        // each row says where it falls in the block rather than in the field alone, and a pick is bracketed where it is.
+        var place = HeaderReferences.At(account, which);
+
+        var value = HeaderReferences.Value(account, which);
 
         return Hanging(said, width).Select((row, at) =>
         {
-            var line = new Line(MutedOutside(BodyText.Spans(row, references), row.At, label.Length, label.Length + field.Said.Length));
+            var placed = row with { At = row.At + place };
+
+            var line = new Line(MutedOutside(
+                BodyText.Spans(placed, references, picked),
+                placed.At,
+                value,
+                value + field.Said.Length));
 
             return at == 0 ? line : line.After(new Span(new string(' ', FieldIndent), Role.Body));
         });
@@ -284,6 +302,15 @@ public static class AccountLines
 
         foreach (var span in spans)
         {
+            // The brackets a picked reference is drawn in are not written in the text at all, so they take no place in
+            // it and keep the role of their own that says what they are (BodyText.Spans).
+            if (span.Role == Role.ReferencePicked)
+            {
+                roled.Add(span);
+
+                continue;
+            }
+
             var end = at + span.Text.Length;
 
             (int From, int To, Role Role)[] pieces =
