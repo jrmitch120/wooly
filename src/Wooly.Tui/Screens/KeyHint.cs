@@ -10,7 +10,17 @@ namespace Wooly.Tui.Screens;
 /// </summary>
 /// <param name="Key">How the key is written, e.g. <c>⏎</c> or <c>shift-tab</c>.</param>
 /// <param name="Does">What it does, in as few words as the status row has room for.</param>
-public readonly record struct KeyHint(string Key, string Does)
+/// <param name="NeedsAPick">
+///     Whether it needs something <b>picked</b> to act on, and so has nothing to do while the screen's list is empty —
+///     <c>d dismiss</c> on an inbox with nothing waiting, <c>a accept</c> with nobody asking. The thing picked out, or
+///     the list it would be picked from: <c>D clear all</c> empties the whole inbox and is as idle on an empty one,
+///     which is the same fact CONTEXT.md states as an empty list having nothing picked (#195).
+///     Declared here, on the key, because this is the one place the key is already written down: a second list of
+///     which keys need a pick would be a list a screen could forget to keep in step, and a row that lies is the
+///     failure this exists to stop. <see langword="false" /> by default, that being every key that acts on the screen
+///     itself — the walk, <c>g</c>, <c>tab</c>, <c>?</c> — and what leaves every existing declaration as it was.
+/// </param>
+public readonly record struct KeyHint(string Key, string Does, bool NeedsAPick = false)
 {
     /// <summary>
     ///     The key and its explanation as the status row draws them (#66): the key in <see cref="Role.Chrome" />, the

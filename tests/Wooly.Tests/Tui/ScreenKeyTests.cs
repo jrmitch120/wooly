@@ -1,3 +1,4 @@
+using System.Reflection;
 using Wooly.Core.Posts;
 using Wooly.Core.Search;
 using Wooly.Tests.Fakes;
@@ -32,8 +33,11 @@ public class ScreenKeyTests
         "search-account",
         "search-hashtag",
         "search-typing",
+        "search-nothing",
         "messages",
+        "messages-empty",
         "requests",
+        "requests-empty",
         "compose",
         "notice",
         "help",
@@ -153,6 +157,126 @@ public class ScreenKeyTests
         }
     }
 
+    /// <summary>
+    ///     Every screen that can be empty: what it is called with nothing on it, what it is called with something on
+    ///     it, and the keys of its own that need one of those things to act on (#195).
+    /// </summary>
+    /// <remarks>
+    ///     The keys are named rather than read off the screen, which is the whole point of naming them: a test that
+    ///     only asked "is any flagged key announced while empty" would pass on a screen that flagged nothing, and a
+    ///     screen that flagged nothing is exactly the row this is about. A timeline is here with none named for that
+    ///     reason too — every key it drops on an empty screen is a post key, which is #193's rule and not this one, so
+    ///     what this asserts about it is that it flags nothing of its own.
+    /// </remarks>
+    private static readonly (string Empty, string Filled, string[] Keys)[] CanBeEmpty =
+    [
+        ("feed-empty", "feed", []),
+        ("inbox-empty", "notifications-follow", ["d:dismiss", "D:clear all"]),
+        ("messages-empty", "messages", ["⏎:open", "m:mark read"]),
+        ("requests-empty", "requests", ["⏎:read them", "a:accept", "x:reject"]),
+        ("search-nothing", "search-account", ["⏎:open"]),
+    ];
+
+    /// <inheritdoc cref="CanBeEmpty" />
+    public static TheoryData<string, string, string[]> WhatAnEmptyScreenDrops
+    {
+        get
+        {
+            var screens = new TheoryData<string, string, string[]>();
+
+            foreach (var (empty, filled, keys) in CanBeEmpty)
+            {
+                screens.Add(empty, filled, keys);
+            }
+
+            return screens;
+        }
+    }
+
+    /// <summary>
+    ///     The same rule for the keys a screen owns alone: while there is nothing on the screen for one of them to
+    ///     act on it comes off the row, and it is back on it as soon as there is something (#195).
+    /// </summary>
+    /// <remarks>
+    ///     Both directions in the one test, because either on its own passes for the wrong reason — a screen that
+    ///     announced nothing would satisfy the first, and a screen that flagged nothing the second. The named keys
+    ///     are asserted to be exactly what each screen flags for the same reason.
+    /// </remarks>
+    [Theory]
+    [MemberData(nameof(WhatAnEmptyScreenDrops))]
+    public void Keys_OfAScreensOwnComeOffAnEmptyRowAndBackOnAFullOne(string empty, string filled, string[] keys)
+    {
+        var full = Of(filled).Keys;
+
+        var withNothing = Of(empty).Keys.Select(key => key.ToString()).ToList();
+        var withSomething = full.Select(key => key.ToString()).ToList();
+
+        foreach (var key in keys)
+        {
+            Assert.DoesNotContain(key, withNothing);
+            Assert.Contains(key, withSomething);
+        }
+
+        Assert.Equal(keys, full.Where(key => key.NeedsAPick).Select(key => key.ToString()));
+    }
+
+    /// <summary>
+    ///     And what is left is the whole of what an empty screen's row carries: the walk, the way out, and <c>g</c>
+    ///     where the screen has something to ask again — the one key on an empty screen that does the thing that
+    ///     fills it (#195).
+    /// </summary>
+    /// <remarks>
+    ///     The row entire rather than the survivors one at a time, so that a key dropped by accident is caught by the
+    ///     same assertion as a key kept by accident.
+    /// </remarks>
+    [Theory]
+    [InlineData("feed-empty", "j/k:post ↓/↑:row c:compose tab:destination ?:keys")]
+    [InlineData("inbox-empty", "j/k:notification g:refresh ↓/↑:row c:compose tab:destination ?:keys")]
+    [InlineData("messages-empty", "j/k:conversation g:refresh ↓/↑:row tab:destination ?:keys")]
+    [InlineData("requests-empty", "j/k:request g:refresh ↓/↑:row tab:destination ?:keys")]
+    [InlineData("search-nothing", "j/k:result /:search again ↓/↑:row tab:destination ?:keys")]
+    public void Keys_OnAnEmptyScreenAreTheOnesThatStillDoSomething(string state, string row) =>
+        Assert.Equal(row, string.Join(' ', Of(state).Keys));
+
+    /// <summary>
+    ///     And a prompt taking letters says exactly what it said before, arrows included in their current absence: it
+    ///     leaves them unsaid because there is nothing to walk at all, which is a different state for a different
+    ///     reason and must not be folded into this one (#195).
+    /// </summary>
+    [Fact]
+    public void Keys_OnAPromptTakingLettersAreUntouched() =>
+        Assert.Equal("⏎:search tab:destination", string.Join(' ', Of("search-typing").Keys));
+
+    /// <summary>
+    ///     And every screen that walks anything was asked with nothing on it, so that a screen added later is one the
+    ///     rule was put to rather than one somebody has to remember — the same guard <see cref="EveryScreenIsAskedTheRule" />
+    ///     keeps for #193, and for the same reason.
+    /// </summary>
+    /// <remarks>
+    ///     Read off the screen rather than listed here: a screen that says what it walks is a screen that can be asked
+    ///     whether it is empty, and that is the fact the rule turns on. The three exempt are the ones whose walk always
+    ///     holds something — an account screen has the person themselves at the top of it, a post screen the post it is
+    ///     about, and a conversation exists because somebody said something in it.
+    /// </remarks>
+    [Fact]
+    public void EveryScreenThatWalksAnythingIsAskedTheEmptyRule()
+    {
+        var asked = CanBeEmpty.Select(screen => Of(screen.Empty).GetType()).ToHashSet();
+
+        var never = new[] { typeof(AccountScreen), typeof(PostScreen), typeof(ConversationScreen) };
+
+        var walks = typeof(Screen).Assembly.GetTypes()
+            .Where(type => type.IsSubclassOf(typeof(Screen)) && !type.IsAbstract)
+            .Where(type => type
+                .GetProperty("Walking", BindingFlags.Instance | BindingFlags.NonPublic)?
+                .DeclaringType == type);
+
+        foreach (var screen in walks)
+        {
+            Assert.Contains(screen, asked.Concat(never));
+        }
+    }
+
     /// <summary>The screen the <paramref name="state" /> names, built with no terminal and no shell around it.</summary>
     private static Screen Of(string state)
     {
@@ -192,14 +316,23 @@ public class ScreenKeyTests
             case "search-hashtag":
                 return Searched(new SearchResults { Hashtags = [AHashtag.With()] });
 
+            case "search-nothing":
+                return Searched(new SearchResults { Accounts = [], Hashtags = [], Posts = [] });
+
             case "search-post":
                 return Searched(new SearchResults { Posts = [post] });
 
             case "messages":
                 return new DirectMessagesScreen([AConversation.With(latest: post)]);
 
+            case "messages-empty":
+                return new DirectMessagesScreen([], "Nobody has written.");
+
             case "requests":
                 return new FollowRequestsScreen([AnAccount.With()]);
+
+            case "requests-empty":
+                return new FollowRequestsScreen([], "Nobody is waiting.");
 
             case "compose":
                 return new ComposeScreen(ComposeFor.Post);

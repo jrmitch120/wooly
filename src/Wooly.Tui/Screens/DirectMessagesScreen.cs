@@ -35,8 +35,8 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
     protected override IReadOnlyList<KeyHint> OwnKeys =>
     [
         new("j/k", "conversation"),
-        new("⏎", "open"),
-        new("m", "mark read"),
+        new("⏎", "open", NeedsAPick: true),
+        new("m", "mark read", NeedsAPick: true),
         Refreshing,
         PostKeys.Scrolling,
         new("tab", "destination"),
