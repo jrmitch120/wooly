@@ -51,10 +51,25 @@ public abstract class Screen
     ///         the rule <see cref="PostKeys" /> states in the other direction — a key that acts on nothing here must
     ///         not be on the row.
     ///     </para>
+    ///     <para>
+    ///         Which is the same rule the keys that act on a post follow, and the reason it is asked here too: with
+    ///         nothing picked out for them to act on — a follow notification, an account screen's header block, an
+    ///         empty feed, an empty inbox — every one of them but <c>c</c> comes off the row
+    ///         (<see cref="PostKeys.OffAPost" />, #193). Once, rather than by each screen saying so, because a screen
+    ///         that forgot would be a screen whose row lies and there is nothing to catch that at compile time.
+    ///     </para>
     /// </remarks>
-    public IReadOnlyList<KeyHint> Keys => Reference is not null
-        ? PostKeys.OnAReference(OwnKeys)
-        : Poll is { TakesAVote: true } ? PostKeys.OnAPoll(OwnKeys) : OwnKeys;
+    public IReadOnlyList<KeyHint> Keys
+    {
+        get
+        {
+            var own = Picked is null ? PostKeys.OffAPost(OwnKeys) : OwnKeys;
+
+            return Reference is not null
+                ? PostKeys.OnAReference(own)
+                : Poll is { TakesAVote: true } ? PostKeys.OnAPoll(own) : own;
+        }
+    }
 
     /// <summary>The keys this screen alone settles, which is every key that does not act on a picked reference.</summary>
     protected abstract IReadOnlyList<KeyHint> OwnKeys { get; }

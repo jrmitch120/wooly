@@ -109,9 +109,20 @@ Screen-local, and deliberately colliding with the above because they are never o
 The keys above are the contract. These are the questions building them raised, answered once so the next screen does
 not answer them differently:
 
+- **A key with nothing to act on is not announced.** The row is what says which keys this screen answers to, so a key
+  on it that is silent when pressed reads as a shell that missed the press. Stated once and applied everywhere: while
+  no post is picked out, every key of `PostKeys.OnAPost` bar `c` comes off the row — a follow notification, the
+  account screen's header block, an empty feed, an empty inbox. `c` stays, a fresh post being written from anywhere.
+  `Screen.Keys` asks it for every screen at once rather than each screen asking for itself, so a screen added later
+  inherits the rule rather than being remembered (#193; #179 did it for `b`, `f`, `d` and `r` on the one screen).
+  Taken off **by hint rather than by letter**: a screen's own `d dismiss`, `m mark read`, `a accept` and `⏎ open` all
+  act, and a key means what its screen says it means. The same rule takes the poll digits and `v` off a row with no
+  poll to vote in, and `⏎` off a post screen's own post (#48). What it is *not* about is a key that acts and then
+  refuses — `p`, `e` and `d` on somebody else's post answer *Only your own posts can be pinned/edited/deleted.*, which
+  is a key doing its job — nor a screen's own key that is idle for its own reasons on an empty screen (#195).
 - **A notification is not the post it is about.** `d` dismisses by the notification's own id; every other key on the
   row acts on the post it carries, so a mention can be answered without leaving the inbox. A follow carries no post,
-  and picking one leaves those keys with nothing to act on rather than guessing.
+  and picking one leaves those keys with nothing to act on rather than guessing — which is why they are off its row.
 - **`D` asks first.** Emptying the inbox takes away a list nobody has necessarily read and nothing brings it back, so
   it is confirmed on the same terms `post delete` is — the same confirmation, saying `clear` rather than `delete`.
 - **A count and the list under it are one fact.** Arriving at a destination sets its badge from the same answer the
@@ -714,11 +725,11 @@ The account screen was a scoreboard — a name, a handle, three counts, then pos
 doing so it became the first screen in the shell whose pick is not a post (#164, #172):
 
 - **The header block is the screen's first walkable thing.** `j`/`k` land on it, `←`/`→` walk the hashtags and
-  addresses in the **Bio** and in a **Custom field**'s value, `⏎` opens one, and `b`, `f`, `d` and `r` go quiet while
-  it is picked — the precedent set verbatim by a follow notification, which carries no post and leaves those keys with
-  nothing to act on rather than guessing. **The pick opens on the header**, not on the first post: the screen is about
-  the person, landing below them would make the bio something you walk back to, and it puts a verified link one `→`
-  away on arrival.
+  addresses in the **Bio** and in a **Custom field**'s value, `⏎` opens one, and the keys that act on a post go quiet
+  while it is picked — the rule above, whose precedent is a follow notification: it carries no post and leaves those
+  keys with nothing to act on rather than guessing. **The pick opens on the header**, not on the first post: the
+  screen is about the person, landing below them would make the bio something you walk back to, and it puts a verified
+  link one `→` away on arrival.
 - **The order is who they are, then what they wrote, then what they are to you.** Avatar, name, handle, the presence
   line, joined and flags; then bio and fields; then standing, familiar followers and your own note, closest to the
   posts. **Every section brings its own separator**, so an account with none of the middle or bottom collapses to four

@@ -272,32 +272,34 @@ public class AccountWalkTests
     }
 
     /// <summary>
-    ///     <c>b</c>, <c>f</c>, <c>d</c> and <c>r</c> are announced nowhere while the header is picked, because there is
-    ///     no post for them to act on — the precedent a follow notification set, said on the status row here.
+    ///     Every key that acts on a post is announced nowhere while the header is picked, because there is none for
+    ///     them to act on — the precedent a follow notification set, read off the status row itself here. <c>c</c> is
+    ///     the one of them that stays: a fresh post is written from anywhere (#179, widened by #193).
     /// </summary>
     [Fact]
-    public void TheFourKeysThatActOnAPostGoQuietWhileTheHeaderIsPicked()
+    public void TheKeysThatActOnAPostGoQuietWhileTheHeaderIsPicked()
     {
         var screen = Opened();
         var onTheHeader = Status(screen);
 
-        Assert.DoesNotContain("b:boost", onTheHeader);
-        Assert.DoesNotContain("f:favorite", onTheHeader);
-        Assert.DoesNotContain("d:delete", onTheHeader);
-        Assert.DoesNotContain("r:reply", onTheHeader);
+        foreach (var key in PostKeys.OnAPost.Where(key => key != PostKeys.Composing))
+        {
+            Assert.DoesNotContain(key.ToString(), onTheHeader);
+        }
 
         // The screen's own keys are untouched: a tie is with the person, and this is their screen either way.
         Assert.Contains("F:follow", onTheHeader);
         Assert.Contains("j/k:post", onTheHeader);
+        Assert.Contains("c:compose", onTheHeader);
 
         screen.Move(1);
 
         var onAPost = Status(screen);
 
-        Assert.Contains("b:boost", onAPost);
-        Assert.Contains("f:favorite", onAPost);
-        Assert.Contains("d:delete", onAPost);
-        Assert.Contains("r:reply", onAPost);
+        foreach (var key in PostKeys.OnAPost)
+        {
+            Assert.Contains(key.ToString(), onAPost);
+        }
     }
 
     /// <summary>And pressing one does nothing at all: nothing is asked of the instance and nothing is asked of the reader.</summary>

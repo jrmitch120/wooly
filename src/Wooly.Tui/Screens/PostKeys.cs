@@ -8,9 +8,10 @@ namespace Wooly.Tui.Screens;
 /// </summary>
 /// <remarks>
 ///     The rule runs the other way too, which is the one reason a screen may leave one of these off: a key that has
-///     nothing to act on here must not be announced either. Two are ever in that position — <see cref="Opening" />
-///     inside a post, where the post it would open is the one already on screen (#48), and the four
-///     <see cref="OffAPost" /> names on a screen whose picked thing is not a post at all (#179).
+///     nothing to act on here must not be announced either. Which is every one of these bar <see cref="Composing" />
+///     on a screen with no post picked out — asked once by <see cref="Screen.Keys" /> rather than screen by screen
+///     (<see cref="OffAPost" />, #193) — and <see cref="Opening" /> inside a post, where the post it would open is the
+///     one already on screen (#48).
 /// </remarks>
 public static class PostKeys
 {
@@ -20,12 +21,19 @@ public static class PostKeys
     /// </summary>
     public static KeyHint Opening { get; } = new("⏎", "read");
 
+    /// <summary>
+    ///     Writing a fresh post. Named on its own because it is the one key of these that does not act on the picked
+    ///     post at all: a post is written from anywhere, so it is what stays on the row where nothing is picked out
+    ///     (#193).
+    /// </summary>
+    public static KeyHint Composing { get; } = new("c", "compose");
+
     /// <summary>What every screen with posts on it answers to, in the order the status row reads best.</summary>
     public static IReadOnlyList<KeyHint> OnAPost { get; } =
     [
         Opening,
         new("a", "author"),
-        new("c", "compose"),
+        Composing,
         new("r", "reply"),
         new("b", "boost"),
         new("f", "favorite"),
@@ -70,29 +78,32 @@ public static class PostKeys
     public static IReadOnlyList<KeyHint> OnAPoll(IReadOnlyList<KeyHint> keys) => InFrontOf(Voting, keys);
 
     /// <summary>
-    ///     The four of these that act on the picked post and nothing else — boosting it, favoriting it, answering it
-    ///     and taking it down — which is what a screen leaves off its row while what is picked out is not a post
+    ///     The ones of these that act on the picked post and nothing else, which is all of them bar
+    ///     <see cref="Composing" /> — what a screen leaves off its row while no post is picked out
     ///     (<c>docs/tui-shell.md</c>, ADR-0019).
     /// </summary>
     /// <remarks>
-    ///     Named here rather than by the one screen that has somewhere else to stand, because the rule they follow is
-    ///     this module's: a key with nothing to act on must not be announced. The account screen's header block is the
-    ///     first thing to stand on that is not a post, and a follow notification is the precedent for what happens
-    ///     when one is picked — the keys act on nothing rather than guessing at something (#179).
+    ///     Named here rather than by the screens that have somewhere else to stand, because the rule they follow is
+    ///     this module's: a key with nothing to act on must not be announced. A follow notification is the precedent —
+    ///     it carries no post, and the keys act on nothing rather than guessing at something (#179) — and the account
+    ///     screen's header block, an empty feed and an empty inbox are the same position (#193).
     /// </remarks>
-    private static IReadOnlyList<string> ActingOnAPost { get; } = ["b", "f", "d", "r"];
+    private static IReadOnlyList<KeyHint> ActingOnAPost { get; } = [.. OnAPost.Where(key => key != Composing)];
 
     /// <summary>
-    ///     <paramref name="keys" /> with those four taken out, for a screen announcing its keys while the thing picked
-    ///     out carries no post.
+    ///     <paramref name="keys" /> with those taken out, for a screen announcing its keys while no post is picked
+    ///     out. Asked by <see cref="Screen.Keys" /> for every screen at once, so that a screen added later inherits
+    ///     the rule without knowing it exists.
     /// </summary>
     /// <remarks>
-    ///     Taken out by key rather than by hint, so a screen that says something of its own by one of those letters
-    ///     loses it too — which is the point: what is being asked is what the letter would do, and on a screen where
-    ///     it would do nothing it belongs nowhere on the row.
+    ///     Taken out by hint rather than by key, so that a screen saying something of its own by one of those letters
+    ///     keeps it: <c>d</c> dismisses a notification, <c>m</c> marks a conversation read, and <c>a</c> accepts a
+    ///     follow request, none of which is a post key and all of which act. Matching on the letter alone was enough
+    ///     while the account screen was the one caller (#179) and is wrong shell-wide (#193) — a key means what its
+    ///     screen says it means, which is the whole reason a <see cref="KeyHint" /> is a pair.
     /// </remarks>
     public static IReadOnlyList<KeyHint> OffAPost(IReadOnlyList<KeyHint> keys) =>
-        [.. keys.Where(key => !ActingOnAPost.Contains(key.Key, StringComparer.Ordinal))];
+        [.. keys.Where(key => !ActingOnAPost.Contains(key))];
 
     /// <summary>
     ///     Those keys in front of <paramref name="keys" />, standing in for any of them they share a key with — so that
