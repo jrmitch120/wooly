@@ -315,7 +315,7 @@ public class FollowsScreenTests
 
         screen.Arrived([Person("a"), Person("b")], more: false);
 
-        Assert.Contains("2 of 187 read — this instance holds no more", Rows(screen));
+        Assert.Contains("2 of 187 read — this instance offers no more", Rows(screen));
     }
 
     /// <summary>And says nothing of the sort while there is more of it still coming.</summary>
@@ -327,7 +327,7 @@ public class FollowsScreenTests
         screen.Arrived([Person("a"), Person("b")], more: true);
 
         Assert.Contains("2 of 187 read", Rows(screen));
-        Assert.DoesNotContain(Rows(screen), row => row.Contains("holds no more", StringComparison.Ordinal));
+        Assert.DoesNotContain(Rows(screen), row => row.Contains("offers no more", StringComparison.Ordinal));
     }
 
     /// <summary>
@@ -342,7 +342,7 @@ public class FollowsScreenTests
         screen.Arrived([Person("a")], more: false, notice: "Rate limited part way through — this is what arrived.");
 
         Assert.Contains("1 of 187 read", Rows(screen));
-        Assert.DoesNotContain(Rows(screen), row => row.Contains("holds no more", StringComparison.Ordinal));
+        Assert.DoesNotContain(Rows(screen), row => row.Contains("offers no more", StringComparison.Ordinal));
     }
 
     /// <summary>A browsed list always says both numbers, since what has been read is never the whole of it.</summary>

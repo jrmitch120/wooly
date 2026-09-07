@@ -358,11 +358,11 @@ public sealed class FollowsScreen : Screen
     ///     other 935 would be the same lie the status row used to tell (#180).
     ///     <para>
     ///         Said only where <see cref="Notice" /> is not already saying it. A rate limit stops a read too, and
-    ///         says so in its own row above — a count adding "this instance holds no more" underneath would be
+    ///         says so in its own row above — a count adding "this instance offers no more" underneath would be
     ///         contradicting it, and guessing at a cause the notice already knows.
     ///     </para>
     /// </remarks>
-    private string Shortfall => More || Notice is not null ? string.Empty : " — this instance holds no more";
+    private string Shortfall => More || Notice is not null ? string.Empty : " — this instance offers no more";
 
     /// <summary>
     ///     What is narrowing the list, with the caret where the next letter lands — the search prompt's own

@@ -841,7 +841,7 @@ anybody's account — `IAccountRelationships.List` already takes a `FollowSide` 
   serve the part of a *remote* account's follows it actually holds, which is mostly its own people — so `@lizardbill`'s
   951 followers arrive as the 16 who are local here, the count coming off their own instance and the list coming off
   yours. Nothing is wrong and nothing more is coming, and `16 of 951 read` alone leaves a reader waiting for the other
-  935. The row says `16 of 951 read — this instance holds no more` once the reading has finished short. Not where a
+  935. The row says `16 of 951 read — this instance offers no more` once the reading has finished short. Not where a
   notice above has already said why: a rate limit stops a read too, and a count blaming the instance's reach
   underneath that would contradict it and guess at a cause the notice already knows.
 - **An account that lists nobody is not an account that follows nobody.** Mastodon serves an empty list for an account
