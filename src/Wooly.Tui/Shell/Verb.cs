@@ -26,6 +26,32 @@ public enum Verb
     /// </summary>
     None,
 
+    /// <summary>
+    ///     <c>w</c>: everyone the account being shown follows. One key rather than two, the account screen being
+    ///     crowded enough that <c>f</c> and <c>b</c> are already spoken for — the other side is one <c>s</c> away
+    ///     (#180).
+    /// </summary>
+    OpenFollows,
+
+    /// <summary>
+    ///     <c>s</c>: the other side of the same account's follows, in place. A toggle that pushed would grow the
+    ///     stack on every flip.
+    /// </summary>
+    SwapSide,
+
+    /// <summary><c>f</c> on a follow list: opens the prompt that narrows it.</summary>
+    Filter,
+
+    /// <summary>
+    ///     <c>⏎</c> while that prompt is taking letters: back to walking, with what was typed still narrowing the
+    ///     list. Distinct from <see cref="Find" />, which asks an instance — a filter has already read everything it
+    ///     acts on.
+    /// </summary>
+    FilterDone,
+
+    /// <summary><c>⏎</c> on a follow list: the account screen of whoever is picked out.</summary>
+    OpenPerson,
+
     /// <summary><c>ctrl-q</c>: ends the run.</summary>
     Quit,
 

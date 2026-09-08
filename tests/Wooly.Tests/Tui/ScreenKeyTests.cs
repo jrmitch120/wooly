@@ -1,5 +1,7 @@
 using System.Reflection;
+using Wooly.Core.Accounts;
 using Wooly.Core.Posts;
+using Wooly.Core.Relationships;
 using Wooly.Core.Search;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
@@ -34,6 +36,8 @@ public class ScreenKeyTests
         "search-hashtag",
         "search-typing",
         "search-nothing",
+        "follows",
+        "follows-empty",
         "messages",
         "messages-empty",
         "requests",
@@ -175,6 +179,7 @@ public class ScreenKeyTests
         ("messages-empty", "messages", ["⏎:open", "m:mark read"]),
         ("requests-empty", "requests", ["⏎:read them", "a:accept", "x:reject"]),
         ("search-nothing", "search-account", ["⏎:open"]),
+        ("follows-empty", "follows", ["⏎:open"]),
     ];
 
     /// <inheritdoc cref="CanBeEmpty" />
@@ -325,6 +330,12 @@ public class ScreenKeyTests
             case "messages":
                 return new DirectMessagesScreen([AConversation.With(latest: post)]);
 
+            case "follows":
+                return Follows(AnAccount.With());
+
+            case "follows-empty":
+                return Follows();
+
             case "messages-empty":
                 return new DirectMessagesScreen([], "Nobody has written.");
 
@@ -364,6 +375,16 @@ public class ScreenKeyTests
             default:
                 throw new ArgumentOutOfRangeException(nameof(state), state, "No screen by that name.");
         }
+    }
+
+    /// <summary>Maria's following list, holding <paramref name="people" /> — which is what <c>w</c> opens onto.</summary>
+    private static FollowsScreen Follows(params Account[] people)
+    {
+        var screen = new FollowsScreen(AnAccount.With(), FollowSide.Following, mine: false);
+
+        screen.Arrived(people, more: false);
+
+        return screen;
     }
 
     /// <summary>A home timeline holding <paramref name="posts" />, which is what a rail destination opens onto.</summary>

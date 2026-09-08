@@ -38,6 +38,17 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
     /// <summary>Every ask for who two accounts have in common, in order.</summary>
     public List<Familiar> Familiars { get; } = [];
 
+    /// <summary>Every batched ask for where the profile stands with a page of accounts, in order.</summary>
+    public List<Stood> Standings { get; } = [];
+
+    /// <summary>
+    ///     Where the profile stands with everyone a batched ask names — the same standing for all of them, since a
+    ///     test asserting a row is about what the row says rather than about who is on it. Set to
+    ///     <see langword="null" /> for an instance that never answered, which is the state a list draws silent rows
+    ///     for (#180).
+    /// </summary>
+    public AccountStanding? Stands { get; set; } = AnAccount.Standing();
+
     /// <summary>
     ///     Who the profile and the account asked about both follow. Nobody by default, since that is the ordinary
     ///     answer; set to <see langword="null" /> for an instance that never answered the question, which is the state
@@ -120,6 +131,21 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
         return Task.FromResult(_refusal is null ? InCommon : null);
     }
 
+    /// <summary>
+    ///     Answers with the accounts it was given, each carrying <see cref="Stands" /> — or with nothing at all where
+    ///     that is what a test set, which is the state a list draws no standing on at all.
+    /// </summary>
+    public Task<IReadOnlyList<Account>?> Standing(
+        ActiveProfile profile,
+        IReadOnlyList<Account> accounts,
+        CancellationToken cancellationToken)
+    {
+        Standings.Add(new Stood(profile.Name, [.. accounts.Select(account => account.Id)]));
+
+        return Task.FromResult<IReadOnlyList<Account>?>(
+            Stands is null ? null : [.. accounts.Select(account => account with { Standing = Stands })]);
+    }
+
     public Task<Fetch<Account>> PendingRequests(ActiveProfile profile, int limit, CancellationToken cancellationToken)
     {
         Lists.Add(new Listed(profile.Name, Side: null, Account: null, limit));
@@ -155,4 +181,7 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
 
     /// <summary>One ask for familiar followers: which profile asked, and whose they asked for.</summary>
     internal sealed record Familiar(string Profile, string AccountId);
+
+    /// <summary>One batched ask for standing: which profile asked, and about whom.</summary>
+    internal sealed record Stood(string Profile, IReadOnlyList<string> AccountIds);
 }

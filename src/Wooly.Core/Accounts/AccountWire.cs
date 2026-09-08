@@ -63,7 +63,7 @@ internal static class AccountWire
     ///     The rest — endorsements, domain blocks, whether boosts are shown — belong to commands this client does not
     ///     have, and a record holding them would promise answers no command here can give.
     /// </summary>
-    private static AccountStanding ToStanding(Relationship relationship) => new()
+    public static AccountStanding ToStanding(Relationship relationship) => new()
     {
         Following = relationship.Following,
         FollowRequested = relationship.Requested,

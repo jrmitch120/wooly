@@ -110,8 +110,14 @@ public enum ShellKey
     /// <summary><c>r</c>.</summary>
     R,
 
+    /// <summary><c>s</c>.</summary>
+    S,
+
     /// <summary><c>v</c>.</summary>
     V,
+
+    /// <summary><c>w</c>.</summary>
+    W,
 
     /// <summary><c>x</c>.</summary>
     X,
