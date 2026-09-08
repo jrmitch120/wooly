@@ -3,6 +3,7 @@ using Terminal.Gui.App;
 using Wooly.Core;
 using Wooly.Core.Configuration;
 using Wooly.Core.Conversations;
+using Wooly.Core.Discovery;
 using Wooly.Core.Errors;
 using Wooly.Core.Http;
 using Wooly.Core.Notifications;
@@ -46,6 +47,7 @@ try
         provider.GetRequiredService<INotificationInbox>(),
         provider.GetRequiredService<IDirectMessages>(),
         provider.GetRequiredService<IInstanceSearch>(),
+        provider.GetRequiredService<IFollowSuggestions>(),
         provider.GetRequiredService<IRateLimitReport>());
 
     var clock = provider.GetRequiredService<TimeProvider>();

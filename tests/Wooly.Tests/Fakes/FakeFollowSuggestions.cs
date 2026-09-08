@@ -17,10 +17,10 @@ namespace Wooly.Tests.Fakes;
 /// </summary>
 internal sealed class FakeFollowSuggestions : IFollowSuggestions
 {
-    private readonly RateLimitedException? _refusal;
+    private readonly WoolyException? _refusal;
     private readonly IReadOnlyList<Suggestion> _suggestions;
 
-    private FakeFollowSuggestions(IReadOnlyList<Suggestion> suggestions, RateLimitedException? refusal = null)
+    private FakeFollowSuggestions(IReadOnlyList<Suggestion> suggestions, WoolyException? refusal = null)
     {
         _suggestions = suggestions;
         _refusal = refusal;
@@ -48,6 +48,13 @@ internal sealed class FakeFollowSuggestions : IFollowSuggestions
     /// </summary>
     public static FakeFollowSuggestions RateLimited() =>
         new([], new RateLimitedException("mastodon.social", new DateTimeOffset(2026, 7, 29, 13, 0, 0, TimeSpan.Zero)));
+
+    /// <summary>
+    ///     An instance that refuses everything with <paramref name="refusal" />, having recorded the attempt — for a
+    ///     failure a caller does not wait out, unlike <see cref="RateLimited" />, which an enquiry counts down and
+    ///     asks again.
+    /// </summary>
+    public static FakeFollowSuggestions Refusing(WoolyException refusal) => new([], refusal);
 
     public Task<IReadOnlyList<Suggestion>> Read(ActiveProfile profile, int limit, CancellationToken cancellationToken)
     {

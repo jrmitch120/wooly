@@ -65,4 +65,44 @@ public class RailLinesTests
 
         Assert.Equal($"▶ {label}", lines[0].Text);
     }
+
+    /// <summary>
+    ///     The rail's two rules fall either side of the group Discover joined: the four timelines above the first,
+    ///     the five you-go-to-them destinations between, and the profile's own account below the second (#181).
+    /// </summary>
+    /// <remarks>
+    ///     Asserted as where the rules land rather than as the indices the code holds, because what a reader sees is
+    ///     the grouping: a tenth entry that pushed the second rule the wrong way would put Discover in with the
+    ///     profile, which is the one thing this ticket must not change.
+    /// </remarks>
+    [Fact]
+    public void Of_KeepsTheGroupsEitherSideOfTheTenthDestination()
+    {
+        var rail = new Rail(
+            [
+                new Destination(DestinationKind.Home, "Home"),
+                new Destination(DestinationKind.Local, "Local"),
+                new Destination(DestinationKind.Federated, "Federated"),
+                new Destination(DestinationKind.Hashtag, "Hashtag"),
+                new Destination(DestinationKind.Notifications, "Notifications"),
+                new Destination(DestinationKind.Messages, "Direct messages"),
+                new Destination(DestinationKind.Requests, "Follow requests"),
+                new Destination(DestinationKind.Search, "Search"),
+                new Destination(DestinationKind.Discover, "Discover"),
+                new Destination(DestinationKind.Profile, "@jeff"),
+            ],
+            new FakeShellHost(),
+            TimeSpan.FromMilliseconds(250));
+
+        var drawn = RailLines.Of(rail, null, height: 20).Select(line => line.Text.Trim()).ToList();
+
+        var rule = new string('\u2500', RailLines.Width);
+
+        // Four timelines, a rule, the five you go to — Search then Discover — a rule, and the profile below it.
+        Assert.Equal(rule, drawn[4]);
+        Assert.Equal("Search", drawn[8]);
+        Assert.Equal("Discover", drawn[9]);
+        Assert.Equal(rule, drawn[10]);
+        Assert.Equal("@jeff", drawn[11]);
+    }
 }

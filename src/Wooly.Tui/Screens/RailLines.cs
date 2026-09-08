@@ -7,7 +7,7 @@ using Wooly.Tui.Theme;
 namespace Wooly.Tui.Screens;
 
 /// <summary>
-///     The rail as rows: the nine destinations with their unread counts, and the rate-limit quota at its foot. Eighteen
+///     The rail as rows: the ten destinations with their unread counts, and the rate-limit quota at its foot. Eighteen
 ///     columns, full height less the status row (<c>docs/tui-shell.md</c>).
 /// </summary>
 public static class RailLines
@@ -39,9 +39,10 @@ public static class RailLines
         {
             lines.Add(Entry(rail, at));
 
-            // The four timelines are one group and the four waiting-for-you destinations another; the profile's own
-            // account is neither, so it sits below a rule of its own.
-            if (at is 3 or 7)
+            // The four timelines are one group and the five you-go-to-them destinations another; the profile's own
+            // account is neither, so it sits below a rule of its own. The second rule moved from 7 to 8 when Discover
+            // joined that group after Search — the one entry the rail has ever grown by (ADR-0019, #181).
+            if (at is 3 or 8)
             {
                 lines.Add(Rule());
             }

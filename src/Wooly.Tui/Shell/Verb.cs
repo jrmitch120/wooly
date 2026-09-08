@@ -49,7 +49,10 @@ public enum Verb
     /// </summary>
     FilterDone,
 
-    /// <summary><c>⏎</c> on a follow list: the account screen of whoever is picked out.</summary>
+    /// <summary>
+    ///     <c>⏎</c> on a list of people — a follow list, or Discover: the account screen of whoever is picked out,
+    ///     the same screen <c>a</c> opens from a feed rather than a row that expands where it stands.
+    /// </summary>
     OpenPerson,
 
     /// <summary><c>ctrl-q</c>: ends the run.</summary>
@@ -165,6 +168,13 @@ public enum Verb
 
     /// <summary><c>d</c> on the notifications screen: dismiss the picked notification by its own id.</summary>
     Dismiss,
+
+    /// <summary>
+    ///     <c>d</c> on Discover: tell the instance to stop suggesting whoever is picked out. One-way, since there is
+    ///     no un-dismiss endpoint — so a second press is a no-op rather than an undo — and unconfirmed, nothing of the
+    ///     reader's being destroyed by it (#181).
+    /// </summary>
+    StopSuggesting,
 
     /// <summary><c>D</c>: ask before emptying the inbox.</summary>
     ClearAll,

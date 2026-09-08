@@ -24,6 +24,12 @@ public static class AccountLines
     /// <summary>How far a custom field's continuation is stepped in, so a wrapped value reads as one row.</summary>
     private const int FieldIndent = 2;
 
+    /// <summary>What a follow in place reads as on a row.</summary>
+    private const string FollowingSaid = "following";
+
+    /// <summary>And what one still waiting for a locked account to accept it reads as.</summary>
+    private const string AskedSaid = "asked";
+
     /// <summary>
     ///     The header block: who they are, what they wrote about themselves, and what they are to the reader — the
     ///     four rows beside the avatar, then a section apiece for the bio, the custom fields, and the standing.
@@ -106,16 +112,52 @@ public static class AccountLines
     {
         var standing = Compact(account.Standing, said);
 
-        if (standing.Length == 0)
+        return Beside(account, width, standing.Length == 0 ? string.Empty : $"  {standing}");
+    }
+
+    /// <summary>
+    ///     A byline with a muted word after it — the two-span shape the search screen's hashtag row already uses: what
+    ///     the thing is, then a muted word about it.
+    /// </summary>
+    /// <remarks>
+    ///     Said once here because two screens now put something after a byline and each measures the same way: the
+    ///     suffix is taken out of the width first and the byline takes what is left, since the byline is the half a
+    ///     reader can still recognise clipped. A name cut short is still that person, and <c>follo</c> is not a
+    ///     standing (#180, #181).
+    /// </remarks>
+    /// <param name="account">Them.</param>
+    /// <param name="width">How much room the row gets.</param>
+    /// <param name="suffix">
+    ///     What goes after the byline, its own separator included, or empty for a row that says nothing beyond who
+    ///     they are — which draws the byline alone rather than a byline and a blank span.
+    /// </param>
+    public static Line Beside(Account account, int width, string suffix)
+    {
+        if (suffix.Length == 0)
         {
             return Byline(account, width);
         }
 
-        var suffix = $"  {standing}";
         var byline = Byline(account, Math.Max(0, width - suffix.Length));
 
         return Line.Of([.. byline.Spans, new Span(TextWrap.Clip(suffix, width), Role.Muted)]);
     }
+
+    /// <summary>
+    ///     What a follow reads as on a row: in place, asked for and still waiting, or nothing at all — including
+    ///     where the instance was never asked, which is no tie rather than none in place.
+    /// </summary>
+    /// <remarks>
+    ///     The two words are written here rather than at each screen that says one, for the reason the rest of this
+    ///     module is here: a follow that reads one way on a follow list and another way on Discover would be two
+    ///     ideas of the same thing (#181).
+    /// </remarks>
+    public static string Follow(AccountStanding? standing) => standing switch
+    {
+        { Following: true } => FollowingSaid,
+        { FollowRequested: true } => AskedSaid,
+        _ => string.Empty,
+    };
 
     /// <summary>
     ///     Where the reader stands with them, in the fewest words that still tell the five apart — and nothing at all
@@ -134,16 +176,12 @@ public static class AccountLines
 
         var words = new List<string>();
 
-        if (standing.Following)
+        // A follow the list has already claimed of everyone on it is left unsaid; a follow still waiting to be let in
+        // is not the same claim, so it survives.
+        if (Follow(standing) is { Length: > 0 } follow
+            && (follow != FollowingSaid || said != Implied.YouFollowThem))
         {
-            if (said != Implied.YouFollowThem)
-            {
-                words.Add("following");
-            }
-        }
-        else if (standing.FollowRequested)
-        {
-            words.Add("asked");
+            words.Add(follow);
         }
 
         if (standing.FollowedBy && said != Implied.TheyFollowYou)

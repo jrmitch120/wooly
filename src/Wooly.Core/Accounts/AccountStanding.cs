@@ -44,4 +44,22 @@ public sealed record AccountStanding
     ///     read off the two flags wherever somebody needs it, so that every caller reads the pair the same way.
     /// </summary>
     public bool IsFollowWaiting => FollowRequested && !Following;
+
+    /// <summary>
+    ///     Whether this standing already carries <paramref name="tie" />, which is what settles whether a tie key puts
+    ///     one on or takes one off — and what the key says it will do before it is pressed.
+    /// </summary>
+    /// <remarks>
+    ///     Asked here rather than read off the flags wherever somebody needs it, for the reason
+    ///     <see cref="IsFollowWaiting" /> is: a follow still waiting to be let in counts as a follow, so that <c>F</c>
+    ///     on a locked account means "take that request back" rather than "ask again" — and two callers reading the
+    ///     pair differently is one of them offering the wrong thing.
+    /// </remarks>
+    public bool Has(Relationships.AccountTie tie) => tie switch
+    {
+        Relationships.AccountTie.Follow => Following || FollowRequested,
+        Relationships.AccountTie.Block => Blocking,
+        Relationships.AccountTie.Mute => Muting,
+        _ => false,
+    };
 }

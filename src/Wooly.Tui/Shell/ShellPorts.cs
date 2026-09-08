@@ -1,4 +1,5 @@
 using Wooly.Core.Conversations;
+using Wooly.Core.Discovery;
 using Wooly.Core.Http;
 using Wooly.Core.Notifications;
 using Wooly.Core.Posts;
@@ -26,6 +27,11 @@ namespace Wooly.Tui.Shell;
 ///     written through <see cref="Author" /> like anything else (ADR-0013).
 /// </param>
 /// <param name="Search">Finding accounts, hashtags and posts, for the screen <c>/</c> opens.</param>
+/// <param name="Suggestions">
+///     Who the instance offers this profile to follow, and telling it to stop offering one — the Discover
+///     destination's whole fetch. A port of its own rather than a sixth call on <see cref="Accounts" />, whose own
+///     doc scopes it to ties reached through one family of endpoints (ADR-0019).
+/// </param>
 /// <param name="RateLimit">What the instance last said is left of the budget, for the rail's foot.</param>
 public sealed record ShellPorts(
     ITimelineReader Timelines,
@@ -35,4 +41,5 @@ public sealed record ShellPorts(
     INotificationInbox Notifications,
     IDirectMessages Messages,
     IInstanceSearch Search,
+    IFollowSuggestions Suggestions,
     IRateLimitReport RateLimit);

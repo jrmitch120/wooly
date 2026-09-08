@@ -1,5 +1,6 @@
 using Wooly.Core.Accounts;
 using Wooly.Core.Conversations;
+using Wooly.Core.Discovery;
 using Wooly.Core.Errors;
 using Wooly.Core.Notifications;
 using Wooly.Core.Paging;
@@ -46,9 +47,14 @@ public sealed class Arrival(
     public const int PostsWanted = 40;
 
     /// <summary>
-    ///     How many notifications, conversations or requests are asked for: what a screen lists, and what a count
-    ///     counts up to before it stops counting.
+    ///     How many notifications, conversations, requests or suggestions are asked for: what a screen lists — and,
+    ///     where the destination carries a badge, what its count counts up to before it stops counting.
     /// </summary>
+    /// <remarks>
+    ///     Discover asks for this many and carries no badge, which is the pairing coming apart rather than a fifth
+    ///     number: a screen showing forty of forty has nothing left to page through, and nothing on it is waiting for
+    ///     anybody (#181).
+    /// </remarks>
     public const int CountedAtMost = 40;
 
     /// <summary>Raised with the screen an arrival has become, which is what the stack is put back to.</summary>
@@ -164,6 +170,22 @@ public sealed class Arrival(
                     Becomes: (asking, notice) => new FollowRequestsScreen(asking, notice),
                     WhenEmpty: "Nobody is waiting to follow you.",
                     Counting: asking => asking.Count)),
+
+            // The one destination that reads a list through a port with no Fetch on it: there is no paging here and
+            // so nothing for a rate limit to stop part way — the read either answers or throws, and the enquiry turns
+            // a throw into the shell's notice. Said as a complete fetch so that one arrival serves this too.
+            DestinationKind.Discover => Arrive(
+                destination,
+                arriving,
+                new Arriving<Suggestion>(
+                    Reads: async token =>
+                        Fetch<Suggestion>.Complete(await ports.Suggestions.Read(profile, CountedAtMost, token)),
+                    Becomes: (suggested, notice) => new DiscoverScreen(suggested, notice),
+                    WhenEmpty: "Nobody suggested.",
+
+                    // No badge, and said here rather than left out at the call site: nothing on this screen is
+                    // waiting for anybody, the same as Search.
+                    Counting: null)),
 
             DestinationKind.Messages => Arrive(
                 destination,

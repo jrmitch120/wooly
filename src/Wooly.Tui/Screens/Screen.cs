@@ -1,3 +1,4 @@
+using Wooly.Core.Accounts;
 using Wooly.Core.Posts;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Theme;
@@ -94,8 +95,8 @@ public abstract class Screen
     protected abstract IReadOnlyList<KeyHint> OwnKeys { get; }
 
     /// <summary>
-    ///     Asking for what is there now, on the nine screens that have anything to ask again — screen-local, and shown
-    ///     on the status row only where it applies (<c>docs/tui-shell.md</c>, #84).
+    ///     Asking for what is there now, on the screens that have anything to ask again — screen-local, and shown on
+    ///     the status row only where it applies (<c>docs/tui-shell.md</c>, #84).
     /// </summary>
     /// <remarks>
     ///     Said once here rather than written out on each of them, so that the key and the words explaining it cannot
@@ -105,8 +106,8 @@ public abstract class Screen
 
     /// <summary>
     ///     Whether <c>g</c> means anything here: whether this screen can be asked for a fresher copy of what it is
-    ///     showing. The nine the contract names, and nothing else — a live conversation and a live search are each
-    ///     their own question and are deliberately left out (#84).
+    ///     showing. The eleven the contract names, and nothing else — a live conversation and a live search are each
+    ///     their own question and are deliberately left out (#84, #180, #181).
     /// </summary>
     /// <remarks>
     ///     A screen saying so owes <see cref="Refreshing" /> on its status row, and one that does not owes its absence:
@@ -500,6 +501,19 @@ public abstract class Screen
 
     /// <summary>Takes the post <paramref name="postId" /> names off this screen, after it was deleted.</summary>
     public virtual void Remove(string postId)
+    {
+    }
+
+    /// <summary>
+    ///     Puts <paramref name="account" /> in place of the copy this screen is holding, after a tie changed where the
+    ///     profile stands with them. What stops a follow reading as un-followed until the screen is opened again.
+    /// </summary>
+    /// <remarks>
+    ///     Beside <see cref="Replace(Post)" /> and for its reason: two screens can be holding the same account at once
+    ///     — Discover, and the account screen opened from a row on it — so a tie made on the upper one must reach the
+    ///     lower, or <c>esc</c> lands back on a row saying the opposite of what is true (#181).
+    /// </remarks>
+    public virtual void Stands(Account account)
     {
     }
 }
