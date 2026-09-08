@@ -306,10 +306,10 @@ public class ScreenKeyTests
                 return new NotificationsScreen([ANotification.With(post: post)]);
 
             case "account-header":
-                return new AccountScreen(AnAccount.With(), [post]);
+                return new AccountScreen(AnAccount.With(), [post], pinned: []);
 
             case "account-post":
-                var account = new AccountScreen(AnAccount.With(), [post]);
+                var account = new AccountScreen(AnAccount.With(), [post], pinned: []);
 
                 // The header block is what an arrival picks out, so the first post of theirs is one walk down (#179).
                 account.Move(1);

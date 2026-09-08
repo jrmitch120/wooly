@@ -102,14 +102,14 @@ public class KeymapTests
     [InlineData("M", Verb.Mute)]
     [InlineData("B", Verb.Block)]
     public void TheCapitalsAreTheTies(string key, Verb verb) =>
-        Assert.Equal(verb, Means(key, new AccountScreen(AnAccount.With(), [])));
+        Assert.Equal(verb, Means(key, new AccountScreen(AnAccount.With(), [], pinned: [])));
 
     /// <summary>And their lower-case neighbours are still the marks, on the very screen the ties are offered on.</summary>
     [Theory]
     [InlineData("f", Verb.Favorite)]
     [InlineData("b", Verb.Boost)]
     public void ALowerCaseMarkKeyIsStillAMarkWhereTheTiesAreOffered(string key, Verb verb) =>
-        Assert.Equal(verb, Means(key, new AccountScreen(AnAccount.With(), [])));
+        Assert.Equal(verb, Means(key, new AccountScreen(AnAccount.With(), [], pinned: [])));
 
     /// <summary>
     ///     The notifications inbox: <c>d</c> dismisses one by the notification's own id — the collision the contract
@@ -204,7 +204,7 @@ public class KeymapTests
     [Fact]
     public void TheFollowsKeyBelongsToTheAccountScreen()
     {
-        Assert.Equal(Verb.OpenFollows, Means("w", new AccountScreen(AnAccount.With(), [])));
+        Assert.Equal(Verb.OpenFollows, Means("w", new AccountScreen(AnAccount.With(), [], pinned: [])));
         Assert.Equal(Verb.None, Means("w", Feed()));
     }
 

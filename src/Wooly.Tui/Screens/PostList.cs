@@ -94,6 +94,26 @@ public sealed class PostList(Screen screen, IReadOnlyList<Post> posts) : IPicked
         _posts.Rows(drawing.Width, Feed(drawing), ordinals);
 
     /// <inheritdoc cref="Rows" />
+    /// <summary>
+    ///     The rows of one run of these posts: <paramref name="howMany" /> of them from <paramref name="from" />,
+    ///     drawn and numbered exactly as they are when the whole list is drawn at once.
+    /// </summary>
+    /// <remarks>
+    ///     For a screen that splices a heading into the middle of its posts — the account screen, whose pinned posts
+    ///     and timeline are one list under two headings (#182). One list rather than two, for the reason
+    ///     <see cref="HeaderAndPosts" /> gives about one pick: two lists would be a screen that could pick a post in
+    ///     one of them and draw the selection in the other.
+    ///     <para>
+    ///         The run is where the caller says it is rather than where the list thinks a heading belongs: nothing here
+    ///         knows what a pinned post is, and a list that did would be the second place that question is answered.
+    ///     </para>
+    /// </remarks>
+    /// <param name="from">Which of these posts the run begins at, counted from the first of them.</param>
+    /// <param name="howMany">How many of them are in it.</param>
+    public IReadOnlyList<Line> Run(Drawing drawing, Ordinals ordinals, int from, int howMany) =>
+        _posts.Rows(drawing.Width, Feed(drawing), ordinals, from, howMany);
+
+    /// <inheritdoc cref="Rows" />
     /// <summary>The <paramref name="at" />th post's rows on their own, with no rule after them.</summary>
     /// <remarks>
     ///     For the post screen, which puts a heading of its own between the post it is about and the answers to it.

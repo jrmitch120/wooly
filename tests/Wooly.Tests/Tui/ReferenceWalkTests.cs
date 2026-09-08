@@ -300,7 +300,7 @@ public class ReferenceWalkTests
                 return new DirectMessagesScreen([AConversation.With(latest: post)]);
 
             case "account":
-                var account = new AccountScreen(AnAccount.With(), [post]);
+                var account = new AccountScreen(AnAccount.With(), [post], pinned: []);
 
                 // Its first thing is the header block rather than a post, so the post being read here is one walk down
                 // (#179). Every other screen on this list picks a post out on arrival.

@@ -255,9 +255,12 @@ public class ShellRefreshTests
         Assert.Equal(2, opened.Depth);
     }
 
-    /// <summary>The account screen re-runs both of the calls that opened it, and stays where it is on the stack.</summary>
+    /// <summary>
+    ///     The account screen re-runs every call that opened it — the account, its timeline and its pinned run — and
+    ///     stays where it is on the stack.
+    /// </summary>
     [Fact]
-    public async Task Refresh_ReadsBothOfTheAccountScreensCallsAgain()
+    public async Task Refresh_ReadsEveryOneOfTheAccountScreensCallsAgain()
     {
         var shell = new AShell
         {
@@ -280,7 +283,9 @@ public class ShellRefreshTests
 
         Assert.Equal("ben@hachyderm.io", account.Account.Address);
         Assert.Equal(reads + 1, shell.Accounts.Reads.Count);
-        Assert.Equal(timelines + 1, shell.Timelines.Reads.Count);
+
+        // Two of them: what they have posted, and what they have pinned (#182).
+        Assert.Equal(timelines + 2, shell.Timelines.Reads.Count);
         Assert.Equal(2, opened.Depth);
     }
 
@@ -699,7 +704,7 @@ public class ShellRefreshTests
         "messages" => new DirectMessagesScreen([AConversation.With()]),
         "requests" => new FollowRequestsScreen([AnAccount.With()]),
         "post" => new PostScreen(APost.With(id: "110"), PostThread.Alone),
-        "account" => new AccountScreen(AnAccount.With(), [APost.With(id: "110")]),
+        "account" => new AccountScreen(AnAccount.With(), [APost.With(id: "110")], pinned: []),
         "conversation" => new ConversationScreen(AConversation.Thread()),
         "search" => Searched(),
         "compose" => new ComposeScreen(ComposeFor.Post),

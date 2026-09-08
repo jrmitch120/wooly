@@ -99,8 +99,16 @@ public sealed class HeaderAndPosts(Account account, PostList posts) : IPicked
     public IReadOnlyList<Line> HeaderRows(Draws<Account> draw, int width) =>
         Stamped.Rows(draw(Account, 0, Stamped.Room(width)), 0, OnHeader);
 
-    /// <summary>The posts' own rows, numbered after the header and picked out only while the header is not.</summary>
+    /// <summary>
+    ///     One run of the posts as rows, numbered after the header and picked out only while the header is not.
+    /// </summary>
+    /// <remarks>
+    ///     A run rather than the lot, because the screen draws two of them with a heading between (#182) — and the
+    ///     numbering is this walk's either way, which is the whole reason the screen asks here rather than of the list.
+    /// </remarks>
     /// <param name="drawing">What this screen is being drawn in and under.</param>
-    public IReadOnlyList<Line> PostRows(Drawing drawing) =>
-        posts.Rows(drawing, new Ordinals(From: 1, Picked: At));
+    /// <param name="from">Which post the run begins at, counted from the first on the list rather than the header.</param>
+    /// <param name="howMany">How many posts are in it.</param>
+    public IReadOnlyList<Line> PostRows(Drawing drawing, int from, int howMany) =>
+        posts.Run(drawing, new Ordinals(From: 1, Picked: At), from, howMany);
 }
