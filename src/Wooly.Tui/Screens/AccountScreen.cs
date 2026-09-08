@@ -19,19 +19,43 @@ public sealed class AccountScreen : Screen
 {
     private readonly PostList _posts;
 
+    // Which of the posts the fetch found pinned, so the run they are in is read off the list itself rather than kept
+    // as a length beside it: a deletion takes a row off the list, and a length would go on heading a run one longer
+    // than the rows under it.
+    private readonly HashSet<string> _pins;
+
     private readonly HeaderAndPosts _walking;
 
     /// <param name="account">The account being shown, as the instance last answered about them.</param>
-    /// <param name="posts">The posts of theirs that were read, newest first.</param>
+    /// <param name="posts">The posts of theirs that were read off their timeline, newest first.</param>
+    /// <param name="pinned">
+    ///     The posts they have pinned to the top of their profile, in the instance's own order — empty where they have
+    ///     pinned none, and <see langword="null" /> where the question went unput. Disjoint from
+    ///     <paramref name="posts" />, the shell having dropped the duplicate from the timeline before either reaches
+    ///     here (#182): a screen deciding for itself which run a post belongs in would be a screen that could disagree
+    ///     with itself.
+    ///     <para>
+    ///         Said rather than defaulted, unlike <paramref name="familiar" />, because the two silences are not worth
+    ///         the same: an unasked familiar-followers list draws nothing, and an unasked pinned run draws a row
+    ///         saying so — so a caller that left it off would have the screen telling a reader about a call it never
+    ///         meant to make.
+    ///     </para>
+    /// </param>
     /// <param name="familiar">
     ///     The accounts the reader follows that also follow this one, or <see langword="null" /> where the instance
     ///     was never asked — which is what a screen built with no answer to that question is handed, and what the
     ///     shell hands it when a rate limit stops the last of its calls (CONTEXT.md).
     /// </param>
-    public AccountScreen(Account account, IReadOnlyList<Post> posts, IReadOnlyList<Account>? familiar = null)
+    public AccountScreen(
+        Account account,
+        IReadOnlyList<Post> posts,
+        IReadOnlyList<Post>? pinned,
+        IReadOnlyList<Account>? familiar = null)
     {
         Familiar = familiar;
-        _posts = new PostList(this, posts);
+        Asked = pinned is not null;
+        _pins = [.. (pinned ?? []).Select(post => post.Id)];
+        _posts = new PostList(this, [.. pinned ?? [], .. posts]);
         _walking = new HeaderAndPosts(account, _posts);
     }
 
@@ -49,6 +73,7 @@ public sealed class AccountScreen : Screen
         PostKeys.Around(
             new KeyHint("j/k", "post"),
             [
+                .. Jumping,
                 new KeyHint("F", Says(Follows, "unfollow", "follow")),
                 new KeyHint("M", Says(Account.Standing?.Muting, "unmute", "mute")),
                 new KeyHint("B", Says(Account.Standing?.Blocking, "unblock", "block")),
@@ -67,8 +92,24 @@ public sealed class AccountScreen : Screen
     /// </remarks>
     public Account Account => _walking.Account;
 
-    /// <summary>The posts of theirs that were read, newest first.</summary>
+    /// <summary>
+    ///     The posts of theirs that are on the screen, in the order they are drawn and walked: what they have pinned,
+    ///     in the instance's own pin order, and then their timeline newest first (#182).
+    /// </summary>
+    /// <remarks>
+    ///     One list rather than two, which is the shape the post screen already draws
+    ///     <c>[...ancestors, post, ...replies]</c> in: the screen has one pick, and two lists would be a screen able
+    ///     to pick a post in one of them and draw the selection in the other. Which run a post is in is a fact about
+    ///     where it sits, and is asked of <see cref="Pins" />.
+    /// </remarks>
     public IReadOnlyList<Post> Posts => _posts.All;
+
+    /// <summary>
+    ///     Whether the instance was asked what they have pinned. False leaves a row saying so where the run would
+    ///     have been, which is not the same as the nothing an account with no pins draws — absent is not empty
+    ///     (CONTEXT.md), and the precedent is <see cref="AccountLines.Standing" />'s own.
+    /// </summary>
+    public bool Asked { get; }
 
     /// <summary>
     ///     The accounts the reader follows that also follow this one, or <see langword="null" /> where the instance
@@ -124,32 +165,85 @@ public sealed class AccountScreen : Screen
     public override void Remove(string postId) => _walking.Remove(postId);
 
     /// <inheritdoc />
+    /// <remarks>
+    ///     Two headed runs where they have pinned anything, spliced into the one list of posts: the pinned run counted,
+    ///     because it is complete and unpaged so its total is a fact, and the timeline left uncounted, because counting
+    ///     a page of an unbounded list would be a number about the fetch pretending to be a number about the account
+    ///     (#182). Both are marked as headings rather than only drawn like them, which is what <c>[</c> and <c>]</c>
+    ///     move between (<see cref="Sections" />).
+    /// </remarks>
     public override IReadOnlyList<Line> Lines(Drawing drawing)
     {
+        var width = drawing.Width;
+        var pinned = Pins;
+
         var lines = new List<Line>(_walking.HeaderRows(
             (account, at, room) => AccountLines.Header(account, Familiar, drawing.In(room), ReferenceOn(at)),
-            drawing.Width))
-        {
-            // No blank of its own above the divider: the divider is a separator, and the header block's last section
-            // has already brought the one that separates it from what is above (ADR-0019).
-            Line.Of("── their posts ──", Role.Muted),
-            Line.Blank,
-        };
+            width));
 
-        if (_posts.Count == 0)
+        if (!Asked)
+        {
+            // Where the section would be, and one row rather than a heading over nothing: a heading says how many are
+            // under it, and this is the case where nobody knows.
+            lines.Add(Line.Of("Pinned posts not asked for.", Role.Muted));
+            lines.Add(Line.Blank);
+        }
+        else if (pinned > 0)
+        {
+            lines.Add(Heading($"── {pinned} pinned ──", width));
+            lines.Add(Line.Blank);
+            lines.AddRange(_walking.PostRows(drawing, from: 0, howMany: pinned));
+        }
+
+        // No blank of its own above the divider: the divider is a separator, and whatever stands above it — the header
+        // block's last section, or the rule after the last pinned post — has already brought one (ADR-0019).
+        lines.Add(Heading("── their posts ──", width));
+        lines.Add(Line.Blank);
+
+        if (_posts.Count == pinned)
         {
             lines.Add(Line.Of("Nothing to read here yet.", Role.Muted));
 
             return lines;
         }
 
-        lines.AddRange(_walking.PostRows(drawing));
+        lines.AddRange(_walking.PostRows(drawing, from: pinned, howMany: _posts.Count - pinned));
 
         return lines;
     }
 
     /// <summary>Whether a follow is in place or waiting to be let in, which <c>F</c> treats the same way.</summary>
     private bool Follows => Has(AccountTie.Follow);
+
+    /// <summary>
+    ///     How many of the posts on screen are in the pinned run — the leading ones the fetch found pinned, the shell
+    ///     having handed the two runs over disjoint and in that order.
+    /// </summary>
+    /// <remarks>
+    ///     Counted off the list every frame rather than held as a length, so that a deletion cannot leave the heading
+    ///     saying more than the rows under it — the same reason the search screen counts its own runs off the results
+    ///     rather than beside them (<see cref="Sections" />). A mark is not a deletion: <c>p</c> rewrites a row where
+    ///     it stands, so un-pinning inside the run moves nothing and the heading goes on saying what the fetch found
+    ///     until <c>g</c> re-asks.
+    /// </remarks>
+    private int Pins => _posts.All.TakeWhile(post => _pins.Contains(post.Id)).Count();
+
+    /// <summary>
+    ///     The key that moves between this screen's sections, said only where there are two headed runs to move
+    ///     between — which most accounts do not have, having pinned nothing (#177, #182).
+    /// </summary>
+    /// <remarks>
+    ///     Counted as the runs with something in them, which are the runs the jump can reach: a heading over an empty
+    ///     timeline begins no run (<see cref="Sections" />), and the header block is a run with no heading and so no
+    ///     stop of its own. Read off <see cref="Pins" />, which is what <see cref="Lines" /> draws by, so the runs the
+    ///     reader can see are the runs the key is announced for with no second count kept anywhere.
+    /// </remarks>
+    private IReadOnlyList<KeyHint> Jumping =>
+        Pins > 0 && _posts.Count > Pins ? [new KeyHint("[/]", "section")] : [];
+
+    /// <summary>One of this screen's headings, marked as one so that <c>[</c> and <c>]</c> know the run it stands over.</summary>
+    private static Line Heading(string heading, int width) =>
+        Line.Of(TextWrap.Clip(heading, width), Role.Muted).Heading();
 
     /// <summary>
     ///     What a tie key offers: taking the tie off where it is on. A standing the instance was not asked for reads

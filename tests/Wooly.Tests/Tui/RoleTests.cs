@@ -451,7 +451,8 @@ public partial class RoleTests
     {
         var account = new AccountScreen(
             AnAccount.With(standing: AnAccount.Standing(following: true)),
-            [APost.With()]);
+            [APost.With()],
+            pinned: []);
 
         var inbox = new NotificationsScreen([ANotification.With()]);
 
@@ -629,7 +630,7 @@ public partial class RoleTests
             new NotificationsScreen([ANotification.With(author: "Somebody With A Very Long Display Name", post: wordy)]),
             new FollowRequestsScreen([account]),
             search,
-            new AccountScreen(account, [wordy]),
+            new AccountScreen(account, [wordy], pinned: []),
             new DirectMessagesScreen([talkative, AConversation.Emptied(id: "9")]),
             new ConversationScreen(AConversation.Thread(talkative, wordy)),
         ];

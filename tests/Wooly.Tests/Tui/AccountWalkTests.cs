@@ -43,7 +43,7 @@ public class AccountWalkTests
 
     /// <summary>Their account screen, with two posts of theirs under the header block.</summary>
     private static AccountScreen Opened() =>
-        new(Maria(), [APost.With(id: "110"), APost.With(id: "220")]);
+        new(Maria(), [APost.With(id: "110"), APost.With(id: "220")], pinned: []);
 
     /// <summary>The rows that screen draws at the width the contract is written for.</summary>
     private static IReadOnlyList<Line> Drawn(Screen screen) => screen.Lines(new Drawing(61, AShell.Now));
@@ -234,7 +234,7 @@ public class AccountWalkTests
     [Fact]
     public void APostTakenDownLeavesTheScreenPickingOutWhatItDraws()
     {
-        var screen = new AccountScreen(Maria(), [APost.With(id: "110"), APost.With(id: "220")]);
+        var screen = new AccountScreen(Maria(), [APost.With(id: "110"), APost.With(id: "220")], pinned: []);
 
         screen.Move(2);
 

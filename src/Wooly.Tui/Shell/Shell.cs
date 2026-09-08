@@ -1223,7 +1223,7 @@ public sealed class Shell
             ask => ReadAccount(ask, address),
             ifStillHere: found =>
             {
-                var screen = new AccountScreen(found.Account, found.Posts, found.Familiar);
+                var screen = new AccountScreen(found.Account, found.Posts, found.Pinned, found.Familiar);
 
                 if (replacing)
                 {
@@ -1240,7 +1240,7 @@ public sealed class Shell
     ///     reader follows follow them too.
     /// </summary>
     /// <remarks>
-    ///     Three calls under one enquiry, so it is checked once at the end rather than after each: what matters is
+    ///     Four calls under one enquiry, so it is checked once at the end rather than after each: what matters is
     ///     whether the reader is still where they were when they asked, not how far the answer got.
     ///     <para>
     ///         Said here rather than at each of the two places that read an account — opening one, and asking it for
@@ -1248,24 +1248,70 @@ public sealed class Shell
     ///         opinion about what an account screen is made of (#84).
     ///     </para>
     ///     <para>
-    ///         Familiar followers is asked <em>last</em>, and is the one of the three that answers rather than throws
+    ///         The pinned run is read by naming the account rather than by marking the posts already in hand, because
+    ///         an instance reports a post's own pin mark only to whoever wrote it — and it is read <em>before</em>
+    ///         familiar followers, being content where the other is one decorative row, so it takes the better odds
+    ///         against a rate limit (#182).
+    ///     </para>
+    ///     <para>
+    ///         Familiar followers is asked <em>last</em>, and is the one of the four that answers rather than throws
     ///         where the instance refuses it: it decorates a single row, so a rate limit reached here leaves the whole
     ///         screen standing with that row missing rather than taking the account and its posts down with it
     ///         (ADR-0012's amendment).
     ///     </para>
     /// </remarks>
-    private async Task<(Account Account, IReadOnlyList<Post> Posts, IReadOnlyList<Account>? Familiar)> ReadAccount(
-        Enquiry.Ask ask,
-        AccountAddress address)
+    private async Task<Read> ReadAccount(Enquiry.Ask ask, AccountAddress address)
     {
         var account = await ask.Of(token => _ports.Accounts.Show(_profile, address, token));
         var posts = await ask.Of(token =>
             _ports.Timelines.Read(_profile, Timeline.By(address), Arrival.PostsWanted, token));
 
+        var pinned = await ask.Of(token =>
+            _ports.Timelines.Read(_profile, Timeline.Pinned(address), Arrival.PostsWanted, token));
+
         var familiar = await ask.Of(token => _ports.Accounts.FamiliarFollowers(_profile, account.Id, token));
 
-        return (Account: account, Posts: posts.Items, Familiar: familiar);
+        // A rate limit that stopped this read is a question that went unput rather than an account with nothing
+        // pinned, and the screen says which of the two it was. Nothing is salvaged from a stopped one: a pinned run is
+        // a single page in the account's own order, so what a limit stops it holds none of, and a count drawn over
+        // part of one would head a run the instance never finished listing.
+        var pins = pinned.IsComplete ? pinned.Items : null;
+
+        // Dropped from the timeline rather than from the pinned run, and dropped here rather than on the screen, so
+        // the two lists reach it disjoint and it cannot disagree with itself about which run a post is in. Only a
+        // recent pinned normal post can be in both, the timeline read leaving replies out (#182).
+        var pinnedIds = (pins ?? []).Select(post => post.Id).ToHashSet(StringComparer.Ordinal);
+
+        return new Read(
+            account,
+            [.. posts.Items.Where(post => !pinnedIds.Contains(post.Id))],
+            pins,
+            familiar);
     }
+
+    /// <summary>
+    ///     What one reading of an account came back with, which is everything an account screen is built from: who
+    ///     they are, their timeline with anything pinned taken out of it, what they have pinned, and which of the
+    ///     people the reader follows follow them too.
+    /// </summary>
+    /// <remarks>
+    ///     A record rather than a tuple, since #182 made it four things two call sites unpack — a positional tuple of
+    ///     four would be four chances to hand the screen its posts as its pinned run.
+    /// </remarks>
+    /// <param name="Account">Who they are, as the instance last answered.</param>
+    /// <param name="Posts">Their timeline, disjoint from <paramref name="Pinned" />.</param>
+    /// <param name="Pinned">
+    ///     What they have pinned, in the instance's own order — or <see langword="null" /> where a rate limit stopped
+    ///     the question being answered at all.
+    /// </param>
+    /// <param name="Familiar">
+    ///     Who the reader knows in common, or <see langword="null" /> where the instance never answered.
+    /// </param>
+    private sealed record Read(
+        Account Account,
+        IReadOnlyList<Post> Posts,
+        IReadOnlyList<Post>? Pinned,
+        IReadOnlyList<Account>? Familiar);
 
     /// <summary>
     ///     Puts a follow list on screen and starts reading it: the first page, and — on a list held whole — the rest
@@ -1472,7 +1518,7 @@ public sealed class Shell
         _enquiry.Put(
             ask => ReadAccount(ask, AccountAddress.Parse(showing.Account.Address)),
             ifStillHere: found =>
-                Freshened(showing, new AccountScreen(found.Account, found.Posts, found.Familiar)));
+                Freshened(showing, new AccountScreen(found.Account, found.Posts, found.Pinned, found.Familiar)));
 
     /// <summary>
     ///     And for a follow list, which is the same read its <c>w</c> or its <c>s</c> ran — off a fresh screen, so

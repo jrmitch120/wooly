@@ -172,11 +172,26 @@ public sealed class Picked<T>(IReadOnlyList<T> things) : IPicked
     ///     Where these things stand in the numbering of the screen holding them, which is their own numbering on every
     ///     screen but one (<see cref="Ordinals" />).
     /// </param>
-    public IReadOnlyList<Line> Rows(int width, Draws<T> draw, Ordinals ordinals = default)
+    public IReadOnlyList<Line> Rows(int width, Draws<T> draw, Ordinals ordinals = default) =>
+        Rows(width, draw, ordinals, from: 0, howMany: Count);
+
+    /// <inheritdoc cref="Rows(int, Draws{T}, Ordinals)" />
+    /// <summary>
+    ///     The same for one run of them: <paramref name="howMany" /> things from <paramref name="from" />, stamped and
+    ///     ruled exactly as they are when the whole list is drawn at once.
+    /// </summary>
+    /// <remarks>
+    ///     For a screen that splices a heading into the middle of one list — the account screen, whose pinned posts and
+    ///     timeline are one list under two headings (#182). Here rather than in that screen, so that there is one loop
+    ///     putting a rule between two things rather than one per screen that ever splits a list in two.
+    /// </remarks>
+    /// <param name="from">Which of these things the run begins at, counted from the first of them.</param>
+    /// <param name="howMany">How many of them are in it.</param>
+    public IReadOnlyList<Line> Rows(int width, Draws<T> draw, Ordinals ordinals, int from, int howMany)
     {
         var lines = new List<Line>();
 
-        for (var at = 0; at < _things.Count; at++)
+        for (var at = from; at < from + howMany; at++)
         {
             lines.AddRange(RowsOf(at, width, draw, ordinals));
             lines.Add(Line.Rule(width));
