@@ -121,7 +121,7 @@ public sealed class Shell
     /// <summary>Raised whenever anything on screen has changed. Always on the drawing thread.</summary>
     public event Action? Changed;
 
-    /// <summary>The rail: the nine destinations, the cursor, and the selection.</summary>
+    /// <summary>The rail: the ten destinations, the cursor, and the selection.</summary>
     public Rail Rail { get; }
 
     /// <summary>The screen on top of the stack, which is what the content region is showing.</summary>
@@ -235,6 +235,7 @@ public sealed class Shell
         Verb.Mute => Ran(() => Tie(AccountTie.Mute)),
         Verb.Block => Ran(() => Tie(AccountTie.Block)),
         Verb.Dismiss => Ran(Dismiss),
+        Verb.StopSuggesting => Ran(StopSuggesting),
         Verb.ClearAll => Ran(AskToClear),
         Verb.AcceptRequest => Ran(() => AnswerRequest(accepted: true)),
         Verb.RejectRequest => Ran(() => AnswerRequest(accepted: false)),
@@ -546,12 +547,20 @@ public sealed class Shell
     }
 
     /// <summary>
-    ///     Opens the account screen of whoever is picked out on a follow list — the same screen <c>a</c> opens from a
-    ///     feed, read the same way, rather than a row that expands where it stands.
+    ///     Opens the account screen of whoever is picked out on a list of people — the same screen <c>a</c> opens
+    ///     from a feed, read the same way, rather than a row that expands where it stands.
     /// </summary>
-    public Task OpenPerson() => Screen is FollowsScreen { PickedPerson: { } person }
-        ? OpenAccount(AccountAddress.Parse(person.Address))
-        : Task.CompletedTask;
+    /// <remarks>
+    ///     Two screens list people and both answer <c>⏎</c> the same way, so they are one arm apiece here rather than
+    ///     two verbs: a dismissed suggestion opens as readily as anything else, dismissing being "stop suggesting"
+    ///     rather than "hide" (#180, #181).
+    /// </remarks>
+    public Task OpenPerson() => Screen switch
+    {
+        FollowsScreen { PickedPerson: { } person } => OpenAccount(AccountAddress.Parse(person.Address)),
+        DiscoverScreen { PickedPerson: { } person } => OpenAccount(AccountAddress.Parse(person.Address)),
+        _ => Task.CompletedTask,
+    };
 
     /// <summary>Walks back up one level of the stack. Never quits, and never leaves the shell with nothing on it.</summary>
     public void Back()
@@ -859,25 +868,78 @@ public sealed class Shell
     /// </remarks>
     public async Task Tie(AccountTie tie)
     {
-        if (Screen is not AccountScreen account)
+        // Discover answers F alone, and only F: the account screen is where a reader has the whole of somebody in
+        // front of them, which is what M and B are worth pressing against. A capital that means nothing here does
+        // nothing here, rather than meaning something else (#181).
+        var person = Screen switch
+        {
+            AccountScreen account => account.Account,
+            DiscoverScreen discover when tie == AccountTie.Follow => discover.PickedPerson,
+            _ => null,
+        };
+
+        if (person is null)
         {
             return;
         }
 
-        var address = AccountAddress.Parse(account.Account.Address);
-        var wanted = !account.Has(tie);
+        var address = AccountAddress.Parse(person.Address);
+        var wanted = !(person.Standing?.Has(tie) ?? false);
 
         await _enquiry.Put(
             ask => ask.Of(token => _ports.Accounts.Set(_profile, address, tie, wanted, token)),
-            eitherWay: stands =>
+            eitherWay: stood =>
             {
-                account.Stands(stands);
+                Stands(stood);
 
                 // Home is the profile's own following, so a follow or a block changes what belongs on it — and a mute
                 // changes what belongs on all of them.
                 _cache.Forget(DestinationKind.Home);
 
-                Say(Said(tie, wanted, stands), isError: false);
+                // And Discover, wherever the tie was made: an instance never suggests somebody already followed or
+                // blocked, so a held copy of that screen is a copy the instance would no longer have served (#181).
+                _cache.Forget(DestinationKind.Discover);
+
+                Say(Said(tie, wanted, stood), isError: false);
+            });
+    }
+
+    /// <summary>
+    ///     Tells the instance to stop suggesting whoever is picked out on Discover, which is what <c>d</c> does there.
+    /// </summary>
+    /// <remarks>
+    ///     No confirmation, unlike every other <c>d</c> in this shell: nothing of the reader's is destroyed, and the
+    ///     cost of a mis-press is one suggestion out of forty on a list the server regenerates. One-way, there being
+    ///     no un-dismiss endpoint — so a row already dismissed is left alone rather than asked about twice, which is
+    ///     the whole of what a second press means (ADR-0019, #181).
+    ///     <para>
+    ///         The row is marked only where the instance took it. A dismissal that failed leaves the enquiry with the
+    ///         notice already said, and a row saying <c>dismissed</c> over a call that never landed would be the one
+    ///         dishonest thing on the screen.
+    ///     </para>
+    /// </remarks>
+    public async Task StopSuggesting()
+    {
+        if (Screen is not DiscoverScreen discover
+            || discover.PickedPerson is not { } picked
+            || discover.IsDismissed(picked.Id))
+        {
+            return;
+        }
+
+        await _enquiry.Put(
+            ask => ask.Of(token => _ports.Suggestions.Dismiss(_profile, picked.Id, token)),
+            eitherWay: () =>
+            {
+                // What a held copy of this screen holds is now what the instance would not serve again.
+                _cache.Forget(DestinationKind.Discover);
+
+                discover.Dismissed(picked.Id);
+
+                // Nothing on the status row: the row itself now says ` · dismissed`, and the row holds either a
+                // notice or the keys and never both — so saying it twice would cost the reader every key the screen
+                // answers to (#180's lesson, #181).
+                Changed?.Invoke();
             });
     }
 
@@ -1086,7 +1148,7 @@ public sealed class Shell
         }
     }
 
-    /// <summary>The nine, in the order the rail draws them.</summary>
+    /// <summary>The ten, in the order the rail draws them.</summary>
     private static IReadOnlyList<Destination> Destinations(ActiveProfile profile, string? hashtag) =>
     [
         new(DestinationKind.Home, "Home", Timeline.Home),
@@ -1100,6 +1162,10 @@ public sealed class Shell
         new(DestinationKind.Messages, "Direct messages"),
         new(DestinationKind.Requests, "Follow requests"),
         new(DestinationKind.Search, "Search"),
+
+        // The tenth, and the only one the rail has ever grown by: immediately after Search and in its group, the
+        // things you go to when you want something as against the timelines you read (ADR-0019, #181).
+        new(DestinationKind.Discover, "Discover"),
         new(DestinationKind.Profile, profile.Account is { } account ? $"@{account.Split('@')[0]}" : "Profile"),
     ];
 
@@ -1828,6 +1894,22 @@ public sealed class Shell
         }
 
         Changed?.Invoke();
+    }
+
+    /// <summary>
+    ///     Puts an account whose tie has just changed in place of the copy every screen in the stack is holding.
+    /// </summary>
+    /// <remarks>
+    ///     Every screen and not only the top one, for the reason <see cref="Replace(Conversation)" /> gives: Discover
+    ///     and an account screen opened from a row on it are on the stack together, so a row that still said nothing
+    ///     under a follow just made would be the shell arguing with itself (#181).
+    /// </remarks>
+    private void Stands(Account account)
+    {
+        foreach (var screen in _stack)
+        {
+            screen.Stands(account);
+        }
     }
 
     /// <summary>Puts a post that has just changed in place of the copy every screen in the stack is holding.</summary>

@@ -234,11 +234,12 @@ public class RailFetchTests
     }
 
     /// <summary>
-    ///     Nine of them, in the order the contract lists, including the four whose screens are #29's and #30's. The
-    ///     shape of the rail is what this ticket settles, and a rail that grows four entries later is a different rail.
+    ///     Ten of them, in the order the contract lists, including the four whose screens are #29's and #30's. The
+    ///     shape of the rail is what #28 settled, and a rail that grows four entries later is a different rail — the
+    ///     tenth is the one entry it has ever grown by, and it was argued for on those terms (ADR-0019, #181).
     /// </summary>
     [Fact]
-    public async Task Rail_ListsAllNineDestinations()
+    public async Task Rail_ListsAllTenDestinations()
     {
         var shell = new AShell { Hashtag = "dotnet" };
         var opened = await shell.Opened();
@@ -253,6 +254,7 @@ public class RailFetchTests
                 DestinationKind.Messages,
                 DestinationKind.Requests,
                 DestinationKind.Search,
+                DestinationKind.Discover,
                 DestinationKind.Profile,
             ],
             opened.Rail.Destinations.Select(destination => destination.Kind));

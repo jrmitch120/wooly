@@ -63,9 +63,15 @@ public static class Keymap
         (ShellKey.Enter, SearchScreen search) => search.IsTyping ? Verb.Find : Verb.OpenResult,
         (ShellKey.Enter, FollowRequestsScreen) => Verb.OpenAsker,
         (ShellKey.Enter, FollowsScreen follows) => follows.IsTyping ? Verb.FilterDone : Verb.OpenPerson,
+        (ShellKey.Enter, DiscoverScreen) => Verb.OpenPerson,
         (ShellKey.Enter, DirectMessagesScreen) => Verb.OpenConversation,
         (ShellKey.A, FollowRequestsScreen) => Verb.AcceptRequest,
         (ShellKey.D, NotificationsScreen) => Verb.Dismiss,
+
+        // And the sixth, which Discover added: d dismisses a notification, deletes a post, and here tells the
+        // instance to stop suggesting somebody — three things by one letter, which the status row is what makes
+        // workable (#181).
+        (ShellKey.D, DiscoverScreen) => Verb.StopSuggesting,
         (ShellKey.X, FollowRequestsScreen) => Verb.RejectRequest,
 
         // And the fifth, which a follow list added: f is favorite wherever there is a post to mark, and on a list of

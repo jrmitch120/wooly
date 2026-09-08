@@ -38,6 +38,8 @@ public class ScreenKeyTests
         "search-nothing",
         "follows",
         "follows-empty",
+        "discover",
+        "discover-empty",
         "messages",
         "messages-empty",
         "requests",
@@ -180,6 +182,7 @@ public class ScreenKeyTests
         ("requests-empty", "requests", ["⏎:read them", "a:accept", "x:reject"]),
         ("search-nothing", "search-account", ["⏎:open"]),
         ("follows-empty", "follows", ["⏎:open"]),
+        ("discover-empty", "discover", ["⏎:open", "F:follow", "d:dismiss"]),
     ];
 
     /// <inheritdoc cref="CanBeEmpty" />
@@ -240,6 +243,7 @@ public class ScreenKeyTests
     [InlineData("messages-empty", "j/k:conversation g:refresh ↓/↑:row tab:destination ?:keys")]
     [InlineData("requests-empty", "j/k:request g:refresh ↓/↑:row tab:destination ?:keys")]
     [InlineData("search-nothing", "j/k:result /:search again ↓/↑:row tab:destination ?:keys")]
+    [InlineData("discover-empty", "j/k:person g:refresh ↓/↑:row tab:destination ?:keys")]
     public void Keys_OnAnEmptyScreenAreTheOnesThatStillDoSomething(string state, string row) =>
         Assert.Equal(row, string.Join(' ', Of(state).Keys));
 
@@ -335,6 +339,12 @@ public class ScreenKeyTests
 
             case "follows-empty":
                 return Follows();
+
+            case "discover":
+                return new DiscoverScreen([ASuggestion.With()]);
+
+            case "discover-empty":
+                return new DiscoverScreen([], "Nobody suggested.");
 
             case "messages-empty":
                 return new DirectMessagesScreen([], "Nobody has written.");

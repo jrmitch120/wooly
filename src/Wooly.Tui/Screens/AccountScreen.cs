@@ -103,20 +103,14 @@ public sealed class AccountScreen : Screen
     ///     A follow this account has not answered yet counts as in place: what <c>F</c> undoes on a locked account is
     ///     the request, and offering to follow somebody you have already asked would be offering to ask twice.
     /// </remarks>
-    public bool Has(AccountTie tie) => tie switch
-    {
-        AccountTie.Follow => Follows,
-        AccountTie.Block => Account.Standing?.Blocking ?? false,
-        AccountTie.Mute => Account.Standing?.Muting ?? false,
-        _ => false,
-    };
+    public bool Has(AccountTie tie) => Account.Standing?.Has(tie) ?? false;
 
-    /// <summary>Puts the account as the instance now has it in place of the copy this screen is holding.</summary>
+    /// <inheritdoc />
     /// <remarks>
-    ///     What stops a follow reading as un-followed until the screen is opened again — the same reason a marked post
-    ///     replaces the copy a feed is holding.
+    ///     Through the walk rather than straight at the account, so that the header block and the posts stay one
+    ///     numbering — the same reason <see cref="Remove" /> goes that way.
     /// </remarks>
-    public void Stands(Account account) => _walking.Stands(account);
+    public override void Stands(Account account) => _walking.Stands(account);
 
     /// <inheritdoc />
     public override void Replace(Post post) => _posts.Replace(post);
@@ -155,7 +149,7 @@ public sealed class AccountScreen : Screen
     }
 
     /// <summary>Whether a follow is in place or waiting to be let in, which <c>F</c> treats the same way.</summary>
-    private bool Follows => Account.Standing is { } standing && (standing.Following || standing.FollowRequested);
+    private bool Follows => Has(AccountTie.Follow);
 
     /// <summary>
     ///     What a tie key offers: taking the tie off where it is on. A standing the instance was not asked for reads

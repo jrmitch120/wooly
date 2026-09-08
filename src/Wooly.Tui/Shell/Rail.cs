@@ -23,7 +23,7 @@ public sealed class Rail
 
     private IDisposable? _settling;
 
-    /// <param name="destinations">The nine, in the order they are drawn.</param>
+    /// <param name="destinations">The ten, in the order they are drawn.</param>
     /// <param name="host">What the wait is scheduled through.</param>
     /// <param name="settle">
     ///     How long the tabbing has to stop for before the selection follows the cursor. Long enough that a deliberate
@@ -50,7 +50,7 @@ public sealed class Rail
     /// <summary>How long the tabbing has to stop for before the selection follows the cursor.</summary>
     public TimeSpan Settle { get; }
 
-    /// <summary>The nine, in the order they are drawn.</summary>
+    /// <summary>The ten, in the order they are drawn.</summary>
     public IReadOnlyList<Destination> Destinations => _destinations;
 
     /// <summary>Where the tabbing has got to, drawn as <c>▶</c>.</summary>

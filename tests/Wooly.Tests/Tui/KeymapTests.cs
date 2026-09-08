@@ -167,6 +167,25 @@ public class KeymapTests
     public void TheFollowsScreenTakesThreeKeysForItself(string key, Verb verb) =>
         Assert.Equal(verb, Means(key, Follows()));
 
+    /// <summary>
+    ///     Discover takes two for itself: <c>⏎</c> opens whoever is picked out, the way it does on a follow list, and
+    ///     <c>d</c> tells the instance to stop suggesting them rather than dismissing a notification or deleting a
+    ///     post — the third thing that letter means, and the reason the status row exists (#181).
+    /// </summary>
+    [Theory]
+    [InlineData("⏎", Verb.OpenPerson)]
+    [InlineData("d", Verb.StopSuggesting)]
+    public void TheDiscoverScreenTakesTwoKeysForItself(string key, Verb verb) =>
+        Assert.Equal(verb, Means(key, new DiscoverScreen([ASuggestion.With()])));
+
+    /// <summary>
+    ///     And <c>F</c> is the shell-wide capital there rather than a key of Discover's own: what it means is settled
+    ///     by the screen it lands on, not by the table (#181).
+    /// </summary>
+    [Fact]
+    public void TheFollowKeyIsUnchangedOnDiscover() =>
+        Assert.Equal(Verb.Follow, Means("F", new DiscoverScreen([ASuggestion.With()])));
+
     /// <summary>And <c>⏎</c> means the other thing while its prompt is taking letters, as the search prompt's does.</summary>
     [Fact]
     public void TheFollowsScreenFinishesFilteringOnEnterWhileItIsTyping()
