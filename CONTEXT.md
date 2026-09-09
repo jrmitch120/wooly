@@ -156,6 +156,15 @@ _Avoid_: server (when referring to a Mastodon instance)
 **Account**:
 A user's identity on a specific instance, addressed as `username@instance` when referenced from outside its home instance. Distinct from a local CLI **profile** (below).
 
+**Named account**:
+How a caller names the account it means: the **address** always, and the instance's own id for it where whoever is
+asking has already paid the call to learn one (`NamedAccount`). One value rather than an address and an id side by
+side, because two fields can disagree, and an address naming one account beside an id naming another is not a thing
+to be represented — so it is built either from an address alone or from an **Account** already read, which supplies
+both halves from the one record. Only a read is ever handed one: every write resolves the address itself, however
+well the caller thinks it knows the answer.
+_Avoid_: ref, handle (which is a spelling of an **address**, and carries no id), lookup (which is the act, not the thing)
+
 **Bio**:
 What an account wrote about itself on its own profile (`Account.Bio`), flattened to plain text off the wire's `note`
 by the same flattener a **post**'s own text goes through — one rather than two, because a bio is exactly the HTML

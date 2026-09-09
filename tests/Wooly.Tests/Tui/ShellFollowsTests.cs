@@ -26,7 +26,7 @@ public class ShellFollowsTests
 
         var listed = Assert.Single(Listed(fakes));
         Assert.Equal(FollowSide.Following, listed.Side);
-        Assert.Equal("ben@hachyderm.io", listed.Account?.Text);
+        Assert.Equal("ben@hachyderm.io", listed.Account?.Address.Text);
     }
 
     /// <summary>And it means nothing off an account screen, there being nobody whose list it would be.</summary>

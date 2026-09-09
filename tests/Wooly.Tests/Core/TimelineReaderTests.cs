@@ -458,7 +458,7 @@ public class TimelineReaderTests
 
         var fetch = await NewReader(network).Read(
             Profile,
-            Timeline.By(AccountAddress.Parse("alice@hachyderm.io")),
+            Timeline.By(NamedAccount.Addressed(AccountAddress.Parse("alice@hachyderm.io"))),
             20,
             TestContext.Current.CancellationToken);
 
@@ -471,6 +471,49 @@ public class TimelineReaderTests
         Assert.Equal(
             "https://mastodon.social/api/v1/accounts/42/statuses?exclude_replies=true&limit=20",
             network.Requests[1].RequestUri?.ToString());
+
+        Assert.Equal(2, network.Requests.Count);
+        Assert.Single(fetch.Items);
+    }
+
+    /// <summary>
+    ///     And it is skipped altogether where the caller has already paid for it. A named account carrying an id is a
+    ///     crossing somebody made and handed on, so the read spends nothing arriving at the same id again — which is
+    ///     what makes an account arrival one resolving search rather than three (ADR-0012's second amendment).
+    /// </summary>
+    [Fact]
+    public async Task Read_AsksForNoLookupWhereTheAccountArrivedAlreadyResolved()
+    {
+        var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Json(Page(PostJson("110"))));
+
+        var fetch = await NewReader(network).Read(
+            Profile,
+            Timeline.By(NamedAccount.Resolved(AnAccount.With(address: "alice@hachyderm.io", id: "42"))),
+            20,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(
+            "https://mastodon.social/api/v1/accounts/42/statuses?exclude_replies=true&limit=20",
+            Assert.Single(network.Requests).RequestUri?.ToString());
+
+        Assert.Single(fetch.Items);
+    }
+
+    /// <summary>The pinned run is the same reading and skips the same lookup on the same terms.</summary>
+    [Fact]
+    public async Task Read_AsksForNoLookupForAPinnedRunOfAnAccountAlreadyResolved()
+    {
+        var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Json(Page(PostJson("110"))));
+
+        var fetch = await NewReader(network).Read(
+            Profile,
+            Timeline.Pinned(NamedAccount.Resolved(AnAccount.With(address: "alice@hachyderm.io", id: "42"))),
+            20,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(
+            "https://mastodon.social/api/v1/accounts/42/statuses?pinned=true&limit=20",
+            Assert.Single(network.Requests).RequestUri?.ToString());
 
         Assert.Single(fetch.Items);
     }
@@ -489,7 +532,7 @@ public class TimelineReaderTests
 
         var fetch = await NewReader(network).Read(
             Profile,
-            Timeline.By(AccountAddress.Parse("alice@hachyderm.io")),
+            Timeline.By(NamedAccount.Addressed(AccountAddress.Parse("alice@hachyderm.io"))),
             45,
             TestContext.Current.CancellationToken);
 
@@ -506,7 +549,7 @@ public class TimelineReaderTests
     {
         Assert.Equal(
             "the posts of @alice@hachyderm.io",
-            Timeline.By(AccountAddress.Parse("alice@hachyderm.io")).Description);
+            Timeline.By(NamedAccount.Addressed(AccountAddress.Parse("alice@hachyderm.io"))).Description);
     }
 
     /// <summary>
@@ -523,7 +566,7 @@ public class TimelineReaderTests
 
         var fetch = await NewReader(network).Read(
             Profile,
-            Timeline.Pinned(AccountAddress.Parse("alice@hachyderm.io")),
+            Timeline.Pinned(NamedAccount.Addressed(AccountAddress.Parse("alice@hachyderm.io"))),
             20,
             TestContext.Current.CancellationToken);
 
@@ -552,7 +595,7 @@ public class TimelineReaderTests
 
         var fetch = await NewReader(network).Read(
             Profile,
-            Timeline.Pinned(AccountAddress.Parse("alice@hachyderm.io")),
+            Timeline.Pinned(NamedAccount.Addressed(AccountAddress.Parse("alice@hachyderm.io"))),
             40,
             TestContext.Current.CancellationToken);
 
@@ -570,7 +613,7 @@ public class TimelineReaderTests
     {
         Assert.Equal(
             "the pinned posts of @alice@hachyderm.io",
-            Timeline.Pinned(AccountAddress.Parse("alice@hachyderm.io")).Description);
+            Timeline.Pinned(NamedAccount.Addressed(AccountAddress.Parse("alice@hachyderm.io"))).Description);
     }
 
     /// <summary>

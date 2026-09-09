@@ -31,6 +31,7 @@ internal abstract class AccountListCommand(
         /// </summary>
         public AccountAddress? Address => Account is null ? null : AccountAddress.Parse(Account);
 
+
         /// <inheritdoc />
         protected override string Counted => "account";
 
@@ -46,8 +47,12 @@ internal abstract class AccountListCommand(
         // — the account the profile signs in as, which is who the instance was asked about.
         var whose = settings.Address?.Text ?? profile.Account;
 
+        // Named with no id on it, always: a command line is an address a user typed and nothing has been looked up
+        // yet, so this list pays for the crossing the way it always has.
+        var named = settings.Address is null ? null : NamedAccount.Addressed(settings.Address);
+
         return new Listing<Account>(
-            token => relationships.List(profile, side, settings.Address, settings.Limit, token),
+            token => relationships.List(profile, side, named, settings.Limit, token),
             fetch => AccountJson.Write(console, side, whose, fetch),
             fetch => AccountReport.Write(console, side, whose, fetch));
     }

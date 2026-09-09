@@ -9,7 +9,7 @@ namespace Wooly.Core.Timelines;
 /// </summary>
 public sealed record Timeline
 {
-    private Timeline(TimelineScope scope, string? hashtag = null, AccountAddress? account = null)
+    private Timeline(TimelineScope scope, string? hashtag = null, NamedAccount? account = null)
     {
         Scope = scope;
         Hashtag = hashtag;
@@ -27,11 +27,13 @@ public sealed record Timeline
     public string? Hashtag { get; }
 
     /// <summary>
-    ///     Whose posts are being read, or <see langword="null" /> for the four that belong to nobody in particular. An
-    ///     address rather than an id for the reason <see cref="Accounts.AccountAddress" /> gives: an id means nothing
-    ///     on any other instance, and turning one into the other costs a call the adapter makes.
+    ///     Whose posts are being read, or <see langword="null" /> for the four that belong to nobody in particular.
+    ///     A <see cref="NamedAccount" /> rather than a bare id for the reason <see cref="Accounts.AccountAddress" />
+    ///     gives — an id means nothing on any other instance — and rather than a bare address because a caller that
+    ///     has already paid for the crossing has no way to say so, and pays for it again (ADR-0012's second
+    ///     amendment). Which of the two it carries is the adapter's business, not this value's.
     /// </summary>
-    public AccountAddress? Account { get; }
+    public NamedAccount? Account { get; }
 
     /// <summary>The posts of the accounts this profile follows.</summary>
     public static Timeline Home { get; } = new(TimelineScope.Home);
@@ -59,14 +61,18 @@ public sealed record Timeline
     }
 
     /// <summary>The posts of the account <paramref name="account" /> names.</summary>
-    public static Timeline By(AccountAddress account) => new(TimelineScope.Account, account: account);
+    /// <param name="account">
+    ///     Whose posts to read. One factory rather than an overload per argument type: two ways to say this would
+    ///     leave the caller that already holds a resolution free to throw it away and pay for another.
+    /// </param>
+    public static Timeline By(NamedAccount account) => new(TimelineScope.Account, account: account);
 
     /// <summary>
     ///     The posts the account <paramref name="account" /> names has pinned to the top of their profile, replies
     ///     included — a separate reading from <see cref="By" /> rather than a filter over it, because an instance
     ///     reports a post's own pin mark only to whoever wrote it.
     /// </summary>
-    public static Timeline Pinned(AccountAddress account) => new(TimelineScope.Pinned, account: account);
+    public static Timeline Pinned(NamedAccount account) => new(TimelineScope.Pinned, account: account);
 
     /// <summary>
     ///     What to call this timeline in a sentence, e.g. "No posts in <em>the federated timeline</em>." A hashtag is

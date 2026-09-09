@@ -172,7 +172,9 @@ resolves the address, and `Timelines.Read(Timeline.By(address))` resolves it aga
 arrival is four calls, of which two are the same lookup. Familiar followers makes five and the pinned read makes seven,
 three of them resolving one address. This ADR deliberately does not fix it: threading an id through `Timeline` would
 undo the reason `Timeline` takes an address at all (ADR-0012's "an id means nothing on any other instance"), which is a
-port-shape decision that should not ride in behind a feature. It leaves the map as its own issue.
+port-shape decision that should not ride in behind a feature. It leaves the map as its own issue. That issue was #184,
+and it was weighed as **ADR-0012's second amendment**: a read may be handed a resolution somebody has already paid
+for, a write may not, and the arrival is five calls with one lookup in it.
 
 **The shell gains its first drill-in cache.** `DestinationCache` is keyed by `DestinationKind`, one entry per rail
 destination, and the follow browser is not a destination — so it keeps its own, age-only, one minute, keyed by account

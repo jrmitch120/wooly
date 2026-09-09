@@ -51,4 +51,25 @@ internal static class AccountLookup
                        StringComparison.OrdinalIgnoreCase))
                ?? throw new UnknownAccountException(account, instance);
     }
+
+    /// <summary>
+    ///     The instance's own id for the account <paramref name="account" /> names — free where whoever asked has
+    ///     already paid for the crossing and handed the resolution on, and <see cref="Resolve" /> where they have not.
+    /// </summary>
+    /// <remarks>
+    ///     Here rather than at each read that takes a <see cref="NamedAccount" />, for the reason this class exists at
+    ///     all: two copies of "when is a lookup owed" is how one read comes to spend a call the other saves, or worse,
+    ///     to trust an id where the other would not (ADR-0012's second amendment).
+    /// </remarks>
+    /// <param name="instance">The instance being asked, which is the one a bare username belongs to.</param>
+    /// <exception cref="UnknownAccountException">
+    ///     The instance knows no account by that address. Only reachable where <paramref name="account" /> carries no
+    ///     id: an account already resolved is one the instance has already named.
+    /// </exception>
+    public static async Task<string> IdOf(
+        IMastodonClient client,
+        NamedAccount account,
+        string instance,
+        CancellationToken cancellationToken) =>
+        account.Id ?? (await Resolve(client, account.Address, instance, cancellationToken)).Id;
 }

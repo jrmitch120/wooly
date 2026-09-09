@@ -20,7 +20,9 @@ namespace Wooly.Core.Relationships;
 ///         The first is that Mastodon's relationship endpoints all take an account id, and a user types an address. So
 ///         an address is looked up first, through <see cref="AccountLookup" />. That costs a call before every follow,
 ///         block and mute, and it is the only way to spend it: Mastonet 3.1.3 has no lookup endpoint, and an address is
-///         the only name for an account that means the same thing on two instances.
+///         the only name for an account that means the same thing on two instances. The one exception is
+///         <see cref="List" />, which is a read and so may be handed a resolution somebody has already paid for
+///         (ADR-0012's second amendment); every write on this port still resolves the address itself.
 ///     </para>
 ///     <para>
 ///         The second is that the lists are paged by <see cref="PagedReading" />, the same loop a timeline and an inbox
@@ -88,14 +90,18 @@ public sealed class AccountRelationships(IMastodonClientFactory clientFactory, I
     public async Task<Fetch<Account>> List(
         ActiveProfile profile,
         FollowSide side,
-        AccountAddress? account,
+        NamedAccount? account,
         int limit,
         CancellationToken cancellationToken)
     {
         var client = clientFactory.CreateClient(profile.Instance, profile.AccessToken);
+
+        // Nobody named is the profile's own list, which the current-user call answers. Anybody else costs whatever
+        // AccountLookup.IdOf says they do — nothing where the caller handed on a resolution it had already paid for,
+        // and the lookup every write pays for where it did not.
         var accountId = account is null
             ? await Own(client, cancellationToken)
-            : (await AccountLookup.Resolve(client, account, profile.Instance, cancellationToken)).Id;
+            : await AccountLookup.IdOf(client, account, profile.Instance, cancellationToken);
 
         var readPage = side.Either<Func<ArrayOptions, Task<MastodonList<WireAccount>>>>(
             options => client.GetAccountFollowers(accountId, options),

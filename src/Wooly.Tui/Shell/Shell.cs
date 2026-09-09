@@ -1263,11 +1263,18 @@ public sealed class Shell
     private async Task<Read> ReadAccount(Enquiry.Ask ask, AccountAddress address)
     {
         var account = await ask.Of(token => _ports.Accounts.Show(_profile, address, token));
+
+        // The three reads that follow travel on the resolution this one just made rather than on the address it was
+        // made from, which is what makes the arrival one lookup instead of three (ADR-0012's second amendment). It is
+        // always the id Show answered with and never one the caller arrived holding: a refresh is the one command
+        // meaning "check this is still true", so it must be the one command that can correct a wrong id.
+        var whose = NamedAccount.Resolved(account);
+
         var posts = await ask.Of(token =>
-            _ports.Timelines.Read(_profile, Timeline.By(address), Arrival.PostsWanted, token));
+            _ports.Timelines.Read(_profile, Timeline.By(whose), Arrival.PostsWanted, token));
 
         var pinned = await ask.Of(token =>
-            _ports.Timelines.Read(_profile, Timeline.Pinned(address), Arrival.PostsWanted, token));
+            _ports.Timelines.Read(_profile, Timeline.Pinned(whose), Arrival.PostsWanted, token));
 
         var familiar = await ask.Of(token => _ports.Accounts.FamiliarFollowers(_profile, account.Id, token));
 
@@ -1380,10 +1387,12 @@ public sealed class Shell
     {
         var already = screen.Read;
 
+        // The screen is holding the account whose list this is, id and all, so the list is asked for by naming it
+        // rather than by handing back the address it was read from and paying to arrive at the same id again.
         var fetch = await ask.Of(token => _ports.Accounts.List(
             _profile,
             screen.Side,
-            AccountAddress.Parse(screen.Whose.Address),
+            NamedAccount.Resolved(screen.Whose),
             wanted,
             token));
 

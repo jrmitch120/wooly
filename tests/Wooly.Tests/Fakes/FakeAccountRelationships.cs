@@ -14,7 +14,7 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
 {
     private readonly Fetch<Account> _list;
     private readonly Exception? _refusal;
-    private readonly Account _subject;
+    private Account _subject;
 
     private FakeAccountRelationships(Account subject, Fetch<Account> list, Exception? refusal = null)
     {
@@ -70,6 +70,13 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
     public static FakeAccountRelationships Holding(Account? subject = null, params Account[] listing) =>
         new(subject ?? AnAccount.With(), Fetch<Account>.Complete(listing.Length == 0 ? [AnAccount.With()] : listing));
 
+    /// <summary>
+    ///     Who this instance answers about from here on — what an instance did while the reader was reading it, which
+    ///     is what a refresh is asked to notice (<see cref="FakeTimelineReader.NowHolding" /> for the timelines).
+    ///     Answering with a different id is how a test says that somebody moved instances.
+    /// </summary>
+    public void NowShowing(Account subject) => _subject = subject;
+
     /// <summary>An instance whose lists have nobody on them.</summary>
     public static FakeAccountRelationships HoldingNobody() => new(AnAccount.With(), Fetch<Account>.Complete([]));
 
@@ -107,7 +114,7 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
     public Task<Fetch<Account>> List(
         ActiveProfile profile,
         FollowSide side,
-        AccountAddress? account,
+        NamedAccount? account,
         int limit,
         CancellationToken cancellationToken)
     {
@@ -170,8 +177,12 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
     /// <summary>One tie: which profile put it there, on whom, and whether it was being put on or taken off.</summary>
     internal sealed record Tied(string Profile, AccountAddress Account, AccountTie Tie, bool Wanted);
 
-    /// <summary>One list: which profile asked, which side of a follow — none for the pending requests — and about whom.</summary>
-    internal sealed record Listed(string Profile, FollowSide? Side, AccountAddress? Account, int Limit);
+    /// <summary>
+    ///     One list: which profile asked, which side of a follow — none for the pending requests — and about whom.
+    ///     Whether the account named carried an id is what a test reads to prove a caller passed on the resolution it
+    ///     was holding rather than paying for another (#184).
+    /// </summary>
+    internal sealed record Listed(string Profile, FollowSide? Side, NamedAccount? Account, int Limit);
 
     /// <summary>One answered request: which profile answered, whose request, and what they said.</summary>
     internal sealed record Answered(string Profile, string AccountId, bool Accepted);

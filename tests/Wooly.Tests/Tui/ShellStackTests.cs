@@ -79,7 +79,7 @@ public class ShellStackTests
         Assert.Equal("ben@hachyderm.io", Assert.Single(shell.Accounts.Reads).Account.Text);
 
         // Their posts are a timeline like any other, read through the same port.
-        Assert.Contains(shell.Timelines.Reads, read => read.Timeline.Account?.Text == "ben@hachyderm.io");
+        Assert.Contains(shell.Timelines.Reads, read => read.Timeline.Account?.Address.Text == "ben@hachyderm.io");
     }
 
     /// <summary>
