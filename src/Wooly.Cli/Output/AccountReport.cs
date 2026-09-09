@@ -7,12 +7,17 @@ using Wooly.Core.Relationships;
 namespace Wooly.Cli.Output;
 
 /// <summary>
-///     Writes an account for a person to read — both what became of one, and one in full.
+///     Writes an account for a person to read — what became of one, one on a list of them, and one read on its own.
 ///     <para>
-///         In full is <see cref="Write(IAnsiConsole,Account)" />, and it lives here rather than wherever an account
-///         happens to be printed so that an account a search turned up and the same account in a followers list cannot
-///         come to look like two different accounts. It is the argument ADR-0009 made for a post, at the layer
-///         ADR-0011 said an account would need it.
+///         On a list is <see cref="Write(IAnsiConsole,Account)" /> and on its own is <see cref="Shown" />, and both
+///         live here rather than wherever an account happens to be printed so that an account a search turned up and
+///         the same account in a followers list cannot come to look like two different accounts. It is the argument
+///         ADR-0009 made for a post, at the layer ADR-0011 said an account would need it.
+///     </para>
+///     <para>
+///         Two writers rather than one with more rows on it, because a followers list has no business printing forty
+///         bios (ADR-0019). What they share they share as code — the byline and the presence — so the split cannot
+///         become a second idea of what an account is.
 ///     </para>
 ///     Everything that came from an instance is written as text rather than markup: a display name is the account's own
 ///     and a square bracket in one is not a colour tag.
@@ -26,11 +31,13 @@ internal static class AccountReport
     /// </summary>
     private const string VerifiedMark = " ✓";
 
-    /// <summary>Writes one account: who they are, how much of a presence they have, and where to read them.</summary>
-    /// <remarks>The address leads, because it is what every <c>account</c> command asks the user to type.</remarks>
+    /// <summary>
+    ///     Writes one account on a list of them: who they are, how much of a presence they have, and where to read
+    ///     them.
+    /// </summary>
     public static void Write(IAnsiConsole console, Account account)
     {
-        console.MarkupLineInterpolated($"[bold]{account.Address}[/]  {account.Author}");
+        WriteByline(console, account);
 
         WriteRest(console, account);
     }
@@ -42,8 +49,8 @@ internal static class AccountReport
     /// <remarks>
     ///     Its own writer rather than more rows on <see cref="Write(IAnsiConsole,Account)" />, because that one is what
     ///     a followers list prints for everybody on it and a list has no business printing forty bios (ADR-0019). What
-    ///     the two share is the byline and the presence, so the account a list turned up and the account read on its
-    ///     own open with the same two rows.
+    ///     the two share they share as code — <see cref="WriteByline" /> and <see cref="WritePresence" /> — so the
+    ///     account a list turned up and the account read on its own open with the same two rows.
     ///     <para>
     ///         Every section brings its own separator, so an account with no bio, no fields and no note collapses to
     ///         its three rows and its standing with no gaps left behind — the shape the TUI's header block takes, for
@@ -52,9 +59,12 @@ internal static class AccountReport
     /// </remarks>
     public static void Shown(IAnsiConsole console, Account account)
     {
-        console.MarkupLineInterpolated($"[bold]{account.Address}[/]  {account.Author}");
-        console.MarkupLineInterpolated($"  [dim]{Presence(account)}[/]");
-        console.MarkupLineInterpolated($"  [dim]{Marks(account)}[/]");
+        WriteByline(console, account);
+        WritePresence(console, account);
+
+        // When they arrived and whichever flags they carry, on one row — a flag nobody set saying nothing rather than
+        // saying no.
+        console.MarkupLineInterpolated($"  [dim]{string.Join(", ", Flags(account).Prepend(Joined(account)))}[/]");
 
         // Their own words, in the console's own colour: it is what the reader asked this command for, and dimming it
         // would put the one thing they came to read behind the counts above it.
@@ -168,7 +178,7 @@ internal static class AccountReport
     /// <summary>The part of an account that reads the same whichever line named it: its presence, and its address.</summary>
     private static void WriteRest(IAnsiConsole console, Account account)
     {
-        console.MarkupLineInterpolated($"  [dim]{Presence(account)}[/]");
+        WritePresence(console, account);
 
         // Where the instance was asked, what the profile has done about this account is worth more than any of the
         // counts — and where it was not asked, saying nothing is the only true thing to say.
@@ -200,9 +210,16 @@ internal static class AccountReport
 
         foreach (var row in said)
         {
+            // The blank between a bio's paragraphs is written as a blank rather than as the indent every other row
+            // takes, which would be two spaces nobody can see and something for a reader of the output to strip.
+            if (row.Length == 0)
+            {
+                console.WriteLine();
+            }
+
             // Interpolated either way, so that a bracket somebody wrote in their own bio is printed rather than read
             // as a colour tag.
-            if (dim)
+            else if (dim)
             {
                 console.MarkupLineInterpolated($"  [dim]{row}[/]");
             }
@@ -214,30 +231,32 @@ internal static class AccountReport
     }
 
     /// <summary>
-    ///     When they arrived and whichever flags they carry, on one row — the word carrying and the glyph decorating,
-    ///     so a terminal that draws either as a box loses nothing. A flag nobody set says nothing rather than saying no.
+    ///     Whichever of the two flags they carry, the word carrying and the glyph decorating — so a terminal that draws
+    ///     either as a box loses nothing. Both are left out where false: a flag nobody set says nothing rather than
+    ///     saying no.
     /// </summary>
-    private static string Marks(Account account)
+    private static IEnumerable<string> Flags(Account account)
     {
-        List<string> said = [Joined(account)];
-
         if (account.IsBot)
         {
-            said.Add("⚙ bot");
+            yield return "⚙ bot";
         }
 
         if (account.IsLocked)
         {
-            said.Add("⚿ locked");
+            yield return "⚿ locked";
         }
-
-        return string.Join(", ", said);
     }
 
     /// <summary>
     ///     When they arrived, as a month and a year — because nothing about an account measures an age in days, and a
-    ///     date here would only invite a time of day to be printed beside it. The same two the TUI says it in.
+    ///     date here would only invite a time of day to be printed beside it.
     /// </summary>
+    /// <remarks>
+    ///     In this client's own words rather than the machine's, for the reason <see cref="LocalMoment" /> writes a
+    ///     moment invariantly: this output is as often read by a script as by a person, and a month name that changed
+    ///     with the machine's locale would be one more thing for a script to have to know.
+    /// </remarks>
     private static string Joined(Account account) =>
         $"Joined {account.Joined.ToString("MMM yyyy", CultureInfo.InvariantCulture)}";
 
@@ -245,12 +264,25 @@ internal static class AccountReport
     ///     What they wrote about themselves, a row per line they wrote, or nothing at all where they wrote nothing —
     ///     which draws no section rather than an empty one.
     /// </summary>
+    /// <remarks>
+    ///     Trimmed at the end of each row, because a bio arrives flattened with a blank line between its paragraphs
+    ///     and an untrimmed one would be a "blank" line carrying the indent — invisible on screen, and two stray
+    ///     spaces to anything reading the output back.
+    /// </remarks>
     private static IEnumerable<string> Bio(Account account) =>
-        string.IsNullOrWhiteSpace(account.Bio) ? [] : account.Bio.Split('\n');
+        string.IsNullOrWhiteSpace(account.Bio) ? [] : account.Bio.Split('\n').Select(row => row.TrimEnd());
 
     /// <summary>One of the rows they set under their bio, marked where the instance proved what it says.</summary>
-    private static string Field(AccountField field) =>
-        $"{field.Label}: {field.Said}{(field.Verified is null ? string.Empty : VerifiedMark)}";
+    /// <remarks>
+    ///     Trimmed before the mark for the reason a bio's rows are: a row whose value is empty would otherwise put the
+    ///     mark two spaces out from the label it belongs to.
+    /// </remarks>
+    private static string Field(AccountField field)
+    {
+        var said = $"{field.Label}: {field.Said}".TrimEnd();
+
+        return field.Verified is null ? said : said + VerifiedMark;
+    }
 
     /// <summary>
     ///     Where the profile stands with them, said even where that is nothing: this is the one command asked the
@@ -258,8 +290,9 @@ internal static class AccountReport
     /// </summary>
     /// <remarks>
     ///     Absent is not the same as nothing (CONTEXT.md) — an account whose standing was never asked for says so,
-    ///     rather than being reported as an account the profile has no ties with. <see cref="IAccountRelationships.Show" /> always asks, so
-    ///     this is the honest reading of a state that command cannot reach rather than a case it expects.
+    ///     rather than being reported as an account the profile has no ties with. Said here rather than left to the
+    ///     one caller, because what this is handed is an <see cref="Account" />, and an account is a thing that may
+    ///     carry no standing however it was come by.
     /// </remarks>
     private static string Stands(AccountStanding? standing)
     {
@@ -277,6 +310,15 @@ internal static class AccountReport
     /// </summary>
     private static IEnumerable<string> Note(string? note) =>
         string.IsNullOrWhiteSpace(note) ? [] : [$"Your note: {note}"];
+
+    /// <summary>Who they are: the address that names them, and the name they chose to be shown as.</summary>
+    /// <remarks>The address leads, because it is what every <c>account</c> command asks the user to type.</remarks>
+    private static void WriteByline(IAnsiConsole console, Account account) =>
+        console.MarkupLineInterpolated($"[bold]{account.Address}[/]  {account.Author}");
+
+    /// <summary>How much of a presence they have, under whichever line named them.</summary>
+    private static void WritePresence(IAnsiConsole console, Account account) =>
+        console.MarkupLineInterpolated($"  [dim]{Presence(account)}[/]");
 
     private static string Presence(Account account) =>
         $"{Plural.Of(account.Followers, "follower")}, {Plural.Of(account.Posts, "post")}, "

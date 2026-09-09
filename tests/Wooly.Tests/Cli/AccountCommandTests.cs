@@ -466,6 +466,37 @@ public class AccountCommandTests : IDisposable
     }
 
     /// <summary>
+    ///     A bio is the account's own writing, and a square bracket in one is not a colour tag — the rule this whole
+    ///     writer works under, at the one place a stranger's text reaches it.
+    /// </summary>
+    [Fact]
+    public void Account_PrintsABioAsTheAccountWroteItRatherThanAsMarkup()
+    {
+        AddProfile();
+        _relationships = FakeAccountRelationships.Holding(AnAccount.With(bio: "Reading [bold]everything[/]."));
+
+        var run = Run(["account", "show", "alice@hachyderm.io"]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Contains("Reading [bold]everything[/].", run.Output);
+    }
+
+    /// <summary>
+    ///     A bio arrives with a blank line between its paragraphs, and that blank is written blank — an indent nobody
+    ///     can see is still two characters for whatever reads the output back.
+    /// </summary>
+    [Fact]
+    public void Account_LeavesNothingOnTheBlankRowBetweenABiosParagraphs()
+    {
+        AddProfile();
+        _relationships = FakeAccountRelationships.Holding(AnAccount.With(bio: "Cat photographer.\n\nAsk me about film."));
+
+        var run = Run(["account", "show", "alice@hachyderm.io"]);
+
+        Assert.Contains("  Cat photographer.\n\n  Ask me about film.", run.Output);
+    }
+
+    /// <summary>
     ///     A followers list does not print forty bios: <c>account show</c> got its own fuller writer precisely so the
     ///     list's report could stay as it was (ADR-0019).
     /// </summary>
