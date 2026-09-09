@@ -169,7 +169,7 @@ lists and cannot disagree with itself about which run a post is in.
 
 **Opening an account is getting expensive, and the reason is older than this work.** `IAccountRelationships.Show`
 resolves the address, and `Timelines.Read(Timeline.By(address))` resolves it again inside `TimelineReader` — so today's
-arrival is four calls, of which two are the same lookup. Familiar followers makes five and the pinned read makes six,
+arrival is four calls, of which two are the same lookup. Familiar followers makes five and the pinned read makes seven,
 three of them resolving one address. This ADR deliberately does not fix it: threading an id through `Timeline` would
 undo the reason `Timeline` takes an address at all (ADR-0012's "an id means nothing on any other instance"), which is a
 port-shape decision that should not ride in behind a feature. It leaves the map as its own issue.
