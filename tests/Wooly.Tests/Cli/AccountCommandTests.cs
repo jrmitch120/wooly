@@ -182,7 +182,7 @@ public class AccountCommandTests : IDisposable
 
         var listed = Assert.Single(_relationships.Lists);
         Assert.Equal(side, listed.Side);
-        Assert.Equal("bob@hachyderm.io", listed.Account?.Text);
+        Assert.Equal("bob@hachyderm.io", listed.Account?.Address.Text);
     }
 
     /// <summary>An account is worth listing for what it is: who it is, and how much of a presence it has.</summary>

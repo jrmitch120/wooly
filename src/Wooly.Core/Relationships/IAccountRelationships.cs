@@ -56,14 +56,21 @@ public interface IAccountRelationships
     /// <summary>Lists one side of an account's follows, newest follow first.</summary>
     /// <param name="account">
     ///     Whose follows to list, or <see langword="null" /> for the profile's own — which is what a user asking for
-    ///     "followers" with nobody named means, and the one account they never have to name.
+    ///     "followers" with nobody named means, and the one account they never have to name. Named rather than
+    ///     addressed because this is a read, and a read may be handed a resolution somebody has already paid for
+    ///     (ADR-0012's second amendment): a browser opened off an account screen is holding the id it would otherwise
+    ///     spend a call learning again. Null still costs the current-user call, which is the shorter route to an id
+    ///     rather than a lookup worth avoiding.
     /// </param>
     /// <param name="limit">How many accounts to collect, across as many pages as it takes.</param>
-    /// <exception cref="Errors.UnknownAccountException">The instance knows no account by that address.</exception>
+    /// <exception cref="Errors.UnknownAccountException">
+    ///     The instance knows no account by that address — only reachable where the account named carries no id, an
+    ///     account already resolved being one the instance has already named.
+    /// </exception>
     Task<Fetch<Account>> List(
         ActiveProfile profile,
         FollowSide side,
-        AccountAddress? account,
+        NamedAccount? account,
         int limit,
         CancellationToken cancellationToken);
 

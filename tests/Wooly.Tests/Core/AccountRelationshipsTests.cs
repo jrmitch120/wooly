@@ -314,11 +314,35 @@ public class AccountRelationshipsTests
         var fetch = await Relationships(network).List(
             Profile,
             FollowSide.Followers,
-            AccountAddress.Parse("alice@hachyderm.io"),
+            NamedAccount.Addressed(AccountAddress.Parse("alice@hachyderm.io")),
             20,
             TestContext.Current.CancellationToken);
 
         Assert.StartsWith("https://mastodon.social/api/v1/accounts/42/followers", network.Requests[1].RequestUri?.ToString());
+        Assert.Equal("bob@mastodon.social", Assert.Single(fetch.Items).Address);
+    }
+
+    /// <summary>
+    ///     And an account that was named with its id already in hand is not looked up at all: a browser opened off an
+    ///     account screen is holding the resolution that screen paid for, and a read may be handed one (ADR-0012's
+    ///     second amendment).
+    /// </summary>
+    [Fact]
+    public async Task List_AsksForNoLookupWhereTheAccountArrivedAlreadyResolved()
+    {
+        var network = Answering(Accounts(AccountJson("bob", id: "7")));
+
+        var fetch = await Relationships(network).List(
+            Profile,
+            FollowSide.Followers,
+            NamedAccount.Resolved(AnAccount.With(address: "alice@hachyderm.io", id: "42")),
+            20,
+            TestContext.Current.CancellationToken);
+
+        Assert.StartsWith(
+            "https://mastodon.social/api/v1/accounts/42/followers",
+            Assert.Single(network.Requests).RequestUri?.ToString());
+
         Assert.Equal("bob@mastodon.social", Assert.Single(fetch.Items).Address);
     }
 

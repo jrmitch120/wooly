@@ -125,3 +125,52 @@ What it does need is a **nullable** answer, and for the same reason `AccountStan
 asks for it last, so a rate limit that stops it leaves the whole screen standing and only that row missing — and null
 is what lets that row say "not asked" rather than "nobody in common". That distinction is this ADR's, applied one level
 further out.
+
+## Amendment: a resolution may travel to a read, and never to a write (#184)
+
+This ADR's "a user types an address; every endpoint takes an id; so an address is looked up first" was written about
+one call at a time, and stayed right while a screen made one. The account screen makes four (ADR-0019), and three of
+them were independently resolving the same address — the arrival was seven calls, of which three were the one
+`SearchAccounts(resolve: true)`. The follows browser and the account refresh did the plainer version of the same
+thing: each held an `Account` whose id it had already used, converted it back into an `AccountAddress`, and paid a
+call to arrive at the id again.
+
+**A resolved account reaches a port as one value, `NamedAccount`.** It carries the address always and the instance's
+own id where whoever is asking has already paid to learn one. It is built in exactly two ways: from an
+`AccountAddress` alone, or from an `Account` already read, which supplies both halves off the one record. There is
+deliberately no constructor taking an address and an id separately — an address naming one account beside an id naming
+another is the failure this value exists to make unrepresentable, and it is the failure a loose `string accountId`
+beside an address would leave available.
+
+**The rule that decides which calls take one: a read may be handed a resolution; the call that produces the resolution
+does not take one; no write takes one.** So `Timeline.By` and `Timeline.Pinned` take a `NamedAccount` — one factory
+each rather than an overload per argument type, two ways to say it being two chances to say the wasteful one — and
+`IAccountRelationships.List` takes a `NamedAccount?`, null still meaning "my own lists" and still costing the
+current-user call, which is the shorter route to an id rather than a lookup worth avoiding. `Show` keeps its
+`AccountAddress`: it is where an arrival's resolution comes from, and the only caller that could hand it a
+pre-resolved account is refresh. Leaving its parameter an address is what makes that prohibition structural rather
+than remembered. `Set` keeps its `AccountAddress` too — every tie goes on paying for its own lookup — and `Answer` is
+untouched, taking an id off a list this client has just printed.
+
+**Reuse is allowed only while it rides on an `Account` the reader is looking at.** The original ADR's warning still
+holds: an id cached across enquiries is a way to act on the wrong account after somebody moves instances. Nothing here
+is cached. The shell's account enquiry hands its three following reads the resolution `Show` answered with a moment
+earlier and never one the caller arrived holding, so a refresh — the one command meaning "check this is still true" —
+is not the one command that cannot correct a wrong id.
+
+### Consequences
+
+Opening an account screen is five calls where it was seven, one of them a lookup: the account, its timeline, its
+pinned run, its familiar followers, and the single resolving search that fed the last three. Opening the follows
+browser from that screen makes no lookup at all. Refreshing still makes one, by design.
+
+`TimelineReader` now has two paths to an account id, and both must stay correct: the CLI has no resolved account to
+give, so a `Timeline` naming an account with no id resolves it exactly as before. The alternatives weighed and refused
+were a per-enquiry cache inside the adapter — every core port is a singleton and an enquiry is a shell concept the
+core knows nothing about, so what is left is a time-boxed cache, which is the cache this ADR already refused — and an
+optional id beside the address on `Timeline`, which is the two fields that can disagree, with the adapter left to
+decide which it believes.
+
+The four calls of the arrival still run one after another. Their ordering is load-bearing — the pinned run is read
+before familiar followers so that content takes the better odds against a rate limit (ADR-0019) — and running them in
+parallel is a separate decision, not a consequence of this one.

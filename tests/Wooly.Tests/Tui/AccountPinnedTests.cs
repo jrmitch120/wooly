@@ -195,7 +195,7 @@ public class AccountPinnedTests
             [TimelineScope.Home, TimelineScope.Account, TimelineScope.Pinned],
             fakes.Timelines.Reads.Select(read => read.Timeline.Scope));
 
-        Assert.Equal(Whose, fakes.Timelines.Reads[^1].Timeline.Account?.Text);
+        Assert.Equal(Whose, fakes.Timelines.Reads[^1].Timeline.Account?.Address.Text);
     }
 
     /// <summary>

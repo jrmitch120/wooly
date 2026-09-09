@@ -33,10 +33,12 @@ public sealed class TimelineReader(IMastodonClientFactory clientFactory) : ITime
 
         // Once, before the first page rather than on each one: an address becomes an id by asking the instance
         // (AccountLookup), and paying for that lookup per page would spend a call to learn what the last one already
-        // knew. The other four timelines need nobody looked up and pay nothing.
+        // knew. The other four timelines need nobody looked up and pay nothing — and neither does an account that
+        // arrived already resolved, which AccountLookup.IdOf is what decides. The CLI has no resolved account to
+        // give, so it goes on paying for the lookup exactly as it did.
         var accountId = timeline.Account is null
             ? null
-            : (await AccountLookup.Resolve(client, timeline.Account, profile.Instance, cancellationToken)).Id;
+            : await AccountLookup.IdOf(client, timeline.Account, profile.Instance, cancellationToken);
 
         return await PagedReading.Collect(
             limit,
