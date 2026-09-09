@@ -19,6 +19,9 @@ namespace Wooly.Tests.Cli;
 /// </summary>
 public class AccountCommandTests : IDisposable
 {
+    /// <summary>When the instance proved the link on a custom field, for the tests that set one.</summary>
+    private static readonly DateTimeOffset Proved = new(2024, 3, 2, 9, 0, 0, TimeSpan.Zero);
+
     private readonly TemporaryDirectory _directory = new();
 
     private FakeAccountRelationships _relationships = FakeAccountRelationships.Holding();
@@ -324,6 +327,190 @@ public class AccountCommandTests : IDisposable
         Assert.Empty(_relationships.Answers);
     }
 
+    /// <summary>
+    ///     The command the <c>account</c> branch turns out never to have had: who somebody is, read on its own.
+    ///     <c>profile show</c> is the local credential entry and a different thing entirely (CONTEXT.md).
+    /// </summary>
+    [Fact]
+    public void Account_ShowsWhoAnAccountIsWhenOneIsNamed()
+    {
+        AddProfile();
+        _relationships = FakeAccountRelationships.Holding(
+            AnAccount.With(standing: AnAccount.Standing(following: true, followedBy: true)));
+
+        var run = Run(["account", "show", "alice@hachyderm.io"]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+
+        var read = Assert.Single(_relationships.Reads);
+        Assert.Equal("alice@hachyderm.io", read.Account.Text);
+
+        Assert.Contains("alice@hachyderm.io", run.Output);
+        Assert.Contains("Alice", run.Output);
+        Assert.Contains("1203 followers", run.Output);
+        Assert.Contains("Cat photographer.", run.Output);
+        Assert.Contains("Joined Jan 2020", run.Output);
+
+        Assert.Contains("following, follows you", run.Output);
+        Assert.Contains("https://hachyderm.io/@alice", run.Output);
+    }
+
+    /// <summary>
+    ///     Familiar followers stays off the CLI — a call spent to say something only a screen benefits from — and the
+    ///     read itself stays the one call it always was (ADR-0019).
+    /// </summary>
+    [Fact]
+    public void Account_AsksTheInstanceNothingBeyondTheOneReadWhenShowingAnAccount()
+    {
+        AddProfile();
+
+        Assert.Equal((int)ExitCode.Success, Run(["account", "show", "alice@hachyderm.io"]).ExitCode);
+
+        Assert.Single(_relationships.Reads);
+        Assert.Empty(_relationships.Familiars);
+        Assert.Empty(_relationships.Lists);
+        Assert.Empty(_relationships.Standings);
+    }
+
+    /// <summary>
+    ///     A verified field is marked after its value; one nobody proved says nothing extra, absence being the honest
+    ///     signal since a field nobody proved is not a field anybody disproved (CONTEXT.md).
+    /// </summary>
+    [Fact]
+    public void Account_ShowsTheFieldsAnAccountSetAndMarksOnlyTheOnesItsInstanceProved()
+    {
+        AddProfile();
+        _relationships = FakeAccountRelationships.Holding(AnAccount.With(fields:
+        [
+            AnAccount.Field("Website", "https://alice.example", Proved),
+            AnAccount.Field("Pronouns", "she/her"),
+        ]));
+
+        var run = Run(["account", "show", "alice@hachyderm.io"]);
+
+        Assert.Contains("Website: https://alice.example ✓", run.Output);
+        Assert.Contains("Pronouns: she/her", run.Output);
+        Assert.DoesNotContain("she/her ✓", run.Output);
+    }
+
+    /// <summary>A flag nobody set says nothing rather than saying no.</summary>
+    [Fact]
+    public void Account_SaysWhichFlagsAnAccountCarriesAndNothingOfTheOnesItDoesNot()
+    {
+        AddProfile();
+        _relationships = FakeAccountRelationships.Holding(AnAccount.With(isBot: true));
+
+        var run = Run(["account", "show", "alice@hachyderm.io"]);
+
+        Assert.Contains("bot", run.Output);
+        Assert.DoesNotContain("locked", run.Output);
+    }
+
+    /// <summary>
+    ///     The reader's own words about somebody else, which nobody else ever sees and which arrives on the standing
+    ///     this read already asked for (CONTEXT.md).
+    /// </summary>
+    [Fact]
+    public void Account_ShowsTheNoteTheProfileKeptAboutAnAccount()
+    {
+        AddProfile();
+        _relationships = FakeAccountRelationships.Holding(
+            AnAccount.With(standing: AnAccount.Standing(note: "Met at a conference.")));
+
+        var run = Run(["account", "show", "alice@hachyderm.io"]);
+
+        Assert.Contains("Your note: Met at a conference.", run.Output);
+    }
+
+    /// <summary>
+    ///     An account that is nothing to the profile is worth saying here, unlike on a list: this is the one command
+    ///     asked where the profile stands, and a silence would read as a line that failed to print.
+    /// </summary>
+    [Fact]
+    public void Account_SaysWhenThereAreNoTiesEitherWay()
+    {
+        AddProfile();
+        _relationships = FakeAccountRelationships.Holding(AnAccount.With(standing: AnAccount.Standing()));
+
+        var run = Run(["account", "show", "alice@hachyderm.io"]);
+
+        Assert.Contains("No ties either way.", run.Output);
+    }
+
+    /// <summary>An address that names nobody is a value on the command line that is wrong, not a broken client.</summary>
+    [Fact]
+    public void Account_ReportsAnAccountItCouldNotShowAsAUsageError()
+    {
+        AddProfile();
+        _relationships = FakeAccountRelationships.Refusing(
+            new UnknownAccountException(AccountAddress.Parse("nobody@hachyderm.io"), "mastodon.social"));
+
+        var run = Run(["account", "show", "nobody@hachyderm.io"]);
+
+        Assert.Equal((int)ExitCode.UsageError, run.ExitCode);
+        Assert.Contains("could not find an account called nobody@hachyderm.io", run.ErrorOutput);
+        Assert.Empty(run.Output.Trim());
+    }
+
+    /// <summary>Turned down before anything is asked of the instance at all, as every other account command does.</summary>
+    [Fact]
+    public void Account_ReportsAnAddressThatShowCannotParseAsAUsageError()
+    {
+        AddProfile();
+
+        var run = Run(["account", "show", "alice@"]);
+
+        Assert.Equal((int)ExitCode.UsageError, run.ExitCode);
+        Assert.Contains("user@instance", run.ErrorOutput);
+        Assert.Empty(_relationships.Reads);
+    }
+
+    /// <summary>
+    ///     A bio is the account's own writing, and a square bracket in one is not a colour tag — the rule this whole
+    ///     writer works under, at the one place a stranger's text reaches it.
+    /// </summary>
+    [Fact]
+    public void Account_PrintsABioAsTheAccountWroteItRatherThanAsMarkup()
+    {
+        AddProfile();
+        _relationships = FakeAccountRelationships.Holding(AnAccount.With(bio: "Reading [bold]everything[/]."));
+
+        var run = Run(["account", "show", "alice@hachyderm.io"]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Contains("Reading [bold]everything[/].", run.Output);
+    }
+
+    /// <summary>
+    ///     A bio arrives with a blank line between its paragraphs, and that blank is written blank — an indent nobody
+    ///     can see is still two characters for whatever reads the output back.
+    /// </summary>
+    [Fact]
+    public void Account_LeavesNothingOnTheBlankRowBetweenABiosParagraphs()
+    {
+        AddProfile();
+        _relationships = FakeAccountRelationships.Holding(AnAccount.With(bio: "Cat photographer.\n\nAsk me about film."));
+
+        var run = Run(["account", "show", "alice@hachyderm.io"]);
+
+        Assert.Contains("  Cat photographer.\n\n  Ask me about film.", run.Output);
+    }
+
+    /// <summary>
+    ///     A followers list does not print forty bios: <c>account show</c> got its own fuller writer precisely so the
+    ///     list's report could stay as it was (ADR-0019).
+    /// </summary>
+    [Fact]
+    public void Account_PrintsNoBiosDownAFollowersList()
+    {
+        AddProfile();
+
+        var run = Run(["account", "followers"]);
+
+        Assert.DoesNotContain("Cat photographer.", run.Output);
+        Assert.DoesNotContain("Joined", run.Output);
+    }
+
     [Fact]
     public void Account_ActsAsTheProfileNamedByTheOverrideWithoutChangingTheDefault()
     {
@@ -370,6 +557,85 @@ public class AccountCommandTests : IDisposable
         Assert.True(standing.GetProperty("following").GetBoolean());
         Assert.True(standing.GetProperty("followedBy").GetBoolean());
         Assert.False(standing.GetProperty("blocking").GetBoolean());
+    }
+
+    /// <summary>
+    ///     One spelling for an account everywhere (ADR-0011) is what puts a bio within reach of a pipe: everything the
+    ///     report says is here too, with the standing nested as ADR-0012 requires.
+    /// </summary>
+    [Fact]
+    public void Account_WritesEverythingItShowsAsMachineReadableJson()
+    {
+        AddProfile();
+        _relationships = FakeAccountRelationships.Holding(AnAccount.With(
+            standing: AnAccount.Standing(following: true, note: "Met at a conference."),
+            fields: [AnAccount.Field("Website", "https://alice.example", Proved)],
+            joined: new DateOnly(2019, 6, 4),
+            isLocked: true,
+            isBot: true,
+            avatarUrl: "https://hachyderm.io/avatars/alice.png"));
+
+        var run = Run(["account", "show", "alice@hachyderm.io", "--json"]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+
+        var account = JsonDocument.Parse(run.Output).RootElement;
+        Assert.Equal("alice@hachyderm.io", account.GetProperty("account").GetString());
+        Assert.Equal("Cat photographer.", account.GetProperty("bio").GetString());
+        Assert.Equal("2019-06-04", account.GetProperty("joined").GetString());
+        Assert.True(account.GetProperty("locked").GetBoolean());
+        Assert.True(account.GetProperty("bot").GetBoolean());
+        Assert.Equal("https://hachyderm.io/avatars/alice.png", account.GetProperty("avatar").GetString());
+
+        var field = Assert.Single(account.GetProperty("fields").EnumerateArray().ToList());
+        Assert.Equal("Website", field.GetProperty("label").GetString());
+        Assert.Equal("https://alice.example", field.GetProperty("said").GetString());
+        Assert.Equal(Proved, field.GetProperty("verified").GetDateTimeOffset());
+
+        var standing = account.GetProperty("standing");
+        Assert.True(standing.GetProperty("following").GetBoolean());
+        Assert.Equal("Met at a conference.", standing.GetProperty("note").GetString());
+    }
+
+    /// <summary>
+    ///     A field nobody proved carries no moment at all rather than one that means nothing, and a profile that wrote
+    ///     itself no note carries none — the same rule the rest of this output follows.
+    /// </summary>
+    [Fact]
+    public void Account_LeavesOutTheProofAndTheNoteThatWereNeverThere()
+    {
+        AddProfile();
+        _relationships = FakeAccountRelationships.Holding(AnAccount.With(
+            standing: AnAccount.Standing(),
+            fields: [AnAccount.Field("Pronouns", "she/her")]));
+
+        var run = Run(["account", "show", "alice@hachyderm.io", "--json"]);
+
+        var account = JsonDocument.Parse(run.Output).RootElement;
+        var field = Assert.Single(account.GetProperty("fields").EnumerateArray().ToList());
+
+        Assert.False(field.TryGetProperty("verified", out _));
+        Assert.False(account.GetProperty("standing").TryGetProperty("note", out _));
+    }
+
+    /// <summary>
+    ///     The same account fields wherever an account turns up, so a script needs one filter rather than one per
+    ///     command that turned an account up — and noise is cheap in a pipe (ADR-0011).
+    /// </summary>
+    [Fact]
+    public void Account_CarriesTheSameAccountFieldsInAListsJson()
+    {
+        AddProfile();
+
+        var run = Run(["account", "followers", "--json"]);
+
+        var document = JsonDocument.Parse(run.Output).RootElement;
+        var account = Assert.Single(document.GetProperty("accounts").EnumerateArray().ToList());
+
+        Assert.Equal("Cat photographer.", account.GetProperty("bio").GetString());
+        Assert.Equal("2020-01-01", account.GetProperty("joined").GetString());
+        Assert.False(account.GetProperty("locked").GetBoolean());
+        Assert.False(account.GetProperty("bot").GetBoolean());
     }
 
     /// <summary>

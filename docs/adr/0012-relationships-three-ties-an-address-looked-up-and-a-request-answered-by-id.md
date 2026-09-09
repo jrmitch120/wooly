@@ -95,7 +95,8 @@ later ticket that changes only `AccountRelationships.Apply` — the tie is alrea
 
 Nothing here reads a relationship without changing it. There is no `account show`, so the only way to see where you
 stand with somebody is to act on them, or to read a list. That is the gap #33's account view fills, and it needs one
-more call on this port — `GetAccountRelationships` — rather than a new port.
+more call on this port — `GetAccountRelationships` — rather than a new port. That call is `Show`, and ADR-0019 later
+put a CLI verb on it too (#183), so this paragraph now records where the gap was rather than where it is.
 
 ## Amendment: a private note is part of a standing, and the port takes a fifth call (map #159)
 

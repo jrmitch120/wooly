@@ -125,7 +125,10 @@ public static class WoolyCommandApp
 
             config.AddBranch("account", account =>
             {
-                account.SetDescription("Manage who you follow, block and mute, and who follows you.");
+                account.SetDescription("Read accounts, manage who you follow, block and mute, and see who follows you.");
+
+                account.AddCommand<AccountShowCommand>("show")
+                       .WithDescription("Show who an account is, and where you stand with them.");
 
                 account.AddCommand<AccountFollowCommand>("follow")
                        .WithDescription("Follow an account, so its posts reach your home timeline.");
