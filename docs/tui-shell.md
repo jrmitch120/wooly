@@ -742,9 +742,10 @@ doing so it became the first screen in the shell whose pick is not a post (#164,
   screen is about the person, landing below them would make the bio something you walk back to, and it puts a verified
   link one `→` away on arrival.
 - **The order is who they are, then what they wrote, then what they are to you.** Avatar, name, handle, the presence
-  line, joined and flags; then bio and fields; then standing, familiar followers and your own note, closest to the
-  posts. **Every section brings its own separator**, so an account with none of the middle or bottom collapses to four
-  rows and a divider with no gaps left behind.
+  line, joined and flags — which are the **Account block** every listing draws, not a shape of this screen's own
+  (*What one account row settled*) — then bio and fields; then standing, familiar followers and your own note, closest
+  to the posts. **Every section brings its own separator**, so an account with none of the middle or bottom collapses
+  to four rows and a divider with no gaps left behind.
 - **It draws whole and cuts nothing.** Worst case is around 29 rows — a long bio wraps to nine, four fields to eight —
   and that is fine, because the screen scrolls and one `j` puts the posts on screen. A truncated bio would be permanent
   damage done to solve a problem one keypress already solves.
@@ -813,10 +814,10 @@ anybody's account — `IAccountRelationships.List` already takes a `FollowSide` 
 - **The account screen is not marked to say which count leads to a filterable list.** The number is already on screen
   and the browser's status row says which mode it is in; marking it would mean explaining a threshold to a reader
   instead of telling them what they have once they arrive.
-- **A row is `AccountLines.Byline` plus a muted standing suffix** — the two-span shape the search screen's hashtag row
-  already uses, built as a shared `AccountLines` method so a person reads one way everywhere. Neither `:id/following`
-  nor `:id/followers` sends a standing, so it is filled by **one batched `/accounts/relationships` call per page**, not
-  per row; where that call did not happen or failed the row stays **silent** rather than implying no tie.
+- **A row is the shared Account block**, drawn the way every listing draws a person (*What one account row settled*),
+  with the compact standing on its fourth row. Neither `:id/following` nor `:id/followers` sends a standing, so it is
+  filled by **one batched `/accounts/relationships` call per page**, not per row; where that call did not happen or
+  failed the row stays **silent** rather than implying no tie.
   That call is **the one Core change this cost**: #165 said there would be none, having priced the listing alone, and
   no port reached that endpoint for more than one account (`Show` asks about the one it read). So
   `IAccountRelationships.Standing` was added rather than reached past, which is the rule `ShellPorts` already states —
@@ -919,10 +920,10 @@ to follow (#171):
   a judgement it has no data for. The longest heading is 38 columns, so 61 is never in question.
 - **A person is drawn once, under their best reason.** `sources` is an array per suggestion, and the same face twice
   would carry a second `F` that does nothing.
-- **Rows are a plain byline and cost no relationships call** — a deliberate departure from a **Follow list**'s row
-  recipe. Mastodon's suggestion sources exclude accounts already followed, dismissed or blocked, so a standing suffix
-  would be blank on every row by construction; the screen is one call, not two. The heading says why and the row says
-  who.
+- **A row is the shared Account block** (*What one account row settled*) and still **costs no relationships call** —
+  a deliberate departure from a **Follow list**'s recipe. Mastodon's suggestion sources exclude accounts already
+  followed, dismissed or blocked, so a standing word would be blank on every row by construction; the screen is one
+  call, not two. The heading says why and the row says who.
 - **`F` toggles and `d` dismisses, and nothing moves.** `F` appends a muted ` · following` and takes it off again, the
   same contract it has on the account screen, so a mis-press is undone where it happened. `d` appends ` · dismissed`
   and is one-way — there is no un-dismiss endpoint, so a second `d` is a no-op — and takes **no confirmation**, nothing
@@ -942,6 +943,40 @@ to follow (#171):
 - **Its status row puts the acting keys first**: `j/k person · ⏎ open · F follow · d dismiss · [/] section · g refresh ·
   tab destination`. That is the opposite of the search screen's placement, and deliberately: there, jumping between
   kinds is the feature that screen gained; here, `F` and `d` are why anyone opened the screen.
+
+### What one account row settled
+
+Four screens listed accounts and each drew one its own way — a byline on search, a byline and a presence line on
+follow requests, a byline and a standing suffix on a follow list, a byline and a suffix of its own on Discover — while
+a fifth, the account screen's header block, drew the person properly. Four shapes for a person are four ideas of the
+same person, so there is now one (#198):
+
+- **The Account block is the header block's own top four rows**, extracted rather than copied so both call one method
+  (`AccountLines.Block`): the display name, the handle, the presence counts, then `Joined Jul 2023` with the
+  `⚙ bot` / `⚿ locked` flags and the screen's own word after it, `·`-joined and muted, beside the **same 8×4 avatar**
+  the account screen spends. The header block is then *the block plus* the bio, the custom fields and the standing. If
+  the two drifted by even a flag, a locked account would read as locked on its own screen and not on the list you
+  found it from, which is the whole reason this was worth doing.
+- **The standing word moved to row 4.** It was a muted suffix on the byline. Row 4 is already a `·`-joined list of
+  small facts about the person, which is what `following · follows you` is, and it leaves row 1 as the name alone.
+- **No per-screen variant, and no third avatar size.** `Avatar`'s two named sizes are still the whole of what may be
+  asked for — a size named at a call site is a size that can drift from the one beside it — and a listing screen's
+  only say is what it adds to row 4.
+- **The accounts run is taller on a mixed search page, and that is accepted.** `[`/`]` already jump between kind-runs
+  and the heading says how many accounts there are, so a reader who wants the posts has one keypress — the same
+  argument ADR-0019 used to refuse truncating a bio.
+- **One blank row stands between blocks, and no new rules.** Follow requests, follows and Discover had no separator
+  between people, and four-row blocks laid end to end run together; a blank costs the one row a rule would while
+  leaving the list looking like the list of people it is. Search keeps the rule it already draws after each result —
+  that is the search screen's grammar for separating *results*, not this block's business.
+- **The block is one pick and there is nothing to walk inside it.** Unlike the header block it carries no bio and no
+  custom fields, so it holds no references: `←`/`→` stay unconsumed on all four screens and `⏎` does what it did.
+  The `▌` gutter sits to the left of the avatar and runs down all four rows, which is what a post's byline settled.
+- **It costs no request and no Core change.** Both follow-list endpoints, the search endpoint, the pending-requests
+  endpoint and the suggestions endpoint all answer with full account entities, so every field is already in hand.
+  Search and follow requests still fetch no standing, and Discover still makes no relationships call.
+- **A follow notification is not on this list.** Its row says who did what and how long ago, which is an event rather
+  than a person, and `NotificationsScreen.Happened` keeps drawing it.
 
 ### Where the code answers this
 

@@ -241,6 +241,39 @@ public class ShellSearchTests
         Assert.Contains(opened.Keys, key => key.Key == "/");
     }
 
+    /// <summary>
+    ///     An account in the results is the Account block every listing draws — four rows beside the avatar, and the
+    ///     same shape the person's own screen opens with (#198).
+    /// </summary>
+    /// <remarks>
+    ///     The run being taller on a mixed page is accepted deliberately: <c>[</c> and <c>]</c> already jump between
+    ///     kinds, and the heading says how many accounts there are, so a reader wanting the posts has one keypress.
+    /// </remarks>
+    [Fact]
+    public async Task Found_DrawsAnAccountAsTheSharedAccountBlock()
+    {
+        var shell = new AShell
+        {
+            Search = FakeInstanceSearch.Finding(
+                accounts: [AnAccount.With(address: "maria@fosstodon.org", author: "Maria")]),
+        };
+
+        var opened = await shell.Opened();
+
+        await Found(shell, opened, "maria");
+
+        // Past the one column the gutter takes, which every list on this shell stamps and no screen draws itself.
+        var rows = opened.Screen.Lines(new Drawing(61, AShell.Now))
+            .Select(line => line.Text.Length > 0 ? line.Text[1..] : line.Text)
+            .ToList();
+
+        var at = rows.FindIndex(row => row == "Maria");
+
+        Assert.Equal(
+            ["Maria", "@maria@fosstodon.org", "4,210 posts · 187 following · 1,203 followers", "Joined Jan 2020"],
+            rows.Skip(at).Take(4));
+    }
+
     /// <summary>A search screen, having searched for <paramref name="text" />.</summary>
     private static async Task Found(AShell built, Shell shell, string text)
     {

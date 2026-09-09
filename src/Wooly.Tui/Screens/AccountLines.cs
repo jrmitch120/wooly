@@ -8,10 +8,17 @@ namespace Wooly.Tui.Screens;
 
 /// <summary>
 ///     An account as rows of spans: who they are, how much of a presence they have, and where this profile stands with
-///     them. What <see cref="PostLines" /> is for a post, and here for the same reason — three screens draw an account
-///     (its own, a follow request, a search result) and a name that read one way on one of them and another way on the
-///     next would be three different ideas of the same thing.
+///     them. What <see cref="PostLines" /> is for a post, and here for the same reason — five screens draw an account
+///     (its own, a search result, a follow request, a follow list, Discover) and a name that read one way on one of
+///     them and another way on the next would be five different ideas of the same thing.
 /// </summary>
+/// <remarks>
+///     There is one shape for a person and it is <see cref="Block" />: the four rows beside the 8×4 avatar that
+///     <see cref="Header" /> opens with, drawn by every screen that merely <em>lists</em> somebody. The header block
+///     is then the Account block <em>plus</em> the bio, the custom fields and the standing, rather than a near-copy of
+///     its top — because two shapes that drift by even a flag are a locked account reading as locked on its own screen
+///     and not on the list it was found from (#198, CONTEXT.md).
+/// </remarks>
 public static class AccountLines
 {
     /// <summary>
@@ -23,6 +30,9 @@ public static class AccountLines
 
     /// <summary>How far a custom field's continuation is stepped in, so a wrapped value reads as one row.</summary>
     private const int FieldIndent = 2;
+
+    /// <summary>What the small facts on a row are strung together on, wherever this module strings any together.</summary>
+    private const string Joins = " · ";
 
     /// <summary>What a follow in place reads as on a row.</summary>
     private const string FollowingSaid = "following";
@@ -42,6 +52,10 @@ public static class AccountLines
     ///         Every section brings its own separator, so an account with no bio, no fields, nobody in common and no
     ///         note collapses to the four rows and its standing with no gaps left behind — rather than each section
     ///         leaving a blank after it and an empty profile drawing as a column of them.
+    ///     </para>
+    ///     <para>
+    ///         The four rows are <see cref="Block" />'s and are not built again here: this is the Account block plus
+    ///         the bio, the custom fields and the standing (#198).
     ///     </para>
     /// </remarks>
     /// <param name="account">The account being drawn, as the instance last answered about them.</param>
@@ -65,14 +79,9 @@ public static class AccountLines
     {
         var width = drawing.Width;
 
-        var avatar = Avatar.Header(account.Address, account.AvatarUrl, drawing.Pictures);
-        var room = Math.Max(0, width - avatar.Width);
-
-        var lines = new List<Line>(avatar.Across(
-            Line.Of(TextWrap.Clip(account.Author, room), Role.BylineName),
-            Line.Of(TextWrap.Clip($"@{account.Address}", room), Role.BylineHandle),
-            Presence(account, room),
-            Line.Of(TextWrap.Clip(string.Join(" · ", [Joined(account), .. Flags(account)]), room), Role.Muted)));
+        // No standing on row 4 here: this screen says it as a sentence of its own further down, where it has a row to
+        // itself and room for all five facts.
+        var lines = new List<Line>(Block(account, drawing));
 
         Section(lines, Bio(account, width, picked));
         Section(lines, account.Fields.SelectMany((_, which) => Field(account, which, width, picked)));
@@ -87,60 +96,77 @@ public static class AccountLines
     }
 
     /// <summary>
-    ///     One person on a list of them: their byline, and where the reader stands with them in as few words as the
-    ///     row has room for. What a follow list draws for everyone on it (#180).
+    ///     The Account block: who somebody is, on four rows beside their avatar. What every screen that merely
+    ///     <em>lists</em> an account draws for everyone on it — a search result, a follow request, a follow list and
+    ///     Discover — and what <see cref="Header" /> opens with (#198).
     /// </summary>
     /// <remarks>
-    ///     The two-span shape the search screen's hashtag row already uses — what the thing is, then a muted word
-    ///     about it — put here rather than on the screen so that a person reads one way everywhere, which is the
-    ///     reason <see cref="Byline" /> is here too.
+    ///     Row 1 is the display name, row 2 the handle, row 3 how much of a presence they have, and row 4 the month
+    ///     they joined, the flags they carry and whatever the calling screen has to say about them, <c>·</c>-joined
+    ///     and muted. The standing sits there rather than after the name because row 4 is already a list of small
+    ///     facts about the person, which is what <c>following · follows you</c> is, and it leaves row 1 as the name
+    ///     alone.
     ///     <para>
-    ///         The standing is measured out of the width first and the byline takes what is left, because the byline
-    ///         is the half a reader can still recognise clipped: a name cut short is still that person, and
-    ///         <c>follo</c> is not a standing.
+    ///         There is no per-screen variant and no width argument beyond the room in <paramref name="drawing" />:
+    ///         the whole of what a listing screen may say about somebody is <paramref name="said" />, so a screen
+    ///         cannot grow a fifth shape by drawing its own rows around this one.
+    ///     </para>
+    ///     <para>
+    ///         Nothing inside it is walkable. Unlike the header block it carries no bio and no custom fields, so it
+    ///         holds no <see cref="Reference" />s and <c>←</c>/<c>→</c> stay unconsumed on the screens that draw it.
     ///     </para>
     /// </remarks>
     /// <param name="account">
-    ///     Them, carrying the standing the instance answered with — or carrying none, where it was never asked or
-    ///     refused, which draws no suffix at all rather than one saying there is no tie (CONTEXT.md).
+    ///     Them, as the instance last answered about them — every field this draws arriving on the full account
+    ///     entity that every listing endpoint answers with, so the block costs no call of its own.
     /// </param>
-    /// <param name="width">How much room the row gets.</param>
+    /// <param name="drawing">The room the block gets, the moment, and what this terminal can paint.</param>
     /// <param name="said">
-    ///     What the list this row is on has already said about everyone on it, which is what the row must not repeat.
+    ///     What the calling screen has to add to row 4, <c>·</c>-joined already where it is more than one word, or
+    ///     empty where the screen has nothing to say — which draws the joined month and the flags alone rather than
+    ///     leaving a separator hanging off the end.
     /// </param>
-    public static Line Person(Account account, int width, Implied said = Implied.Nothing)
+    public static IReadOnlyList<Line> Block(Account account, Drawing drawing, string said = "")
     {
-        var standing = Compact(account.Standing, said);
+        var avatar = Avatar.Header(account.Address, account.AvatarUrl, drawing.Pictures);
+        var room = Math.Max(0, drawing.Width - avatar.Width);
 
-        return Beside(account, width, standing.Length == 0 ? string.Empty : $"  {standing}");
+        // What the screen says goes on the end of the row rather than in it, so a flag stays a fact about the person
+        // and whatever a screen adds stays a fact about the pair.
+        var facts = string.Join(Joins, [Joined(account), .. Flags(account)]);
+
+        return
+        [
+            .. avatar.Across(
+                Line.Of(TextWrap.Clip(account.Author, room), Role.BylineName),
+                Line.Of(TextWrap.Clip($"@{account.Address}", room), Role.BylineHandle),
+                Presence(account, room),
+                Line.Of(TextWrap.Clip(Facts(facts, said, room), room), Role.Muted)),
+        ];
     }
 
     /// <summary>
-    ///     A byline with a muted word after it — the two-span shape the search screen's hashtag row already uses: what
-    ///     the thing is, then a muted word about it.
+    ///     Row 4 of an Account block: the small facts about the person, then what the screen drawing them has to add.
     /// </summary>
     /// <remarks>
-    ///     Said once here because two screens now put something after a byline and each measures the same way: the
-    ///     suffix is taken out of the width first and the byline takes what is left, since the byline is the half a
-    ///     reader can still recognise clipped. A name cut short is still that person, and <c>follo</c> is not a
-    ///     standing (#180, #181).
+    ///     What the screen says is measured out of the row first and the facts take what is left, because the facts
+    ///     are the half a reader can still recognise clipped: a joined month cut short is still a joined month, and
+    ///     <c>follo</c> is not a standing (#180). Where that leaves the facts no room at all the row is what the
+    ///     screen said and nothing else, rather than a separator with nothing in front of it.
     /// </remarks>
-    /// <param name="account">Them.</param>
-    /// <param name="width">How much room the row gets.</param>
-    /// <param name="suffix">
-    ///     What goes after the byline, its own separator included, or empty for a row that says nothing beyond who
-    ///     they are — which draws the byline alone rather than a byline and a blank span.
-    /// </param>
-    public static Line Beside(Account account, int width, string suffix)
+    /// <param name="facts">The joined month and the flags, strung together already.</param>
+    /// <param name="said">What the screen adds, or empty where it has nothing to say.</param>
+    /// <param name="room">How much room the row gets.</param>
+    private static string Facts(string facts, string said, int room)
     {
-        if (suffix.Length == 0)
+        if (said.Length == 0)
         {
-            return Byline(account, width);
+            return facts;
         }
 
-        var byline = Byline(account, Math.Max(0, width - suffix.Length));
+        var kept = TextWrap.Clip(facts, Math.Max(0, room - said.Length - Joins.Length));
 
-        return Line.Of([.. byline.Spans, new Span(TextWrap.Clip(suffix, width), Role.Muted)]);
+        return kept.Length == 0 ? said : kept + Joins + said;
     }
 
     /// <summary>
@@ -165,9 +191,17 @@ public static class AccountLines
     /// </summary>
     /// <remarks>
     ///     The same five facts <see cref="Standing" /> says on an account's own screen, said shorter: that screen has
-    ///     a row to itself and a sentence fits, and here five people fit where one sentence would.
+    ///     a row to itself and a sentence fits, and here it shares row 4 of an Account block with the joined month and
+    ///     the flags.
     /// </remarks>
-    private static string Compact(AccountStanding? standing, Implied said)
+    /// <param name="standing">
+    ///     Where the profile stands with them, or <see langword="null" /> where the instance was never asked — which
+    ///     says nothing rather than saying there is no tie (CONTEXT.md).
+    /// </param>
+    /// <param name="said">
+    ///     What the list this row is on has already said about everyone on it, which is what the row must not repeat.
+    /// </param>
+    public static string Compact(AccountStanding? standing, Implied said = Implied.Nothing)
     {
         if (standing is null)
         {
@@ -199,23 +233,11 @@ public static class AccountLines
             words.Add("muted");
         }
 
-        return string.Join(" · ", words);
+        return string.Join(Joins, words);
     }
 
-    /// <summary>The name and handle on one row, for a list where each account gets as few rows as it can.</summary>
-    public static Line Byline(Account account, int width)
-    {
-        var name = TextWrap.Clip(account.Author, width);
-        var handle = TextWrap.Clip($"@{account.Address}", Math.Max(0, width - name.Length - 1));
-
-        return Line.Of([
-            new Span(name, Role.BylineName),
-            new Span(handle.Length > 0 ? $" {handle}" : string.Empty, Role.BylineHandle),
-        ]);
-    }
-
-    /// <summary>How much of a presence they have: posts, and the two follow counts.</summary>
-    public static Line Presence(Account account, int width) => Line.Of(
+    /// <summary>How much of a presence they have: posts, and the two follow counts — row 3 of an Account block.</summary>
+    private static Line Presence(Account account, int width) => Line.Of(
         TextWrap.Clip(
             $"{Number.Of(account.Posts)} posts · {Number.Of(account.Following)} following · {Number.Of(account.Followers)} followers",
             width),
@@ -260,7 +282,7 @@ public static class AccountLines
 
         return said.Count == 0
             ? Line.Of("No ties either way.", Role.Muted)
-            : Line.Of(TextWrap.Clip(string.Join(" · ", said), width), Role.Muted);
+            : Line.Of(TextWrap.Clip(string.Join(Joins, said), width), Role.Muted);
     }
 
     /// <summary>

@@ -392,6 +392,11 @@ public class ShellKeyTests
     ///     A shell showing what a search found — two accounts, two hashtags and two posts, so that all three kinds are
     ///     runs of their own — laid out and ready for keys.
     /// </summary>
+    /// <remarks>
+    ///     On a window with room for the whole page, which is what these tests are not about: the window is laid out
+    ///     and never painted, so the scroll stays at nought, and a pick below the foot of it would be reclaimed to the
+    ///     topmost thing before the bracket moved anywhere. Thirty-six rows since #198 made an account four of them.
+    /// </remarks>
     private static async Task<(ShellWindow Window, Wooly.Tui.Shell.Shell Shell)> Searched()
     {
         var built = new AShell
@@ -407,7 +412,7 @@ public class ShellKeyTests
         var window = new ShellWindow(shell, Themes.Plain, built.Clock, () => { }, FakePictures.DrawingNothing())
         {
             Width = 80,
-            Height = 20,
+            Height = 40,
         };
 
         window.Layout();

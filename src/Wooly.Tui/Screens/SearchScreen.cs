@@ -199,7 +199,7 @@ public sealed class SearchScreen : Screen
 
         IReadOnlyList<Line> Draw(Result result, int at, int room) => result switch
         {
-            Result.OfAccount(var account) => [AccountLines.Byline(account, room)],
+            Result.OfAccount(var account) => AccountLines.Block(account, drawing.In(room)),
             Result.OfHashtag(var hashtag) => [Tag(hashtag, room)],
             Result.OfPost(var post) => PostLines.Feed(post, drawing.In(room), ReadingOf(post, at)),
             _ => [],

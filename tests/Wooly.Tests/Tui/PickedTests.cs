@@ -83,6 +83,29 @@ public class PickedTests
     }
 
     /// <summary>
+    ///     A list of people asks for a blank instead, and gets it <em>between</em> the things rather than after each —
+    ///     so nothing is left hanging under the last of them (#198).
+    /// </summary>
+    [Fact]
+    public void Rows_PutTheSeparatorBetweenTheThingsAndNotAfterTheLast()
+    {
+        var lines = Three().Rows(61, Draw, Line.Blank);
+
+        Assert.Equal(5, lines.Count);
+        Assert.Equal(
+            [1, 3],
+            lines.Select((line, at) => (line, at)).Where(row => row.line.Item is null).Select(row => row.at));
+        Assert.All(lines.Where(line => line.Item is null), line => Assert.Equal(string.Empty, line.Text));
+    }
+
+    /// <summary>And it belongs to neither of the two it stands between, exactly as the rule does.</summary>
+    [Fact]
+    public void Rows_LeaveTheSeparatorBetweenTwoThingsPartOfNeither() =>
+        Assert.All(
+            Three().Rows(61, Draw, Line.Blank).Where(line => line.Item is null),
+            line => Assert.False(line.Has(Role.Selection)));
+
+    /// <summary>
     ///     The rule runs the whole width, gutter column included — which is where it cannot collide with
     ///     <see cref="Role.Selection" />'s <c>▌</c>, since the two are never on the same row.
     /// </summary>

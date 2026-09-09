@@ -186,6 +186,24 @@ a colour there would say what the glyph has already said. An unverified field sa
 honest signal, since a field nobody proved is not a field anybody disproved.
 _Avoid_: attribute, metadata, property, note
 
+**Account block**:
+What one account looks like wherever it is merely *listed*: four rows beside an 8×4 avatar — the display name, the
+handle, the presence counts, then the month they joined with the `⚙ bot` / `⚿ locked` flags and whatever the screen
+drawing it has to add, `·`-joined and muted (`AccountLines.Block`). Search's accounts run, a **Follow request**, a
+**Follow list** and a **Suggestion** all draw it, with no per-screen variant: four shapes for a person were four ideas
+of the same person, and a **locked** account reading as locked on its own screen and not on the list you found it from
+is the drift this exists to close.
+The account screen's **header block** is *the Account block plus* the **Bio**, the **Custom field**s and the
+**Standing** — the same four rows, extracted rather than copied, then its own sections underneath. That is the whole
+of the difference between the two names: one lists somebody and the other is about them, so only the header carries
+anything to walk, and `←`/`→` reach nothing inside a listing's block.
+It costs no call. Every endpoint that lists accounts answers with full account entities, so each field is already in
+hand — only a **Standing** is not sent, and only a follow list asks for one. What a screen adds is its own word:
+the compact standing on a follow list, and what the reader has done since arriving on Discover.
+A **Notification** about a follow is not one of these. Its row says who did what and how long ago, which is an event
+rather than a person, and it keeps its own shape.
+_Avoid_: byline (which is a **post**'s author line, and one row), card
+
 **Tie**:
 One of the three things the profile's own account can have with another and undo again: following it, blocking it, or
 muting it. Each is on or off rather than an act of its own, so `unfollow` is a follow taken off rather than a fourth
