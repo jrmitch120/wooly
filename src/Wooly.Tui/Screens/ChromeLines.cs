@@ -20,11 +20,11 @@ public static class ChromeLines
     {
         var mark = fetching ? Fetching : string.Empty;
         var room = Math.Max(0, width - mark.Length - 1);
-        var shown = TextWrap.Clip(trail, room);
+        var shown = new Span(TextWrap.Clip(trail, room), Role.Chrome);
 
         return Line.Of([
-            new Span(shown, Role.Chrome),
-            new Span(new string(' ', Math.Max(1, width - shown.Length - mark.Length)), Role.Chrome),
+            shown,
+            new Span(new string(' ', Math.Max(1, width - shown.Width - mark.Length)), Role.Chrome),
             new Span(mark, Role.Loading),
         ]);
     }

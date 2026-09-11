@@ -15,6 +15,22 @@ namespace Wooly.Tui.Rendering;
 /// <param name="Role">What they are, for the theme to answer.</param>
 public readonly record struct Span(string Text, Role Role)
 {
+    /// <summary>
+    ///     The characters to draw, in the form a terminal will draw them — which is what <see cref="Glyphs.Plain" />
+    ///     settles.
+    /// </summary>
+    /// <remarks>
+    ///     Done here rather than at the sites that hand somebody else's words to a screen, for the reason a role is
+    ///     answered here (ADR-0014): a span is the only thing that is ever painted, so a mark a layout cannot measure
+    ///     has nowhere left to arrive from. What reaches a terminal is what was measured, by construction.
+    /// </remarks>
+    public string Text { get; init; } = Glyphs.Plain(Text);
+
     /// <summary>The width this takes on screen, which is the width every layout is measured in.</summary>
+    /// <remarks>
+    ///     Measured off <see cref="Text" /> after that, so a layout weighing a name against the room beside it weighs
+    ///     what will be drawn rather than what arrived (#206). Still a count of characters, which a script whose
+    ///     characters take two columns is still counted wrong by (#207).
+    /// </remarks>
     public int Width => Text.Length;
 }
