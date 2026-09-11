@@ -45,11 +45,11 @@ public static class ConversationLines
             return Line.Of(TextWrap.Clip(who, width), Role.BylineHandle);
         }
 
-        var named = TextWrap.Clip(who, Math.Max(0, width - UnreadMark.Length - 1));
+        var named = new Span(TextWrap.Clip(who, Math.Max(0, width - UnreadMark.Length - 1)), Role.BylineHandle);
 
         return Line.Of([
-            new Span(named, Role.BylineHandle),
-            new Span(new string(' ', Math.Max(1, width - named.Length - UnreadMark.Length)), Role.Body),
+            named,
+            new Span(new string(' ', Math.Max(1, width - named.Width - UnreadMark.Length)), Role.Body),
             new Span(UnreadMark, Role.RailUnread),
         ]);
     }

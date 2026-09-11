@@ -130,11 +130,11 @@ public sealed class NotificationsScreen(IReadOnlyList<Notification> notification
         var did = $" {notification.Kind.Does}";
         var room = Math.Max(0, width - age.Length - did.Length - 2);
 
-        var name = TextWrap.Clip(notification.Author, room);
-        var used = name.Length + did.Length;
+        var name = new Span(TextWrap.Clip(notification.Author, room), Role.BylineName);
+        var used = name.Width + did.Length;
 
         return Line.Of([
-            new Span(name, Role.BylineName),
+            name,
             new Span(did, Role.Muted),
             new Span(new string(' ', Math.Max(1, width - used - age.Length)), Role.Muted),
             new Span(age, Role.Muted),

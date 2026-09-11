@@ -273,16 +273,16 @@ public static class PostLines
         var avatar = Avatar.Byline(post.Account, post.AvatarUrl, pictures);
         var room = Math.Max(0, width - avatar.Width);
 
-        var tail = $"{Audience(post.Visibility)} {Elapsed.Since(post.PostedAt, now)}";
-        var name = TextWrap.Clip(post.Author, Math.Max(0, room - tail.Length - 1));
+        var tail = new Span($"{Audience(post.Visibility)} {Elapsed.Since(post.PostedAt, now)}", Role.Audience);
+        var name = new Span(TextWrap.Clip(post.Author, Math.Max(0, room - tail.Width - 1)), Role.BylineName);
 
         return
         [
             .. avatar.Across(
                 Line.Of([
-                    new Span(name, Role.BylineName),
-                    new Span(new string(' ', Math.Max(1, room - name.Length - tail.Length)), Role.Body),
-                    new Span(tail, Role.Audience),
+                    name,
+                    new Span(new string(' ', Math.Max(1, room - name.Width - tail.Width)), Role.Body),
+                    tail,
                 ]),
                 Line.Of(TextWrap.Clip($"@{post.Account}", room), Role.BylineHandle)),
         ];

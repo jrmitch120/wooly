@@ -350,6 +350,25 @@ public class PostBylineTests
         Assert.StartsWith("↳ answering", lines[0].Text, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    ///     A name carrying an emoji is measured by what a terminal will draw rather than by what the instance sent:
+    ///     the variation selector after <c>\u27A1</c> is a character the layout counts and the screen does not, and a
+    ///     byline padded by the longer of the two ran a column past the right margin — where the terminal wrapped the
+    ///     last of the age onto the next row and left the count with no unit on it (#206).
+    /// </summary>
+    [Fact]
+    public void Feed_MeasuresANameByWhatWillBeDrawnRatherThanByWhatArrived()
+    {
+        var lines = Feed(By(author: "An Amazing Wizard\u27A1\uFE0FKICKSTARTER"));
+
+        var name = lines.First(line => line.Has(Role.BylineName));
+
+        Assert.DoesNotContain('\uFE0F', name.Text);
+        Assert.Equal(61, name.Width);
+        Assert.EndsWith("\u25CB 30m", name.Text, StringComparison.Ordinal);
+        Assert.StartsWith("An Amazing Wizard\u27A1KICKSTARTER ", name.Text, StringComparison.Ordinal);
+    }
+
     /// <summary>Nothing a byline draws runs past the room it was given, avatar and all.</summary>
     [Theory]
     [InlineData(20)]
