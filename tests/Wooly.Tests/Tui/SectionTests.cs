@@ -149,6 +149,121 @@ public class SectionTests
         Assert.Equal(["── 1 hashtags ──"], Headings(Searched(accounts: 0, posts: 0)));
 
     /// <summary>
+    ///     Accounts are separated the way every other screen listing people separates them: a blank between two of
+    ///     them and no rule anywhere, four-row Account blocks laid end to end being what runs together (#180, #198).
+    /// </summary>
+    [Fact]
+    public void ASearchScreenPutsABlankBetweenAccountsAndNoRule()
+    {
+        // The prompt, its blank, the heading, its blank, four rows of Alice, a blank, four rows of Bob.
+        var rows = Drawn(Searched(hashtags: 0, posts: 0));
+
+        Assert.Equal(13, rows.Count);
+        Assert.Equal(string.Empty, rows[8].Text.Trim());
+        Assert.DoesNotContain(rows.Where(line => !line.Heads), line => line.Text.Contains('─', StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    ///     And nothing at all between hashtags, which are one row apiece: a separator per row would spend as many rows
+    ///     on the gaps as on the tags, where the heading has already said how many there are and the gutter says which
+    ///     one is picked out.
+    /// </summary>
+    [Fact]
+    public void ASearchScreenPutsNothingBetweenHashtags()
+    {
+        var rows = Drawn(Searched(accounts: 0, hashtags: 3, posts: 0));
+
+        Assert.Equal(7, rows.Count);
+        Assert.All(rows.Skip(4), line => Assert.Contains("#tag", line.Text, StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    ///     A run of hashtags reads down as well as across: the counts stand in one column whatever the names are, and
+    ///     the numbers are right-aligned inside it so <c>81</c> falls under <c>4</c>.
+    /// </summary>
+    [Fact]
+    public void ASearchScreenStandsAHashtagsCountsInTheRunsOwnColumns()
+    {
+        var search = new SearchScreen();
+
+        search.Found(
+            "sheep",
+            new SearchResults
+            {
+                Hashtags =
+                [
+                    AHashtag.With("ewe", recentPosts: 81, recentAccounts: 7),
+                    AHashtag.With("shearing", recentPosts: 4, recentAccounts: 1_204),
+                ],
+            });
+
+        // Past the gutter, which says which of them is picked out rather than anything about the columns.
+        Assert.Equal(
+            [
+                "#ewe       81 posts ·     7 accounts",
+                "#shearing   4 posts · 1,204 accounts",
+            ],
+            Drawn(search).Skip(4).Select(line => line.Text[1..]));
+    }
+
+    /// <summary>
+    ///     A terminal too narrow to hold the columns loses them altogether, the whole run falling back to a two-space
+    ///     gap and unpadded counts: padding is spent from the left and the row is clipped from the right, so columns
+    ///     held past the width would cost the accounts count that fits without them.
+    /// </summary>
+    [Fact]
+    public void ASearchScreenGivesUpTheHashtagColumnsWhereTheyWouldNotFit()
+    {
+        var search = new SearchScreen();
+
+        search.Found(
+            "sheep",
+            new SearchResults
+            {
+                Hashtags =
+                [
+                    AHashtag.With("photography", recentPosts: 1_204, recentAccounts: 7),
+                    AHashtag.With("ewe", recentPosts: 8, recentAccounts: 1_204),
+                ],
+            });
+
+        // One column of gutter and 30 of room, where the widest row wants 12 + 2 + 28.
+        Assert.Equal(
+            [
+                "#photography  1,204 posts · 7…",
+                "#ewe  8 posts · 1,204 accounts",
+            ],
+            search.Lines(new Drawing(31, AShell.Now)).Skip(4).Select(line => line.Text[1..]));
+    }
+
+    /// <summary>
+    ///     Posts keep the rule a feed puts between them, because a run of them here is a feed — and between rather
+    ///     than after, so nothing is left hanging under the last result on the screen (#62).
+    /// </summary>
+    [Fact]
+    public void ASearchScreenRulesBetweenPostsAndLeavesNoneUnderTheLast()
+    {
+        var rows = Drawn(Searched(accounts: 0, hashtags: 0, posts: 3));
+
+        Assert.Equal(2, rows.Count(Rules));
+        Assert.False(Rules(rows[^1]));
+    }
+
+    /// <summary>
+    ///     One kind is parted from the next by the blank over its heading — the same blank an account's header puts
+    ///     over each of its sections. The first heading has the prompt's own blank above it and takes none of its own.
+    /// </summary>
+    [Fact]
+    public void ASearchScreenPartsItsKindsWithTheBlankOverEachHeadingButTheFirst()
+    {
+        var rows = Drawn(Searched());
+        var heads = rows.Select((line, at) => (line, at)).Where(row => row.line.Heads).Select(row => row.at).ToList();
+
+        Assert.Equal(2, heads[0]);
+        Assert.All(heads.Skip(1), at => Assert.Equal(string.Empty, rows[at - 1].Text.Trim()));
+    }
+
+    /// <summary>
     ///     The status row says <c>[/]:section</c> only where there are two or more runs to move between, and says it
     ///     immediately after the key that walks the results — a key announced where it does nothing reads as a shell
     ///     that missed the press.
@@ -179,6 +294,12 @@ public class SectionTests
     [Fact]
     public void ASearchScreenSaysNothingOfSectionsWhileThePromptIsTakingLetters() =>
         Assert.DoesNotContain(new SearchScreen().Keys, key => key.Key == "[/]");
+
+    /// <summary>
+    ///     Whether a row is a rule between two things — a heading is drawn out of the same glyph and is not one.
+    /// </summary>
+    private static bool Rules(Line line) =>
+        !line.Heads && line.Text.Length > 0 && line.Text.All(letter => letter == '─');
 
     /// <summary>What the rows this screen draws head their runs with.</summary>
     private static IEnumerable<string> Headings(SearchScreen search) =>

@@ -849,9 +849,9 @@ anybody's account — `IAccountRelationships.List` already takes a `FollowSide` 
   that keeps who it follows to itself, while the count on the profile goes on saying five — so the screen says *their
   profile says 5 following, but the instance listed nobody* rather than *they follow nobody yet*, which would report a
   setting as a fact. Both numbers, and no cause guessed at: the same honesty an absent standing gets.
-- **No per-row rule.** The search screen rules after every result because it is separating a run of accounts from
-  hashtags from posts; there is one kind here and nothing to separate, and at 900 people it would be 1,800 rows, half
-  of them horizontal lines. One rule under the prompt keeps the screen search-shaped.
+- **No per-row rule.** The search screen rules between posts, because a run of them is a feed; there is one kind here
+  and nothing to separate, and at 900 people it would be 1,800 rows, half of them horizontal lines. One rule under the
+  prompt keeps the screen search-shaped.
 - **Its cache is its own**: age only, one minute, keyed by account and side. `DestinationCache` is keyed by
   `DestinationKind`, one entry per rail destination, and this is the shell's first drill-in cache. `esc` back is
   already free — the stack hands back the very screen with its page intact (#133) — so the cache only pays on a re-open
@@ -885,6 +885,22 @@ The answer generalised: three screens use it (#166, amended by #171 and #172):
   every query. The screen already says `Nothing found for {asked}.` where all three are empty, which is where "was it
   even asked?" actually bites. This is deliberately unlike the CLI, where `--type` makes absence meaningful and
   ADR-0011's null-versus-empty earns its keep — the TUI always asks for everything.
+- **What separates two results is what the kind is, and one kind is parted from the next by the blank over its
+  heading.** Posts keep the feed's rule between them; accounts take the blank every screen listing people takes
+  (#180, #198); hashtags take nothing at all, being one row apiece under a heading that has already counted them,
+  where a separator per row would spend as many rows on the gaps as on the tags. Between rather than after, so no
+  separator is left hanging under the last result — and the first heading takes no blank of its own, having the
+  prompt's.
+- **A run of hashtags is a table, and its columns are the run's.** The counts stand off the longest name in the run,
+  and each number is right-aligned in its own column, so a reader glances down one column rather than reading twenty
+  rows: `81` under `14` compares at sight, `81` under `1` does not. Measured once per run off what is drawn, `#` and
+  thousands separators included — a row that measured itself could only align with itself.
+- **Aligning is all or nothing, and the run decides, not the row.** On a terminal too narrow to hold the longest name
+  and the counts together the run gives its columns up altogether and every row falls back to a two-space gap and
+  unpadded counts — the row this screen drew before it had columns. Narrowing them instead would be worse than
+  ragged: padding is spent from the left and the row is clipped from the right, so columns held past the width cost
+  the accounts count that would otherwise have fitted. One row giving up its columns while its neighbours kept theirs
+  would be the raggedness the columns exist to prevent.
 - **The status row says `[/]:section`, shell-wide**, and only where the screen has two or more headed runs *now*. One
   key that means one thing everywhere is named one way everywhere, which is why this is `section` rather than the
   `kind` the search screen alone would have said. A key announced where it does nothing reads as a shell that missed
@@ -967,8 +983,8 @@ same person, so there is now one (#198):
   argument ADR-0019 used to refuse truncating a bio.
 - **One blank row stands between blocks, and no new rules.** Follow requests, follows and Discover had no separator
   between people, and four-row blocks laid end to end run together; a blank costs the one row a rule would while
-  leaving the list looking like the list of people it is. Search keeps the rule it already draws after each result —
-  that is the search screen's grammar for separating *results*, not this block's business.
+  leaving the list looking like the list of people it is. Search draws the same blank between its accounts, so a run of
+  people reads as a run of people on every screen that lists them.
 - **The block is one pick and there is nothing to walk inside it.** Unlike the header block it carries no bio and no
   custom fields, so it holds no references: `←`/`→` stay unconsumed on all four screens and `⏎` does what it did.
   The `▌` gutter sits to the left of the avatar and runs down all four rows, which is what a post's byline settled.
