@@ -50,11 +50,11 @@ public sealed class HelpScreen(Screen about) : Screen
     private static Line Row(KeyHint key, int width)
     {
         const int keyColumn = 16;
-        var padded = key.Key.PadRight(keyColumn);
+        var padded = Glyphs.Padded(key.Key, keyColumn);
 
         return Line.Of([
             new Span(padded, Role.BylineHandle),
-            new Span(TextWrap.Clip(key.Does, Math.Max(0, width - padded.Length)), Role.Body),
+            new Span(TextWrap.Clip(key.Does, Math.Max(0, width - Glyphs.Columns(padded))), Role.Body),
         ]);
     }
 }

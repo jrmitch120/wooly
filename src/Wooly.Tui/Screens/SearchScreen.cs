@@ -306,11 +306,13 @@ public sealed class SearchScreen : Screen
 
         // Never less than the gap itself, so a name longer than the column is still parted from its counts rather
         // than run into them.
-        var gap = new string(' ', Math.Max(TagGap, columns.Name - name.Length + TagGap));
+        var gap = new string(' ', Math.Max(TagGap, columns.Name - Glyphs.Columns(name) + TagGap));
 
         return Line.Of([
             new Span(name, Role.BylineHandle),
-            new Span(TextWrap.Clip(gap + Used(hashtag, columns), Math.Max(0, width - name.Length)), Role.Muted),
+            new Span(
+                TextWrap.Clip(gap + Used(hashtag, columns), Math.Max(0, width - Glyphs.Columns(name))),
+                Role.Muted),
         ]);
     }
 
@@ -360,13 +362,13 @@ public sealed class SearchScreen : Screen
             }
 
             var columns = new Columns(
-                hashtags.Max(hashtag => hashtag.Name.Length + 1),
-                hashtags.Max(hashtag => Number.Of(hashtag.RecentPosts).Length),
-                hashtags.Max(hashtag => Number.Of(hashtag.RecentAccounts).Length));
+                hashtags.Max(hashtag => Glyphs.Columns(hashtag.Name) + 1),
+                hashtags.Max(hashtag => Glyphs.Columns(Number.Of(hashtag.RecentPosts))),
+                hashtags.Max(hashtag => Glyphs.Columns(Number.Of(hashtag.RecentAccounts))));
 
             // Padded, every row's counts come out the same width, so the widest row is the longest name against any
             // row's counts and one of them is enough to measure.
-            return columns.Name + TagGap + Used(hashtags[0], columns).Length <= width ? columns : default;
+            return columns.Name + TagGap + Glyphs.Columns(Used(hashtags[0], columns)) <= width ? columns : default;
         }
     }
 
@@ -377,7 +379,7 @@ public sealed class SearchScreen : Screen
     private Line Prompt(int width)
     {
         const string label = "Search: ";
-        var typed = TextWrap.Clip(IsTyping ? Query : Asked ?? Query, Math.Max(0, width - label.Length - 1));
+        var typed = TextWrap.Clip(IsTyping ? Query : Asked ?? Query, Math.Max(0, width - Glyphs.Columns(label) - 1));
 
         // No caret once the prompt has stopped taking letters, and no empty span standing in for one: a row a reader
         // is scanning should say what is there and nothing else.

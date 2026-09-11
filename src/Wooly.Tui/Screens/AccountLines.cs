@@ -164,7 +164,7 @@ public static class AccountLines
             return facts;
         }
 
-        var kept = TextWrap.Clip(facts, Math.Max(0, room - said.Length - Joins.Length));
+        var kept = TextWrap.Clip(facts, Math.Max(0, room - Glyphs.Columns(said) - Glyphs.Columns(Joins)));
 
         return kept.Length == 0 ? said : kept + Joins + said;
     }

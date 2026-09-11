@@ -351,7 +351,7 @@ public static class PostLines
     /// </summary>
     private static Line Warning(string said, int width) => Line.Of([
         new Span(WarningMark, Role.ContentWarning),
-        new Span(TextWrap.Clip(said, width - WarningMark.Length), Role.ContentWarning),
+        new Span(TextWrap.Clip(said, width - Glyphs.Columns(WarningMark)), Role.ContentWarning),
     ]);
 
     /// <summary>
@@ -581,7 +581,7 @@ public static class PostLines
 
         if (saysWhatItShows && attached.Description is { } description)
         {
-            var used = spans.Sum(span => span.Text.Length) + 1;
+            var used = spans.Sum(span => span.Width) + 1;
 
             spans.Add(new Span($" {TextWrap.Clip(description, Math.Max(0, width - used))}", Role.Media));
         }
@@ -639,7 +639,7 @@ public static class PostLines
     private static Line Described(PostMedia attached, string mark, int width) => Line.Of([
         new Span($"{mark} ", Role.Media),
         new Span(
-            TextWrap.Clip(attached.Shows, width - mark.Length - 1),
+            TextWrap.Clip(attached.Shows, width - Glyphs.Columns(mark) - 1),
             attached.Description is null ? Role.Muted : Role.Media),
     ]);
 
@@ -727,7 +727,10 @@ public static class PostLines
     private static Line LinkPreviewLine(LinkPreview link, Reference? reference, Reference? picked, int width)
     {
         var bracketed = reference is not null && picked == reference;
-        var room = width - LinkMark.Length - 1 - (bracketed ? BodyText.Opening.Length + BodyText.Closing.Length : 0);
+        var room = width
+                   - Glyphs.Columns(LinkMark)
+                   - 1
+                   - (bracketed ? Glyphs.Columns(BodyText.Opening) + Glyphs.Columns(BodyText.Closing) : 0);
 
         return new Line(MarkAndLabel(TextWrap.Clip(link.Name, Math.Max(0, room)), bracketed));
     }

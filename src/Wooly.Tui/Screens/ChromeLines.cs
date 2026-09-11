@@ -19,12 +19,12 @@ public static class ChromeLines
     public static Line Breadcrumb(string trail, bool fetching, int width)
     {
         var mark = fetching ? Fetching : string.Empty;
-        var room = Math.Max(0, width - mark.Length - 1);
+        var room = Math.Max(0, width - Glyphs.Columns(mark) - 1);
         var shown = new Span(TextWrap.Clip(trail, room), Role.Chrome);
 
         return Line.Of([
             shown,
-            new Span(new string(' ', Math.Max(1, width - shown.Width - mark.Length)), Role.Chrome),
+            new Span(new string(' ', Math.Max(1, width - shown.Width - Glyphs.Columns(mark))), Role.Chrome),
             new Span(mark, Role.Loading),
         ]);
     }
@@ -47,7 +47,7 @@ public static class ChromeLines
                 new Span(
                     TextWrap.Clip(
                         $"  {question.Confirm} {question.Going} · esc keep",
-                        Math.Max(0, width - question.Question.Length - 1)),
+                        Math.Max(0, width - Glyphs.Columns(question.Question) - 1)),
                     Role.Muted),
             ]);
         }

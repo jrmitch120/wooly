@@ -17,7 +17,7 @@ public class TextWrapTests
     {
         var wrapped = TextWrap.Wrap("Finally shipped the terminal client rewrite at last", 20);
 
-        Assert.All(wrapped, row => Assert.True(row.Length <= 20, $"'{row}' is {row.Length} columns"));
+        Assert.All(wrapped, row => Assert.True(Glyphs.Columns(row) <= 20, $"'{row}' is {Glyphs.Columns(row)} columns"));
         Assert.Equal("Finally shipped the terminal client rewrite at last", string.Join(" ", wrapped));
     }
 
@@ -37,7 +37,7 @@ public class TextWrapTests
     {
         var wrapped = TextWrap.Wrap("see https://example.com/a/very/long/path/indeed/that/keeps/going", 20);
 
-        Assert.All(wrapped, row => Assert.True(row.Length <= 20, $"'{row}' is {row.Length} columns"));
+        Assert.All(wrapped, row => Assert.True(Glyphs.Columns(row) <= 20, $"'{row}' is {Glyphs.Columns(row)} columns"));
         Assert.Contains(wrapped, row => row.StartsWith("https://", StringComparison.Ordinal));
     }
 
@@ -58,6 +58,8 @@ public class TextWrapTests
     [InlineData("see https://example.com/a/very/long/path/indeed/that/keeps/going", 20)]
     [InlineData("spaced  out  wider  than  anybody  meant  it  to  be", 12)]
     [InlineData("", 20)]
+    [InlineData("ドット絵のアカウントです、よろしくおねがいします", 20)]
+    [InlineData("Family \U0001F468\u200D\U0001F469\u200D\U0001F467 photos \U0001F389 today", 12)]
     public void Rows_AreSlicesOfTheTextAtTheOffsetTheySayTheyAreAt(string text, int width)
     {
         foreach (var row in TextWrap.Rows(text, width))
@@ -103,6 +105,60 @@ public class TextWrapTests
     {
         Assert.Equal(expected, TextWrap.Clip(text, width));
     }
+
+    /// <summary>
+    ///     A row is as many columns as the terminal has, not as many characters: a post written in a script whose
+    ///     characters take two columns each wrapped at twice the width it was given, every row (#207).
+    /// </summary>
+    [Theory]
+    [InlineData("ドット絵のアカウントです、よろしくおねがいします", 20)]
+    [InlineData("ドット絵のアカウントです、よろしくおねがいします", 61)]
+    [InlineData("絵文字 \U0001F389 and \U0001F468\u200D\U0001F469\u200D\U0001F467 mixed into a line of plain words", 20)]
+    public void Wrap_BreaksTextToTheColumnsRatherThanToTheCharacters(string text, int width)
+    {
+        var wrapped = TextWrap.Wrap(text, width);
+
+        Assert.All(
+            wrapped,
+            row => Assert.True(Glyphs.Columns(row) <= width, $"'{row}' is {Glyphs.Columns(row)} columns"));
+
+        // And nothing dropped on the way: every character is still on one row or another, in the order written.
+        Assert.Equal(text.Replace(" ", string.Empty), string.Concat(wrapped).Replace(" ", string.Empty));
+    }
+
+    /// <summary>
+    ///     A character too wide for the whole row is drawn anyway, on a row of its own. The region is narrower than
+    ///     anything that could go in it, and a row holding nothing would be a row that never got past this character.
+    /// </summary>
+    [Fact]
+    public void Wrap_DrawsACharacterWiderThanTheWholeRowRatherThanStalling()
+    {
+        Assert.Equal(["ド", "ッ", "ト"], TextWrap.Wrap("ドット", 1));
+    }
+
+    /// <summary>Clipping counts the columns too, and marks the cut in the one column an ellipsis takes.</summary>
+    [Theory]
+    [InlineData("ドット絵アカウント", 20, "ドット絵アカウント")]
+    [InlineData("ドット絵アカウント", 18, "ドット絵アカウント")]
+    [InlineData("ドット絵アカウント", 10, "ドット絵…")]
+    // A column short rather than a column over: the ninth column cannot hold half of a two-column character.
+    [InlineData("ドット絵アカウント", 9, "ドット絵…")]
+    [InlineData("ドット絵アカウント", 2, "…")]
+    public void Clip_CutsToTheColumnsRatherThanToTheCharacters(string text, int width, string expected)
+    {
+        Assert.Equal(expected, TextWrap.Clip(text, width));
+        Assert.True(Glyphs.Columns(TextWrap.Clip(text, width)) <= width);
+    }
+
+    /// <summary>
+    ///     And never inside one of the things a reader would call a character: half of a ZWJ sequence is an emoji
+    ///     nobody wrote, and a base character parted from its combining mark is a word misspelt.
+    /// </summary>
+    [Theory]
+    [InlineData("\U0001F468\u200D\U0001F469\u200D\U0001F467 and me", 3, "\U0001F468\u200D\U0001F469\u200D\U0001F467…")]
+    [InlineData("e\u0301clair time", 4, "e\u0301cl…")]
+    public void Clip_NeverCutsInsideACharacterAsAReaderCountsThem(string text, int width, string expected) =>
+        Assert.Equal(expected, TextWrap.Clip(text, width));
 
     /// <summary>The two or three characters a feed has room for at the end of a byline.</summary>
     [Theory]

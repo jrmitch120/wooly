@@ -128,15 +128,15 @@ public sealed class NotificationsScreen(IReadOnlyList<Notification> notification
     {
         var age = Elapsed.Since(notification.ReceivedAt, now);
         var did = $" {notification.Kind.Does}";
-        var room = Math.Max(0, width - age.Length - did.Length - 2);
+        var room = Math.Max(0, width - Glyphs.Columns(age) - Glyphs.Columns(did) - 2);
 
         var name = new Span(TextWrap.Clip(notification.Author, room), Role.BylineName);
-        var used = name.Width + did.Length;
+        var used = name.Width + Glyphs.Columns(did);
 
         return Line.Of([
             name,
             new Span(did, Role.Muted),
-            new Span(new string(' ', Math.Max(1, width - used - age.Length)), Role.Muted),
+            new Span(new string(' ', Math.Max(1, width - used - Glyphs.Columns(age))), Role.Muted),
             new Span(age, Role.Muted),
         ]);
     }
