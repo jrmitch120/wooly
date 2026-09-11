@@ -18,6 +18,9 @@ public class GlyphsTests
     [InlineData("An Amazing Wizard➡️KICKSTARTER", "An Amazing Wizard➡KICKSTARTER")]
     [InlineData("❤️", "❤")]
     [InlineData("❤︎", "❤")]
+    // Every one of them, because each narrow character wearing a selector costs its row another column: a name with
+    // two would have taken the whole of an age with it rather than the unit off the end of one.
+    [InlineData("a➡️b❤️c⭐️d", "a➡b❤c⭐d")]
     [InlineData("️", "")]
     public void Plain_DropsAVariationSelector(string sent, string drawn) => Assert.Equal(drawn, Glyphs.Plain(sent));
 
