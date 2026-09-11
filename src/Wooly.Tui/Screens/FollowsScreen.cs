@@ -311,14 +311,13 @@ public sealed class FollowsScreen : Screen
 
         // No rule between people, and one under the prompt instead: there is one kind of thing on this list and
         // nothing to separate it from, and at 900 people a rule apiece would be 900 rows of horizontal line (#180).
-        for (var at = 0; at < _walking.Count; at++)
-        {
-            lines.AddRange(_walking.RowsOf(at, width, Draw));
-        }
+        // A blank between them all the same, since four-row Account blocks laid end to end run together (#198).
+        lines.AddRange(_walking.Rows(width, Draw, Line.Blank));
 
         return lines;
 
-        IReadOnlyList<Line> Draw(Account person, int _, int room) => [AccountLines.Person(person, room, Implies)];
+        IReadOnlyList<Line> Draw(Account person, int _, int room) =>
+            AccountLines.Block(person, drawing.In(room), AccountLines.Compact(person.Standing, Implies));
     }
 
     /// <summary>

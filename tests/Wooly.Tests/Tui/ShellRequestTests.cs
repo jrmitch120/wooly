@@ -36,6 +36,63 @@ public class ShellRequestTests
         Assert.Equal(2, opened.Rail.Destinations.First(place => place.Kind == DestinationKind.Requests).Unread);
     }
 
+    /// <summary>
+    ///     Somebody waiting is drawn as the Account block every listing draws — which is where this screen gains the
+    ///     joined month and the flags, <c>⚿ locked</c> arguably being the most useful glyph on it (#198).
+    /// </summary>
+    [Fact]
+    public async Task Step_DrawsWhoIsWaitingAsTheSharedAccountBlock()
+    {
+        var shell = new AShell
+        {
+            Accounts = FakeAccountRelationships.Holding(
+                null,
+                AnAccount.With(id: "42", address: "alice@hachyderm.io", author: "Alice", isLocked: true)),
+        };
+
+        var opened = await shell.Opened();
+
+        opened.Step(ToRequests);
+        shell.Host.Settle();
+
+        // Past the one column the gutter takes, which every list on this shell stamps and no screen draws itself.
+        Assert.Equal(
+            [
+                "Alice",
+                "@alice@hachyderm.io",
+                "4,210 posts · 187 following · 1,203 followers",
+                "Joined Jan 2020 · ⚿ locked",
+            ],
+            opened.Screen.Lines(new Drawing(61, AShell.Now)).Select(line => line.Text[1..]));
+    }
+
+    /// <summary>
+    ///     A blank stands between two of them and no rule does: four-row blocks laid end to end run together, and a
+    ///     blank costs the one row a rule would while leaving the list looking like the list of people it is.
+    /// </summary>
+    [Fact]
+    public async Task Step_PutsOneBlankBetweenPeopleAndDrawsNoRules()
+    {
+        var shell = new AShell
+        {
+            Accounts = FakeAccountRelationships.Holding(
+                null,
+                AnAccount.With(id: "42", address: "alice@hachyderm.io"),
+                AnAccount.With(id: "43", address: "bob@mastodon.social")),
+        };
+
+        var opened = await shell.Opened();
+
+        opened.Step(ToRequests);
+        shell.Host.Settle();
+
+        var rows = opened.Screen.Lines(new Drawing(61, AShell.Now)).Select(line => line.Text).ToList();
+
+        Assert.Equal(9, rows.Count);
+        Assert.Equal(string.Empty, rows[4].Trim());
+        Assert.DoesNotContain(rows, row => row.Contains('─', StringComparison.Ordinal));
+    }
+
     [Theory]
     [InlineData(ShellKey.A, true)]
     [InlineData(ShellKey.X, false)]

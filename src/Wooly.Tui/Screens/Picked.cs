@@ -200,7 +200,36 @@ public sealed class Picked<T>(IReadOnlyList<T> things) : IPicked
         return lines;
     }
 
-    /// <inheritdoc cref="Rows" />
+    /// <inheritdoc cref="Rows(int, Draws{T}, Ordinals)" />
+    /// <summary>
+    ///     The same with <paramref name="between" /> standing between the things rather than a rule after each of
+    ///     them — for a list of people, where a rule apiece would be hundreds of rows of horizontal line and a blank
+    ///     says the same thing in one (#180, #198).
+    /// </summary>
+    /// <remarks>
+    ///     Between rather than after, so nothing is left hanging under the last thing — and here rather than at each
+    ///     screen that wants it, for the reason the rule is here: a separator belongs to neither of the two things it
+    ///     stands between, so no thing may draw its own.
+    /// </remarks>
+    /// <param name="between">The row to put between two things, drawn as many times as there are gaps.</param>
+    public IReadOnlyList<Line> Rows(int width, Draws<T> draw, Line between, Ordinals ordinals = default)
+    {
+        var lines = new List<Line>();
+
+        for (var at = 0; at < Count; at++)
+        {
+            if (at > 0)
+            {
+                lines.Add(between);
+            }
+
+            lines.AddRange(RowsOf(at, width, draw, ordinals));
+        }
+
+        return lines;
+    }
+
+    /// <inheritdoc cref="Rows(int, Draws{T}, Ordinals)" />
     /// <summary>The <paramref name="at" />th thing's rows on their own, stamped the same way and with no rule after.</summary>
     /// <remarks>
     ///     For the two screens that put something of their own between the things — search, whose three kinds each get

@@ -127,14 +127,39 @@ public class DiscoverScreenTests
         Assert.True(unheaded < heading);
     }
 
-    /// <summary>A row is the byline and nothing else: the heading above has already said why they are there.</summary>
+    /// <summary>
+    ///     A row is the Account block every listing draws and nothing else: the heading above has already said why
+    ///     they are there, and somebody found here reads the way they read on the screen they are opened from (#198).
+    /// </summary>
     [Fact]
-    public void Lines_DrawARowAsTheBylineAndNothingElse()
+    public void Lines_DrawARowAsTheSharedAccountBlock()
     {
         var screen = Discovering(Offered("alice", SuggestionReason.FriendsOfFriends));
 
         // Past the one column the gutter takes, which every list on this shell stamps and no screen draws itself.
-        Assert.Equal("Alice @alice@hachyderm.io", Row(screen, "alice@hachyderm.io")[1..]);
+        Assert.Equal(
+            ["Alice", "@alice@hachyderm.io", "4,210 posts · 187 following · 1,203 followers", "Joined Jan 2020"],
+            Row(screen, "alice@hachyderm.io").Select(row => row[1..]));
+    }
+
+    /// <summary>
+    ///     A blank stands between two people, since four-row blocks laid end to end run together — and none where a
+    ///     heading is already standing between them, that bringing its own.
+    /// </summary>
+    [Fact]
+    public void Lines_PutOneBlankBetweenPeopleInTheSameSection()
+    {
+        var screen = Discovering(
+            Offered("alice", SuggestionReason.FriendsOfFriends),
+            Offered("ben", SuggestionReason.FriendsOfFriends));
+
+        var rows = screen.Lines(At61).Select(line => line.Text).ToList();
+
+        var alice = rows.FindIndex(row => row.Contains("@alice@hachyderm.io", StringComparison.Ordinal));
+        var ben = rows.FindIndex(row => row.Contains("@ben@hachyderm.io", StringComparison.Ordinal));
+
+        Assert.Equal(5, ben - alice);
+        Assert.Equal(string.Empty, rows[alice + 3].Trim());
     }
 
     /// <summary>
@@ -147,11 +172,11 @@ public class DiscoverScreenTests
 
         screen.Stands(Following("alice"));
 
-        Assert.Contains(" · following", Row(screen, "alice@hachyderm.io"));
+        Assert.Contains(" · following", Facts(screen, "alice@hachyderm.io"));
 
         screen.Stands(Person("alice") with { Standing = AnAccount.Standing() });
 
-        Assert.DoesNotContain(" · following", Row(screen, "alice@hachyderm.io"));
+        Assert.DoesNotContain(" · following", Facts(screen, "alice@hachyderm.io"));
     }
 
     /// <summary>A follow that only got as far as a request says so, the way the account screen's own does.</summary>
@@ -162,7 +187,7 @@ public class DiscoverScreenTests
 
         screen.Stands(Person("alice") with { Standing = AnAccount.Standing(followRequested: true) });
 
-        Assert.Contains(" · asked", Row(screen, "alice@hachyderm.io"));
+        Assert.Contains(" · asked", Facts(screen, "alice@hachyderm.io"));
     }
 
     /// <summary><c>d</c> appends its own suffix, and both suffixes stand together where both are true.</summary>
@@ -174,7 +199,7 @@ public class DiscoverScreenTests
         screen.Stands(Following("alice"));
         screen.Dismissed("alice");
 
-        Assert.Contains(" · following · dismissed", Row(screen, "alice@hachyderm.io"));
+        Assert.Contains(" · following · dismissed", Facts(screen, "alice@hachyderm.io"));
     }
 
     /// <summary>
@@ -244,7 +269,7 @@ public class DiscoverScreenTests
         screen.Stands(Following("alice"));
         screen.Dismissed("alice");
 
-        var row = screen.Lines(At61).Single(line => line.Text.Contains("alice@hachyderm.io", StringComparison.Ordinal));
+        var row = screen.Lines(At61).Single(line => line.Text.EndsWith("following · dismissed", StringComparison.Ordinal));
 
         Assert.All(
             row.Spans.Where(span => span.Text.Contains('·')),
@@ -352,6 +377,19 @@ public class DiscoverScreenTests
         [.. screen.Lines(At61).Where(line => line.Heads).Select(line => line.Text.Trim())];
 
     /// <summary>The one row <paramref name="address" /> is drawn on.</summary>
-    private static string Row(DiscoverScreen screen, string address) =>
-        screen.Lines(At61).Single(line => line.Text.Contains(address, StringComparison.Ordinal)).Text;
+    private static IReadOnlyList<string> Row(DiscoverScreen screen, string address)
+    {
+        var lines = screen.Lines(At61);
+
+        // Found by the handle, which is the one row of a block carrying an address — and the name is the row above it.
+        var handle = lines
+            .Select((line, at) => (line.Text, At: at))
+            .Single(found => found.Text.Contains($"@{address}", StringComparison.Ordinal))
+            .At;
+
+        return [.. lines.Skip(handle - 1).Take(4).Select(line => line.Text)];
+    }
+
+    /// <summary>Row 4 of that block: the month they joined, their flags, and what the reader has done here.</summary>
+    private static string Facts(DiscoverScreen screen, string address) => Row(screen, address)[3];
 }

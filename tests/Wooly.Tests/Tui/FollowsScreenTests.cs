@@ -405,11 +405,42 @@ public class FollowsScreenTests
         Assert.Equal(1, rules);
     }
 
-    /// <summary>A row says where the reader stands with them, and leaves out what the list itself already says.</summary>
+    /// <summary>
+    ///     A blank between people all the same, since four-row Account blocks laid end to end run together — one row
+    ///     rather than the full-width line a rule would cost (#198).
+    /// </summary>
+    [Fact]
+    public void Lines_PutOneBlankBetweenPeopleAndNoneAfterTheLast()
+    {
+        var screen = Of();
+
+        screen.Arrived([Person("a"), Person("b")], more: false);
+
+        var rows = Rows(screen);
+
+        // Found by the handle rather than counted from the top, so the count above the list is free to change.
+        var handles = rows
+            .Select((row, at) => (Row: row, At: at))
+            .Where(found => found.Row.EndsWith("@here.social", StringComparison.Ordinal))
+            .Select(found => found.At)
+            .ToList();
+
+        Assert.Equal(2, handles.Count);
+
+        // Four rows and the one blank between them, which stands under the first block's joined row.
+        Assert.Equal(5, handles[1] - handles[0]);
+        Assert.Equal(string.Empty, rows[handles[0] + 3]);
+        Assert.NotEmpty(rows[^1]);
+    }
+
+    /// <summary>
+    ///     A row says where the reader stands with them on the Account block's fourth row, beside the month they
+    ///     joined — and leaves out what the list itself already says (#198).
+    /// </summary>
     [Theory]
-    [InlineData(false, FollowSide.Following, "▌Maria @maria@fosstodon.org  following · follows you")]
-    [InlineData(true, FollowSide.Following, "▌Maria @maria@fosstodon.org  follows you")]
-    [InlineData(true, FollowSide.Followers, "▌Maria @maria@fosstodon.org  following")]
+    [InlineData(false, FollowSide.Following, "▌Joined Jan 2020 · following · follows you")]
+    [InlineData(true, FollowSide.Following, "▌Joined Jan 2020 · follows you")]
+    [InlineData(true, FollowSide.Followers, "▌Joined Jan 2020 · following")]
     public void Lines_DrawAPersonAsTheListImplies(bool mine, FollowSide side, string row)
     {
         var screen = new FollowsScreen(AnAccount.With(), side, mine);

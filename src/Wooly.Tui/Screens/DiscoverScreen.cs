@@ -15,10 +15,11 @@ namespace Wooly.Tui.Screens;
 ///     reason gets one, weak ones included: a heading is what makes "most followed here" readable <i>as</i> weak
 ///     rather than an unexplained row, and the reader discounts it themselves.
 ///     <para>
-///         A row is a plain <see cref="AccountLines.Byline" /> and no relationships call — a deliberate departure from
-///         the follow list's recipe. Mastodon's suggestion sources exclude accounts already followed, dismissed or
-///         blocked, so a standing suffix would be blank on every row by construction; this screen is one call, not two
-///         (ADR-0019). What the suffixes say is what the reader has done here, since arriving.
+///         A row is the shared <see cref="AccountLines.Block" /> every listing draws, and still no relationships
+///         call — a deliberate departure from the follow list's recipe. Mastodon's suggestion sources exclude accounts
+///         already followed, dismissed or blocked, so a standing word would be blank on every row by construction;
+///         this screen is one call, not two (ADR-0019, #198). What row 4 says beyond the joined month and the flags is
+///         what the reader has done here, since arriving.
 ///     </para>
 ///     <para>
 ///         <strong>Nothing moves.</strong> No row vanishes, no row reorders and no heading recounts as the reader
@@ -33,7 +34,7 @@ namespace Wooly.Tui.Screens;
 /// </remarks>
 public sealed class DiscoverScreen : Screen
 {
-    /// <summary>What each suffix is joined on by, which is also what puts one after the byline.</summary>
+    /// <summary>What the two suffixes are joined on by, which is what the Account block joins its row 4 on too.</summary>
     private const string Joined = " · ";
 
     /// <summary>What <c>d</c> appends, which never comes off again: there is no un-dismiss endpoint.</summary>
@@ -170,18 +171,27 @@ public sealed class DiscoverScreen : Screen
             lines.Add(Line.Blank);
         }
 
-        // No rule between people, and the headings to separate the runs instead: there is one kind of thing on this
-        // list and every one of them is a single row, so a rule apiece would be forty rows of horizontal line — the
-        // same judgement the follow list made (#180).
+        // No rule between people, and a blank instead: there is one kind of thing on this list and nothing to
+        // separate it from, so a rule apiece would be forty rows of horizontal line — the same judgement the follow
+        // list made (#180). The blank is what keeps two four-row Account blocks from running together (#198). Its own
+        // loop rather than Picked.Rows's, because this screen splices a heading between two people and that brings a
+        // blank of its own (see Heading).
         for (var at = 0; at < _offered.Count; at++)
         {
-            lines.AddRange(Heading(at, width));
+            var heading = Heading(at, width);
+
+            if (at > 0 && heading.Count == 0)
+            {
+                lines.Add(Line.Blank);
+            }
+
+            lines.AddRange(heading);
             lines.AddRange(_offered.RowsOf(at, width, Draw));
         }
 
         return lines;
 
-        IReadOnlyList<Line> Draw(Offer offer, int _, int room) => [Row(offer, room)];
+        IReadOnlyList<Line> Draw(Offer offer, int _, int room) => Row(offer, drawing.In(room));
     }
 
     /// <summary>
@@ -262,11 +272,16 @@ public sealed class DiscoverScreen : Screen
     private static int Ranked(SuggestionReason? reason) => reason is { } named ? (int)named : int.MaxValue;
 
     /// <summary>
-    ///     One person as a row: their byline, and what the reader has done to them since arriving. Nothing else — the
-    ///     heading above has already said why they are there, and a row never says what the list it is on already
-    ///     says.
+    ///     One person as an Account block, with what the reader has done to them since arriving on its fourth row.
+    ///     Nothing else — the heading above has already said why they are there, and a row never says what the list it
+    ///     is on already says.
     /// </summary>
-    private static Line Row(Offer offer, int width) => AccountLines.Beside(offer.Person, width, Suffix(offer));
+    /// <remarks>
+    ///     The same block a search result, a follow request and a follow list draw, so somebody found here reads the
+    ///     way they read on the screen they are opened from (#198).
+    /// </remarks>
+    private static IReadOnlyList<Line> Row(Offer offer, Drawing drawing) =>
+        AccountLines.Block(offer.Person, drawing, Suffix(offer));
 
     /// <summary>
     ///     What the two keys have left on this row — a follow and a dismissal being different things and both able to
@@ -291,7 +306,8 @@ public sealed class DiscoverScreen : Screen
             said.Add(DismissedSaid);
         }
 
-        return said.Count == 0 ? string.Empty : Joined + string.Join(Joined, said);
+        // Joined but not led by a separator: what puts it after the flags is the block's own row-4 join (#198).
+        return string.Join(Joined, said);
     }
 
     /// <summary>

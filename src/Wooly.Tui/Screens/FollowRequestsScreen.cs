@@ -73,9 +73,13 @@ public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string?
             lines.Add(Line.Blank);
         }
 
+        // A blank between people rather than the rule this list used to draw after each of them: four-row Account
+        // blocks laid end to end run together, and a blank costs the one row a rule would while leaving the list
+        // looking like the list of people it is (#198).
         lines.AddRange(_waiting.Rows(
             drawing.Width,
-            (account, _, room) => [AccountLines.Byline(account, room), AccountLines.Presence(account, room)]));
+            (account, _, room) => AccountLines.Block(account, drawing.In(room)),
+            Line.Blank));
 
         return lines;
     }

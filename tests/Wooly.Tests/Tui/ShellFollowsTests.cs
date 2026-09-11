@@ -133,7 +133,7 @@ public class ShellFollowsTests
         var follows = Assert.IsType<FollowsScreen>(opened.Screen);
 
         Assert.True(follows.People[0].Standing?.FollowedBy);
-        Assert.Contains("▌Maria @maria@fosstodon.org  follows you", Rows(follows));
+        Assert.Contains("▌Joined Jan 2020 · follows you", Rows(follows));
     }
 
     /// <summary>
@@ -150,7 +150,8 @@ public class ShellFollowsTests
         var follows = Assert.IsType<FollowsScreen>(opened.Screen);
 
         Assert.Null(follows.People[0].Standing);
-        Assert.Contains("▌Maria @maria@fosstodon.org", Rows(follows));
+        Assert.Contains("▌@maria@fosstodon.org", Rows(follows));
+        Assert.Contains("▌Joined Jan 2020", Rows(follows));
     }
 
     /// <summary>⏎ opens the account screen of whoever is picked out, the same screen <c>a</c> opens from a feed.</summary>
