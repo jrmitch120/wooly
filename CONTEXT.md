@@ -197,9 +197,17 @@ The account screen's **header block** is *the Account block plus* the **Bio**, t
 **Standing** — the same four rows, extracted rather than copied, then its own sections underneath. That is the whole
 of the difference between the two names: one lists somebody and the other is about them, so only the header carries
 anything to walk, and `←`/`→` reach nothing inside a listing's block.
-It costs no call. Every endpoint that lists accounts answers with full account entities, so each field is already in
-hand — only a **Standing** is not sent, and only a follow list asks for one. What a screen adds is its own word:
-the compact standing on a follow list, and what the reader has done since arriving on Discover.
+The block itself costs no call: every endpoint that lists accounts answers with full account entities, so each field
+is already in hand. Only a **Standing** is not sent, and every screen that lists accounts asks for one — a single
+batched relationships call per page — unless it has a reason not to. **Discover** is the one exception: Mastodon's
+suggestion sources exclude accounts already followed, dismissed or blocked, so a fetched standing would be blank on
+every row by construction (ADR-0019). What a screen adds is its own word: the compact standing on a **Follow list**,
+on the **Follow request**s and on search's accounts run, and what the reader has done since arriving on Discover.
+A row says what the list it is on does not already say, wherever the block is drawn (`Implied`): your own following
+list drops "you follow them", your own followers list drops "they follow you", and a list that implies nothing —
+somebody else's follows, a search, a page of requests — says the whole compact **Standing**. A page of requests
+implies only a *negative*, "they follow you" being false by definition of a request still waiting, and a compact
+standing only ever adds words for positives, so it has nothing to suppress either.
 A **Notification** about a follow is not one of these. Its row says who did what and how long ago, which is an event
 rather than a person, and it keeps its own shape.
 _Avoid_: byline (which is a **post**'s author line, and one row), card
@@ -238,9 +246,6 @@ followers count is not — and an account with hundreds of thousands of follower
 list to promise a search over. Narrowing is the reader's own, done here rather than asked of the instance: the only
 server-side narrowing Mastodon offers reaches the signed-in account's own follows, matches a handle's opening letters
 and nothing in a **Bio**, and caps at one page, so it can never answer for both sides of this screen.
-A row here says what the list it is on does not already say, which is the rule that keeps a person reading one way
-everywhere: your own following list drops "you follow them", your own followers list drops "they follow you", and
-somebody else's implies nothing and says the whole **Standing**.
 _Avoid_: follower list (for the pair of them), contacts, friends
 
 **Familiar followers**:

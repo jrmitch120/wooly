@@ -366,6 +366,19 @@ public class ShellDiscoverTests
         fakes.Host.Drain();
     }
 
+    /// <summary>
+    ///     Discover is the one listing screen that asks for no standing, and stayed that way when the other two
+    ///     started asking (#204): Mastodon's suggestion sources exclude accounts already followed, dismissed or
+    ///     blocked, so the word would be blank on every row by construction (ADR-0019).
+    /// </summary>
+    [Fact]
+    public async Task Step_AsksForNoStandingAtAll()
+    {
+        var (fakes, _) = await OnDiscover();
+
+        Assert.Empty(fakes.Accounts.Standings);
+    }
+
     /// <summary>A shell that has arrived at Discover, holding <paramref name="suggested" />.</summary>
     private static async Task<(AShell Fakes, Shell Opened)> OnDiscover(params Suggestion[] suggested)
     {

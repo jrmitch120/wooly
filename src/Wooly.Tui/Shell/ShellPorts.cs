@@ -1,8 +1,10 @@
+using Wooly.Core.Accounts;
 using Wooly.Core.Conversations;
 using Wooly.Core.Discovery;
 using Wooly.Core.Http;
 using Wooly.Core.Notifications;
 using Wooly.Core.Posts;
+using Wooly.Core.Profiles;
 using Wooly.Core.Relationships;
 using Wooly.Core.Search;
 using Wooly.Core.Timelines;
@@ -42,4 +44,35 @@ public sealed record ShellPorts(
     IDirectMessages Messages,
     IInstanceSearch Search,
     IFollowSuggestions Suggestions,
-    IRateLimitReport RateLimit);
+    IRateLimitReport RateLimit)
+{
+    /// <summary>
+    ///     Where the profile stands with <paramref name="people" />, or them exactly as they came where the instance
+    ///     never answered — which is what draws a silent row. The silence rule, in the one place every screen that
+    ///     decorates a list of people reads it from (#204).
+    /// </summary>
+    /// <remarks>
+    ///     Named apart from <see cref="IAccountRelationships.Standing" /> rather than wrapping it under the same word:
+    ///     the two are one hop apart and their null contracts are opposites, so the name says which one this is — it
+    ///     never answers nothing, and what nothing became is a silent row.
+    ///     <para>
+    ///         Written here rather than at each of the three call sites, because the <c>?? people</c> is the half that
+    ///         is easy to leave out: a caller letting the null through would draw rows saying there is no tie
+    ///         because the asking failed, which is the one dishonest thing a list of people can say.
+    ///     </para>
+    ///     <para>
+    ///         No non-empty guard, and none wanted at a call site either:
+    ///         <see cref="IAccountRelationships.Standing" /> answers an empty ask with its own input before it
+    ///         reaches an instance, so a list with nobody on it costs nothing by the port's own rule rather than by
+    ///         one each caller remembers.
+    ///     </para>
+    /// </remarks>
+    /// <param name="profile">Whose instance is being asked.</param>
+    /// <param name="people">Whoever is to be decorated, in the order they are drawn.</param>
+    /// <param name="cancellationToken">The enquiry's own token.</param>
+    public async Task<IReadOnlyList<Account>> StoodOrSilent(
+        ActiveProfile profile,
+        IReadOnlyList<Account> people,
+        CancellationToken cancellationToken) =>
+        await Accounts.Standing(profile, people, cancellationToken) ?? people;
+}

@@ -205,7 +205,12 @@ public sealed class SearchScreen : Screen
 
         IReadOnlyList<Line> Draw(Result result, int at, int room) => result switch
         {
-            Result.OfAccount(var account) => AccountLines.Block(account, drawing.In(room)),
+            // Nothing implied: a page of search results claims nothing of anybody on it, so the whole compact
+            // standing is worth drawing — and nothing at all where the instance was never asked (#204).
+            Result.OfAccount(var account) => AccountLines.Block(
+                account,
+                drawing.In(room),
+                AccountLines.Compact(account.Standing)),
             Result.OfHashtag(var hashtag) => [Tag(hashtag, room, columns)],
             Result.OfPost(var post) => PostLines.Feed(post, drawing.In(room), ReadingOf(post, at)),
             _ => [],

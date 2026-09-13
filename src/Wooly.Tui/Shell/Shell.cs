@@ -670,8 +670,11 @@ public sealed class Shell
 
     /// <summary>Asks the instance for what has been typed into the prompt.</summary>
     /// <remarks>
-    ///     A search is one call, so a rate limit leaves nothing to draw and is waited out rather than half-answered
-    ///     (ADR-0011) — which <see cref="Enquiry" /> already does, and is why this reads like every other fetch here.
+    ///     The search itself is one call, so a rate limit leaves nothing to draw and is waited out rather than
+    ///     half-answered (ADR-0011) — which <see cref="Enquiry" /> already does, and is why this reads like every
+    ///     other fetch here. The standing the accounts run is then decorated with is the second call and is not that
+    ///     kind of call: it answers with nothing where it was refused, so a rate limit there costs the suffix and
+    ///     leaves the results standing (<see cref="Searched" />).
     /// </remarks>
     public async Task Find()
     {
@@ -692,7 +695,7 @@ public sealed class Shell
         var query = SearchQuery.For(search.Query);
 
         await _enquiry.Put(
-            ask => ask.Of(token => _ports.Search.Find(_profile, query, token)),
+            ask => Searched(ask, query),
             ifStillHere: found =>
             {
                 if (Screen is not SearchScreen still)
@@ -703,6 +706,32 @@ public sealed class Shell
                 still.Found(query.Text, found);
                 Changed?.Invoke();
             });
+    }
+
+    /// <summary>
+    ///     What a search found, with the accounts among it carrying where the reader stands with them — two calls
+    ///     under one enquiry, so the screen paints once with the standings already in place rather than putting
+    ///     results up and decorating them a moment later (#204).
+    /// </summary>
+    /// <remarks>
+    ///     A run of no accounts costs nothing: the port answers an empty ask with its own input before it reaches an
+    ///     instance, so a hashtag-only or post-only search makes the one call it always made. A run that was not
+    ///     asked for at all stays <see langword="null" /> rather than becoming empty — that distinction is the whole
+    ///     reason <see cref="SearchResults" /> exists.
+    ///     <para>
+    ///         Unchunked, unlike the follow list's, because a search's accounts run cannot outgrow one ask: Mastodon
+    ///         caps <c>/api/v2/search</c> at 40 of each kind and the relationships endpoint takes 80 ids. Nothing in
+    ///         this client enforces that cap, so a future instance that served more would make this two calls rather
+    ///         than one — which costs a call and never a wrong row.
+    ///     </para>
+    /// </remarks>
+    private async Task<SearchResults> Searched(Enquiry.Ask ask, SearchQuery query)
+    {
+        var found = await ask.Of(token => _ports.Search.Find(_profile, query, token));
+
+        return found.Accounts is { } accounts
+            ? found with { Accounts = await ask.Of(token => _ports.StoodOrSilent(_profile, accounts, token)) }
+            : found;
     }
 
     /// <summary>
@@ -1405,9 +1434,7 @@ public sealed class Shell
         // rather than one following the other's size (#180).
         foreach (var page in read.Chunk(FollowsPage))
         {
-            var answered = await ask.Of(token => _ports.Accounts.Standing(_profile, page, token));
-
-            stood.AddRange(answered ?? page);
+            stood.AddRange(await ask.Of(token => _ports.StoodOrSilent(_profile, page, token)));
         }
 
         return new Listing([.. fetch.Items.Take(already), .. stood], fetch.StoppedBy);

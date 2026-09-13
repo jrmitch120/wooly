@@ -38,7 +38,11 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
     /// <summary>Every ask for who two accounts have in common, in order.</summary>
     public List<Familiar> Familiars { get; } = [];
 
-    /// <summary>Every batched ask for where the profile stands with a page of accounts, in order.</summary>
+    /// <summary>
+    ///     Every batched ask for where the profile stands with a page of accounts that <em>reached the instance</em>,
+    ///     in order. An empty ask is not one of them, this fake gating it exactly as the adapter does — so a test
+    ///     reading this is asking "what did the instance hear", which is what a call costs anything to make.
+    /// </summary>
     public List<Stood> Standings { get; } = [];
 
     /// <summary>
@@ -142,11 +146,23 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
     ///     Answers with the accounts it was given, each carrying <see cref="Stands" /> — or with nothing at all where
     ///     that is what a test set, which is the state a list draws no standing on at all.
     /// </summary>
+    /// <remarks>
+    ///     An empty ask answers its own input and is not recorded, exactly as the adapter does: it returns before it
+    ///     creates a client, so no instance hears about it. That the port really does gate it — rather than this fake
+    ///     alone believing so — is pinned against real HTTP by
+    ///     <c>AccountRelationshipsTests.Standing_AsksNothingOfTheInstanceForAnEmptyList</c>, which is what lets the
+    ///     shell's own callers go on with no guard of their own (#204).
+    /// </remarks>
     public Task<IReadOnlyList<Account>?> Standing(
         ActiveProfile profile,
         IReadOnlyList<Account> accounts,
         CancellationToken cancellationToken)
     {
+        if (accounts.Count == 0)
+        {
+            return Task.FromResult<IReadOnlyList<Account>?>(accounts);
+        }
+
         Standings.Add(new Stood(profile.Name, [.. accounts.Select(account => account.Id)]));
 
         return Task.FromResult<IReadOnlyList<Account>?>(
