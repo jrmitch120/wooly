@@ -71,10 +71,15 @@ public static class TextWrap
     ///     <paramref name="text" /> cut to <paramref name="width" />, with the cut marked, for the places that get one
     ///     row however long the text is — a rail entry, a one-line summary of a post.
     /// </summary>
+    /// <remarks>
+    ///     Cut by the columns a terminal will draw rather than by the characters, and never inside one of the things a
+    ///     reader would call a character (#207): the ellipsis is the last column of the row, and what comes back may
+    ///     be a column short of the width where a two-column character stood at the cut.
+    /// </remarks>
     public static string Clip(string text, int width) => width <= 0 ? string.Empty
-        : text.Length <= width ? text
+        : Glyphs.Columns(text) <= width ? text
         : width == 1 ? "…"
-        : text[..(width - 1)] + "…";
+        : Glyphs.Cut(text, width - 1) + "…";
 
     /// <summary>
     ///     The rows <c>text[from..to]</c> takes, added to <paramref name="rows" /> — one paragraph, which is as far as
@@ -108,18 +113,20 @@ public static class TextWrap
                 at++;
             }
 
-            if (to - at <= width)
+            // Where the row's columns run out, which is where its characters run out only for Latin text: the edge
+            // is asked for in the columns a terminal draws in and answered as an index into the text (#207).
+            var edge = Glyphs.Reach(text, at, to, width);
+
+            if (edge == to)
             {
                 rows.Add(new Row(text[at..to], at));
 
                 return;
             }
 
-            var edge = at + width;
-
             // The last place a space could break this row, which is the most words that fit on it. Searching back
             // from the edge rather than forward from the start is the same greedy fit said in one call.
-            var space = text.LastIndexOf(' ', edge, edge - at);
+            var space = edge > at ? text.LastIndexOf(' ', edge, edge - at) : -1;
 
             if (space < 0)
             {
@@ -127,8 +134,14 @@ public static class TextWrap
                 // at the edge rather than shortened away. An address is the usual one, and half of an address is
                 // worth more to a reader than an ellipsis — and the half below still knows where it came from, which
                 // is what keeps it part of the same reference.
-                rows.Add(new Row(text[at..edge], at));
-                at = edge;
+                //
+                // Where not even one character fits — a region narrower than the character standing at the front of
+                // it — that character is drawn anyway, on a row of its own: a row holding nothing is a row this never
+                // gets past.
+                var cut = edge > at ? edge : Glyphs.Past(text, at, to);
+
+                rows.Add(new Row(text[at..cut], at));
+                at = cut;
 
                 continue;
             }

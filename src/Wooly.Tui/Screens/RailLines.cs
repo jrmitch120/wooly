@@ -76,8 +76,8 @@ public static class RailLines
 
         var mark = at == rail.Cursor ? CursorMark : at == rail.Current ? SettledMark : " ";
         var unread = destination.Unread > 0 ? destination.Unread.ToString(CultureInfo.CurrentCulture) : string.Empty;
-        var room = Width - mark.Length - 1 - unread.Length;
-        var label = TextWrap.Clip(destination.Label, room).PadRight(room);
+        var room = Width - Glyphs.Columns(mark) - 1 - Glyphs.Columns(unread);
+        var label = Glyphs.Padded(TextWrap.Clip(destination.Label, room), room);
 
         return Line.Of([
             new Span($"{mark} ", role),
@@ -94,7 +94,7 @@ public static class RailLines
         quota is null
             ? Line.Of(new string(' ', Width), Role.Quota)
             : Line.Of(
-                TextWrap.Clip($" {Spent(quota)}", Width).PadRight(Width),
+                Glyphs.Padded(TextWrap.Clip($" {Spent(quota)}", Width), Width),
                 quota.Fraction <= NearlySpent ? Role.QuotaLow : Role.Quota),
     ];
 }

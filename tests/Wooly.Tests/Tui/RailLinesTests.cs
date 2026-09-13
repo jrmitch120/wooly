@@ -67,6 +67,27 @@ public class RailLinesTests
     }
 
     /// <summary>
+    ///     A rail entry is as many columns wide as the rail, whatever its label is written in. A hashtag rail entry
+    ///     takes the tag's own name, and one written in a two-column script padded out by its characters would be
+    ///     drawn past the rail and into the content beside it (#207).
+    /// </summary>
+    [Theory]
+    [InlineData("#ドット絵")]
+    [InlineData("#ドット絵のアカウントですどうぞ")]
+    [InlineData("#photography")]
+    public void Of_PadsARailEntryToTheRailsColumnsWhateverItsLabelIsWrittenIn(string label)
+    {
+        var rail = new Rail(
+            [new Destination(DestinationKind.Hashtag, label)],
+            new FakeShellHost(),
+            TimeSpan.FromMilliseconds(250));
+
+        var lines = RailLines.Of(rail, null, height: 10);
+
+        Assert.Equal(RailLines.Width, lines[0].Width);
+    }
+
+    /// <summary>
     ///     The rail's two rules fall either side of the group Discover joined: the four timelines above the first,
     ///     the five you-go-to-them destinations between, and the profile's own account below the second (#181).
     /// </summary>

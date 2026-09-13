@@ -370,7 +370,7 @@ public sealed class FollowsScreen : Screen
     private Line Prompt(int width)
     {
         const string label = "Filter: ";
-        var typed = TextWrap.Clip(Filter, Math.Max(0, width - label.Length - 1));
+        var typed = TextWrap.Clip(Filter, Math.Max(0, width - Glyphs.Columns(label) - 1));
 
         return _typing
             ? Line.Of([new Span(label, Role.Muted), new Span(typed, Role.Body), new Span("▌", Role.Selection)])

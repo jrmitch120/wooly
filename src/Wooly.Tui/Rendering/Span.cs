@@ -29,8 +29,8 @@ public readonly record struct Span(string Text, Role Role)
     /// <summary>The width this takes on screen, which is the width every layout is measured in.</summary>
     /// <remarks>
     ///     Measured off <see cref="Text" /> after that, so a layout weighing a name against the room beside it weighs
-    ///     what will be drawn rather than what arrived (#206). Still a count of characters, which a script whose
-    ///     characters take two columns is still counted wrong by (#207).
+    ///     what will be drawn rather than what arrived (#206) — and measured in the columns a terminal draws in rather
+    ///     than in characters, which are not the same number for anything but Latin text (#207).
     /// </remarks>
-    public int Width => Text.Length;
+    public int Width => Glyphs.Columns(Text);
 }

@@ -260,7 +260,7 @@ public sealed class ComposeScreen : Screen
     private Line WarningRow(int width)
     {
         const string mark = PostLines.WarningMark;
-        var room = Math.Max(0, width - mark.Length);
+        var room = Math.Max(0, width - Glyphs.Columns(mark));
 
         if (WritingTheWarning)
         {

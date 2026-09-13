@@ -33,6 +33,15 @@ not something else. None of that code is production code.
 At 80 columns this leaves the content 61. That is the width every screen must read well at — it is the narrow case the
 right-hand context pane failed (ADR-0014).
 
+Every one of those numbers is **columns a terminal draws in, never characters**. `ドット絵アカウント` is nine characters
+and eighteen columns, `é` written as a letter and a combining mark is two characters and one column, and a row padded
+or wrapped by its characters is a row drawn at some other width than the one it was laid out in — too wide and the
+terminal wraps the overflow onto the next row, too narrow and the row stops short of the edge (#207). So one measure
+answers for the whole shell, `Glyphs.Columns`, off Terminal.Gui's own reading of a rune's width: `Span.Width` reads it,
+`TextWrap` wraps and clips by it, `Glyphs.Padded` pads by it, and the view paints by it. Nothing in the TUI lays out by
+`string.Length`. Cuts land between graphemes, never inside one — half of a ZWJ sequence, or a base parted from its
+combining mark, is something nobody wrote.
+
 ## Screens, and who owns them
 
 A screen is a place in the stack, not a window. Entering one pushes, `esc` pops, and the breadcrumb is the stack.
@@ -757,10 +766,11 @@ doing so it became the first screen in the shell whose pick is not a post (#164,
   `Role.Muted` and there is **no verified role** — Mastodon only verifies links, so the mark always lands on something
   already coloured, and an unverified field says nothing extra.
 - **The flags read `⚙ bot` and `⚿ locked`, and there is no emoji anywhere.** The word carries and the glyph decorates,
-  so a terminal drawing either as a box loses nothing. 🤖 and 🔒 are astral, `TextWrap.Clip` cuts by `char` on
-  `text.Length` so a clip landing mid-pair draws a broken glyph, and their column width is terminal-dependent. Every
-  glyph the TUI uses today is BMP and one column — `○ ◌ ● ✉ ⚠ ▒ ⏵ ★ ↺ ▌ ▷ ▶ ‹ ›` — and it stays that way until
-  something makes `TextWrap` rune-aware, which is a shell-wide change no feature should smuggle in.
+  so a terminal drawing either as a box loses nothing. 🤖 and 🔒 are astral and their column width is
+  terminal-dependent — Terminal.Gui, the terminal and this client need not agree on it, which is the disagreement the
+  chrome should not be built on. A clip landing mid-pair is no longer one of the reasons: since #207 the shell measures
+  in columns and cuts between graphemes. Every glyph the TUI uses of its own is BMP and one column — `○ ◌ ● ✉ ⚠ ▒ ⏵ ★ ↺
+  ▌ ▷ ▶ ‹ ›` — and somebody else's words are measured rather than assumed.
 - **Your own note about them is drawn whole**, `Your note: <text>` in `Role.Muted`, wrapped rather than clipped: it is
   the reader's own writing, and cutting it would be cutting their words. It costs no call — it has been arriving on
   every relationship payload and being dropped (ADR-0012's amendment).

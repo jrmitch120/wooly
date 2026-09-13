@@ -5,6 +5,9 @@ using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Theme;
 
+// Terminal.Gui has a Glyphs of its own — its box-drawing characters — and this file is the one that draws into it.
+using Glyphs = Wooly.Tui.Rendering.Glyphs;
+
 namespace Wooly.Tui.Views;
 
 /// <summary>
@@ -319,12 +322,15 @@ internal sealed class PaintedView : View
                     break;
                 }
 
-                var text = span.Text.Length > width - column ? span.Text[..(width - column)] : span.Text;
+                // Cut and stepped along in the columns a terminal draws in rather than in characters: the run being
+                // painted is the one thing here that knows both, and a row of two-column characters cut by its
+                // characters is a row painted twice as far right as it was laid out (#207).
+                var text = Glyphs.Cut(span.Text, width - column);
 
                 SetAttribute(_theme.For(span.Role));
                 AddStr(column, row, text);
 
-                column += text.Length;
+                column += Glyphs.Columns(text);
             }
         }
 

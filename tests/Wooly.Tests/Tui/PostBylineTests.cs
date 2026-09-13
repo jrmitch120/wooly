@@ -369,6 +369,49 @@ public class PostBylineTests
         Assert.StartsWith("An Amazing Wizard\u27A1KICKSTARTER ", name.Text, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    ///     A byline fills the room it was given exactly, whatever the name is written in. Measured by its characters,
+    ///     a nine-character CJK display name is nine columns narrower than what the terminal draws, so the row was
+    ///     padded nine columns past the right margin and the terminal wrapped the tail of it onto the rail — the same
+    ///     fault #206 fixed in its mildest one-column form, and the whole of what #207 is about.
+    /// </summary>
+    [Theory]
+    [InlineData("ドット絵アカウント")]
+    [InlineData("Party \U0001F389 Time")]
+    [InlineData("Family \U0001F468\u200D\U0001F469\u200D\U0001F467 Account")]
+    [InlineData("e\u0301clair enjoyer")]
+    public void Feed_FillsTheBylineToTheRoomInColumnsWhateverTheNameIsWrittenIn(string author)
+    {
+        var lines = Feed(By(author: author));
+
+        var name = lines.First(line => line.Has(Role.BylineName));
+
+        Assert.Equal(61, name.Width);
+        Assert.EndsWith("\u25CB 30m", name.Text, StringComparison.Ordinal);
+        Assert.All(lines, line => Assert.True(line.Width <= 61, $"'{line.Text}' is {line.Width} columns"));
+    }
+
+    /// <summary>
+    ///     And the body under it is broken to the columns the region has rather than to the characters: a post
+    ///     written in a two-column script wrapped at twice the width it was given, every row (#207).
+    /// </summary>
+    [Theory]
+    [InlineData("ドット絵のアカウントです、よろしくおねがいします。きょうはとてもいいてんきですね。", 20)]
+    [InlineData("ドット絵のアカウントです、よろしくおねがいします。きょうはとてもいいてんきですね。", 61)]
+    [InlineData("\U0001F468\u200D\U0001F469\u200D\U0001F467\U0001F389ドット絵\U0001F389ドット絵\U0001F468\u200D\U0001F469\u200D\U0001F467ドット絵", 20)]
+    public void Feed_BreaksTheBodyToTheColumnsTheRegionHas(string said, int width)
+    {
+        var lines = Feed(APost.With(author: "Maria Ochoa", content: said), width);
+
+        Assert.All(lines, line => Assert.True(line.Width <= width, $"'{line.Text}' is {line.Width} columns"));
+
+        // And filling them: every row but the last of a script with nothing to break on stops one column short at
+        // most, where the last character of the row would have been half drawn.
+        Assert.All(
+            lines.Where(line => line.Role == Role.Body && line.Width > 0).SkipLast(1),
+            line => Assert.True(line.Width >= width - 1, $"'{line.Text}' is {line.Width} of {width} columns"));
+    }
+
     /// <summary>Nothing a byline draws runs past the room it was given, avatar and all.</summary>
     [Theory]
     [InlineData(20)]
