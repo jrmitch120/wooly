@@ -3,6 +3,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Spectre.Console.Testing;
 using Wooly.Cli;
 using Wooly.Core;
+using Wooly.Core.Accounts;
+using Wooly.Core.Errors;
 using Wooly.Core.Posts;
 using Wooly.Core.Credentials;
 using Wooly.Core.Profiles;
@@ -98,6 +100,177 @@ public class TimelineCommandTests : IDisposable
         Assert.Equal((int)ExitCode.UsageError, run.ExitCode);
         Assert.NotEmpty(run.ErrorOutput.Trim());
         Assert.Empty(_timelines.Reads);
+    }
+
+    /// <summary>
+    ///     The read the CLI never had (#185): an account's own posts, asked for by address the way the tag timeline is
+    ///     asked for by tag.
+    /// </summary>
+    [Theory]
+    [InlineData("account", TimelineScope.Account)]
+    [InlineData("pinned", TimelineScope.Pinned)]
+    public void Account_ReadsThePostsOfTheAccountNamed(string command, TimelineScope expected)
+    {
+        AddProfile();
+
+        var run = Run(["timeline", command, "alice@hachyderm.io"]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Contains("Hello world", run.Output);
+        Assert.Empty(run.ErrorOutput.Trim());
+
+        var read = Assert.Single(_timelines.Reads);
+        Assert.Equal(expected, read.Timeline.Scope);
+        Assert.Equal("alice@hachyderm.io", read.Timeline.Account?.Address.Text);
+
+        // A command line is an address a user typed, so nothing has been looked up yet: the read pays for the crossing
+        // itself, exactly as every other CLI read of a named account does.
+        Assert.Null(read.Timeline.Account?.Id);
+    }
+
+    /// <summary>
+    ///     A bare username means somebody on the profile's own instance, and is resolved before the timeline is built —
+    ///     so that what is read, what is reported and what <c>--json</c> names is a full <c>user@host</c> rather than a
+    ///     name that tells a saved file nothing about which server it came from.
+    /// </summary>
+    [Theory]
+    [InlineData("account")]
+    [InlineData("pinned")]
+    public void Account_ResolvesABareUsernameAgainstTheProfilesOwnInstance(string command)
+    {
+        AddProfile();
+
+        var run = Run(["timeline", command, "maria"]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Equal(
+            "maria@mastodon.social",
+            Assert.Single(_timelines.Reads).Timeline.Account?.Address.Text);
+    }
+
+    [Theory]
+    [InlineData("account")]
+    [InlineData("pinned")]
+    public void Account_ReportsAMissingAddressAsAUsageError(string command)
+    {
+        AddProfile();
+
+        var run = Run(["timeline", command]);
+
+        Assert.Equal((int)ExitCode.UsageError, run.ExitCode);
+        Assert.NotEmpty(run.ErrorOutput.Trim());
+        Assert.Empty(_timelines.Reads);
+    }
+
+    /// <summary>
+    ///     Turned down against the value the user typed, by the same rule and with the same words every other command
+    ///     taking an address uses (ADR-0012) — rather than reaching an instance as a name it could not look up.
+    /// </summary>
+    [Theory]
+    [InlineData("alice@")]
+    [InlineData("alice bob")]
+    [InlineData("alice@two@instances")]
+    public void Account_ReportsAnAddressThatNamesNoAccountAsAUsageError(string address)
+    {
+        AddProfile();
+
+        var run = Run(["timeline", "account", address]);
+
+        Assert.Equal((int)ExitCode.UsageError, run.ExitCode);
+        Assert.Contains("user@instance", run.ErrorOutput);
+        Assert.Empty(_timelines.Reads);
+    }
+
+    /// <summary>An account the instance cannot find is a value on the command line that is wrong, not a broken client.</summary>
+    [Fact]
+    public void Account_ReportsAnAccountTheInstanceCouldNotFindAsAUsageError()
+    {
+        AddProfile();
+        _timelines = FakeTimelineReader.Refusing(
+            new UnknownAccountException(AccountAddress.Parse("nobody@hachyderm.io"), "mastodon.social"));
+
+        var run = Run(["timeline", "account", "nobody@hachyderm.io"]);
+
+        Assert.Equal((int)ExitCode.UsageError, run.ExitCode);
+        Assert.Contains("could not find an account called nobody@hachyderm.io", run.ErrorOutput);
+    }
+
+    /// <summary>The shared paged-list options are inherited rather than rewritten, zero-limit rejection included.</summary>
+    [Theory]
+    [InlineData("account")]
+    [InlineData("pinned")]
+    public void Account_TakesTheSamePagedListOptionsEveryOtherListDoes(string command)
+    {
+        AddProfile();
+
+        Run(["timeline", command, "alice@hachyderm.io", "--limit", "60"]);
+
+        Assert.Equal(60, Assert.Single(_timelines.Reads).Limit);
+
+        var rejected = Run(["timeline", command, "alice@hachyderm.io", "--limit", "0"]);
+
+        Assert.Equal((int)ExitCode.UsageError, rejected.ExitCode);
+        Assert.Contains("at least one post", rejected.ErrorOutput);
+    }
+
+    /// <summary>
+    ///     A rate limit part way through an account's posts reports as it does on every other paged list: what arrived
+    ///     is printed, and the limit that stopped the rest is the failure.
+    /// </summary>
+    [Fact]
+    public void Account_ShowsThePostsItGotAndReportsTheRateLimitThatStoppedTheRest()
+    {
+        AddProfile();
+        _timelines = FakeTimelineReader.RateLimitedAfter(APost.With());
+
+        var run = Run(["timeline", "account", "alice@hachyderm.io"]);
+
+        Assert.Equal((int)ExitCode.RateLimited, run.ExitCode);
+        Assert.Contains("Hello world", run.Output);
+        Assert.Contains("Rate limited by mastodon.social", run.ErrorOutput);
+    }
+
+    /// <summary>
+    ///     Both new timelines are machine-readable, which they were not: the writer's scope-to-wire-name mapping covered
+    ///     four scopes and threw on these two (#185). The account is named in full, so a saved file says which server
+    ///     these posts came from.
+    /// </summary>
+    [Theory]
+    [InlineData("account")]
+    [InlineData("pinned")]
+    public void Account_NamesWhosePostsItReadInTheJsonItWrites(string command)
+    {
+        AddProfile();
+
+        var run = Run(["timeline", command, "maria", "--json"]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+
+        var timeline = JsonDocument.Parse(run.Output).RootElement;
+
+        Assert.Equal(command, timeline.GetProperty("timeline").GetString());
+        Assert.Equal("maria@mastodon.social", timeline.GetProperty("account").GetString());
+        Assert.Single(timeline.GetProperty("posts").EnumerateArray().ToList());
+        Assert.Equal(["timeline", "account", "complete", "posts"], FieldsOf(run));
+    }
+
+    /// <summary>
+    ///     The branch maps one-to-one onto the six timelines a profile can read, which is the whole of #185: a reader
+    ///     who can reach four of them and not the other two has no way to know the two exist.
+    /// </summary>
+    [Fact]
+    public void Timeline_OffersOneSubcommandPerTimelineAProfileCanRead()
+    {
+        AddProfile();
+
+        var help = Run(["timeline", "--help"]).Output;
+
+        Assert.Contains("home", help);
+        Assert.Contains("local", help);
+        Assert.Contains("federated", help);
+        Assert.Contains("tag", help);
+        Assert.Contains("account", help);
+        Assert.Contains("pinned", help);
     }
 
     /// <summary>CONTEXT.md's vocabulary, at the one place a user reads it: nothing on screen says reblog or toot.</summary>

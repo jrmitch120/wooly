@@ -46,6 +46,13 @@ internal sealed class FakeTimelineReader : ITimelineReader
             new RateLimitedException("mastodon.social", new DateTimeOffset(2026, 7, 29, 13, 0, 0, TimeSpan.Zero))));
 
     /// <summary>
+    ///     An instance that refuses every read with <paramref name="refusal" />, having recorded the attempt — where the
+    ///     question is what a command does with an address naming nobody.
+    /// </summary>
+    public static FakeTimelineReader Refusing(Exception refusal) =>
+        new(_ => Task.FromException<Fetch<Post>>(refusal));
+
+    /// <summary>
     ///     What every timeline holds from here on: what the instance did while the reader was reading it, which is
     ///     what a refresh is asked to notice (#84).
     /// </summary>
