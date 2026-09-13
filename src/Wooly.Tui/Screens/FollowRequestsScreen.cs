@@ -76,9 +76,16 @@ public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string?
         // A blank between people rather than the rule this list used to draw after each of them: four-row Account
         // blocks laid end to end run together, and a blank costs the one row a rule would while leaving the list
         // looking like the list of people it is (#198).
+        //
+        // Nothing implied: what this list claims of everyone on it is that they do not follow the reader, which is a
+        // negative, and the compact standing only ever adds words for positives — so there is nothing here to
+        // suppress and "following" is the word this screen is read for (#204).
         lines.AddRange(_waiting.Rows(
             drawing.Width,
-            (account, _, room) => AccountLines.Block(account, drawing.In(room)),
+            (account, _, room) => AccountLines.Block(
+                account,
+                drawing.In(room),
+                AccountLines.Compact(account.Standing)),
             Line.Blank));
 
         return lines;

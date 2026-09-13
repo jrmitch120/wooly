@@ -162,11 +162,19 @@ public sealed class Arrival(
                     WhenEmpty: "Nothing is waiting for you.",
                     Counting: waiting => waiting.Count)),
 
+            // The one destination whose read is two calls. Whether you already follow the person asking to follow you
+            // may be the most useful thing on the row, and the requests endpoint sends no standing — so it is asked
+            // for here, inside this destination's own read, which is what makes a refresh re-ask for free (#204).
             DestinationKind.Requests => Arrive(
                 destination,
                 arriving,
                 new Arriving<Account>(
-                    Reads: token => ports.Accounts.PendingRequests(profile, CountedAtMost, token),
+                    Reads: async token =>
+                    {
+                        var asking = await ports.Accounts.PendingRequests(profile, CountedAtMost, token);
+
+                        return asking with { Items = await ports.StoodOrSilent(profile, asking.Items, token) };
+                    },
                     Becomes: (asking, notice) => new FollowRequestsScreen(asking, notice),
                     WhenEmpty: "Nobody is waiting to follow you.",
                     Counting: asking => asking.Count)),

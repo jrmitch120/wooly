@@ -175,3 +175,63 @@ decide which it believes.
 The four calls of the arrival still run one after another. Their ordering is load-bearing — the pinned run is read
 before familiar followers so that content takes the better odds against a rate limit (ADR-0019) — and running them in
 parallel is a separate decision, not a consequence of this one.
+
+## Amendment: which listing surface spends a relationships call, and the three reasons one might not (#204)
+
+The TUI has four screens that merely *list* accounts, and since #198 all four draw the same **Account block**. Only
+one of them — the follow list — asked the instance where the reader stood with the people on it. Follow requests and
+search's accounts run drew the block with no suffix at all, and honestly so: neither the pending-requests endpoint nor
+the search endpoint sends a relationship, and a screen that did not ask draws nothing rather than "no tie". But
+"honest" is not the same as "right", and on follow requests in particular, whether you already follow the person
+asking to follow you is plausibly the most useful thing on the row.
+
+**Both now ask, at one batched `Standing` call per page each.** Follow requests asks inside its destination's own
+read, which is the lambda the arrival already runs — so a refresh re-asks for free and the shared arrival shape is
+unchanged. The list is read to at most 40 in a single read with no paging and the endpoint is chunked at 80 ids
+elsewhere, so it is one call and never more. Search asks after the find and before it paints, two calls under the one
+enquiry, so the screen paints once with the standings in place rather than decorating a moment later.
+
+**The rule this generalises to, and the two reasons a listing screen might not spend the call.** A screen that lists
+accounts asks for a standing unless it has a reason not to, which leaves three states a listing surface can be in:
+
+- **It asks** — the follow list, follow requests, and search's accounts run. The default, and what a new listing
+  screen inherits without being added to a list.
+- **Asking cannot help it** — **Discover**, and only Discover. Mastodon's suggestion sources exclude accounts already
+  followed, dismissed or blocked, so a fetched standing is blank on every row by construction. ADR-0019 settled this
+  and it is not reopened here.
+- **There is nothing to decorate** — an empty run. This costs no guard at any call site: `Standing` answers an empty
+  ask with its own input before it creates a client, so a hashtag-only search and a page with nobody waiting on it
+  each pay nothing by the port's own rule rather than by one three callers remember.
+
+**`Standing`'s signature is untouched and `Implied` keeps its three cases.** A pending-requests list implies a
+*negative* — "they follow you" is false by definition of a request still waiting — and the compact standing only ever
+adds words for positives, so `Implied.Nothing` already draws the right row there: "following" and "asked" survive,
+"follows you" never appears, "blocked" and "muted" survive. What changed is `Nothing`'s *definition*, which read as
+"somebody else's list, where a reader stands in no particular relation to anyone on it" and was plainly false on a
+requests list, where the reader stands in a very particular relation to everybody. It now means **nothing to
+suppress** — one sentence that is honest for a search run, for somebody else's follows and for a page of requests
+alike. A fourth case was weighed and refused: only a claim a list makes of everybody on it is worth suppressing, and a
+negative is not one.
+
+**The silence rule is unchanged and now has one place to live.** A refused or rate-limited standing answers with
+nothing rather than throwing, and `ShellPorts.StoodOrSilent` is where the `?? people` that turns that into silent rows
+is written — once, for all three call sites, rather than at each of them. It sets no fetch's `StoppedBy` and raises no
+notice: the rows draw silent and the list stands.
+
+**One bug fell out of writing that down.** `Standing` promised silence on a refusal and did not deliver it: its catch
+list was copied from `FamiliarFollowers`, which reaches the endpoint by a raw `GET` and so sees a refusal as an
+`HttpRequestException` — but `Standing` goes through Mastonet, which turns the same refusal into a
+`ServerErrorException` that nothing caught. It escaped the port, and `Enquiry` does not catch it either, since it is
+not a `WoolyException`. That was already true of the follow list; #204 would have spread it to two more screens, so it
+is fixed here rather than left for them to inherit. The catch is a call-path difference and not a promise one — a
+refusal is the instance declining to answer however it is spelled.
+
+### Consequences
+
+Arriving at follow requests with anybody waiting is two calls where it was one, and a search that turned up accounts
+is two where it was one. Both are bounded at one extra call per page and neither is on a hot path — a reader arrives
+at requests to answer them and runs a search deliberately.
+
+**The CLI is deliberately left alone.** `account requests list` and `search` have the same gap, and adding a standing
+to their JSON would populate a document field that is currently always null — a machine-readable-output change to
+argue under ADR-0007, not a consequence of a TUI rendering decision. It is worth its own issue.

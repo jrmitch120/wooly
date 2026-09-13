@@ -1,5 +1,7 @@
 using Wooly.Core.Profiles;
 using Wooly.Tests.Fakes;
+using Wooly.Tui.Rendering;
+using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
 
 namespace Wooly.Tests.Tui;
@@ -84,6 +86,20 @@ internal sealed class AShell
         Clock,
         Timing,
         Hashtag);
+
+    /// <summary>
+    ///     What <paramref name="screen" /> draws at 61 columns, past the one column the gutter takes — which every
+    ///     list on this shell stamps and no screen draws itself, so a test asserting on a row would otherwise be
+    ///     asserting on the pick marker too.
+    /// </summary>
+    /// <remarks>
+    ///     Here rather than at each test class, so that "a row" means the same thing in every one of them: two copies
+    ///     that disagreed about the gutter would be two ideas of what is on screen.
+    /// </remarks>
+    public static IReadOnlyList<string> Drawn(Screen screen) =>
+    [
+        .. screen.Lines(new Drawing(61, Now)).Select(line => line.Text.Length > 0 ? line.Text[1..] : line.Text),
+    ];
 
     /// <summary>A shell that has already opened onto its first destination.</summary>
     public async Task<Shell> Opened()

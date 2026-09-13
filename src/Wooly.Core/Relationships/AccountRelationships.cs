@@ -142,13 +142,19 @@ public sealed class AccountRelationships(IMastodonClientFactory clientFactory, I
                     : account),
             ];
         }
-        // The same four FamiliarFollowers catches, and for the same reason: each of them means the instance did not
-        // answer the question, and silence rather than a failure is what the port promises. Anything else is this
-        // client's own bug and is not a row's to swallow — a row that says there is no tie because the asking broke
-        // would be the one dishonest thing on the screen.
+        // FamiliarFollowers' four, and for the same reason: each of them means the instance did not answer the
+        // question, and silence rather than a failure is what the port promises. Anything else is this client's own
+        // bug and is not a row's to swallow — a row that says there is no tie because the asking broke would be the
+        // one dishonest thing on the screen.
+        //
+        // A fifth here that is not on FamiliarFollowers, and it is the call path rather than the promise that differs:
+        // this one goes through Mastonet, which turns an instance's refusal into a ServerErrorException, where the raw
+        // GET beside it sees the same refusal as an HttpRequestException. A refusal is the instance declining to
+        // answer however it is spelled, so both screens it decorates stay standing and silent (#204).
         catch (Exception unanswered) when (unanswered is RateLimitedException
                                                or TransientNetworkException
                                                or HttpRequestException
+                                               or ServerErrorException
                                                or JsonException)
         {
             return null;

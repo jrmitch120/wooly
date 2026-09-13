@@ -437,6 +437,51 @@ public class AccountRelationshipsTests
     }
 
     /// <summary>
+    ///     The batched standing decorates rows that are worth drawing without it, so a rate limit here answers with
+    ///     nothing rather than throwing — which is what leaves a follow list, a page of follow requests and a search's
+    ///     accounts run standing and silent rather than taking any of them down (#204).
+    /// </summary>
+    [Fact]
+    public async Task Standing_AnswersNothingWhereARateLimitStoppedTheCall()
+    {
+        var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Status(HttpStatusCode.TooManyRequests));
+
+        var stood = await Relationships(network)
+            .Standing(Profile, [AnAccount.With(id: "42")], TestContext.Current.CancellationToken);
+
+        Assert.Null(stood);
+    }
+
+    /// <summary>An instance that turned the batched standing down said nothing about any of them, which is not "no tie".</summary>
+    [Fact]
+    public async Task Standing_AnswersNothingWhereTheInstanceRefusedTheCall()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Refusal(HttpStatusCode.NotFound, "Record not found"));
+
+        var stood = await Relationships(network)
+            .Standing(Profile, [AnAccount.With(id: "42")], TestContext.Current.CancellationToken);
+
+        Assert.Null(stood);
+    }
+
+    /// <summary>
+    ///     An empty ask answers its own input and never reaches an instance, which is the gate that lets a page with
+    ///     nobody waiting on it and a search that found no accounts each cost nothing without a guard of their own.
+    /// </summary>
+    [Fact]
+    public async Task Standing_AsksNothingOfTheInstanceForAnEmptyList()
+    {
+        var network = Answering("[]");
+
+        var stood = await Relationships(network).Standing(Profile, [], TestContext.Current.CancellationToken);
+
+        Assert.NotNull(stood);
+        Assert.Empty(stood);
+        Assert.Empty(network.Requests);
+    }
+
+    /// <summary>
     ///     The fifth call on this port, and the only one Mastonet 3.1.3 cannot make: a raw <c>GET</c> over the same
     ///     named client, carrying the same token, sending the account in the repeated-array form the endpoint takes —
     ///     the form <c>/accounts/relationships</c> is already asked in.

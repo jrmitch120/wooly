@@ -998,11 +998,41 @@ same person, so there is now one (#198):
 - **The block is one pick and there is nothing to walk inside it.** Unlike the header block it carries no bio and no
   custom fields, so it holds no references: `←`/`→` stay unconsumed on all four screens and `⏎` does what it did.
   The `▌` gutter sits to the left of the avatar and runs down all four rows, which is what a post's byline settled.
-- **It costs no request and no Core change.** Both follow-list endpoints, the search endpoint, the pending-requests
-  endpoint and the suggestions endpoint all answer with full account entities, so every field is already in hand.
-  Search and follow requests still fetch no standing, and Discover still makes no relationships call.
+- **The block itself costs no call and no Core change.** Both follow-list endpoints, the search endpoint, the
+  pending-requests endpoint and the suggestions endpoint all answer with full account entities, so every field is
+  already in hand. Only the **standing** is not sent, and who asks for one was settled separately (#204): follow
+  requests and search's accounts run now each spend **one batched `/accounts/relationships` call per page**, the
+  follow list already did, and Discover still makes none.
 - **A follow notification is not on this list.** Its row says who did what and how long ago, which is an event rather
   than a person, and `NotificationsScreen.Happened` keeps drawing it.
+
+### What asking for a standing settled
+
+#198 gave four listing screens one row and put the standing word at the end of it; it deliberately did not change
+which of them had one to put there. #204 did:
+
+- **Every screen that lists accounts asks for a standing unless it has a reason not to.** A default with one named
+  exception, rather than a list of four that the fifth listing screen forgets to join. There are two reasons not to
+  and no others: **asking cannot help it** — Discover, whose suggestion sources exclude accounts already followed,
+  dismissed or blocked, so the word would be blank on every row (ADR-0019) — and **there is nothing to decorate**, an
+  empty run, which costs no call and no guard because `Standing` answers an empty ask with its own input.
+- **Follow requests and search's accounts run now each carry the compact standing** on row 4, exactly as a follow list
+  does, at **one batched `/accounts/relationships` call per page** apiece. On requests, whether you already follow the
+  person asking to follow you is plausibly the most useful thing on the row; `following` is what it is read for.
+- **Requests asks inside its destination's own read**, the lambda the arrival already runs — so refresh re-asks for
+  free and no other destination has to opt out of anything. **Search asks before it paints**, two calls under the one
+  enquiry, so the results go up with their standings already on them rather than being decorated a moment later.
+- **A page of requests implies a *negative*, which is not a fourth `Implied` case.** "They follow you" is false by
+  definition of a request still waiting, and the compact standing only ever adds words for positives — so
+  `Implied.Nothing` already draws the right row, and what changed is its definition: **nothing to suppress**, which is
+  honest for a search run, for somebody else's follows and for a page of requests alike.
+- **The silence rule is untouched.** A refused or rate-limited standing leaves every row with no suffix at all, raises
+  no notice and leaves the list on screen — `ShellPorts.StoodOrSilent` is the one place the `?? people` behind that is
+  written, for all three call sites. Writing it down turned up a bug: `Standing` did not actually catch a refusal,
+  its catch list having been copied from a call that reaches the endpoint by a different route (ADR-0012's third
+  amendment). Fixed here, since this change would have spread it to two more screens.
+- **The CLI is left alone.** `account requests list` and `search` have the same gap; adding a standing to their JSON
+  is a machine-readable-output change to argue under ADR-0007 and is worth its own issue.
 
 ### Where the code answers this
 

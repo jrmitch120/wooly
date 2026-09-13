@@ -262,16 +262,125 @@ public class ShellSearchTests
 
         await Found(shell, opened, "maria");
 
-        // Past the one column the gutter takes, which every list on this shell stamps and no screen draws itself.
-        var rows = opened.Screen.Lines(new Drawing(61, AShell.Now))
-            .Select(line => line.Text.Length > 0 ? line.Text[1..] : line.Text)
-            .ToList();
+        var rows = AShell.Drawn(opened.Screen);
 
-        var at = rows.FindIndex(row => row == "Maria");
+        var at = rows.ToList().FindIndex(row => row == "Maria");
 
         Assert.Equal(
             ["Maria", "@maria@fosstodon.org", "4,210 posts · 187 following · 1,203 followers", "Joined Jan 2020"],
             rows.Skip(at).Take(4));
+    }
+
+    /// <summary>
+    ///     The accounts a search turned up are asked about at once, and the screen paints with the standings already
+    ///     in place rather than decorating itself a moment later (#204).
+    /// </summary>
+    [Fact]
+    public async Task Find_AsksWhereTheReaderStandsWithTheAccountsRunAtOnce()
+    {
+        var shell = new AShell
+        {
+            Search = FakeInstanceSearch.Finding(
+                accounts: [AnAccount.With(id: "7", address: "maria@fosstodon.org", author: "Maria")]),
+        };
+
+        shell.Accounts.Stands = AnAccount.Standing(followedBy: true);
+
+        var opened = await shell.Opened();
+
+        await Found(shell, opened, "maria");
+
+        var stood = Assert.Single(shell.Accounts.Standings);
+        Assert.Equal(["7"], stood.AccountIds);
+
+        var search = Assert.IsType<SearchScreen>(opened.Screen);
+
+        Assert.True(search.Accounts[0].Standing?.FollowedBy);
+        Assert.Contains("Joined Jan 2020 · follows you", AShell.Drawn(opened.Screen));
+    }
+
+    /// <summary>
+    ///     A search that turned up no accounts has nothing to decorate, so nothing reaches the instance: a
+    ///     hashtag-only or post-only page makes the one call it always made. The gate itself is the port's, held
+    ///     against real HTTP by <c>AccountRelationshipsTests.Standing_AsksNothingOfTheInstanceForAnEmptyList</c>.
+    /// </summary>
+    [Fact]
+    public async Task Find_AsksForNoStandingWhereNothingFoundWasAnAccount()
+    {
+        var shell = new AShell
+        {
+            Search = FakeInstanceSearch.Finding(accounts: [], hashtags: [AHashtag.With("cats")]),
+        };
+
+        var opened = await shell.Opened();
+
+        await Found(shell, opened, "cats");
+
+        Assert.Empty(shell.Accounts.Standings);
+    }
+
+    /// <summary>
+    ///     A standing the instance never answered leaves the accounts run silent and the results standing — no suffix
+    ///     saying there is no tie, and no notice about it.
+    /// </summary>
+    [Fact]
+    public async Task Find_DrawsSilentAccountsWhereTheStandingWasNeverAnswered()
+    {
+        var shell = new AShell
+        {
+            Search = FakeInstanceSearch.Finding(
+                accounts: [AnAccount.With(address: "maria@fosstodon.org", author: "Maria")]),
+        };
+
+        shell.Accounts.Stands = null;
+
+        var opened = await shell.Opened();
+
+        await Found(shell, opened, "maria");
+
+        var search = Assert.IsType<SearchScreen>(opened.Screen);
+
+        Assert.Null(search.Accounts[0].Standing);
+        Assert.Contains("Joined Jan 2020", AShell.Drawn(opened.Screen));
+        Assert.Null(opened.Notice);
+    }
+
+    /// <summary>
+    ///     The results go up with their standings already on them, rather than being put up bare and decorated a
+    ///     moment later: two calls under the one enquiry is one paint (#204).
+    /// </summary>
+    /// <remarks>
+    ///     Pinned by watching every redraw rather than by counting them — what would be wrong is a redraw showing an
+    ///     accounts run with no standing on it, and a count cannot tell that from a redraw the rail asked for.
+    /// </remarks>
+    [Fact]
+    public async Task Find_NeverDrawsTheAccountsRunBeforeItsStandingsAreOnIt()
+    {
+        var shell = new AShell
+        {
+            Search = FakeInstanceSearch.Finding(
+                accounts: [AnAccount.With(id: "7", address: "maria@fosstodon.org", author: "Maria")]),
+        };
+
+        shell.Accounts.Stands = AnAccount.Standing(followedBy: true);
+
+        var opened = await shell.Opened();
+
+        var undecorated = 0;
+
+        opened.Changed += () =>
+        {
+            if (opened.Screen is SearchScreen { Accounts.Count: > 0 } drawn
+                && drawn.Accounts.Any(account => account.Standing is null))
+            {
+                undecorated++;
+            }
+        };
+
+        await Found(shell, opened, "maria");
+
+        Assert.Equal(0, undecorated);
+        Assert.Contains("Joined Jan 2020 · follows you", AShell.Drawn(opened.Screen));
     }
 
     /// <summary>A search screen, having searched for <paramref name="text" />.</summary>
