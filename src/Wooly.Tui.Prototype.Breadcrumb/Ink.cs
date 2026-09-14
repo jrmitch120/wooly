@@ -16,8 +16,8 @@ public enum Paint
     Mark,
 }
 
-/// <summary>A run of the row and what it is.</summary>
-public readonly record struct Ribbon(string Text, Paint Paint);
+/// <summary>A run of the row, what it is, and whether it sits in a band of its own.</summary>
+public readonly record struct Ribbon(string Text, Paint Paint, bool Banded = false);
 
 /// <summary>
 ///     Colours for the three terminals this has to hold in, written as hex the way `Themes` writes them. The real
@@ -44,9 +44,8 @@ public sealed record Ink(string? Page, string? Ancestor, string? Here, string? S
             return string.Concat(row.Select(run => run.Text));
         }
 
-        var background = banded ? Band! : Page;
-
-        return string.Concat(row.Select(run => Escaped(Of(run.Paint), background) + run.Text)) + Reset;
+        return string.Concat(
+            row.Select(run => Escaped(Of(run.Paint), banded || run.Banded ? Band! : Page) + run.Text)) + Reset;
     }
 
     private string Of(Paint paint) => (paint switch

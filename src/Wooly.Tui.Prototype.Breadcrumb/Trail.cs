@@ -10,6 +10,7 @@ namespace Wooly.Tui.Prototype.Breadcrumb;
 /// <param name="Separators">The paint the `›` takes.</param>
 /// <param name="Glyph">What goes in front of the current crumb, or empty for nothing.</param>
 /// <param name="Banded">Whether the whole row is drawn in a band of its own.</param>
+/// <param name="HereBanded">Whether the crumb you are standing on gets a band, the way the rail's current row does.</param>
 public sealed record Style(
     string Name,
     string Cost,
@@ -17,7 +18,8 @@ public sealed record Style(
     Paint Here,
     Paint Separators,
     string Glyph,
-    bool Banded);
+    bool Banded,
+    bool HereBanded = false);
 
 /// <summary>What a trail too long for the row loses.</summary>
 public enum Elide
@@ -98,6 +100,24 @@ public static class Trail
             Paint.Separator,
             "▸ ",
             true),
+        new(
+            "8. the current crumb in a band of its own",
+            "one new role + its band, no columns; says what `rail-current` says, the way it says it; nothing in mono",
+            Paint.Ancestor,
+            Paint.Here,
+            Paint.Separator,
+            string.Empty,
+            false,
+            true),
+        new(
+            "9. band on the current crumb + glyph",
+            "one new role + its band, 2 columns, holds in mono",
+            Paint.Ancestor,
+            Paint.Here,
+            Paint.Separator,
+            "▸ ",
+            false,
+            true),
     ];
 
     /// <summary>One row: the trail in <paramref name="style" />, the fetch mark at its right, cut to fit.</summary>
@@ -133,10 +153,10 @@ public static class Trail
 
             if (last && style.Glyph.Length > 0)
             {
-                runs.Add(new Ribbon(style.Glyph, style.Here));
+                runs.Add(new Ribbon(style.Glyph, style.Here, style.HereBanded));
             }
 
-            runs.Add(new Ribbon(crumbs[i], last ? style.Here : style.Ancestors));
+            runs.Add(new Ribbon(crumbs[i], last ? style.Here : style.Ancestors, last && style.HereBanded));
         }
 
         return runs;
@@ -218,12 +238,36 @@ public static class Trail
         }
 
         var first = runs[0];
-        var last = runs.TakeLast(style.Glyph.Length > 0 ? 2 : 1).ToList();
         var middle = new Ribbon(" › … › ", style.Separators);
-        List<Ribbon> kept = [first, middle, .. last];
+        var fixedWidth = Glyphs.Columns(first.Text) + Glyphs.Columns(middle.Text);
 
-        return kept.Sum(run => Glyphs.Columns(run.Text)) <= room
-            ? kept
-            : FromLeft(runs, room, style);
+        // As much of the tail as fits after the root and the `…`, taken from the right so the crumb you are standing
+        // on is the last thing to go rather than the first.
+        var tail = new List<Ribbon>();
+
+        for (var i = runs.Count - 1; i > 0; i--)
+        {
+            List<Ribbon> candidate = [runs[i], .. tail];
+
+            if (fixedWidth + candidate.Sum(run => Glyphs.Columns(run.Text)) > room)
+            {
+                break;
+            }
+
+            tail = candidate;
+        }
+
+        if (tail.Count == 0)
+        {
+            return FromLeft(runs, room, style);
+        }
+
+        // A tail that starts on a separator is a `›` with nothing in front of it but the `…` that already said so.
+        while (tail.Count > 0 && tail[0].Text == Separator)
+        {
+            tail.RemoveAt(0);
+        }
+
+        return [first, middle, .. tail];
     }
 }
