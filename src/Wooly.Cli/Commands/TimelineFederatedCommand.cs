@@ -10,5 +10,6 @@ internal sealed class TimelineFederatedCommand(
     IProfileRegistry profiles,
     ITimelineReader timelines) : TimelineCommand<TimelineSettings>(console, profiles, timelines)
 {
-    protected override Timeline TimelineToRead(TimelineSettings settings) => Timeline.Federated;
+    protected override Timeline TimelineToRead(ActiveProfile profile, TimelineSettings settings) =>
+        Timeline.Federated;
 }

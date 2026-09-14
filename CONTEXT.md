@@ -281,9 +281,11 @@ _Avoid_: recommendation, who to follow (which is a heading on a screen, not the 
 **Pinned**:
 Two things one word, and both are Mastodon's own. On a **post** it is one of `Post.Marks` — a post its author has
 fastened to the top of their own profile, put there and taken away with `p`, and reported by an instance only on the
-reader's *own* posts: it reads false on everybody else's, whether they have pinned it or not. On an account screen it
-is a **run of posts** of its own, read by naming the account rather than by marking rows already in hand — which is
-the only shape available, precisely because the mark cannot be trusted on somebody else's post.
+reader's *own* posts: it reads false on everybody else's, whether they have pinned it or not. The other is a **run of
+posts** of its own, read by naming the account rather than by marking rows already in hand — which is the only shape
+available, precisely because the mark cannot be trusted on somebody else's post. Both surfaces read that run: it is a
+section on the TUI's account screen, and `timeline pinned <address>` on the CLI, which reads it as the sixth of the six
+timelines a profile can ask for (#185).
 The two do not contradict each other and are deliberately both drawn: the heading over the run says what the fetch
 found, and the word on a row says what is true now, so un-pinning something inside the run leaves it where it is and
 takes its word off. That redundancy exists on one screen only — the reader's own — and only until they press `g`.

@@ -195,3 +195,34 @@ assembly — so it may read false on every account; if it does, `IsBot` is dropp
 and lands free later. And Mastodon's suggestion sources are documented as excluding accounts already followed,
 dismissed or blocked, which is what lets the Discover screen skip the relationships call entirely; if that turns out to
 be false, the standing suffix comes back — the call does not.
+
+## Amendment: the CLI reads an account's posts, and pinned posts with them (#185)
+
+Two sentences in "What each surface got, said out loud" are now false, and this is the deferral they named being
+honoured rather than the decision reversed. **Pinned posts got nothing on the CLI** "because the CLI has no way to read
+an account's posts at all — there is no `timeline account`", and inventing that surface through the back door of a
+pinned read was said to be a bigger decision than the feature that noticed it. It was left as its own issue, which was
+#185, and the answer it came back with is the one this ADR assumed: the account-posts surface first, and the pinned run
+beside it.
+
+**`timeline` gains `account <ADDRESS>` and `pinned <ADDRESS>`**, which puts the branch at one subcommand per
+`TimelineScope` — six, where a reader could previously reach four and had no way to learn the other two existed. They
+live under `timeline` rather than under the noun they are about, even though they are the first two timelines about a
+person rather than a place: they are posts, newest first, paged and written by the same writers as the other four, and
+they inherit `--limit` and `--json` by being there. `account posts <address>` was weighed and refused on the output —
+the writers take a `Timeline`, so that placement either ships an envelope whose `timeline` field says `account` under a
+command that does not, or forks a second pair of writers. An alias for the same read is refused too: one spelling per
+read.
+
+**Nothing in Core moved.** `TimelineScope`, `Timeline`, `TimelineReader` and `ITimelineReader` were already complete for
+this — only the TUI called them — which is what made the work a front end and a defect. The defect was `TimelineJson`'s
+scope-to-wire-name mapping, which covered four scopes and threw `ArgumentOutOfRangeException` on these two: every
+`--json` account read would have crashed. The envelope gains an `account` field beside `hashtag`, carrying the resolved
+`user@host`, because a bare `@maria` in a saved file says nothing about which server her posts came from.
+
+**The account scope's filters are inherited exactly, and that is said rather than left to fall out.** Replies out,
+boosts in — what the account screen asks for. There is no `--replies` or `--boosts` flag, because varying them is a
+change to the shape of `Timeline` itself, which the Consequences above are explicit should not ride in behind a feature.
+Its cost is named rather than glossed: unlike `account following | grep`, a reply that was never fetched cannot be
+recovered downstream, so this is a real limitation on the surface built for pipes rather than a narrowing a pipe does
+better. It is #211.

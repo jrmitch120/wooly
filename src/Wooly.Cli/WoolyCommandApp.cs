@@ -200,6 +200,17 @@ public static class WoolyCommandApp
 
                 timeline.AddCommand<TimelineTagCommand>("tag")
                         .WithDescription("Read the public posts carrying a hashtag.");
+
+                // Under "timeline" rather than under "account", even though these two are about a person rather than a
+                // place: they are posts, newest first, paged and written the way the other four are, and the branch is
+                // one subcommand per timeline a profile can read. Beside the noun they are about, they would either
+                // write an envelope whose "timeline" field contradicted the command that wrote it, or fork a second
+                // pair of output writers (#185).
+                timeline.AddCommand<TimelineAccountCommand>("account")
+                        .WithDescription("Read one account's own posts, newest first.");
+
+                timeline.AddCommand<TimelinePinnedCommand>("pinned")
+                        .WithDescription("Read the posts an account has pinned to the top of their profile.");
             });
 
             // A noun of its own rather than a corner of "post", even though a direct message is a post: what a user

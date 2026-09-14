@@ -35,5 +35,5 @@ internal sealed class TimelineTagCommand(IAnsiConsole console, IProfileRegistry 
         }
     }
 
-    protected override Timeline TimelineToRead(Settings settings) => Timeline.Tag(settings.Hashtag);
+    protected override Timeline TimelineToRead(ActiveProfile profile, Settings settings) => Timeline.Tag(settings.Hashtag);
 }

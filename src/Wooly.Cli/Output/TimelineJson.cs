@@ -14,7 +14,9 @@ internal static class TimelineJson
 {
     /// <remarks>
     ///     Which timeline this was leads the envelope, as <c>timeline</c> and — where one was asked for — the
-    ///     <c>hashtag</c>, so that a timeline read out of a file still says which one it is.
+    ///     <c>hashtag</c> or the <c>account</c>, so that a timeline read out of a file still says which one it is. The
+    ///     account is written in full, <c>user@host</c>, which is what the command resolved a bare username into before
+    ///     the read: a file saying <c>@maria</c> says nothing about which server her posts came from.
     /// </remarks>
     public static void Write(IAnsiConsole console, Timeline timeline, Fetch<Post> fetch) =>
         ListDocument.Write(
@@ -23,7 +25,8 @@ internal static class TimelineJson
             PostDocument.Of,
             "posts",
             ("timeline", NameOf(timeline.Scope)),
-            ("hashtag", timeline.Hashtag));
+            ("hashtag", timeline.Hashtag),
+            ("account", timeline.Account?.Address.Text));
 
     /// <summary>
     ///     What each timeline is called in the output. Spelled out for the same reason the field names are: derived from
@@ -35,6 +38,8 @@ internal static class TimelineJson
         TimelineScope.Local => "local",
         TimelineScope.Federated => "federated",
         TimelineScope.Tag => "tag",
+        TimelineScope.Account => "account",
+        TimelineScope.Pinned => "pinned",
         _ => throw new ArgumentOutOfRangeException(nameof(scope), scope, "Not a timeline this client reads."),
     };
 }

@@ -8,5 +8,5 @@ namespace Wooly.Cli.Commands;
 internal sealed class TimelineLocalCommand(IAnsiConsole console, IProfileRegistry profiles, ITimelineReader timelines)
     : TimelineCommand<TimelineSettings>(console, profiles, timelines)
 {
-    protected override Timeline TimelineToRead(TimelineSettings settings) => Timeline.Local;
+    protected override Timeline TimelineToRead(ActiveProfile profile, TimelineSettings settings) => Timeline.Local;
 }
