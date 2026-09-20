@@ -8,6 +8,19 @@ using Wooly.Tui.Prototype.Breadcrumb;
 // candidate colours in the same hex the built-ins are written in.
 //
 //   dotnet run --project src/Wooly.Tui.Prototype.Breadcrumb
+//
+// THROWAWAY PROTOTYPE — issue #213: the fetch mark, whose dots arrive one at a time. Those scenes move, so they are
+// drawn in place until a key is pressed rather than printed.
+//
+//   dotnet run --project src/Wooly.Tui.Prototype.Breadcrumb -- move
+
+// `-- move` runs #213's scenes instead: the mark is a question about motion, and a printed row cannot answer one.
+if (args.Contains("move"))
+{
+    Moving.Play();
+
+    return;
+}
 
 const int width = 61;
 const int wide = 100;

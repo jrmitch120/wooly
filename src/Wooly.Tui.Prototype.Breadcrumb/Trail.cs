@@ -126,9 +126,21 @@ public static class Trail
         Style style,
         Elide elide,
         bool fetching,
+        int width) =>
+        Row(crumbs, style, elide, fetching ? Fetching : string.Empty, width);
+
+    /// <summary>
+    ///     The same, for a mark that is spelled differently from one frame to the next (#213) — the animated dots,
+    ///     and the same mark padded to its widest so that the trail beside it cannot move.
+    /// </summary>
+    public static IReadOnlyList<Ribbon> Row(
+        IReadOnlyList<string> crumbs,
+        Style style,
+        Elide elide,
+        string mark,
         int width)
     {
-        var mark = fetching ? Fetching : string.Empty;
+        var fetching = mark.Length > 0;
         var room = Math.Max(0, width - Glyphs.Columns(mark) - (fetching ? 1 : 0));
         var runs = Cut(Runs(crumbs, style), room, elide, style);
         var used = runs.Sum(run => Glyphs.Columns(run.Text));
