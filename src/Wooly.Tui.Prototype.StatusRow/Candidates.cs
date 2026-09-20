@@ -99,7 +99,46 @@ public static class Candidates
             "9 · actionable and marked, nothing pruned",
             "2 and 6 without 3: the order decides what falls off, and the mark says how much did.",
             (row, width) => Marked(Acting(row), width)),
+        new(
+            "10 · the same, in a priority order written on purpose",
+            "9, with the way out promoted above the shared post keys and `↓/↑`, `x`, `p`, `e`, `d` demoted to the end.",
+            (row, width) => Marked(Ranked(Acting(row)), width)),
     ];
+
+    /// <summary>
+    ///     Those keys in the order a fill rule turns into a priority: the walk, the screen's own, the way out, then the
+    ///     shared post keys worth reminding somebody of, then the ones a reader can wait to meet in <c>?</c>.
+    /// </summary>
+    /// <remarks>
+    ///     A prototype's approximation of what <c>PostKeys.Around</c> would build. The way out is found by its words
+    ///     rather than by its letter, since <c>esc</c> means <c>back</c> and a destination screen says
+    ///     <c>tab:destination</c>.
+    /// </remarks>
+    private static IReadOnlyList<KeyHint> Ranked(IReadOnlyList<KeyHint> keys)
+    {
+        string[] late = ["↓/↑", "x", "p", "e", "d"];
+        string[] leaving = ["esc", "tab"];
+
+        var ask = keys[^1];
+        var rest = keys.Take(keys.Count - 1).ToList();
+        var order = new[] { "⏎", "r", "b", "f", "a", "c" };
+
+        var own = rest.Where(key =>
+            !PostKeys.OnAPost.Contains(key) && key != PostKeys.Scrolling && !leaving.Contains(key.Key)).ToList();
+        var out_ = rest.Where(key => leaving.Contains(key.Key)).ToList();
+        var shared = rest.Where(key =>
+            (PostKeys.OnAPost.Contains(key) || key == PostKeys.Scrolling) && !late.Contains(key.Key)).ToList();
+        var rare = rest.Where(key => late.Contains(key.Key) && !own.Contains(key)).ToList();
+
+        return
+        [
+            .. own,
+            .. out_,
+            .. shared.OrderBy(key => Array.IndexOf(order, key.Key) is var at && at >= 0 ? at : order.Length),
+            .. rare,
+            ask,
+        ];
+    }
 
     /// <summary>The row's keys with the ones that can do nothing here taken out.</summary>
     private static IReadOnlyList<KeyHint> Acting(Case row) => [.. row.Keys.Where(row.Acts)];
@@ -155,8 +194,8 @@ public static class Candidates
             var dropped = rest.Count - shown;
             var row = (List<Ribbon>)
             [
-                .. Hints([.. rest.Take(shown)]),
-                new Ribbon(Dot, Paint.Sep),
+                .. shown > 0 ? Hints([.. rest.Take(shown)]) : [new Ribbon(" ", Paint.Sep)],
+                .. shown > 0 ? (Ribbon[])[new Ribbon(Dot, Paint.Sep)] : [],
                 new Ribbon($"…+{dropped}", Paint.More),
                 new Ribbon(Dot, Paint.Sep),
                 .. Spans(ask),

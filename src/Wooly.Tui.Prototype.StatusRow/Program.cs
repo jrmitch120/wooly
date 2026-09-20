@@ -134,14 +134,14 @@ foreach (var (what, row) in rows)
     Console.WriteLine();
 }
 
-Section("WIDER — where the terminal has room to spare");
+Section("EVERY OTHER WIDTH — a terminal narrower than the narrow case, and two with room to spare");
 
-foreach (var at in new[] { roomy, wide })
+foreach (var at in new[] { 40, 61, roomy, wide })
 {
     Console.WriteLine($"  {at} columns");
     Console.WriteLine("  " + Rule(at));
 
-    foreach (var candidate in new[] { Candidates.All[0], Candidates.All[7], Candidates.All[8] })
+    foreach (var candidate in new[] { Candidates.All[0], Candidates.All[9] })
     {
         foreach (var line in candidate.Draw(Cases.All[0], at).Rows)
         {
