@@ -4,13 +4,17 @@ using Wooly.Tui.Theme;
 namespace Wooly.Tui.Screens;
 
 /// <summary>
-///     The two rows that are not a screen: the breadcrumb above the content, and the status row along the bottom. Both
-///     are the frame rather than the thing being read, which is why they never move and never scroll.
+///     What is on screen and is not a screen: the breadcrumb above the content, the status row along the bottom, and
+///     the two seams between the regions. All of it is the frame rather than the thing being read, which is why none
+///     of it moves and none of it scrolls.
 /// </summary>
 public static class ChromeLines
 {
     /// <summary>What the breadcrumb says while a fetch is in flight, said here and nowhere else.</summary>
     private const string Fetching = "fetching…";
+
+    /// <summary>What the rail is divided from the content by, one column wide.</summary>
+    private const string Rule = "│";
 
     /// <summary>
     ///     What stands between two crumbs, said here and used wherever the trail is put together as one string —
@@ -110,6 +114,27 @@ public static class ChromeLines
 
         yield return new Span(crumb, standing ? Role.CrumbCurrent : Role.Chrome);
     }
+
+    /// <summary>
+    ///     The row between the breadcrumb and the content: nothing, in the seam's own background. A blank row is how
+    ///     every screen in this shell divides one thing from the next, and it is what keeps the breadcrumb from
+    ///     reading as the first line of what is being read (#216).
+    /// </summary>
+    /// <remarks>
+    ///     Drawn rather than left to the window underneath, for the reason the column beside it is: a cell nothing
+    ///     paints is a cell Terminal.Gui paints, in a grey no theme chose. Under <c>NO_COLOR</c> the background goes
+    ///     and the row is blank, which is the whole of what it was before the background was added — the division is
+    ///     carried there by the row existing at all.
+    /// </remarks>
+    public static Line Seam(int width) => Line.Of(new string(' ', Math.Max(0, width)), Role.Seam);
+
+    /// <summary>
+    ///     The column between the rail and the content, <paramref name="height" /> rows of it. A rule rather than a
+    ///     band alone, so that the two are still divided on a terminal drawing no colour — the same <c>─</c> the rail
+    ///     already ends itself with, stood on end (<see cref="RailLines" />).
+    /// </summary>
+    public static IReadOnlyList<Line> Gutter(int height) =>
+        [.. Enumerable.Repeat(Line.Of(Rule, Role.Seam), Math.Max(0, height))];
 
     /// <summary>
     ///     The status row: what this screen's keys are, or — when there is one — the thing the shell has to say

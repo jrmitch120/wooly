@@ -1,15 +1,14 @@
-using Wooly.Tests.Fakes;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Theme;
-using Wooly.Tui.Views;
 
 namespace Wooly.Tests.Tui;
 
 /// <summary>
 ///     The row that says where you are standing. Two things are asserted here and nowhere else: that the crumb you
 ///     are on is told from the ones you walked through, and that a trail too long for its width loses the ancestors
-///     rather than the destination (#216).
+///     rather than the destination (#216). What divides the row from the content under it is
+///     <see cref="SeamTests" />'s.
 /// </summary>
 /// <remarks>
 ///     Role selection and layout with no terminal in the room (ADR-0005, ADR-0014): what the row is made of, in the
@@ -149,72 +148,6 @@ public class BreadcrumbTests
         Assert.Equal(
             [(Role.Chrome, "Home"), (Role.Chrome, " › "), (Role.CrumbCurrent, "Search a › b")],
             Written(row));
-    }
-
-    /// <summary>
-    ///     And a blank row stands between the breadcrumb and the content, on every screen: the breadcrumb keeps row
-    ///     0 with a row of its own, and the content region starts at row 2 rather than hard against it (#216).
-    /// </summary>
-    /// <remarks>
-    ///     Asserted of the regions rather than of the pixels — the row between them belongs to no region, which is
-    ///     what makes it blank, so what says it is there is where the content starts.
-    /// </remarks>
-    [Fact]
-    public async Task Shell_HoldsTheRowUnderTheBreadcrumbBlank()
-    {
-        var built = new AShell { Timelines = FakeTimelineReader.Holding(APost.With(id: "220")) };
-        var shell = await built.Opened();
-
-        using var window = new ShellWindow(shell, Themes.Plain, built.Clock, () => { }, FakePictures.DrawingNothing())
-        {
-            Width = 80,
-            Height = 24,
-        };
-
-        window.Layout();
-
-        var breadcrumb = window.SubViews
-                               .OfType<PaintedView>()
-                               .Single(view => view.Frame is { Y: 0, Height: 1 } && view.Frame.X > 0);
-
-        var content = window.SubViews.OfType<PaintedView>().Single(view => view.Id == ShellWindow.ContentId);
-
-        Assert.Equal(breadcrumb.Frame.Y + 2, content.Frame.Y);
-    }
-
-    /// <summary>
-    ///     And the row is blank in the theme's own page, not in Terminal.Gui's. Every region clears itself before it
-    ///     draws, so a cell inside one is the theme's by construction — the seam is inside none, and until the window
-    ///     itself was themed it kept whatever the toolkit's default scheme put there, which is a grey band across the
-    ///     screen (#216).
-    /// </summary>
-    /// <remarks>
-    ///     The seam is the row this shows up on, but it is not the only cell nobody paints: the column between the
-    ///     rail and the content is one too, on every row, and has been since the shell was built — one column nobody
-    ///     notices, which #216 turned into a band by giving the same hole a full row. Both are the window's own
-    ///     cells, so both are answered by the window's own scheme.
-    ///     <para>
-    ///         Drawn in <see cref="Role.Body" />'s attribute, which is the borrow <c>PaintedView</c> already makes to
-    ///         clear a row: a blank cell shows a background and the page is what every role that has none of its own
-    ///         sits on. Asserted against <see cref="Themes.Dark" /> rather than <see cref="Themes.Plain" />, whose
-    ///         every answer is the terminal's default and so would pass without the window having been told anything.
-    ///     </para>
-    /// </remarks>
-    [Fact]
-    public async Task Shell_PaintsTheCellsNoRegionCoversInTheThemesOwnPage()
-    {
-        var built = new AShell { Timelines = FakeTimelineReader.Holding(APost.With(id: "220")) };
-        var shell = await built.Opened();
-
-        using var window = new ShellWindow(shell, Themes.Dark, built.Clock, () => { }, FakePictures.DrawingNothing())
-        {
-            Width = 80,
-            Height = 24,
-        };
-
-        window.Layout();
-
-        Assert.Equal(Themes.Dark.For(Role.Body), window.GetScheme().Normal);
     }
 
     /// <summary>What the row says, up to the padding the fetch mark is pushed to the right of.</summary>

@@ -126,6 +126,28 @@ internal sealed class ShellWindow : Window
             CanFocus = false,
         };
 
+        // The two seams, which are regions in the contract's own table and were cells nobody painted until they were:
+        // the blank row under the breadcrumb, and the column dividing the rail from the content. The column carries a
+        // rule as well as a background, so the division survives a terminal drawing no colour; the row is carried
+        // there by being blank, which is what it always was.
+        var seam = new PaintedView(theme, (width, _) => [ChromeLines.Seam(width)])
+        {
+            X = RailLines.Width + 1,
+            Y = 1,
+            Width = Dim.Fill(),
+            Height = 1,
+            CanFocus = false,
+        };
+
+        var gutter = new PaintedView(theme, (_, height) => ChromeLines.Gutter(height))
+        {
+            X = RailLines.Width,
+            Y = 0,
+            Width = 1,
+            Height = Dim.Fill(1),
+            CanFocus = false,
+        };
+
         // The one region that shows posts, so the one region with pictures to draw in place (docs/tui-shell.md) — and
         // the one that scrolls, which is why the arrow keys below are handed to it and to nothing else. It stops
         // scrolling while a post is being written, which Refresh settles.
@@ -170,7 +192,7 @@ internal sealed class ShellWindow : Window
             CanFocus = false,
         };
 
-        Add(rail, breadcrumb, _content, _editor, status);
+        Add(rail, breadcrumb, seam, gutter, _content, _editor, status);
 
         _showing = shell.Screen;
 

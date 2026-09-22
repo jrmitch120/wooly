@@ -106,6 +106,12 @@ public enum Role
     /// </summary>
     CrumbCurrent,
 
+    /// <summary>
+    ///     The cells between one region and the next: the blank row under the breadcrumb, and the column between the
+    ///     rail and the content. Carried without colour by <c>│</c> down the column, and by the row being blank.
+    /// </summary>
+    Seam,
+
     /// <summary>Stale content while a fetch lands. Carried without colour by the breadcrumb saying <c>fetching…</c>.</summary>
     Loading,
 

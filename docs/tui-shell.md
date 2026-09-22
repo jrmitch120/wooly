@@ -27,7 +27,8 @@ not something else. None of that code is production code.
 |---|---|---|
 | Rail | 18 columns, full height less the status row | Destinations, their unread counts, the rate-limit quota at its foot |
 | Breadcrumb | 1 row, content width | Where you are in the stack, the crumb you are standing on told from its ancestors; the fetch mark in the rightmost 11 columns while a fetch is in flight |
-| *(the seam)* | 1 row, content width | Nothing. A blank row divides the frame from what is being read, the way every screen divides one thing from the next (#168) |
+| *(the seam)* | 1 row, content width | Nothing, in `seam`. A blank row divides the frame from what is being read, the way every screen divides one thing from the next (#168) |
+| *(the gutter)* | 1 column, full height less the status row | A `│` rule in `seam`, dividing the rail from everything right of it. A rule as well as a background, so the division holds where there is no colour |
 | Content | the rest | Exactly one screen at a time |
 | Status | 1 row, full width | The current screen's keys, as many as fit and `…+N` for the rest; or a notice; or a confirmation; the quota again when the rail is hidden |
 
@@ -1265,6 +1266,7 @@ glyph or a position that carries the same meaning when colour is gone.
 | `quota` / `quota-low` | Rate-limit budget left, and nearly spent | the number |
 | `chrome` | The frame's furniture: the breadcrumb's ancestors and its `›`, the status row's leading space and ` · ` separators, the rail's rule | position |
 | `crumb-current` | The crumb you are standing on, told from its ancestors by foreground alone | position — it is always the last crumb, and the trail elides from the left |
+| `seam` | What divides one region from the next: the blank row under the breadcrumb, and the column between the rail and the content | `│` down the column, and the row being blank |
 | `loading` | The fetch mark on the breadcrumb — the word and up to three dots, laid out at 11 columns | the word itself, and the dots arriving |
 | `destructive` | A delete affordance and its confirmation | the word |
 | `error` | A failure the shell has to say out loud | the word |
@@ -1372,9 +1374,10 @@ Rules:
 - A role may be a colour or a table of `foreground` and `background`. A half it leaves out keeps what the built-in had
   there: the theme's page for nearly every role, and its own band for the selected row and the current rail entry — so
   restating the selection's foreground does not silently take away the band it is drawn in.
-- `background` is the theme's, not a role: setting it moves everything that was sitting on the page — including the
-  cells no region covers, the seam under the breadcrumb and the column between the rail and the content, which the
-  shell paints in the page rather than leaving to Terminal.Gui's own scheme (#216). A theme cannot
+- `background` is the theme's, not a role: setting it moves everything that was sitting on the page. What divides one
+  region from the next does not sit on it — the seam under the breadcrumb and the column beside the rail are `seam`'s
+  own band, and a theme moving the page will usually want to move that with it. Neither was painted at all before
+  #216, and a cell nothing paints is a cell Terminal.Gui paints, in a grey no theme chose. A theme cannot
   decline to have one and inherit the terminal's own — `Terminal.Gui` attributes are a foreground/background pair with
   no "leave it alone" in them, and its own default pair is a concrete white on black rather than a sentinel. So the
   page is always written down: this theme's, or the built-in's.
