@@ -26,7 +26,7 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
     private readonly Picked<Conversation> _conversations = new(conversations);
 
     /// <inheritdoc />
-    public override string Crumb => "direct messages";
+    public override string Crumb => "Direct messages";
 
     /// <inheritdoc />
     public override bool Refreshes => true;

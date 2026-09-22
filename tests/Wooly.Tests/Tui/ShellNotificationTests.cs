@@ -33,7 +33,7 @@ public class ShellNotificationTests
 
         var screen = Assert.IsType<NotificationsScreen>(opened.Screen);
         Assert.Equal(["34", "35"], screen.Notifications.Select(notification => notification.Id));
-        Assert.Equal("notifications", opened.Breadcrumb);
+        Assert.Equal("Notifications", opened.Breadcrumb);
 
         var destination = opened.Rail.Destinations.First(place => place.Kind == DestinationKind.Notifications);
         Assert.Equal(2, destination.Unread);

@@ -99,6 +99,13 @@ public enum Role
     /// <summary>The breadcrumb and status rows. Carried without colour by position.</summary>
     Chrome,
 
+    /// <summary>
+    ///     The crumb you are standing on, told from the ones you walked through by foreground alone — named to pair
+    ///     with <see cref="RailCurrent" />, the same <em>and this is the one you are at</em> relationship. Carried
+    ///     without colour by position: it is always the last crumb, which is why a long trail elides from the left.
+    /// </summary>
+    CrumbCurrent,
+
     /// <summary>Stale content while a fetch lands. Carried without colour by the breadcrumb saying <c>fetching…</c>.</summary>
     Loading,
 

@@ -13,20 +13,96 @@ public static class ChromeLines
     private const string Fetching = "fetching…";
 
     /// <summary>
+    ///     What stands between two crumbs, and what the trail is put together with where it is read from a shell —
+    ///     said once, because a trail joined by one string and split by another is a trail drawn as a single crumb.
+    /// </summary>
+    public const string Rung = " › ";
+
+    /// <summary>What stands in front of a trail too long to draw whole, in place of the crumbs it gave up.</summary>
+    private const string Elided = "… › ";
+
+    /// <summary>
     ///     Where you are in the stack, with the fetch marker at its right. This is the one place a fetch in flight is
     ///     announced — the rail holds still (ADR-0014) — and it is beside the content it is about to replace.
     /// </summary>
+    /// <remarks>
+    ///     The crumb you are standing on is the last one, and it is drawn in <see cref="Role.CrumbCurrent" /> while
+    ///     the ones you walked through to get there stay <see cref="Role.Chrome" /> — separators included, which keep
+    ///     no role of their own (#216). The marker's columns come off the trail's room before any of that, which is
+    ///     the order this has always worked in: a mark is beside the trail rather than over it.
+    /// </remarks>
     public static Line Breadcrumb(string trail, bool fetching, int width)
     {
         var mark = fetching ? Fetching : string.Empty;
         var room = Math.Max(0, width - Glyphs.Columns(mark) - 1);
-        var shown = new Span(TextWrap.Clip(trail, room), Role.Chrome);
+        var shown = Trail(trail, room);
+        var said = shown.Sum(span => span.Width);
 
-        return Line.Of([
-            shown,
-            new Span(new string(' ', Math.Max(1, width - shown.Width - Glyphs.Columns(mark))), Role.Chrome),
+        return new Line([
+            .. shown,
+            new Span(new string(' ', Math.Max(1, width - said - Glyphs.Columns(mark))), Role.Chrome),
             new Span(mark, Role.Loading),
         ]);
+    }
+
+    /// <summary>
+    ///     <paramref name="trail" /> in the <paramref name="room" /> it has, eliding from the left: the crumb you are
+    ///     standing on is kept whole and the ones you walked through are given up for <see cref="Elided" />.
+    /// </summary>
+    /// <remarks>
+    ///     Which way round to elide was settled by what each end says (#168): the far end is the destination screen,
+    ///     which the rail is already drawing 18 columns to the left, and the near end is the only thing on the row
+    ///     that the rail does not say. Clipping from the right kept the first and lost the second.
+    ///     <para>
+    ///         A single crumb wider than the room is clipped from the right after all, which is the one case there is
+    ///         nothing else to do with: what is left of it still starts with the words that tell it from its
+    ///         neighbours, and the lead comes off rather than spending four of the few columns there are.
+    ///     </para>
+    /// </remarks>
+    private static IReadOnlyList<Span> Trail(string trail, int room)
+    {
+        var crumbs = trail.Split(Rung);
+        var standing = crumbs.Length - 1;
+
+        if (Glyphs.Columns(trail) <= room)
+        {
+            return [.. crumbs.SelectMany((crumb, at) => Drawn(crumb, at, at == standing))];
+        }
+
+        var budget = room - Glyphs.Columns(Elided);
+
+        if (budget < Glyphs.Columns(crumbs[standing]))
+        {
+            return [new Span(TextWrap.Clip(crumbs[standing], room), Role.CrumbCurrent)];
+        }
+
+        // Leftwards from where you are standing, taking whole crumbs while there is room for one — so the row ends in
+        // the crumb the reader is on however deep the trail behind it is.
+        var kept = standing;
+        var used = Glyphs.Columns(crumbs[standing]);
+
+        while (kept > 0 && used + Glyphs.Columns(Rung) + Glyphs.Columns(crumbs[kept - 1]) <= budget)
+        {
+            kept--;
+            used += Glyphs.Columns(Rung) + Glyphs.Columns(crumbs[kept]);
+        }
+
+        return
+        [
+            new Span(Elided, Role.Chrome),
+            .. crumbs[kept..].SelectMany((crumb, at) => Drawn(crumb, at, kept + at == standing)),
+        ];
+    }
+
+    /// <summary>One crumb and the separator in front of it, where it is not the first thing on the row.</summary>
+    private static IEnumerable<Span> Drawn(string crumb, int at, bool standing)
+    {
+        if (at > 0)
+        {
+            yield return new Span(Rung, Role.Chrome);
+        }
+
+        yield return new Span(crumb, standing ? Role.CrumbCurrent : Role.Chrome);
     }
 
     /// <summary>

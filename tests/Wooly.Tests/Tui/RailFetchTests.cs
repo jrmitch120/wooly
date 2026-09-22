@@ -89,7 +89,7 @@ public class RailFetchTests
         shell.Host.Settle();
 
         Assert.Equal(TimelineScope.Federated, shell.Timelines.Reads[^1].Timeline.Scope);
-        Assert.Equal("federated", opened.Breadcrumb);
+        Assert.Equal("Federated", opened.Breadcrumb);
     }
 
     /// <summary>
@@ -171,7 +171,7 @@ public class RailFetchTests
         held.SetResult(Fetch<Post>.Complete([APost.With(id: "stale")]));
 
         Assert.Equal(TimelineScope.Federated, opened.Rail.Showing.Timeline?.Scope);
-        Assert.Equal("federated", opened.Breadcrumb);
+        Assert.Equal("Federated", opened.Breadcrumb);
 
         var feed = Assert.IsType<FeedScreen>(opened.Screen);
         Assert.DoesNotContain(feed.Posts, post => post.Id == "stale");
@@ -209,7 +209,7 @@ public class RailFetchTests
         held.SetResult(Fetch<Post>.Complete([APost.With(id: "stale")]));
 
         Assert.IsType<SearchScreen>(opened.Screen);
-        Assert.Equal("search", opened.Breadcrumb);
+        Assert.Equal("Search", opened.Breadcrumb);
     }
 
     /// <summary>
@@ -230,7 +230,7 @@ public class RailFetchTests
         await drilling;
 
         Assert.IsType<FeedScreen>(opened.Screen);
-        Assert.Equal("local", opened.Breadcrumb);
+        Assert.Equal("Local", opened.Breadcrumb);
     }
 
     /// <summary>

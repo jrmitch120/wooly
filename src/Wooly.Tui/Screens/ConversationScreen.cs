@@ -30,7 +30,7 @@ public sealed class ConversationScreen : Screen
     }
 
     /// <inheritdoc />
-    public override string Crumb => $"with {ConversationLines.Who(Conversation)}";
+    public override string Crumb => $"With {ConversationLines.Who(Conversation)}";
 
     /// <inheritdoc />
     /// <remarks>

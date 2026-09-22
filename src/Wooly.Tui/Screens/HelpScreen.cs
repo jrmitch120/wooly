@@ -23,7 +23,7 @@ public sealed class HelpScreen(Screen about) : Screen
     ];
 
     /// <inheritdoc />
-    public override string Crumb => "keys";
+    public override string Crumb => "Keys";
 
     /// <inheritdoc />
     /// <remarks>

@@ -32,7 +32,7 @@ public class ShellRequestTests
 
         var screen = Assert.IsType<FollowRequestsScreen>(opened.Screen);
         Assert.Equal(["42", "43"], screen.Waiting.Select(account => account.Id));
-        Assert.Equal("follow requests", opened.Breadcrumb);
+        Assert.Equal("Follow requests", opened.Breadcrumb);
         Assert.Equal(2, opened.Rail.Destinations.First(place => place.Kind == DestinationKind.Requests).Unread);
     }
 

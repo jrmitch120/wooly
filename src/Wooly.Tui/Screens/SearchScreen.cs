@@ -36,7 +36,7 @@ public sealed class SearchScreen : Screen
     private bool _typing = true;
 
     /// <inheritdoc />
-    public override string Crumb => Asked is { } asked ? $"search {asked}" : "search";
+    public override string Crumb => Asked is { } asked ? $"Search {asked}" : "Search";
 
     /// <inheritdoc />
     /// <remarks>

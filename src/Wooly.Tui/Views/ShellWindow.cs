@@ -33,7 +33,12 @@ internal sealed class ShellWindow : Window
     private const int RowsAPress = 3;
 
     /// <summary>The first row under the breadcrumb, where the content region and anything laid over it begin.</summary>
-    private const int ContentTop = 1;
+    /// <remarks>
+    ///     Two rather than one: the breadcrumb keeps row 0 and row 1 is held blank, because a breadcrumb drawn hard
+    ///     against the content is a breadcrumb that reads as part of it. A blank row is the separator vocabulary every
+    ///     screen already uses and the one that works where there is no colour, which a band would not (#216).
+    /// </remarks>
+    private const int ContentTop = 2;
 
     /// <summary>
     ///     What the content region answers to among its siblings — four regions are painted the same way and only

@@ -362,7 +362,7 @@ public class ShellRefreshTests
 
         var feed = Assert.IsType<FeedScreen>(opened.Screen);
 
-        Assert.Equal("local", opened.Breadcrumb);
+        Assert.Equal("Local", opened.Breadcrumb);
         Assert.DoesNotContain(feed.Posts, post => post.Id == "stale");
     }
 

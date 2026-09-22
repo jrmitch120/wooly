@@ -45,7 +45,7 @@ public sealed class PostScreen : Screen
     }
 
     /// <inheritdoc />
-    public override string Crumb => $"post by @{(Post.Boosted ?? Post).Account}";
+    public override string Crumb => $"Post by @{(Post.Boosted ?? Post).Account}";
 
     /// <inheritdoc />
     /// <remarks>

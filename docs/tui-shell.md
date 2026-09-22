@@ -1264,18 +1264,15 @@ glyph or a position that carries the same meaning when colour is gone.
 | `rail-unread` | An unread count, and the word on an unread conversation | the number, and the word |
 | `quota` / `quota-low` | Rate-limit budget left, and nearly spent | the number |
 | `chrome` | The frame's furniture: the breadcrumb's ancestors and its `›`, the status row's leading space and ` · ` separators, the rail's rule | position |
+| `crumb-current` | The crumb you are standing on, told from its ancestors by foreground alone | position — it is always the last crumb, and the trail elides from the left |
 | `loading` | The fetch mark on the breadcrumb — the word and up to three dots, laid out at 11 columns | the word itself, and the dots arriving |
 | `destructive` | A delete affordance and its confirmation | the word |
 | `error` | A failure the shell has to say out loud | the word |
 
-**Two roles this map settled are not in the table yet**, and that is the table doing its job: it, the `Role` enum and
+**One role this map settled is not in the table yet**, and that is the table doing its job: it, the `Role` enum and
 the `RoleName` map are checked against each other by a test, and every role in the enum must be emitted by some view,
-so a row here is a promise that the code already keeps. Each lands with the change that draws it.
+so a row here is a promise that the code already keeps. It lands with the change that draws it.
 
-- **`crumb-current`** — the crumb you are standing on, told from its ancestors by foreground alone. Carried without
-  colour by position: it is always the last crumb, and the trail elides from the left. Starting values `#f2f0f7`
-  dark, `#100e18` light, which is `byline-name`'s, the brightest foreground each built-in has. No band, so no
-  `DarkBands`/`LightBands` entry. (#216)
 - **`key`** — a key you press, in the three places one is drawn, never prose that names a key and never the padding
   beside one. Carried without colour by position. One step from `muted` toward `body` in the grey family with no hue,
   roughly `#a9a5bd` dark and `#3f3d52` light: a hue would make the row louder than the frame it sits in and re-run

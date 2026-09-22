@@ -130,8 +130,8 @@ public sealed class Shell
     /// <summary>How deep the drill is, where one is a destination with nothing opened from it.</summary>
     public int Depth => _stack.Count;
 
-    /// <summary>Where you are, as the trail along the top: <c>home › post by @ben › @ben@hachyderm.io</c>.</summary>
-    public string Breadcrumb => string.Join(" › ", _stack.Select(screen => screen.Crumb));
+    /// <summary>Where you are, as the trail along the top: <c>Home › Post by @ben › @ben@hachyderm.io</c>.</summary>
+    public string Breadcrumb => string.Join(ChromeLines.Rung, _stack.Select(screen => screen.Crumb));
 
     /// <summary>Whether a fetch is in flight, which the breadcrumb says once and the rail never does.</summary>
     public bool Fetching => _enquiry.Fetching;
@@ -1233,7 +1233,7 @@ public sealed class Shell
             // that would name one rather than an empty timeline.
             case { Kind: DestinationKind.Hashtag, Timeline: null }:
                 _arrival.At(new NoticeScreen(
-                    "hashtag",
+                    "Hashtag",
                     "No hashtag is set for the rail.",
                     """Put hashtag = "cats" under [preferences] in your config file to keep one here."""));
 
