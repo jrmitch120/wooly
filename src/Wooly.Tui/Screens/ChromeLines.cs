@@ -5,8 +5,8 @@ namespace Wooly.Tui.Screens;
 
 /// <summary>
 ///     What is on screen and is not a screen: the breadcrumb above the content, the status row along the bottom, and
-///     the two seams between the regions. All of it is the frame rather than the thing being read, which is why none
-///     of it moves and none of it scrolls.
+///     the column dividing the rail from both. All of it is the frame rather than the thing being read, which is why
+///     none of it moves and none of it scrolls.
 /// </summary>
 public static class ChromeLines
 {
@@ -31,9 +31,11 @@ public static class ChromeLines
     /// </summary>
     /// <remarks>
     ///     The crumb you are standing on is the last one, and it is drawn in <see cref="Role.CrumbCurrent" /> while
-    ///     the ones you walked through to get there stay <see cref="Role.Chrome" /> — separators included, which keep
-    ///     no role of their own (#216). The marker's columns come off the trail's room before any of that, which is
-    ///     the order this has always worked in: a mark is beside the trail rather than over it.
+    ///     the ones you walked through to get there take <see cref="Role.Crumb" /> — separators included, which keep
+    ///     no role of their own (#216). Both sit on the same band, and so does the mark: it is one row, and what
+    ///     makes it read as the frame is the row being banded rather than any one thing on it. The marker's columns
+    ///     come off the trail's room before any of that, which is the order this has always worked in: a mark is
+    ///     beside the trail rather than over it.
     /// </remarks>
     /// <param name="crumbs">
     ///     Where you are, a crumb a screen deep, outermost first — the stack itself rather than the one string it
@@ -50,7 +52,7 @@ public static class ChromeLines
 
         return new Line([
             .. shown,
-            new Span(new string(' ', Math.Max(1, width - columns - Glyphs.Columns(mark))), Role.Chrome),
+            new Span(new string(' ', Math.Max(1, width - columns - Glyphs.Columns(mark))), Role.Crumb),
             new Span(mark, Role.Loading),
         ]);
     }
@@ -99,7 +101,7 @@ public static class ChromeLines
 
         return
         [
-            new Span(Elided, Role.Chrome),
+            new Span(Elided, Role.Crumb),
             .. crumbs.Skip(kept).SelectMany((crumb, at) => Spans(crumb, at, kept + at == standing)),
         ];
     }
@@ -109,24 +111,11 @@ public static class ChromeLines
     {
         if (at > 0)
         {
-            yield return new Span(Separator, Role.Chrome);
+            yield return new Span(Separator, Role.Crumb);
         }
 
-        yield return new Span(crumb, standing ? Role.CrumbCurrent : Role.Chrome);
+        yield return new Span(crumb, standing ? Role.CrumbCurrent : Role.Crumb);
     }
-
-    /// <summary>
-    ///     The row between the breadcrumb and the content: nothing, in the seam's own background. A blank row is how
-    ///     every screen in this shell divides one thing from the next, and it is what keeps the breadcrumb from
-    ///     reading as the first line of what is being read (#216).
-    /// </summary>
-    /// <remarks>
-    ///     Drawn rather than left to the window underneath, for the reason the column beside it is: a cell nothing
-    ///     paints is a cell Terminal.Gui paints, in a grey no theme chose. Under <c>NO_COLOR</c> the background goes
-    ///     and the row is blank, which is the whole of what it was before the background was added — the division is
-    ///     carried there by the row existing at all.
-    /// </remarks>
-    public static Line Seam(int width) => Line.Of(new string(' ', Math.Max(0, width)), Role.Seam);
 
     /// <summary>
     ///     The column between the rail and the content, <paramref name="height" /> rows of it. A rule rather than a

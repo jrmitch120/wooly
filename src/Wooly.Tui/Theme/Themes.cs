@@ -30,13 +30,17 @@ public static class Themes
 
     /// <summary>
     ///     The roles drawn on something other than the page: the two told apart by the band they are drawn in rather
-    ///     than by the text on them, and the seam, which is a band with nothing on it at all.
+    ///     than by the text on them, the seam, which is a band with nothing on it at all, and the three that share the
+    ///     breadcrumb row — one row, so one band, whatever each of them is saying on it.
     /// </summary>
     private static readonly Dictionary<Role, string> DarkBands = new()
     {
         [Role.Selection] = "#2a2942",
         [Role.RailCurrent] = "#2a2942",
         [Role.Seam] = "#1c1a28",
+        [Role.Crumb] = "#1c1a28",
+        [Role.CrumbCurrent] = "#1c1a28",
+        [Role.Loading] = "#1c1a28",
     };
 
     private static readonly Dictionary<Role, string> LightBands = new()
@@ -44,6 +48,9 @@ public static class Themes
         [Role.Selection] = "#dcd9e8",
         [Role.RailCurrent] = "#dcd9e8",
         [Role.Seam] = "#eeecf3",
+        [Role.Crumb] = "#eeecf3",
+        [Role.CrumbCurrent] = "#eeecf3",
+        [Role.Loading] = "#eeecf3",
     };
 
     private static readonly Palette DarkPalette = Palette.Of(
@@ -73,6 +80,7 @@ public static class Themes
             [Role.Quota] = "#7c7891",
             [Role.QuotaLow] = "#ff7a93",
             [Role.Chrome] = "#7c7891",
+            [Role.Crumb] = "#7c7891",
             [Role.CrumbCurrent] = "#f2f0f7",
             [Role.Seam] = "#7c7891",
             [Role.Loading] = "#5c5872",
@@ -108,6 +116,7 @@ public static class Themes
             [Role.Quota] = "#6a6780",
             [Role.QuotaLow] = "#b3123f",
             [Role.Chrome] = "#6a6780",
+            [Role.Crumb] = "#6a6780",
             [Role.CrumbCurrent] = "#100e18",
             [Role.Seam] = "#6a6780",
             [Role.Loading] = "#9b98ad",

@@ -32,6 +32,7 @@ public static class RoleName
         [Role.Quota] = "quota",
         [Role.QuotaLow] = "quota-low",
         [Role.Chrome] = "chrome",
+        [Role.Crumb] = "crumb",
         [Role.CrumbCurrent] = "crumb-current",
         [Role.Seam] = "seam",
         [Role.Loading] = "loading",

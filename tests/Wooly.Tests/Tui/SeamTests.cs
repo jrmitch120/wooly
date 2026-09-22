@@ -6,34 +6,20 @@ using Wooly.Tui.Views;
 namespace Wooly.Tests.Tui;
 
 /// <summary>
-///     What divides one region from the next: the blank row under the breadcrumb, and the column between the rail and
-///     the content. Both are drawn rather than left to whatever is underneath — a cell nothing paints is a cell
-///     Terminal.Gui paints, in a grey no theme chose (#216).
+///     What divides one region from the next: the column between the rail and the content, and the blank row under
+///     the breadcrumb. The column is drawn, because a cell nothing paints is a cell Terminal.Gui paints in a grey no
+///     theme chose; the row is not, because the page showing through is exactly what blank means (#216).
 /// </summary>
 /// <remarks>
-///     The regions table in <c>docs/tui-shell.md</c> has called the row a region since #168 and the diagram has drawn
-///     the column since the contract was written; neither was ever painted. The row's division is carried without
-///     colour by its being blank, the column's by the rule down it — so a terminal answering <c>NO_COLOR</c> still
-///     has the rail told from the content.
+///     The diagram in <c>docs/tui-shell.md</c> has drawn the column since the contract was written and nothing ever
+///     painted it. Its division is carried without colour by the rule down it, so a terminal answering
+///     <c>NO_COLOR</c> still has the rail told from the content; the row's is carried by its being blank, which is
+///     what every screen already does between one thing and the next.
 /// </remarks>
 public class SeamTests
 {
-    /// <summary>The content region's width at an 80-column terminal, which is what the rail leaves (RailLines).</summary>
-    private const int ContentWidth = 61;
-
-    /// <summary>The row under the breadcrumb is the width it is given, blank, and in the seam's own role.</summary>
-    [Fact]
-    public void Seam_IsABlankRowInItsOwnRole()
-    {
-        var row = ChromeLines.Seam(ContentWidth);
-
-        Assert.Equal(ContentWidth, row.Width);
-        Assert.Equal(string.Empty, row.Text.Trim());
-        Assert.All(row.Spans, span => Assert.Equal(Role.Seam, span.Role));
-    }
-
     /// <summary>
-    ///     And the column beside the content is a rule, one column wide, all the way down — a glyph rather than a
+    ///     The column beside the content is a rule, one column wide, all the way down — a glyph rather than a
     ///     background alone, so that the rail is still divided from the content where there is no colour to divide
     ///     them with.
     /// </summary>
@@ -67,24 +53,23 @@ public class SeamTests
     }
 
     /// <summary>
-    ///     Both seams are where the contract puts them: the row spanning the content's width between the breadcrumb
-    ///     and the content, and the column between the rail and everything to its right, from the top down to the
-    ///     status row.
+    ///     Both are where the contract puts them: the row between the breadcrumb and the content, which no region
+    ///     covers, and the column between the rail and everything to its right, from the top down to the status row.
     /// </summary>
     [Fact]
-    public async Task Shell_PutsASeamBetweenEveryRegionAndTheNext()
+    public async Task Shell_DividesEveryRegionFromTheNext()
     {
         using var window = await Opened(Themes.Dark);
 
-        var seam = Region(window, x: RailLines.Width + 1, y: 1);
+        var breadcrumb = Region(window, x: RailLines.Width + 1, y: 0);
         var gutter = Region(window, x: RailLines.Width, y: 0);
         var content = window.SubViews.OfType<PaintedView>().Single(view => view.Id == ShellWindow.ContentId);
 
-        // Row 0 is the breadcrumb's, row 1 is the seam's, and the content starts under both.
-        Assert.Equal(1, seam.Frame.Y);
+        // Row 0 is the breadcrumb's, row 1 is nobody's, and the content starts under both. A region drawing the row
+        // is what this asserts the absence of: the page showing through is what makes it blank.
+        Assert.Equal(1, breadcrumb.Frame.Height);
         Assert.Equal(2, content.Frame.Y);
-        Assert.Equal(content.Frame.X, seam.Frame.X);
-        Assert.Equal(content.Frame.Width, seam.Frame.Width);
+        Assert.DoesNotContain(window.SubViews.OfType<PaintedView>(), view => view.Frame is { X: > 0, Y: 1 });
 
         // And the column runs from the top to the status row, which is the height the rail runs to.
         Assert.Equal(0, gutter.Frame.Y);

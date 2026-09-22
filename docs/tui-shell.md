@@ -26,8 +26,8 @@ not something else. None of that code is production code.
 | Region | Size | Holds |
 |---|---|---|
 | Rail | 18 columns, full height less the status row | Destinations, their unread counts, the rate-limit quota at its foot |
-| Breadcrumb | 1 row, content width | Where you are in the stack, the crumb you are standing on told from its ancestors; the fetch mark in the rightmost 11 columns while a fetch is in flight |
-| *(the seam)* | 1 row, content width | Nothing, in `seam`. A blank row divides the frame from what is being read, the way every screen divides one thing from the next (#168) |
+| Breadcrumb | 1 row, content width | Where you are in the stack, the crumb you are standing on told from its ancestors, on `crumb`'s band; the fetch mark in the rightmost 11 columns while a fetch is in flight |
+| *(the seam)* | 1 row, content width | Nothing, and drawn by nothing — the page shows through, which is what blank means. A blank row divides the frame from what is being read, the way every screen divides one thing from the next (#168) |
 | *(the gutter)* | 1 column, full height less the status row | A `│` rule in `seam`, dividing the rail from everything right of it. A rule as well as a background, so the division holds where there is no colour |
 | Content | the rest | Exactly one screen at a time |
 | Status | 1 row, full width | The current screen's keys, as many as fit and `…+N` for the rest; or a notice; or a confirmation; the quota again when the rail is hidden |
@@ -1052,11 +1052,11 @@ and #213 settled the row; #216 and #217 build it:
   rather than replaced by a rule about rail labels.
 - **The crumb you are standing on is told from its ancestors by foreground alone**, in one new role,
   `crumb-current` — named to pair with `rail-current`, the same *and this is the one you are at* relationship. The
-  ancestors stay `chrome`, and **the `›` separator keeps no role of its own**: the trail reads as structure because
+  ancestors take `crumb`, and **the `›` separator keeps no role of its own**: the trail reads as structure because
   its end brightens, not because its separators dim, and a second role is a second public name in everybody's
-  `[themes.*]` table for something nobody would theme separately. A glyph before the current crumb, a band across the
-  row, a band on the current crumb alone and dimming the ancestors were all drawn and rejected — in this shell a band
-  means *the thing you are on* (`selection`, `rail-current`), so banding the row says the whole row is that.
+  `[themes.*]` table for something nobody would theme separately. A glyph before the current crumb, a band on the
+  current crumb alone and dimming the ancestors were all drawn and rejected — in this shell a band means *the thing
+  you are on* (`selection`, `rail-current`), so banding one crumb says that crumb is a selection.
 - **The no-colour case is carried by position**: with no glyph, a mono terminal draws exactly the row it drew before,
   and the crumb you are standing on is always the last one by construction. Nothing improves there and nothing is
   missing; colour is what is added for the terminals that have it.
@@ -1070,8 +1070,14 @@ and #213 settled the row; #216 and #217 build it:
   The cost is one content row on every screen, forever, and it is worth spending because the breadcrumb blends into
   the content on every screen — where the second status row refused below would fix a problem only the busiest screen
   has. A horizontal rule was rejected: the only rules in the TUI are the rail's foot divider and Discover's section
-  headings, which on Discover would be four rows apart from it. A `crumb` background stays available later with no
-  new row-budget argument, if the blank row turns out to be too quiet.
+  headings, which on Discover would be four rows apart from it.
+- **And the breadcrumb row is banded, which this map first refused.** The blank row was too quiet on its own: with
+  nothing else on screen carrying a background, the frame's top row read as the first line of what was being read.
+  The refusal stands where it was aimed — a band is no way to tell the crumb you are standing on from its ancestors,
+  which is `crumb-current`'s job and is done by foreground. Banding the *row* says something else, and something the
+  row needs said: this is the frame. So `crumb` was added, the band goes under everything on the row — crumbs,
+  separators, the `… › ` lead, the room left over and the fetch mark — and the seam under it went back to being
+  blank. A band under half the row would read as a highlight on that half, which is the objection this keeps.
 - **The fetch mark moves, and is laid out so nothing else does.** `fetching.` → `fetching..` → `fetching...` →
   `fetching.`, a dot every 400ms. It owns the **rightmost 11 columns** with the word at the left of that field and
   the unfilled dots padded, so the word cannot move and the trail under it cannot re-elide on the tick — a mark 9
@@ -1264,9 +1270,9 @@ glyph or a position that carries the same meaning when colour is gone.
 | `rail` / `rail-current` | Destinations, and the one loaded | one glyph, one column: `▶` where the tabbing has got to, `▷` where it settled if that differs — they coincide at rest, so only `▶` shows |
 | `rail-unread` | An unread count, and the word on an unread conversation | the number, and the word |
 | `quota` / `quota-low` | Rate-limit budget left, and nearly spent | the number |
-| `chrome` | The frame's furniture: the breadcrumb's ancestors and its `›`, the status row's leading space and ` · ` separators, the rail's rule | position |
-| `crumb-current` | The crumb you are standing on, told from its ancestors by foreground alone | position — it is always the last crumb, and the trail elides from the left |
-| `seam` | What divides one region from the next: the blank row under the breadcrumb, and the column between the rail and the content | `│` down the column, and the row being blank |
+| `chrome` | The frame's furniture below the breadcrumb: the status row's leading space and ` · ` separators, the rail's rule | position |
+| `crumb` / `crumb-current` | The breadcrumb row — the crumbs walked through, the `›` between them and the `… › ` a long trail leads with; and the one being stood on, told from them by foreground alone. One band under the whole row, the fetch mark included | position — the current crumb is always the last, and the trail elides from the left |
+| `seam` | The column dividing the rail from the content | the `│` down it |
 | `loading` | The fetch mark on the breadcrumb — the word and up to three dots, laid out at 11 columns | the word itself, and the dots arriving |
 | `destructive` | A delete affordance and its confirmation | the word |
 | `error` | A failure the shell has to say out loud | the word |
@@ -1375,9 +1381,9 @@ Rules:
   there: the theme's page for nearly every role, and its own band for the selected row and the current rail entry — so
   restating the selection's foreground does not silently take away the band it is drawn in.
 - `background` is the theme's, not a role: setting it moves everything that was sitting on the page. What divides one
-  region from the next does not sit on it — the seam under the breadcrumb and the column beside the rail are `seam`'s
-  own band, and a theme moving the page will usually want to move that with it. Neither was painted at all before
-  #216, and a cell nothing paints is a cell Terminal.Gui paints, in a grey no theme chose. A theme cannot
+  region from the next does not sit on it — the column beside the rail is `seam`'s own band and the breadcrumb row is
+  `crumb`'s, and a theme moving the page will usually want to move both with it. The column was painted by nothing at
+  all before #216, and a cell nothing paints is a cell Terminal.Gui paints, in a grey no theme chose. A theme cannot
   decline to have one and inherit the terminal's own — `Terminal.Gui` attributes are a foreground/background pair with
   no "leave it alone" in them, and its own default pair is a concrete white on black rather than a sentinel. So the
   page is always written down: this theme's, or the built-in's.

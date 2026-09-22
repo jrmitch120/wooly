@@ -21,7 +21,7 @@ public class BreadcrumbTests
 
     /// <summary>
     ///     The crumb you are standing on takes <see cref="Role.CrumbCurrent" /> and every crumb you walked through to
-    ///     get there stays <see cref="Role.Chrome" /> — separators included, which keep no role of their own.
+    ///     get there takes <see cref="Role.Crumb" /> — separators included, which keep no role of their own.
     /// </summary>
     [Fact]
     public void Breadcrumb_DrawsTheCrumbYouAreStandingOnInItsOwnRole()
@@ -32,10 +32,10 @@ public class BreadcrumbTests
 
         Assert.Equal(
             [
-                (Role.Chrome, "Home"),
-                (Role.Chrome, " › "),
-                (Role.Chrome, "Post by @ben"),
-                (Role.Chrome, " › "),
+                (Role.Crumb, "Home"),
+                (Role.Crumb, " › "),
+                (Role.Crumb, "Post by @ben"),
+                (Role.Crumb, " › "),
                 (Role.CrumbCurrent, "@ben@hachyderm.io"),
             ],
             said);
@@ -91,7 +91,7 @@ public class BreadcrumbTests
         Assert.True(row.Width <= ContentWidth, $"The row is {row.Width} columns wide.");
 
         Assert.Contains(row.Spans, span => span is { Role: Role.CrumbCurrent, Text: "Keys" });
-        Assert.Contains(row.Spans, span => span is { Role: Role.Chrome, Text: "… › " });
+        Assert.Contains(row.Spans, span => span is { Role: Role.Crumb, Text: "… › " });
     }
 
     /// <summary>
@@ -146,8 +146,39 @@ public class BreadcrumbTests
         var row = ChromeLines.Breadcrumb(["Home", "Search a › b"], fetching: false, ContentWidth);
 
         Assert.Equal(
-            [(Role.Chrome, "Home"), (Role.Chrome, " › "), (Role.CrumbCurrent, "Search a › b")],
+            [(Role.Crumb, "Home"), (Role.Crumb, " › "), (Role.CrumbCurrent, "Search a › b")],
             Written(row));
+    }
+
+    /// <summary>
+    ///     The whole row is one band, however many things are saying something on it: the crumbs, the separators, the
+    ///     lead a long trail elides with, the room left over and the fetch mark. That is what makes the row read as
+    ///     the frame rather than as the first line of what is being read — a band under half of it would read as a
+    ///     highlight on the half it was under (#216).
+    /// </summary>
+    /// <remarks>
+    ///     Asserted as the backgrounds the theme answers with, which is where a band lives in this client: a span
+    ///     carries its own, and a row is banded by every role on it being banded. Against
+    ///     <see cref="Themes.Dark" />, since <see cref="Themes.Plain" /> has one pair for everything and would pass
+    ///     whatever the roles were.
+    /// </remarks>
+    [Fact]
+    public void Breadcrumb_DrawsTheWholeRowOnOneBand()
+    {
+        var row = ChromeLines.Breadcrumb(
+            ["Home", "Post by @ben@hachyderm.io", "@maria@mastodon.social following", "Keys"],
+            fetching: true,
+            ContentWidth);
+
+        var band = Themes.Dark.For(Role.Crumb).Background;
+
+        Assert.NotEqual(Themes.Dark.For(Role.Body).Background, band);
+        Assert.All(row.Spans, span => Assert.Equal(band, Themes.Dark.For(span.Role).Background));
+
+        // And every one of those roles is on the row, so the assertion above is not passing over an empty list.
+        Assert.Contains(row.Spans, span => span.Role == Role.Crumb);
+        Assert.Contains(row.Spans, span => span.Role == Role.CrumbCurrent);
+        Assert.Contains(row.Spans, span => span.Role == Role.Loading);
     }
 
     /// <summary>What the row says, up to the padding the fetch mark is pushed to the right of.</summary>

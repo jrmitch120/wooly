@@ -89,7 +89,6 @@ public partial class RoleTests
         Collect(RailLines.Of(rail, new RateLimitQuota(5, 300, null), 10));
 
         Collect([ChromeLines.Breadcrumb(["Home"], fetching: true, 61)]);
-        Collect([ChromeLines.Seam(61)]);
         Collect(ChromeLines.Gutter(10));
         Collect([
             ChromeLines.Status(

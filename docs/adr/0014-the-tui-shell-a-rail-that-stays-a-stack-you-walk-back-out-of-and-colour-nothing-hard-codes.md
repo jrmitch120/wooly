@@ -191,13 +191,20 @@ row refuted below — it answers a complaint that is true on *every* screen rath
 horizontal rule was rejected for asking a reader to learn that one line means a frame boundary and another, four rows
 away on Discover, means a section heading.
 
-**What divides one region from the next is drawn, in a role of its own.** This ADR gave the shell four regions and
-said nothing about the cells between them, so nothing painted them and Terminal.Gui did — in the grey of its own
-default scheme, which read as a border down the side of the rail and, once the content region moved down a row, as a
-band across the top of the screen. Both are now `seam`: the blank row under the breadcrumb, and the column dividing
-the rail from everything right of it. The column carries a `│` rule as well as a band, because a division made of
-colour alone is no division on the terminals this ADR promised to serve — the row's is carried by its being blank,
-which is what every screen already does between one thing and the next.
+**What divides one region from the next is drawn, and the breadcrumb row is banded.** This ADR gave the shell four
+regions and said nothing about the cells between them, so nothing painted them and Terminal.Gui did — in the grey of
+its own default scheme, which read as a border down the side of the rail and, once the content region moved down a
+row, as a band across the top of the screen. The column dividing the rail from everything right of it is now `seam`,
+and carries a `│` rule as well as a band, because a division made of colour alone is no division on the terminals
+this ADR promised to serve. The row under the breadcrumb is the page, and its being blank is what divides the frame
+from what is being read — which is what every screen already does between one thing and the next.
+
+The blank row was not enough on its own: with no other background on screen, the frame's top row still read as the
+first line of the content. So the breadcrumb row carries a band of its own, `crumb`, under everything on it. The map
+refused a band here and the refusal stands where it was aimed — a band is no way to tell the crumb you are standing
+on from its ancestors, which `crumb-current` does by foreground alone. Banding the whole row says something different
+and something it needs said: this row is the frame. Banding less than the whole row would say the opposite, since in
+this shell a band under one thing means that thing is selected.
 
 **The status row is a reminder and `?` is the reference, so the row may be incomplete but must never truncate.**
 This ADR left the status row to `docs/tui-shell.md` and the doc left its behaviour when full to `TextWrap.Clip`,

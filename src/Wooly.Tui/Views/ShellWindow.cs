@@ -126,19 +126,14 @@ internal sealed class ShellWindow : Window
             CanFocus = false,
         };
 
-        // The two seams, which are regions in the contract's own table and were cells nobody painted until they were:
-        // the blank row under the breadcrumb, and the column dividing the rail from the content. The column carries a
-        // rule as well as a background, so the division survives a terminal drawing no colour; the row is carried
-        // there by being blank, which is what it always was.
-        var seam = new PaintedView(theme, (width, _) => [ChromeLines.Seam(width)])
-        {
-            X = RailLines.Width + 1,
-            Y = 1,
-            Width = Dim.Fill(),
-            Height = 1,
-            CanFocus = false,
-        };
-
+        // The column dividing the rail from the content: a cell nobody painted until it was, and the only one of the
+        // frame's own furniture that runs down rather than across. It carries a rule as well as a background, so the
+        // division survives a terminal drawing no colour.
+        //
+        // The row under the breadcrumb is not here, and is drawn by nothing: it is the page, which is this window's
+        // own scheme, and its being blank is the whole of what divides the frame from what is being read. The band
+        // that was briefly on it is on the breadcrumb itself now, where it says "this row is the frame" rather than
+        // drawing a line under one.
         var gutter = new PaintedView(theme, (_, height) => ChromeLines.Gutter(height))
         {
             X = RailLines.Width,
@@ -192,7 +187,7 @@ internal sealed class ShellWindow : Window
             CanFocus = false,
         };
 
-        Add(rail, breadcrumb, seam, gutter, _content, _editor, status);
+        Add(rail, breadcrumb, gutter, _content, _editor, status);
 
         _showing = shell.Screen;
 
