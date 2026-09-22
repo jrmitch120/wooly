@@ -106,7 +106,7 @@ internal sealed class ShellWindow : Window
         };
 
         var breadcrumb = new PaintedView(theme, (width, _) =>
-            [ChromeLines.Breadcrumb(shell.Breadcrumb, shell.Fetching, width)])
+            [ChromeLines.Breadcrumb(shell.Crumbs, shell.Fetching, width)])
         {
             X = RailLines.Width + 1,
             Y = 0,

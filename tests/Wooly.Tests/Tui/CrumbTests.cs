@@ -65,30 +65,39 @@ public class CrumbTests
         Assert.Equal(crumb, Of(state).Crumb);
 
     /// <summary>
-    ///     And the rule underneath those, said once so that the eighteenth screen inherits it: a crumb starts with a
-    ///     capital, unless it opens with a handle or a hashtag — nobody's username is capitalised.
+    ///     And the rule underneath those, said once so that the eighteenth screen inherits it: a crumb opens with a
+    ///     capital and goes on in prose, unless the word it opens with is a handle or a hashtag — which is spelled
+    ///     the way that thing is spelled, whatever its own case, because nobody's username is ours to capitalise.
     /// </summary>
+    /// <remarks>
+    ///     Word by word rather than first letter only, which is what tells sentence case from title case:
+    ///     <c>Direct Messages</c> has to be able to fail this, and a rule that read the first word alone would pass
+    ///     it. The words we add are ours to spell; a word naming a person or a tag is theirs, and is exempt wherever
+    ///     it falls on the row.
+    /// </remarks>
     [Theory]
     [MemberData(nameof(HowEachIsSpelled))]
-    public void Crumb_IsSentenceCaseUnlessItOpensWithAHandleOrAHashtag(string state, string _)
+    public void Crumb_IsSentenceCaseUnlessTheWordIsAHandleOrAHashtag(string state, string _)
     {
         var crumb = Of(state).Crumb;
 
         Assert.NotEqual(string.Empty, crumb);
 
-        if (crumb[0] is '@' or '#')
-        {
-            Assert.Equal(crumb.ToLowerInvariant(), crumb);
+        var words = crumb.Split(' ');
 
-            return;
+        if (!Theirs(words[0]))
+        {
+            Assert.Equal(char.ToUpperInvariant(words[0][0]) + words[0][1..], words[0]);
         }
 
-        Assert.Equal(char.ToUpperInvariant(crumb[0]), crumb[0]);
-
-        // Sentence case rather than title case: what follows the first word is spelled as prose, bar the handle a
-        // crumb may go on to name.
-        Assert.Equal(crumb[1..].Split(' ')[0].ToLowerInvariant(), crumb[1..].Split(' ')[0]);
+        foreach (var word in words.Skip(1).Where(word => !Theirs(word)))
+        {
+            Assert.Equal(word.ToLowerInvariant(), word);
+        }
     }
+
+    /// <summary>Whether <paramref name="word" /> is somebody's own — a handle or a hashtag — rather than ours.</summary>
+    private static bool Theirs(string word) => word.StartsWith('@') || word.StartsWith('#');
 
     /// <summary>
     ///     And every screen there is was asked, so that a screen added later cannot quietly be the one whose crumb

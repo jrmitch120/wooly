@@ -306,6 +306,11 @@ public class RailFetchTests
 
         Assert.IsType<NoticeScreen>(opened.Screen);
         Assert.Equal(readsWhenOpened, shell.Timelines.Reads.Count);
+
+        // And it says where you are in the rail's own words. This is the one screen whose crumb is handed to it at
+        // the call site rather than spelled on the class, so the breadcrumb is where the spelling is asserted (#216).
+        Assert.Equal(opened.Rail.Showing.Label, opened.Breadcrumb);
+        Assert.Equal("Hashtag", opened.Breadcrumb);
     }
 
     /// <summary>Each destination that lists something of its own arrives at its own screen, not at somebody else's.</summary>

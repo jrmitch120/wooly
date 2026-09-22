@@ -5,7 +5,7 @@ choice was between an editor pushed onto the stack like any other screen, and a 
 that the thing being replied to stays visible.
 
 **Compose is a screen.** `c`, `r` and `e` push one, `esc` pops it and throws away what was written, `ctrl-s` sends it
-and pops. The breadcrumb says which of the three it is — `home › post by @ben › reply to @ben@hachyderm.io` — the same
+and pops. The breadcrumb says which of the three it is — `Home › Post by @ben › Reply to @ben@hachyderm.io` — the same
 way it says where everything else is.
 
 The case for the split region is real and it is one thing: you can see what you are answering while you answer it. The

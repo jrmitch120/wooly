@@ -13,13 +13,13 @@ public static class ChromeLines
     private const string Fetching = "fetching…";
 
     /// <summary>
-    ///     What stands between two crumbs, and what the trail is put together with where it is read from a shell —
-    ///     said once, because a trail joined by one string and split by another is a trail drawn as a single crumb.
+    ///     What stands between two crumbs, said here and used wherever the trail is put together as one string —
+    ///     <c>docs/tui-shell.md</c> and ADR-0014 call it the separator, and it keeps no role of its own.
     /// </summary>
-    public const string Rung = " › ";
+    public const string Separator = " › ";
 
     /// <summary>What stands in front of a trail too long to draw whole, in place of the crumbs it gave up.</summary>
-    private const string Elided = "… › ";
+    private const string Elided = $"…{Separator}";
 
     /// <summary>
     ///     Where you are in the stack, with the fetch marker at its right. This is the one place a fetch in flight is
@@ -31,23 +31,29 @@ public static class ChromeLines
     ///     no role of their own (#216). The marker's columns come off the trail's room before any of that, which is
     ///     the order this has always worked in: a mark is beside the trail rather than over it.
     /// </remarks>
-    public static Line Breadcrumb(string trail, bool fetching, int width)
+    /// <param name="crumbs">
+    ///     Where you are, a crumb a screen deep, outermost first — the stack itself rather than the one string it
+    ///     reads as. Handed over unjoined because this row is drawn crumb by crumb: a trail joined here and split
+    ///     again there is a trail whose crumbs are wherever the separator happens to appear, and a reader is entitled
+    ///     to search for <c>a › b</c>.
+    /// </param>
+    public static Line Breadcrumb(IReadOnlyList<string> crumbs, bool fetching, int width)
     {
         var mark = fetching ? Fetching : string.Empty;
         var room = Math.Max(0, width - Glyphs.Columns(mark) - 1);
-        var shown = Trail(trail, room);
-        var said = shown.Sum(span => span.Width);
+        var shown = Trail(crumbs, room);
+        var columns = shown.Sum(span => span.Width);
 
         return new Line([
             .. shown,
-            new Span(new string(' ', Math.Max(1, width - said - Glyphs.Columns(mark))), Role.Chrome),
+            new Span(new string(' ', Math.Max(1, width - columns - Glyphs.Columns(mark))), Role.Chrome),
             new Span(mark, Role.Loading),
         ]);
     }
 
     /// <summary>
-    ///     <paramref name="trail" /> in the <paramref name="room" /> it has, eliding from the left: the crumb you are
-    ///     standing on is kept whole and the ones you walked through are given up for <see cref="Elided" />.
+    ///     <paramref name="crumbs" /> in the <paramref name="room" /> they have, eliding from the left: the crumb you
+    ///     are standing on is kept whole and the ones you walked through are given up for <see cref="Elided" />.
     /// </summary>
     /// <remarks>
     ///     Which way round to elide was settled by what each end says (#168): the far end is the destination screen,
@@ -59,14 +65,14 @@ public static class ChromeLines
     ///         neighbours, and the lead comes off rather than spending four of the few columns there are.
     ///     </para>
     /// </remarks>
-    private static IReadOnlyList<Span> Trail(string trail, int room)
+    private static IReadOnlyList<Span> Trail(IReadOnlyList<string> crumbs, int room)
     {
-        var crumbs = trail.Split(Rung);
-        var standing = crumbs.Length - 1;
+        var standing = crumbs.Count - 1;
+        var whole = crumbs.Sum(Glyphs.Columns) + standing * Glyphs.Columns(Separator);
 
-        if (Glyphs.Columns(trail) <= room)
+        if (whole <= room)
         {
-            return [.. crumbs.SelectMany((crumb, at) => Drawn(crumb, at, at == standing))];
+            return [.. crumbs.SelectMany((crumb, at) => Spans(crumb, at, at == standing))];
         }
 
         var budget = room - Glyphs.Columns(Elided);
@@ -81,25 +87,25 @@ public static class ChromeLines
         var kept = standing;
         var used = Glyphs.Columns(crumbs[standing]);
 
-        while (kept > 0 && used + Glyphs.Columns(Rung) + Glyphs.Columns(crumbs[kept - 1]) <= budget)
+        while (kept > 0 && used + Glyphs.Columns(Separator) + Glyphs.Columns(crumbs[kept - 1]) <= budget)
         {
             kept--;
-            used += Glyphs.Columns(Rung) + Glyphs.Columns(crumbs[kept]);
+            used += Glyphs.Columns(Separator) + Glyphs.Columns(crumbs[kept]);
         }
 
         return
         [
             new Span(Elided, Role.Chrome),
-            .. crumbs[kept..].SelectMany((crumb, at) => Drawn(crumb, at, kept + at == standing)),
+            .. crumbs.Skip(kept).SelectMany((crumb, at) => Spans(crumb, at, kept + at == standing)),
         ];
     }
 
     /// <summary>One crumb and the separator in front of it, where it is not the first thing on the row.</summary>
-    private static IEnumerable<Span> Drawn(string crumb, int at, bool standing)
+    private static IEnumerable<Span> Spans(string crumb, int at, bool standing)
     {
         if (at > 0)
         {
-            yield return new Span(Rung, Role.Chrome);
+            yield return new Span(Separator, Role.Chrome);
         }
 
         yield return new Span(crumb, standing ? Role.CrumbCurrent : Role.Chrome);

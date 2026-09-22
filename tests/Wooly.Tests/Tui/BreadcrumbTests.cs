@@ -27,7 +27,7 @@ public class BreadcrumbTests
     [Fact]
     public void Breadcrumb_DrawsTheCrumbYouAreStandingOnInItsOwnRole()
     {
-        var row = ChromeLines.Breadcrumb("Home › Post by @ben › @ben@hachyderm.io", fetching: false, ContentWidth);
+        var row = ChromeLines.Breadcrumb(["Home", "Post by @ben", "@ben@hachyderm.io"], fetching: false, ContentWidth);
 
         var said = Written(row);
 
@@ -49,7 +49,7 @@ public class BreadcrumbTests
     [Fact]
     public void Breadcrumb_DrawsAOneCrumbTrailAsTheCrumbYouAreStandingOn()
     {
-        var row = ChromeLines.Breadcrumb("Home", fetching: false, ContentWidth);
+        var row = ChromeLines.Breadcrumb(["Home"], fetching: false, ContentWidth);
 
         Assert.Equal([(Role.CrumbCurrent, "Home")], Written(row));
     }
@@ -58,7 +58,7 @@ public class BreadcrumbTests
     [Fact]
     public void Breadcrumb_LeadsATrailThatFitsWithNothing()
     {
-        var row = ChromeLines.Breadcrumb("Home › Post by @ben", fetching: false, ContentWidth);
+        var row = ChromeLines.Breadcrumb(["Home", "Post by @ben"], fetching: false, ContentWidth);
 
         Assert.StartsWith("Home", row.Text, StringComparison.Ordinal);
         Assert.DoesNotContain("…", row.Text, StringComparison.Ordinal);
@@ -77,7 +77,13 @@ public class BreadcrumbTests
     public void Breadcrumb_ElidesADeepTrailFromTheLeft()
     {
         var row = ChromeLines.Breadcrumb(
-            "Home › Post by @ben@hachyderm.io › @maria@mastodon.social › @maria@mastodon.social following › Keys",
+            [
+                "Home",
+                "Post by @ben@hachyderm.io",
+                "@maria@mastodon.social",
+                "@maria@mastodon.social following",
+                "Keys",
+            ],
             fetching: false,
             ContentWidth);
 
@@ -98,7 +104,7 @@ public class BreadcrumbTests
     public void Breadcrumb_ElidesAShallowTrailFromTheLeftToo()
     {
         var row = ChromeLines.Breadcrumb(
-            "@maria@mastodon.social › Post by @somebodywithaverylongname@instance.example",
+            ["@maria@mastodon.social", "Post by @somebodywithaverylongname@instance.example"],
             fetching: false,
             ContentWidth);
 
@@ -119,7 +125,7 @@ public class BreadcrumbTests
     {
         // 55 columns: inside the 60 the row leaves a trail with no mark beside it, and past the 51 it leaves one
         // with a mark on it.
-        const string trail = "Home › Post by @ben@hachyderm.io › @maria@fosstodon.org";
+        string[] trail = ["Home", "Post by @ben@hachyderm.io", "@maria@fosstodon.org"];
 
         var still = ChromeLines.Breadcrumb(trail, fetching: false, ContentWidth);
         var busy = ChromeLines.Breadcrumb(trail, fetching: true, ContentWidth);
@@ -128,6 +134,21 @@ public class BreadcrumbTests
         Assert.StartsWith("… › ", busy.Text, StringComparison.Ordinal);
         Assert.Contains("fetching…", busy.Text);
         Assert.True(busy.Width <= ContentWidth, $"The row is {busy.Width} columns wide.");
+    }
+
+    /// <summary>
+    ///     A crumb that has the separator inside it is still one crumb, because the row is drawn from the stack
+    ///     rather than from the one string it reads as: <c>/</c> takes whatever is typed at it, so <c>a › b</c> is a
+    ///     query somebody is entitled to search for.
+    /// </summary>
+    [Fact]
+    public void Breadcrumb_DrawsACrumbThatHasTheSeparatorInItAsOneCrumb()
+    {
+        var row = ChromeLines.Breadcrumb(["Home", "Search a › b"], fetching: false, ContentWidth);
+
+        Assert.Equal(
+            [(Role.Chrome, "Home"), (Role.Chrome, " › "), (Role.CrumbCurrent, "Search a › b")],
+            Written(row));
     }
 
     /// <summary>
