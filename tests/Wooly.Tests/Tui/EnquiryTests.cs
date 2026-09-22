@@ -349,6 +349,8 @@ public class EnquiryTests
 
         Assert.Equal(2, enquiry.It.Dots);
 
+        var changes = enquiry.Changes;
+
         first.SetResult("one");
 
         await one;
@@ -356,6 +358,7 @@ public class EnquiryTests
         enquiry.Host.Drain();
 
         Assert.True(enquiry.It.Fetching);
+        Assert.Equal(changes, enquiry.Changes);
         Assert.Equal(2, enquiry.It.Dots);
         Assert.Equal(1, enquiry.Host.Waiting);
 

@@ -23,7 +23,7 @@ public static class ChromeLines
     ///     The columns the mark owns while it is drawn: the word and the most dots it ever has, so that it is as wide
     ///     on its first tick as on its last and nothing beside it moves between them (#217).
     /// </summary>
-    private const int MarkColumns = 11;
+    private static readonly int MarkColumns = Glyphs.Columns(Fetching) + MostDots;
 
     /// <summary>What the rail is divided from the content by, one column wide.</summary>
     private const string Rule = "│";
