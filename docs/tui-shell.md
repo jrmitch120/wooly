@@ -11,8 +11,8 @@ not something else. None of that code is production code.
 
 ```
 ┌ 18 ─────────────┬─────────────────────────────────────────────────────────┐
-│ rail            │ breadcrumb                                        1 row │
-│                 ├─────────────────────────────────────────────────────────┤
+│ rail            │ Breadcrumb › where you are         fetching..     1 row │
+│                 │                                      (blank)      1 row │
 │ destinations    │ content                                                 │
 │ + unread counts │ (feed · post · account · conversation · search results) │
 │                 │                                                         │
@@ -26,9 +26,10 @@ not something else. None of that code is production code.
 | Region | Size | Holds |
 |---|---|---|
 | Rail | 18 columns, full height less the status row | Destinations, their unread counts, the rate-limit quota at its foot |
-| Breadcrumb | 1 row, content width | Where you are in the stack; a fetch-in-progress marker at its right |
+| Breadcrumb | 1 row, content width | Where you are in the stack, the crumb you are standing on told from its ancestors; the fetch mark in the rightmost 11 columns while a fetch is in flight |
+| *(the seam)* | 1 row, content width | Nothing. A blank row divides the frame from what is being read, the way every screen divides one thing from the next (#168) |
 | Content | the rest | Exactly one screen at a time |
-| Status | 1 row, full width | The current screen's keys; the quota again when the rail is hidden |
+| Status | 1 row, full width | The current screen's keys, as many as fit and `…+N` for the rest; or a notice; or a confirmation; the quota again when the rail is hidden |
 
 At 80 columns this leaves the content 61. That is the width every screen must read well at — it is the narrow case the
 right-hand context pane failed (ADR-0014).
@@ -447,9 +448,11 @@ cache. Streaming stays out of scope (below); a manual refresh is the in-scope an
 - **The badge moves with the count**, from the same answer the screen redraws from — the same rule every other
   arrival already follows.
 - **A refresh goes through `Enquiry` like every other fetch**, discarded unread if the reader has moved on. No new
-  in-flight UI beyond the breadcrumb's existing `fetching…` marker; a second `g` while anything at all is in flight is
+  in-flight UI beyond the breadcrumb's existing fetch mark; a second `g` while anything at all is in flight is
   a silent no-op — the guard is the breadcrumb's own `Fetching`, since a refresh landing on top of a boost or a
-  deletion still in flight is the same stale answer by another route.
+  deletion still in flight is the same stale answer by another route. Since #213 that mark waits 400ms before it
+  appears, so a refresh can be in flight with nothing on screen saying so: `g` pressed twice inside that window is a
+  no-op with nothing to explain it, which was true before the delay and is only easier to reach now.
 - **What is on screen stands until there is something fresher to put in its place.** An arrival puts an empty screen
   up at once because what was showing is about somewhere the reader has left; a refresh is the one case where that is
   not true, so it takes neither that step nor the overtake — nothing is in flight to overtake, since the key is
@@ -1034,6 +1037,162 @@ which of them had one to put there. #204 did:
 - **The CLI is left alone.** `account requests list` and `search` have the same gap; adding a standing to their JSON
   is a machine-readable-output change to argue under ADR-0007 and is worth its own issue.
 
+### What the breadcrumb settled
+
+The trail said where you are and drew itself as one `Role.Chrome` span, so it said nothing of the sort — and
+`FeedScreen.Crumb` lowercased the rail's own label, so the sidebar said `Home` and the breadcrumb said `home`. #168
+and #213 settled the row; #216 and #217 build it:
+
+- **Every crumb is sentence case** — `Home`, `Notifications`, `Direct messages`, `Follow requests`, `Search cats`,
+  `Post by @maria`, `With maria and joe`, `Keys`, `Compose`, `Reply to @maria`, `Edit` — **except a crumb that opens
+  with a handle or a hashtag**, which is spelled the way that thing is spelled: `@maria`, `@maria following`,
+  `@maria followers`, `#cats`. Nobody's username is capitalised. One rule rather than two: the rail's ten labels are
+  already sentence case, so a rail-label crumb matches the rail by construction and `.ToLowerInvariant()` is deleted
+  rather than replaced by a rule about rail labels.
+- **The crumb you are standing on is told from its ancestors by foreground alone**, in one new role,
+  `crumb-current` — named to pair with `rail-current`, the same *and this is the one you are at* relationship. The
+  ancestors stay `chrome`, and **the `›` separator keeps no role of its own**: the trail reads as structure because
+  its end brightens, not because its separators dim, and a second role is a second public name in everybody's
+  `[themes.*]` table for something nobody would theme separately. A glyph before the current crumb, a band across the
+  row, a band on the current crumb alone and dimming the ancestors were all drawn and rejected — in this shell a band
+  means *the thing you are on* (`selection`, `rail-current`), so banding the row says the whole row is that.
+- **The no-colour case is carried by position**: with no glyph, a mono terminal draws exactly the row it drew before,
+  and the crumb you are standing on is always the last one by construction. Nothing improves there and nothing is
+  missing; colour is what is added for the terminals that have it.
+- **A long trail elides from the left** — `… › @maria@mastodon.social following › Keys`, the lead being `… › ` in
+  `chrome`, four columns. Clipping from the right kept the crumbs saying where you came from and lost the one saying
+  where you are. Dropping the middle was preferred first and dropped on evidence: `_stack[0]` is always the
+  destination screen, which `RailLines.Entry` is already drawing in `rail-current` with a mark, 18 columns to the
+  left — so it spends columns re-saying the rail. Eliding from the left elides only what the rail is still showing.
+- **A blank row divides the breadcrumb from the content.** The breadcrumb keeps row 0, row 1 is blank, content starts
+  at row 2. This is the separator vocabulary every screen already uses, and it works in mono where a band would not.
+  The cost is one content row on every screen, forever, and it is worth spending because the breadcrumb blends into
+  the content on every screen — where the second status row refused below would fix a problem only the busiest screen
+  has. A horizontal rule was rejected: the only rules in the TUI are the rail's foot divider and Discover's section
+  headings, which on Discover would be four rows apart from it. A `crumb` background stays available later with no
+  new row-budget argument, if the blank row turns out to be too quiet.
+- **The fetch mark moves, and is laid out so nothing else does.** `fetching.` → `fetching..` → `fetching...` →
+  `fetching.`, a dot every 400ms. It owns the **rightmost 11 columns** with the word at the left of that field and
+  the unfilled dots padded, so the word cannot move and the trail under it cannot re-elide on the tick — a mark 9
+  columns wide on one tick and 11 on the next moves the row at both ends. Those 2 columns come off the trail only
+  while a fetch is in flight: at 61 columns of content the trail has 49 rather than 51. Reserving them permanently
+  was refused, because eliding from the left means the only thing that moves when a fetch starts is the `… › ` lead.
+- **The mark waits one tick before appearing at all**, so a fetch that lands in 80ms shows nothing and a cached
+  destination never flashes one. The delay *is* one `MarkStep` and needs no second number. A four-state cycle with a
+  beat of rest was rejected: it puts the bare word on screen for a quarter of every cycle, which reads as *finished*
+  on the one row whose job is to say *working*.
+- **The mark animates on every terminal.** `NO_COLOR` and `TERM=dumb` are about colour, not motion, and holding still
+  there was refused rather than overlooked — it would be the shell's first behavioural difference on a plain
+  terminal. In mono the dots are all the motion there is. No new role: the mark stays `loading`, carried without
+  colour by the word itself.
+- **The dots go on arriving while a rate limit is waited out.** The wait is inside the same enquiry, so the question
+  really is still in flight: the mark ticks at 400ms on the breadcrumb while the status row counts down at 1000ms.
+  Freezing it would make the one row that says *alive* say *stuck* at the moment the shell most needs to look alive.
+- **`ChromeLines.Breadcrumb` takes a count of dots rather than a flag.** Nought draws no mark, which is what makes
+  the delay assertable with no terminal in the room. The spelling and the 11-column layout stay in `ChromeLines`,
+  beside the trail arithmetic they have to agree with; the view hands over a number it counted and nothing else.
+- **The frame is labelled in lowercase; the shell's prose is sentence case with a full stop.** So `esc keep`,
+  `j/k:post`, `…+10` and `fetching` are one register and `Already read.` and `Clear every notification? This cannot
+  be undone.` are the other. A crumb is neither — it is the name of a place, spelled as above. The mark is the one
+  word on the breadcrumb row that is not a place you have been, and the lowercase is what says so.
+
+### What the status row settled
+
+`PostKeys.Around` emitted around fourteen hints and `ChromeLines`' clip cut them at the right, so a reader on a busy
+screen saw an ellipsis where the keys should be — and since `?:keys` is last in every list, the row announcing where
+the cut keys could be found was the first thing cut. The lever is the standing preference: **the status row is a
+reminder, `?` is the reference.** #169, #214 and #215 settled the row; #218, #219, #220 and #221 build it:
+
+- **The rule, stated once so a screen added later inherits it**: the status row draws as many whole hints as the
+  terminal has room for, in rank order, then `…+N` for the ones it could not fit, then `?:keys` — which is never cut.
+  A key that cannot act on what is picked out right now is not on the row and not in the count.
+- **The rank**, which is what `PostKeys.Around` assembles: the walk (`j/k:post`, `j/k:thread`, `←/→:reference`); the
+  screen's own keys, including `g:refresh`; the way out (`esc:back`, or `tab:destination` at the bottom of the
+  stack); the shared post keys worth reminding somebody of (`⏎` `r` `b` `f` `a` `c`); the tail, which is what can be
+  learned anywhere or acts only on your own posts (`↓/↑` `x` `p` `e` `d`); and `?:keys`, pinned. The order used to be
+  assembled for reading; promoting it into a ranking fixed two accidents — `↓/↑:row` no longer outranks the three
+  marks, and the way out is no longer at the end, where `tab:destination` fell into the overflow on the feed.
+- **The fill stops at the first hint that does not fit** rather than skipping it for a narrower one behind it.
+  Skipping would fill a few more columns at the price of the row no longer being in rank order, and of the keys shown
+  reshuffling as the terminal is resized. The worst case leaves 8 columns unused; that is what the row reading as a
+  ranking costs.
+- **`?` is pinned; the way out is kept by rank instead.** One absolute, not two: the whole rule leans on `?` being
+  reachable, whereas `esc` and `tab` are in `?`'s own *Everywhere* block and mean the same thing on every screen.
+  Rank keeps them on the row in every state measured; a screen that pushes them off is a screen with too many keys,
+  and that is that screen's bug.
+- **The row holds about seven hints**, which is the number every candidate was measured against. The worst screen is
+  the **account screen** — six own letters in front of the shared ten, 20 hints wanting 217 columns against 80 — and
+  a picked reference *stands in for* the poll keys rather than stacking with them, so the two in-front cases are
+  alternatives. Pruning to a fixed set fits and draws four hints on a quiet feed, wasting 37 columns, which is the
+  *a row cut back to `g tab ?` reads as broken rather than as empty* failure #195 named. Grouping (`b/f:marks`) saves
+  about 30 columns, still cuts 4 to 9 hints silently, and spends #66's key-to-word mapping and a second meaning for
+  the colon — and a group would have to match on the **hint** rather than the letter, or the inbox's `d:dismiss` is
+  swallowed into `p/e/d:yours`, which is the bug #193 fixed. **A second row is refuted rather than disfavoured**: two
+  rows at 80 columns still need `…+3` on the worst case and `…+6` on the account screen.
+- **The overflow mark is `…+10`, drawn in `muted`, and adds no role.** `…` is the shell's own *there was more* glyph,
+  so the **no-colour case is carried by glyph** — a mono terminal draws the mark exactly as a coloured one does,
+  which is what makes it different from the ellipsis it replaces: that said *something was cut*, this says *ten
+  things were cut and `?` has them*, and the `+N` is the part `?` answers. `+10` with no glyph, a bare `…`,
+  `…10 more` and `…+10 in ?` were all drawn and rejected.
+- **The count is hints this screen answers to right now and the row had no room for.** An idle key is not *more
+  keys* — it is not a key here at all — so counting one would make the mark promise `?` entries that do nothing.
+- **A key that cannot act is off the row.** `p`, `e` and `d` act only on your own posts; `x` means nothing on a post
+  with nothing hidden or already revealed; `b` and `f` need viewer state the post already carries. This is the
+  direction #87, #119, #193 and #195 already started, applied consistently. **`x` leaves the row once it has been
+  pressed** — a reveal is one-way, so the key has nothing left to do and `…+4` becomes `…+3`, which is the same rule
+  applied honestly. The two facts it needs: `Revealed.Ask` already answers *can `x` act here* with no new state, and
+  **`Post` carries whether it is the reader's own**, the way `PostMarks` already carries which of the three marks
+  were theirs. That keeps the filter in `Screen.Keys` beside the other two, teaches a screen nothing about the
+  instance, and hands the same fact to the CLI; `Shell.IsMine` becomes the one place that *sets* it.
+- **`?` stays in step with the row.** `HelpScreen` reads `about.Keys`, which *is* `Screen.Keys`, so the filter
+  applies to the keymap in the same place rather than beside it. `?` answers *what does this screen answer to*, and
+  on somebody else's post `p` is honestly not one of them. The row is more discoverable than it was, not less:
+  `?:keys` is pinned where it used to be first to be cut.
+- **The row degrades instead of truncating at every width.** At 40 columns the worst case is
+  `1-0:option · v:vote · …+14 · ?:keys`; the floor is ` …+16 · ?:keys`, 15 columns, and no width the shell supports
+  reaches it. The row is full width, so 80 columns is 80 here rather than the breadcrumb's 61.
+- **A confirmation reserves the columns its answer needs, draws the question in what is left, and clips the
+  question — never the answer.** The row may lose what it is asking about; it may never lose how to answer. The same
+  argument the breadcrumb makes one row up: cut what the reader can reconstruct from what is on screen, never what
+  tells them how to act. A confirmation getting its own row or a modal is the frame change ADR-0014 says has to be
+  earned, and nothing here earns it.
+- **A confirmation names only what a reader can check.** `Delete post {id}?` becomes **`Delete this post?`** — no
+  screen draws a post id, so it can be checked against nothing, while `Role.Selection` says which post on the feed as
+  everywhere else, and the row stops depending on an instance's id format. The vote stops quoting the option:
+  **`Cast the answer you ticked?`** against many's `Cast the 3 answers you ticked?`, on the reasoning that already
+  counted three rather than naming them — the ballot is on screen with every answer drawn `[x]` — and the longest
+  answer said goes with it.
+- **`This cannot be undone.` stays verbatim, and is the droppable half.** The question degrades in two steps: draw
+  the ask and the warning if both fit, else the ask alone, and only clip mid-word if even the ask will not. A `…`
+  should mean *something you cannot see was cut*, which is false of a boilerplate sentence identical on all three
+  confirmations. So `Confirmation`'s question splits into the ask and a defaulted warning, which also stops three
+  callers repeating the same sentence. At 80 columns all three fit whole: 62, 70 (or 73) and 69 columns.
+- **A confirmation's no-colour case is position.** Under `NO_COLOR` a confirmation and a notice are both a sentence
+  on the status row — but a confirmation is the only status row that ends in `<key> <word> · esc <word>`, and a
+  notice never shows keys. No leading glyph and no band.
+- **80 columns is the floor and the degradation ships anyway.** Nothing below 80 earns a design compromise, but a row
+  that asks a question must not be able to lose its answer at *any* width, so reserve-the-answer and the sentence
+  drop are a guarantee rather than a supported layout.
+- **The CLI does not follow.** `Consent.Given` keeps `Delete post {id}? This cannot be undone.` — there is no
+  selection and no width contract there, the user typed the id as an argument, and echoing it back *is* the
+  confirmation. `Confirmation` is a TUI type.
+- **A key you press is drawn in `key`, its own role.** `chrome` was never one job: it paints the frame's furniture —
+  the trail's ancestors, the row's separators, the rail's rule — *and*, through `KeyHint.Spans`, the key, which after
+  the fill rule is the most actionable token on the row. That is why #66's split between a key and its explanation
+  reads as invisible, and why `HelpScreen` had already worked around it by drawing its key column in `byline-handle`
+  blue. `key` paints a token you press in three places — the status row's key, the help screen's key column, the
+  confirmation row's answer keys — and **not prose that names a key**: `v casts this vote, esc discards it` stays
+  whole, because lighting one word inside a sentence teaches that the shell's prose is pressable. It paints **the
+  key, not its padding**, so the help screen's 16-column key column is the key in `key` and a `body` spacer after it
+  — a themer who gives `key` a background would otherwise get a 16-column band across every help row.
+- **The standing test, which is the transferable part**: *a colour distinction is owed where a reader's next action
+  depends on telling the two apart.* A key against its gloss passes — you press one and not the other. A separator
+  against a gloss fails: both are furniture. So ` · ` stays `chrome`, every explanation stays `muted`, the `…+N` mark
+  stays `muted`, and **`quota`, `audience` and `muted` go on sharing one hex on purpose** — nobody has to tell a
+  rate-limit number from a visibility glyph to do anything, and no test forbids two roles sharing a hex. Adjacency
+  was the first cut and does not survive: it would force apart every role that ever shares a row. A distinction only
+  truecolor shows still counts as a boost and never as a carrier, which is the basis `loading` already ships on.
+
 ### Where the code answers this
 
 One module, `Shell/Keymap.cs`, holds the whole of the dispatch above: a `ShellKey` and a `Screen` go in and a `Verb`
@@ -1089,7 +1248,7 @@ glyph or a position that carries the same meaning when colour is gone.
 | `hashtag` | A tag inside a post's text | the `#` |
 | `mention` | An account named inside a post's text | the `@` |
 | `link` | An address inside a post's text | the scheme |
-| `muted` | Timestamps, counts nobody acted on, hints, a status row key's explanation | position |
+| `muted` | Timestamps, counts nobody acted on, hints, a status row key's explanation, and the row's `…+N` overflow mark | position, and `…` on the mark |
 | `byline-name` | A display name | position |
 | `byline-handle` | `username@instance` | the `@` |
 | `audience` | The visibility mark | `○ ◌ ● ✉` |
@@ -1104,10 +1263,28 @@ glyph or a position that carries the same meaning when colour is gone.
 | `rail` / `rail-current` | Destinations, and the one loaded | one glyph, one column: `▶` where the tabbing has got to, `▷` where it settled if that differs — they coincide at rest, so only `▶` shows |
 | `rail-unread` | An unread count, and the word on an unread conversation | the number, and the word |
 | `quota` / `quota-low` | Rate-limit budget left, and nearly spent | the number |
-| `chrome` | Breadcrumb and status rows | position |
-| `loading` | The `fetching…` mark on the breadcrumb | the word itself |
+| `chrome` | The frame's furniture: the breadcrumb's ancestors and its `›`, the status row's leading space and ` · ` separators, the rail's rule | position |
+| `loading` | The fetch mark on the breadcrumb — the word and up to three dots, laid out at 11 columns | the word itself, and the dots arriving |
 | `destructive` | A delete affordance and its confirmation | the word |
 | `error` | A failure the shell has to say out loud | the word |
+
+**Two roles this map settled are not in the table yet**, and that is the table doing its job: it, the `Role` enum and
+the `RoleName` map are checked against each other by a test, and every role in the enum must be emitted by some view,
+so a row here is a promise that the code already keeps. Each lands with the change that draws it.
+
+- **`crumb-current`** — the crumb you are standing on, told from its ancestors by foreground alone. Carried without
+  colour by position: it is always the last crumb, and the trail elides from the left. Starting values `#f2f0f7`
+  dark, `#100e18` light, which is `byline-name`'s, the brightest foreground each built-in has. No band, so no
+  `DarkBands`/`LightBands` entry. (#216)
+- **`key`** — a key you press, in the three places one is drawn, never prose that names a key and never the padding
+  beside one. Carried without colour by position. One step from `muted` toward `body` in the grey family with no hue,
+  roughly `#a9a5bd` dark and `#3f3d52` light: a hue would make the row louder than the frame it sits in and re-run
+  the `byline-handle` borrow in a new colour. Note the contrast reverses by surface and that is correct — on the
+  status row `key` is brighter than its `muted` gloss, on the help screen it is dimmer than its `body` gloss. A key
+  is the same thing in both; how far it stands out is set by what it sits beside. Called `key` in a `[themes.*]`
+  table: the collision with TOML's own word for a left-hand side is a pun rather than an ambiguity, and this shell's
+  own word for the thing is already *key* (`?:keys`, the keymap screen, "the keys this screen answers to").
+  (#221)
 
 The people-side work (#159) added no role, deliberately and in four places: a verified **Custom field** takes a `✓`
 after a value already drawn in `link`, the `⚙ bot` / `⚿ locked` flags carry in their words, a **Suggestion**'s reason is
@@ -1228,20 +1405,29 @@ so only `▶` shows (#67, amending ADR-0014's earlier two-column, two-mark descr
 mark for *chosen but not loaded* and none for a fetch in flight — the right-hand column is unread counts and nothing
 else, and a fetch is announced once on the breadcrumb. A rail somebody is reading should hold still.
 
+That one announcement is the only thing in the shell that animates, and it is laid out so that nothing around it
+moves: the rightmost 11 columns of the breadcrumb, a dot arriving every 400ms up to three and starting over, and
+nothing at all until the first tick — so the cached case above never flashes a mark (#213). Whether a fetch is in
+flight keeps its meaning and its two jobs, gating `g` and the follows paging; what changed is only what the
+breadcrumb draws. It is a **count** of questions in flight rather than a flag, because two enquiries overlap readily
+— a boost sent while a timeline is still loading — and the first to finish would otherwise say the shell was idle
+while the second was still running.
+
 The alternatives were built and measured — a cursor that moves free until `⏎` commits, a key per destination, a jump
 list — and all cost one fetch against cycling's six *before* the settle rule, which is what closed the gap. They are on
 the prototype branch (`SCREENS-C.md`) if the decision is ever revisited.
 
 ## The numbers
 
-Settled in #28. All three live in one place in the code (`ShellTiming`), so a reader looking for them finds them
-together.
+Settled in #28, and added to by #213. All four lengths of time live in one place in the code (`ShellTiming`), so a
+reader looking for them finds them together.
 
 | What | How long | Why that |
 |---|---|---|
 | Settle window | 250ms | Long enough that a deliberate double-tap lands as one move; short enough that a single tab does not read as a pause. |
 | Destination cache | 1 minute | Long enough that walking out along the rail and back is free; short enough that a timeline left and returned to a minute later is fetched rather than remembered. This client forgets a destination early when it is the thing that changed it — a post published, deleted or marked. |
 | Countdown step | 1 second | The unit a rate-limit countdown counts in. |
+| Mark step | 400ms | How long one dot of the breadcrumb's fetch mark is held, and — since the mark waits for its first tick — how long a fetch runs before it is announced at all. The slowest rate a glance still catches moving: a second reads as a stall and 250ms as a machine in trouble. Deliberately not the countdown's second, which would say the mark counts something (#213). |
 | Follow-list threshold | 2,000 | Below it a **Follow list** is held whole and narrowed live; at or above it the screen browses a page at a time and offers no narrowing. Set by the shape of real accounts: a following count is bounded and a followers count is not — 877K followers is ~11,000 requests at 80 a page, which is not a list to promise a search over. |
 
 One cache age for everything, rather than one per kind of destination. The question the cache answers is "is this still
