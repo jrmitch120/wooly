@@ -337,7 +337,7 @@ public class AccountWalkTests
         built.Host.Drain();
 
         Assert.Equal("cats", built.Timelines.Reads[^1].Timeline.Hashtag);
-        Assert.Equal("home › @maria@example.social › #cats", shell.Breadcrumb);
+        Assert.Equal("Home › @maria@example.social › #cats", shell.Breadcrumb);
     }
 
     /// <summary>And the address on a verified field opens in the platform's browser, through the path a link already takes.</summary>

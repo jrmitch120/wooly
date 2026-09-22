@@ -20,7 +20,7 @@ public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string?
     private readonly Picked<Account> _waiting = new(waiting);
 
     /// <inheritdoc />
-    public override string Crumb => "follow requests";
+    public override string Crumb => "Follow requests";
 
     /// <inheritdoc />
     public override bool Refreshes => true;

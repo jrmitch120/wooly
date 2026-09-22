@@ -132,10 +132,10 @@ public sealed class ComposeScreen : Screen
     /// <inheritdoc />
     public override string Crumb => Purpose switch
     {
-        ComposeFor.Post => "compose",
-        ComposeFor.Reply => $"reply to @{About?.Account}",
-        ComposeFor.Edit => "edit",
-        _ => "compose",
+        ComposeFor.Post => "Compose",
+        ComposeFor.Reply => $"Reply to @{About?.Account}",
+        ComposeFor.Edit => "Edit",
+        _ => "Compose",
     };
 
     /// <inheritdoc />

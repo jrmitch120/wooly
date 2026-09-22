@@ -362,7 +362,7 @@ public class ShellRefreshTests
 
         var feed = Assert.IsType<FeedScreen>(opened.Screen);
 
-        Assert.Equal("local", opened.Breadcrumb);
+        Assert.Equal("Local", opened.Breadcrumb);
         Assert.DoesNotContain(feed.Posts, post => post.Id == "stale");
     }
 
@@ -708,7 +708,7 @@ public class ShellRefreshTests
         "conversation" => new ConversationScreen(AConversation.Thread()),
         "search" => Searched(),
         "compose" => new ComposeScreen(ComposeFor.Post),
-        "notice" => new NoticeScreen("hashtag", "No hashtag is set for the rail."),
+        "notice" => new NoticeScreen("Hashtag", "No hashtag is set for the rail."),
         "help" => new HelpScreen(new PostScreen(APost.With(id: "110"), PostThread.Alone)),
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "No screen of that kind."),
     };

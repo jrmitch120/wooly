@@ -46,17 +46,17 @@ public class ShellStackTests
 
         var opened = await shell.Opened();
 
-        Assert.Equal("home", opened.Breadcrumb);
+        Assert.Equal("Home", opened.Breadcrumb);
 
         await opened.Enter();
         shell.Host.Drain();
 
-        Assert.Equal("home › post by @ben@hachyderm.io", opened.Breadcrumb);
+        Assert.Equal("Home › Post by @ben@hachyderm.io", opened.Breadcrumb);
 
         await opened.OpenAuthor();
         shell.Host.Drain();
 
-        Assert.Equal("home › post by @ben@hachyderm.io › @ben@hachyderm.io", opened.Breadcrumb);
+        Assert.Equal("Home › Post by @ben@hachyderm.io › @ben@hachyderm.io", opened.Breadcrumb);
     }
 
     /// <summary><c>a</c> opens whoever wrote it: who they are, where you stand with them, and what they have posted.</summary>
@@ -210,7 +210,7 @@ public class ShellStackTests
         shell.Host.Settle();
 
         Assert.Equal(1, opened.Depth);
-        Assert.Equal("local", opened.Breadcrumb);
+        Assert.Equal("Local", opened.Breadcrumb);
     }
 
     /// <summary>
@@ -228,7 +228,7 @@ public class ShellStackTests
         var help = Assert.IsType<HelpScreen>(opened.Screen);
         var drawn = help.Lines(new Drawing(61, AShell.Now)).Select(line => line.Text).ToList();
 
-        Assert.Contains(drawn, line => line.Contains("On home", StringComparison.Ordinal));
+        Assert.Contains(drawn, line => line.Contains("On Home", StringComparison.Ordinal));
         Assert.Contains(drawn, line => line.Contains("boost", StringComparison.Ordinal));
 
         // The frame's keys are on it too, because they are the ones a reader has to be able to rely on.
@@ -305,7 +305,7 @@ public class ShellStackTests
         shell.Host.Drain();
 
         Assert.Equal(DestinationKind.Search, opened.Rail.Showing.Kind);
-        Assert.Equal("search", opened.Breadcrumb);
+        Assert.Equal("Search", opened.Breadcrumb);
     }
 
     /// <summary>Asking for help twice is still one screen, not a stack of them.</summary>
@@ -470,7 +470,7 @@ public class ShellStackTests
         shell.Host.Drain();
 
         Assert.Equal(2, opened.Depth);
-        Assert.Equal("home › post by @ben@hachyderm.io", opened.Breadcrumb);
+        Assert.Equal("Home › Post by @ben@hachyderm.io", opened.Breadcrumb);
 
         // One read, which is the one that opened the screen: a ⏎ with nothing to open asks the instance for nothing.
         Assert.Single(shell.Engagement.ThreadsRead);

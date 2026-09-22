@@ -240,6 +240,6 @@ public class PostThreadTests
             APost.With(id: "110", account: "jeff@mastodon.social"),
             new PostThread([APost.With(id: "100", account: "maria@fosstodon.org")], []));
 
-        Assert.Equal("post by @jeff@mastodon.social", screen.Crumb);
+        Assert.Equal("Post by @jeff@mastodon.social", screen.Crumb);
     }
 }

@@ -38,7 +38,7 @@ public sealed class FeedScreen : Screen
     }
 
     /// <inheritdoc />
-    public override string Crumb => _destination.Label.ToLowerInvariant();
+    public override string Crumb => _destination.Label;
 
     /// <inheritdoc />
     public override bool Refreshes { get; }

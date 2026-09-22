@@ -99,6 +99,27 @@ public enum Role
     /// <summary>The breadcrumb and status rows. Carried without colour by position.</summary>
     Chrome,
 
+    /// <summary>
+    ///     The breadcrumb row: the crumbs you walked through, the <c>›</c> between them, the <c>… › </c> a long trail
+    ///     leads with, and the rest of the row. Drawn on a band of its own, which is what makes the row read as the
+    ///     frame rather than as the first line of what is being read.
+    /// </summary>
+    Crumb,
+
+    /// <summary>
+    ///     The crumb you are standing on, told from the ones you walked through by foreground alone — named to pair
+    ///     with <see cref="RailCurrent" />, the same <em>and this is the one you are at</em> relationship. On
+    ///     <see cref="Crumb" />'s band, since it is on <see cref="Crumb" />'s row. Carried without colour by
+    ///     position: it is always the last crumb, which is why a long trail elides from the left.
+    /// </summary>
+    CrumbCurrent,
+
+    /// <summary>
+    ///     The cells between one region and the next: the blank row under the breadcrumb, and the column between the
+    ///     rail and the content. Carried without colour by <c>│</c> down the column, and by the row being blank.
+    /// </summary>
+    Seam,
+
     /// <summary>Stale content while a fetch lands. Carried without colour by the breadcrumb saying <c>fetching…</c>.</summary>
     Loading,
 

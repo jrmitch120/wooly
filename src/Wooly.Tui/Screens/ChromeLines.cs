@@ -4,30 +4,126 @@ using Wooly.Tui.Theme;
 namespace Wooly.Tui.Screens;
 
 /// <summary>
-///     The two rows that are not a screen: the breadcrumb above the content, and the status row along the bottom. Both
-///     are the frame rather than the thing being read, which is why they never move and never scroll.
+///     What is on screen and is not a screen: the breadcrumb above the content, the status row along the bottom, and
+///     the column dividing the rail from both. All of it is the frame rather than the thing being read, which is why
+///     none of it moves and none of it scrolls.
 /// </summary>
 public static class ChromeLines
 {
     /// <summary>What the breadcrumb says while a fetch is in flight, said here and nowhere else.</summary>
     private const string Fetching = "fetching…";
 
+    /// <summary>What the rail is divided from the content by, one column wide.</summary>
+    private const string Rule = "│";
+
+    /// <summary>
+    ///     What stands between two crumbs, said here and used wherever the trail is put together as one string —
+    ///     <c>docs/tui-shell.md</c> and ADR-0014 call it the separator, and it keeps no role of its own.
+    /// </summary>
+    public const string Separator = " › ";
+
+    /// <summary>What stands in front of a trail too long to draw whole, in place of the crumbs it gave up.</summary>
+    private const string Elided = $"…{Separator}";
+
     /// <summary>
     ///     Where you are in the stack, with the fetch marker at its right. This is the one place a fetch in flight is
     ///     announced — the rail holds still (ADR-0014) — and it is beside the content it is about to replace.
     /// </summary>
-    public static Line Breadcrumb(string trail, bool fetching, int width)
+    /// <remarks>
+    ///     The crumb you are standing on is the last one, and it is drawn in <see cref="Role.CrumbCurrent" /> while
+    ///     the ones you walked through to get there take <see cref="Role.Crumb" /> — separators included, which keep
+    ///     no role of their own (#216). Both sit on the same band, and so does the mark: it is one row, and what
+    ///     makes it read as the frame is the row being banded rather than any one thing on it. The marker's columns
+    ///     come off the trail's room before any of that, which is the order this has always worked in: a mark is
+    ///     beside the trail rather than over it.
+    /// </remarks>
+    /// <param name="crumbs">
+    ///     Where you are, a crumb a screen deep, outermost first — the stack itself rather than the one string it
+    ///     reads as. Handed over unjoined because this row is drawn crumb by crumb: a trail joined here and split
+    ///     again there is a trail whose crumbs are wherever the separator happens to appear, and a reader is entitled
+    ///     to search for <c>a › b</c>.
+    /// </param>
+    public static Line Breadcrumb(IReadOnlyList<string> crumbs, bool fetching, int width)
     {
         var mark = fetching ? Fetching : string.Empty;
         var room = Math.Max(0, width - Glyphs.Columns(mark) - 1);
-        var shown = new Span(TextWrap.Clip(trail, room), Role.Chrome);
+        var shown = Trail(crumbs, room);
+        var columns = shown.Sum(span => span.Width);
 
-        return Line.Of([
-            shown,
-            new Span(new string(' ', Math.Max(1, width - shown.Width - Glyphs.Columns(mark))), Role.Chrome),
+        return new Line([
+            .. shown,
+            new Span(new string(' ', Math.Max(1, width - columns - Glyphs.Columns(mark))), Role.Crumb),
             new Span(mark, Role.Loading),
         ]);
     }
+
+    /// <summary>
+    ///     <paramref name="crumbs" /> in the <paramref name="room" /> they have, eliding from the left: the crumb you
+    ///     are standing on is kept whole and the ones you walked through are given up for <see cref="Elided" />.
+    /// </summary>
+    /// <remarks>
+    ///     Which way round to elide was settled by what each end says (#168): the far end is the destination screen,
+    ///     which the rail is already drawing 18 columns to the left, and the near end is the only thing on the row
+    ///     that the rail does not say. Clipping from the right kept the first and lost the second.
+    ///     <para>
+    ///         A single crumb wider than the room is clipped from the right after all, which is the one case there is
+    ///         nothing else to do with: what is left of it still starts with the words that tell it from its
+    ///         neighbours, and the lead comes off rather than spending four of the few columns there are.
+    ///     </para>
+    /// </remarks>
+    private static IReadOnlyList<Span> Trail(IReadOnlyList<string> crumbs, int room)
+    {
+        var standing = crumbs.Count - 1;
+        var whole = crumbs.Sum(Glyphs.Columns) + standing * Glyphs.Columns(Separator);
+
+        if (whole <= room)
+        {
+            return [.. crumbs.SelectMany((crumb, at) => Spans(crumb, at, at == standing))];
+        }
+
+        var budget = room - Glyphs.Columns(Elided);
+
+        if (budget < Glyphs.Columns(crumbs[standing]))
+        {
+            return [new Span(TextWrap.Clip(crumbs[standing], room), Role.CrumbCurrent)];
+        }
+
+        // Leftwards from where you are standing, taking whole crumbs while there is room for one — so the row ends in
+        // the crumb the reader is on however deep the trail behind it is.
+        var kept = standing;
+        var used = Glyphs.Columns(crumbs[standing]);
+
+        while (kept > 0 && used + Glyphs.Columns(Separator) + Glyphs.Columns(crumbs[kept - 1]) <= budget)
+        {
+            kept--;
+            used += Glyphs.Columns(Separator) + Glyphs.Columns(crumbs[kept]);
+        }
+
+        return
+        [
+            new Span(Elided, Role.Crumb),
+            .. crumbs.Skip(kept).SelectMany((crumb, at) => Spans(crumb, at, kept + at == standing)),
+        ];
+    }
+
+    /// <summary>One crumb and the separator in front of it, where it is not the first thing on the row.</summary>
+    private static IEnumerable<Span> Spans(string crumb, int at, bool standing)
+    {
+        if (at > 0)
+        {
+            yield return new Span(Separator, Role.Crumb);
+        }
+
+        yield return new Span(crumb, standing ? Role.CrumbCurrent : Role.Crumb);
+    }
+
+    /// <summary>
+    ///     The column between the rail and the content, <paramref name="height" /> rows of it. A rule rather than a
+    ///     band alone, so that the two are still divided on a terminal drawing no colour — the same <c>─</c> the rail
+    ///     already ends itself with, stood on end (<see cref="RailLines" />).
+    /// </summary>
+    public static IReadOnlyList<Line> Gutter(int height) =>
+        [.. Enumerable.Repeat(Line.Of(Rule, Role.Seam), Math.Max(0, height))];
 
     /// <summary>
     ///     The status row: what this screen's keys are, or — when there is one — the thing the shell has to say

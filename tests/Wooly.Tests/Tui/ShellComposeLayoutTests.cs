@@ -40,7 +40,7 @@ public class ShellComposeLayoutTests
         {
             Assert.Equal(2, compose.AnsweringHeight(ContentWidth));
             Assert.Equal(2, compose.WarningHeight);
-            Assert.Equal(5, editor.Frame.Y);
+            Assert.Equal(6, editor.Frame.Y);
         }
     }
 
@@ -58,7 +58,7 @@ public class ShellComposeLayoutTests
             shell.Compose();
             window.Layout();
 
-            Assert.Equal(3, Editor(window).Frame.Y);
+            Assert.Equal(4, Editor(window).Frame.Y);
         }
     }
 
@@ -100,19 +100,21 @@ public class ShellComposeLayoutTests
     ///     type in.
     /// </summary>
     /// <remarks>
-    ///     Seven rows: one for the breadcrumb and one for the status row leave the content region five, of which the
-    ///     editor keeps three and the warning field one. The field is the last row to give way rather than the first
-    ///     — it is a row the reader types into, and one they cannot see is worse than a quote that stops early.
+    ///     Eight rows: the breadcrumb, the blank row under it (#216) and the status row leave the content region
+    ///     five, of which the editor keeps three and the warning field one. The field is the last row to give way
+    ///     rather than the first — it is a row the reader types into, and one they cannot see is worse than a quote
+    ///     that stops early. Seven rows was the number before the blank row was spent, which is what that row costs:
+    ///     the smallest terminal this still holds on is one taller than it was.
     /// </remarks>
     [Fact]
     public async Task Reply_NeverPushesTheEditorPastTheRoomLeftToTypeIn()
     {
-        var (window, editor, compose) = await Replying(height: 7);
+        var (window, editor, compose) = await Replying(height: 8);
 
         using (window)
         {
             Assert.Equal(2, compose.AnsweringHeight(ContentWidth));
-            Assert.Equal(2, editor.Frame.Y - 1);
+            Assert.Equal(2, editor.Frame.Y - 2);
             Assert.Equal(3, editor.Frame.Height);
         }
     }
@@ -144,7 +146,7 @@ public class ShellComposeLayoutTests
             }
 
             Assert.Null(content.Reclaimable);
-            Assert.Equal(5, editor.Frame.Y);
+            Assert.Equal(6, editor.Frame.Y);
         }
     }
 

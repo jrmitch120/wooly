@@ -33,7 +33,7 @@ public class ShellMessageTests
 
         var screen = Assert.IsType<DirectMessagesScreen>(opened.Screen);
         Assert.Equal(["7", "8"], screen.Conversations.Select(conversation => conversation.Id));
-        Assert.Equal("direct messages", opened.Breadcrumb);
+        Assert.Equal("Direct messages", opened.Breadcrumb);
 
         // The badge counts conversations with something unread in them, not conversations.
         Assert.Equal(1, opened.Rail.Destinations.First(place => place.Kind == DestinationKind.Messages).Unread);
@@ -124,7 +124,7 @@ public class ShellMessageTests
 
         // Oldest first, which is the order it was said in.
         Assert.Equal(["110", "111"], screen.Posts.Select(post => post.Id));
-        Assert.Equal("direct messages › with @alice@hachyderm.io", opened.Breadcrumb);
+        Assert.Equal("Direct messages › With @alice@hachyderm.io", opened.Breadcrumb);
     }
 
     /// <summary>The thread is a screen on the same stack as everything else, so <c>esc</c> walks back to the list.</summary>

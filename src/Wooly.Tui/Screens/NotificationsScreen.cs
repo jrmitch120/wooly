@@ -22,7 +22,7 @@ public sealed class NotificationsScreen(IReadOnlyList<Notification> notification
     private readonly Picked<Notification> _notifications = new(notifications);
 
     /// <inheritdoc />
-    public override string Crumb => "notifications";
+    public override string Crumb => "Notifications";
 
     /// <inheritdoc />
     public override bool Refreshes => true;

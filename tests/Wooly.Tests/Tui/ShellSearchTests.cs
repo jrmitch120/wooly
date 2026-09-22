@@ -62,7 +62,7 @@ public class ShellSearchTests
 
         var search = Assert.IsType<SearchScreen>(opened.Screen);
         Assert.False(search.IsTyping);
-        Assert.Equal("search cats", opened.Breadcrumb);
+        Assert.Equal("Search cats", opened.Breadcrumb);
     }
 
     /// <summary>
@@ -128,7 +128,7 @@ public class ShellSearchTests
         shell.Host.Drain();
 
         Assert.Equal("cats", shell.Timelines.Reads[^1].Timeline.Hashtag);
-        Assert.Equal("search cats › #cats", opened.Breadcrumb);
+        Assert.Equal("Search cats › #cats", opened.Breadcrumb);
         Assert.Equal("Hashtag", opened.Rail.Destinations.First(place => place.Kind == DestinationKind.Hashtag).Label);
     }
 

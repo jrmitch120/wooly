@@ -33,7 +33,12 @@ internal sealed class ShellWindow : Window
     private const int RowsAPress = 3;
 
     /// <summary>The first row under the breadcrumb, where the content region and anything laid over it begin.</summary>
-    private const int ContentTop = 1;
+    /// <remarks>
+    ///     Two rather than one: the breadcrumb keeps row 0 and row 1 is held blank, because a breadcrumb drawn hard
+    ///     against the content is a breadcrumb that reads as part of it. A blank row is the separator vocabulary every
+    ///     screen already uses and the one that works where there is no colour, which a band would not (#216).
+    /// </remarks>
+    private const int ContentTop = 2;
 
     /// <summary>
     ///     What the content region answers to among its siblings — four regions are painted the same way and only
@@ -91,6 +96,17 @@ internal sealed class ShellWindow : Window
         // the outside would cost two more and say nothing.
         BorderStyle = Terminal.Gui.Drawing.LineStyle.None;
 
+        // The cells no region covers, which are the window's own: the blank seam under the breadcrumb, and the column
+        // between the rail and the content. Every region clears itself in the theme's page before it draws, so a cell
+        // inside one is themed by construction — and a cell inside none kept whatever Terminal.Gui's default scheme
+        // put there, a grey the theme never chose. One column nobody noticed until #216 gave the same hole a whole
+        // row and it read as a band across the screen.
+        //
+        // Role.Body's attribute is the page, and it is the borrow PaintedView already makes to clear a row: a blank
+        // cell shows a background, and the page is what every role without one of its own is drawn on. Nothing here
+        // constructs a colour, which is the rule this is keeping rather than breaking (ADR-0014).
+        SetScheme(new Terminal.Gui.Drawing.Scheme(theme.For(Role.Body)));
+
         var rail = new PaintedView(theme, (_, height) => RailLines.Of(shell.Rail, shell.Quota, height))
         {
             X = 0,
@@ -101,12 +117,29 @@ internal sealed class ShellWindow : Window
         };
 
         var breadcrumb = new PaintedView(theme, (width, _) =>
-            [ChromeLines.Breadcrumb(shell.Breadcrumb, shell.Fetching, width)])
+            [ChromeLines.Breadcrumb(shell.Crumbs, shell.Fetching, width)])
         {
             X = RailLines.Width + 1,
             Y = 0,
             Width = Dim.Fill(),
             Height = 1,
+            CanFocus = false,
+        };
+
+        // The column dividing the rail from the content: a cell nobody painted until it was, and the only one of the
+        // frame's own furniture that runs down rather than across. It carries a rule as well as a background, so the
+        // division survives a terminal drawing no colour.
+        //
+        // The row under the breadcrumb is not here, and is drawn by nothing: it is the page, which is this window's
+        // own scheme, and its being blank is the whole of what divides the frame from what is being read. The band
+        // that was briefly on it is on the breadcrumb itself now, where it says "this row is the frame" rather than
+        // drawing a line under one.
+        var gutter = new PaintedView(theme, (_, height) => ChromeLines.Gutter(height))
+        {
+            X = RailLines.Width,
+            Y = 0,
+            Width = 1,
+            Height = Dim.Fill(1),
             CanFocus = false,
         };
 
@@ -154,7 +187,7 @@ internal sealed class ShellWindow : Window
             CanFocus = false,
         };
 
-        Add(rail, breadcrumb, _content, _editor, status);
+        Add(rail, breadcrumb, gutter, _content, _editor, status);
 
         _showing = shell.Screen;
 
