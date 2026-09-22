@@ -96,6 +96,17 @@ internal sealed class ShellWindow : Window
         // the outside would cost two more and say nothing.
         BorderStyle = Terminal.Gui.Drawing.LineStyle.None;
 
+        // The cells no region covers, which are the window's own: the blank seam under the breadcrumb, and the column
+        // between the rail and the content. Every region clears itself in the theme's page before it draws, so a cell
+        // inside one is themed by construction — and a cell inside none kept whatever Terminal.Gui's default scheme
+        // put there, a grey the theme never chose. One column nobody noticed until #216 gave the same hole a whole
+        // row and it read as a band across the screen.
+        //
+        // Role.Body's attribute is the page, and it is the borrow PaintedView already makes to clear a row: a blank
+        // cell shows a background, and the page is what every role without one of its own is drawn on. Nothing here
+        // constructs a colour, which is the rule this is keeping rather than breaking (ADR-0014).
+        SetScheme(new Terminal.Gui.Drawing.Scheme(theme.For(Role.Body)));
+
         var rail = new PaintedView(theme, (_, height) => RailLines.Of(shell.Rail, shell.Quota, height))
         {
             X = 0,

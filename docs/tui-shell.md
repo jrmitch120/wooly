@@ -1372,7 +1372,9 @@ Rules:
 - A role may be a colour or a table of `foreground` and `background`. A half it leaves out keeps what the built-in had
   there: the theme's page for nearly every role, and its own band for the selected row and the current rail entry — so
   restating the selection's foreground does not silently take away the band it is drawn in.
-- `background` is the theme's, not a role: setting it moves everything that was sitting on the page. A theme cannot
+- `background` is the theme's, not a role: setting it moves everything that was sitting on the page — including the
+  cells no region covers, the seam under the breadcrumb and the column between the rail and the content, which the
+  shell paints in the page rather than leaving to Terminal.Gui's own scheme (#216). A theme cannot
   decline to have one and inherit the terminal's own — `Terminal.Gui` attributes are a foreground/background pair with
   no "leave it alone" in them, and its own default pair is a concrete white on black rather than a sentinel. So the
   page is always written down: this theme's, or the built-in's.

@@ -182,6 +182,41 @@ public class BreadcrumbTests
         Assert.Equal(breadcrumb.Frame.Y + 2, content.Frame.Y);
     }
 
+    /// <summary>
+    ///     And the row is blank in the theme's own page, not in Terminal.Gui's. Every region clears itself before it
+    ///     draws, so a cell inside one is the theme's by construction — the seam is inside none, and until the window
+    ///     itself was themed it kept whatever the toolkit's default scheme put there, which is a grey band across the
+    ///     screen (#216).
+    /// </summary>
+    /// <remarks>
+    ///     The seam is the row this shows up on, but it is not the only cell nobody paints: the column between the
+    ///     rail and the content is one too, on every row, and has been since the shell was built — one column nobody
+    ///     notices, which #216 turned into a band by giving the same hole a full row. Both are the window's own
+    ///     cells, so both are answered by the window's own scheme.
+    ///     <para>
+    ///         Drawn in <see cref="Role.Body" />'s attribute, which is the borrow <c>PaintedView</c> already makes to
+    ///         clear a row: a blank cell shows a background and the page is what every role that has none of its own
+    ///         sits on. Asserted against <see cref="Themes.Dark" /> rather than <see cref="Themes.Plain" />, whose
+    ///         every answer is the terminal's default and so would pass without the window having been told anything.
+    ///     </para>
+    /// </remarks>
+    [Fact]
+    public async Task Shell_PaintsTheCellsNoRegionCoversInTheThemesOwnPage()
+    {
+        var built = new AShell { Timelines = FakeTimelineReader.Holding(APost.With(id: "220")) };
+        var shell = await built.Opened();
+
+        using var window = new ShellWindow(shell, Themes.Dark, built.Clock, () => { }, FakePictures.DrawingNothing())
+        {
+            Width = 80,
+            Height = 24,
+        };
+
+        window.Layout();
+
+        Assert.Equal(Themes.Dark.For(Role.Body), window.GetScheme().Normal);
+    }
+
     /// <summary>What the row says, up to the padding the fetch mark is pushed to the right of.</summary>
     private static IReadOnlyList<(Role Role, string Text)> Written(Line row) =>
     [
