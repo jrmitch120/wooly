@@ -1,4 +1,5 @@
 using Wooly.Core.Errors;
+using Wooly.Tui.Screens;
 
 namespace Wooly.Tui.Shell;
 
@@ -31,7 +32,11 @@ public delegate void Says(string? notice, bool isError);
 ///     How often the rate-limit countdown is redrawn while it waits. A second, because that is the unit it counts in
 ///     (<see cref="ShellTiming" />).
 /// </param>
-public sealed class Enquiry(IShellHost host, TimeProvider clock, TimeSpan countdownStep)
+/// <param name="markStep">
+///     How long one dot of the breadcrumb's fetch mark is held, and how long a fetch runs before it has one at all
+///     (<see cref="ShellTiming" />).
+/// </param>
+public sealed class Enquiry(IShellHost host, TimeProvider clock, TimeSpan countdownStep, TimeSpan markStep)
 {
     /// <summary>What a call that answers with nothing answers with, so that one scope serves both kinds.</summary>
     private static readonly object Nothing = new();
@@ -42,14 +47,39 @@ public sealed class Enquiry(IShellHost host, TimeProvider clock, TimeSpan countd
     /// </summary>
     private int _asked;
 
+    /// <summary>
+    ///     How many questions are in flight. A count rather than a flag, because two overlap readily — a boost sent
+    ///     while a timeline is still loading — and a flag written by both is cleared by whichever lands first (#217).
+    /// </summary>
+    private int _inFlight;
+
+    /// <summary>The wait for the fetch mark's next dot, held for as long as anything is in flight.</summary>
+    private IDisposable? _tick;
+
     /// <summary>Raised when the enquiry has something for the reader to see: a countdown, a failure, or silence.</summary>
     public event Says? Said;
 
     /// <summary>Raised when whether a fetch is in flight has changed. Always on the drawing thread.</summary>
     public event Action? Changed;
 
+    /// <summary>
+    ///     Raised when the fetch mark has gained a dot, and nothing else has changed. Always on the drawing thread.
+    /// </summary>
+    /// <remarks>
+    ///     Not <see cref="Changed" />, which redraws the whole window — rail, content and every picture placed on it —
+    ///     where a tick changes one row, two and a half times a second for as long as anything is in flight (#217).
+    /// </remarks>
+    public event Action? Ticked;
+
     /// <summary>Whether a fetch is in flight, which the breadcrumb says once and the rail never does.</summary>
-    public bool Fetching { get; private set; }
+    public bool Fetching => _inFlight > 0;
+
+    /// <summary>
+    ///     How many dots the breadcrumb's fetch mark has: none until a fetch has been in flight for a whole tick, then
+    ///     one, two and three and one again. Decided here, beside the count it depends on, so that it is decided with
+    ///     no terminal (ADR-0005).
+    /// </summary>
+    public int Dots { get; private set; }
 
     /// <summary>
     ///     Says the reader has arrived at a destination, which makes every question in flight moot: none of their
@@ -171,11 +201,40 @@ public sealed class Enquiry(IShellHost host, TimeProvider clock, TimeSpan countd
         return waited.Task;
     }
 
+    /// <summary>
+    ///     Counts a question in or out, starting the fetch mark's ticks where the first goes out and stopping them
+    ///     where the last lands. Only those two say anything has changed, since only they change what is drawn.
+    /// </summary>
     private void InFlight(bool fetching) => Apply(() =>
     {
-        Fetching = fetching;
+        var was = Fetching;
+
+        _inFlight += fetching ? 1 : -1;
+
+        if (was == Fetching)
+        {
+            return;
+        }
+
+        Dots = 0;
+        _tick?.Dispose();
+        _tick = Fetching ? host.After(markStep, Tick) : null;
+
         Changed?.Invoke();
     });
+
+    /// <summary>
+    ///     One dot more, or one again after the most — never none, which would put the bare word on screen for a
+    ///     beat of every cycle and read as finished. Re-armed a tick at a time, as the countdown is, rather than asking
+    ///     the host for a timer that repeats.
+    /// </summary>
+    private void Tick()
+    {
+        Dots = Dots % ChromeLines.MostDots + 1;
+        _tick = host.After(markStep, Tick);
+
+        Ticked?.Invoke();
+    }
 
     private void Apply(Action work) => host.OnUiThread(work);
 

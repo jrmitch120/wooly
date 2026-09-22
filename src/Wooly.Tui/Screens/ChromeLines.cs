@@ -10,8 +10,20 @@ namespace Wooly.Tui.Screens;
 /// </summary>
 public static class ChromeLines
 {
-    /// <summary>What the breadcrumb says while a fetch is in flight, said here and nowhere else.</summary>
-    private const string Fetching = "fetching…";
+    /// <summary>
+    ///     What the breadcrumb says while a fetch is in flight, said here and nowhere else — and never on its own: it is
+    ///     always followed by at least one dot (<see cref="Mark" />).
+    /// </summary>
+    private const string Fetching = "fetching";
+
+    /// <summary>How many dots the mark grows to before it starts over at one.</summary>
+    public const int MostDots = 3;
+
+    /// <summary>
+    ///     The columns the mark owns while it is drawn: the word and the most dots it ever has, so that it is as wide
+    ///     on its first tick as on its last and nothing beside it moves between them (#217).
+    /// </summary>
+    private const int MarkColumns = 11;
 
     /// <summary>What the rail is divided from the content by, one column wide.</summary>
     private const string Rule = "│";
@@ -36,6 +48,10 @@ public static class ChromeLines
     ///     makes it read as the frame is the row being banded rather than any one thing on it. The marker's columns
     ///     come off the trail's room before any of that, which is the order this has always worked in: a mark is
     ///     beside the trail rather than over it.
+    ///     <para>
+    ///         The mark is handed over as a count of dots rather than a flag, because the view counts and this spells:
+    ///         the spelling and its 11 columns stay here beside the trail arithmetic they have to agree with (#217).
+    ///     </para>
     /// </remarks>
     /// <param name="crumbs">
     ///     Where you are, a crumb a screen deep, outermost first — the stack itself rather than the one string it
@@ -43,9 +59,14 @@ public static class ChromeLines
     ///     again there is a trail whose crumbs are wherever the separator happens to appear, and a reader is entitled
     ///     to search for <c>a › b</c>.
     /// </param>
-    public static Line Breadcrumb(IReadOnlyList<string> crumbs, bool fetching, int width)
+    /// <param name="dots">
+    ///     How many dots the fetch mark has on this tick, one to <see cref="MostDots" />. Nought draws no mark at all,
+    ///     which is both "nothing in flight" and "in flight, but not yet for a whole tick".
+    /// </param>
+    /// <param name="width">The columns the row has.</param>
+    public static Line Breadcrumb(IReadOnlyList<string> crumbs, int dots, int width)
     {
-        var mark = fetching ? Fetching : string.Empty;
+        var mark = Mark(dots);
         var room = Math.Max(0, width - Glyphs.Columns(mark) - 1);
         var shown = Trail(crumbs, room);
         var columns = shown.Sum(span => span.Width);
@@ -56,6 +77,13 @@ public static class ChromeLines
             new Span(mark, Role.Loading),
         ]);
     }
+
+    /// <summary>
+    ///     The fetch mark with <paramref name="dots" /> dots on it, padded to <see cref="MarkColumns" /> — the word at
+    ///     the left of its field and the dots growing rightward into the rest, so the word never moves.
+    /// </summary>
+    private static string Mark(int dots) =>
+        dots <= 0 ? string.Empty : $"{Fetching}{new string('.', Math.Min(dots, MostDots))}".PadRight(MarkColumns);
 
     /// <summary>
     ///     <paramref name="crumbs" /> in the <paramref name="room" /> they have, eliding from the left: the crumb you

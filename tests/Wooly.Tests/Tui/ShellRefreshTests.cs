@@ -291,7 +291,7 @@ public class ShellRefreshTests
 
     /// <summary>
     ///     A second press while the first is still in flight does nothing at all — no second question, and no
-    ///     in-flight UI beyond the <c>fetching…</c> marker the breadcrumb already carries.
+    ///     in-flight UI beyond the <c>fetching</c> mark the breadcrumb already carries.
     /// </summary>
     [Fact]
     public async Task Refresh_DoesNothingWhileAQuestionIsAlreadyInFlight()

@@ -241,6 +241,194 @@ public class EnquiryTests
         Assert.True(enquiry.Changes > 0);
     }
 
+    /// <summary>
+    ///     A fetch not yet a tick old has no dots, so the breadcrumb draws nothing for it: one that lands inside the
+    ///     first tick is never announced at all, and a cached destination never flashes a mark (#217).
+    /// </summary>
+    [Fact]
+    public async Task Put_HasNoDotsUntilTheFirstTick()
+    {
+        var enquiry = new AnEnquiry();
+        var held = new TaskCompletionSource<string>();
+
+        var putting = enquiry.It.Put(ask => ask.Of(_ => held.Task));
+
+        enquiry.Host.Drain();
+
+        Assert.True(enquiry.It.Fetching);
+        Assert.Equal(0, enquiry.It.Dots);
+
+        held.SetResult("quick");
+
+        await putting;
+
+        enquiry.Host.Drain();
+
+        Assert.Equal(0, enquiry.It.Dots);
+        Assert.Equal(0, enquiry.Host.Waiting);
+    }
+
+    /// <summary>
+    ///     The mark grows a dot a tick up to three and starts over at one — never at none, which would put the bare
+    ///     word on screen for a quarter of every cycle and read as finished (#217).
+    /// </summary>
+    [Fact]
+    public async Task Put_GrowsTheMarkADotATickAndStartsOverAtOne()
+    {
+        var enquiry = new AnEnquiry();
+        var held = new TaskCompletionSource<string>();
+
+        var putting = enquiry.It.Put(ask => ask.Of(_ => held.Task));
+        var dots = new List<int>();
+
+        enquiry.Host.Drain();
+
+        for (var tick = 0; tick < 4; tick++)
+        {
+            enquiry.Host.Settle();
+            dots.Add(enquiry.It.Dots);
+        }
+
+        Assert.Equal([1, 2, 3, 1], dots);
+        Assert.All(enquiry.Host.Delays, delay => Assert.Equal(AnEnquiry.MarkStep, delay));
+
+        held.SetResult("done");
+
+        await putting;
+
+        enquiry.Host.Drain();
+
+        Assert.Equal(0, enquiry.It.Dots);
+    }
+
+    /// <summary>
+    ///     A tick changes one row, and says so on an event of its own: <see cref="Enquiry.Changed" /> redraws the
+    ///     whole window, pictures and all, which two and a half times a second is not what a dot is worth (#217).
+    /// </summary>
+    [Fact]
+    public async Task Put_TicksOnItsOwnEventRatherThanOnChanged()
+    {
+        var enquiry = new AnEnquiry();
+        var held = new TaskCompletionSource<string>();
+
+        var putting = enquiry.It.Put(ask => ask.Of(_ => held.Task));
+
+        enquiry.Host.Drain();
+
+        var changes = enquiry.Changes;
+
+        enquiry.Host.Settle();
+        enquiry.Host.Settle();
+
+        Assert.Equal(2, enquiry.Ticks);
+        Assert.Equal(changes, enquiry.Changes);
+
+        held.SetResult("done");
+
+        await putting;
+    }
+
+    /// <summary>
+    ///     Two questions in flight at once — a boost sent while a timeline is still loading — are a fetch in flight
+    ///     until the second lands, and the first landing neither says otherwise nor starts the dots over. A flag
+    ///     written by both did both, and would have restarted the first tick's wait each time (#217).
+    /// </summary>
+    [Fact]
+    public async Task Put_IsFetchingUntilTheLastOfTwoOverlappingQuestionsLands()
+    {
+        var enquiry = new AnEnquiry();
+        var first = new TaskCompletionSource<string>();
+        var second = new TaskCompletionSource<string>();
+
+        var one = enquiry.It.Put(ask => ask.Of(_ => first.Task));
+        var two = enquiry.It.Put(ask => ask.Of(_ => second.Task));
+
+        enquiry.Host.Drain();
+        enquiry.Host.Settle();
+        enquiry.Host.Settle();
+
+        Assert.Equal(2, enquiry.It.Dots);
+
+        first.SetResult("one");
+
+        await one;
+
+        enquiry.Host.Drain();
+
+        Assert.True(enquiry.It.Fetching);
+        Assert.Equal(2, enquiry.It.Dots);
+        Assert.Equal(1, enquiry.Host.Waiting);
+
+        enquiry.Host.Settle();
+
+        Assert.Equal(3, enquiry.It.Dots);
+
+        second.SetResult("two");
+
+        await two;
+
+        enquiry.Host.Drain();
+
+        Assert.False(enquiry.It.Fetching);
+        Assert.Equal(0, enquiry.It.Dots);
+        Assert.Equal(0, enquiry.Host.Waiting);
+    }
+
+    /// <summary>
+    ///     A rate limit waited out is a question still in flight, so the dots go on arriving on the breadcrumb while
+    ///     the countdown counts on the status row — two rhythms on two rows.
+    /// </summary>
+    [Fact]
+    public async Task Put_GoesOnTickingWhileARateLimitIsWaitedOut()
+    {
+        var attempts = 0;
+        var enquiry = new AnEnquiry();
+
+        var putting = enquiry.It.Put(
+            ask => ask.Of(_ => ++attempts == 1
+                ? Task.FromException<string>(
+                    new RateLimitedException("mastodon.social", AnEnquiry.Now + TimeSpan.FromSeconds(3)))
+                : Task.FromResult("answered")));
+
+        enquiry.Host.Drain();
+
+        Assert.Contains("3s", enquiry.Notice);
+
+        enquiry.Clock.Advance(TimeSpan.FromSeconds(1));
+        enquiry.Host.Settle();
+
+        Assert.Contains("2s", enquiry.Notice);
+        Assert.Equal(1, enquiry.It.Dots);
+
+        enquiry.Clock.Advance(TimeSpan.FromSeconds(1));
+        enquiry.Host.Settle();
+
+        Assert.Contains("1s", enquiry.Notice);
+        Assert.Equal(2, enquiry.It.Dots);
+
+        enquiry.Clock.Advance(TimeSpan.FromSeconds(1));
+        enquiry.Host.SettleAll();
+
+        await putting;
+
+        enquiry.Host.Drain();
+
+        Assert.Equal(2, attempts);
+        Assert.False(enquiry.It.Fetching);
+        Assert.Equal(0, enquiry.It.Dots);
+    }
+
+    /// <summary>
+    ///     What the shell runs at holds each dot for 400ms, which is the number <c>docs/tui-shell.md</c>'s table gives
+    ///     as the mark step — beside the countdown's second rather than the same as it (#213).
+    /// </summary>
+    [Fact]
+    public void ShellTiming_HoldsEachDotOfTheMarkFor400ms()
+    {
+        Assert.Equal(TimeSpan.FromMilliseconds(400), ShellTiming.Default.MarkStep);
+        Assert.NotEqual(ShellTiming.Default.CountdownStep, ShellTiming.Default.MarkStep);
+    }
+
     /// <summary>A call that answers with nothing is put the same way, and splits its callbacks the same way.</summary>
     [Fact]
     public async Task Put_ServesACallThatAnswersWithNothing()
@@ -296,7 +484,7 @@ public class EnquiryTests
 
         public AnEnquiry()
         {
-            It = new Enquiry(Host, Clock, TimeSpan.FromSeconds(1));
+            It = new Enquiry(Host, Clock, TimeSpan.FromSeconds(1), MarkStep);
 
             It.Said += (notice, isError) =>
             {
@@ -305,7 +493,11 @@ public class EnquiryTests
             };
 
             It.Changed += () => Changes++;
+            It.Ticked += () => Ticks++;
         }
+
+        /// <summary>How long one dot of the fetch mark is held — the shell's own, since nothing here shortens it.</summary>
+        public static readonly TimeSpan MarkStep = ShellTiming.Default.MarkStep;
 
         public FakeShellHost Host { get; } = new();
 
@@ -320,5 +512,8 @@ public class EnquiryTests
 
         /// <summary>How many times it said something on screen had changed.</summary>
         public int Changes { get; private set; }
+
+        /// <summary>How many times the fetch mark gained a dot.</summary>
+        public int Ticks { get; private set; }
     }
 }

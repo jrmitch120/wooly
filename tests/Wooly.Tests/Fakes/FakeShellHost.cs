@@ -16,7 +16,10 @@ internal sealed class FakeShellHost : IShellHost
     public int Waiting => _waiting.Count(wait => !wait.CalledOff);
 
     /// <summary>How many waits were ever scheduled, called off or not.</summary>
-    public int Scheduled { get; private set; }
+    public int Scheduled => Delays.Count;
+
+    /// <summary>How long every wait ever scheduled was asked to be, in the order they were asked for.</summary>
+    public List<TimeSpan> Delays { get; } = [];
 
     /// <inheritdoc />
     /// <remarks>Queued, because that is what the terminal does — see <see cref="Drain" />.</remarks>
@@ -40,7 +43,7 @@ internal sealed class FakeShellHost : IShellHost
     /// <inheritdoc />
     public IDisposable After(TimeSpan delay, Action work)
     {
-        Scheduled++;
+        Delays.Add(delay);
 
         var wait = new Wait(work);
 
