@@ -164,3 +164,77 @@ on the page, reclaiming like `j`/`k` and clamping at the ends. They are screen-l
 frame this ADR fixed is untouched — but they mean one thing on every screen that has two or more headed runs, and the
 status row says `[/]:section` on all of them. The mechanism is a heading mark on `Line` and one function beside
 `Scroll.To`, which keeps this ADR's property that a scroll answer is computed from the rows alone.
+
+## Amendment: the chrome says where you are, and the status row says less (map #160)
+
+Two complaints started this: the breadcrumb blends into the content, and the status row truncates. Both are about the
+two rows this ADR called the frame and then never came back to, and both were answered by prototypes rather than by
+argument (map #160, tickets #168, #169, #213, #214, #215). The frame is unchanged in shape — a rail that stays, a
+stack you walk back out of, roles instead of colours — and four things it said are now said more exactly.
+`docs/tui-shell.md` carries the enumerable detail; this records what moved and why.
+
+**The breadcrumb tells where you are standing from where you walked through, and the content region starts a row
+lower.** This ADR gave the trail one job — "with the trail along the top saying where you are" — and the code drew it
+as one span, so it said nothing of the sort. The crumb at the end now takes a role of its own, `crumb-current`; the
+ancestors stay `chrome`; the separator keeps no role, because the trail reads as structure by the end of it
+brightening rather than by the separators dimming. A glyph before the current crumb and a band behind it were both
+drawn and rejected — in this shell a band means *the thing you are on* (`selection`, `rail-current`), and banding the
+whole row says the whole row is that. The no-colour case is carried by **position**, which the second change makes
+load-bearing: a long trail now elides **from the left**, where `TextWrap.Clip` cut it from the right and so kept the
+crumbs saying where you came from and lost the one saying where you are. The trail always ends where you are, on
+every terminal.
+
+The content region starting at row 2 rather than row 1 is a change to the regions this ADR fixed, and is the one
+frame change on this map that was earned: a blank row divides the breadcrumb from the content the way every screen in
+this shell already divides one thing from the next, it works where a band does not, and — unlike the second status
+row refuted below — it answers a complaint that is true on *every* screen rather than on the busiest one. A
+horizontal rule was rejected for asking a reader to learn that one line means a frame boundary and another, four rows
+away on Discover, means a section heading.
+
+**The status row is a reminder and `?` is the reference, so the row may be incomplete but must never truncate.**
+This ADR left the status row to `docs/tui-shell.md` and the doc left its behaviour when full to `TextWrap.Clip`,
+which cut at the right — and `?:keys` is last in every list, so the row announcing where the cut keys could be found
+was the first thing cut. The row now draws as many whole hints as it has room for in a rank order written on purpose,
+then `…+N` for what it could not fit, then `?:keys`, which is never cut. A key that cannot act on what is picked out
+is off the row and out of the count, which is this shell's own existing rule (#87, #119, #193, #195) applied
+consistently rather than in four places.
+
+**A second status row was asked for and refuted, on evidence.** The worst case is the account screen — twenty hints
+wanting 217 columns against 80 — and two rows still need `…+3` there, so the second row does not solve the problem it
+would charge every screen a row for. Pruning to a fixed set fits and wastes 37 columns on a quiet screen, which is
+the *"a row cut back to `g tab ?` reads as broken rather than as empty"* failure #195 already named; grouping
+(`b/f:marks`) saves 30 columns, still cuts 4 to 9 hints silently, and spends the key-to-word mapping #66 bought. The
+fill rule is what the arithmetic leaves, and that the frame held under it is worth as much on the record as a frame
+that moved.
+
+**The one thing that animates is the one thing that says the shell is alive.** This ADR said a fetch is announced
+once, on the breadcrumb, and that the rail holds still. That stands; the mark now moves — a dot every 400ms, three of
+them, and start over, laid out at its widest so neither the word nor the trail beside it can shift. It waits one tick
+before appearing at all, so a cached destination never flashes it. Two consequences reach this ADR's seams rather
+than the doc's numbers. `IShellHost` keeps its two members: the tick is a one-shot `After` re-armed while anything is
+in flight, exactly as the rate-limit countdown already re-arms one, so the host seam does not grow a repeating timer
+for a thing one caller wants. And the tick raises an **event of its own** rather than `Changed`, because `Changed`
+redraws the whole window — the rail, the content and every picture placement — which is precisely the rail this ADR
+said should hold still, two and a half times a second for as long as any fetch is in flight.
+
+**A confirmation reserves its answer before it draws its question.** The third thing the status row can hold had
+never been measured: at 80 columns the delete confirmation drew 79 and the vote confirmation 80, so an instance whose
+post ids are longer clipped `esc keep` and left a row that asks something and does not say how to answer. The rule is
+the breadcrumb's, one row down — cut what the reader can reconstruct from what is on screen, never what tells them
+how to act. The questions shortened on the same ground: the post id and the quoted poll option each name something a
+reader cannot check, while `Role.Selection` and the ballot already say which post and which answers. Story 43's
+requirement is the asking, not the wording.
+
+**`chrome` was never one job, and the key you press gets a role.** This ADR's rule is that colour never carries a
+meaning alone, and it is met throughout the above by glyph and position. The new claim is narrower and is the
+standing test this map leaves behind: **a colour distinction is owed where a reader's next action depends on telling
+two things apart.** `chrome` painted the frame's furniture *and*, through `KeyHint.Spans`, the key on the status row
+— which after the fill rule is the most actionable token on it — so #66's split between a key and its explanation was
+invisible in both built-in themes, and `HelpScreen` had already worked around it by drawing its key column in
+`byline-handle` blue. One new role, `key`, paints a token you press in the three places one is drawn, and nothing
+else moves: `quota`, `audience` and `muted` go on sharing one hex, because nobody has to tell a rate-limit number
+from a visibility glyph to do anything. Adding a role is adding a public name to everybody's `[themes.*]` table, and
+two were added here against five that were argued for and refused.
+
+None of this reopens what the ADR decided. The regions gained a row inside the content's half of the frame and lost
+nothing; every decision above was measured at 61 and 80 columns and drawn on a terminal reporting no colour.
