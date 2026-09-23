@@ -32,7 +32,7 @@ public sealed class NotificationInbox(IMastodonClientFactory clientFactory) : IN
             limit,
             PageSize,
             options => client.GetNotifications(options),
-            notification => NotificationWire.ToNotification(notification, profile.Instance),
+            notification => NotificationWire.ToNotification(notification, profile),
             notification => notification.Id,
             cancellationToken);
     }

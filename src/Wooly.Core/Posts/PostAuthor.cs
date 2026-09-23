@@ -69,7 +69,7 @@ public sealed class PostAuthor(IMastodonClientFactory clientFactory) : IPostAuth
             spoilerText: draft.ContentWarning,
             poll: draft.Poll is null ? null : ToWire(draft.Poll));
 
-        return PostWire.ToPost(published, profile.Instance);
+        return PostWire.ToPost(published, profile);
     }
 
     /// <inheritdoc />
@@ -106,7 +106,7 @@ public sealed class PostAuthor(IMastodonClientFactory clientFactory) : IPostAuth
             sensitive: existing.Sensitive == true || !string.IsNullOrEmpty(contentWarning),
             spoilerText: contentWarning);
 
-        return PostWire.ToPost(edited, profile.Instance);
+        return PostWire.ToPost(edited, profile);
     }
 
     /// <inheritdoc />

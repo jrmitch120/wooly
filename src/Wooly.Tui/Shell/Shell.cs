@@ -1927,15 +1927,17 @@ public sealed class Shell
     }
 
     /// <summary>
-    ///     Whether a post is the profile's own, which is what settles whether pinning, editing and deleting are
-    ///     offered. Compared on the address, because that is the one name for an account that means the same thing on
-    ///     two instances.
+    ///     Whether a post is the profile's own, which is what settles whether pinning, editing and deleting act.
     /// </summary>
+    /// <remarks>
+    ///     Asked of the profile rather than read off <see cref="Post.IsMine" />, which is what the status row reads: both
+    ///     are the one comparison <see cref="ActiveProfile.SignsInAs" /> makes, so the row and the refusal cannot come
+    ///     to disagree, and a press is still refused by the shell that has the profile in hand (#220).
+    /// </remarks>
     private bool IsMine(Post post) => IsMe(post.Account);
 
     /// <summary>Whether an account is the profile's own, compared the way <see cref="IsMine" /> compares one.</summary>
-    private bool IsMe(string account) =>
-        _profile.Account is { } mine && string.Equals(account, mine, StringComparison.OrdinalIgnoreCase);
+    private bool IsMe(string account) => _profile.SignsInAs(account);
 
     private void Push(Screen screen)
     {

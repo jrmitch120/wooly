@@ -255,7 +255,9 @@ public class ShellStackTests
         };
 
         var opened = await shell.Opened();
-        var acting = PostKeys.OnAPost.Select(key => key.Key).ToHashSet();
+
+        // Less x, p, e and d: ben's post hides nothing and is not the reader's, so all four would refuse it (#220).
+        var acting = PostKeys.OnAPost.Select(key => key.Key).Except(["x", "p", "e", "d"]).ToHashSet();
 
         Assert.Subset(opened.Keys.Select(key => key.Key).ToHashSet(), acting);
 

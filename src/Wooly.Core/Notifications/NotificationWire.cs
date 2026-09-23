@@ -1,4 +1,5 @@
 using Wooly.Core.Posts;
+using Wooly.Core.Profiles;
 using WireNotification = Mastonet.Entities.Notification;
 
 namespace Wooly.Core.Notifications;
@@ -9,20 +10,20 @@ namespace Wooly.Core.Notifications;
 /// </summary>
 internal static class NotificationWire
 {
-    /// <param name="instance">
-    ///     The instance being read, needed because it names its own accounts by bare username and everyone else's in
-    ///     full.
+    /// <param name="reader">
+    ///     The profile reading it: which instance is being read, needed because it names its own accounts by bare
+    ///     username and everyone else's in full, and who is reading, which the post it carries is asked about.
     /// </param>
-    public static Notification ToNotification(WireNotification notification, string instance) => new()
+    public static Notification ToNotification(WireNotification notification, ActiveProfile reader) => new()
     {
         Id = notification.Id,
         Kind = ToKind(notification.Type),
         ReceivedAt = MastodonWire.AsUtc(notification.CreatedAt),
-        Account = MastodonWire.Qualify(notification.Account, instance),
+        Account = MastodonWire.Qualify(notification.Account, reader.Instance),
         Author = MastodonWire.DisplayName(notification.Account),
 
         // Absent on a follow, which is somebody arriving rather than something they wrote.
-        Post = notification.Status is null ? null : PostWire.ToPost(notification.Status, instance),
+        Post = notification.Status is null ? null : PostWire.ToPost(notification.Status, reader),
     };
 
     /// <summary>

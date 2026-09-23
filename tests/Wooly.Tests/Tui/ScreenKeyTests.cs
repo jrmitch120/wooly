@@ -289,7 +289,9 @@ public class ScreenKeyTests
     /// <summary>The screen the <paramref name="state" /> names, built with no terminal and no shell around it.</summary>
     private static Screen Of(string state)
     {
-        var post = APost.With(id: "110");
+        // The reader's own, and warned, so that every key acting on a post can act on this one: pin, edit and delete
+        // on somebody else's, and x on a post hiding nothing, are off the row by #220's rule rather than this one.
+        var post = APost.With(id: "110", contentWarning: "spoilers", isMine: true);
 
         switch (state)
         {
@@ -369,7 +371,7 @@ public class ScreenKeyTests
                     AConversation.Thread(AConversation.With(), post with { Visibility = PostVisibility.Direct }));
 
             case "post-reply":
-                var thread = new PostScreen(post, new PostThread([], [APost.With(id: "220")]));
+                var thread = new PostScreen(post, new PostThread([], [post with { Id = "220" }]));
 
                 // Onto the answer below it: ⏎ is the one key the post screen leaves off while the post it would open
                 // is the one already on screen (#48), and that is its own rule rather than this one.

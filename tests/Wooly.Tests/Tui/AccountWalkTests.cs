@@ -296,9 +296,12 @@ public class AccountWalkTests
 
         var onAPost = Status(screen);
 
-        foreach (var key in PostKeys.OnAPost)
+        // Less the four that would refuse this post, which is Maria's and hides nothing (#220).
+        string[] refusing = ["x:show warning", "p:pin", "e:edit", "d:delete"];
+
+        foreach (var key in PostKeys.OnAPost.Select(key => key.ToString()).Except(refusing))
         {
-            Assert.Contains(key.ToString(), onAPost);
+            Assert.Contains(key, onAPost);
         }
     }
 

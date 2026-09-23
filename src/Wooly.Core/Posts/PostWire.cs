@@ -1,5 +1,6 @@
 using Mastonet;
 using Mastonet.Entities;
+using Wooly.Core.Profiles;
 
 namespace Wooly.Core.Posts;
 
@@ -11,14 +12,20 @@ namespace Wooly.Core.Posts;
 /// </summary>
 internal static class PostWire
 {
-    /// <param name="instance">
-    ///     The instance being read, needed because it names its own accounts by bare username and everyone else's in
-    ///     full.
+    /// <param name="reader">
+    ///     The profile reading it: which instance is being read, needed because it names its own accounts by bare
+    ///     username and everyone else's in full, and who is reading, which settles <see cref="Post.IsMine" />.
     /// </param>
-    public static Post ToPost(Status status, string instance) => new()
+    public static Post ToPost(Status status, ActiveProfile reader) => ToPost(status, reader.Instance, reader);
+
+    private static Post ToPost(Status status, string instance, ActiveProfile reader) => new()
     {
         Id = status.Id,
         Account = MastodonWire.Qualify(status.Account, instance),
+
+        // Asked of the address just qualified rather than of the wire's own acct, which names this instance's
+        // accounts bare — and the reader's own account is always one of those.
+        IsMine = reader.SignsInAs(MastodonWire.Qualify(status.Account, instance)),
         Author = MastodonWire.DisplayName(status.Account),
         PostedAt = MastodonWire.AsUtc(status.CreatedAt),
         Content = InstanceHtml.ToPlainText(status.Content),
@@ -53,7 +60,7 @@ internal static class PostWire
         // post.
         Mentions = status.Mentions?.Select(mention => MastodonWire.Qualify(mention.AccountName, instance)).ToList()
                    ?? [],
-        Boosted = status.Reblog is null ? null : ToPost(status.Reblog, instance),
+        Boosted = status.Reblog is null ? null : ToPost(status.Reblog, instance, reader),
         Url = status.Url,
 
         // The wire says "no avatar" with an empty string, the same as it says "no warning" above.

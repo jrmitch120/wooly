@@ -38,7 +38,7 @@ public sealed class PostEngagement(IMastodonClientFactory clientFactory) : IPost
         var marked = await Apply(client, postId, mark, wanted);
 
         // Boosting answers with the boost rather than the post boosted; every other mark answers with the post itself.
-        return PostWire.ToPost(marked.Reblog ?? marked, profile.Instance);
+        return PostWire.ToPost(marked.Reblog ?? marked, profile);
     }
 
     /// <inheritdoc />
@@ -48,7 +48,7 @@ public sealed class PostEngagement(IMastodonClientFactory clientFactory) : IPost
 
         var client = clientFactory.CreateClient(profile.Instance, profile.AccessToken);
 
-        return PostWire.ToPost(await client.GetStatus(postId), profile.Instance);
+        return PostWire.ToPost(await client.GetStatus(postId), profile);
     }
 
     /// <inheritdoc />
@@ -66,7 +66,7 @@ public sealed class PostEngagement(IMastodonClientFactory clientFactory) : IPost
         return new PostThread(Posts(context.Ancestors), Posts(context.Descendants));
 
         IReadOnlyList<Post> Posts(IEnumerable<Status> statuses) =>
-            [.. statuses.Select(status => PostWire.ToPost(status, profile.Instance))];
+            [.. statuses.Select(status => PostWire.ToPost(status, profile))];
     }
 
     /// <inheritdoc />

@@ -15,6 +15,15 @@ public sealed record ActiveProfile
     /// <summary>The Mastodon account this profile signs in as, as <c>username@instance</c>.</summary>
     public required string? Account { get; init; }
 
+    /// <summary>
+    ///     Whether <paramref name="account" /> is the one this profile signs in as. Compared on the address, because
+    ///     that is the one name for an account that means the same thing on two instances, and without regard to case,
+    ///     which an address has none of. A profile that has not said who it signs in as is nobody.
+    /// </summary>
+    /// <param name="account">An account as <c>username@instance</c>.</param>
+    public bool SignsInAs(string account) =>
+        Account is { } mine && string.Equals(account, mine, StringComparison.OrdinalIgnoreCase);
+
     /// <summary>The access token to authenticate calls with. Never rendered, logged, or written to the config file.</summary>
     public required string AccessToken { get; init; }
 }
