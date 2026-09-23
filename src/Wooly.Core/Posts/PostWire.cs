@@ -16,59 +16,63 @@ internal static class PostWire
     ///     The profile reading it: which instance is being read, needed because it names its own accounts by bare
     ///     username and everyone else's in full, and who is reading, which settles <see cref="Post.IsMine" />.
     /// </param>
-    public static Post ToPost(Status status, ActiveProfile reader) => ToPost(status, reader.Instance, reader);
-
-    private static Post ToPost(Status status, string instance, ActiveProfile reader) => new()
+    public static Post ToPost(Status status, ActiveProfile reader)
     {
-        Id = status.Id,
-        Account = MastodonWire.Qualify(status.Account, instance),
+        var instance = reader.Instance;
+        var account = MastodonWire.Qualify(status.Account, instance);
 
-        // Asked of the address just qualified rather than of the wire's own acct, which names this instance's
-        // accounts bare — and the reader's own account is always one of those.
-        IsMine = reader.SignsInAs(MastodonWire.Qualify(status.Account, instance)),
-        Author = MastodonWire.DisplayName(status.Account),
-        PostedAt = MastodonWire.AsUtc(status.CreatedAt),
-        Content = InstanceHtml.ToPlainText(status.Content),
-
-        // The wire says "no warning" with an empty string, which is not the same thing as a warning to print.
-        ContentWarning = MastodonWire.SaidOrNothing(status.SpoilerText),
-
-        // The other half of what a post is put behind, and the half with no text to read it off: an instance marks
-        // media sensitive on its own account, and most often with no warning written at all (#113). Nullable on the
-        // way in because that is how the client library types the field, and nothing said is nothing marked.
-        Sensitive = status.Sensitive ?? false,
-        Visibility = ToVisibility(status.Visibility),
-        Boosts = status.ReblogCount,
-        Favorites = status.FavouritesCount,
-        Replies = status.RepliesCount,
-
-        // The wire leaves all three out where it has nobody to answer them about, which is a read made without a
-        // token. Silence there means "not marked" rather than "unknown": every call this client makes is signed in,
-        // so a missing flag is an instance that had nothing to report rather than one that was not asked.
-        Marks = new PostMarks
+        return new Post
         {
-            Boosted = status.Reblogged ?? false,
-            Favorited = status.Favourited ?? false,
-            Pinned = status.Pinned ?? false,
-        },
-        // Mastonet leaves this null rather than empty where a post carries nothing, and a timeline is mostly posts
-        // that carry nothing.
-        Media = status.MediaAttachments?.Select(ToMedia).ToList() ?? [],
+            Id = status.Id,
+            Account = account,
 
-        // Qualified the same way the post's own author is, and for the same reason: an instance names its own
-        // accounts bare, so a mention left as it arrived would say who it is about in a different way on every second
-        // post.
-        Mentions = status.Mentions?.Select(mention => MastodonWire.Qualify(mention.AccountName, instance)).ToList()
-                   ?? [],
-        Boosted = status.Reblog is null ? null : ToPost(status.Reblog, instance, reader),
-        Url = status.Url,
+            // Asked of the address just qualified rather than of the wire's own acct, which names this instance's
+            // accounts bare — and the reader's own account is always one of those.
+            IsMine = reader.SignsInAs(account),
+            Author = MastodonWire.DisplayName(status.Account),
+            PostedAt = MastodonWire.AsUtc(status.CreatedAt),
+            Content = InstanceHtml.ToPlainText(status.Content),
 
-        // The wire says "no avatar" with an empty string, the same as it says "no warning" above.
-        AvatarUrl = MastodonWire.SaidOrNothing(status.Account.AvatarUrl),
-        InReplyTo = ToReplyTarget(status, instance),
-        Poll = status.Poll is null ? null : ToPoll(status.Poll),
-        LinkPreview = ToLinkPreview(status.Card),
-    };
+            // The wire says "no warning" with an empty string, which is not the same thing as a warning to print.
+            ContentWarning = MastodonWire.SaidOrNothing(status.SpoilerText),
+
+            // The other half of what a post is put behind, and the half with no text to read it off: an instance marks
+            // media sensitive on its own account, and most often with no warning written at all (#113). Nullable on the
+            // way in because that is how the client library types the field, and nothing said is nothing marked.
+            Sensitive = status.Sensitive ?? false,
+            Visibility = ToVisibility(status.Visibility),
+            Boosts = status.ReblogCount,
+            Favorites = status.FavouritesCount,
+            Replies = status.RepliesCount,
+
+            // The wire leaves all three out where it has nobody to answer them about, which is a read made without a
+            // token. Silence there means "not marked" rather than "unknown": every call this client makes is signed in,
+            // so a missing flag is an instance that had nothing to report rather than one that was not asked.
+            Marks = new PostMarks
+            {
+                Boosted = status.Reblogged ?? false,
+                Favorited = status.Favourited ?? false,
+                Pinned = status.Pinned ?? false,
+            },
+            // Mastonet leaves this null rather than empty where a post carries nothing, and a timeline is mostly posts
+            // that carry nothing.
+            Media = status.MediaAttachments?.Select(ToMedia).ToList() ?? [],
+
+            // Qualified the same way the post's own author is, and for the same reason: an instance names its own
+            // accounts bare, so a mention left as it arrived would say who it is about in a different way on every second
+            // post.
+            Mentions = status.Mentions?.Select(mention => MastodonWire.Qualify(mention.AccountName, instance)).ToList()
+                       ?? [],
+            Boosted = status.Reblog is null ? null : ToPost(status.Reblog, reader),
+            Url = status.Url,
+
+            // The wire says "no avatar" with an empty string, the same as it says "no warning" above.
+            AvatarUrl = MastodonWire.SaidOrNothing(status.Account.AvatarUrl),
+            InReplyTo = ToReplyTarget(status, instance),
+            Poll = status.Poll is null ? null : ToPoll(status.Poll),
+            LinkPreview = ToLinkPreview(status.Card),
+        };
+    }
 
     /// <summary>
     ///     What the instance made of a link in the post's text, trimmed to what a terminal can use, or

@@ -83,6 +83,21 @@ public class NotificationInboxTests
     ///     A follow request is somebody asking to follow, which is not the same as following. Reported as a follow, it
     ///     would tell an account it has a follower it does not have.
     /// </summary>
+    /// <summary>
+    ///     The post a notification carries says whether it is the reader's own, the way a timeline's does — it is one
+    ///     crossing from the wire, and a favorite of the reader's post is the commonest thing an inbox holds (#220).
+    /// </summary>
+    [Fact]
+    public async Task Read_ReportsWhetherThePostANotificationCarriesIsTheReadersOwn()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(Page(NotificationJson("34", type: "favourite"))));
+
+        var fetch = await NewInbox(network).Read(Profile, 20, TestContext.Current.CancellationToken);
+
+        Assert.True(Assert.Single(fetch.Items).Post?.IsMine);
+    }
+
     [Fact]
     public async Task Read_DoesNotReportARequestToFollowAsAFollow()
     {
