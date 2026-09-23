@@ -2,6 +2,7 @@ using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
+using Wooly.Tui.Shell;
 
 namespace Wooly.Tests.Tui;
 
@@ -115,13 +116,37 @@ public class ShellActionTests
         opened.AskToDelete();
 
         Assert.NotNull(opened.Asking);
-        Assert.Contains("cannot be undone", opened.Asking.Question);
+        Assert.Equal(Confirmation.CannotBeUndone, opened.Asking.Warning);
         Assert.Empty(shell.Author.Deletions);
 
         await opened.Answer(agreed: true);
 
         Assert.Null(opened.Asking);
         Assert.Equal("110", Assert.Single(shell.Author.Deletions).PostId);
+    }
+
+    /// <summary>
+    ///     The question names no post id — no screen draws one, so it could be checked against nothing, and the post
+    ///     it is about is the one drawn picked. So an instance whose ids are not Mastodon-shaped asks it the same way,
+    ///     in the same columns (#219).
+    /// </summary>
+    [Theory]
+    [InlineData("110")]
+    [InlineData("01J9ZQ4M7K2VXB3NTRW8YH5F6D")]
+    public async Task AskToDelete_AsksAboutThisPostWhateverItsIdIs(string id)
+    {
+        var shell = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(APost.With(id: id, account: "jeff@mastodon.social")),
+        };
+        var opened = await shell.Opened();
+
+        opened.AskToDelete();
+
+        Assert.Equal("Delete this post?", opened.Asking?.Ask);
+        Assert.Equal(
+            " Delete this post? This cannot be undone.  y delete · esc keep",
+            ChromeLines.Status(opened.Keys, opened.Notice, opened.NoticeIsError, opened.Asking, 80).Text);
     }
 
     /// <summary>Answering no leaves the post exactly where it was, which is the point of asking.</summary>

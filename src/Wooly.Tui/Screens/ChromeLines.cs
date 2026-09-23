@@ -166,13 +166,13 @@ public static class ChromeLines
     {
         if (asking is { } question)
         {
+            var answer = $"  {question.Confirm} {question.Going} · esc keep";
+
+            // The answer's columns are reserved first. A row narrower than the answer alone is narrower than the shell
+            // draws: the question gets no room at all there, and the answer is clipped rather than left blank.
             return Line.Of([
-                new Span(TextWrap.Clip($" {question.Question}", width), Role.Destructive),
-                new Span(
-                    TextWrap.Clip(
-                        $"  {question.Confirm} {question.Going} · esc keep",
-                        Math.Max(0, width - Glyphs.Columns(question.Question) - 1)),
-                    Role.Muted),
+                new Span(Asked(question, width - Glyphs.Columns(answer)), Role.Destructive),
+                new Span(TextWrap.Clip(answer, width), Role.Muted),
             ]);
         }
 
@@ -182,6 +182,22 @@ public static class ChromeLines
         }
 
         return new Line(Fitted(keys, width));
+    }
+
+    /// <summary>
+    ///     The question a confirmation puts, in the <paramref name="room" /> its answer leaves: the ask and the warning
+    ///     where both fit, else the ask alone, and the ask clipped only where not even it will fit (#219,
+    ///     <c>docs/tui-shell.md</c>).
+    /// </summary>
+    /// <remarks>
+    ///     The warning goes whole rather than being clipped, because a <c>…</c> says <i>something you cannot see was
+    ///     cut</i> — true of an ask, and false of a sentence identical on every confirmation.
+    /// </remarks>
+    private static string Asked(Shell.Confirmation question, int room)
+    {
+        var whole = $" {question.Ask} {question.Warning}";
+
+        return Glyphs.Columns(whole) <= room ? whole : TextWrap.Clip($" {question.Ask}", room);
     }
 
     /// <summary>

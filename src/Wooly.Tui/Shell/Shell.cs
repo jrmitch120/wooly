@@ -46,12 +46,6 @@ public sealed class Shell
     private const string NoBrowser = "No browser available.";
 
     /// <summary>
-    ///     How much of a poll answer the vote confirmation says, in columns. Twenty-five, because the rest of that
-    ///     question is 33 columns and the way to answer it needs the 19 after that (<see cref="VotingFor" />).
-    /// </summary>
-    private const int LongestAnswerSaid = 25;
-
-    /// <summary>
     ///     How many people a follow list asks for at a time: the most Mastodon serves from a list of accounts in one
     ///     call, so the most there is any point asking it for (#180).
     /// </summary>
@@ -817,7 +811,7 @@ public sealed class Shell
             return;
         }
 
-        Asking = new Confirmation("Clear every notification? This cannot be undone.", Going: "clear");
+        Asking = new Confirmation("Clear every notification?", Going: "clear");
         _confirming = Clear;
 
         Changed?.Invoke();
@@ -1055,7 +1049,7 @@ public sealed class Shell
             return;
         }
 
-        Asking = new Confirmation($"Delete post {about.Id}? This cannot be undone.");
+        Asking = new Confirmation("Delete this post?");
         _confirming = () => Delete(about.Id);
 
         Changed?.Invoke();
@@ -1101,7 +1095,7 @@ public sealed class Shell
         // ballot when it was put, and in the order the poll lists its answers rather than the order they were pressed.
         var choices = Screen.Chosen.Order().ToList();
 
-        Asking = new Confirmation($"{VotingFor(poll, choices)} This cannot be undone.", Going: "vote");
+        Asking = new Confirmation(VotingFor(choices), Going: "vote");
 
         _confirming = () => Cast(screen, about, choices);
 
@@ -1737,20 +1731,13 @@ public sealed class Shell
             });
 
     /// <summary>
-    ///     What the reader is being asked to agree to, said in the poll's own words rather than by the id of the post
-    ///     the poll happens to be on: what a vote can be wrong about is which answer it is for, and an id answers a
-    ///     question nobody voting has (#87 follow-up).
+    ///     What the reader is being asked to agree to: the answers ticked, counted rather than named. The ballot is on
+    ///     screen with every answer being agreed to drawn <c>[x]</c> on it, so the question names nothing the reader
+    ///     cannot check there — and quoting an answer somebody else wrote is what put the whole row at the contract's
+    ///     80 columns (#219).
     /// </summary>
-    /// <remarks>
-    ///     One answer is named and several are counted, which is a length rule rather than a taste: the question takes
-    ///     the status row and the way to answer it takes what is left, so a question long enough to push <c>y vote ·
-    ///     esc keep</c> off the right is a question nobody knows how to answer. Naming one answer clipped to
-    ///     <see cref="LongestAnswerSaid" /> holds the whole line inside 60 of the contract's 80 columns; naming three
-    ///     would not. Nothing is lost by counting them — the ballot is on screen, and every answer being agreed to is
-    ///     drawn <c>[x]</c> on it.
-    /// </remarks>
-    private static string VotingFor(PostPoll poll, IReadOnlyList<int> choices) => choices.Count == 1
-        ? $"Vote for \"{TextWrap.Clip(poll.Options[choices[0]].Text, LongestAnswerSaid)}\"?"
+    private static string VotingFor(IReadOnlyList<int> choices) => choices.Count == 1
+        ? "Cast the answer you ticked?"
         : $"Cast the {choices.Count} answers you ticked?";
 
     /// <summary>

@@ -86,7 +86,7 @@ public class ShellNotificationTests
         opened.AskToClear();
 
         Assert.NotNull(opened.Asking);
-        Assert.Contains("cannot be undone", opened.Asking.Question);
+        Assert.Equal(Confirmation.CannotBeUndone, opened.Asking.Warning);
         Assert.Equal("clear", opened.Asking.Going);
         Assert.Empty(shell.Notifications.Clearances);
 

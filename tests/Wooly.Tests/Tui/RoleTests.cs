@@ -95,7 +95,7 @@ public partial class RoleTests
                 [],
                 notice: null,
                 noticeIsError: false,
-                new Confirmation("Delete post 110? This cannot be undone."),
+                new Confirmation("Delete this post?"),
                 80),
         ]);
         Collect([ChromeLines.Status([], "Only your own posts can be deleted.", noticeIsError: true, null, 80)]);
@@ -423,7 +423,7 @@ public partial class RoleTests
             [new KeyHint("j/k", "post")],
             notice: null,
             noticeIsError: false,
-            new Confirmation("Delete post 110? This cannot be undone."),
+            new Confirmation("Delete this post?"),
             80);
 
         Assert.Contains(asking.Spans, span => span.Role == Role.Destructive);
