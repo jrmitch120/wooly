@@ -117,7 +117,7 @@ internal sealed class ShellWindow : Window
         };
 
         var breadcrumb = new PaintedView(theme, (width, _) =>
-            [ChromeLines.Breadcrumb(shell.Crumbs, shell.Fetching, width)])
+            [ChromeLines.Breadcrumb(shell.Crumbs, shell.Dots, width)])
         {
             X = RailLines.Width + 1,
             Y = 0,
@@ -192,6 +192,11 @@ internal sealed class ShellWindow : Window
         _showing = shell.Screen;
 
         shell.Changed += Refresh;
+
+        // A tick of the fetch mark redraws the row it is on and nothing else. Changed would redraw the whole window,
+        // and the content region re-places every picture on it each frame — two and a half times a second, for as
+        // long as anything is in flight, for one dot (#217).
+        shell.Ticked += breadcrumb.SetNeedsDraw;
     }
 
     /// <summary>

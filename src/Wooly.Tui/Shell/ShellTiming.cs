@@ -1,7 +1,7 @@
 namespace Wooly.Tui.Shell;
 
 /// <summary>
-///     The three lengths of time the shell's behaviour depends on, in one place so that a test can shorten them and
+///     The four lengths of time the shell's behaviour depends on, in one place so that a test can shorten them and
 ///     a reader can find out what they are without reading for them — and, beside them, the one size it depends on
 ///     (<see cref="FollowsHeldUnder" />), which is not a length of time and is here to be found with them.
 /// </summary>
@@ -17,7 +17,12 @@ namespace Wooly.Tui.Shell;
 /// <param name="CountdownStep">
 ///     How often the rate-limit countdown is redrawn while it waits. A second, because that is the unit it counts in.
 /// </param>
-public sealed record ShellTiming(TimeSpan Settle, TimeSpan CacheFor, TimeSpan CountdownStep)
+/// <param name="MarkStep">
+///     How long one dot of the breadcrumb's fetch mark is held, and — since the mark waits for its first tick — how
+///     long a fetch runs before it is announced at all. 400ms: the slowest rate a glance still catches moving, and
+///     deliberately not the countdown's second, which would say the mark counts something (#213).
+/// </param>
+public sealed record ShellTiming(TimeSpan Settle, TimeSpan CacheFor, TimeSpan CountdownStep, TimeSpan MarkStep)
 {
     /// <summary>
     ///     How many people a follow list may have on it and still be held whole rather than browsed a page at a time
@@ -25,9 +30,9 @@ public sealed record ShellTiming(TimeSpan Settle, TimeSpan CacheFor, TimeSpan Co
     ///     the list above it — <c>@Mastodon@mastodon.social</c>'s 877,000 followers — would be some 11,000.
     /// </summary>
     /// <remarks>
-    ///     A count rather than a length of time, and here anyway: it is the fourth thing the shell's behaviour turns
-    ///     on that a reader would otherwise go looking for, and a constant found beside the three it belongs with is
-    ///     worth more than one filed under the right type. Not settable the way the three are — a test shortening a
+    ///     A count rather than a length of time, and here anyway: it is the fifth thing the shell's behaviour turns
+    ///     on that a reader would otherwise go looking for, and a constant found beside the four it belongs with is
+    ///     worth more than one filed under the right type. Not settable the way the four are — a test shortening a
     ///     wait is asking for the same behaviour sooner, where a test moving this would be asking for another mode.
     /// </remarks>
     public const int FollowsHeldUnder = 2_000;
@@ -36,5 +41,6 @@ public sealed record ShellTiming(TimeSpan Settle, TimeSpan CacheFor, TimeSpan Co
     public static ShellTiming Default { get; } = new(
         Settle: TimeSpan.FromMilliseconds(250),
         CacheFor: TimeSpan.FromMinutes(1),
-        CountdownStep: TimeSpan.FromSeconds(1));
+        CountdownStep: TimeSpan.FromSeconds(1),
+        MarkStep: TimeSpan.FromMilliseconds(400));
 }

@@ -120,7 +120,10 @@ public enum Role
     /// </summary>
     Seam,
 
-    /// <summary>Stale content while a fetch lands. Carried without colour by the breadcrumb saying <c>fetching…</c>.</summary>
+    /// <summary>
+    ///     Stale content while a fetch lands. Carried without colour by the breadcrumb saying <c>fetching.</c>, and a
+    ///     dot more each tick.
+    /// </summary>
     Loading,
 
     /// <summary>A delete affordance and its confirmation. Carried without colour by the word.</summary>

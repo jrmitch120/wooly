@@ -26,7 +26,7 @@ public class BreadcrumbTests
     [Fact]
     public void Breadcrumb_DrawsTheCrumbYouAreStandingOnInItsOwnRole()
     {
-        var row = ChromeLines.Breadcrumb(["Home", "Post by @ben", "@ben@hachyderm.io"], fetching: false, ContentWidth);
+        var row = ChromeLines.Breadcrumb(["Home", "Post by @ben", "@ben@hachyderm.io"], dots: 0, ContentWidth);
 
         var said = Written(row);
 
@@ -48,7 +48,7 @@ public class BreadcrumbTests
     [Fact]
     public void Breadcrumb_DrawsAOneCrumbTrailAsTheCrumbYouAreStandingOn()
     {
-        var row = ChromeLines.Breadcrumb(["Home"], fetching: false, ContentWidth);
+        var row = ChromeLines.Breadcrumb(["Home"], dots: 0, ContentWidth);
 
         Assert.Equal([(Role.CrumbCurrent, "Home")], Written(row));
     }
@@ -57,7 +57,7 @@ public class BreadcrumbTests
     [Fact]
     public void Breadcrumb_LeadsATrailThatFitsWithNothing()
     {
-        var row = ChromeLines.Breadcrumb(["Home", "Post by @ben"], fetching: false, ContentWidth);
+        var row = ChromeLines.Breadcrumb(["Home", "Post by @ben"], dots: 0, ContentWidth);
 
         Assert.StartsWith("Home", row.Text, StringComparison.Ordinal);
         Assert.DoesNotContain("…", row.Text, StringComparison.Ordinal);
@@ -83,7 +83,7 @@ public class BreadcrumbTests
                 "@maria@mastodon.social following",
                 "Keys",
             ],
-            fetching: false,
+            dots: 0,
             ContentWidth);
 
         Assert.StartsWith("… › ", row.Text, StringComparison.Ordinal);
@@ -104,7 +104,7 @@ public class BreadcrumbTests
     {
         var row = ChromeLines.Breadcrumb(
             ["@maria@mastodon.social", "Post by @somebodywithaverylongname@instance.example"],
-            fetching: false,
+            dots: 0,
             ContentWidth);
 
         Assert.StartsWith("… › ", row.Text, StringComparison.Ordinal);
@@ -126,13 +126,77 @@ public class BreadcrumbTests
         // with a mark on it.
         string[] trail = ["Home", "Post by @ben@hachyderm.io", "@maria@fosstodon.org"];
 
-        var still = ChromeLines.Breadcrumb(trail, fetching: false, ContentWidth);
-        var busy = ChromeLines.Breadcrumb(trail, fetching: true, ContentWidth);
+        var still = ChromeLines.Breadcrumb(trail, dots: 0, ContentWidth);
+        var busy = ChromeLines.Breadcrumb(trail, dots: 1, ContentWidth);
 
         Assert.DoesNotContain("…", still.Text, StringComparison.Ordinal);
         Assert.StartsWith("… › ", busy.Text, StringComparison.Ordinal);
-        Assert.Contains("fetching…", busy.Text);
+        Assert.Contains("fetching.", busy.Text);
         Assert.True(busy.Width <= ContentWidth, $"The row is {busy.Width} columns wide.");
+    }
+
+    /// <summary>
+    ///     No dots is no mark at all — not the bare word, which on the one row whose job is to say <em>working</em>
+    ///     reads as <em>finished</em>. It is what a fetch not yet a tick old draws, so one that lands in 80ms shows
+    ///     nothing (#217).
+    /// </summary>
+    [Fact]
+    public void Breadcrumb_DrawsNoMarkForNoDots()
+    {
+        var row = ChromeLines.Breadcrumb(["Home"], dots: 0, ContentWidth);
+
+        Assert.DoesNotContain("fetching", row.Text, StringComparison.Ordinal);
+        Assert.DoesNotContain(row.Spans, span => span.Role == Role.Loading && span.Text.Length > 0);
+    }
+
+    /// <summary>
+    ///     One, two and three dots each take the same rightmost 11 columns, the word at the left of them and the dots
+    ///     growing rightward into the rest — so the word never moves, and the trail beside it is the same string on
+    ///     every tick rather than re-elided on each one (#217).
+    /// </summary>
+    [Theory]
+    [InlineData(1, "fetching.  ")]
+    [InlineData(2, "fetching.. ")]
+    [InlineData(3, "fetching...")]
+    public void Breadcrumb_DrawsEveryPhaseOfTheMarkInTheSameElevenColumns(int dots, string mark)
+    {
+        string[] trail = ["Home", "Post by @ben@hachyderm.io"];
+
+        var row = ChromeLines.Breadcrumb(trail, dots, ContentWidth);
+        var first = ChromeLines.Breadcrumb(trail, dots: 1, ContentWidth);
+
+        Assert.Equal(ContentWidth, row.Width);
+        Assert.EndsWith(mark, row.Text, StringComparison.Ordinal);
+        Assert.Equal(first.Text[..^11], row.Text[..^11]);
+    }
+
+    /// <summary>
+    ///     A trail deep enough to elide elides the same way on every tick of a whole cycle — which is what padding the
+    ///     mark to its widest buys: a mark 9 columns wide on one tick and 11 on the next would move the row at both
+    ///     ends on each of them.
+    /// </summary>
+    /// <remarks>
+    ///     And the 11 columns come off the trail, leaving it 49 of the 61 rather than the 51 <c>fetching…</c> left it.
+    /// </remarks>
+    [Fact]
+    public void Breadcrumb_ElidesADeepTrailTheSameWayAcrossAWholeCycle()
+    {
+        string[] trail =
+        [
+            "Home",
+            "Post by @ben@hachyderm.io",
+            "@maria@mastodon.social",
+            "@maria@mastodon.social following",
+            "Keys",
+        ];
+
+        var cycle = new[] { 1, 2, 3, 1 }.Select(dots => ChromeLines.Breadcrumb(trail, dots, ContentWidth)).ToList();
+        var trails = cycle.Select(row => row.Text[..^11]).Distinct().ToList();
+
+        Assert.Single(trails);
+        Assert.StartsWith("… › ", trails[0], StringComparison.Ordinal);
+        Assert.True(trails[0].TrimEnd().Length <= 49, $"The trail is {trails[0].TrimEnd().Length} columns wide.");
+        Assert.All(cycle, row => Assert.Equal(ContentWidth, row.Width));
     }
 
     /// <summary>
@@ -143,7 +207,7 @@ public class BreadcrumbTests
     [Fact]
     public void Breadcrumb_DrawsACrumbThatHasTheSeparatorInItAsOneCrumb()
     {
-        var row = ChromeLines.Breadcrumb(["Home", "Search a › b"], fetching: false, ContentWidth);
+        var row = ChromeLines.Breadcrumb(["Home", "Search a › b"], dots: 0, ContentWidth);
 
         Assert.Equal(
             [(Role.Crumb, "Home"), (Role.Crumb, " › "), (Role.CrumbCurrent, "Search a › b")],
@@ -167,7 +231,7 @@ public class BreadcrumbTests
     {
         var row = ChromeLines.Breadcrumb(
             ["Home", "Post by @ben@hachyderm.io", "@maria@mastodon.social following", "Keys"],
-            fetching: true,
+            dots: 1,
             ContentWidth);
 
         var band = Themes.Dark.For(Role.Crumb).Background;

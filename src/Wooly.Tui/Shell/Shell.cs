@@ -101,9 +101,10 @@ public sealed class Shell
         _cache = new DestinationCache(clock, timing.CacheFor);
         _follows = new FollowsCache(clock, timing.CacheFor);
 
-        _enquiry = new Enquiry(host, clock, timing.CountdownStep);
+        _enquiry = new Enquiry(host, clock, timing.CountdownStep, timing.MarkStep);
         _enquiry.Said += Say;
         _enquiry.Changed += () => Changed?.Invoke();
+        _enquiry.Ticked += () => Ticked?.Invoke();
 
         // An arrival settles what a destination is on screen and what its badge says; putting either there is this
         // shell's own business, since the stack and the rail are its.
@@ -120,6 +121,12 @@ public sealed class Shell
 
     /// <summary>Raised whenever anything on screen has changed. Always on the drawing thread.</summary>
     public event Action? Changed;
+
+    /// <summary>
+    ///     Raised when the breadcrumb's fetch mark has gained a dot and nothing else on screen has changed — so that
+    ///     what is redrawn for it is the one row it is on rather than everything <see cref="Changed" /> redraws.
+    /// </summary>
+    public event Action? Ticked;
 
     /// <summary>The rail: the ten destinations, the cursor, and the selection.</summary>
     public Rail Rail { get; }
@@ -142,6 +149,12 @@ public sealed class Shell
 
     /// <summary>Whether a fetch is in flight, which the breadcrumb says once and the rail never does.</summary>
     public bool Fetching => _enquiry.Fetching;
+
+    /// <summary>
+    ///     How many dots the breadcrumb's fetch mark has on it — none until a fetch has been in flight for a whole
+    ///     tick. What the mark draws, where <see cref="Fetching" /> is what the shell's own guards ask.
+    /// </summary>
+    public int Dots => _enquiry.Dots;
 
     /// <summary>
     ///     Something the shell has to say out loud that is not a screen: a refusal, or the countdown on a rate limit
@@ -403,7 +416,7 @@ public sealed class Shell
     /// <remarks>
     ///     Only where the screen says it answers to <c>g</c>, which is the nine the contract names. A second press
     ///     while anything is already in flight does nothing at all — no second question, and no in-flight UI beyond
-    ///     the <c>fetching…</c> marker the breadcrumb already carries.
+    ///     the <c>fetching</c> mark the breadcrumb already carries.
     ///     <para>
     ///         Seven of the nine are destinations and go back through <see cref="Arrival" />, which is one refresh for
     ///         all of them: what to evict, what to read, what it becomes and what it counts are all things the

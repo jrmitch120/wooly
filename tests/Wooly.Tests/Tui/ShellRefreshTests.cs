@@ -291,7 +291,7 @@ public class ShellRefreshTests
 
     /// <summary>
     ///     A second press while the first is still in flight does nothing at all — no second question, and no
-    ///     in-flight UI beyond the <c>fetching…</c> marker the breadcrumb already carries.
+    ///     in-flight UI beyond the <c>fetching</c> mark the breadcrumb already carries.
     /// </summary>
     [Fact]
     public async Task Refresh_DoesNothingWhileAQuestionIsAlreadyInFlight()
@@ -328,6 +328,49 @@ public class ShellRefreshTests
         var feed = Assert.IsType<FeedScreen>(opened.Screen);
 
         Assert.Equal(["111"], feed.Posts.Select(post => post.Id));
+    }
+
+    /// <summary>
+    ///     A tick of the fetch mark reaches the window as the breadcrumb's own event and not as
+    ///     <see cref="Shell.Changed" />, which redraws everything — so a dot costs one row (#217).
+    /// </summary>
+    [Fact]
+    public async Task Refresh_TicksTheFetchMarkWithoutSayingAnythingElseChanged()
+    {
+        var held = new TaskCompletionSource<Fetch<Post>>();
+        var reads = 0;
+
+        var shell = new AShell
+        {
+            Timelines = FakeTimelineReader.Awaiting(_ => reads++ == 0
+                ? Task.FromResult(Fetch<Post>.Complete([APost.With(id: "110")]))
+                : held.Task),
+        };
+
+        var opened = await shell.Opened();
+
+        var refreshing = opened.Refresh();
+
+        shell.Host.Drain();
+
+        var changes = 0;
+        var ticks = 0;
+
+        opened.Changed += () => changes++;
+        opened.Ticked += () => ticks++;
+
+        shell.Host.Settle();
+
+        Assert.Equal(1, ticks);
+        Assert.Equal(0, changes);
+        Assert.Equal(1, opened.Dots);
+
+        held.SetResult(Fetch<Post>.Complete([APost.With(id: "111")]));
+
+        await refreshing;
+        shell.Host.Drain();
+
+        Assert.Equal(0, opened.Dots);
     }
 
     /// <summary>
