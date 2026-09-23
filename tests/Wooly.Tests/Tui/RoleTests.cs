@@ -443,9 +443,9 @@ public partial class RoleTests
     }
 
     /// <summary>
-    ///     The status row is one row, and a list longer than it is cut off at the right — so a screen's own keys have
-    ///     to be on the part that survives. The keys #29 adds are exactly the ones that would otherwise be lost behind
-    ///     ten keys a reader has already met on every timeline.
+    ///     The status row is one row, drawn from the front of the rank — so a screen's own keys have to be at the front
+    ///     (#218). The keys #29 adds are exactly the ones that would otherwise be lost behind ten keys a reader has
+    ///     already met on every timeline.
     /// </summary>
     [Fact]
     public void Status_KeepsAScreensOwnKeysOnTheRowAtEightyColumns()
@@ -467,18 +467,18 @@ public partial class RoleTests
         Assert.Contains("d:dismiss", onTheInbox);
         Assert.Contains("D:clear all", onTheInbox);
 
-        // And the two movements #51 split apart are both said, since neither key does what the other one does — the
-        // shared one behind the screen's own keys, which is the order the cut at the right exists for.
+        // And the two movements #51 split apart are both announced, since neither key does what the other one does —
+        // the shared one in the tail of the rank, behind the screen's own keys and the marks alike (#218), so that it
+        // is the one the row gives up for them.
         Assert.Contains("j/k:post", onAnAccount);
-        Assert.Contains("↓/↑:row", onAnAccount);
+        Assert.Contains(PostKeys.Scrolling, account.Keys);
+        Assert.DoesNotContain("↓/↑:row", onAnAccount);
 
-        Assert.True(
-            onTheInbox.IndexOf("D:clear all", StringComparison.Ordinal)
-            < onTheInbox.IndexOf("↓/↑:row", StringComparison.Ordinal));
-
-        // And the row is still one row, which is what makes the cut necessary in the first place.
+        // And the row is still one row, saying how many it had no room for and where to find them.
         Assert.True(onAnAccount.Length <= 80);
         Assert.True(onTheInbox.Length <= 80);
+        Assert.EndsWith(" · ?:keys", onAnAccount, StringComparison.Ordinal);
+        Assert.Contains("…+", onTheInbox, StringComparison.Ordinal);
     }
 
     /// <summary>Nothing to say means the keys, which is what the status row is for the rest of the time.</summary>

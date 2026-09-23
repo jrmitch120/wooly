@@ -50,10 +50,10 @@ public class AccountWalkTests
 
     /// <summary>
     ///     The status row with room for every key on it, since what is being asked here is which keys the screen
-    ///     announces rather than which of them survive the cut at the right of an 80-column row.
+    ///     announces rather than which of them an 80-column row has room for — the account screen's wants 217 (#218).
     /// </summary>
     private static string Status(Screen screen) =>
-        ChromeLines.Status(screen.Keys, notice: null, noticeIsError: false, asking: null, 200).Text;
+        ChromeLines.Status(screen.Keys, notice: null, noticeIsError: false, asking: null, 400).Text;
 
     /// <summary>
     ///     The pick opens on the header, not on the first post: the screen is about the person, and landing below them

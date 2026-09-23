@@ -155,8 +155,9 @@ not answer them differently:
   it means everywhere, and the status row says what the prompt answers to.
 - **`/` from the search screen's results starts a fresh prompt** rather than doing nothing, since that is the one place
   the key is most likely to be pressed twice.
-- **A screen's own keys go in front of the shared ones on the status row.** The row is one row and a longer list is cut
-  off at the right, so the keys a reader can find on no other screen are the ones that have to survive the cut.
+- **A screen's own keys go in front of the shared ones on the status row.** The row is one row and draws what it has
+  room for from the front (*What the status row settled*), so the keys a reader can find on no other screen are the
+  ones that have to be there.
 - **A status row's key and its explanation are visually split**: the key stays `Role.Chrome`, the words explaining it
   take `Role.Muted` — reusing `Muted`'s existing "hints" job rather than adding a role — joined by a tight colon
   (`j/k:post`) in place of the plain space used before. The colon is the no-colour carrier and costs nothing: it is

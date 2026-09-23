@@ -149,7 +149,7 @@ public sealed class ComposeScreen : Screen
         new("ctrl-s", Purpose == ComposeFor.Edit ? "save" : "send"),
         new("ctrl-w", WritingTheWarning ? "back to the post" : "content warning"),
         new("esc", "throw it away"),
-        .. WritingTheWarning ? [] : new KeyHint[] { new("?", "keys") },
+        .. WritingTheWarning ? [] : new KeyHint[] { PostKeys.Asking },
     ];
 
     /// <summary>

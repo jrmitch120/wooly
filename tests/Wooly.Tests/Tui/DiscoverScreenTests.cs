@@ -303,7 +303,7 @@ public class DiscoverScreenTests
     [Fact]
     public void Keys_PutTheActingKeysFirst() =>
         Assert.Equal(
-            "j/k:person ⏎:open F:follow d:dismiss g:refresh ↓/↑:row tab:destination ?:keys",
+            "j/k:person ⏎:open F:follow d:dismiss g:refresh tab:destination ↓/↑:row ?:keys",
             string.Join(' ', Discovering(Offered("alice", SuggestionReason.FriendsOfFriends)).Keys));
 
     /// <summary>
