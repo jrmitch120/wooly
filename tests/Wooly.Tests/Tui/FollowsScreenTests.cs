@@ -235,8 +235,8 @@ public class FollowsScreenTests
     ///     to rather than which side this is.
     /// </summary>
     [Theory]
-    [InlineData(FollowSide.Following, "j/k:person ⏎:open f:filter s:followers g:refresh ↓/↑:row esc:back ?:keys")]
-    [InlineData(FollowSide.Followers, "j/k:person ⏎:open f:filter s:following g:refresh ↓/↑:row esc:back ?:keys")]
+    [InlineData(FollowSide.Following, "j/k:person ⏎:open f:filter s:followers g:refresh esc:back ↓/↑:row ?:keys")]
+    [InlineData(FollowSide.Followers, "j/k:person ⏎:open f:filter s:following g:refresh esc:back ↓/↑:row ?:keys")]
     public void Keys_SayWhatTheScreenAnswersTo(FollowSide side, string row)
     {
         var screen = Of(side);
@@ -255,7 +255,7 @@ public class FollowsScreenTests
         screen.Arrived([Person("a")], more: true);
 
         Assert.Equal(
-            "j/k:person ⏎:open s:following g:refresh ↓/↑:row esc:back ?:keys",
+            "j/k:person ⏎:open s:following g:refresh esc:back ↓/↑:row ?:keys",
             string.Join(' ', screen.Keys));
     }
 
@@ -284,7 +284,7 @@ public class FollowsScreenTests
         screen.Arrived([], more: false);
 
         Assert.Equal(
-            "j/k:person f:filter s:followers g:refresh ↓/↑:row esc:back ?:keys",
+            "j/k:person f:filter s:followers g:refresh esc:back ↓/↑:row ?:keys",
             string.Join(' ', screen.Keys));
     }
 
@@ -499,7 +499,7 @@ public class FollowsScreenTests
 
         Assert.Contains("They follow nobody yet.", Rows(screen));
         Assert.Equal(
-            "j/k:person f:filter s:followers g:refresh ↓/↑:row esc:back ?:keys",
+            "j/k:person f:filter s:followers g:refresh esc:back ↓/↑:row ?:keys",
             string.Join(' ', screen.Keys));
     }
 

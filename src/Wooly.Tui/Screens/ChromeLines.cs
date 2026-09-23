@@ -181,23 +181,75 @@ public static class ChromeLines
             return Line.Of(TextWrap.Clip($" {said}", width), noticeIsError ? Role.Error : Role.Muted);
         }
 
-        return new Line(Clipped([new Span(" ", Role.Chrome), .. KeySpans(keys)], width));
+        return new Line(Fitted(keys, width));
     }
 
     /// <summary>
-    ///     The status row's keys, each glued to its explanation (<see cref="KeyHint.Spans" />) and separated from the
+    ///     As many of <paramref name="keys" /> as the row has room for, whole and in the order they were handed over,
+    ///     then <c>…+N</c> for the ones it could not fit, then <see cref="PostKeys.Asking" /> — which is never cut
+    ///     (#218, <c>docs/tui-shell.md</c>).
+    /// </summary>
+    /// <remarks>
+    ///     The order handed over is the rank (<see cref="PostKeys.Around(KeyHint, IReadOnlyList{KeyHint}, KeyHint[])" />),
+    ///     so the fill stops at the first hint that does not fit rather than skipping it for a narrower one behind it:
+    ///     skipping would buy a few columns at the price of the row no longer reading as a ranking, and of the keys
+    ///     shown reshuffling as the terminal is resized.
+    ///     <para>
+    ///         <c>?</c> is pinned only where the screen said it — a prompt taking letters leaves it off because <c>?</c>
+    ///         is a letter there, and the pin adds nothing the screen did not answer to. The overflow mark is
+    ///         <see cref="Role.Muted" /> and adds no role: <c>…</c> is the shell's own <i>there was more</i> glyph, so a
+    ///         terminal drawing no colour draws the overflow mark exactly as one drawing colour does.
+    ///     </para>
+    /// </remarks>
+    private static IReadOnlyList<Span> Fitted(IReadOnlyList<KeyHint> keys, int width)
+    {
+        var pinned = keys.Contains(PostKeys.Asking);
+        IReadOnlyList<KeyHint> ranked = [.. keys.Where(key => key != PostKeys.Asking)];
+
+        var shown = 0;
+
+        while (shown < ranked.Count && Filled(ranked, shown + 1, pinned).Sum(span => span.Width) <= width)
+        {
+            shown++;
+        }
+
+        // Narrower than the floor — the mark and ? alone — is narrower than the shell draws, and is clipped rather than
+        // left blank.
+        return Clipped(Filled(ranked, shown, pinned), width);
+    }
+
+    /// <summary>
+    ///     The first <paramref name="shown" /> of <paramref name="ranked" />, the overflow mark for the rest, and
+    ///     <c>?</c> where it is <paramref name="pinned" />.
+    /// </summary>
+    private static IReadOnlyList<Span> Filled(IReadOnlyList<KeyHint> ranked, int shown, bool pinned)
+    {
+        var over = ranked.Count - shown;
+
+        IReadOnlyList<IReadOnlyList<Span>> said =
+        [
+            .. ranked.Take(shown).Select(key => key.Spans),
+            .. over > 0 ? [[new Span($"…+{over}", Role.Muted)]] : Array.Empty<IReadOnlyList<Span>>(),
+            .. pinned ? [PostKeys.Asking.Spans] : Array.Empty<IReadOnlyList<Span>>(),
+        ];
+
+        return [new Span(" ", Role.Chrome), .. Dotted(said)];
+    }
+
+    /// <summary>
+    ///     The status row's hints, each glued to its explanation (<see cref="KeyHint.Spans" />) and separated from the
     ///     next by the same looser dot the rest of the shell uses.
     /// </summary>
-    private static IEnumerable<Span> KeySpans(IReadOnlyList<KeyHint> keys)
+    private static IEnumerable<Span> Dotted(IReadOnlyList<IReadOnlyList<Span>> said)
     {
-        for (var i = 0; i < keys.Count; i++)
+        for (var i = 0; i < said.Count; i++)
         {
             if (i > 0)
             {
                 yield return new Span(" · ", Role.Chrome);
             }
 
-            foreach (var span in keys[i].Spans)
+            foreach (var span in said[i])
             {
                 yield return span;
             }

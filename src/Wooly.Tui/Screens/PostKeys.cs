@@ -28,20 +28,34 @@ public static class PostKeys
     /// </summary>
     public static KeyHint Composing { get; } = new("c", "compose");
 
-    /// <summary>What every screen with posts on it answers to, in the order the status row reads best.</summary>
-    public static IReadOnlyList<KeyHint> OnAPost { get; } =
+    /// <summary>
+    ///     The ones of these worth reminding somebody of, in rank: what a reader does to a post most, and the two
+    ///     that reach past it to its author and to a fresh post (#218).
+    /// </summary>
+    private static IReadOnlyList<KeyHint> Reminding { get; } =
     [
         Opening,
-        new("a", "author"),
-        Composing,
         new("r", "reply"),
         new("b", "boost"),
         new("f", "favorite"),
+        new("a", "author"),
+        Composing,
+    ];
+
+    /// <summary>
+    ///     And the rest, which rank behind <see cref="Scrolling" /> in the tail: <c>x</c> is learned on the first
+    ///     warning a reader meets, and the other three act only on your own posts (#218).
+    /// </summary>
+    private static IReadOnlyList<KeyHint> Learnable { get; } =
+    [
+        new("x", "show warning"),
         new("p", "pin"),
         new("e", "edit"),
         new("d", "delete"),
-        new("x", "show warning"),
     ];
+
+    /// <summary>What every screen with posts on it answers to, in the rank the status row draws them in.</summary>
+    public static IReadOnlyList<KeyHint> OnAPost { get; } = [.. Reminding, .. Learnable];
 
     /// <summary>
     ///     What a picked reference answers to: walking the references inside the post, opening the one picked out, and
@@ -72,8 +86,8 @@ public static class PostKeys
     ///     else, since a digit pressed on a post with no poll does nothing and must not be announced as if it did.
     /// </summary>
     /// <remarks>
-    ///     In front for the reason <see cref="Around(KeyHint, IReadOnlyList{KeyHint}, KeyHint[])" /> gives: the row is
-    ///     cut off at the right, and these two mean something only on the post being read right now.
+    ///     In front for the reason <see cref="Around(KeyHint, IReadOnlyList{KeyHint}, KeyHint[])" /> gives: the row
+    ///     draws from the front, and these two mean something only on the post being read right now.
     /// </remarks>
     public static IReadOnlyList<KeyHint> OnAPoll(IReadOnlyList<KeyHint> keys) => InFrontOf(Voting, keys);
 
@@ -111,8 +125,8 @@ public static class PostKeys
     /// </summary>
     /// <remarks>
     ///     In front for the reason <see cref="Around(KeyHint, IReadOnlyList{KeyHint}, KeyHint[])" /> gives: the status
-    ///     row is one row and a longer list is cut off at the right, so the keys that only mean something right now
-    ///     are the ones that have to survive the cut.
+    ///     row is one row and draws from the front, so the keys that only mean something right now are the ones that
+    ///     have to be there.
     /// </remarks>
     public static IReadOnlyList<KeyHint> OnAReference(IReadOnlyList<KeyHint> keys) => InFrontOf(Walking, keys);
 
@@ -139,13 +153,27 @@ public static class PostKeys
     ///     taller than the terminal (#51).
     /// </summary>
     /// <remarks>
-    ///     Shared, so it goes behind a screen's own keys rather than in front of them, for the reason
+    ///     In the tail of the rank, behind <c>b</c> and <c>f</c> as well as a screen's own keys, for the reason
     ///     <see cref="Around(KeyHint, IReadOnlyList{KeyHint}, KeyHint[])" /> gives: it means the same thing everywhere
-    ///     and can be learned somewhere else, and the row is cut off at the right.
+    ///     and is the definition of a key learnable somewhere else (#218).
     /// </remarks>
     public static KeyHint Scrolling { get; } = new("↓/↑", "row");
 
-    /// <summary>Those keys, after whatever this screen calls moving the selection and before the way out of it.</summary>
+    /// <summary>
+    ///     The pin at the end of every row that answers to it, where the keys the row had no room for can be found.
+    ///     <see cref="ChromeLines.Status" /> never cuts it.
+    /// </summary>
+    public static KeyHint Asking { get; } = new("?", "keys");
+
+    /// <summary>
+    ///     The end of the rank on a screen with no posts on it: the way out, then the tail, then <see cref="Asking" />
+    ///     — what a screen building its own row puts after its own keys, so that it inherits the order rather than
+    ///     restating it (#218).
+    /// </summary>
+    /// <param name="way">The way out of it: <c>esc</c>, or <c>tab</c> at the bottom of the stack.</param>
+    public static IReadOnlyList<KeyHint> Leaving(KeyHint way) => [way, Scrolling, Asking];
+
+    /// <summary>Those keys, after whatever this screen calls moving the selection, in the rank the row draws them.</summary>
     public static IReadOnlyList<KeyHint> Around(KeyHint moving, params KeyHint[] after) =>
         Around(moving, [], after);
 
@@ -154,16 +182,21 @@ public static class PostKeys
     ///     of them they share a letter with, so that <c>d</c> is announced as dismiss where it dismisses.
     /// </summary>
     /// <remarks>
-    ///     In front rather than behind, because the status row is one row and a list longer than it is cut off at the
-    ///     right (<c>docs/tui-shell.md</c>). The keys a reader can find on no other screen are the ones that have to
-    ///     survive the cut; the ones that mean the same thing everywhere can be learned somewhere else.
+    ///     The order is the rank, stated here once so that a screen adding a key inherits it (#218,
+    ///     <c>docs/tui-shell.md</c>): the walk; the screen's own keys, including <c>g</c>; the way out; the shared
+    ///     post keys worth a reminder; the tail, which can be learned anywhere or acts only on your own posts; and
+    ///     <see cref="Asking" />. The status row draws as many as it has room for from the front and counts the rest,
+    ///     so the keys a reader can find on no other screen are the ones that have to be at the front.
     /// </remarks>
     /// <param name="moving">What this screen calls moving the selection.</param>
     /// <param name="its">
     ///     The keys this screen answers to that the shared ones below do not carry — the ones a reader can find
     ///     nowhere else, and <see cref="Screen.Refreshing" /> where this screen has something to ask again (#84).
     /// </param>
-    /// <param name="after">The way out of it, and anything else that belongs at the end.</param>
+    /// <param name="after">
+    ///     The way out of it: <c>esc</c>, or <c>tab</c> at the bottom of the stack. Ahead of the shared keys rather
+    ///     than at the end, where <c>tab:destination</c> used to fall off the row on the feed.
+    /// </param>
     public static IReadOnlyList<KeyHint> Around(KeyHint moving, IReadOnlyList<KeyHint> its, params KeyHint[] after)
     {
         var taken = its.Select(key => key.Key).ToHashSet(StringComparer.Ordinal);
@@ -172,10 +205,11 @@ public static class PostKeys
         [
             moving,
             .. its,
-            Scrolling,
-            .. OnAPost.Where(key => !taken.Contains(key.Key)),
             .. after,
-            new KeyHint("?", "keys"),
+            .. Reminding.Where(key => !taken.Contains(key.Key)),
+            Scrolling,
+            .. Learnable.Where(key => !taken.Contains(key.Key)),
+            Asking,
         ];
     }
 }

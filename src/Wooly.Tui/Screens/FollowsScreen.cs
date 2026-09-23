@@ -171,9 +171,7 @@ public sealed class FollowsScreen : Screen
             .. Holds ? new KeyHint[] { new("f", "filter") } : [],
             new KeyHint("s", Side.Either(followers: "following", following: "followers")),
             Refreshing,
-            PostKeys.Scrolling,
-            new KeyHint("esc", "back"),
-            new KeyHint("?", "keys"),
+            .. PostKeys.Leaving(new KeyHint("esc", "back")),
         ];
 
     /// <inheritdoc />

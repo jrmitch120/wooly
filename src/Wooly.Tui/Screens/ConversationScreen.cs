@@ -35,7 +35,7 @@ public sealed class ConversationScreen : Screen
     /// <inheritdoc />
     /// <remarks>
     ///     <c>m</c> in front of the shared keys, because it is the one a reader can find on no other screen and the
-    ///     status row is cut off at the right (<c>docs/tui-shell.md</c>).
+    ///     status row draws what it has room for from the front (<c>docs/tui-shell.md</c>).
     /// </remarks>
     protected override IReadOnlyList<KeyHint> OwnKeys =>
         PostKeys.Around(
