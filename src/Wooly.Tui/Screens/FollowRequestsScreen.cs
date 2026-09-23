@@ -33,9 +33,7 @@ public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string?
         new("a", "accept", NeedsAPick: true),
         new("x", "reject", NeedsAPick: true),
         Refreshing,
-        new("tab", "destination"),
-        PostKeys.Scrolling,
-        PostKeys.Asking,
+        .. PostKeys.Leaving(new KeyHint("tab", "destination")),
     ];
 
     /// <summary>Which request is picked out, as an index into what is on screen.</summary>

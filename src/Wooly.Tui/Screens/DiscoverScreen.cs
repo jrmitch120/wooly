@@ -90,9 +90,7 @@ public sealed class DiscoverScreen : Screen
         new KeyHint("d", "dismiss", NeedsAPick: true),
         .. Jumping,
         Refreshing,
-        new KeyHint("tab", "destination"),
-        PostKeys.Scrolling,
-        PostKeys.Asking,
+        .. PostKeys.Leaving(new KeyHint("tab", "destination")),
     ];
 
     /// <inheritdoc />

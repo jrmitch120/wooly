@@ -43,8 +43,8 @@ public static class PostKeys
     ];
 
     /// <summary>
-    ///     And the rest, which rank behind the way out: <c>x</c> is learned on the first warning a reader meets, and
-    ///     the other three act only on your own posts (#218).
+    ///     And the rest, which rank behind <see cref="Scrolling" /> in the tail: <c>x</c> is learned on the first
+    ///     warning a reader meets, and the other three act only on your own posts (#218).
     /// </summary>
     private static IReadOnlyList<KeyHint> Learnable { get; } =
     [
@@ -153,7 +153,7 @@ public static class PostKeys
     ///     taller than the terminal (#51).
     /// </summary>
     /// <remarks>
-    ///     In the tail of the rank, behind the three marks as well as a screen's own keys, for the reason
+    ///     In the tail of the rank, behind <c>b</c> and <c>f</c> as well as a screen's own keys, for the reason
     ///     <see cref="Around(KeyHint, IReadOnlyList{KeyHint}, KeyHint[])" /> gives: it means the same thing everywhere
     ///     and is the definition of a key learnable somewhere else (#218).
     /// </remarks>
@@ -164,6 +164,14 @@ public static class PostKeys
     ///     <see cref="ChromeLines.Status" /> never cuts it.
     /// </summary>
     public static KeyHint Asking { get; } = new("?", "keys");
+
+    /// <summary>
+    ///     The end of the rank on a screen with no posts on it: the way out, then the tail, then <see cref="Asking" />
+    ///     — what a screen building its own row puts after its own keys, so that it inherits the order rather than
+    ///     restating it (#218).
+    /// </summary>
+    /// <param name="way">The way out of it: <c>esc</c>, or <c>tab</c> at the bottom of the stack.</param>
+    public static IReadOnlyList<KeyHint> Leaving(KeyHint way) => [way, Scrolling, Asking];
 
     /// <summary>Those keys, after whatever this screen calls moving the selection, in the rank the row draws them.</summary>
     public static IReadOnlyList<KeyHint> Around(KeyHint moving, params KeyHint[] after) =>
@@ -178,7 +186,7 @@ public static class PostKeys
     ///     <c>docs/tui-shell.md</c>): the walk; the screen's own keys, including <c>g</c>; the way out; the shared
     ///     post keys worth a reminder; the tail, which can be learned anywhere or acts only on your own posts; and
     ///     <see cref="Asking" />. The status row draws as many as it has room for from the front and counts the rest,
-    ///     so the keys a reader can find on no other screen are the ones that have to be at it.
+    ///     so the keys a reader can find on no other screen are the ones that have to be at the front.
     /// </remarks>
     /// <param name="moving">What this screen calls moving the selection.</param>
     /// <param name="its">

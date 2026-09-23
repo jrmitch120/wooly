@@ -70,9 +70,7 @@ public sealed class SearchScreen : Screen
                     .. Jumping,
                     new KeyHint("⏎", "open", NeedsAPick: true),
                     new KeyHint("/", "search again"),
-                    new KeyHint("tab", "destination"),
-                    PostKeys.Scrolling,
-                    PostKeys.Asking,
+                    .. PostKeys.Leaving(new KeyHint("tab", "destination")),
                 ];
         }
     }

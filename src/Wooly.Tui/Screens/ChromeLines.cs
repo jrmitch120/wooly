@@ -196,30 +196,33 @@ public static class ChromeLines
     ///     shown reshuffling as the terminal is resized.
     ///     <para>
     ///         <c>?</c> is pinned only where the screen said it — a prompt taking letters leaves it off because <c>?</c>
-    ///         is a letter there, and the pin adds nothing the screen did not answer to. The mark is
+    ///         is a letter there, and the pin adds nothing the screen did not answer to. The overflow mark is
     ///         <see cref="Role.Muted" /> and adds no role: <c>…</c> is the shell's own <i>there was more</i> glyph, so a
-    ///         terminal drawing no colour draws the mark exactly as one drawing colour does.
+    ///         terminal drawing no colour draws the overflow mark exactly as one drawing colour does.
     ///     </para>
     /// </remarks>
     private static IReadOnlyList<Span> Fitted(IReadOnlyList<KeyHint> keys, int width)
     {
-        var asking = keys.Contains(PostKeys.Asking);
+        var pinned = keys.Contains(PostKeys.Asking);
         IReadOnlyList<KeyHint> ranked = [.. keys.Where(key => key != PostKeys.Asking)];
 
         var shown = 0;
 
-        while (shown < ranked.Count && Filled(ranked, shown + 1, asking).Sum(span => span.Width) <= width)
+        while (shown < ranked.Count && Filled(ranked, shown + 1, pinned).Sum(span => span.Width) <= width)
         {
             shown++;
         }
 
         // Narrower than the floor — the mark and ? alone — is narrower than the shell draws, and is clipped rather than
         // left blank.
-        return Clipped(Filled(ranked, shown, asking), width);
+        return Clipped(Filled(ranked, shown, pinned), width);
     }
 
-    /// <summary>The first <paramref name="shown" /> of <paramref name="ranked" />, the mark for the rest, and <c>?</c>.</summary>
-    private static IReadOnlyList<Span> Filled(IReadOnlyList<KeyHint> ranked, int shown, bool asking)
+    /// <summary>
+    ///     The first <paramref name="shown" /> of <paramref name="ranked" />, the overflow mark for the rest, and
+    ///     <c>?</c> where it is <paramref name="pinned" />.
+    /// </summary>
+    private static IReadOnlyList<Span> Filled(IReadOnlyList<KeyHint> ranked, int shown, bool pinned)
     {
         var over = ranked.Count - shown;
 
@@ -227,7 +230,7 @@ public static class ChromeLines
         [
             .. ranked.Take(shown).Select(key => key.Spans),
             .. over > 0 ? [[new Span($"…+{over}", Role.Muted)]] : Array.Empty<IReadOnlyList<Span>>(),
-            .. asking ? [PostKeys.Asking.Spans] : Array.Empty<IReadOnlyList<Span>>(),
+            .. pinned ? [PostKeys.Asking.Spans] : Array.Empty<IReadOnlyList<Span>>(),
         ];
 
         return [new Span(" ", Role.Chrome), .. Dotted(said)];
