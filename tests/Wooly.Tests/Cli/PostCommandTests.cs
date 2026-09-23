@@ -517,7 +517,11 @@ public class PostCommandTests : IDisposable
         Assert.Contains("Deleted post", run.Output);
     }
 
-    /// <summary>A mistyped id here is a post nobody can get back, so a person at a terminal is asked first.</summary>
+    /// <summary>
+    ///     A mistyped id here is a post nobody can get back, so a person at a terminal is asked first — naming the id,
+    ///     unlike the shell's <c>Delete this post?</c>: there is no selection here, and echoing back the id the person
+    ///     typed <i>is</i> the confirmation (#219).
+    /// </summary>
     [Fact]
     public void Delete_AsksBeforeTakingAPostDownWhenThereIsSomebodyToAsk()
     {
@@ -526,6 +530,7 @@ public class PostCommandTests : IDisposable
         var run = Run(["post", "delete", "110"], atATerminal: true, typed: "y");
 
         Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Contains("Delete post 110? This cannot be undone.", run.Output);
         Assert.Equal("110", Assert.Single(_posts.Deletions).PostId);
     }
 

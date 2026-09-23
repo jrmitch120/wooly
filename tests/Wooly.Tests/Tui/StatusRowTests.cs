@@ -195,11 +195,11 @@ public class StatusRowTests
             keys,
             notice: null,
             noticeIsError: false,
-            new Confirmation("Delete post 110? This cannot be undone."),
+            new Confirmation("Delete this post?"),
             80);
 
         Assert.Equal(" Only your own posts can be deleted.", notice.Text);
-        Assert.Equal(" Delete post 110? This cannot be undone.  y delete · esc keep", asking.Text);
+        Assert.Equal(" Delete this post? This cannot be undone.  y delete · esc keep", asking.Text);
     }
 
     /// <summary>

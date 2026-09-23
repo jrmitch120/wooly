@@ -3,6 +3,7 @@ using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
+using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 
 namespace Wooly.Tests.Tui;
@@ -161,7 +162,7 @@ public class ShellVoteTests
         opened.AskToVote();
 
         Assert.NotNull(opened.Asking);
-        Assert.Contains("cannot be undone", opened.Asking.Question);
+        Assert.Equal(Confirmation.CannotBeUndone, opened.Asking.Warning);
         Assert.Equal("vote", opened.Asking.Going);
         Assert.Empty(shell.Engagement.Votes);
 
@@ -427,19 +428,21 @@ public class ShellVoteTests
     }
 
     /// <summary>
-    ///     The question names the answer being voted for, in the poll's own words: what a vote can be wrong about is
-    ///     which answer it is for, and the id of the post the poll is on answers a question nobody voting has.
+    ///     One answer is counted like several rather than quoted: the ballot is on screen with the answer drawn
+    ///     <c>[x]</c>, so the question names nothing the reader cannot check there — neither the answer somebody else
+    ///     wrote nor the id of the post the poll is on (#219).
     /// </summary>
     [Fact]
-    public async Task AskToVote_AsksAboutTheAnswerRatherThanThePostItIsOn()
+    public async Task AskToVote_NamesNeitherTheAnswerNorThePostItIsOn()
     {
         var opened = await Reading(Polled);
 
         opened.Toggle(1);
         opened.AskToVote();
 
-        Assert.Equal("Vote for \"Dogs\"? This cannot be undone.", opened.Asking?.Question);
-        Assert.DoesNotContain("220", opened.Asking?.Question);
+        Assert.Equal("Cast the answer you ticked?", opened.Asking?.Ask);
+        Assert.DoesNotContain("Dogs", opened.Asking?.Ask);
+        Assert.DoesNotContain("220", opened.Asking?.Ask);
     }
 
     /// <summary>
@@ -459,16 +462,16 @@ public class ShellVoteTests
         opened.Toggle(2);
         opened.AskToVote();
 
-        Assert.Equal("Cast the 2 answers you ticked? This cannot be undone.", opened.Asking?.Question);
+        Assert.Equal("Cast the 2 answers you ticked?", opened.Asking?.Ask);
+        Assert.DoesNotContain("Cats", opened.Asking?.Ask);
     }
 
     /// <summary>
-    ///     The question takes the status row and the way to answer it takes what is left, so a question long enough to
-    ///     push <c>y vote · esc keep</c> off the right is one nobody knows how to answer — however long the answer
-    ///     somebody else wrote is.
+    ///     However long the answer somebody else wrote is, the whole question and the way to answer it fit the
+    ///     contract's 80 columns, since the question no longer quotes it.
     /// </summary>
     [Fact]
-    public async Task AskToVote_KeepsTheWayToAnswerOnTheRowBesideTheLongestAnswer()
+    public async Task AskToVote_FitsTheWholeRowHoweverLongTheAnswerTicked()
     {
         var opened = await Reading(APost.With(
             id: "220",
@@ -483,8 +486,7 @@ public class ShellVoteTests
 
         var row = ChromeLines.Status(opened.Keys, opened.Notice, opened.NoticeIsError, opened.Asking, 80).Text;
 
-        Assert.Contains("y vote · esc keep", row);
-        Assert.True(row.Length <= 80, row);
+        Assert.Equal(" Cast the answer you ticked? This cannot be undone.  y vote · esc keep", row);
     }
 
     /// <summary>
