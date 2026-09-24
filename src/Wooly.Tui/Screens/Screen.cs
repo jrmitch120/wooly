@@ -74,6 +74,14 @@ public abstract class Screen
     ///         list with nothing on it: a screen with no list at all — the compose editor, the keymap, a notice — has
     ///         no <see cref="Walking" /> and is not empty in this sense.
     ///     </para>
+    ///     <para>
+    ///         And a fourth time for a post that is picked, where the keys that would refuse it come off: pin, edit and
+    ///         delete on a post that is not the reader's own — asked of the post inside a boost, which is what they act
+    ///         on — and <c>x</c> on one with nothing left to ask past, whether it hides nothing or was asked past on this
+    ///         screen already (<see cref="PostKeys.NotYours" />, <see cref="PostKeys.NothingHidden" />, #220). A reveal
+    ///         being one-way, <c>x</c> leaves the row the moment it has acted. Dropped here, before the row is built,
+    ///         so a dropped key is out of the row's count as well as off it, and <c>?</c> reads the same list.
+    ///     </para>
     /// </remarks>
     public IReadOnlyList<KeyHint> Keys
     {
@@ -86,9 +94,21 @@ public abstract class Screen
                 own = [.. own.Where(key => !key.NeedsAPick)];
             }
 
-            if (Picked is null)
+            if (Picked is not { } picked)
             {
                 own = PostKeys.OffAPost(own);
+            }
+            else
+            {
+                if (!(picked.Boosted ?? picked).IsMine)
+                {
+                    own = PostKeys.NotYours(own);
+                }
+
+                if (!Showing(picked).Asks)
+                {
+                    own = PostKeys.NothingHidden(own);
+                }
             }
 
             return Reference is not null

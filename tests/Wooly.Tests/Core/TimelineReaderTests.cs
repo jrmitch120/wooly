@@ -175,6 +175,42 @@ public class TimelineReaderTests
     }
 
     /// <summary>
+    ///     Whether each post is the reading profile's own, which is what settles whether pin, edit and delete can act on
+    ///     it (#220) — and on a boost, each half is asked on its own: whoever boosted, and whoever wrote what was boosted.
+    ///     Compared on the address, so the instance naming its own accounts bare, or in another case, is still the one
+    ///     account.
+    /// </summary>
+    [Fact]
+    public async Task Read_ReportsWhichPostsAreTheReadersOwn()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(Page(
+                PostJson("112", account: "Jeff"),
+                PostJson("111", account: "alice@hachyderm.io"),
+                PostJson("110", account: "alice@hachyderm.io", content: "", boosting: PostJson("99", account: "jeff")))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        Assert.Equal([true, false, false], fetch.Items.Select(post => post.IsMine));
+        Assert.True(fetch.Items[2].Boosted?.IsMine);
+    }
+
+    /// <summary>A profile that has not said who it signs in as owns nothing, rather than everything.</summary>
+    [Fact]
+    public async Task Read_ReportsNothingAsTheReadersOwnWhereTheProfileNamesNoAccount()
+    {
+        var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Json(Page(PostJson("110"))));
+
+        var fetch = await NewReader(network).Read(
+            Profile with { Account = null },
+            Timeline.Home,
+            20,
+            TestContext.Current.CancellationToken);
+
+        Assert.False(Assert.Single(fetch.Items).IsMine);
+    }
+
+    /// <summary>
     ///     The counts say how many accounts boosted or favorited a post; these say whether one of them was the profile
     ///     doing the reading. A screen cannot draw a lit star, or offer to take a boost back rather than put one on,
     ///     without the second answer (ADR-0014).

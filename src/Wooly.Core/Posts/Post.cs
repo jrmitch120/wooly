@@ -63,6 +63,19 @@ public sealed record Post
     public required PostMarks Marks { get; init; }
 
     /// <summary>
+    ///     Whether the profile reading the post is the one that wrote it — which is what pin, edit and delete need, since
+    ///     an instance lets its author do those three and nobody else. Reader-relative for the reason
+    ///     <see cref="Marks" /> is: the same post is one reader's own and another's not, and a screen that has to know
+    ///     which keys act on a post knows about no instance to ask (#220).
+    /// </summary>
+    /// <remarks>
+    ///     Not <see langword="required" />, and false where nothing said otherwise: a post nobody claimed for the reader
+    ///     is not theirs, which is the reading that offers nothing it cannot do. On a boost this is whether the reader
+    ///     boosted it; whether they wrote what was boosted is <see cref="Boosted" />'s own.
+    /// </remarks>
+    public bool IsMine { get; init; }
+
+    /// <summary>
     ///     What is attached to the post besides its text, in the order the author attached it, and empty where nothing
     ///     is. Read back off the instance, which is what makes it <see cref="PostMedia" /> rather than the
     ///     <see cref="MediaAttachment" /> a draft carries up.

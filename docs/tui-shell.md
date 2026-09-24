@@ -128,9 +128,16 @@ not answer them differently:
   inherits the rule rather than being remembered (#193; #179 did it for `b`, `f`, `d` and `r` on the one screen).
   Taken off **by hint rather than by letter**: a screen's own `d dismiss`, `m mark read`, `a accept` and `⏎ open` all
   act, and a key means what its screen says it means. The same rule takes the poll digits and `v` off a row with no
-  poll to vote in, and `⏎` off a post screen's own post (#48). What it is *not* about is a key that acts and then
-  refuses — `p`, `e` and `d` on somebody else's post answer *Only your own posts can be pinned/edited/deleted.*, which
-  is a key doing its job.
+  poll to vote in, and `⏎` off a post screen's own post (#48).
+- **And a key that would refuse the picked post comes off too** (#220, amending the answer above, which had called
+  `p`, `e` and `d` on somebody else's post a key doing its job because each answers *Only your own posts can be
+  pinned/edited/deleted.*). Once the row fills to a rank and counts what it could not fit, a key announced where it
+  does nothing wastes a slot and makes `…+N` promise a `?` entry that answers nothing. So `p`, `e` and `d` come off a
+  post that is not the reader's own — asked of the post inside a boost — and `x` off one with nothing left to ask
+  past: nothing hidden, or already asked past on this screen, which means it leaves the row the moment it is pressed.
+  The shell still refuses the press; only what the row and `?` say changed. Whose a post is rides on the post
+  (`Post.IsMine`), set where every post crosses from the wire by the one comparison `ActiveProfile.SignsInAs` makes —
+  the same one the shell's refusals ask — so a screen still knows about no instance.
 - **And a screen's own keys come off an empty row the same way** (#195, amending #193's answer above, which had put
   them outside the rule as idle for their own reasons). A key that acts on one of the things a screen
   walks needs one of them to be there, and no widening of `PostKeys` reaches these: `d` and `D` on an inbox with

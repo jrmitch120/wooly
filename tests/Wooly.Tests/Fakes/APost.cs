@@ -24,7 +24,8 @@ internal static class APost
         string? avatarUrl = null,
         PostReplyTarget? inReplyTo = null,
         PostPoll? poll = null,
-        LinkPreview? linkPreview = null) => new()
+        LinkPreview? linkPreview = null,
+        bool isMine = false) => new()
     {
         Id = id,
         Account = account,
@@ -38,6 +39,7 @@ internal static class APost
         Favorites = 5,
         Replies = 1,
         Marks = marks ?? PostMarks.None,
+        IsMine = isMine,
         Media = media ?? [],
         Mentions = mentions ?? [],
         Boosted = boosted,

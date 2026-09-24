@@ -44,7 +44,7 @@ public sealed class TimelineReader(IMastodonClientFactory clientFactory) : ITime
             limit,
             PageSize,
             options => Page(client, timeline, accountId, options),
-            status => PostWire.ToPost(status, profile.Instance),
+            status => PostWire.ToPost(status, profile),
             status => status.Id,
             cancellationToken);
     }

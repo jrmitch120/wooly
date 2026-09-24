@@ -47,7 +47,7 @@ public sealed class DirectMessages(IMastodonClientFactory clientFactory) : IDire
             limit,
             PageSize,
             client.GetConversations,
-            conversation => ConversationWire.ToConversation(conversation, profile.Instance),
+            conversation => ConversationWire.ToConversation(conversation, profile),
             conversation => conversation.Id,
             cancellationToken);
     }
@@ -64,7 +64,7 @@ public sealed class DirectMessages(IMastodonClientFactory clientFactory) : IDire
             ConversationsSearched,
             PageSize,
             client.GetConversations,
-            conversation => ConversationWire.ToConversation(conversation, profile.Instance),
+            conversation => ConversationWire.ToConversation(conversation, profile),
             conversation => conversation.Id,
             cancellationToken,
             stopWhen: conversation => conversation.Id == conversationId);
@@ -82,7 +82,7 @@ public sealed class DirectMessages(IMastodonClientFactory clientFactory) : IDire
         return new ConversationThread
         {
             Conversation = found,
-            Posts = await Thread(client, found, profile.Instance, cancellationToken),
+            Posts = await Thread(client, found, profile, cancellationToken),
         };
     }
 
@@ -100,7 +100,7 @@ public sealed class DirectMessages(IMastodonClientFactory clientFactory) : IDire
         // Named by the conversation's id and reached without the list being walked first, unlike Show: marking a
         // conversation read needs nothing about it except that the instance knows the id, and an id it does not know
         // is a refusal the instance words better than a search through the list could.
-        return ConversationWire.ToConversation(await client.MarkAsRead(conversationId), profile.Instance);
+        return ConversationWire.ToConversation(await client.MarkAsRead(conversationId), profile);
     }
 
     /// <summary>
@@ -122,7 +122,7 @@ public sealed class DirectMessages(IMastodonClientFactory clientFactory) : IDire
     private static async Task<IReadOnlyList<Post>> Thread(
         IMastodonClient client,
         Conversation conversation,
-        string instance,
+        ActiveProfile reader,
         CancellationToken cancellationToken)
     {
         if (conversation.Latest is not { } latest)
@@ -136,9 +136,9 @@ public sealed class DirectMessages(IMastodonClientFactory clientFactory) : IDire
 
         return
         [
-            .. context.Ancestors.Select(status => PostWire.ToPost(status, instance)),
+            .. context.Ancestors.Select(status => PostWire.ToPost(status, reader)),
             latest,
-            .. context.Descendants.Select(status => PostWire.ToPost(status, instance)),
+            .. context.Descendants.Select(status => PostWire.ToPost(status, reader)),
         ];
     }
 }

@@ -10,8 +10,10 @@ namespace Wooly.Tui.Screens;
 ///     The rule runs the other way too, which is the one reason a screen may leave one of these off: a key that has
 ///     nothing to act on here must not be announced either. Which is every one of these bar <see cref="Composing" />
 ///     on a screen with no post picked out — asked once by <see cref="Screen.Keys" /> rather than screen by screen
-///     (<see cref="OffAPost" />, #193) — and <see cref="Opening" /> inside a post, where the post it would open is the
-///     one already on screen (#48).
+///     (<see cref="OffAPost" />, #193) — <see cref="Opening" /> inside a post, where the post it would open is the
+///     one already on screen (#48) — and, on a post that is picked, the ones that would refuse it: pin, edit and delete
+///     on somebody else's (<see cref="NotYours" />), and <c>x</c> on one with nothing left to ask past
+///     (<see cref="NothingHidden" />, #220).
 /// </remarks>
 public static class PostKeys
 {
@@ -43,16 +45,27 @@ public static class PostKeys
     ];
 
     /// <summary>
-    ///     And the rest, which rank behind <see cref="Scrolling" /> in the tail: <c>x</c> is learned on the first
-    ///     warning a reader meets, and the other three act only on your own posts (#218).
+    ///     Asking past the picked post's warning. Named on its own because it acts only on a post with something still
+    ///     hidden on this screen, and a reveal is one-way — so it comes off the row once pressed (#220).
     /// </summary>
-    private static IReadOnlyList<KeyHint> Learnable { get; } =
+    private static KeyHint Revealing { get; } = new("x", "show warning");
+
+    /// <summary>
+    ///     The three an instance lets a post's author do and nobody else, which is why they come off the row on
+    ///     anybody else's post (#220).
+    /// </summary>
+    private static IReadOnlyList<KeyHint> Yours { get; } =
     [
-        new("x", "show warning"),
         new("p", "pin"),
         new("e", "edit"),
         new("d", "delete"),
     ];
+
+    /// <summary>
+    ///     And the rest, which rank behind <see cref="Scrolling" /> in the tail: <c>x</c> is learned on the first
+    ///     warning a reader meets, and the other three act only on your own posts (#218).
+    /// </summary>
+    private static IReadOnlyList<KeyHint> Learnable { get; } = [Revealing, .. Yours];
 
     /// <summary>What every screen with posts on it answers to, in the rank the status row draws them in.</summary>
     public static IReadOnlyList<KeyHint> OnAPost { get; } = [.. Reminding, .. Learnable];
@@ -118,6 +131,21 @@ public static class PostKeys
     /// </remarks>
     public static IReadOnlyList<KeyHint> OffAPost(IReadOnlyList<KeyHint> keys) =>
         [.. keys.Where(key => !ActingOnAPost.Contains(key))];
+
+    /// <summary>
+    ///     <paramref name="keys" /> with pin, edit and delete taken out, for a screen whose picked post is somebody
+    ///     else's — which an instance refuses all three on, so announcing them is announcing a refusal (#220).
+    /// </summary>
+    /// <remarks>By hint rather than by letter, for the reason <see cref="OffAPost" /> gives: <c>d</c> dismisses.</remarks>
+    public static IReadOnlyList<KeyHint> NotYours(IReadOnlyList<KeyHint> keys) =>
+        [.. keys.Where(key => !Yours.Contains(key))];
+
+    /// <summary>
+    ///     <paramref name="keys" /> with <c>x</c> taken out, for a screen whose picked post has nothing left to ask past
+    ///     — because it hides nothing, or because it has been asked past here already (#220).
+    /// </summary>
+    public static IReadOnlyList<KeyHint> NothingHidden(IReadOnlyList<KeyHint> keys) =>
+        [.. keys.Where(key => key != Revealing)];
 
     /// <summary>
     ///     Those keys in front of <paramref name="keys" />, standing in for any of them they share a key with — so that
