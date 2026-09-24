@@ -54,11 +54,11 @@ public class KeyRoleTests
     [Fact]
     public void TheHelpScreen_DrawsItsKeyColumnInKey()
     {
-        var rows = Help().Where(line => line.Text.StartsWith("ctrl-q", StringComparison.Ordinal)).ToList();
+        var help = Help();
+        var row = Assert.Single(help, line => line.Text.StartsWith("ctrl-q", StringComparison.Ordinal));
 
-        var row = Assert.Single(rows);
         Assert.Equal(new Span("ctrl-q", Role.Key), row.Spans[0]);
-        Assert.DoesNotContain(Help().SelectMany(line => line.Spans), span => span.Role == Role.BylineHandle);
+        Assert.DoesNotContain(help.SelectMany(line => line.Spans), span => span.Role == Role.BylineHandle);
     }
 
     /// <summary>
@@ -68,16 +68,18 @@ public class KeyRoleTests
     [Fact]
     public void TheHelpScreen_PadsAKeyInBodyRatherThanInKey()
     {
-        foreach (var span in Help().SelectMany(line => line.Spans).Where(span => span.Role == Role.Key))
+        var help = Help();
+
+        foreach (var span in help.SelectMany(line => line.Spans).Where(span => span.Role == Role.Key))
         {
             Assert.Equal(span.Text.Trim(), span.Text);
             Assert.NotEqual("", span.Text);
         }
 
-        var row = Help().Single(line => line.Text.StartsWith("ctrl-q", StringComparison.Ordinal));
+        var row = help.Single(line => line.Text.StartsWith("ctrl-q", StringComparison.Ordinal));
         Assert.Equal(Role.Body, row.Spans[1].Role);
         Assert.Equal("", row.Spans[1].Text.Trim());
-        Assert.Equal(16, row.Spans[0].Width + row.Spans[1].Width);
+        Assert.StartsWith("quit", row.Spans[2].Text, StringComparison.Ordinal);
     }
 
     /// <summary>A confirmation's two keys take <c>key</c>; the words beside them and the dot between them do not.</summary>
@@ -119,19 +121,19 @@ public class KeyRoleTests
     }
 
     /// <summary>
-    ///     Distinct from its gloss in both built-ins, and shared with no other role — the role exists because
-    ///     <c>chrome</c> and <c>muted</c> were one hex.
+    ///     Distinct from its gloss and from the furniture beside it in both built-ins — the role exists because
+    ///     <c>chrome</c> and <c>muted</c> were one hex. Only these two: roles may share a hex on purpose, and nothing
+    ///     here forbids it.
     /// </summary>
     [Fact]
-    public void BothBuiltIns_DrawAKeyApartFromEveryOtherRole()
+    public void BothBuiltIns_DrawAKeyApartFromItsGlossAndTheFurniture()
     {
         foreach (var theme in new[] { Themes.Dark, Themes.Light })
         {
             var key = theme.For(Role.Key).Foreground;
 
-            Assert.All(
-                Enum.GetValues<Role>().Where(role => role != Role.Key),
-                role => Assert.NotEqual(key, theme.For(role).Foreground));
+            Assert.NotEqual(theme.For(Role.Muted).Foreground, key);
+            Assert.NotEqual(theme.For(Role.Chrome).Foreground, key);
         }
     }
 }

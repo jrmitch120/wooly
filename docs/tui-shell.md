@@ -1306,11 +1306,7 @@ enforces "no view constructs a colour" names the one file allowed to (ADR-0016);
 themer cannot make an empty-list notice dimmer than a timestamp, and that is a smaller loss than a vocabulary nobody
 can hold in their head.
 
-`key`'s colour is a rule rather than a hex: one step from `muted` toward `body`, grey with no hue, and shared with no
-other role — `#a9a5bd` dark, `#3f3d52` light. A hue would make the row louder than the frame it sits in and re-run the
-`byline-handle` borrow in a new colour. The contrast reverses by surface and that is correct: on the status row `key`
-is brighter than its `muted` gloss, on the help screen dimmer than its `body` gloss. The name collides with TOML's word
-for a left-hand side, which is a pun rather than an ambiguity (#221).
+`key`'s colour is a rule rather than a hex: one step from `muted` toward `body`, grey with no hue (#221).
 
 The rail used to reserve two columns — `▶` for the cursor, `▸` for the selection — and showed them adjacent almost
 all the time, since the two coincide at rest and differ only for the ~250ms settle window. It now reserves one:

@@ -54,8 +54,9 @@ public sealed class HelpScreen(Screen about) : Screen
     private static Line Row(KeyHint key, int width)
     {
         const int keyColumn = 16;
-        var spacer = new string(' ', Math.Max(0, keyColumn - Glyphs.Columns(key.Key)));
-        var used = Glyphs.Columns(key.Key) + spacer.Length;
+        var columns = Glyphs.Columns(key.Key);
+        var spacer = new string(' ', Math.Max(0, keyColumn - columns));
+        var used = columns + spacer.Length;
 
         return Line.Of([
             new Span(key.Key, Role.Key),
