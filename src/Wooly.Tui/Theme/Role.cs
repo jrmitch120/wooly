@@ -96,8 +96,19 @@ public enum Role
     /// <summary>Rate-limit budget nearly spent.</summary>
     QuotaLow,
 
-    /// <summary>The breadcrumb and status rows. Carried without colour by position.</summary>
+    /// <summary>
+    ///     The frame's furniture below the breadcrumb: the status row's leading space and its <c> · </c> separators,
+    ///     and the rail's rule. Meant to recede. Carried without colour by position.
+    /// </summary>
     Chrome,
+
+    /// <summary>
+    ///     A key you press, wherever one is drawn as a key: the status row's, the help screen's key column, and a
+    ///     confirmation's answer. Never prose that names a key, and never the padding beside one. Kept apart from
+    ///     <see cref="Chrome" />, which is furniture, because a key is the most actionable token on the row (#221).
+    ///     Carried without colour by position: first in its pair, before the colon; first column on the help screen.
+    /// </summary>
+    Key,
 
     /// <summary>
     ///     The breadcrumb row: the crumbs you walked through, the <c>›</c> between them, the <c>… › </c> a long trail

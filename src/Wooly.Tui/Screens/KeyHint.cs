@@ -23,11 +23,11 @@ namespace Wooly.Tui.Screens;
 public readonly record struct KeyHint(string Key, string Does, bool NeedsAPick = false)
 {
     /// <summary>
-    ///     The key and its explanation as the status row draws them (#66): the key in <see cref="Role.Chrome" />, the
-    ///     explanation in <see cref="Role.Muted" /> — reusing its existing hints job rather than a role of its own —
+    ///     The key and its explanation as the status row draws them (#66): the key in <see cref="Role.Key" /> (#221),
+    ///     the explanation in <see cref="Role.Muted" /> — reusing its existing hints job rather than a role of its own —
     ///     glued by a colon that costs no extra columns, being the same width as the space it replaces.
     /// </summary>
-    public IReadOnlyList<Span> Spans => [new Span(Key, Role.Chrome), new Span($":{Does}", Role.Muted)];
+    public IReadOnlyList<Span> Spans => [new Span(Key, Role.Key), new Span($":{Does}", Role.Muted)];
 
     /// <summary>How the pair reads on one row: the key, then what it does.</summary>
     public override string ToString() => $"{Key}:{Does}";

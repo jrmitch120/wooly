@@ -107,7 +107,7 @@ public class ConfirmationRowTests
 
         Assert.Equal(" Delete this post?", row.Spans[0].Text);
         Assert.Equal(Role.Destructive, row.Spans[0].Role);
-        Assert.Equal(Role.Muted, row.Spans[1].Role);
+        Assert.DoesNotContain(row.Spans.Skip(1), span => span.Role == Role.Destructive);
     }
 
     /// <summary>

@@ -1279,25 +1279,12 @@ glyph or a position that carries the same meaning when colour is gone.
 | `rail-unread` | An unread count, and the word on an unread conversation | the number, and the word |
 | `quota` / `quota-low` | Rate-limit budget left, and nearly spent | the number |
 | `chrome` | The frame's furniture below the breadcrumb: the status row's leading space and ` · ` separators, the rail's rule | position |
+| `key` | A key you press: the status row's, the help screen's key column, a confirmation's `y` and `esc` — never prose that names a key, never the padding beside one | position — first in its pair, before the colon; first column on the help screen |
 | `crumb` / `crumb-current` | The breadcrumb row — the crumbs walked through, the `›` between them and the `… › ` a long trail leads with; and the one being stood on, told from them by foreground alone. One band under the whole row, the fetch mark included | position — the current crumb is always the last, and the trail elides from the left |
 | `seam` | The column dividing the rail from the content | the `│` down it |
 | `loading` | The fetch mark on the breadcrumb — the word and up to three dots, laid out at 11 columns | the word itself, and the dots arriving |
 | `destructive` | A delete affordance and its confirmation | the word |
 | `error` | A failure the shell has to say out loud | the word |
-
-**One role this map settled is not in the table yet**, and that is the table doing its job: it, the `Role` enum and
-the `RoleName` map are checked against each other by a test, and every role in the enum must be emitted by some view,
-so a row here is a promise that the code already keeps. It lands with the change that draws it.
-
-- **`key`** — a key you press, in the three places one is drawn, never prose that names a key and never the padding
-  beside one. Carried without colour by position. One step from `muted` toward `body` in the grey family with no hue,
-  roughly `#a9a5bd` dark and `#3f3d52` light: a hue would make the row louder than the frame it sits in and re-run
-  the `byline-handle` borrow in a new colour. Note the contrast reverses by surface and that is correct — on the
-  status row `key` is brighter than its `muted` gloss, on the help screen it is dimmer than its `body` gloss. A key
-  is the same thing in both; how far it stands out is set by what it sits beside. Called `key` in a `[themes.*]`
-  table: the collision with TOML's own word for a left-hand side is a pun rather than an ambiguity, and this shell's
-  own word for the thing is already *key* (`?:keys`, the keymap screen, "the keys this screen answers to").
-  (#221)
 
 The people-side work (#159) added no role, deliberately and in four places: a verified **Custom field** takes a `✓`
 after a value already drawn in `link`, the `⚙ bot` / `⚿ locked` flags carry in their words, a **Suggestion**'s reason is
@@ -1318,6 +1305,12 @@ enforces "no view constructs a colour" names the one file allowed to (ADR-0016);
 `muted` is the broad one — timestamps, hints, counts, empty-list notices, editor chrome — and stays broad on purpose. A
 themer cannot make an empty-list notice dimmer than a timestamp, and that is a smaller loss than a vocabulary nobody
 can hold in their head.
+
+`key`'s colour is a rule rather than a hex: one step from `muted` toward `body`, grey with no hue, and shared with no
+other role — `#a9a5bd` dark, `#3f3d52` light. A hue would make the row louder than the frame it sits in and re-run the
+`byline-handle` borrow in a new colour. The contrast reverses by surface and that is correct: on the status row `key`
+is brighter than its `muted` gloss, on the help screen dimmer than its `body` gloss. The name collides with TOML's word
+for a left-hand side, which is a pun rather than an ambiguity (#221).
 
 The rail used to reserve two columns — `▶` for the cursor, `▸` for the selection — and showed them adjacent almost
 all the time, since the two coincide at rest and differ only for the ~250ms settle window. It now reserves one:
