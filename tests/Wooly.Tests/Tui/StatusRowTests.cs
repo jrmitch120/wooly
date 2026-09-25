@@ -45,6 +45,7 @@ public class StatusRowTests
                 new KeyHint("M", "mute"),
                 new KeyHint("B", "block"),
                 new KeyHint("w", "follows"),
+                new KeyHint("s", "posts and replies"),
                 Screen.Refreshing,
             ],
             new KeyHint("esc", "back")),

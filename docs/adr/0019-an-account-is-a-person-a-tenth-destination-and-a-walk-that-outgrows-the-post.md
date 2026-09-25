@@ -255,4 +255,7 @@ branch being one subcommand per scope, and that rule is dropped rather than bent
 because a pinned run already has its replies in.
 
 **The TUI's account screen still opens on posts alone**, and the screen-reader reasoning above still holds for
-somebody who pressed `a` on a post. Widening it from the screen is its own change (#229).
+somebody who pressed `a` on a post. Since #229 the TUI reaches replies too: `s` on the account screen re-reads it with
+`Timeline.WithReplies` in place, and a second `s` goes back — the reader's own press, never the default, and not
+remembered across visits. With replies in, a pinned reply can come back in both runs; it is dropped from the timeline
+run by id, as a pinned normal post always was, so it is still drawn in the pinned run alone.

@@ -208,9 +208,27 @@ public class KeymapTests
         Assert.Equal(Verb.None, Means("w", Feed()));
     }
 
-    /// <summary>And <c>s</c> is nothing off a follow list, there being no other side of anything to swap to.</summary>
+    /// <summary>
+    ///     <c>s</c> on the account screen swaps between their posts and their posts and replies — a verb of its own
+    ///     rather than <see cref="Verb.SwapSide" />, a timeline having no sides (#229).
+    /// </summary>
     [Fact]
-    public void TheSwapKeyMeansNothingOffAFollowList() => Assert.Equal(Verb.None, Means("s", Feed()));
+    public void TheSwapKeyOnTheAccountScreenSwapsItsReplies() =>
+        Assert.Equal(Verb.SwapPostsAndReplies, Means("s", new AccountScreen(AnAccount.With(), [], pinned: [])));
+
+    /// <summary>
+    ///     And <c>s</c> is nothing anywhere but a follow list and an account screen, there being no other side or
+    ///     other run of anything to swap to.
+    /// </summary>
+    [Fact]
+    public void TheSwapKeyMeansNothingOffAFollowListOrAnAccountScreen()
+    {
+        Assert.Equal(Verb.None, Means("s", Feed()));
+        Assert.Equal(Verb.None, Means("s", Searched()));
+        Assert.Equal(Verb.None, Means("s", Notifications()));
+        Assert.Equal(Verb.None, Means("s", new DiscoverScreen([ASuggestion.With()])));
+        Assert.Equal(Verb.None, Means("s", new ConversationScreen(AConversation.Thread())));
+    }
 
     /// <summary>
     ///     A picked reference is a level of its own inside the screen, so <c>⏎</c> means the reference wherever one is

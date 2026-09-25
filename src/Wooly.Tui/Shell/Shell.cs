@@ -259,6 +259,7 @@ public sealed class Shell
         Verb.Find => Ran(Find),
         Verb.OpenFollows => Ran(OpenFollows),
         Verb.SwapSide => Ran(SwapSide),
+        Verb.SwapPostsAndReplies => Ran(SwapPostsAndReplies),
         Verb.Filter => Ran(Filter),
         Verb.FilterDone => Ran(FilterDone),
         Verb.OpenPerson => Ran(OpenPerson),
@@ -529,6 +530,19 @@ public sealed class Shell
             showing.Side.Either(followers: FollowSide.Following, following: FollowSide.Followers),
             replacing: true)
         : Task.CompletedTask;
+
+    /// <summary>
+    ///     Swaps the account screen between their posts and their posts and replies, in place: same stack, new crumb,
+    ///     the pick back on the header block. The follow list's <see cref="SwapSide" /> made over one account's
+    ///     timeline, and for its reason — a toggle that pushed would grow the stack on every flip (#229).
+    /// </summary>
+    /// <remarks>
+    ///     The whole screen is re-read rather than its timeline alone, being the same calls <c>g</c> makes with the
+    ///     other run named: an account screen is one reading, and a second way of assembling one is a second opinion
+    ///     about what it is made of (#84).
+    /// </remarks>
+    public Task SwapPostsAndReplies() =>
+        Screen is AccountScreen showing ? ReadAgain(showing, withReplies: !showing.WithReplies) : Task.CompletedTask;
 
     /// <summary>Opens the prompt that narrows a follow list, which is what <c>f</c> does there.</summary>
     /// <remarks>
@@ -1263,10 +1277,10 @@ public sealed class Shell
     /// <summary>Opens an account screen: who they are, their standing, and their posts.</summary>
     private Task OpenAccount(AccountAddress address, bool replacing = false) =>
         _enquiry.Put(
-            ask => ReadAccount(ask, address),
+            ask => ReadAccount(ask, address, withReplies: false),
             ifStillHere: found =>
             {
-                var screen = new AccountScreen(found.Account, found.Posts, found.Pinned, found.Familiar);
+                var screen = found.Screen();
 
                 if (replacing)
                 {
@@ -1303,7 +1317,14 @@ public sealed class Shell
     ///         (ADR-0012's amendment).
     ///     </para>
     /// </remarks>
-    private async Task<Read> ReadAccount(Enquiry.Ask ask, AccountAddress address)
+    /// <param name="ask">The enquiry the four calls are put under.</param>
+    /// <param name="address">Whose account.</param>
+    /// <param name="withReplies">
+    ///     Whether their timeline is read with their replies in. Opening an account never asks for it — the
+    ///     screen-reader reasoning in ADR-0019 is the default — and only <c>s</c>, and a <c>g</c> on the screen
+    ///     <c>s</c> widened, do (#229).
+    /// </param>
+    private async Task<Read> ReadAccount(Enquiry.Ask ask, AccountAddress address, bool withReplies)
     {
         var account = await ask.Of(token => _ports.Accounts.Show(_profile, address, token));
 
@@ -1314,7 +1335,11 @@ public sealed class Shell
         var whose = NamedAccount.Resolved(account);
 
         var posts = await ask.Of(token =>
-            _ports.Timelines.Read(_profile, Timeline.By(whose), Arrival.PostsWanted, token));
+            _ports.Timelines.Read(
+                _profile,
+                withReplies ? Timeline.WithReplies(whose) : Timeline.By(whose),
+                Arrival.PostsWanted,
+                token));
 
         var pinned = await ask.Of(token =>
             _ports.Timelines.Read(_profile, Timeline.Pinned(whose), Arrival.PostsWanted, token));
@@ -1328,15 +1353,16 @@ public sealed class Shell
         var pins = pinned.IsComplete ? pinned.Items : null;
 
         // Dropped from the timeline rather than from the pinned run, and dropped here rather than on the screen, so
-        // the two lists reach it disjoint and it cannot disagree with itself about which run a post is in. Only a
-        // recent pinned normal post can be in both, the timeline read leaving replies out (#182).
+        // the two lists reach it disjoint and it cannot disagree with itself about which run a post is in. A recent
+        // pinned normal post can be in both (#182), and with replies read in, so can a recent pinned reply (#229).
         var pinnedIds = (pins ?? []).Select(post => post.Id).ToHashSet(StringComparer.Ordinal);
 
         return new Read(
             account,
             [.. posts.Items.Where(post => !pinnedIds.Contains(post.Id))],
             pins,
-            familiar);
+            familiar,
+            withReplies);
     }
 
     /// <summary>
@@ -1357,11 +1383,20 @@ public sealed class Shell
     /// <param name="Familiar">
     ///     Who the reader knows in common, or <see langword="null" /> where the instance never answered.
     /// </param>
+    /// <param name="WithReplies">Whether <paramref name="Posts" /> was read with their replies in.</param>
     private sealed record Read(
         Account Account,
         IReadOnlyList<Post> Posts,
         IReadOnlyList<Post>? Pinned,
-        IReadOnlyList<Account>? Familiar);
+        IReadOnlyList<Account>? Familiar,
+        bool WithReplies)
+    {
+        /// <summary>
+        ///     The account screen this reading builds — said once, so that the run a screen says it shows is the run
+        ///     it was read with.
+        /// </summary>
+        public AccountScreen Screen() => new(Account, Posts, Pinned, Familiar, WithReplies);
+    }
 
     /// <summary>
     ///     Puts a follow list on screen and starts reading it: the first page, and — on a list held whole — the rest
@@ -1563,12 +1598,22 @@ public sealed class Shell
         return ask.Of(token => _ports.Engagement.Thread(_profile, about.Id, token));
     }
 
-    /// <summary>And for the account screen, which is both of the calls that opened it.</summary>
-    private Task RefreshAccount(AccountScreen showing) =>
+    /// <summary>
+    ///     And for the account screen, which is the calls that opened it — asking for the run that is showing rather
+    ///     than the one an account opens on, so <c>g</c> on a screen <c>s</c> widened stays widened (#229).
+    /// </summary>
+    private Task RefreshAccount(AccountScreen showing) => ReadAgain(showing, showing.WithReplies);
+
+    /// <summary>
+    ///     Reads the account <paramref name="showing" /> is about and puts the answer where it stands: what <c>g</c>
+    ///     does with the run showing, and <see cref="SwapPostsAndReplies" /> with the other one.
+    /// </summary>
+    /// <param name="showing">The account screen standing.</param>
+    /// <param name="withReplies">Whether to read their timeline with their replies in.</param>
+    private Task ReadAgain(AccountScreen showing, bool withReplies) =>
         _enquiry.Put(
-            ask => ReadAccount(ask, AccountAddress.Parse(showing.Account.Address)),
-            ifStillHere: found =>
-                Freshened(showing, new AccountScreen(found.Account, found.Posts, found.Pinned, found.Familiar)));
+            ask => ReadAccount(ask, AccountAddress.Parse(showing.Account.Address), withReplies),
+            ifStillHere: found => Freshened(showing, found.Screen()));
 
     /// <summary>
     ///     And for a follow list, which is the same read its <c>w</c> or its <c>s</c> ran — off a fresh screen, so
