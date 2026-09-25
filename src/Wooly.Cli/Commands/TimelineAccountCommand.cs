@@ -12,9 +12,10 @@ namespace Wooly.Cli.Commands;
 /// </summary>
 /// <remarks>
 ///     Replies are left out and boosts left in by default, which is what the account screen asks for and what an
-///     account's own page shows on the web. <c>--replies</c> widens that to the account's posts and replies — a seventh
-///     timeline rather than a filter on this one, because a reply that was never fetched is one no pipe can get back
-///     (#211). Boosts are not an option: a pipe can drop those itself.
+///     account's own page shows on the web. <c>--replies</c> widens that to the account's posts and replies, because a
+///     reply that was never fetched is one no pipe can get back (#211). It reads a seventh timeline rather than setting
+///     a filter on this one, since a filter meaning something on one timeline alone is a home timeline "with replies"
+///     waiting to be built (ADR-0019). Boosts are not an option: a pipe can drop those itself.
 /// </remarks>
 internal sealed class TimelineAccountCommand(
     IAnsiConsole console,

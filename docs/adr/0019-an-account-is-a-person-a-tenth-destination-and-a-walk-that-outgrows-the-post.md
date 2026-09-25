@@ -244,9 +244,9 @@ is for, and a scope is how it already tells them apart.
 what an instance sends; a run of replies alone would be the posts filtered out after each page arrived, which leaves
 pages short and puts paging back in front of the caller ADR-0007 took it away from. It is also the tab the web draws
 beside an account's posts, under the same name. A pipe that wants the replies alone narrows the run itself, which is
-why `--json` now writes `inReplyTo` — the post answered and, where the reply names them, who wrote it — on every post
-it writes, not only these. Before this, the human output said what a post answered and the machine-readable one did
-not.
+why `--json` now writes `inReplyTo` — the post answered and, where the reply names them, who wrote it — on every reply
+it writes, not only these, and leaves it out on a post answering nothing, as it leaves out every field that does not
+apply. Before this, the human output said what a post answered and the machine-readable one did not.
 
 **The CLI reaches it as `timeline account <ADDRESS> --replies`**, not `timeline replies`: it is the same reading with
 more in it, which a flag says and a subcommand whose name reads as replies alone would contradict. That ends the
