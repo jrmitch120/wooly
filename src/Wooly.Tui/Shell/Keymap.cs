@@ -123,7 +123,7 @@ public static class Keymap
 
         // And s again on the account screen, where it swaps runs rather than sides: their posts and replies, and back
         // to their posts alone (#229). Still bound only where it does something, and announced where it is.
-        (ShellKey.S, AccountScreen) => Verb.SwapReplies,
+        (ShellKey.S, AccountScreen) => Verb.SwapPostsAndReplies,
 
         // The capitals, which are keys of their own for exactly this reason: a lower-case mark key can never fire a
         // tie or empty an inbox by accident (docs/tui-shell.md).

@@ -44,7 +44,7 @@ public enum Verb
     ///     of <see cref="SwapSide" /> rather than the same verb, because a timeline has no sides — one verb meaning
     ///     both would be a name true of neither (#229).
     /// </summary>
-    SwapReplies,
+    SwapPostsAndReplies,
 
     /// <summary><c>f</c> on a follow list: opens the prompt that narrows it.</summary>
     Filter,

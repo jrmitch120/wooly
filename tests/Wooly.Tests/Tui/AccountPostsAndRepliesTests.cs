@@ -13,7 +13,7 @@ namespace Wooly.Tests.Tui;
 ///     (#229). The swap a follow list already makes between its sides (#180), made between the two runs of one
 ///     account's timeline.
 /// </summary>
-public class AccountRepliesTests
+public class AccountPostsAndRepliesTests
 {
     /// <summary>Whoever the account screen is about in these tests.</summary>
     private static readonly string Whose = "ben@hachyderm.io";
@@ -45,12 +45,12 @@ public class AccountRepliesTests
     ///     stack no deeper, and the run it asked for drawn under a heading that says so.
     /// </summary>
     [Fact]
-    public async Task SwapReplies_ShowsTheirPostsAndRepliesWithoutGrowingTheStack()
+    public async Task SwapPostsAndReplies_ShowsTheirPostsAndRepliesWithoutGrowingTheStack()
     {
         var (fakes, shell) = await OnTheAccountScreen();
         var depth = shell.Depth;
 
-        await shell.SwapReplies();
+        await shell.SwapPostsAndReplies();
         fakes.Host.Drain();
 
         var screen = Assert.IsType<AccountScreen>(shell.Screen);
@@ -66,14 +66,14 @@ public class AccountRepliesTests
 
     /// <summary>And a second <c>s</c> goes back to their posts alone, the stack still no deeper.</summary>
     [Fact]
-    public async Task SwapReplies_TwiceReturnsToTheirPostsAlone()
+    public async Task SwapPostsAndReplies_TwiceReturnsToTheirPostsAlone()
     {
         var (fakes, shell) = await OnTheAccountScreen();
         var depth = shell.Depth;
 
-        await shell.SwapReplies();
+        await shell.SwapPostsAndReplies();
         fakes.Host.Drain();
-        await shell.SwapReplies();
+        await shell.SwapPostsAndReplies();
         fakes.Host.Drain();
 
         var screen = Assert.IsType<AccountScreen>(shell.Screen);
@@ -91,14 +91,14 @@ public class AccountRepliesTests
     ///     it back at the top.
     /// </summary>
     [Fact]
-    public async Task SwapReplies_PutsThePickBackOnTheHeader()
+    public async Task SwapPostsAndReplies_PutsThePickBackOnTheHeader()
     {
         var (fakes, shell) = await OnTheAccountScreen();
 
         shell.Screen.Move(1);
         Assert.NotNull(shell.Screen.Picked);
 
-        await shell.SwapReplies();
+        await shell.SwapPostsAndReplies();
         fakes.Host.Drain();
 
         Assert.Null(shell.Screen.Picked);
@@ -113,7 +113,7 @@ public class AccountRepliesTests
     {
         var (fakes, shell) = await OnTheAccountScreen(pinned: [Reply]);
 
-        await shell.SwapReplies();
+        await shell.SwapPostsAndReplies();
         fakes.Host.Drain();
 
         var screen = Assert.IsType<AccountScreen>(shell.Screen);
@@ -128,7 +128,7 @@ public class AccountRepliesTests
     {
         var (fakes, shell) = await OnTheAccountScreen();
 
-        await shell.SwapReplies();
+        await shell.SwapPostsAndReplies();
         fakes.Host.Drain();
 
         var reads = fakes.Timelines.Reads.Count;
@@ -148,13 +148,13 @@ public class AccountRepliesTests
 
     /// <summary>And <c>s</c> does nothing off the account screen, there being no account's timeline to widen.</summary>
     [Fact]
-    public async Task SwapReplies_DoesNothingOffTheAccountScreen()
+    public async Task SwapPostsAndReplies_DoesNothingOffTheAccountScreen()
     {
         var fakes = new AShell();
         var shell = await fakes.Opened();
         var reads = fakes.Timelines.Reads.Count;
 
-        await shell.SwapReplies();
+        await shell.SwapPostsAndReplies();
         fakes.Host.Drain();
 
         Assert.IsNotType<AccountScreen>(shell.Screen);

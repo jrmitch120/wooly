@@ -214,14 +214,21 @@ public class KeymapTests
     /// </summary>
     [Fact]
     public void TheSwapKeyOnTheAccountScreenSwapsItsReplies() =>
-        Assert.Equal(Verb.SwapReplies, Means("s", new AccountScreen(AnAccount.With(), [], pinned: [])));
+        Assert.Equal(Verb.SwapPostsAndReplies, Means("s", new AccountScreen(AnAccount.With(), [], pinned: [])));
 
     /// <summary>
-    ///     And <c>s</c> is nothing off a follow list or an account screen, there being no other run of anything to
-    ///     swap to.
+    ///     And <c>s</c> is nothing anywhere but a follow list and an account screen, there being no other side or
+    ///     other run of anything to swap to.
     /// </summary>
     [Fact]
-    public void TheSwapKeyMeansNothingOffAFollowListOrAnAccount() => Assert.Equal(Verb.None, Means("s", Feed()));
+    public void TheSwapKeyMeansNothingOffAFollowListOrAnAccountScreen()
+    {
+        Assert.Equal(Verb.None, Means("s", Feed()));
+        Assert.Equal(Verb.None, Means("s", Searched()));
+        Assert.Equal(Verb.None, Means("s", Notifications()));
+        Assert.Equal(Verb.None, Means("s", new DiscoverScreen([ASuggestion.With()])));
+        Assert.Equal(Verb.None, Means("s", new ConversationScreen(AConversation.Thread())));
+    }
 
     /// <summary>
     ///     A picked reference is a level of its own inside the screen, so <c>⏎</c> means the reference wherever one is

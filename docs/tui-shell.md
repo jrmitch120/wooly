@@ -814,7 +814,7 @@ doing so it became the first screen in the shell whose pick is not a post (#164,
   crumb reads `@maria posts and replies`, the heading `── their posts and replies ──`, and the status row says which
   run the key swaps to. **The screen still opens on posts alone**, for ADR-0019's screen-reader reasons: only the
   reader's own press widens it, and nothing remembers the widened choice on the next visit. `g` re-asks whichever run
-  is showing. A verb of its own, `SwapReplies`, rather than `SwapSide` again — a timeline has no sides — and bound on
+  is showing. A verb of its own, `SwapPostsAndReplies`, rather than `SwapSide` again — a timeline has no sides — and bound on
   the account screen and the follow list only, `s` meaning nothing anywhere else.
 
 ### What a follow list settled

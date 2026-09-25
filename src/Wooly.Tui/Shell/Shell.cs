@@ -259,7 +259,7 @@ public sealed class Shell
         Verb.Find => Ran(Find),
         Verb.OpenFollows => Ran(OpenFollows),
         Verb.SwapSide => Ran(SwapSide),
-        Verb.SwapReplies => Ran(SwapReplies),
+        Verb.SwapPostsAndReplies => Ran(SwapPostsAndReplies),
         Verb.Filter => Ran(Filter),
         Verb.FilterDone => Ran(FilterDone),
         Verb.OpenPerson => Ran(OpenPerson),
@@ -541,8 +541,8 @@ public sealed class Shell
     ///     other run named: an account screen is one reading, and a second way of assembling one is a second opinion
     ///     about what it is made of (#84).
     /// </remarks>
-    public Task SwapReplies() =>
-        Screen is AccountScreen showing ? RefreshAccount(showing, withReplies: !showing.WithReplies) : Task.CompletedTask;
+    public Task SwapPostsAndReplies() =>
+        Screen is AccountScreen showing ? ReadAgain(showing, withReplies: !showing.WithReplies) : Task.CompletedTask;
 
     /// <summary>Opens the prompt that narrows a follow list, which is what <c>f</c> does there.</summary>
     /// <remarks>
@@ -1602,16 +1602,17 @@ public sealed class Shell
     ///     And for the account screen, which is the calls that opened it — asking for the run that is showing rather
     ///     than the one an account opens on, so <c>g</c> on a screen <c>s</c> widened stays widened (#229).
     /// </summary>
+    private Task RefreshAccount(AccountScreen showing) => ReadAgain(showing, showing.WithReplies);
+
+    /// <summary>
+    ///     Reads the account <paramref name="showing" /> is about and puts the answer where it stands: what <c>g</c>
+    ///     does with the run showing, and <see cref="SwapPostsAndReplies" /> with the other one.
+    /// </summary>
     /// <param name="showing">The account screen standing.</param>
-    /// <param name="withReplies">
-    ///     Which run to read, where it is not the one showing — which is what <see cref="SwapReplies" /> is.
-    /// </param>
-    private Task RefreshAccount(AccountScreen showing, bool? withReplies = null) =>
+    /// <param name="withReplies">Whether to read their timeline with their replies in.</param>
+    private Task ReadAgain(AccountScreen showing, bool withReplies) =>
         _enquiry.Put(
-            ask => ReadAccount(
-                ask,
-                AccountAddress.Parse(showing.Account.Address),
-                withReplies ?? showing.WithReplies),
+            ask => ReadAccount(ask, AccountAddress.Parse(showing.Account.Address), withReplies),
             ifStillHere: found => Freshened(showing, found.Screen()));
 
     /// <summary>
