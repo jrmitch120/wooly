@@ -203,11 +203,11 @@ public static class WoolyCommandApp
 
                 // Under "timeline" rather than under "account", even though these two are about a person rather than a
                 // place: they are posts, newest first, paged and written the way the other four are, and the branch is
-                // one subcommand per timeline a profile can read. Beside the noun they are about, they would either
+                // how a profile reaches every timeline it can read. Beside the noun they are about, they would either
                 // write an envelope whose "timeline" field contradicted the command that wrote it, or fork a second
                 // pair of output writers (#185).
                 timeline.AddCommand<TimelineAccountCommand>("account")
-                        .WithDescription("Read one account's own posts, newest first.");
+                        .WithDescription("Read one account's own posts, newest first, or its posts and replies.");
 
                 timeline.AddCommand<TimelinePinnedCommand>("pinned")
                         .WithDescription("Read the posts an account has pinned to the top of their profile.");

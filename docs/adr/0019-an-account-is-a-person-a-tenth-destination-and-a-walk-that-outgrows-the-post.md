@@ -226,3 +226,33 @@ change to the shape of `Timeline` itself, which the Consequences above are expli
 Its cost is named rather than glossed: unlike `account following | grep`, a reply that was never fetched cannot be
 recovered downstream, so this is a real limitation on the surface built for pipes rather than a narrowing a pipe does
 better. It is #211.
+
+## Amendment: an account's replies are a seventh `TimelineScope` (#211)
+
+The limitation the amendment above named is lifted, and by the shape the pinned run already set rather than by the
+filter it warned against. **`TimelineScope.WithReplies` reads an account's posts and replies**: the account endpoint
+again, boosts still in and nothing pinned, with only `exclude_replies` left off. It pages newest first exactly as the
+account's posts do, because it is the same run widened rather than a different one.
+
+**A scope, not a flag on `Timeline`.** Threading a filter onto `Timeline` would have meant fewer scopes, but a field
+that means something on one scope alone is a state that can be wrong — a home timeline "with replies" is a value the
+type would let anybody build, and `Description`, `TimelineJson` and every reader of `Timeline` would each have to decide
+what it meant. `Pinned` was a sixth scope for the same reason: posts read from an account are what `ITimelineReader`
+is for, and a scope is how it already tells them apart.
+
+**Posts and replies, never replies alone.** Mastodon's `exclude_replies` is one switch, so the widened run is exactly
+what an instance sends; a run of replies alone would be the posts filtered out after each page arrived, which leaves
+pages short and puts paging back in front of the caller ADR-0007 took it away from. It is also the tab the web draws
+beside an account's posts, under the same name. A pipe that wants the replies alone narrows the run itself, which is
+why `--json` now writes `inReplyTo` — the post answered and, where the reply names them, who wrote it — on every post
+it writes, not only these. Before this, the human output said what a post answered and the machine-readable one did
+not.
+
+**The CLI reaches it as `timeline account <ADDRESS> --replies`**, not `timeline replies`: it is the same reading with
+more in it, which a flag says and a subcommand whose name reads as replies alone would contradict. That ends the
+branch being one subcommand per scope, and that rule is dropped rather than bent. The envelope names the run
+`account-replies`, so a saved file still says which of the two it holds. `timeline pinned` does not take the flag,
+because a pinned run already has its replies in.
+
+**The TUI's account screen still opens on posts alone**, and the screen-reader reasoning above still holds for
+somebody who pressed `a` on a post. Widening it from the screen is its own change (#229).

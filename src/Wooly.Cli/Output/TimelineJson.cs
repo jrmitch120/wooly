@@ -40,6 +40,10 @@ internal static class TimelineJson
         TimelineScope.Tag => "tag",
         TimelineScope.Account => "account",
         TimelineScope.Pinned => "pinned",
+
+        // Not "replies", which a script would read as replies alone: the run is the account's posts with its replies
+        // left in, and it is reached as `timeline account --replies` rather than a subcommand of its own (#211).
+        TimelineScope.WithReplies => "account-replies",
         _ => throw new ArgumentOutOfRangeException(nameof(scope), scope, "Not a timeline this client reads."),
     };
 }

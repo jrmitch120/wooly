@@ -129,6 +129,60 @@ public class TimelineCommandTests : IDisposable
     }
 
     /// <summary>
+    ///     <c>--replies</c> widens the account's posts to its posts and replies — a reply never fetched is one no pipe can
+    ///     get back, which is what made leaving them out a hole on this surface rather than a narrowing (#211). Without
+    ///     the flag the read is what it always was.
+    /// </summary>
+    [Theory]
+    [InlineData(new[] { "--replies" }, TimelineScope.WithReplies)]
+    [InlineData(new string[0], TimelineScope.Account)]
+    public void Account_ReadsThePostsAndRepliesOfTheAccountNamedWhenAskedFor(string[] flags, TimelineScope expected)
+    {
+        AddProfile();
+
+        var run = Run(["timeline", "account", "alice@hachyderm.io", .. flags]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Contains("Hello world", run.Output);
+
+        var read = Assert.Single(_timelines.Reads);
+        Assert.Equal(expected, read.Timeline.Scope);
+        Assert.Equal("alice@hachyderm.io", read.Timeline.Account?.Address.Text);
+    }
+
+    /// <summary>
+    ///     The widened run is written under a name of its own, so a saved file says which of the two it holds, and names
+    ///     whose it is in full exactly as the account's posts do.
+    /// </summary>
+    [Fact]
+    public void Account_NamesThePostsAndRepliesItReadInTheJsonItWrites()
+    {
+        AddProfile();
+
+        var run = Run(["timeline", "account", "maria", "--replies", "--json"]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+
+        var timeline = JsonDocument.Parse(run.Output).RootElement;
+
+        Assert.Equal("account-replies", timeline.GetProperty("timeline").GetString());
+        Assert.Equal("maria@mastodon.social", timeline.GetProperty("account").GetString());
+        Assert.Equal(["timeline", "account", "complete", "posts"], FieldsOf(run));
+    }
+
+    /// <summary>The flag widens one reading and no other: the pinned run is already complete, replies and all.</summary>
+    [Fact]
+    public void Pinned_TurnsDownTheRepliesFlagAsAUsageError()
+    {
+        AddProfile();
+
+        var run = Run(["timeline", "pinned", "alice@hachyderm.io", "--replies"]);
+
+        Assert.Equal((int)ExitCode.UsageError, run.ExitCode);
+        Assert.Empty(_timelines.Reads);
+    }
+
+    /// <summary>
     ///     A bare username means somebody on the profile's own instance, and is resolved before the timeline is built —
     ///     so that what is read, what is reported and what <c>--json</c> names is a full <c>user@host</c> rather than a
     ///     name that tells a saved file nothing about which server it came from.
@@ -198,16 +252,17 @@ public class TimelineCommandTests : IDisposable
     /// <summary>The shared paged-list options are inherited rather than rewritten, zero-limit rejection included.</summary>
     [Theory]
     [InlineData("account")]
+    [InlineData("account", "--replies")]
     [InlineData("pinned")]
-    public void Account_TakesTheSamePagedListOptionsEveryOtherListDoes(string command)
+    public void Account_TakesTheSamePagedListOptionsEveryOtherListDoes(string command, params string[] flags)
     {
         AddProfile();
 
-        Run(["timeline", command, "alice@hachyderm.io", "--limit", "60"]);
+        Run(["timeline", command, "alice@hachyderm.io", .. flags, "--limit", "60"]);
 
         Assert.Equal(60, Assert.Single(_timelines.Reads).Limit);
 
-        var rejected = Run(["timeline", command, "alice@hachyderm.io", "--limit", "0"]);
+        var rejected = Run(["timeline", command, "alice@hachyderm.io", .. flags, "--limit", "0"]);
 
         Assert.Equal((int)ExitCode.UsageError, rejected.ExitCode);
         Assert.Contains("at least one post", rejected.ErrorOutput);
@@ -255,8 +310,9 @@ public class TimelineCommandTests : IDisposable
     }
 
     /// <summary>
-    ///     The branch maps one-to-one onto the six timelines a profile can read, which is the whole of #185: a reader
-    ///     who can reach four of them and not the other two has no way to know the two exist.
+    ///     The branch reaches every timeline a profile can read, which is the whole of #185: a reader who can reach four
+    ///     of them and not the rest has no way to know the rest exist. One subcommand per reading rather than per scope
+    ///     since #211 — the account's posts and replies is <c>account --replies</c>, the same reading widened.
     /// </summary>
     [Fact]
     public void Timeline_OffersOneSubcommandPerTimelineAProfileCanRead()
@@ -547,6 +603,36 @@ public class TimelineCommandTests : IDisposable
         Assert.Equal(5, post.GetProperty("favorites").GetInt64());
     }
 
+    /// <summary>
+    ///     What a post answers, which the human output has always said and this output never did — so a pipe handed an
+    ///     account's posts and replies had no way to narrow them back down to the replies (#211). Left out on a post
+    ///     answering nothing, and the account left out where the post does not name who it answers, the way every
+    ///     field here that does not apply is left out rather than written as a null.
+    /// </summary>
+    [Fact]
+    public void Home_SaysWhatEachPostAnswersInTheJsonItWrites()
+    {
+        AddProfile();
+        _timelines = FakeTimelineReader.Holding(
+            APost.With(id: "110", inReplyTo: new PostReplyTarget { PostId = "100", Handle = "maria@hachyderm.io" }),
+            APost.With(id: "111", inReplyTo: new PostReplyTarget { PostId = "101" }),
+            APost.With(id: "112"));
+
+        var run = Run(["timeline", "home", "--json"]);
+
+        var posts = JsonDocument.Parse(run.Output).RootElement.GetProperty("posts").EnumerateArray().ToList();
+
+        var named = posts[0].GetProperty("inReplyTo");
+        Assert.Equal("100", named.GetProperty("post").GetString());
+        Assert.Equal("maria@hachyderm.io", named.GetProperty("account").GetString());
+
+        var unnamed = posts[1].GetProperty("inReplyTo");
+        Assert.Equal("101", unnamed.GetProperty("post").GetString());
+        Assert.False(unnamed.TryGetProperty("account", out _));
+
+        Assert.False(posts[2].TryGetProperty("inReplyTo", out _));
+    }
+
     [Fact]
     public void Tag_NamesTheHashtagItReadInTheJsonItWrites()
     {
@@ -559,6 +645,42 @@ public class TimelineCommandTests : IDisposable
         Assert.Equal("tag", timeline.GetProperty("timeline").GetString());
         Assert.Equal("cats", timeline.GetProperty("hashtag").GetString());
     }
+
+    /// <summary>
+    ///     Every timeline a profile can read is reachable from this branch and written under a name no other shares. The
+    ///     last two scopes added were neither, at first: the writer threw on both, so every <c>--json</c> account read
+    ///     would have crashed (#185). A scope added without a way here fails this rather than a user's script.
+    /// </summary>
+    [Fact]
+    public void Timeline_WritesEveryTimelineAProfileCanReadUnderANameOfItsOwn()
+    {
+        AddProfile();
+
+        var names = Enum.GetValues<TimelineScope>().Select(scope =>
+        {
+            var run = Run([.. CommandFor(scope), "--json"]);
+
+            Assert.Equal((int)ExitCode.Success, run.ExitCode);
+
+            return JsonDocument.Parse(run.Output).RootElement.GetProperty("timeline").GetString();
+        }).ToList();
+
+        Assert.Equal(names.Count, names.Distinct().Count());
+        Assert.All(names, name => Assert.False(string.IsNullOrEmpty(name)));
+    }
+
+    /// <summary>The command line that reads <paramref name="scope" />, or a failure naming a scope nothing reads.</summary>
+    private static string[] CommandFor(TimelineScope scope) => scope switch
+    {
+        TimelineScope.Home => ["timeline", "home"],
+        TimelineScope.Local => ["timeline", "local"],
+        TimelineScope.Federated => ["timeline", "federated"],
+        TimelineScope.Tag => ["timeline", "tag", "cats"],
+        TimelineScope.Account => ["timeline", "account", "alice@hachyderm.io"],
+        TimelineScope.Pinned => ["timeline", "pinned", "alice@hachyderm.io"],
+        TimelineScope.WithReplies => ["timeline", "account", "alice@hachyderm.io", "--replies"],
+        _ => throw new ArgumentOutOfRangeException(nameof(scope), scope, "No command reads this timeline."),
+    };
 
     /// <summary>
     ///     What a script reading this sees, field by field and in order. Asserted because the envelope is built by

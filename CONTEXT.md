@@ -284,7 +284,7 @@ fastened to the top of their own profile, put there and taken away with `p`, and
 reader's *own* posts: it reads false on everybody else's, whether they have pinned it or not. The other is a **run of
 posts** of its own, read by naming the account rather than by marking rows already in hand — which is the only shape
 available, precisely because the mark cannot be trusted on somebody else's post. Both surfaces read that run: it is a
-section on the TUI's account screen, and `timeline pinned <address>` on the CLI, which reads it as the sixth of the six
+section on the TUI's account screen, and `timeline pinned <address>` on the CLI, which reads it as the sixth of the seven
 timelines a profile can ask for (#185).
 The two do not contradict each other and are deliberately both drawn: the heading over the run says what the fetch
 found, and the word on a row says what is true now, so un-pinning something inside the run leaves it where it is and
