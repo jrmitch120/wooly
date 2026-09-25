@@ -1,4 +1,6 @@
+using System.ComponentModel;
 using Spectre.Console;
+using Spectre.Console.Cli;
 using Wooly.Core.Profiles;
 using Wooly.Core.Timelines;
 
@@ -9,15 +11,26 @@ namespace Wooly.Cli.Commands;
 ///     got nothing on this surface when ADR-0019 settled the account screen.
 /// </summary>
 /// <remarks>
-///     Replies are left out and boosts left in, which is what the account screen asks for and what an account's own page
-///     shows on the web. Neither is an option here: varying them is a change to the shape of <see cref="Timeline" />
-///     itself, which ADR-0019 is explicit should not ride in behind a feature (#211).
+///     Replies are left out and boosts left in by default, which is what the account screen asks for and what an
+///     account's own page shows on the web. <c>--replies</c> widens that to the account's posts and replies, because a
+///     reply that was never fetched is one no pipe can get back (#211). It reads a seventh timeline rather than setting
+///     a filter on this one, since a filter meaning something on one timeline alone is a home timeline "with replies"
+///     waiting to be built (ADR-0019). Boosts are not an option: a pipe can drop those itself.
 /// </remarks>
 internal sealed class TimelineAccountCommand(
     IAnsiConsole console,
     IProfileRegistry profiles,
-    ITimelineReader timelines) : TimelineCommand<TimelineAccountSettings>(console, profiles, timelines)
+    ITimelineReader timelines) : TimelineCommand<TimelineAccountCommand.Settings>(console, profiles, timelines)
 {
-    protected override Timeline TimelineToRead(ActiveProfile profile, TimelineAccountSettings settings) =>
-        Timeline.By(settings.Whose(profile.Instance));
+    protected override Timeline TimelineToRead(ActiveProfile profile, Settings settings) =>
+        settings.Replies
+            ? Timeline.WithReplies(settings.Whose(profile.Instance))
+            : Timeline.By(settings.Whose(profile.Instance));
+
+    internal sealed class Settings : TimelineAccountSettings
+    {
+        [CommandOption("--replies")]
+        [Description("Read the account's posts and replies: its answers to other people as well as its own posts.")]
+        public bool Replies { get; init; }
+    }
 }

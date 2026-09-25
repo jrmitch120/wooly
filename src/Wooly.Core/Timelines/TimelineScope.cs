@@ -1,6 +1,6 @@
 namespace Wooly.Core.Timelines;
 
-/// <summary>The six timelines a profile can read, which differ only in what an instance is asked for.</summary>
+/// <summary>The seven timelines a profile can read, which differ only in what an instance is asked for.</summary>
 public enum TimelineScope
 {
     /// <summary>The posts of the accounts this profile follows.</summary>
@@ -29,4 +29,12 @@ public enum TimelineScope
     ///     page, and in the order the account chose rather than by date.
     /// </summary>
     Pinned,
+
+    /// <summary>
+    ///     An account's posts with its answers to other people left in — <see cref="Account" /> widened by the one
+    ///     filter that kept a reply out of reach, and nothing else: boosts are still in and it pages the same way.
+    ///     A scope rather than a flag on <see cref="Timeline" /> for the reason <see cref="Pinned" /> is one: a field
+    ///     that meant something on one scope alone would be a home timeline "with replies" waiting to be built (#211).
+    /// </summary>
+    WithReplies,
 }

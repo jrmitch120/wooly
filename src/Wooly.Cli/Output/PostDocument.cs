@@ -28,6 +28,10 @@ namespace Wooly.Cli.Output;
 ///     </para>
 /// </param>
 /// <param name="Visibility">Who can see it, in the same words <c>--visibility</c> takes.</param>
+/// <param name="InReplyTo">
+///     What the post answers, or absent on one that answers nothing. It is what lets a script narrow an account's posts
+///     and replies down to the replies (#211).
+/// </param>
 /// <param name="Media">
 ///     What is attached, in the order the author attached it, and empty where nothing is. Written out even though the
 ///     human output links it too, because the whole point of <c>--json</c> is that a script does not have to read the
@@ -47,6 +51,7 @@ internal sealed record PostDocument(
     [property: JsonPropertyName("sensitive")] bool Sensitive,
     [property: JsonPropertyName("content")] string Content,
     [property: JsonPropertyName("visibility")] string Visibility,
+    [property: JsonPropertyName("inReplyTo")] ReplyTargetDocument? InReplyTo,
     [property: JsonPropertyName("boosts")] long Boosts,
     [property: JsonPropertyName("favorites")] long Favorites,
     [property: JsonPropertyName("replies")] long Replies,
@@ -65,6 +70,7 @@ internal sealed record PostDocument(
         post.Sensitive,
         post.Content,
         PostVisibilityName.Of(post.Visibility),
+        ReplyTargetDocument.Of(post.InReplyTo),
         post.Boosts,
         post.Favorites,
         post.Replies,

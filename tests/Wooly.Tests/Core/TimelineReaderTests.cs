@@ -653,6 +653,45 @@ public class TimelineReaderTests
     }
 
     /// <summary>
+    ///     The seventh scope is the account's timeline widened by its answers to other people (#211): the same endpoint
+    ///     and the same lookup, boosts still in, and the one filter that kept a reply out of reach left off.
+    /// </summary>
+    [Fact]
+    public async Task Read_AsksForAnAccountsPostsAndRepliesWithTheRepliesLeftIn()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json("""[{"id": "42", "username": "alice", "acct": "alice@hachyderm.io"}]"""),
+            ScriptedHttpMessageHandler.Json(Page(PostJson("110"))));
+
+        var fetch = await NewReader(network).Read(
+            Profile,
+            Timeline.WithReplies(NamedAccount.Addressed(AccountAddress.Parse("alice@hachyderm.io"))),
+            20,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(
+            "https://mastodon.social/api/v1/accounts/search?q=alice%40hachyderm.io&limit=10&resolve=true",
+            network.Requests[0].RequestUri?.ToString());
+        Assert.Equal(
+            "https://mastodon.social/api/v1/accounts/42/statuses?limit=20",
+            network.Requests[1].RequestUri?.ToString());
+
+        Assert.Single(fetch.Items);
+    }
+
+    /// <summary>
+    ///     And named for what it is — the account's posts with its replies in, in the words the web gives the same tab —
+    ///     rather than as replies alone, which is not what the run holds.
+    /// </summary>
+    [Fact]
+    public void Description_NamesAnAccountsPostsAndRepliesApartFromItsPosts()
+    {
+        Assert.Equal(
+            "the posts and replies of @alice@hachyderm.io",
+            Timeline.WithReplies(NamedAccount.Addressed(AccountAddress.Parse("alice@hachyderm.io"))).Description);
+    }
+
+    /// <summary>
     ///     An instance serves at most a page at a time, so more posts than that is more than one call — and the caller
     ///     asked for posts, not pages.
     /// </summary>

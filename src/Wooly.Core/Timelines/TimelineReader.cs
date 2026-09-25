@@ -84,6 +84,16 @@ public sealed class TimelineReader(IMastodonClientFactory clientFactory) : ITime
                 excludeReplies: false,
                 pinned: true,
                 excludeReblogs: false),
+
+            // The account's timeline again with only the replies let back in: boosts stay, nothing is pinned, and it
+            // pages newest first exactly as the account's posts do (#211).
+            TimelineScope.WithReplies => client.GetAccountStatuses(
+                accountId!,
+                options,
+                onlyMedia: false,
+                excludeReplies: false,
+                pinned: false,
+                excludeReblogs: false),
             _ => throw new ArgumentOutOfRangeException(nameof(timeline), timeline.Scope, "Not a timeline this client reads."),
         };
 }

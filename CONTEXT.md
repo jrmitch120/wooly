@@ -284,12 +284,18 @@ fastened to the top of their own profile, put there and taken away with `p`, and
 reader's *own* posts: it reads false on everybody else's, whether they have pinned it or not. The other is a **run of
 posts** of its own, read by naming the account rather than by marking rows already in hand — which is the only shape
 available, precisely because the mark cannot be trusted on somebody else's post. Both surfaces read that run: it is a
-section on the TUI's account screen, and `timeline pinned <address>` on the CLI, which reads it as the sixth of the six
+section on the TUI's account screen, and `timeline pinned <address>` on the CLI, which reads it as the sixth of the seven
 timelines a profile can ask for (#185).
 The two do not contradict each other and are deliberately both drawn: the heading over the run says what the fetch
 found, and the word on a row says what is true now, so un-pinning something inside the run leaves it where it is and
 takes its word off. That redundancy exists on one screen only — the reader's own — and only until they press `g`.
 _Avoid_: featured (which is Mastodon's word for a *tag* on a profile, and a different thing), sticky, top post
+
+**Posts and replies**:
+An account's posts with its answers to other people left in — the account's own timeline widened, never a run of
+replies alone, and the name the web gives the same tab. What an account's posts leave out by default is exactly those
+answers: a reply continuing the account's own thread is already one of its posts (#211).
+_Avoid_: replies (for this; the run is not replies only), conversations
 
 **Profile**:
 A named local credential/config entry in this CLI tool, pointing at one Mastodon account. A user may have multiple profiles (e.g. personal + work accounts, possibly on different instances). One profile is the "current" profile used by default; commands may override it per-invocation.
