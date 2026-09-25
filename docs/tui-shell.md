@@ -794,8 +794,8 @@ doing so it became the first screen in the shell whose pick is not a post (#164,
   uncounted. The pinned run is complete and unpaged so its total is a fact; the timeline run is a page of an unbounded
   list, and counting it would be a number about the fetch pretending to be a number about the account. One `PostList`
   with the headings spliced, the way the post screen already splices `[...ancestors, post, ...replies]`.
-- **The duplicate is dropped from the timeline run, never from pinned**, and dropped by id in the shell's
-  `ReadAccount`, so the screen is handed two disjoint lists and cannot disagree with itself about which run a post is
+- **The duplicate is dropped from the timeline run, never from pinned**, and dropped by id in
+  `AccountReading.Read`, so the screen is handed two disjoint lists and cannot disagree with itself about which run a post is
   in. On their posts alone only a recent pinned *normal* post can be in both, that call excluding replies; with
   replies in, a recent pinned reply can be too, and is drawn in the pinned run alone the same way.
 - **Empty draws nothing; not asked draws a row.** No pinned posts is no heading, no rows and no gap, which is the
