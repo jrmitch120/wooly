@@ -291,6 +291,12 @@ found, and the word on a row says what is true now, so un-pinning something insi
 takes its word off. That redundancy exists on one screen only — the reader's own — and only until they press `g`.
 _Avoid_: featured (which is Mastodon's word for a *tag* on a profile, and a different thing), sticky, top post
 
+**Posts and replies**:
+An account's posts with its answers to other people left in — the account's own timeline widened, never a run of
+replies alone, and the name the web gives the same tab. What an account's posts leave out by default is exactly those
+answers: a reply continuing the account's own thread is already one of its posts (#211).
+_Avoid_: replies (for this; the run is not replies only), with replies timeline, conversations
+
 **Profile**:
 A named local credential/config entry in this CLI tool, pointing at one Mastodon account. A user may have multiple profiles (e.g. personal + work accounts, possibly on different instances). One profile is the "current" profile used by default; commands may override it per-invocation.
 _Avoid_: account (when referring to the CLI's local credential entry, to keep it distinct from the Mastodon account itself)
