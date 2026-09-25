@@ -53,7 +53,7 @@ A screen is a place in the stack, not a window. Entering one pushes, `esc` pops,
 | Feed — home, local, federated, the rail's own hashtag | A rail destination | #28 |
 | Hashtag — a tag walked to, not the rail's own | A search result, or `⏎` on a picked hashtag reference | #29, reference #65 |
 | Post — the post whole, its ancestor chain above and its replies below | `⏎` on a feed item | #28, ancestors #72 |
-| Account — who they are, what they are to you, their pinned posts and their posts | `a` on a feed item or inside a post | shell #28, tie actions #29, the person #164, pinned #172 |
+| Account — who they are, what they are to you, their pinned posts and their posts, or their posts and replies | `a` on a feed item or inside a post, `s` to swap runs | shell #28, tie actions #29, the person #164, pinned #172, replies #229 |
 | Follows — everyone an account follows, or everyone who follows it | `w` on an account, `s` to swap sides | #165 |
 | Notifications | A rail destination | #29 |
 | Search — prompt and results | A rail destination, or `/` | #29, moving between kinds #166 |
@@ -104,7 +104,7 @@ Screen-local, and deliberately colliding with the above because they are never o
 
 | Screen | Keys |
 |---|---|
-| Account | `F` follow/unfollow · `M` mute/unmute · `B` block/unblock — capitals, so a lower-case mark key can never fire a tie by accident · `w` follows, which is everyone they follow with `s` a keypress from everyone who follows them · `[`/`]` section, on an account carrying a pinned run |
+| Account | `F` follow/unfollow · `M` mute/unmute · `B` block/unblock — capitals, so a lower-case mark key can never fire a tie by accident · `w` follows, which is everyone they follow with `s` a keypress from everyone who follows them · `s` posts and replies, or back to posts alone, in place · `[`/`]` section, on an account carrying a pinned run |
 | Follows — following or followers | `f` filter, on a list under the threshold · `s` swap to the other side, in place · `⏎` open that account |
 | Search results | `[`/`]` section, where two or more kinds found something |
 | Discover | `F` follow/unfollow · `d` dismiss, one-way · `[`/`]` section |
@@ -794,9 +794,10 @@ doing so it became the first screen in the shell whose pick is not a post (#164,
   uncounted. The pinned run is complete and unpaged so its total is a fact; the timeline run is a page of an unbounded
   list, and counting it would be a number about the fetch pretending to be a number about the account. One `PostList`
   with the headings spliced, the way the post screen already splices `[...ancestors, post, ...replies]`.
-- **The duplicate is dropped from the timeline run, never from pinned**, and dropped in the shell's `ReadAccount`, so
-  the screen is handed two disjoint lists and cannot disagree with itself about which run a post is in. Only a recent
-  pinned *normal* post can be in both, the timeline call excluding replies.
+- **The duplicate is dropped from the timeline run, never from pinned**, and dropped by id in the shell's
+  `ReadAccount`, so the screen is handed two disjoint lists and cannot disagree with itself about which run a post is
+  in. On their posts alone only a recent pinned *normal* post can be in both, that call excluding replies; with
+  replies in, a recent pinned reply can be too, and is drawn in the pinned run alone the same way.
 - **Empty draws nothing; not asked draws a row.** No pinned posts is no heading, no rows and no gap, which is the
   common case. A pinned read a rate limit stopped draws `Pinned posts not asked for.`, the same distinction
   `AccountLines.Standing` already draws `Standing not asked for.` for — which is why pinned is asked *before* familiar
@@ -807,6 +808,14 @@ doing so it became the first screen in the shell whose pick is not a post (#164,
   saying `pinned` inside the pinned run rather than being suppressed as redundant against the heading: the heading says
   what the fetch found and the row says what is true now, it is the only signal that an un-pin took, and on every
   account but the reader's own the word is never drawn at all — Mastodon sends `Status.pinned` only for your own posts.
+- **`s` swaps their posts for their posts and replies, in place** (#229), and a second `s` swaps back. It is the follow
+  list's `s` made over one account's timeline: the whole screen re-read with `Timeline.WithReplies` in place of
+  `Timeline.By`, standing where the screen stood — new crumb, pick back on the header block, stack no deeper. The
+  crumb reads `@maria posts and replies`, the heading `── their posts and replies ──`, and the status row says which
+  run the key swaps to. **The screen still opens on posts alone**, for ADR-0019's screen-reader reasons: only the
+  reader's own press widens it, and nothing remembers the widened choice on the next visit. `g` re-asks whichever run
+  is showing. A verb of its own, `SwapReplies`, rather than `SwapSide` again — a timeline has no sides — and bound on
+  the account screen and the follow list only, `s` meaning nothing anywhere else.
 
 ### What a follow list settled
 
@@ -1136,14 +1145,15 @@ reminder, `?` is the reference.** #169, #214 and #215 settled the row; #218, #21
   Rank keeps them on the row in every state measured; a screen that pushes them off is a screen with too many keys,
   and that is that screen's bug.
 - **The row holds about seven hints**, which is the number every candidate was measured against. The worst screen is
-  the **account screen** — six own letters in front of the shared ten, 20 hints wanting 217 columns against 80 — and
+  the **account screen** — seven own letters in front of the shared ten, 21 hints wanting 239 columns against 80 — and
   a picked reference *stands in for* the poll keys rather than stacking with them, so the two in-front cases are
   alternatives. Pruning to a fixed set fits and draws four hints on a quiet feed, wasting 37 columns, which is the
   *a row cut back to `g tab ?` reads as broken rather than as empty* failure #195 named. Grouping (`b/f:marks`) saves
   about 30 columns, still cuts 4 to 9 hints silently, and spends #66's key-to-word mapping and a second meaning for
   the colon — and a group would have to match on the **hint** rather than the letter, or the inbox's `d:dismiss` is
   swallowed into `p/e/d:yours`, which is the bug #193 fixed. **A second row is refuted rather than disfavoured**: two
-  rows at 80 columns still need `…+3` on the worst case and `…+6` on the account screen.
+  rows at 80 columns still need `…+3` on the worst case and `…+6` on the account screen, measured before #229 gave
+  it `s`.
 - **The overflow mark is `…+10`, drawn in `muted`, and adds no role.** `…` is the shell's own *there was more* glyph,
   so the **no-colour case is carried by glyph** — a mono terminal draws the mark exactly as a coloured one does,
   which is what makes it different from the ellipsis it replaces: that said *something was cut*, this says *ten

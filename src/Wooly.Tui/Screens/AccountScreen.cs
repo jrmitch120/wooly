@@ -46,13 +46,19 @@ public sealed class AccountScreen : Screen
     ///     was never asked — which is what a screen built with no answer to that question is handed, and what the
     ///     shell hands it when a rate limit stops the last of its calls (CONTEXT.md).
     /// </param>
+    /// <param name="withReplies">
+    ///     Whether <paramref name="posts" /> is their <b>Posts and replies</b> rather than their posts alone. Off
+    ///     unless the reader pressed <c>s</c> for it: the screen opens on posts alone, for ADR-0019's reasons (#229).
+    /// </param>
     public AccountScreen(
         Account account,
         IReadOnlyList<Post> posts,
         IReadOnlyList<Post>? pinned,
-        IReadOnlyList<Account>? familiar = null)
+        IReadOnlyList<Account>? familiar = null,
+        bool withReplies = false)
     {
         Familiar = familiar;
+        WithReplies = withReplies;
         Asked = pinned is not null;
         _pins = [.. (pinned ?? []).Select(post => post.Id)];
         _posts = new PostList(this, [.. pinned ?? [], .. posts]);
@@ -60,7 +66,12 @@ public sealed class AccountScreen : Screen
     }
 
     /// <inheritdoc />
-    public override string Crumb => $"@{Account.Address}";
+    /// <remarks>
+    ///     The widened run says so, the way a follow list's crumb says its side: two screens that draw different runs
+    ///     under one crumb would leave the breadcrumb unable to say where the reader is (#229). Posts alone keeps the
+    ///     bare handle, being what the screen is about before it is about anything they wrote.
+    /// </remarks>
+    public override string Crumb => WithReplies ? $"@{Account.Address} posts and replies" : $"@{Account.Address}";
 
     /// <inheritdoc />
     /// <remarks>
@@ -78,6 +89,7 @@ public sealed class AccountScreen : Screen
                 new KeyHint("M", Says(Account.Standing?.Muting, "unmute", "mute")),
                 new KeyHint("B", Says(Account.Standing?.Blocking, "unblock", "block")),
                 new KeyHint("w", "follows"),
+                new KeyHint("s", WithReplies ? "posts" : "posts and replies"),
                 Refreshing,
             ],
             new KeyHint("esc", "back"));
@@ -117,6 +129,12 @@ public sealed class AccountScreen : Screen
     ///     the screen holds which of the two it was handed, and neither costs a row it cannot honestly fill.
     /// </summary>
     public IReadOnlyList<Account>? Familiar { get; }
+
+    /// <summary>
+    ///     Whether the run under the pinned one is their <b>Posts and replies</b> rather than their posts alone — which
+    ///     <c>s</c> swaps and <c>g</c> re-asks (#229).
+    /// </summary>
+    public bool WithReplies { get; }
 
     /// <inheritdoc />
     /// <remarks>
@@ -197,7 +215,7 @@ public sealed class AccountScreen : Screen
 
         // No blank of its own above the divider: the divider is a separator, and whatever stands above it — the header
         // block's last section, or the rule after the last pinned post — has already brought one (ADR-0019).
-        lines.Add(Heading("── their posts ──", width));
+        lines.Add(Heading(WithReplies ? "── their posts and replies ──" : "── their posts ──", width));
         lines.Add(Line.Blank);
 
         if (_posts.Count == pinned)

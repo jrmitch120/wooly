@@ -39,6 +39,13 @@ public enum Verb
     /// </summary>
     SwapSide,
 
+    /// <summary>
+    ///     <c>s</c> on an account screen: their posts and replies, or back to their posts alone, in place. A sibling
+    ///     of <see cref="SwapSide" /> rather than the same verb, because a timeline has no sides — one verb meaning
+    ///     both would be a name true of neither (#229).
+    /// </summary>
+    SwapReplies,
+
     /// <summary><c>f</c> on a follow list: opens the prompt that narrows it.</summary>
     Filter,
 
