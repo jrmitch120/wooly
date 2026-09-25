@@ -196,7 +196,7 @@ public class StatusRowTests
             keys,
             notice: null,
             noticeIsError: false,
-            new Confirmation("Delete this post?"),
+            new Confirmation("Delete this post?", Pressing.Nothing),
             80);
 
         Assert.Equal(" Only your own posts can be deleted.", notice.Text);

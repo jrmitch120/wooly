@@ -1,3 +1,4 @@
+using Wooly.Core.Relationships;
 using Wooly.Tui.Shell;
 
 namespace Wooly.Tests.Tui;
@@ -18,4 +19,15 @@ internal static class Pressing
     /// <returns>Whether the press was used, which is <see cref="Shell.Do" />'s own answer.</returns>
     public static bool Press(this Shell shell, ShellKey key) =>
         shell.Do(Keymap.Means(key, shell.Screen), Keymap.Answer(key));
+
+    /// <summary>The capital that puts <paramref name="tie" /> on or takes it off.</summary>
+    public static ShellKey Tying(AccountTie tie) => tie switch
+    {
+        AccountTie.Follow => ShellKey.CapitalF,
+        AccountTie.Mute => ShellKey.CapitalM,
+        _ => ShellKey.CapitalB,
+    };
+
+    /// <summary>What a confirmation that is only ever drawn, and never agreed to, goes ahead with.</summary>
+    public static Task Nothing() => Task.CompletedTask;
 }

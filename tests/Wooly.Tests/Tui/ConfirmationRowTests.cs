@@ -20,10 +20,10 @@ public class ConfirmationRowTests
 
     private static Confirmation Of(string asked) => asked switch
     {
-        "delete" => new Confirmation("Delete this post?"),
-        "vote" => new Confirmation("Cast the 3 answers you ticked?", Going: "vote"),
-        "vote-one" => new Confirmation("Cast the answer you ticked?", Going: "vote"),
-        "clear" => new Confirmation("Clear every notification?", Going: "clear"),
+        "delete" => new Confirmation("Delete this post?", Pressing.Nothing),
+        "vote" => new Confirmation("Cast the 3 answers you ticked?", Pressing.Nothing, Going: "vote"),
+        "vote-one" => new Confirmation("Cast the answer you ticked?", Pressing.Nothing, Going: "vote"),
+        "clear" => new Confirmation("Clear every notification?", Pressing.Nothing, Going: "clear"),
         _ => throw new ArgumentOutOfRangeException(nameof(asked), asked, null),
     };
 
@@ -118,5 +118,5 @@ public class ConfirmationRowTests
     /// </summary>
     [Fact]
     public void AConfirmationBuiltWithOnlyAnAsk_CarriesTheDefaultWarning() =>
-        Assert.Equal("This cannot be undone.", new Confirmation("Delete this post?").Warning);
+        Assert.Equal("This cannot be undone.", new Confirmation("Delete this post?", Pressing.Nothing).Warning);
 }

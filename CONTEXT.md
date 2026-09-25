@@ -360,7 +360,8 @@ comes out. One place rather than four, because the contract `docs/tui-shell.md` 
 window's frame keys, the same window's content keys, a shell method for the four whose meaning collides by screen, and
 a type test scoping the two a compose screen alone takes — and none of the four was the contract (#147). It is the only
 thing in the TUI that names a screen type to decide what a key means, which is what lets the window stop at
-translating a press and the shell stop at carrying a verb out.
+translating a press and the shell stop at carrying a verb out — or, for a verb that is one screen's own, handing it to
+that screen to carry out through its **Reach** (#232).
 A **ShellKey** is a key as this project names it rather than as a terminal delivers it, so that every binding is
 assertable with no `Window` in the room; a **Verb** is what a reader is asking for, named for that rather than for the
 method that answers it. Ten verbs are the window's, being the ones that need a page, an editor widget or a run loop.
@@ -370,6 +371,16 @@ press and one source would make that untestable. And whether a press was *used* 
 digits are consumed only where there is something to walk or toggle — relayed as the bool `Shell.Do` returns, since
 only the screen knows what is on the post.
 _Avoid_: binding, shortcut, command (which is the CLI's word for what it runs)
+
+**Reach**:
+What a **screen** can reach of the shell while it carries out a verb of its own (`Screen.Answer`, #232): the profile and
+the ports, one way of asking an **instance** (through the shell's **Enquiry**, stale-answer rule and all), pushing a
+screen or swapping a fresh one into its own place, opening an account, a hashtag, a post or a **Follow list**, saying
+something on the status row, asking before going ahead, and the plain cache and badge calls. Nothing of the stack,
+the rail or the caches beyond that. Narrow on purpose: a verb that needs more is a sign it is not screen-local, and the
+thing to do is say so rather than widen it. Concrete rather than an interface, because the shell is the only thing
+that builds one.
+_Avoid_: context, services, host (which is `IShellHost`, the terminal's side of the shell)
 
 **Picked**:
 Which of the things on a screen the reader has walked to with `j` and `k`, and what every key that acts on something

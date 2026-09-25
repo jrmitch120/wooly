@@ -50,7 +50,7 @@ public class AccountPostsAndRepliesTests
         var (fakes, shell) = await OnTheAccountScreen();
         var depth = shell.Depth;
 
-        await shell.SwapPostsAndReplies();
+        shell.Press(ShellKey.S);
         fakes.Host.Drain();
 
         var screen = Assert.IsType<AccountScreen>(shell.Screen);
@@ -71,9 +71,9 @@ public class AccountPostsAndRepliesTests
         var (fakes, shell) = await OnTheAccountScreen();
         var depth = shell.Depth;
 
-        await shell.SwapPostsAndReplies();
+        shell.Press(ShellKey.S);
         fakes.Host.Drain();
-        await shell.SwapPostsAndReplies();
+        shell.Press(ShellKey.S);
         fakes.Host.Drain();
 
         var screen = Assert.IsType<AccountScreen>(shell.Screen);
@@ -98,7 +98,7 @@ public class AccountPostsAndRepliesTests
         shell.Screen.Move(1);
         Assert.NotNull(shell.Screen.Picked);
 
-        await shell.SwapPostsAndReplies();
+        shell.Press(ShellKey.S);
         fakes.Host.Drain();
 
         Assert.Null(shell.Screen.Picked);
@@ -113,7 +113,7 @@ public class AccountPostsAndRepliesTests
     {
         var (fakes, shell) = await OnTheAccountScreen(pinned: [Reply]);
 
-        await shell.SwapPostsAndReplies();
+        shell.Press(ShellKey.S);
         fakes.Host.Drain();
 
         var screen = Assert.IsType<AccountScreen>(shell.Screen);
@@ -128,7 +128,7 @@ public class AccountPostsAndRepliesTests
     {
         var (fakes, shell) = await OnTheAccountScreen();
 
-        await shell.SwapPostsAndReplies();
+        shell.Press(ShellKey.S);
         fakes.Host.Drain();
 
         var reads = fakes.Timelines.Reads.Count;
@@ -154,7 +154,7 @@ public class AccountPostsAndRepliesTests
         var shell = await fakes.Opened();
         var reads = fakes.Timelines.Reads.Count;
 
-        await shell.SwapPostsAndReplies();
+        shell.Press(ShellKey.S);
         fakes.Host.Drain();
 
         Assert.IsNotType<AccountScreen>(shell.Screen);

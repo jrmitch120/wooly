@@ -83,7 +83,7 @@ public class ShellNotificationTests
         opened.Step(ToNotifications);
         shell.Host.Settle();
 
-        opened.AskToClear();
+        opened.Press(ShellKey.CapitalD);
 
         Assert.NotNull(opened.Asking);
         Assert.Equal(Confirmation.CannotBeUndone, opened.Asking.Warning);
@@ -109,7 +109,7 @@ public class ShellNotificationTests
         opened.Step(ToNotifications);
         shell.Host.Settle();
 
-        opened.AskToClear();
+        opened.Press(ShellKey.CapitalD);
         await opened.Answer(agreed: false);
 
         Assert.Empty(shell.Notifications.Clearances);
@@ -126,7 +126,7 @@ public class ShellNotificationTests
         opened.Step(ToNotifications);
         shell.Host.Settle();
 
-        opened.AskToClear();
+        opened.Press(ShellKey.CapitalD);
 
         Assert.Null(opened.Asking);
     }
@@ -227,7 +227,7 @@ public class ShellNotificationTests
 
         var reads = shell.Notifications.Reads.Count;
 
-        await opened.Dismiss();
+        opened.Press(ShellKey.D);
 
         opened.Step(1);
         shell.Host.Settle();

@@ -3,6 +3,7 @@ using Wooly.Core.Accounts;
 using Wooly.Core.Posts;
 using Wooly.Core.Search;
 using Wooly.Tui.Rendering;
+using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 
 namespace Wooly.Tui.Screens;
@@ -137,6 +138,100 @@ public sealed class SearchScreen : Screen
 
     /// <inheritdoc />
     public override void Backspace() => Query = Backspaced(Query);
+
+    /// <summary>
+    ///     What this screen's own <c>⏎</c> does: asks the instance for what has been typed while the prompt is taking
+    ///     letters, and opens what is picked out once it has answered.
+    /// </summary>
+    public override Task Answer(Verb verb, Reach reach) => verb switch
+    {
+        Verb.Find => Find(reach),
+        Verb.OpenResult => OpenResult(reach),
+        _ => Task.CompletedTask,
+    };
+
+    /// <summary>Asks the instance for what has been typed into the prompt.</summary>
+    /// <remarks>
+    ///     The search itself is one call, so a rate limit leaves nothing to draw and is waited out rather than
+    ///     half-answered (ADR-0011) — which <see cref="Enquiry" /> already does, and is why this reads like every
+    ///     other fetch. The standing the accounts run is then decorated with is the second call and is not that kind of
+    ///     call: it answers with nothing where it was refused, so a rate limit there costs the suffix and leaves the
+    ///     results standing (<see cref="Searched" />).
+    ///     <para>
+    ///         What was found lands on this screen, the one it was asked from, rather than on whichever prompt is on
+    ///         top when it arrives (#232).
+    ///     </para>
+    /// </remarks>
+    private Task Find(Reach reach)
+    {
+        if (!SearchQuery.IsWellFormed(Query))
+        {
+            // The same words the command turns an empty query down with, so that the two front ends cannot come to
+            // say different things about the same empty value.
+            reach.Say(SearchQuery.Rejection, isError: true);
+
+            return Task.CompletedTask;
+        }
+
+        var query = SearchQuery.For(Query);
+
+        return reach.Put(
+            ask => Searched(ask, reach, query),
+            ifStillHere: found =>
+            {
+                Found(query.Text, found);
+                reach.Changed();
+            });
+    }
+
+    /// <summary>
+    ///     What a search found, with the accounts among it carrying where the reader stands with them — two calls
+    ///     under one enquiry, so the screen paints once with the standings already in place rather than putting
+    ///     results up and decorating them a moment later (#204).
+    /// </summary>
+    /// <remarks>
+    ///     A run of no accounts costs nothing: the port answers an empty ask with its own input before it reaches an
+    ///     instance, so a hashtag-only or post-only search makes the one call it always made. A run that was not
+    ///     asked for at all stays <see langword="null" /> rather than becoming empty — that distinction is the whole
+    ///     reason <see cref="SearchResults" /> exists.
+    ///     <para>
+    ///         Unchunked, unlike the follow list's, because a search's accounts run cannot outgrow one ask: Mastodon
+    ///         caps <c>/api/v2/search</c> at 40 of each kind and the relationships endpoint takes 80 ids. Nothing in
+    ///         this client enforces that cap, so a future instance that served more would make this two calls rather
+    ///         than one — which costs a call and never a wrong row.
+    ///     </para>
+    /// </remarks>
+    private static async Task<SearchResults> Searched(Enquiry.Ask ask, Reach reach, SearchQuery query)
+    {
+        var found = await ask.Of(token => reach.Ports.Search.Find(reach.Profile, query, token));
+
+        return found.Accounts is { } accounts
+            ? found with { Accounts = await ask.Of(token => reach.Ports.StoodOrSilent(reach.Profile, accounts, token)) }
+            : found;
+    }
+
+    /// <summary>
+    ///     Opens whatever the search turned up and the reader picked out: an account, a hashtag's timeline, or a post.
+    /// </summary>
+    /// <remarks>
+    ///     A hashtag opens as a screen on the stack rather than as the rail's own hashtag destination. Which tag the
+    ///     rail keeps a place for is a setting the reader wrote down (<c>docs/tui-shell.md</c>), and a search result
+    ///     is not them changing their mind about it.
+    /// </remarks>
+    private Task OpenResult(Reach reach)
+    {
+        if (PickedAccount is { } account)
+        {
+            return reach.OpenAccount(AccountAddress.Parse(account.Address));
+        }
+
+        if (PickedHashtag is { } hashtag)
+        {
+            return reach.OpenTag(hashtag.Name);
+        }
+
+        return Opens is { } post ? reach.OpenPost(post) : Task.CompletedTask;
+    }
 
     /// <summary>
     ///     What the instance answered, which is also what stops the prompt taking letters: from here the keys act on

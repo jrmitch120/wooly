@@ -1,6 +1,7 @@
 using Wooly.Core.Accounts;
 using Wooly.Core.Posts;
 using Wooly.Tui.Rendering;
+using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 
 namespace Wooly.Tui.Screens;
@@ -11,9 +12,10 @@ namespace Wooly.Tui.Screens;
 ///     reading.
 /// </summary>
 /// <remarks>
-///     A screen holds its own state and says what it draws, and nothing more: it reaches no port and knows about no
-///     instance. What a keypress means is the shell's, because the shell is what has the ports — which also means
-///     every screen here can be drawn, moved around and asserted on with no terminal and no network.
+///     A screen holds its own state and says what it draws, and carries out the keys that are its alone
+///     (<see cref="Answer" />). What a key <em>means</em> is <see cref="Keymap" />'s, and a screen reaches an instance
+///     only through the <see cref="Reach" /> it is handed while it answers one — which also means every screen here can
+///     be drawn, moved around and asserted on with no terminal and no network.
 /// </remarks>
 public abstract class Screen
 {
@@ -142,6 +144,27 @@ public abstract class Screen
     ///     shell — goes looking for.
     /// </remarks>
     public virtual bool Refreshes => false;
+
+    /// <summary>
+    ///     Carries out <paramref name="verb" />, where it is one of this screen's own: what its keys do, in the file
+    ///     that says what its keys are (#232).
+    /// </summary>
+    /// <remarks>
+    ///     Nothing by default, and nothing answered back. <see cref="Keymap" /> has already settled which verbs a
+    ///     screen is sent (#147), so a verb arriving here is either this screen's or one bound on every screen — a
+    ///     capital tie on a feed — that a screen with nothing for it does nothing with. The frame's verbs and the ones
+    ///     that act on the picked post of any screen never arrive: the shell carries those out itself.
+    /// </remarks>
+    /// <param name="verb">What the key meant here.</param>
+    /// <param name="reach">What of the shell this screen may reach while it answers.</param>
+    public virtual Task Answer(Verb verb, Reach reach) => Task.CompletedTask;
+
+    /// <summary>
+    ///     Lets a filter go, which <c>esc</c> does before it pops — a narrowed list being a level of its own inside a
+    ///     screen the way a reference pick and an uncast vote are (#180).
+    /// </summary>
+    /// <returns>Whether there was one, which is what settles whether <c>esc</c> was spent on it.</returns>
+    public virtual bool ClearFilter() => false;
 
     /// <summary>
     ///     The post the reader has picked out, or <see langword="null" /> where this screen has no posts on it. What

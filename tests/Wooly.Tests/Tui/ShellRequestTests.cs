@@ -179,7 +179,7 @@ public class ShellRequestTests
         opened.Step(ToRequests);
         shell.Host.Settle();
 
-        await opened.AnswerRequest(accepted: true);
+        opened.Press(ShellKey.A);
 
         Assert.Empty(shell.Accounts.Answers);
     }

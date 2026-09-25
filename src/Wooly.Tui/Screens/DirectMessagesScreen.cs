@@ -1,6 +1,7 @@
 using Wooly.Core.Conversations;
 using Wooly.Core.Posts;
 using Wooly.Tui.Rendering;
+using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 
 namespace Wooly.Tui.Screens;
@@ -76,6 +77,23 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
     ///     anywhere else (#83).
     /// </remarks>
     protected override Post? Referencing => PickedConversation?.Latest;
+
+    /// <summary>
+    ///     What this screen's own <c>⏎</c> does: opens the picked conversation — the thread its last post is in, oldest
+    ///     first. Named by the conversation's own id, which is not the id of any post in it (CONTEXT.md).
+    /// </summary>
+    /// <remarks>
+    ///     Reading one does not mark it read (ADR-0013). A client that cleared the mark on the way past would make
+    ///     "what have I not read" unanswerable for anything that looked afterwards, so <c>m</c> is what takes it off and
+    ///     nothing else does.
+    /// </remarks>
+    public override Task Answer(Verb verb, Reach reach) => (verb, PickedConversation) switch
+    {
+        (Verb.OpenConversation, { } picked) => reach.Put(
+            ask => ask.Of(token => reach.Ports.Messages.Show(reach.Profile, picked.Id, token)),
+            ifStillHere: thread => reach.Push(new ConversationScreen(thread))),
+        _ => Task.CompletedTask,
+    };
 
     /// <summary>
     ///     Puts <paramref name="conversation" /> in place of the copy this screen is holding, once it has changed —

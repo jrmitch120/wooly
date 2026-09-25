@@ -2,6 +2,7 @@ using Wooly.Core.Accounts;
 using Wooly.Core.Posts;
 using Wooly.Core.Relationships;
 using Wooly.Tui.Rendering;
+using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 
 namespace Wooly.Tui.Screens;
@@ -153,6 +154,38 @@ public sealed class AccountScreen : Screen
     /// </remarks>
     protected override IReferring? Referring =>
         _walking.OnHeader ? new HeaderReferences(Account) : base.Referring;
+
+    /// <summary>
+    ///     What this screen's own keys do: the three ties, <c>w</c> for everyone they follow, and <c>s</c> between
+    ///     their posts and their posts and replies.
+    /// </summary>
+    /// <remarks>
+    ///     <c>w</c> opens the following side rather than the followers, that being the one a reader is likelier to have
+    ///     come for on somebody else's profile — and either way the other side is one <c>s</c> away (#180).
+    ///     <para>
+    ///         <c>s</c> swaps in place: same stack, new crumb, the pick back on the header block — the follow list's
+    ///         swap made over one account's timeline, and for its reason, since a toggle that pushed would grow the
+    ///         stack on every flip. The whole screen is read again rather than its timeline alone, being the same
+    ///         calls <c>g</c> makes with the other run named: an account screen is one reading, and a second way of
+    ///         assembling one is a second opinion about what it is made of (#84, #229).
+    ///     </para>
+    /// </remarks>
+    public override Task Answer(Verb verb, Reach reach) => verb switch
+    {
+        Verb.Follow => Tying.Toggle(reach, Account, AccountTie.Follow),
+        Verb.Mute => Tying.Toggle(reach, Account, AccountTie.Mute),
+        Verb.Block => Tying.Toggle(reach, Account, AccountTie.Block),
+        Verb.OpenFollows => reach.OpenFollows(Account, FollowSide.Following, replacing: false),
+        Verb.SwapPostsAndReplies => reach.Put(
+            ask => AccountReading.Read(
+                ask,
+                reach.Ports,
+                reach.Profile,
+                AccountAddress.Parse(Account.Address),
+                !WithReplies),
+            ifStillHere: read => reach.Swap(this, read.Screen())),
+        _ => Task.CompletedTask,
+    };
 
     /// <summary>
     ///     Whether the tie <paramref name="tie" /> names is in place, which is what settles whether pressing its key
