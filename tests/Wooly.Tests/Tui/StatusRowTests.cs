@@ -151,7 +151,7 @@ public class StatusRowTests
         var row = Row(Of("account"), 80);
 
         Assert.Contains(row.Spans, span => span is { Role: Role.Muted } && span.Text.StartsWith('…'));
-        Assert.All(row.Spans, span => Assert.Contains(span.Role, new[] { Role.Chrome, Role.Muted }));
+        Assert.All(row.Spans, span => Assert.Contains(span.Role, new[] { Role.Chrome, Role.Key, Role.Muted }));
     }
 
     /// <summary>Resizing narrower only ever takes hints off the tail of what is drawn: nothing reshuffles.</summary>

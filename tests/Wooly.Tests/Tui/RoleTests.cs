@@ -495,9 +495,9 @@ public partial class RoleTests
         Assert.Contains("⏎:read", keys.Text);
         Assert.Contains("a:author", keys.Text);
 
-        // The key stays Chrome and the explanation takes Muted — the split #66 draws them in — rather than one role
-        // for the whole row.
-        Assert.Contains(keys.Spans, span => span is { Role: Role.Chrome, Text: "⏎" });
+        // The key takes Key and the explanation Muted — the split #66 draws them in, in the role #221 gave a key —
+        // rather than one role for the whole row.
+        Assert.Contains(keys.Spans, span => span is { Role: Role.Key, Text: "⏎" });
         Assert.Contains(keys.Spans, span => span is { Role: Role.Muted, Text: ":read" });
     }
 

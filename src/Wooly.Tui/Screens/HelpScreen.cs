@@ -47,14 +47,21 @@ public sealed class HelpScreen(Screen about) : Screen
     }
 
     /// <summary>The key in one column and what it does in the next, so a reader can scan down either.</summary>
+    /// <remarks>
+    ///     The key takes <see cref="Role.Key" /> and the padding after it does not (#221): a themer who gives
+    ///     <c>key</c> a background would otherwise get a band across every row rather than a highlighted key.
+    /// </remarks>
     private static Line Row(KeyHint key, int width)
     {
         const int keyColumn = 16;
-        var padded = Glyphs.Padded(key.Key, keyColumn);
+        var columns = Glyphs.Columns(key.Key);
+        var spacer = new string(' ', Math.Max(0, keyColumn - columns));
+        var used = columns + spacer.Length;
 
         return Line.Of([
-            new Span(padded, Role.BylineHandle),
-            new Span(TextWrap.Clip(key.Does, Math.Max(0, width - Glyphs.Columns(padded))), Role.Body),
+            new Span(key.Key, Role.Key),
+            new Span(spacer, Role.Body),
+            new Span(TextWrap.Clip(key.Does, Math.Max(0, width - used)), Role.Body),
         ]);
     }
 }

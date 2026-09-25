@@ -166,13 +166,23 @@ public static class ChromeLines
     {
         if (asking is { } question)
         {
-            var answer = $"  {question.Confirm} {question.Going} · esc keep";
+            // The two keys take the role a key has and the words beside them do not (#221): these are the columns
+            // #219 reserved as the ones that must never be cut, and the keys in them are the ones a reader presses.
+            IReadOnlyList<Span> answer =
+            [
+                new Span("  ", Role.Chrome),
+                new Span(question.Confirm, Role.Key),
+                new Span($" {question.Going}", Role.Muted),
+                new Span(" · ", Role.Chrome),
+                new Span("esc", Role.Key),
+                new Span(" keep", Role.Muted),
+            ];
 
             // The answer's columns are reserved first. A row narrower than the answer alone is narrower than the shell
             // draws: the question gets no room at all there, and the answer is clipped rather than left blank.
             return Line.Of([
-                new Span(Asked(question, width - Glyphs.Columns(answer)), Role.Destructive),
-                new Span(TextWrap.Clip(answer, width), Role.Muted),
+                new Span(Asked(question, width - answer.Sum(span => span.Width)), Role.Destructive),
+                .. Clipped(answer, width),
             ]);
         }
 
