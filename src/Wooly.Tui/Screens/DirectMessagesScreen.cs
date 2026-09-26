@@ -93,28 +93,42 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
         _ => Task.CompletedTask,
     };
 
-    /// <summary>
-    ///     Puts <paramref name="conversation" /> in place of the copy this screen is holding, once it has changed —
-    ///     marked read, or spoken in again from the thread it opened onto.
-    /// </summary>
-    public void Marked(Conversation conversation) =>
-        _conversations.Rewrite(held => held.Id == conversation.Id ? conversation : held);
-
     /// <inheritdoc />
     /// <remarks>
     ///     A mark put on a message in the thread shows on the row the thread was opened from: the two screens are on
-    ///     the stack together, and the shell hands a changed post to both.
+    ///     the stack together, and both hear it. A message deleted leaves its conversation standing without a last
+    ///     post, which is what a conversation whose posts have been taken down looks like — it is still there to be
+    ///     read or written to, and saying so is more honest than dropping it. A reply to a conversation's last post is
+    ///     its last post now; a reply to anything older in it moves the row only at the next read, a row knowing no
+    ///     more of its thread than the one post it shows.
     /// </remarks>
-    public override void Replace(Post post) =>
-        _conversations.Rewrite(held => held.Latest?.Id == post.Id ? held with { Latest = post } : held);
+    public override bool Heard(Change change)
+    {
+        switch (change)
+        {
+            case Change.PostChanged(var post):
+                _conversations.Rewrite(held => held.Latest?.Id == post.Id ? held with { Latest = post } : held);
 
-    /// <inheritdoc />
-    /// <remarks>
-    ///     The conversation stays and loses its last post, which is what a conversation whose posts have been taken
-    ///     down looks like — it is still there to be read or written to, and saying so is more honest than dropping it.
-    /// </remarks>
-    public override void Remove(string postId) =>
-        _conversations.Rewrite(held => held.Latest?.Id == postId ? held with { Latest = null } : held);
+                break;
+
+            case Change.PostGone(var id):
+                _conversations.Rewrite(held => held.Latest?.Id == id ? held with { Latest = null } : held);
+
+                break;
+
+            case Change.PostSent(var post) when post.InReplyTo?.PostId is { } answering:
+                _conversations.Rewrite(held => held.Latest?.Id == answering ? held with { Latest = post } : held);
+
+                break;
+
+            case Change.ConversationMarked(var marked):
+                _conversations.Rewrite(held => held.Id == marked.Id ? marked : held);
+
+                break;
+        }
+
+        return false;
+    }
 
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(Drawing drawing)

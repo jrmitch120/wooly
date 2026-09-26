@@ -77,14 +77,9 @@ public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string?
         // arrive back at the id already in hand (ADR-0012).
         reach.Put(
             ask => ask.Of(token => reach.Ports.Accounts.Answer(reach.Profile, picked.Id, accepted, token)),
-            eitherWay: _ =>
-            {
-                // Whether or not the reader is still here: the request was answered on the instance, and the badge and
-                // the list under it are one fact about that rather than about where anybody is standing (#233).
-                reach.Forget(new Subject.Destination(DestinationKind.Requests));
-                Answered(picked.Id);
-                reach.Count(DestinationKind.Requests, Waiting.Count);
-            },
+            // Whether or not the reader is still here: the request was answered on the instance, and what that makes
+            // stale is a fact about the instance rather than about where anybody is standing (#233, #234).
+            eitherWay: _ => reach.Tell(new Change.RequestAnswered(picked.Id)),
             ifStillHere: _ =>
             {
                 reach.Say(
@@ -92,8 +87,17 @@ public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string?
                     isError: false);
             });
 
-    /// <summary>Takes the account <paramref name="accountId" /> names off the list, once their request was answered.</summary>
-    public void Answered(string accountId) => _waiting.Remove(account => account.Id == accountId);
+    /// <inheritdoc />
+    /// <remarks>Whoever was answered comes off the list, their request being no longer waiting on anybody.</remarks>
+    public override bool Heard(Change change)
+    {
+        if (change is Change.RequestAnswered(var id))
+        {
+            _waiting.Remove(account => account.Id == id);
+        }
+
+        return false;
+    }
 
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(Drawing drawing)

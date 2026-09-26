@@ -1,4 +1,3 @@
-using Wooly.Core.Accounts;
 using Wooly.Core.Posts;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Shell;
@@ -559,28 +558,20 @@ public abstract class Screen
     private OnShow Showing(Post post) => OnShow.Of(post, Revealed.Has(post));
 
     /// <summary>
-    ///     Puts <paramref name="post" /> in place of the copy this screen is holding, after a mark changed it. What
-    ///     stops a star lighting up only once the whole timeline has been fetched again.
-    /// </summary>
-    public virtual void Replace(Post post)
-    {
-    }
-
-    /// <summary>Takes the post <paramref name="postId" /> names off this screen, after it was deleted.</summary>
-    public virtual void Remove(string postId)
-    {
-    }
-
-    /// <summary>
-    ///     Puts <paramref name="account" /> in place of the copy this screen is holding, after a tie changed where the
-    ///     profile stands with them. What stops a follow reading as un-followed until the screen is opened again.
+    ///     Hears what changed on the instance, and puts right whatever of it this screen is holding: a post marked or
+    ///     taken down, an account tied, a notification dismissed. What stops a star lighting up only once the whole
+    ///     timeline has been fetched again.
     /// </summary>
     /// <remarks>
-    ///     Beside <see cref="Replace(Post)" /> and for its reason: two screens can be holding the same account at once
-    ///     — Discover, and the account screen opened from a row on it — so a tie made on the upper one must reach the
-    ///     lower, or <c>esc</c> lands back on a row saying the opposite of what is true (#181).
+    ///     Every screen on the stack hears every change, and not only the one on top: two screens are often holding
+    ///     the same thing at once — Discover and the account opened from a row on it, a list of conversations and the
+    ///     thread opened from it — so a change made on the upper one must reach the lower, or <c>esc</c> lands back on
+    ///     a row saying the opposite of what is true (#181, #234). What changed is <see cref="Change" />'s to say, and
+    ///     what goes stale beyond the stack is <see cref="Arrival.Apply" />'s.
     /// </remarks>
-    public virtual void Stands(Account account)
-    {
-    }
+    /// <returns>
+    ///     Whether this screen is now about nothing — a post screen whose post was deleted — which takes it off the
+    ///     stack.
+    /// </returns>
+    public virtual bool Heard(Change change) => false;
 }

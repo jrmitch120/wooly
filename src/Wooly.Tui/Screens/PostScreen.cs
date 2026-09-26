@@ -1,5 +1,6 @@
 using Wooly.Core.Posts;
 using Wooly.Tui.Rendering;
+using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 
 namespace Wooly.Tui.Screens;
@@ -29,7 +30,7 @@ public sealed class PostScreen : Screen
     /// </summary>
     /// <remarks>
     ///     The id rather than the post, because the copy being held is rewritten as marks land on it
-    ///     (<see cref="Replace" />) — and rather than the index, because <see cref="Remove" /> can take a post off
+    ///     (<see cref="Heard" />) — and rather than the index, because a deletion heard there can take a post off
     ///     above this one. Both of the places index 0 used to stand for the subject were wrong the moment anything was
     ///     drawn above it.
     /// </remarks>
@@ -91,7 +92,7 @@ public sealed class PostScreen : Screen
     /// </summary>
     /// <remarks>
     ///     Worked out afresh rather than counted once at construction, because a deletion takes a post off the list
-    ///     and everything below it moves up. The post itself never goes — <see cref="Remove" /> keeps it — so the
+    ///     and everything below it moves up. The post itself never goes — <see cref="Heard" /> keeps it — so the
     ///     search always finds it, and a boost of it is named by its own id, which is the id the row carries.
     ///     <para>
     ///         The top of the list where it somehow does not: a screen that has lost the post it is about is a screen
@@ -117,16 +118,32 @@ public sealed class PostScreen : Screen
     protected override IPicked Walking => _posts;
 
     /// <inheritdoc />
-    public override void Replace(Post post) => _posts.Replace(post);
-
-    /// <inheritdoc />
     /// <remarks>
-    ///     Anything on the thread but the post itself: an ancestor deleted goes the same way an answer does, and the
-    ///     rows below it move up. A post screen showing a post that is no longer there is a screen about nothing, and
-    ///     the shell walks out of it rather than leaving this one to draw a thread with no head to it — which is also
-    ///     what keeps <see cref="Head" /> able to find it.
+    ///     Anything deleted off the thread but the post itself: an ancestor deleted goes the same way an answer does,
+    ///     and the rows below it move up. A post screen showing a post that is no longer there is a screen about
+    ///     nothing, and says so, so that the shell walks out of it rather than leaving this one to draw a thread with
+    ///     no head to it — which is also what keeps <see cref="Head" /> able to find it.
     /// </remarks>
-    public override void Remove(string postId) => _posts.Remove(postId, Post);
+    public override bool Heard(Change change)
+    {
+        switch (change)
+        {
+            case Change.PostChanged(var post):
+                _posts.Replace(post);
+
+                break;
+
+            case Change.PostGone(var id) when (Post.Boosted ?? Post).Id == id:
+                return true;
+
+            case Change.PostGone(var id):
+                _posts.Remove(id, Post);
+
+                break;
+        }
+
+        return false;
+    }
 
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(Drawing drawing)

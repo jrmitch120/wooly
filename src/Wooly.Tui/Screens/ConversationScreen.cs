@@ -1,6 +1,7 @@
 using Wooly.Core.Conversations;
 using Wooly.Core.Posts;
 using Wooly.Tui.Rendering;
+using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 
 namespace Wooly.Tui.Screens;
@@ -74,10 +75,41 @@ public sealed class ConversationScreen : Screen
     }
 
     /// <inheritdoc />
-    public override void Replace(Post post) => _posts.Replace(post);
+    /// <remarks>
+    ///     A post sent in answer to anything in the thread is the thread's own, and goes on the end of it — so a reply
+    ///     written here lands where the reader is looking rather than only in the next read of the conversation.
+    /// </remarks>
+    public override bool Heard(Change change)
+    {
+        switch (change)
+        {
+            case Change.PostChanged(var post):
+                _posts.Replace(post);
 
-    /// <inheritdoc />
-    public override void Remove(string postId) => _posts.Remove(postId);
+                break;
+
+            case Change.PostGone(var id):
+                _posts.Remove(id);
+
+                break;
+
+            case Change.PostSent(var post) when Answers(post):
+                Said(post);
+
+                break;
+
+            case Change.ConversationMarked(var marked) when marked.Id == Conversation.Id:
+                Marked(marked);
+
+                break;
+        }
+
+        return false;
+    }
+
+    /// <summary>Whether <paramref name="post" /> answers something said in this thread.</summary>
+    private bool Answers(Post post) =>
+        post.InReplyTo?.PostId is { } answering && _posts.All.Any(said => said.Id == answering);
 
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(Drawing drawing)

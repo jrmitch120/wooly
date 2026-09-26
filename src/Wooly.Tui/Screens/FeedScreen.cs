@@ -66,10 +66,23 @@ public sealed class FeedScreen : Screen
     protected override IPicked Walking => _posts;
 
     /// <inheritdoc />
-    public override void Replace(Post post) => _posts.Replace(post);
+    public override bool Heard(Change change)
+    {
+        switch (change)
+        {
+            case Change.PostChanged(var post):
+                _posts.Replace(post);
 
-    /// <inheritdoc />
-    public override void Remove(string postId) => _posts.Remove(postId);
+                break;
+
+            case Change.PostGone(var id):
+                _posts.Remove(id);
+
+                break;
+        }
+
+        return false;
+    }
 
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(Drawing drawing)

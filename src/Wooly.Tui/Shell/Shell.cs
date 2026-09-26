@@ -61,9 +61,6 @@ public sealed class Shell
     /// </summary>
     private readonly IWebBrowser _browser;
 
-    /// <summary>What each cached subject last held: the rail's destinations, and follow lists held whole.</summary>
-    private readonly SubjectCache _cache;
-
     /// <summary>Everything this reaches an instance through, and the one place the stale-answer rule is stated.</summary>
     private readonly Enquiry _enquiry;
 
@@ -88,8 +85,6 @@ public sealed class Shell
         _ports = ports;
         _host = host;
         _browser = browser;
-        _cache = new SubjectCache(clock, timing.CacheFor);
-
         // Asked from whatever is on top, which is the whole of the stale-answer rule: an answer lands only while the
         // screen it was asked from is still in front of the reader.
         _enquiry = new Enquiry(host, clock, timing.CountdownStep, timing.MarkStep, () => Screen);
@@ -97,16 +92,25 @@ public sealed class Shell
         _enquiry.Changed += () => Changed?.Invoke();
         _enquiry.Ticked += () => Ticked?.Invoke();
 
-        // An arrival settles what a subject is on screen and what its badge says; putting either there is this
-        // shell's own business, since the stack and the rail are its.
-        _arrival = new Arrival(profile, ports, _enquiry, _cache);
+        Rail = new Rail(Destinations(profile, hashtag), host, timing.Settle);
+
+        // An arrival settles what a subject is on screen and what its badge says, and a change what goes stale;
+        // putting any of it there is this shell's own business, since the stack and the rail are its.
+        _arrival = new Arrival(
+            profile,
+            ports,
+            _enquiry,
+            new SubjectCache(clock, timing.CacheFor),
+            showing: () => Rail.Showing.Kind);
+
         _arrival.Arrives += Reset;
         _arrival.Drills += Push;
         _arrival.Refreshes += Freshened;
         _arrival.Filled += () => Say(null, isError: false);
         _arrival.Counts += Counted;
+        _arrival.Moves += Moved;
+        _arrival.Heard += Heard;
 
-        Rail = new Rail(Destinations(profile, hashtag), host, timing.Settle);
         Rail.Selected += destination => _ = _arrival.At(destination);
         Rail.Changed += () => Changed?.Invoke();
 
@@ -117,12 +121,9 @@ public sealed class Shell
             ports,
             _enquiry,
             _arrival,
-            _cache,
             say: Say,
             confirm: Confirm,
-            changed: () => Changed?.Invoke(),
-            count: Counted,
-            stands: Stands);
+            changed: () => Changed?.Invoke());
     }
 
     /// <summary>Raised whenever anything on screen has changed. Always on the drawing thread.</summary>
@@ -624,12 +625,8 @@ public sealed class Shell
 
         await _enquiry.Put(
             ask => ask.Of(token => _ports.Messages.MarkRead(_profile, conversation.Id, token)),
-            eitherWay: _ => _cache.Forget(new Subject.Destination(DestinationKind.Messages)),
-            ifStillHere: marked =>
-            {
-                Replace(marked);
-                Say("Marked as read.", isError: false);
-            });
+            eitherWay: marked => Tell(new Change.ConversationMarked(marked)),
+            ifStillHere: _ => Say("Marked as read.", isError: false));
     }
 
     /// <summary>Shows the current screen's keymap, which is itself a place in the stack.</summary>
@@ -663,7 +660,7 @@ public sealed class Shell
 
         await _enquiry.Put(
             ask => ask.Of(token => _ports.Engagement.Mark(_profile, about.Id, mark, !about.Marks.Has(mark), token)),
-            eitherWay: marked => Replace(marked));
+            eitherWay: marked => Tell(new Change.PostChanged(marked)));
     }
 
     /// <summary>Opens an editor answering the picked post.</summary>
@@ -791,7 +788,7 @@ public sealed class Shell
                     eitherWay: saved =>
                     {
                         Popped();
-                        Replace(saved);
+                        Tell(new Change.PostChanged(saved));
                         Say("Saved.", isError: false);
                     });
 
@@ -802,31 +799,19 @@ public sealed class Shell
                     ask => ask.Of(token => _ports.Author.Publish(_profile, draft, token)),
                     eitherWay: published =>
                     {
+                        // A reply written in a conversation goes on the end of it, which the conversation hears for
+                        // itself: what it answers is in the thread.
                         Popped();
-
-                        if (compose.Purpose == ComposeFor.Reply && Screen is ConversationScreen conversation)
-                        {
-                            // A conversation is read in the order it was said in, so what was just said belongs at the
-                            // end of it — otherwise a reply written in the thread appears nowhere until the
-                            // conversation is read again. It is the conversation's last word too, which is what the
-                            // row it was opened from shows.
-                            conversation.Said(published);
-                            Replace(conversation.Conversation);
-                        }
-
+                        Tell(new Change.PostSent(published));
                         Say("Sent.", isError: false);
                     });
 
                 break;
         }
 
-        // What both arms do to get back to where the reader was: the compose screen off the stack, and the timeline no
-        // longer worth its age, this client being what changed it.
-        void Popped()
-        {
-            _cache.Forget(new Subject.Destination(Rail.Showing.Kind));
-            _stack.RemoveAt(_stack.Count - 1);
-        }
+        // What both arms do to get back to where the reader was: the compose screen off the stack, before the change
+        // is heard by what is left on it.
+        void Popped() => _stack.RemoveAt(_stack.Count - 1);
     }
 
     /// <summary>The ten, in the order the rail draws them.</summary>
@@ -917,20 +902,7 @@ public sealed class Shell
             ask => ask.Of(token => _ports.Author.Delete(_profile, postId, token)),
             eitherWay: () =>
             {
-                _cache.Forget(new Subject.Destination(Rail.Showing.Kind));
-
-                // Walked out of first, because a post screen showing a post that is no longer there is a screen about
-                // nothing.
-                if (Screen is PostScreen post && (post.Post.Boosted ?? post.Post).Id == postId && _stack.Count > 1)
-                {
-                    _stack.RemoveAt(_stack.Count - 1);
-                }
-
-                foreach (var screen in _stack)
-                {
-                    screen.Remove(postId);
-                }
-
+                Tell(new Change.PostGone(postId));
                 Say("Deleted.", isError: false);
             });
 
@@ -949,8 +921,8 @@ public sealed class Shell
     /// </summary>
     /// <remarks>
     ///     No refetch: Mastodon answers a vote with the complete updated poll, which the port grafts back onto the
-    ///     post — so this is the same <see cref="Replace(Post)" /> a mark already makes, over an answer that cost one
-    ///     call rather than two.
+    ///     post — so this is the same <see cref="Change.PostChanged" /> a mark already reports, over an answer that
+    ///     cost one call rather than two.
     ///     <para>
     ///         The ballot is let go as the vote leaves rather than when it lands. What is on screen from here on is
     ///         what the instance says the poll is, and a refusal is not something a reader can put right by leaving
@@ -969,7 +941,7 @@ public sealed class Shell
             ask => ask.Of(token => _ports.Engagement.Vote(_profile, about, choices, token)),
             eitherWay: voted =>
             {
-                Replace(voted);
+                Tell(new Change.PostChanged(voted));
                 Say("Vote cast.", isError: false);
             });
     }
@@ -1012,7 +984,14 @@ public sealed class Shell
     ///     with the list under it would be the shell arguing with itself.
     /// </summary>
     private void Counted(DestinationKind kind, int unread) =>
-        Rail.Update(Rail.Destinations.First(destination => destination.Kind == kind) with { Unread = unread });
+        Rail.Update(Badged(kind) with { Unread = unread });
+
+    /// <summary>Moves a count on the rail by <paramref name="by" />, and never below nothing (#234).</summary>
+    private void Moved(DestinationKind kind, int by) => Counted(kind, Math.Max(0, Badged(kind).Unread + by));
+
+    /// <summary>The rail's entry for <paramref name="kind" />, badge and all.</summary>
+    private Destination Badged(DestinationKind kind) =>
+        Rail.Destinations.First(destination => destination.Kind == kind);
 
     /// <summary>
     ///     An arm of <see cref="Do" /> that answers at once, as a used key — so that the table there is one shape all
@@ -1177,61 +1156,28 @@ public sealed class Shell
         Changed?.Invoke();
     }
 
+    /// <summary>Says what happened on the instance, which <see cref="Arrival.Apply" /> settles the rest of.</summary>
+    private void Tell(Change change) => _arrival.Apply(change);
+
     /// <summary>
-    ///     The same, for a conversation that has just changed — marked read, or spoken in. The list and the thread
-    ///     opened from it are on the stack together, so a row that still said <c>unread</c> under a thread just marked,
-    ///     or still showed the message before the one just sent, would be the shell arguing with itself.
+    ///     Tells every screen on the stack what changed, and takes off it any that are now about nothing — a post
+    ///     screen whose post was deleted (#234).
     /// </summary>
     /// <remarks>
-    ///     The badge goes with it, because a count and the list under it are one fact (<c>docs/tui-shell.md</c>).
+    ///     Every screen and not only the top one: a list and whatever was opened from a row on it are on the stack
+    ///     together, so a row that still said what the screen above it has just changed would be the shell arguing
+    ///     with itself (#181). Walked from the top, so that a stack down to one screen keeps it — the shell is never
+    ///     left with nothing on it.
     /// </remarks>
-    private void Replace(Conversation conversation)
+    private void Heard(Change change)
     {
-        foreach (var screen in _stack)
+        for (var at = _stack.Count - 1; at >= 0; at--)
         {
-            switch (screen)
+            if (_stack[at].Heard(change) && _stack.Count > 1)
             {
-                case DirectMessagesScreen listed:
-                    listed.Marked(conversation);
-                    Counted(DestinationKind.Messages, listed.Unread);
-
-                    break;
-
-                case ConversationScreen reading when reading.Conversation.Id == conversation.Id:
-                    reading.Marked(conversation);
-
-                    break;
+                _stack.RemoveAt(at);
             }
         }
-
-        Changed?.Invoke();
-    }
-
-    /// <summary>
-    ///     Puts an account whose tie has just changed in place of the copy every screen in the stack is holding.
-    /// </summary>
-    /// <remarks>
-    ///     Every screen and not only the top one, for the reason <see cref="Replace(Conversation)" /> gives: Discover
-    ///     and an account screen opened from a row on it are on the stack together, so a row that still said nothing
-    ///     under a follow just made would be the shell arguing with itself (#181).
-    /// </remarks>
-    private void Stands(Account account)
-    {
-        foreach (var screen in _stack)
-        {
-            screen.Stands(account);
-        }
-    }
-
-    /// <summary>Puts a post that has just changed in place of the copy every screen in the stack is holding.</summary>
-    private void Replace(Post post)
-    {
-        foreach (var screen in _stack)
-        {
-            screen.Replace(post);
-        }
-
-        _cache.Forget(new Subject.Destination(Rail.Showing.Kind));
 
         Changed?.Invoke();
     }

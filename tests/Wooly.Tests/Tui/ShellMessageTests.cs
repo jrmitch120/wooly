@@ -465,7 +465,11 @@ public class ShellMessageTests
             AConversation.With(id: "7"),
             AConversation.DirectPost(id: "110", content: "Are you about?"));
 
-        var sent = APost.With(id: "112", account: "jeff@mastodon.social", content: "All week");
+        var sent = APost.With(
+            id: "112",
+            account: "jeff@mastodon.social",
+            content: "All week",
+            inReplyTo: new PostReplyTarget { PostId = "110" });
 
         var shell = new AShell
         {

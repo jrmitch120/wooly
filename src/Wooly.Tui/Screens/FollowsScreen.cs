@@ -217,6 +217,28 @@ public sealed class FollowsScreen : Screen
         }
     }
 
+    /// <inheritdoc />
+    /// <remarks>
+    ///     A tie put on somebody opened from this list rewrites their row where it stands, so that <c>esc</c> lands
+    ///     back on a row saying what is now true of them (#234). Nobody is added or taken away: the list is still the
+    ///     one the instance served, until it is read again.
+    /// </remarks>
+    public override bool Heard(Change change)
+    {
+        if (change is Change.Tied(var account))
+        {
+            var at = _all.FindIndex(person => person.Id == account.Id);
+
+            if (at >= 0)
+            {
+                _all[at] = account;
+                _walking.Rewrite(person => person.Id == account.Id ? account : person);
+            }
+        }
+
+        return false;
+    }
+
     /// <summary>
     ///     What this list's own keys do: <c>s</c> swaps to the other side, <c>f</c> opens the filter and <c>⏎</c>
     ///     either hands it back to walking or opens whoever is picked out (#180).

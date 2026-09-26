@@ -9,7 +9,8 @@ namespace Wooly.Tui.Shell;
 /// <summary>
 ///     Bringing a screen up from its <see cref="Subject" />, which is one algorithm however many kinds of screen are
 ///     read: put up what stands for it at once, draw what is still fresh or ask for it, keep what came back, put the
-///     screen where the move says, and move the badge (#100, #233).
+///     screen where the move says, and move the badge (#100, #233). And the other side of that: what a change made on
+///     the instance makes stale, which is one table here rather than a guess at every verb (#234).
 /// </summary>
 /// <remarks>
 ///     Three moves bring a screen up — arriving from the rail, drilling in, and refreshing in place — and they differ
@@ -27,12 +28,23 @@ namespace Wooly.Tui.Shell;
 ///         while the screen it was asked from is in front. Which is why a placeholder goes up before its question is
 ///         put — the question is asked from it — and why nothing here counts arrivals.
 ///     </para>
+///     <para>
+///         A badge is set outright by every read of its destination, off the list it is drawn beside, and moved by
+///         the changes between reads (<see cref="Apply" />) — so a dismissal landing after the reader has gone
+///         elsewhere is one fewer, rather than a count taken off a list nobody is holding any more.
+///     </para>
 /// </remarks>
 /// <param name="profile">Whose instance is being asked.</param>
 /// <param name="ports">Everything a subject is read through.</param>
 /// <param name="enquiry">What every question is put under.</param>
 /// <param name="cache">What each cached subject last held, which is what makes walking the rail back free.</param>
-public sealed class Arrival(ActiveProfile profile, ShellPorts ports, Enquiry enquiry, SubjectCache cache)
+/// <param name="showing">Which destination the rail is showing, which a post sent there is on.</param>
+public sealed class Arrival(
+    ActiveProfile profile,
+    ShellPorts ports,
+    Enquiry enquiry,
+    SubjectCache cache,
+    Func<DestinationKind> showing)
 {
     /// <summary>
     ///     How many posts a screen asks for. A timeline's page, which is the most an instance serves in one call — so
@@ -66,6 +78,12 @@ public sealed class Arrival(ActiveProfile profile, ShellPorts ports, Enquiry enq
 
     /// <summary>Raised with what a destination's badge says, for the destinations that carry one.</summary>
     public event Action<DestinationKind, int>? Counts;
+
+    /// <summary>Raised with how far a destination's badge moves, for a change made between reads of it.</summary>
+    public event Action<DestinationKind, int>? Moves;
+
+    /// <summary>Raised with a change, for every screen on the stack to hear (<see cref="Screen.Heard" />).</summary>
+    public event Action<Change>? Heard;
 
     /// <summary>
     ///     What a list that came back with little or nothing on it is told. A rate limit that stopped the read part
@@ -188,6 +206,85 @@ public sealed class Arrival(ActiveProfile profile, ShellPorts ports, Enquiry enq
         showing is { WantsMore: true, Subject: { Pages: true } subject } && !enquiry.Fetching
             ? Read(subject, Move.Page, showing)
             : Task.CompletedTask;
+
+    /// <summary>
+    ///     What <paramref name="change" /> makes stale: the cached lists it is no longer true of, the badge it moves,
+    ///     and every screen on the stack, which hears it (#234).
+    /// </summary>
+    /// <remarks>
+    ///     The cache is asked what it holds rather than told which destination was showing, because a post is on
+    ///     whichever lists it is on: one marked on Home is the same post on a Local list held a minute ago. A sent
+    ///     post is the exception, being on no list yet — so it is Home, which is the profile's own following, and the
+    ///     destination it was sent from. Everything else is its own destination's.
+    ///     <para>
+    ///         A badge moves by what changed and never below nothing, and is set outright again by the next read of
+    ///         its destination — so what the rail says and the list under it are the same fact however they arrived.
+    ///     </para>
+    /// </remarks>
+    public void Apply(Change change)
+    {
+        switch (change)
+        {
+            case Change.PostChanged(var post):
+                cache.Forget(held => held.HoldsPost(post.Id));
+
+                break;
+
+            case Change.PostGone(var id):
+                cache.Forget(held => held.HoldsPost(id));
+
+                break;
+
+            case Change.PostSent:
+                Forget(DestinationKind.Home);
+                Forget(showing());
+
+                break;
+
+            // Home is the profile's own following, so a follow or a block changes what belongs on it — and a mute
+            // changes what belongs on all of them. Discover too, wherever the tie was made: an instance never suggests
+            // somebody already followed or blocked (#181).
+            case Change.Tied(var account):
+                Forget(DestinationKind.Home);
+                Forget(DestinationKind.Discover);
+                cache.Forget(held => held.HoldsAccount(account.Id));
+
+                break;
+
+            case Change.NotificationsGone(var ids):
+                Forget(DestinationKind.Notifications);
+                Moves?.Invoke(DestinationKind.Notifications, -ids.Count);
+
+                break;
+
+            case Change.AllNotificationsGone:
+                Forget(DestinationKind.Notifications);
+                Counts?.Invoke(DestinationKind.Notifications, 0);
+
+                break;
+
+            case Change.RequestAnswered:
+                Forget(DestinationKind.Requests);
+                Moves?.Invoke(DestinationKind.Requests, -1);
+
+                break;
+
+            case Change.SuggestionDismissed:
+                Forget(DestinationKind.Discover);
+
+                break;
+
+            case Change.ConversationMarked:
+                Forget(DestinationKind.Messages);
+                Moves?.Invoke(DestinationKind.Messages, -1);
+
+                break;
+        }
+
+        Heard?.Invoke(change);
+
+        void Forget(DestinationKind kind) => cache.Forget(new Subject.Destination(kind));
+    }
 
     /// <summary>The steps, over whatever <paramref name="subject" /> says it is.</summary>
     /// <remarks>
