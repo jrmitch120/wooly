@@ -22,7 +22,7 @@ public class ShellTieTests
     {
         var (fakes, opened) = await OnTheAccountScreen(AnAccount.Standing());
 
-        await opened.Tie(tie);
+        opened.Press(Pressing.Tying(tie));
         fakes.Host.Drain();
 
         var tied = Assert.Single(fakes.Accounts.Ties);
@@ -40,7 +40,7 @@ public class ShellTieTests
         var standing = AnAccount.Standing(following: true, blocking: true, muting: true);
         var (fakes, opened) = await OnTheAccountScreen(standing);
 
-        await opened.Tie(tie);
+        opened.Press(Pressing.Tying(tie));
         fakes.Host.Drain();
 
         Assert.False(Assert.Single(fakes.Accounts.Ties).Wanted);
@@ -55,7 +55,7 @@ public class ShellTieTests
     {
         var (fakes, opened) = await OnTheAccountScreen(AnAccount.Standing(followRequested: true));
 
-        await opened.Tie(AccountTie.Follow);
+        opened.Press(ShellKey.CapitalF);
         fakes.Host.Drain();
 
         Assert.False(Assert.Single(fakes.Accounts.Ties).Wanted);
@@ -71,7 +71,7 @@ public class ShellTieTests
         var followed = AnAccount.With(address: "ben@hachyderm.io", standing: AnAccount.Standing(following: true));
         var (fakes, opened) = await OnTheAccountScreen(AnAccount.Standing(), becoming: followed);
 
-        await opened.Tie(AccountTie.Follow);
+        opened.Press(ShellKey.CapitalF);
         fakes.Host.Drain();
 
         var account = Assert.IsType<AccountScreen>(opened.Screen);
@@ -95,7 +95,7 @@ public class ShellTieTests
 
         var (fakes, opened) = await OnTheAccountScreen(AnAccount.Standing(), becoming: waiting);
 
-        await opened.Tie(AccountTie.Follow);
+        opened.Press(ShellKey.CapitalF);
         fakes.Host.Drain();
 
         Assert.Equal("Asked to follow @ben@hachyderm.io.", opened.Notice);
@@ -107,7 +107,7 @@ public class ShellTieTests
     {
         var (fakes, opened) = await OnTheAccountScreen(AnAccount.Standing(muting: true));
 
-        await opened.Tie(AccountTie.Mute);
+        opened.Press(ShellKey.CapitalM);
         fakes.Host.Drain();
 
         Assert.Equal("Unmuted @ben@hachyderm.io.", opened.Notice);
@@ -120,7 +120,7 @@ public class ShellTieTests
         var shell = new AShell();
         var opened = await shell.Opened();
 
-        await opened.Tie(AccountTie.Block);
+        opened.Press(ShellKey.CapitalB);
 
         shell.Host.Drain();
 

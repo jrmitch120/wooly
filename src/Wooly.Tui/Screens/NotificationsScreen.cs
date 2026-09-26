@@ -1,6 +1,7 @@
 using Wooly.Core.Notifications;
 using Wooly.Core.Posts;
 using Wooly.Tui.Rendering;
+using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 
 namespace Wooly.Tui.Screens;
@@ -74,6 +75,71 @@ public sealed class NotificationsScreen(IReadOnlyList<Notification> notification
     /// </remarks>
     public override void Remove(string postId) =>
         _notifications.Remove(notification => notification.Post?.Id == postId);
+
+    /// <summary>What this screen's own keys do: <c>d</c> dismisses the picked notification, and <c>D</c> all of them.</summary>
+    public override Task Answer(Verb verb, Reach reach)
+    {
+        switch (verb)
+        {
+            case Verb.Dismiss:
+                return Dismiss(reach);
+
+            case Verb.ClearAll:
+                AskToClear(reach);
+
+                break;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>Clears the picked notification, which is named by its own id and not by the post's (CONTEXT.md).</summary>
+    private Task Dismiss(Reach reach)
+    {
+        if (PickedNotification is not { } picked)
+        {
+            return Task.CompletedTask;
+        }
+
+        return reach.Put(
+            ask => ask.Of(token => reach.Ports.Notifications.Dismiss(reach.Profile, picked.Id, token)),
+            eitherWay: () => reach.Forget(DestinationKind.Notifications),
+            ifStillHere: () =>
+            {
+                Forget([picked.Id]);
+                reach.Count(DestinationKind.Notifications, Notifications.Count);
+
+                reach.Changed();
+            });
+    }
+
+    /// <summary>
+    ///     Asks before emptying the inbox. Unlike dismissing one, this takes away a list nobody has necessarily read
+    ///     yet and nothing brings it back — so it is asked on the same terms <c>notification clear</c> asks it.
+    /// </summary>
+    private void AskToClear(Reach reach)
+    {
+        if (Notifications.Count == 0)
+        {
+            return;
+        }
+
+        reach.Confirm(new Confirmation("Clear every notification?", () => Clear(reach), Going: "clear"));
+    }
+
+    /// <summary>Empties the inbox, once it has been said twice.</summary>
+    private Task Clear(Reach reach) =>
+        reach.Put(
+            ask => ask.Of(token => reach.Ports.Notifications.Clear(reach.Profile, token)),
+            eitherWay: () =>
+            {
+                reach.Forget(DestinationKind.Notifications);
+
+                Forget(Notifications.Select(notification => notification.Id).ToList());
+
+                reach.Count(DestinationKind.Notifications, 0);
+                reach.Say("Cleared.", isError: false);
+            });
 
     /// <summary>Takes the notifications <paramref name="ids" /> names off the screen, once the instance has cleared them.</summary>
     public void Forget(IEnumerable<string> ids)

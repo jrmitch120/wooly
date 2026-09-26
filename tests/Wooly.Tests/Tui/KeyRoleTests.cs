@@ -86,7 +86,7 @@ public class KeyRoleTests
     [Fact]
     public void AConfirmation_DrawsItsTwoKeysInKey()
     {
-        var row = ChromeLines.Status([], null, noticeIsError: false, new Confirmation("Delete this post?"), 80);
+        var row = ChromeLines.Status([], null, noticeIsError: false, new Confirmation("Delete this post?", Pressing.Nothing), 80);
 
         var keyed = row.Spans.Where(span => span.Role == Role.Key).Select(span => span.Text).ToList();
 

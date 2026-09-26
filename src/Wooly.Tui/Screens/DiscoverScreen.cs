@@ -2,6 +2,7 @@ using Wooly.Core.Accounts;
 using Wooly.Core.Discovery;
 using Wooly.Core.Relationships;
 using Wooly.Tui.Rendering;
+using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 
 namespace Wooly.Tui.Screens;
@@ -136,6 +137,59 @@ public sealed class DiscoverScreen : Screen
     /// </remarks>
     public override void Stands(Account account) =>
         _offered.Rewrite(offer => offer.Person.Id == account.Id ? offer with { Person = account } : offer);
+
+    /// <summary>
+    ///     What this screen's own keys do: <c>⏎</c> opens whoever is picked out, <c>F</c> follows them and <c>d</c>
+    ///     tells the instance to stop suggesting them.
+    /// </summary>
+    /// <remarks>
+    ///     <c>F</c> alone of the three capitals: the account screen is where a reader has the whole of somebody in front
+    ///     of them, which is what <c>M</c> and <c>B</c> are worth pressing against. A capital that means nothing here
+    ///     does nothing here, rather than meaning something else (#181). And a dismissed suggestion opens as readily as
+    ///     anything else, dismissing being "stop suggesting" rather than "hide".
+    /// </remarks>
+    public override Task Answer(Verb verb, Reach reach) => (verb, PickedPerson) switch
+    {
+        (Verb.OpenPerson, { } person) => reach.OpenAccount(AccountAddress.Parse(person.Address)),
+        (Verb.Follow, { } person) => Tying.Toggle(reach, person, AccountTie.Follow),
+        (Verb.StopSuggesting, { } person) => StopSuggesting(reach, person),
+        _ => Task.CompletedTask,
+    };
+
+    /// <summary>Tells the instance to stop suggesting <paramref name="picked" />.</summary>
+    /// <remarks>
+    ///     No confirmation, unlike every other <c>d</c> in this shell: nothing of the reader's is destroyed, and the
+    ///     cost of a mis-press is one suggestion out of forty on a list the server regenerates. One-way, there being no
+    ///     un-dismiss endpoint — so a row already dismissed is left alone rather than asked about twice, which is the
+    ///     whole of what a second press means (ADR-0019, #181).
+    ///     <para>
+    ///         The row is marked only where the instance took it. A dismissal that failed leaves the enquiry with the
+    ///         notice already said, and a row saying <c>dismissed</c> over a call that never landed would be the one
+    ///         dishonest thing on the screen.
+    ///     </para>
+    /// </remarks>
+    private Task StopSuggesting(Reach reach, Account picked)
+    {
+        if (IsDismissed(picked.Id))
+        {
+            return Task.CompletedTask;
+        }
+
+        return reach.Put(
+            ask => ask.Of(token => reach.Ports.Suggestions.Dismiss(reach.Profile, picked.Id, token)),
+            eitherWay: () =>
+            {
+                // What a held copy of this screen holds is now what the instance would not serve again.
+                reach.Forget(DestinationKind.Discover);
+
+                Dismissed(picked.Id);
+
+                // Nothing on the status row: the row itself now says ` · dismissed`, and the row holds either a
+                // notice or the keys and never both — so saying it twice would cost the reader every key the screen
+                // answers to (#180's lesson, #181).
+                reach.Changed();
+            });
+    }
 
     /// <summary>
     ///     Marks the row <paramref name="accountId" /> names as one the instance has been told to stop suggesting.

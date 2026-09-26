@@ -395,7 +395,7 @@ public class ShellSearchTests
             shell.Type(letter);
         }
 
-        await shell.Find();
+        shell.Press(ShellKey.Enter);
 
         built.Host.Drain();
     }

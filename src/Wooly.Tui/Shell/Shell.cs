@@ -77,7 +77,8 @@ public sealed class Shell
     private readonly ShellPorts _ports;
     private readonly List<Screen> _stack = [];
 
-    private Func<Task>? _confirming;
+    /// <summary>What a screen can reach of this shell while it answers a verb of its own (#232).</summary>
+    private readonly Reach _reach;
 
     public Shell(
         ActiveProfile profile,
@@ -111,6 +112,23 @@ public sealed class Shell
         Rail.Changed += () => Changed?.Invoke();
 
         _stack.Add(new FeedScreen(Rail.Showing, []));
+
+        _reach = new Reach(
+            profile,
+            ports,
+            _enquiry,
+            _cache,
+            push: Push,
+            swap: Freshened,
+            openAccount: address => OpenAccount(address),
+            openTag: OpenTag,
+            openPost: OpenPost,
+            openFollows: Follows,
+            say: Say,
+            confirm: Confirm,
+            changed: () => Changed?.Invoke(),
+            count: Counted,
+            stands: Stands);
     }
 
     /// <summary>Raised whenever anything on screen has changed. Always on the drawing thread.</summary>
@@ -192,13 +210,16 @@ public sealed class Shell
     public void Step(int by) => Rail.Step(by);
 
     /// <summary>
-    ///     Carries out what a key meant, once <see cref="Keymap" /> has said what that is. Every verb here is public
-    ///     in its own right, so this is a table of one-line arms rather than anywhere a decision is made.
+    ///     Carries out what a key meant, once <see cref="Keymap" /> has said what that is. The frame's verbs and the
+    ///     ones that act on the picked post of any screen are public here in their own right, so this is a table of
+    ///     one-line arms rather than anywhere a decision is made; every other verb is screen-local, and the screen
+    ///     carries it out itself (<see cref="Screen.Answer" />, #232).
     /// </summary>
     /// <remarks>
     ///     Which screen the reader is on has already been accounted for: the collisions the contract allows —
     ///     <c>d</c> dismissing a notification and deleting a post — are settled in the keymap, so nothing here has to
-    ///     name a screen to know which of them it is.
+    ///     name a screen to know which of them it is. Nor does a screen answering its own: the keymap only ever sends
+    ///     a screen a verb that means something there, or one bound everywhere that the screen is free to ignore.
     ///     <para>
     ///         The verbs this does not carry are the ones that need a terminal, and they are taken by
     ///         <c>ShellWindow</c> before they ever reach here: quitting, the movements that walk the page rather than
@@ -245,29 +266,15 @@ public sealed class Shell
         Verb.Reveal => Ran(Reveal),
         Verb.Vote => Ran(AskToVote),
         Verb.Refresh => Ran(Refresh),
-        Verb.Follow => Ran(() => Tie(AccountTie.Follow)),
-        Verb.Mute => Ran(() => Tie(AccountTie.Mute)),
-        Verb.Block => Ran(() => Tie(AccountTie.Block)),
-        Verb.Dismiss => Ran(Dismiss),
-        Verb.StopSuggesting => Ran(StopSuggesting),
-        Verb.ClearAll => Ran(AskToClear),
-        Verb.AcceptRequest => Ran(() => AnswerRequest(accepted: true)),
-        Verb.RejectRequest => Ran(() => AnswerRequest(accepted: false)),
-        Verb.OpenAsker => Ran(OpenAsker),
-        Verb.OpenConversation => Ran(OpenConversation),
         Verb.MarkRead => Ran(MarkRead),
-        Verb.Find => Ran(Find),
-        Verb.OpenFollows => Ran(OpenFollows),
-        Verb.SwapSide => Ran(SwapSide),
-        Verb.SwapPostsAndReplies => Ran(SwapPostsAndReplies),
-        Verb.Filter => Ran(Filter),
-        Verb.FilterDone => Ran(FilterDone),
-        Verb.OpenPerson => Ran(OpenPerson),
-        Verb.OpenResult => Ran(OpenResult),
         Verb.WriteWarning => Ran(WriteWarning),
 
-        // Verb.None, and the terminal's own — which the window has already taken.
-        _ => false,
+        // Nothing, and the terminal's own — which the window has already taken, and which no screen answers either.
+        Verb.None => false,
+        _ when verb.NeedsATerminal() => false,
+
+        // Everything else is the screen's own, and the screen is what carries it out.
+        _ => Ran(() => Screen.Answer(verb, _reach)),
     };
 
     /// <summary>Moves what is picked out on the current screen.</summary>
@@ -391,17 +398,7 @@ public sealed class Shell
     ///     post everywhere except inside a post: there, the post picked out at the top is the one already on screen
     ///     (#48).
     /// </remarks>
-    public async Task Enter()
-    {
-        if (Screen.Opens is not { } opening)
-        {
-            return;
-        }
-
-        await _enquiry.Put(
-            ask => ReadThread(ask, opening),
-            ifStillHere: thread => Push(new PostScreen(opening, thread)));
-    }
+    public Task Enter() => Screen.Opens is { } opening ? OpenPost(opening) : Task.CompletedTask;
 
     /// <summary>
     ///     Asks for what is there now: evicts what the destination last held, puts the same question its own arrival
@@ -509,87 +506,6 @@ public sealed class Shell
         await OpenAccount(AccountAddress.Parse((picked.Boosted ?? picked).Account));
     }
 
-    /// <summary>
-    ///     Opens everyone the account being shown follows, which is what <c>w</c> does from an account screen
-    ///     (<c>docs/tui-shell.md</c>, #180). The other side is one <c>s</c> away.
-    /// </summary>
-    /// <remarks>
-    ///     The following side rather than the followers, that being the one a reader is likelier to have come for on
-    ///     somebody else's profile — and either way the swap costs one key rather than a second one to learn.
-    /// </remarks>
-    public Task OpenFollows() =>
-        Screen is AccountScreen showing ? Follows(showing.Account, FollowSide.Following, replacing: false) : Task.CompletedTask;
-
-    /// <summary>
-    ///     Swaps to the other side of the same account's follows, in place: same screen, new crumb, the pick back at
-    ///     the top and the filter gone. No push, because a toggle that pushed would grow the stack on every flip.
-    /// </summary>
-    public Task SwapSide() => Screen is FollowsScreen showing
-        ? Follows(
-            showing.Whose,
-            showing.Side.Either(followers: FollowSide.Following, following: FollowSide.Followers),
-            replacing: true)
-        : Task.CompletedTask;
-
-    /// <summary>
-    ///     Swaps the account screen between their posts and their posts and replies, in place: same stack, new crumb,
-    ///     the pick back on the header block. The follow list's <see cref="SwapSide" /> made over one account's
-    ///     timeline, and for its reason — a toggle that pushed would grow the stack on every flip (#229).
-    /// </summary>
-    /// <remarks>
-    ///     The whole screen is re-read rather than its timeline alone, being the same calls <c>g</c> makes with the
-    ///     other run named: an account screen is one reading, and a second way of assembling one is a second opinion
-    ///     about what it is made of (#84).
-    /// </remarks>
-    public Task SwapPostsAndReplies() =>
-        Screen is AccountScreen showing ? ReadAgain(showing, withReplies: !showing.WithReplies) : Task.CompletedTask;
-
-    /// <summary>Opens the prompt that narrows a follow list, which is what <c>f</c> does there.</summary>
-    /// <remarks>
-    ///     The screen settles whether there is a filter to open at all: a list too large to hold whole is browsed
-    ///     rather than filtered, and does not announce the key either.
-    /// </remarks>
-    public void Filter()
-    {
-        if (Screen is not FollowsScreen showing)
-        {
-            return;
-        }
-
-        showing.Filtering();
-
-        Changed?.Invoke();
-    }
-
-    /// <summary>Hands a narrowed list back to walking, with what was typed still narrowing it.</summary>
-    public void FilterDone()
-    {
-        if (Screen is not FollowsScreen showing)
-        {
-            return;
-        }
-
-        showing.Done();
-
-        Changed?.Invoke();
-    }
-
-    /// <summary>
-    ///     Opens the account screen of whoever is picked out on a list of people — the same screen <c>a</c> opens
-    ///     from a feed, read the same way, rather than a row that expands where it stands.
-    /// </summary>
-    /// <remarks>
-    ///     Two screens list people and both answer <c>⏎</c> the same way, so they are one arm apiece here rather than
-    ///     two verbs: a dismissed suggestion opens as readily as anything else, dismissing being "stop suggesting"
-    ///     rather than "hide" (#180, #181).
-    /// </remarks>
-    public Task OpenPerson() => Screen switch
-    {
-        FollowsScreen { PickedPerson: { } person } => OpenAccount(AccountAddress.Parse(person.Address)),
-        DiscoverScreen { PickedPerson: { } person } => OpenAccount(AccountAddress.Parse(person.Address)),
-        _ => Task.CompletedTask,
-    };
-
     /// <summary>Walks back up one level of the stack. Never quits, and never leaves the shell with nothing on it.</summary>
     public void Back()
     {
@@ -597,7 +513,6 @@ public sealed class Shell
         {
             // Escaping out of a confirmation is answering it, and the answer is no.
             Asking = null;
-            _confirming = null;
 
             Changed?.Invoke();
 
@@ -617,7 +532,7 @@ public sealed class Shell
 
         // And a filter is a level of its own in the same sense: the first esc puts the whole list back and the next
         // one leaves the screen (#180).
-        if (Screen is FollowsScreen follows && follows.Clear())
+        if (Screen.ClearFilter())
         {
             Changed?.Invoke();
 
@@ -696,186 +611,6 @@ public sealed class Shell
         Changed?.Invoke();
     }
 
-    /// <summary>Asks the instance for what has been typed into the prompt.</summary>
-    /// <remarks>
-    ///     The search itself is one call, so a rate limit leaves nothing to draw and is waited out rather than
-    ///     half-answered (ADR-0011) — which <see cref="Enquiry" /> already does, and is why this reads like every
-    ///     other fetch here. The standing the accounts run is then decorated with is the second call and is not that
-    ///     kind of call: it answers with nothing where it was refused, so a rate limit there costs the suffix and
-    ///     leaves the results standing (<see cref="Searched" />).
-    /// </remarks>
-    public async Task Find()
-    {
-        if (Screen is not SearchScreen search)
-        {
-            return;
-        }
-
-        if (!SearchQuery.IsWellFormed(search.Query))
-        {
-            // The same words the command turns an empty query down with, so that the two front ends cannot come to
-            // say different things about the same empty value.
-            Say(SearchQuery.Rejection, isError: true);
-
-            return;
-        }
-
-        var query = SearchQuery.For(search.Query);
-
-        await _enquiry.Put(
-            ask => Searched(ask, query),
-            ifStillHere: found =>
-            {
-                if (Screen is not SearchScreen still)
-                {
-                    return;
-                }
-
-                still.Found(query.Text, found);
-                Changed?.Invoke();
-            });
-    }
-
-    /// <summary>
-    ///     What a search found, with the accounts among it carrying where the reader stands with them — two calls
-    ///     under one enquiry, so the screen paints once with the standings already in place rather than putting
-    ///     results up and decorating them a moment later (#204).
-    /// </summary>
-    /// <remarks>
-    ///     A run of no accounts costs nothing: the port answers an empty ask with its own input before it reaches an
-    ///     instance, so a hashtag-only or post-only search makes the one call it always made. A run that was not
-    ///     asked for at all stays <see langword="null" /> rather than becoming empty — that distinction is the whole
-    ///     reason <see cref="SearchResults" /> exists.
-    ///     <para>
-    ///         Unchunked, unlike the follow list's, because a search's accounts run cannot outgrow one ask: Mastodon
-    ///         caps <c>/api/v2/search</c> at 40 of each kind and the relationships endpoint takes 80 ids. Nothing in
-    ///         this client enforces that cap, so a future instance that served more would make this two calls rather
-    ///         than one — which costs a call and never a wrong row.
-    ///     </para>
-    /// </remarks>
-    private async Task<SearchResults> Searched(Enquiry.Ask ask, SearchQuery query)
-    {
-        var found = await ask.Of(token => _ports.Search.Find(_profile, query, token));
-
-        return found.Accounts is { } accounts
-            ? found with { Accounts = await ask.Of(token => _ports.StoodOrSilent(_profile, accounts, token)) }
-            : found;
-    }
-
-    /// <summary>
-    ///     Opens whatever a search turned up and the reader picked out: an account, a hashtag's timeline, or a post.
-    /// </summary>
-    /// <remarks>
-    ///     A hashtag opens as a screen on the stack rather than as the rail's own hashtag destination. Which tag the
-    ///     rail keeps a place for is a setting the reader wrote down (<c>docs/tui-shell.md</c>), and a search result
-    ///     is not them changing their mind about it.
-    /// </remarks>
-    public async Task OpenResult()
-    {
-        if (Screen is not SearchScreen search)
-        {
-            return;
-        }
-
-        if (search.PickedAccount is { } account)
-        {
-            await OpenAccount(AccountAddress.Parse(account.Address));
-
-            return;
-        }
-
-        if (search.PickedHashtag is { } hashtag)
-        {
-            await OpenTag(hashtag.Name);
-
-            return;
-        }
-
-        await Enter();
-    }
-
-    /// <summary>Clears the picked notification, which is named by its own id and not by the post's (CONTEXT.md).</summary>
-    public async Task Dismiss()
-    {
-        if (Screen is not NotificationsScreen notifications || notifications.PickedNotification is not { } picked)
-        {
-            return;
-        }
-
-        await _enquiry.Put(
-            ask => ask.Of(token => _ports.Notifications.Dismiss(_profile, picked.Id, token)),
-            eitherWay: () => _cache.Forget(DestinationKind.Notifications),
-            ifStillHere: () =>
-            {
-                notifications.Forget([picked.Id]);
-                Counted(DestinationKind.Notifications, notifications.Notifications.Count);
-
-                Changed?.Invoke();
-            });
-    }
-
-    /// <summary>
-    ///     Asks before emptying the inbox. Unlike dismissing one, this takes away a list nobody has necessarily read
-    ///     yet and nothing brings it back — so it is asked on the same terms <c>notification clear</c> asks it.
-    /// </summary>
-    public void AskToClear()
-    {
-        if (Screen is not NotificationsScreen notifications || notifications.Notifications.Count == 0)
-        {
-            return;
-        }
-
-        Asking = new Confirmation("Clear every notification?", Going: "clear");
-        _confirming = Clear;
-
-        Changed?.Invoke();
-    }
-
-    /// <summary>Accepts or turns away the picked follow request.</summary>
-    public async Task AnswerRequest(bool accepted)
-    {
-        if (Screen is not FollowRequestsScreen requests || requests.PickedAccount is not { } picked)
-        {
-            return;
-        }
-
-        // By id, as the list reports it, because that is what answering one takes: an address would cost a lookup to
-        // arrive back at the id already in hand (ADR-0012).
-        await _enquiry.Put(
-            ask => ask.Of(token => _ports.Accounts.Answer(_profile, picked.Id, accepted, token)),
-            eitherWay: _ => _cache.Forget(DestinationKind.Requests),
-            ifStillHere: _ =>
-            {
-                requests.Answered(picked.Id);
-                Counted(DestinationKind.Requests, requests.Waiting.Count);
-
-                Say(
-                    accepted ? $"@{picked.Address} can follow you." : $"@{picked.Address} was turned away.",
-                    isError: false);
-            });
-    }
-
-    /// <summary>
-    ///     Opens the picked conversation: the thread its last post is in, oldest first. Named by the conversation's
-    ///     own id, which is not the id of any post in it (CONTEXT.md).
-    /// </summary>
-    /// <remarks>
-    ///     Reading one does not mark it read (ADR-0013). A client that cleared the mark on the way past would make
-    ///     "what have I not read" unanswerable for anything that looked afterwards, so <see cref="MarkRead" /> is what
-    ///     takes it off and nothing else does.
-    /// </remarks>
-    public async Task OpenConversation()
-    {
-        if (Screen is not DirectMessagesScreen messages || messages.PickedConversation is not { } picked)
-        {
-            return;
-        }
-
-        await _enquiry.Put(
-            ask => ask.Of(token => _ports.Messages.Show(_profile, picked.Id, token)),
-            ifStillHere: thread => Push(new ConversationScreen(thread)));
-    }
-
     /// <summary>
     ///     Takes the unread mark off the conversation being read, or the one picked out on the list — the conversation
     ///     carries the mark, so the conversation's own id is what clears it.
@@ -903,100 +638,6 @@ public sealed class Shell
             {
                 Replace(marked);
                 Say("Marked as read.", isError: false);
-            });
-    }
-
-    /// <summary>Opens the account of whoever is asking to follow, so the question can be answered knowing who asked.</summary>
-    public async Task OpenAsker()
-    {
-        if (Screen is FollowRequestsScreen { PickedAccount: { } picked })
-        {
-            await OpenAccount(AccountAddress.Parse(picked.Address));
-        }
-    }
-
-    /// <summary>
-    ///     Puts one of the three ties on the account being shown, or takes it off — whichever it does not already
-    ///     have, which is why a tie is on or off rather than an act of its own (ADR-0012).
-    /// </summary>
-    /// <remarks>
-    ///     Only the account screen offers these, and only it says so on its status row. The keys are capitals so that
-    ///     a lower-case mark key cannot fire one by accident (<c>docs/tui-shell.md</c>).
-    /// </remarks>
-    public async Task Tie(AccountTie tie)
-    {
-        // Discover answers F alone, and only F: the account screen is where a reader has the whole of somebody in
-        // front of them, which is what M and B are worth pressing against. A capital that means nothing here does
-        // nothing here, rather than meaning something else (#181).
-        var person = Screen switch
-        {
-            AccountScreen account => account.Account,
-            DiscoverScreen discover when tie == AccountTie.Follow => discover.PickedPerson,
-            _ => null,
-        };
-
-        if (person is null)
-        {
-            return;
-        }
-
-        var address = AccountAddress.Parse(person.Address);
-        var wanted = !(person.Standing?.Has(tie) ?? false);
-
-        await _enquiry.Put(
-            ask => ask.Of(token => _ports.Accounts.Set(_profile, address, tie, wanted, token)),
-            eitherWay: stood =>
-            {
-                Stands(stood);
-
-                // Home is the profile's own following, so a follow or a block changes what belongs on it — and a mute
-                // changes what belongs on all of them.
-                _cache.Forget(DestinationKind.Home);
-
-                // And Discover, wherever the tie was made: an instance never suggests somebody already followed or
-                // blocked, so a held copy of that screen is a copy the instance would no longer have served (#181).
-                _cache.Forget(DestinationKind.Discover);
-
-                Say(Said(tie, wanted, stood), isError: false);
-            });
-    }
-
-    /// <summary>
-    ///     Tells the instance to stop suggesting whoever is picked out on Discover, which is what <c>d</c> does there.
-    /// </summary>
-    /// <remarks>
-    ///     No confirmation, unlike every other <c>d</c> in this shell: nothing of the reader's is destroyed, and the
-    ///     cost of a mis-press is one suggestion out of forty on a list the server regenerates. One-way, there being
-    ///     no un-dismiss endpoint — so a row already dismissed is left alone rather than asked about twice, which is
-    ///     the whole of what a second press means (ADR-0019, #181).
-    ///     <para>
-    ///         The row is marked only where the instance took it. A dismissal that failed leaves the enquiry with the
-    ///         notice already said, and a row saying <c>dismissed</c> over a call that never landed would be the one
-    ///         dishonest thing on the screen.
-    ///     </para>
-    /// </remarks>
-    public async Task StopSuggesting()
-    {
-        if (Screen is not DiscoverScreen discover
-            || discover.PickedPerson is not { } picked
-            || discover.IsDismissed(picked.Id))
-        {
-            return;
-        }
-
-        await _enquiry.Put(
-            ask => ask.Of(token => _ports.Suggestions.Dismiss(_profile, picked.Id, token)),
-            eitherWay: () =>
-            {
-                // What a held copy of this screen holds is now what the instance would not serve again.
-                _cache.Forget(DestinationKind.Discover);
-
-                discover.Dismissed(picked.Id);
-
-                // Nothing on the status row: the row itself now says ` · dismissed`, and the row holds either a
-                // notice or the keys and never both — so saying it twice would cost the reader every key the screen
-                // answers to (#180's lesson, #181).
-                Changed?.Invoke();
             });
     }
 
@@ -1063,10 +704,7 @@ public sealed class Shell
             return;
         }
 
-        Asking = new Confirmation("Delete this post?");
-        _confirming = () => Delete(about.Id);
-
-        Changed?.Invoke();
+        Confirm(new Confirmation("Delete this post?", () => Delete(about.Id)));
     }
 
     /// <summary>
@@ -1109,26 +747,21 @@ public sealed class Shell
         // ballot when it was put, and in the order the poll lists its answers rather than the order they were pressed.
         var choices = Screen.Chosen.Order().ToList();
 
-        Asking = new Confirmation(VotingFor(choices), Going: "vote");
-
-        _confirming = () => Cast(screen, about, choices);
-
-        Changed?.Invoke();
+        Confirm(new Confirmation(VotingFor(choices), () => Cast(screen, about, choices), Going: "vote"));
     }
 
     /// <summary>Answers whatever the shell was waiting to be told again.</summary>
     public async Task Answer(bool agreed)
     {
-        var confirmed = _confirming;
+        var confirmed = Asking;
 
         Asking = null;
-        _confirming = null;
 
         Changed?.Invoke();
 
         if (agreed && confirmed is not null)
         {
-            await confirmed();
+            await confirmed.Agreed();
         }
     }
 
@@ -1274,10 +907,14 @@ public sealed class Shell
         }
     }
 
+    /// <summary>Opens <paramref name="post" />, with what has been said in answer to it.</summary>
+    private Task OpenPost(Post post) =>
+        _enquiry.Put(ask => ReadThread(ask, post), ifStillHere: thread => Push(new PostScreen(post, thread)));
+
     /// <summary>Opens an account screen: who they are, their standing, and their posts.</summary>
     private Task OpenAccount(AccountAddress address, bool replacing = false) =>
         _enquiry.Put(
-            ask => ReadAccount(ask, address, withReplies: false),
+            ask => AccountReading.Read(ask, _ports, _profile, address, withReplies: false),
             ifStillHere: found =>
             {
                 var screen = found.Screen();
@@ -1291,112 +928,6 @@ public sealed class Shell
                     Push(screen);
                 }
             });
-
-    /// <summary>
-    ///     What an account screen is read with: who they are, what they have posted, and which of the people the
-    ///     reader follows follow them too.
-    /// </summary>
-    /// <remarks>
-    ///     Four calls under one enquiry, so it is checked once at the end rather than after each: what matters is
-    ///     whether the reader is still where they were when they asked, not how far the answer got.
-    ///     <para>
-    ///         Said here rather than at each of the two places that read an account — opening one, and asking it for
-    ///         what is there now — so that a refresh is the same calls the screen was opened by rather than a second
-    ///         opinion about what an account screen is made of (#84).
-    ///     </para>
-    ///     <para>
-    ///         The pinned run is read by naming the account rather than by marking the posts already in hand, because
-    ///         an instance reports a post's own pin mark only to whoever wrote it — and it is read <em>before</em>
-    ///         familiar followers, being content where the other is one decorative row, so it takes the better odds
-    ///         against a rate limit (#182).
-    ///     </para>
-    ///     <para>
-    ///         Familiar followers is asked <em>last</em>, and is the one of the four that answers rather than throws
-    ///         where the instance refuses it: it decorates a single row, so a rate limit reached here leaves the whole
-    ///         screen standing with that row missing rather than taking the account and its posts down with it
-    ///         (ADR-0012's amendment).
-    ///     </para>
-    /// </remarks>
-    /// <param name="ask">The enquiry the four calls are put under.</param>
-    /// <param name="address">Whose account.</param>
-    /// <param name="withReplies">
-    ///     Whether their timeline is read with their replies in. Opening an account never asks for it — the
-    ///     screen-reader reasoning in ADR-0019 is the default — and only <c>s</c>, and a <c>g</c> on the screen
-    ///     <c>s</c> widened, do (#229).
-    /// </param>
-    private async Task<Read> ReadAccount(Enquiry.Ask ask, AccountAddress address, bool withReplies)
-    {
-        var account = await ask.Of(token => _ports.Accounts.Show(_profile, address, token));
-
-        // The three reads that follow travel on the resolution this one just made rather than on the address it was
-        // made from, which is what makes the arrival one lookup instead of three (ADR-0012's second amendment). It is
-        // always the id Show answered with and never one the caller arrived holding: a refresh is the one command
-        // meaning "check this is still true", so it must be the one command that can correct a wrong id.
-        var whose = NamedAccount.Resolved(account);
-
-        var posts = await ask.Of(token =>
-            _ports.Timelines.Read(
-                _profile,
-                withReplies ? Timeline.WithReplies(whose) : Timeline.By(whose),
-                Arrival.PostsWanted,
-                token));
-
-        var pinned = await ask.Of(token =>
-            _ports.Timelines.Read(_profile, Timeline.Pinned(whose), Arrival.PostsWanted, token));
-
-        var familiar = await ask.Of(token => _ports.Accounts.FamiliarFollowers(_profile, account.Id, token));
-
-        // A rate limit that stopped this read is a question that went unput rather than an account with nothing
-        // pinned, and the screen says which of the two it was. Nothing is salvaged from a stopped one: a pinned run is
-        // a single page in the account's own order, so what a limit stops it holds none of, and a count drawn over
-        // part of one would head a run the instance never finished listing.
-        var pins = pinned.IsComplete ? pinned.Items : null;
-
-        // Dropped from the timeline rather than from the pinned run, and dropped here rather than on the screen, so
-        // the two lists reach it disjoint and it cannot disagree with itself about which run a post is in. A recent
-        // pinned normal post can be in both (#182), and with replies read in, so can a recent pinned reply (#229).
-        var pinnedIds = (pins ?? []).Select(post => post.Id).ToHashSet(StringComparer.Ordinal);
-
-        return new Read(
-            account,
-            [.. posts.Items.Where(post => !pinnedIds.Contains(post.Id))],
-            pins,
-            familiar,
-            withReplies);
-    }
-
-    /// <summary>
-    ///     What one reading of an account came back with, which is everything an account screen is built from: who
-    ///     they are, their timeline with anything pinned taken out of it, what they have pinned, and which of the
-    ///     people the reader follows follow them too.
-    /// </summary>
-    /// <remarks>
-    ///     A record rather than a tuple, since #182 made it four things two call sites unpack — a positional tuple of
-    ///     four would be four chances to hand the screen its posts as its pinned run.
-    /// </remarks>
-    /// <param name="Account">Who they are, as the instance last answered.</param>
-    /// <param name="Posts">Their timeline, disjoint from <paramref name="Pinned" />.</param>
-    /// <param name="Pinned">
-    ///     What they have pinned, in the instance's own order — or <see langword="null" /> where a rate limit stopped
-    ///     the question being answered at all.
-    /// </param>
-    /// <param name="Familiar">
-    ///     Who the reader knows in common, or <see langword="null" /> where the instance never answered.
-    /// </param>
-    /// <param name="WithReplies">Whether <paramref name="Posts" /> was read with their replies in.</param>
-    private sealed record Read(
-        Account Account,
-        IReadOnlyList<Post> Posts,
-        IReadOnlyList<Post>? Pinned,
-        IReadOnlyList<Account>? Familiar,
-        bool WithReplies)
-    {
-        /// <summary>
-        ///     The account screen this reading builds — said once, so that the run a screen says it shows is the run
-        ///     it was read with.
-        /// </summary>
-        public AccountScreen Screen() => new(Account, Posts, Pinned, Familiar, WithReplies);
-    }
 
     /// <summary>
     ///     Puts a follow list on screen and starts reading it: the first page, and — on a list held whole — the rest
@@ -1587,7 +1118,7 @@ public sealed class Shell
     ///     carries.
     /// </summary>
     /// <remarks>
-    ///     Said here rather than at both places that ask, for the reason <see cref="ReadAccount" /> gives: a refresh
+    ///     Said here rather than at both places that ask, for the reason <see cref="AccountReading" /> gives: a refresh
     ///     is the same call the screen was opened by rather than a second opinion about what a post screen holds
     ///     (#84).
     /// </remarks>
@@ -1602,17 +1133,14 @@ public sealed class Shell
     ///     And for the account screen, which is the calls that opened it — asking for the run that is showing rather
     ///     than the one an account opens on, so <c>g</c> on a screen <c>s</c> widened stays widened (#229).
     /// </summary>
-    private Task RefreshAccount(AccountScreen showing) => ReadAgain(showing, showing.WithReplies);
-
-    /// <summary>
-    ///     Reads the account <paramref name="showing" /> is about and puts the answer where it stands: what <c>g</c>
-    ///     does with the run showing, and <see cref="SwapPostsAndReplies" /> with the other one.
-    /// </summary>
-    /// <param name="showing">The account screen standing.</param>
-    /// <param name="withReplies">Whether to read their timeline with their replies in.</param>
-    private Task ReadAgain(AccountScreen showing, bool withReplies) =>
+    private Task RefreshAccount(AccountScreen showing) =>
         _enquiry.Put(
-            ask => ReadAccount(ask, AccountAddress.Parse(showing.Account.Address), withReplies),
+            ask => AccountReading.Read(
+                ask,
+                _ports,
+                _profile,
+                AccountAddress.Parse(showing.Account.Address),
+                showing.WithReplies),
             ifStillHere: found => Freshened(showing, found.Screen()));
 
     /// <summary>
@@ -1638,7 +1166,7 @@ public sealed class Shell
     ///     Neither of the two screens refreshed this way is reached through an arrival, so neither is overtaken by
     ///     one: an <see cref="Enquiry" /> answers about the destination the reader is on, and drilling in and walking
     ///     back out again happen inside one. So the top of the stack is rechecked before anything is put on it — the
-    ///     same idiom <see cref="Find" /> and <see cref="OpenResult" /> use, and what stops a screen the reader has
+    ///     same idiom a follow list's fill uses, and what stops a screen the reader has
     ///     pressed <c>esc</c> out of landing on top of the one they walked back to.
     ///     <para>
     ///         In place of the top rather than pushed or reset: a refresh redraws where somebody is standing, so the
@@ -1734,23 +1262,6 @@ public sealed class Shell
                     showing,
                     posts.Items,
                     Arrival.Emptiness(posts.Items.Count, Arrival.NothingOn(tag), tag.Description, posts.StoppedBy)));
-            });
-
-    /// <summary>Empties the inbox, once it has been said twice.</summary>
-    private Task Clear() =>
-        _enquiry.Put(
-            ask => ask.Of(token => _ports.Notifications.Clear(_profile, token)),
-            eitherWay: () =>
-            {
-                _cache.Forget(DestinationKind.Notifications);
-
-                if (Screen is NotificationsScreen notifications)
-                {
-                    notifications.Forget(notifications.Notifications.Select(notification => notification.Id).ToList());
-                }
-
-                Counted(DestinationKind.Notifications, 0);
-                Say("Cleared.", isError: false);
             });
 
     private Task Delete(string postId) =>
@@ -1854,23 +1365,6 @@ public sealed class Shell
     /// </summary>
     private void Counted(DestinationKind kind, int unread) =>
         Rail.Update(Rail.Destinations.First(destination => destination.Kind == kind) with { Unread = unread });
-
-    /// <summary>What a tie that has just gone on or come off is worth saying about, in this project's words.</summary>
-    /// <remarks>
-    ///     A follow is the one that may not have gone through as asked: following a locked account leaves a request
-    ///     behind rather than a follow, and the instance's own answer is the only thing that says which happened
-    ///     (CONTEXT.md).
-    /// </remarks>
-    private static string Said(AccountTie tie, bool wanted, Account account) => (tie, wanted) switch
-    {
-        (AccountTie.Follow, true) when account.Standing?.IsFollowWaiting == true => $"Asked to follow @{account.Address}.",
-        (AccountTie.Follow, true) => $"Following @{account.Address}.",
-        (AccountTie.Follow, false) => $"No longer following @{account.Address}.",
-        (AccountTie.Block, true) => $"Blocked @{account.Address}.",
-        (AccountTie.Block, false) => $"Unblocked @{account.Address}.",
-        (AccountTie.Mute, true) => $"Muted @{account.Address}.",
-        _ => $"Unmuted @{account.Address}.",
-    };
 
     /// <summary>
     ///     An arm of <see cref="Do" /> that answers at once, as a used key — so that the table there is one shape all
@@ -1988,6 +1482,14 @@ public sealed class Shell
     {
         _stack.Add(screen);
         Notice = null;
+
+        Changed?.Invoke();
+    }
+
+    /// <summary>Waits to be told again before going ahead with what <paramref name="confirmation" /> carries.</summary>
+    private void Confirm(Confirmation confirmation)
+    {
+        Asking = confirmation;
 
         Changed?.Invoke();
     }

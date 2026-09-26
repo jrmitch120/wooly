@@ -1,5 +1,6 @@
 using Wooly.Core.Accounts;
 using Wooly.Tui.Rendering;
+using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 
 namespace Wooly.Tui.Screens;
@@ -56,6 +57,35 @@ public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string?
 
     /// <inheritdoc />
     protected override IPicked Walking => _waiting;
+
+    /// <summary>
+    ///     What this screen's own keys do: <c>a</c> accepts the picked request, <c>x</c> turns it away, and <c>⏎</c>
+    ///     opens whoever is asking, so the question can be answered knowing who asked.
+    /// </summary>
+    public override Task Answer(Verb verb, Reach reach) => (verb, PickedAccount) switch
+    {
+        (Verb.AcceptRequest, { } picked) => AnswerRequest(reach, picked, accepted: true),
+        (Verb.RejectRequest, { } picked) => AnswerRequest(reach, picked, accepted: false),
+        (Verb.OpenAsker, { } picked) => reach.OpenAccount(AccountAddress.Parse(picked.Address)),
+        _ => Task.CompletedTask,
+    };
+
+    /// <summary>Accepts or turns away <paramref name="picked" />'s request.</summary>
+    private Task AnswerRequest(Reach reach, Account picked, bool accepted) =>
+        // By id, as the list reports it, because that is what answering one takes: an address would cost a lookup to
+        // arrive back at the id already in hand (ADR-0012).
+        reach.Put(
+            ask => ask.Of(token => reach.Ports.Accounts.Answer(reach.Profile, picked.Id, accepted, token)),
+            eitherWay: _ => reach.Forget(DestinationKind.Requests),
+            ifStillHere: _ =>
+            {
+                Answered(picked.Id);
+                reach.Count(DestinationKind.Requests, Waiting.Count);
+
+                reach.Say(
+                    accepted ? $"@{picked.Address} can follow you." : $"@{picked.Address} was turned away.",
+                    isError: false);
+            });
 
     /// <summary>Takes the account <paramref name="accountId" /> names off the list, once their request was answered.</summary>
     public void Answered(string accountId) => _waiting.Remove(account => account.Id == accountId);

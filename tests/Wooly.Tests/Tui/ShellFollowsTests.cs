@@ -36,7 +36,7 @@ public class ShellFollowsTests
         var fakes = new AShell();
         var opened = await fakes.Opened();
 
-        await opened.OpenFollows();
+        opened.Press(ShellKey.W);
         fakes.Host.Drain();
 
         Assert.IsNotType<FollowsScreen>(opened.Screen);
@@ -54,7 +54,7 @@ public class ShellFollowsTests
 
         var depth = opened.Depth;
 
-        await opened.SwapSide();
+        opened.Press(ShellKey.S);
         fakes.Host.Drain();
 
         var follows = Assert.IsType<FollowsScreen>(opened.Screen);
@@ -71,10 +71,10 @@ public class ShellFollowsTests
     {
         var (fakes, opened) = await OnAFollowList();
 
-        opened.Filter();
+        opened.Press(ShellKey.F);
         opened.Type('m');
 
-        await opened.SwapSide();
+        opened.Press(ShellKey.S);
         fakes.Host.Drain();
 
         var follows = Assert.IsType<FollowsScreen>(opened.Screen);
@@ -103,7 +103,7 @@ public class ShellFollowsTests
     {
         var (_, opened) = await OnAFollowList();
 
-        opened.Filter();
+        opened.Press(ShellKey.F);
         opened.Type('z');
 
         opened.Back();
@@ -160,7 +160,7 @@ public class ShellFollowsTests
     {
         var (fakes, opened) = await OnAFollowList([AnAccount.With(address: "maria@fosstodon.org")]);
 
-        await opened.OpenPerson();
+        opened.Press(ShellKey.Enter);
         fakes.Host.Drain();
 
         Assert.IsType<AccountScreen>(opened.Screen);
@@ -222,9 +222,9 @@ public class ShellFollowsTests
     {
         var (fakes, opened) = await OnAFollowList();
 
-        opened.Filter();
+        opened.Press(ShellKey.F);
         opened.Type('z');
-        opened.FilterDone();
+        opened.Press(ShellKey.Enter);
 
         var asked = Listed(fakes).Count;
 
@@ -250,7 +250,7 @@ public class ShellFollowsTests
 
         var asked = Listed(fakes).Count;
 
-        await opened.OpenFollows();
+        opened.Press(ShellKey.W);
         fakes.Host.Drain();
 
         Assert.IsType<FollowsScreen>(opened.Screen);
@@ -269,7 +269,7 @@ public class ShellFollowsTests
 
         fakes.Clock.Advance(TimeSpan.FromMinutes(2));
 
-        await opened.OpenFollows();
+        opened.Press(ShellKey.W);
         fakes.Host.Drain();
 
         Assert.Equal(asked + 1, Listed(fakes).Count);
@@ -303,7 +303,7 @@ public class ShellFollowsTests
 
         var opened = await OnTheAccountScreen(fakes);
 
-        await opened.OpenFollows();
+        opened.Press(ShellKey.W);
         fakes.Host.Drain();
 
         var follows = Assert.IsType<FollowsScreen>(opened.Screen);
@@ -345,7 +345,7 @@ public class ShellFollowsTests
 
         var opened = await OnTheAccountScreen(fakes);
 
-        await opened.OpenFollows();
+        opened.Press(ShellKey.W);
         fakes.Host.Drain();
 
         return (fakes, opened);

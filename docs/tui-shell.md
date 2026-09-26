@@ -339,8 +339,8 @@ mention, or address inside a post's text — replacing `BodyText`'s internal "ma
   (`PostKeys.OnAReference`). Said by `Screen` itself rather than by each screen, which is why a screen's own list is
   `OwnKeys` and `Keys` is what the status row reads (#83).
 - **`⏎` does four different things, refusals share one notice** (#85, #109). Which of the four is the role the
-  reference draws in, since that vocabulary already tells them apart. A hashtag opens exactly the way `Shell.OpenTag`
-  already opens one found by search — same `FeedScreen`, same breadcrumb, no new screen type, and the rail's own
+  reference draws in, since that vocabulary already tells them apart. A hashtag opens exactly the way a search result
+  for one already opens — `Shell.OpenTag`, which `SearchScreen` reaches through `Reach.OpenTag` — same `FeedScreen`, same breadcrumb, no new screen type, and the rail's own
   hashtag destination left alone. A mention opens the account screen, resolved off `Post.Mentions` — which the wire
   carries down with every post, so no fetch is spent working out who a `@maria` is; a handle written bare is whoever
   the post names by that username, and where two accounts share one the first the post lists wins. Unresolvable, `⏎`
@@ -472,7 +472,7 @@ cache. Streaming stays out of scope (below); a manual refresh is the in-scope an
 - **The post and account screens are replaced where they stand**, rather than pushed or reset: nobody has gone
   anywhere, so what was drilled through to get there is still under them and `esc` still walks back out of it. Neither
   is reached through an arrival, so neither is overtaken by one — each rechecks that the top of the stack is still the
-  screen it was asked about, the same idiom `Find()` and `OpenResult()` use. Every refresh builds a new screen rather
+  screen it was asked about, the same idiom `Reach.Swap` and a follow list's fill use. Every refresh builds a new screen rather
   than changing the one on the stack, which is what starts the scroll offset again: the view notices a screen has been
   replaced by identity.
 - **A hashtag walked to from a search has no refresh**, though it is the same `FeedScreen` the rail's own hashtag
@@ -794,8 +794,8 @@ doing so it became the first screen in the shell whose pick is not a post (#164,
   uncounted. The pinned run is complete and unpaged so its total is a fact; the timeline run is a page of an unbounded
   list, and counting it would be a number about the fetch pretending to be a number about the account. One `PostList`
   with the headings spliced, the way the post screen already splices `[...ancestors, post, ...replies]`.
-- **The duplicate is dropped from the timeline run, never from pinned**, and dropped by id in the shell's
-  `ReadAccount`, so the screen is handed two disjoint lists and cannot disagree with itself about which run a post is
+- **The duplicate is dropped from the timeline run, never from pinned**, and dropped by id in
+  `AccountReading.Read`, so the screen is handed two disjoint lists and cannot disagree with itself about which run a post is
   in. On their posts alone only a recent pinned *normal* post can be in both, that call excluding replies; with
   replies in, a recent pinned reply can be too, and is drawn in the pinned run alone the same way.
 - **Empty draws nothing; not asked draws a row.** No pinned posts is no heading, no rows and no gap, which is the
@@ -984,7 +984,8 @@ to follow (#171):
   — the **Enquiry** turns it into the shell's notice.
 - **Forty of forty, and no paging.** `limit=40`, no `offset`: a screen showing all of what it asked for has nothing to
   page. It uses `DestinationCache` for free, and **a tie or a dismiss made here forgets Discover's entry**, one line
-  beside the `_cache.Forget(DestinationKind.Home)` `Shell.Tie()` already does — without it, following somebody and
+  beside the `Forget(DestinationKind.Home)` a tie already makes (`Screens/Tying.cs`, which both the account screen and
+  Discover answer `F` through) — without it, following somebody and
   coming back inside the minute shows them still suggested, which is worse than the follow browser's equivalent because
   the server *would* have dropped them.
 - **Its status row puts the acting keys first**: `j/k person · ⏎ open · F follow · d dismiss · [/] section · g refresh ·
@@ -1233,6 +1234,17 @@ Three things stayed outside it, each deliberately:
 - **Whether the press was used.** `←`, `→` and the digits are consumed only where there is something to walk or toggle,
   and that is the screen's answer, relayed as the `bool` `Shell.Do` returns. The keymap says what a key *means*; only
   the screen knows what is on the post, and asking it in two places is how two places come to disagree.
+- **What a screen-local verb does.** The keymap decides which verbs a screen is sent; the screen carries them out, in its
+  own file, through `Screen.Answer(verb, reach)` (#232). `Shell.Do` keeps the frame's verbs and the ones that act on the
+  picked post of any screen — marks, reply, compose, edit, delete, vote, reveal, opening a reference or an author — and
+  `m`, which reads across the conversation and DM screens; every other verb falls through to the screen. What a screen
+  can do while it answers is **Reach** (CONTEXT.md): the ports and profile, one `Put` through the shell's **Enquiry**,
+  `Push` and `Swap`, the four opens (`OpenAccount`, `OpenTag`, `OpenPost`, `OpenFollows`), `Say`, `Confirm`, `Changed`,
+  `Forget`, `Count`, `Stands` and `IsMe` — and nothing of the stack, the rail or the caches. So the account screen's
+  ties, `w` and `s` are in `AccountScreen.cs`; a follow list's `s`, `f` and `⏎` in `FollowsScreen.cs`; search's `⏎` in
+  `SearchScreen.cs`; `d` and `D` in `NotificationsScreen.cs`; `a`, `x` and `⏎` in `FollowRequestsScreen.cs`; the
+  conversation list's `⏎` in `DirectMessagesScreen.cs`; and Discover's `⏎`, `F` and `d` in `DiscoverScreen.cs`. A
+  `Confirmation` carries what agreeing to it does, so `D` asks the same way a delete and a vote do.
 - **The verbs that need a terminal.** `ShellWindow` still carries out `ctrl-q`, the four movements that walk the page
   rather than the list, `j`/`k`, `Home`/`End` and `[`/`]` — which move the pick *and* the page — and `ctrl-s`, which
   has to take the editor widget's text before the shell sends it. Nothing else about a key is the window's: it translates the press

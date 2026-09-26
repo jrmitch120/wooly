@@ -511,4 +511,48 @@ public class ShellActionTests
         var shown = opened.Screen.Lines(new Drawing(61, AShell.Now)).Select(line => line.Text).ToList();
         Assert.Contains(shown, line => line.Contains("The spoiler itself", StringComparison.Ordinal));
     }
+
+    /// <summary>
+    ///     A key that means nothing on this screen is left unused, so that it falls through the window to whatever
+    ///     else wants it — handing it to the screen as one of its own would spend it on nothing (#232).
+    /// </summary>
+    [Fact]
+    public async Task Press_LeavesAKeyThatMeansNothingHereUnused()
+    {
+        var opened = await new AShell().Opened();
+
+        Assert.False(opened.Press(ShellKey.CtrlS));
+    }
+
+    /// <summary>
+    ///     A screen-local key bound on every screen is spent wherever it is pressed, and a screen with nothing for it
+    ///     does nothing with it: <c>D</c> on a feed empties no inbox and asks nothing (#232).
+    /// </summary>
+    [Fact]
+    public async Task Press_SpendsAScreenLocalKeyOnAScreenThatDoesNothingWithIt()
+    {
+        var shell = new AShell();
+        var opened = await shell.Opened();
+
+        Assert.True(opened.Press(ShellKey.CapitalD));
+        shell.Host.Drain();
+
+        Assert.Null(opened.Asking);
+        Assert.IsType<FeedScreen>(opened.Screen);
+    }
+
+    /// <summary>
+    ///     The verbs that need a terminal are the window's, so the shell answers each of them unused rather than handing
+    ///     it to the screen — and there are the twelve <see cref="Verb" /> names, no more and no fewer (#232).
+    /// </summary>
+    [Fact]
+    public async Task Do_LeavesEveryVerbThatNeedsATerminalUnused()
+    {
+        var opened = await new AShell().Opened();
+
+        var windows = Enum.GetValues<Verb>().Where(verb => verb.NeedsATerminal()).ToList();
+
+        Assert.Equal(12, windows.Count);
+        Assert.All(windows, verb => Assert.False(opened.Do(verb, answer: null)));
+    }
 }

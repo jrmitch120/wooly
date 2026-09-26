@@ -15,7 +15,8 @@ namespace Wooly.Tui.Shell;
 ///         which walk the page rather than the list; <see cref="NextPost" />, <see cref="PreviousPost" />,
 ///         <see cref="FirstPost" />, <see cref="LastPost" />, <see cref="NextSection" /> and
 ///         <see cref="PreviousSection" />, which move the pick and the page both; and <see cref="Send" />, which has
-///         to take the editor widget's text before the shell sends it.
+///         to take the editor widget's text before the shell sends it. Which twelve is <see cref="Verbs.NeedsATerminal" />,
+///         the one list the window and the shell both read.
 ///     </para>
 /// </remarks>
 public enum Verb

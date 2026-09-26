@@ -220,6 +220,47 @@ public sealed class FollowsScreen : Screen
     }
 
     /// <summary>
+    ///     What this list's own keys do: <c>s</c> swaps to the other side, <c>f</c> opens the filter and <c>⏎</c>
+    ///     either hands it back to walking or opens whoever is picked out (#180).
+    /// </summary>
+    /// <remarks>
+    ///     The swap stands the other side in place rather than on top — same screen, new crumb, the pick back at the
+    ///     top and the filter gone — because a toggle that pushed would grow the stack on every flip. And a person
+    ///     opens as the same account screen <c>a</c> opens from a feed, read the same way, rather than as a row that
+    ///     expands where it stands.
+    /// </remarks>
+    public override Task Answer(Verb verb, Reach reach)
+    {
+        switch (verb)
+        {
+            case Verb.SwapSide:
+                return reach.OpenFollows(
+                    Whose,
+                    Side.Either(followers: FollowSide.Following, following: FollowSide.Followers),
+                    replacing: true);
+
+            case Verb.Filter:
+                // The screen settles whether there is a filter to open at all: a list too large to hold whole is
+                // browsed rather than filtered, and does not announce the key either.
+                Filtering();
+                reach.Changed();
+
+                break;
+
+            case Verb.FilterDone:
+                Done();
+                reach.Changed();
+
+                break;
+
+            case Verb.OpenPerson when PickedPerson is { } person:
+                return reach.OpenAccount(AccountAddress.Parse(person.Address));
+        }
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
     ///     Opens the filter prompt, which is what <c>f</c> does — and nothing at all on a browsed list, where there
     ///     is no honest filter to offer and the key is not on the row either.
     /// </summary>
@@ -241,7 +282,7 @@ public sealed class FollowsScreen : Screen
     ///     Whether there was one to take off, which is what settles whether <c>esc</c> was spent on it — the same
     ///     answer a picked reference and an uncast vote give.
     /// </returns>
-    public bool Clear()
+    public override bool ClearFilter()
     {
         if (!_typing && Filter.Length == 0)
         {

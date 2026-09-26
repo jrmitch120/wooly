@@ -13,8 +13,10 @@ namespace Wooly.Tui.Shell;
 ///     read down against the document (#147).
 ///     <para>
 ///         This is the only place in the TUI that names a screen type to decide what a key means, and that is the
-///         point of it: <c>ShellWindow</c> translates a press and hands it on, <see cref="Shell.Do" /> carries a verb
-///         out, and neither has to know that <c>d</c> is dismiss on one screen and delete on every other.
+///         point of it: <c>ShellWindow</c> translates a press and hands it on, <see cref="Shell.Do" /> carries out
+///         the frame's verbs and the ones that act on a post, the screen carries out its own
+///         (<see cref="Screen.Answer" />, #232), and none of them has to know that <c>d</c> is dismiss on one screen and
+///         delete on every other.
 ///     </para>
 ///     <para>
 ///         <strong>What it does not answer is whether the press was used.</strong> <c>←</c>, <c>→</c> and the digits

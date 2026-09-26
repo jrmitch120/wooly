@@ -186,14 +186,14 @@ public class FollowsScreenTests
         screen.Filtering();
         screen.Type('m');
 
-        Assert.True(screen.Clear());
+        Assert.True(screen.ClearFilter());
 
         Assert.False(screen.IsTyping);
         Assert.Equal(string.Empty, screen.Filter);
         Assert.Equal(2, screen.Shown.Count);
 
         // And nothing to clear the second time, which is what lets esc go on to mean back.
-        Assert.False(screen.Clear());
+        Assert.False(screen.ClearFilter());
     }
 
     /// <summary>People who arrive while a filter is on are narrowed by it too, rather than appearing through it.</summary>

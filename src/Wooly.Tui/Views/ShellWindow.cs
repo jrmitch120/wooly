@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Terminal.Gui.App;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
@@ -234,13 +235,26 @@ internal sealed class ShellWindow : Window
     ///     about what any of it is for.
     /// </summary>
     /// <returns>
-    ///     Whether the press was used, which is <see cref="Shell.Shell.Do" />'s answer for everything below: an unused
+    ///     Whether the press was used, which is <see cref="Shell.Shell.Do" />'s answer for everything the window does
+    ///     not take (<see cref="Verbs.NeedsATerminal" />): an unused
     ///     <c>←</c>, <c>→</c> or digit falls through to whatever else wants it, the compose editor above all (#83,
     ///     #87).
     /// </returns>
     private bool Do(ShellKey pressed)
     {
-        switch (Keymap.Means(pressed, _shell.Screen))
+        var verb = Keymap.Means(pressed, _shell.Screen);
+
+        return verb.NeedsATerminal() ? Carry(verb) : _shell.Do(verb, Keymap.Answer(pressed));
+    }
+
+    /// <summary>Carries out one of the verbs that need a terminal (<see cref="Verbs.NeedsATerminal" />).</summary>
+    /// <remarks>
+    ///     Reached only for those, so a verb added to that list and not given an arm here fails the first time it is
+    ///     pressed rather than being handed to the shell to spend on nothing.
+    /// </remarks>
+    private bool Carry(Verb verb)
+    {
+        switch (verb)
         {
             case Verb.Quit:
                 _quit();
@@ -302,8 +316,8 @@ internal sealed class ShellWindow : Window
 
                 return true;
 
-            case var verb:
-                return _shell.Do(verb, Keymap.Answer(pressed));
+            default:
+                throw new UnreachableException($"{verb} needs a terminal and the window has no arm for it.");
         }
     }
 

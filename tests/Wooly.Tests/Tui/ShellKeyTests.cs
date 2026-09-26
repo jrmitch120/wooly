@@ -3,6 +3,7 @@ using Terminal.Gui.ViewBase;
 using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
+using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 using Wooly.Tui.Views;
 
@@ -424,7 +425,7 @@ public class ShellKeyTests
             shell.Type(letter);
         }
 
-        await shell.Find();
+        shell.Press(ShellKey.Enter);
 
         built.Host.Drain();
 

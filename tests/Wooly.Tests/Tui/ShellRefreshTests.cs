@@ -460,7 +460,7 @@ public class ShellRefreshTests
         opened.Step(5);
         shell.Host.Settle();
 
-        await opened.OpenConversation();
+        opened.Press(ShellKey.Enter);
         shell.Host.Drain();
 
         var conversation = Assert.IsType<ConversationScreen>(opened.Screen);
@@ -493,9 +493,9 @@ public class ShellRefreshTests
 
         opened.Type('d');
 
-        await opened.Find();
+        opened.Press(ShellKey.Enter);
         shell.Host.Drain();
-        await opened.OpenResult();
+        opened.Press(ShellKey.Enter);
         shell.Host.Drain();
 
         var tag = Assert.IsType<FeedScreen>(opened.Screen);

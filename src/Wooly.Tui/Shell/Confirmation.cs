@@ -9,6 +9,11 @@ namespace Wooly.Tui.Shell;
 ///     What is being asked, naming nothing a reader cannot check against what is on screen (#219): the row it is
 ///     drawn on belongs to no post in particular, and the post it is about is the one drawn picked.
 /// </param>
+/// <param name="Agreed">
+///     What going ahead does, carried by the question rather than kept beside it — so that whatever puts a question
+///     says in the same breath what agreeing to it means, and the shell holds one thing while it waits rather than two
+///     that could come apart (#232).
+/// </param>
 /// <param name="Going">
 ///     The word for going ahead, which the status row puts against the key. Named rather than assumed: "delete" and
 ///     "clear" are different words for the same keypress, and a row that said the wrong one would be asking a
@@ -22,6 +27,7 @@ namespace Wooly.Tui.Shell;
 /// </param>
 public sealed record Confirmation(
     string Ask,
+    Func<Task> Agreed,
     string Going = "delete",
     string Confirm = "y",
     string Warning = Confirmation.CannotBeUndone)

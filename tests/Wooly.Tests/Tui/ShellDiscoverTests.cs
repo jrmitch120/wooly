@@ -105,7 +105,7 @@ public class ShellDiscoverTests
     {
         var (fakes, opened) = await OnDiscover();
 
-        await opened.Tie(AccountTie.Follow);
+        opened.Press(ShellKey.CapitalF);
         fakes.Host.Drain();
 
         var tied = Assert.Single(fakes.Accounts.Ties);
@@ -127,10 +127,10 @@ public class ShellDiscoverTests
 
         fakes.Accounts.Becoming = followed;
 
-        await opened.Tie(AccountTie.Follow);
+        opened.Press(ShellKey.CapitalF);
         fakes.Host.Drain();
 
-        await opened.Tie(AccountTie.Follow);
+        opened.Press(ShellKey.CapitalF);
         fakes.Host.Drain();
 
         Assert.Equal([true, false], fakes.Accounts.Ties.Select(tied => tied.Wanted));
@@ -150,7 +150,7 @@ public class ShellDiscoverTests
             id: "1",
             standing: AnAccount.Standing(following: true));
 
-        await opened.Tie(AccountTie.Follow);
+        opened.Press(ShellKey.CapitalF);
         fakes.Host.Drain();
 
         var screen = Assert.IsType<DiscoverScreen>(opened.Screen);
@@ -168,7 +168,7 @@ public class ShellDiscoverTests
     {
         var (fakes, opened) = await OnDiscover();
 
-        await opened.Tie(tie);
+        opened.Press(Pressing.Tying(tie));
         fakes.Host.Drain();
 
         Assert.Empty(fakes.Accounts.Ties);
@@ -181,7 +181,7 @@ public class ShellDiscoverTests
     {
         var (fakes, opened) = await OnDiscover();
 
-        await opened.StopSuggesting();
+        opened.Press(ShellKey.D);
         fakes.Host.Drain();
 
         var dismissed = Assert.Single(fakes.Suggestions.Dismissals);
@@ -198,10 +198,10 @@ public class ShellDiscoverTests
     {
         var (fakes, opened) = await OnDiscover();
 
-        await opened.StopSuggesting();
+        opened.Press(ShellKey.D);
         fakes.Host.Drain();
 
-        await opened.StopSuggesting();
+        opened.Press(ShellKey.D);
         fakes.Host.Drain();
 
         Assert.Single(fakes.Suggestions.Dismissals);
@@ -215,7 +215,7 @@ public class ShellDiscoverTests
             ASuggestion.With(AnAccount.With(address: "alice@hachyderm.io", id: "1")),
             ASuggestion.With(AnAccount.With(address: "ben@hachyderm.io", id: "2")));
 
-        await opened.StopSuggesting();
+        opened.Press(ShellKey.D);
         fakes.Host.Drain();
 
         var screen = Assert.IsType<DiscoverScreen>(opened.Screen);
@@ -234,7 +234,7 @@ public class ShellDiscoverTests
     {
         var (fakes, opened) = await OnDiscover();
 
-        await opened.Tie(AccountTie.Follow);
+        opened.Press(ShellKey.CapitalF);
         fakes.Host.Drain();
 
         LeaveAndComeBack(fakes, opened);
@@ -248,7 +248,7 @@ public class ShellDiscoverTests
     {
         var (fakes, opened) = await OnDiscover();
 
-        await opened.StopSuggesting();
+        opened.Press(ShellKey.D);
         fakes.Host.Drain();
 
         LeaveAndComeBack(fakes, opened);
@@ -296,10 +296,10 @@ public class ShellDiscoverTests
             id: "1",
             standing: AnAccount.Standing(following: true));
 
-        await opened.OpenPerson();
+        opened.Press(ShellKey.Enter);
         fakes.Host.Drain();
 
-        await opened.Tie(AccountTie.Follow);
+        opened.Press(ShellKey.CapitalF);
         fakes.Host.Drain();
 
         opened.Back();
@@ -317,7 +317,7 @@ public class ShellDiscoverTests
     {
         var (fakes, opened) = await OnDiscover();
 
-        await opened.StopSuggesting();
+        opened.Press(ShellKey.D);
         fakes.Host.Drain();
 
         Assert.Null(opened.Notice);
@@ -330,7 +330,7 @@ public class ShellDiscoverTests
     {
         var (fakes, opened) = await OnDiscover();
 
-        await opened.OpenPerson();
+        opened.Press(ShellKey.Enter);
         fakes.Host.Drain();
 
         Assert.IsType<AccountScreen>(opened.Screen);
@@ -343,10 +343,10 @@ public class ShellDiscoverTests
     {
         var (fakes, opened) = await OnDiscover();
 
-        await opened.StopSuggesting();
+        opened.Press(ShellKey.D);
         fakes.Host.Drain();
 
-        await opened.OpenPerson();
+        opened.Press(ShellKey.Enter);
         fakes.Host.Drain();
 
         Assert.IsType<AccountScreen>(opened.Screen);

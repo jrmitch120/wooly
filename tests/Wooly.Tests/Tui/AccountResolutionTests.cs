@@ -50,7 +50,7 @@ public class AccountResolutionTests
 
         var reads = fakes.Accounts.Reads.Count;
 
-        await opened.OpenFollows();
+        opened.Press(ShellKey.W);
         fakes.Host.Drain();
 
         var listed = Assert.Single(fakes.Accounts.Lists, list => list.Side is not null);
@@ -102,7 +102,7 @@ public class AccountResolutionTests
     {
         var (fakes, opened) = await OnTheAccountScreen();
 
-        await opened.Tie(tie);
+        opened.Press(Pressing.Tying(tie));
         fakes.Host.Drain();
 
         var tied = Assert.Single(fakes.Accounts.Ties);
