@@ -35,6 +35,7 @@ public class ShellProfilesTests
             FakeProfileRegistry.Profile("spare", "fosstodon.org", null)),
     };
 
+    /// <summary>A screen on the stack like any other: <c>ctrl-p</c> goes there and <c>esc</c> comes back.</summary>
     [Fact]
     public async Task CtrlP_PushesTheProfilesScreen_AndEscWalksBackOutOfIt()
     {
@@ -88,6 +89,22 @@ public class ShellProfilesTests
 
         Assert.All(screens, screen => Assert.Equal(Verb.Profiles, Keymap.Means(ShellKey.CtrlP, screen)));
         Assert.Equal(Verb.None, Keymap.Means(ShellKey.CtrlP, new ComposeScreen(ComposeFor.Post)));
+    }
+
+    /// <summary>
+    ///     The keymap opened over compose is still over the draft, and lists no <c>ctrl-p</c> — so the key does
+    ///     nothing there either, rather than being answered where it is not announced.
+    /// </summary>
+    [Fact]
+    public async Task CtrlP_OnTheKeymapOverCompose_DoesNothing()
+    {
+        var opened = await new AShell().Opened();
+
+        opened.Press(ShellKey.C);
+        opened.Press(ShellKey.Question);
+
+        Assert.False(opened.Press(ShellKey.CtrlP));
+        Assert.IsType<HelpScreen>(opened.Screen);
     }
 
     /// <summary>Switching would drop a draft, and drafts do not survive one — so on compose the key does nothing.</summary>
@@ -218,6 +235,7 @@ public class ShellProfilesTests
         Assert.Contains(TokenStorageDescription.For(CredentialStorage.PlaintextFile, shell.Paths), text);
     }
 
+    /// <summary>And only there: a keyring is nothing to warn anybody about.</summary>
     [Fact]
     public async Task PlaintextWarning_IsNotDrawn_WhereTokensAreInTheKeyring()
     {

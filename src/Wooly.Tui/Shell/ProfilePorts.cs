@@ -25,8 +25,7 @@ public sealed record ProfilePorts(IProfileRegistry Registry, WoolyPaths Paths)
     ///     in the keyring. The same words the CLI says it in, since both read <see cref="TokenStorageDescription" />.
     /// </summary>
     /// <remarks>Reading which store is in use may open the keyring, which is local — nothing here reaches an instance.</remarks>
-    public string? PlaintextWarning => Registry.TokenStorage is CredentialStorage.PlaintextFile and var storage
-        ? "Warning: no OS keyring answered on this machine, so access tokens are "
-          + $"{TokenStorageDescription.For(storage, Paths)}."
+    public string? PlaintextWarning => Registry.TokenStorage is CredentialStorage.PlaintextFile
+        ? $"Warning: {TokenStorageDescription.InTheClear(Paths)}"
         : null;
 }

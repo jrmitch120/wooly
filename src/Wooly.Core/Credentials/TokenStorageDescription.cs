@@ -20,4 +20,11 @@ public static class TokenStorageDescription
         // delete it.
         _ => $"kept in the clear in {paths.CredentialFile}",
     };
+
+    /// <summary>
+    ///     The whole of the warning ADR-0003 owes wherever tokens are kept in the clear, as a sentence with nothing in
+    ///     front of it — each front end puts its own "warning" there, in its own case and colour.
+    /// </summary>
+    public static string InTheClear(WoolyPaths paths) =>
+        $"no OS keyring answered on this machine, so the access token is {For(CredentialStorage.PlaintextFile, paths)}.";
 }

@@ -190,9 +190,6 @@ internal sealed class ProfileAddCommand(
             return;
         }
 
-        var where = TokenStorageDescription.For(profiles.TokenStorage, paths);
-
-        console.MarkupLineInterpolated(
-            $"[yellow]warning:[/] no OS keyring answered on this machine, so the access token is {where}.");
+        console.MarkupLineInterpolated($"[yellow]warning:[/] {TokenStorageDescription.InTheClear(paths)}");
     }
 }

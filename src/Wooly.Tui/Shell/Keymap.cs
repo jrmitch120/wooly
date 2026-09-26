@@ -55,8 +55,9 @@ public static class Keymap
 
         // The frame's one ctrl chord besides quitting, because a frame key has to work on screens where letters are
         // typed. Taken back on compose alone: switching from there would drop the draft, and drafts do not survive a
-        // switch (ADR-0020).
+        // switch (ADR-0020). The keymap opened over compose is still over the draft, so it is taken back there too.
         (ShellKey.CtrlP, ComposeScreen) => Verb.None,
+        (ShellKey.CtrlP, HelpScreen { About: ComposeScreen }) => Verb.None,
         (ShellKey.CtrlP, _) => Verb.Profiles,
 
         // Screen-local, and the reason this pair is here rather than on the editor widget alone: the editor gives up
