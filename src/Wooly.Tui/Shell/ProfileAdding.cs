@@ -212,8 +212,7 @@ internal sealed class ProfileAdding(
 
         if (name.Length == 0)
         {
-            // profile add's words for the same empty value.
-            screen.Refuse("Give the profile a name to be known by, e.g. work.");
+            screen.Refuse(ProfileWords.NameMissing);
             changed();
 
             return Task.CompletedTask;
@@ -245,6 +244,12 @@ internal sealed class ProfileAdding(
     /// </summary>
     private void Store(AddProfileScreen screen, string name)
     {
+        // Agreed to after the reader had gone is nothing to write.
+        if (!held(screen))
+        {
+            return;
+        }
+
         ProfileAddition addition;
 
         try

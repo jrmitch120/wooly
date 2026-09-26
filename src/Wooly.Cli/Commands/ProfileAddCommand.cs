@@ -45,7 +45,7 @@ internal sealed class ProfileAddCommand(
         {
             if (string.IsNullOrWhiteSpace(Name))
             {
-                return ValidationResult.Error("Give the profile a name to be known by, e.g. work.");
+                return ValidationResult.Error(ProfileWords.NameMissing);
             }
 
             if (string.IsNullOrWhiteSpace(Instance))

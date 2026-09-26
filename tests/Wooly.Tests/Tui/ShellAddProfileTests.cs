@@ -131,6 +131,35 @@ public class ShellAddProfileTests
     }
 
     /// <summary>
+    ///     A browser that comes back turned down says why on the add screen, writes nothing, and offers the browser
+    ///     again or a pasted token — never the start over.
+    /// </summary>
+    [Fact]
+    public async Task BrowserRefusal_IsSaidInline_AndCanBeTriedAgain()
+    {
+        var shell = new AShell { Authorizer = FakeBrowserAuthorizer.Refusing("the request was denied") };
+        var opened = await Adding(shell);
+
+        Type(opened, Instance);
+        opened.Press(ShellKey.Enter);
+        shell.Host.Drain();
+
+        Assert.Contains("the request was denied", Joined(opened));
+        Assert.Null(opened.Notice);
+        Assert.True(shell.Authorizer.Disposed);
+        Assert.False(opened.Fetching);
+        Assert.Empty(shell.Verifier.Tokens);
+        Assert.Empty(shell.Profiles.Added);
+        Assert.Contains(opened.Keys, key => key is { Key: "⏎", Does: "try again" });
+        Assert.Contains(opened.Keys, key => key.Key == "t");
+
+        opened.Press(ShellKey.Enter);
+        shell.Host.Drain();
+
+        Assert.Equal([Instance, Instance], shell.Authorizer.Instances);
+    }
+
+    /// <summary>
     ///     The whole of the browser's way in: the token it came back with is checked, the name defaults to the handle
     ///     just learned, and the profile is written through the registry — then the list, with the new row picked.
     /// </summary>

@@ -107,7 +107,7 @@ public sealed class Shell
         _profile = profile;
         _ports = ports;
         _profiles = profiles;
-        _instance = Naming();
+        _instance = RailInstance();
         _host = host;
         _browser = browser;
         // Asked from whatever is on top, which is the whole of the stale-answer rule: an answer lands only while the
@@ -1309,25 +1309,23 @@ public sealed class Shell
 
         list.Pick(name);
 
+        _instance = RailInstance();
+
         if (Screen is ProfilesScreen)
         {
-            _stack[^1].Left();
-            _stack[^1] = list;
+            Freshened(list);
         }
         else
         {
-            _stack.Add(list);
+            Push(list);
         }
 
-        _instance = Naming();
 
         var what = addition.ReplacedExisting ? "Replaced" : "Added";
 
-        // The same words profile add says it in, less the markup — and the current profile's the words it adds.
+        // Said after the list is up, which clears what was said over the one it replaced — in profile add's words.
         Say(
-            addition.IsCurrent
-                ? $"{what} profile {name}. Commands act as {name} unless told otherwise."
-                : $"{what} profile {name}.",
+            addition.IsCurrent ? $"{what} profile {name}. {ProfileWords.ActsAs(name)}" : $"{what} profile {name}.",
             isError: false);
     }
 
@@ -1341,7 +1339,7 @@ public sealed class Shell
     ///     The instance the rail's foot names: this session's, where two or more profiles are set up and there is
     ///     somebody to tell it apart from — otherwise none (#241).
     /// </summary>
-    private string? Naming() => _profiles.Registry.List().Count >= 2 ? _profile.Instance : null;
+    private string? RailInstance() => _profiles.Registry.List().Count >= 2 ? _profile.Instance : null;
 
     /// <summary>
     ///     Takes the screen at <paramref name="at" /> off the stack, and lets it know (<see cref="Screen.Left" />).

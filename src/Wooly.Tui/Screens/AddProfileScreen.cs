@@ -116,8 +116,8 @@ public sealed class AddProfileScreen : Screen
     protected override IReadOnlyList<KeyHint> OwnKeys => At switch
     {
         Step.Instance => [new("⏎", "sign in"), new("esc", "back")],
-        Step.Registering or Step.Checking => [new("esc", "cancel")],
-        Step.Browser when Waiting => [new("t", "paste a token"), new("esc", "cancel")],
+        Step.Registering or Step.Checking => [new("esc", "back")],
+        Step.Browser when Waiting => [new("t", "paste a token"), new("esc", "back")],
         Step.Browser => [new("⏎", "try again"), new("t", "paste a token"), new("esc", "back")],
         Step.Token => [new("⏎", "check"), new("esc", "back")],
         _ => [new("⏎", "save"), new("esc", "back")],
