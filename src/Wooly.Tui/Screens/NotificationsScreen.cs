@@ -84,7 +84,7 @@ public sealed class NotificationsScreen(IReadOnlyList<Notification> notification
                 break;
 
             case Change.NotificationsGone(var ids):
-                Forget(ids);
+                TakeOff(ids);
 
                 break;
 
@@ -154,7 +154,7 @@ public sealed class NotificationsScreen(IReadOnlyList<Notification> notification
             });
 
     /// <summary>Takes the notifications <paramref name="ids" /> names off the screen, once the instance has cleared them.</summary>
-    private void Forget(IEnumerable<string> ids)
+    private void TakeOff(IEnumerable<string> ids)
     {
         var going = ids.ToHashSet(StringComparer.Ordinal);
 

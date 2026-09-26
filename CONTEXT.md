@@ -368,7 +368,7 @@ dismissed or cleared, a follow request answered, a suggestion dismissed, a conve
 of values saying what happened and nothing about what it makes stale — that is **Arrival**'s one table, which evicts
 every cached list the change is no longer true of, moves the badge it touches, and tells every **screen** on the stack
 (`Screen.Heard`), taking off it any that are now about nothing. Reported whether or not the reader is still where the
-verb was pressed, being true of the instance rather than of where anybody is standing. Distinct from a **notice**, which
+verb was pressed, being true of the instance rather than of where anybody is standing. Distinct from a notice, which
 stays with the verb: "Deleted." is said to a reader, and a change is said to the shell.
 A verb deciding what went stale could only ever decide it about the destination showing, which is how a post marked on
 Home stayed unmarked on a Local list held a minute, and a post sent from Notifications left Home as it was.
@@ -406,9 +406,9 @@ What a **screen** can reach of the shell while it carries out a verb of its own 
 the ports, one way of asking an **instance** (through the shell's **Enquiry**, stale-answer rule and all), opening a
 **Subject** on top of what is showing or swapping one into its own place, saying something on the status row, asking
 before going ahead, and telling the shell what **Change** a verb made. Nothing of the stack, the rail or the cache:
-what a change makes stale is **Arrival**'s to settle, not the screen's that made it (#234). Narrow on purpose: a verb that needs more is a sign it is not screen-local, and the
-thing to do is say so rather than widen it. Concrete rather than an interface, because the shell is the only thing
-that builds one.
+what a change makes stale is **Arrival**'s to settle, not the screen's that made it (#234). Narrow on purpose: a verb
+that needs more is a sign it is not screen-local, and the thing to do is say so rather than widen it. Concrete rather
+than an interface, because the shell is the only thing that builds one.
 _Avoid_: context, services, host (which is `IShellHost`, the terminal's side of the shell)
 
 **Picked**:

@@ -65,7 +65,7 @@ public sealed class ConversationScreen : Screen
     /// </summary>
     /// <remarks>
     ///     It is the conversation's last word as well as the thread's last message, so the conversation itself moves
-    ///     with it — which is what the shell hands back to the list this thread was opened from.
+    ///     with it.
     /// </remarks>
     public void Said(Post post)
     {
