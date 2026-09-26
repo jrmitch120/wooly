@@ -66,7 +66,8 @@ public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string?
     {
         (Verb.AcceptRequest, { } picked) => AnswerRequest(reach, picked, accepted: true),
         (Verb.RejectRequest, { } picked) => AnswerRequest(reach, picked, accepted: false),
-        (Verb.OpenAsker, { } picked) => reach.OpenAccount(AccountAddress.Parse(picked.Address)),
+        (Verb.OpenAsker, { } picked) => reach.Open(
+            new Subject.Account(AccountAddress.Parse(picked.Address), WithReplies: false)),
         _ => Task.CompletedTask,
     };
 
@@ -76,12 +77,16 @@ public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string?
         // arrive back at the id already in hand (ADR-0012).
         reach.Put(
             ask => ask.Of(token => reach.Ports.Accounts.Answer(reach.Profile, picked.Id, accepted, token)),
-            eitherWay: _ => reach.Forget(DestinationKind.Requests),
-            ifStillHere: _ =>
+            eitherWay: _ =>
             {
+                // Whether or not the reader is still here: the request was answered on the instance, and the badge and
+                // the list under it are one fact about that rather than about where anybody is standing (#233).
+                reach.Forget(new Subject.Destination(DestinationKind.Requests));
                 Answered(picked.Id);
                 reach.Count(DestinationKind.Requests, Waiting.Count);
-
+            },
+            ifStillHere: _ =>
+            {
                 reach.Say(
                     accepted ? $"@{picked.Address} can follow you." : $"@{picked.Address} was turned away.",
                     isError: false);

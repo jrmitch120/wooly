@@ -257,6 +257,88 @@ public class ShellFollowsTests
         Assert.Equal(asked, Listed(fakes).Count);
     }
 
+    /// <summary>
+    ///     Whose list it is is the account's id and not the copy of them a screen is holding: a tie put on between
+    ///     leaving the list and coming back changes that copy, and the list is still the one held (#233).
+    /// </summary>
+    [Fact]
+    public async Task OpenFollows_HandsBackWhatItHeldThoughTheAccountHasBeenAnsweredAboutAgain()
+    {
+        var (fakes, opened) = await OnAFollowList();
+
+        opened.Back();
+
+        var before = Assert.IsType<AccountScreen>(opened.Screen).Account;
+
+        fakes.Accounts.Becoming = before with { Bio = "Followed since." };
+
+        opened.Press(Pressing.Tying(AccountTie.Follow));
+        fakes.Host.Drain();
+
+        // The screen w is pressed on is holding a different copy of the same person.
+        Assert.Equal("Followed since.", Assert.IsType<AccountScreen>(opened.Screen).Account.Bio);
+
+        var asked = Listed(fakes).Count;
+
+        opened.Press(ShellKey.W);
+        fakes.Host.Drain();
+
+        Assert.IsType<FollowsScreen>(opened.Screen);
+        Assert.Equal(asked, Listed(fakes).Count);
+    }
+
+    /// <summary>
+    ///     A swap back to the side just left is a list re-opened inside the minute, so it costs nothing — where
+    ///     <c>g</c> on it is asking for what is there now, and always asks (#233).
+    /// </summary>
+    [Fact]
+    public async Task SwapSide_HandsBackTheSideItHeldWhereRefreshAsksAgain()
+    {
+        var (fakes, opened) = await OnAFollowList();
+
+        opened.Press(ShellKey.S);
+        fakes.Host.Drain();
+
+        var asked = Listed(fakes).Count;
+
+        opened.Press(ShellKey.S);
+        fakes.Host.Drain();
+
+        Assert.Equal(FollowSide.Following, Assert.IsType<FollowsScreen>(opened.Screen).Side);
+        Assert.Equal(asked, Listed(fakes).Count);
+
+        await opened.Refresh();
+        fakes.Host.Drain();
+
+        Assert.Equal(asked + 1, Listed(fakes).Count);
+        Assert.Equal(FollowSide.Following, Listed(fakes)[^1].Side);
+    }
+
+    /// <summary>
+    ///     A list the reader has walked back out of before it filled is filled no further, and is not held either —
+    ///     what came back was never on screen, so opening it again asks again (#233).
+    /// </summary>
+    [Fact]
+    public async Task OpenFollows_DropsAFillTheReaderHasWalkedBackOutOfBeforeItLands()
+    {
+        var fakes = Fakes(AnAccount.With(address: "ben@hachyderm.io"), [AnAccount.With()]);
+        var opened = await OnTheAccountScreen(fakes);
+
+        // Asked, and answered — but the answer is still on its way to the drawing thread when esc is pressed.
+        opened.Press(ShellKey.W);
+        opened.Press(ShellKey.Escape);
+        fakes.Host.Drain();
+
+        Assert.IsType<AccountScreen>(opened.Screen);
+        Assert.Equal(2, opened.Depth);
+
+        opened.Press(ShellKey.W);
+        fakes.Host.Drain();
+
+        Assert.Equal(2, Listed(fakes).Count);
+        Assert.Single(Assert.IsType<FollowsScreen>(opened.Screen).People);
+    }
+
     /// <summary>And asks again once that has gone stale, the age being the whole of the cache's judgement.</summary>
     [Fact]
     public async Task OpenFollows_AsksAgainOnceWhatItHeldIsOld()

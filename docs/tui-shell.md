@@ -340,7 +340,8 @@ mention, or address inside a post's text — replacing `BodyText`'s internal "ma
   `OwnKeys` and `Keys` is what the status row reads (#83).
 - **`⏎` does four different things, refusals share one notice** (#85, #109). Which of the four is the role the
   reference draws in, since that vocabulary already tells them apart. A hashtag opens exactly the way a search result
-  for one already opens — `Shell.OpenTag`, which `SearchScreen` reaches through `Reach.OpenTag` — same `FeedScreen`, same breadcrumb, no new screen type, and the rail's own
+  for one already opens — a `Tag` **Subject** brought up by `Arrival.Open`, which `SearchScreen` reaches through
+  `Reach.Open` — same `FeedScreen`, same breadcrumb, no new screen type, and the rail's own
   hashtag destination left alone. A mention opens the account screen, resolved off `Post.Mentions` — which the wire
   carries down with every post, so no fetch is spent working out who a `@maria` is; a handle written bare is whoever
   the post names by that username, and where two accounts share one the first the post lists wins. Unresolvable, `⏎`
@@ -439,9 +440,12 @@ cache. Streaming stays out of scope (below); a manual refresh is the in-scope an
 - **Lives on nine destinations**: the four cached feed destinations (home, local, federated, the hashtag), plus
   Notifications, Messages, Requests, the post screen, and the account screen. The conversation screen and search
   results are left out — a live thread and a live search are each their own, smaller question, not decided here.
-- **Evicts the destination's cache entry, then re-runs the same fetch its own arrival runs** — `Arrival.At()` for the
-  four feeds and Notifications/Messages/Requests, which is one arrival for all seven (#100), `Replies` for the post
-  screen, both of `OpenAccount`'s calls for the account screen.
+- **Evicts the screen's cache entry, then re-runs the same read that brought it up** — one path for every screen that
+  refreshes: `Shell.Refresh` names no screen type and calls `Arrival.Again` with the screen's **Subject** (#100,
+  #233). What to evict, what to read, what it becomes and what it counts are all things the subject already says: the
+  timeline or list for a destination, `Thread` for the post screen, the account's four calls for the account screen,
+  and the follow list's own read for a follow list. There is one cache, keyed by subject; only the rail's destinations
+  and follow lists held whole are ever in it.
 - **It opens at the top, on the newest of what came back.** Nothing about where the reader was standing is carried
   over — not the scroll offset, not which post was picked. That is the whole of what the key is for: somebody pressing
   `g` is asking to see what has arrived, and what has arrived is above everything they have already read. A refresh
@@ -456,7 +460,8 @@ cache. Streaming stays out of scope (below); a manual refresh is the in-scope an
   screen change.
 - **The badge moves with the count**, from the same answer the screen redraws from — the same rule every other
   arrival already follows.
-- **A refresh goes through `Enquiry` like every other fetch**, discarded unread if the reader has moved on. No new
+- **A refresh goes through `Enquiry` like every other fetch**, discarded unread if the screen it was asked from is no
+  longer in front of the reader. No new
   in-flight UI beyond the breadcrumb's existing fetch mark; a second `g` while anything at all is in flight is
   a silent no-op — the guard is the breadcrumb's own `Fetching`, since a refresh landing on top of a boost or a
   deletion still in flight is the same stale answer by another route. Since #213 that mark waits 400ms before it
@@ -466,15 +471,14 @@ cache. Streaming stays out of scope (below); a manual refresh is the in-scope an
   up at once because what was showing is about somewhere the reader has left; a refresh is the one case where that is
   not true, so it takes neither that step nor the overtake — nothing is in flight to overtake, since the key is
   refused while anything is. A refresh a rate limit or a refusal ends is then a notice over the list they were
-  reading rather than an empty screen where it used to be, with the cache already evicted. This is the only place a
-  destination is read without `Arrival`'s first two steps, and it is `Arrival.Again` rather than a second reading of
-  the same table.
-- **The post and account screens are replaced where they stand**, rather than pushed or reset: nobody has gone
-  anywhere, so what was drilled through to get there is still under them and `esc` still walks back out of it. Neither
-  is reached through an arrival, so neither is overtaken by one — each rechecks that the top of the stack is still the
-  screen it was asked about, the same idiom `Reach.Swap` and a follow list's fill use. Every refresh builds a new screen rather
-  than changing the one on the stack, which is what starts the scroll offset again: the view notices a screen has been
-  replaced by identity.
+  reading rather than an empty screen where it used to be, with the cache already evicted. A follow list is the
+  exception, and was before: it puts its fresh, empty screen up at once and fills it, which is the shape it opens with.
+- **Every refreshed screen is replaced where it stands**, rather than pushed or reset: nobody has gone anywhere, so what
+  was drilled through to get there is still under them and `esc` still walks back out of it. Nothing rechecks the top
+  of the stack by hand — `Enquiry`'s one rule already drops an answer whose screen is no longer in front, which is the
+  same rule `Reach.Swap` and a follow list's fill land by. Every refresh builds a new screen rather than changing the
+  one on the stack, which is what starts the scroll offset again: the view notices a screen has been replaced by
+  identity.
 - **A hashtag walked to from a search has no refresh**, though it is the same `FeedScreen` the rail's own hashtag
   destination opens onto. Which of the two a screen is cannot be read off what is in it — a tag the reader named and a
   tag they walked to are the same destination by value — so it is settled by who built it: an arrival's feed refreshes
@@ -795,7 +799,7 @@ doing so it became the first screen in the shell whose pick is not a post (#164,
   list, and counting it would be a number about the fetch pretending to be a number about the account. One `PostList`
   with the headings spliced, the way the post screen already splices `[...ancestors, post, ...replies]`.
 - **The duplicate is dropped from the timeline run, never from pinned**, and dropped by id in
-  `AccountReading.Read`, so the screen is handed two disjoint lists and cannot disagree with itself about which run a post is
+  the `Account` subject's read, so the screen is handed two disjoint lists and cannot disagree with itself about which run a post is
   in. On their posts alone only a recent pinned *normal* post can be in both, that call excluding replies; with
   replies in, a recent pinned reply can be too, and is drawn in the pinned run alone the same way.
 - **Empty draws nothing; not asked draws a row.** No pinned posts is no heading, no rows and no gap, which is the
@@ -883,8 +887,8 @@ anybody's account — `IAccountRelationships.List` already takes a `FollowSide` 
 - **No per-row rule.** The search screen rules between posts, because a run of them is a feed; there is one kind here
   and nothing to separate, and at 900 people it would be 1,800 rows, half of them horizontal lines. One rule under the
   prompt keeps the screen search-shaped.
-- **Its cache is its own**: age only, one minute, keyed by account and side. `DestinationCache` is keyed by
-  `DestinationKind`, one entry per rail destination, and this is the shell's first drill-in cache. `esc` back is
+- **It is cached**: age only, one minute, keyed by its subject — the account's id and the side. The shell's first
+  drill-in cache, and since #233 in the same cache the rail's destinations are held in. `esc` back is
   already free — the stack hands back the very screen with its page intact (#133) — so the cache only pays on a re-open
   after popping.
 
@@ -983,8 +987,8 @@ to follow (#171):
   `Nothing found for …`, and no apology for a new account or a small instance. A failure is not an empty screen either
   — the **Enquiry** turns it into the shell's notice.
 - **Forty of forty, and no paging.** `limit=40`, no `offset`: a screen showing all of what it asked for has nothing to
-  page. It uses `DestinationCache` for free, and **a tie or a dismiss made here forgets Discover's entry**, one line
-  beside the `Forget(DestinationKind.Home)` a tie already makes (`Screens/Tying.cs`, which both the account screen and
+  page. It is cached for free, and **a tie or a dismiss made here forgets Discover's entry**, one line
+  beside the `Forget` of Home a tie already makes (`Screens/Tying.cs`, which both the account screen and
   Discover answer `F` through) — without it, following somebody and
   coming back inside the minute shows them still suggested, which is worse than the follow browser's equivalent because
   the server *would* have dropped them.
@@ -1239,8 +1243,8 @@ Three things stayed outside it, each deliberately:
   picked post of any screen — marks, reply, compose, edit, delete, vote, reveal, opening a reference or an author — and
   `m`, which reads across the conversation and DM screens; every other verb falls through to the screen. What a screen
   can do while it answers is **Reach** (CONTEXT.md): the ports and profile, one `Put` through the shell's **Enquiry**,
-  `Push` and `Swap`, the four opens (`OpenAccount`, `OpenTag`, `OpenPost`, `OpenFollows`), `Say`, `Confirm`, `Changed`,
-  `Forget`, `Count`, `Stands` and `IsMe` — and nothing of the stack, the rail or the caches. So the account screen's
+  `Open` and `Swap` of a **Subject** (#233), `Say`, `Confirm`, `Changed`, `Forget` of a subject, `Count`, `Stands` and
+  `IsMe` — and nothing of the stack, the rail or the cache. So the account screen's
   ties, `w` and `s` are in `AccountScreen.cs`; a follow list's `s`, `f` and `⏎` in `FollowsScreen.cs`; search's `⏎` in
   `SearchScreen.cs`; `d` and `D` in `NotificationsScreen.cs`; `a`, `x` and `⏎` in `FollowRequestsScreen.cs`; the
   conversation list's `⏎` in `DirectMessagesScreen.cs`; and Discover's `⏎`, `F` and `d` in `DiscoverScreen.cs`. A

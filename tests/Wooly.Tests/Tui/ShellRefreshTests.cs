@@ -410,8 +410,37 @@ public class ShellRefreshTests
     }
 
     /// <summary>
-    ///     The same rule for the two screens no arrival reaches: they are not overtaken by an arrival, so each rechecks
-    ///     that the reader is still standing on it — the idiom <c>Find</c> and <c>OpenResult</c> already use.
+    ///     A destination's refresh is asked from the screen it refreshes, so a reader who has drilled in before it lands
+    ///     is left where they are — and walks back out onto the list they left rather than onto a stack reset under
+    ///     them (#233).
+    /// </summary>
+    [Fact]
+    public async Task Refresh_DropsADestinationsAnswerWhereTheReaderHasDrilledInBeforeItLands()
+    {
+        var shell = new AShell { Timelines = FakeTimelineReader.Holding(APost.With(id: "110")) };
+
+        var opened = await shell.Opened();
+        var home = opened.Screen;
+
+        shell.Timelines.NowHolding(APost.With(id: "120"));
+
+        // Asked, and answered — but the answer is still on its way to the drawing thread when ? is pressed.
+        await opened.Refresh();
+        opened.Help();
+        shell.Host.Drain();
+
+        Assert.IsType<HelpScreen>(opened.Screen);
+        Assert.Equal(2, opened.Depth);
+
+        opened.Back();
+
+        Assert.Same(home, opened.Screen);
+        Assert.Equal(["110"], Assert.IsType<FeedScreen>(opened.Screen).Posts.Select(post => post.Id));
+    }
+
+    /// <summary>
+    ///     The same rule for a screen drilled into: a refresh is asked from the screen showing, and lands only while it
+    ///     is still in front (#233).
     /// </summary>
     [Fact]
     public async Task Refresh_DropsAnswersTheReaderHasWalkedOutOfThePostScreenBefore()

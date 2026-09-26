@@ -78,13 +78,13 @@ public sealed class PostScreen : Screen
     public int At => _posts.At;
 
     /// <summary>The post this screen is about.</summary>
-    public Post Post => _posts.All[Subject];
+    public Post Post => _posts.All[Head];
 
     /// <summary>What it answers, the root of the thread first and the post it directly answers last.</summary>
-    public IReadOnlyList<Post> Ancestors => [.. _posts.All.Take(Subject)];
+    public IReadOnlyList<Post> Ancestors => [.. _posts.All.Take(Head)];
 
     /// <summary>What has been said in answer to it, oldest first.</summary>
-    public IReadOnlyList<Post> Replies => [.. _posts.All.Skip(Subject + 1)];
+    public IReadOnlyList<Post> Replies => [.. _posts.All.Skip(Head + 1)];
 
     /// <summary>
     ///     Where on the list the post this screen is about stands, which is how many ancestors are above it.
@@ -99,7 +99,7 @@ public sealed class PostScreen : Screen
     ///         from a draw is a client that stops drawing.
     ///     </para>
     /// </remarks>
-    private int Subject =>
+    private int Head =>
         _posts.All.TakeWhile(post => post.Id != _postId).Count() is var at && at < _posts.Count ? at : 0;
 
     /// <inheritdoc />
@@ -111,7 +111,7 @@ public sealed class PostScreen : Screen
     ///     a copy of this same screen and put a place nobody went on the breadcrumb (#48). An ancestor is a whole post
     ///     of its own and opens like any other — the thread above this post is not this post (#86).
     /// </remarks>
-    public override Post? Opens => At == Subject ? null : Picked;
+    public override Post? Opens => At == Head ? null : Picked;
 
     /// <inheritdoc />
     protected override IPicked Walking => _posts;
@@ -124,7 +124,7 @@ public sealed class PostScreen : Screen
     ///     Anything on the thread but the post itself: an ancestor deleted goes the same way an answer does, and the
     ///     rows below it move up. A post screen showing a post that is no longer there is a screen about nothing, and
     ///     the shell walks out of it rather than leaving this one to draw a thread with no head to it — which is also
-    ///     what keeps <see cref="Subject" /> able to find it.
+    ///     what keeps <see cref="Head" /> able to find it.
     /// </remarks>
     public override void Remove(string postId) => _posts.Remove(postId, Post);
 
@@ -133,7 +133,7 @@ public sealed class PostScreen : Screen
     {
         var width = drawing.Width;
 
-        var subject = Subject;
+        var subject = Head;
         var lines = new List<Line>();
 
         // What the post answers, oldest first, with the rule that separates two posts between them — and none after

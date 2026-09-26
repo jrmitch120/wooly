@@ -22,8 +22,9 @@ namespace Wooly.Tui.Screens;
 ///         few hundred of anyone's followers is a real thing to do, on the same rows with the same <c>⏎</c>.
 ///     </para>
 ///     <para>
-///         Nothing here fetches. What is read is the shell's, and arrives through <see cref="Arrived" /> — so the
-///         whole of this screen can be walked, filtered and drawn with no terminal and no instance.
+///         Nothing here fetches. What is read is its subject's (<see cref="Subject.Follows" />), and arrives through
+///         <see cref="Arrived" /> — so the whole of this screen can be walked, filtered and drawn with no terminal and
+///         no instance.
 ///     </para>
 /// </remarks>
 public sealed class FollowsScreen : Screen
@@ -101,15 +102,12 @@ public sealed class FollowsScreen : Screen
     /// <summary>What is narrowing the list, or empty where nothing is.</summary>
     public string Filter { get; private set; } = string.Empty;
 
-    /// <summary>
-    ///     Whether the reader has walked onto the end of what has been read and there is more of it to ask for —
-    ///     which is what <c>j</c> past the bottom means on a browsed list.
-    /// </summary>
+    /// <inheritdoc />
     /// <remarks>
     ///     Never on a held list: the whole of that one is already on its way, and asking again would be asking for
     ///     what is in flight.
     /// </remarks>
-    public bool WantsMore => !Holds && More && Read > 0 && _walking.At >= _walking.Count - 1;
+    public override bool WantsMore => !Holds && More && Read > 0 && _walking.At >= _walking.Count - 1;
 
     /// <summary>
     ///     What this list is told where nobody is on it: that there is nobody, or — where the profile says otherwise
@@ -234,10 +232,9 @@ public sealed class FollowsScreen : Screen
         switch (verb)
         {
             case Verb.SwapSide:
-                return reach.OpenFollows(
+                return reach.Swap(new Subject.Follows(
                     Whose,
-                    Side.Either(followers: FollowSide.Following, following: FollowSide.Followers),
-                    replacing: true);
+                    Side.Either(followers: FollowSide.Following, following: FollowSide.Followers)));
 
             case Verb.Filter:
                 // The screen settles whether there is a filter to open at all: a list too large to hold whole is
@@ -254,7 +251,7 @@ public sealed class FollowsScreen : Screen
                 break;
 
             case Verb.OpenPerson when PickedPerson is { } person:
-                return reach.OpenAccount(AccountAddress.Parse(person.Address));
+                return reach.Open(new Subject.Account(AccountAddress.Parse(person.Address), WithReplies: false));
         }
 
         return Task.CompletedTask;

@@ -150,7 +150,8 @@ public sealed class DiscoverScreen : Screen
     /// </remarks>
     public override Task Answer(Verb verb, Reach reach) => (verb, PickedPerson) switch
     {
-        (Verb.OpenPerson, { } person) => reach.OpenAccount(AccountAddress.Parse(person.Address)),
+        (Verb.OpenPerson, { } person) => reach.Open(
+            new Subject.Account(AccountAddress.Parse(person.Address), WithReplies: false)),
         (Verb.Follow, { } person) => Tying.Toggle(reach, person, AccountTie.Follow),
         (Verb.StopSuggesting, { } person) => StopSuggesting(reach, person),
         _ => Task.CompletedTask,
@@ -180,7 +181,7 @@ public sealed class DiscoverScreen : Screen
             eitherWay: () =>
             {
                 // What a held copy of this screen holds is now what the instance would not serve again.
-                reach.Forget(DestinationKind.Discover);
+                reach.Forget(new Subject.Destination(DestinationKind.Discover));
 
                 Dismissed(picked.Id);
 
