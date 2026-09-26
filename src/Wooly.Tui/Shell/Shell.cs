@@ -270,10 +270,8 @@ public sealed class Shell
         Verb.WriteWarning => Ran(WriteWarning),
 
         // Nothing, and the terminal's own — which the window has already taken, and which no screen answers either.
-        Verb.None or Verb.Quit or Verb.Send => false,
-        Verb.NextPost or Verb.PreviousPost or Verb.FirstPost or Verb.LastPost => false,
-        Verb.NextSection or Verb.PreviousSection => false,
-        Verb.ScrollDown or Verb.ScrollUp or Verb.PageDown or Verb.PageUp => false,
+        Verb.None => false,
+        _ when verb.NeedsATerminal() => false,
 
         // Everything else is the screen's own, and the screen is what carries it out.
         _ => Ran(() => Screen.Answer(verb, _reach)),

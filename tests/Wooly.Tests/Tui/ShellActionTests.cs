@@ -540,4 +540,19 @@ public class ShellActionTests
         Assert.Null(opened.Asking);
         Assert.IsType<FeedScreen>(opened.Screen);
     }
+
+    /// <summary>
+    ///     The verbs that need a terminal are the window's, so the shell answers each of them unused rather than handing
+    ///     it to the screen — and there are the twelve <see cref="Verb" /> names, no more and no fewer (#232).
+    /// </summary>
+    [Fact]
+    public async Task Do_LeavesEveryVerbThatNeedsATerminalUnused()
+    {
+        var opened = await new AShell().Opened();
+
+        var windows = Enum.GetValues<Verb>().Where(verb => verb.NeedsATerminal()).ToList();
+
+        Assert.Equal(12, windows.Count);
+        Assert.All(windows, verb => Assert.False(opened.Do(verb, answer: null)));
+    }
 }
