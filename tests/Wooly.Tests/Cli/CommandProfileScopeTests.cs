@@ -28,6 +28,8 @@ public class CommandProfileScopeTests
             "lists every profile rather than acting as one",
         [typeof(ProfileSwitchCommand)] =
             "names the profile every later invocation acts as, which is the opposite of this invocation only",
+        [typeof(ProfileRemoveCommand)] =
+            "names the profile it removes, and removing one is not acting as it",
     };
 
     [Fact]

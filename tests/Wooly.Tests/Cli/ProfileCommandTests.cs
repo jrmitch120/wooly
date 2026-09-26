@@ -292,6 +292,86 @@ public class ProfileCommandTests : IDisposable
         Assert.Contains("personal", run.ErrorOutput);
     }
 
+    [Fact]
+    public void Remove_TakesTheProfileAndItsTokenAndSaysWhichProfileWent()
+    {
+        Add("personal", "mastodon.social", "token-personal");
+        Add("work", "hachyderm.io", "token-work");
+
+        var run = Run(["profile", "remove", "work"]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Contains("work", run.Output);
+        Assert.Contains("jeff@hachyderm.io", run.Output);
+        Assert.DoesNotContain("profile switch", run.Output);
+        Assert.Empty(run.ErrorOutput.Trim());
+        Assert.Null(_credentialStore.FindAccessToken("work"));
+        Assert.DoesNotContain("hachyderm.io", Run(["profile", "list"]).Output);
+        Assert.Contains("personal", Run(["profile", "show"]).Output);
+    }
+
+    /// <summary>The plaintext file is the other store a token can be in, and the token must leave that one too.</summary>
+    [Fact]
+    public void Remove_TakesTheTokenOutOfTheFileInTheClear()
+    {
+        _credentialStore = new PlaintextFileCredentialStore(new WoolyPaths(_directory.Path));
+        Add("personal", "mastodon.social", "token-personal");
+
+        var run = Run(["profile", "remove", "personal"]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.DoesNotContain(
+            "token-personal",
+            File.ReadAllText(Path.Combine(_directory.Path, "credentials.toml")));
+    }
+
+    /// <summary>
+    ///     Current is cleared rather than moved, so the user is told there is none now and how to choose one — and the
+    ///     next command that needs a profile fails the way it does whenever none has been chosen.
+    /// </summary>
+    [Fact]
+    public void Remove_SaysNoProfileIsCurrentNowWhenTheCurrentOneGoes()
+    {
+        Add("personal", "mastodon.social", "token-personal");
+        Add("work", "hachyderm.io", "token-work");
+
+        var run = Run(["profile", "remove", "personal"]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Contains("personal", run.Output);
+        Assert.Contains("No profile is current", run.Output);
+        Assert.Contains("profile switch", run.Output);
+
+        var show = Run(["profile", "show"]);
+        Assert.Equal((int)ExitCode.AuthenticationError, show.ExitCode);
+        Assert.Contains("No profile is current", show.ErrorOutput);
+    }
+
+    [Fact]
+    public void Remove_ReportsAProfileThatWasNeverSetUpAsAUsageError()
+    {
+        Add("personal", "mastodon.social", "token-personal");
+
+        var run = Run(["profile", "remove", "wrok"]);
+
+        Assert.Equal((int)ExitCode.UsageError, run.ExitCode);
+        Assert.Contains("wrok", run.ErrorOutput);
+        Assert.Empty(run.Output.Trim());
+        Assert.Equal("token-personal", _credentialStore.FindAccessToken("personal"));
+    }
+
+    /// <summary>Like every other <c>profile</c> command it asks nothing, so it runs the same with no terminal.</summary>
+    [Fact]
+    public void Remove_AsksNothingAndRunsWithNoTerminal()
+    {
+        Add("personal", "mastodon.social", "token-personal");
+
+        var run = Run(["profile", "remove", "personal"], atATerminal: false);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Contains("No profiles", Run(["profile", "list"]).Output);
+    }
+
     /// <summary>
     ///     The <c>--profile</c> override in full: this invocation acts as the named profile, and the next one is back
     ///     to the profile the user actually switched to.

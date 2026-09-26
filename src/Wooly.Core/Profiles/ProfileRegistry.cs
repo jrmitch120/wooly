@@ -81,6 +81,36 @@ public sealed class ProfileRegistry(IConfigStore configStore, ICredentialStore c
     }
 
     /// <inheritdoc />
+    public ProfileRemoval Remove(string name)
+    {
+        var config = configStore.Load();
+
+        if (!config.Profiles.ContainsKey(name))
+        {
+            throw new UnknownProfileException(name, config.Profiles.Keys);
+        }
+
+        var profiles = new Dictionary<string, ProfileConfig>(config.Profiles, StringComparer.Ordinal);
+        profiles.Remove(name);
+
+        var removed = config.Profiles[name];
+        var wasCurrent = config.CurrentProfile == name;
+
+        // The token goes first, so that whichever half fails, the profile is still in the config file and removing it
+        // again finishes the job. The other way round, a failed delete would leave a token nothing points at — a
+        // credential the user can no longer see, or reach through this client to delete.
+        credentialStore.DeleteAccessToken(name);
+
+        configStore.Save(config with
+        {
+            CurrentProfile = wasCurrent ? null : config.CurrentProfile,
+            Profiles = profiles,
+        });
+
+        return new ProfileRemoval(removed, wasCurrent);
+    }
+
+    /// <inheritdoc />
     public ActiveProfile Resolve(string? requestedName)
     {
         var config = configStore.Load();
