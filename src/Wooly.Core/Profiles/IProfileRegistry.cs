@@ -38,6 +38,16 @@ public interface IProfileRegistry
     void Switch(string name);
 
     /// <summary>
+    ///     Forgets <paramref name="name" />: its config entry and its access token together, as <see cref="Add" /> writes
+    ///     them together. A token that is already gone is not a failure. If the profile was current, no profile is
+    ///     current afterwards — current is not moved to another one, because which account commands act as is the
+    ///     user's to choose, and <see cref="Switch" /> is how they choose it.
+    /// </summary>
+    /// <returns>What that turned out to do, including whether this profile was the one commands defaulted to.</returns>
+    /// <exception cref="Errors.UnknownProfileException">No profile by that name has been set up.</exception>
+    ProfileRemoval Remove(string name);
+
+    /// <summary>
     ///     The profile to act as: <paramref name="requestedName" /> if an invocation named one, and the current profile
     ///     otherwise. Naming one here changes nothing about which profile is current.
     /// </summary>

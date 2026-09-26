@@ -81,6 +81,35 @@ public sealed class ProfileRegistry(IConfigStore configStore, ICredentialStore c
     }
 
     /// <inheritdoc />
+    public ProfileRemoval Remove(string name)
+    {
+        var config = configStore.Load();
+
+        if (!config.Profiles.ContainsKey(name))
+        {
+            throw new UnknownProfileException(name, config.Profiles.Keys);
+        }
+
+        var profiles = new Dictionary<string, ProfileConfig>(config.Profiles, StringComparer.Ordinal);
+        profiles.Remove(name);
+
+        var wasCurrent = config.CurrentProfile == name;
+
+        // The config entry goes first — the reverse of Add, for the same reason. If deleting the token fails, what is
+        // left is a token nothing points at, which adding the profile again overwrites; the other way round would
+        // leave a profile the user can see and switch to with nothing behind it.
+        configStore.Save(config with
+        {
+            CurrentProfile = wasCurrent ? null : config.CurrentProfile,
+            Profiles = profiles,
+        });
+
+        credentialStore.DeleteAccessToken(name);
+
+        return new ProfileRemoval(wasCurrent);
+    }
+
+    /// <inheritdoc />
     public ActiveProfile Resolve(string? requestedName)
     {
         var config = configStore.Load();

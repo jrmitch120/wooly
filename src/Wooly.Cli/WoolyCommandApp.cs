@@ -80,6 +80,9 @@ public static class WoolyCommandApp
 
                 profile.AddCommand<ProfileSwitchCommand>("switch")
                        .WithDescription("Change the profile commands act as by default.");
+
+                profile.AddCommand<ProfileRemoveCommand>("remove")
+                       .WithDescription("Remove a profile and its access token from this machine.");
             });
 
             config.AddBranch("post", post =>

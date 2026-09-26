@@ -184,6 +184,101 @@ public class ProfileRegistryTests : IDisposable
         Assert.Equal("personal", NewRegistry().Resolve(null).Name);
     }
 
+    /// <summary>
+    ///     A profile is half config and half secret, and removing one takes both: a token left behind is a credential
+    ///     nobody can see or reach to delete, and a config entry left behind is a profile with nothing behind it.
+    /// </summary>
+    [Fact]
+    public void Remove_TakesTheConfigEntryAndTheTokenTogether()
+    {
+        var registry = NewRegistry();
+        registry.Add("personal", Pointing("mastodon.social"), "token-personal");
+        registry.Add("work", Pointing("hachyderm.io"), "token-work");
+
+        registry.Remove("work");
+
+        Assert.Equal(["personal"], NewRegistry().List().Select(profile => profile.Name));
+        Assert.Null(NewCredentialStore().FindAccessToken("work"));
+        Assert.Equal("token-personal", NewCredentialStore().FindAccessToken("personal"));
+    }
+
+    /// <summary>The keyring is the store most machines use, so the token has to leave that one too.</summary>
+    [Fact]
+    public void Remove_TakesTheTokenOutOfTheKeyring()
+    {
+        var keyring = OsKeyringCredentialStore.Open(
+            () => new GcmKeyring(GcmKeyring.BackingStoreForThisMachine, new FakeOsKeyring()));
+        var registry = NewRegistry(keyring);
+        registry.Add("personal", Pointing("mastodon.social"), "token-personal");
+
+        registry.Remove("personal");
+
+        Assert.Null(keyring.FindAccessToken("personal"));
+        Assert.Empty(NewRegistry(keyring).List());
+    }
+
+    /// <summary>
+    ///     Removing the current profile clears current rather than moving it: which account commands act as is the
+    ///     user's to choose, and a cron job that quietly starts posting as another account is the harm to avoid.
+    /// </summary>
+    [Fact]
+    public void Remove_ClearsCurrentRatherThanMovingItWhenTheCurrentProfileGoes()
+    {
+        var registry = NewRegistry();
+        registry.Add("personal", Pointing("mastodon.social"), "token-personal");
+        registry.Add("work", Pointing("hachyderm.io"), "token-work");
+
+        var removal = registry.Remove("personal");
+
+        Assert.True(removal.WasCurrent);
+        Assert.All(NewRegistry().List(), profile => Assert.False(profile.IsCurrent));
+
+        var exception = Assert.Throws<AuthenticationException>(() => NewRegistry().Resolve(null));
+        Assert.Contains("No profile is current", exception.Message);
+    }
+
+    [Fact]
+    public void Remove_LeavesCurrentAloneWhenAnotherProfileGoes()
+    {
+        var registry = NewRegistry();
+        registry.Add("personal", Pointing("mastodon.social"), "token-personal");
+        registry.Add("work", Pointing("hachyderm.io"), "token-work");
+
+        var removal = registry.Remove("work");
+
+        Assert.False(removal.WasCurrent);
+        Assert.Equal("personal", NewRegistry().Resolve(null).Name);
+    }
+
+    /// <summary>
+    ///     A profile whose token is already gone — a hand-emptied keyring — can still be removed: that is the state
+    ///     most in need of tidying away.
+    /// </summary>
+    [Fact]
+    public void Remove_TakesAProfileWhoseTokenIsAlreadyGone()
+    {
+        var registry = NewRegistry();
+        registry.Add("personal", Pointing("mastodon.social"), "token-personal");
+        NewCredentialStore().DeleteAccessToken("personal");
+
+        registry.Remove("personal");
+
+        Assert.Empty(NewRegistry().List());
+    }
+
+    [Fact]
+    public void Remove_RefusesAProfileThatWasNeverSetUpAndTouchesNothing()
+    {
+        var registry = NewRegistry();
+        registry.Add("personal", Pointing("mastodon.social"), "token-personal");
+
+        var exception = Assert.Throws<UnknownProfileException>(() => registry.Remove("wrok"));
+
+        Assert.Contains("wrok", exception.Message);
+        Assert.Contains("personal", exception.Message);
+        Assert.Equal("personal", NewRegistry().Resolve(null).Name);
+    }
+
     [Fact]
     public void List_ReportsEveryProfileAndWhichOneIsCurrent()
     {
@@ -264,11 +359,12 @@ public class ProfileRegistryTests : IDisposable
     ///     A registry over the scratch directory. Built fresh per call so that a test can prove something reached the
     ///     disk rather than a field.
     /// </summary>
-    private ProfileRegistry NewRegistry()
+    /// <param name="credentialStore">The token store, where the keyring is the subject; the plaintext file otherwise.</param>
+    private ProfileRegistry NewRegistry(ICredentialStore? credentialStore = null)
     {
         var paths = new WoolyPaths(_directory.Path);
 
-        return new ProfileRegistry(new TomlConfigStore(paths), NewCredentialStore(), paths);
+        return new ProfileRegistry(new TomlConfigStore(paths), credentialStore ?? NewCredentialStore(), paths);
     }
 
     private PlaintextFileCredentialStore NewCredentialStore() => new(new WoolyPaths(_directory.Path));
