@@ -108,7 +108,7 @@ internal sealed class ShellWindow : Window
         // constructs a colour, which is the rule this is keeping rather than breaking (ADR-0014).
         SetScheme(new Terminal.Gui.Drawing.Scheme(theme.For(Role.Body)));
 
-        var rail = new PaintedView(theme, (_, height) => RailLines.Of(shell.Rail, shell.Quota, height))
+        var rail = new PaintedView(theme, (_, height) => RailLines.Of(shell.Rail, shell.Quota, height, shell.Instance))
         {
             X = 0,
             Y = 0,

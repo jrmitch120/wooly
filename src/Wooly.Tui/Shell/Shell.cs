@@ -73,6 +73,12 @@ public sealed class Shell
     ///     reason <see cref="_browser" /> is not: those reach an instance, and this reaches the local config (ADR-0020).
     /// </summary>
     private readonly ProfilePorts _profiles;
+
+    /// <summary>
+    ///     The instance the rail's foot names, read once when the shell is built: the profiles on this machine are the
+    ///     local config's, and asking it on every redraw would read a file to draw one row.
+    /// </summary>
+    private readonly string? _instance;
     private readonly List<Screen> _stack = [];
 
     /// <summary>
@@ -97,6 +103,7 @@ public sealed class Shell
         _profile = profile;
         _ports = ports;
         _profiles = profiles;
+        _instance = profiles.Registry.List().Count >= 2 ? profile.Instance : null;
         _host = host;
         _browser = browser;
         // Asked from whatever is on top, which is the whole of the stale-answer rule: an answer lands only while the
@@ -191,6 +198,12 @@ public sealed class Shell
 
     /// <summary>What the instance last said is left of the profile's budget, for the rail's foot (story 54).</summary>
     public RateLimitQuota? Quota => _ports.RateLimit.Latest;
+
+    /// <summary>
+    ///     The instance this session is acting as, for the rail's foot — or <see langword="null" /> with only one profile
+    ///     set up, where there is nobody to tell it apart from. <c>@jeff</c> on two instances is two people (ADR-0020).
+    /// </summary>
+    public string? Instance => _instance;
 
     /// <summary>The keys the current screen answers to, for the status row.</summary>
     public IReadOnlyList<KeyHint> Keys => Screen.Keys;
