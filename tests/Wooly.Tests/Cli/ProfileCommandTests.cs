@@ -302,6 +302,7 @@ public class ProfileCommandTests : IDisposable
 
         Assert.Equal((int)ExitCode.Success, run.ExitCode);
         Assert.Contains("work", run.Output);
+        Assert.Contains("jeff@hachyderm.io", run.Output);
         Assert.DoesNotContain("profile switch", run.Output);
         Assert.Empty(run.ErrorOutput.Trim());
         Assert.Null(_credentialStore.FindAccessToken("work"));

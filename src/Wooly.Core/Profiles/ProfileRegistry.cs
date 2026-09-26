@@ -93,20 +93,21 @@ public sealed class ProfileRegistry(IConfigStore configStore, ICredentialStore c
         var profiles = new Dictionary<string, ProfileConfig>(config.Profiles, StringComparer.Ordinal);
         profiles.Remove(name);
 
+        var removed = config.Profiles[name];
         var wasCurrent = config.CurrentProfile == name;
 
-        // The config entry goes first — the reverse of Add, for the same reason. If deleting the token fails, what is
-        // left is a token nothing points at, which adding the profile again overwrites; the other way round would
-        // leave a profile the user can see and switch to with nothing behind it.
+        // The token goes first, so that whichever half fails, the profile is still in the config file and removing it
+        // again finishes the job. The other way round, a failed delete would leave a token nothing points at — a
+        // credential the user can no longer see, or reach through this client to delete.
+        credentialStore.DeleteAccessToken(name);
+
         configStore.Save(config with
         {
             CurrentProfile = wasCurrent ? null : config.CurrentProfile,
             Profiles = profiles,
         });
 
-        credentialStore.DeleteAccessToken(name);
-
-        return new ProfileRemoval(wasCurrent);
+        return new ProfileRemoval(removed, wasCurrent);
     }
 
     /// <inheritdoc />
