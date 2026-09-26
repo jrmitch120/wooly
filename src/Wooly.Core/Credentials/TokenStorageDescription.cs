@@ -1,13 +1,15 @@
-using Wooly.Core;
-using Wooly.Core.Credentials;
-
-namespace Wooly.Cli.Commands;
+namespace Wooly.Core.Credentials;
 
 /// <summary>
 ///     Where this machine's access tokens are kept, in words. One wording, in one place, so that the command that
-///     stores a token and the command that reports on one can never describe the same store two different ways.
+///     stores a token, the command that reports on one and the TUI's profiles screen can never describe the same store
+///     two different ways.
 /// </summary>
-internal static class TokenStorageDescription
+/// <remarks>
+///     In Core rather than beside the CLI's commands, which is where it started, because the TUI owes the same warning
+///     (ADR-0003, ADR-0020) and a second copy of the words would be a second place for them to drift.
+/// </remarks>
+public static class TokenStorageDescription
 {
     /// <summary>Describes <paramref name="storage" /> as the end of the sentence "the access token is …".</summary>
     public static string For(CredentialStorage storage, WoolyPaths paths) => storage switch

@@ -55,6 +55,10 @@ try
     var shell = new Shell(
         profile,
         ports,
+
+        // This machine's profiles, which are the local config rather than anything on an instance — so, like the
+        // browser below, not one of the ports above (ADR-0020).
+        new ProfilePorts(provider.GetRequiredService<IProfileRegistry>(), provider.GetRequiredService<WoolyPaths>()),
         new TerminalHost(application),
 
         // The same browser the sign-in sends somebody to (ADR-0004), and deliberately not one of the ports above:

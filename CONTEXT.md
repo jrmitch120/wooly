@@ -301,6 +301,14 @@ _Avoid_: replies (for this; the run is not replies only), conversations
 A named local credential/config entry in this CLI tool, pointing at one Mastodon account. A user may have multiple profiles (e.g. personal + work accounts, possibly on different instances). One profile is the "current" profile used by default; commands may override it per-invocation.
 _Avoid_: account (when referring to the CLI's local credential entry, to keep it distinct from the Mastodon account itself)
 
+**Acting as**:
+The **profile** a run is using: the one a TUI session reaches instances as, or the one a command's `--profile` named. It
+is the current profile unless something named another, and naming another changes nothing about which one is current.
+The TUI's profiles screen marks both, because they can differ: switching changes who a session is acting as, and only
+making a profile current (`profile switch`, or `D` in the TUI) changes the saved one (ADR-0020).
+_Avoid_: current (for this; current is the saved default, not what this run is using), active profile (in prose; the
+type is `ActiveProfile`, the word is acting as)
+
 **Fetch**:
 Some of a list, and the rate limit that stopped the rest if one did (`Fetch<T>`). One thing rather than two, because
 the pair is what tells a list nobody has anything on from a list nothing was read of: a fetch a rate limit stopped on

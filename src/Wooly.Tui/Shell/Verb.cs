@@ -75,6 +75,12 @@ public enum Verb
     /// <summary><c>/</c>: the search destination, or a fresh prompt where that is already what is showing.</summary>
     Search,
 
+    /// <summary>
+    ///     <c>ctrl-p</c>: every profile on this machine, and which one this session is acting as (ADR-0020). Nothing on
+    ///     compose, where a switch would drop the draft.
+    /// </summary>
+    Profiles,
+
     /// <summary><c>tab</c>: the next destination down the rail.</summary>
     NextDestination,
 

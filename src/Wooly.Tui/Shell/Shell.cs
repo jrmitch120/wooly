@@ -67,6 +67,12 @@ public sealed class Shell
     private readonly IShellHost _host;
     private readonly ActiveProfile _profile;
     private readonly ShellPorts _ports;
+
+    /// <summary>
+    ///     This machine's profiles, which the profiles screen lists. Not one of <see cref="ShellPorts" />, for the
+    ///     reason <see cref="_browser" /> is not: those reach an instance, and this reaches the local config (ADR-0020).
+    /// </summary>
+    private readonly ProfilePorts _profiles;
     private readonly List<Screen> _stack = [];
 
     /// <summary>
@@ -81,6 +87,7 @@ public sealed class Shell
     public Shell(
         ActiveProfile profile,
         ShellPorts ports,
+        ProfilePorts profiles,
         IShellHost host,
         IWebBrowser browser,
         TimeProvider clock,
@@ -89,6 +96,7 @@ public sealed class Shell
     {
         _profile = profile;
         _ports = ports;
+        _profiles = profiles;
         _host = host;
         _browser = browser;
         // Asked from whatever is on top, which is the whole of the stale-answer rule: an answer lands only while the
@@ -252,6 +260,7 @@ public sealed class Shell
         Verb.Back => Ran(Back),
         Verb.Help => Ran(Help),
         Verb.Search => Ran(Search),
+        Verb.Profiles => Ran(Profiles),
         Verb.NextDestination => Ran(() => Step(1)),
         Verb.PreviousDestination => Ran(() => Step(-1)),
         Verb.OpenPost => Ran(Enter),
@@ -561,6 +570,25 @@ public sealed class Shell
         }
 
         Rail.GoTo(DestinationKind.Search);
+    }
+
+    /// <summary>
+    ///     Opens the profiles screen: every profile on this machine, marked with which one this session is acting as
+    ///     and which one is current (ADR-0020).
+    /// </summary>
+    /// <remarks>
+    ///     Read off the local config there and then, rather than put through <see cref="Enquiry" />: nothing here
+    ///     reaches an instance, so there is nothing to wait for, no fetch mark and no answer that could land late.
+    ///     Pressed on the screen itself it is where the reader already is, the way <c>?</c> is on the keymap.
+    /// </remarks>
+    public void Profiles()
+    {
+        if (Screen is ProfilesScreen)
+        {
+            return;
+        }
+
+        Push(new ProfilesScreen(_profiles.Registry.List(), _profile.Name, _profiles.PlaintextWarning));
     }
 
     /// <summary>

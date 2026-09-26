@@ -53,6 +53,12 @@ public static class Keymap
         (ShellKey.Tab, _) => Verb.NextDestination,
         (ShellKey.ShiftTab, _) => Verb.PreviousDestination,
 
+        // The frame's one ctrl chord besides quitting, because a frame key has to work on screens where letters are
+        // typed. Taken back on compose alone: switching from there would drop the draft, and drafts do not survive a
+        // switch (ADR-0020).
+        (ShellKey.CtrlP, ComposeScreen) => Verb.None,
+        (ShellKey.CtrlP, _) => Verb.Profiles,
+
         // Screen-local, and the reason this pair is here rather than on the editor widget alone: the editor gives up
         // focus while the warning is taking letters, and from there neither key would reach it (#123). Off a compose
         // screen they mean nothing and are left to whatever else wants them.
@@ -138,7 +144,7 @@ public static class Keymap
         (ShellKey.One or ShellKey.Two or ShellKey.Three or ShellKey.Four or ShellKey.Five, _) => Verb.Toggle,
         (ShellKey.Six or ShellKey.Seven or ShellKey.Eight or ShellKey.Nine or ShellKey.Zero, _) => Verb.Toggle,
 
-        // ctrl-s and ctrl-w off a compose screen, and nothing else.
+        // ctrl-s and ctrl-w off a compose screen, ctrl-p on one, and nothing else.
         _ => Verb.None,
     };
 

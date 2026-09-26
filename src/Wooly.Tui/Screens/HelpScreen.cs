@@ -11,6 +11,12 @@ namespace Wooly.Tui.Screens;
 public sealed class HelpScreen(Screen about) : Screen
 {
     /// <summary>
+    ///     The profiles on this machine, which is a frame key everywhere but compose — and so listed everywhere but
+    ///     over compose, where it does nothing (ADR-0020).
+    /// </summary>
+    private static readonly KeyHint Profiles = new("ctrl-p", "profiles: who this session is acting as");
+
+    /// <summary>
     ///     The keys that mean the same thing everywhere. What may vary from screen to screen is everything else; these
     ///     are the frame, and a reader has to be able to rely on them.
     /// </summary>
@@ -20,6 +26,7 @@ public sealed class HelpScreen(Screen about) : Screen
         new("ctrl-q", "quit"),
         new("?", "these keys"),
         new("tab / shift-tab", "move the rail's cursor; it settles onto a destination"),
+        Profiles,
     ];
 
     /// <inheritdoc />
@@ -41,7 +48,9 @@ public sealed class HelpScreen(Screen about) : Screen
         lines.Add(Line.Blank);
         lines.Add(Line.Of("Everywhere", Role.BylineName));
         lines.Add(Line.Blank);
-        lines.AddRange(Frame.Select(key => Row(key, drawing.Width)));
+        lines.AddRange(Frame
+            .Where(key => about is not ComposeScreen || key != Profiles)
+            .Select(key => Row(key, drawing.Width)));
 
         return lines;
     }
