@@ -1,3 +1,4 @@
+using Wooly.Core;
 using Wooly.Core.Profiles;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Rendering;
@@ -59,6 +60,18 @@ internal sealed class AShell
     /// </summary>
     public FakeWebBrowser Browser { get; set; } = new();
 
+    /// <summary>
+    ///     The profiles set up on this machine, which is the profile every test acts as and nobody else — and it the
+    ///     current one, as a launch without <c>--profile</c> would have it. Not one of the ports either, for the reason
+    ///     <c>ProfilePorts</c> gives: this is the local config, not an instance.
+    /// </summary>
+    public FakeProfileRegistry Profiles { get; set; } = FakeProfileRegistry.Holding(
+        "personal",
+        FakeProfileRegistry.Profile("personal", "mastodon.social", "jeff@mastodon.social"));
+
+    /// <summary>Where this machine's files are, which only the plaintext-token warning ever names.</summary>
+    public WoolyPaths Paths { get; set; } = new("/home/jeff/.config/wooly");
+
     /// <summary>The profile every test acts as, which owns the posts <see cref="APost" /> builds.</summary>
     public ActiveProfile Profile { get; set; } = new()
     {
@@ -81,6 +94,7 @@ internal sealed class AShell
     public Shell Build() => new(
         Profile,
         new ShellPorts(Timelines, Author, Engagement, Accounts, Notifications, Messages, Search, Suggestions, RateLimit),
+        new ProfilePorts(Profiles, Paths),
         Host,
         Browser,
         Clock,
@@ -100,6 +114,21 @@ internal sealed class AShell
     [
         .. screen.Lines(new Drawing(61, Now)).Select(line => line.Text.Length > 0 ? line.Text[1..] : line.Text),
     ];
+
+    /// <summary>
+    ///     How many requests every port that reaches an instance has been asked, all told — where a test proves that
+    ///     something fetched nothing.
+    /// </summary>
+    public int Requests =>
+        Timelines.Reads.Count
+        + Author.Published.Count + Author.Edits.Count + Author.Deletions.Count
+        + Engagement.Marks.Count + Engagement.Reads.Count + Engagement.ThreadsRead.Count + Engagement.Votes.Count
+        + Accounts.Ties.Count + Accounts.Lists.Count + Accounts.Answers.Count + Accounts.Reads.Count
+        + Accounts.Familiars.Count + Accounts.Standings.Count
+        + Notifications.Reads.Count + Notifications.Dismissals.Count + Notifications.Clearances.Count
+        + Messages.Listings.Count + Messages.Shown.Count + Messages.MarkedRead.Count
+        + Search.Searches.Count
+        + Suggestions.Reads.Count + Suggestions.Dismissals.Count;
 
     /// <summary>A shell that has already opened onto its first destination.</summary>
     public async Task<Shell> Opened()

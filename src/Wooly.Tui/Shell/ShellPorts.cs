@@ -16,6 +16,11 @@ namespace Wooly.Tui.Shell;
 ///     (ADR-0005). The TUI is a second front end over them and not a wrapper around the CLI, so if a screen needs
 ///     something none of these offers, the port is widened rather than reached past.
 /// </summary>
+/// <remarks>
+///     Every one of these reaches an instance, and that is the line: what does not — the web browser (#85), and this
+///     machine's profiles (<see cref="ProfilePorts" />, ADR-0020) — is handed to the shell beside these rather than
+///     among them.
+/// </remarks>
 /// <param name="Timelines">Reads a timeline, including an account's own posts.</param>
 /// <param name="Author">Publishes, changes and takes down the profile's own posts.</param>
 /// <param name="Engagement">Puts the three marks on a post, reads one, and reads what answered it.</param>

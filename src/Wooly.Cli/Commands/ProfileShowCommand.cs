@@ -1,6 +1,7 @@
 using Spectre.Console;
 using Spectre.Console.Cli;
 using Wooly.Core;
+using Wooly.Core.Credentials;
 using Wooly.Core.Profiles;
 
 namespace Wooly.Cli.Commands;

@@ -40,6 +40,7 @@ public class CrumbTests
         ("account", "@maria@fosstodon.org"),
         ("following", "@maria@fosstodon.org following"),
         ("followers", "@maria@fosstodon.org followers"),
+        ("profiles", "Profiles"),
     ];
 
     /// <summary>Those screens, as the theory reads them.</summary>
@@ -184,6 +185,9 @@ public class CrumbTests
 
             case "followers":
                 return new FollowsScreen(maria, FollowSide.Followers, mine: false);
+
+            case "profiles":
+                return new ProfilesScreen([], "personal", null);
 
             // No screen by that name rather than a feed by default: a state nobody built is a state nobody asserted.
             default:

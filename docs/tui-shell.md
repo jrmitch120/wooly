@@ -61,6 +61,7 @@ A screen is a place in the stack, not a window. Entering one pushes, `esc` pops,
 | Follow requests | A rail destination | #29 |
 | Direct messages — conversations, then a thread | A rail destination | #30 |
 | Compose / reply / edit — a screen on the stack, like any other | `c`, `r` or `e` | #28 |
+| Profiles — every profile on this machine, marked `acting as` and `current` | `ctrl-p` | #240 (ADR-0020) |
 | Media inside a post or feed item | Drawn in place | #31 (ADR-0016) |
 
 Every screen owes three things: it reads at 61 columns, it says what its keys are on the status row, and it names roles
@@ -78,6 +79,7 @@ workable only because the status row always shows the current screen's keys. Wha
 | `?` | The keymap for this screen. The spec has no in-app help story; this is the shell adding one, and #28 carries it — every other screen inherits it for free. |
 | `tab` / `shift-tab` | Moves the cursor (`▶`) at once. The selection follows it (`▷` while it lags behind), and that destination loads, once the tabbing has stopped for ~250ms. |
 | `/` | Search. Goes to the search destination; what it opens onto is #29's. |
+| `ctrl-p` | The profiles screen, pushed onto the stack. Everywhere but compose, where it does nothing and is not listed: switching from there would drop the draft (ADR-0020). |
 
 Feed and post:
 
@@ -1256,6 +1258,25 @@ Three things stayed outside it, each deliberately:
 
 The window's remaining knowledge of `ComposeScreen` is geometry and focus — where the editor widget starts, whether it
 has the keys, and what text it opens with. That is a window's question about its own furniture and stays there.
+
+### What the profiles screen settled
+
+#240 put the profiles screen on the stack (ADR-0020). What this document now holds it to:
+
+- **`ctrl-p` is a frame key**, beside `esc`, `ctrl-q`, `?`, `/` and `tab`. It pushes the screen from wherever the reader
+  is, drilled in or not, and pressed on the screen itself it pushes no second one. On compose it means nothing: the
+  keymap takes it back there, the help screen drawn over compose leaves it out, and like every frame key it is on no
+  screen's status row.
+- **A profile is two rows**: its name, followed by `acting as` and `current` where they apply, then the full
+  `@handle@instance` — or the instance alone where no account was ever established. The markers are words in `muted`,
+  so they read with no colour, and the name is clipped before they are. Profiles are walked with `j`/`k`, one blank row
+  between two of them.
+- **The plaintext-token warning** heads the screen whenever the credential file is the token store, in `content-warning`
+  and wrapped to the content width. The words are `TokenStorageDescription`'s, the same ones `profile add` and
+  `profile show` print.
+- **It fetches nothing.** The list is read off the local config when `ctrl-p` is pressed, through `ProfilePorts` — a
+  port of its own and not one of `ShellPorts`, whose ports all reach an instance. No enquiry is put, so there is no fetch
+  mark and no answer to land late.
 
 ## Starting it, and the one destination that needs configuring
 

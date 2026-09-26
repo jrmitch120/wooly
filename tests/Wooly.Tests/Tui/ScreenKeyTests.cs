@@ -47,6 +47,8 @@ public class ScreenKeyTests
         "compose",
         "notice",
         "help",
+        "profiles",
+        "profiles-empty",
     ];
 
     /// <summary>Every screen that can have a post picked out, with one picked.</summary>
@@ -183,6 +185,7 @@ public class ScreenKeyTests
         ("search-nothing", "search-account", ["⏎:open"]),
         ("follows-empty", "follows", ["⏎:open"]),
         ("discover-empty", "discover", ["⏎:open", "F:follow", "d:dismiss"]),
+        ("profiles-empty", "profiles", []),
     ];
 
     /// <inheritdoc cref="CanBeEmpty" />
@@ -244,6 +247,7 @@ public class ScreenKeyTests
     [InlineData("requests-empty", "j/k:request g:refresh tab:destination ↓/↑:row ?:keys")]
     [InlineData("search-nothing", "j/k:result /:search again tab:destination ↓/↑:row ?:keys")]
     [InlineData("discover-empty", "j/k:person g:refresh tab:destination ↓/↑:row ?:keys")]
+    [InlineData("profiles-empty", "j/k:profile esc:back ↓/↑:row ?:keys")]
     public void Keys_OnAnEmptyScreenAreTheOnesThatStillDoSomething(string state, string row) =>
         Assert.Equal(row, string.Join(' ', Of(state).Keys));
 
@@ -365,6 +369,12 @@ public class ScreenKeyTests
 
             case "help":
                 return new HelpScreen(Feed([post]));
+
+            case "profiles":
+                return new ProfilesScreen([FakeProfileRegistry.Profile("personal", "mastodon.social", null)], "personal", null);
+
+            case "profiles-empty":
+                return new ProfilesScreen([], "personal", null);
 
             case "conversation":
                 return new ConversationScreen(

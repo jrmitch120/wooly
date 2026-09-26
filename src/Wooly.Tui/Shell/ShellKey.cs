@@ -62,6 +62,9 @@ public enum ShellKey
     /// <summary><c>ctrl-w</c>.</summary>
     CtrlW,
 
+    /// <summary><c>ctrl-p</c>.</summary>
+    CtrlP,
+
     /// <summary><c>/</c>.</summary>
     Slash,
 
