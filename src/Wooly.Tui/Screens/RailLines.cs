@@ -7,8 +7,9 @@ using Wooly.Tui.Theme;
 namespace Wooly.Tui.Screens;
 
 /// <summary>
-///     The rail as rows: the ten destinations with their unread counts, and the rate-limit quota at its foot. Eighteen
-///     columns, full height less the status row (<c>docs/tui-shell.md</c>).
+///     The rail as rows: the ten destinations with their unread counts, and the rate-limit quota at its foot — with the
+///     instance above it where there are profiles to tell apart. Eighteen columns, full height less the status row
+///     (<c>docs/tui-shell.md</c>).
 /// </summary>
 public static class RailLines
 {
@@ -31,7 +32,11 @@ public static class RailLines
     /// <param name="rail">The destinations, the cursor, and the selection.</param>
     /// <param name="quota">What the instance last said is left, or <see langword="null" /> before anything asked.</param>
     /// <param name="height">How many rows there are, which the destinations and the quota share.</param>
-    public static IReadOnlyList<Line> Of(Rail rail, RateLimitQuota? quota, int height)
+    /// <param name="instance">
+    ///     The instance the session is acting as, drawn above the quota, or <see langword="null" /> where there is only
+    ///     the one profile and nothing to tell apart (ADR-0020).
+    /// </param>
+    public static IReadOnlyList<Line> Of(Rail rail, RateLimitQuota? quota, int height, string? instance = null)
     {
         var lines = new List<Line>();
 
@@ -51,7 +56,7 @@ public static class RailLines
         // The quota is held at the foot however tall the terminal is, because that is where a reader learns to look
         // for it — and it is load-bearing here rather than decorative: the rail is the one thing that can spend the
         // budget by accident (ADR-0014).
-        var foot = Foot(quota);
+        var foot = Foot(quota, instance);
 
         // Filled with rail-width blanks rather than empty rows, so the rail is a column of one width all the way down
         // rather than a ragged edge wherever a destination happens to be short.
@@ -88,13 +93,26 @@ public static class RailLines
 
     private static Line Rule() => Line.Of(new string('─', Width), Role.Chrome);
 
-    private static IReadOnlyList<Line> Foot(RateLimitQuota? quota) =>
-    [
-        Rule(),
-        quota is null
+    private static IReadOnlyList<Line> Foot(RateLimitQuota? quota, string? instance)
+    {
+        List<Line> foot = [Rule()];
+
+        // The instance and not the profile's name, which is the reader's own label and says nothing about who they
+        // are. Read with the @handle on the Profile row it makes the full address; the handle is never moved down here,
+        // so the clip only ever takes the instance's end and never the part telling two accounts on it apart (#241).
+        if (instance is not null)
+        {
+            foot.Add(Fact(instance, Role.Quota));
+        }
+
+        foot.Add(quota is null
             ? Line.Of(new string(' ', Width), Role.Quota)
-            : Line.Of(
-                Glyphs.Padded(TextWrap.Clip($" {Spent(quota)}", Width), Width),
-                quota.Fraction <= NearlySpent ? Role.QuotaLow : Role.Quota),
-    ];
+            : Fact(Spent(quota), quota.Fraction <= NearlySpent ? Role.QuotaLow : Role.Quota));
+
+        return foot;
+    }
+
+    /// <summary>A row of the foot: one space in, clipped at its end to the rail, and padded out to it.</summary>
+    private static Line Fact(string text, Role role) =>
+        Line.Of(Glyphs.Padded(TextWrap.Clip($" {text}", Width), Width), role);
 }

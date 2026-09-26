@@ -282,6 +282,27 @@ public class ShellProfilesTests
         Assert.DoesNotContain(Rows(opened.Screen), row => row.StartsWith("ctrl-p"));
     }
 
+    /// <summary>With one profile there is nothing to tell apart, so the rail's foot names no instance (#241).</summary>
+    [Fact]
+    public void Instance_IsNothingWithOneProfile()
+    {
+        var shell = new AShell().Build();
+
+        Assert.Null(shell.Instance);
+    }
+
+    /// <summary>
+    ///     With two or more, the rail's foot names the instance the session is acting as — not the profile's name,
+    ///     which is the reader's own label, and not the current profile's, which this session may not be (#241).
+    /// </summary>
+    [Fact]
+    public void Instance_IsTheOneActedAsWithTwoOrMoreProfiles()
+    {
+        var shell = ActingAsWorkWithPersonalCurrent().Build();
+
+        Assert.Equal("hachyderm.io", shell.Instance);
+    }
+
     /// <summary>What a screen with no list on it draws, which has no gutter for <see cref="AShell.Drawn" /> to take off.</summary>
     private static IEnumerable<string> Rows(Screen screen) =>
         screen.Lines(new Drawing(61, AShell.Now)).Select(line => line.Text);

@@ -1,6 +1,8 @@
+using Wooly.Core.Http;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
+using Wooly.Tui.Theme;
 
 namespace Wooly.Tests.Tui;
 
@@ -125,5 +127,57 @@ public class RailLinesTests
         Assert.Equal("Discover", drawn[9]);
         Assert.Equal(rule, drawn[10]);
         Assert.Equal("@jeff", drawn[11]);
+    }
+
+    /// <summary>
+    ///     With one profile there is nothing to tell apart, so the foot is the rule and the quota and nothing between
+    ///     them — the rail row for row as it was before the instance had a row to go on (#241).
+    /// </summary>
+    [Fact]
+    public void Of_DrawsNoInstanceRowWithoutAnInstance()
+    {
+        var quota = new RateLimitQuota(250, 300, null);
+
+        var drawn = RailLines.Of(ARail(), quota, height: 10, instance: null);
+
+        Assert.Equal(10, drawn.Count);
+        Assert.Equal(new string('\u2500', RailLines.Width), drawn[^2].Text);
+        Assert.Equal($" {RailLines.Spent(quota)}", drawn[^1].Text.TrimEnd());
+        Assert.All(drawn.Take(drawn.Count - 2).Skip(3), line => Assert.Equal(new string(' ', RailLines.Width), line.Text));
+    }
+
+    /// <summary>
+    ///     With two or more profiles, the instance sits on its own row directly above the quota, in the quota's own
+    ///     role — a fact about the frame, not a destination — and the destinations keep the rows they had (#241).
+    /// </summary>
+    [Fact]
+    public void Of_PutsTheInstanceOnItsOwnRowDirectlyAboveTheQuota()
+    {
+        var quota = new RateLimitQuota(250, 300, null);
+        var rail = ARail();
+
+        var without = RailLines.Of(rail, quota, height: 10);
+        var drawn = RailLines.Of(rail, quota, height: 10, instance: "hachyderm.io");
+
+        Assert.Equal(10, drawn.Count);
+        Assert.Equal(" hachyderm.io".PadRight(RailLines.Width), drawn[^2].Text);
+        Assert.Equal(Role.Quota, drawn[^2].Role);
+        Assert.Equal(new string('\u2500', RailLines.Width), drawn[^3].Text);
+        Assert.Equal(without[^1].Text, drawn[^1].Text);
+        Assert.Equal(without.Take(3).Select(line => line.Text), drawn.Take(3).Select(line => line.Text));
+    }
+
+    /// <summary>
+    ///     A long instance is clipped to the rail by the wrapping every rail row is cut by, losing its end: the row is
+    ///     the rail's width and never past it into the content (#241).
+    /// </summary>
+    [Fact]
+    public void Of_ClipsALongInstanceToTheRail()
+    {
+        var drawn = RailLines.Of(ARail(), null, height: 10, instance: "social.a-very-long-instance.example");
+
+        Assert.Equal(RailLines.Width, drawn[^2].Width);
+        Assert.StartsWith(" social.", drawn[^2].Text);
+        Assert.EndsWith("…", drawn[^2].Text);
     }
 }

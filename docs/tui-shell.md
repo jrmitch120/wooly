@@ -17,6 +17,7 @@ not something else. None of that code is production code.
 │ + unread counts │ (feed · post · account · conversation · search results) │
 │                 │                                                         │
 │ ─────────────── │                                                         │
+│ instance        │                                                         │
 │ quota           │                                                         │
 ├─────────────────┴─────────────────────────────────────────────────────────┤
 │ status: the keys this screen answers to            · quota          1 row │
@@ -25,7 +26,7 @@ not something else. None of that code is production code.
 
 | Region | Size | Holds |
 |---|---|---|
-| Rail | 18 columns, full height less the status row | Destinations, their unread counts, the rate-limit quota at its foot |
+| Rail | 18 columns, full height less the status row | Destinations, their unread counts, the rate-limit quota at its foot; with two or more profiles, the instance the session is acting as on its own row directly above the quota, in `quota`, clipped at its end (ADR-0020). With one profile that row is not drawn |
 | Breadcrumb | 1 row, content width | Where you are in the stack, the crumb you are standing on told from its ancestors, on `crumb`'s band; the fetch mark in the rightmost 11 columns while a fetch is in flight |
 | *(the seam)* | 1 row, content width | Nothing, and drawn by nothing — the page shows through, which is what blank means. A blank row divides the frame from what is being read, the way every screen divides one thing from the next (#168) |
 | *(the gutter)* | 1 column, full height less the status row | A `│` rule in `seam`, dividing the rail from everything right of it. A rule as well as a background, so the division holds where there is no colour |
@@ -1324,7 +1325,7 @@ glyph or a position that carries the same meaning when colour is gone.
 | `selection` | The selected row | `▌` in the gutter |
 | `rail` / `rail-current` | Destinations, and the one loaded | one glyph, one column: `▶` where the tabbing has got to, `▷` where it settled if that differs — they coincide at rest, so only `▶` shows |
 | `rail-unread` | An unread count, and the word on an unread conversation | the number, and the word |
-| `quota` / `quota-low` | Rate-limit budget left, and nearly spent | the number |
+| `quota` / `quota-low` | Rate-limit budget left, and nearly spent; `quota` also the instance above it, with two or more profiles | the number |
 | `chrome` | The frame's furniture below the breadcrumb: the status row's leading space and ` · ` separators, the rail's rule | position |
 | `key` | A key you press: the status row's, the help screen's key column, a confirmation's `y` and `esc` — never prose that names a key, never the padding beside one | position — first in its pair, before the colon; first column on the help screen |
 | `crumb` / `crumb-current` | The breadcrumb row — the crumbs walked through, the `›` between them and the `… › ` a long trail leads with; and the one being stood on, told from them by foreground alone. One band under the whole row, the fetch mark included | position — the current crumb is always the last, and the trail elides from the left |
