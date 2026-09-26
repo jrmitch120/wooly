@@ -1,4 +1,3 @@
-using Wooly.Core.Accounts;
 using Wooly.Core.Profiles;
 using Wooly.Tui.Screens;
 
@@ -7,7 +6,8 @@ namespace Wooly.Tui.Shell;
 /// <summary>
 ///     What a screen can reach of the shell while it answers one of its own verbs (<see cref="Screen.Answer" />): the
 ///     ports and the profile to ask with, the one way of asking, and the handful of things a screen may do to what is
-///     around it — open a subject, stand another in its own place, say something, ask before going ahead.
+///     around it — open a subject, stand another in its own place, say something, ask before going ahead, and tell the
+///     shell what changed.
 /// </summary>
 /// <remarks>
 ///     Narrow on purpose, and concrete on purpose. Narrow, because the stack, the rail and the caches are the shell's:
@@ -17,8 +17,9 @@ namespace Wooly.Tui.Shell;
 ///     second place to add every member to.
 ///     <para>
 ///         A verb that needs more than is here is a sign it is not screen-local, and the thing to do is say so rather
-///         than widen this. One member was added past the first list on exactly that footing:
-///         <see cref="Stands" />, which a tie needs for the reason <see cref="Screen.Stands" /> gives.
+///         than widen this. What a verb changed it reports as a <see cref="Change" /> through <see cref="Tell" />, and
+///         never evicts or counts for itself: which lists that makes stale and which badge it moves is one table in
+///         <see cref="Arrival" />, and a screen deciding it could only ever decide it about itself (#234).
 ///     </para>
 ///     <para>
 ///         What a screen opens it names by its <see cref="Subject" />, and <see cref="Arrival" /> brings it up — so
@@ -31,11 +32,8 @@ public sealed class Reach
     private readonly Arrival _arrival;
     private readonly Action _changed;
     private readonly Action<Confirmation> _confirm;
-    private readonly Action<DestinationKind, int> _count;
-    private readonly SubjectCache _cache;
     private readonly Enquiry _enquiry;
     private readonly Says _say;
-    private readonly Action<Account> _stands;
 
     /// <summary>Built by the shell alone, with the shell's own hands for everything that touches its stack.</summary>
     internal Reach(
@@ -43,23 +41,17 @@ public sealed class Reach
         ShellPorts ports,
         Enquiry enquiry,
         Arrival arrival,
-        SubjectCache cache,
         Says say,
         Action<Confirmation> confirm,
-        Action changed,
-        Action<DestinationKind, int> count,
-        Action<Account> stands)
+        Action changed)
     {
         Profile = profile;
         Ports = ports;
         _enquiry = enquiry;
         _arrival = arrival;
-        _cache = cache;
         _say = say;
         _confirm = confirm;
         _changed = changed;
-        _count = count;
-        _stands = stands;
     }
 
     /// <summary>Who is asking.</summary>
@@ -98,17 +90,11 @@ public sealed class Reach
     /// <summary>Says something on screen has changed, so that it is drawn again.</summary>
     public void Changed() => _changed();
 
-    /// <summary>Lets go of what <paramref name="subject" /> last held, so that reaching it again asks again.</summary>
-    public void Forget(Subject subject) => _cache.Forget(subject);
-
-    /// <summary>Puts <paramref name="unread" /> on <paramref name="kind" />'s badge on the rail.</summary>
-    public void Count(DestinationKind kind, int unread) => _count(kind, unread);
-
     /// <summary>
-    ///     Puts an account whose tie has just changed in place of the copy every screen in the stack is holding, which
-    ///     is how a row under the screen a tie was made on comes to agree with it (#181).
+    ///     Says what happened on the instance, which settles what goes stale, which badge moves and what every screen
+    ///     on the stack hears (<see cref="Arrival.Apply" />, #234).
     /// </summary>
-    public void Stands(Account account) => _stands(account);
+    public void Tell(Change change) => _arrival.Apply(change);
 
     /// <summary>Whether <paramref name="address" /> is the profile's own account.</summary>
     public bool IsMe(string address) => Profile.SignsInAs(address);

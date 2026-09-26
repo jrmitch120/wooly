@@ -173,7 +173,7 @@ public class AccountPinnedTests
         var pinned = APost.With(id: "10", marks: APost.Marked(pinned: true));
         var screen = Opened([pinned, APost.With(id: "20", marks: APost.Marked(pinned: true))], APost.With(id: "30"));
 
-        screen.Replace(pinned with { Marks = APost.Marked(pinned: false) });
+        screen.Heard(new Change.PostChanged(pinned with { Marks = APost.Marked(pinned: false) }));
 
         Assert.Equal(["10", "20", "30"], screen.Posts.Select(post => post.Id));
         Assert.Equal(["── 2 pinned ──", "── their posts ──"], Headings(screen));

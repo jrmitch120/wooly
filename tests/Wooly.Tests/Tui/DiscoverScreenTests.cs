@@ -3,6 +3,7 @@ using Wooly.Core.Discovery;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
+using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 
 namespace Wooly.Tests.Tui;
@@ -170,11 +171,11 @@ public class DiscoverScreenTests
     {
         var screen = Discovering(Offered("alice", SuggestionReason.FriendsOfFriends));
 
-        screen.Stands(Following("alice"));
+        screen.Heard(new Change.Tied(Following("alice")));
 
         Assert.Contains(" · following", Facts(screen, "alice@hachyderm.io"));
 
-        screen.Stands(Person("alice") with { Standing = AnAccount.Standing() });
+        screen.Heard(new Change.Tied(Person("alice") with { Standing = AnAccount.Standing() }));
 
         Assert.DoesNotContain(" · following", Facts(screen, "alice@hachyderm.io"));
     }
@@ -185,7 +186,7 @@ public class DiscoverScreenTests
     {
         var screen = Discovering(Offered("alice", SuggestionReason.FriendsOfFriends));
 
-        screen.Stands(Person("alice") with { Standing = AnAccount.Standing(followRequested: true) });
+        screen.Heard(new Change.Tied(Person("alice") with { Standing = AnAccount.Standing(followRequested: true) }));
 
         Assert.Contains(" · asked", Facts(screen, "alice@hachyderm.io"));
     }
@@ -196,7 +197,7 @@ public class DiscoverScreenTests
     {
         var screen = Discovering(Offered("alice", SuggestionReason.FriendsOfFriends));
 
-        screen.Stands(Following("alice"));
+        screen.Heard(new Change.Tied(Following("alice")));
         screen.Dismissed("alice");
 
         Assert.Contains(" · following · dismissed", Facts(screen, "alice@hachyderm.io"));
@@ -221,7 +222,7 @@ public class DiscoverScreenTests
 
         var picked = screen.PickedPerson!.Address;
 
-        screen.Stands(Following("ben"));
+        screen.Heard(new Change.Tied(Following("ben")));
         screen.Dismissed("ben");
 
         Assert.Equal(before, screen.People.Select(person => person.Address));
@@ -266,7 +267,7 @@ public class DiscoverScreenTests
     {
         var screen = Discovering(Offered("alice", SuggestionReason.FriendsOfFriends));
 
-        screen.Stands(Following("alice"));
+        screen.Heard(new Change.Tied(Following("alice")));
         screen.Dismissed("alice");
 
         var row = screen.Lines(At61).Single(line => line.Text.EndsWith("following · dismissed", StringComparison.Ordinal));
@@ -330,7 +331,7 @@ public class DiscoverScreenTests
 
         Assert.Contains("F:follow", screen.Keys.Select(key => key.ToString()));
 
-        screen.Stands(Following("alice"));
+        screen.Heard(new Change.Tied(Following("alice")));
 
         Assert.Contains("F:unfollow", screen.Keys.Select(key => key.ToString()));
     }

@@ -65,16 +65,37 @@ public sealed class NotificationsScreen(IReadOnlyList<Notification> notification
     protected override IPicked Walking => _notifications;
 
     /// <inheritdoc />
-    public override void Replace(Post post) => _notifications.Rewrite(
-        held => held.Post?.Id == post.Id ? held with { Post = post } : held);
-
-    /// <inheritdoc />
     /// <remarks>
     ///     A notification about a post that is no longer there is a row about nothing, so it goes with it — the
     ///     instance still has the notification, and the next read will say so, which is the honest thing to draw.
     /// </remarks>
-    public override void Remove(string postId) =>
-        _notifications.Remove(notification => notification.Post?.Id == postId);
+    public override bool Heard(Change change)
+    {
+        switch (change)
+        {
+            case Change.PostChanged(var post):
+                _notifications.Rewrite(held => held.Post?.Id == post.Id ? held with { Post = post } : held);
+
+                break;
+
+            case Change.PostGone(var id):
+                _notifications.Remove(notification => notification.Post?.Id == id);
+
+                break;
+
+            case Change.NotificationsGone(var ids):
+                TakeOff(ids);
+
+                break;
+
+            case Change.AllNotificationsGone:
+                _notifications.Remove(_ => true);
+
+                break;
+        }
+
+        return false;
+    }
 
     /// <summary>What this screen's own keys do: <c>d</c> dismisses the picked notification, and <c>D</c> all of them.</summary>
     public override Task Answer(Verb verb, Reach reach)
@@ -103,17 +124,9 @@ public sealed class NotificationsScreen(IReadOnlyList<Notification> notification
 
         return reach.Put(
             ask => ask.Of(token => reach.Ports.Notifications.Dismiss(reach.Profile, picked.Id, token)),
-            eitherWay: () =>
-            {
-                // Whether or not the reader is still here: the notification was dismissed on the instance, and the
-                // badge and the list under it are one fact about that rather than about where anybody is standing
-                // (#233).
-                reach.Forget(new Subject.Destination(DestinationKind.Notifications));
-                Forget([picked.Id]);
-                reach.Count(DestinationKind.Notifications, Notifications.Count);
-
-                reach.Changed();
-            });
+            // Whether or not the reader is still here: the notification was dismissed on the instance, and what that
+            // makes stale is a fact about the instance rather than about where anybody is standing (#233, #234).
+            eitherWay: () => reach.Tell(new Change.NotificationsGone([picked.Id])));
     }
 
     /// <summary>
@@ -136,16 +149,12 @@ public sealed class NotificationsScreen(IReadOnlyList<Notification> notification
             ask => ask.Of(token => reach.Ports.Notifications.Clear(reach.Profile, token)),
             eitherWay: () =>
             {
-                reach.Forget(new Subject.Destination(DestinationKind.Notifications));
-
-                Forget(Notifications.Select(notification => notification.Id).ToList());
-
-                reach.Count(DestinationKind.Notifications, 0);
+                reach.Tell(new Change.AllNotificationsGone());
                 reach.Say("Cleared.", isError: false);
             });
 
     /// <summary>Takes the notifications <paramref name="ids" /> names off the screen, once the instance has cleared them.</summary>
-    public void Forget(IEnumerable<string> ids)
+    private void TakeOff(IEnumerable<string> ids)
     {
         var going = ids.ToHashSet(StringComparer.Ordinal);
 

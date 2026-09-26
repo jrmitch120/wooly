@@ -27,11 +27,26 @@ public sealed class SubjectCache(TimeProvider clock, TimeSpan freshFor)
     public TimeSpan FreshFor { get; } = freshFor;
 
     /// <summary>
-    ///     Forgets what <paramref name="subject" /> held, for when this client is the thing that changed it — a post
-    ///     published, deleted or marked makes the timeline it is on stale at once, whatever its age says, and so do a
-    ///     notification dismissed and a follow request answered — and for <c>g</c>, which asks again.
+    ///     Forgets what <paramref name="subject" /> held, for when this client is the thing that changed it — which
+    ///     subjects a change makes stale, whatever their age says, is <see cref="Arrival.Apply" />'s table — and for
+    ///     <c>g</c>, which asks again.
     /// </summary>
     public void Forget(Subject subject) => _held.Remove(subject);
+
+    /// <summary>
+    ///     Forgets every subject whose answer <paramref name="stale" /> says yes to, whichever subject it is — a post
+    ///     marked on one timeline is stale on every other one holding it (#234).
+    /// </summary>
+    internal void Forget(Func<Found, bool> stale)
+    {
+        foreach (var (subject, held) in _held.ToList())
+        {
+            if (stale(held.What))
+            {
+                _held.Remove(subject);
+            }
+        }
+    }
 
     /// <summary>
     ///     What <paramref name="subject" /> held, if it held anything recently enough to draw without asking again.

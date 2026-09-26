@@ -37,6 +37,15 @@ internal abstract record Found
     /// <param name="screen">The screen the answer became.</param>
     public virtual bool ReadsOn(Screen screen) => false;
 
+    /// <summary>
+    ///     Whether anything in this answer is the post <paramref name="postId" /> names, or a boost of it — which is
+    ///     what a post changing or going makes stale (<see cref="Change" />).
+    /// </summary>
+    public virtual bool HoldsPost(string postId) => false;
+
+    /// <summary>Whether anybody in this answer is the account <paramref name="accountId" /> names.</summary>
+    public virtual bool HoldsAccount(string accountId) => false;
+
     /// <summary>What a rail badge says, and which destination it is on.</summary>
     public sealed record Badge(DestinationKind Kind, int Unread);
 

@@ -1,6 +1,7 @@
 using Wooly.Core.Conversations;
 using Wooly.Core.Posts;
 using Wooly.Tui.Rendering;
+using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 
 namespace Wooly.Tui.Screens;
@@ -64,7 +65,7 @@ public sealed class ConversationScreen : Screen
     /// </summary>
     /// <remarks>
     ///     It is the conversation's last word as well as the thread's last message, so the conversation itself moves
-    ///     with it — which is what the shell hands back to the list this thread was opened from.
+    ///     with it.
     /// </remarks>
     public void Said(Post post)
     {
@@ -74,10 +75,38 @@ public sealed class ConversationScreen : Screen
     }
 
     /// <inheritdoc />
-    public override void Replace(Post post) => _posts.Replace(post);
+    /// <remarks>
+    ///     A post sent from inside this conversation is the thread's own, whatever in it it answers, and goes on the
+    ///     end of it — so a reply written here lands where the reader is looking rather than only in the next read of
+    ///     the conversation.
+    /// </remarks>
+    public override bool Heard(Change change)
+    {
+        switch (change)
+        {
+            case Change.PostChanged(var post):
+                _posts.Replace(post);
 
-    /// <inheritdoc />
-    public override void Remove(string postId) => _posts.Remove(postId);
+                break;
+
+            case Change.PostGone(var id):
+                _posts.Remove(id);
+
+                break;
+
+            case Change.PostSent(var post, var within) when within == Conversation.Id:
+                Said(post);
+
+                break;
+
+            case Change.ConversationMarked(var marked) when marked.Id == Conversation.Id:
+                Marked(marked);
+
+                break;
+        }
+
+        return false;
+    }
 
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(Drawing drawing)

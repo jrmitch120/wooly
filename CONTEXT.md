@@ -327,9 +327,13 @@ put back to one screen, and an empty screen goes up at once because what was sho
 profile's own account included, an arrival with an account subject. _Drilling in_ pushes: a post, an account, a hashtag
 walked to or a conversation appears when its answer lands, and a **Follow list** stands empty at once and fills.
 _Refreshing_ stands a fresher copy in place of what is showing (**Refresh**). Whichever move, the same machinery reads
-the subject under an **enquiry**, draws what the one cache still holds rather than asking, keeps what came back, moves
-a destination's unread count with the list it is drawn beside, and reads the next page of a list browsed a page at a
+the subject under an **enquiry**, draws what the one cache still holds rather than asking, keeps what came back, sets
+a destination's unread count off the list it is drawn beside, and reads the next page of a list browsed a page at a
 time. A subject says what it reads and what that becomes; nothing about the sequence is said twice.
+The badge is set outright by every read of its destination and moved by the **Change**s between reads — a dismissal
+one fewer, a clear none, never below nothing — so one landing after the reader has gone elsewhere moves the count
+rather than being counted off a list nobody is holding (#234). What a change makes stale is the other half of the same
+thing, and is said here too, in one table (`Arrival.Apply`).
 _Avoid_: load, navigate (for this; a screen is opened _from_ a destination, and a destination is arrived at)
 
 **Enquiry**:
@@ -357,6 +361,18 @@ whole of what the key is for: somebody pressing it is asking to see what has arr
 everything they have already read — so a refresh that held their place would fetch the new posts and leave them off the
 top of the page, which is fetched and invisible.
 _Avoid_: reload, poll, sync, refetch
+
+**Change**:
+What happened on an **instance**, as a verb reports it: a post changed, gone or sent, a tie made, notifications
+dismissed or cleared, a follow request answered, a suggestion dismissed, a conversation marked read (#234). A closed set
+of values saying what happened and nothing about what it makes stale — that is **Arrival**'s one table, which evicts
+every cached list the change is no longer true of, moves the badge it touches, and tells every **screen** on the stack
+(`Screen.Heard`), taking off it any that are now about nothing. Reported whether or not the reader is still where the
+verb was pressed, being true of the instance rather than of where anybody is standing. Distinct from a notice, which
+stays with the verb: "Deleted." is said to a reader, and a change is said to the shell.
+A verb deciding what went stale could only ever decide it about the destination showing, which is how a post marked on
+Home stayed unmarked on a Local list held a minute, and a post sent from Notifications left Home as it was.
+_Avoid_: event, update, invalidation
 
 **Subject**:
 What a screen that is read is read from, as a value: a **destination** on the rail, a post's thread, an account (and
@@ -389,10 +405,10 @@ _Avoid_: binding, shortcut, command (which is the CLI's word for what it runs)
 What a **screen** can reach of the shell while it carries out a verb of its own (`Screen.Answer`, #232): the profile and
 the ports, one way of asking an **instance** (through the shell's **Enquiry**, stale-answer rule and all), opening a
 **Subject** on top of what is showing or swapping one into its own place, saying something on the status row, asking
-before going ahead, and forgetting what a subject last held and moving a badge. Nothing of the stack, the rail or the
-cache beyond that. Narrow on purpose: a verb that needs more is a sign it is not screen-local, and the
-thing to do is say so rather than widen it. Concrete rather than an interface, because the shell is the only thing
-that builds one.
+before going ahead, and telling the shell what **Change** a verb made. Nothing of the stack, the rail or the cache:
+what a change makes stale is **Arrival**'s to settle, not the screen's that made it (#234). Narrow on purpose: a verb
+that needs more is a sign it is not screen-local, and the thing to do is say so rather than widen it. Concrete rather
+than an interface, because the shell is the only thing that builds one.
 _Avoid_: context, services, host (which is `IShellHost`, the terminal's side of the shell)
 
 **Picked**:

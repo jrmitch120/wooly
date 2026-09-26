@@ -25,16 +25,7 @@ internal static class Tying
             ask => ask.Of(token => reach.Ports.Accounts.Set(reach.Profile, address, tie, wanted, token)),
             eitherWay: stood =>
             {
-                reach.Stands(stood);
-
-                // Home is the profile's own following, so a follow or a block changes what belongs on it — and a mute
-                // changes what belongs on all of them.
-                reach.Forget(new Subject.Destination(DestinationKind.Home));
-
-                // And Discover, wherever the tie was made: an instance never suggests somebody already followed or
-                // blocked, so a held copy of that screen is a copy the instance would no longer have served (#181).
-                reach.Forget(new Subject.Destination(DestinationKind.Discover));
-
+                reach.Tell(new Change.Tied(stood));
                 reach.Say(Said(tie, wanted, stood), isError: false);
             });
     }

@@ -193,21 +193,34 @@ public sealed class AccountScreen : Screen
 
     /// <inheritdoc />
     /// <remarks>
-    ///     Through the walk rather than straight at the account, so that the header block and the posts stay one
-    ///     numbering — the same reason <see cref="Remove" /> goes that way.
+    ///     A tie and a deletion both go through the walk rather than straight at the account or the list, so that the
+    ///     pick is brought back inside what is left by whatever is holding it: the header block and the posts are
+    ///     numbered together, and a list re-clamping on its own would leave the screen picking one thing and drawing
+    ///     another (#179). A tie is heard only where it is on this account — every screen on the stack hears it, and
+    ///     the account screen a follow list was opened from is not the account somebody on that list is.
     /// </remarks>
-    public override void Stands(Account account) => _walking.Stands(account);
+    public override bool Heard(Change change)
+    {
+        switch (change)
+        {
+            case Change.Tied(var account) when account.Id == Account.Id:
+                _walking.Stands(account);
 
-    /// <inheritdoc />
-    public override void Replace(Post post) => _posts.Replace(post);
+                break;
 
-    /// <inheritdoc />
-    /// <remarks>
-    ///     Through the walk rather than straight at the list, so that the pick is brought back inside what is left by
-    ///     whatever is holding it: the header block and the posts are numbered together, and a list re-clamping on its
-    ///     own would leave the screen picking one thing and drawing another (#179).
-    /// </remarks>
-    public override void Remove(string postId) => _walking.Remove(postId);
+            case Change.PostChanged(var post):
+                _posts.Replace(post);
+
+                break;
+
+            case Change.PostGone(var id):
+                _walking.Remove(id);
+
+                break;
+        }
+
+        return false;
+    }
 
     /// <inheritdoc />
     /// <remarks>

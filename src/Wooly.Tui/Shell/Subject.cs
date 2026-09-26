@@ -143,7 +143,8 @@ public abstract record Subject
 
                     // A timeline carries no badge, which is something this destination says rather than a step its
                     // arrival is missing.
-                    Counting: null);
+                    Counting: null,
+                    Carries: post => post);
             }
 
             return entry.Kind switch
@@ -152,7 +153,8 @@ public abstract record Subject
                     Reads: (ports, profile, token) => ports.Notifications.Read(profile, Arrival.CountedAtMost, token),
                     Becomes: (waiting, notice) => new NotificationsScreen(waiting, notice),
                     WhenEmpty: "Nothing is waiting for you.",
-                    Counting: waiting => waiting.Count),
+                    Counting: waiting => waiting.Count,
+                    Carries: notification => notification.Post),
 
                 // The one destination whose read is two calls. Whether you already follow the person asking to follow
                 // you may be the most useful thing on the row, and the requests endpoint sends no standing — so it is
@@ -167,7 +169,8 @@ public abstract record Subject
                     },
                     Becomes: (asking, notice) => new FollowRequestsScreen(asking, notice),
                     WhenEmpty: "Nobody is waiting to follow you.",
-                    Counting: asking => asking.Count),
+                    Counting: asking => asking.Count,
+                    Carries: _ => null),
 
                 // The one destination that reads a list through a port with no Fetch on it: there is no paging here
                 // and so nothing for a rate limit to stop part way — the read either answers or throws, and the
@@ -182,7 +185,8 @@ public abstract record Subject
 
                     // No badge, and said here rather than left out: nothing on this screen is waiting for anybody,
                     // the same as Search.
-                    Counting: null),
+                    Counting: null,
+                    Carries: _ => null),
 
                 DestinationKind.Messages => new Listing<Core.Conversations.Conversation>(
                     Reads: (ports, profile, token) => ports.Messages.List(profile, Arrival.CountedAtMost, token),
@@ -191,7 +195,8 @@ public abstract record Subject
 
                     // The badge counts the conversations with something unread in them, and counts them off the list
                     // it is drawn beside — so the rail cannot say two over a list of one.
-                    Counting: written => written.Count(conversation => conversation.Unread)),
+                    Counting: written => written.Count(conversation => conversation.Unread),
+                    Carries: conversation => conversation.Latest),
 
                 // Said out loud rather than quietly doing nothing: a destination that reads no list — the profile's
                 // own account, the prompt, the hashtag nobody has named — arrives some other way, and landing here is
@@ -434,6 +439,9 @@ public abstract record Subject
             public override bool ReadsOn(Screen screen) =>
                 screen is FollowsScreen { Holds: true } follows && More(follows);
 
+            /// <inheritdoc />
+            public override bool HoldsAccount(string accountId) => People.Any(person => person.Id == accountId);
+
             /// <summary>
             ///     Whether there is more to come: only where the instance filled the ask and the list is longer than
             ///     what is in hand. A short page is the end of the list, and a rate limit is the end of the reading.
@@ -522,11 +530,16 @@ public abstract record Subject
     ///     What this destination's badge counts off the answer, or <see langword="null" /> where it carries no badge —
     ///     which a timeline says here rather than leaving the count out somewhere else.
     /// </param>
+    /// <param name="Carries">
+    ///     The post a row carries, or <see langword="null" /> where it carries none — which is what says whether a post
+    ///     changing makes the list stale (#234).
+    /// </param>
     private sealed record Listing<T>(
         Func<ShellPorts, ActiveProfile, CancellationToken, Task<Fetch<T>>> Reads,
         Func<IReadOnlyList<T>, string?, Screen> Becomes,
         string WhenEmpty,
-        Func<IReadOnlyList<T>, int>? Counting) : Listing
+        Func<IReadOnlyList<T>, int>? Counting,
+        Func<T, Post?> Carries) : Listing
     {
         /// <inheritdoc />
         public override Screen Empty() => Becomes([], null);
@@ -564,5 +577,9 @@ public abstract record Subject
         /// <inheritdoc />
         /// <remarks>What was held is an answer that will cost nothing, and nothing will have cut it short.</remarks>
         public override Found Held(Screen screen) => this with { Fetch = Fetch<T>.Complete(Fetch.Items) };
+
+        /// <inheritdoc />
+        public override bool HoldsPost(string postId) =>
+            Fetch.Items.Any(item => How.Carries(item) is { } post && PostChange.Names(post, postId));
     }
 }

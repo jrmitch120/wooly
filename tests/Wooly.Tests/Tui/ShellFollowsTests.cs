@@ -264,7 +264,8 @@ public class ShellFollowsTests
     [Fact]
     public async Task OpenFollows_HandsBackWhatItHeldThoughTheAccountHasBeenAnsweredAboutAgain()
     {
-        var (fakes, opened) = await OnAFollowList();
+        // Somebody other than Ben on the list, since a tie on anybody listed is a list no longer worth holding (#234).
+        var (fakes, opened) = await OnAFollowList([AnAccount.With(id: "7")]);
 
         opened.Back();
 

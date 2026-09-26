@@ -2,6 +2,7 @@ using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
+using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 
 namespace Wooly.Tests.Tui;
@@ -207,7 +208,7 @@ public class PostThreadTests
     {
         var screen = Opened();
 
-        screen.Remove("100");
+        screen.Heard(new Change.PostGone("100"));
 
         Assert.Equal("110", screen.Post.Id);
         Assert.Equal(["101"], screen.Ancestors.Select(ancestor => ancestor.Id));
@@ -226,7 +227,7 @@ public class PostThreadTests
     {
         var screen = Opened();
 
-        screen.Remove("110");
+        screen.Heard(new Change.PostGone("110"));
 
         Assert.Equal("110", screen.Post.Id);
         Assert.Equal(2, screen.At);

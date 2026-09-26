@@ -240,13 +240,13 @@ public class AccountWalkTests
 
         Assert.Equal("220", screen.Picked?.Id);
 
-        screen.Remove("220");
+        screen.Heard(new Change.PostGone("220"));
 
         Assert.Equal("110", screen.Picked?.Id);
         Assert.Contains(Drawn(screen), line => line.Item == 1 && line.Has(Role.Selection));
 
         // And with the last of them gone there is only the header left to stand on.
-        screen.Remove("110");
+        screen.Heard(new Change.PostGone("110"));
 
         Assert.Null(screen.Picked);
         Assert.True(Drawn(screen)[0].Has(Role.Selection));

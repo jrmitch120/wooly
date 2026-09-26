@@ -409,7 +409,7 @@ one back, and voting on one, are both built now (#69, #74):
   found rather than remembered — the reader is looking at the boxes they have just ticked, not at the foot of the
   screen. It costs one row, and only while a vote is standing uncast.
 - **No refetch.** `POST /api/v1/polls/:id/votes` returns the complete updated poll in the same response; that feeds
-  the same `Replace(...)` call `Mark` already uses.
+  the same `Change.PostChanged` `Mark` already reports (#234).
 - **`Vote(...)` lands on `IPostEngagement`** beside `Mark`/`Show`/`Replies` — and is the one call there that takes the
   post rather than its id, because Mastodon votes on the *poll*, whose id is not the post's and is only knowable from
   the post itself. A reader who can see the options they are voting on is already holding it, so the TUI pays one call;
@@ -987,9 +987,9 @@ to follow (#171):
   `Nothing found for …`, and no apology for a new account or a small instance. A failure is not an empty screen either
   — the **Enquiry** turns it into the shell's notice.
 - **Forty of forty, and no paging.** `limit=40`, no `offset`: a screen showing all of what it asked for has nothing to
-  page. It is cached for free, and **a tie or a dismiss made here forgets Discover's entry**, one line
-  beside the `Forget` of Home a tie already makes (`Screens/Tying.cs`, which both the account screen and
-  Discover answer `F` through) — without it, following somebody and
+  page. It is cached for free, and **a tie or a dismiss made here forgets Discover's entry**, beside the Home a tie
+  already forgets — both now rows of the one table a **Change** is settled by (`Arrival.Apply`, #234) — without it,
+  following somebody and
   coming back inside the minute shows them still suggested, which is worse than the follow browser's equivalent because
   the server *would* have dropped them.
 - **Its status row puts the acting keys first**: `j/k person · ⏎ open · F follow · d dismiss · [/] section · g refresh ·
@@ -1243,8 +1243,8 @@ Three things stayed outside it, each deliberately:
   picked post of any screen — marks, reply, compose, edit, delete, vote, reveal, opening a reference or an author — and
   `m`, which reads across the conversation and DM screens; every other verb falls through to the screen. What a screen
   can do while it answers is **Reach** (CONTEXT.md): the ports and profile, one `Put` through the shell's **Enquiry**,
-  `Open` and `Swap` of a **Subject** (#233), `Say`, `Confirm`, `Changed`, `Forget` of a subject, `Count`, `Stands` and
-  `IsMe` — and nothing of the stack, the rail or the cache. So the account screen's
+  `Open` and `Swap` of a **Subject** (#233), `Say`, `Confirm`, `Changed`, `Tell` of a **Change** (#234) and `IsMe` —
+  and nothing of the stack, the rail or the cache. So the account screen's
   ties, `w` and `s` are in `AccountScreen.cs`; a follow list's `s`, `f` and `⏎` in `FollowsScreen.cs`; search's `⏎` in
   `SearchScreen.cs`; `d` and `D` in `NotificationsScreen.cs`; `a`, `x` and `⏎` in `FollowRequestsScreen.cs`; the
   conversation list's `⏎` in `DirectMessagesScreen.cs`; and Discover's `⏎`, `F` and `d` in `DiscoverScreen.cs`. A

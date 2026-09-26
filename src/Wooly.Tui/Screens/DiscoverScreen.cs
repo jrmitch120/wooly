@@ -131,12 +131,27 @@ public sealed class DiscoverScreen : Screen
 
     /// <inheritdoc />
     /// <remarks>
-    ///     The row is rewritten where it stands. Nothing is added, taken away or reordered, so a reader part way
-    ///     through <c>j j j F F</c> is still standing where they were — which is the one rule this screen exists to
-    ///     keep.
+    ///     A tie or a dismissal rewrites the row where it stands. Nothing is added, taken away or reordered, so a
+    ///     reader part way through <c>j j j F F</c> is still standing where they were — which is the one rule this
+    ///     screen exists to keep.
     /// </remarks>
-    public override void Stands(Account account) =>
-        _offered.Rewrite(offer => offer.Person.Id == account.Id ? offer with { Person = account } : offer);
+    public override bool Heard(Change change)
+    {
+        switch (change)
+        {
+            case Change.Tied(var account):
+                _offered.Rewrite(offer => offer.Person.Id == account.Id ? offer with { Person = account } : offer);
+
+                break;
+
+            case Change.SuggestionDismissed(var id):
+                Dismissed(id);
+
+                break;
+        }
+
+        return false;
+    }
 
     /// <summary>
     ///     What this screen's own keys do: <c>⏎</c> opens whoever is picked out, <c>F</c> follows them and <c>d</c>
@@ -178,18 +193,10 @@ public sealed class DiscoverScreen : Screen
 
         return reach.Put(
             ask => ask.Of(token => reach.Ports.Suggestions.Dismiss(reach.Profile, picked.Id, token)),
-            eitherWay: () =>
-            {
-                // What a held copy of this screen holds is now what the instance would not serve again.
-                reach.Forget(new Subject.Destination(DestinationKind.Discover));
-
-                Dismissed(picked.Id);
-
-                // Nothing on the status row: the row itself now says ` · dismissed`, and the row holds either a
-                // notice or the keys and never both — so saying it twice would cost the reader every key the screen
-                // answers to (#180's lesson, #181).
-                reach.Changed();
-            });
+            // Nothing on the status row: the row itself now says ` · dismissed`, and the row holds either a notice or
+            // the keys and never both — so saying it twice would cost the reader every key the screen answers to
+            // (#180's lesson, #181).
+            eitherWay: () => reach.Tell(new Change.SuggestionDismissed(picked.Id)));
     }
 
     /// <summary>

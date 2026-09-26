@@ -254,12 +254,24 @@ public sealed class SearchScreen : Screen
     }
 
     /// <inheritdoc />
-    public override void Replace(Post post) => _results.Rewrite(found =>
-        found is Result.OfPost(var held) ? new Result.OfPost(PostChange.Replaced(held, post)) : found);
+    public override bool Heard(Change change)
+    {
+        switch (change)
+        {
+            case Change.PostChanged(var post):
+                _results.Rewrite(found =>
+                    found is Result.OfPost(var held) ? new Result.OfPost(PostChange.Replaced(held, post)) : found);
 
-    /// <inheritdoc />
-    public override void Remove(string postId) =>
-        _results.Remove(found => found is Result.OfPost(var held) && PostChange.Names(held, postId));
+                break;
+
+            case Change.PostGone(var id):
+                _results.Remove(found => found is Result.OfPost(var held) && PostChange.Names(held, id));
+
+                break;
+        }
+
+        return false;
+    }
 
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(Drawing drawing)
