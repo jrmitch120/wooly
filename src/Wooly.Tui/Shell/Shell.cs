@@ -69,6 +69,12 @@ public sealed class Shell
     private readonly ShellPorts _ports;
     private readonly List<Screen> _stack = [];
 
+    /// <summary>
+    ///     The conversations <c>m</c> has been pressed on and not yet answered about, by id — so a second press before
+    ///     the first lands marks nothing twice, and moves the badge once (#234).
+    /// </summary>
+    private readonly HashSet<string> _marking = new(StringComparer.Ordinal);
+
     /// <summary>What a screen can reach of this shell while it answers a verb of its own (#232).</summary>
     private readonly Reach _reach;
 
@@ -623,10 +629,21 @@ public sealed class Shell
             return;
         }
 
+        // Still drawn unread until the first press is answered, so a second one lands here rather than above. Nothing
+        // is said: the breadcrumb's fetch mark already says something is on its way, and "Marked as read." follows.
+        if (!_marking.Add(conversation.Id))
+        {
+            return;
+        }
+
         await _enquiry.Put(
             ask => ask.Of(token => _ports.Messages.MarkRead(_profile, conversation.Id, token)),
             eitherWay: marked => Tell(new Change.ConversationMarked(marked)),
             ifStillHere: _ => Say("Marked as read.", isError: false));
+
+        // Let go on the drawing thread, behind whatever the answer or its failure has already queued there: by then the
+        // conversation is drawn as the instance has it, and a press that fails can be pressed again.
+        Apply(() => _marking.Remove(conversation.Id));
     }
 
     /// <summary>Shows the current screen's keymap, which is itself a place in the stack.</summary>
@@ -795,14 +812,20 @@ public sealed class Shell
                 break;
 
             case Outgoing.Publishing(var draft):
+                // A reply written inside a conversation carries which one, taken now from the screen it was written
+                // over rather than read back when it lands — by then the reader may be anywhere.
+                var within = compose.Purpose == ComposeFor.Reply && _stack is [.., ConversationScreen conversation, _]
+                    ? conversation.Conversation.Id
+                    : null;
+
                 await _enquiry.Put(
                     ask => ask.Of(token => _ports.Author.Publish(_profile, draft, token)),
                     eitherWay: published =>
                     {
-                        // A reply written in a conversation goes on the end of it, which the conversation hears for
-                        // itself: what it answers is in the thread.
+                        // A reply written in a conversation goes on the end of it, which the conversation and the
+                        // list it was opened from each hear for themselves.
                         Popped();
-                        Tell(new Change.PostSent(published));
+                        Tell(new Change.PostSent(published, within));
                         Say("Sent.", isError: false);
                     });
 

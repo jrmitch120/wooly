@@ -30,7 +30,13 @@ public abstract record Change
     public sealed record PostGone(string Id) : Change;
 
     /// <summary>A post just published, a reply included.</summary>
-    public sealed record PostSent(Post Post) : Change;
+    /// <param name="Post">The post as the instance published it.</param>
+    /// <param name="Conversation">
+    ///     The id of the conversation it was written in, where it was a reply written inside one. Carried because an
+    ///     instance says nothing on a post about which conversation it is in, and the list a thread was opened from
+    ///     knows only each conversation's last post — so a reply to anything older would reach no row at all.
+    /// </param>
+    public sealed record PostSent(Post Post, string? Conversation = null) : Change;
 
     /// <summary>An account as the instance now has it, after a tie went on or came off.</summary>
     public sealed record Tied(Person Account) : Change;

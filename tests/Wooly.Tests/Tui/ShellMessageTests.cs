@@ -192,6 +192,34 @@ public class ShellMessageTests
         Assert.Equal(1, opened.Rail.Destinations.First(place => place.Kind == DestinationKind.Messages).Unread);
     }
 
+    /// <summary>
+    ///     A second <c>m</c> pressed before the first has been answered marks nothing twice: the conversation is still
+    ///     drawn unread until the answer lands, and a badge moved once per press would count one conversation off
+    ///     twice (#234).
+    /// </summary>
+    [Fact]
+    public async Task MarkRead_MarksNothingTwiceWhileTheFirstIsStillOnItsWay()
+    {
+        var shell = new AShell
+        {
+            Messages = FakeDirectMessages.Holding(
+                AConversation.With(id: "7"),
+                AConversation.With(id: "8")),
+        };
+
+        var opened = await shell.Opened();
+
+        opened.Step(ToMessages);
+        shell.Host.Settle();
+
+        await opened.MarkRead();
+        await opened.MarkRead();
+        shell.Host.Drain();
+
+        Assert.Equal("7", Assert.Single(shell.Messages.MarkedRead).ConversationId);
+        Assert.Equal(1, opened.Rail.Destinations.First(place => place.Kind == DestinationKind.Messages).Unread);
+    }
+
     /// <summary>The same key, from inside the thread, where a reader who has just read it is most likely to press it.</summary>
     [Fact]
     public async Task MarkRead_ClearsTheConversationBeingReadFromInsideIt()
@@ -465,11 +493,7 @@ public class ShellMessageTests
             AConversation.With(id: "7"),
             AConversation.DirectPost(id: "110", content: "Are you about?"));
 
-        var sent = APost.With(
-            id: "112",
-            account: "jeff@mastodon.social",
-            content: "All week",
-            inReplyTo: new PostReplyTarget { PostId = "110" });
+        var sent = APost.With(id: "112", account: "jeff@mastodon.social", content: "All week");
 
         var shell = new AShell
         {
@@ -501,6 +525,56 @@ public class ShellMessageTests
         var listed = Assert.IsType<DirectMessagesScreen>(opened.Screen);
 
         Assert.Equal("112", listed.Conversations[0].Latest?.Id);
+    }
+
+    /// <summary>
+    ///     A reply to anything in the thread is the conversation's last word, and not only a reply to the last thing
+    ///     said: the row the thread was opened from moves with it, so <c>esc</c> does not land on a row disagreeing
+    ///     with the thread just left (#234).
+    /// </summary>
+    [Fact]
+    public async Task Send_MovesTheRowWhateverInTheThreadItAnswered()
+    {
+        var thread = AConversation.Thread(
+            AConversation.With(id: "7", latest: AConversation.DirectPost(id: "111", content: "Or not?")),
+            AConversation.DirectPost(id: "110", content: "Are you about?"),
+            AConversation.DirectPost(id: "111", content: "Or not?"));
+
+        var sent = APost.With(
+            id: "112",
+            account: "jeff@mastodon.social",
+            content: "All week",
+            inReplyTo: new PostReplyTarget { PostId = "110" });
+
+        var shell = new AShell
+        {
+            Messages = FakeDirectMessages.Threading(thread),
+            Author = FakePostAuthor.Answering(sent),
+        };
+
+        var opened = await shell.Opened();
+
+        opened.Step(ToMessages);
+        shell.Host.Settle();
+
+        opened.Press(ShellKey.Enter);
+        shell.Host.Drain();
+
+        Assert.Equal("110", opened.Screen.Picked?.Id);
+
+        opened.Reply();
+        ((ComposeScreen)opened.Screen).Text += "All week";
+
+        await opened.Send();
+        shell.Host.Drain();
+
+        var screen = Assert.IsType<ConversationScreen>(opened.Screen);
+
+        Assert.Equal(["110", "111", "112"], screen.Posts.Select(post => post.Id));
+
+        opened.Back();
+
+        Assert.Equal("112", Assert.IsType<DirectMessagesScreen>(opened.Screen).Conversations[0].Latest?.Id);
     }
 
     /// <summary>

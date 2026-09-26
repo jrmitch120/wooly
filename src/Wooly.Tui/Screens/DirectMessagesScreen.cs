@@ -98,9 +98,8 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
     ///     A mark put on a message in the thread shows on the row the thread was opened from: the two screens are on
     ///     the stack together, and both hear it. A message deleted leaves its conversation standing without a last
     ///     post, which is what a conversation whose posts have been taken down looks like — it is still there to be
-    ///     read or written to, and saying so is more honest than dropping it. A reply to a conversation's last post is
-    ///     its last post now; a reply to anything older in it moves the row only at the next read, a row knowing no
-    ///     more of its thread than the one post it shows.
+    ///     read or written to, and saying so is more honest than dropping it. A reply written inside a conversation is
+    ///     its last post now, whatever in the thread it answered.
     /// </remarks>
     public override bool Heard(Change change)
     {
@@ -116,8 +115,8 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
 
                 break;
 
-            case Change.PostSent(var post) when post.InReplyTo?.PostId is { } answering:
-                _conversations.Rewrite(held => held.Latest?.Id == answering ? held with { Latest = post } : held);
+            case Change.PostSent(var post, { } within):
+                _conversations.Rewrite(held => held.Id == within ? held with { Latest = post } : held);
 
                 break;
 

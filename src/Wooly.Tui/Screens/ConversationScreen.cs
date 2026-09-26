@@ -76,8 +76,9 @@ public sealed class ConversationScreen : Screen
 
     /// <inheritdoc />
     /// <remarks>
-    ///     A post sent in answer to anything in the thread is the thread's own, and goes on the end of it — so a reply
-    ///     written here lands where the reader is looking rather than only in the next read of the conversation.
+    ///     A post sent from inside this conversation is the thread's own, whatever in it it answers, and goes on the
+    ///     end of it — so a reply written here lands where the reader is looking rather than only in the next read of
+    ///     the conversation.
     /// </remarks>
     public override bool Heard(Change change)
     {
@@ -93,7 +94,7 @@ public sealed class ConversationScreen : Screen
 
                 break;
 
-            case Change.PostSent(var post) when Answers(post):
+            case Change.PostSent(var post, var within) when within == Conversation.Id:
                 Said(post);
 
                 break;
@@ -106,10 +107,6 @@ public sealed class ConversationScreen : Screen
 
         return false;
     }
-
-    /// <summary>Whether <paramref name="post" /> answers something said in this thread.</summary>
-    private bool Answers(Post post) =>
-        post.InReplyTo?.PostId is { } answering && _posts.All.Any(said => said.Id == answering);
 
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(Drawing drawing)
