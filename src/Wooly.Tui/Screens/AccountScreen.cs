@@ -175,15 +175,8 @@ public sealed class AccountScreen : Screen
         Verb.Follow => Tying.Toggle(reach, Account, AccountTie.Follow),
         Verb.Mute => Tying.Toggle(reach, Account, AccountTie.Mute),
         Verb.Block => Tying.Toggle(reach, Account, AccountTie.Block),
-        Verb.OpenFollows => reach.OpenFollows(Account, FollowSide.Following, replacing: false),
-        Verb.SwapPostsAndReplies => reach.Put(
-            ask => AccountReading.Read(
-                ask,
-                reach.Ports,
-                reach.Profile,
-                AccountAddress.Parse(Account.Address),
-                !WithReplies),
-            ifStillHere: read => reach.Swap(this, read.Screen())),
+        Verb.OpenFollows => reach.Open(new Subject.Follows(Account, FollowSide.Following)),
+        Verb.SwapPostsAndReplies => reach.Swap(new Subject.Account(AccountAddress.Parse(Account.Address), !WithReplies)),
         _ => Task.CompletedTask,
     };
 

@@ -321,29 +321,33 @@ the screen without changing the destination.
 _Avoid_: tab, section, page
 
 **Arrival**:
-Landing on a **destination**, which is one thing however many destinations there are: whatever is in flight is
-overtaken, an empty screen goes up at once, what the destination holds is drawn from what it last held or asked for
-under an **enquiry**, and its unread count moves with the list it is drawn beside (#100). A destination says only what
-it reads, what that becomes on screen, what an empty one is told and what it counts — a timeline saying it counts
-nothing, rather than an arrival that leaves the count out. Distinct from drilling in: an arrival puts the stack back to
-one **screen**, and the profile's own account is arrived at by replacing what is on it rather than pushing onto it.
+Bringing a **screen** up from its **Subject**, which is one thing however many kinds of screen are read (#100, #233).
+Three moves do it, and they stay distinct inside it. _Arriving_ from the rail lands on a **destination**: the stack is
+put back to one screen, and an empty screen goes up at once because what was showing is about somewhere else — the
+profile's own account included, an arrival with an account subject. _Drilling in_ pushes: a post, an account, a hashtag
+walked to or a conversation appears when its answer lands, and a **Follow list** stands empty at once and fills.
+_Refreshing_ stands a fresher copy in place of what is showing (**Refresh**). Whichever move, the same machinery reads
+the subject under an **enquiry**, draws what the one cache still holds rather than asking, keeps what came back, moves
+a destination's unread count with the list it is drawn beside, and reads the next page of a list browsed a page at a
+time. A subject says what it reads and what that becomes; nothing about the sequence is said twice.
 _Avoid_: load, navigate (for this; a screen is opened _from_ a destination, and a destination is arrived at)
 
 **Enquiry**:
 A question put to an **instance** on a reader's behalf, which survives neither their patience nor their attention: it
 waits out a rate limit where they can watch it count down, turns a failure into a notice rather than an exception, and
-is dropped unread if they have arrived at another **destination** since it was sent (ADR-0014). One enquiry may put
-several calls to an instance, and is overtaken, or not, as a whole.
+is dropped if the screen it was asked from is no longer in front of them (ADR-0014, #233) — whether they arrived
+somewhere on the rail, drilled in, or pressed `esc`. What happened on the instance whether or not they stayed, a badge
+moving included, lands either way. One enquiry may put several calls to an instance, and is overtaken, or not, as a
+whole.
 _Avoid_: request (which is a follow request), query (which is what a search takes)
 
 **Refresh**:
 Asking for what is there now, by hand: `g`, screen-local, on the eleven screens that have something to ask again (#84,
 widened by the people-side map #159).
-Evicts what the **destination** last held and puts the same question its own **arrival** puts — so a refresh is one
-thing for the eight destinations that read a list, and the three screens no arrival reaches — a post, an account and a
-**Follow list** — each put their own question again and recheck that the reader is still standing on them. A follow
-list has a cache of its own rather than the rail's, being the one refreshable screen that is not a destination and not
-reached from one, so `g` there drops its own entry, re-runs the read and clears the filter. Distinct from an **arrival**: nobody has gone anywhere,
+One path for all of them: evicts what the screen's **Subject** last held and brings the same subject up again through
+**Arrival** — the same read that brought the screen up, whether a destination's list, a post's thread, an account or a
+**Follow list**, where it drops the cached list, re-runs the read and clears the filter. Distinct from an **arrival**
+from the rail: nobody has gone anywhere,
 so the stack keeps its depth, the screen is replaced where it stands rather than becoming the whole of it, and what is
 showing stands until there is something fresher to put in its place — where an arrival empties the screen at once,
 because what was on it is about somewhere else. A live conversation and a live search are each their own question and
@@ -353,6 +357,15 @@ whole of what the key is for: somebody pressing it is asking to see what has arr
 everything they have already read — so a refresh that held their place would fetch the new posts and leave them off the
 top of the page, which is fetched and invisible.
 _Avoid_: reload, poll, sync, refetch
+
+**Subject**:
+What a screen that is read is read from, as a value: a **destination** on the rail, a post's thread, an account (and
+whether with its replies), one side of an account's **Follow list**, a hashtag walked to, or a conversation (#233). A
+closed set; each carries its own read and builds its own screen, and says whether what it read is cached and whether
+it is read a page at a time. A screen exposes its subject, which is what `g` asks again and what the one cache is keyed
+by. Compared by value, so a follow list is the same subject however its account was last answered about, and a
+destination the same whatever its badge says. The search prompt has none: a live search is its own question (#84).
+_Avoid_: source, target, model
 
 **Keymap**:
 What every key means on every screen, as one table (`Keymap`): a **ShellKey** and a **Screen** go in and a **Verb**
@@ -374,10 +387,10 @@ _Avoid_: binding, shortcut, command (which is the CLI's word for what it runs)
 
 **Reach**:
 What a **screen** can reach of the shell while it carries out a verb of its own (`Screen.Answer`, #232): the profile and
-the ports, one way of asking an **instance** (through the shell's **Enquiry**, stale-answer rule and all), pushing a
-screen or swapping a fresh one into its own place, opening an account, a hashtag, a post or a **Follow list**, saying
-something on the status row, asking before going ahead, and the plain cache and badge calls. Nothing of the stack,
-the rail or the caches beyond that. Narrow on purpose: a verb that needs more is a sign it is not screen-local, and the
+the ports, one way of asking an **instance** (through the shell's **Enquiry**, stale-answer rule and all), opening a
+**Subject** on top of what is showing or swapping one into its own place, saying something on the status row, asking
+before going ahead, and forgetting what a subject last held and moving a badge. Nothing of the stack, the rail or the
+cache beyond that. Narrow on purpose: a verb that needs more is a sign it is not screen-local, and the
 thing to do is say so rather than widen it. Concrete rather than an interface, because the shell is the only thing
 that builds one.
 _Avoid_: context, services, host (which is `IShellHost`, the terminal's side of the shell)

@@ -25,8 +25,9 @@ namespace Wooly.Tui.Shell;
 ///     for — waiting, and getting back onto the drawing thread — come in through <see cref="IShellHost" />.
 ///     <para>
 ///         Every question a reader is waiting on is put through <see cref="Enquiry" />, which is what makes the
-///         rate-limit wait, the failure notice and the drop-on-arrival rule the same at all of them rather than
-///         copied at each. The counts the rail carries are the exception, and read their ports directly: nobody is
+///         rate-limit wait, the failure notice and the stale-answer rule the same at all of them rather than copied at
+///         each — and every screen that is read is brought up from its <see cref="Subject" /> by <see cref="Arrival" />,
+///         so none of their reads is here (#233). The counts the rail carries are the exception, and read their ports directly: nobody is
 ///         waiting on a badge, so one that could not be read is drawn as no count rather than counted down over.
 ///     </para>
 /// </remarks>
@@ -46,14 +47,8 @@ public sealed class Shell
     private const string NoBrowser = "No browser available.";
 
     /// <summary>
-    ///     How many people a follow list asks for at a time: the most Mastodon serves from a list of accounts in one
-    ///     call, so the most there is any point asking it for (#180).
-    /// </summary>
-    private const int FollowsPage = 80;
-
-    /// <summary>
-    ///     What arriving at a destination means, which is the same six steps at every one of them that reads a list
-    ///     (#100).
+    ///     What bringing a screen up from its subject means, which is the same steps at every screen that is read —
+    ///     arrived at, drilled into or refreshed (#100, #233).
     /// </summary>
     private readonly Arrival _arrival;
 
@@ -64,10 +59,8 @@ public sealed class Shell
     /// </summary>
     private readonly IWebBrowser _browser;
 
-    private readonly DestinationCache _cache;
-
-    /// <summary>What a follow list last held, which is the one cache over a screen the stack was drilled into (#180).</summary>
-    private readonly FollowsCache _follows;
+    /// <summary>What each cached subject last held: the rail's destinations, and follow lists held whole.</summary>
+    private readonly SubjectCache _cache;
 
     /// <summary>Everything this reaches an instance through, and the one place the stale-answer rule is stated.</summary>
     private readonly Enquiry _enquiry;
@@ -93,22 +86,26 @@ public sealed class Shell
         _ports = ports;
         _host = host;
         _browser = browser;
-        _cache = new DestinationCache(clock, timing.CacheFor);
-        _follows = new FollowsCache(clock, timing.CacheFor);
+        _cache = new SubjectCache(clock, timing.CacheFor);
 
-        _enquiry = new Enquiry(host, clock, timing.CountdownStep, timing.MarkStep);
+        // Asked from whatever is on top, which is the whole of the stale-answer rule: an answer lands only while the
+        // screen it was asked from is still in front of the reader.
+        _enquiry = new Enquiry(host, clock, timing.CountdownStep, timing.MarkStep, () => Screen);
         _enquiry.Said += Say;
         _enquiry.Changed += () => Changed?.Invoke();
         _enquiry.Ticked += () => Ticked?.Invoke();
 
-        // An arrival settles what a destination is on screen and what its badge says; putting either there is this
+        // An arrival settles what a subject is on screen and what its badge says; putting either there is this
         // shell's own business, since the stack and the rail are its.
-        _arrival = new Arrival(profile, ports, _enquiry, _cache, host);
-        _arrival.Shows += Reset;
+        _arrival = new Arrival(profile, ports, _enquiry, _cache);
+        _arrival.Arrives += Reset;
+        _arrival.Drills += Push;
+        _arrival.Refreshes += Freshened;
+        _arrival.Filled += () => Say(null, isError: false);
         _arrival.Counts += Counted;
 
         Rail = new Rail(Destinations(profile, hashtag), host, timing.Settle);
-        Rail.Selected += destination => _ = Go(destination);
+        Rail.Selected += destination => _ = _arrival.At(destination);
         Rail.Changed += () => Changed?.Invoke();
 
         _stack.Add(new FeedScreen(Rail.Showing, []));
@@ -117,13 +114,8 @@ public sealed class Shell
             profile,
             ports,
             _enquiry,
+            _arrival,
             _cache,
-            push: Push,
-            swap: Freshened,
-            openAccount: address => OpenAccount(address),
-            openTag: OpenTag,
-            openPost: OpenPost,
-            openFollows: Follows,
             say: Say,
             confirm: Confirm,
             changed: () => Changed?.Invoke(),
@@ -200,7 +192,7 @@ public sealed class Shell
     /// <summary>Opens the shell onto its first destination, and reads the counts the rail carries.</summary>
     public async Task Open()
     {
-        await Go(Rail.Showing);
+        await _arrival.At(Rail.Showing);
         await Counts();
     }
 
@@ -398,11 +390,11 @@ public sealed class Shell
     ///     post everywhere except inside a post: there, the post picked out at the top is the one already on screen
     ///     (#48).
     /// </remarks>
-    public Task Enter() => Screen.Opens is { } opening ? OpenPost(opening) : Task.CompletedTask;
+    public Task Enter() => Screen.Opens is { } opening ? _arrival.Open(new Subject.Thread(opening)) : Task.CompletedTask;
 
     /// <summary>
-    ///     Asks for what is there now: evicts what the destination last held, puts the same question its own arrival
-    ///     puts, and opens the answer at the top so that what has just arrived is what the reader is looking at
+    ///     Asks for what is there now: evicts what the screen's subject last held, puts the same question that brought
+    ///     it up, and opens the answer at the top so that what has just arrived is what the reader is looking at
     ///     (<c>docs/tui-shell.md</c>, #84).
     /// </summary>
     /// <remarks>
@@ -410,10 +402,10 @@ public sealed class Shell
     ///     while anything is already in flight does nothing at all — no second question, and no in-flight UI beyond
     ///     the <c>fetching</c> mark the breadcrumb already carries.
     ///     <para>
-    ///         Seven of the nine are destinations and go back through <see cref="Arrival" />, which is one refresh for
-    ///         all of them: what to evict, what to read, what it becomes and what it counts are all things the
-    ///         destination already says (#100). The other two are screens the stack was drilled into, and each puts
-    ///         its own question again.
+    ///         Every one of them goes back through <see cref="Arrival" />, which is one refresh for all of them: what
+    ///         to evict, what to read, what it becomes and what it counts are all things the screen's subject already
+    ///         says (#100, #233). A fresher copy stands in place of the screen showing, where that screen is still in
+    ///         front when it lands.
     ///     </para>
     ///     <para>
     ///         Nothing about where the reader was standing is carried over, and that is the whole point of the key: a
@@ -430,18 +422,12 @@ public sealed class Shell
     /// </remarks>
     public Task Refresh()
     {
-        if (!Screen.Refreshes || Fetching)
+        if (!Screen.Refreshes || Screen.Subject is not { } subject || Fetching)
         {
             return Task.CompletedTask;
         }
 
-        return Screen switch
-        {
-            PostScreen post => RefreshPost(post),
-            AccountScreen account => RefreshAccount(account),
-            FollowsScreen follows => RefreshFollows(follows),
-            _ => RefreshDestination(),
-        };
+        return _arrival.Again(subject);
     }
 
     /// <summary>
@@ -472,7 +458,7 @@ public sealed class Shell
             case Role.Hashtag:
                 // The same screen and the same breadcrumb a search result for a tag opens, and the rail's own hashtag
                 // destination left alone — that is a setting the reader wrote down, not something a keypress changes.
-                return OpenTag(reference.Text.TrimStart('#'));
+                return _arrival.Open(new Subject.Tag(reference.Text.TrimStart('#')));
 
             case Role.Mention:
                 return OpenMention();
@@ -503,7 +489,7 @@ public sealed class Shell
             return;
         }
 
-        await OpenAccount(AccountAddress.Parse((picked.Boosted ?? picked).Account));
+        await _arrival.Open(new Subject.Account(AccountAddress.Parse((picked.Boosted ?? picked).Account), WithReplies: false));
     }
 
     /// <summary>Walks back up one level of the stack. Never quits, and never leaves the shell with nothing on it.</summary>
@@ -633,7 +619,7 @@ public sealed class Shell
 
         await _enquiry.Put(
             ask => ask.Of(token => _ports.Messages.MarkRead(_profile, conversation.Id, token)),
-            eitherWay: _ => _cache.Forget(DestinationKind.Messages),
+            eitherWay: _ => _cache.Forget(new Subject.Destination(DestinationKind.Messages)),
             ifStillHere: marked =>
             {
                 Replace(marked);
@@ -833,7 +819,7 @@ public sealed class Shell
         // longer worth its age, this client being what changed it.
         void Popped()
         {
-            _cache.Forget(Rail.Showing.Kind);
+            _cache.Forget(new Subject.Destination(Rail.Showing.Kind));
             _stack.RemoveAt(_stack.Count - 1);
         }
     }
@@ -860,337 +846,16 @@ public sealed class Shell
     ];
 
     /// <summary>
-    ///     Arriving at a destination, which is what moving the rail's selection means. Every destination that reads a
-    ///     list goes through <see cref="Arrival" /> and is nothing here but the four things it says about itself; the
-    ///     three arms below are the ones that read none (#100).
+    ///     Reads the next page where the reader has walked onto the end of a list browsed a page at a time, which is
+    ///     what <c>j</c> past the bottom means there (#180). Whether that is where they are is the screen's to say,
+    ///     and what the next page is its subject's.
     /// </summary>
-    /// <remarks>
-    ///     Walking to a destination is arriving somewhere, so whatever was drilled into from the last one is left
-    ///     behind: the stack is where you went from here, and this is a different here.
-    /// </remarks>
-    private async Task Go(Destination destination)
-    {
-        switch (destination)
-        {
-            // The profile's own account, which is one account rather than a list of anything — and arrived at by
-            // replacing what is on the stack rather than pushing onto it, since arriving is not drilling in.
-            case { Kind: DestinationKind.Profile }:
-                _arrival.At(new FeedScreen(destination, []));
-
-                if (_profile.Account is { } account)
-                {
-                    await OpenAccount(AccountAddress.Parse(account), replacing: true);
-                }
-
-                return;
-
-            // A prompt, which asks the instance for nothing until something has been typed into it.
-            case { Kind: DestinationKind.Search }:
-                _arrival.At(new SearchScreen());
-
-                return;
-
-            // A rail entry for a hashtag nobody has named has nothing to ask about, so what stands here is the line
-            // that would name one rather than an empty timeline.
-            case { Kind: DestinationKind.Hashtag, Timeline: null }:
-                _arrival.At(new NoticeScreen(
-                    "Hashtag",
-                    "No hashtag is set for the rail.",
-                    """Put hashtag = "cats" under [preferences] in your config file to keep one here."""));
-
-                return;
-
-            default:
-                await _arrival.At(destination);
-
-                return;
-        }
-    }
-
-    /// <summary>Opens <paramref name="post" />, with what has been said in answer to it.</summary>
-    private Task OpenPost(Post post) =>
-        _enquiry.Put(ask => ReadThread(ask, post), ifStillHere: thread => Push(new PostScreen(post, thread)));
-
-    /// <summary>Opens an account screen: who they are, their standing, and their posts.</summary>
-    private Task OpenAccount(AccountAddress address, bool replacing = false) =>
-        _enquiry.Put(
-            ask => AccountReading.Read(ask, _ports, _profile, address, withReplies: false),
-            ifStillHere: found =>
-            {
-                var screen = found.Screen();
-
-                if (replacing)
-                {
-                    Reset(screen);
-                }
-                else
-                {
-                    Push(screen);
-                }
-            });
-
-    /// <summary>
-    ///     Puts a follow list on screen and starts reading it: the first page, and — on a list held whole — the rest
-    ///     behind the reader.
-    /// </summary>
-    /// <remarks>
-    ///     The screen is on the stack before anything is asked for, so the reader is looking at the list they opened
-    ///     while it fills rather than at the screen they left. Which mode it is in it settles itself, off the counts
-    ///     the account already carries (<see cref="FollowsScreen.Holds" />).
-    /// </remarks>
-    /// <param name="whose">The account whose list it is, as the screen it was opened from was holding them.</param>
-    /// <param name="side">Which side of their follows.</param>
-    /// <param name="replacing">
-    ///     Whether this stands in place of the screen showing rather than on top of it, which is what a swap of sides
-    ///     is and what an open is not.
-    /// </param>
-    private Task Follows(Account whose, FollowSide side, bool replacing)
-    {
-        var showing = Screen;
-        var screen = new FollowsScreen(whose, side, IsMe(whose.Address));
-
-        if (replacing)
-        {
-            Freshened(showing, screen);
-        }
-        else
-        {
-            Push(screen);
-        }
-
-        // Held whole and recently, so there is nothing to ask: the cache pays exactly here, on a list re-opened after
-        // popping out of it (#180).
-        if (_follows.Fresh(whose.Id, side) is { } held)
-        {
-            screen.Arrived(held, more: false);
-
-            Changed?.Invoke();
-
-            return Task.CompletedTask;
-        }
-
-        return Fill(screen, FollowsPage);
-    }
-
-    /// <summary>
-    ///     Reads <paramref name="wanted" /> of a follow list and puts whoever is new on <paramref name="screen" />.
-    /// </summary>
-    /// <remarks>
-    ///     A page is asked for by re-reading the list to a longer limit, the port taking a count rather than a cursor
-    ///     — so what comes back holds every page before it, and only the tail of it is new.
-    /// </remarks>
-    private Task Fill(FollowsScreen screen, int wanted) =>
-        _enquiry.Put(ask => ReadFollows(ask, screen, wanted), ifStillHere: read => Filled(screen, read, wanted));
-
-    /// <summary>
-    ///     The list, and where the profile stands with whoever on it is new — two calls under one enquiry, so it is
-    ///     checked once at the end rather than after each.
-    /// </summary>
-    /// <remarks>
-    ///     Neither side of a follow list carries a standing, Mastodon sending one only from the relationship
-    ///     endpoints, so it is asked for separately — once for the page rather than once a row, which is what that
-    ///     endpoint takes many ids for. It answers with nothing where it was refused, and the rows are drawn silent:
-    ///     a row saying there is no tie because the asking failed would be the one dishonest thing on the screen.
-    /// </remarks>
-    private async Task<Listing> ReadFollows(Enquiry.Ask ask, FollowsScreen screen, int wanted)
-    {
-        var already = screen.Read;
-
-        // The screen is holding the account whose list this is, id and all, so the list is asked for by naming it
-        // rather than by handing back the address it was read from and paying to arrive at the same id again.
-        var fetch = await ask.Of(token => _ports.Accounts.List(
-            _profile,
-            screen.Side,
-            NamedAccount.Resolved(screen.Whose),
-            wanted,
-            token));
-
-        var read = fetch.Items.Skip(already).ToList();
-
-        var stood = new List<Account>(read.Count);
-
-        // A page of ids at a time, never one query naming everybody: the endpoint takes many ids and not unboundedly
-        // many, and a held list is read to its whole length in one ask (see Filled) — so the two are chunked apart
-        // rather than one following the other's size (#180).
-        foreach (var page in read.Chunk(FollowsPage))
-        {
-            stood.AddRange(await ask.Of(token => _ports.StoodOrSilent(_profile, page, token)));
-        }
-
-        return new Listing([.. fetch.Items.Take(already), .. stood], fetch.StoppedBy);
-    }
-
-    /// <summary>
-    ///     What one read of a follow list came back with: everyone the instance has listed so far, and whether a rate
-    ///     limit stopped it part way.
-    /// </summary>
-    /// <param name="People">Everyone read so far, whoever is new among them carrying their standing.</param>
-    /// <param name="StoppedBy">The rate limit that cut the read short, or nothing where none did.</param>
-    private sealed record Listing(IReadOnlyList<Account> People, RateLimitedException? StoppedBy);
-
-    /// <summary>Puts what was read on the screen, and asks for the rest where there is more of it to hold.</summary>
-    /// <remarks>
-    ///     Only where that screen is still the one showing, the same recheck <see cref="Freshened" /> makes and for
-    ///     the same reason. A list held whole goes on to read the rest at once, which is what streaming in behind the
-    ///     reader is; a browsed one stops here and waits for <c>j</c> to reach the end of what arrived.
-    /// </remarks>
-    private void Filled(FollowsScreen screen, Listing read, int wanted)
-    {
-        if (!ReferenceEquals(Screen, screen))
-        {
-            return;
-        }
-
-        // More to come only where the instance filled the ask and the list is longer than what is in hand: a short
-        // page is the end of the list, and a rate limit is the end of the reading.
-        var more = read.StoppedBy is null && read.People.Count >= wanted && read.People.Count < screen.Total;
-
-        screen.Arrived(read.People, more, Arrival.Emptiness(read.People.Count, screen.Nobody, of: null, read.StoppedBy));
-
-        // Nothing on the status row: what this read had to say is on the screen, where a list with nobody on it can
-        // go on saying it without costing the reader every key the screen answers to.
-        Say(null, isError: false);
-
-        if (more)
-        {
-            if (screen.Holds)
-            {
-                // The rest of it, in one ask rather than 24 more: the port reads to a limit, so asking page by page
-                // would re-read every page before it each time.
-                _ = Fill(screen, (int)screen.Total);
-            }
-
-            return;
-        }
-
-        // Only a list that was read whole is worth handing back later; a page of a browsed one is not what is there.
-        if (screen.Holds && read.StoppedBy is null)
-        {
-            _follows.Keep(screen.Whose.Id, screen.Side, read.People);
-        }
-    }
-
-    /// <summary>
-    ///     Reads the next page where the reader has walked onto the end of a browsed list, which is what <c>j</c>
-    ///     past the bottom means there (#180).
-    /// </summary>
-    /// <remarks>
-    ///     Asked after every walk rather than bound to a key, because the walk is what settles it: the screen answers
-    ///     whether it is standing at the end of what it has with more to be had, and nothing else on any screen
-    ///     answers yes.
-    /// </remarks>
     private void Paging()
     {
-        if (Screen is FollowsScreen { WantsMore: true } follows && !Fetching)
+        if (Screen.WantsMore)
         {
-            _ = Fill(follows, follows.Read + FollowsPage);
+            _ = _arrival.More(Screen);
         }
-    }
-
-    /// <summary>
-    ///     Asking a destination for what is there now, which is the arrival it already arrives by with what it last
-    ///     held taken away first — one refresh for all seven of them (#84).
-    /// </summary>
-    /// <remarks>
-    ///     The destination is the rail's own rather than one read off the screen, and the two cannot differ here: only
-    ///     a destination's screen answers to <c>g</c>, and a destination's screen is only ever the bottom of the stack
-    ///     — anything drilled into from one is a screen of some other kind, which is refreshed by the two below.
-    /// </remarks>
-    private Task RefreshDestination()
-    {
-        _cache.Forget(Rail.Showing.Kind);
-
-        return _arrival.Again(Rail.Showing);
-    }
-
-    /// <summary>
-    ///     The same for the post screen, which no arrival reaches: the <c>Thread</c> call <see cref="Enter" /> ran to
-    ///     open it, about the same post it is already about.
-    /// </summary>
-    private Task RefreshPost(PostScreen showing) =>
-        _enquiry.Put(
-            ask => ReadThread(ask, showing.Post),
-            ifStillHere: thread => Freshened(showing, new PostScreen(showing.Post, thread)));
-
-    /// <summary>
-    ///     The thread around a post — what it answers and what has been said in answer to it — asked about the post
-    ///     itself where what is in hand is a boost of it, since a boost stands in the same thread as the post it
-    ///     carries.
-    /// </summary>
-    /// <remarks>
-    ///     Said here rather than at both places that ask, for the reason <see cref="AccountReading" /> gives: a refresh
-    ///     is the same call the screen was opened by rather than a second opinion about what a post screen holds
-    ///     (#84).
-    /// </remarks>
-    private Task<PostThread> ReadThread(Enquiry.Ask ask, Post post)
-    {
-        var about = post.Boosted ?? post;
-
-        return ask.Of(token => _ports.Engagement.Thread(_profile, about.Id, token));
-    }
-
-    /// <summary>
-    ///     And for the account screen, which is the calls that opened it — asking for the run that is showing rather
-    ///     than the one an account opens on, so <c>g</c> on a screen <c>s</c> widened stays widened (#229).
-    /// </summary>
-    private Task RefreshAccount(AccountScreen showing) =>
-        _enquiry.Put(
-            ask => AccountReading.Read(
-                ask,
-                _ports,
-                _profile,
-                AccountAddress.Parse(showing.Account.Address),
-                showing.WithReplies),
-            ifStillHere: found => Freshened(showing, found.Screen()));
-
-    /// <summary>
-    ///     And for a follow list, which is the same read its <c>w</c> or its <c>s</c> ran — off a fresh screen, so
-    ///     the filter goes and the pick is back at the top, which is what a refresh is (#180).
-    /// </summary>
-    private Task RefreshFollows(FollowsScreen showing)
-    {
-        _follows.Forget(showing.Whose.Id, showing.Side);
-
-        var fresh = new FollowsScreen(showing.Whose, showing.Side, showing.Mine);
-
-        Freshened(showing, fresh);
-
-        return Fill(fresh, FollowsPage);
-    }
-
-    /// <summary>
-    ///     Puts <paramref name="fresh" /> in place of the screen it is a fresher copy of, with the reader put back
-    ///     where they were standing on it.
-    /// </summary>
-    /// <remarks>
-    ///     Neither of the two screens refreshed this way is reached through an arrival, so neither is overtaken by
-    ///     one: an <see cref="Enquiry" /> answers about the destination the reader is on, and drilling in and walking
-    ///     back out again happen inside one. So the top of the stack is rechecked before anything is put on it — the
-    ///     same idiom a follow list's fill uses, and what stops a screen the reader has
-    ///     pressed <c>esc</c> out of landing on top of the one they walked back to.
-    ///     <para>
-    ///         In place of the top rather than pushed or reset: a refresh redraws where somebody is standing, so the
-    ///         way they got there is still under them and <c>esc</c> still walks back out of it. A different screen
-    ///         object rather than the same one changed, which is how the view is told the screen was replaced at all
-    ///         (<c>docs/tui-shell.md</c>) — and being a new screen is also what opens it at the top, since the page a
-    ///         screen remembers is its own and a fresh one remembers none. Walking back out is the one replacement
-    ///         that keeps the page it was left on, and a refresh is not one (#133).
-    ///     </para>
-    /// </remarks>
-    private void Freshened(Screen showing, Screen fresh)
-    {
-        if (!ReferenceEquals(Screen, showing))
-        {
-            return;
-        }
-
-        _stack[^1] = fresh;
-
-        // Gone with the screen it was said over, the same as at a push or an arrival: what a reader was told about the
-        // list they were looking at is not about the one in front of them now.
-        Notice = null;
-
-        Changed?.Invoke();
     }
 
     /// <summary>
@@ -1213,7 +878,7 @@ public sealed class Shell
             return Task.CompletedTask;
         }
 
-        return OpenAccount(AccountAddress.Parse(handle));
+        return _arrival.Open(new Subject.Account(AccountAddress.Parse(handle), WithReplies: false));
     }
 
     /// <summary>
@@ -1242,34 +907,12 @@ public sealed class Shell
         }
     }
 
-    /// <summary>Opens a hashtag's timeline as a screen on the stack, which is what a search result for one does.</summary>
-    /// <remarks>
-    ///     A screen pushed onto the stack rather than a destination arrived at, so it goes nowhere near
-    ///     <see cref="Arrival" />: nothing here is overtaken, cached, reset or counted — but what an empty tag is told
-    ///     is the same sentence the rail's own timelines are told, and is said in the one place.
-    /// </remarks>
-    private Task OpenTag(string name) =>
-        _enquiry.Put(
-            ask => ask.Of(token => _ports.Timelines.Read(_profile, Timeline.Tag(name), Arrival.PostsWanted, token)),
-            ifStillHere: posts =>
-            {
-                // A destination of its own rather than the rail's, so that the breadcrumb says which tag this is
-                // without the rail's own hashtag entry changing under a reader who did not ask it to.
-                var tag = Timeline.Tag(name);
-                var showing = new Destination(DestinationKind.Hashtag, $"#{name}", tag);
-
-                Push(new FeedScreen(
-                    showing,
-                    posts.Items,
-                    Arrival.Emptiness(posts.Items.Count, Arrival.NothingOn(tag), tag.Description, posts.StoppedBy)));
-            });
-
     private Task Delete(string postId) =>
         _enquiry.Put(
             ask => ask.Of(token => _ports.Author.Delete(_profile, postId, token)),
             eitherWay: () =>
             {
-                _cache.Forget(Rail.Showing.Kind);
+                _cache.Forget(new Subject.Destination(Rail.Showing.Kind));
 
                 // Walked out of first, because a post screen showing a post that is no longer there is a screen about
                 // nothing.
@@ -1504,6 +1147,31 @@ public sealed class Shell
         Changed?.Invoke();
     }
 
+    /// <summary>Puts <paramref name="fresh" /> in place of the screen on top.</summary>
+    /// <remarks>
+    ///     Only ever the screen the question was asked from, since an answer lands only while that one is still in
+    ///     front (<see cref="Enquiry" />) — so there is nothing to recheck here, and <c>esc</c> pressed before a
+    ///     refresh lands leaves the screen walked back to alone.
+    ///     <para>
+    ///         In place of the top rather than pushed or reset: a refresh redraws where somebody is standing, so the
+    ///         way they got there is still under them and <c>esc</c> still walks back out of it. A different screen
+    ///         object rather than the same one changed, which is how the view is told the screen was replaced at all
+    ///         (<c>docs/tui-shell.md</c>) — and being a new screen is also what opens it at the top, since the page a
+    ///         screen remembers is its own and a fresh one remembers none. Walking back out is the one replacement
+    ///         that keeps the page it was left on, and a refresh is not one (#133).
+    ///     </para>
+    /// </remarks>
+    private void Freshened(Screen fresh)
+    {
+        _stack[^1] = fresh;
+
+        // Gone with the screen it was said over, the same as at a push or an arrival: what a reader was told about the
+        // list they were looking at is not about the one in front of them now.
+        Notice = null;
+
+        Changed?.Invoke();
+    }
+
     /// <summary>
     ///     The same, for a conversation that has just changed — marked read, or spoken in. The list and the thread
     ///     opened from it are on the stack together, so a row that still said <c>unread</c> under a thread just marked,
@@ -1558,7 +1226,7 @@ public sealed class Shell
             screen.Replace(post);
         }
 
-        _cache.Forget(Rail.Showing.Kind);
+        _cache.Forget(new Subject.Destination(Rail.Showing.Kind));
 
         Changed?.Invoke();
     }

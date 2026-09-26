@@ -103,9 +103,12 @@ public sealed class NotificationsScreen(IReadOnlyList<Notification> notification
 
         return reach.Put(
             ask => ask.Of(token => reach.Ports.Notifications.Dismiss(reach.Profile, picked.Id, token)),
-            eitherWay: () => reach.Forget(DestinationKind.Notifications),
-            ifStillHere: () =>
+            eitherWay: () =>
             {
+                // Whether or not the reader is still here: the notification was dismissed on the instance, and the
+                // badge and the list under it are one fact about that rather than about where anybody is standing
+                // (#233).
+                reach.Forget(new Subject.Destination(DestinationKind.Notifications));
                 Forget([picked.Id]);
                 reach.Count(DestinationKind.Notifications, Notifications.Count);
 
@@ -133,7 +136,7 @@ public sealed class NotificationsScreen(IReadOnlyList<Notification> notification
             ask => ask.Of(token => reach.Ports.Notifications.Clear(reach.Profile, token)),
             eitherWay: () =>
             {
-                reach.Forget(DestinationKind.Notifications);
+                reach.Forget(new Subject.Destination(DestinationKind.Notifications));
 
                 Forget(Notifications.Select(notification => notification.Id).ToList());
 

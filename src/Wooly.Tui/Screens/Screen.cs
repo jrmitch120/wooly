@@ -146,6 +146,24 @@ public abstract class Screen
     public virtual bool Refreshes => false;
 
     /// <summary>
+    ///     What this screen was read from, which is what <c>g</c> asks again and what a page more is read from — or
+    ///     <see langword="null" /> on a screen that is read from nothing: the search prompt, which is its own question
+    ///     (#84), the compose editor, the keymap, a notice (#233).
+    /// </summary>
+    /// <remarks>
+    ///     Set by <see cref="Arrival" /> as it brings the screen up, rather than handed to each screen's constructor:
+    ///     the subject is what built the screen, and a screen built in a test with no instance behind it is read from
+    ///     nothing.
+    /// </remarks>
+    public Subject? Subject { get; internal set; }
+
+    /// <summary>
+    ///     Whether the reader has walked onto the end of what this screen has read and there is more of it to ask
+    ///     for — which is what <c>j</c> past the bottom means on a list browsed a page at a time (#180).
+    /// </summary>
+    public virtual bool WantsMore => false;
+
+    /// <summary>
     ///     Carries out <paramref name="verb" />, where it is one of this screen's own: what its keys do, in the file
     ///     that says what its keys are (#232).
     /// </summary>

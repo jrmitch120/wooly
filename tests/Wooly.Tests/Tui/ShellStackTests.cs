@@ -83,6 +83,37 @@ public class ShellStackTests
     }
 
     /// <summary>
+    ///     An open is asked from the screen on top, and lands only while that screen is still there: <c>a</c> inside a
+    ///     post and <c>esc</c> before the account has come back leaves the reader on the feed they walked back to,
+    ///     rather than pushing the account onto it (#233).
+    /// </summary>
+    [Fact]
+    public async Task OpenAuthor_PushesNothingOnceTheReaderHasWalkedBackOutBeforeItLands()
+    {
+        var shell = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(APost.With(id: "110", account: "ben@hachyderm.io")),
+            Accounts = FakeAccountRelationships.Holding(AnAccount.With(address: "ben@hachyderm.io")),
+        };
+
+        var opened = await shell.Opened();
+
+        await opened.Enter();
+        shell.Host.Drain();
+
+        Assert.IsType<PostScreen>(opened.Screen);
+
+        // Asked, and answered — but the answer is still on its way to the drawing thread when esc is pressed.
+        opened.Press(ShellKey.A);
+        opened.Press(ShellKey.Escape);
+        shell.Host.Drain();
+
+        Assert.IsType<FeedScreen>(opened.Screen);
+        Assert.Equal(1, opened.Depth);
+        Assert.Equal("Home", opened.Breadcrumb);
+    }
+
+    /// <summary>
     ///     And it asks who they have in common with the reader, by the id the account it just read carries — the last
     ///     of the calls the arrival makes, and the one that decorates a single row.
     /// </summary>

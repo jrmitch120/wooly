@@ -222,15 +222,15 @@ public sealed class SearchScreen : Screen
     {
         if (PickedAccount is { } account)
         {
-            return reach.OpenAccount(AccountAddress.Parse(account.Address));
+            return reach.Open(new Subject.Account(AccountAddress.Parse(account.Address), WithReplies: false));
         }
 
         if (PickedHashtag is { } hashtag)
         {
-            return reach.OpenTag(hashtag.Name);
+            return reach.Open(new Subject.Tag(hashtag.Name));
         }
 
-        return Opens is { } post ? reach.OpenPost(post) : Task.CompletedTask;
+        return Opens is { } post ? reach.Open(new Subject.Thread(post)) : Task.CompletedTask;
     }
 
     /// <summary>

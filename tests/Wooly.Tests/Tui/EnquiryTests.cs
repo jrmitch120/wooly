@@ -1,5 +1,6 @@
 using Wooly.Core.Errors;
 using Wooly.Tests.Fakes;
+using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
 
 namespace Wooly.Tests.Tui;
@@ -7,7 +8,7 @@ namespace Wooly.Tests.Tui;
 /// <summary>
 ///     A question put to an instance for a reader who may walk away before it answers (CONTEXT.md): the rate limit
 ///     waited out where they can watch it count down, the failure said out loud rather than thrown, and the answer
-///     dropped where they have arrived somewhere else since (ADR-0014).
+///     dropped where the screen it was asked from is no longer in front of them (ADR-0014, #233).
 /// </summary>
 /// <remarks>
 ///     Held here rather than thirteen times over in <see cref="Shell" />'s own tests, which is the whole point of the
@@ -36,8 +37,8 @@ public class EnquiryTests
     }
 
     /// <summary>
-    ///     Arriving somewhere makes every question in flight moot: what was done on the instance either way still
-    ///     lands, and what only makes sense for a reader who stayed does not.
+    ///     Walking off the screen a question was asked from makes it moot: what was done on the instance either way
+    ///     still lands, and what only makes sense for a reader who stayed does not.
     /// </summary>
     [Fact]
     public async Task Put_DropsOnlyWhatDependsOnTheReaderStillBeingHere()
@@ -51,7 +52,7 @@ public class EnquiryTests
             eitherWay: _ => ran.Add("either way"),
             ifStillHere: _ => ran.Add("still here"));
 
-        enquiry.It.Arrived();
+        enquiry.WalkAway();
         held.SetResult("late");
 
         await putting;
@@ -82,8 +83,8 @@ public class EnquiryTests
             },
             ifStillHere: answer => landed = answer);
 
-        // Somewhere else is arrived at between the two calls, so the second one's answer is nobody's business either.
-        enquiry.It.Arrived();
+        // The reader walks off between the two calls, so the second one's answer is nobody's business either.
+        enquiry.WalkAway();
         first.SetResult("one");
 
         await putting;
@@ -183,14 +184,14 @@ public class EnquiryTests
     ///     trouble rather than an answer to the question they have stopped asking.
     /// </summary>
     [Fact]
-    public async Task Put_SaysAFailureEvenWhereTheReaderHasArrivedSomewhereElse()
+    public async Task Put_SaysAFailureEvenWhereTheReaderHasWalkedOffTheScreen()
     {
         var enquiry = new AnEnquiry();
         var held = new TaskCompletionSource<string>();
 
         var putting = enquiry.It.Put(ask => ask.Of(_ => held.Task));
 
-        enquiry.It.Arrived();
+        enquiry.WalkAway();
         held.SetException(new AuthenticationException("No."));
 
         await putting;
@@ -456,7 +457,7 @@ public class EnquiryTests
         Assert.Equal(["either way", "still here"], ran);
     }
 
-    /// <summary>And is dropped on arrival by the same rule, on the same half of it.</summary>
+    /// <summary>And is dropped by the same rule, on the same half of it.</summary>
     [Fact]
     public async Task Put_DropsWhatOnlyASittingReaderWantsFromACallThatAnswersWithNothing()
     {
@@ -469,7 +470,7 @@ public class EnquiryTests
             eitherWay: () => ran.Add("either way"),
             ifStillHere: () => ran.Add("still here"));
 
-        enquiry.It.Arrived();
+        enquiry.WalkAway();
         held.SetResult();
 
         await putting;
@@ -487,7 +488,7 @@ public class EnquiryTests
 
         public AnEnquiry()
         {
-            It = new Enquiry(Host, Clock, TimeSpan.FromSeconds(1), MarkStep);
+            It = new Enquiry(Host, Clock, TimeSpan.FromSeconds(1), MarkStep, () => InFront);
 
             It.Said += (notice, isError) =>
             {
@@ -507,6 +508,12 @@ public class EnquiryTests
         public MovableTimeProvider Clock { get; } = new(Now);
 
         public Enquiry It { get; }
+
+        /// <summary>The screen in front of the reader, which is what every question here is asked from.</summary>
+        public Screen InFront { get; private set; } = new NoticeScreen("Here", "Where the question was asked.");
+
+        /// <summary>Puts another screen in front of the reader — any move at all, since the rule is the same for each.</summary>
+        public void WalkAway() => InFront = new NoticeScreen("Elsewhere", "Where the reader went.");
 
         /// <summary>The last thing it said, which is what the shell would be drawing.</summary>
         public string? Notice { get; private set; }

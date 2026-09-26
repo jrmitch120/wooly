@@ -1,43 +1,37 @@
 using Wooly.Core.Accounts;
-using Wooly.Core.Conversations;
-using Wooly.Core.Discovery;
 using Wooly.Core.Errors;
-using Wooly.Core.Notifications;
-using Wooly.Core.Paging;
-using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
-using Wooly.Core.Relationships;
 using Wooly.Core.Timelines;
 using Wooly.Tui.Screens;
 
 namespace Wooly.Tui.Shell;
 
 /// <summary>
-///     Arriving at a destination, which is one algorithm however many destinations there are: overtake what is in
-///     flight, put an empty screen up at once, draw what is still fresh or ask for it, keep what came back, put the
-///     stack back to one screen, and move the badge (#100).
+///     Bringing a screen up from its <see cref="Subject" />, which is one algorithm however many kinds of screen are
+///     read: put up what stands for it at once, draw what is still fresh or ask for it, keep what came back, put the
+///     screen where the move says, and move the badge (#100, #233).
 /// </summary>
 /// <remarks>
-///     Destinations differ in four things and nothing else — what a destination reads, what that becomes on screen,
-///     what an empty one is told, and what it counts — so each of them says those four and this says the rest. A tenth
-///     destination is four values rather than a tenth chance to state the sequence slightly differently, and a
-///     destination that carries no badge says so rather than being the call site that left <c>Counted</c> out.
+///     Three moves bring a screen up — arriving from the rail, drilling in, and refreshing in place — and they differ
+///     only in what they do to the stack and whether a destination's placeholder goes up first. Everything a subject
+///     differs in, it says about itself: what it reads, what that becomes, whether it is held and whether it pages. A
+///     seventh kind of screen is a seventh subject rather than a seventh chance to state the sequence slightly
+///     differently.
 ///     <para>
-///         What lands leaves through <see cref="Shows" /> and <see cref="Counts" /> rather than being done here: the
-///         stack and the rail are the shell's, and an arrival is what settles what goes on them.
+///         What lands leaves through <see cref="Arrives" />, <see cref="Drills" />, <see cref="Refreshes" />,
+///         <see cref="Filled" /> and <see cref="Counts" /> rather than being done here: the stack and the rail are the shell's, and an arrival is what settles what goes on them.
+///     </para>
+///     <para>
+///         The stale rule is <see cref="Enquiry" />'s, and is the same here as everywhere: what is read lands only
+///         while the screen it was asked from is in front. Which is why a placeholder goes up before its question is
+///         put — the question is asked from it — and why nothing here counts arrivals.
 ///     </para>
 /// </remarks>
 /// <param name="profile">Whose instance is being asked.</param>
-/// <param name="ports">Everything a destination is read through.</param>
-/// <param name="enquiry">What every question is put under, and what an arrival overtakes the last one through.</param>
-/// <param name="cache">What each destination last held, which is what makes walking the rail back free.</param>
-/// <param name="host">The terminal's two services; only the hop back onto the drawing thread is wanted here.</param>
-public sealed class Arrival(
-    ActiveProfile profile,
-    ShellPorts ports,
-    Enquiry enquiry,
-    DestinationCache cache,
-    IShellHost host)
+/// <param name="ports">Everything a subject is read through.</param>
+/// <param name="enquiry">What every question is put under.</param>
+/// <param name="cache">What each cached subject last held, which is what makes walking the rail back free.</param>
+public sealed class Arrival(ActiveProfile profile, ShellPorts ports, Enquiry enquiry, SubjectCache cache)
 {
     /// <summary>
     ///     How many posts a screen asks for. A timeline's page, which is the most an instance serves in one call — so
@@ -57,8 +51,17 @@ public sealed class Arrival(
     /// </remarks>
     public const int CountedAtMost = 40;
 
-    /// <summary>Raised with the screen an arrival has become, which is what the stack is put back to.</summary>
-    public event Action<Screen>? Shows;
+    /// <summary>Raised with a screen arrived at from the rail, which is what the stack is put back to.</summary>
+    public event Action<Screen>? Arrives;
+
+    /// <summary>Raised with a screen drilled into, which goes on top of what is showing.</summary>
+    public event Action<Screen>? Drills;
+
+    /// <summary>Raised with a fresher copy of what is showing, which stands in its place.</summary>
+    public event Action<Screen>? Refreshes;
+
+    /// <summary>Raised where an answer was read into the screen already showing rather than into a new one.</summary>
+    public event Action? Filled;
 
     /// <summary>Raised with what a destination's badge says, for the destinations that carry one.</summary>
     public event Action<DestinationKind, int>? Counts;
@@ -94,210 +97,176 @@ public sealed class Arrival(
     public static string NothingOn(Timeline timeline) => $"Nothing on {timeline.Description} yet.";
 
     /// <summary>
-    ///     Arriving somewhere that reads no list — the profile's own account, the search prompt, a hashtag nobody has
-    ///     named. The overtake and the screen it stands on, which is what every arrival begins with and the whole of
-    ///     these.
+    ///     Arriving at a destination, which is what moving the rail's selection means. Every destination that reads a
+    ///     list is a <see cref="Subject.Destination" />, and the profile's own account an
+    ///     <see cref="Subject.Account" />; the other two read nothing, and are the screen they stand on.
     /// </summary>
-    public void At(Screen standing)
+    /// <remarks>
+    ///     Walking to a destination is arriving somewhere, so whatever was drilled into from the last one is left
+    ///     behind: the stack is where you went from here, and this is a different here. Every arrival puts a screen
+    ///     up at once, the ones that read nothing included — which is what drops whatever the last one asked for,
+    ///     since that was asked from a screen no longer in front.
+    /// </remarks>
+    public Task At(Destination destination)
     {
-        // Said before anything else, and by every arrival rather than only the ones that fetch. A destination that
-        // asks the instance for nothing still overtakes what the last one asked for — otherwise a timeline still in
-        // flight lands on top of the notice screen the reader has since walked to.
-        enquiry.Arrived();
+        switch (destination)
+        {
+            // A prompt, which asks the instance for nothing until something has been typed into it.
+            case { Kind: DestinationKind.Search }:
+                Arrives?.Invoke(new SearchScreen());
 
-        Apply(() => Shows?.Invoke(standing));
+                return Task.CompletedTask;
+
+            // A rail entry for a hashtag nobody has named has nothing to ask about, so what stands here is the line
+            // that would name one rather than an empty timeline.
+            case { Kind: DestinationKind.Hashtag, Timeline: null }:
+                Arrives?.Invoke(new NoticeScreen(
+                    "Hashtag",
+                    "No hashtag is set for the rail.",
+                    """Put hashtag = "cats" under [preferences] in your config file to keep one here."""));
+
+                return Task.CompletedTask;
+
+            // The profile's own account, which is one account rather than a list of anything — standing on an empty
+            // screen under the destination's own name until it arrives, as every arrival does.
+            case { Kind: DestinationKind.Profile }:
+                var blank = new FeedScreen(destination, []);
+
+                if (profile.Account is not { } account)
+                {
+                    Arrives?.Invoke(blank);
+
+                    return Task.CompletedTask;
+                }
+
+                return Bring(new Subject.Account(AccountAddress.Parse(account), WithReplies: false), Move.Arrive, blank);
+
+            default:
+                return Bring(new Subject.Destination(destination), Move.Arrive);
+        }
     }
 
-    /// <summary>Arriving at a destination that reads a list, which is the six steps and what each of them is here.</summary>
-    public Task At(Destination destination) => Reads(destination, arriving: true);
+    /// <summary>Drills into <paramref name="subject" />, on top of whatever is showing.</summary>
+    public Task Open(Subject subject) => Bring(subject, Move.Drill);
 
     /// <summary>
-    ///     Asking the destination the reader is already on for what is there now: the same steps, less the two an
-    ///     arrival owes to having gone somewhere (#84).
+    ///     Stands <paramref name="subject" /> in place of what is showing — the other side of a follow list, the other
+    ///     run of an account — drawing what it last held where that is still fresh.
+    /// </summary>
+    public Task Swap(Subject subject) => Bring(subject, Move.Refresh);
+
+    /// <summary>
+    ///     Asking the subject the reader is already on for what is there now: what it last held forgotten, and the
+    ///     same read it was brought up by stood in its place (#84).
     /// </summary>
     /// <remarks>
-    ///     Nothing is overtaken, because nothing is in flight — a refresh is refused while anything is — and nothing
-    ///     is overtaking: the reader has not left, so an answer still coming is about where they are. And no empty
-    ///     screen goes up: an arrival puts one there because what was on screen is about somewhere else, which is
-    ///     exactly what is not true here. What is showing stands until a fresher copy of it is ready to take its
-    ///     place, so a refresh a rate limit or a failure ends is a notice over the list the reader was reading rather
-    ///     than an empty screen where it used to be.
+    ///     Answers with nothing, and deliberately: the screen lands inside a callback the host runs on the drawing
+    ///     thread, which is after the task this hands back has already completed. Whether a screen went up is a fact
+    ///     about the drawing thread, and it is said there — by the event that puts it up — rather than carried back across
+    ///     the await to a caller that would read it too early.
     /// </remarks>
-    /// <param name="destination">Where they already are, which is what is asked again.</param>
-    public Task Again(Destination destination) => Reads(destination, arriving: false);
-
-    /// <summary>
-    ///     What the two of them read and what it becomes, which is the same table however the reader got here.
-    /// </summary>
-    private Task Reads(Destination destination, bool arriving)
+    public Task Again(Subject subject)
     {
-        // The four timeline destinations are one arrival with a different timeline in it, and which timeline that is
-        // the destination already says — so there is one arm here rather than four saying the same thing about a
-        // different scope.
-        if (destination.Timeline is { } timeline)
-        {
-            return Arrive(
-                destination,
-                arriving,
-                new Arriving<Post>(
-                    Reads: token => ports.Timelines.Read(profile, timeline, PostsWanted, token),
-                    // Refreshed, because this is the timeline as a destination arrived at: a tag walked to from a
-                    // search is the same screen and is not one, so which it is comes from who built it (#84).
-                    Becomes: (posts, notice) => new FeedScreen(destination, posts, notice, refreshes: true),
-                    WhenEmpty: NothingOn(timeline),
+        cache.Forget(subject);
 
-                    // A timeline carries no badge, which is something this destination says rather than a step its
-                    // arrival is missing.
-                    Counting: null));
-        }
-
-        return destination.Kind switch
-        {
-            DestinationKind.Notifications => Arrive(
-                destination,
-                arriving,
-                new Arriving<Notification>(
-                    Reads: token => ports.Notifications.Read(profile, CountedAtMost, token),
-                    Becomes: (waiting, notice) => new NotificationsScreen(waiting, notice),
-                    WhenEmpty: "Nothing is waiting for you.",
-                    Counting: waiting => waiting.Count)),
-
-            // The one destination whose read is two calls. Whether you already follow the person asking to follow you
-            // may be the most useful thing on the row, and the requests endpoint sends no standing — so it is asked
-            // for here, inside this destination's own read, which is what makes a refresh re-ask for free (#204).
-            DestinationKind.Requests => Arrive(
-                destination,
-                arriving,
-                new Arriving<Account>(
-                    Reads: async token =>
-                    {
-                        var asking = await ports.Accounts.PendingRequests(profile, CountedAtMost, token);
-
-                        return asking with { Items = await ports.StoodOrSilent(profile, asking.Items, token) };
-                    },
-                    Becomes: (asking, notice) => new FollowRequestsScreen(asking, notice),
-                    WhenEmpty: "Nobody is waiting to follow you.",
-                    Counting: asking => asking.Count)),
-
-            // The one destination that reads a list through a port with no Fetch on it: there is no paging here and
-            // so nothing for a rate limit to stop part way — the read either answers or throws, and the enquiry turns
-            // a throw into the shell's notice. Said as a complete fetch so that one arrival serves this too.
-            DestinationKind.Discover => Arrive(
-                destination,
-                arriving,
-                new Arriving<Suggestion>(
-                    Reads: async token =>
-                        Fetch<Suggestion>.Complete(await ports.Suggestions.Read(profile, CountedAtMost, token)),
-                    Becomes: (suggested, notice) => new DiscoverScreen(suggested, notice),
-                    WhenEmpty: "Nobody suggested.",
-
-                    // No badge, and said here rather than left out at the call site: nothing on this screen is
-                    // waiting for anybody, the same as Search.
-                    Counting: null)),
-
-            DestinationKind.Messages => Arrive(
-                destination,
-                arriving,
-                new Arriving<Conversation>(
-                    Reads: token => ports.Messages.List(profile, CountedAtMost, token),
-                    Becomes: (written, notice) => new DirectMessagesScreen(written, notice),
-                    WhenEmpty: "No direct conversations yet.",
-
-                    // The badge counts the conversations with something unread in them, and counts them off the list
-                    // it is drawn beside — so the rail cannot say two over a list of one.
-                    Counting: written => written.Count(conversation => conversation.Unread))),
-
-            // Said out loud rather than quietly doing nothing, which would be the trap this module was built to close:
-            // a destination that reads no list — the profile's own account, the prompt, the hashtag nobody has named —
-            // arrives through the overload above, and a tenth that reads none belongs there too. Landing here is a
-            // destination nobody said what to do with, and a shell that swallowed it would draw the last screen again.
-            _ => throw new ArgumentOutOfRangeException(
-                nameof(destination),
-                destination.Kind,
-                "Not a destination that reads a list."),
-        };
+        return Bring(subject, Move.Refresh);
     }
 
-    /// <summary>The six steps, over whatever <paramref name="reads" /> says this destination is.</summary>
+    /// <summary>
+    ///     Reads the next page where the reader has walked onto the end of what <paramref name="showing" /> has, and
+    ///     there is more of it to be had (#180).
+    /// </summary>
     /// <remarks>
-    ///     A destination fetched recently enough draws at once and asks for nothing, which is what makes walking out
-    ///     along the rail and back one fetch per destination rather than one per arrival (ADR-0014).
+    ///     Asked after every walk rather than bound to a key, because the walk is what settles it: the screen answers
+    ///     whether it is standing at the end of what it has with more to be had. Nothing while anything is in flight,
+    ///     which on a list is the page already asked for.
     /// </remarks>
-    /// <param name="destination">Which destination this is.</param>
-    /// <param name="reads">What this destination is: what it reads, what that becomes, and what it counts.</param>
-    /// <param name="arriving">
-    ///     Whether the reader is landing here rather than asking again where they already are, which settles the two
-    ///     steps a refresh does not take: the overtake, and the empty screen (<see cref="Again" />).
-    /// </param>
+    public Task More(Screen showing) =>
+        showing is { WantsMore: true, Subject: { Pages: true } subject } && !enquiry.Fetching
+            ? Read(subject, Move.Page, showing)
+            : Task.CompletedTask;
+
+    /// <summary>The steps, over whatever <paramref name="subject" /> says it is.</summary>
     /// <remarks>
-    ///     Answers with nothing, for the reason <see cref="Shell.Refresh" /> gives: every arm of this lands its screen
-    ///     inside a callback the host runs on the drawing thread, which is after the task this hands back has already
-    ///     completed. Whether a screen went up is a fact about the drawing thread, and it is said there — by
-    ///     <see cref="Shows" /> — rather than carried back across the await to a caller that would read it too early.
+    ///     A subject held recently enough draws at once and asks for nothing, which is what makes walking out along
+    ///     the rail and back one fetch per destination rather than one per arrival (ADR-0014).
     /// </remarks>
-    private Task Arrive<T>(Destination destination, bool arriving, Arriving<T> reads)
+    /// <param name="subject">What is being brought up.</param>
+    /// <param name="move">How, which settles where it goes.</param>
+    /// <param name="blank">What stands for it where the subject has no placeholder of its own and one is owed.</param>
+    private Task Bring(Subject subject, Move move, Screen? blank = null)
     {
-        if (arriving)
+        var standing = subject.Placeholder(move, profile) ?? blank;
+
+        if (standing is not null)
         {
-            At(reads.Becomes([], null));
+            Up(standing, subject, move);
         }
 
-        if (cache.Fresh<T>(destination.Kind) is { } held)
+        if (subject.Cached && cache.Fresh(subject) is { } held)
         {
-            // What was held is an answer that cost nothing, and nothing cut it short.
-            Apply(() => Landed(destination, reads, Fetch<T>.Complete(held)));
+            Land(subject, move, standing, held);
 
             return Task.CompletedTask;
         }
 
-        return enquiry.Put(
-            ask => ask.Of(reads.Reads),
-            ifStillHere: fetch =>
-            {
-                cache.Keep(destination.Kind, fetch.Items);
-                Landed(destination, reads, fetch);
-            });
+        return Read(subject, move, standing);
     }
 
+    /// <summary>Asks for it, and lands what came back while the screen it was asked from is still in front.</summary>
+    private Task Read(Subject subject, Move move, Screen? standing) =>
+        enquiry.Put(
+            ask => subject.Read(ask, ports, profile, standing),
+            ifStillHere: found =>
+            {
+                var screen = Land(subject, move, standing, found);
+
+                if (subject.Cached && found.Held(screen) is { } held)
+                {
+                    cache.Keep(subject, held);
+                }
+
+                if (found.ReadsOn(screen))
+                {
+                    _ = Read(subject, Move.Page, screen);
+                }
+            });
+
     /// <summary>
-    ///     What both halves of an arrival end with: the screen on the stack, and the badge beside it read off the same
+    ///     What every answer ends with: the screen where the move puts it, and the badge beside it read off the same
     ///     answer — so the rail cannot say four over a list of three.
     /// </summary>
-    private void Landed<T>(Destination destination, Arriving<T> reads, Fetch<T> answer)
+    private Screen Land(Subject subject, Move move, Screen? standing, Found found)
     {
-        // What the list is of is the destination's own to say, and only a timeline has a name worth putting in the
-        // sentence — so it is read off the destination rather than being a fifth thing an arrival states about itself.
-        var notice = Emptiness(
-            answer.Items.Count,
-            reads.WhenEmpty,
-            destination.Timeline?.Description,
-            answer.StoppedBy);
+        var screen = found.Becomes(standing);
 
-        var screen = reads.Becomes(answer.Items, notice);
-
-        Shows?.Invoke(screen);
-
-        if (reads.Counting is { } counting)
+        if (ReferenceEquals(screen, standing))
         {
-            Counts?.Invoke(destination.Kind, counting(answer.Items));
+            Filled?.Invoke();
         }
+        else
+        {
+            Up(screen, subject, move);
+        }
+
+        if (found.Counted is { } badge)
+        {
+            Counts?.Invoke(badge.Kind, badge.Unread);
+        }
+
+        return screen;
     }
 
-    private void Apply(Action work) => host.OnUiThread(work);
+    /// <summary>Puts <paramref name="screen" /> up, as the screen <paramref name="subject" /> is read into.</summary>
+    private void Up(Screen screen, Subject subject, Move move)
+    {
+        screen.Subject = subject;
 
-    /// <summary>
-    ///     What arriving at one destination means, as the four things that differ between them and nothing else.
-    /// </summary>
-    /// <param name="Reads">What the instance is asked for.</param>
-    /// <param name="Becomes">What the answer is on screen, given what came back and what there is to say about it.</param>
-    /// <param name="WhenEmpty">What a reader is told where nothing came back.</param>
-    /// <param name="Counting">
-    ///     What this destination's badge counts off the answer, or <see langword="null" /> where it carries no badge —
-    ///     which a timeline says here rather than leaving the count out at its own call site.
-    /// </param>
-    private sealed record Arriving<T>(
-        Func<CancellationToken, Task<Fetch<T>>> Reads,
-        Func<IReadOnlyList<T>, string?, Screen> Becomes,
-        string WhenEmpty,
-        Func<IReadOnlyList<T>, int>? Counting);
+        (move switch
+        {
+            Move.Arrive => Arrives,
+            Move.Drill => Drills,
+            _ => Refreshes,
+        })?.Invoke(screen);
+    }
 }

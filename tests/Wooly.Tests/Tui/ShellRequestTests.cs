@@ -125,6 +125,38 @@ public class ShellRequestTests
         Assert.Contains("alice@hachyderm.io", opened.Notice);
     }
 
+    /// <summary>
+    ///     The badge is a fact about the instance rather than about where the reader is standing, so a request answered
+    ///     while they walked into another screen still comes off it — and off the list under it (#233).
+    /// </summary>
+    [Fact]
+    public async Task Press_CountsTheAnswerOnTheBadgeEvenWhereTheReaderHasWalkedIntoAnotherScreen()
+    {
+        var shell = new AShell
+        {
+            Accounts = FakeAccountRelationships.Holding(
+                null,
+                AnAccount.With(id: "42", address: "alice@hachyderm.io"),
+                AnAccount.With(id: "43", address: "bob@mastodon.social")),
+        };
+
+        var opened = await shell.Opened();
+
+        opened.Step(ToRequests);
+        shell.Host.Settle();
+
+        var requests = Assert.IsType<FollowRequestsScreen>(opened.Screen);
+
+        // Answered, and walked away from before the answer is back on the drawing thread.
+        opened.Press(ShellKey.A);
+        opened.Help();
+        shell.Host.Drain();
+
+        Assert.IsType<HelpScreen>(opened.Screen);
+        Assert.Equal(1, opened.Rail.Destinations.First(place => place.Kind == DestinationKind.Requests).Unread);
+        Assert.Equal(["43"], requests.Waiting.Select(account => account.Id));
+    }
+
     /// <summary>Answering a request is a decision about a person, so their account is one keypress away.</summary>
     [Fact]
     public async Task Press_OpensTheAccountOfWhoeverIsAsking()

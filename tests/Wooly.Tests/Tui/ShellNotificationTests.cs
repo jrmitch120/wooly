@@ -71,6 +71,37 @@ public class ShellNotificationTests
     }
 
     /// <summary>
+    ///     A dismissal happened on the instance whether or not the reader stayed to see it, so walking into another
+    ///     screen before it lands still takes it off the badge and off the list (#233).
+    /// </summary>
+    [Fact]
+    public async Task Dismiss_CountsItOnTheBadgeEvenWhereTheReaderHasWalkedIntoAnotherScreen()
+    {
+        var shell = new AShell
+        {
+            Notifications = FakeNotificationInbox.Holding(
+                ANotification.With(id: "34", post: APost.With(id: "110")),
+                ANotification.With(id: "36", post: APost.With(id: "111"))),
+        };
+
+        var opened = await shell.Opened();
+
+        opened.Step(ToNotifications);
+        shell.Host.Settle();
+
+        var notifications = Assert.IsType<NotificationsScreen>(opened.Screen);
+
+        // Dismissed, and walked away from before the answer is back on the drawing thread.
+        opened.Press(ShellKey.D);
+        opened.Help();
+        shell.Host.Drain();
+
+        Assert.IsType<HelpScreen>(opened.Screen);
+        Assert.Equal(1, opened.Rail.Destinations.First(place => place.Kind == DestinationKind.Notifications).Unread);
+        Assert.Equal(["36"], notifications.Notifications.Select(notification => notification.Id));
+    }
+
+    /// <summary>
     ///     Emptying the inbox takes away a list nobody has necessarily read and nothing brings it back, so it is asked
     ///     on the same terms <c>notification clear</c> asks it.
     /// </summary>

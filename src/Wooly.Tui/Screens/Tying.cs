@@ -29,11 +29,11 @@ internal static class Tying
 
                 // Home is the profile's own following, so a follow or a block changes what belongs on it — and a mute
                 // changes what belongs on all of them.
-                reach.Forget(DestinationKind.Home);
+                reach.Forget(new Subject.Destination(DestinationKind.Home));
 
                 // And Discover, wherever the tie was made: an instance never suggests somebody already followed or
                 // blocked, so a held copy of that screen is a copy the instance would no longer have served (#181).
-                reach.Forget(DestinationKind.Discover);
+                reach.Forget(new Subject.Destination(DestinationKind.Discover));
 
                 reach.Say(Said(tie, wanted, stood), isError: false);
             });

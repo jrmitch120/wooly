@@ -13,17 +13,23 @@ public delegate void Says(string? notice, bool isError);
 /// <summary>
 ///     A question put to an instance on a reader's behalf, which survives neither their patience nor their attention:
 ///     it waits out a rate limit where they can watch it count down, turns a failure into a notice rather than an
-///     exception, and is dropped unread if they have arrived at another destination since it was sent (ADR-0014).
+///     exception, and is dropped unread if the screen it was asked from is no longer in front of them (ADR-0014, #233).
 /// </summary>
 /// <remarks>
 ///     A scope rather than a call, because the three rules only work together. <see cref="Put{T}" /> hands out an
-///     <see cref="Ask" /> to use as often as the question needs, takes the token once at the top, and runs the guard
-///     once at the end — so a question put in two calls is overtaken, or not, as a whole. A call that failed leaves
-///     the scope with the notice already said, which is why neither callback has a failure to check for.
+///     <see cref="Ask" /> to use as often as the question needs, notes the screen in front once at the top, and runs
+///     the guard once at the end — so a question put in two calls is overtaken, or not, as a whole. A call that failed
+///     leaves the scope with the notice already said, which is why neither callback has a failure to check for.
 ///     <para>
-///         Whether a fetch is in flight and the hop back onto the drawing thread live here too. The token is written
-///         by arrivals and read by the guard, both on the drawing thread and nowhere else; a call site left holding
-///         the hop could run the guard and its callbacks apart, which would centralise the rule and copy the ceremony.
+///         Whether a fetch is in flight and the hop back onto the drawing thread live here too. The screen in front
+///         is read where a question is put and again where its answer lands, both on the drawing thread and nowhere
+///         else; a call site left holding the hop could run the guard and its callbacks apart, which would centralise
+///         the rule and copy the ceremony.
+///     </para>
+///     <para>
+///         One rule for every way of leaving: arriving somewhere on the rail, drilling in, <c>esc</c>, a refresh
+///         standing a fresher copy in place. Each of them changes which screen is in front, so none of them has to
+///         remember to say so (#233).
 ///     </para>
 /// </remarks>
 /// <param name="host">The terminal's two services: waiting, and getting back onto the thread that draws.</param>
@@ -36,16 +42,20 @@ public delegate void Says(string? notice, bool isError);
 ///     How long one dot of the breadcrumb's fetch mark is held, and how long a fetch runs before it has one at all
 ///     (<see cref="ShellTiming" />).
 /// </param>
-public sealed class Enquiry(IShellHost host, TimeProvider clock, TimeSpan countdownStep, TimeSpan markStep)
+/// <param name="inFront">
+///     The screen in front of the reader, which is what a question is asked from. A reader two destinations further
+///     along, or back out of the screen they asked from, must not have a stale answer appear in front of them
+///     (ADR-0014), and this is what tells one apart.
+/// </param>
+public sealed class Enquiry(
+    IShellHost host,
+    TimeProvider clock,
+    TimeSpan countdownStep,
+    TimeSpan markStep,
+    Func<Screen> inFront)
 {
     /// <summary>What a call that answers with nothing answers with, so that one scope serves both kinds.</summary>
     private static readonly object Nothing = new();
-
-    /// <summary>
-    ///     Which arrival the questions in flight belong to. A reader two destinations further along must not have a
-    ///     stale timeline appear underneath them (ADR-0014), and this is what tells one apart.
-    /// </summary>
-    private int _asked;
 
     /// <summary>
     ///     How many questions are in flight. A count rather than a flag, because two overlap readily — a boost sent
@@ -82,17 +92,6 @@ public sealed class Enquiry(IShellHost host, TimeProvider clock, TimeSpan countd
     public int Dots { get; private set; }
 
     /// <summary>
-    ///     Says the reader has arrived at a destination, which makes every question in flight moot: none of their
-    ///     answers is about where the reader is now. Said by every arrival rather than only the ones that fetch —
-    ///     otherwise a timeline still in flight lands on top of the prompt somebody has since walked to.
-    /// </summary>
-    /// <remarks>
-    ///     Said before the arrival puts anything, and with nothing awaited in between: a question takes its token
-    ///     where it is put, so an arrival that happened first is an arrival the question already belongs to.
-    /// </remarks>
-    public void Arrived() => _asked++;
-
-    /// <summary>
     ///     Puts a question to the instance, and does something about the answer where one arrives.
     /// </summary>
     /// <param name="question">
@@ -104,11 +103,13 @@ public sealed class Enquiry(IShellHost host, TimeProvider clock, TimeSpan countd
     ///     amount of walking away undoes.
     /// </param>
     /// <param name="ifStillHere">
-    ///     What lands only for a reader who has not arrived somewhere else since: a screen, a badge, a notice about it.
+    ///     What lands only while the screen it was asked from is still the one in front: a screen, a notice about it.
     /// </param>
     public async Task Put<T>(Func<Ask, Task<T>> question, Action<T>? eitherWay = null, Action<T>? ifStillHere = null)
     {
-        var from = _asked;
+        // Noted where the question is put, with nothing awaited before it: whatever puts a screen up first — a
+        // placeholder, a follow list standing empty — has put up the screen the question is asked from.
+        var from = inFront();
 
         InFlight(true);
 
@@ -134,7 +135,7 @@ public sealed class Enquiry(IShellHost host, TimeProvider clock, TimeSpan countd
         {
             eitherWay?.Invoke(answer);
 
-            if (from == _asked)
+            if (ReferenceEquals(from, inFront()))
             {
                 ifStillHere?.Invoke(answer);
             }
@@ -240,7 +241,7 @@ public sealed class Enquiry(IShellHost host, TimeProvider clock, TimeSpan countd
 
     /// <summary>
     ///     What one enquiry puts its calls through. Handed to the question rather than taken by it, so that every call
-    ///     made under one token is made the same way and none of them is the one that forgot.
+    ///     made under one question is made the same way and none of them is the one that forgot.
     /// </summary>
     public sealed class Ask(Enquiry enquiry)
     {

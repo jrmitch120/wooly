@@ -89,9 +89,7 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
     /// </remarks>
     public override Task Answer(Verb verb, Reach reach) => (verb, PickedConversation) switch
     {
-        (Verb.OpenConversation, { } picked) => reach.Put(
-            ask => ask.Of(token => reach.Ports.Messages.Show(reach.Profile, picked.Id, token)),
-            ifStillHere: thread => reach.Push(new ConversationScreen(thread))),
+        (Verb.OpenConversation, { } picked) => reach.Open(new Subject.Conversation(picked.Id)),
         _ => Task.CompletedTask,
     };
 
