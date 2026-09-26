@@ -1310,6 +1310,10 @@ to:
   `esc`, `tab`, `/` — nothing lands, nothing is written, and the loopback listener has been closed.
 - **Letters are typed into the field on the step in front**, instance, token or name, so `t` and the frame's `/` and
   `?` mean something only on the steps that are waiting rather than taking letters.
+- **A paste goes into whichever field is typing**, here and in every other field the shell types into itself (the
+  search prompt, the compose warning, the follows filter). A terminal in bracketed-paste mode sends a paste as one
+  string rather than as keys, so the shell takes it as text: a line break or a tab stands as a space, and it is never
+  replayed as keys. Where nothing is typing the paste is left to whatever has focus, which on compose is the editor.
 
 ## Starting it, and the one destination that needs configuring
 

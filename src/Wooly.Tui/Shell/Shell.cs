@@ -667,6 +667,46 @@ public sealed class Shell
         Changed?.Invoke();
     }
 
+    /// <summary>
+    ///     Puts a paste into whatever is being typed into, the way <see cref="Type" /> puts a letter: a terminal in
+    ///     bracketed-paste mode delivers one as a single string rather than as keys, so without this a field the shell
+    ///     types into itself would never see it — the add screen's token field above all, which is there to be pasted
+    ///     into (#245).
+    /// </summary>
+    /// <remarks>
+    ///     Every field here is one row, so a line break or a tab in the paste stands as a space — a token copied with its
+    ///     line break is then trimmed of it like any other whitespace — and any other control character is left out.
+    ///     <para>
+    ///         Nothing where the screen is not typing, and not a run of keys either: a paste is text, and replaying it
+    ///         as keys would boost, compose and delete by whatever letters it happened to hold. The compose editor is
+    ///         a widget of its own and takes its own pastes, which is what answering no leaves it to.
+    ///     </para>
+    /// </remarks>
+    /// <returns>Whether the paste was taken, which is what settles whether it is left for whatever has focus.</returns>
+    public bool Paste(string text)
+    {
+        if (!Screen.IsTyping)
+        {
+            return false;
+        }
+
+        foreach (var letter in text.Replace("\r\n", "\n"))
+        {
+            if (char.IsWhiteSpace(letter))
+            {
+                Screen.Type(' ');
+            }
+            else if (!char.IsControl(letter))
+            {
+                Screen.Type(letter);
+            }
+        }
+
+        Changed?.Invoke();
+
+        return true;
+    }
+
     /// <summary>Takes the last letter back out of it.</summary>
     public void Backspace()
     {
