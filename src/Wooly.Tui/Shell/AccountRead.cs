@@ -19,7 +19,9 @@ namespace Wooly.Tui.Shell;
 ///     What they have pinned, in the instance's own order — or <see langword="null" /> where a rate limit stopped the
 ///     question being answered at all.
 /// </param>
-/// <param name="Familiar">Who the reader knows in common, or <see langword="null" /> where the instance never answered.</param>
+/// <param name="Familiar">
+///     Who the reader knows in common, or <see langword="null" /> where the instance never answered.
+/// </param>
 /// <param name="WithReplies">Whether <paramref name="Posts" /> was read with their replies in.</param>
 internal sealed record AccountRead(
     Account Account,

@@ -33,7 +33,9 @@ public sealed class SubjectCache(TimeProvider clock, TimeSpan freshFor)
     /// </summary>
     public void Forget(Subject subject) => _held.Remove(subject);
 
-    /// <summary>What <paramref name="subject" /> held, if it held anything recently enough to draw without asking again.</summary>
+    /// <summary>
+    ///     What <paramref name="subject" /> held, if it held anything recently enough to draw without asking again.
+    /// </summary>
     internal Found? Fresh(Subject subject) =>
         _held.TryGetValue(subject, out var held) && clock.GetUtcNow() - held.At < FreshFor ? held.What : null;
 

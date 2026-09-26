@@ -133,7 +133,8 @@ public abstract record Subject
             if (entry.Timeline is { } timeline)
             {
                 return new Listing<Post>(
-                    Reads: (ports, profile, token) => ports.Timelines.Read(profile, timeline, Arrival.PostsWanted, token),
+                    Reads: (ports, profile, token) =>
+                        ports.Timelines.Read(profile, timeline, Arrival.PostsWanted, token),
 
                     // Refreshed, because this is the timeline as a destination arrived at: a tag walked to is the same
                     // screen and is not one, so which it is comes from who built it (#84).
@@ -326,7 +327,7 @@ public abstract record Subject
     public sealed record Follows(Person Whose, FollowSide Side) : Subject
     {
         /// <inheritdoc />
-        /// <remarks>Only a list read whole and not cut short is ever handed back (<see cref="Filled.Held" />).</remarks>
+        /// <remarks>Only a list read whole and not cut short is ever handed back (see <c>Filled.Held</c>).</remarks>
         public override bool Cached => true;
 
         /// <inheritdoc />
@@ -418,7 +419,10 @@ public abstract record Subject
             }
 
             /// <inheritdoc />
-            /// <remarks>Only a list that was read whole is worth handing back later; a page of a browsed one is not what is there.</remarks>
+            /// <remarks>
+            ///     Only a list that was read whole is worth handing back later; a page of a browsed one is not what is
+            ///     there.
+            /// </remarks>
             public override Found? Held(Screen screen) =>
                 screen is FollowsScreen { Holds: true } follows && StoppedBy is null && !More(follows) ? this : null;
 
@@ -427,7 +431,8 @@ public abstract record Subject
             ///     A list held whole goes on to read the rest at once, which is what streaming in behind the reader
             ///     is; a browsed one stops here and waits for <c>j</c> to reach the end of what arrived.
             /// </remarks>
-            public override bool ReadsOn(Screen screen) => screen is FollowsScreen { Holds: true } follows && More(follows);
+            public override bool ReadsOn(Screen screen) =>
+                screen is FollowsScreen { Holds: true } follows && More(follows);
 
             /// <summary>
             ///     Whether there is more to come: only where the instance filled the ask and the list is longer than
@@ -502,7 +507,7 @@ public abstract record Subject
     /// </summary>
     private abstract record Listing
     {
-        /// <summary>What the destination is before anything has arrived, which is what an arrival puts up at once.</summary>
+        /// <summary>What the destination is before anything has arrived, which an arrival puts up at once.</summary>
         public abstract Screen Empty();
 
         /// <summary>Reads it.</summary>
@@ -552,8 +557,9 @@ public abstract record Subject
                 Arrival.Emptiness(Fetch.Items.Count, How.WhenEmpty, Entry.Timeline?.Description, Fetch.StoppedBy));
 
         /// <inheritdoc />
-        /// <remarks>Read off the same answer the screen is, so that the rail cannot say four over a list of three.</remarks>
-        public override Found.Badge? Counted => How.Counting is { } counting ? new Found.Badge(Entry.Kind, counting(Fetch.Items)) : null;
+        /// <remarks>Read off the same answer the screen is, so the rail cannot say four over a list of three.</remarks>
+        public override Found.Badge? Counted =>
+            How.Counting is { } counting ? new Found.Badge(Entry.Kind, counting(Fetch.Items)) : null;
 
         /// <inheritdoc />
         /// <remarks>What was held is an answer that will cost nothing, and nothing will have cut it short.</remarks>

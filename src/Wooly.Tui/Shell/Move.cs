@@ -6,7 +6,7 @@ namespace Wooly.Tui.Shell;
 /// </summary>
 internal enum Move
 {
-    /// <summary>Arriving from the rail: the stack is put back to the one screen, since this is a different here.</summary>
+    /// <summary>Arriving from the rail: the stack is put back to one screen, since this is a different here.</summary>
     Arrive,
 
     /// <summary>Drilling in: the screen goes on top of what is showing, and <c>esc</c> walks back out of it.</summary>

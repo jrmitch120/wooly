@@ -26,9 +26,11 @@ namespace Wooly.Tui.Shell;
 ///     <para>
 ///         Every question a reader is waiting on is put through <see cref="Enquiry" />, which is what makes the
 ///         rate-limit wait, the failure notice and the stale-answer rule the same at all of them rather than copied at
-///         each — and every screen that is read is brought up from its <see cref="Subject" /> by <see cref="Arrival" />,
-///         so none of their reads is here (#233). The counts the rail carries are the exception, and read their ports directly: nobody is
-///         waiting on a badge, so one that could not be read is drawn as no count rather than counted down over.
+///         each — and every screen that is read is brought up from its <see cref="Subject" /> by
+///         <see cref="Arrival" />,
+///         so none of their reads is here (#233). The counts the rail carries are the exception, and read their
+///         ports directly: nobody is waiting on a badge, so one that could not be read is drawn as no count rather
+///         than counted down over.
 ///     </para>
 /// </remarks>
 public sealed class Shell
@@ -390,7 +392,8 @@ public sealed class Shell
     ///     post everywhere except inside a post: there, the post picked out at the top is the one already on screen
     ///     (#48).
     /// </remarks>
-    public Task Enter() => Screen.Opens is { } opening ? _arrival.Open(new Subject.Thread(opening)) : Task.CompletedTask;
+    public Task Enter() =>
+        Screen.Opens is { } opening ? _arrival.Open(new Subject.Thread(opening)) : Task.CompletedTask;
 
     /// <summary>
     ///     Asks for what is there now: evicts what the screen's subject last held, puts the same question that brought
@@ -489,7 +492,9 @@ public sealed class Shell
             return;
         }
 
-        await _arrival.Open(new Subject.Account(AccountAddress.Parse((picked.Boosted ?? picked).Account), WithReplies: false));
+        var author = AccountAddress.Parse((picked.Boosted ?? picked).Account);
+
+        await _arrival.Open(new Subject.Account(author, WithReplies: false));
     }
 
     /// <summary>Walks back up one level of the stack. Never quits, and never leaves the shell with nothing on it.</summary>

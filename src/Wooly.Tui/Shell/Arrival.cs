@@ -19,7 +19,8 @@ namespace Wooly.Tui.Shell;
 ///     differently.
 ///     <para>
 ///         What lands leaves through <see cref="Arrives" />, <see cref="Drills" />, <see cref="Refreshes" />,
-///         <see cref="Filled" /> and <see cref="Counts" /> rather than being done here: the stack and the rail are the shell's, and an arrival is what settles what goes on them.
+///         <see cref="Filled" /> and <see cref="Counts" /> rather than being done here: the stack and the rail are the
+///         shell's, and an arrival is what settles what goes on them.
 ///     </para>
 ///     <para>
 ///         The stale rule is <see cref="Enquiry" />'s, and is the same here as everywhere: what is read lands only
@@ -139,7 +140,9 @@ public sealed class Arrival(ActiveProfile profile, ShellPorts ports, Enquiry enq
                     return Task.CompletedTask;
                 }
 
-                return Bring(new Subject.Account(AccountAddress.Parse(account), WithReplies: false), Move.Arrive, blank);
+                var own = new Subject.Account(AccountAddress.Parse(account), WithReplies: false);
+
+                return Bring(own, Move.Arrive, blank);
 
             default:
                 return Bring(new Subject.Destination(destination), Move.Arrive);
@@ -162,8 +165,8 @@ public sealed class Arrival(ActiveProfile profile, ShellPorts ports, Enquiry enq
     /// <remarks>
     ///     Answers with nothing, and deliberately: the screen lands inside a callback the host runs on the drawing
     ///     thread, which is after the task this hands back has already completed. Whether a screen went up is a fact
-    ///     about the drawing thread, and it is said there — by the event that puts it up — rather than carried back across
-    ///     the await to a caller that would read it too early.
+    ///     about the drawing thread, and it is said there — by the event that puts it up — rather than carried back
+    ///     across the await to a caller that would read it too early.
     /// </remarks>
     public Task Again(Subject subject)
     {
