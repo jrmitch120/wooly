@@ -1325,7 +1325,7 @@ glyph or a position that carries the same meaning when colour is gone.
 | `selection` | The selected row | `▌` in the gutter |
 | `rail` / `rail-current` | Destinations, and the one loaded | one glyph, one column: `▶` where the tabbing has got to, `▷` where it settled if that differs — they coincide at rest, so only `▶` shows |
 | `rail-unread` | An unread count, and the word on an unread conversation | the number, and the word |
-| `quota` / `quota-low` | Rate-limit budget left, and nearly spent | the number |
+| `quota` / `quota-low` | Rate-limit budget left, and nearly spent; `quota` also the instance above it, with two or more profiles | the number |
 | `chrome` | The frame's furniture below the breadcrumb: the status row's leading space and ` · ` separators, the rail's rule | position |
 | `key` | A key you press: the status row's, the help screen's key column, a confirmation's `y` and `esc` — never prose that names a key, never the padding beside one | position — first in its pair, before the colon; first column on the help screen |
 | `crumb` / `crumb-current` | The breadcrumb row — the crumbs walked through, the `›` between them and the `… › ` a long trail leads with; and the one being stood on, told from them by foreground alone. One band under the whole row, the fetch mark included | position — the current crumb is always the last, and the trail elides from the left |

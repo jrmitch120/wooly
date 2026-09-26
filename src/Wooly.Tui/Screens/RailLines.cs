@@ -102,15 +102,17 @@ public static class RailLines
         // so the clip only ever takes the instance's end and never the part telling two accounts on it apart (#241).
         if (instance is not null)
         {
-            foot.Add(Line.Of(Glyphs.Padded(TextWrap.Clip($" {instance}", Width), Width), Role.Quota));
+            foot.Add(Fact(instance, Role.Quota));
         }
 
         foot.Add(quota is null
             ? Line.Of(new string(' ', Width), Role.Quota)
-            : Line.Of(
-                Glyphs.Padded(TextWrap.Clip($" {Spent(quota)}", Width), Width),
-                quota.Fraction <= NearlySpent ? Role.QuotaLow : Role.Quota));
+            : Fact(Spent(quota), quota.Fraction <= NearlySpent ? Role.QuotaLow : Role.Quota));
 
         return foot;
     }
+
+    /// <summary>A row of the foot: one space in, clipped at its end to the rail, and padded out to it.</summary>
+    private static Line Fact(string text, Role role) =>
+        Line.Of(Glyphs.Padded(TextWrap.Clip($" {text}", Width), Width), role);
 }
