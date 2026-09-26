@@ -49,6 +49,7 @@ public class ScreenKeyTests
         "help",
         "profiles",
         "profiles-empty",
+        "add-profile",
     ];
 
     /// <summary>Every screen that can have a post picked out, with one picked.</summary>
@@ -247,7 +248,7 @@ public class ScreenKeyTests
     [InlineData("requests-empty", "j/k:request g:refresh tab:destination ↓/↑:row ?:keys")]
     [InlineData("search-nothing", "j/k:result /:search again tab:destination ↓/↑:row ?:keys")]
     [InlineData("discover-empty", "j/k:person g:refresh tab:destination ↓/↑:row ?:keys")]
-    [InlineData("profiles-empty", "j/k:profile esc:back ↓/↑:row ?:keys")]
+    [InlineData("profiles-empty", "j/k:profile a:add esc:back ↓/↑:row ?:keys")]
     public void Keys_OnAnEmptyScreenAreTheOnesThatStillDoSomething(string state, string row) =>
         Assert.Equal(row, string.Join(' ', Of(state).Keys));
 
@@ -375,6 +376,9 @@ public class ScreenKeyTests
 
             case "profiles-empty":
                 return new ProfilesScreen([], "personal", null);
+
+            case "add-profile":
+                return new AddProfileScreen();
 
             case "conversation":
                 return new ConversationScreen(

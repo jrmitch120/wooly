@@ -41,6 +41,7 @@ public class CrumbTests
         ("following", "@maria@fosstodon.org following"),
         ("followers", "@maria@fosstodon.org followers"),
         ("profiles", "Profiles"),
+        ("add-profile", "Add a profile"),
     ];
 
     /// <summary>Those screens, as the theory reads them.</summary>
@@ -188,6 +189,9 @@ public class CrumbTests
 
             case "profiles":
                 return new ProfilesScreen([], "personal", null);
+
+            case "add-profile":
+                return new AddProfileScreen();
 
             // No screen by that name rather than a feed by default: a state nobody built is a state nobody asserted.
             default:

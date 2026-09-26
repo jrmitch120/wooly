@@ -75,10 +75,14 @@ public sealed class Shell
     private readonly ProfilePorts _profiles;
 
     /// <summary>
-    ///     The instance the rail's foot names, read once when the shell is built: the profiles on this machine are the
-    ///     local config's, and asking it on every redraw would read a file to draw one row.
+    ///     The instance the rail's foot names, read when the shell is built and again when a profile is added: the
+    ///     profiles on this machine are the local config's, and asking it on every redraw would read a file to draw one
+    ///     row.
     /// </summary>
-    private readonly string? _instance;
+    private string? _instance;
+
+    /// <summary>What each step of adding a profile does, which reaches <see cref="_profiles" /> (#245).</summary>
+    private readonly ProfileAdding _adding;
     private readonly List<Screen> _stack = [];
 
     /// <summary>
@@ -103,7 +107,7 @@ public sealed class Shell
         _profile = profile;
         _ports = ports;
         _profiles = profiles;
-        _instance = profiles.Registry.List().Count >= 2 ? profile.Instance : null;
+        _instance = Naming();
         _host = host;
         _browser = browser;
         // Asked from whatever is on top, which is the whole of the stale-answer rule: an answer lands only while the
@@ -145,6 +149,16 @@ public sealed class Shell
             say: Say,
             confirm: Confirm,
             changed: () => Changed?.Invoke());
+
+        _adding = new ProfileAdding(
+            _enquiry,
+            profiles,
+            browser,
+            held: screen => _stack.Contains(screen),
+            changed: () => Changed?.Invoke(),
+            say: Say,
+            confirm: Confirm,
+            added: Added);
     }
 
     /// <summary>Raised whenever anything on screen has changed. Always on the drawing thread.</summary>
@@ -274,6 +288,9 @@ public sealed class Shell
         Verb.Help => Ran(Help),
         Verb.Search => Ran(Search),
         Verb.Profiles => Ran(Profiles),
+        Verb.AddProfile => Ran(AddProfile),
+        Verb.Continue => Ran(Continue),
+        Verb.PasteToken => Ran(PasteToken),
         Verb.NextDestination => Ran(() => Step(1)),
         Verb.PreviousDestination => Ran(() => Step(-1)),
         Verb.OpenPost => Ran(Enter),
@@ -561,7 +578,7 @@ public sealed class Shell
 
         if (_stack.Count > 1)
         {
-            _stack.RemoveAt(_stack.Count - 1);
+            Leave(_stack.Count - 1);
         }
 
         Notice = null;
@@ -601,7 +618,34 @@ public sealed class Shell
             return;
         }
 
-        Push(new ProfilesScreen(_profiles.Registry.List(), _profile.Name, _profiles.PlaintextWarning));
+        Push(Listed());
+    }
+
+    /// <summary>
+    ///     <c>a</c> on the profiles screen: adds a profile, from the instance up (#245). Nothing is read or sent until
+    ///     the reader has typed something to send.
+    /// </summary>
+    public void AddProfile()
+    {
+        if (Screen is ProfilesScreen)
+        {
+            Push(new AddProfileScreen());
+        }
+    }
+
+    /// <summary>
+    ///     <c>⏎</c> on the add screen: on to the next step — the instance signed in at, the token checked, the name
+    ///     saved under (<see cref="ProfileAdding" />).
+    /// </summary>
+    public Task Continue() => Screen is AddProfileScreen adding ? _adding.Continue(adding) : Task.CompletedTask;
+
+    /// <summary><c>t</c> on the add screen: the browser given up for a pasted token.</summary>
+    public void PasteToken()
+    {
+        if (Screen is AddProfileScreen adding)
+        {
+            _adding.PasteToken(adding);
+        }
     }
 
     /// <summary>
@@ -875,7 +919,7 @@ public sealed class Shell
 
         // What both arms do to get back to where the reader was: the compose screen off the stack, before the change
         // is heard by what is left on it.
-        void Popped() => _stack.RemoveAt(_stack.Count - 1);
+        void Popped() => Leave(_stack.Count - 1);
     }
 
     /// <summary>The ten, in the order the rail draws them.</summary>
@@ -1188,6 +1232,7 @@ public sealed class Shell
     /// <summary>Puts the stack back to one screen, which is what arriving at a destination does.</summary>
     private void Reset(Screen screen)
     {
+        _stack.ForEach(left => left.Left());
         _stack.Clear();
         _stack.Add(screen);
         Notice = null;
@@ -1211,6 +1256,7 @@ public sealed class Shell
     /// </remarks>
     private void Freshened(Screen fresh)
     {
+        _stack[^1].Left();
         _stack[^1] = fresh;
 
         // Gone with the screen it was said over, the same as at a push or an arrival: what a reader was told about the
@@ -1239,11 +1285,71 @@ public sealed class Shell
         {
             if (_stack[at].Heard(change) && _stack.Count > 1)
             {
-                _stack.RemoveAt(at);
+                Leave(at);
             }
         }
 
         Changed?.Invoke();
+    }
+
+    /// <summary>
+    ///     A profile has been written from the add screen: back to the list it was opened from, read again with the new
+    ///     row picked — and not switched to, which is <c>⏎</c>, one key away (#245).
+    /// </summary>
+    /// <remarks>
+    ///     A fresh list in place of the one underneath rather than the old one told, since the list is the local
+    ///     config's and was read when <c>ctrl-p</c> was pressed. The rail's instance row is asked again too: a second
+    ///     profile is what puts it there.
+    /// </remarks>
+    private void Added(AddProfileScreen adding, string name, ProfileAddition addition)
+    {
+        Leave(_stack.IndexOf(adding));
+
+        var list = Listed();
+
+        list.Pick(name);
+
+        if (Screen is ProfilesScreen)
+        {
+            _stack[^1].Left();
+            _stack[^1] = list;
+        }
+        else
+        {
+            _stack.Add(list);
+        }
+
+        _instance = Naming();
+
+        var what = addition.ReplacedExisting ? "Replaced" : "Added";
+
+        // The same words profile add says it in, less the markup — and the current profile's the words it adds.
+        Say(
+            addition.IsCurrent
+                ? $"{what} profile {name}. Commands act as {name} unless told otherwise."
+                : $"{what} profile {name}.",
+            isError: false);
+    }
+
+    /// <summary>
+    ///     Every profile on this machine as the profiles screen lists them, read off the local config now.
+    /// </summary>
+    private ProfilesScreen Listed() =>
+        new(_profiles.Registry.List(), _profile.Name, _profiles.PlaintextWarning);
+
+    /// <summary>
+    ///     The instance the rail's foot names: this session's, where two or more profiles are set up and there is
+    ///     somebody to tell it apart from — otherwise none (#241).
+    /// </summary>
+    private string? Naming() => _profiles.Registry.List().Count >= 2 ? _profile.Instance : null;
+
+    /// <summary>
+    ///     Takes the screen at <paramref name="at" /> off the stack, and lets it know (<see cref="Screen.Left" />).
+    /// </summary>
+    private void Leave(int at)
+    {
+        _stack[at].Left();
+        _stack.RemoveAt(at);
     }
 
     private void Say(string? notice, bool isError)

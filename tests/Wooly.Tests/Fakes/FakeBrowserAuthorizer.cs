@@ -7,8 +7,18 @@ namespace Wooly.Tests.Fakes;
 ///     A sign-in through the browser, without the browser or the instance: it hands out an address to be sent to, and
 ///     then either the token the user authorized or the refusal they gave instead.
 /// </summary>
-internal sealed class FakeBrowserAuthorizer(string accessToken, string? refusal) : IBrowserAuthorizer, IBrowserAuthorization
+internal sealed class FakeBrowserAuthorizer(string accessToken, string? refusal, bool holds = false)
+    : IBrowserAuthorizer, IBrowserAuthorization
 {
+    /// <summary>
+    ///     The browser coming back, which a sign-in that <see cref="Holding" /> waits on until a test says so.
+    /// </summary>
+    /// <remarks>
+    ///     Its continuations run where it is completed, so that what a test's <see cref="ComeBack" /> or a cancellation
+    ///     sets going has queued its answer by the time the test drains the host.
+    /// </remarks>
+    private readonly TaskCompletionSource<string> _comesBack = new();
+
     /// <summary>Every instance a sign-in was begun against, in order.</summary>
     public List<string> Instances { get; } = [];
 
@@ -29,6 +39,20 @@ internal sealed class FakeBrowserAuthorizer(string accessToken, string? refusal)
     /// <summary>A sign-in the user turns down at the instance, the way a mis-clicked "Cancel" turns one down.</summary>
     public static FakeBrowserAuthorizer Refusing(string reason = "the request was denied") => new(string.Empty, reason);
 
+    /// <summary>
+    ///     A sign-in whose browser has not come back yet, and does not until <see cref="ComeBack" /> — so a test can
+    ///     look at what is on screen while it waits, and walk away from it.
+    /// </summary>
+    public static FakeBrowserAuthorizer Holding() => new("token-from-browser", refusal: null, holds: true);
+
+    /// <summary>Whether whoever was waiting on the browser stopped waiting before it came back.</summary>
+    public bool Cancelled { get; private set; }
+
+    /// <summary>
+    ///     Lets a <see cref="Holding" /> sign-in's browser come back, authorizing <c>token-from-browser</c>.
+    /// </summary>
+    public void ComeBack() => _comesBack.TrySetResult(accessToken);
+
     /// <inheritdoc />
     public Task<IBrowserAuthorization> Begin(string instance, CancellationToken cancellationToken)
     {
@@ -42,10 +66,26 @@ internal sealed class FakeBrowserAuthorizer(string accessToken, string? refusal)
     ///     <see cref="FakeAccessTokenVerifier" />'s is: what a command test can fairly assert is that the reason it
     ///     supplied came out the other end, not how <see cref="BrowserAuthorizer" /> phrases one.
     /// </remarks>
-    public Task<string> AwaitAccessToken(CancellationToken cancellationToken) =>
-        refusal is null
-            ? Task.FromResult(accessToken)
-            : throw new AuthenticationException($"mastodon.social did not authorize this client: {refusal}");
+    public async Task<string> AwaitAccessToken(CancellationToken cancellationToken)
+    {
+        if (refusal is not null)
+        {
+            throw new AuthenticationException($"mastodon.social did not authorize this client: {refusal}");
+        }
+
+        if (!holds)
+        {
+            return accessToken;
+        }
+
+        await using var cancelling = cancellationToken.Register(() =>
+        {
+            Cancelled = true;
+            _comesBack.TrySetCanceled(cancellationToken);
+        });
+
+        return await _comesBack.Task;
+    }
 
     /// <inheritdoc />
     public void Dispose() => Disposed = true;

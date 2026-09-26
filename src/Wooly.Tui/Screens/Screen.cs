@@ -558,6 +558,18 @@ public abstract class Screen
     private OnShow Showing(Post post) => OnShow.Of(post, Revealed.Has(post));
 
     /// <summary>
+    ///     This screen has been taken off the stack — walked back out of, arrived away from, or stood in place of — and
+    ///     will not be shown again. Nothing by default: a screen is plain data, and forgetting it is enough.
+    /// </summary>
+    /// <remarks>
+    ///     The one screen holding something that is not, the add screen's sign-in and the loopback port it borrowed,
+    ///     gives it back here — so no way of leaving can leave a listener open behind the reader (#245).
+    /// </remarks>
+    public virtual void Left()
+    {
+    }
+
+    /// <summary>
     ///     Hears what changed on the instance, and puts right whatever of it this screen is holding: a post marked or
     ///     taken down, an account tied, a notification dismissed. What stops a star lighting up only once the whole
     ///     timeline has been fetched again.

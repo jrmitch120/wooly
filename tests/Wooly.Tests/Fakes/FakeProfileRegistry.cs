@@ -10,11 +10,19 @@ namespace Wooly.Tests.Fakes;
 ///     over both stores.
 /// </summary>
 /// <remarks>
-///     Only what the profiles screen reads so far. The writes arrive with the keys that make them (#238), and until
-///     then a shell that reached for one would be doing something no ticket has asked it to.
+///     What the profiles screen reads, and the writes that have keys so far: adding, as the add screen does (#245). The
+///     rest arrive with the keys that make them (#238), and until then a shell that reached for one would be doing
+///     something no ticket has asked it to.
 /// </remarks>
 internal sealed class FakeProfileRegistry(IReadOnlyList<ProfileSummary> profiles) : IProfileRegistry
 {
+    private readonly List<ProfileSummary> _profiles = [.. profiles];
+
+    /// <summary>
+    ///     Every profile written, in order, with the token it was written with — where a test proves what was stored.
+    /// </summary>
+    public List<(string Name, ProfileConfig Profile, string AccessToken)> Added { get; } = [];
+
     /// <inheritdoc />
     public CredentialStorage TokenStorage { get; set; } = CredentialStorage.OsKeyring;
 
@@ -36,11 +44,30 @@ internal sealed class FakeProfileRegistry(IReadOnlyList<ProfileSummary> profiles
 
     /// <inheritdoc />
     public IReadOnlyList<ProfileSummary> List() =>
-        [.. profiles.OrderBy(profile => profile.Name, StringComparer.Ordinal)];
+        [.. _profiles.OrderBy(profile => profile.Name, StringComparer.Ordinal)];
 
     /// <inheritdoc />
-    public ProfileAddition Add(string name, ProfileConfig profile, string accessToken) =>
-        throw new NotSupportedException("Nothing in the TUI adds a profile yet.");
+    /// <remarks>
+    ///     Decides what the real one decides — a name taken is replaced, and the profile becomes current only where
+    ///     none was — so a shell reading the list back sees what it would see over the config file.
+    /// </remarks>
+    public ProfileAddition Add(string name, ProfileConfig profile, string accessToken)
+    {
+        Added.Add((name, profile, accessToken));
+
+        var replaced = _profiles.RemoveAll(held => held.Name == name) > 0;
+        var isCurrent = _profiles.All(held => !held.IsCurrent);
+
+        _profiles.Add(new ProfileSummary
+        {
+            Name = name,
+            Instance = profile.Instance,
+            Account = profile.Account,
+            IsCurrent = isCurrent,
+        });
+
+        return new ProfileAddition(replaced, isCurrent);
+    }
 
     /// <inheritdoc />
     public void Switch(string name) => throw new NotSupportedException("Nothing in the TUI makes a profile current yet.");

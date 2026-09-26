@@ -63,6 +63,7 @@ A screen is a place in the stack, not a window. Entering one pushes, `esc` pops,
 | Direct messages — conversations, then a thread | A rail destination | #30 |
 | Compose / reply / edit — a screen on the stack, like any other | `c`, `r` or `e` | #28 |
 | Profiles — every profile on this machine, marked `acting as` and `current` | `ctrl-p` | #240 (ADR-0020) |
+| Add a profile — the instance, a sign-in through the browser or a pasted token, the token checked, a name | `a` on the profiles screen | #245 (ADR-0020) |
 | Media inside a post or feed item | Drawn in place | #31 (ADR-0016) |
 
 Every screen owes three things: it reads at 61 columns, it says what its keys are on the status row, and it names roles
@@ -115,6 +116,8 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Follow requests | `a` accept · `x` reject |
 | Direct messages | `⏎` open the conversation · `m` mark read — `m` again inside the thread, where a reader who has just read it is most likely to press it |
 | Conversation | `m` mark read, and every key that acts on a post, since each message in it is one |
+| Profiles | `a` add a profile |
+| Add a profile | `⏎` on to the next step · `t` paste a token instead, while the browser is out or after it failed · `esc` back to the list, calling off a sign-in or a check in flight |
 | Compose / reply / edit | `ctrl-s` send or save · `esc` throw it away · `ctrl-w` move the typing between the post and the content warning over it — on all three, each carrying a warning field of its own (#123, #139, #140) |
 | Home, local, federated, hashtag, Notifications, Messages, Requests, Discover, Post, Account, Follows | `g` refresh — evicts the destination's cache entry (where one exists) and re-runs the same fetch its own arrival runs |
 
@@ -1278,6 +1281,35 @@ has the keys, and what text it opens with. That is a window's question about its
 - **It fetches nothing.** The list is read off the local config when `ctrl-p` is pressed, through `ProfilePorts` — a
   port of its own and not one of `ShellPorts`, whose ports all reach an instance. No enquiry is put, so there is no fetch
   mark and no answer to land late.
+
+### What the add screen settled
+
+#245 put adding a profile on the stack, over the profiles screen (ADR-0004, ADR-0020). What this document now holds it
+to:
+
+- **The order is the instance, a sign-in, the check, then a name.** `profile add` asks for the name first and is
+  unchanged; the TUI asks for it last, when it can default to the handle just signed in as.
+- **The instance is checked before anything is sent**, by `InstanceDomain`, and a rejection is drawn under the field in
+  that rule's own words.
+- **The browser is the default.** The sign-in is begun, the browser opened, and the authorization address drawn either
+  way, in `BrowserSignIn`'s words — the ones `profile add` prints. The address is cut across rows rather than clipped,
+  since it is there to be copied whole. `Waiting for the browser to come back...` is drawn in `loading` while the
+  redirect is awaited. `t` gives the browser up for a pasted token, and a browser that fails says why and offers `⏎` to
+  try again.
+- **A pasted token is never drawn**: one `*` a letter, and trimmed as `profile add` trims one.
+- **The token is checked before anything is written.** A refusal is drawn on the add screen, in `error` and in words,
+  and the reader is put back at the token field, emptied, rather than at the start.
+- **The name begins as the handle**, and is edited like any field. A name already in use asks first, in the
+  confirmation row's usual form, because adding replaces — and declining writes nothing.
+- **`IProfileRegistry.Add` is the only writer**, and decides whether the profile becomes current as it does for
+  `profile add`. The shell then stands a fresh profiles list in place of the one underneath, with the new row picked,
+  and says what was added on the status row. It does not switch to it.
+- **Every call is an enquiry**, so each has the fetch mark and none blocks the drawing thread. What comes back lands
+  on the add screen while it is still on the stack, not only while it is in front: a reader who opened the keymap
+  while the browser was out has not walked away from a token already issued. Once the screen is off the stack —
+  `esc`, `tab`, `/` — nothing lands, nothing is written, and the loopback listener has been closed.
+- **Letters are typed into the field on the step in front**, instance, token or name, so `t` and the frame's `/` and
+  `?` mean something only on the steps that are waiting rather than taking letters.
 
 ## Starting it, and the one destination that needs configuring
 
