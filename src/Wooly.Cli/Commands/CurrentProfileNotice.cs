@@ -15,9 +15,9 @@ internal static class CurrentProfileNotice
         console.MarkupLine(ProfileWords.ActsAs($"[bold]{Markup.Escape(name)}[/]"));
 
     /// <summary>
-    ///     Says that no profile is current any more, and how to choose one. Worded after the failure the next command
+    ///     Says that no profile is the default any more, and how to choose one. Worded after the failure the next command
     ///     with no <c>--profile</c> would meet, so the two read as the one state they are.
     /// </summary>
     public static void WriteNone(IAnsiConsole console) =>
-        console.WriteLine("No profile is current. Switch to one with profile switch <NAME>, or name one with --profile.");
+        console.WriteLine("No profile is the default now. Make one the default with profile switch <NAME>, or name one with --profile.");
 }

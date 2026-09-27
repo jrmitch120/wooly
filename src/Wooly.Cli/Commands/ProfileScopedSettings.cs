@@ -11,6 +11,6 @@ namespace Wooly.Cli.Commands;
 internal class ProfileScopedSettings : CommandSettings
 {
     [CommandOption("--profile <NAME>")]
-    [Description("Act as the named profile for this command only, instead of the current one.")]
+    [Description("Act as the named profile for this command only, instead of the default one.")]
     public string? Profile { get; init; }
 }

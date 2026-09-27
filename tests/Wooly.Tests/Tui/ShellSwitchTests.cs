@@ -19,7 +19,7 @@ namespace Wooly.Tests.Tui;
 /// </summary>
 public class ShellSwitchTests
 {
-    /// <summary>Acting as personal, which is current, with work set up beside it on another instance.</summary>
+    /// <summary>Acting as personal, which is the default, with work set up beside it on another instance.</summary>
     private static AShell PersonalAndWork() => new()
     {
         Profiles = FakeProfileRegistry.Holding(
@@ -256,7 +256,7 @@ public class ShellSwitchTests
         Assert.Equal(299, opened.Quota?.Remaining);
     }
 
-    /// <summary>Only for this session: the saved current profile is left where it was.</summary>
+    /// <summary>Only for this session: the default profile is left where it was.</summary>
     [Fact]
     public async Task Switching_LeavesTheConfigFileByteForByteAsItWas()
     {
@@ -382,7 +382,7 @@ public class ShellSwitchTests
 
         var drawn = AShell.Drawn(opened.Screen);
         Assert.Contains(drawn, row => row.StartsWith("work") && row.Contains("acting as"));
-        Assert.Contains(drawn, row => row.StartsWith("personal") && !row.Contains("acting as") && row.Contains("current"));
+        Assert.Contains(drawn, row => row.StartsWith("personal") && !row.Contains("acting as") && row.Contains("default"));
     }
 
     private static int Badge(Shell shell, DestinationKind kind) =>

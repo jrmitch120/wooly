@@ -339,12 +339,12 @@ public class ProfileCommandTests : IDisposable
 
         Assert.Equal((int)ExitCode.Success, run.ExitCode);
         Assert.Contains("personal", run.Output);
-        Assert.Contains("No profile is current", run.Output);
+        Assert.Contains("No profile is the default", run.Output);
         Assert.Contains("profile switch", run.Output);
 
         var show = Run(["profile", "show"]);
         Assert.Equal((int)ExitCode.AuthenticationError, show.ExitCode);
-        Assert.Contains("No profile is current", show.ErrorOutput);
+        Assert.Contains("No profile is the default", show.ErrorOutput);
     }
 
     [Fact]

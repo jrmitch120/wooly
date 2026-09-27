@@ -62,7 +62,7 @@ A screen is a place in the stack, not a window. Entering one pushes, `esc` pops,
 | Follow requests | A rail destination | #29 |
 | Direct messages — conversations, then a thread | A rail destination | #30 |
 | Compose / reply / edit — a screen on the stack, like any other | `c`, `r` or `e` | #28 |
-| Profiles — every profile on this machine, marked `acting as` and `current` | `ctrl-p` | #240 (ADR-0020) |
+| Profiles — every profile on this machine, marked `acting as` and `default` | `ctrl-p` | #240 (ADR-0020) |
 | Add a profile — the instance, a sign-in through the browser or a pasted token, the token checked, a name | `a` on the profiles screen | #245 (ADR-0020) |
 | Media inside a post or feed item | Drawn in place | #31 (ADR-0016) |
 
@@ -1271,7 +1271,7 @@ has the keys, and what text it opens with. That is a window's question about its
   is, drilled in or not, and pressed on the screen itself it pushes no second one. On compose it means nothing: the
   keymap takes it back there, the help screen drawn over compose leaves it out, and like every frame key it is on no
   screen's status row.
-- **A profile is two rows**: its name, followed by `acting as` and `current` where they apply, then the full
+- **A profile is two rows**: its name, followed by `acting as` and `default` where they apply, then the full
   `@handle@instance` — or the instance alone where no account was ever established. The markers are words in `muted`,
   so they read with no colour, and the name is clipped before they are. Profiles are walked with `j`/`k`, one blank row
   between two of them.
@@ -1301,7 +1301,7 @@ to:
   and the reader is put back at the token field, emptied, rather than at the start.
 - **The name begins as the handle**, and is edited like any field. A name already in use asks first, in the
   confirmation row's usual form, because adding replaces — and declining writes nothing.
-- **`IProfileRegistry.Add` is the only writer**, and decides whether the profile becomes current as it does for
+- **`IProfileRegistry.Add` is the only writer**, and decides whether the profile becomes the default as it does for
   `profile add`. The shell then stands a fresh profiles list in place of the one underneath, with the new row picked,
   and says what was added on the status row. It does not switch to it.
 - **Every call is an enquiry**, so each has the fetch mark and none blocks the drawing thread. What comes back lands
@@ -1320,7 +1320,7 @@ to:
 #243 put switching on `⏎` on the profiles screen (ADR-0020). What this document now holds it to:
 
 - **For this session only.** The profile is resolved through `IProfileRegistry.Resolve`, as `--profile` resolves one,
-  and nothing is written: the config file and the token store are byte-for-byte what they were, and the current
+  and nothing is written: the config file and the token store are byte-for-byte what they were, and the default
   profile has not moved.
 - **Not offered on the profile already acted as**, where it would do nothing; on every other row it is `⏎:act as`.
 - **A switch starts again on Home**, as if launched with the new profile. The shell is reset in place rather than
@@ -1340,7 +1340,7 @@ to:
 ## Starting it, and the one destination that needs configuring
 
 `wooly-tui` takes one option, `--profile <name>`, and it means what it means everywhere else: act as that profile for
-this run, without changing which one is current (story 9). Everything else about the profile — which instance, which
+this run, without changing which one is the default (story 9). Everything else about the profile — which instance, which
 token — is resolved through `IProfileRegistry` exactly as a command's scope resolves it.
 
 Nine of the ten destinations are the same nine for everybody. The odd one out is a hashtag, and which one is nobody's

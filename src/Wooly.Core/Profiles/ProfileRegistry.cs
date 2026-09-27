@@ -157,5 +157,5 @@ public sealed class ProfileRegistry(IConfigStore configStore, ICredentialStore c
     private static AuthenticationException NothingToActAs(WoolyConfig config) => new(
         config.Profiles.Count == 0
             ? "No profiles have been set up yet. Add one to connect this client to a Mastodon account."
-            : $"No profile is current. Switch to one of: {string.Join(", ", config.Profiles.Keys.Order(StringComparer.Ordinal))} — or name one with --profile.");
+            : $"No profile is the default. Make one the default with profile switch — one of: {string.Join(", ", config.Profiles.Keys.Order(StringComparer.Ordinal))} — or name one with --profile.");
 }

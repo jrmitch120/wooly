@@ -576,7 +576,7 @@ public sealed class Shell
 
     /// <summary>
     ///     Opens the profiles screen: every profile on this machine, marked with which one this session is acting as
-    ///     and which one is current (ADR-0020).
+    ///     and which one is the default (ADR-0020).
     /// </summary>
     /// <remarks>
     ///     Read off the local config there and then, rather than put through <see cref="Enquiry" />: nothing here
@@ -618,7 +618,7 @@ public sealed class Shell
     ///     <para>
     ///         Resolved before anything is let go of, so a profile that cannot be — its token gone from the store —
     ///         leaves the session exactly as it was, and says why. The config is only read: acting as a profile is
-    ///         for this session, and making one current is <c>D</c>'s.
+    ///         for this session, and making one the default is <c>D</c>'s.
     ///     </para>
     /// </remarks>
     public void ActAs()

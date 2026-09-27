@@ -212,8 +212,8 @@ public class ShellAddProfileTests
         var drawn = AShell.Drawn(opened.Screen);
         Assert.Contains(
             drawn,
-            row => row.StartsWith("personal") && row.Contains("acting as") && row.Contains("current"));
-        Assert.Contains(drawn, row => row.StartsWith("jeff") && !row.Contains("acting as") && !row.Contains("current"));
+            row => row.StartsWith("personal") && row.Contains("acting as") && row.Contains("default"));
+        Assert.Contains(drawn, row => row.StartsWith("jeff") && !row.Contains("acting as") && !row.Contains("default"));
 
         opened.Press(ShellKey.Escape);
 

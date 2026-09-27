@@ -142,9 +142,9 @@ public class ShellProfilesTests
 
         var drawn = AShell.Drawn(opened.Screen);
 
-        Assert.Contains(drawn, row => row.StartsWith("personal") && row.Contains("current") && !row.Contains("acting as"));
-        Assert.Contains(drawn, row => row.StartsWith("work") && row.Contains("acting as") && !row.Contains("current"));
-        Assert.Contains(drawn, row => row.StartsWith("spare") && !row.Contains("acting as") && !row.Contains("current"));
+        Assert.Contains(drawn, row => row.StartsWith("personal") && row.Contains("default") && !row.Contains("acting as"));
+        Assert.Contains(drawn, row => row.StartsWith("work") && row.Contains("acting as") && !row.Contains("default"));
+        Assert.Contains(drawn, row => row.StartsWith("spare") && !row.Contains("acting as") && !row.Contains("default"));
     }
 
     /// <summary>
@@ -175,7 +175,7 @@ public class ShellProfilesTests
 
         var row = Assert.Single(AShell.Drawn(opened.Screen), row => row.StartsWith("personal"));
         Assert.Contains("acting as", row);
-        Assert.Contains("current", row);
+        Assert.Contains("default", row);
     }
 
     /// <summary>Walked with <c>j</c>/<c>k</c>, like every other list — the pick is what the later keys act on.</summary>

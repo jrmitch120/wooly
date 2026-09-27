@@ -298,15 +298,22 @@ answers: a reply continuing the account's own thread is already one of its posts
 _Avoid_: replies (for this; the run is not replies only), conversations
 
 **Profile**:
-A named local credential/config entry in this CLI tool, pointing at one Mastodon account. A user may have multiple profiles (e.g. personal + work accounts, possibly on different instances). One profile is the "current" profile used by default; commands may override it per-invocation.
+A named local credential/config entry in this CLI tool, pointing at one Mastodon account. A user may have multiple profiles (e.g. personal + work accounts, possibly on different instances). One profile is the **default profile**; commands may override it per-invocation.
 _Avoid_: account (when referring to the CLI's local credential entry, to keep it distinct from the Mastodon account itself)
+
+**Default profile**:
+The **profile** saved as the one commands act as unless told otherwise, and the one a TUI launch acts as with no
+`--profile`. Changed only by `profile switch`, or `D` in the TUI, and it persists across runs. The config file keeps it
+under `current_profile`, and the code calls it current (`IsCurrent`, `CurrentProfile`) — both kept, so existing config
+files and code read on unchanged; everything a person reads says default.
+_Avoid_: current profile (in prose; it reads as "the one in use now", which is **acting as**)
 
 **Acting as**:
 The **profile** a run is using: the one a TUI session reaches instances as, or the one a command's `--profile` named. It
-is the current profile unless something named another, and naming another changes nothing about which one is current.
-The TUI's profiles screen marks both, because they can differ: switching changes who a session is acting as, and only
-making a profile current (`profile switch`, or `D` in the TUI) changes the saved one (ADR-0020).
-_Avoid_: current (for this; current is the saved default, not what this run is using), active profile (in prose; the
+is the default profile unless something named another, and naming another changes nothing about which one is the
+default. The TUI's profiles screen marks both, because they can differ: switching changes who a session is acting as,
+and only making a profile the default (`profile switch`, or `D` in the TUI) changes the saved one (ADR-0020).
+_Avoid_: default (for this; the default is the saved one, not what this run is using), active profile (in prose; the
 type is `ActiveProfile`, the word is acting as)
 
 **Fetch**:
