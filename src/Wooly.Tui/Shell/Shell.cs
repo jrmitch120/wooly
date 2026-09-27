@@ -51,8 +51,8 @@ public sealed class Shell
 
     /// <summary>
     ///     What bringing a screen up from its subject means, which is the same steps at every screen that is read —
-    ///     arrived at, drilled into or refreshed (#100, #233). The acting profile's, and built again with it at a
-    ///     switch (<see cref="Begin" />), since what it caches was read as that profile.
+    ///     arrived at, drilled into or refreshed (#100, #233). Built again at a switch (<see cref="Begin" />), since
+    ///     what it caches was read as the profile acted as.
     /// </summary>
     private Arrival _arrival;
 
@@ -64,8 +64,8 @@ public sealed class Shell
     private readonly IWebBrowser _browser;
 
     /// <summary>
-    ///     Everything this reaches an instance through, and the one place the stale-answer rule is stated. The acting
-    ///     profile's: a switch abandons it, with everything still in flight, and puts a new one in its place (#243).
+    ///     Everything this reaches an instance through, and the one place the stale-answer rule is stated. The
+    ///     profile acted as's own: a switch abandons it, with everything still in flight, and puts a new one in its place (#243).
     /// </summary>
     private Enquiry _enquiry;
 
@@ -109,7 +109,7 @@ public sealed class Shell
     ///     The last budget the old profile's instance reported, where the session has switched since — which the rail's
     ///     foot does not draw, being somebody else's budget, until an instance reports the new one's (#243).
     /// </summary>
-    private RateLimitQuota? _theirQuota;
+    private RateLimitQuota? _quotaBeforeSwitch;
 
     public Shell(
         ActiveProfile profile,
@@ -192,7 +192,7 @@ public sealed class Shell
     /// <summary>What the instance last said is left of the profile's budget, for the rail's foot (story 54).</summary>
     /// <remarks>Nothing where the last one said is the old profile's, from before a switch (#243).</remarks>
     public RateLimitQuota? Quota =>
-        _ports.RateLimit.Latest is { } latest && !ReferenceEquals(latest, _theirQuota) ? latest : null;
+        _ports.RateLimit.Latest is { } latest && !ReferenceEquals(latest, _quotaBeforeSwitch) ? latest : null;
 
     /// <summary>
     ///     The instance this session is acting as, for the rail's foot — or <see langword="null" /> with only one profile
@@ -665,7 +665,7 @@ public sealed class Shell
         _enquiry.Abandon();
 
         Asking = null;
-        _theirQuota = _ports.RateLimit.Latest;
+        _quotaBeforeSwitch = _ports.RateLimit.Latest;
 
         Begin(next);
 
@@ -805,8 +805,11 @@ public sealed class Shell
             return;
         }
 
+        // Taken now rather than read when the call is made, which a rate-limit wait can put after a switch (#243).
+        var profile = _profile;
+
         await _enquiry.Put(
-            ask => ask.Of(token => _ports.Messages.MarkRead(_profile, conversation.Id, token)),
+            ask => ask.Of(token => _ports.Messages.MarkRead(profile, conversation.Id, token)),
             eitherWay: marked => Tell(new Change.ConversationMarked(marked)),
             ifStillHere: _ => Say("Marked as read.", isError: false));
 
@@ -844,8 +847,11 @@ public sealed class Shell
             return;
         }
 
+        // Taken now rather than read when the call is made, which a rate-limit wait can put after a switch (#243).
+        var profile = _profile;
+
         await _enquiry.Put(
-            ask => ask.Of(token => _ports.Engagement.Mark(_profile, about.Id, mark, !about.Marks.Has(mark), token)),
+            ask => ask.Of(token => _ports.Engagement.Mark(profile, about.Id, mark, !about.Marks.Has(mark), token)),
             eitherWay: marked => Tell(new Change.PostChanged(marked)));
     }
 
@@ -966,11 +972,14 @@ public sealed class Shell
             return;
         }
 
+        // Taken now rather than read when the call is made, which a rate-limit wait can put after a switch (#243).
+        var profile = _profile;
+
         switch (compose.Outgoing)
         {
             case Outgoing.Saving(var postId, var edit):
                 await _enquiry.Put(
-                    ask => ask.Of(token => _ports.Author.Edit(_profile, postId, edit, token)),
+                    ask => ask.Of(token => _ports.Author.Edit(profile, postId, edit, token)),
                     eitherWay: saved =>
                     {
                         Popped();
@@ -988,7 +997,7 @@ public sealed class Shell
                     : null;
 
                 await _enquiry.Put(
-                    ask => ask.Of(token => _ports.Author.Publish(_profile, draft, token)),
+                    ask => ask.Of(token => _ports.Author.Publish(profile, draft, token)),
                     eitherWay: published =>
                     {
                         // A reply written in a conversation goes on the end of it, which the conversation and the
@@ -1010,7 +1019,13 @@ public sealed class Shell
     ///     Builds everything that asks as <paramref name="profile" />, or holds what was read as it: at launch, and
     ///     again at every switch (#243). Nothing built for one profile is handed to the next — the next gets its own.
     /// </summary>
-    [MemberNotNull(nameof(_profile), nameof(_enquiry), nameof(_arrival), nameof(_reach), nameof(_adding), nameof(_marking))]
+    [MemberNotNull(
+        nameof(_profile),
+        nameof(_enquiry),
+        nameof(_arrival),
+        nameof(_reach),
+        nameof(_adding),
+        nameof(_marking))]
     private void Begin(ActiveProfile profile)
     {
         _profile = profile;
@@ -1144,14 +1159,19 @@ public sealed class Shell
         }
     }
 
-    private Task Delete(string postId) =>
-        _enquiry.Put(
-            ask => ask.Of(token => _ports.Author.Delete(_profile, postId, token)),
+    private Task Delete(string postId)
+    {
+        // Taken now rather than read when the call is made, which a rate-limit wait can put after a switch (#243).
+        var profile = _profile;
+
+        return _enquiry.Put(
+            ask => ask.Of(token => _ports.Author.Delete(profile, postId, token)),
             eitherWay: () =>
             {
                 Tell(new Change.PostGone(postId));
                 Say("Deleted.", isError: false);
             });
+    }
 
     /// <summary>
     ///     What the reader is being asked to agree to: the answers ticked, counted rather than named. The ballot is on
@@ -1184,8 +1204,11 @@ public sealed class Shell
     {
         screen.ClearChoices();
 
+        // Taken now rather than read when the call is made, which a rate-limit wait can put after a switch (#243).
+        var profile = _profile;
+
         return _enquiry.Put(
-            ask => ask.Of(token => _ports.Engagement.Vote(_profile, about, choices, token)),
+            ask => ask.Of(token => _ports.Engagement.Vote(profile, about, choices, token)),
             eitherWay: voted =>
             {
                 Tell(new Change.PostChanged(voted));

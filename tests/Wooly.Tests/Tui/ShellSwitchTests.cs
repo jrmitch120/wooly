@@ -263,8 +263,14 @@ public class ShellSwitchTests
         using var directory = new TemporaryDirectory();
         var paths = new WoolyPaths(directory.Path);
         var registry = new ProfileRegistry(new TomlConfigStore(paths), new PlaintextFileCredentialStore(paths), paths);
-        registry.Add("personal", new ProfileConfig { Instance = "mastodon.social", Account = "jeff@mastodon.social" }, "token-personal");
-        registry.Add("work", new ProfileConfig { Instance = "hachyderm.io", Account = "jeff@hachyderm.io" }, "token-work");
+        registry.Add(
+            "personal",
+            new ProfileConfig { Instance = "mastodon.social", Account = "jeff@mastodon.social" },
+            "token-personal");
+        registry.Add(
+            "work",
+            new ProfileConfig { Instance = "hachyderm.io", Account = "jeff@hachyderm.io" },
+            "token-work");
 
         var config = await File.ReadAllBytesAsync(paths.ConfigFile, TestContext.Current.CancellationToken);
         var credentials = await File.ReadAllBytesAsync(paths.CredentialFile, TestContext.Current.CancellationToken);
