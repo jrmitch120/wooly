@@ -39,12 +39,13 @@ public interface IProfileRegistry
 
     /// <summary>
     ///     Forgets <paramref name="name" />: its config entry and its access token together, as <see cref="Add" /> writes
-    ///     them together. A token that is already gone is not a failure. If the profile was current, no profile is
-    ///     current afterwards — current is not moved to another one, because which profile commands act as is the
-    ///     user's to choose, and <see cref="Switch" /> is how they choose it.
+    ///     them together. A token that is already gone is not a failure. The default profile is refused: removing it
+    ///     would leave commands with nothing to act as, and which profile they act as instead is the user's to choose,
+    ///     through <see cref="Switch" /> first.
     /// </summary>
-    /// <returns>What that turned out to do, including whether this profile was the one commands defaulted to.</returns>
+    /// <returns>What that turned out to do.</returns>
     /// <exception cref="Errors.UnknownProfileException">No profile by that name has been set up.</exception>
+    /// <exception cref="Errors.DefaultProfileRemovalException">The profile is the default.</exception>
     ProfileRemoval Remove(string name);
 
     /// <summary>

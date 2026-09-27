@@ -100,21 +100,21 @@ internal sealed class FakeProfileRegistry(IReadOnlyList<ProfileSummary> profiles
     }
 
     /// <inheritdoc />
-    /// <remarks>
-    ///     Clears the default rather than moving it, as the real one does, so a shell reading the list back sees it
-    ///     gone.
-    /// </remarks>
+    /// <remarks>Refuses the default, as the real one does.</remarks>
     public ProfileRemoval Remove(string name)
     {
         var removed = _profiles.SingleOrDefault(held => held.Name == name)
                       ?? throw new UnknownProfileException(name, [.. _profiles.Select(held => held.Name)]);
 
+        if (removed.IsCurrent)
+        {
+            throw new DefaultProfileRemovalException(name);
+        }
+
         Removed.Add(name);
         _profiles.Remove(removed);
 
-        return new ProfileRemoval(
-            new ProfileConfig { Instance = removed.Instance, Account = removed.Account },
-            removed.IsCurrent);
+        return new ProfileRemoval(new ProfileConfig { Instance = removed.Instance, Account = removed.Account });
     }
 
     /// <inheritdoc />

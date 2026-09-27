@@ -90,24 +90,24 @@ public sealed class ProfileRegistry(IConfigStore configStore, ICredentialStore c
             throw new UnknownProfileException(name, config.Profiles.Keys);
         }
 
+        if (config.CurrentProfile == name)
+        {
+            throw new DefaultProfileRemovalException(name);
+        }
+
         var profiles = new Dictionary<string, ProfileConfig>(config.Profiles, StringComparer.Ordinal);
         profiles.Remove(name);
 
         var removed = config.Profiles[name];
-        var wasCurrent = config.CurrentProfile == name;
 
         // The token goes first, so that whichever half fails, the profile is still in the config file and removing it
         // again finishes the job. The other way round, a failed delete would leave a token nothing points at — a
         // credential the user can no longer see, or reach through this client to delete.
         credentialStore.DeleteAccessToken(name);
 
-        configStore.Save(config with
-        {
-            CurrentProfile = wasCurrent ? null : config.CurrentProfile,
-            Profiles = profiles,
-        });
+        configStore.Save(config with { Profiles = profiles });
 
-        return new ProfileRemoval(removed, wasCurrent);
+        return new ProfileRemoval(removed);
     }
 
     /// <inheritdoc />

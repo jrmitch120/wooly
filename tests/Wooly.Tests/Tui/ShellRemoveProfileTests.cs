@@ -1,7 +1,6 @@
 using Wooly.Core;
 using Wooly.Core.Configuration;
 using Wooly.Core.Credentials;
-using Wooly.Core.Errors;
 using Wooly.Core.Profiles;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
@@ -138,20 +137,27 @@ public class ShellRemoveProfileTests
         Assert.True(opened.NoticeIsError);
     }
 
-    /// <summary>The default is cleared rather than moved, and the status row says so.</summary>
+    /// <summary>
+    ///     The default profile is refused too, before anything is asked, in words saying what to do instead — and the
+    ///     key stays on the row there for the same reason.
+    /// </summary>
     [Fact]
-    public async Task X_OnTheDefaultProfile_ClearsTheDefault_AndSaysSo()
+    public async Task X_OnTheDefaultProfile_IsRefused_AndNothingIsWritten()
     {
         var shell = ThreeProfiles(current: "work");
         var opened = await shell.Opened();
 
         OnProfiles(opened, "work");
-        opened.Press(ShellKey.X);
-        await opened.Answer(agreed: true);
 
-        Assert.All(shell.Profiles.List(), profile => Assert.False(profile.IsCurrent));
-        Assert.DoesNotContain(AShell.Drawn(opened.Screen), row => row.Contains(ProfilesScreen.Default));
-        Assert.Equal($"Removed profile work. {ProfileWords.NoDefault}", opened.Notice);
+        Assert.Contains(opened.Keys, key => key is { Key: "x", Does: "remove" });
+
+        Assert.True(opened.Press(ShellKey.X));
+
+        Assert.Null(opened.Asking);
+        Assert.Empty(shell.Profiles.Removed);
+        Assert.True(shell.Profiles.List().Single(profile => profile.Name == "work").IsCurrent);
+        Assert.Equal("Make another profile the default before removing this one.", opened.Notice);
+        Assert.True(opened.NoticeIsError);
     }
 
     /// <summary>Down to one profile, the rail's foot no longer names the instance, there being nobody to tell apart.</summary>
@@ -177,8 +183,8 @@ public class ShellRemoveProfileTests
     }
 
     /// <summary>
-    ///     Over the real registry: the config entry and the token both go, and the default is cleared in the config
-    ///     file, so the next launch with no <c>--profile</c> has nothing to act as.
+    ///     Over the real registry: the config entry and the token both go from their files, and the default is left
+    ///     where it was.
     /// </summary>
     [Fact]
     public async Task X_TakesTheConfigEntryAndTheTokenOutOfTheirFiles()
@@ -198,19 +204,15 @@ public class ShellRemoveProfileTests
         var shell = new AShell();
         var opened = await shell.OpenedOver(registry, paths);
 
-        // Acting as work, the default, so personal is set up to be the one acted as instead — and then work removed.
+        // Acting as work, the default, so personal is neither of the two a removal is refused on.
         OnProfiles(opened, "personal");
-        opened.Press(ShellKey.Enter);
-        shell.Host.Drain();
-        OnProfiles(opened, "work");
         opened.Press(ShellKey.X);
         await opened.Answer(agreed: true);
 
         var reread = new ProfileRegistry(new TomlConfigStore(paths), new PlaintextFileCredentialStore(paths), paths);
-        Assert.Equal(["personal"], reread.List().Select(profile => profile.Name));
-        Assert.False(reread.List().Single().IsCurrent);
-        Assert.Throws<AuthenticationException>(() => reread.Resolve(null));
-        Assert.Null(new PlaintextFileCredentialStore(paths).FindAccessToken("work"));
-        Assert.Equal("token-personal", new PlaintextFileCredentialStore(paths).FindAccessToken("personal"));
+        Assert.Equal(["work"], reread.List().Select(profile => profile.Name));
+        Assert.Equal("work", reread.Resolve(null).Name);
+        Assert.Null(new PlaintextFileCredentialStore(paths).FindAccessToken("personal"));
+        Assert.Equal("token-work", new PlaintextFileCredentialStore(paths).FindAccessToken("work"));
     }
 }

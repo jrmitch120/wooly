@@ -697,11 +697,13 @@ public sealed class Shell
 
     /// <summary>
     ///     <c>x</c> on the profiles screen: asks before removing the picked profile, in the form deleting a post does
-    ///     (story 43, ADR-0020, #246). Refused on the profile this session is acting as.
+    ///     (story 43, ADR-0020, #246). Refused on the profile this session is acting as, and on the default.
     /// </summary>
     /// <remarks>
-    ///     Refused, since a session whose own token went out from under it would have nothing left to act as — and
-    ///     refused rather than not offered, the one exception to #220 (#246), because the refusal says what to do first.
+    ///     The one acted as, since a session whose own token went out from under it would have nothing left to act as;
+    ///     the default, since commands and the next launch would have nothing to act as either, and choosing another is
+    ///     the reader's (<c>D</c>), not this client's. Both refused before anything is asked, and refused rather than
+    ///     not offered — the one exception to #220 (#246) — because each refusal says what to do first.
     /// </remarks>
     public void AskToRemoveProfile()
     {
@@ -717,14 +719,20 @@ public sealed class Shell
             return;
         }
 
+        if (picked.IsCurrent)
+        {
+            Say("Make another profile the default before removing this one.", isError: true);
+
+            return;
+        }
+
         Confirm(new Confirmation("Remove this profile?", () => RemoveProfile(picked.Name), Going: "remove"));
     }
 
     /// <summary>
     ///     <c>x</c> agreed to: the profile goes through <see cref="IProfileRegistry.Remove" />, config entry and token
     ///     together, as <c>profile remove</c> does. Its row goes with the pick moved beside it, and the status row says
-    ///     what went — and, where it was the default, that nothing is now: the default is cleared rather than moved, so
-    ///     the next launch with no <c>--profile</c> opens on the add screen.
+    ///     what went. The default is never it, having been refused before anything was asked.
     /// </summary>
     /// <remarks>
     ///     Nothing reaches an instance: the token is only this machine's copy, and the authorization is still the
@@ -738,11 +746,10 @@ public sealed class Shell
         }
 
         var beside = shown.Beside(name);
-        ProfileRemoval removal;
 
         try
         {
-            removal = _profiles.Registry.Remove(name);
+            _profiles.Registry.Remove(name);
         }
         catch (WoolyException failure)
         {
@@ -762,9 +769,7 @@ public sealed class Shell
         Freshened(list);
 
         // Said after the list is up, which clears what was said over the one it replaced.
-        Say(
-            removal.WasCurrent ? $"Removed profile {name}. {ProfileWords.NoDefault}" : $"Removed profile {name}.",
-            isError: false);
+        Say($"Removed profile {name}.", isError: false);
 
         return Task.CompletedTask;
     }

@@ -316,35 +316,34 @@ public class ProfileCommandTests : IDisposable
     {
         _credentialStore = new PlaintextFileCredentialStore(new WoolyPaths(_directory.Path));
         Add("personal", "mastodon.social", "token-personal");
+        Add("work", "hachyderm.io", "token-work");
 
-        var run = Run(["profile", "remove", "personal"]);
+        var run = Run(["profile", "remove", "work"]);
 
         Assert.Equal((int)ExitCode.Success, run.ExitCode);
         Assert.DoesNotContain(
-            "token-personal",
+            "token-work",
             File.ReadAllText(Path.Combine(_directory.Path, "credentials.toml")));
     }
 
     /// <summary>
-    ///     Current is cleared rather than moved, so the user is told there is none now and how to choose one — and the
-    ///     next command that needs a profile fails the way it does whenever none has been chosen.
+    ///     The default profile is refused as a usage error, naming the way out, and nothing is touched — so the next
+    ///     command with no <c>--profile</c> still has a profile to act as.
     /// </summary>
     [Fact]
-    public void Remove_SaysNoProfileIsCurrentNowWhenTheCurrentOneGoes()
+    public void Remove_RefusesTheDefaultProfileAsAUsageError()
     {
         Add("personal", "mastodon.social", "token-personal");
         Add("work", "hachyderm.io", "token-work");
 
         var run = Run(["profile", "remove", "personal"]);
 
-        Assert.Equal((int)ExitCode.Success, run.ExitCode);
-        Assert.Contains("personal", run.Output);
-        Assert.Contains("No profile is the default", run.Output);
-        Assert.Contains("profile switch", run.Output);
-
-        var show = Run(["profile", "show"]);
-        Assert.Equal((int)ExitCode.AuthenticationError, show.ExitCode);
-        Assert.Contains("No profile is the default", show.ErrorOutput);
+        Assert.Equal((int)ExitCode.UsageError, run.ExitCode);
+        Assert.Contains("personal", run.ErrorOutput);
+        Assert.Contains("profile switch", run.ErrorOutput);
+        Assert.Empty(run.Output.Trim());
+        Assert.Equal("token-personal", _credentialStore.FindAccessToken("personal"));
+        Assert.Contains("mastodon.social", Run(["profile", "show"]).Output);
     }
 
     [Fact]
@@ -365,11 +364,12 @@ public class ProfileCommandTests : IDisposable
     public void Remove_AsksNothingAndRunsWithNoTerminal()
     {
         Add("personal", "mastodon.social", "token-personal");
+        Add("work", "hachyderm.io", "token-work");
 
-        var run = Run(["profile", "remove", "personal"], atATerminal: false);
+        var run = Run(["profile", "remove", "work"], atATerminal: false);
 
         Assert.Equal((int)ExitCode.Success, run.ExitCode);
-        Assert.Contains("No profiles", Run(["profile", "list"]).Output);
+        Assert.DoesNotContain("work", Run(["profile", "list"]).Output);
     }
 
     /// <summary>

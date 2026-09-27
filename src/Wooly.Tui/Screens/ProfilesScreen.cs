@@ -38,8 +38,8 @@ public sealed class ProfilesScreen(IReadOnlyList<ProfileSummary> profiles, strin
     /// <remarks>
     ///     <c>⏎</c> only where the picked profile is not the one already acted as, since there it would do nothing
     ///     (#243), and <c>D</c> only where it is not the default already, for the same reason (#244). <c>x</c> wherever a
-    ///     profile is picked, the one acted as included — an exception to #220 that #246 asks for, since the refusal
-    ///     there says what to do first, which a key off the row could not.
+    ///     profile is picked, the one acted as and the default included — an exception to #220 that #246 asks for,
+    ///     since the refusal there says what to do first, which a key off the row could not.
     /// </remarks>
     protected override IReadOnlyList<KeyHint> OwnKeys =>
     [
