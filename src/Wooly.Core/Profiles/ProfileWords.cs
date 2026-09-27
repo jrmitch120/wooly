@@ -1,13 +1,19 @@
 namespace Wooly.Core.Profiles;
 
 /// <summary>
-///     What somebody adding a profile is told about it, in words. Shared by <c>profile add</c> and the TUI's add screen
-///     for the reason <see cref="BrowserSignIn" /> is: the same state described two ways reads as two states (#245).
+///     What somebody adding, making the default or removing a profile is told about it, in words. Shared by the
+///     <c>profile</c> commands and the TUI for the reason <see cref="BrowserSignIn" /> is: the same state described two
+///     ways reads as two states (#245, #246).
 /// </summary>
 public static class ProfileWords
 {
     /// <summary>A profile given no name, turned down before anything is written.</summary>
     public const string NameMissing = "Give the profile a name to be known by, e.g. work.";
+
+    /// <summary>
+    ///     That no profile is the default any more, since the one that was has been removed and nothing took its place.
+    /// </summary>
+    public const string NoDefault = "No profile is the default now.";
 
     /// <summary>
     ///     That <paramref name="name" /> is now the current profile, which commands act as when not told otherwise.

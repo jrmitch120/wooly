@@ -97,6 +97,12 @@ public enum Verb
     MakeDefault,
 
     /// <summary>
+    ///     <c>x</c> on the profiles screen: remove the picked profile, its config entry and its token, once the reader has
+    ///     said so twice (#246). Refused on the profile this session is acting as.
+    /// </summary>
+    RemoveProfile,
+
+    /// <summary>
     ///     <c>⏎</c> on the add screen: on to the next step with what the one in front has — the instance to sign in
     ///     at, the token to check, the name to save under — or the browser tried again where it did not come back.
     /// </summary>

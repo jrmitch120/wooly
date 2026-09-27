@@ -19,5 +19,6 @@ internal static class CurrentProfileNotice
     ///     with no <c>--profile</c> would meet, so the two read as the one state they are.
     /// </summary>
     public static void WriteNone(IAnsiConsole console) =>
-        console.WriteLine("No profile is the default now. Make one the default with profile switch <NAME>, or name one with --profile.");
+        console.WriteLine(
+            $"{ProfileWords.NoDefault} Make one the default with profile switch <NAME>, or name one with --profile.");
 }

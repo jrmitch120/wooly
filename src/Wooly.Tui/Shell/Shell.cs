@@ -262,6 +262,7 @@ public sealed class Shell
         Verb.AddProfile => Ran(AddProfile),
         Verb.ActAs => Ran(ActAs),
         Verb.MakeDefault => Ran(MakeDefault),
+        Verb.RemoveProfile => Ran(AskToRemoveProfile),
         Verb.Continue => Ran(Continue),
         Verb.PasteToken => Ran(PasteToken),
         Verb.NextDestination => Ran(() => Step(1)),
@@ -692,6 +693,80 @@ public sealed class Shell
 
         // Said after the list is up, which clears what was said over the one it replaced.
         Say(ProfileWords.ActsAs(name), isError: false);
+    }
+
+    /// <summary>
+    ///     <c>x</c> on the profiles screen: asks before removing the picked profile, in the form deleting a post does
+    ///     (story 43, ADR-0020, #246). Refused on the profile this session is acting as.
+    /// </summary>
+    /// <remarks>
+    ///     Refused, since a session whose own token went out from under it would have nothing left to act as — and
+    ///     refused rather than not offered, the one exception to #220 (#246), because the refusal says what to do first.
+    /// </remarks>
+    public void AskToRemoveProfile()
+    {
+        if (Screen is not ProfilesScreen { PickedProfile: { } picked })
+        {
+            return;
+        }
+
+        if (picked.Name == _acting.Profile.Name)
+        {
+            Say("Switch to another profile before removing this one.", isError: true);
+
+            return;
+        }
+
+        Confirm(new Confirmation("Remove this profile?", () => RemoveProfile(picked.Name), Going: "remove"));
+    }
+
+    /// <summary>
+    ///     <c>x</c> agreed to: the profile goes through <see cref="IProfileRegistry.Remove" />, config entry and token
+    ///     together, as <c>profile remove</c> does. Its row goes with the pick moved beside it, and the status row says
+    ///     what went — and, where it was the default, that nothing is now: the default is cleared rather than moved, so
+    ///     the next launch with no <c>--profile</c> opens on the add screen.
+    /// </summary>
+    /// <remarks>
+    ///     Nothing reaches an instance: the token is only this machine's copy, and the authorization is still the
+    ///     instance's to revoke. The rail's instance row is asked again, since one profile left is nobody to tell apart.
+    /// </remarks>
+    private Task RemoveProfile(string name)
+    {
+        if (Screen is not ProfilesScreen shown)
+        {
+            return Task.CompletedTask;
+        }
+
+        var beside = shown.Beside(name);
+        ProfileRemoval removal;
+
+        try
+        {
+            removal = _profiles.Registry.Remove(name);
+        }
+        catch (WoolyException failure)
+        {
+            Say(failure.Message, isError: true);
+
+            return Task.CompletedTask;
+        }
+
+        var list = Listed();
+
+        if (beside is not null)
+        {
+            list.Pick(beside);
+        }
+
+        _instance = RailInstance();
+        Freshened(list);
+
+        // Said after the list is up, which clears what was said over the one it replaced.
+        Say(
+            removal.WasCurrent ? $"Removed profile {name}. {ProfileWords.NoDefault}" : $"Removed profile {name}.",
+            isError: false);
+
+        return Task.CompletedTask;
     }
 
     /// <summary>

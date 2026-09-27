@@ -88,6 +88,9 @@ public static class Keymap
         (ShellKey.D, DiscoverScreen) => Verb.StopSuggesting,
         (ShellKey.X, FollowRequestsScreen) => Verb.RejectRequest,
 
+        // And x on the profiles screen, where there is no warning to reveal: it removes a profile (#246).
+        (ShellKey.X, ProfilesScreen) => Verb.RemoveProfile,
+
         // And the fifth, which a follow list added: f is favorite wherever there is a post to mark, and on a list of
         // people it narrows the list instead (#180).
         (ShellKey.F, FollowsScreen) => Verb.Filter,

@@ -37,7 +37,9 @@ public sealed class ProfilesScreen(IReadOnlyList<ProfileSummary> profiles, strin
     /// <inheritdoc />
     /// <remarks>
     ///     <c>⏎</c> only where the picked profile is not the one already acted as, since there it would do nothing
-    ///     (#243), and <c>D</c> only where it is not the default already, for the same reason (#244).
+    ///     (#243), and <c>D</c> only where it is not the default already, for the same reason (#244). <c>x</c> wherever a
+    ///     profile is picked, the one acted as included — an exception to #220 that #246 asks for, since the refusal
+    ///     there says what to do first, which a key off the row could not.
     /// </remarks>
     protected override IReadOnlyList<KeyHint> OwnKeys =>
     [
@@ -45,6 +47,7 @@ public sealed class ProfilesScreen(IReadOnlyList<ProfileSummary> profiles, strin
         .. ToActAs is null ? Array.Empty<KeyHint>() : [new KeyHint("⏎", "act as", NeedsAPick: true)],
         .. ToMakeDefault is null ? Array.Empty<KeyHint>() : [new KeyHint("D", "make default", NeedsAPick: true)],
         new("a", "add"),
+        new("x", "remove", NeedsAPick: true),
         .. PostKeys.Leaving(new KeyHint("esc", "back")),
     ];
 
@@ -65,6 +68,24 @@ public sealed class ProfilesScreen(IReadOnlyList<ProfileSummary> profiles, strin
 
     /// <inheritdoc />
     protected override IPicked Walking => _profiles;
+
+    /// <summary>
+    ///     The name of the profile beside <paramref name="name" />'s row — the one under it, or the one above where it is
+    ///     the last — or <see langword="null" /> where it has no row or is the only one. Where the pick goes once that row
+    ///     is gone, so the list stays walkable from about where the reader was.
+    /// </summary>
+    public string? Beside(string name)
+    {
+        var all = _profiles.All.ToList();
+        var at = all.FindIndex(profile => profile.Name == name);
+
+        if (at < 0 || all.Count == 1)
+        {
+            return null;
+        }
+
+        return all[at + 1 < all.Count ? at + 1 : at - 1].Name;
+    }
 
     /// <summary>
     ///     Picks out the profile named <paramref name="name" />, or leaves the pick where it is if none is.
