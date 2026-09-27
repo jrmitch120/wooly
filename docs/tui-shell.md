@@ -1320,7 +1320,7 @@ to:
 #243 put switching on `⏎` on the profiles screen (ADR-0020). What this document now holds it to:
 
 - **For this session only.** The profile is resolved through `IProfileRegistry.Resolve`, as `--profile` resolves one,
-  and nothing is written: the config file and the token store are byte-for-byte what they were, and the current
+  and nothing is written: the config file and the token store are byte-for-byte what they were, and the default
   profile has not moved.
 - **Not offered on the profile already acted as**, where it would do nothing; on every other row it is `⏎:act as`.
 - **A switch starts again on Home**, as if launched with the new profile. The shell is reset in place rather than
