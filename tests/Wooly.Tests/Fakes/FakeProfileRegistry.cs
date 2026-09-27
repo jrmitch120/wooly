@@ -1,5 +1,6 @@
 using Wooly.Core.Configuration;
 using Wooly.Core.Credentials;
+using Wooly.Core.Errors;
 using Wooly.Core.Profiles;
 
 namespace Wooly.Tests.Fakes;
@@ -10,9 +11,9 @@ namespace Wooly.Tests.Fakes;
 ///     over both stores.
 /// </summary>
 /// <remarks>
-///     What the profiles screen reads, and the writes that have keys so far: adding, as the add screen does (#245). The
-///     rest arrive with the keys that make them (#238), and until then a shell that reached for one would be doing
-///     something no ticket has asked it to.
+///     What the profiles screen reads, the writes that have keys so far — adding, as the add screen does (#245) — and
+///     resolving, which a switch does (#243). The rest arrive with the keys that make them (#238), and until then a
+///     shell that reached for one would be doing something no ticket has asked it to.
 /// </remarks>
 internal sealed class FakeProfileRegistry(IReadOnlyList<ProfileSummary> profiles) : IProfileRegistry
 {
@@ -22,6 +23,11 @@ internal sealed class FakeProfileRegistry(IReadOnlyList<ProfileSummary> profiles
     ///     Every profile written, in order, with the token it was written with — where a test proves what was stored.
     /// </summary>
     public List<(string Name, ProfileConfig Profile, string AccessToken)> Added { get; } = [];
+
+    /// <summary>
+    ///     The profiles whose token is missing from the store, which <see cref="Resolve" /> refuses as the real one does.
+    /// </summary>
+    public HashSet<string> Tokenless { get; } = [];
 
     /// <inheritdoc />
     public CredentialStorage TokenStorage { get; set; } = CredentialStorage.OsKeyring;
@@ -77,6 +83,27 @@ internal sealed class FakeProfileRegistry(IReadOnlyList<ProfileSummary> profiles
         throw new NotSupportedException("Nothing in the TUI removes a profile yet.");
 
     /// <inheritdoc />
-    public ActiveProfile Resolve(string? requestedName) =>
-        throw new NotSupportedException("Nothing in the TUI resolves a profile yet.");
+    /// <remarks>
+    ///     A named profile only, which is all a switch ever asks for — with <c>token-</c> and its name for its token, so a
+    ///     test can tell whose token a call went out with.
+    /// </remarks>
+    public ActiveProfile Resolve(string? requestedName)
+    {
+        var name = requestedName ?? throw new NotSupportedException("Nothing in the TUI resolves the current profile.");
+        var profile = _profiles.SingleOrDefault(held => held.Name == name)
+                      ?? throw new UnknownProfileException(name, [.. _profiles.Select(held => held.Name)]);
+
+        if (Tokenless.Contains(name))
+        {
+            throw new AuthenticationException($"Profile '{name}' has no access token stored. Authenticate it again.");
+        }
+
+        return new ActiveProfile
+        {
+            Name = name,
+            Instance = profile.Instance,
+            Account = profile.Account,
+            AccessToken = $"token-{name}",
+        };
+    }
 }

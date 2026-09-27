@@ -85,6 +85,12 @@ public enum Verb
     AddProfile,
 
     /// <summary>
+    ///     <c>⏎</c> on the profiles screen: act as the picked profile for the rest of the session, starting again on
+    ///     Home (#243). Nothing on the profile already acted as.
+    /// </summary>
+    ActAs,
+
+    /// <summary>
     ///     <c>⏎</c> on the add screen: on to the next step with what the one in front has — the instance to sign in
     ///     at, the token to check, the name to save under — or the browser tried again where it did not come back.
     /// </summary>

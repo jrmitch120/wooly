@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Wooly.Core;
 using Wooly.Core.Accounts;
 using Wooly.Core.Conversations;
@@ -50,9 +51,10 @@ public sealed class Shell
 
     /// <summary>
     ///     What bringing a screen up from its subject means, which is the same steps at every screen that is read —
-    ///     arrived at, drilled into or refreshed (#100, #233).
+    ///     arrived at, drilled into or refreshed (#100, #233). The acting profile's, and built again with it at a
+    ///     switch (<see cref="Begin" />), since what it caches was read as that profile.
     /// </summary>
-    private readonly Arrival _arrival;
+    private Arrival _arrival;
 
     /// <summary>
     ///     Where an address goes. The one thing this shell does that leaves the terminal, and deliberately not one of
@@ -61,11 +63,20 @@ public sealed class Shell
     /// </summary>
     private readonly IWebBrowser _browser;
 
-    /// <summary>Everything this reaches an instance through, and the one place the stale-answer rule is stated.</summary>
-    private readonly Enquiry _enquiry;
+    /// <summary>
+    ///     Everything this reaches an instance through, and the one place the stale-answer rule is stated. The acting
+    ///     profile's: a switch abandons it, with everything still in flight, and puts a new one in its place (#243).
+    /// </summary>
+    private Enquiry _enquiry;
 
     private readonly IShellHost _host;
-    private readonly ActiveProfile _profile;
+    private readonly TimeProvider _clock;
+    private readonly ShellTiming _timing;
+    private readonly string? _hashtag;
+
+    /// <summary>Who this session is acting as, which <c>⏎</c> on the profiles screen changes (ADR-0020).</summary>
+    private ActiveProfile _profile;
+
     private readonly ShellPorts _ports;
 
     /// <summary>
@@ -82,17 +93,23 @@ public sealed class Shell
     private string? _instance;
 
     /// <summary>What each step of adding a profile does, which reaches <see cref="_profiles" /> (#245).</summary>
-    private readonly ProfileAdding _adding;
+    private ProfileAdding _adding;
     private readonly List<Screen> _stack = [];
 
     /// <summary>
     ///     The conversations <c>m</c> has been pressed on and not yet answered about, by id — so a second press before
     ///     the first lands marks nothing twice, and moves the badge once (#234).
     /// </summary>
-    private readonly HashSet<string> _marking = new(StringComparer.Ordinal);
+    private HashSet<string> _marking;
 
     /// <summary>What a screen can reach of this shell while it answers a verb of its own (#232).</summary>
-    private readonly Reach _reach;
+    private Reach _reach;
+
+    /// <summary>
+    ///     The last budget the old profile's instance reported, where the session has switched since — which the rail's
+    ///     foot does not draw, being somebody else's budget, until an instance reports the new one's (#243).
+    /// </summary>
+    private RateLimitQuota? _theirQuota;
 
     public Shell(
         ActiveProfile profile,
@@ -104,61 +121,23 @@ public sealed class Shell
         ShellTiming timing,
         string? hashtag = null)
     {
-        _profile = profile;
         _ports = ports;
         _profiles = profiles;
-        _instance = RailInstance();
         _host = host;
         _browser = browser;
-        // Asked from whatever is on top, which is the whole of the stale-answer rule: an answer lands only while the
-        // screen it was asked from is still in front of the reader.
-        _enquiry = new Enquiry(host, clock, timing.CountdownStep, timing.MarkStep, () => Screen);
-        _enquiry.Said += Say;
-        _enquiry.Changed += () => Changed?.Invoke();
-        _enquiry.Ticked += () => Ticked?.Invoke();
+        _clock = clock;
+        _timing = timing;
+        _hashtag = hashtag;
 
         Rail = new Rail(Destinations(profile, hashtag), host, timing.Settle);
 
-        // An arrival settles what a subject is on screen and what its badge says, and a change what goes stale;
-        // putting any of it there is this shell's own business, since the stack and the rail are its.
-        _arrival = new Arrival(
-            profile,
-            ports,
-            _enquiry,
-            new SubjectCache(clock, timing.CacheFor),
-            showing: () => Rail.Showing.Kind);
+        Begin(profile);
 
-        _arrival.Arrives += Reset;
-        _arrival.Drills += Push;
-        _arrival.Refreshes += Freshened;
-        _arrival.Filled += () => Say(null, isError: false);
-        _arrival.Counts += Counted;
-        _arrival.Moves += Moved;
-        _arrival.Heard += Heard;
-
+        // Read off the field rather than captured, so that the rail asks whichever profile is being acted as.
         Rail.Selected += destination => _ = _arrival.At(destination);
         Rail.Changed += () => Changed?.Invoke();
 
         _stack.Add(new FeedScreen(Rail.Showing, []));
-
-        _reach = new Reach(
-            profile,
-            ports,
-            _enquiry,
-            _arrival,
-            say: Say,
-            confirm: Confirm,
-            changed: () => Changed?.Invoke());
-
-        _adding = new ProfileAdding(
-            _enquiry,
-            profiles,
-            browser,
-            held: screen => _stack.Contains(screen),
-            changed: () => Changed?.Invoke(),
-            say: Say,
-            confirm: Confirm,
-            added: Added);
     }
 
     /// <summary>Raised whenever anything on screen has changed. Always on the drawing thread.</summary>
@@ -211,7 +190,9 @@ public sealed class Shell
     public Confirmation? Asking { get; private set; }
 
     /// <summary>What the instance last said is left of the profile's budget, for the rail's foot (story 54).</summary>
-    public RateLimitQuota? Quota => _ports.RateLimit.Latest;
+    /// <remarks>Nothing where the last one said is the old profile's, from before a switch (#243).</remarks>
+    public RateLimitQuota? Quota =>
+        _ports.RateLimit.Latest is { } latest && !ReferenceEquals(latest, _theirQuota) ? latest : null;
 
     /// <summary>
     ///     The instance this session is acting as, for the rail's foot — or <see langword="null" /> with only one profile
@@ -234,10 +215,21 @@ public sealed class Shell
     };
 
     /// <summary>Opens the shell onto its first destination, and reads the counts the rail carries.</summary>
+    /// <remarks>
+    ///     The counts are asked as whoever was acted as when this was called, and not at all where a switch has come
+    ///     between — the switch opens the shell again for the new profile, counts and all (#243).
+    /// </remarks>
     public async Task Open()
     {
+        var profile = _profile;
+        var abandoned = _enquiry.Abandoned;
+
         await _arrival.At(Rail.Showing);
-        await Counts();
+
+        if (!abandoned.IsCancellationRequested)
+        {
+            await Counts(profile, abandoned);
+        }
     }
 
     /// <summary>
@@ -289,6 +281,7 @@ public sealed class Shell
         Verb.Search => Ran(Search),
         Verb.Profiles => Ran(Profiles),
         Verb.AddProfile => Ran(AddProfile),
+        Verb.ActAs => Ran(ActAs),
         Verb.Continue => Ran(Continue),
         Verb.PasteToken => Ran(PasteToken),
         Verb.NextDestination => Ran(() => Step(1)),
@@ -634,6 +627,55 @@ public sealed class Shell
     }
 
     /// <summary>
+    ///     <c>⏎</c> on the profiles screen: acts as the picked profile for the rest of the session, which starts again
+    ///     on Home as if it had been launched with it (ADR-0020, #243). Nothing on the profile already acted as.
+    /// </summary>
+    /// <remarks>
+    ///     Reset in place rather than rebuilt, with everything that belonged to the old profile let go of: the enquiry
+    ///     it asked through is abandoned, which calls off every question in flight and drops every answer still to
+    ///     land — what the instance already did is not undone, only never drawn — and the arrival, its cache, the
+    ///     stack, the rail's labels and counts, a confirmation waiting and the quota go with it. Pictures stay, being a
+    ///     file server's rather than anybody's, and they are the window's rather than this shell's anyway.
+    ///     <para>
+    ///         Resolved before anything is let go of, so a profile that cannot be — its token gone from the store —
+    ///         leaves the session exactly as it was, and says why. The config is only read: acting as a profile is
+    ///         for this session, and making one current is <c>D</c>'s.
+    ///     </para>
+    /// </remarks>
+    public void ActAs()
+    {
+        if (Screen is not ProfilesScreen { ToActAs: { } name })
+        {
+            return;
+        }
+
+        ActiveProfile next;
+
+        try
+        {
+            next = _profiles.Registry.Resolve(name);
+        }
+        catch (WoolyException failure)
+        {
+            Say(failure.Message, isError: true);
+
+            return;
+        }
+
+        _enquiry.Abandon();
+
+        Asking = null;
+        _theirQuota = _ports.RateLimit.Latest;
+
+        Begin(next);
+
+        Rail.Restart(Destinations(next, _hashtag));
+        Reset(new FeedScreen(Rail.Showing, []));
+
+        _ = Open();
+    }
+
+    /// <summary>
     ///     <c>⏎</c> on the add screen: on to the next step — the instance signed in at, the token checked, the name
     ///     saved under (<see cref="ProfileAdding" />).
     /// </summary>
@@ -756,7 +798,9 @@ public sealed class Shell
 
         // Still drawn unread until the first press is answered, so a second one lands here rather than above. Nothing
         // is said: the breadcrumb's fetch mark already says something is on its way, and "Marked as read." follows.
-        if (!_marking.Add(conversation.Id))
+        var marking = _marking;
+
+        if (!marking.Add(conversation.Id))
         {
             return;
         }
@@ -768,7 +812,7 @@ public sealed class Shell
 
         // Let go on the drawing thread, behind whatever the answer or its failure has already queued there: by then the
         // conversation is drawn as the instance has it, and a press that fails can be pressed again.
-        Apply(() => _marking.Remove(conversation.Id));
+        Apply(() => marking.Remove(conversation.Id));
     }
 
     /// <summary>Shows the current screen's keymap, which is itself a place in the stack.</summary>
@@ -962,6 +1006,61 @@ public sealed class Shell
         void Popped() => Leave(_stack.Count - 1);
     }
 
+    /// <summary>
+    ///     Builds everything that asks as <paramref name="profile" />, or holds what was read as it: at launch, and
+    ///     again at every switch (#243). Nothing built for one profile is handed to the next — the next gets its own.
+    /// </summary>
+    [MemberNotNull(nameof(_profile), nameof(_enquiry), nameof(_arrival), nameof(_reach), nameof(_adding), nameof(_marking))]
+    private void Begin(ActiveProfile profile)
+    {
+        _profile = profile;
+        _instance = RailInstance();
+        _marking = new HashSet<string>(StringComparer.Ordinal);
+
+        // Asked from whatever is on top, which is the whole of the stale-answer rule: an answer lands only while the
+        // screen it was asked from is still in front of the reader.
+        _enquiry = new Enquiry(_host, _clock, _timing.CountdownStep, _timing.MarkStep, () => Screen);
+        _enquiry.Said += Say;
+        _enquiry.Changed += () => Changed?.Invoke();
+        _enquiry.Ticked += () => Ticked?.Invoke();
+
+        // An arrival settles what a subject is on screen and what its badge says, and a change what goes stale;
+        // putting any of it there is this shell's own business, since the stack and the rail are its.
+        _arrival = new Arrival(
+            profile,
+            _ports,
+            _enquiry,
+            new SubjectCache(_clock, _timing.CacheFor),
+            showing: () => Rail.Showing.Kind);
+
+        _arrival.Arrives += Reset;
+        _arrival.Drills += Push;
+        _arrival.Refreshes += Freshened;
+        _arrival.Filled += () => Say(null, isError: false);
+        _arrival.Counts += Counted;
+        _arrival.Moves += Moved;
+        _arrival.Heard += Heard;
+
+        _reach = new Reach(
+            profile,
+            _ports,
+            _enquiry,
+            _arrival,
+            say: Say,
+            confirm: Confirm,
+            changed: () => Changed?.Invoke());
+
+        _adding = new ProfileAdding(
+            _enquiry,
+            _profiles,
+            _browser,
+            held: screen => _stack.Contains(screen),
+            changed: () => Changed?.Invoke(),
+            say: Say,
+            confirm: Confirm,
+            added: Added);
+    }
+
     /// <summary>The ten, in the order the rail draws them.</summary>
     private static IReadOnlyList<Destination> Destinations(ActiveProfile profile, string? hashtag) =>
     [
@@ -1095,29 +1194,54 @@ public sealed class Shell
     }
 
     /// <summary>Reads the counts the rail carries, none of which is worth failing the shell over.</summary>
-    private async Task Counts()
+    /// <param name="profile">Who the counts are read as.</param>
+    /// <param name="abandoned">
+    ///     Cancelled where the session switches profile, after which none of them is read or drawn (#243).
+    /// </param>
+    private async Task Counts(ActiveProfile profile, CancellationToken abandoned)
     {
         await Count(
             DestinationKind.Notifications,
-            async token => (await _ports.Notifications.Read(_profile, Arrival.CountedAtMost, token)).Items.Count);
+            abandoned,
+            async token => (await _ports.Notifications.Read(profile, Arrival.CountedAtMost, token)).Items.Count);
 
         await Count(
             DestinationKind.Messages,
-            async token => (await _ports.Messages.List(_profile, Arrival.CountedAtMost, token))
+            abandoned,
+            async token => (await _ports.Messages.List(profile, Arrival.CountedAtMost, token))
                 .Items.Count(conversation => conversation.Unread));
 
         await Count(
             DestinationKind.Requests,
-            async token => (await _ports.Accounts.PendingRequests(_profile, Arrival.CountedAtMost, token)).Items.Count);
+            abandoned,
+            async token => (await _ports.Accounts.PendingRequests(profile, Arrival.CountedAtMost, token)).Items.Count);
     }
 
-    private async Task Count(DestinationKind kind, Func<CancellationToken, Task<int>> read)
+    private async Task Count(
+        DestinationKind kind,
+        CancellationToken abandoned,
+        Func<CancellationToken, Task<int>> read)
     {
+        if (abandoned.IsCancellationRequested)
+        {
+            return;
+        }
+
         try
         {
-            var unread = await read(CancellationToken.None);
+            var unread = await read(abandoned);
 
-            Apply(() => Counted(kind, unread));
+            Apply(() =>
+            {
+                if (!abandoned.IsCancellationRequested)
+                {
+                    Counted(kind, unread);
+                }
+            });
+        }
+        catch (OperationCanceledException) when (abandoned.IsCancellationRequested)
+        {
+            // Called off by a switch, and nobody left to tell.
         }
         catch (WoolyException)
         {

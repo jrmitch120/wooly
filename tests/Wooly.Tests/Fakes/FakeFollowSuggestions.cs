@@ -26,6 +26,9 @@ internal sealed class FakeFollowSuggestions : IFollowSuggestions
         _refusal = refusal;
     }
 
+    /// <summary>The access token every call was made with, in order — where a test proves who it was made as.</summary>
+    public List<string> Tokens { get; } = [];
+
     /// <summary>Every read it was asked for, in order — where a test proves what a screen asked for on arrival.</summary>
     public List<Asked> Reads { get; } = [];
 
@@ -59,6 +62,7 @@ internal sealed class FakeFollowSuggestions : IFollowSuggestions
     public Task<IReadOnlyList<Suggestion>> Read(ActiveProfile profile, int limit, CancellationToken cancellationToken)
     {
         Reads.Add(new Asked(profile.Name, limit));
+        Tokens.Add(profile.AccessToken);
 
         return _refusal is null
             ? Task.FromResult(_suggestions)
@@ -68,6 +72,7 @@ internal sealed class FakeFollowSuggestions : IFollowSuggestions
     public Task Dismiss(ActiveProfile profile, string accountId, CancellationToken cancellationToken)
     {
         Dismissals.Add(new Dismissed(profile.Name, accountId));
+        Tokens.Add(profile.AccessToken);
 
         return _refusal is null ? Task.CompletedTask : Task.FromException(_refusal);
     }

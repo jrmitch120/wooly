@@ -18,6 +18,9 @@ internal sealed class FakePostAuthor : IPostAuthor
         _refusal = refusal;
     }
 
+    /// <summary>The access token every call was made with, in order — where a test proves who it was made as.</summary>
+    public List<string> Tokens { get; } = [];
+
     /// <summary>Every draft it was asked to publish, in order — where a test proves what a command composed.</summary>
     public List<Composed> Published { get; } = [];
 
@@ -36,6 +39,7 @@ internal sealed class FakePostAuthor : IPostAuthor
     public Task<Post> Publish(ActiveProfile profile, PostDraft draft, CancellationToken cancellationToken)
     {
         Published.Add(new Composed(profile.Name, draft));
+        Tokens.Add(profile.AccessToken);
 
         return Answer();
     }
@@ -43,6 +47,7 @@ internal sealed class FakePostAuthor : IPostAuthor
     public Task<Post> Edit(ActiveProfile profile, string postId, PostEdit edit, CancellationToken cancellationToken)
     {
         Edits.Add(new Changed(profile.Name, postId, edit));
+        Tokens.Add(profile.AccessToken);
 
         return Answer();
     }
@@ -50,6 +55,7 @@ internal sealed class FakePostAuthor : IPostAuthor
     public Task Delete(ActiveProfile profile, string postId, CancellationToken cancellationToken)
     {
         Deletions.Add(new Removed(profile.Name, postId));
+        Tokens.Add(profile.AccessToken);
 
         return _refusal is null ? Task.CompletedTask : Task.FromException(_refusal);
     }
