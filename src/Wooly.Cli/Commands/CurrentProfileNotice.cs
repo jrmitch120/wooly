@@ -1,4 +1,5 @@
 using Spectre.Console;
+using Wooly.Core.Profiles;
 
 namespace Wooly.Cli.Commands;
 
@@ -11,7 +12,7 @@ internal static class CurrentProfileNotice
 {
     /// <summary>Says that <paramref name="name" /> is the profile commands act as when they are not told otherwise.</summary>
     public static void Write(IAnsiConsole console, string name) =>
-        console.MarkupLineInterpolated($"Commands act as [bold]{name}[/] unless told otherwise.");
+        console.MarkupLine(ProfileWords.ActsAs($"[bold]{Markup.Escape(name)}[/]"));
 
     /// <summary>
     ///     Says that no profile is current any more, and how to choose one. Worded after the failure the next command

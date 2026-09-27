@@ -69,12 +69,16 @@ public static class Keymap
         // The four that collide. A picked reference is a level of its own inside the screen, so ⏎ means the reference
         // wherever one is picked — ahead of whatever the screen's own ⏎ would have meant (#85).
         (ShellKey.Enter, _) when screen.Reference is not null => Verb.OpenReference,
+        (ShellKey.Enter, AddProfileScreen) => Verb.Continue,
         (ShellKey.Enter, SearchScreen search) => search.IsTyping ? Verb.Find : Verb.OpenResult,
         (ShellKey.Enter, FollowRequestsScreen) => Verb.OpenAsker,
         (ShellKey.Enter, FollowsScreen follows) => follows.IsTyping ? Verb.FilterDone : Verb.OpenPerson,
         (ShellKey.Enter, DiscoverScreen) => Verb.OpenPerson,
         (ShellKey.Enter, DirectMessagesScreen) => Verb.OpenConversation,
         (ShellKey.A, FollowRequestsScreen) => Verb.AcceptRequest,
+
+        // And a on the profiles screen, where there is no post to have an author: it adds a profile (#245).
+        (ShellKey.A, ProfilesScreen) => Verb.AddProfile,
         (ShellKey.D, NotificationsScreen) => Verb.Dismiss,
 
         // And the sixth, which Discover added: d dismisses a notification, deletes a post, and here tells the
@@ -133,6 +137,10 @@ public static class Keymap
         // And s again on the account screen, where it swaps runs rather than sides: their posts and replies, and back
         // to their posts alone (#229). Still bound only where it does something, and announced where it is.
         (ShellKey.S, AccountScreen) => Verb.SwapPostsAndReplies,
+
+        // The add screen's one letter, bound only there and only reached while no field is taking letters — every
+        // letter is typed into a field that is (#245).
+        (ShellKey.T, AddProfileScreen) => Verb.PasteToken,
 
         // The capitals, which are keys of their own for exactly this reason: a lower-case mark key can never fire a
         // tie or empty an inbox by accident (docs/tui-shell.md).

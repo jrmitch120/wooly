@@ -69,6 +69,15 @@ internal sealed class AShell
         "personal",
         FakeProfileRegistry.Profile("personal", "mastodon.social", "jeff@mastodon.social"));
 
+    /// <summary>
+    ///     A sign-in through the browser, which the add screen begins (#245). Beside the registry rather than among the
+    ///     ports, for the reason <c>ProfilePorts</c> gives.
+    /// </summary>
+    public FakeBrowserAuthorizer Authorizer { get; set; } = FakeBrowserAuthorizer.Authorizing();
+
+    /// <summary>What an instance says a token belongs to, asked before the add screen writes anything.</summary>
+    public FakeAccessTokenVerifier Verifier { get; set; } = FakeAccessTokenVerifier.Accepting();
+
     /// <summary>Where this machine's files are, which only the plaintext-token warning ever names.</summary>
     public WoolyPaths Paths { get; set; } = new("/home/jeff/.config/wooly");
 
@@ -94,7 +103,7 @@ internal sealed class AShell
     public Shell Build() => new(
         Profile,
         new ShellPorts(Timelines, Author, Engagement, Accounts, Notifications, Messages, Search, Suggestions, RateLimit),
-        new ProfilePorts(Profiles, Paths),
+        new ProfilePorts(Profiles, Paths, Authorizer, Verifier),
         Host,
         Browser,
         Clock,

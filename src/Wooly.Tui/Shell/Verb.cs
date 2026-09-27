@@ -81,6 +81,21 @@ public enum Verb
     /// </summary>
     Profiles,
 
+    /// <summary><c>a</c> on the profiles screen: add a profile, from the instance up (#245).</summary>
+    AddProfile,
+
+    /// <summary>
+    ///     <c>⏎</c> on the add screen: on to the next step with what the one in front has — the instance to sign in
+    ///     at, the token to check, the name to save under — or the browser tried again where it did not come back.
+    /// </summary>
+    Continue,
+
+    /// <summary>
+    ///     <c>t</c> on the add screen, while the browser is out or has failed: give it up and paste a token instead,
+    ///     ADR-0004's fallback.
+    /// </summary>
+    PasteToken,
+
     /// <summary><c>tab</c>: the next destination down the rail.</summary>
     NextDestination,
 

@@ -58,7 +58,11 @@ try
 
         // This machine's profiles, which are the local config rather than anything on an instance — so, like the
         // browser below, not one of the ports above (ADR-0020).
-        new ProfilePorts(provider.GetRequiredService<IProfileRegistry>(), provider.GetRequiredService<WoolyPaths>()),
+        new ProfilePorts(
+            provider.GetRequiredService<IProfileRegistry>(),
+            provider.GetRequiredService<WoolyPaths>(),
+            provider.GetRequiredService<IBrowserAuthorizer>(),
+            provider.GetRequiredService<IAccessTokenVerifier>()),
         new TerminalHost(application),
 
         // The same browser the sign-in sends somebody to (ADR-0004), and deliberately not one of the ports above:
@@ -108,6 +112,10 @@ try
         application.RequestStop,
         pictures,
         config.Preferences.HideDrawnCaption);
+
+    // A paste arrives as one string rather than as keys, before it is handed to whatever has focus. The shell takes
+    // it where one of its own fields is typing, and leaves it to the compose editor everywhere else.
+    application.Paste += (_, pasted) => pasted.Handled = shell.Paste(pasted.Text);
 
     // Started rather than awaited: the first timeline arrives while the shell is already on screen, which is what the
     // breadcrumb's fetching mark is for.

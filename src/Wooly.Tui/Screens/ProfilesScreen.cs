@@ -35,6 +35,7 @@ public sealed class ProfilesScreen(IReadOnlyList<ProfileSummary> profiles, strin
     protected override IReadOnlyList<KeyHint> OwnKeys =>
     [
         new("j/k", "profile"),
+        new("a", "add"),
         .. PostKeys.Leaving(new KeyHint("esc", "back")),
     ];
 
@@ -43,6 +44,19 @@ public sealed class ProfilesScreen(IReadOnlyList<ProfileSummary> profiles, strin
 
     /// <inheritdoc />
     protected override IPicked Walking => _profiles;
+
+    /// <summary>
+    ///     Picks out the profile named <paramref name="name" />, or leaves the pick where it is if none is.
+    /// </summary>
+    public void Pick(string name)
+    {
+        var at = _profiles.All.ToList().FindIndex(profile => profile.Name == name);
+
+        if (at >= 0)
+        {
+            Pick(at);
+        }
+    }
 
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(Drawing drawing)

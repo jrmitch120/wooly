@@ -45,7 +45,7 @@ internal sealed class ProfileAddCommand(
         {
             if (string.IsNullOrWhiteSpace(Name))
             {
-                return ValidationResult.Error("Give the profile a name to be known by, e.g. work.");
+                return ValidationResult.Error(ProfileWords.NameMissing);
             }
 
             if (string.IsNullOrWhiteSpace(Instance))
@@ -151,22 +151,18 @@ internal sealed class ProfileAddCommand(
     {
         using var authorization = await authorizer.Begin(instance, cancellationToken);
 
-        if (browser.TryOpen(authorization.AuthorizationUrl))
-        {
-            console.MarkupLineInterpolated(
-                $"Opening [bold]{instance}[/] in your browser to authorize {WoolyClient.Name}. If it does not open, go to:");
-        }
-        else
-        {
-            console.MarkupLineInterpolated(
-                $"No browser could be opened here. To authorize {WoolyClient.Name}, go to [bold]{instance}[/] at:");
-        }
+        // The words are BrowserSignIn's, which the TUI's add screen says too; only the bold is this console's own.
+        var bold = $"[bold]{Markup.Escape(instance)}[/]";
+
+        console.MarkupLine(browser.TryOpen(authorization.AuthorizationUrl)
+            ? BrowserSignIn.Opened(bold)
+            : BrowserSignIn.NotOpened(bold));
 
         // Written without markup: an address is not this client's text to interpret, and a stray bracket in one would
         // be read as formatting. Through WebAddress for the same reason it is printed at all — this is an address to be
         // pasted into a browser, and one whose escapes have been given back is no longer the address that was asked for.
         console.WriteLine(WebAddress.Of(authorization.AuthorizationUrl));
-        console.WriteLine("Waiting for the browser to come back...");
+        console.WriteLine(BrowserSignIn.Waiting);
 
         return await authorization.AwaitAccessToken(cancellationToken);
     }

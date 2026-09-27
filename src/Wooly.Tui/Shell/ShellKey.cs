@@ -119,6 +119,9 @@ public enum ShellKey
     /// <summary><c>v</c>.</summary>
     V,
 
+    /// <summary><c>t</c>.</summary>
+    T,
+
     /// <summary><c>w</c>.</summary>
     W,
 
