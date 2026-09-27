@@ -116,7 +116,7 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Follow requests | `a` accept · `x` reject |
 | Direct messages | `⏎` open the conversation · `m` mark read — `m` again inside the thread, where a reader who has just read it is most likely to press it |
 | Conversation | `m` mark read, and every key that acts on a post, since each message in it is one |
-| Profiles | `⏎` act as that profile, for this session — not offered on the one already acted as · `a` add a profile |
+| Profiles | `⏎` act as that profile, for this session — not offered on the one already acted as · `D` make it the default, for the CLI and the next launch — not offered on the one already the default · `a` add a profile |
 | Add a profile | `⏎` on to the next step · `t` paste a token instead, while the browser is out or after it failed · `esc` back to the list, calling off a sign-in or a check in flight |
 | Compose / reply / edit | `ctrl-s` send or save · `esc` throw it away · `ctrl-w` move the typing between the post and the content warning over it — on all three, each carrying a warning field of its own (#123, #139, #140) |
 | Home, local, federated, hashtag, Notifications, Messages, Requests, Discover, Post, Account, Follows | `g` refresh — evicts the destination's cache entry (where one exists) and re-runs the same fetch its own arrival runs |
@@ -1336,6 +1336,22 @@ to:
 - **A profile that can't be resolved isn't switched to** — a token gone from the keyring above all. Nothing is let go
   of, and the resolver's own words say why on the status row, in `error`.
 - **Pictures survive**, being a file server's rather than anybody's, and the window's rather than the shell's.
+
+### What making a profile the default settled
+
+#244 put making a profile the default on `D` on the profiles screen (ADR-0020). What this document now holds it to:
+
+- **It is `profile switch`**, through the same `IProfileRegistry.Switch`: the config file's `current_profile` is what
+  changes, so `wooly profile list` and every command with no `--profile` go by it afterwards. The token store is not
+  touched.
+- **It does not change who this session is acting as.** Nothing reaches an instance, and every later request goes out
+  as before. A reader who wants both presses `⏎` as well; the two are kept apart so that browsing a work account in
+  the TUI never changes which account a CLI script posts as.
+- **It asks nothing**, since `D` on the old default puts it back.
+- **The `default` marker moves** on a list read again with the row still picked, and the status row says who commands
+  now act as, in `profile switch`'s words.
+- **Not offered on the profile already the default**, where it would do nothing; on every other row it is
+  `D:make default`. `D` means clear all on the notifications inbox; on the profiles screen there is no inbox to empty.
 
 ## Starting it, and the one destination that needs configuring
 

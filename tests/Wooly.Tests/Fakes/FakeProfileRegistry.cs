@@ -11,9 +11,10 @@ namespace Wooly.Tests.Fakes;
 ///     over both stores.
 /// </summary>
 /// <remarks>
-///     What the profiles screen reads, the writes that have keys so far — adding, as the add screen does (#245) — and
-///     resolving, which a switch does (#243). The rest arrive with the keys that make them (#238), and until then a
-///     shell that reached for one would be doing something no ticket has asked it to.
+///     What the profiles screen reads, the writes that have keys so far — adding, as the add screen does (#245), and
+///     making a profile the default, as <c>D</c> does (#244) — and resolving, which a switch does (#243). The rest arrive
+///     with the keys that make them (#238), and until then a shell that reached for one would be doing something no
+///     ticket has asked it to.
 /// </remarks>
 internal sealed class FakeProfileRegistry(IReadOnlyList<ProfileSummary> profiles) : IProfileRegistry
 {
@@ -24,6 +25,9 @@ internal sealed class FakeProfileRegistry(IReadOnlyList<ProfileSummary> profiles
     /// </summary>
     public List<(string Name, ProfileConfig Profile, string AccessToken)> Added { get; } = [];
 
+    /// <summary>Every profile made the default, in order — where a test proves what was written.</summary>
+    public List<string> Switched { get; } = [];
+
     /// <summary>
     ///     The profiles whose token is missing from the store, which <see cref="Resolve" /> refuses as the real one does.
     /// </summary>
@@ -33,7 +37,7 @@ internal sealed class FakeProfileRegistry(IReadOnlyList<ProfileSummary> profiles
     public CredentialStorage TokenStorage { get; set; } = CredentialStorage.OsKeyring;
 
     /// <summary>
-    ///     <paramref name="profiles" />, with <paramref name="current" /> the one commands default to — or none, where
+    ///     <paramref name="profiles" />, with <paramref name="current" /> the default profile — or none, where
     ///     it is <see langword="null" />.
     /// </summary>
     public static FakeProfileRegistry Holding(string? current, params ProfileSummary[] profiles) =>
@@ -54,7 +58,7 @@ internal sealed class FakeProfileRegistry(IReadOnlyList<ProfileSummary> profiles
 
     /// <inheritdoc />
     /// <remarks>
-    ///     Decides what the real one decides — a name taken is replaced, and the profile becomes current only where
+    ///     Decides what the real one decides — a name taken is replaced, and the profile becomes the default only where
     ///     none was — so a shell reading the list back sees what it would see over the config file.
     /// </remarks>
     public ProfileAddition Add(string name, ProfileConfig profile, string accessToken)
@@ -76,7 +80,21 @@ internal sealed class FakeProfileRegistry(IReadOnlyList<ProfileSummary> profiles
     }
 
     /// <inheritdoc />
-    public void Switch(string name) => throw new NotSupportedException("Nothing in the TUI makes a profile current yet.");
+    /// <remarks>Moves the default as the real one does, so a shell reading the list back sees it moved.</remarks>
+    public void Switch(string name)
+    {
+        if (_profiles.All(held => held.Name != name))
+        {
+            throw new UnknownProfileException(name, [.. _profiles.Select(held => held.Name)]);
+        }
+
+        Switched.Add(name);
+
+        for (var at = 0; at < _profiles.Count; at++)
+        {
+            _profiles[at] = _profiles[at] with { IsCurrent = _profiles[at].Name == name };
+        }
+    }
 
     /// <inheritdoc />
     public ProfileRemoval Remove(string name) =>
@@ -89,7 +107,7 @@ internal sealed class FakeProfileRegistry(IReadOnlyList<ProfileSummary> profiles
     /// </remarks>
     public ActiveProfile Resolve(string? requestedName)
     {
-        var name = requestedName ?? throw new NotSupportedException("Nothing in the TUI resolves the current profile.");
+        var name = requestedName ?? throw new NotSupportedException("Nothing in the TUI resolves the default profile.");
         var profile = _profiles.SingleOrDefault(held => held.Name == name)
                       ?? throw new UnknownProfileException(name, [.. _profiles.Select(held => held.Name)]);
 
