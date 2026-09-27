@@ -6,7 +6,7 @@ namespace Wooly.Tui.Screens;
 
 /// <summary>
 ///     Every profile on this machine, a row each, marked with the one this session is <b>acting as</b> and the one
-///     that is <b>current</b> — two different things, which is why both are drawn (CONTEXT.md, ADR-0020). What
+///     that is the <b>default</b> — two different things, which is why both are drawn (CONTEXT.md, ADR-0020). What
 ///     <c>ctrl-p</c> opens, on the stack rather than on the rail: it lists what is on this machine and fetches nothing.
 /// </summary>
 /// <remarks>
@@ -23,8 +23,11 @@ public sealed class ProfilesScreen(IReadOnlyList<ProfileSummary> profiles, strin
     /// <summary>The marker on the profile this session is acting as.</summary>
     public const string ActingAs = "acting as";
 
-    /// <summary>The marker on the profile commands default to.</summary>
-    public const string Current = "current";
+    /// <summary>
+    ///     The marker on the default profile, which commands act as unless told otherwise. The config file calls it
+    ///     <c>current_profile</c>; on screen it is the default, which is what it does (CONTEXT.md).
+    /// </summary>
+    public const string Default = "default";
 
     private readonly Picked<ProfileSummary> _profiles = new(profiles);
 
@@ -105,7 +108,7 @@ public sealed class ProfilesScreen(IReadOnlyList<ProfileSummary> profiles, strin
         string[] marks =
         [
             .. profile.Name == actingAs ? [ActingAs] : Array.Empty<string>(),
-            .. profile.IsCurrent ? [Current] : Array.Empty<string>(),
+            .. profile.IsCurrent ? [Default] : Array.Empty<string>(),
         ];
 
         var marked = marks.Length == 0 ? string.Empty : $"  {string.Join(" · ", marks)}";

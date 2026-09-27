@@ -79,7 +79,7 @@ public static class WoolyCommandApp
                        .WithDescription("Report the profile this client would act as.");
 
                 profile.AddCommand<ProfileSwitchCommand>("switch")
-                       .WithDescription("Change the profile commands act as by default.");
+                       .WithDescription("Make a profile the default, which commands act as unless told otherwise.");
 
                 profile.AddCommand<ProfileRemoveCommand>("remove")
                        .WithDescription("Remove a profile and its access token from this machine.");
@@ -87,7 +87,7 @@ public static class WoolyCommandApp
 
             config.AddBranch("post", post =>
             {
-                post.SetDescription("Write, read and act on posts as the current profile.");
+                post.SetDescription("Write, read and act on posts as the default profile.");
 
                 post.AddCommand<PostCreateCommand>("create")
                     .WithDescription("Publish a new post, optionally with a content warning, files or a poll.");
@@ -176,7 +176,7 @@ public static class WoolyCommandApp
 
             config.AddBranch("notification", notification =>
             {
-                notification.SetDescription("Read and clear what is waiting for the current profile.");
+                notification.SetDescription("Read and clear what is waiting for the default profile.");
 
                 notification.AddCommand<NotificationListCommand>("list")
                             .WithDescription("Read the mentions, follows, boosts and favorites waiting for you.");
@@ -190,7 +190,7 @@ public static class WoolyCommandApp
 
             config.AddBranch("timeline", timeline =>
             {
-                timeline.SetDescription("Read a timeline as the current profile.");
+                timeline.SetDescription("Read a timeline as the default profile.");
 
                 timeline.AddCommand<TimelineHomeCommand>("home")
                         .WithDescription("Read the posts of the accounts you follow.");
@@ -223,7 +223,7 @@ public static class WoolyCommandApp
             // direct message any more widely than it was said.
             config.AddBranch("dm", dm =>
             {
-                dm.SetDescription("Read and write the direct conversations the current profile is in.");
+                dm.SetDescription("Read and write the direct conversations the default profile is in.");
 
                 dm.AddCommand<DirectMessageListCommand>("list")
                   .WithDescription("List your direct conversations, and say which of them are unread.");

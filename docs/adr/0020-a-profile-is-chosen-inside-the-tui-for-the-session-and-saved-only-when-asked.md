@@ -15,12 +15,16 @@ The key is a ctrl chord because the frame-wide keys have to work on every screen
 typed as text. It does nothing on compose. Switching from compose would drop the draft, and this ADR does not give
 drafts a way to survive a switch.
 
-## Two words for two things: current, and acting as
+## Two words for two things: default, and acting as
 
-CONTEXT.md's **current profile** is the saved one, which the CLI uses whenever `--profile` is not given. A TUI session
+CONTEXT.md's **default profile** is the saved one, which the CLI uses whenever `--profile` is not given. A TUI session
 can act as a different profile without changing the saved one, just as `--profile` does. **Acting as** is the name for
 that, and it is what `profile show` already prints. The profiles screen marks both. Switching changes only acting as.
-`D` changes current.
+`D` changes the default.
+
+This ADR first called the saved one the **current profile**, which is still its name in the config file
+(`current_profile`) and in code. It was renamed in prose and on screen because "current" read as the one in use now,
+which is what acting as means.
 
 They are kept apart because the TUI is where somebody browses and the CLI is where somebody scripts. If switching
 changed the saved profile, someone who looked at their work account for a minute would find their cron job posting as
@@ -50,7 +54,7 @@ whenever that is the store in use.
 
 `IProfileRegistry.Remove` deletes the config entry and the token together, for the same reason `Add` writes them
 together. The CLI gets `profile remove <NAME>` in the same change, so Core does not gain something only one surface can
-do. The TUI refuses to remove the profile you are acting as. Removing the current profile clears current rather than
+do. The TUI refuses to remove the profile you are acting as. Removing the default profile clears the default rather than
 choosing another one, and says so.
 
 ## A profile that cannot sign in no longer ends the TUI

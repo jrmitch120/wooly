@@ -234,7 +234,7 @@ public class ProfileRegistryTests : IDisposable
         Assert.All(NewRegistry().List(), profile => Assert.False(profile.IsCurrent));
 
         var exception = Assert.Throws<AuthenticationException>(() => NewRegistry().Resolve(null));
-        Assert.Contains("No profile is current", exception.Message);
+        Assert.Contains("No profile is the default", exception.Message);
     }
 
     [Fact]

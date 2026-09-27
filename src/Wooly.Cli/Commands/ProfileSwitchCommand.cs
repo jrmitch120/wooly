@@ -15,7 +15,7 @@ internal sealed class ProfileSwitchCommand(IAnsiConsole console, IProfileRegistr
     internal sealed class Settings : CommandSettings
     {
         [CommandArgument(0, "<NAME>")]
-        [Description("The profile to act as from now on.")]
+        [Description("The profile to make the default.")]
         public string Name { get; init; } = string.Empty;
     }
 
