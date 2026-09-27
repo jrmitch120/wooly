@@ -276,26 +276,7 @@ public class ShellSwitchTests
         var credentials = await File.ReadAllBytesAsync(paths.CredentialFile, TestContext.Current.CancellationToken);
 
         var shell = new AShell();
-        var opened = new Shell(
-            registry.Resolve(null),
-            new ShellPorts(
-                shell.Timelines,
-                shell.Author,
-                shell.Engagement,
-                shell.Accounts,
-                shell.Notifications,
-                shell.Messages,
-                shell.Search,
-                shell.Suggestions,
-                shell.RateLimit),
-            new ProfilePorts(registry, paths, shell.Authorizer, shell.Verifier),
-            shell.Host,
-            shell.Browser,
-            shell.Clock,
-            shell.Timing);
-
-        await opened.Open();
-        shell.Host.Drain();
+        var opened = await shell.OpenedOver(registry, paths);
 
         SwitchTo(shell, opened, "work");
 

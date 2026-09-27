@@ -91,6 +91,12 @@ public enum Verb
     ActAs,
 
     /// <summary>
+    ///     <c>D</c> on the profiles screen: make the picked profile the default, which the CLI and the next launch act as
+    ///     — without changing who this session is acting as (#244). Nothing on the profile already the default.
+    /// </summary>
+    MakeDefault,
+
+    /// <summary>
     ///     <c>⏎</c> on the add screen: on to the next step with what the one in front has — the instance to sign in
     ///     at, the token to check, the name to save under — or the browser tried again where it did not come back.
     /// </summary>

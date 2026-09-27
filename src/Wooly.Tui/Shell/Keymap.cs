@@ -144,10 +144,12 @@ public static class Keymap
         (ShellKey.T, AddProfileScreen) => Verb.PasteToken,
 
         // The capitals, which are keys of their own for exactly this reason: a lower-case mark key can never fire a
-        // tie or empty an inbox by accident (docs/tui-shell.md).
+        // tie or empty an inbox by accident (docs/tui-shell.md). D on the profiles screen, where there is no inbox to
+        // empty, makes a profile the default instead (#244).
         (ShellKey.CapitalF, _) => Verb.Follow,
         (ShellKey.CapitalM, _) => Verb.Mute,
         (ShellKey.CapitalB, _) => Verb.Block,
+        (ShellKey.CapitalD, ProfilesScreen) => Verb.MakeDefault,
         (ShellKey.CapitalD, _) => Verb.ClearAll,
 
         // Every digit means the same thing; which answer it addresses is Answer's, below.

@@ -160,4 +160,27 @@ internal sealed class AShell
 
         return shell;
     }
+
+    /// <summary>
+    ///     A shell that has already opened, acting as <paramref name="registry" />'s default profile and reading and
+    ///     writing profiles through it rather than <see cref="Profiles" /> — where a test proves what reaches the
+    ///     config file itself (#243, #244).
+    /// </summary>
+    public async Task<Shell> OpenedOver(IProfileRegistry registry, WoolyPaths paths)
+    {
+        var shell = new Shell(
+            registry.Resolve(null),
+            new ShellPorts(Timelines, Author, Engagement, Accounts, Notifications, Messages, Search, Suggestions, RateLimit),
+            new ProfilePorts(registry, paths, Authorizer, Verifier),
+            Host,
+            Browser,
+            Clock,
+            Timing);
+
+        await shell.Open();
+
+        Host.Drain();
+
+        return shell;
+    }
 }

@@ -37,12 +37,13 @@ public sealed class ProfilesScreen(IReadOnlyList<ProfileSummary> profiles, strin
     /// <inheritdoc />
     /// <remarks>
     ///     <c>⏎</c> only where the picked profile is not the one already acted as, since there it would do nothing
-    ///     (#243).
+    ///     (#243), and <c>D</c> only where it is not the default already, for the same reason (#244).
     /// </remarks>
     protected override IReadOnlyList<KeyHint> OwnKeys =>
     [
         new("j/k", "profile"),
         .. ToActAs is null ? Array.Empty<KeyHint>() : [new KeyHint("⏎", "act as", NeedsAPick: true)],
+        .. ToMakeDefault is null ? Array.Empty<KeyHint>() : [new KeyHint("D", "make default", NeedsAPick: true)],
         new("a", "add"),
         .. PostKeys.Leaving(new KeyHint("esc", "back")),
     ];
@@ -55,6 +56,12 @@ public sealed class ProfilesScreen(IReadOnlyList<ProfileSummary> profiles, strin
     ///     or <see langword="null" /> where there is nothing for <c>⏎</c> to do.
     /// </summary>
     public string? ToActAs => _profiles.Out is { } picked && picked.Name != actingAs ? picked.Name : null;
+
+    /// <summary>
+    ///     The name of the profile <c>D</c> would make the default: the one picked out, unless it is the default already
+    ///     — or <see langword="null" /> where there is nothing for <c>D</c> to do.
+    /// </summary>
+    public string? ToMakeDefault => _profiles.Out is { IsCurrent: false } picked ? picked.Name : null;
 
     /// <inheritdoc />
     protected override IPicked Walking => _profiles;

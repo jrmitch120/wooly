@@ -261,6 +261,7 @@ public sealed class Shell
         Verb.Profiles => Ran(Profiles),
         Verb.AddProfile => Ran(AddProfile),
         Verb.ActAs => Ran(ActAs),
+        Verb.MakeDefault => Ran(MakeDefault),
         Verb.Continue => Ran(Continue),
         Verb.PasteToken => Ran(PasteToken),
         Verb.NextDestination => Ran(() => Step(1)),
@@ -653,6 +654,44 @@ public sealed class Shell
         Reset(new FeedScreen(Rail.Showing, []));
 
         _ = Open();
+    }
+
+    /// <summary>
+    ///     <c>D</c> on the profiles screen: makes the picked profile the default, the one the CLI and the next launch act
+    ///     as when not told otherwise — <c>profile switch</c>, through the same <see cref="IProfileRegistry.Switch" />
+    ///     (ADR-0020, #244). Nothing on the profile already the default.
+    /// </summary>
+    /// <remarks>
+    ///     Who this session is acting as does not move, and nothing reaches an instance: browsing as a profile and
+    ///     saving one are kept apart so that a look at one account never changes which one a script posts as. Nothing
+    ///     is asked first either, since <c>D</c> on the old default puts it back. The list is read again with the row
+    ///     still picked, and the status row says what changed in <c>profile switch</c>'s words.
+    /// </remarks>
+    public void MakeDefault()
+    {
+        if (Screen is not ProfilesScreen { ToMakeDefault: { } name })
+        {
+            return;
+        }
+
+        try
+        {
+            _profiles.Registry.Switch(name);
+        }
+        catch (WoolyException failure)
+        {
+            Say(failure.Message, isError: true);
+
+            return;
+        }
+
+        var list = Listed();
+
+        list.Pick(name);
+        Freshened(list);
+
+        // Said after the list is up, which clears what was said over the one it replaced.
+        Say(ProfileWords.ActsAs(name), isError: false);
     }
 
     /// <summary>
