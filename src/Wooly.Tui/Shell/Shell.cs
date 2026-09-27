@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using Wooly.Core;
 using Wooly.Core.Accounts;
 using Wooly.Core.Conversations;
@@ -50,32 +49,22 @@ public sealed class Shell
     private const string NoBrowser = "No browser available.";
 
     /// <summary>
-    ///     What bringing a screen up from its subject means, which is the same steps at every screen that is read —
-    ///     arrived at, drilled into or refreshed (#100, #233). Built again at a switch (<see cref="Begin" />), since
-    ///     what it caches was read as the profile acted as.
-    /// </summary>
-    private Arrival _arrival;
-
-    /// <summary>
     ///     Where an address goes. The one thing this shell does that leaves the terminal, and deliberately not one of
     ///     <see cref="ShellPorts" />: those are what the shell reaches an <em>instance</em> through, and a browser is
     ///     not on one (ADR-0014, #85).
     /// </summary>
     private readonly IWebBrowser _browser;
 
-    /// <summary>
-    ///     Everything this reaches an instance through, and the one place the stale-answer rule is stated. The
-    ///     profile acted as's own: a switch abandons it, with everything still in flight, and puts a new one in its place (#243).
-    /// </summary>
-    private Enquiry _enquiry;
-
     private readonly IShellHost _host;
     private readonly TimeProvider _clock;
     private readonly ShellTiming _timing;
     private readonly string? _hashtag;
 
-    /// <summary>Who this session is acting as, which <c>⏎</c> on the profiles screen changes (ADR-0020).</summary>
-    private ActiveProfile _profile;
+    /// <summary>
+    ///     Who this session is acting as, and everything that asks as them or holds what was read as them — which
+    ///     <c>⏎</c> on the profiles screen puts a new one in place of, whole (ADR-0020, #243).
+    /// </summary>
+    private Acting _acting;
 
     private readonly ShellPorts _ports;
 
@@ -92,18 +81,7 @@ public sealed class Shell
     /// </summary>
     private string? _instance;
 
-    /// <summary>What each step of adding a profile does, which reaches <see cref="_profiles" /> (#245).</summary>
-    private ProfileAdding _adding;
     private readonly List<Screen> _stack = [];
-
-    /// <summary>
-    ///     The conversations <c>m</c> has been pressed on and not yet answered about, by id — so a second press before
-    ///     the first lands marks nothing twice, and moves the badge once (#234).
-    /// </summary>
-    private HashSet<string> _marking;
-
-    /// <summary>What a screen can reach of this shell while it answers a verb of its own (#232).</summary>
-    private Reach _reach;
 
     /// <summary>
     ///     The last budget the old profile's instance reported, where the session has switched since — which the rail's
@@ -131,10 +109,11 @@ public sealed class Shell
 
         Rail = new Rail(Destinations(profile, hashtag), host, timing.Settle);
 
-        Begin(profile);
+        _acting = Begin(profile);
+        _instance = RailInstance();
 
         // Read off the field rather than captured, so that the rail asks whichever profile is being acted as.
-        Rail.Selected += destination => _ = _arrival.At(destination);
+        Rail.Selected += destination => _ = _acting.Arrival.At(destination);
         Rail.Changed += () => Changed?.Invoke();
 
         _stack.Add(new FeedScreen(Rail.Showing, []));
@@ -169,13 +148,13 @@ public sealed class Shell
     public string Breadcrumb => string.Join(ChromeLines.Separator, Crumbs);
 
     /// <summary>Whether a fetch is in flight, which the breadcrumb says once and the rail never does.</summary>
-    public bool Fetching => _enquiry.Fetching;
+    public bool Fetching => _acting.Enquiry.Fetching;
 
     /// <summary>
     ///     How many dots the breadcrumb's fetch mark has on it — none until a fetch has been in flight for a whole
     ///     tick. What the mark draws, where <see cref="Fetching" /> is what the shell's own guards ask.
     /// </summary>
-    public int Dots => _enquiry.Dots;
+    public int Dots => _acting.Enquiry.Dots;
 
     /// <summary>
     ///     Something the shell has to say out loud that is not a screen: a refusal, or the countdown on a rate limit
@@ -221,10 +200,10 @@ public sealed class Shell
     /// </remarks>
     public async Task Open()
     {
-        var profile = _profile;
-        var abandoned = _enquiry.Abandoned;
+        var profile = _acting.Profile;
+        var abandoned = _acting.Enquiry.Abandoned;
 
-        await _arrival.At(Rail.Showing);
+        await _acting.Arrival.At(Rail.Showing);
 
         if (!abandoned.IsCancellationRequested)
         {
@@ -307,7 +286,7 @@ public sealed class Shell
         _ when verb.NeedsATerminal() => false,
 
         // Everything else is the screen's own, and the screen is what carries it out.
-        _ => Ran(() => Screen.Answer(verb, _reach)),
+        _ => Ran(() => Screen.Answer(verb, _acting.Reach)),
     };
 
     /// <summary>Moves what is picked out on the current screen.</summary>
@@ -432,7 +411,7 @@ public sealed class Shell
     ///     (#48).
     /// </remarks>
     public Task Enter() =>
-        Screen.Opens is { } opening ? _arrival.Open(new Subject.Thread(opening)) : Task.CompletedTask;
+        Screen.Opens is { } opening ? _acting.Arrival.Open(new Subject.Thread(opening)) : Task.CompletedTask;
 
     /// <summary>
     ///     Asks for what is there now: evicts what the screen's subject last held, puts the same question that brought
@@ -469,7 +448,7 @@ public sealed class Shell
             return Task.CompletedTask;
         }
 
-        return _arrival.Again(subject);
+        return _acting.Arrival.Again(subject);
     }
 
     /// <summary>
@@ -500,7 +479,7 @@ public sealed class Shell
             case Role.Hashtag:
                 // The same screen and the same breadcrumb a search result for a tag opens, and the rail's own hashtag
                 // destination left alone — that is a setting the reader wrote down, not something a keypress changes.
-                return _arrival.Open(new Subject.Tag(reference.Text.TrimStart('#')));
+                return _acting.Arrival.Open(new Subject.Tag(reference.Text.TrimStart('#')));
 
             case Role.Mention:
                 return OpenMention();
@@ -533,7 +512,7 @@ public sealed class Shell
 
         var author = AccountAddress.Parse((picked.Boosted ?? picked).Account);
 
-        await _arrival.Open(new Subject.Account(author, WithReplies: false));
+        await _acting.Arrival.Open(new Subject.Account(author, WithReplies: false));
     }
 
     /// <summary>Walks back up one level of the stack. Never quits, and never leaves the shell with nothing on it.</summary>
@@ -662,12 +641,13 @@ public sealed class Shell
             return;
         }
 
-        _enquiry.Abandon();
+        _acting.Enquiry.Abandon();
 
         Asking = null;
         _quotaBeforeSwitch = _ports.RateLimit.Latest;
 
-        Begin(next);
+        _acting = Begin(next);
+        _instance = RailInstance();
 
         Rail.Restart(Destinations(next, _hashtag));
         Reset(new FeedScreen(Rail.Showing, []));
@@ -679,14 +659,14 @@ public sealed class Shell
     ///     <c>⏎</c> on the add screen: on to the next step — the instance signed in at, the token checked, the name
     ///     saved under (<see cref="ProfileAdding" />).
     /// </summary>
-    public Task Continue() => Screen is AddProfileScreen adding ? _adding.Continue(adding) : Task.CompletedTask;
+    public Task Continue() => Screen is AddProfileScreen adding ? _acting.Adding.Continue(adding) : Task.CompletedTask;
 
     /// <summary><c>t</c> on the add screen: the browser given up for a pasted token.</summary>
     public void PasteToken()
     {
         if (Screen is AddProfileScreen adding)
         {
-            _adding.PasteToken(adding);
+            _acting.Adding.PasteToken(adding);
         }
     }
 
@@ -798,7 +778,7 @@ public sealed class Shell
 
         // Still drawn unread until the first press is answered, so a second one lands here rather than above. Nothing
         // is said: the breadcrumb's fetch mark already says something is on its way, and "Marked as read." follows.
-        var marking = _marking;
+        var marking = _acting.Marking;
 
         if (!marking.Add(conversation.Id))
         {
@@ -806,9 +786,9 @@ public sealed class Shell
         }
 
         // Taken now rather than read when the call is made, which a rate-limit wait can put after a switch (#243).
-        var profile = _profile;
+        var profile = _acting.Profile;
 
-        await _enquiry.Put(
+        await _acting.Enquiry.Put(
             ask => ask.Of(token => _ports.Messages.MarkRead(profile, conversation.Id, token)),
             eitherWay: marked => Tell(new Change.ConversationMarked(marked)),
             ifStillHere: _ => Say("Marked as read.", isError: false));
@@ -848,9 +828,9 @@ public sealed class Shell
         }
 
         // Taken now rather than read when the call is made, which a rate-limit wait can put after a switch (#243).
-        var profile = _profile;
+        var profile = _acting.Profile;
 
-        await _enquiry.Put(
+        await _acting.Enquiry.Put(
             ask => ask.Of(token => _ports.Engagement.Mark(profile, about.Id, mark, !about.Marks.Has(mark), token)),
             eitherWay: marked => Tell(new Change.PostChanged(marked)));
     }
@@ -973,12 +953,12 @@ public sealed class Shell
         }
 
         // Taken now rather than read when the call is made, which a rate-limit wait can put after a switch (#243).
-        var profile = _profile;
+        var profile = _acting.Profile;
 
         switch (compose.Outgoing)
         {
             case Outgoing.Saving(var postId, var edit):
-                await _enquiry.Put(
+                await _acting.Enquiry.Put(
                     ask => ask.Of(token => _ports.Author.Edit(profile, postId, edit, token)),
                     eitherWay: saved =>
                     {
@@ -996,7 +976,7 @@ public sealed class Shell
                     ? conversation.Conversation.Id
                     : null;
 
-                await _enquiry.Put(
+                await _acting.Enquiry.Put(
                     ask => ask.Of(token => _ports.Author.Publish(profile, draft, token)),
                     eitherWay: published =>
                     {
@@ -1019,54 +999,44 @@ public sealed class Shell
     ///     Builds everything that asks as <paramref name="profile" />, or holds what was read as it: at launch, and
     ///     again at every switch (#243). Nothing built for one profile is handed to the next — the next gets its own.
     /// </summary>
-    [MemberNotNull(
-        nameof(_profile),
-        nameof(_enquiry),
-        nameof(_arrival),
-        nameof(_reach),
-        nameof(_adding),
-        nameof(_marking))]
-    private void Begin(ActiveProfile profile)
+    private Acting Begin(ActiveProfile profile)
     {
-        _profile = profile;
-        _instance = RailInstance();
-        _marking = new HashSet<string>(StringComparer.Ordinal);
 
         // Asked from whatever is on top, which is the whole of the stale-answer rule: an answer lands only while the
         // screen it was asked from is still in front of the reader.
-        _enquiry = new Enquiry(_host, _clock, _timing.CountdownStep, _timing.MarkStep, () => Screen);
-        _enquiry.Said += Say;
-        _enquiry.Changed += () => Changed?.Invoke();
-        _enquiry.Ticked += () => Ticked?.Invoke();
+        var enquiry = new Enquiry(_host, _clock, _timing.CountdownStep, _timing.MarkStep, () => Screen);
+        enquiry.Said += Say;
+        enquiry.Changed += () => Changed?.Invoke();
+        enquiry.Ticked += () => Ticked?.Invoke();
 
         // An arrival settles what a subject is on screen and what its badge says, and a change what goes stale;
         // putting any of it there is this shell's own business, since the stack and the rail are its.
-        _arrival = new Arrival(
+        var arrival = new Arrival(
             profile,
             _ports,
-            _enquiry,
+            enquiry,
             new SubjectCache(_clock, _timing.CacheFor),
             showing: () => Rail.Showing.Kind);
 
-        _arrival.Arrives += Reset;
-        _arrival.Drills += Push;
-        _arrival.Refreshes += Freshened;
-        _arrival.Filled += () => Say(null, isError: false);
-        _arrival.Counts += Counted;
-        _arrival.Moves += Moved;
-        _arrival.Heard += Heard;
+        arrival.Arrives += Reset;
+        arrival.Drills += Push;
+        arrival.Refreshes += Freshened;
+        arrival.Filled += () => Say(null, isError: false);
+        arrival.Counts += Counted;
+        arrival.Moves += Moved;
+        arrival.Heard += Heard;
 
-        _reach = new Reach(
+        var reach = new Reach(
             profile,
             _ports,
-            _enquiry,
-            _arrival,
+            enquiry,
+            arrival,
             say: Say,
             confirm: Confirm,
             changed: () => Changed?.Invoke());
 
-        _adding = new ProfileAdding(
-            _enquiry,
+        var adding = new ProfileAdding(
+            enquiry,
             _profiles,
             _browser,
             held: screen => _stack.Contains(screen),
@@ -1074,6 +1044,8 @@ public sealed class Shell
             say: Say,
             confirm: Confirm,
             added: Added);
+
+        return new Acting(profile, enquiry, arrival, reach, adding);
     }
 
     /// <summary>The ten, in the order the rail draws them.</summary>
@@ -1106,7 +1078,7 @@ public sealed class Shell
     {
         if (Screen.WantsMore)
         {
-            _ = _arrival.More(Screen);
+            _ = _acting.Arrival.More(Screen);
         }
     }
 
@@ -1130,7 +1102,7 @@ public sealed class Shell
             return Task.CompletedTask;
         }
 
-        return _arrival.Open(new Subject.Account(AccountAddress.Parse(handle), WithReplies: false));
+        return _acting.Arrival.Open(new Subject.Account(AccountAddress.Parse(handle), WithReplies: false));
     }
 
     /// <summary>
@@ -1162,9 +1134,9 @@ public sealed class Shell
     private Task Delete(string postId)
     {
         // Taken now rather than read when the call is made, which a rate-limit wait can put after a switch (#243).
-        var profile = _profile;
+        var profile = _acting.Profile;
 
-        return _enquiry.Put(
+        return _acting.Enquiry.Put(
             ask => ask.Of(token => _ports.Author.Delete(profile, postId, token)),
             eitherWay: () =>
             {
@@ -1205,9 +1177,9 @@ public sealed class Shell
         screen.ClearChoices();
 
         // Taken now rather than read when the call is made, which a rate-limit wait can put after a switch (#243).
-        var profile = _profile;
+        var profile = _acting.Profile;
 
-        return _enquiry.Put(
+        return _acting.Enquiry.Put(
             ask => ask.Of(token => _ports.Engagement.Vote(profile, about, choices, token)),
             eitherWay: voted =>
             {
@@ -1398,7 +1370,7 @@ public sealed class Shell
     private bool IsMine(Post post) => IsMe(post.Account);
 
     /// <summary>Whether an account is the profile's own, compared the way <see cref="IsMine" /> compares one.</summary>
-    private bool IsMe(string account) => _profile.SignsInAs(account);
+    private bool IsMe(string account) => _acting.Profile.SignsInAs(account);
 
     private void Push(Screen screen)
     {
@@ -1454,7 +1426,7 @@ public sealed class Shell
     }
 
     /// <summary>Says what happened on the instance, which <see cref="Arrival.Apply" /> settles the rest of.</summary>
-    private void Tell(Change change) => _arrival.Apply(change);
+    private void Tell(Change change) => _acting.Arrival.Apply(change);
 
     /// <summary>
     ///     Tells every screen on the stack what changed, and takes off it any that are now about nothing — a post
@@ -1520,13 +1492,13 @@ public sealed class Shell
     ///     Every profile on this machine as the profiles screen lists them, read off the local config now.
     /// </summary>
     private ProfilesScreen Listed() =>
-        new(_profiles.Registry.List(), _profile.Name, _profiles.PlaintextWarning);
+        new(_profiles.Registry.List(), _acting.Profile.Name, _profiles.PlaintextWarning);
 
     /// <summary>
     ///     The instance the rail's foot names: this session's, where two or more profiles are set up and there is
     ///     somebody to tell it apart from — otherwise none (#241).
     /// </summary>
-    private string? RailInstance() => _profiles.Registry.List().Count >= 2 ? _profile.Instance : null;
+    private string? RailInstance() => _profiles.Registry.List().Count >= 2 ? _acting.Profile.Instance : null;
 
     /// <summary>
     ///     Takes the screen at <paramref name="at" /> off the stack, and lets it know (<see cref="Screen.Left" />).
@@ -1546,4 +1518,35 @@ public sealed class Shell
     }
 
     private void Apply(Action work) => _host.OnUiThread(work);
+
+    /// <summary>
+    ///     Who the session is acting as, with everything that asks as them or holds what was read as them: the enquiry
+    ///     their questions go through, the arrival and its cache, what a screen can reach, adding a profile, and the
+    ///     conversations being marked read. One thing rather than six, so that a switch puts a whole new one in place
+    ///     and none of it can be left behind by accident (#243).
+    /// </summary>
+    /// <param name="Profile">Who is being acted as.</param>
+    /// <param name="Enquiry">
+    ///     What every question is put through, and the one place the stale-answer rule is stated — abandoned at a
+    ///     switch, with everything still in flight.
+    /// </param>
+    /// <param name="Arrival">
+    ///     What bringing a screen up from its subject means, which is the same steps at every screen that is read —
+    ///     arrived at, drilled into or refreshed (#100, #233).
+    /// </param>
+    /// <param name="Reach">What a screen can reach of this shell while it answers a verb of its own (#232).</param>
+    /// <param name="Adding">What each step of adding a profile does, which reaches the profiles ports (#245).</param>
+    private sealed record Acting(
+        ActiveProfile Profile,
+        Enquiry Enquiry,
+        Arrival Arrival,
+        Reach Reach,
+        ProfileAdding Adding)
+    {
+        /// <summary>
+        ///     The conversations <c>m</c> has been pressed on and not yet answered about, by id — so a second press
+        ///     before the first lands marks nothing twice, and moves the badge once (#234).
+        /// </summary>
+        public HashSet<string> Marking { get; } = new(StringComparer.Ordinal);
+    }
 }
