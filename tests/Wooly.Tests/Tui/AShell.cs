@@ -139,6 +139,16 @@ internal sealed class AShell
         + Search.Searches.Count
         + Suggestions.Reads.Count + Suggestions.Dismissals.Count;
 
+    /// <summary>
+    ///     The access token every request to every port that reaches an instance went out with, all told — where a test
+    ///     proves who a request was made as (#243).
+    /// </summary>
+    public IEnumerable<string> Tokens =>
+    [
+        .. Timelines.Tokens, .. Author.Tokens, .. Engagement.Tokens, .. Accounts.Tokens, .. Notifications.Tokens,
+        .. Messages.Tokens, .. Search.Tokens, .. Suggestions.Tokens,
+    ];
+
     /// <summary>A shell that has already opened onto its first destination.</summary>
     public async Task<Shell> Opened()
     {

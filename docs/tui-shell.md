@@ -116,7 +116,7 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Follow requests | `a` accept · `x` reject |
 | Direct messages | `⏎` open the conversation · `m` mark read — `m` again inside the thread, where a reader who has just read it is most likely to press it |
 | Conversation | `m` mark read, and every key that acts on a post, since each message in it is one |
-| Profiles | `a` add a profile |
+| Profiles | `⏎` act as that profile, for this session — not offered on the one already acted as · `a` add a profile |
 | Add a profile | `⏎` on to the next step · `t` paste a token instead, while the browser is out or after it failed · `esc` back to the list, calling off a sign-in or a check in flight |
 | Compose / reply / edit | `ctrl-s` send or save · `esc` throw it away · `ctrl-w` move the typing between the post and the content warning over it — on all three, each carrying a warning field of its own (#123, #139, #140) |
 | Home, local, federated, hashtag, Notifications, Messages, Requests, Discover, Post, Account, Follows | `g` refresh — evicts the destination's cache entry (where one exists) and re-runs the same fetch its own arrival runs |
@@ -1314,6 +1314,28 @@ to:
   search prompt, the compose warning, the follows filter). A terminal in bracketed-paste mode sends a paste as one
   string rather than as keys, so the shell takes it as text: a line break or a tab stands as a space, and it is never
   replayed as keys. Where nothing is typing the paste is left to whatever has focus, which on compose is the editor.
+
+### What switching settled
+
+#243 put switching on `⏎` on the profiles screen (ADR-0020). What this document now holds it to:
+
+- **For this session only.** The profile is resolved through `IProfileRegistry.Resolve`, as `--profile` resolves one,
+  and nothing is written: the config file and the token store are byte-for-byte what they were, and the current
+  profile has not moved.
+- **Not offered on the profile already acted as**, where it would do nothing; on every other row it is `⏎:act as`.
+- **A switch starts again on Home**, as if launched with the new profile. The shell is reset in place rather than
+  rebuilt: the rail keeps its place in the window but its labels (the Profile destination's `@handle`, the instance
+  row) and every count are the new profile's, the cursor and selection are on Home, and the stack, the arrival and its
+  cache, every pick and reading, a confirmation waiting and a remark on the status row are let go of. The quota the
+  old profile's instance last reported is not drawn until an instance reports the new one's.
+- **Nothing asked as the old profile reaches the new one.** The enquiry the old profile asked through is abandoned:
+  every call in flight is cancelled, and no answer, failure, countdown or fetch-mark tick of it is let back onto the
+  drawing thread. The rail's counts, which are read beside the enquiry rather than through it, are cancelled with it.
+  An action the instance already received is not undone and not presented as undone — its answer is simply never
+  drawn.
+- **A profile that can't be resolved isn't switched to** — a token gone from the keyring above all. Nothing is let go
+  of, and the resolver's own words say why on the status row, in `error`.
+- **Pictures survive**, being a file server's rather than anybody's, and the window's rather than the shell's.
 
 ## Starting it, and the one destination that needs configuring
 

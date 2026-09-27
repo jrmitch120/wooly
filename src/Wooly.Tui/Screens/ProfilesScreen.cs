@@ -32,15 +32,26 @@ public sealed class ProfilesScreen(IReadOnlyList<ProfileSummary> profiles, strin
     public override string Crumb => "Profiles";
 
     /// <inheritdoc />
+    /// <remarks>
+    ///     <c>⏎</c> only where the picked profile is not the one already acted as, since there it would do nothing
+    ///     (#243).
+    /// </remarks>
     protected override IReadOnlyList<KeyHint> OwnKeys =>
     [
         new("j/k", "profile"),
+        .. ToActAs is null ? Array.Empty<KeyHint>() : [new KeyHint("⏎", "act as", NeedsAPick: true)],
         new("a", "add"),
         .. PostKeys.Leaving(new KeyHint("esc", "back")),
     ];
 
     /// <summary>The profile picked out, or <see langword="null" /> where none is set up.</summary>
     public ProfileSummary? PickedProfile => _profiles.Out;
+
+    /// <summary>
+    ///     The name of the profile <c>⏎</c> would act as: the one picked out, unless it is the one already acted as —
+    ///     or <see langword="null" /> where there is nothing for <c>⏎</c> to do.
+    /// </summary>
+    public string? ToActAs => _profiles.Out is { } picked && picked.Name != actingAs ? picked.Name : null;
 
     /// <inheritdoc />
     protected override IPicked Walking => _profiles;

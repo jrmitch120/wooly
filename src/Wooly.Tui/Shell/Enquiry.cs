@@ -58,6 +58,12 @@ public sealed class Enquiry(
     private static readonly object Nothing = new();
 
     /// <summary>
+    ///     What every call is made under, cancelled when the enquiry is abandoned (<see cref="Abandon" />) — so that a
+    ///     question put as one profile is called off rather than left to finish when the session switches (#243).
+    /// </summary>
+    private readonly CancellationTokenSource _abandoned = new();
+
+    /// <summary>
     ///     How many questions are in flight. A count rather than a flag, because two overlap readily — a boost sent
     ///     while a timeline is still loading — and a flag written by both is cleared by whichever lands first (#217).
     /// </summary>
@@ -85,6 +91,12 @@ public sealed class Enquiry(
     public bool Fetching => _inFlight > 0;
 
     /// <summary>
+    ///     Cancelled when the enquiry is abandoned — for the one kind of question not put through it, the rail's counts,
+    ///     which nobody is waiting on but which must not land for the wrong profile either (#243).
+    /// </summary>
+    public CancellationToken Abandoned => _abandoned.Token;
+
+    /// <summary>
     ///     How many dots the breadcrumb's fetch mark has: none until a fetch has been in flight for a whole tick, then
     ///     one, two and three and one again. Decided here, beside the count it depends on, so that it is decided with
     ///     no terminal (ADR-0005).
@@ -107,6 +119,11 @@ public sealed class Enquiry(
     /// </param>
     public async Task Put<T>(Func<Ask, Task<T>> question, Action<T>? eitherWay = null, Action<T>? ifStillHere = null)
     {
+        if (_abandoned.IsCancellationRequested)
+        {
+            return;
+        }
+
         // Noted where the question is put, with nothing awaited before it: whatever puts a screen up first — a
         // placeholder, a follow list standing empty — has put up the screen the question is asked from.
         var from = inFront();
@@ -118,6 +135,12 @@ public sealed class Enquiry(
         try
         {
             answer = await question(new Ask(this));
+        }
+        catch (OperationCanceledException) when (_abandoned.IsCancellationRequested)
+        {
+            // Called off by a switch rather than refused, which is nothing to tell the reader: there is nothing left
+            // it could have been said over.
+            return;
         }
         catch (WoolyException failure)
         {
@@ -155,6 +178,21 @@ public sealed class Enquiry(
             ifStillHere is null ? null : _ => ifStillHere());
 
     /// <summary>
+    ///     Calls off everything in flight and everything still to land: every call is cancelled, and no answer, failure,
+    ///     countdown or tick is ever let back onto the drawing thread — including an effect the instance already made,
+    ///     which is not undone, only not drawn. What a switch of profile does to the enquiry the old profile put its
+    ///     questions through (ADR-0020, #243).
+    /// </summary>
+    /// <remarks>Nothing can be put through it afterwards either: an enquiry abandoned stays abandoned.</remarks>
+    public void Abandon()
+    {
+        _abandoned.Cancel();
+
+        _tick?.Dispose();
+        _tick = null;
+    }
+
+    /// <summary>
     ///     Makes one call, waiting out a rate limit with a visible countdown rather than failing on it (story 53) —
     ///     the opposite of the CLI's fail-fast, which is right there because a script cannot be told to wait and wrong
     ///     here because a person can see that it is (ADR-0006).
@@ -165,7 +203,7 @@ public sealed class Enquiry(
         {
             try
             {
-                return await call(CancellationToken.None);
+                return await call(_abandoned.Token);
             }
             catch (RateLimitedException limit)
             {
@@ -183,6 +221,8 @@ public sealed class Enquiry(
 
         while (clock.GetUtcNow() < until)
         {
+            _abandoned.Token.ThrowIfCancellationRequested();
+
             var left = (int)Math.Ceiling((until - clock.GetUtcNow()).TotalSeconds);
 
             Apply(() => Said?.Invoke($"Rate limited by {limit.Instance}. Trying again in {left}s.", isError: false));
@@ -231,13 +271,28 @@ public sealed class Enquiry(
     /// </summary>
     private void Tick()
     {
+        if (_abandoned.IsCancellationRequested)
+        {
+            return;
+        }
+
         Dots = Dots % ChromeLines.MostDots + 1;
         _tick = host.After(markStep, Tick);
 
         Ticked?.Invoke();
     }
 
-    private void Apply(Action work) => host.OnUiThread(work);
+    /// <summary>
+    ///     Gets <paramref name="work" /> onto the drawing thread, where it is dropped if the enquiry has been abandoned
+    ///     by the time it gets there.
+    /// </summary>
+    private void Apply(Action work) => host.OnUiThread(() =>
+    {
+        if (!_abandoned.IsCancellationRequested)
+        {
+            work();
+        }
+    });
 
     /// <summary>
     ///     What one enquiry puts its calls through. Handed to the question rather than taken by it, so that every call

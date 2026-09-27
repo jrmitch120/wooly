@@ -6,7 +6,8 @@ namespace Wooly.Tests.Fakes;
 internal sealed class FakeRateLimitReport(RateLimitQuota? latest = null) : IRateLimitReport
 {
     /// <inheritdoc />
-    public RateLimitQuota? Latest { get; } = latest;
+    /// <remarks>Settable, as the real one is written by every response that goes past.</remarks>
+    public RateLimitQuota? Latest { get; set; } = latest;
 
     /// <summary>A report of <paramref name="remaining" /> calls left out of <paramref name="limit" />.</summary>
     public static FakeRateLimitReport Of(int remaining, int limit = 300) =>

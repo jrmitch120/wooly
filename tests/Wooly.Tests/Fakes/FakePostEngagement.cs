@@ -27,6 +27,9 @@ internal sealed class FakePostEngagement : IPostEngagement
         _thread = thread;
     }
 
+    /// <summary>The access token every call was made with, in order — where a test proves who it was made as.</summary>
+    public List<string> Tokens { get; } = [];
+
     /// <summary>Every mark it was asked to put on or take off, in order — where a test proves what a command asked for.</summary>
     public List<Marked> Marks { get; } = [];
 
@@ -38,6 +41,12 @@ internal sealed class FakePostEngagement : IPostEngagement
 
     /// <summary>Every vote it was asked to cast, in order — where a test proves what a front end chose.</summary>
     public List<Cast> Votes { get; } = [];
+
+    /// <summary>
+    ///     What a mark is answered with, where a test finishes it by hand — the question being what happens to one that
+    ///     lands after the session has switched profile (#243).
+    /// </summary>
+    public Func<Task<Post>>? Marking { get; set; }
 
     /// <summary>The post a vote is answered with, where a test is about what the poll came back saying.</summary>
     public Post? Voted { get; set; }
@@ -87,13 +96,15 @@ internal sealed class FakePostEngagement : IPostEngagement
         CancellationToken cancellationToken)
     {
         Marks.Add(new Marked(profile.Name, postId, mark, wanted));
+        Tokens.Add(profile.AccessToken);
 
-        return Answer();
+        return Marking?.Invoke() ?? Answer();
     }
 
     public Task<Post> Show(ActiveProfile profile, string postId, CancellationToken cancellationToken)
     {
         Reads.Add(new Shown(profile.Name, postId));
+        Tokens.Add(profile.AccessToken);
 
         return Answer();
     }
@@ -101,6 +112,7 @@ internal sealed class FakePostEngagement : IPostEngagement
     public Task<PostThread> Thread(ActiveProfile profile, string postId, CancellationToken cancellationToken)
     {
         ThreadsRead.Add(new Shown(profile.Name, postId));
+        Tokens.Add(profile.AccessToken);
 
         return _refusal is null ? _thread() : Task.FromException<PostThread>(_refusal);
     }
@@ -112,6 +124,7 @@ internal sealed class FakePostEngagement : IPostEngagement
         CancellationToken cancellationToken)
     {
         Votes.Add(new Cast(profile.Name, post.Id, choices));
+        Tokens.Add(profile.AccessToken);
 
         if ((VoteRefusal ?? _refusal) is { } refusal)
         {

@@ -15,6 +15,9 @@ internal sealed class FakeDirectMessages(
     ConversationThread? thread = null,
     Exception? refusal = null) : IDirectMessages
 {
+    /// <summary>The access token every call was made with, in order — where a test proves who it was made as.</summary>
+    public List<string> Tokens { get; } = [];
+
     /// <summary>Every listing it was asked for, in order — where a test proves what a command went looking for.</summary>
     public List<Call> Listings { get; } = [];
 
@@ -45,6 +48,7 @@ internal sealed class FakeDirectMessages(
     public Task<Fetch<Conversation>> List(ActiveProfile profile, int limit, CancellationToken cancellationToken)
     {
         Listings.Add(new Call(profile.Name, limit));
+        Tokens.Add(profile.AccessToken);
 
         return refusal is null ? Task.FromResult(fetch) : Task.FromException<Fetch<Conversation>>(refusal);
     }
@@ -55,6 +59,7 @@ internal sealed class FakeDirectMessages(
         CancellationToken cancellationToken)
     {
         Shown.Add(new Named(profile.Name, conversationId));
+        Tokens.Add(profile.AccessToken);
 
         if (refusal is not null)
         {
@@ -70,6 +75,7 @@ internal sealed class FakeDirectMessages(
         CancellationToken cancellationToken)
     {
         MarkedRead.Add(new Named(profile.Name, conversationId));
+        Tokens.Add(profile.AccessToken);
 
         if (refusal is not null)
         {

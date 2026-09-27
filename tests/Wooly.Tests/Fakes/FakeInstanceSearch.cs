@@ -33,6 +33,9 @@ internal sealed class FakeInstanceSearch : IInstanceSearch
         _refusal = refusal;
     }
 
+    /// <summary>The access token every call was made with, in order — where a test proves who it was made as.</summary>
+    public List<string> Tokens { get; } = [];
+
     /// <summary>Every search it was asked for, in order — where a test proves what a command went looking for.</summary>
     public List<Call> Searches { get; } = [];
 
@@ -60,6 +63,7 @@ internal sealed class FakeInstanceSearch : IInstanceSearch
     public Task<SearchResults> Find(ActiveProfile profile, SearchQuery query, CancellationToken cancellationToken)
     {
         Searches.Add(new Call(profile.Name, query));
+        Tokens.Add(profile.AccessToken);
 
         return _refusal is null
             ? Task.FromResult(SearchResults.Matching(query.Kind, _accounts, _hashtags, _posts))

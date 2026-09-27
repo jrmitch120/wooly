@@ -20,6 +20,9 @@ internal sealed class FakeTimelineReader : ITimelineReader
     {
     }
 
+    /// <summary>The access token every call was made with, in order — where a test proves who it was made as.</summary>
+    public List<string> Tokens { get; } = [];
+
     /// <summary>Every read it was asked for, in order — where a test proves which timeline a command went for.</summary>
     public List<Call> Reads { get; } = [];
 
@@ -70,6 +73,7 @@ internal sealed class FakeTimelineReader : ITimelineReader
         CancellationToken cancellationToken)
     {
         Reads.Add(new Call(profile.Name, timeline, limit));
+        Tokens.Add(profile.AccessToken);
 
         return _answer(timeline);
     }

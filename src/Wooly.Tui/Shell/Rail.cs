@@ -112,6 +112,26 @@ public sealed class Rail
         Changed?.Invoke();
     }
 
+    /// <summary>
+    ///     Puts the rail back as it is when the shell opens, over <paramref name="destinations" />: the cursor and the
+    ///     selection on the first, every count gone, and whatever the tabbing left waiting abandoned. What a switch of
+    ///     profile does to it — the ten are the same places, but their labels and counts were somebody else's (#243).
+    /// </summary>
+    /// <remarks>Nothing is selected, since the shell opens onto the first destination itself.</remarks>
+    public void Restart(IReadOnlyList<Destination> destinations)
+    {
+        _settling?.Dispose();
+        _settling = null;
+
+        _destinations.Clear();
+        _destinations.AddRange(destinations);
+
+        Cursor = 0;
+        Current = 0;
+
+        Changed?.Invoke();
+    }
+
     private int IndexOf(DestinationKind kind)
     {
         var index = _destinations.FindIndex(destination => destination.Kind == kind);

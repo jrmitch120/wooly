@@ -23,6 +23,9 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
         _refusal = refusal;
     }
 
+    /// <summary>The access token every call was made with, in order — where a test proves who it was made as.</summary>
+    public List<string> Tokens { get; } = [];
+
     /// <summary>Every tie it was asked to put on or take off, in order — where a test proves what a command asked for.</summary>
     public List<Tied> Ties { get; } = [];
 
@@ -104,6 +107,7 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
         CancellationToken cancellationToken)
     {
         Ties.Add(new Tied(profile.Name, account, tie, wanted));
+        Tokens.Add(profile.AccessToken);
 
         return Answer(Becoming ?? _subject);
     }
@@ -111,6 +115,7 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
     public Task<Account> Show(ActiveProfile profile, AccountAddress account, CancellationToken cancellationToken)
     {
         Reads.Add(new Shown(profile.Name, account));
+        Tokens.Add(profile.AccessToken);
 
         return Answer(_subject);
     }
@@ -123,6 +128,7 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
         CancellationToken cancellationToken)
     {
         Lists.Add(new Listed(profile.Name, side, account, limit));
+        Tokens.Add(profile.AccessToken);
 
         return _refusal is null ? Task.FromResult(_list) : Task.FromException<Fetch<Account>>(_refusal);
     }
@@ -138,6 +144,7 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
         CancellationToken cancellationToken)
     {
         Familiars.Add(new Familiar(profile.Name, accountId));
+        Tokens.Add(profile.AccessToken);
 
         return Task.FromResult(_refusal is null ? InCommon : null);
     }
@@ -165,6 +172,8 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
 
         Standings.Add(new Stood(profile.Name, [.. accounts.Select(account => account.Id)]));
 
+        Tokens.Add(profile.AccessToken);
+
         return Task.FromResult<IReadOnlyList<Account>?>(
             Stands is null ? null : [.. accounts.Select(account => account with { Standing = Stands })]);
     }
@@ -172,6 +181,7 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
     public Task<Fetch<Account>> PendingRequests(ActiveProfile profile, int limit, CancellationToken cancellationToken)
     {
         Lists.Add(new Listed(profile.Name, Side: null, Account: null, limit));
+        Tokens.Add(profile.AccessToken);
 
         return _refusal is null ? Task.FromResult(_list) : Task.FromException<Fetch<Account>>(_refusal);
     }
@@ -183,6 +193,7 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
         CancellationToken cancellationToken)
     {
         Answers.Add(new Answered(profile.Name, accountId, accepted));
+        Tokens.Add(profile.AccessToken);
 
         return Answer(_subject);
     }

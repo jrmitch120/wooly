@@ -14,6 +14,9 @@ internal sealed class FakeNotificationInbox(Fetch<Notification> fetch) : INotifi
 {
     private Fetch<Notification> _fetch = fetch;
 
+    /// <summary>The access token every call was made with, in order — where a test proves who it was made as.</summary>
+    public List<string> Tokens { get; } = [];
+
     /// <summary>Every read it was asked for, in order — where a test proves what a command went looking for.</summary>
     public List<Call> Reads { get; } = [];
 
@@ -22,6 +25,12 @@ internal sealed class FakeNotificationInbox(Fetch<Notification> fetch) : INotifi
 
     /// <summary>Every profile it was asked to empty the inbox of, in order.</summary>
     public List<string> Clearances { get; } = [];
+
+    /// <summary>
+    ///     What each profile's inbox is answered with, by the profile's name, where a test tells two profiles' inboxes
+    ///     apart — or finishes one by hand (#243). Everything not named here is answered as the inbox holds.
+    /// </summary>
+    public Dictionary<string, Func<Task<Fetch<Notification>>>> ByProfile { get; } = [];
 
     /// <summary>An inbox holding <paramref name="notifications" />, read to the end of whatever was asked for.</summary>
     public static FakeNotificationInbox Holding(params Notification[] notifications) =>
@@ -43,13 +52,15 @@ internal sealed class FakeNotificationInbox(Fetch<Notification> fetch) : INotifi
     public Task<Fetch<Notification>> Read(ActiveProfile profile, int limit, CancellationToken cancellationToken)
     {
         Reads.Add(new Call(profile.Name, limit));
+        Tokens.Add(profile.AccessToken);
 
-        return Task.FromResult(_fetch);
+        return ByProfile.TryGetValue(profile.Name, out var answer) ? answer() : Task.FromResult(_fetch);
     }
 
     public Task Dismiss(ActiveProfile profile, string notificationId, CancellationToken cancellationToken)
     {
         Dismissals.Add(new Dismissed(profile.Name, notificationId));
+        Tokens.Add(profile.AccessToken);
 
         return Task.CompletedTask;
     }
@@ -57,6 +68,7 @@ internal sealed class FakeNotificationInbox(Fetch<Notification> fetch) : INotifi
     public Task Clear(ActiveProfile profile, CancellationToken cancellationToken)
     {
         Clearances.Add(profile.Name);
+        Tokens.Add(profile.AccessToken);
 
         return Task.CompletedTask;
     }
