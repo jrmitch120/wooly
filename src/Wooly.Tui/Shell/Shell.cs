@@ -49,6 +49,12 @@ public sealed class Shell
     /// <inheritdoc cref="MentionUnresolved" />
     private const string NoBrowser = "No browser available.";
 
+    /// <summary>
+    ///     What the status row says where an instance refused the token a question was put with, once the session is
+    ///     past its launch: what went wrong, and the key that fixes it (#248).
+    /// </summary>
+    private const string TokenRefused = "This profile's token was refused — ctrl-p to sign in again.";
+
     /// <summary>What <c>x</c> on the default profile answers, before anything is asked or after the registry refuses.</summary>
     private const string MakeAnotherTheDefault = "Make another profile the default before removing this one.";
 
@@ -318,6 +324,7 @@ public sealed class Shell
         Verb.ActAs => Ran(ActAs),
         Verb.MakeDefault => Ran(MakeDefault),
         Verb.RemoveProfile => Ran(AskToRemoveProfile),
+        Verb.SignInAgain => Ran(SignInAgain),
         Verb.Continue => Ran(Continue),
         Verb.PasteToken => Ran(PasteToken),
         Verb.NextDestination => Ran(() => Step(1)),
@@ -671,6 +678,19 @@ public sealed class Shell
         if (Screen is ProfilesScreen)
         {
             Push(new AddProfileScreen());
+        }
+    }
+
+    /// <summary>
+    ///     <c>R</c> on the profiles screen: signs the picked profile in again, its instance and name fixed — only the
+    ///     sign-in and the check, and the token replaced without asking, since replacing it is why <c>R</c> was pressed
+    ///     (#248). Nothing is read or sent until the reader goes on.
+    /// </summary>
+    public void SignInAgain()
+    {
+        if (Screen is ProfilesScreen { PickedProfile: { } picked })
+        {
+            Push(AddProfileScreen.Again(picked, why: null, alone: false));
         }
     }
 
@@ -1182,21 +1202,19 @@ public sealed class Shell
             confirm: Confirm,
             added: Added);
 
-        if (profile is null)
-        {
-            _acting = null;
+        _acting = profile is null ? null : Acts(profile, enquiry, new SubjectCache(_clock, _timing.CacheFor));
+    }
 
-            return;
-        }
-
+    /// <summary>
+    ///     Everything that asks as <paramref name="profile" /> through <paramref name="enquiry" />, holding what it
+    ///     reads in <paramref name="cache" /> — fresh at launch and at a switch, and the same enquiry and cache again
+    ///     where the profile acted as has only been signed in again (#248).
+    /// </summary>
+    private Acting Acts(ActiveProfile profile, Enquiry enquiry, SubjectCache cache)
+    {
         // An arrival settles what a subject is on screen and what its badge says, and a change what goes stale;
         // putting any of it there is this shell's own business, since the stack and the rail are its.
-        var arrival = new Arrival(
-            profile,
-            _ports,
-            enquiry,
-            new SubjectCache(_clock, _timing.CacheFor),
-            showing: () => Rail.Showing.Kind);
+        var arrival = new Arrival(profile, _ports, enquiry, cache, showing: () => Rail.Showing.Kind);
 
         arrival.Arrives += Reset;
         arrival.Drills += Push;
@@ -1215,7 +1233,7 @@ public sealed class Shell
             confirm: Confirm,
             changed: () => Changed?.Invoke());
 
-        _acting = new Acting(profile, arrival, reach);
+        return new Acting(profile, arrival, reach, cache);
     }
 
     /// <summary>
@@ -1260,15 +1278,47 @@ public sealed class Shell
     }
 
     /// <summary>
+    ///     The profile acted as, read again for the token it was just signed in with: what asks as it is built again
+    ///     around the same enquiry and cache, so nothing in flight is called off and nothing read is thrown away —
+    ///     the account is the one on record, which is what signing in again checked (#248).
+    /// </summary>
+    private void Renewed(string name)
+    {
+        ActiveProfile renewed;
+
+        try
+        {
+            renewed = _profiles.Registry.Resolve(name);
+        }
+        catch (WoolyException failure)
+        {
+            Say(failure.Message, isError: true);
+
+            return;
+        }
+
+        _acting = Acts(renewed, _enquiry, Actor.Cache) with { Marking = Actor.Marking };
+    }
+
+    /// <summary>
     ///     An instance refused the token <paramref name="enquiry" /> asked with. At launch, before anything has been read
     ///     as the profile, that is a token revoked since it was stored, and a shell that can read nothing is no use to
     ///     anybody: it signs the profile in again instead, filled in for it, with nobody acted as until it has (#247).
-    ///     Anywhere else it is only said, which the enquiry has already done.
+    ///     Anywhere else it is said, naming the key that fixes it, and nothing opens by itself: whether to sign in again
+    ///     now is the reader's (#248).
     /// </summary>
+    /// <remarks>Nothing where the question was asked as a profile no longer acted as, whose token is not this one's.</remarks>
     private void Refused(Enquiry enquiry, AuthenticationException refused)
     {
-        if (!_launching || enquiry != _enquiry || enquiry.Answered || _acting is not { } acting)
+        if (enquiry != _enquiry || _acting is not { } acting)
         {
+            return;
+        }
+
+        if (!_launching || enquiry.Answered)
+        {
+            Say(TokenRefused, isError: true);
+
             return;
         }
 
@@ -1726,6 +1776,13 @@ public sealed class Shell
 
         Leave(_stack.IndexOf(adding));
 
+        // Signed in again as the profile acted as, which is still the same person: the session carries on with the
+        // stack as it is, and asks with the new token from here on (#248).
+        if (name == Actor.Profile.Name)
+        {
+            Renewed(name);
+        }
+
         var list = Listed();
 
         list.Pick(name);
@@ -1795,15 +1852,17 @@ public sealed class Shell
     ///     arrived at, drilled into or refreshed (#100, #233).
     /// </param>
     /// <param name="Reach">What a screen can reach of this shell while it answers a verb of its own (#232).</param>
+    /// <param name="Cache">What the arrival holds of what was read, kept where the profile is only signed in again.</param>
     private sealed record Acting(
         ActiveProfile Profile,
         Arrival Arrival,
-        Reach Reach)
+        Reach Reach,
+        SubjectCache Cache)
     {
         /// <summary>
         ///     The conversations <c>m</c> has been pressed on and not yet answered about, by id — so a second press
         ///     before the first lands marks nothing twice, and moves the badge once (#234).
         /// </summary>
-        public HashSet<string> Marking { get; } = new(StringComparer.Ordinal);
+        public HashSet<string> Marking { get; init; } = new(StringComparer.Ordinal);
     }
 }

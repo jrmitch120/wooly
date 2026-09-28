@@ -144,6 +144,9 @@ public enum ShellKey
     /// <inheritdoc cref="CapitalB" />
     CapitalM,
 
+    /// <inheritdoc cref="CapitalB" />
+    CapitalR,
+
     /// <summary>
     ///     <c>1</c>. Ten keys rather than one with a number on it, so that the whole of this enum is things a reader
     ///     pressed — which answer each addresses is <see cref="Keymap.Answer" />'s, and is the same on every screen.

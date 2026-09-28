@@ -103,6 +103,12 @@ public enum Verb
     RemoveProfile,
 
     /// <summary>
+    ///     <c>R</c> on the profiles screen: sign the picked profile in again, its instance and name fixed and its token
+    ///     replaced without asking (#248).
+    /// </summary>
+    SignInAgain,
+
+    /// <summary>
     ///     <c>⏎</c> on the add screen: on to the next step with what the one in front has — the instance to sign in
     ///     at, the token to check, the name to save under — or the browser tried again where it did not come back.
     /// </summary>

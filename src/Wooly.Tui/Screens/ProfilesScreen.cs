@@ -39,7 +39,8 @@ public sealed class ProfilesScreen(IReadOnlyList<ProfileSummary> profiles, strin
     ///     <c>⏎</c> only where the picked profile is not the one already acted as, since there it would do nothing
     ///     (#243), and <c>D</c> only where it is not the default already, for the same reason (#244). <c>x</c> wherever a
     ///     profile is picked, the one acted as and the default included — an exception to #220 that #246 asks for,
-    ///     since the refusal there says what to do first, which a key off the row could not.
+    ///     since the refusal there says what to do first, which a key off the row could not. <c>R</c> wherever a profile
+    ///     is picked too, since every token can be replaced (#248).
     /// </remarks>
     protected override IReadOnlyList<KeyHint> OwnKeys =>
     [
@@ -47,6 +48,7 @@ public sealed class ProfilesScreen(IReadOnlyList<ProfileSummary> profiles, strin
         .. ToActAs is null ? Array.Empty<KeyHint>() : [new KeyHint("⏎", "act as", NeedsAPick: true)],
         .. ToMakeDefault is null ? Array.Empty<KeyHint>() : [new KeyHint("D", "make default", NeedsAPick: true)],
         new("a", "add"),
+        new("R", "sign in again", NeedsAPick: true),
         new("x", "remove", NeedsAPick: true),
         .. PostKeys.Leaving(new KeyHint("esc", "back")),
     ];

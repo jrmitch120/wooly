@@ -116,7 +116,7 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Follow requests | `a` accept · `x` reject |
 | Direct messages | `⏎` open the conversation · `m` mark read — `m` again inside the thread, where a reader who has just read it is most likely to press it |
 | Conversation | `m` mark read, and every key that acts on a post, since each message in it is one |
-| Profiles | `⏎` act as that profile, for this session — not offered on the one already acted as · `D` make it the default, for the CLI and the next launch — not offered on the one already the default · `a` add a profile · `x` remove it, after a confirmation — refused on the one acted as and on the default |
+| Profiles | `⏎` act as that profile, for this session — not offered on the one already acted as · `D` make it the default, for the CLI and the next launch — not offered on the one already the default · `a` add a profile · `R` sign it in again, replacing its token — offered on every row · `x` remove it, after a confirmation — refused on the one acted as and on the default |
 | Add a profile | `⏎` on to the next step · `t` paste a token instead, while the browser is out or after it failed · `esc` back to the list, calling off a sign-in or a check in flight — or, as the only screen on first run, back to the first step, with `ctrl-q` quit offered (#247) |
 | Compose / reply / edit | `ctrl-s` send or save · `esc` throw it away · `ctrl-w` move the typing between the post and the content warning over it — on all three, each carrying a warning field of its own (#123, #139, #140) |
 | Home, local, federated, hashtag, Notifications, Messages, Requests, Discover, Post, Account, Follows | `g` refresh — evicts the destination's cache entry (where one exists) and re-runs the same fetch its own arrival runs |
@@ -1382,7 +1382,8 @@ to:
   decides this from `IProfileRegistry.Resolve` before a screen exists.
 - **That is no profile set up, none the default, or a token missing from the store** — every
   `AuthenticationException` the resolver throws — **and a token refused at launch**: an enquiry refused before anything
-  has been read as the profile it launched as. A refusal after that, or after a switch, is only said on the status row.
+  has been read as the profile it launched as. A refusal after that, or after a switch, is only said on the status row
+  ("What signing in again settled", below).
 - **A missing or refused token opens the add screen filled in for that profile.** Its instance and name are fixed and
   drawn, its crumb is *Sign in again*, and why is drawn under them in `error`. Only the sign-in and the check run; the
   token then replaces the old one under the same name, without asking, since replacing it is what the screen is for. A
@@ -1395,6 +1396,29 @@ to:
 - **Still said on stderr, with `TuiExit.Failed`**: a config file that can't be read, one naming a default that isn't
   there, and a `--profile` naming nothing. Each is a mistake the reader just made where they made it, and a form is not
   the place to fix it.
+
+### What signing in again settled
+
+#248 put signing a profile in again on `R` on the profiles screen, and said a token refused mid-session (ADR-0020). What
+this document now holds it to:
+
+- **`R` is the add screen filled in for the picked profile**, as first run fills it for a refused token: the instance
+  and name fixed, the crumb *Sign in again*, and only the sign-in and the check. The token then replaces the old one
+  through `IProfileRegistry.Add`, without asking, since replacing it is why `R` was pressed. The name, the instance, the
+  account on record and whether it is the default are as they were. The reader is back on the list with the row
+  picked, told *Replaced profile work.*
+- **A token that signs in as somebody else is refused** on the screen, naming both accounts, and nothing is written.
+  Catching a working token for the wrong person is what the check is for.
+- **Offered on every row**, the one acted as and the default included: every profile's token can be replaced.
+- **Signing in again as the profile acted as keeps the session.** It is still the same person, so nothing is let go of:
+  the stack, the arrival's cache, picks and readings stay, nothing is read again for it, and every request from then on
+  goes out with the new token. Only what asks as the profile is built again, around the same enquiry.
+- **A token refused mid-session is said, not acted on.** Any enquiry the instance answers with a 401 puts *This
+  profile's token was refused — ctrl-p to sign in again.* on the status row, in `error`, and nothing opens by itself:
+  whether to sign in again now is the reader's. A 401 to a request made with a token is an `AuthenticationException`
+  from core (`RefusedTokenHandler`), so the CLI reports the same refusal with its authentication exit code (ADR-0006).
+  A refusal of a question asked as a profile no longer acted as says nothing.
+- `R` is its own key because `r` is reply; off the profiles screen it means nothing.
 
 ## Starting it, and the one destination that needs configuring
 

@@ -186,7 +186,7 @@ public class ScreenKeyTests
         ("search-nothing", "search-account", ["⏎:open"]),
         ("follows-empty", "follows", ["⏎:open"]),
         ("discover-empty", "discover", ["⏎:open", "F:follow", "d:dismiss"]),
-        ("profiles-empty", "profiles", ["D:make default", "x:remove"]),
+        ("profiles-empty", "profiles", ["D:make default", "R:sign in again", "x:remove"]),
     ];
 
     /// <inheritdoc cref="CanBeEmpty" />

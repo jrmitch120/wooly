@@ -119,7 +119,8 @@ internal sealed class FakeProfileRegistry(IReadOnlyList<ProfileSummary> profiles
 
     /// <inheritdoc />
     /// <remarks>
-    ///     With <c>token-</c> and its name for its token, so a test can tell whose token a call went out with. No name is
+    ///     With <c>token-</c> and its name for its token, so a test can tell whose token a call went out with — or the last
+    ///     one written for it, where it has been signed in again since (#248). No name is
     ///     the default, and no default is nobody to act as — refused as the real one refuses it.
     /// </remarks>
     public ActiveProfile Resolve(string? requestedName)
@@ -140,7 +141,7 @@ internal sealed class FakeProfileRegistry(IReadOnlyList<ProfileSummary> profiles
             Name = name,
             Instance = profile.Instance,
             Account = profile.Account,
-            AccessToken = $"token-{name}",
+            AccessToken = Added.LastOrDefault(added => added.Name == name).AccessToken ?? $"token-{name}",
         };
     }
 }

@@ -112,12 +112,16 @@ public class ShellRefreshTests
     public async Task Refresh_LeavesTheListUpWhereTheInstanceRefuses()
     {
         var reads = 0;
+        var failure = new TransientNetworkException(
+            new Uri("https://mastodon.social/api/v1/timelines/home"),
+            attempts: 3,
+            new HttpRequestException("Connection refused"));
 
         var shell = new AShell
         {
             Timelines = FakeTimelineReader.Awaiting(_ => reads++ == 0
                 ? Task.FromResult(Fetch<Post>.Complete([APost.With(id: "110"), APost.With(id: "220")]))
-                : Task.FromException<Fetch<Post>>(new AuthenticationException("No."))),
+                : Task.FromException<Fetch<Post>>(failure)),
         };
 
         var opened = await shell.Opened();
@@ -131,7 +135,7 @@ public class ShellRefreshTests
 
         Assert.Equal(["110", "220"], feed.Posts.Select(post => post.Id));
         Assert.Equal("220", opened.Screen.Picked?.Id);
-        Assert.Equal("No.", opened.Notice);
+        Assert.Equal(failure.Message, opened.Notice);
         Assert.True(opened.NoticeIsError);
     }
 

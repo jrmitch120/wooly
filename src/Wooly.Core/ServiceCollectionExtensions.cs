@@ -33,11 +33,14 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IRateLimitReport>(provider => provider.GetRequiredService<RateLimitReport>());
         services.AddTransient<TransientFaultRetryHandler>();
         services.AddTransient<RateLimitHandler>();
+        services.AddTransient<RefusedTokenHandler>();
 
         // Retry sits outermost so that a rate limit — raised by the inner handler — is never mistaken for a fault
-        // worth retrying, and so a retried request is re-checked against the limit on every attempt.
+        // worth retrying, and so a retried request is re-checked against the limit on every attempt. A refused token
+        // sits outside the rate limit, so the budget a 401 reports is still heard before the refusal is raised.
         services.AddHttpClient(WoolyClient.HttpClientName)
                 .AddHttpMessageHandler<TransientFaultRetryHandler>()
+                .AddHttpMessageHandler<RefusedTokenHandler>()
                 .AddHttpMessageHandler<RateLimitHandler>();
 
         services.AddSingleton<IMastodonClientFactory, MastodonClientFactory>();
