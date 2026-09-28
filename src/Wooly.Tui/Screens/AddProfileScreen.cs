@@ -21,6 +21,13 @@ namespace Wooly.Tui.Screens;
 ///         takes the screen off the stack gives the loopback port back (<see cref="Left" />), so a reader who walks
 ///         away never leaves a listener open behind them.
 ///     </para>
+///     <para>
+///         Two ways it opens besides <c>a</c>, both where the shell has nobody to act as (#247). Standing alone, it is
+///         the shell's only screen: <c>esc</c> has nothing under it, so it starts the steps over rather than leaving,
+///         and <c>ctrl-q</c> is offered in its place. Signing a profile in again, the instance and the name are that
+///         profile's and fixed, so that what is written replaces its token rather than adding a second profile beside
+///         it.
+///     </para>
 /// </remarks>
 public sealed class AddProfileScreen : Screen
 {
@@ -31,6 +38,15 @@ public sealed class AddProfileScreen : Screen
     ///     The caret, a mark rather than a colour, so a terminal with none still says where the typing goes.
     /// </summary>
     private const string Caret = "▌";
+
+    /// <summary>What quits, offered where <c>esc</c> has nowhere to go.</summary>
+    private static readonly KeyHint Quit = new("ctrl-q", "quit");
+
+    /// <summary>A step back: to the list, or to the first step where the screen stands alone.</summary>
+    private static readonly KeyHint Back = new("esc", "back");
+
+    /// <summary>The profile being signed in again, whose instance and name are fixed — or none, adding one.</summary>
+    private readonly ProfileSummary? _again;
 
     private string _instance = string.Empty;
     private string _token = string.Empty;
@@ -57,6 +73,25 @@ public sealed class AddProfileScreen : Screen
     /// </summary>
     private IBrowserAuthorization? _authorization;
 
+    /// <summary>Adds a profile from the instance up.</summary>
+    /// <param name="alone">
+    ///     Whether this is the shell's only screen, with nothing under it for <c>esc</c> to go back to (#247).
+    /// </param>
+    public AddProfileScreen(bool alone = false)
+    {
+        Alone = alone;
+    }
+
+    private AddProfileScreen(ProfileSummary again, string? why, bool alone)
+        : this(alone)
+    {
+        _again = again;
+        _instance = again.Instance;
+        _name = again.Name;
+        _account = again.Account;
+        _refusal = why;
+    }
+
     /// <summary>Where the reader is in adding a profile.</summary>
     public enum Step
     {
@@ -81,6 +116,30 @@ public sealed class AddProfileScreen : Screen
         Name,
     }
 
+    /// <summary>
+    ///     Signs <paramref name="profile" /> in again: its instance and name fixed, and its token replaced by what the
+    ///     sign-in brings back (#247).
+    /// </summary>
+    /// <param name="profile">The profile whose token is missing or refused.</param>
+    /// <param name="why">What was wrong with the token it had, said on the screen until the reader moves on.</param>
+    /// <param name="alone">Whether this is the shell's only screen.</param>
+    public static AddProfileScreen Again(ProfileSummary profile, string? why, bool alone) => new(profile, why, alone);
+
+    /// <summary>Whether this is the shell's only screen, with nothing under it for <c>esc</c> to go back to.</summary>
+    public bool Alone { get; }
+
+    /// <summary>
+    ///     Whether a profile already set up is being signed in again, with its instance and name fixed — which is also
+    ///     why nothing is asked about the name before its token is replaced.
+    /// </summary>
+    public bool SignsInAgain => _again is not null;
+
+    /// <summary>
+    ///     Who the profile being signed in again signs in as on record — <c>username@instance</c> — or
+    ///     <see langword="null" /> where it has not said, or none is being signed in again.
+    /// </summary>
+    public string? OnRecord => _again?.Account;
+
     /// <summary>Which step the reader is on.</summary>
     public Step At { get; private set; } = Step.Instance;
 
@@ -102,33 +161,44 @@ public sealed class AddProfileScreen : Screen
     public string? Account => _account;
 
     /// <inheritdoc />
-    public override string Crumb => "Add a profile";
+    public override string Crumb => SignsInAgain ? "Sign in again" : "Add a profile";
 
     /// <inheritdoc />
-    public override bool IsTyping => At is Step.Instance or Step.Token or Step.Name;
+    /// <remarks>Not the instance where it is fixed, which leaves every letter nothing to go into.</remarks>
+    public override bool IsTyping => At switch
+    {
+        Step.Instance => !SignsInAgain,
+        Step.Token or Step.Name => true,
+        _ => false,
+    };
 
     /// <inheritdoc />
     /// <remarks>
     ///     Only what does something on the step the reader is on. While a field is taking letters every letter is typed
     ///     into it, so <c>t</c> is offered only while the browser is out, and <c>⏎</c> never while something is being
-    ///     waited on.
+    ///     waited on. Standing alone, <c>esc</c> goes back to the first step, so it is not offered on it, and
+    ///     <c>ctrl-q</c> is offered throughout in its place: this is the one screen a reader who wants out has.
     /// </remarks>
     protected override IReadOnlyList<KeyHint> OwnKeys => At switch
     {
-        Step.Instance => [new("⏎", "sign in"), new("esc", "back")],
-        Step.Registering or Step.Checking => [new("esc", "back")],
-        Step.Browser when Waiting => [new("t", "paste a token"), new("esc", "back")],
-        Step.Browser => [new("⏎", "try again"), new("t", "paste a token"), new("esc", "back")],
-        Step.Token => [new("⏎", "check"), new("esc", "back")],
-        _ => [new("⏎", "save"), new("esc", "back")],
+        Step.Instance when Alone => [new("⏎", "sign in"), Quit],
+        Step.Instance => [new("⏎", "sign in"), Back],
+        Step.Registering or Step.Checking => [Back, .. Quitting],
+        Step.Browser when Waiting => [new("t", "paste a token"), Back, .. Quitting],
+        Step.Browser => [new("⏎", "try again"), new("t", "paste a token"), Back, .. Quitting],
+        Step.Token => [new("⏎", "check"), Back, .. Quitting],
+        _ => [new("⏎", "save"), Back, .. Quitting],
     };
+
+    /// <summary><c>ctrl-q</c> where the screen stands alone, and nothing where there is somewhere to go back to.</summary>
+    private IReadOnlyList<KeyHint> Quitting => Alone ? [Quit] : [];
 
     /// <inheritdoc />
     public override void Type(char letter)
     {
         switch (At)
         {
-            case Step.Instance:
+            case Step.Instance when !SignsInAgain:
                 _instance += letter;
 
                 break;
@@ -150,7 +220,7 @@ public sealed class AddProfileScreen : Screen
     {
         switch (At)
         {
-            case Step.Instance:
+            case Step.Instance when !SignsInAgain:
                 _instance = Backspaced(_instance);
 
                 break;
@@ -171,6 +241,23 @@ public sealed class AddProfileScreen : Screen
     ///     Says why the step the reader is on did not go through, on the screen, where they can do something about it.
     /// </summary>
     public void Refuse(string why) => _refusal = why;
+
+    /// <summary>
+    ///     Back to the first step, with whatever was in flight given up and the loopback port given back — what
+    ///     <c>esc</c> does where this screen stands alone and there is nothing under it to go back to (#247). The
+    ///     instance typed is kept, being the one thing the reader definitely meant.
+    /// </summary>
+    public void StartOver()
+    {
+        StopSigningIn();
+
+        _token = string.Empty;
+        _refusal = null;
+        _sentTo = null;
+        _account = _again?.Account;
+        _name = _again?.Name ?? string.Empty;
+        At = Step.Instance;
+    }
 
     /// <summary>
     ///     A sign-in through the browser is starting: a fresh cancellation for it, called off whenever the reader stops
@@ -256,7 +343,7 @@ public sealed class AddProfileScreen : Screen
 
     /// <summary>
     ///     The token signs in as <paramref name="account" />, so the name is asked for — beginning as the handle, which
-    ///     is who the profile names.
+    ///     is who the profile names. Signing a profile in again, the name is that profile's and stays so.
     /// </summary>
     /// <param name="token">The token that was checked, kept for the write.</param>
     /// <param name="account">Who it signs in as, <c>username@instance</c>.</param>
@@ -264,7 +351,7 @@ public sealed class AddProfileScreen : Screen
     {
         _token = token;
         _account = account;
-        _name = account.Split('@')[0];
+        _name = _again?.Name ?? account.Split('@')[0];
         _refusal = null;
         At = Step.Name;
     }
@@ -292,7 +379,12 @@ public sealed class AddProfileScreen : Screen
     public override IReadOnlyList<Line> Lines(Drawing drawing)
     {
         var width = drawing.Width;
-        var lines = new List<Line> { Field("Instance: ", _instance, At == Step.Instance, width) };
+        var lines = new List<Line> { Field("Instance: ", _instance, At == Step.Instance && IsTyping, width) };
+
+        if (_again is { } again)
+        {
+            lines.Add(Field("Profile:  ", again.Name, typing: false, width));
+        }
 
         if (_account is { } account)
         {
@@ -305,7 +397,13 @@ public sealed class AddProfileScreen : Screen
         {
             case Step.Instance:
                 Refusal(lines, width);
-                Said(lines, "The instance the account is on, e.g. mastodon.social.", width, Role.Muted);
+                Said(
+                    lines,
+                    SignsInAgain
+                        ? "Sign in again to replace this profile's access token."
+                        : "The instance the account is on, e.g. mastodon.social.",
+                    width,
+                    Role.Muted);
 
                 break;
 

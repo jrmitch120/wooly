@@ -10,6 +10,10 @@ public enum TuiExit
     /// <summary>It ran and the reader quit it.</summary>
     Success = 0,
 
-    /// <summary>It could not open — no profile to act as, or a config file it could not read.</summary>
+    /// <summary>
+    ///     It could not open — a config file it could not read or that names a default that is not there, or a
+    ///     <c>--profile</c> naming nothing. Not nobody to act as, nor a token missing or refused: those open on adding
+    ///     a profile (#247).
+    /// </summary>
     Failed = 1,
 }

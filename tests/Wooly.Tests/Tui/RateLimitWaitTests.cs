@@ -95,20 +95,24 @@ public class RateLimitWaitTests
 
     /// <summary>
     ///     Anything a wait cannot mend is said out loud instead, in the role that says it is a failure — and the shell
-    ///     stays open, because a shell that closed on one bad answer would be worse than the CLI it is not.
+    ///     stays open, because a shell that closed on one bad answer would be worse than the CLI it is not. A token
+    ///     refused at launch is the exception, and signs the profile in again (<see cref="ShellFirstRunTests" />).
     /// </summary>
     [Fact]
     public async Task Open_SaysAFailureOutLoudRatherThanWaitingOnIt()
     {
+        var failure = new TransientNetworkException(
+            new Uri("https://mastodon.social/api/v1/timelines/home"),
+            attempts: 3,
+            new HttpRequestException("Connection refused"));
         var shell = new AShell
         {
-            Timelines = FakeTimelineReader.Awaiting(_ =>
-                Task.FromException<Fetch<Post>>(new AuthenticationException("That token has been revoked."))),
+            Timelines = FakeTimelineReader.Awaiting(_ => Task.FromException<Fetch<Post>>(failure)),
         };
 
         var opened = await shell.Opened();
 
-        Assert.Equal("That token has been revoked.", opened.Notice);
+        Assert.Equal(failure.Message, opened.Notice);
         Assert.True(opened.NoticeIsError);
     }
 

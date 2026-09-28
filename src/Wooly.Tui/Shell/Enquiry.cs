@@ -87,8 +87,24 @@ public sealed class Enquiry(
     /// </remarks>
     public event Action? Ticked;
 
+    /// <summary>
+    ///     Raised where an instance refused the token a question was put with, after the notice saying so. Always on
+    ///     the drawing thread.
+    /// </summary>
+    /// <remarks>
+    ///     Apart from <see cref="Said" />, because a refused token is the one failure the shell may do something about
+    ///     beyond saying it: at launch, before anything has been read, it signs the profile in again (#247).
+    /// </remarks>
+    public event Action<AuthenticationException>? Refused;
+
     /// <summary>Whether a fetch is in flight, which the breadcrumb says once and the rail never does.</summary>
     public bool Fetching => _inFlight > 0;
+
+    /// <summary>
+    ///     Whether any question put through this enquiry has been answered — which is to say whether the token it asks
+    ///     with has ever been taken.
+    /// </summary>
+    public bool Answered { get; private set; }
 
     /// <summary>
     ///     Cancelled when the enquiry is abandoned — for the one kind of question not put through it, the rail's counts,
@@ -145,7 +161,15 @@ public sealed class Enquiry(
         catch (WoolyException failure)
         {
             // Said whether or not the reader is still here: this is the shell's own trouble rather than an answer.
-            Apply(() => Said?.Invoke(failure.Message, isError: true));
+            Apply(() =>
+            {
+                Said?.Invoke(failure.Message, isError: true);
+
+                if (failure is AuthenticationException refused)
+                {
+                    Refused?.Invoke(refused);
+                }
+            });
 
             return;
         }
@@ -156,6 +180,8 @@ public sealed class Enquiry(
 
         Apply(() =>
         {
+            Answered = true;
+
             eitherWay?.Invoke(answer);
 
             if (ReferenceEquals(from, inFront()))
