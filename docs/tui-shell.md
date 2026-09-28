@@ -1385,7 +1385,8 @@ to:
   has been read as the profile it launched as. A refusal after that, or after a switch, is only said on the status row.
 - **A missing or refused token opens the add screen filled in for that profile.** Its instance and name are fixed and
   drawn, its crumb is *Sign in again*, and why is drawn under them in `error`. Only the sign-in and the check run; the
-  token then replaces the old one under the same name, without asking, since replacing it is what the screen is for.
+  token then replaces the old one under the same name, without asking, since replacing it is what the screen is for. A
+  token that signs in as somebody other than the account on record is refused on the screen, and nothing is written.
 - **Only the add screen's own keys mean anything.** `⏎` and `t` as ever; `tab`, `/`, `?` and `ctrl-p` do nothing,
   since each goes somewhere and there is nowhere. `esc` has nothing under it, so it starts the steps over — giving up
   a sign-in or a check in flight, and keeping the instance typed — and is not offered on the first step. `ctrl-q` is

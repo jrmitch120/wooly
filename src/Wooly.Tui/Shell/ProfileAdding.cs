@@ -197,6 +197,17 @@ internal sealed class ProfileAdding(
                     return;
                 }
 
+                // A working token for somebody else is the one mistake signing in again must catch: written, it would
+                // quietly point the profile at another person (#247, #248).
+                if (screen.OnRecord is { } recorded
+                    && !string.Equals(verified.Value, recorded, StringComparison.OrdinalIgnoreCase))
+                {
+                    screen.Refused($"That token signs in as @{verified.Value}, not @{recorded}. Nothing was stored.");
+                    changed();
+
+                    return;
+                }
+
                 screen.Verified(token, verified.Value!);
                 changed();
 

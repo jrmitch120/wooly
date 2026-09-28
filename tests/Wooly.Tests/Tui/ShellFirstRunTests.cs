@@ -122,7 +122,7 @@ public class ShellFirstRunTests
         window.Layout();
 
         Assert.Equal(0, Content(window).Frame.X);
-        Assert.DoesNotContain(window.SubViews.OfType<PaintedView>(), view => view.Visible && view.Frame is { X: 0, Width: RailLines.Width });
+        Assert.False(Railed(window));
 
         Type(shell, Instance);
         shell.Press(ShellKey.Enter);
@@ -132,11 +132,8 @@ public class ShellFirstRunTests
         window.Layout();
 
         Assert.Equal(RailLines.Width + 1, Content(window).Frame.X);
-        Assert.Contains(window.SubViews.OfType<PaintedView>(), view => view.Visible && view.Frame is { X: 0, Width: RailLines.Width });
+        Assert.True(Railed(window));
     }
-
-    private static PaintedView Content(ShellWindow window) =>
-        window.SubViews.OfType<PaintedView>().Single(view => view.Id == ShellWindow.ContentId);
 
     /// <summary>
     ///     A profile added on first run starts the shell as a launch would: on Home, with the rail, reading as the
@@ -260,6 +257,30 @@ public class ShellFirstRunTests
     }
 
     /// <summary>
+    ///     Signing a profile in again with a token for somebody else writes nothing: the profile would otherwise quietly
+    ///     become another person's.
+    /// </summary>
+    [Fact]
+    public async Task SigningInAgainAsSomebodyElse_WritesNothing()
+    {
+        var registry = FakeProfileRegistry.Holding(
+            "work",
+            FakeProfileRegistry.Profile("work", Instance, $"somebody@{Instance}"));
+        registry.Tokenless.Add("work");
+
+        var shell = new AShell { Profiles = registry };
+        var opened = await shell.Launched();
+
+        opened.Press(ShellKey.Enter);
+        shell.Host.Drain();
+
+        Assert.Empty(registry.Added);
+        Assert.IsType<AddProfileScreen>(opened.Screen);
+        Assert.False(opened.ShowsRail);
+        Assert.Contains($"@jeff@{Instance}, not @somebody@{Instance}", Joined(opened));
+    }
+
+    /// <summary>
     ///     A token refused once something has been read as it is not a launch any more: the reader stays where they
     ///     are, told on the status row (#248), and is not taken anywhere.
     /// </summary>
@@ -358,6 +379,14 @@ public class ShellFirstRunTests
         FakeTimelineReader.Answering(_ => refusing()
             ? throw new AuthenticationException("mastodon.social refused the token.")
             : Fetch<Post>.Complete([APost.With()]));
+
+    /// <summary>The content region, laid out.</summary>
+    private static PaintedView Content(ShellWindow window) =>
+        window.SubViews.OfType<PaintedView>().Single(view => view.Id == ShellWindow.ContentId);
+
+    /// <summary>Whether the rail is laid out and drawn, at the window's left edge.</summary>
+    private static bool Railed(ShellWindow window) =>
+        window.SubViews.OfType<PaintedView>().Any(view => view.Visible && view.Frame is { X: 0, Width: RailLines.Width });
 
     private static (string Name, string Instance, string Token) Written(FakeProfileRegistry registry)
     {

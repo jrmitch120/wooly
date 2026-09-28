@@ -304,7 +304,7 @@ public sealed class Shell
     ///     (#83, #87). That is settled here rather than in the keymap because the screen is the only thing that knows
     ///     what is on the post, and asking it in two places is how two places come to disagree.
     /// </returns>
-    public bool Do(Verb verb, int? answer) => _acting is null && !WithNobody(verb) ? false : verb switch
+    public bool Do(Verb verb, int? answer) => (_acting is not null || WithNobody(verb)) && verb switch
     {
         Verb.NextReference => WalkReference(1),
         Verb.PreviousReference => WalkReference(-1),
@@ -1249,12 +1249,7 @@ public sealed class Shell
             return;
         }
 
-        _enquiry.Abandon();
-
-        Asking = null;
-        _launching = false;
-        _quotaBeforeSwitch = _ports.RateLimit.Latest;
-
+        LetGo();
         Begin(next);
         _instance = RailInstance();
 
@@ -1279,16 +1274,24 @@ public sealed class Shell
 
         var again = _profiles.Registry.List().SingleOrDefault(profile => profile.Name == acting.Profile.Name);
 
+        LetGo();
+        Begin(profile: null);
+        _instance = null;
+
+        Reset(SigningIn(again, refused.Message));
+    }
+
+    /// <summary>
+    ///     Lets go of everything asked as the profile acted as, before <see cref="Begin" /> puts whoever is next in its
+    ///     place: every question in flight called off, a confirmation waiting dismissed, and its quota no longer drawn.
+    /// </summary>
+    private void LetGo()
+    {
         _enquiry.Abandon();
 
         Asking = null;
         _launching = false;
         _quotaBeforeSwitch = _ports.RateLimit.Latest;
-
-        Begin(profile: null);
-        _instance = null;
-
-        Reset(SigningIn(again, refused.Message));
     }
 
     /// <summary>

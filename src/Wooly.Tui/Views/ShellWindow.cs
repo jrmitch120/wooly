@@ -64,9 +64,6 @@ internal sealed class ShellWindow : Window
 
     /// <inheritdoc cref="_rail" />
     private readonly PaintedView _breadcrumb;
-
-    /// <summary>Whether the rail is laid out, which it is as built.</summary>
-    private bool _railed = true;
     private readonly Shell.Shell _shell;
     private readonly TimeProvider _clock;
     private readonly Action _quit;
@@ -82,6 +79,9 @@ internal sealed class ShellWindow : Window
     ///     opened is showing that screen, and calling it "none" makes the very next replacement look like the first.
     /// </remarks>
     private Screen? _showing;
+
+    /// <summary>Whether the rail is laid out, which it is as built.</summary>
+    private bool _railed = true;
 
 
     /// <param name="quit">

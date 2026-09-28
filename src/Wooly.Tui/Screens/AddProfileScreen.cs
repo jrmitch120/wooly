@@ -42,6 +42,9 @@ public sealed class AddProfileScreen : Screen
     /// <summary>What quits, offered where <c>esc</c> has nowhere to go.</summary>
     private static readonly KeyHint Quit = new("ctrl-q", "quit");
 
+    /// <summary>A step back: to the list, or to the first step where the screen stands alone.</summary>
+    private static readonly KeyHint Back = new("esc", "back");
+
     /// <summary>The profile being signed in again, whose instance and name are fixed — or none, adding one.</summary>
     private readonly ProfileSummary? _again;
 
@@ -131,6 +134,12 @@ public sealed class AddProfileScreen : Screen
     /// </summary>
     public bool SignsInAgain => _again is not null;
 
+    /// <summary>
+    ///     Who the profile being signed in again signs in as on record — <c>username@instance</c> — or
+    ///     <see langword="null" /> where it has not said, or none is being signed in again.
+    /// </summary>
+    public string? OnRecord => _again?.Account;
+
     /// <summary>Which step the reader is on.</summary>
     public Step At { get; private set; } = Step.Instance;
 
@@ -168,25 +177,21 @@ public sealed class AddProfileScreen : Screen
     ///     Only what does something on the step the reader is on. While a field is taking letters every letter is typed
     ///     into it, so <c>t</c> is offered only while the browser is out, and <c>⏎</c> never while something is being
     ///     waited on. Standing alone, <c>esc</c> goes back to the first step, so it is not offered on it, and
-    ///     <c>ctrl-q</c> is offered throughout: this is the one screen a reader who wants out has.
+    ///     <c>ctrl-q</c> is offered throughout in its place: this is the one screen a reader who wants out has.
     /// </remarks>
-    protected override IReadOnlyList<KeyHint> OwnKeys
+    protected override IReadOnlyList<KeyHint> OwnKeys => At switch
     {
-        get
-        {
-            IReadOnlyList<KeyHint> keys = At switch
-            {
-                Step.Instance => [new("⏎", "sign in"), new("esc", "back")],
-                Step.Registering or Step.Checking => [new("esc", "back")],
-                Step.Browser when Waiting => [new("t", "paste a token"), new("esc", "back")],
-                Step.Browser => [new("⏎", "try again"), new("t", "paste a token"), new("esc", "back")],
-                Step.Token => [new("⏎", "check"), new("esc", "back")],
-                _ => [new("⏎", "save"), new("esc", "back")],
-            };
+        Step.Instance when Alone => [new("⏎", "sign in"), Quit],
+        Step.Instance => [new("⏎", "sign in"), Back],
+        Step.Registering or Step.Checking => [Back, .. Quitting],
+        Step.Browser when Waiting => [new("t", "paste a token"), Back, .. Quitting],
+        Step.Browser => [new("⏎", "try again"), new("t", "paste a token"), Back, .. Quitting],
+        Step.Token => [new("⏎", "check"), Back, .. Quitting],
+        _ => [new("⏎", "save"), Back, .. Quitting],
+    };
 
-            return Alone ? [.. keys.Where(key => At != Step.Instance || key.Key != "esc"), Quit] : keys;
-        }
-    }
+    /// <summary><c>ctrl-q</c> where the screen stands alone, and nothing where there is somewhere to go back to.</summary>
+    private IReadOnlyList<KeyHint> Quitting => Alone ? [Quit] : [];
 
     /// <inheritdoc />
     public override void Type(char letter)
