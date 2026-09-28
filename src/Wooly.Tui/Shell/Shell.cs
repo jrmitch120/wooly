@@ -1254,16 +1254,8 @@ public sealed class Shell
     /// </remarks>
     private void Act(string name)
     {
-        ActiveProfile next;
-
-        try
+        if (ResolvedOrSaid(name) is not { } next)
         {
-            next = _profiles.Registry.Resolve(name);
-        }
-        catch (WoolyException failure)
-        {
-            Say(failure.Message, isError: true);
-
             return;
         }
 
@@ -1280,24 +1272,34 @@ public sealed class Shell
     /// <summary>
     ///     The profile acted as, read again for the token it was just signed in with: what asks as it is built again
     ///     around the same enquiry and cache, so nothing in flight is called off and nothing read is thrown away —
-    ///     the account is the one on record, which is what signing in again checked (#248).
+    ///     the account is the same one, which is what makes it the same person carrying on (#248).
     /// </summary>
     private void Renewed(string name)
     {
-        ActiveProfile renewed;
+        if (ResolvedOrSaid(name) is not { } renewed)
+        {
+            return;
+        }
 
+        _acting = Acts(renewed, _enquiry, Actor.Cache) with { Marking = Actor.Marking };
+    }
+
+    /// <summary>
+    ///     The profile called <paramref name="name" />, token and all — or <see langword="null" />, with the resolver's
+    ///     own words for why on the status row, where it can't be: its token gone from the store above all.
+    /// </summary>
+    private ActiveProfile? ResolvedOrSaid(string name)
+    {
         try
         {
-            renewed = _profiles.Registry.Resolve(name);
+            return _profiles.Registry.Resolve(name);
         }
         catch (WoolyException failure)
         {
             Say(failure.Message, isError: true);
 
-            return;
+            return null;
         }
-
-        _acting = Acts(renewed, _enquiry, Actor.Cache) with { Marking = Actor.Marking };
     }
 
     /// <summary>
@@ -1776,10 +1778,19 @@ public sealed class Shell
 
         Leave(_stack.IndexOf(adding));
 
-        // Signed in again as the profile acted as, which is still the same person: the session carries on with the
-        // stack as it is, and asks with the new token from here on (#248).
+        // Written over the profile acted as. Signed in as the same account, that is the same person carrying on: the
+        // stack stays as it is, and asks with the new token from here on (#248). As somebody else — a plain add,
+        // replacing the name, which checks no account on record — it is a switch to them, starting again on Home.
         if (name == Actor.Profile.Name)
         {
+            if (adding.Account is not { } account || !Actor.Profile.SignsInAs(account))
+            {
+                Act(name);
+                Say($"Replaced profile {name}.", isError: false);
+
+                return;
+            }
+
             Renewed(name);
         }
 

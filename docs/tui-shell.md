@@ -1412,7 +1412,9 @@ this document now holds it to:
 - **Offered on every row**, the one acted as and the default included: every profile's token can be replaced.
 - **Signing in again as the profile acted as keeps the session.** It is still the same person, so nothing is let go of:
   the stack, the arrival's cache, picks and readings stay, nothing is read again for it, and every request from then on
-  goes out with the new token. Only what asks as the profile is built again, around the same enquiry.
+  goes out with the new token. Only what asks as the profile is built again, around the same enquiry. `a` writing over
+  the profile acted as, under its name but as another account, is not the same person: the session starts again on
+  Home acting as it, as a switch does.
 - **A token refused mid-session is said, not acted on.** Any enquiry the instance answers with a 401 puts *This
   profile's token was refused — ctrl-p to sign in again.* on the status row, in `error`, and nothing opens by itself:
   whether to sign in again now is the reader's. A 401 to a request made with a token is an `AuthenticationException`

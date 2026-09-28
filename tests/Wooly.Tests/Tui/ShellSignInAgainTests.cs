@@ -13,7 +13,7 @@ namespace Wooly.Tests.Tui;
 ///     replaced without asking — and a token refused mid-session, said on the status row with the key that fixes it
 ///     (ADR-0020, #248).
 /// </summary>
-public class ShellReauthorizeTests
+public class ShellSignInAgainTests
 {
     /// <summary>What the status row says wherever an instance refuses the token a question was put with.</summary>
     private const string TokenRefused = "This profile's token was refused — ctrl-p to sign in again.";
@@ -156,6 +156,52 @@ public class ShellReauthorizeTests
         shell.Host.Drain();
 
         Assert.Equal("token-from-browser", Assert.Single(shell.Engagement.Tokens));
+    }
+
+    /// <summary>
+    ///     Adding over the profile acted as, under its name but as somebody else, is not the same person carrying on:
+    ///     the session starts again on Home acting as whoever it now names, with nothing read as the old account kept.
+    /// </summary>
+    [Fact]
+    public async Task AddingOverTheProfileActedAs_AsSomebodyElse_StartsAgainOnHome()
+    {
+        var shell = PersonalAndWork();
+        shell.Engagement = FakePostEngagement.Answered(APost.With(id: "110"));
+        var opened = await shell.Opened();
+
+        await opened.Enter();
+        shell.Host.Drain();
+
+        opened.Press(ShellKey.CtrlP);
+        opened.Press(ShellKey.A);
+
+        foreach (var letter in "hachyderm.io")
+        {
+            opened.Type(letter);
+        }
+
+        opened.Press(ShellKey.Enter);
+        shell.Host.Drain();
+
+        for (var left = Assert.IsType<AddProfileScreen>(opened.Screen).Name.Length; left > 0; left--)
+        {
+            opened.Backspace();
+        }
+
+        foreach (var letter in "personal")
+        {
+            opened.Type(letter);
+        }
+
+        opened.Press(ShellKey.Enter);
+        await opened.Answer(agreed: true);
+        shell.Host.Drain();
+
+        Assert.Equal("jeff@hachyderm.io", Assert.Single(shell.Profiles.Added).Profile.Account);
+        Assert.IsType<FeedScreen>(opened.Screen);
+        Assert.Equal(1, opened.Depth);
+        Assert.Equal("Home", opened.Breadcrumb);
+        Assert.Equal("token-from-browser", shell.Timelines.Tokens[^1]);
     }
 
     /// <summary>

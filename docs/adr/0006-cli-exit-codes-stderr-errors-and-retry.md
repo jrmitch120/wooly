@@ -18,4 +18,4 @@ Every command needs the same failure behavior, and no command should have to rei
 
 Retry is deliberately blind to idempotency — it never retries a response, so it never has to reason about which verbs are safe to repeat. If a later ticket wants 5xx retries for read commands, that trade has to be reopened here first, together with how a retried `POST` avoids duplicating a post.
 
-`AuthenticationError` has no producer yet; the authentication ticket is expected to claim it. An exit code with no thrower is the intended state for a reserved scheme, not an oversight.
+`AuthenticationError` is produced by `AuthenticationException`: no profile to act as, a token missing from the store, a sign-in the instance turned down, and — since #248 — any 401 an instance answers to a request made with a token (`RefusedTokenHandler`).
