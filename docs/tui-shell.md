@@ -63,7 +63,7 @@ A screen is a place in the stack, not a window. Entering one pushes, `esc` pops,
 | Direct messages — conversations, then a thread | A rail destination | #30 |
 | Compose / reply / edit — a screen on the stack, like any other | `c`, `r` or `e` | #28 |
 | Profiles — every profile on this machine, marked `acting as` and `default` | `ctrl-p` | #240 (ADR-0020) |
-| Add a profile — the instance, a sign-in through the browser or a pasted token, the token checked, a name | `a` on the profiles screen | #245 (ADR-0020) |
+| Add a profile — the instance, a sign-in through the browser or a pasted token, the token checked, a name | `a` on the profiles screen, or launching with nobody to act as | #245, #247 (ADR-0020) |
 | Media inside a post or feed item | Drawn in place | #31 (ADR-0016) |
 
 Every screen owes three things: it reads at 61 columns, it says what its keys are on the status row, and it names roles
@@ -117,7 +117,7 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Direct messages | `⏎` open the conversation · `m` mark read — `m` again inside the thread, where a reader who has just read it is most likely to press it |
 | Conversation | `m` mark read, and every key that acts on a post, since each message in it is one |
 | Profiles | `⏎` act as that profile, for this session — not offered on the one already acted as · `D` make it the default, for the CLI and the next launch — not offered on the one already the default · `a` add a profile · `x` remove it, after a confirmation — refused on the one acted as and on the default |
-| Add a profile | `⏎` on to the next step · `t` paste a token instead, while the browser is out or after it failed · `esc` back to the list, calling off a sign-in or a check in flight |
+| Add a profile | `⏎` on to the next step · `t` paste a token instead, while the browser is out or after it failed · `esc` back to the list, calling off a sign-in or a check in flight — or, as the only screen on first run, back to the first step, with `ctrl-q` quit offered (#247) |
 | Compose / reply / edit | `ctrl-s` send or save · `esc` throw it away · `ctrl-w` move the typing between the post and the content warning over it — on all three, each carrying a warning field of its own (#123, #139, #140) |
 | Home, local, federated, hashtag, Notifications, Messages, Requests, Discover, Post, Account, Follows | `g` refresh — evicts the destination's cache entry (where one exists) and re-runs the same fetch its own arrival runs |
 
@@ -1373,11 +1373,34 @@ to:
   one profile, the rail's instance row goes too.
 - `x` means show what the post is hiding everywhere else; on the profiles screen there is no post.
 
+### What first run settled
+
+#247 moved the launch's profile failures inside the shell (ADR-0020). What this document now holds it to:
+
+- **The shell can start with nobody to act as.** It then shows the add screen as its only screen, with no rail and no
+  gutter: the breadcrumb and the content take every column, since every destination is read as somebody. `Opening`
+  decides this from `IProfileRegistry.Resolve` before a screen exists.
+- **That is no profile set up, none the default, or a token missing from the store** — every
+  `AuthenticationException` the resolver throws — **and a token refused at launch**: an enquiry refused before anything
+  has been read as the profile it launched as. A refusal after that, or after a switch, is only said on the status row.
+- **A missing or refused token opens the add screen filled in for that profile.** Its instance and name are fixed and
+  drawn, its crumb is *Sign in again*, and why is drawn under them in `error`. Only the sign-in and the check run; the
+  token then replaces the old one under the same name, without asking, since replacing it is what the screen is for.
+- **Only the add screen's own keys mean anything.** `⏎` and `t` as ever; `tab`, `/`, `?` and `ctrl-p` do nothing,
+  since each goes somewhere and there is nowhere. `esc` has nothing under it, so it starts the steps over — giving up
+  a sign-in or a check in flight, and keeping the instance typed — and is not offered on the first step. `ctrl-q` is
+  on the status row throughout, and quits with `TuiExit.Success`.
+- **A profile written starts the shell as a launch would**: acting as it, on Home, with the rail, its counts read.
+- **Still said on stderr, with `TuiExit.Failed`**: a config file that can't be read, one naming a default that isn't
+  there, and a `--profile` naming nothing. Each is a mistake the reader just made where they made it, and a form is not
+  the place to fix it.
+
 ## Starting it, and the one destination that needs configuring
 
 `wooly-tui` takes one option, `--profile <name>`, and it means what it means everywhere else: act as that profile for
 this run, without changing which one is the default (story 9). Everything else about the profile — which instance, which
-token — is resolved through `IProfileRegistry` exactly as a command's scope resolves it.
+token — is resolved through `IProfileRegistry` exactly as a command's scope resolves it. With nobody to act as, it opens
+on adding a profile ("What first run settled", above).
 
 Nine of the ten destinations are the same nine for everybody. The odd one out is a hashtag, and which one is nobody's
 business but the reader's, so it is a setting in the same TOML file everything else lives in (ADR-0003):

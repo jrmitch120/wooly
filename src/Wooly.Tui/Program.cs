@@ -26,8 +26,9 @@ await using var provider = services.BuildServiceProvider();
 try
 {
     // Resolved the way a command's scope resolves one, including --profile: naming a profile here acts as that
-    // profile for this run without changing which one is current (story 9).
-    var profile = provider.GetRequiredService<IProfileRegistry>().Resolve(StartupProfile.NamedIn(args));
+    // profile for this run without changing which one is current (story 9). Nobody to act as opens on adding a
+    // profile rather than failing here; what is still thrown is said below, before a screen exists (#247).
+    var opening = Opening.Of(provider.GetRequiredService<IProfileRegistry>(), StartupProfile.NamedIn(args));
     var config = provider.GetRequiredService<IConfigStore>().Load();
 
     // Read before a screen exists, because a theme naming a role or a colour this client cannot make sense of is a
@@ -53,7 +54,7 @@ try
     var clock = provider.GetRequiredService<TimeProvider>();
 
     var shell = new Shell(
-        profile,
+        opening,
         ports,
 
         // This machine's profiles, which are the local config rather than anything on an instance — so, like the
@@ -127,8 +128,10 @@ try
 }
 catch (WoolyException failure)
 {
-    // Before a screen exists there is nowhere to say this but here: no profile set up, a config file that names one
-    // that is not there, or a token that has been revoked. A rate limit inside the shell is waited out instead.
+    // Before a screen exists there is nowhere to say this but here: a config file that cannot be read or names a
+    // default that is not there, or a --profile naming nothing — each a mistake made where it is said. Nobody to act
+    // as, or a token missing or refused, opens the shell on adding a profile instead (#247). A rate limit inside the
+    // shell is waited out.
     await Console.Error.WriteLineAsync(failure.Message);
 
     return (int)TuiExit.Failed;

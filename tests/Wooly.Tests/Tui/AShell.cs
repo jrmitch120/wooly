@@ -100,8 +100,25 @@ internal sealed class AShell
     public ShellTiming Timing { get; set; } = ShellTiming.Default;
 
     /// <summary>The shell itself, over whatever the fakes have been set to.</summary>
-    public Shell Build() => new(
-        Profile,
+    public Shell Build() => Over(Opening.As(Profile));
+
+    /// <summary>
+    ///     A shell opened as a launch opens one, over whatever <see cref="Profiles" /> holds: acting as the profile named,
+    ///     or the default — or, where there is nobody to act as, on adding one (#247).
+    /// </summary>
+    public async Task<Shell> Launched(string? named = null)
+    {
+        var shell = Over(Opening.Of(Profiles, named));
+
+        await shell.Open();
+
+        Host.Drain();
+
+        return shell;
+    }
+
+    private Shell Over(Opening opening) => new(
+        opening,
         new ShellPorts(Timelines, Author, Engagement, Accounts, Notifications, Messages, Search, Suggestions, RateLimit),
         new ProfilePorts(Profiles, Paths, Authorizer, Verifier),
         Host,
@@ -169,7 +186,7 @@ internal sealed class AShell
     public async Task<Shell> OpenedOver(IProfileRegistry registry, WoolyPaths paths)
     {
         var shell = new Shell(
-            registry.Resolve(null),
+            Opening.As(registry.Resolve(null)),
             new ShellPorts(Timelines, Author, Engagement, Accounts, Notifications, Messages, Search, Suggestions, RateLimit),
             new ProfilePorts(registry, paths, Authorizer, Verifier),
             Host,

@@ -119,12 +119,14 @@ internal sealed class FakeProfileRegistry(IReadOnlyList<ProfileSummary> profiles
 
     /// <inheritdoc />
     /// <remarks>
-    ///     A named profile only, which is all a switch ever asks for — with <c>token-</c> and its name for its token, so a
-    ///     test can tell whose token a call went out with.
+    ///     With <c>token-</c> and its name for its token, so a test can tell whose token a call went out with. No name is
+    ///     the default, and no default is nobody to act as — refused as the real one refuses it.
     /// </remarks>
     public ActiveProfile Resolve(string? requestedName)
     {
-        var name = requestedName ?? throw new NotSupportedException("Nothing in the TUI resolves the default profile.");
+        var name = requestedName
+                   ?? _profiles.SingleOrDefault(held => held.IsCurrent)?.Name
+                   ?? throw new AuthenticationException("No profiles have been set up yet.");
         var profile = _profiles.SingleOrDefault(held => held.Name == name)
                       ?? throw new UnknownProfileException(name, [.. _profiles.Select(held => held.Name)]);
 

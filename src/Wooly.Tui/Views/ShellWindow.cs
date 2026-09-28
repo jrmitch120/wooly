@@ -55,6 +55,18 @@ internal sealed class ShellWindow : Window
 
     private readonly PaintedView _content;
     private readonly ComposeEditor _editor;
+
+    /// <summary>The rail, the column dividing it from the rest, and the breadcrumb — what <see cref="Railed" /> moves.</summary>
+    private readonly PaintedView _rail;
+
+    /// <inheritdoc cref="_rail" />
+    private readonly PaintedView _gutter;
+
+    /// <inheritdoc cref="_rail" />
+    private readonly PaintedView _breadcrumb;
+
+    /// <summary>Whether the rail is laid out, which it is as built.</summary>
+    private bool _railed = true;
     private readonly Shell.Shell _shell;
     private readonly TimeProvider _clock;
     private readonly Action _quit;
@@ -108,7 +120,7 @@ internal sealed class ShellWindow : Window
         // constructs a colour, which is the rule this is keeping rather than breaking (ADR-0014).
         SetScheme(new Terminal.Gui.Drawing.Scheme(theme.For(Role.Body)));
 
-        var rail = new PaintedView(theme, (_, height) => RailLines.Of(shell.Rail, shell.Quota, height, shell.Instance))
+        var rail = _rail = new PaintedView(theme, (_, height) => RailLines.Of(shell.Rail, shell.Quota, height, shell.Instance))
         {
             X = 0,
             Y = 0,
@@ -117,7 +129,7 @@ internal sealed class ShellWindow : Window
             CanFocus = false,
         };
 
-        var breadcrumb = new PaintedView(theme, (width, _) =>
+        var breadcrumb = _breadcrumb = new PaintedView(theme, (width, _) =>
             [ChromeLines.Breadcrumb(shell.Crumbs, shell.Dots, width)])
         {
             X = RailLines.Width + 1,
@@ -135,7 +147,7 @@ internal sealed class ShellWindow : Window
         // own scheme, and its being blank is the whole of what divides the frame from what is being read. The band
         // that was briefly on it is on the breadcrumb itself now, where it says "this row is the frame" rather than
         // drawing a line under one.
-        var gutter = new PaintedView(theme, (_, height) => ChromeLines.Gutter(height))
+        var gutter = _gutter = new PaintedView(theme, (_, height) => ChromeLines.Gutter(height))
         {
             X = RailLines.Width,
             Y = 0,
@@ -191,6 +203,8 @@ internal sealed class ShellWindow : Window
         Add(rail, breadcrumb, gutter, _content, _editor, status);
 
         _showing = shell.Screen;
+
+        Railed();
 
         shell.Changed += Refresh;
 
@@ -474,6 +488,27 @@ internal sealed class ShellWindow : Window
     }
 
     /// <summary>
+    ///     Lays the rail out where the shell has one and takes it away where it has none — with nobody to act as, which
+    ///     leaves only adding a profile and every column to it (#247). Only on the frame where that changes.
+    /// </summary>
+    private void Railed()
+    {
+        if (_railed == _shell.ShowsRail)
+        {
+            return;
+        }
+
+        _railed = _shell.ShowsRail;
+        _rail.Visible = _gutter.Visible = _railed;
+
+        var left = _railed ? RailLines.Width + 1 : 0;
+
+        _breadcrumb.X = left;
+        _content.X = left;
+        _editor.X = left;
+    }
+
+    /// <summary>
     ///     Puts the editor in front of the content while a post is being written, and takes it away again. Which of
     ///     the two is showing is a fact about the stack, not a mode this view keeps of its own.
     /// </summary>
@@ -493,6 +528,8 @@ internal sealed class ShellWindow : Window
     /// </remarks>
     private void Refresh()
     {
+        Railed();
+
         if (!ReferenceEquals(_showing, _shell.Screen))
         {
             if (_showing is { } left)

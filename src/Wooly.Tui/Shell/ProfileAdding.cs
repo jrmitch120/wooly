@@ -192,13 +192,20 @@ internal sealed class ProfileAdding(
                 if (verified.Refusal is { } why)
                 {
                     screen.Refused(why);
-                }
-                else
-                {
-                    screen.Verified(token, verified.Value!);
+                    changed();
+
+                    return;
                 }
 
+                screen.Verified(token, verified.Value!);
                 changed();
+
+                // Signing a profile in again replaces its token under the name it already has, which is what the
+                // reader came to do — so there is no name to ask for, and nothing to confirm (#247).
+                if (screen.SignsInAgain)
+                {
+                    Store(screen, screen.Name);
+                }
             });
     }
 
