@@ -160,6 +160,26 @@ public class ShellRemoveProfileTests
         Assert.True(opened.NoticeIsError);
     }
 
+    /// <summary>
+    ///     A list read before the default moved elsewhere — <c>profile switch</c> in another terminal — still lands on
+    ///     the registry's refusal, and is told it in this screen's words rather than the CLI's.
+    /// </summary>
+    [Fact]
+    public async Task X_OnAProfileMadeTheDefaultSinceTheListWasRead_IsRefusedInTheScreensWords()
+    {
+        var shell = ThreeProfiles();
+        var opened = await shell.Opened();
+
+        OnProfiles(opened, "archive");
+        shell.Profiles.Switch("archive");
+        opened.Press(ShellKey.X);
+        await opened.Answer(agreed: true);
+
+        Assert.Empty(shell.Profiles.Removed);
+        Assert.Equal("Make another profile the default before removing this one.", opened.Notice);
+        Assert.True(opened.NoticeIsError);
+    }
+
     /// <summary>Down to one profile, the rail's foot no longer names the instance, there being nobody to tell apart.</summary>
     [Fact]
     public async Task X_DownToOneProfile_TakesTheInstanceOffTheRail()
@@ -204,7 +224,7 @@ public class ShellRemoveProfileTests
         var shell = new AShell();
         var opened = await shell.OpenedOver(registry, paths);
 
-        // Acting as work, the default, so personal is neither of the two a removal is refused on.
+        // Acting as work, which is also the default — the two profiles x refuses — so personal is the one it can take.
         OnProfiles(opened, "personal");
         opened.Press(ShellKey.X);
         await opened.Answer(agreed: true);

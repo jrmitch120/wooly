@@ -48,6 +48,9 @@ public sealed class Shell
     /// <inheritdoc cref="MentionUnresolved" />
     private const string NoBrowser = "No browser available.";
 
+    /// <summary>What <c>x</c> on the default profile answers, before anything is asked or after the registry refuses.</summary>
+    private const string MakeAnotherTheDefault = "Make another profile the default before removing this one.";
+
     /// <summary>
     ///     Where an address goes. The one thing this shell does that leaves the terminal, and deliberately not one of
     ///     <see cref="ShellPorts" />: those are what the shell reaches an <em>instance</em> through, and a browser is
@@ -721,7 +724,7 @@ public sealed class Shell
 
         if (picked.IsCurrent)
         {
-            Say("Make another profile the default before removing this one.", isError: true);
+            Say(MakeAnotherTheDefault, isError: true);
 
             return;
         }
@@ -732,7 +735,7 @@ public sealed class Shell
     /// <summary>
     ///     <c>x</c> agreed to: the profile goes through <see cref="IProfileRegistry.Remove" />, config entry and token
     ///     together, as <c>profile remove</c> does. Its row goes with the pick moved beside it, and the status row says
-    ///     what went. The default is never it, having been refused before anything was asked.
+    ///     what went.
     /// </summary>
     /// <remarks>
     ///     Nothing reaches an instance: the token is only this machine's copy, and the authorization is still the
@@ -750,6 +753,14 @@ public sealed class Shell
         try
         {
             _profiles.Registry.Remove(name);
+        }
+        catch (DefaultProfileRemovalException)
+        {
+            // Made the default since the list was read — profile switch in another terminal. Said in this screen's
+            // words, which name D, rather than the registry's, which name the CLI.
+            Say(MakeAnotherTheDefault, isError: true);
+
+            return Task.CompletedTask;
         }
         catch (WoolyException failure)
         {

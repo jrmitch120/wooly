@@ -1,7 +1,7 @@
 namespace Wooly.Core.Profiles;
 
 /// <summary>
-///     What somebody adding or making the default a profile is told about it, in words. Shared by the
+///     What somebody adding a profile or making one the default is told about it, in words. Shared by the
 ///     <c>profile</c> commands and the TUI for the reason <see cref="BrowserSignIn" /> is: the same state described two
 ///     ways reads as two states (#245).
 /// </summary>
