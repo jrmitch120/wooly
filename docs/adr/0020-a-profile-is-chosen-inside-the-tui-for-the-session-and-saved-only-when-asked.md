@@ -54,8 +54,14 @@ whenever that is the store in use.
 
 `IProfileRegistry.Remove` deletes the config entry and the token together, for the same reason `Add` writes them
 together. The CLI gets `profile remove <NAME>` in the same change, so Core does not gain something only one surface can
-do. The TUI refuses to remove the profile you are acting as. Removing the default profile clears the default rather than
-choosing another one, and says so.
+do. The TUI refuses to remove the profile you are acting as. Both surfaces refuse to remove the default profile, and say
+to make another the default first.
+
+Spec #238 had removing the default clear it instead of moving it to another profile. That was changed while #246 was
+being built. Clearing it left every command with no `--profile`, and the next TUI launch, with nothing to act as, and
+the first a user heard of it was a failure somewhere else. Refusing keeps a default in place whenever there is one, and
+leaves choosing its replacement to the user, which is what clearing it was protecting. One consequence is that the last
+profile can't be removed with `profile remove`, since it is always the default.
 
 ## A profile that cannot sign in no longer ends the TUI
 

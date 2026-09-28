@@ -210,31 +210,48 @@ public class ProfileRegistryTests : IDisposable
             () => new GcmKeyring(GcmKeyring.BackingStoreForThisMachine, new FakeOsKeyring()));
         var registry = NewRegistry(keyring);
         registry.Add("personal", Pointing("mastodon.social"), "token-personal");
+        registry.Add("work", Pointing("hachyderm.io"), "token-work");
 
-        registry.Remove("personal");
+        registry.Remove("work");
 
-        Assert.Null(keyring.FindAccessToken("personal"));
-        Assert.Empty(NewRegistry(keyring).List());
+        Assert.Null(keyring.FindAccessToken("work"));
+        Assert.Equal(["personal"], NewRegistry(keyring).List().Select(profile => profile.Name));
     }
 
     /// <summary>
-    ///     Removing the current profile clears current rather than moving it: which account commands act as is the
-    ///     user's to choose, and a cron job that quietly starts posting as another account is the harm to avoid.
+    ///     The default profile is refused, and nothing is touched: removing it would leave every command with no
+    ///     <c>--profile</c> with nothing to act as, and choosing another in its place is the user's to do, not this
+    ///     client's. The way out is named.
     /// </summary>
     [Fact]
-    public void Remove_ClearsCurrentRatherThanMovingItWhenTheCurrentProfileGoes()
+    public void Remove_RefusesTheDefaultProfileAndTouchesNothing()
     {
         var registry = NewRegistry();
         registry.Add("personal", Pointing("mastodon.social"), "token-personal");
         registry.Add("work", Pointing("hachyderm.io"), "token-work");
 
-        var removal = registry.Remove("personal");
+        var exception = Assert.Throws<DefaultProfileRemovalException>(() => registry.Remove("personal"));
 
-        Assert.True(removal.WasCurrent);
-        Assert.All(NewRegistry().List(), profile => Assert.False(profile.IsCurrent));
+        Assert.Contains("personal", exception.Message);
+        Assert.Contains("profile switch", exception.Message);
+        Assert.Equal(["personal", "work"], NewRegistry().List().Select(profile => profile.Name));
+        Assert.Equal("personal", NewRegistry().Resolve(null).Name);
+        Assert.Equal("token-personal", NewCredentialStore().FindAccessToken("personal"));
+    }
 
-        var exception = Assert.Throws<AuthenticationException>(() => NewRegistry().Resolve(null));
-        Assert.Contains("No profile is the default", exception.Message);
+    /// <summary>
+    ///     The only profile is the default, so it is refused like any other: a machine never gets to no profiles by
+    ///     removing them.
+    /// </summary>
+    [Fact]
+    public void Remove_RefusesTheOnlyProfile_ItBeingTheDefault()
+    {
+        var registry = NewRegistry();
+        registry.Add("personal", Pointing("mastodon.social"), "token-personal");
+
+        Assert.Throws<DefaultProfileRemovalException>(() => registry.Remove("personal"));
+
+        Assert.Equal("personal", NewRegistry().Resolve(null).Name);
     }
 
     [Fact]
@@ -244,9 +261,8 @@ public class ProfileRegistryTests : IDisposable
         registry.Add("personal", Pointing("mastodon.social"), "token-personal");
         registry.Add("work", Pointing("hachyderm.io"), "token-work");
 
-        var removal = registry.Remove("work");
+        registry.Remove("work");
 
-        Assert.False(removal.WasCurrent);
         Assert.Equal("personal", NewRegistry().Resolve(null).Name);
     }
 
@@ -259,11 +275,12 @@ public class ProfileRegistryTests : IDisposable
     {
         var registry = NewRegistry();
         registry.Add("personal", Pointing("mastodon.social"), "token-personal");
-        NewCredentialStore().DeleteAccessToken("personal");
+        registry.Add("work", Pointing("hachyderm.io"), "token-work");
+        NewCredentialStore().DeleteAccessToken("work");
 
-        registry.Remove("personal");
+        registry.Remove("work");
 
-        Assert.Empty(NewRegistry().List());
+        Assert.Equal(["personal"], NewRegistry().List().Select(profile => profile.Name));
     }
 
     [Fact]

@@ -28,6 +28,9 @@ internal sealed class FakeProfileRegistry(IReadOnlyList<ProfileSummary> profiles
     /// <summary>Every profile made the default, in order — where a test proves what was written.</summary>
     public List<string> Switched { get; } = [];
 
+    /// <summary>Every profile removed, in order — where a test proves what was written.</summary>
+    public List<string> Removed { get; } = [];
+
     /// <summary>
     ///     The profiles whose token is missing from the store, which <see cref="Resolve" /> refuses as the real one does.
     /// </summary>
@@ -97,8 +100,22 @@ internal sealed class FakeProfileRegistry(IReadOnlyList<ProfileSummary> profiles
     }
 
     /// <inheritdoc />
-    public ProfileRemoval Remove(string name) =>
-        throw new NotSupportedException("Nothing in the TUI removes a profile yet.");
+    /// <remarks>Refuses the default, as the real one does.</remarks>
+    public ProfileRemoval Remove(string name)
+    {
+        var removed = _profiles.SingleOrDefault(held => held.Name == name)
+                      ?? throw new UnknownProfileException(name, [.. _profiles.Select(held => held.Name)]);
+
+        if (removed.IsCurrent)
+        {
+            throw new DefaultProfileRemovalException(name);
+        }
+
+        Removed.Add(name);
+        _profiles.Remove(removed);
+
+        return new ProfileRemoval(new ProfileConfig { Instance = removed.Instance, Account = removed.Account });
+    }
 
     /// <inheritdoc />
     /// <remarks>

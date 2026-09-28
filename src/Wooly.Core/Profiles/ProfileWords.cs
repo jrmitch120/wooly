@@ -1,8 +1,9 @@
 namespace Wooly.Core.Profiles;
 
 /// <summary>
-///     What somebody adding a profile is told about it, in words. Shared by <c>profile add</c> and the TUI's add screen
-///     for the reason <see cref="BrowserSignIn" /> is: the same state described two ways reads as two states (#245).
+///     What somebody adding a profile or making one the default is told about it, in words. Shared by the
+///     <c>profile</c> commands and the TUI for the reason <see cref="BrowserSignIn" /> is: the same state described two
+///     ways reads as two states (#245).
 /// </summary>
 public static class ProfileWords
 {

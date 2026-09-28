@@ -116,7 +116,7 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Follow requests | `a` accept · `x` reject |
 | Direct messages | `⏎` open the conversation · `m` mark read — `m` again inside the thread, where a reader who has just read it is most likely to press it |
 | Conversation | `m` mark read, and every key that acts on a post, since each message in it is one |
-| Profiles | `⏎` act as that profile, for this session — not offered on the one already acted as · `D` make it the default, for the CLI and the next launch — not offered on the one already the default · `a` add a profile |
+| Profiles | `⏎` act as that profile, for this session — not offered on the one already acted as · `D` make it the default, for the CLI and the next launch — not offered on the one already the default · `a` add a profile · `x` remove it, after a confirmation — refused on the one acted as and on the default |
 | Add a profile | `⏎` on to the next step · `t` paste a token instead, while the browser is out or after it failed · `esc` back to the list, calling off a sign-in or a check in flight |
 | Compose / reply / edit | `ctrl-s` send or save · `esc` throw it away · `ctrl-w` move the typing between the post and the content warning over it — on all three, each carrying a warning field of its own (#123, #139, #140) |
 | Home, local, federated, hashtag, Notifications, Messages, Requests, Discover, Post, Account, Follows | `g` refresh — evicts the destination's cache entry (where one exists) and re-runs the same fetch its own arrival runs |
@@ -1352,6 +1352,26 @@ to:
   now act as, in `profile switch`'s words.
 - **Not offered on the profile already the default**, where it would do nothing; on every other row it is
   `D:make default`. `D` means clear all on the notifications inbox; on the profiles screen there is no inbox to empty.
+
+### What removing a profile settled
+
+#246 put removing a profile on `x` on the profiles screen (ADR-0020). What this document now holds it to:
+
+- **It is `profile remove`**, through the same `IProfileRegistry.Remove`: the config entry and the token go together,
+  and nothing reaches an instance. The token is only this machine's copy; the authorization is the instance's to
+  revoke.
+- **It asks first**, in the same form as deleting a post: `Remove this profile? This cannot be undone.  y remove · esc
+  keep`. Declining, `esc` included, changes nothing.
+- **The profile acted as is refused**, with *Switch to another profile before removing this one.*
+- **So is the default**, with *Make another profile the default before removing this one.*, as `profile remove` refuses
+  it too (ADR-0020). Removing it would leave every command with no `--profile`, and the next launch, with nothing to act
+  as. Choosing another is the reader's, with `D`. Both refusals come before anything is asked.
+- **`x` stays on the status row on every row**, those two included. That is the one exception to #220's rule that a
+  key which would refuse comes off: each refusal says what to do first, which `p`'s *Only your own posts* does not, and
+  a reader who never saw `x` offered on the row they are on would not learn what to do to remove it.
+- **The row goes, and the pick moves beside it**: to the row under it, or the one above where it was the last. Down to
+  one profile, the rail's instance row goes too.
+- `x` means show what the post is hiding everywhere else; on the profiles screen there is no post.
 
 ## Starting it, and the one destination that needs configuring
 

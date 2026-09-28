@@ -48,6 +48,9 @@ public sealed class Shell
     /// <inheritdoc cref="MentionUnresolved" />
     private const string NoBrowser = "No browser available.";
 
+    /// <summary>What <c>x</c> on the default profile answers, before anything is asked or after the registry refuses.</summary>
+    private const string MakeAnotherTheDefault = "Make another profile the default before removing this one.";
+
     /// <summary>
     ///     Where an address goes. The one thing this shell does that leaves the terminal, and deliberately not one of
     ///     <see cref="ShellPorts" />: those are what the shell reaches an <em>instance</em> through, and a browser is
@@ -262,6 +265,7 @@ public sealed class Shell
         Verb.AddProfile => Ran(AddProfile),
         Verb.ActAs => Ran(ActAs),
         Verb.MakeDefault => Ran(MakeDefault),
+        Verb.RemoveProfile => Ran(AskToRemoveProfile),
         Verb.Continue => Ran(Continue),
         Verb.PasteToken => Ran(PasteToken),
         Verb.NextDestination => Ran(() => Step(1)),
@@ -692,6 +696,93 @@ public sealed class Shell
 
         // Said after the list is up, which clears what was said over the one it replaced.
         Say(ProfileWords.ActsAs(name), isError: false);
+    }
+
+    /// <summary>
+    ///     <c>x</c> on the profiles screen: asks before removing the picked profile, in the form deleting a post does
+    ///     (story 43, ADR-0020, #246). Refused on the profile this session is acting as, and on the default.
+    /// </summary>
+    /// <remarks>
+    ///     The one acted as, since a session whose own token went out from under it would have nothing left to act as;
+    ///     the default, since commands and the next launch would have nothing to act as either, and choosing another is
+    ///     the reader's (<c>D</c>), not this client's. Both refused before anything is asked, and refused rather than
+    ///     not offered — the one exception to #220 (#246) — because each refusal says what to do first.
+    /// </remarks>
+    public void AskToRemoveProfile()
+    {
+        if (Screen is not ProfilesScreen { PickedProfile: { } picked })
+        {
+            return;
+        }
+
+        if (picked.Name == _acting.Profile.Name)
+        {
+            Say("Switch to another profile before removing this one.", isError: true);
+
+            return;
+        }
+
+        if (picked.IsCurrent)
+        {
+            Say(MakeAnotherTheDefault, isError: true);
+
+            return;
+        }
+
+        Confirm(new Confirmation("Remove this profile?", () => RemoveProfile(picked.Name), Going: "remove"));
+    }
+
+    /// <summary>
+    ///     <c>x</c> agreed to: the profile goes through <see cref="IProfileRegistry.Remove" />, config entry and token
+    ///     together, as <c>profile remove</c> does. Its row goes with the pick moved beside it, and the status row says
+    ///     what went.
+    /// </summary>
+    /// <remarks>
+    ///     Nothing reaches an instance: the token is only this machine's copy, and the authorization is still the
+    ///     instance's to revoke. The rail's instance row is asked again, since one profile left is nobody to tell apart.
+    /// </remarks>
+    private Task RemoveProfile(string name)
+    {
+        if (Screen is not ProfilesScreen shown)
+        {
+            return Task.CompletedTask;
+        }
+
+        var beside = shown.Beside(name);
+
+        try
+        {
+            _profiles.Registry.Remove(name);
+        }
+        catch (DefaultProfileRemovalException)
+        {
+            // Made the default since the list was read — profile switch in another terminal. Said in this screen's
+            // words, which name D, rather than the registry's, which name the CLI.
+            Say(MakeAnotherTheDefault, isError: true);
+
+            return Task.CompletedTask;
+        }
+        catch (WoolyException failure)
+        {
+            Say(failure.Message, isError: true);
+
+            return Task.CompletedTask;
+        }
+
+        var list = Listed();
+
+        if (beside is not null)
+        {
+            list.Pick(beside);
+        }
+
+        _instance = RailInstance();
+        Freshened(list);
+
+        // Said after the list is up, which clears what was said over the one it replaced.
+        Say($"Removed profile {name}.", isError: false);
+
+        return Task.CompletedTask;
     }
 
     /// <summary>
