@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    PROTOTYPE, throwaway. Four radically different layouts for the TUI, on fixture data, switchable with < and >.
+    Lives on the prototype/tui-ux branch only; never merge this project into main.
+    Run from the repo root with dotnet run and the project path; see Program.cs.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Wooly.Tui.Prototype</RootNamespace>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Terminal.Gui" />
+  </ItemGroup>
+
+</Project>
