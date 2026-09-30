@@ -6,6 +6,7 @@ using Terminal.Gui.Views;
 using Wooly.Core.Posts;
 using Wooly.Core.Relationships;
 using Wooly.Tui.Media;
+using Wooly.Tui.Prototype;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
@@ -68,6 +69,11 @@ internal sealed class ShellWindow : Window
     private readonly TimeProvider _clock;
     private readonly Action _quit;
 
+    // PROTOTYPE: what the skins need to relayout the window when one is switched to.
+    private readonly ITheme _theme;
+    private readonly PaintedView _status;
+    private SkinSwitcher? _switcher;
+
     /// <summary>
     ///     Which screen the content region is showing, so that a screen being replaced can be told apart from the same
     ///     one changing. The scroll is settled from what the incoming screen remembers on the first — nothing, on one
@@ -101,6 +107,9 @@ internal sealed class ShellWindow : Window
         IPictures pictures,
         bool hideDrawnCaption = false)
     {
+        // PROTOTYPE: every role goes through the skin first (prototype/tui-skins only).
+        theme = _theme = new SkinTheme(theme);
+
         _shell = shell;
         _clock = clock;
         _quit = quit;
@@ -120,7 +129,8 @@ internal sealed class ShellWindow : Window
         // constructs a colour, which is the rule this is keeping rather than breaking (ADR-0014).
         SetScheme(new Terminal.Gui.Drawing.Scheme(theme.For(Role.Body)));
 
-        var rail = _rail = new PaintedView(theme, (_, height) => RailLines.Of(shell.Rail, shell.Quota, height, shell.Instance))
+        var rail = _rail = new PaintedView(theme, (width, height) =>
+            Skins.Current.Rail(shell, width, height) ?? RailLines.Of(shell.Rail, shell.Quota, height, shell.Instance))
         {
             X = 0,
             Y = 0,
@@ -130,7 +140,7 @@ internal sealed class ShellWindow : Window
         };
 
         var breadcrumb = _breadcrumb = new PaintedView(theme, (width, _) =>
-            [ChromeLines.Breadcrumb(shell.Crumbs, shell.Dots, width)])
+            [Skins.Current.Breadcrumb(shell, width) ?? ChromeLines.Breadcrumb(shell.Crumbs, shell.Dots, width)])
         {
             X = RailLines.Width + 1,
             Y = 0,
@@ -147,7 +157,7 @@ internal sealed class ShellWindow : Window
         // own scheme, and its being blank is the whole of what divides the frame from what is being read. The band
         // that was briefly on it is on the breadcrumb itself now, where it says "this row is the frame" rather than
         // drawing a line under one.
-        var gutter = _gutter = new PaintedView(theme, (_, height) => ChromeLines.Gutter(height))
+        var gutter = _gutter = new PaintedView(theme, (_, height) => Skins.Current.Gutter(height) ?? ChromeLines.Gutter(height))
         {
             X = RailLines.Width,
             Y = 0,
@@ -190,8 +200,8 @@ internal sealed class ShellWindow : Window
             WordWrap = true,
         };
 
-        var status = new PaintedView(theme, (width, _) =>
-            [ChromeLines.Status(shell.Keys, shell.Notice, shell.NoticeIsError, shell.Asking, width)])
+        var status = _status = new PaintedView(theme, (width, _) =>
+            [Skins.Current.Status(shell, width) ?? ChromeLines.Status(shell.Keys, shell.Notice, shell.NoticeIsError, shell.Asking, width)])
         {
             X = 0,
             Y = Pos.AnchorEnd(1),
@@ -212,7 +222,62 @@ internal sealed class ShellWindow : Window
         // and the content region re-places every picture on it each frame — two and a half times a second, for as
         // long as anything is in flight, for one dot (#217).
         shell.Ticked += breadcrumb.SetNeedsDraw;
+
+#if DEBUG
+        _switcher = new SkinSwitcher(theme);
+        Add(_switcher);
+#endif
+
+        // PROTOTYPE: a skin switched to relays out the window; a boxed skin's title follows the crumbs and the ticks.
+        Skins.Changed += Reskin;
+        shell.Ticked += Titled;
+        Reskin();
     }
+
+    private void Reskin()
+    {
+        SetScheme(new Terminal.Gui.Drawing.Scheme(_theme.For(Role.Body)));
+
+        var boxed = Skins.Current.Boxed;
+        var style = boxed ? Terminal.Gui.Drawing.LineStyle.Rounded : Terminal.Gui.Drawing.LineStyle.None;
+
+        _rail.BorderStyle = style;
+        _content.BorderStyle = style;
+        _rail.Title = boxed ? "wooly" : string.Empty;
+        // A painted region colours every cell it draws itself, so its own scheme is only ever seen in its border.
+        _rail.SetScheme(new Terminal.Gui.Drawing.Scheme(_theme.For(boxed ? Proto.Border : Role.Body)));
+        _content.SetScheme(new Terminal.Gui.Drawing.Scheme(_theme.For(boxed ? Proto.BorderFocus : Role.Body)));
+        _breadcrumb.Visible = !boxed;
+        _content.Y = boxed ? 0 : ContentTop;
+
+        _railed = !_shell.ShowsRail;
+        Railed();
+        Titled();
+        _switcher?.Fit();
+
+        foreach (var view in SubViews)
+        {
+            view.SetNeedsDraw();
+        }
+
+        SetNeedsLayout();
+        SetNeedsDraw();
+    }
+
+    private void Titled()
+    {
+        if (Skins.Current.Boxed)
+        {
+            _content.Title = Skins.Current.Title(_shell);
+        }
+        else if (_content.Title.Length > 0)
+        {
+            _content.Title = string.Empty;
+        }
+    }
+
+    /// <summary>PROTOTYPE: where the content region's own rows begin, which a boxed skin moves up to under its border.</summary>
+    private static int Top => Skins.Current.Boxed ? 1 : ContentTop;
 
     /// <summary>
     ///     Every key the shell answers to, in three steps and no bindings of its own: what a terminal sent becomes a
@@ -221,6 +286,17 @@ internal sealed class ShellWindow : Window
     /// </summary>
     protected override bool OnKeyDown(Key key)
     {
+#if DEBUG
+        // PROTOTYPE: < and > cycle the skins, anywhere nothing is being typed or asked.
+        if (_shell.Asking is null && !_shell.Screen.IsTyping && !key.IsCtrl && !key.IsAlt
+            && key.AsRune.Value is '<' or '>')
+        {
+            Skins.Cycle(key.AsRune.Value == '<' ? -1 : 1);
+
+            return true;
+        }
+#endif
+
         // A confirmation is the only thing on screen worth answering, so nothing else is listened to while one is up
         // (story 43). Anything that is not the agreeing key is a no.
         if (_shell.Asking is { } asking)
@@ -461,7 +537,7 @@ internal sealed class ShellWindow : Window
 
         if (width <= 0 || _shell.Screen is not ComposeScreen compose)
         {
-            return ContentTop;
+            return Top;
         }
 
         // The editor runs from here to the same foot _content does, so whatever is spent above it comes straight off
@@ -472,7 +548,7 @@ internal sealed class ShellWindow : Window
         var room = Math.Max(0, height - LeastEditorRows - compose.WarningHeight);
         var answering = Math.Min(compose.AnsweringHeight(width), room);
 
-        return ContentTop + answering + compose.WarningHeight;
+        return Top + answering + compose.WarningHeight;
     }
 
     private async Task Send()
@@ -499,13 +575,17 @@ internal sealed class ShellWindow : Window
         }
 
         _railed = _shell.ShowsRail;
-        _rail.Visible = _gutter.Visible = _railed;
+        var boxed = Skins.Current.Boxed;
+        _rail.Visible = _railed;
+        _gutter.Visible = _railed && !boxed;
 
-        var left = _railed ? RailLines.Width + 1 : 0;
+        var left = _railed ? RailLines.Width + (boxed ? 0 : 1) : 0;
 
         _breadcrumb.X = left;
         _content.X = left;
-        _editor.X = left;
+        _editor.X = left + (boxed ? 1 : 0);
+        _editor.Width = Dim.Fill(boxed ? 1 : 0);
+        _editor.Height = Dim.Fill(boxed ? 2 : 1);
     }
 
     /// <summary>
@@ -529,6 +609,7 @@ internal sealed class ShellWindow : Window
     private void Refresh()
     {
         Railed();
+        Titled();
 
         if (!ReferenceEquals(_showing, _shell.Screen))
         {

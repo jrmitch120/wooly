@@ -2,6 +2,7 @@ using System.Drawing;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.ViewBase;
 using Wooly.Tui.Media;
+using Wooly.Tui.Prototype;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Theme;
 
@@ -303,10 +304,13 @@ internal sealed class PaintedView : View
         {
             // Cleared first, in the theme's own background, so that a row which is shorter than the one it replaced
             // does not leave the tail of the old one behind it.
-            SetAttribute(_theme.For(Role.Body));
-            AddStr(0, row, new string(' ', width));
-
             var at = _top + row;
+
+            // PROTOTYPE: a skin may band every row of the picked thing, and mark it with its own glyph.
+            var band = at >= 0 && at < lines.Count && lines[at].Has(Role.Selection) ? Skins.Current.PickBand : null;
+
+            SetAttribute(Banded(_theme.For(Role.Body), band));
+            AddStr(0, row, new string(' ', width));
 
             if (at < 0 || at >= lines.Count)
             {
@@ -325,9 +329,9 @@ internal sealed class PaintedView : View
                 // Cut and stepped along in the columns a terminal draws in rather than in characters: the run being
                 // painted is the one thing here that knows both, and a row of two-column characters cut by its
                 // characters is a row painted twice as far right as it was laid out (#207).
-                var text = Glyphs.Cut(span.Text, width - column);
+                var text = Glyphs.Cut(span.Role == Role.Selection && span.Text == "▌" ? Skins.Current.PickMark : span.Text, width - column);
 
-                SetAttribute(_theme.For(span.Role));
+                SetAttribute(Banded(_theme.For(span.Role), band));
                 AddStr(column, row, text);
 
                 column += Glyphs.Columns(text);
@@ -336,6 +340,12 @@ internal sealed class PaintedView : View
 
         return true;
     }
+
+    /// <summary>PROTOTYPE: an attribute moved onto the skin's band, where it was sitting on the page.</summary>
+    private Terminal.Gui.Drawing.Attribute Banded(Terminal.Gui.Drawing.Attribute attribute, Terminal.Gui.Drawing.Color? band) =>
+        band is { } on && attribute.Background == _theme.For(Role.Body).Background
+            ? new Terminal.Gui.Drawing.Attribute(attribute.Foreground, on, attribute.Style)
+            : attribute;
 
     /// <summary>
     ///     Works out the rows and where the scroll has got to, and puts every picture where those rows say it goes.
