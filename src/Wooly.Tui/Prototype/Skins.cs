@@ -38,6 +38,7 @@ internal static class Proto
     public const Role SwitcherHint = (Role)917;
     public const Role Border = (Role)918;
     public const Role BorderFocus = (Role)919;
+    public const Role Title = (Role)920;
 }
 
 internal abstract class Skin
@@ -84,7 +85,9 @@ internal abstract class Skin
 
     protected static string Count(int n) => n.ToString(CultureInfo.CurrentCulture);
 
-    protected static Color C(string hex) => ColourName.Parse(hex) ?? throw new InvalidOperationException(hex);
+    /// <summary>A colour, or "none" for whatever the terminal's own is (CSI 39m / 49m).</summary>
+    protected static Color C(string hex) =>
+        hex == "none" ? Color.None : ColourName.Parse(hex) ?? throw new InvalidOperationException(hex);
 
     /// <summary>A role table: every role on the page unless named, and the named ones as given.</summary>
     protected static Dictionary<Role, Attribute> Table(string page, string text,

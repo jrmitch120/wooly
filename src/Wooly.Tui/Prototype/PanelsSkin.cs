@@ -6,7 +6,8 @@ using Attribute = Terminal.Gui.Drawing.Attribute;
 
 namespace Wooly.Tui.Prototype;
 
-// PROTOTYPE — throwaway. Skin B: lazygit / btop / k9s, in Catppuccin Mocha. The rail and the content are each a
+// PROTOTYPE — throwaway. Skin B: lazygit / btop / k9s, Catppuccin Mocha accents on the terminal's own background,
+// with blue as the one accent (round 2: no green, no ┤├ around titles, no rail title, a thicker pick mark). The rail and the content are each a
 // rounded panel with a title in its border; the breadcrumb row and the gutter go, because the content panel's title
 // is the breadcrumb and the borders are the seam. The panel being read has the bright border. The status row is
 // lazygit's "Does: key | Does: key" strip.
@@ -18,7 +19,10 @@ internal sealed class PanelsSkin : Skin
     private const string Mauve = "#cba6f7", Blue = "#89b4fa", Sapphire = "#74c7ec", Teal = "#94e2d5", Green = "#a6e3a1";
     private const string Yellow = "#f9e2af", Peach = "#fab387", Red = "#f38ba8", Pink = "#f5c2e7";
 
-    private readonly Dictionary<Role, Attribute> _table = Table(Base, Text,
+    /// <summary>The page is the terminal's own background, so the app runs edge to edge into its padding.</summary>
+    private const string Page = "none";
+
+    private readonly Dictionary<Role, Attribute> _table = Table(Page, Text,
         (Role.Hashtag, Teal, null, false),
         (Role.Mention, Mauve, null, false),
         (Role.Link, Blue, null, false),
@@ -29,21 +33,21 @@ internal sealed class PanelsSkin : Skin
         (Role.ContentWarning, Peach, null, true),
         (Role.Media, Teal, null, false),
         (Role.Poll, Mauve, null, false),
-        (Role.ReferencePicked, Base, Mauve, true),
+        (Role.ReferencePicked, Base, Blue, true),
         (Role.Boost, Green, null, false),
         (Role.BoostMine, Green, null, true),
         (Role.Favorite, Yellow, null, false),
         (Role.FavoriteMine, Yellow, null, true),
-        (Role.Selection, Green, Surface0, true),
+        (Role.Selection, Blue, Surface0, true),
         (Role.Rail, Subtext, null, false),
-        (Role.RailCurrent, Green, Surface0, true),
+        (Role.RailCurrent, Blue, Surface0, true),
         (Role.RailUnread, Peach, null, true),
         (Role.Quota, Overlay, null, false),
         (Role.QuotaLow, Red, null, true),
         (Role.Chrome, Surface2, null, false),
         (Role.Key, Sapphire, null, false),
         (Role.Crumb, Subtext, null, false),
-        (Role.CrumbCurrent, Green, null, true),
+        (Role.CrumbCurrent, Blue, null, true),
         (Role.Seam, Surface2, null, false),
         (Role.Loading, Overlay, null, false),
         (Role.Destructive, Red, null, true),
@@ -52,12 +56,13 @@ internal sealed class PanelsSkin : Skin
         (Proto.ChipKey, Sapphire, null, true),
         (Proto.Bar, Surface2, null, false),
         (Proto.Band, Text, Surface0, false),
-        (Proto.Gauge, Green, null, false),
+        (Proto.Gauge, Blue, null, false),
         (Proto.GaugeEmpty, Surface1, null, false),
         (Proto.Dim, Overlay, null, false),
         (Proto.Heading, Overlay, null, false),
         (Proto.Border, Surface2, null, false),
-        (Proto.BorderFocus, Green, null, true),
+        (Proto.BorderFocus, Blue, null, false),
+        (Proto.Title, Blue, null, true),
         (Proto.Pill, Pink, null, false));
 
     public override string Key => "B";
@@ -66,8 +71,8 @@ internal sealed class PanelsSkin : Skin
 
     public override Attribute? For(Role role) => _table.TryGetValue(role, out var a) ? a : null;
 
-    public override string PickMark => "┃";
-    public override Color? PickBand => C(Mantle);
+    public override string PickMark => "▌";
+    public override Color? PickBand => C(Surface0);
     public override bool Boxed => true;
 
     public override string Title(Shell.Shell shell)

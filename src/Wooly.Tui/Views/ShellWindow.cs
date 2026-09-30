@@ -74,6 +74,9 @@ internal sealed class ShellWindow : Window
     private readonly PaintedView _status;
     private SkinSwitcher? _switcher;
 
+    /// <summary>PROTOTYPE: a boxed skin's title, drawn over the top border rather than as Terminal.Gui's ┤title├.</summary>
+    private readonly PaintedView _title;
+
     /// <summary>
     ///     Which screen the content region is showing, so that a screen being replaced can be told apart from the same
     ///     one changing. The scroll is settled from what the incoming screen remembers on the first — nothing, on one
@@ -223,6 +226,17 @@ internal sealed class ShellWindow : Window
         // long as anything is in flight, for one dot (#217).
         shell.Ticked += breadcrumb.SetNeedsDraw;
 
+        _title = new PaintedView(theme, (_, _) => [Rendering.Line.Of($" {Skins.Current.Title(shell)} ", Proto.Title)])
+        {
+            X = RailLines.Width + 1,
+            Y = 0,
+            Width = 1,
+            Height = 1,
+            CanFocus = false,
+            Visible = false,
+        };
+        Add(_title);
+
 #if DEBUG
         _switcher = new SkinSwitcher(theme);
         Add(_switcher);
@@ -243,7 +257,6 @@ internal sealed class ShellWindow : Window
 
         _rail.BorderStyle = style;
         _content.BorderStyle = style;
-        _rail.Title = boxed ? "wooly" : string.Empty;
         // A painted region colours every cell it draws itself, so its own scheme is only ever seen in its border.
         _rail.SetScheme(new Terminal.Gui.Drawing.Scheme(_theme.For(boxed ? Proto.Border : Role.Body)));
         _content.SetScheme(new Terminal.Gui.Drawing.Scheme(_theme.For(boxed ? Proto.BorderFocus : Role.Body)));
@@ -266,13 +279,15 @@ internal sealed class ShellWindow : Window
 
     private void Titled()
     {
-        if (Skins.Current.Boxed)
+        var boxed = Skins.Current.Boxed;
+
+        _title.Visible = boxed;
+
+        if (boxed)
         {
-            _content.Title = Skins.Current.Title(_shell);
-        }
-        else if (_content.Title.Length > 0)
-        {
-            _content.Title = string.Empty;
+            _title.X = (_railed ? RailLines.Width : 0) + 1;
+            _title.Width = Glyphs.Columns($" {Skins.Current.Title(_shell)} ");
+            _title.SetNeedsDraw();
         }
     }
 
