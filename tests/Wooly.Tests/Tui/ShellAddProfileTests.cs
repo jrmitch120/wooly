@@ -273,7 +273,13 @@ public class ShellAddProfileTests
     [Fact]
     public async Task Name_AlreadyInUse_AsksFirst_AndDecliningWritesNothing()
     {
-        var shell = new AShell();
+        var shell = new AShell
+        {
+            Profiles = FakeProfileRegistry.Holding(
+                "personal",
+                FakeProfileRegistry.Profile("personal", "mastodon.social", "jeff@mastodon.social"),
+                FakeProfileRegistry.Profile("work", Instance, $"jeff@{Instance}")),
+        };
         var opened = await Adding(shell);
 
         Type(opened, Instance);
@@ -285,11 +291,11 @@ public class ShellAddProfileTests
             opened.Backspace();
         }
 
-        Type(opened, "personal");
+        Type(opened, "work");
         opened.Press(ShellKey.Enter);
 
         var asking = Assert.IsType<Confirmation>(opened.Asking);
-        Assert.Contains("personal", asking.Ask);
+        Assert.Contains("work", asking.Ask);
 
         await opened.Answer(agreed: false);
         shell.Host.Drain();
@@ -301,8 +307,8 @@ public class ShellAddProfileTests
         await opened.Answer(agreed: true);
         shell.Host.Drain();
 
-        Assert.Equal("personal", Assert.Single(shell.Profiles.Added).Name);
-        Assert.Equal("personal", Assert.IsType<ProfilesScreen>(opened.Screen).PickedProfile?.Name);
+        Assert.Equal("work", Assert.Single(shell.Profiles.Added).Name);
+        Assert.Equal("work", Assert.IsType<ProfilesScreen>(opened.Screen).PickedProfile?.Name);
     }
 
     /// <summary>

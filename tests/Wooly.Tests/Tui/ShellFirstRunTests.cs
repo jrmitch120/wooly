@@ -159,7 +159,7 @@ public class ShellFirstRunTests
         Assert.Equal(["jeff"], shell.Profiles.Added.Select(added => added.Name));
         Assert.True(shell.Profiles.List().Single().IsCurrent);
         Assert.NotEmpty(shell.Timelines.Reads);
-        Assert.All(shell.Tokens, token => Assert.Equal("token-jeff", token));
+        Assert.All(shell.Tokens, token => Assert.Equal("token-from-browser", token));
     }
 
     /// <summary>
@@ -224,7 +224,7 @@ public class ShellFirstRunTests
         Assert.Null(opened.Asking);
         Assert.IsType<FeedScreen>(opened.Screen);
         Assert.True(opened.ShowsRail);
-        Assert.All(shell.Tokens, token => Assert.Equal("token-work", token));
+        Assert.All(shell.Tokens, token => Assert.Equal("token-from-browser", token));
     }
 
     /// <summary>
@@ -297,7 +297,7 @@ public class ShellFirstRunTests
 
         Assert.IsType<FeedScreen>(opened.Screen);
         Assert.True(opened.ShowsRail);
-        Assert.Equal("mastodon.social refused the token.", opened.Notice);
+        Assert.Equal("This profile's token was refused — ctrl-p to sign in again.", opened.Notice);
     }
 
     /// <summary>A profile that can be acted as opens as it always has, on Home with the rail.</summary>

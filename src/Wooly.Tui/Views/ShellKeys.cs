@@ -65,6 +65,7 @@ internal static class ShellKeys
         ['D'] = ShellKey.CapitalD,
         ['F'] = ShellKey.CapitalF,
         ['M'] = ShellKey.CapitalM,
+        ['R'] = ShellKey.CapitalR,
         ['/'] = ShellKey.Slash,
         ['?'] = ShellKey.Question,
         ['['] = ShellKey.LeftBracket,

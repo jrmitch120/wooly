@@ -88,12 +88,13 @@ public sealed class Enquiry(
     public event Action? Ticked;
 
     /// <summary>
-    ///     Raised where an instance refused the token a question was put with, after the notice saying so. Always on
-    ///     the drawing thread.
+    ///     Raised where an instance refused the token a question was put with, in place of <see cref="Said" />. Always
+    ///     on the drawing thread.
     /// </summary>
     /// <remarks>
-    ///     Apart from <see cref="Said" />, because a refused token is the one failure the shell may do something about
-    ///     beyond saying it: at launch, before anything has been read, it signs the profile in again (#247).
+    ///     Apart from <see cref="Said" />, because a refused token is the one failure the shell does something about
+    ///     beyond repeating it: at launch, before anything has been read, it signs the profile in again (#247), and
+    ///     anywhere else it names the key that does (#248).
     /// </remarks>
     public event Action<AuthenticationException>? Refused;
 
@@ -160,14 +161,17 @@ public sealed class Enquiry(
         }
         catch (WoolyException failure)
         {
-            // Said whether or not the reader is still here: this is the shell's own trouble rather than an answer.
+            // Said whether or not the reader is still here: this is the shell's own trouble rather than an answer. A
+            // refused token is handed on instead, since what to say about it is which key fixes it (#248).
             Apply(() =>
             {
-                Said?.Invoke(failure.Message, isError: true);
-
                 if (failure is AuthenticationException refused)
                 {
                     Refused?.Invoke(refused);
+                }
+                else
+                {
+                    Said?.Invoke(failure.Message, isError: true);
                 }
             });
 

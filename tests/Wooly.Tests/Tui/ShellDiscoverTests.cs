@@ -83,10 +83,11 @@ public class ShellDiscoverTests
     [Fact]
     public async Task Arriving_TurnsARefusalIntoTheShellsNoticeRatherThanAnEmptyScreen()
     {
-        var shell = new AShell
-        {
-            Suggestions = FakeFollowSuggestions.Refusing(new AuthenticationException("No.")),
-        };
+        var failure = new TransientNetworkException(
+            new Uri("https://mastodon.social/api/v1/suggestions"),
+            attempts: 3,
+            new HttpRequestException("Connection refused"));
+        var shell = new AShell { Suggestions = FakeFollowSuggestions.Refusing(failure) };
 
         var opened = await shell.Opened();
 
@@ -95,7 +96,7 @@ public class ShellDiscoverTests
 
         var screen = Assert.IsType<DiscoverScreen>(opened.Screen);
         Assert.Null(screen.Notice);
-        Assert.Equal("No.", opened.Notice);
+        Assert.Equal(failure.Message, opened.Notice);
         Assert.True(opened.NoticeIsError);
     }
 

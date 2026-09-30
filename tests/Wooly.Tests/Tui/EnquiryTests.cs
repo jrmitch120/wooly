@@ -164,16 +164,16 @@ public class EnquiryTests
     {
         var enquiry = new AnEnquiry();
         var ran = new List<string>();
+        var failure = new UneditablePostException("110");
 
         await enquiry.It.Put(
-            ask => ask.Of<string>(_ => Task.FromException<string>(
-                new AuthenticationException("That token has been revoked."))),
+            ask => ask.Of<string>(_ => Task.FromException<string>(failure)),
             eitherWay: _ => ran.Add("either way"),
             ifStillHere: _ => ran.Add("still here"));
 
         enquiry.Host.Drain();
 
-        Assert.Equal("That token has been revoked.", enquiry.Notice);
+        Assert.Equal(failure.Message, enquiry.Notice);
         Assert.True(enquiry.NoticeIsError);
         Assert.Empty(ran);
         Assert.False(enquiry.It.Fetching);
@@ -191,15 +191,44 @@ public class EnquiryTests
 
         var putting = enquiry.It.Put(ask => ask.Of(_ => held.Task));
 
+        var failure = new UneditablePostException("110");
+
         enquiry.WalkAway();
-        held.SetException(new AuthenticationException("No."));
+        held.SetException(failure);
 
         await putting;
 
         enquiry.Host.Drain();
 
-        Assert.Equal("No.", enquiry.Notice);
+        Assert.Equal(failure.Message, enquiry.Notice);
         Assert.True(enquiry.NoticeIsError);
+    }
+
+    /// <summary>
+    ///     A refused token is handed to whoever listens for one rather than said, because what to say about it — which
+    ///     key fixes it — is the shell's, not the enquiry's (#248). Neither callback runs.
+    /// </summary>
+    [Fact]
+    public async Task Put_HandsARefusedTokenOnRatherThanSayingIt()
+    {
+        var enquiry = new AnEnquiry();
+        var refused = new List<AuthenticationException>();
+        var ran = new List<string>();
+        var failure = new AuthenticationException("mastodon.social refused the access token.");
+
+        enquiry.It.Refused += refused.Add;
+
+        await enquiry.It.Put(
+            ask => ask.Of<string>(_ => Task.FromException<string>(failure)),
+            eitherWay: _ => ran.Add("either way"),
+            ifStillHere: _ => ran.Add("still here"));
+
+        enquiry.Host.Drain();
+
+        Assert.Same(failure, Assert.Single(refused));
+        Assert.Null(enquiry.Notice);
+        Assert.Empty(ran);
+        Assert.False(enquiry.It.Fetching);
     }
 
     /// <summary>
