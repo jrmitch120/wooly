@@ -12,21 +12,21 @@ namespace Wooly.Tui.Prototype;
 // is the breadcrumb and the borders are the seam. The panel being read has the bright border. The status row is
 // lazygit's "Does: key | Does: key" strip.
 
-internal sealed class PanelsSkin : Skin
+internal class PanelsSkin : Skin
 {
-    private const string Base = "#1e1e2e", Mantle = "#181825", Surface0 = "#313244", Surface1 = "#45475a";
-    private const string Surface2 = "#585b70", Overlay = "#6c7086", Subtext = "#a6adc8", Text = "#cdd6f4";
-    private const string Mauve = "#cba6f7", Blue = "#89b4fa", Sapphire = "#74c7ec", Teal = "#94e2d5", Green = "#a6e3a1";
+    protected const string Base = "#1e1e2e", Mantle = "#181825", Surface0 = "#313244", Surface1 = "#45475a";
+    protected const string Surface2 = "#585b70", Overlay = "#6c7086", Subtext = "#a6adc8", Text = "#cdd6f4";
+    protected const string Mauve = "#cba6f7", Blue = "#89b4fa", Sapphire = "#74c7ec", Teal = "#94e2d5", Green = "#a6e3a1";
     /// <summary>The picked thing's band: a shade darker than Surface0, and shared by the rail's current entry.</summary>
-    private const string Band = "#2a2b3c";
+    protected const string Band = "#2a2b3c";
 
     /// <summary>The pick mark's near-white, the same as main's dark theme draws it.</summary>
-    private const string PickMark_ = "#f2f0f7";
+    protected const string PickMark_ = "#f2f0f7";
 
-    private const string Yellow = "#f9e2af", Peach = "#fab387", Red = "#f38ba8", Pink = "#f5c2e7";
+    protected const string Yellow = "#f9e2af", Peach = "#fab387", Red = "#f38ba8", Pink = "#f5c2e7";
 
     /// <summary>The page is the terminal's own background, so the app runs edge to edge into its padding.</summary>
-    private const string Page = "none";
+    protected const string Page = "none";
 
     private readonly Dictionary<Role, Attribute> _table = Table(Page, Text,
         (Role.Hashtag, Teal, null, false),
@@ -70,7 +70,14 @@ internal sealed class PanelsSkin : Skin
         (Proto.Border, Surface2, null, false),
         (Proto.BorderFocus, Blue, null, false),
         (Proto.Title, Blue, null, true),
-        (Proto.Pill, Pink, null, false));
+        (Proto.Pill, Pink, null, false),
+        (Proto.Tab, Overlay, null, false),
+        (Proto.TabCurrent, Blue, Band, true),
+        (Proto.TopBar, Subtext, Band, false),
+        (Proto.TopBarBrand, Base, Blue, true),
+        (Proto.TopBarCount, Peach, Band, true),
+        (Proto.TopBarGauge, Blue, Band, false),
+        (Proto.TopBarGaugeEmpty, Surface1, Band, false));
 
     public override string Key => "B";
     public override string Name => "Panels";
@@ -96,12 +103,7 @@ internal sealed class PanelsSkin : Skin
 
         for (var at = 0; at < rail.Destinations.Count; at++)
         {
-            var d = rail.Destinations[at];
-            var current = at == rail.Current;
-            var cursor = at == rail.Cursor && !current;
-            var role = current ? Role.RailCurrent : cursor ? Proto.Band : Role.Rail;
-            List<Span> right = d.Unread > 0 ? [new(Count(d.Unread), current ? Role.RailCurrent : Role.RailUnread)] : [];
-            lines.Add(Fit([new Span(d.Label, role)], right, width, role));
+            lines.Add(Entry(shell, at, width));
 
             if (at is 3 or 8)
             {
@@ -109,6 +111,25 @@ internal sealed class PanelsSkin : Skin
             }
         }
 
+        return Footed(lines, Foot(shell, width), width, height);
+    }
+
+    /// <summary>One destination: its label, its unread count at the right, and the band where it is current.</summary>
+    protected static Line Entry(Shell.Shell shell, int at, int width)
+    {
+        var rail = shell.Rail;
+        var d = rail.Destinations[at];
+        var current = at == rail.Current;
+        var cursor = at == rail.Cursor && !current;
+        var role = current ? Role.RailCurrent : cursor ? Proto.Band : Role.Rail;
+        List<Span> right = d.Unread > 0 ? [new(Count(d.Unread), current ? Role.RailCurrent : Role.RailUnread)] : [];
+
+        return Fit([new Span(d.Label, role)], right, width, role);
+    }
+
+    /// <summary>The instance, where there is more than one profile, and the api budget as a gauge.</summary>
+    protected static List<Line> Foot(Shell.Shell shell, int width)
+    {
         var foot = new List<Line>();
 
         if (shell.Instance is { } instance)
@@ -118,15 +139,27 @@ internal sealed class PanelsSkin : Skin
 
         if (shell.Quota is { } quota)
         {
-            var cells = width - 4;
-            var full = (int)Math.Round(cells * quota.Fraction);
-            var low = quota.Fraction <= 0.1;
             foot.Add(Fit([new Span("api ", Proto.Dim)], [], width, Role.Rail));
-            foot.Add(Fit(
-                [new Span(new string('█', full), low ? Role.QuotaLow : Proto.Gauge), new Span(new string('░', cells - full), Proto.GaugeEmpty)],
-                [new Span($"{(int)(quota.Fraction * 100),3}%", low ? Role.QuotaLow : Proto.Dim)], width, Role.Rail));
+            foot.Add(Gauge(quota, width));
         }
 
+        return foot;
+    }
+
+    protected static Line Gauge(Core.Http.RateLimitQuota quota, int width)
+    {
+        var cells = width - 4;
+        var full = (int)Math.Round(cells * quota.Fraction);
+        var low = quota.Fraction <= 0.1;
+
+        return Fit(
+            [new Span(new string('█', full), low ? Role.QuotaLow : Proto.Gauge), new Span(new string('░', cells - full), Proto.GaugeEmpty)],
+            [new Span($"{(int)(quota.Fraction * 100),3}%", low ? Role.QuotaLow : Proto.Dim)], width, Role.Rail);
+    }
+
+    /// <summary>Rows padded out to the height with the foot held at the bottom.</summary>
+    protected static List<Line> Footed(List<Line> lines, List<Line> foot, int width, int height)
+    {
         while (lines.Count < height - foot.Count)
         {
             lines.Add(Fit([], [], width, Role.Rail));

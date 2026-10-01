@@ -174,7 +174,8 @@ internal sealed class ShellWindow : Window
         // scrolling while a post is being written, which Refresh settles.
         _content = new PaintedView(
             theme,
-            (width, _) => shell.Screen.Lines(new Drawing(width, clock.GetUtcNow(), pictures, hideDrawnCaption)),
+            (width, _) => Skins.Current.Content(
+                w => shell.Screen.Lines(new Drawing(w, clock.GetUtcNow(), pictures, hideDrawnCaption)), width),
             pictures)
         {
             Id = ContentId,
@@ -226,7 +227,7 @@ internal sealed class ShellWindow : Window
         // long as anything is in flight, for one dot (#217).
         shell.Ticked += breadcrumb.SetNeedsDraw;
 
-        _title = new PaintedView(theme, (_, _) => [Rendering.Line.Of($" {Skins.Current.Title(shell)} ", Proto.Title)])
+        _title = new PaintedView(theme, (_, _) => [Skins.Current.TitleLine(shell)])
         {
             X = RailLines.Width + 1,
             Y = 0,
@@ -245,6 +246,7 @@ internal sealed class ShellWindow : Window
         // PROTOTYPE: a skin switched to relays out the window; a boxed skin's title follows the crumbs and the ticks.
         Skins.Changed += Reskin;
         shell.Ticked += Titled;
+        shell.Rail.Changed += Titled;
         Reskin();
     }
 
@@ -252,16 +254,22 @@ internal sealed class ShellWindow : Window
     {
         SetScheme(new Terminal.Gui.Drawing.Scheme(_theme.For(Role.Body)));
 
-        var boxed = Skins.Current.Boxed;
-        var style = boxed ? Terminal.Gui.Drawing.LineStyle.Rounded : Terminal.Gui.Drawing.LineStyle.None;
+        var skin = Skins.Current;
+        var boxed = skin.Boxed;
+        var rounded = Terminal.Gui.Drawing.LineStyle.Rounded;
+        var none = Terminal.Gui.Drawing.LineStyle.None;
+        var top = boxed && skin.TopBar ? 1 : 0;
 
-        _rail.BorderStyle = style;
-        _content.BorderStyle = style;
+        _rail.BorderStyle = skin.RailFramed ? rounded : none;
+        _content.BorderStyle = boxed ? rounded : none;
         // A painted region colours every cell it draws itself, so its own scheme is only ever seen in its border.
-        _rail.SetScheme(new Terminal.Gui.Drawing.Scheme(_theme.For(boxed ? Proto.Border : Role.Body)));
+        _rail.SetScheme(new Terminal.Gui.Drawing.Scheme(_theme.For(skin.RailFramed ? Proto.Border : Role.Body)));
         _content.SetScheme(new Terminal.Gui.Drawing.Scheme(_theme.For(boxed ? Proto.BorderFocus : Role.Body)));
-        _breadcrumb.Visible = !boxed;
-        _content.Y = boxed ? 0 : ContentTop;
+        _breadcrumb.Visible = !boxed || skin.TopBar;
+        _breadcrumb.Y = 0;
+        _rail.Y = top;
+        _content.Y = boxed ? top : ContentTop;
+        _title.Y = top;
 
         _railed = !_shell.ShowsRail;
         Railed();
@@ -286,13 +294,13 @@ internal sealed class ShellWindow : Window
         if (boxed)
         {
             _title.X = (_railed ? RailLines.Width : 0) + 1;
-            _title.Width = Glyphs.Columns($" {Skins.Current.Title(_shell)} ");
+            _title.Width = Skins.Current.TitleLine(_shell).Width;
             _title.SetNeedsDraw();
         }
     }
 
     /// <summary>PROTOTYPE: where the content region's own rows begin, which a boxed skin moves up to under its border.</summary>
-    private static int Top => Skins.Current.Boxed ? 1 : ContentTop;
+    private static int Top => Skins.Current.Boxed ? (Skins.Current.TopBar ? 2 : 1) : ContentTop;
 
     /// <summary>
     ///     Every key the shell answers to, in three steps and no bindings of its own: what a terminal sent becomes a
@@ -596,7 +604,7 @@ internal sealed class ShellWindow : Window
 
         var left = _railed ? RailLines.Width + (boxed ? 0 : 1) : 0;
 
-        _breadcrumb.X = left;
+        _breadcrumb.X = boxed && Skins.Current.TopBar ? 0 : left;
         _content.X = left;
         _editor.X = left + (boxed ? 1 : 0);
         _editor.Width = Dim.Fill(boxed ? 1 : 0);

@@ -40,6 +40,13 @@ internal static class Proto
     public const Role BorderFocus = (Role)919;
     public const Role Title = (Role)920;
     public const Role Replies = (Role)921;
+    public const Role Tab = (Role)922;
+    public const Role TabCurrent = (Role)923;
+    public const Role TopBar = (Role)924;
+    public const Role TopBarBrand = (Role)925;
+    public const Role TopBarCount = (Role)926;
+    public const Role TopBarGauge = (Role)927;
+    public const Role TopBarGaugeEmpty = (Role)928;
 }
 
 internal abstract class Skin
@@ -67,6 +74,18 @@ internal abstract class Skin
 
     /// <summary>The boxed content's title, where <see cref="Boxed" />.</summary>
     public virtual string Title(Shell.Shell shell) => string.Join(" › ", shell.Crumbs);
+
+    /// <summary>The title as drawn over the content's top border.</summary>
+    public virtual Line TitleLine(Shell.Shell shell) => Line.Of($" {Title(shell)} ", Proto.Title);
+
+    /// <summary>Whether the rail gets Terminal.Gui's border, or draws whatever framing it wants itself.</summary>
+    public virtual bool RailFramed => Boxed;
+
+    /// <summary>Whether a boxed skin keeps the breadcrumb row, full width across the top, above both panels.</summary>
+    public virtual bool TopBar => false;
+
+    /// <summary>What the content region shows, given what the screen would draw at a width.</summary>
+    public virtual IReadOnlyList<Line> Content(Func<int, IReadOnlyList<Line>> screen, int width) => screen(width);
 
     protected static readonly string[] Spin = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
@@ -178,7 +197,11 @@ internal abstract class Skin
 
 internal static class Skins
 {
-    public static readonly Skin[] All = [new CurrentSkin(), new StatuslineSkin(), new PanelsSkin(), new CharmSkin()];
+    public static readonly Skin[] All =
+    [
+        new CurrentSkin(), new PanelsSkin(), new TabbedPanelsSkin(), new StackedPanelsSkin(), new CardPanelsSkin(),
+        new TopBarPanelsSkin(),
+    ];
 
     private static int _at = Start();
 
