@@ -82,7 +82,7 @@ internal sealed class StackedPanelsSkin : PanelsSkin
     private static readonly (string Title, int[] Holds)[] Boxes =
     [
         ("Timelines", [0, 1, 2, 3]),
-        ("Explore", [7, 8]),
+        ("Explore", [8, 7]),
         ("Inbox", [4, 5, 6]),
         ("You", [9]),
     ];
