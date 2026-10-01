@@ -340,6 +340,17 @@ internal sealed class ShellWindow : Window
             return true;
         }
 
+        // PROTOTYPE: Tab and Shift-Tab follow the order a skin shows the rail in, where it has one of its own (B2).
+        if (_shell.ShowsRail && (key == Key.Tab || key == Key.Tab.WithShift) && Skins.Current.Order is { } order)
+        {
+            var at = Array.IndexOf(order, _shell.Rail.Cursor);
+            var next = order[(at + (key == Key.Tab ? 1 : -1) + order.Length) % order.Length];
+
+            _shell.Step(next - _shell.Rail.Cursor);
+
+            return true;
+        }
+
         // PROTOTYPE: ` and ~ switch the rail's boxes, forward and back, on a skin that has them (B2).
         if (_shell.ShowsRail && !key.IsCtrl && !key.IsAlt && key.AsRune.Value is '`' or '~'
             && Skins.Current.Box(_shell.Rail, key.AsRune.Value == '`' ? 1 : -1) is { } by)

@@ -75,18 +75,29 @@ internal sealed class StackedPanelsSkin : PanelsSkin
 
     public override bool RailFramed => false;
 
-    /// <summary>The boxes, as the rail's indices they hold.</summary>
-    private static readonly int[][] Boxes = [[0, 1, 2, 3], [4, 5, 6, 7, 8], [9]];
+    /// <summary>
+    ///     The boxes top to bottom, each with the rail's indices it holds. Explore sits above Inbox, which is the other
+    ///     way round from the rail's own order, so Tab is walked in this order too.
+    /// </summary>
+    private static readonly (string Title, int[] Holds)[] Boxes =
+    [
+        ("Timelines", [0, 1, 2, 3]),
+        ("Explore", [7, 8]),
+        ("Inbox", [4, 5, 6]),
+        ("You", [9]),
+    ];
+
+    public override int[]? Order => [.. Boxes.SelectMany(box => box.Holds)];
 
     /// <summary>
     ///     ` goes on to the next box and ~ back to the one before, always landing on the box's first entry. Tab and
-    ///     Shift-Tab are left as they are: one destination forward and back, across every box.
+    ///     Shift-Tab stay one destination forward and back, across every box, in the order they are shown.
     /// </summary>
     public override int? Box(Shell.Rail rail, int by)
     {
-        var box = Array.FindIndex(Boxes, b => b.Contains(rail.Cursor));
+        var box = Array.FindIndex(Boxes, b => b.Holds.Contains(rail.Cursor));
 
-        return Boxes[(box + by + Boxes.Length) % Boxes.Length][0] - rail.Cursor;
+        return Boxes[(box + by + Boxes.Length) % Boxes.Length].Holds[0] - rail.Cursor;
     }
 
     /// <summary>The strip names ` beside Tab.</summary>
@@ -113,9 +124,10 @@ internal sealed class StackedPanelsSkin : PanelsSkin
         var current = shell.Rail.Current;
         var lines = new List<Line>();
 
-        lines.AddRange(Box("Timelines", [.. Enumerable.Range(0, 4).Select(at => Entry(shell, at, width - 2))], width, current < 4));
-        lines.AddRange(Box("Places", [.. Enumerable.Range(4, 5).Select(at => Entry(shell, at, width - 2))], width, current is >= 4 and < 9));
-        lines.AddRange(Box("You", [Entry(shell, 9, width - 2)], width, current == 9));
+        foreach (var (title, holds) in Boxes)
+        {
+            lines.AddRange(Box(title, [.. holds.Select(at => Entry(shell, at, width - 2))], width, holds.Contains(current)));
+        }
 
         var api = Foot(shell, width - 2).Where(line => !line.Text.StartsWith("api", StringComparison.Ordinal)).ToList();
         var foot = api.Count > 0 ? Box("API", api, width, false) : [];

@@ -87,6 +87,12 @@ internal abstract class Skin
     /// </summary>
     public virtual int? Box(Shell.Rail rail, int by) => null;
 
+    /// <summary>
+    ///     The order the rail's entries are shown in, top to bottom, where it differs from the rail's own — so that Tab
+    ///     and Shift-Tab walk what is on screen. Null leaves them to the rail.
+    /// </summary>
+    public virtual int[]? Order => null;
+
     /// <summary>Whether a boxed skin keeps the breadcrumb row, full width across the top, above both panels.</summary>
     public virtual bool TopBar => false;
 
