@@ -230,7 +230,9 @@ internal sealed class ShellWindow : Window
         _title = new PaintedView(theme, (_, _) => [Skins.Current.TitleLine(shell)])
         {
             X = RailLines.Width + 1,
-            Y = 0,
+
+            // Off the screen until a boxed skin wants it, so it never shares a cell with the breadcrumb.
+            Y = -1,
             Width = 1,
             Height = 1,
             CanFocus = false,
@@ -269,7 +271,7 @@ internal sealed class ShellWindow : Window
         _breadcrumb.Y = 0;
         _rail.Y = top;
         _content.Y = boxed ? top : ContentTop;
-        _title.Y = top;
+        _title.Y = boxed ? top : -1;
 
         _railed = !_shell.ShowsRail;
         Railed();
