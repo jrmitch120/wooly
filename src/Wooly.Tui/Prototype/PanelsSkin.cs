@@ -18,10 +18,10 @@ internal class PanelsSkin : Skin
     protected const string Surface2 = "#585b70", Overlay = "#6c7086", Subtext = "#a6adc8", Text = "#cdd6f4";
     protected const string Mauve = "#cba6f7", Blue = "#89b4fa", Sapphire = "#74c7ec", Teal = "#94e2d5", Green = "#a6e3a1";
     /// <summary>
-    ///     The picked thing's band, shared by the rail's current entry: darker than the terminal it is drawn on
-    ///     (#292c33 in the screenshot we were sent), so it reads as sunk into the page rather than lifted off it.
+    ///     The picked thing's band, shared by the rail's current entry. Measured against a black terminal (#000000),
+    ///     so it is a lift off black rather than a shade of grey: as dark as it can go and still read as a band.
     /// </summary>
-    protected const string Band = "#1f2128";
+    protected const string Band = "#16171c";
 
     /// <summary>The pick mark's near-white, the same as main's dark theme draws it.</summary>
     protected const string PickMark_ = "#f2f0f7";

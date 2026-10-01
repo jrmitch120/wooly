@@ -81,24 +81,20 @@ internal sealed class StackedPanelsSkin : PanelsSkin
     /// <summary>Where the cursor was last left in each box, so coming back to one lands where you were.</summary>
     private readonly int[] _left = [0, 4, 9];
 
-    /// <summary>Tab walks round the box you are in; Shift-Tab goes on to the next box, where you last were in it.</summary>
-    public override int? Tab(Shell.Rail rail, bool shift)
+    /// <summary>
+    ///     ` goes on to the next box and ~ back to the one before, each landing where you last were in it. Tab and
+    ///     Shift-Tab are left as they are: one destination forward and back, across every box.
+    /// </summary>
+    public override int? Box(Shell.Rail rail, int by)
     {
         var box = Array.FindIndex(Boxes, b => b.Contains(rail.Cursor));
-        var inBox = Boxes[box];
 
         _left[box] = rail.Cursor;
 
-        var target = shift
-            ? _left[(box + 1) % Boxes.Length]
-            : inBox[(Array.IndexOf(inBox, rail.Cursor) + 1) % inBox.Length];
-
-        _left[Array.FindIndex(Boxes, b => b.Contains(target))] = target;
-
-        return target - rail.Cursor;
+        return _left[(box + by + Boxes.Length) % Boxes.Length] - rail.Cursor;
     }
 
-    /// <summary>The strip says what Tab does now, and names Shift-Tab.</summary>
+    /// <summary>The strip names ` beside Tab.</summary>
     public override Line? Status(Shell.Shell shell, int width)
     {
         if (base.Status(shell, width) is not { } line)
@@ -111,8 +107,7 @@ internal sealed class StackedPanelsSkin : PanelsSkin
 
         if (at > 0)
         {
-            spans[at - 1] = spans[at - 1] with { Text = "Next: " };
-            spans.InsertRange(at + 1, [new Span(" | ", Proto.Bar), new Span("Box: ", Proto.Chip), new Span("⇧tab", Proto.ChipKey)]);
+            spans.InsertRange(at + 1, [new Span(" | ", Proto.Bar), new Span("Box: ", Proto.Chip), new Span("`", Proto.ChipKey)]);
         }
 
         return Fit(spans, [], width, Proto.Bar);

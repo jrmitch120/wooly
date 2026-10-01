@@ -340,9 +340,9 @@ internal sealed class ShellWindow : Window
             return true;
         }
 
-        // PROTOTYPE: a skin may rebind Tab and Shift-Tab on the rail (B2: within a box, and between boxes).
-        if (_shell.ShowsRail && (key == Key.Tab || key == Key.Tab.WithShift)
-            && Skins.Current.Tab(_shell.Rail, key == Key.Tab.WithShift) is { } by)
+        // PROTOTYPE: ` and ~ switch the rail's boxes, forward and back, on a skin that has them (B2).
+        if (_shell.ShowsRail && !key.IsCtrl && !key.IsAlt && key.AsRune.Value is '`' or '~'
+            && Skins.Current.Box(_shell.Rail, key.AsRune.Value == '`' ? 1 : -1) is { } by)
         {
             _shell.Step(by);
 

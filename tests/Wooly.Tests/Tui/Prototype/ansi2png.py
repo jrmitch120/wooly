@@ -3,8 +3,8 @@ import re, sys
 from PIL import Image, ImageDraw, ImageFont
 
 src, dst = sys.argv[1], sys.argv[2]
-# What "the terminal's own background" (CSI 49m) is drawn as: roughly the one in the screenshot we were sent.
-TERMINAL_BG = (41, 44, 51)
+# What "the terminal's own background" (CSI 49m) is drawn as: black, as in the screenshots we were sent.
+TERMINAL_BG = (0, 0, 0)
 text = re.sub(r"\x1b\][^\x1b\x07]*(\x1b\\|\x07)", "", open(src, encoding="utf-8").read())
 font = ImageFont.truetype("/System/Library/Fonts/Menlo.ttc", 15, index=0)
 bold = ImageFont.truetype("/System/Library/Fonts/Menlo.ttc", 15, index=1)

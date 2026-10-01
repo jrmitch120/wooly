@@ -82,10 +82,10 @@ internal abstract class Skin
     public virtual bool RailFramed => Boxed;
 
     /// <summary>
-    ///     How far Tab (or Shift-Tab, where <paramref name="shift" />) should move the rail's cursor, or null to leave
-    ///     the keys meaning what they mean today.
+    ///     How far ` (forward) or ~ (back) should move the rail's cursor to switch boxes, or null where the skin has
+    ///     no boxes and the keys do nothing.
     /// </summary>
-    public virtual int? Tab(Shell.Rail rail, bool shift) => null;
+    public virtual int? Box(Shell.Rail rail, int by) => null;
 
     /// <summary>Whether a boxed skin keeps the breadcrumb row, full width across the top, above both panels.</summary>
     public virtual bool TopBar => false;

@@ -73,14 +73,15 @@ public class SkinDump
         Skins.Select("B2");
         var walked = new List<int>();
 
-        foreach (var press in new[] { Terminal.Gui.Input.Key.Tab, Terminal.Gui.Input.Key.Tab, Terminal.Gui.Input.Key.Tab.WithShift,
-                     Terminal.Gui.Input.Key.Tab, Terminal.Gui.Input.Key.Tab.WithShift, Terminal.Gui.Input.Key.Tab.WithShift })
+        foreach (var press in new[] { Terminal.Gui.Input.Key.Tab, Terminal.Gui.Input.Key.Tab, new Terminal.Gui.Input.Key('`'),
+                     Terminal.Gui.Input.Key.Tab, new Terminal.Gui.Input.Key('`'), new Terminal.Gui.Input.Key('`'),
+                     new Terminal.Gui.Input.Key('~'), Terminal.Gui.Input.Key.Tab.WithShift })
         {
             window.NewKeyDownEvent(press);
             walked.Add(shell.Rail.Cursor);
         }
 
-        File.WriteAllText(Path.Combine(into, "b2-tabs.txt"), "tab tab ⇧tab tab ⇧tab ⇧tab from Home: " + string.Join(" ", walked));
+        File.WriteAllText(Path.Combine(into, "b2-tabs.txt"), "tab tab ` tab ` ` ~ ⇧tab from Home: " + string.Join(" ", walked));
         shell.Rail.GoTo(Wooly.Tui.Shell.DestinationKind.Home);
         built.Host.Drain();
         window.NewKeyDownEvent(Terminal.Gui.Input.Key.CursorRight);
