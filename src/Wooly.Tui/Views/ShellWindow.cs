@@ -340,6 +340,15 @@ internal sealed class ShellWindow : Window
             return true;
         }
 
+        // PROTOTYPE: a skin may rebind Tab and Shift-Tab on the rail (B2: within a box, and between boxes).
+        if (_shell.ShowsRail && (key == Key.Tab || key == Key.Tab.WithShift)
+            && Skins.Current.Tab(_shell.Rail, key == Key.Tab.WithShift) is { } by)
+        {
+            _shell.Step(by);
+
+            return true;
+        }
+
         return ShellKeys.Of(key) is { } pressed && Do(pressed) || base.OnKeyDown(key);
     }
 

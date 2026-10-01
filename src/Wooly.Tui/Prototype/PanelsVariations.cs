@@ -75,6 +75,49 @@ internal sealed class StackedPanelsSkin : PanelsSkin
 
     public override bool RailFramed => false;
 
+    /// <summary>The boxes, as the rail's indices they hold.</summary>
+    private static readonly int[][] Boxes = [[0, 1, 2, 3], [4, 5, 6, 7, 8], [9]];
+
+    /// <summary>Where the cursor was last left in each box, so coming back to one lands where you were.</summary>
+    private readonly int[] _left = [0, 4, 9];
+
+    /// <summary>Tab walks round the box you are in; Shift-Tab goes on to the next box, where you last were in it.</summary>
+    public override int? Tab(Shell.Rail rail, bool shift)
+    {
+        var box = Array.FindIndex(Boxes, b => b.Contains(rail.Cursor));
+        var inBox = Boxes[box];
+
+        _left[box] = rail.Cursor;
+
+        var target = shift
+            ? _left[(box + 1) % Boxes.Length]
+            : inBox[(Array.IndexOf(inBox, rail.Cursor) + 1) % inBox.Length];
+
+        _left[Array.FindIndex(Boxes, b => b.Contains(target))] = target;
+
+        return target - rail.Cursor;
+    }
+
+    /// <summary>The strip says what Tab does now, and names Shift-Tab.</summary>
+    public override Line? Status(Shell.Shell shell, int width)
+    {
+        if (base.Status(shell, width) is not { } line)
+        {
+            return null;
+        }
+
+        var spans = line.Spans.ToList();
+        var at = spans.FindIndex(span => span.Role == Proto.ChipKey && span.Text == "tab");
+
+        if (at > 0)
+        {
+            spans[at - 1] = spans[at - 1] with { Text = "Next: " };
+            spans.InsertRange(at + 1, [new Span(" | ", Proto.Bar), new Span("Box: ", Proto.Chip), new Span("⇧tab", Proto.ChipKey)]);
+        }
+
+        return Fit(spans, [], width, Proto.Bar);
+    }
+
     public override IReadOnlyList<Line>? Rail(Shell.Shell shell, int width, int height)
     {
         var current = shell.Rail.Current;

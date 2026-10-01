@@ -81,6 +81,12 @@ internal abstract class Skin
     /// <summary>Whether the rail gets Terminal.Gui's border, or draws whatever framing it wants itself.</summary>
     public virtual bool RailFramed => Boxed;
 
+    /// <summary>
+    ///     How far Tab (or Shift-Tab, where <paramref name="shift" />) should move the rail's cursor, or null to leave
+    ///     the keys meaning what they mean today.
+    /// </summary>
+    public virtual int? Tab(Shell.Rail rail, bool shift) => null;
+
     /// <summary>Whether a boxed skin keeps the breadcrumb row, full width across the top, above both panels.</summary>
     public virtual bool TopBar => false;
 

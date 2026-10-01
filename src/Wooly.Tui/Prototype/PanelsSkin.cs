@@ -17,8 +17,11 @@ internal class PanelsSkin : Skin
     protected const string Base = "#1e1e2e", Mantle = "#181825", Surface0 = "#313244", Surface1 = "#45475a";
     protected const string Surface2 = "#585b70", Overlay = "#6c7086", Subtext = "#a6adc8", Text = "#cdd6f4";
     protected const string Mauve = "#cba6f7", Blue = "#89b4fa", Sapphire = "#74c7ec", Teal = "#94e2d5", Green = "#a6e3a1";
-    /// <summary>The picked thing's band: a shade darker than Surface0, and shared by the rail's current entry.</summary>
-    protected const string Band = "#2a2b3c";
+    /// <summary>
+    ///     The picked thing's band, shared by the rail's current entry: darker than the terminal it is drawn on
+    ///     (#292c33 in the screenshot we were sent), so it reads as sunk into the page rather than lifted off it.
+    /// </summary>
+    protected const string Band = "#1f2128";
 
     /// <summary>The pick mark's near-white, the same as main's dark theme draws it.</summary>
     protected const string PickMark_ = "#f2f0f7";
@@ -39,7 +42,7 @@ internal class PanelsSkin : Skin
         (Role.ContentWarning, Peach, null, true),
         (Role.Media, Teal, null, false),
         (Role.Poll, Mauve, null, false),
-        (Role.ReferencePicked, Base, Blue, true),
+        (Role.ReferencePicked, PickMark_, Page, true),
         (Role.Boost, Green, null, false),
         (Role.BoostMine, Green, null, true),
         (Role.Favorite, Yellow, null, false),

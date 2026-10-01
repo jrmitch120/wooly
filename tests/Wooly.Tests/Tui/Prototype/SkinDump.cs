@@ -69,6 +69,24 @@ public class SkinDump
             File.WriteAllText(Path.Combine(into, $"{skin.Key}.ansi"), application.Driver.ToAnsi());
         }
 
+        // B2's Tab and Shift-Tab, through the window as presses arrive, and a link picked with → for its brackets.
+        Skins.Select("B2");
+        var walked = new List<int>();
+
+        foreach (var press in new[] { Terminal.Gui.Input.Key.Tab, Terminal.Gui.Input.Key.Tab, Terminal.Gui.Input.Key.Tab.WithShift,
+                     Terminal.Gui.Input.Key.Tab, Terminal.Gui.Input.Key.Tab.WithShift, Terminal.Gui.Input.Key.Tab.WithShift })
+        {
+            window.NewKeyDownEvent(press);
+            walked.Add(shell.Rail.Cursor);
+        }
+
+        File.WriteAllText(Path.Combine(into, "b2-tabs.txt"), "tab tab ⇧tab tab ⇧tab ⇧tab from Home: " + string.Join(" ", walked));
+        shell.Rail.GoTo(Wooly.Tui.Shell.DestinationKind.Home);
+        built.Host.Drain();
+        window.NewKeyDownEvent(Terminal.Gui.Input.Key.CursorRight);
+        application.LayoutAndDraw(true);
+        File.WriteAllText(Path.Combine(into, "B2-link.ansi"), application.Driver.ToAnsi());
+
         // And one level down, so the crumbs have a trail to show.
         shell.Do(Keymap.Means(ShellKey.Enter, shell.Screen), null);
         built.Host.Drain();
