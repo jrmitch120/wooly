@@ -39,6 +39,7 @@ internal static class Proto
     public const Role Border = (Role)918;
     public const Role BorderFocus = (Role)919;
     public const Role Title = (Role)920;
+    public const Role Replies = (Role)921;
 }
 
 internal abstract class Skin
@@ -214,7 +215,8 @@ internal sealed class SkinTheme(ITheme configured) : ITheme
     {
         Proto.Switcher => Switcher,
         Proto.SwitcherHint => SwitcherHint,
-        _ => Skins.Current.For(role) ?? (Enum.IsDefined(role) ? configured.For(role) : configured.For(Role.Body)),
+        _ => Skins.Current.For(role) ?? (Enum.IsDefined(role) ? configured.For(role)
+            : role == Proto.Replies ? configured.For(Role.Muted) : configured.For(Role.Body)),
     };
 }
 

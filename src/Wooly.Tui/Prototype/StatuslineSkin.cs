@@ -23,6 +23,7 @@ internal sealed class StatuslineSkin : Skin
         (Role.Mention, Magenta, null, false),
         (Role.Link, Blue, null, false),
         (Role.Muted, Comment, null, false),
+        (Proto.Replies, Comment, null, false),
         (Role.BylineName, Fg, null, true),
         (Role.BylineHandle, Blue, null, false),
         (Role.Audience, Comment, null, false),

@@ -17,6 +17,9 @@ internal sealed class PanelsSkin : Skin
     private const string Base = "#1e1e2e", Mantle = "#181825", Surface0 = "#313244", Surface1 = "#45475a";
     private const string Surface2 = "#585b70", Overlay = "#6c7086", Subtext = "#a6adc8", Text = "#cdd6f4";
     private const string Mauve = "#cba6f7", Blue = "#89b4fa", Sapphire = "#74c7ec", Teal = "#94e2d5", Green = "#a6e3a1";
+    /// <summary>The picked thing's band: a shade darker than Surface0, and shared by the rail's current entry.</summary>
+    private const string Band = "#2a2b3c";
+
     private const string Yellow = "#f9e2af", Peach = "#fab387", Red = "#f38ba8", Pink = "#f5c2e7";
 
     /// <summary>The page is the terminal's own background, so the app runs edge to edge into its padding.</summary>
@@ -38,9 +41,10 @@ internal sealed class PanelsSkin : Skin
         (Role.BoostMine, Green, null, true),
         (Role.Favorite, Yellow, null, false),
         (Role.FavoriteMine, Yellow, null, true),
-        (Role.Selection, Blue, Surface0, true),
+        (Proto.Replies, Mauve, null, false),
+        (Role.Selection, Text, Band, true),
         (Role.Rail, Subtext, null, false),
-        (Role.RailCurrent, Blue, Surface0, true),
+        (Role.RailCurrent, Blue, Band, true),
         (Role.RailUnread, Peach, null, true),
         (Role.Quota, Overlay, null, false),
         (Role.QuotaLow, Red, null, true),
@@ -72,7 +76,7 @@ internal sealed class PanelsSkin : Skin
     public override Attribute? For(Role role) => _table.TryGetValue(role, out var a) ? a : null;
 
     public override string PickMark => "▌";
-    public override Color? PickBand => C(Surface0);
+    public override Color? PickBand => C(Band);
     public override bool Boxed => true;
 
     public override string Title(Shell.Shell shell)

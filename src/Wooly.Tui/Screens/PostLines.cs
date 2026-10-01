@@ -846,7 +846,8 @@ public static class PostLines
             $"{FavoriteMark(post.Marks.Favorited)} {Number.Of(post.Favorites)}{Word(" favorites", spelledOut)}",
             post.Marks.Favorited ? Role.FavoriteMine : Role.Favorite),
         new Span("   ", Role.Muted),
-        new Span($"↩ {Number.Of(post.Replies)}{Word(" replies", spelledOut)}", Role.Muted),
+        // PROTOTYPE: replies get a role of their own so a skin can colour them; Muted everywhere else.
+        new Span($"↩ {Number.Of(post.Replies)}{Word(" replies", spelledOut)}", Prototype.Proto.Replies),
         new Span(post.Marks.Pinned ? "   pinned" : string.Empty, Role.Muted),
     ]);
 

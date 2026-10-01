@@ -21,6 +21,7 @@ internal sealed class CharmSkin : Skin
         (Role.Mention, Pink, null, false),
         (Role.Link, Teal, null, false),
         (Role.Muted, Dim, null, false),
+        (Proto.Replies, Dim, null, false),
         (Role.BylineName, Cream, null, true),
         (Role.BylineHandle, Violet, null, false),
         (Role.Audience, Dim, null, false),
