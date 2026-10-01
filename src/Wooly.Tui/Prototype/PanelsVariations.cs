@@ -78,20 +78,15 @@ internal sealed class StackedPanelsSkin : PanelsSkin
     /// <summary>The boxes, as the rail's indices they hold.</summary>
     private static readonly int[][] Boxes = [[0, 1, 2, 3], [4, 5, 6, 7, 8], [9]];
 
-    /// <summary>Where the cursor was last left in each box, so coming back to one lands where you were.</summary>
-    private readonly int[] _left = [0, 4, 9];
-
     /// <summary>
-    ///     ` goes on to the next box and ~ back to the one before, each landing where you last were in it. Tab and
+    ///     ` goes on to the next box and ~ back to the one before, always landing on the box's first entry. Tab and
     ///     Shift-Tab are left as they are: one destination forward and back, across every box.
     /// </summary>
     public override int? Box(Shell.Rail rail, int by)
     {
         var box = Array.FindIndex(Boxes, b => b.Contains(rail.Cursor));
 
-        _left[box] = rail.Cursor;
-
-        return _left[(box + by + Boxes.Length) % Boxes.Length] - rail.Cursor;
+        return Boxes[(box + by + Boxes.Length) % Boxes.Length][0] - rail.Cursor;
     }
 
     /// <summary>The strip names ` beside Tab.</summary>
