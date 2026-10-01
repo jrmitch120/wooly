@@ -18,10 +18,13 @@ internal class PanelsSkin : Skin
     protected const string Surface2 = "#585b70", Overlay = "#6c7086", Subtext = "#a6adc8", Text = "#cdd6f4";
     protected const string Mauve = "#cba6f7", Blue = "#89b4fa", Sapphire = "#74c7ec", Teal = "#94e2d5", Green = "#a6e3a1";
     /// <summary>
-    ///     The picked thing's band, shared by the rail's current entry. Measured against a black terminal (#000000),
+    ///     The picked post's band. Measured against a black terminal (#000000),
     ///     so it is a lift off black rather than a shade of grey: as dark as it can go and still read as a band.
     /// </summary>
     protected const string Band = "#16171c";
+
+    /// <summary>The rail's current entry, kept a step lighter than the post band: the shade it had when it was liked.</summary>
+    protected const string RailBand = "#1f2128";
 
     /// <summary>The pick mark's near-white, the same as main's dark theme draws it.</summary>
     protected const string PickMark_ = "#f2f0f7";
@@ -50,7 +53,7 @@ internal class PanelsSkin : Skin
         (Proto.Replies, Mauve, null, false),
         (Role.Selection, PickMark_, Band, true),
         (Role.Rail, Subtext, null, false),
-        (Role.RailCurrent, Blue, Band, true),
+        (Role.RailCurrent, Blue, RailBand, true),
         (Role.RailUnread, Peach, null, true),
         (Role.Quota, Overlay, null, false),
         (Role.QuotaLow, Red, null, true),
