@@ -20,6 +20,9 @@ internal sealed class PanelsSkin : Skin
     /// <summary>The picked thing's band: a shade darker than Surface0, and shared by the rail's current entry.</summary>
     private const string Band = "#2a2b3c";
 
+    /// <summary>The pick mark's near-white, the same as main's dark theme draws it.</summary>
+    private const string PickMark_ = "#f2f0f7";
+
     private const string Yellow = "#f9e2af", Peach = "#fab387", Red = "#f38ba8", Pink = "#f5c2e7";
 
     /// <summary>The page is the terminal's own background, so the app runs edge to edge into its padding.</summary>
@@ -42,7 +45,7 @@ internal sealed class PanelsSkin : Skin
         (Role.Favorite, Yellow, null, false),
         (Role.FavoriteMine, Yellow, null, true),
         (Proto.Replies, Mauve, null, false),
-        (Role.Selection, Text, Band, true),
+        (Role.Selection, PickMark_, Band, true),
         (Role.Rail, Subtext, null, false),
         (Role.RailCurrent, Blue, Band, true),
         (Role.RailUnread, Peach, null, true),
