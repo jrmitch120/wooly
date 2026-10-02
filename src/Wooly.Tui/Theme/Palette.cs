@@ -57,6 +57,18 @@ internal sealed class Palette : ITheme
             role,
             $"This theme answers no role called '{RoleName.Of(role)}'.");
 
+    /// <inheritdoc />
+    /// <remarks>
+    ///     Known here rather than guessed, since this is the table that says which roles have a background of their own.
+    ///     Asking <see cref="For" /> first keeps a role this palette has no answer for a defect rather than a band.
+    /// </remarks>
+    public Attribute Banded(Role role)
+    {
+        var drawn = For(role);
+
+        return _roles[role].Own is null ? new Attribute(drawn.Foreground, For(Role.Band).Background) : drawn;
+    }
+
     /// <summary>
     ///     This palette with somebody's own colours laid over it: the roles they named take what they named, and
     ///     everything they left out stays as it was.

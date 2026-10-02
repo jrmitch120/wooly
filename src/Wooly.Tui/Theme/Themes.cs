@@ -33,9 +33,13 @@ public static class Themes
     ///     than by the text on them, the seam, which is a band with nothing on it at all, and the three that share the
     ///     breadcrumb row — one row, so one band, whatever each of them is saying on it.
     /// </summary>
+    /// <remarks>
+    ///     <see cref="Role.Selection" /> is not one of them. Its <c>▌</c> sits on <see cref="Role.Band" /> with the rest
+    ///     of the picked row, so a theme naming <c>band</c> alone moves the whole row, and the band and the page are
+    ///     themed apart (#269).
+    /// </remarks>
     private static readonly Dictionary<Role, string> DarkBands = new()
     {
-        [Role.Selection] = "#2a2942",
         [Role.Band] = "#2a2942",
         [Role.RailCurrent] = "#2a2942",
         [Role.RailCursor] = "#3a3858",
@@ -47,7 +51,6 @@ public static class Themes
 
     private static readonly Dictionary<Role, string> LightBands = new()
     {
-        [Role.Selection] = "#dcd9e8",
         [Role.Band] = "#dcd9e8",
         [Role.RailCurrent] = "#dcd9e8",
         [Role.RailCursor] = "#eeecf3",
@@ -281,5 +284,7 @@ public static class Themes
     private sealed class PlainTheme : ITheme
     {
         public Attribute For(Role role) => Attribute.Default;
+
+        public Attribute Banded(Role role) => Attribute.Default;
     }
 }

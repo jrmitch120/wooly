@@ -279,6 +279,10 @@ public readonly record struct Ordinals(int From = 0, int? Picked = null);
 ///     <see cref="Line.Item" />, so a screen marking its own rows could break scrolling in a module it never touches.
 ///     A list stamps every thing on it this way, and the account screen's header block — a thing on a screen that is on
 ///     no list — takes the same treatment through the same call rather than a second gutter of its own (#179).
+///     <para>
+///         Every row of the thing picked out is marked <see cref="Line.Picked" /> as well, which is what bands it
+///         (#269). The <c>▌</c> stays beside each row, because without colour it is the whole of the mark.
+///     </para>
 /// </remarks>
 internal static class Stamped
 {
@@ -302,7 +306,7 @@ internal static class Stamped
     {
         var gutter = Gutter(picked);
 
-        return [.. lines.Select(line => line.After(gutter).PartOf(at))];
+        return [.. lines.Select(line => line.After(gutter).PartOf(at) with { Picked = picked })];
     }
 
     /// <summary>

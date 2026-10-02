@@ -34,8 +34,9 @@ public class ThemeTests
     [Fact]
     public void TheLightThemeIsDrawnForLightAndTheDarkOneForDark()
     {
-        var light = Themes.Light.For(Role.Selection);
-        var dark = Themes.Dark.For(Role.Selection);
+        // The selected row as it is drawn: its mark on the band it sits on (#269).
+        var light = Themes.Light.Banded(Role.Selection);
+        var dark = Themes.Dark.Banded(Role.Selection);
 
         Assert.True(light.Background.R > dark.Background.R);
         Assert.True(light.Background.G > dark.Background.G);
@@ -58,7 +59,7 @@ public class ThemeTests
 
     /// <summary>The bands that sit on the page keep backgrounds of their own: a band on nothing is no band.</summary>
     [Theory]
-    [InlineData(Role.Selection)]
+    [InlineData(Role.Band)]
     [InlineData(Role.RailCurrent)]
     [InlineData(Role.Crumb)]
     [InlineData(Role.Seam)]
@@ -232,11 +233,11 @@ public class ThemeTests
         var theme = Chosen(Written("midnight", new ThemeConfig
         {
             Background = "#000000",
-            Roles = new Dictionary<string, ThemeRole> { ["selection"] = new("#ffffff") },
+            Roles = new Dictionary<string, ThemeRole> { ["rail-current"] = new("#ffffff") },
         }));
 
-        Assert.Equal(Themes.Dark.For(Role.Selection).Background, theme.For(Role.Selection).Background);
-        Assert.Equal(new Color(255, 255, 255), theme.For(Role.Selection).Foreground);
+        Assert.Equal(Themes.Dark.For(Role.RailCurrent).Background, theme.For(Role.RailCurrent).Background);
+        Assert.Equal(new Color(255, 255, 255), theme.For(Role.RailCurrent).Foreground);
     }
 
     [Fact]

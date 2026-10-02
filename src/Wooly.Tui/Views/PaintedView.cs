@@ -301,21 +301,24 @@ internal sealed class PaintedView : View
 
         for (var row = 0; row < height; row++)
         {
+            var at = _top + row;
+            var line = at >= 0 && at < lines.Count ? lines[at] : null;
+            var picked = line?.Picked == true;
+
             // Cleared first, in the theme's own background, so that a row which is shorter than the one it replaced
-            // does not leave the tail of the old one behind it.
-            SetAttribute(_theme.For(Role.Body));
+            // does not leave the tail of the old one behind it — and on the band, for a row of the thing picked out,
+            // so that the band runs to the edge of the view rather than stopping where the words do (#269).
+            SetAttribute(picked ? _theme.Banded(Role.Body) : _theme.For(Role.Body));
             AddStr(0, row, new string(' ', width));
 
-            var at = _top + row;
-
-            if (at < 0 || at >= lines.Count)
+            if (line is null)
             {
                 continue;
             }
 
             var column = 0;
 
-            foreach (var span in lines[at].Spans)
+            foreach (var span in line.Spans)
             {
                 if (column >= width)
                 {
@@ -327,7 +330,9 @@ internal sealed class PaintedView : View
                 // characters is a row painted twice as far right as it was laid out (#207).
                 var text = Glyphs.Cut(span.Text, width - column);
 
-                SetAttribute(_theme.For(span.Role));
+                // The theme's to answer, not the view's: only a span sitting on the page goes onto the band, and one
+                // with a background of its own — a picked reference a theme has given one — keeps it.
+                SetAttribute(picked ? _theme.Banded(span.Role) : _theme.For(span.Role));
                 AddStr(column, row, text);
 
                 column += Glyphs.Columns(text);

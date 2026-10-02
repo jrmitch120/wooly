@@ -27,7 +27,6 @@ public partial class RoleTests
     /// </summary>
     private static readonly Role[] NotYetDrawn =
     [
-        Role.Band, // #269
         Role.PanelBorder, // #270
         Role.PanelBorderActive, // #270
         Role.PanelTitle, // #270
@@ -55,6 +54,12 @@ public partial class RoleTests
         {
             foreach (var line in lines)
             {
+                // The band is a row's rather than a span's: the view draws a picked row on it (#269).
+                if (line.Picked)
+                {
+                    seen.Add(Role.Band);
+                }
+
                 foreach (var span in line.Spans)
                 {
                     seen.Add(span.Role);
