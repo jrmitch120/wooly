@@ -830,8 +830,9 @@ public static class PostLines
         : $"{Number.Of(poll.Votes)} votes";
 
     /// <summary>
-    ///     The three counts. Each takes the role that says whether this profile is one of the accounts in it, which is
-    ///     the whole reason a post carries the reader's own marks.
+    ///     The three counts. A boost or favorite count takes the role that says whether this profile is one of the
+    ///     accounts in it, which is the whole reason a post carries the reader's own marks; the reply count has no
+    ///     <em>mine</em>, and takes <see cref="Role.Replies" />.
     /// </summary>
     /// <param name="spelledOut">
     ///     Whether each count says what it counts. A feed has room for the glyph and the number and a reader scanning
@@ -846,7 +847,7 @@ public static class PostLines
             $"{FavoriteMark(post.Marks.Favorited)} {Number.Of(post.Favorites)}{Word(" favorites", spelledOut)}",
             post.Marks.Favorited ? Role.FavoriteMine : Role.Favorite),
         new Span("   ", Role.Muted),
-        new Span($"↩ {Number.Of(post.Replies)}{Word(" replies", spelledOut)}", Role.Muted),
+        new Span($"↩ {Number.Of(post.Replies)}{Word(" replies", spelledOut)}", Role.Replies),
         new Span(post.Marks.Pinned ? "   pinned" : string.Empty, Role.Muted),
     ]);
 

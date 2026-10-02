@@ -75,8 +75,20 @@ public enum Role
     /// <summary>The favorite mark where the favorite is this profile's own.</summary>
     FavoriteMine,
 
+    /// <summary>
+    ///     The reply count under a post. Its own role rather than <see cref="Muted" />, so that it reads as a count
+    ///     beside the boosts and favorites rather than as a timestamp. Carried without colour by <c>↩</c>.
+    /// </summary>
+    Replies,
+
     /// <summary>The selected row. Carried without colour by <c>▌</c> in the gutter.</summary>
     Selection,
+
+    /// <summary>
+    ///     Behind every row of the selected thing, not only the one its <see cref="Selection" /> mark is on. A
+    ///     background role. Carried without colour by the <c>▌</c> beside each row.
+    /// </summary>
+    Band,
 
     /// <summary>A rail destination.</summary>
     Rail,
@@ -87,6 +99,12 @@ public enum Role
     /// </summary>
     RailCurrent,
 
+    /// <summary>
+    ///     The rail entry the tabbing has got to, while the selection has not yet followed it. In colour its band;
+    ///     without, <c>▶</c> (ADR-0021).
+    /// </summary>
+    RailCursor,
+
     /// <summary>An unread count on the rail. Carried without colour by the number's presence.</summary>
     RailUnread,
 
@@ -95,6 +113,12 @@ public enum Role
 
     /// <summary>Rate-limit budget nearly spent.</summary>
     QuotaLow,
+
+    /// <summary>The API budget's filled cells. Carried without colour by <c>█</c>, and the percentage.</summary>
+    Gauge,
+
+    /// <summary>The API budget's empty cells. Carried without colour by <c>░</c>, and the percentage.</summary>
+    GaugeEmpty,
 
     /// <summary>
     ///     The frame's furniture below the breadcrumb: the status row's leading space and its <c> · </c> separators,
@@ -109,6 +133,24 @@ public enum Role
     ///     Carried without colour by position: first in its pair, before the colon; first column on the help screen.
     /// </summary>
     Key,
+
+    /// <summary>
+    ///     A panel's frame. Drawn by this client rather than by Terminal.Gui's <c>Border</c> (ADR-0021). Carried
+    ///     without colour by the box characters.
+    /// </summary>
+    PanelBorder,
+
+    /// <summary>
+    ///     The frame of the panel you are in: the content panel, and the rail group holding the selected destination.
+    ///     Carried without colour by the current entry's <c>▶</c>, and in colour also by its band.
+    /// </summary>
+    PanelBorderActive,
+
+    /// <summary>
+    ///     A panel's title on its top edge: a rail group's name, and the content panel's trail. Carried without colour
+    ///     by position, on the edge.
+    /// </summary>
+    PanelTitle,
 
     /// <summary>
     ///     The breadcrumb row: the crumbs you walked through, the <c>›</c> between them, the <c>… › </c> a long trail

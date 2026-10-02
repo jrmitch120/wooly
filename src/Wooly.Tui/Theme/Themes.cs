@@ -29,14 +29,16 @@ public static class Themes
     private const string LightName = "light";
 
     /// <summary>
-    ///     The roles drawn on something other than the page: the two told apart by the band they are drawn in rather
+    ///     The roles drawn on something other than the page: the ones told apart by the band they are drawn in rather
     ///     than by the text on them, the seam, which is a band with nothing on it at all, and the three that share the
     ///     breadcrumb row — one row, so one band, whatever each of them is saying on it.
     /// </summary>
     private static readonly Dictionary<Role, string> DarkBands = new()
     {
         [Role.Selection] = "#2a2942",
+        [Role.Band] = "#2a2942",
         [Role.RailCurrent] = "#2a2942",
+        [Role.RailCursor] = "#1c1a28",
         [Role.Seam] = "#1c1a28",
         [Role.Crumb] = "#1c1a28",
         [Role.CrumbCurrent] = "#1c1a28",
@@ -46,7 +48,9 @@ public static class Themes
     private static readonly Dictionary<Role, string> LightBands = new()
     {
         [Role.Selection] = "#dcd9e8",
+        [Role.Band] = "#dcd9e8",
         [Role.RailCurrent] = "#dcd9e8",
+        [Role.RailCursor] = "#eeecf3",
         [Role.Seam] = "#eeecf3",
         [Role.Crumb] = "#eeecf3",
         [Role.CrumbCurrent] = "#eeecf3",
@@ -73,14 +77,22 @@ public static class Themes
             [Role.BoostMine] = "#9ef2b8",
             [Role.Favorite] = "#c58fe8",
             [Role.FavoriteMine] = "#e0b6ff",
+            [Role.Replies] = "#a99cc9",
             [Role.Selection] = "#f2f0f7",
+            [Role.Band] = "#f2f0f7",
             [Role.Rail] = "#d5d2e0",
             [Role.RailCurrent] = "#f2f0f7",
+            [Role.RailCursor] = "#d5d2e0",
             [Role.RailUnread] = "#ff7a93",
             [Role.Quota] = "#7c7891",
             [Role.QuotaLow] = "#ff7a93",
+            [Role.Gauge] = "#8fa8ff",
+            [Role.GaugeEmpty] = "#5c5872",
             [Role.Chrome] = "#7c7891",
             [Role.Key] = "#a9a5bd",
+            [Role.PanelBorder] = "#5c5872",
+            [Role.PanelBorderActive] = "#8fa8ff",
+            [Role.PanelTitle] = "#a9a5bd",
             [Role.Crumb] = "#7c7891",
             [Role.CrumbCurrent] = "#f2f0f7",
             [Role.Seam] = "#7c7891",
@@ -110,14 +122,22 @@ public static class Themes
             [Role.BoostMine] = "#0d5c34",
             [Role.Favorite] = "#7b35b5",
             [Role.FavoriteMine] = "#5c2090",
+            [Role.Replies] = "#5e4a8a",
             [Role.Selection] = "#100e18",
+            [Role.Band] = "#100e18",
             [Role.Rail] = "#23212e",
             [Role.RailCurrent] = "#100e18",
+            [Role.RailCursor] = "#23212e",
             [Role.RailUnread] = "#b3123f",
             [Role.Quota] = "#6a6780",
             [Role.QuotaLow] = "#b3123f",
+            [Role.Gauge] = "#2848c8",
+            [Role.GaugeEmpty] = "#9b98ad",
             [Role.Chrome] = "#6a6780",
             [Role.Key] = "#3f3d52",
+            [Role.PanelBorder] = "#9b98ad",
+            [Role.PanelBorderActive] = "#2848c8",
+            [Role.PanelTitle] = "#3f3d52",
             [Role.Crumb] = "#6a6780",
             [Role.CrumbCurrent] = "#100e18",
             [Role.Seam] = "#6a6780",
