@@ -15,7 +15,7 @@ namespace Wooly.Tests.Tui;
 public class RailFetchTests
 {
     /// <summary>
-    ///     The measurement from the ADR, as a test. Six tabs walking Home → Follow requests are six cursor moves, one
+    ///     The measurement from the ADR, as a test. Six tabs walking Home → Notifications are six cursor moves, one
     ///     selection and one fetch — against six with five discarded before the settle rule.
     /// </summary>
     [Fact]
@@ -201,7 +201,7 @@ public class RailFetchTests
         shell.Host.Settle();
 
         // On to search, which is a prompt and asks the instance for nothing at all until something is typed into it.
-        opened.Step(6);
+        opened.Step(4);
         shell.Host.Settle();
 
         Assert.IsType<SearchScreen>(opened.Screen);
@@ -234,9 +234,10 @@ public class RailFetchTests
     }
 
     /// <summary>
-    ///     Ten of them, in the order the contract lists, including the four whose screens are #29's and #30's. The
-    ///     shape of the rail is what #28 settled, and a rail that grows four entries later is a different rail — the
-    ///     tenth is the one entry it has ever grown by, and it was argued for on those terms (ADR-0019, #181).
+    ///     Ten of them, in the order the contract lists, which is their rail groups' order (ADR-0021), including the
+    ///     four whose screens are #29's and #30's. The shape of the rail is what #28 settled, and a rail that grows four
+    ///     entries later is a different rail — the tenth is the one entry it has ever grown by, and it was argued for on
+    ///     those terms (ADR-0019, #181).
     /// </summary>
     [Fact]
     public async Task Rail_ListsAllTenDestinations()
@@ -250,14 +251,25 @@ public class RailFetchTests
                 DestinationKind.Local,
                 DestinationKind.Federated,
                 DestinationKind.Hashtag,
+                DestinationKind.Discover,
+                DestinationKind.Search,
                 DestinationKind.Notifications,
                 DestinationKind.Messages,
                 DestinationKind.Requests,
-                DestinationKind.Search,
-                DestinationKind.Discover,
                 DestinationKind.Profile,
             ],
             opened.Rail.Destinations.Select(destination => destination.Kind));
+    }
+
+    /// <summary>The rail's order is its groups' order: no group is drawn in two places (ADR-0021).</summary>
+    [Fact]
+    public async Task Rail_DrawsEachGroupTogetherInTheGroupsOrder()
+    {
+        var opened = await new AShell().Opened();
+
+        var groups = opened.Rail.Destinations.Select(destination => destination.Group).ToList();
+
+        Assert.Equal(groups.Order(), groups);
     }
 
     /// <summary>Home, local, federated and a hashtag are all reachable, and each reads its own timeline.</summary>
@@ -315,10 +327,10 @@ public class RailFetchTests
 
     /// <summary>Each destination that lists something of its own arrives at its own screen, not at somebody else's.</summary>
     [Theory]
-    [InlineData(4, typeof(NotificationsScreen))]
-    [InlineData(5, typeof(DirectMessagesScreen))]
-    [InlineData(6, typeof(FollowRequestsScreen))]
-    [InlineData(7, typeof(SearchScreen))]
+    [InlineData(5, typeof(SearchScreen))]
+    [InlineData(6, typeof(NotificationsScreen))]
+    [InlineData(7, typeof(DirectMessagesScreen))]
+    [InlineData(8, typeof(FollowRequestsScreen))]
     public async Task Step_ArrivesAtTheScreenItsDestinationOpensOnto(int steps, Type screen)
     {
         var shell = new AShell();
@@ -360,5 +372,26 @@ public class RailFetchTests
         Assert.Equal(
             1,
             opened.Rail.Destinations.First(destination => destination.Kind == DestinationKind.Notifications).Unread);
+    }
+
+    /// <summary>
+    ///     <c>tab</c> walks the shown order and nothing else: from the last timeline into Explore, and from the top of
+    ///     the Inbox back up into Explore — wrapping at either end of the rail.
+    /// </summary>
+    [Theory]
+    [InlineData(DestinationKind.Hashtag, 1, DestinationKind.Discover)]
+    [InlineData(DestinationKind.Notifications, -1, DestinationKind.Search)]
+    [InlineData(DestinationKind.Profile, 1, DestinationKind.Home)]
+    [InlineData(DestinationKind.Home, -1, DestinationKind.Profile)]
+    public async Task Step_WalksTheRailInItsShownOrder(DestinationKind from, int by, DestinationKind to)
+    {
+        var shell = new AShell { Hashtag = "dotnet" };
+        var opened = await shell.Opened();
+
+        opened.Rail.GoTo(from);
+        opened.Step(by);
+        shell.Host.Settle();
+
+        Assert.Equal(to, opened.Rail.Showing.Kind);
     }
 }

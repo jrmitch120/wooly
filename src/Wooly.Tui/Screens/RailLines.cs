@@ -44,10 +44,9 @@ public static class RailLines
         {
             lines.Add(Entry(rail, at));
 
-            // The four timelines are one group and the five you-go-to-them destinations another; the profile's own
-            // account is neither, so it sits below a rule of its own. The second rule moved from 7 to 8 when Discover
-            // joined that group after Search — the one entry the rail has ever grown by (ADR-0019, #181).
-            if (at is 3 or 8)
+            // A rule between each rail group and the next, wherever the groups change. The last group needs none of
+            // its own: the foot's rule closes it (ADR-0021).
+            if (at + 1 < rail.Destinations.Count && rail.Destinations[at + 1].Group != rail.Destinations[at].Group)
             {
                 lines.Add(Rule());
             }

@@ -146,7 +146,7 @@ public class ShellRefreshTests
         var shell = new AShell { Notifications = FakeNotificationInbox.Holding(ANotification.With(id: "1")) };
         var opened = await shell.Opened();
 
-        opened.Step(4);
+        opened.Step(6);
         shell.Host.Settle();
 
         Assert.Equal(1, Badge(opened, DestinationKind.Notifications));
@@ -198,7 +198,7 @@ public class ShellRefreshTests
 
         var opened = await shell.Opened();
 
-        opened.Step(4);
+        opened.Step(6);
         shell.Host.Settle();
 
         var notifications = shell.Notifications.Reads.Count;
@@ -490,7 +490,7 @@ public class ShellRefreshTests
 
         var opened = await shell.Opened();
 
-        opened.Step(5);
+        opened.Step(7);
         shell.Host.Settle();
 
         opened.Press(ShellKey.Enter);

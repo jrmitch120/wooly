@@ -14,7 +14,7 @@ namespace Wooly.Tests.Tui;
 public class ShellNotificationTests
 {
     /// <summary>Where the rail's notifications destination is, counting from Home.</summary>
-    private const int ToNotifications = 4;
+    private const int ToNotifications = 6;
 
     [Fact]
     public async Task Step_ListsWhatIsWaitingAndCountsItOnTheRail()

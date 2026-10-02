@@ -17,6 +17,12 @@ public enum DestinationKind
     /// <summary>The public posts carrying the tag the reader keeps a place for.</summary>
     Hashtag,
 
+    /// <summary>Who the instance offers this profile to follow, in sections by why it is offering them.</summary>
+    Discover,
+
+    /// <summary>Finding accounts, hashtags and posts.</summary>
+    Search,
+
     /// <summary>What is waiting for this profile.</summary>
     Notifications,
 
@@ -26,14 +32,29 @@ public enum DestinationKind
     /// <summary>The follows waiting to be answered.</summary>
     Requests,
 
-    /// <summary>Finding accounts, hashtags and posts.</summary>
-    Search,
-
-    /// <summary>Who the instance offers this profile to follow, in sections by why it is offering them.</summary>
-    Discover,
-
     /// <summary>The profile's own account.</summary>
     Profile,
+}
+
+/// <summary>
+///     Which of the four rail groups a destination is drawn in, by what it is for (CONTEXT.md, ADR-0021). The rail's
+///     order is the groups' order, which is this one.
+/// </summary>
+public enum RailGroup
+{
+    /// <summary>What you read: Home, Local, Federated and Hashtag.</summary>
+    Timelines,
+
+    /// <summary>What you go looking with: Discover and Search, neither of which ever carries an unread count.</summary>
+    Explore,
+
+    /// <summary>
+    ///     What comes to you: Notifications, Direct messages and Follow requests, where every unread count lives.
+    /// </summary>
+    Inbox,
+
+    /// <summary>The profile's own account.</summary>
+    You,
 }
 
 /// <summary>
@@ -61,4 +82,15 @@ public sealed record Destination(DestinationKind Kind, string Label, Timeline? T
 {
     /// <summary>How many unread things are waiting here, or zero where nothing is or nothing counts them.</summary>
     public int Unread { get; init; }
+
+    /// <summary>The rail group this is drawn in, which follows from what it is and nothing else.</summary>
+    public RailGroup Group => Kind switch
+    {
+        DestinationKind.Home or DestinationKind.Local or DestinationKind.Federated or DestinationKind.Hashtag =>
+            RailGroup.Timelines,
+        DestinationKind.Discover or DestinationKind.Search => RailGroup.Explore,
+        DestinationKind.Notifications or DestinationKind.Messages or DestinationKind.Requests => RailGroup.Inbox,
+        DestinationKind.Profile => RailGroup.You,
+        _ => throw new ArgumentOutOfRangeException(nameof(Kind), Kind, "A destination in no rail group."),
+    };
 }

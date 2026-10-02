@@ -90,16 +90,15 @@ public class RailLinesTests
     }
 
     /// <summary>
-    ///     The rail's two rules fall either side of the group Discover joined: the four timelines above the first,
-    ///     the five you-go-to-them destinations between, and the profile's own account below the second (#181).
+    ///     A rule falls between each rail group and the next, wherever the groups happen to change: the timelines, a
+    ///     rule, Discover and Search, a rule, the Inbox, a rule, and the profile's own account (ADR-0021, #264).
     /// </summary>
     /// <remarks>
-    ///     Asserted as where the rules land rather than as the indices the code holds, because what a reader sees is
-    ///     the grouping: a tenth entry that pushed the second rule the wrong way would put Discover in with the
-    ///     profile, which is the one thing this ticket must not change.
+    ///     Asserted as where the rules land rather than as the indices the code once held, because what a reader sees
+    ///     is the grouping, and a reorder that left a rule behind would split a group in two.
     /// </remarks>
     [Fact]
-    public void Of_KeepsTheGroupsEitherSideOfTheTenthDestination()
+    public void Of_DrawsARuleBetweenEachGroupAndTheNext()
     {
         var rail = new Rail(
             [
@@ -107,26 +106,48 @@ public class RailLinesTests
                 new Destination(DestinationKind.Local, "Local"),
                 new Destination(DestinationKind.Federated, "Federated"),
                 new Destination(DestinationKind.Hashtag, "Hashtag"),
+                new Destination(DestinationKind.Discover, "Discover"),
+                new Destination(DestinationKind.Search, "Search"),
                 new Destination(DestinationKind.Notifications, "Notifications"),
                 new Destination(DestinationKind.Messages, "Direct messages"),
                 new Destination(DestinationKind.Requests, "Follow requests"),
-                new Destination(DestinationKind.Search, "Search"),
-                new Destination(DestinationKind.Discover, "Discover"),
                 new Destination(DestinationKind.Profile, "@jeff"),
             ],
             new FakeShellHost(),
             TimeSpan.FromMilliseconds(250));
 
-        var drawn = RailLines.Of(rail, null, height: 20).Select(line => line.Text.Trim()).ToList();
-
         var rule = new string('\u2500', RailLines.Width);
 
-        // Four timelines, a rule, the five you go to — Search then Discover — a rule, and the profile below it.
-        Assert.Equal(rule, drawn[4]);
-        Assert.Equal("Search", drawn[8]);
-        Assert.Equal("Discover", drawn[9]);
-        Assert.Equal(rule, drawn[10]);
-        Assert.Equal("@jeff", drawn[11]);
+        var drawn = RailLines.Of(rail, null, height: 20).Take(13).Select(line => line.Text.Trim());
+
+        Assert.Equal(
+            [
+                "Home", "Local", "Federated", "Hashtag", rule,
+                "Discover", "Search", rule,
+                "Notifications", "Direct messages", "Follow requests", rule,
+                "@jeff",
+            ],
+            drawn.Select(text => text.TrimStart('▶', ' ')));
+    }
+
+    /// <summary>Destinations of one group are drawn with nothing between them, however many there are.</summary>
+    [Fact]
+    public void Of_DrawsNoRuleWithinAGroup()
+    {
+        var rail = new Rail(
+            [
+                new Destination(DestinationKind.Notifications, "Notifications"),
+                new Destination(DestinationKind.Messages, "Direct messages"),
+                new Destination(DestinationKind.Requests, "Follow requests"),
+            ],
+            new FakeShellHost(),
+            TimeSpan.FromMilliseconds(250));
+
+        var drawn = RailLines.Of(rail, null, height: 10).Take(4).Select(line => line.Text.Trim());
+
+        Assert.Equal(
+            ["Notifications", "Direct messages", "Follow requests", string.Empty],
+            drawn.Select(text => text.TrimStart('▶', ' ')));
     }
 
     /// <summary>
