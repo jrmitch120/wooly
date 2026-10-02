@@ -259,3 +259,9 @@ somebody who pressed `a` on a post. Since #229 the TUI reaches replies too: `s` 
 `Timeline.WithReplies` in place, and a second `s` goes back — the reader's own press, never the default, and not
 remembered across visits. With replies in, a pinned reply can come back in both runs; it is dropped from the timeline
 run by id, as a pinned normal post always was, so it is still drawn in the pinned run alone.
+
+## Superseded in part by ADR-0021 (rail groups)
+
+Discover keeps its place on the rail and its cost argument, but not its neighbours. ADR-0021 splits the five
+"places you go" by what each is for: **Explore** (Discover, then Search) and **Inbox** (Notifications, Direct messages,
+Follow requests). The rail's order is now Timelines, Explore, Inbox, You.

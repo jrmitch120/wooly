@@ -253,3 +253,16 @@ two were added here against five that were argued for and refused.
 
 None of this reopens what the ADR decided. The regions gained a row inside the content's half of the frame and lost
 nothing; every decision above was measured at 61 and 80 columns and drawn on a terminal reporting no colour.
+
+## Superseded in part by ADR-0021 (the shell is panels)
+
+The rail that stays, the stack you walk back out of, and roles in place of colours all stand. What ADR-0021 changes is
+the frame drawn round them: the rail and the content become titled panels; the breadcrumb becomes the content panel's
+title; the breadcrumb row, the seam row and the gutter column retire, and their roles (`crumb`, `crumb-current`,
+`seam`) with them; the content's floor at 80 columns is 60 rather than 61; and the page is the terminal's own
+background. The #160 amendment's breadcrumb band, seam band and blank row are what that replaces.
+
+ADR-0021 also amends this ADR's rule that colour is never the only thing carrying a meaning. The guarantee stands,
+that nothing vanishes under `NO_COLOR`, but the glyph is owed only where colour is not drawn: in colour a band may carry
+a meaning alone. The rail's `▶`/`▷` is drawn only without colour; in colour, `rail-current` and `rail-cursor` bands carry the same two
+states, and the settle window is unchanged.

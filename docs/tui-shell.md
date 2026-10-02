@@ -9,32 +9,57 @@ not something else. None of that code is production code.
 
 ## Regions
 
+Panels, since ADR-0021. This section is the target the panels issues build to; until the last of them lands, the
+shell still draws the breadcrumb row, the seam and the gutter it replaces. The rail and the content are each a rounded frame with a title on its top edge; the frames do
+the dividing, so there is no breadcrumb row, no blank row under it and no gutter column.
+
 ```
-┌ 18 ─────────────┬─────────────────────────────────────────────────────────┐
-│ rail            │ Breadcrumb › where you are         fetching..     1 row │
-│                 │                                      (blank)      1 row │
-│ destinations    │ content                                                 │
-│ + unread counts │ (feed · post · account · conversation · search results) │
-│                 │                                                         │
-│ ─────────────── │                                                         │
-│ instance        │                                                         │
-│ quota           │                                                         │
-├─────────────────┴─────────────────────────────────────────────────────────┤
-│ status: the keys this screen answers to            · quota          1 row │
-└───────────────────────────────────────────────────────────────────────────┘
+╭ Timelines ─────╮╭ Home › Post by @ben ──────────────────── fetching.. ╮
+│Home           3││ content                                             │
+│ Local          ││ (feed · post · account · conversation · search)     │
+│ Federated      ││                                                     │
+│ Hashtag        ││                                                     │
+╰────────────────╯│                                                     │
+╭ Explore ───────╮│                                                     │
+│ Discover       ││                                                     │
+│ Search         ││                                                     │
+╰────────────────╯│                                                     │
+╭ Inbox ─────────╮│                                                     │
+│ Notifications 4││                                                     │
+│ Direct messages││                                                     │
+│ Follow requests││                                                     │
+╰────────────────╯│                                                     │
+╭ You ───────────╮│                                                     │
+│ @jeff          ││                                                     │
+╰────────────────╯│                                                     │
+╭ API ───────────╮│                                                     │
+│ ████████░░  92%││                                                     │
+╰────────────────╯╰─────────────────────────────────────────────────────╯
+ Post: j/k | Refresh: g | Destination: tab | Group: ` | Read: ⏎ …+6 | Keys: ?
 ```
 
 | Region | Size | Holds |
 |---|---|---|
-| Rail | 18 columns, full height less the status row | Destinations, their unread counts, the rate-limit quota at its foot; with two or more profiles, the instance the session is acting as on its own row directly above the quota, in `quota`, clipped at its end (ADR-0020). With one profile that row is not drawn |
-| Breadcrumb | 1 row, content width | Where you are in the stack, the crumb you are standing on told from its ancestors, on `crumb`'s band; the fetch mark in the rightmost 11 columns while a fetch is in flight |
-| *(the seam)* | 1 row, content width | Nothing, and drawn by nothing — the page shows through, which is what blank means. A blank row divides the frame from what is being read, the way every screen divides one thing from the next (#168) |
-| *(the gutter)* | 1 column, full height less the status row | A `│` rule in `seam`, dividing the rail from everything right of it. A rule as well as a background, so the division holds where there is no colour |
-| Content | the rest | Exactly one screen at a time |
-| Status | 1 row, full width | The current screen's keys, as many as fit and `…+N` for the rest; or a notice; or a confirmation; the quota again when the rail is hidden |
+| Rail | 18 columns including its frames, full height less the status row | Four **rail groups**, in colour the selected entry on `rail-current` and, while tabbing, the cursor's entry on `rail-cursor`; without colour `▶`/`▷` (ADR-0021), each its own titled panel, the group holding the selected destination framed in `panel-border-active`; each destination with its unread count; at the foot an `API` panel holding, with two or more profiles, the instance acted as (ADR-0020), then the budget as a gauge. On a terminal too short to frame every group the rail steps down (below) |
+| Content | the rest of the width, full height less the status row | A panel titled with the breadcrumb (below), holding exactly one screen. Its rows start on row 1 |
+| Status | 1 row, full width | The current screen's keys as `Does: key \| Does: key`, as many as fit and `…+N` for the rest; or a notice; or a confirmation; the quota again when the rail is hidden |
 
-At 80 columns this leaves the content 61. That is the width every screen must read well at — it is the narrow case the
-right-hand context pane failed (ADR-0014).
+The content panel's title is the stack: the crumbs walked through, the one stood on told from them, eliding from the
+left so it always ends where you are, and the fetch mark at its end while a fetch is in flight. Its rows are 60 columns
+wide at an 80-column terminal. That is the width every screen must read well at: the 61 of ADR-0014 less the cell the
+gutter column gave up to the content panel's left edge.
+
+The rail needs 22 rows to frame every group (Timelines 6, Explore 4, Inbox 5, You 3, API 4), and an 80×24 terminal gives
+it 23. Shorter than that, it steps down rather than clipping:
+
+| Rows for the rail | The rail |
+|---|---|
+| 22 or more | Framed |
+| 15 to 21 | Compact: each group's title as a heading row, no frames, the API panel as one gauge row |
+| fewer than 15 | Compact, and scrolled to keep the cursor's group in view |
+
+The frames are this client's own, painted in roles like everything else, not Terminal.Gui's `Border`. A picture placed in
+a framed region is placed inside the frame (ADR-0021).
 
 Every one of those numbers is **columns a terminal draws in, never characters**. `ドット絵アカウント` is nine characters
 and eighteen columns, `é` written as a letter and a combining mark is two characters and one column, and a row padded
@@ -79,7 +104,8 @@ workable only because the status row always shows the current screen's keys. Wha
 | `esc` | Up one level of the stack. Never quits. |
 | `ctrl-q` | Quit. |
 | `?` | The keymap for this screen. The spec has no in-app help story; this is the shell adding one, and #28 carries it — every other screen inherits it for free. |
-| `tab` / `shift-tab` | Moves the cursor (`▶`) at once. The selection follows it (`▷` while it lags behind), and that destination loads, once the tabbing has stopped for ~250ms. |
+| `tab` / `shift-tab` | Moves the cursor (`▶`) at once, one destination down or up the rail, crossing from one rail group into the next. The selection follows it (`▷` while it lags behind), and that destination loads, once the tabbing has stopped for ~250ms. |
+| `` ` `` / `~` | Moves the cursor to the first destination of the next or previous **rail group**, wrapping. Settles and loads as `tab` does (ADR-0021). |
 | `/` | Search. Goes to the search destination; what it opens onto is #29's. |
 | `ctrl-p` | The profiles screen, pushed onto the stack. Everywhere but compose, where it does nothing and is not listed: switching from there would drop the draft (ADR-0020). |
 
@@ -1068,6 +1094,10 @@ which of them had one to put there. #204 did:
 
 ### What the breadcrumb settled
 
+> **Changed by ADR-0021.** The trail is now the content panel's title rather than a row of its own. What it says and
+> how it elides stand as below; the row, its `crumb` band and the blank row under it are gone, and `crumb` and
+> `crumb-current` are retired for `panel-title`.
+
 The trail said where you are and drew itself as one `Role.Chrome` span, so it said nothing of the sort — and
 `FeedScreen.Crumb` lowercased the rail's own label, so the sidebar said `Home` and the breadcrumb said `home`. #168
 and #213 settled the row; #216 and #217 build it:
@@ -1132,6 +1162,9 @@ and #213 settled the row; #216 and #217 build it:
   word on the breadcrumb row that is not a place you have been, and the lowercase is what says so.
 
 ### What the status row settled
+
+> **Changed by ADR-0021.** A hint is drawn `Does: key`, the pairs divided by ` | `, in place of `key:does` divided by
+> ` · `. The rank order, `…+N`, the pinned `?` and the rule that a key that cannot act is off the row all stand.
 
 `PostKeys.Around` emitted around fourteen hints and `ChromeLines`' clip cut them at the right, so a reader on a busy
 screen saw an ellipsis where the keys should be — and since `?:keys` is last in every list, the row announcing where
@@ -1478,6 +1511,20 @@ glyph or a position that carries the same meaning when colour is gone.
 | `destructive` | A delete affordance and its confirmation | the word |
 | `error` | A failure the shell has to say out loud | the word |
 
+> **Changing under ADR-0021.** The table above is the roles there are today, and a test holds it to the `Role` enum.
+> The panels work changes it in the same commit as the enum, one issue at a time:
+>
+> | Role | Paints | Carried without colour by |
+> |---|---|---|
+> | `panel-border` / `panel-border-active` *(new)* | A panel's frame, and the frame of the panel you are in: the content panel, and the rail group holding the selected destination | the box characters; which group is active is carried by the current entry's band in colour, and by `▶` on it without |
+> | `panel-title` *(new)* | A panel's title on its top edge: a rail group's name, and the content panel's trail | position, on the edge |
+> | `band` *(new)* | Behind every row of the selected thing | the `▌` beside each row |
+> | `rail-cursor` *(new)* | The rail entry the tabbing has got to, while the selection has not yet followed it | `▶` without colour; in colour, its band (ADR-0021) |
+> | `gauge` / `gauge-empty` *(new)* | The API budget's filled and empty cells | `█` and `░`, and the percentage |
+> | `replies` *(new)* | The reply count under a post | `↩` |
+> | `crumb` / `crumb-current` / `seam` *(retired)* | Their regions are gone; the trail is `panel-title` | – |
+> | `loading` *(moves)* | The fetch mark, now at the end of the content panel's title | unchanged |
+
 The people-side work (#159) added no role, deliberately and in four places: a verified **Custom field** takes a `✓`
 after a value already drawn in `link`, the `⚙ bot` / `⚿ locked` flags carry in their words, a **Suggestion**'s reason is
 a heading rather than a colour, and every standing suffix and section heading is `muted`. Each of those reads
@@ -1533,7 +1580,7 @@ Themes are tables in the same TOML config file everything else lives in (ADR-000
 theme = "dark"
 
 [themes.midnight]
-background      = "#12111a"
+background      = "default"
 body            = "#d5d2e0"
 muted           = "#7c7891"
 byline-name     = "#f2f0f7"
@@ -1569,13 +1616,9 @@ Rules:
 - A role may be a colour or a table of `foreground` and `background`. A half it leaves out keeps what the built-in had
   there: the theme's page for nearly every role, and its own band for the selected row and the current rail entry — so
   restating the selection's foreground does not silently take away the band it is drawn in.
-- `background` is the theme's, not a role: setting it moves everything that was sitting on the page. What divides one
-  region from the next does not sit on it — the column beside the rail is `seam`'s own band and the breadcrumb row is
-  `crumb`'s, and a theme moving the page will usually want to move both with it. The column was painted by nothing at
-  all before #216, and a cell nothing paints is a cell Terminal.Gui paints, in a grey no theme chose. A theme cannot
-  decline to have one and inherit the terminal's own — `Terminal.Gui` attributes are a foreground/background pair with
-  no "leave it alone" in them, and its own default pair is a concrete white on black rather than a sentinel. So the
-  page is always written down: this theme's, or the built-in's.
+- `background` is the theme's, not a role: setting it moves everything that was sitting on the page. Every built-in
+  theme's page is `default`, the terminal's own background, so the app meets the terminal's padding with no seam
+  (ADR-0021). A theme may name a colour instead; `default` is also accepted anywhere a role takes a colour.
 - A theme naming a role that does not exist is a config error with the role named, not a silent no-op — and so is a
   colour this client cannot read, and a `theme = "…"` naming a theme nobody wrote. Every theme in the file is read,
   not only the one in use, so a typo is reported the day it is written rather than the day it is switched to.
@@ -1600,10 +1643,11 @@ The rail carries one column for this, in the left column with the destination na
 `▶` where the tabbing has got to, `▷` where it settled if that differs, blank otherwise — the two coincide at rest,
 so only `▶` shows (#67, amending ADR-0014's earlier two-column, two-mark description below). It carries no third
 mark for *chosen but not loaded* and none for a fetch in flight — the right-hand column is unread counts and nothing
-else, and a fetch is announced once on the breadcrumb. A rail somebody is reading should hold still.
+else, and a fetch is announced once, at the end of the content panel's title. A rail somebody is reading should hold
+still.
 
 That one announcement is the only thing in the shell that animates, and it is laid out so that nothing around it
-moves: the rightmost 11 columns of the breadcrumb, a dot arriving every 400ms up to three and starting over, and
+moves: 11 columns at the end of the content panel's title, a dot arriving every 400ms up to three and starting over, and
 nothing at all until the first tick — so the cached case above never flashes a mark (#213). Whether a fetch is in
 flight keeps its meaning and its two jobs, gating `g` and the follows paging; what changed is only what the
 breadcrumb draws. It is a **count** of questions in flight rather than a flag, because two enquiries overlap readily
@@ -1633,6 +1677,8 @@ the timeline I just left", not "is this still current", and that has the same an
 ## Open questions
 
 1. ~~**Whether a theme can decline to set a background** and inherit the terminal's own.~~ Settled by #46: it cannot.
+   **Reversed by ADR-0021:** it can, and every built-in does. Terminal.Gui 2.4's `Color.None` is written as `CSI 49m`.
+   What follows is #46's answer, kept for the record.
    A `Terminal.Gui` attribute is a foreground/background pair with nothing in it meaning "whatever was there", and its
    `Attribute.Default` is a concrete white on black rather than a sentinel the driver reads as "leave it". So a
    background is always written down — the theme's own, or the built-in's — and a terminal that wants no colour is
