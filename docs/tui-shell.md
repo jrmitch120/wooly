@@ -188,10 +188,11 @@ not answer them differently:
   it is confirmed on the same terms `post delete` is — the same confirmation, saying `clear` rather than `delete`.
 - **A count and the list under it are one fact.** Arriving at a destination sets its badge from the same answer the
   screen is drawn from, and dismissing or answering something moves both.
-- **A prompt taking letters takes `/` and `?` too**, which is the one exception to the frame keys above. A web address
-  and a question are both things somebody is entitled to search for, and a prompt that could not take a slash would
-  refuse the query most likely to be pasted into it. Every other frame key — `esc`, `ctrl-q`, `tab` — still means what
-  it means everywhere, and the status row says what the prompt answers to.
+- **A prompt taking letters takes `/`, `?`, `` ` `` and `~` too**, which is the one exception to the frame keys above.
+  A web address and a question are both things somebody is entitled to search for, and a prompt that could not take a
+  slash would refuse the query most likely to be pasted into it; code in backticks and a path under `~` are the same
+  (#265). Every other frame key — `esc`, `ctrl-q`, `tab` — still means what it means everywhere, and the status row
+  says what the prompt answers to.
 - **`/` from the search screen's results starts a fresh prompt** rather than doing nothing, since that is the one place
   the key is most likely to be pressed twice.
 - **A screen's own keys go in front of the shared ones on the status row.** The row is one row and draws what it has
@@ -1175,10 +1176,10 @@ reminder, `?` is the reference.** #169, #214 and #215 settled the row; #218, #21
   terminal has room for, in rank order, then `…+N` for the ones it could not fit, then `?:keys` — which is never cut.
   A key that cannot act on what is picked out right now is not on the row and not in the count.
 - **The rank**, which is what `PostKeys.Around` assembles: the walk (`j/k:post`, `j/k:thread`, `←/→:reference`); the
-  screen's own keys, including `g:refresh`; the way out (`esc:back`, or `tab:destination` at the bottom of the
-  stack); the shared post keys worth reminding somebody of (`⏎` `r` `b` `f` `a` `c`); the tail, which is what can be
-  learned anywhere or acts only on your own posts (`↓/↑` `x` `p` `e` `d`); and `?:keys`, pinned. The order used to be
-  assembled for reading; promoting it into a ranking fixed two accidents — `↓/↑:row` no longer outranks the three
+  screen's own keys, including `g:refresh`; the way out (`esc:back`, or `tab:destination` and `` `:group `` at the
+  bottom of the stack); the shared post keys worth reminding somebody of (`⏎` `r` `b` `f` `a` `c`); the tail, which
+  is what can be learned anywhere or acts only on your own posts (`↓/↑` `x` `p` `e` `d`); and `?:keys`, pinned. The
+  order used to be assembled for reading; promoting it into a ranking fixed two accidents — `↓/↑:row` no longer outranks the three
   marks, and the way out is no longer at the end, where `tab:destination` fell into the overflow on the feed.
 - **The fill stops at the first hint that does not fit** rather than skipping it for a narrower one behind it.
   Skipping would fill a few more columns at the price of the row no longer being in rank order, and of the keys shown

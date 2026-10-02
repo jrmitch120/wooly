@@ -197,6 +197,11 @@ public static class PostKeys
     ///     The way out of a screen at the bottom of the stack: <c>tab</c> to the next destination, and <c>`</c> to the
     ///     next rail group beside it (#265). Not said on a prompt taking letters, where <c>`</c> is one of them.
     /// </summary>
+    /// <remarks>
+    ///     An array built afresh on each read rather than a list held once, because it is passed as the
+    ///     <see langword="params" /> of <see cref="Leaving" /> and <c>Around</c>, and a shared array handed out
+    ///     could be written to by any of them.
+    /// </remarks>
     public static KeyHint[] AlongTheRail => [new("tab", "destination"), new("`", "group")];
 
     /// <summary>

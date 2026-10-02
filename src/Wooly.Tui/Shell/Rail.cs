@@ -94,7 +94,7 @@ public sealed class Rail
             .ToList();
 
         var inside = firsts.FindLastIndex(first => first <= Cursor);
-        var to = firsts[(((inside + by) % firsts.Count) + firsts.Count) % firsts.Count];
+        var to = firsts[Wrapped(inside + by, firsts.Count)];
 
         Step(to - Cursor);
     }
@@ -181,5 +181,7 @@ public sealed class Rail
         Selected?.Invoke(Showing);
     }
 
-    private int Wrapped(int index) => ((index % _destinations.Count) + _destinations.Count) % _destinations.Count;
+    private int Wrapped(int index) => Wrapped(index, _destinations.Count);
+
+    private static int Wrapped(int index, int count) => ((index % count) + count) % count;
 }
