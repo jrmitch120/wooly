@@ -8,8 +8,8 @@ using Attribute = Terminal.Gui.Drawing.Attribute;
 namespace Wooly.Tests.Tui;
 
 /// <summary>
-///     <c>dark</c> is the panels palette tuned in the B2 prototype (#273, ADR-0021): Catppuccin Mocha accents on the
-///     terminal's own background, blue the one accent. Like <see cref="ThemeTests" />, a place a colour may be written
+///     <c>dark</c> is the panels palette tuned in the prototype ADR-0021 chose — skin B2 on <c>prototype/tui-skins</c>,
+///     the stacked rail (#273): Catppuccin Mocha accents on the terminal's own background, blue the one accent. Like <see cref="ThemeTests" />, a place a colour may be written
 ///     down in a test — here the prototype's own, role for role, so that the built-in is checked against the design
 ///     rather than against itself.
 /// </summary>
