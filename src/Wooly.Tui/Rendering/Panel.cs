@@ -20,7 +20,7 @@ public static class Panel
     ///     How many columns of a panel's width its top edge spends on anything but the title: a corner either side and
     ///     a space either side of the title.
     /// </summary>
-    public const int TitleMargin = 4;
+    private const int TitleMargin = 4;
 
     private const string Across = "─";
 
@@ -77,7 +77,7 @@ public static class Panel
 
         if (width < 2)
         {
-            return Line.Of(Rule(width), edge);
+            return Line.Of(Dashes(width), edge);
         }
 
         var shown = Cut(title, width - TitleMargin);
@@ -85,7 +85,7 @@ public static class Panel
 
         if (columns == 0)
         {
-            return Line.Of($"╭{Rule(width - 2)}╮", edge);
+            return Line.Of($"╭{Dashes(width - 2)}╮", edge);
         }
 
         return new Line(
@@ -94,18 +94,22 @@ public static class Panel
             new Span(" ", Role.PanelTitle),
             .. shown,
             new Span(" ", Role.PanelTitle),
-            new Span($"{Rule(width - TitleMargin - columns)}╮", edge),
+            new Span($"{Dashes(width - TitleMargin - columns)}╮", edge),
         ]);
     }
 
     /// <summary>The bottom edge.</summary>
     public static Line Bottom(int width, bool active) =>
-        Line.Of(width < 2 ? Rule(width) : $"╰{Rule(width - 2)}╯", Edge(active));
+        Line.Of(width < 2 ? Dashes(width) : $"╰{Dashes(width - 2)}╯", Edge(active));
 
     /// <summary>
     ///     <paramref name="row" /> between the panel's two sides, cut or padded to the inside's width — moved in a column
     ///     by the left side, a picture's box with it, and still part of whatever it was part of.
     /// </summary>
+    /// <remarks>
+    ///     A picture's box is moved, not cut: a frame built as rows holds what fits it, which the rail's does. Rows that
+    ///     scroll and carry pictures are framed by <c>PaintedView</c> instead, where the viewport does the cutting.
+    /// </remarks>
     public static Line Between(Line row, int width, bool active)
     {
         var edge = Edge(active);
@@ -119,19 +123,15 @@ public static class Panel
         var spans = Cut(row.Spans, inside);
         var gap = inside - spans.Sum(span => span.Width);
 
-        return new Line([.. spans, .. gap > 0 ? [new Span(new string(' ', gap), Role.Body)] : Array.Empty<Span>(), new Span(Down, edge)])
-        {
-            Insets = row.Insets,
-            Wants = row.Wants,
-            Item = row.Item,
-            Heads = row.Heads,
-            Picked = row.Picked,
-        }.After(new Span(Down, edge));
+        return row
+            .Respanned([.. spans, .. gap > 0 ? [new Span(new string(' ', gap), Role.Body)] : Array.Empty<Span>(), new Span(Down, edge)])
+            .After(new Span(Down, edge));
     }
 
     private static Role Edge(bool active) => active ? Role.PanelBorderActive : Role.PanelBorder;
 
-    private static string Rule(int columns) => string.Concat(Enumerable.Repeat(Across, Math.Max(0, columns)));
+    /// <summary>The edge's line, <paramref name="columns" /> of it.</summary>
+    private static string Dashes(int columns) => string.Concat(Enumerable.Repeat(Across, Math.Max(0, columns)));
 
     /// <summary>
     ///     As much of the front of <paramref name="spans" /> as fits in <paramref name="columns" />, cut in the columns a

@@ -61,8 +61,8 @@ it 23. Shorter than that, it steps down rather than clipping:
 The frames are this client's own, painted in roles like everything else, not Terminal.Gui's `Border`. A picture placed in
 a framed region is placed inside the frame (ADR-0021). There is one way to draw one, `Panel` (#270): a rounded edge in
 `panel-border`, or `panel-border-active` for the panel you are in, and the title on the top edge in `panel-title`, with a
-space either side of it and no `┤ ├`, clipped from its end where it does not fit. The rail's groups are its rows. The
-content region is the one place a view draws an edge round rows it does not build: `PaintedView` lays the same edges on a
+space either side of it and no `┤ ├`, clipped from its end where it does not fit. The rail's groups are to be its rows
+(#272). The content region (#271) is the one place a view draws an edge round rows it does not build: `PaintedView` lays the same edges on a
 one-cell ring round its viewport, so the rows, the scroll and every picture are measured from the inside, and a picture
 scrolled half past an edge is clipped at it rather than drawn over it.
 

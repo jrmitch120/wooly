@@ -73,6 +73,7 @@ public class FramedRegionTests
         using var drawn = await Draw(Themes.Plain, [Line.Of("first", Role.Body)]);
 
         Assert.Equal("╭ Home ────╮", drawn.Rows()[0]);
+        Assert.Equal("│first     │", drawn.Rows()[1]);
         Assert.Equal("╰──────────╯", drawn.Rows()[^1]);
     }
 

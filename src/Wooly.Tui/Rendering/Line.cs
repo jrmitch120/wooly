@@ -136,13 +136,23 @@ public sealed record Line
     {
         var shift = spans.Sum(span => span.Width);
 
-        return new([.. spans, .. Spans])
+        return Respanned([.. spans, .. Spans]) with
         {
             Insets = Insets.Count == 0 ? Insets : [.. Insets.Select(inset => inset.ShiftedBy(shift))],
-            Wants = Wants,
-            Item = Item,
-            Heads = Heads,
-            Picked = Picked,
         };
     }
+
+    /// <summary>
+    ///     This row with <paramref name="spans" /> in place of its own, and everything else about it kept — the one place
+    ///     a row's marks are carried across, so a mark added to a row cannot be dropped by one of the things that
+    ///     rebuild one.
+    /// </summary>
+    public Line Respanned(IReadOnlyList<Span> spans) => new(spans)
+    {
+        Insets = Insets,
+        Wants = Wants,
+        Item = Item,
+        Heads = Heads,
+        Picked = Picked,
+    };
 }
