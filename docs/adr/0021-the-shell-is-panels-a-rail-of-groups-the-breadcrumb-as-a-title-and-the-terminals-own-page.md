@@ -44,10 +44,12 @@ ADR-0019 put Discover "immediately after `Search` and in its group", a group of 
 what you go looking with. That grouping goes. The five split by what each entry is for: Explore holds tools that never
 carry an unread count, and Inbox holds where every unread count lives. The rail's own order becomes the order shown, so
 `tab` and `shift-tab` walk it top to bottom exactly as they walked the old list. The group holding the selected
-destination draws its frame in the active role. Where colour is drawn, the band on the cursor's entry is the whole of
-the rail's mark: there is no `▶`, and the ~250ms while the selection settles behind the cursor is not drawn. Where it is
-not drawn (`NO_COLOR`, `TERM=dumb`), the rail keeps its one-column `▶`/`▷` exactly as #67 left it. That is the rule
-below, applied.
+destination draws its frame in the active role. The settle window is unchanged (ADR-0014): the cursor moves on every
+press, and the selection follows, with its one fetch, only once the presses stop. Where colour is drawn, bands are the
+whole of the rail's mark, with no `▶`. The selected entry is on `rail-current` (blue on a dark band). While tabbing, the
+cursor's entry is on `rail-cursor`, a lighter band, and the selected entry keeps its own band until the window closes.
+At rest the two coincide and only `rail-current` shows. Where colour is not drawn (`NO_COLOR`, `TERM=dumb`), the rail
+keeps its one-column `▶`/`▷` exactly as #67 left it. That is the rule below, applied.
 
 A rail group is new vocabulary, distinct from a **Section** (a headed run on a screen, walked with `[`/`]`). "Section"
 was the word that came to hand in the prototype, and it is the one word the rail's boxes must not be called.
@@ -109,7 +111,8 @@ values tuned in use were measured against a black terminal:
 
 **Roles change, in both directions.**
 
-- Added: `panel-border`, `panel-border-active`, `panel-title`, `replies`, `gauge`, `gauge-empty`, `band`.
+- Added: `panel-border`, `panel-border-active`, `panel-title`, `replies`, `gauge`, `gauge-empty`, `band`,
+  `rail-cursor`.
 - Retired with their regions: `seam`, `crumb`, `crumb-current`.
 
 `loading` stays, for the fetch mark that now ends the content panel's title. Each new role still has to pass ADR-0014's

@@ -264,4 +264,5 @@ background. The #160 amendment's breadcrumb band, seam band and blank row are wh
 
 ADR-0021 also amends this ADR's rule that colour is never the only thing carrying a meaning. The guarantee stands,
 that nothing vanishes under `NO_COLOR`, but the glyph is owed only where colour is not drawn: in colour a band may carry
-a meaning alone. The rail's `▶`/`▷` is drawn only without colour.
+a meaning alone. The rail's `▶`/`▷` is drawn only without colour; in colour, `rail-current` and `rail-cursor` bands carry the same two
+states, and the settle window is unchanged.
