@@ -1,8 +1,5 @@
-using Terminal.Gui.App;
 using Terminal.Gui.Drawing;
-using Wooly.Tests.Fakes;
 using Wooly.Tui.Theme;
-using Wooly.Tui.Views;
 using Attribute = Terminal.Gui.Drawing.Attribute;
 
 namespace Wooly.Tests.Tui;
@@ -150,24 +147,8 @@ public class PanelsPaletteTests
     /// <summary>The shell opened on its first timeline at 110×34, every cell's attribute read back.</summary>
     private static async Task<List<Attribute>> Frame()
     {
-        var built = new AShell();
-        var shell = await built.Opened();
+        using var drawn = await DrawnShell.Of(110, 34, Themes.Dark);
 
-        using var application = Application.Create();
-        application.Init("ansi");
-        application.Driver!.SetScreenSize(110, 34);
-
-        using var window = new ShellWindow(shell, Themes.Dark, built.Clock, () => { }, FakePictures.DrawingNothing());
-        application.Begin(window);
-        application.LayoutAndDraw(true);
-
-        var cells = new List<Attribute>();
-
-        foreach (var cell in application.Driver.Contents!)
-        {
-            cells.Add(cell.Attribute!.Value);
-        }
-
-        return cells;
+        return drawn.Cells();
     }
 }
