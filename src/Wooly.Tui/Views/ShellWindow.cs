@@ -128,7 +128,7 @@ internal sealed class ShellWindow : Window
         // constructs a colour, which is the rule this is keeping rather than breaking (ADR-0014).
         SetScheme(new Terminal.Gui.Drawing.Scheme(theme.For(Role.Body)));
 
-        var rail = _rail = new PaintedView(theme, (_, height) => RailLines.Of(shell.Rail, shell.Quota, height, shell.Instance))
+        var rail = _rail = new PaintedView(theme, (_, height) => RailLines.Of(shell.Rail, shell.Quota, height, shell.Instance, theme.DrawsColour))
         {
             X = 0,
             Y = 0,
@@ -142,7 +142,7 @@ internal sealed class ShellWindow : Window
         // scrolling while a post is being written, which Refresh settles.
         //
         // It is a panel titled with the breadcrumb (ADR-0021), its edges laid round its viewport, so the width every
-        // screen is drawn at and every picture's box are the inside of it: 60 columns at an 80-column terminal.
+        // screen is drawn at and every picture's box are the inside of it: 58 columns at an 80-column terminal.
         _content = new PaintedView(
             theme,
             (width, _) => shell.Screen.Lines(new Drawing(width, clock.GetUtcNow(), pictures, hideDrawnCaption)),

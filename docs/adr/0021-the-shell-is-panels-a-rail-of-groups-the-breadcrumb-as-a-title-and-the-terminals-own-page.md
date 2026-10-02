@@ -141,3 +141,23 @@ the rail already said.
 
 `docs/tui-shell.md` carries the enumerable detail (regions, keys, roles, the theme's shape), and the "What the
 breadcrumb settled" and "What the status row settled" sections say which of their rules this changes.
+
+## Amendment: the cursor's group is the lit one (#272)
+
+The group lit in the active role is the one holding the cursor, not the selected destination. Lit by the selection, the
+frame waited out the settle window, so a press of `` ` `` landed in a group that did not say so for a quarter of a
+second. Lit by the cursor, it moves on the press, alongside `rail-cursor`'s band and, without colour, `▶`. Mid-tab the
+selection keeps its `rail-current` band in a frame no longer lit, until the window closes and the two agree again. What
+a press costs is unchanged: the frame is drawing, and the selection still follows, with its one fetch, only once the
+presses stop.
+
+## Amendment: the rail is 20 columns, and content 58 (#272)
+
+Framed, a rail group's rows lose two columns to the frame's sides and, without colour, two more to the mark column. At
+18 that left 14 for a label and its count, so `Direct messages` and `Follow requests` were clipped with nothing waiting
+and `Notifications` ran into its own count (`Notifications4`). The rail is 20 columns, frames included: every label
+fits whole, and a count is always parted from its label by a column, the label clipped to leave it where the two do not
+both fit. The two columns come off the content panel, whose rows are 58 columns wide at 80, and that is the width every
+screen must read well at. Four columns more would have fitted the two longest Inbox labels beside a count too. Rejected:
+that clip happens only while there is something unread, and the count it keeps is the part a reader acts on, so it did
+not earn four columns off every screen at all times.

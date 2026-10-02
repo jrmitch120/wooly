@@ -10,46 +10,45 @@ not something else. None of that code is production code.
 ## Regions
 
 Panels, since ADR-0021. The rail and the content are each a rounded frame with a title on its top edge; the frames do
-the dividing, so there is no breadcrumb row, no blank row under it and no gutter column. The content panel is drawn
-(#271); until #272 lands, the rail is still one column of rows rather than the groups' panels below.
+the dividing, so there is no breadcrumb row, no blank row under it and no gutter column.
 
 ```
-╭ Timelines ─────╮╭ Home › Post by @ben ──────────────────── fetching.. ╮
-│Home           3││ content                                             │
-│ Local          ││ (feed · post · account · conversation · search)     │
-│ Federated      ││                                                     │
-│ Hashtag        ││                                                     │
-╰────────────────╯│                                                     │
-╭ Explore ───────╮│                                                     │
-│ Discover       ││                                                     │
-│ Search         ││                                                     │
-╰────────────────╯│                                                     │
-╭ Inbox ─────────╮│                                                     │
-│ Notifications 4││                                                     │
-│ Direct messages││                                                     │
-│ Follow requests││                                                     │
-╰────────────────╯│                                                     │
-╭ You ───────────╮│                                                     │
-│ @jeff          ││                                                     │
-╰────────────────╯│                                                     │
-╭ API ───────────╮│                                                     │
-│ ████████░░  92%││                                                     │
-╰────────────────╯╰─────────────────────────────────────────────────────╯
+╭ Timelines ───────╮╭ Home › Post by @ben ───────────────────────── fetching.. ╮
+│Home             3││ content                                                  │
+│Local             ││ (feed · post · account · conversation · search)          │
+│Federated         ││                                                          │
+│Hashtag           ││                                                          │
+╰──────────────────╯│                                                          │
+╭ Explore ─────────╮│                                                          │
+│Discover          ││                                                          │
+│Search            ││                                                          │
+╰──────────────────╯│                                                          │
+╭ Inbox ───────────╮│                                                          │
+│Notifications    4││                                                          │
+│Direct messages   ││                                                          │
+│Follow requests   ││                                                          │
+╰──────────────────╯│                                                          │
+╭ You ─────────────╮│                                                          │
+│@jeff             ││                                                          │
+╰──────────────────╯│                                                          │
+╭ API ─────────────╮│                                                          │
+│ ██████████░░  92%││                                                          │
+╰──────────────────╯╰──────────────────────────────────────────────────────────╯
  Post: j/k | Refresh: g | Destination: tab | Group: ` | Read: ⏎ | …+10 | Keys: ?
 ```
 
 | Region | Size | Holds |
 |---|---|---|
-| Rail | 18 columns including its frames, full height less the status row | Four **rail groups**, in colour the selected entry on `rail-current` and, while tabbing, the cursor's entry on `rail-cursor`; without colour `▶`/`▷` (ADR-0021), each its own titled panel, the group holding the selected destination framed in `panel-border-active`; each destination with its unread count; at the foot an `API` panel holding, with two or more profiles, the instance acted as (ADR-0020), then the budget as a gauge. On a terminal too short to frame every group the rail steps down (below) |
+| Rail | 20 columns including its frames, full height less the status row | Four **rail groups**, in colour the selected entry on `rail-current` and, while tabbing, the cursor's entry on `rail-cursor`; without colour `▶`/`▷` (ADR-0021), each its own titled panel, the group holding the cursor framed in `panel-border-active`, on the press rather than once the selection follows; each destination with its unread count; at the foot an `API` panel holding, with two or more profiles, the instance acted as (ADR-0020), then the budget as a gauge. On a terminal too short to frame every group the rail steps down (below) |
 | Content | the rest of the width, full height less the status row | A panel titled with the breadcrumb (below), holding exactly one screen. Its rows start on row 1 |
 | Status | 1 row, full width | The current screen's keys as `Does: key \| Does: key`, as many as fit and `…+N` for the rest; or a notice; or a confirmation; the quota again when the rail is hidden |
 
 The content panel's title is the stack: the crumbs walked through in `muted`, the one stood on in `panel-title`, eliding
 from the left so it always ends where you are, and the fetch mark at the far end of the edge while a fetch is in flight.
 The mark's 11 columns are held whether or not it is drawn, so it never moves the trail. The panel's edge is always
-`panel-border-active`: it is the panel being read. Its rows are 60 columns wide at an 80-column terminal. That is the
+`panel-border-active`: it is the panel being read. Its rows are 58 columns wide at an 80-column terminal. That is the
 width every screen must read well at: the 61 of ADR-0014 less the cell the gutter column gave up to the content panel's
-left edge.
+left edge, and less the two the rail took when it widened to 20 so that a label and its count both fit (#272).
 
 The rail needs 22 rows to frame every group (Timelines 6, Explore 4, Inbox 5, You 3, API 4), and an 80×24 terminal gives
 it 23. Shorter than that, it steps down rather than clipping:
@@ -60,10 +59,17 @@ it 23. Shorter than that, it steps down rather than clipping:
 | 15 to 21 | Compact: each group's title as a heading row, no frames, the API panel as one gauge row |
 | fewer than 15 | Compact, and scrolled to keep the cursor's group in view |
 
+The API panel is counted at its 4 rows whether or not there is an instance to put in it, so whether the rail is framed
+is a fact about the terminal's height and never about how many profiles there are; with one profile, the row it does not
+use is left blank above it. Compact, the instance sits above the gauge row where the rail has a row to spare for it, and
+goes where it has none: the gauge is what the rail is the one thing able to spend. Compact entries are indented under
+their headings by the mark column, blank in colour, so a heading and an entry are told apart on every terminal. The
+scroll is worked out afresh from where the cursor is on every frame, and the gauge row stays at the foot (#272).
+
 The frames are this client's own, painted in roles like everything else, not Terminal.Gui's `Border`. A picture placed in
 a framed region is placed inside the frame (ADR-0021). There is one way to draw one, `Panel` (#270): a rounded edge in
 `panel-border`, or `panel-border-active` for the panel you are in, and the title on the top edge in `panel-title`, with a
-space either side of it and no `┤ ├`, clipped from its end where it does not fit. The rail's groups are to be its rows
+space either side of it and no `┤ ├`, clipped from its end where it does not fit. The rail's groups are its rows
 (#272). The content panel is the one place a view draws an edge round rows it does not build: `PaintedView` lays the
 same edges on a one-cell ring round its viewport, so the rows, the scroll and every picture are measured from the
 inside, and a picture scrolled half past an edge is clipped at it rather than drawn over it. Compose's editor sits
@@ -100,7 +106,7 @@ A screen is a place in the stack, not a window. Entering one pushes, `esc` pops,
 | Add a profile — the instance, a sign-in through the browser or a pasted token, the token checked, a name | `a` on the profiles screen, or launching with nobody to act as | #245, #247 (ADR-0020) |
 | Media inside a post or feed item | Drawn in place | #31 (ADR-0016) |
 
-Every screen owes three things: it reads at 61 columns, it says what its keys are on the status row, and it names roles
+Every screen owes three things: it reads at 58 columns, it says what its keys are on the status row, and it names roles
 rather than colours (below).
 
 ## Keys
@@ -1517,14 +1523,14 @@ glyph or a position that carries the same meaning when colour is gone.
 | `replies` | The reply count under a post | `↩` |
 | `selection` | The selected row | `▌` in the gutter |
 | `band` | Behind every row of the selected thing | the `▌` beside each row |
-| `rail` / `rail-current` | Destinations, and the one loaded | one glyph, one column: `▶` where the tabbing has got to, `▷` where it settled if that differs — they coincide at rest, so only `▶` shows |
+| `rail` / `rail-current` | Destinations, and the one loaded — in colour its band, label and count together | without colour, one glyph, one column: `▶` where the tabbing has got to, `▷` where it settled if that differs — they coincide at rest, so only `▶` shows. In colour no mark: the band carries it (ADR-0021) |
 | `rail-cursor` | The rail entry the tabbing has got to, while the selection has not yet followed it | `▶` without colour; in colour, its band (ADR-0021) |
 | `rail-unread` | An unread count, and the word on an unread conversation | the number, and the word |
 | `quota` / `quota-low` | Rate-limit budget left, and nearly spent; `quota` also the instance above it, with two or more profiles | the number |
 | `gauge` / `gauge-empty` | The API budget's filled and empty cells | `█` and `░`, and the percentage |
-| `chrome` | The frame's furniture: the status row's leading space and ` \| ` separators, the rail's rule | position |
+| `chrome` | The frame's furniture: the status row's leading space and ` \| ` separators | position |
 | `key` | A key you press: the status row's, the help screen's key column, a confirmation's `y` and `esc` — never prose that names a key, never the padding beside one | position — last in its pair, after the words' colon; first column on the help screen |
-| `panel-border` / `panel-border-active` | A panel's frame, and the frame of the panel you are in: the content panel, and the rail group holding the selected destination | the box characters; which group is active is carried by the current entry's band in colour, and by `▶` on it without |
+| `panel-border` / `panel-border-active` | A panel's frame, and the frame of the panel you are in: the content panel, and the rail group holding the cursor | the box characters; which group is active is carried by the cursor's entry's band in colour, and by `▶` on it without |
 | `panel-title` | A panel's title on its top edge: a rail group's name, and the crumb being stood on at the end of the content panel's trail, told from the crumbs walked through by foreground | position, on the edge — the current crumb is always the last, and the trail elides from the left |
 | `loading` | The fetch mark at the far end of the content panel's title — the word and up to three dots, laid out at 11 columns | the word itself, and the dots arriving |
 | `destructive` | A delete affordance and its confirmation | the word |
@@ -1566,6 +1572,10 @@ audience row's filled/hollow vocabulary (`○`/`●`) rather than teaching a thi
 risk the old scheme carried outright rather than mitigating it: the design never reads `Role.RailCurrent`'s band for
 "which one's current", so `NO_COLOR` and a themed terminal show identical marks. The freed column goes to the
 destination label (#67).
+
+> **Changed by ADR-0021.** That column is now drawn only where colour is not. In colour the rail has no marks at all:
+> the selected entry is on `rail-current` and, mid-tab, the cursor's on `rail-cursor`, and the column goes to the label
+> (#272). The rail's line builder is told which by the theme (`ITheme.DrawsColour`).
 
 ### The three inside a post's text
 
@@ -1654,7 +1664,8 @@ the keyboard feel slow:
 - **An overtaken fetch is discarded, never drawn.** A reader who has moved on must not have a stale timeline appear
   underneath them.
 
-The rail carries one column for this, in the left column with the destination names, whose glyph depends on the row:
+Without colour, the rail carries one column for this, in the left column with the destination names (in colour the
+bands carry it, ADR-0021), whose glyph depends on the row:
 `▶` where the tabbing has got to, `▷` where it settled if that differs, blank otherwise — the two coincide at rest,
 so only `▶` shows (#67, amending ADR-0014's earlier two-column, two-mark description below). It carries no third
 mark for *chosen but not loaded* and none for a fetch in flight — the right-hand column is unread counts and nothing

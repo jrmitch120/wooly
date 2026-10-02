@@ -97,8 +97,9 @@ public enum Role
     Rail,
 
     /// <summary>
-    ///     The rail destination that is selected. Carried without colour by <c>▷</c> while it differs from the
-    ///     cursor's row, which takes <c>▶</c>; the two coincide at rest, so only <c>▶</c> shows.
+    ///     The rail destination that is selected: in colour its band, with no mark (ADR-0021). Carried without colour
+    ///     by <c>▷</c> while it differs from the cursor's row, which takes <c>▶</c>; the two coincide at rest, so only
+    ///     <c>▶</c> shows.
     /// </summary>
     RailCurrent,
 
@@ -124,7 +125,7 @@ public enum Role
     GaugeEmpty,
 
     /// <summary>
-    ///     The frame's furniture: the status row's leading space and its <c> | </c> separators, and the rail's rule.
+    ///     The frame's furniture: the status row's leading space and its <c> | </c> separators.
     ///     Meant to recede. Carried without colour by position.
     /// </summary>
     Chrome,
@@ -144,9 +145,9 @@ public enum Role
     PanelBorder,
 
     /// <summary>
-    ///     The frame of the panel you are in: the content panel, and the rail group holding the selected destination.
-    ///     Which group is active is carried in colour by the current entry's band, and without colour by <c>▶</c> on
-    ///     it.
+    ///     The frame of the panel you are in: the content panel, and the rail group holding the cursor — lit on the
+    ///     press, before the selection follows. Which group is active is carried in colour by the cursor's entry's
+    ///     band, and without colour by <c>▶</c> on it.
     /// </summary>
     PanelBorderActive,
 

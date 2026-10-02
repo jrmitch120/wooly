@@ -271,5 +271,7 @@ public static class Themes
         public Attribute For(Role role) => Attribute.Default;
 
         public Attribute Banded(Role role) => Attribute.Default;
+
+        public bool DrawsColour => false;
     }
 }

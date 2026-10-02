@@ -22,17 +22,17 @@ public class ContentPanelTests
 {
     /// <summary>
     ///     At 80×24 the panel runs from the column after the rail to the last column, from row 0 to the row above the
-    ///     status row — and its rows are the 60 columns inside it, starting on row 1.
+    ///     status row — and its rows are the 58 columns inside it, starting on row 1.
     /// </summary>
     [Fact]
-    public async Task AtEightyByTwentyFourThePanelsRowsAreSixtyColumnsWideAndStartOnRowOne()
+    public async Task AtEightyByTwentyFourThePanelsRowsAreFiftyEightColumnsWideAndStartOnRowOne()
     {
         using var drawn = await Draw(80, 24);
 
         var content = drawn.Content;
 
         Assert.Equal(new Rectangle(RailLines.Width, 0, 80 - RailLines.Width, 23), content.Frame);
-        Assert.Equal(new Size(60, 21), content.Viewport.Size);
+        Assert.Equal(new Size(58, 21), content.Viewport.Size);
         Assert.Equal(new Point(RailLines.Width + 1, 1), content.ViewportToScreen(Point.Empty));
     }
 
@@ -66,7 +66,7 @@ public class ContentPanelTests
     {
         using var drawn = await Draw(80, 24);
 
-        var first = drawn.Shell.Screen.Lines(new Wooly.Tui.Rendering.Drawing(60, AShell.Now))[0].Text;
+        var first = drawn.Shell.Screen.Lines(new Wooly.Tui.Rendering.Drawing(58, AShell.Now))[0].Text;
 
         Assert.Equal(first, drawn.Rows()[1][(RailLines.Width + 1)..^1].TrimEnd());
     }
@@ -143,7 +143,7 @@ public class ContentPanelTests
     }
 
     /// <summary>
-    ///     A wide terminal widens the panel and nothing else: the rail keeps its 18 columns and the panel takes the
+    ///     A wide terminal widens the panel and nothing else: the rail keeps its 20 columns and the panel takes the
     ///     rest, still reaching the last column.
     /// </summary>
     [Fact]
@@ -204,7 +204,7 @@ public class ContentPanelTests
 
         var editor = drawn.Window.SubViews.OfType<ComposeEditor>().Single();
 
-        Assert.Equal(new Rectangle(RailLines.Width + 1, 3, 60, 19), editor.Frame);
+        Assert.Equal(new Rectangle(RailLines.Width + 1, 3, 58, 19), editor.Frame);
         Assert.StartsWith("⚠ no content warning", drawn.Rows()[2][(RailLines.Width + 1)..], StringComparison.Ordinal);
     }
 

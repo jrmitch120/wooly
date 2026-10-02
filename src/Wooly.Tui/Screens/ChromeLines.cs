@@ -89,7 +89,7 @@ public static class ChromeLines
     /// </summary>
     /// <remarks>
     ///     Which way round to elide was settled by what each end says (#168): the far end is the destination screen,
-    ///     which the rail is already drawing 18 columns to the left, and the near end is the only thing on the row
+    ///     which the rail is already drawing 20 columns to the left, and the near end is the only thing on the row
     ///     that the rail does not say. Clipping from the right kept the first and lost the second.
     ///     <para>
     ///         A single crumb wider than the room is clipped from the right after all, which is the one case there is

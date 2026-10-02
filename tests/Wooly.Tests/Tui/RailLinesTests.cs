@@ -1,5 +1,6 @@
 using Wooly.Core.Http;
 using Wooly.Tests.Fakes;
+using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
@@ -7,99 +8,17 @@ using Wooly.Tui.Theme;
 namespace Wooly.Tests.Tui;
 
 /// <summary>
-///     The rail's one mark column: <c>▶</c> where the tabbing has got to, <c>▷</c> where the selection has settled
-///     only while the two differ, blank otherwise — collapsed from two columns to one so a reader is not shown
-///     <c>▶▸</c> side by side for the whole ~250ms the two coincide (#78, ADR-0014).
+///     The stacked rail (#272, ADR-0021): the four rail groups, each a panel titled with its name, the API budget in a
+///     fifth at the foot, and the rail stepping down to compact and then scrolled on a short terminal. In colour the
+///     rail's marks are bands; without, the one-column <c>▶</c>/<c>▷</c> #78 settled.
 /// </summary>
 public class RailLinesTests
 {
-    private static Rail ARail(int destinations = 3, string label = "dest")
+    private static readonly RateLimitQuota Plenty = new(250, 300, null);
+
+    private static (Rail Rail, FakeShellHost Host) TheTen(int unreadNotifications = 0)
     {
-        var list = Enumerable.Range(0, destinations)
-            .Select(at => new Destination((DestinationKind)at, $"{label}{at}"))
-            .ToList();
-
-        return new Rail(list, new FakeShellHost(), TimeSpan.FromMilliseconds(250));
-    }
-
-    /// <summary>At rest the cursor and the selection are the same row, so only the filled mark shows there.</summary>
-    [Fact]
-    public void Of_MarksOnlyTheCursorsRowWhenCursorAndCurrentAgree()
-    {
-        var rail = ARail();
-
-        var lines = RailLines.Of(rail, null, height: 10);
-
-        Assert.StartsWith("▶ ", lines[0].Text);
-        Assert.StartsWith("  ", lines[1].Text);
-        Assert.StartsWith("  ", lines[2].Text);
-    }
-
-    /// <summary>
-    ///     Mid-walk, before the settle window closes, the cursor has moved on but the selection has not caught up —
-    ///     the cursor's row takes the filled mark, the selection's the hollow one, and nothing else.
-    /// </summary>
-    [Fact]
-    public void Of_MarksTheCursorFilledAndTheSettledRowHollowWhileTheyDiffer()
-    {
-        var rail = ARail();
-
-        rail.Step(2);
-
-        var lines = RailLines.Of(rail, null, height: 10);
-
-        Assert.StartsWith("▷ ", lines[0].Text);
-        Assert.StartsWith("  ", lines[1].Text);
-        Assert.StartsWith("▶ ", lines[2].Text);
-    }
-
-    /// <summary>
-    ///     The freed second column goes to the destination label: one mark column and a space leave sixteen for the
-    ///     label, where the old two-mark layout left only fifteen.
-    /// </summary>
-    [Fact]
-    public void Of_GivesTheColumnTheSecondMarkUsedToHoldToTheLabel()
-    {
-        var label = new string('x', RailLines.Width - 2);
-        var rail = new Rail([new Destination(DestinationKind.Home, label)], new FakeShellHost(), TimeSpan.FromMilliseconds(250));
-
-        var lines = RailLines.Of(rail, null, height: 10);
-
-        Assert.Equal($"▶ {label}", lines[0].Text);
-    }
-
-    /// <summary>
-    ///     A rail entry is as many columns wide as the rail, whatever its label is written in. A hashtag rail entry
-    ///     takes the tag's own name, and one written in a two-column script padded out by its characters would be
-    ///     drawn past the rail and into the content beside it (#207).
-    /// </summary>
-    [Theory]
-    [InlineData("#ドット絵")]
-    [InlineData("#ドット絵のアカウントですどうぞ")]
-    [InlineData("#photography")]
-    public void Of_PadsARailEntryToTheRailsColumnsWhateverItsLabelIsWrittenIn(string label)
-    {
-        var rail = new Rail(
-            [new Destination(DestinationKind.Hashtag, label)],
-            new FakeShellHost(),
-            TimeSpan.FromMilliseconds(250));
-
-        var lines = RailLines.Of(rail, null, height: 10);
-
-        Assert.Equal(RailLines.Width, lines[0].Width);
-    }
-
-    /// <summary>
-    ///     A rule falls between each rail group and the next, wherever the groups happen to change: the timelines, a
-    ///     rule, Discover and Search, a rule, the Inbox, a rule, and the profile's own account (ADR-0021, #264).
-    /// </summary>
-    /// <remarks>
-    ///     Asserted as where the rules land rather than as the indices the code once held, because what a reader sees
-    ///     is the grouping, and a reorder that left a rule behind would split a group in two.
-    /// </remarks>
-    [Fact]
-    public void Of_DrawsARuleBetweenEachGroupAndTheNext()
-    {
+        var host = new FakeShellHost();
         var rail = new Rail(
             [
                 new Destination(DestinationKind.Home, "Home"),
@@ -108,97 +27,397 @@ public class RailLinesTests
                 new Destination(DestinationKind.Hashtag, "Hashtag"),
                 new Destination(DestinationKind.Discover, "Discover"),
                 new Destination(DestinationKind.Search, "Search"),
-                new Destination(DestinationKind.Notifications, "Notifications"),
+                new Destination(DestinationKind.Notifications, "Notifications") { Unread = unreadNotifications },
                 new Destination(DestinationKind.Messages, "Direct messages"),
                 new Destination(DestinationKind.Requests, "Follow requests"),
                 new Destination(DestinationKind.Profile, "@jeff"),
             ],
-            new FakeShellHost(),
+            host,
             TimeSpan.FromMilliseconds(250));
 
-        var rule = new string('\u2500', RailLines.Width);
+        return (rail, host);
+    }
 
-        var drawn = RailLines.Of(rail, null, height: 20).Take(13).Select(line => line.Text.Trim());
+    private static string[] Texts(IEnumerable<Line> lines) => [.. lines.Select(line => line.Text)];
+
+    /// <summary>The row whose text, inside whatever frame it has, starts with <paramref name="label" />.</summary>
+    private static Line Row(IReadOnlyList<Line> lines, string label) =>
+        lines.Single(line => line.Text.TrimStart('│', ' ', '▶', '▷').StartsWith(label, StringComparison.Ordinal));
+
+    /// <summary>
+    ///     The rail needs 22 rows framed and 15 compact, so the five heights either side of those two lines step down
+    ///     framed, framed, compact, compact and scrolled (docs/tui-shell.md).
+    /// </summary>
+    [Theory]
+    [InlineData(23, "framed")]
+    [InlineData(22, "framed")]
+    [InlineData(21, "compact")]
+    [InlineData(15, "compact")]
+    [InlineData(12, "scrolled")]
+    public void Of_StepsDownAsTheRailShortens(int height, string expected)
+    {
+        var (rail, _) = TheTen();
+
+        var drawn = Texts(RailLines.Of(rail, Plenty, height));
+
+        var framed = drawn.Count(text => text.StartsWith('╭'));
+        var labels = new[] { "Home", "Local", "Federated", "Hashtag", "Discover", "Search", "Notifications", "Direct messages", "Follow requests", "@jeff" };
+        var shown = labels.Count(label => drawn.Any(text => text.TrimStart('│', ' ', '▶', '▷').StartsWith(label, StringComparison.Ordinal)));
+
+        var mode = framed == 5 ? "framed" : framed == 0 && shown == 10 ? "compact" : framed == 0 ? "scrolled" : "mixed";
+
+        Assert.Equal(expected, mode);
+        Assert.Equal(height, drawn.Length);
+        Assert.All(RailLines.Of(rail, Plenty, height), line => Assert.Equal(RailLines.Width, line.Width));
+    }
+
+    /// <summary>
+    ///     Framed, the rail is the four groups top to bottom, each titled with its name and holding its destinations in
+    ///     the rail's order, and the API panel held at the foot however tall the terminal is.
+    /// </summary>
+    [Fact]
+    public void Of_FramesEachGroupWithItsNameAndHoldsTheApiPanelAtTheFoot()
+    {
+        var (rail, _) = TheTen();
+
+        var drawn = Texts(RailLines.Of(rail, Plenty, 30));
 
         Assert.Equal(
             [
-                "Home", "Local", "Federated", "Hashtag", rule,
-                "Discover", "Search", rule,
-                "Notifications", "Direct messages", "Follow requests", rule,
-                "@jeff",
+                "╭ Timelines ───────╮",
+                "│▶ Home            │",
+                "│  Local           │",
+                "│  Federated       │",
+                "│  Hashtag         │",
+                "╰──────────────────╯",
+                "╭ Explore ─────────╮",
+                "│  Discover        │",
+                "│  Search          │",
+                "╰──────────────────╯",
+                "╭ Inbox ───────────╮",
+                "│  Notifications   │",
+                "│  Direct messages │",
+                "│  Follow requests │",
+                "╰──────────────────╯",
+                "╭ You ─────────────╮",
+                "│  @jeff           │",
+                "╰──────────────────╯",
             ],
-            drawn.Select(text => text.TrimStart('▶', ' ')));
+            drawn.Take(18));
+
+        Assert.Equal("╭ API ─────────────╮", drawn[^3]);
+        Assert.Equal("╰──────────────────╯", drawn[^1]);
+        Assert.All(drawn[18..^3], text => Assert.Equal(new string(' ', RailLines.Width), text));
     }
 
-    /// <summary>Destinations of one group are drawn with nothing between them, however many there are.</summary>
-    [Fact]
-    public void Of_DrawsNoRuleWithinAGroup()
+    /// <summary>
+    ///     The group holding the cursor is the one framed in the active role, and it moves the moment the cursor does —
+    ///     on the press, not when the settle window closes — so a jump into another group says at once where it landed.
+    ///     The selection's band stays where it was until the window closes, in a frame no longer lit.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Of_LightsTheGroupHoldingTheCursorAndMovesItWithTheCursor(bool coloured)
     {
+        var (rail, host) = TheTen();
+
+        Role EdgeOf(IReadOnlyList<Line> lines, string group) =>
+            lines.Single(line => line.Text.StartsWith($"╭ {group} ", StringComparison.Ordinal)).Spans[0].Role;
+
+        var atRest = RailLines.Of(rail, Plenty, 23, coloured: coloured);
+
+        Assert.Equal(Role.PanelBorderActive, EdgeOf(atRest, "Timelines"));
+        Assert.Equal(Role.PanelBorder, EdgeOf(atRest, "Inbox"));
+        Assert.Equal(Role.PanelBorder, EdgeOf(atRest, "API"));
+
+        rail.Step(6);
+
+        var tabbing = RailLines.Of(rail, Plenty, 23, coloured: coloured);
+
+        Assert.Equal(Role.PanelBorder, EdgeOf(tabbing, "Timelines"));
+        Assert.Equal(Role.PanelBorderActive, EdgeOf(tabbing, "Inbox"));
+        Assert.Equal(Role.PanelBorderActive, Row(tabbing, "Notifications").Spans[0].Role);
+        Assert.Equal(Role.RailCurrent, Row(tabbing, "Home").Spans[1].Role);
+
+        host.Settle();
+
+        var settled = RailLines.Of(rail, Plenty, 23, coloured: coloured);
+
+        Assert.Equal(Role.PanelBorder, EdgeOf(settled, "Timelines"));
+        Assert.Equal(Role.PanelBorderActive, EdgeOf(settled, "Inbox"));
+    }
+
+    /// <summary>
+    ///     In colour no rail row carries a mark: at rest the selected row is banded on <c>rail-current</c>, label and
+    ///     all, and nothing is on <c>rail-cursor</c>.
+    /// </summary>
+    [Theory]
+    [InlineData(23)]
+    [InlineData(18)]
+    [InlineData(12)]
+    public void Of_InColour_BandsTheSelectedRowAtRestWithNoMark(int height)
+    {
+        var (rail, _) = TheTen();
+
+        var drawn = RailLines.Of(rail, Plenty, height, coloured: true);
+
+        Assert.All(drawn, line => Assert.DoesNotContain('▶', line.Text));
+        Assert.All(drawn, line => Assert.DoesNotContain('▷', line.Text));
+        Assert.Contains(Row(drawn, "Home").Spans, span => span is { Role: Role.RailCurrent, Text: var text } && text.Contains("Home", StringComparison.Ordinal));
+        Assert.DoesNotContain(drawn, line => line.Has(Role.RailCursor));
+    }
+
+    /// <summary>
+    ///     Mid-tab in colour the cursor's row is on <c>rail-cursor</c>, a lighter band, and the selected row keeps
+    ///     <c>rail-current</c> until the settle window closes — still with no mark on either.
+    /// </summary>
+    [Theory]
+    [InlineData(23)]
+    [InlineData(18)]
+    public void Of_InColour_BandsTheCursorsRowApartWhileTheSelectionLags(int height)
+    {
+        var (rail, _) = TheTen();
+
+        rail.Step(2);
+
+        var drawn = RailLines.Of(rail, Plenty, height, coloured: true);
+
+        Assert.All(drawn, line => Assert.DoesNotContain('▶', line.Text));
+        Assert.All(drawn, line => Assert.DoesNotContain('▷', line.Text));
+        Assert.Contains(Row(drawn, "Federated").Spans, span => span is { Role: Role.RailCursor } && span.Text.Contains("Federated", StringComparison.Ordinal));
+        Assert.Contains(Row(drawn, "Home").Spans, span => span is { Role: Role.RailCurrent } && span.Text.Contains("Home", StringComparison.Ordinal));
+        Assert.False(Row(drawn, "Local").Has(Role.RailCursor) || Row(drawn, "Local").Has(Role.RailCurrent));
+    }
+
+    /// <summary>
+    ///     Without colour the one mark column is exactly as #78 left it: <c>▶</c> on the cursor's row, <c>▷</c> on the
+    ///     selected row only while the two differ, a blank otherwise — and no row on <c>rail-cursor</c>.
+    /// </summary>
+    [Theory]
+    [InlineData(23)]
+    [InlineData(18)]
+    [InlineData(12)]
+    public void Of_WithoutColour_MarksTheCursorFilledAndTheLaggingSelectionHollow(int height)
+    {
+        var (rail, _) = TheTen();
+
+        var atRest = RailLines.Of(rail, Plenty, height);
+
+        Assert.StartsWith("▶ Home", Row(atRest, "Home").Text.TrimStart('│'), StringComparison.Ordinal);
+        Assert.Single(atRest, line => line.Text.Contains('▶', StringComparison.Ordinal));
+        Assert.DoesNotContain(atRest, line => line.Text.Contains('▷', StringComparison.Ordinal));
+
+        rail.Step(1);
+
+        var tabbing = RailLines.Of(rail, Plenty, height);
+
+        Assert.StartsWith("▷ Home", Row(tabbing, "Home").Text.TrimStart('│'), StringComparison.Ordinal);
+        Assert.StartsWith("▶ Local", Row(tabbing, "Local").Text.TrimStart('│'), StringComparison.Ordinal);
+        Assert.StartsWith("  Federated", Row(tabbing, "Federated").Text.TrimStart('│'), StringComparison.Ordinal);
+        Assert.DoesNotContain(tabbing, line => line.Has(Role.RailCursor));
+    }
+
+    /// <summary>Each destination keeps its unread count, at the end of its row and in its own role, in every mode.</summary>
+    [Theory]
+    [InlineData(23, true)]
+    [InlineData(23, false)]
+    [InlineData(18, true)]
+    [InlineData(18, false)]
+    public void Of_KeepsEachDestinationsUnreadCount(int height, bool coloured)
+    {
+        var (rail, _) = TheTen(unreadNotifications: 4);
+
+        var row = Row(RailLines.Of(rail, Plenty, height, coloured: coloured), "Notifications");
+
+        Assert.EndsWith("4", row.Text.TrimEnd('│'), StringComparison.Ordinal);
+        Assert.Contains(row.Spans, span => span is { Role: Role.RailUnread, Text: "4" });
+    }
+
+    /// <summary>
+    ///     An unread count is parted from its label by a column, in every mode: a label too long for the room is clipped
+    ///     to leave it, so it never runs into the number (<c>Notifications4</c>) and the number is never what is cut.
+    /// </summary>
+    [Theory]
+    [InlineData(30, true)]
+    [InlineData(30, false)]
+    [InlineData(18, true)]
+    [InlineData(18, false)]
+    public void Of_PartsAnUnreadCountFromItsLabel(int height, bool coloured)
+    {
+        var host = new FakeShellHost();
         var rail = new Rail(
             [
-                new Destination(DestinationKind.Notifications, "Notifications"),
-                new Destination(DestinationKind.Messages, "Direct messages"),
-                new Destination(DestinationKind.Requests, "Follow requests"),
+                new Destination(DestinationKind.Notifications, "Notifications") { Unread = 4 },
+                new Destination(DestinationKind.Messages, "Direct messages") { Unread = 12 },
+                new Destination(DestinationKind.Requests, "Follow requests") { Unread = 3 },
             ],
+            host,
+            TimeSpan.FromMilliseconds(250));
+
+        var drawn = RailLines.Of(rail, Plenty, height, coloured: coloured);
+
+        foreach (var (label, count) in new[] { ("Notificat", "4"), ("Direct me", "12"), ("Follow re", "3") })
+        {
+            var row = Row(drawn, label).Text.TrimEnd('│');
+
+            Assert.EndsWith($" {count}", row, StringComparison.Ordinal);
+        }
+
+        Assert.Equal("│▶ Notifications  4│", Row(RailLines.Of(rail, Plenty, 30), "Notificat").Text);
+        Assert.Equal("│  Direct messa… 12│", Row(RailLines.Of(rail, Plenty, 30), "Direct me").Text);
+    }
+
+    /// <summary>
+    ///     The API panel holds the budget as a gauge: filled cells in <c>gauge</c>, empty ones in <c>gauge-empty</c>,
+    ///     and the percentage left at its end.
+    /// </summary>
+    [Fact]
+    public void Of_DrawsTheBudgetAsAGaugeWithAPercentage()
+    {
+        var (rail, _) = TheTen();
+
+        var gauge = RailLines.Of(rail, Plenty, 23)[^2];
+
+        Assert.Equal("│ ██████████░░  83%│", gauge.Text);
+        Assert.Contains(gauge.Spans, span => span is { Role: Role.Gauge, Text: "██████████" });
+        Assert.Contains(gauge.Spans, span => span is { Role: Role.GaugeEmpty, Text: "░░" });
+    }
+
+    /// <summary>Nearly spent, the gauge's filled cells and its percentage are drawn as such.</summary>
+    [Fact]
+    public void Of_DrawsANearlySpentBudgetInQuotaLow()
+    {
+        var (rail, _) = TheTen();
+
+        var gauge = RailLines.Of(rail, new RateLimitQuota(15, 300, null), 23)[^2];
+
+        Assert.Equal("│ █░░░░░░░░░░░   5%│", gauge.Text);
+        Assert.Contains(gauge.Spans, span => span is { Role: Role.QuotaLow, Text: "█" });
+        Assert.Contains(gauge.Spans, span => span.Role == Role.QuotaLow && span.Text.Contains("5%", StringComparison.Ordinal));
+        Assert.DoesNotContain(gauge.Spans, span => span.Role == Role.Gauge);
+    }
+
+    /// <summary>Before anything has asked there is no budget to draw, so the gauge's row is blank rather than a guess.</summary>
+    [Fact]
+    public void Of_DrawsNoGaugeBeforeAnythingHasAsked()
+    {
+        var (rail, _) = TheTen();
+
+        var drawn = RailLines.Of(rail, null, 23);
+
+        Assert.Equal("│                  │", drawn[^2].Text);
+        Assert.DoesNotContain(drawn, line => line.Has(Role.Gauge) || line.Has(Role.GaugeEmpty));
+    }
+
+    /// <summary>
+    ///     With two or more profiles the API panel holds the instance acted as, above the gauge, in the quota's role
+    ///     and clipped to the panel (ADR-0020, #241).
+    /// </summary>
+    [Fact]
+    public void Of_PutsTheInstanceInTheApiPanelAboveTheGauge()
+    {
+        var (rail, _) = TheTen();
+
+        var drawn = RailLines.Of(rail, Plenty, 23, instance: "social.a-very-long-instance.example");
+
+        Assert.Equal("╭ API ─────────────╮", drawn[^4].Text);
+        Assert.StartsWith("│ social.", drawn[^3].Text, StringComparison.Ordinal);
+        Assert.EndsWith("…│", drawn[^3].Text, StringComparison.Ordinal);
+        Assert.Contains(drawn[^3].Spans, span => span.Role == Role.Quota && span.Text.Contains("social", StringComparison.Ordinal));
+        Assert.Contains("83%", drawn[^2].Text, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    ///     Compact, each group's title is a heading row with its destinations under it, there are no frames, and the
+    ///     API panel is one gauge row at the foot.
+    /// </summary>
+    [Fact]
+    public void Of_Compact_HeadsEachGroupAndDrawsTheBudgetAsOneRow()
+    {
+        var (rail, _) = TheTen();
+
+        var drawn = RailLines.Of(rail, Plenty, 15);
+
+        Assert.Equal(
+            [
+                "Timelines",
+                "▶ Home",
+                "  Local",
+                "  Federated",
+                "  Hashtag",
+                "Explore",
+                "  Discover",
+                "  Search",
+                "Inbox",
+                "  Notifications",
+                "  Direct messages",
+                "  Follow requests",
+                "You",
+                "  @jeff",
+                " ████████████░░  83%",
+            ],
+            drawn.Select(line => line.Text.TrimEnd()));
+
+        Assert.Equal(Role.PanelTitle, drawn[0].Spans[0].Role);
+    }
+
+    /// <summary>Compact with rows to spare, the instance still sits above the gauge; with none, the gauge alone does.</summary>
+    [Fact]
+    public void Of_Compact_KeepsTheInstanceWhereThereIsARowForIt()
+    {
+        var (rail, _) = TheTen();
+
+        var roomy = RailLines.Of(rail, Plenty, 18, instance: "hachyderm.io");
+        var tight = RailLines.Of(rail, Plenty, 15, instance: "hachyderm.io");
+
+        Assert.Equal(" hachyderm.io", roomy[^2].Text.TrimEnd());
+        Assert.DoesNotContain(tight, line => line.Text.Contains("hachyderm", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    ///     Below 15 rows the compact rail scrolls to keep the cursor's group in view, its heading included, with the
+    ///     gauge still held at the foot.
+    /// </summary>
+    [Theory]
+    [InlineData(0, "Timelines", "Home")]
+    [InlineData(7, "Inbox", "Direct messages")]
+    [InlineData(9, "You", "@jeff")]
+    public void Of_Scrolled_KeepsTheCursorsGroupInView(int cursor, string group, string label)
+    {
+        var (rail, _) = TheTen();
+
+        rail.Step(cursor);
+
+        var drawn = RailLines.Of(rail, Plenty, 8);
+        var texts = drawn.Select(line => line.Text.TrimEnd()).ToList();
+
+        Assert.Equal(8, drawn.Count);
+        Assert.Contains(group, texts);
+        Assert.Contains(texts, text => text.EndsWith(label, StringComparison.Ordinal) && text.StartsWith('▶'));
+        Assert.Contains("83%", texts[^1], StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    ///     A rail entry is as many columns wide as the room it has, whatever its label is written in. A hashtag rail
+    ///     entry takes the tag's own name, and one written in a two-column script padded out by its characters would
+    ///     be drawn past the rail's frame and into the content beside it (#207).
+    /// </summary>
+    [Theory]
+    [InlineData("#ドット絵", true)]
+    [InlineData("#ドット絵のアカウントですどうぞ", true)]
+    [InlineData("#ドット絵のアカウントですどうぞ", false)]
+    [InlineData("#photography", false)]
+    public void Of_PadsARailEntryToTheRailsColumnsWhateverItsLabelIsWrittenIn(string label, bool coloured)
+    {
+        var rail = new Rail(
+            [new Destination(DestinationKind.Hashtag, label)],
             new FakeShellHost(),
             TimeSpan.FromMilliseconds(250));
 
-        var drawn = RailLines.Of(rail, null, height: 10).Take(4).Select(line => line.Text.Trim());
-
-        Assert.Equal(
-            ["Notifications", "Direct messages", "Follow requests", string.Empty],
-            drawn.Select(text => text.TrimStart('▶', ' ')));
-    }
-
-    /// <summary>
-    ///     With one profile there is nothing to tell apart, so the foot is the rule and the quota and nothing between
-    ///     them — the rail row for row as it was before the instance had a row to go on (#241).
-    /// </summary>
-    [Fact]
-    public void Of_DrawsNoInstanceRowWithoutAnInstance()
-    {
-        var quota = new RateLimitQuota(250, 300, null);
-
-        var drawn = RailLines.Of(ARail(), quota, height: 10, instance: null);
-
-        Assert.Equal(10, drawn.Count);
-        Assert.Equal(new string('\u2500', RailLines.Width), drawn[^2].Text);
-        Assert.Equal($" {RailLines.Spent(quota)}", drawn[^1].Text.TrimEnd());
-        Assert.All(drawn.Take(drawn.Count - 2).Skip(3), line => Assert.Equal(new string(' ', RailLines.Width), line.Text));
-    }
-
-    /// <summary>
-    ///     With two or more profiles, the instance sits on its own row directly above the quota, in the quota's own
-    ///     role — a fact about the frame, not a destination — and the destinations keep the rows they had (#241).
-    /// </summary>
-    [Fact]
-    public void Of_PutsTheInstanceOnItsOwnRowDirectlyAboveTheQuota()
-    {
-        var quota = new RateLimitQuota(250, 300, null);
-        var rail = ARail();
-
-        var without = RailLines.Of(rail, quota, height: 10);
-        var drawn = RailLines.Of(rail, quota, height: 10, instance: "hachyderm.io");
-
-        Assert.Equal(10, drawn.Count);
-        Assert.Equal(" hachyderm.io".PadRight(RailLines.Width), drawn[^2].Text);
-        Assert.Equal(Role.Quota, drawn[^2].Role);
-        Assert.Equal(new string('\u2500', RailLines.Width), drawn[^3].Text);
-        Assert.Equal(without[^1].Text, drawn[^1].Text);
-        Assert.Equal(without.Take(3).Select(line => line.Text), drawn.Take(3).Select(line => line.Text));
-    }
-
-    /// <summary>
-    ///     A long instance is clipped to the rail by the wrapping every rail row is cut by, losing its end: the row is
-    ///     the rail's width and never past it into the content (#241).
-    /// </summary>
-    [Fact]
-    public void Of_ClipsALongInstanceToTheRail()
-    {
-        var drawn = RailLines.Of(ARail(), null, height: 10, instance: "social.a-very-long-instance.example");
-
-        Assert.Equal(RailLines.Width, drawn[^2].Width);
-        Assert.StartsWith(" social.", drawn[^2].Text);
-        Assert.EndsWith("…", drawn[^2].Text);
+        foreach (var height in new[] { 4, 10 })
+        {
+            Assert.All(RailLines.Of(rail, Plenty, height, coloured: coloured), line => Assert.Equal(RailLines.Width, line.Width));
+        }
     }
 }

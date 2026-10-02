@@ -109,7 +109,7 @@ public sealed record Line
     ///     separator a screen splicing headings between things draws cannot come to be two different separators
     ///     (<see cref="Screens.Picked{T}.Rows" />).
     /// </remarks>
-    /// <param name="width">How wide the content region is — 60 at an 80-column terminal, inside the panel's edges.</param>
+    /// <param name="width">How wide the content region is — 58 at an 80-column terminal, inside the panel's edges.</param>
     public static Line Rule(int width) => Of(new string('─', Math.Max(0, width)), Theme.Role.Muted);
 
     /// <summary>

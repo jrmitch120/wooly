@@ -25,13 +25,7 @@ public partial class RoleTests
     ///     in <see cref="EveryRoleInTheContractIsEmittedBySomeView" /> keeps this honest: a role drawn and still listed
     ///     here is an exemption somebody forgot to take off.
     /// </summary>
-    private static readonly Role[] NotYetDrawn =
-    [
-        Role.PanelBorder, // #272
-        Role.RailCursor, // #272
-        Role.Gauge, // #272
-        Role.GaugeEmpty, // #272
-    ];
+    private static readonly Role[] NotYetDrawn = [];
 
     /// <summary>
     ///     Walks every role in the contract and asserts some view actually emits it — the test that would have caught
@@ -106,7 +100,7 @@ public partial class RoleTests
             TimeSpan.FromMilliseconds(250));
         rail.Step(1);
         Collect(RailLines.Of(rail, new RateLimitQuota(213, 300, null), 10));
-        Collect(RailLines.Of(rail, new RateLimitQuota(5, 300, null), 10));
+        Collect(RailLines.Of(rail, new RateLimitQuota(5, 300, null), 10, coloured: true));
 
         Collect([ChromeLines.Breadcrumb(["Home"], dots: 1, 62)]);
         Collect([
@@ -396,9 +390,12 @@ public partial class RoleTests
         Assert.NotEqual(picked.Count + after.Count, screen.Lines(new Drawing(61, Now)).Count);
     }
 
-    /// <summary>The rail's one mark column, and the unread count taking its own role.</summary>
+    /// <summary>
+    ///     The rail's marks: without colour the one mark column, the selection keeping <c>rail-current</c>; in colour
+    ///     the cursor's row on <c>rail-cursor</c> instead of a mark — and the unread count taking its own role in both.
+    /// </summary>
     [Fact]
-    public void Rail_DrawsItsOneMarkColumnAndItsUnreadCounts()
+    public void Rail_DrawsTheCursorAndTheSelectionAndItsUnreadCounts()
     {
         var host = new FakeShellHost();
         var rail = new Rail(
@@ -412,46 +409,57 @@ public partial class RoleTests
 
         rail.Step(1);
 
-        var lines = RailLines.Of(rail, quota: null, height: 10);
+        var plain = RailLines.Of(rail, quota: null, height: 30);
+        var coloured = RailLines.Of(rail, quota: null, height: 30, coloured: true);
 
         // The cursor has moved and the selection has not, so the hollow and filled marks are on different rows.
-        Assert.StartsWith("▷ ", lines[0].Text, StringComparison.Ordinal);
-        Assert.StartsWith("▶ ", lines[1].Text, StringComparison.Ordinal);
+        Assert.Equal("│▷ Home            │", plain[1].Text);
+        Assert.Equal("│▶ Local           │", plain[2].Text);
+        Assert.Equal(Role.RailCurrent, plain[1].Spans[1].Role);
+        Assert.Equal(Role.Rail, plain[2].Spans[1].Role);
 
-        Assert.Equal(Role.RailCurrent, lines[0].Spans[0].Role);
-        Assert.Equal(Role.Rail, lines[1].Spans[0].Role);
+        Assert.Equal("│Home              │", coloured[1].Text);
+        Assert.Equal(Role.RailCurrent, coloured[1].Spans[1].Role);
+        Assert.Equal(Role.RailCursor, coloured[2].Spans[1].Role);
 
-        var counted = lines.First(line => line.Text.Contains("Notification", StringComparison.Ordinal));
+        var counted = plain.First(line => line.Text.Contains("Notification", StringComparison.Ordinal));
         Assert.Contains(counted.Spans, span => span is { Role: Role.RailUnread, Text: "4" });
     }
 
-    /// <summary>The rail is 18 columns however long a destination is called (docs/tui-shell.md).</summary>
-    [Fact]
-    public void Rail_IsEighteenColumnsWide()
+    /// <summary>The rail is 20 columns however long a destination is called, framed or not (docs/tui-shell.md).</summary>
+    [Theory]
+    [InlineData(6)]
+    [InlineData(30)]
+    public void Rail_IsTwentyColumnsWide(int height)
     {
         var rail = new Rail(
             [new Destination(DestinationKind.Messages, "Direct messages") { Unread = 12 }],
             new FakeShellHost(),
             TimeSpan.FromMilliseconds(250));
 
-        var lines = RailLines.Of(rail, quota: null, height: 6);
+        var lines = RailLines.Of(rail, quota: null, height: height);
 
         Assert.All(lines, line => Assert.Equal(RailLines.Width, line.Width));
-        Assert.Contains("12", lines[0].Text);
+        Assert.Contains(lines, line => line.Text.Contains("12", StringComparison.Ordinal));
     }
 
-    /// <summary>The quota goes red when it is nearly spent, and is drawn as nothing before anything has asked.</summary>
+    /// <summary>
+    ///     The budget is a gauge at the rail's foot, its filled cells and percentage drawn as nearly spent when they
+    ///     are — and nothing before anything has asked.
+    /// </summary>
     [Fact]
-    public void Rail_DrawsTheQuotaAtItsFootAndSaysWhenItIsNearlySpent()
+    public void Rail_DrawsTheBudgetAsAGaugeAtItsFootAndSaysWhenItIsNearlySpent()
     {
         var rail = new Rail([new Destination(DestinationKind.Home, "Home")], new FakeShellHost(), TimeSpan.Zero);
 
         var plenty = RailLines.Of(rail, new RateLimitQuota(213, 300, null), 8);
         var nearly = RailLines.Of(rail, new RateLimitQuota(5, 300, null), 8);
 
-        Assert.Contains("213/300 left", plenty[^1].Text);
-        Assert.Equal(Role.Quota, plenty[^1].Role);
-        Assert.Equal(Role.QuotaLow, nearly[^1].Role);
+        Assert.Contains("71%", plenty[^2].Text, StringComparison.Ordinal);
+        Assert.True(plenty[^2].Has(Role.Gauge));
+        Assert.True(plenty[^2].Has(Role.GaugeEmpty));
+        Assert.True(nearly[^2].Has(Role.QuotaLow));
+        Assert.False(nearly[^2].Has(Role.Gauge));
     }
 
     /// <summary>
