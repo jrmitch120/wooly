@@ -40,6 +40,8 @@ public class KeymapTests
     [InlineData("/", Verb.Search)]
     [InlineData("tab", Verb.NextDestination)]
     [InlineData("shift-tab", Verb.PreviousDestination)]
+    [InlineData("`", Verb.NextGroup)]
+    [InlineData("~", Verb.PreviousGroup)]
     public void TheFrameKeysMeanTheSameThingOnEveryScreen(string key, Verb verb)
     {
         Assert.Equal(verb, Means(key, Feed()));

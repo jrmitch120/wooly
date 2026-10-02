@@ -27,6 +27,7 @@ public sealed class HelpScreen(Screen about) : Screen
         new("ctrl-q", "quit"),
         new("?", "these keys"),
         new("tab / shift-tab", "move the rail's cursor; it settles onto a destination"),
+        new("` / ~", "move it to the next or previous rail group's first destination"),
         Profiles,
     ];
 

@@ -79,6 +79,27 @@ public sealed class Rail
     }
 
     /// <summary>
+    ///     Moves the cursor to the first destination of the rail group <paramref name="by" /> groups on from the one it
+    ///     is in, wrapping at either end, and settles as <see cref="Step" /> does (ADR-0021). Always the first of the
+    ///     group, whichever way it moves: a group is entered at its top.
+    /// </summary>
+    /// <remarks>
+    ///     The groups are read off the rail as runs of one group, which is the order they are drawn in — so a group
+    ///     with nothing on this rail is not a stop on the way.
+    /// </remarks>
+    public void StepGroup(int by)
+    {
+        var firsts = Enumerable.Range(0, _destinations.Count)
+            .Where(at => at == 0 || _destinations[at].Group != _destinations[at - 1].Group)
+            .ToList();
+
+        var inside = firsts.FindLastIndex(first => first <= Cursor);
+        var to = firsts[Wrapped(inside + by, firsts.Count)];
+
+        Step(to - Cursor);
+    }
+
+    /// <summary>
     ///     Puts the cursor and the selection on <paramref name="kind" /> at once, with no settle and no wait, for the
     ///     places a destination is arrived at other than by tabbing to it — opening the shell, and walking back out of
     ///     a drill that started somewhere else.
@@ -160,5 +181,7 @@ public sealed class Rail
         Selected?.Invoke(Showing);
     }
 
-    private int Wrapped(int index) => ((index % _destinations.Count) + _destinations.Count) % _destinations.Count;
+    private int Wrapped(int index) => Wrapped(index, _destinations.Count);
+
+    private static int Wrapped(int index, int count) => ((index % count) + count) % count;
 }

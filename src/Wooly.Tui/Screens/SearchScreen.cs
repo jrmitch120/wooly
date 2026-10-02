@@ -64,14 +64,14 @@ public sealed class SearchScreen : Screen
                 ? PostKeys.Around(
                     new KeyHint("j/k", "result"),
                     [.. Jumping, new KeyHint("/", "search again")],
-                    new KeyHint("tab", "destination"))
+                    PostKeys.AlongTheRail)
                 :
                 [
                     new KeyHint("j/k", "result"),
                     .. Jumping,
                     new KeyHint("⏎", "open", NeedsAPick: true),
                     new KeyHint("/", "search again"),
-                    .. PostKeys.Leaving(new KeyHint("tab", "destination")),
+                    .. PostKeys.Leaving(PostKeys.AlongTheRail),
                 ];
         }
     }

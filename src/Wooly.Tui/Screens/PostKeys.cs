@@ -194,12 +194,23 @@ public static class PostKeys
     public static KeyHint Asking { get; } = new("?", "keys");
 
     /// <summary>
+    ///     The way out of a screen at the bottom of the stack: <c>tab</c> to the next destination, and <c>`</c> to the
+    ///     next rail group beside it (#265). Not said on a prompt taking letters, where <c>`</c> is one of them.
+    /// </summary>
+    /// <remarks>
+    ///     An array built afresh on each read rather than a list held once, because it is passed as the
+    ///     <see langword="params" /> of <see cref="Leaving" /> and <c>Around</c>, and a shared array handed out
+    ///     could be written to by any of them.
+    /// </remarks>
+    public static KeyHint[] AlongTheRail => [new("tab", "destination"), new("`", "group")];
+
+    /// <summary>
     ///     The end of the rank on a screen with no posts on it: the way out, then the tail, then <see cref="Asking" />
     ///     — what a screen building its own row puts after its own keys, so that it inherits the order rather than
     ///     restating it (#218).
     /// </summary>
-    /// <param name="way">The way out of it: <c>esc</c>, or <c>tab</c> at the bottom of the stack.</param>
-    public static IReadOnlyList<KeyHint> Leaving(KeyHint way) => [way, Scrolling, Asking];
+    /// <param name="ways">The way out of it: <c>esc</c>, or <see cref="AlongTheRail" /> at the bottom of the stack.</param>
+    public static IReadOnlyList<KeyHint> Leaving(params KeyHint[] ways) => [.. ways, Scrolling, Asking];
 
     /// <summary>Those keys, after whatever this screen calls moving the selection, in the rank the row draws them.</summary>
     public static IReadOnlyList<KeyHint> Around(KeyHint moving, params KeyHint[] after) =>
@@ -222,8 +233,8 @@ public static class PostKeys
     ///     nowhere else, and <see cref="Screen.Refreshing" /> where this screen has something to ask again (#84).
     /// </param>
     /// <param name="after">
-    ///     The way out of it: <c>esc</c>, or <c>tab</c> at the bottom of the stack. Ahead of the shared keys rather
-    ///     than at the end, where <c>tab:destination</c> used to fall off the row on the feed.
+    ///     The way out of it: <c>esc</c>, or <see cref="AlongTheRail" /> at the bottom of the stack. Ahead of the
+    ///     shared keys rather than at the end, where <c>tab:destination</c> used to fall off the row on the feed.
     /// </param>
     public static IReadOnlyList<KeyHint> Around(KeyHint moving, IReadOnlyList<KeyHint> its, params KeyHint[] after)
     {

@@ -394,4 +394,84 @@ public class RailFetchTests
 
         Assert.Equal(to, opened.Rail.Showing.Kind);
     }
+
+    /// <summary>
+    ///     <c>`</c> lands on the first destination of the next rail group from anywhere in the one it is in, and the
+    ///     last group's next is the first (ADR-0021).
+    /// </summary>
+    [Theory]
+    [InlineData(DestinationKind.Home, DestinationKind.Discover)]
+    [InlineData(DestinationKind.Local, DestinationKind.Discover)]
+    [InlineData(DestinationKind.Federated, DestinationKind.Discover)]
+    [InlineData(DestinationKind.Hashtag, DestinationKind.Discover)]
+    [InlineData(DestinationKind.Discover, DestinationKind.Notifications)]
+    [InlineData(DestinationKind.Search, DestinationKind.Notifications)]
+    [InlineData(DestinationKind.Requests, DestinationKind.Profile)]
+    [InlineData(DestinationKind.Profile, DestinationKind.Home)]
+    public async Task Backtick_LandsOnTheFirstDestinationOfTheNextGroup(DestinationKind from, DestinationKind to)
+    {
+        var shell = new AShell { Hashtag = "dotnet" };
+        var opened = await shell.Opened();
+
+        opened.Rail.GoTo(from);
+        opened.Press(ShellKey.Backtick);
+        shell.Host.Settle();
+
+        Assert.Equal(to, opened.Rail.Showing.Kind);
+    }
+
+    /// <summary>
+    ///     <c>~</c> walks the same groups backwards, and lands on the first of the group before rather than the last
+    ///     of it — so from inside a group it goes to the group before, not to the top of its own.
+    /// </summary>
+    [Theory]
+    [InlineData(DestinationKind.Home, DestinationKind.Profile)]
+    [InlineData(DestinationKind.Federated, DestinationKind.Profile)]
+    [InlineData(DestinationKind.Discover, DestinationKind.Home)]
+    [InlineData(DestinationKind.Search, DestinationKind.Home)]
+    [InlineData(DestinationKind.Messages, DestinationKind.Discover)]
+    [InlineData(DestinationKind.Profile, DestinationKind.Notifications)]
+    public async Task Tilde_LandsOnTheFirstDestinationOfThePreviousGroup(DestinationKind from, DestinationKind to)
+    {
+        var shell = new AShell { Hashtag = "dotnet" };
+        var opened = await shell.Opened();
+
+        opened.Rail.GoTo(from);
+        opened.Press(ShellKey.Tilde);
+        shell.Host.Settle();
+
+        Assert.Equal(to, opened.Rail.Showing.Kind);
+    }
+
+    /// <summary>
+    ///     A run of group presses is what a run of tabs is: six cursor moves, one wait outstanding, one selection and
+    ///     one fetch (ADR-0014).
+    /// </summary>
+    [Fact]
+    public async Task Backtick_SendsOneFetchForARunOfPresses()
+    {
+        var shell = new AShell();
+        var opened = await shell.Opened();
+        var readsWhenOpened = shell.Timelines.Reads.Count;
+        var inboxReadsWhenOpened = shell.Notifications.Reads.Count;
+
+        // Explore, Inbox, You, Timelines, Explore, Inbox.
+        for (var press = 0; press < 6; press++)
+        {
+            opened.Press(ShellKey.Backtick);
+        }
+
+        Assert.Equal(1, shell.Host.Waiting);
+        Assert.Equal(DestinationKind.Notifications, opened.Rail.Destinations[opened.Rail.Cursor].Kind);
+        Assert.Equal(0, opened.Rail.Current);
+
+        shell.Host.Settle();
+
+        Assert.Equal(DestinationKind.Notifications, opened.Rail.Showing.Kind);
+
+        // The one it landed on was asked for once, and nothing the walk crossed was asked for on the way.
+        Assert.Equal(inboxReadsWhenOpened + 1, shell.Notifications.Reads.Count);
+        Assert.Equal(readsWhenOpened, shell.Timelines.Reads.Count);
+        Assert.Empty(shell.Suggestions.Reads);
+    }
 }

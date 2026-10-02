@@ -44,14 +44,17 @@ public static class Keymap
     /// </remarks>
     public static Verb Means(ShellKey key, Screen screen) => (key, screen) switch
     {
-        // The frame. What may not vary by screen (docs/tui-shell.md) — and the one exception, a prompt taking `/` and
-        // `?` as letters, never reaches here: a screen that is typing takes them before a key is looked up at all.
+        // The frame. What may not vary by screen (docs/tui-shell.md) — and the one exception, a prompt taking `/`, `?`,
+        // `` ` `` and `~` as letters, never reaches here: a screen that is typing takes them before a key is looked up
+        // at all.
         (ShellKey.CtrlQ, _) => Verb.Quit,
         (ShellKey.Escape, _) => Verb.Back,
         (ShellKey.Question, _) => Verb.Help,
         (ShellKey.Slash, _) => Verb.Search,
         (ShellKey.Tab, _) => Verb.NextDestination,
         (ShellKey.ShiftTab, _) => Verb.PreviousDestination,
+        (ShellKey.Backtick, _) => Verb.NextGroup,
+        (ShellKey.Tilde, _) => Verb.PreviousGroup,
 
         // The frame's one ctrl chord besides quitting, because a frame key has to work on screens where letters are
         // typed. Taken back on compose alone: switching from there would drop the draft, and drafts do not survive a

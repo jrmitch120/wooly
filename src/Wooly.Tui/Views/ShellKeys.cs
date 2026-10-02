@@ -39,8 +39,8 @@ internal static class ShellKeys
     };
 
     /// <summary>
-    ///     The keys that arrive as a character: the letters, the four capitals, the digits, <c>/</c> and <c>?</c>, and
-    ///     the bracket pair that moves between a screen's headed runs.
+    ///     The keys that arrive as a character: the letters, the four capitals, the digits, <c>/</c> and <c>?</c>, the
+    ///     bracket pair that moves between a screen's headed runs, and the pair that moves between rail groups.
     /// </summary>
     private static readonly Dictionary<char, ShellKey> Typed = new()
     {
@@ -70,6 +70,8 @@ internal static class ShellKeys
         ['?'] = ShellKey.Question,
         ['['] = ShellKey.LeftBracket,
         [']'] = ShellKey.RightBracket,
+        ['`'] = ShellKey.Backtick,
+        ['~'] = ShellKey.Tilde,
         ['1'] = ShellKey.One,
         ['2'] = ShellKey.Two,
         ['3'] = ShellKey.Three,

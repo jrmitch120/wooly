@@ -37,7 +37,7 @@ public sealed class NotificationsScreen(IReadOnlyList<Notification> notification
                 new KeyHint("D", "clear all", NeedsAPick: true),
                 Refreshing,
             ],
-            new KeyHint("tab", "destination"));
+            PostKeys.AlongTheRail);
 
     /// <summary>Which notification is picked out, as an index into what is on screen.</summary>
     public int At => _notifications.At;
