@@ -40,7 +40,10 @@ internal sealed class ShellWindow : Window
     /// </remarks>
     private const int ContentTop = 1;
 
-    /// <summary>The columns and rows a panel's edge takes off each side of what is inside it.</summary>
+    /// <summary>
+    ///     The columns and rows a panel's edge takes off each side of what is inside it: the one-cell ring
+    ///     <see cref="PaintedView" /> lays a frame on, which the editor laid over the content panel has to sit inside.
+    /// </summary>
     private const int Edge = 1;
 
     /// <summary>
@@ -144,6 +147,7 @@ internal sealed class ShellWindow : Window
             theme,
             (width, _) => shell.Screen.Lines(new Drawing(width, clock.GetUtcNow(), pictures, hideDrawnCaption)),
             pictures,
+            // No rows of the panel's own: the view paints only the frame's edges, round the screen's rows.
             (width, height) => Panel.Framed(
                 ChromeLines.Breadcrumb(shell.Crumbs, shell.Dots, width),
                 [],

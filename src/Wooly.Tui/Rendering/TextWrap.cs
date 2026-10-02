@@ -2,7 +2,7 @@ namespace Wooly.Tui.Rendering;
 
 /// <summary>
 ///     Breaking a post's text into the rows a terminal has. The narrow case is what this is for: the contract puts the
-///     content region at 61 columns on an 80-column terminal, and a post is written by somebody who could not know
+///     content panel's rows at 60 columns on an 80-column terminal, and a post is written by somebody who could not know
 ///     that.
 /// </summary>
 /// <remarks>

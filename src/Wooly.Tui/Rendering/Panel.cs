@@ -20,13 +20,13 @@ public static class Panel
     ///     How many columns of a panel's width its top edge spends on anything but the title: a corner either side and
     ///     a space either side of the title.
     /// </summary>
-    public const int TitleMargin = 4;
+    private const int TitleMargin = 4;
 
     /// <summary>
     ///     How many columns of a panel's top edge an end piece spends on anything but itself: a space either side of it,
     ///     and at least one column of edge parting it from the title.
     /// </summary>
-    public const int EndMargin = 3;
+    private const int EndMargin = 3;
 
     private const string Across = "─";
 
@@ -106,8 +106,8 @@ public static class Panel
         }
 
         var ending = end.Sum(span => span.Width);
-        var ends = ending > 0 && width - TitleMargin - EndMargin - ending >= 0;
-        var room = width - TitleMargin - (ends ? EndMargin + ending : 0);
+        var ends = ending > 0 && TitleRoom(width, ending) >= 0;
+        var room = TitleRoom(width, ends ? ending : 0);
 
         var shown = Cut(title, room);
         var columns = shown.Sum(span => span.Width);
@@ -127,6 +127,14 @@ public static class Panel
 
         return new Line([.. spans.Where(span => span.Text.Length > 0)]);
     }
+
+    /// <summary>
+    ///     How many columns a top edge <paramref name="width" /> wide leaves its title beside an end piece
+    ///     <paramref name="ending" /> columns wide — or beside none, for nought. Asked by a caller that has to fit a title
+    ///     to the room before handing it over, as the content panel's trail is elided rather than cut.
+    /// </summary>
+    public static int TitleRoom(int width, int ending) =>
+        width - TitleMargin - (ending > 0 ? EndMargin + ending : 0);
 
     /// <summary>The bottom edge.</summary>
     public static Line Bottom(int width, bool active) =>

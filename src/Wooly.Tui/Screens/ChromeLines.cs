@@ -70,7 +70,8 @@ public static class ChromeLines
     /// <param name="width">The columns the panel has, its corners included.</param>
     public static Line Breadcrumb(IReadOnlyList<string> crumbs, int dots, int width)
     {
-        var room = width - Panel.TitleMargin - Panel.EndMargin - MarkColumns;
+        // A panel too narrow to hold the mark never draws it (Panel.Top), so there is nothing to hold its room for.
+        var room = Panel.TitleRoom(width, MarkColumns) is var held and >= 0 ? held : Panel.TitleRoom(width, 0);
         IReadOnlyList<Span> mark = dots > 0 ? [new Span(Mark(dots), Role.Loading)] : [];
 
         return Panel.Top(Trail(crumbs, Math.Max(0, room)), mark, width, active: true);

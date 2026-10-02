@@ -221,6 +221,20 @@ public class BreadcrumbTests
         Assert.Equal(width, edge.Width);
     }
 
+    /// <summary>
+    ///     A panel too narrow ever to draw the mark holds no room for it, so the crumb you are standing on is still the
+    ///     title rather than nothing at all.
+    /// </summary>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(2)]
+    public void Breadcrumb_KeepsTheCurrentCrumbOnAPanelTooNarrowForTheMark(int dots)
+    {
+        var edge = ChromeLines.Breadcrumb(["Home", "Post by @ben"], dots, width: 16);
+
+        Assert.Equal("╭ Post by @ben ╮", edge.Text);
+    }
+
     /// <summary>What the trail says: the spans between the space after the corner and the space before the rule.</summary>
     private static IReadOnlyList<(Role Role, string Text)> Trail(Line edge) =>
     [

@@ -30,7 +30,7 @@ namespace Wooly.Tui.Rendering;
 ///         conditions a screen is drawn under; that is a thing being drawn.
 ///     </para>
 /// </remarks>
-/// <param name="Width">How wide the content region is — 61 at an 80-column terminal.</param>
+/// <param name="Width">How wide the content region is — 60 at an 80-column terminal, inside the panel's edges.</param>
 /// <param name="Now">What to measure timestamps against.</param>
 /// <param name="Pictures">
 ///     What this terminal can draw and which attachments' pixels have arrived, or <see langword="null" /> for a screen

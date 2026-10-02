@@ -124,7 +124,8 @@ public enum Role
     GaugeEmpty,
 
     /// <summary>
-    ///     The frame's furniture: the status row's leading space and its <c> | </c> separators, and the rail's rule. Meant to recede. Carried without colour by position.
+    ///     The frame's furniture: the status row's leading space and its <c> | </c> separators, and the rail's rule.
+    ///     Meant to recede. Carried without colour by position.
     /// </summary>
     Chrome,
 

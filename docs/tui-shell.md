@@ -47,8 +47,9 @@ the dividing, so there is no breadcrumb row, no blank row under it and no gutter
 The content panel's title is the stack: the crumbs walked through in `muted`, the one stood on in `panel-title`, eliding
 from the left so it always ends where you are, and the fetch mark at the far end of the edge while a fetch is in flight.
 The mark's 11 columns are held whether or not it is drawn, so it never moves the trail. The panel's edge is always
-`panel-border-active`: it is the panel being read. Its rows are 60 columns wide at an 80-column terminal. That is the width every screen must read well at: the 61 of ADR-0014 less the cell the
-gutter column gave up to the content panel's left edge.
+`panel-border-active`: it is the panel being read. Its rows are 60 columns wide at an 80-column terminal. That is the
+width every screen must read well at: the 61 of ADR-0014 less the cell the gutter column gave up to the content panel's
+left edge.
 
 The rail needs 22 rows to frame every group (Timelines 6, Explore 4, Inbox 5, You 3, API 4), and an 80×24 terminal gives
 it 23. Shorter than that, it steps down rather than clipping:

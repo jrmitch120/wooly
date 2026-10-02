@@ -181,7 +181,7 @@ public sealed class Shell
     /// <summary>How deep the drill is, where one is a destination with nothing opened from it.</summary>
     public int Depth => _stack.Count;
 
-    /// <summary>What each screen in the stack is called, outermost first — what the breadcrumb row is drawn from.</summary>
+    /// <summary>What each screen in the stack is called, outermost first — what the content panel is titled with.</summary>
     public IReadOnlyList<string> Crumbs => [.. _stack.Select(screen => screen.Crumb)];
 
     /// <summary>
