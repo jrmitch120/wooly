@@ -23,8 +23,11 @@ namespace Wooly.Tests.Tui;
 /// </remarks>
 public class ShellComposeLayoutTests
 {
-    /// <summary>The content region's width at an 80-column terminal, which is what the rail leaves (RailLines).</summary>
-    private const int ContentWidth = 61;
+    /// <summary>
+    ///     The content panel's inside at an 80-column terminal: what the rail leaves, less the panel's two sides
+    ///     (RailLines, ADR-0021).
+    /// </summary>
+    private const int ContentWidth = 60;
 
     /// <summary>
     ///     The editor starts below what is being answered rather than on top of it — two rows here: the label and the
@@ -40,7 +43,7 @@ public class ShellComposeLayoutTests
         {
             Assert.Equal(2, compose.AnsweringHeight(ContentWidth));
             Assert.Equal(2, compose.WarningHeight);
-            Assert.Equal(6, editor.Frame.Y);
+            Assert.Equal(5, editor.Frame.Y);
         }
     }
 
@@ -58,7 +61,7 @@ public class ShellComposeLayoutTests
             shell.Compose();
             window.Layout();
 
-            Assert.Equal(4, Editor(window).Frame.Y);
+            Assert.Equal(3, Editor(window).Frame.Y);
         }
     }
 
@@ -100,11 +103,11 @@ public class ShellComposeLayoutTests
     ///     type in.
     /// </summary>
     /// <remarks>
-    ///     Eight rows: the breadcrumb, the blank row under it (#216) and the status row leave the content region
+    ///     Eight rows: the content panel's top and bottom edges and the status row leave the inside of the panel
     ///     five, of which the editor keeps three and the warning field one. The field is the last row to give way
     ///     rather than the first — it is a row the reader types into, and one they cannot see is worse than a quote
-    ///     that stops early. Seven rows was the number before the blank row was spent, which is what that row costs:
-    ///     the smallest terminal this still holds on is one taller than it was.
+    ///     that stops early. The panel's bottom edge costs the row the blank one under the breadcrumb did (#216,
+    ///     ADR-0021), so the smallest terminal this holds on is the same.
     /// </remarks>
     [Fact]
     public async Task Reply_NeverPushesTheEditorPastTheRoomLeftToTypeIn()
@@ -114,7 +117,7 @@ public class ShellComposeLayoutTests
         using (window)
         {
             Assert.Equal(2, compose.AnsweringHeight(ContentWidth));
-            Assert.Equal(2, editor.Frame.Y - 2);
+            Assert.Equal(2, editor.Frame.Y - 1);
             Assert.Equal(3, editor.Frame.Height);
         }
     }
@@ -146,7 +149,7 @@ public class ShellComposeLayoutTests
             }
 
             Assert.Null(content.Reclaimable);
-            Assert.Equal(6, editor.Frame.Y);
+            Assert.Equal(5, editor.Frame.Y);
         }
     }
 

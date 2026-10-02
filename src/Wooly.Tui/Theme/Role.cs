@@ -29,7 +29,10 @@ public enum Role
     /// </summary>
     Link,
 
-    /// <summary>Timestamps, counts nobody acted on, hints. Carried without colour by position.</summary>
+    /// <summary>
+    ///     Timestamps, counts nobody acted on, hints, and the crumbs walked through on the content panel's title.
+    ///     Carried without colour by position.
+    /// </summary>
     Muted,
 
     /// <summary>A display name.</summary>
@@ -121,8 +124,8 @@ public enum Role
     GaugeEmpty,
 
     /// <summary>
-    ///     The frame's furniture below the breadcrumb: the status row's leading space and its <c> · </c> separators,
-    ///     and the rail's rule. Meant to recede. Carried without colour by position.
+    ///     The frame's furniture: the status row's leading space and its <c> | </c> separators, and the rail's rule.
+    ///     Meant to recede. Carried without colour by position.
     /// </summary>
     Chrome,
 
@@ -148,35 +151,15 @@ public enum Role
     PanelBorderActive,
 
     /// <summary>
-    ///     A panel's title on its top edge: a rail group's name, and the content panel's trail. Carried without colour
-    ///     by position, on the edge.
+    ///     A panel's title on its top edge: a rail group's name, and the crumb you are standing on at the end of the
+    ///     content panel's trail — told from the crumbs walked through, which are <see cref="Muted" />. Carried without
+    ///     colour by position, on the edge, and the current crumb by being the last.
     /// </summary>
     PanelTitle,
 
     /// <summary>
-    ///     The breadcrumb row: the crumbs you walked through, the <c>›</c> between them, the <c>… › </c> a long trail
-    ///     leads with, and the rest of the row. Drawn on a band of its own, which is what makes the row read as the
-    ///     frame rather than as the first line of what is being read.
-    /// </summary>
-    Crumb,
-
-    /// <summary>
-    ///     The crumb you are standing on, told from the ones you walked through by foreground alone — named to pair
-    ///     with <see cref="RailCurrent" />, the same <em>and this is the one you are at</em> relationship. On
-    ///     <see cref="Crumb" />'s band, since it is on <see cref="Crumb" />'s row. Carried without colour by
-    ///     position: it is always the last crumb, which is why a long trail elides from the left.
-    /// </summary>
-    CrumbCurrent,
-
-    /// <summary>
-    ///     The cells between one region and the next: the blank row under the breadcrumb, and the column between the
-    ///     rail and the content. Carried without colour by <c>│</c> down the column, and by the row being blank.
-    /// </summary>
-    Seam,
-
-    /// <summary>
-    ///     Stale content while a fetch lands. Carried without colour by the breadcrumb saying <c>fetching.</c>, and a
-    ///     dot more each tick.
+    ///     Stale content while a fetch lands: the fetch mark at the end of the content panel's title. Carried without
+    ///     colour by the mark saying <c>fetching.</c>, and a dot more each tick.
     /// </summary>
     Loading,
 

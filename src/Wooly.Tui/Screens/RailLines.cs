@@ -13,7 +13,7 @@ namespace Wooly.Tui.Screens;
 /// </summary>
 public static class RailLines
 {
-    /// <summary>How wide the rail is, which is what leaves the content 61 columns at an 80-column terminal.</summary>
+    /// <summary>How wide the rail is, which is what leaves the content panel 62 columns at an 80-column terminal, and 60 inside its edges.</summary>
     public const int Width = 18;
 
     /// <summary>Where the cursor is — where the tabbing has got to. Shown on the cursor's row however it stands.</summary>

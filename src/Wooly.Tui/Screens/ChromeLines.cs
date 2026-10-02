@@ -4,9 +4,8 @@ using Wooly.Tui.Theme;
 namespace Wooly.Tui.Screens;
 
 /// <summary>
-///     What is on screen and is not a screen: the breadcrumb above the content, the status row along the bottom, and
-///     the column dividing the rail from both. All of it is the frame rather than the thing being read, which is why
-///     none of it moves and none of it scrolls.
+///     What is on screen and is not a screen: the breadcrumb on the content panel's top edge, and the status row along
+///     the bottom. Both are the frame rather than the thing being read, which is why neither moves nor scrolls.
 /// </summary>
 public static class ChromeLines
 {
@@ -20,16 +19,14 @@ public static class ChromeLines
     public const int MostDots = 3;
 
     /// <summary>
-    ///     The columns the mark owns while it is drawn: the word and the most dots it ever has, so that it is as wide
-    ///     on its first tick as on its last and nothing beside it moves between them (#217).
+    ///     The columns the mark owns, drawn or not: the word and the most dots it ever has, so that it is as wide on its
+    ///     first tick as on its last and nothing beside it moves between them (#217) — nor when it comes and goes
+    ///     (#271).
     /// </summary>
     private static readonly int MarkColumns = Glyphs.Columns(Fetching) + MostDots;
 
     /// <summary>What divides one hint on the status row from the next.</summary>
     private const string Bar = " | ";
-
-    /// <summary>What the rail is divided from the content by, one column wide.</summary>
-    private const string Rule = "│";
 
     /// <summary>
     ///     What stands between two crumbs, said here and used wherever the trail is put together as one string —
@@ -41,24 +38,28 @@ public static class ChromeLines
     private const string Elided = $"…{Separator}";
 
     /// <summary>
-    ///     Where you are in the stack, with the fetch marker at its right. This is the one place a fetch in flight is
-    ///     announced — the rail holds still (ADR-0014) — and it is beside the content it is about to replace.
+    ///     The content panel's top edge, titled with where you are in the stack and with the fetch mark at its end
+    ///     (ADR-0021). This is the one place a fetch in flight is announced — the rail holds still (ADR-0014) — and it
+    ///     is on the frame of the content it is about to replace.
     /// </summary>
     /// <remarks>
-    ///     The crumb you are standing on is the last one, and it is drawn in <see cref="Role.CrumbCurrent" /> while
-    ///     the ones you walked through to get there take <see cref="Role.Crumb" /> — separators included, which keep
-    ///     no role of their own (#216). Both sit on the same band, and so does the mark: it is one row, and what
-    ///     makes it read as the frame is the row being banded rather than any one thing on it. The marker's columns
-    ///     come off the trail's room before any of that, which is the order this has always worked in: a mark is
-    ///     beside the trail rather than over it.
+    ///     The crumb you are standing on is the last one, and it is drawn in <see cref="Role.PanelTitle" /> — it is
+    ///     what the panel is showing, so it is the panel's title — while the ones you walked through to get there are
+    ///     <see cref="Role.Muted" />, separators included, which keep no role of their own (#216, #271).
     ///     <para>
-    ///         The mark is handed over as a count of dots rather than a flag, because the view counts and this spells:
-    ///         the spelling and its 11 columns stay here beside the trail arithmetic they have to agree with (#217).
+    ///         The mark's columns are held at the end of the edge whether or not it is drawn, so the trail is elided
+    ///         in the same room at rest as on every tick, and the crumb you are standing on never moves as a fetch
+    ///         starts and ends. The mark is handed over as a count of dots rather than a flag, because the view counts
+    ///         and this spells: the spelling and its 11 columns stay here beside the trail arithmetic they have to
+    ///         agree with (#217).
+    ///     </para>
+    ///     <para>
+    ///         Always the active edge: the content panel is the one being read, whichever rail group is lit.
     ///     </para>
     /// </remarks>
     /// <param name="crumbs">
     ///     Where you are, a crumb a screen deep, outermost first — the stack itself rather than the one string it
-    ///     reads as. Handed over unjoined because this row is drawn crumb by crumb: a trail joined here and split
+    ///     reads as. Handed over unjoined because the trail is drawn crumb by crumb: a trail joined here and split
     ///     again there is a trail whose crumbs are wherever the separator happens to appear, and a reader is entitled
     ///     to search for <c>a › b</c>.
     /// </param>
@@ -66,27 +67,21 @@ public static class ChromeLines
     ///     How many dots the fetch mark has on this tick, one to <see cref="MostDots" />. Nought draws no mark at all,
     ///     which is both "nothing in flight" and "in flight, but not yet for a whole tick".
     /// </param>
-    /// <param name="width">The columns the row has.</param>
+    /// <param name="width">The columns the panel has, its corners included.</param>
     public static Line Breadcrumb(IReadOnlyList<string> crumbs, int dots, int width)
     {
-        var mark = Mark(dots);
-        var room = Math.Max(0, width - Glyphs.Columns(mark) - 1);
-        var shown = Trail(crumbs, room);
-        var columns = shown.Sum(span => span.Width);
+        // A panel too narrow to hold the mark never draws it (Panel.Top), so there is nothing to hold its room for.
+        var room = Panel.TitleRoom(width, MarkColumns) is var held and >= 0 ? held : Panel.TitleRoom(width, 0);
+        IReadOnlyList<Span> mark = dots > 0 ? [new Span(Mark(dots), Role.Loading)] : [];
 
-        return new Line([
-            .. shown,
-            new Span(new string(' ', Math.Max(1, width - columns - Glyphs.Columns(mark))), Role.Crumb),
-            new Span(mark, Role.Loading),
-        ]);
+        return Panel.Top(Trail(crumbs, Math.Max(0, room)), mark, width, active: true);
     }
 
     /// <summary>
     ///     The fetch mark with <paramref name="dots" /> dots on it, padded to <see cref="MarkColumns" /> — the word at
     ///     the left of its field and the dots growing rightward into the rest, so the word never moves.
     /// </summary>
-    private static string Mark(int dots) =>
-        dots <= 0 ? string.Empty : $"{Fetching}{new string('.', Math.Min(dots, MostDots))}".PadRight(MarkColumns);
+    private static string Mark(int dots) => $"{Fetching}{new string('.', Math.Min(dots, MostDots))}".PadRight(MarkColumns);
 
     /// <summary>
     ///     <paramref name="crumbs" /> in the <paramref name="room" /> they have, eliding from the left: the crumb you
@@ -116,7 +111,7 @@ public static class ChromeLines
 
         if (budget < Glyphs.Columns(crumbs[standing]))
         {
-            return [new Span(TextWrap.Clip(crumbs[standing], room), Role.CrumbCurrent)];
+            return [new Span(TextWrap.Clip(crumbs[standing], room), Role.PanelTitle)];
         }
 
         // Leftwards from where you are standing, taking whole crumbs while there is room for one — so the row ends in
@@ -132,7 +127,7 @@ public static class ChromeLines
 
         return
         [
-            new Span(Elided, Role.Crumb),
+            new Span(Elided, Role.Muted),
             .. crumbs.Skip(kept).SelectMany((crumb, at) => Spans(crumb, at, kept + at == standing)),
         ];
     }
@@ -142,19 +137,11 @@ public static class ChromeLines
     {
         if (at > 0)
         {
-            yield return new Span(Separator, Role.Crumb);
+            yield return new Span(Separator, Role.Muted);
         }
 
-        yield return new Span(crumb, standing ? Role.CrumbCurrent : Role.Crumb);
+        yield return new Span(crumb, standing ? Role.PanelTitle : Role.Muted);
     }
-
-    /// <summary>
-    ///     The column between the rail and the content, <paramref name="height" /> rows of it. A rule rather than a
-    ///     band alone, so that the two are still divided on a terminal drawing no colour — the same <c>─</c> the rail
-    ///     already ends itself with, stood on end (<see cref="RailLines" />).
-    /// </summary>
-    public static IReadOnlyList<Line> Gutter(int height) =>
-        [.. Enumerable.Repeat(Line.Of(Rule, Role.Seam), Math.Max(0, height))];
 
     /// <summary>
     ///     The status row: what this screen's keys are, or — when there is one — the thing the shell has to say

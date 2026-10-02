@@ -61,8 +61,6 @@ public class ThemeTests
     [Theory]
     [InlineData(Role.Band)]
     [InlineData(Role.RailCurrent)]
-    [InlineData(Role.Crumb)]
-    [InlineData(Role.Seam)]
     public void TheBandsOnTheTerminalsOwnBackgroundKeepTheirOwn(Role role)
     {
         Assert.NotEqual(Color.None, Themes.Dark.For(role).Background);
