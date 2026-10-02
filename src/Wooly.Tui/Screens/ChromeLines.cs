@@ -25,6 +25,9 @@ public static class ChromeLines
     /// </summary>
     private static readonly int MarkColumns = Glyphs.Columns(Fetching) + MostDots;
 
+    /// <summary>What divides one hint on the status row from the next.</summary>
+    private const string Bar = " | ";
+
     /// <summary>What the rail is divided from the content by, one column wide.</summary>
     private const string Rule = "│";
 
@@ -259,20 +262,21 @@ public static class ChromeLines
             .. pinned ? [PostKeys.Asking.Spans] : Array.Empty<IReadOnlyList<Span>>(),
         ];
 
-        return [new Span(" ", Role.Chrome), .. Dotted(said)];
+        return [new Span(" ", Role.Chrome), .. Barred(said)];
     }
 
     /// <summary>
-    ///     The status row's hints, each glued to its explanation (<see cref="KeyHint.Spans" />) and separated from the
-    ///     next by the same looser dot the rest of the shell uses.
+    ///     The status row's hints, each its explanation then its key (<see cref="KeyHint.Spans" />), divided from the
+    ///     next by a bar — the strip ADR-0021 took from lazygit (#268). A bar rather than the shell's looser dot, which a
+    ///     hint's own colon and space would crowd: <c>Read: ⏎ · Reply: r</c> reads as one run.
     /// </summary>
-    private static IEnumerable<Span> Dotted(IReadOnlyList<IReadOnlyList<Span>> said)
+    private static IEnumerable<Span> Barred(IReadOnlyList<IReadOnlyList<Span>> said)
     {
         for (var i = 0; i < said.Count; i++)
         {
             if (i > 0)
             {
-                yield return new Span(" · ", Role.Chrome);
+                yield return new Span(Bar, Role.Chrome);
             }
 
             foreach (var span in said[i])

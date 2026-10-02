@@ -253,15 +253,15 @@ public class ReferenceWalkTests
 
         var row = Status(feed);
 
-        Assert.StartsWith(" ←/→:reference · ⏎:open · esc:back", row, StringComparison.Ordinal);
-        Assert.DoesNotContain("⏎:read", row);
+        Assert.StartsWith(" Reference: ←/→ | Open: ⏎ | Back: esc", row, StringComparison.Ordinal);
+        Assert.DoesNotContain("Read: ⏎", row);
 
         // The screen's own keys are still behind them, cut off at the right the same way they always are.
-        Assert.Contains("j/k:post", row);
+        Assert.Contains("Post: j/k", row);
 
         feed.ClearReference();
 
-        Assert.Contains("⏎:read", Status(feed));
+        Assert.Contains("Read: ⏎", Status(feed));
     }
 
     /// <summary>The spans of every row of a screen, which is what a role is asserted against.</summary>

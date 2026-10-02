@@ -23,12 +23,18 @@ namespace Wooly.Tui.Screens;
 public readonly record struct KeyHint(string Key, string Does, bool NeedsAPick = false)
 {
     /// <summary>
-    ///     The key and its explanation as the status row draws them (#66): the key in <see cref="Role.Key" /> (#221),
-    ///     the explanation in <see cref="Role.Muted" /> — reusing its existing hints job rather than a role of its own —
-    ///     glued by a colon that costs no extra columns, being the same width as the space it replaces.
+    ///     The explanation and its key as the status row draws them, <c>Does: key</c> — lazygit's strip (ADR-0021,
+    ///     #268): the words capitalised as a label and in <see cref="Role.Muted" />, reusing its existing hints job
+    ///     rather than a role of its own (#66), then the key in <see cref="Role.Key" /> (#221). Only the first letter
+    ///     of the words is capitalised and never the key, which is case-significant: <c>d</c> deletes, <c>D</c> clears
+    ///     all.
     /// </summary>
-    public IReadOnlyList<Span> Spans => [new Span(Key, Role.Key), new Span($":{Does}", Role.Muted)];
+    public IReadOnlyList<Span> Spans =>
+        [new Span($"{char.ToUpperInvariant(Does[0])}{Does[1..]}: ", Role.Muted), new Span(Key, Role.Key)];
 
-    /// <summary>How the pair reads on one row: the key, then what it does.</summary>
+    /// <summary>
+    ///     The pair written compactly, key first — how the docs and the tests name a hint (<c>F:follow</c>), which the
+    ///     row no longer draws (<see cref="Spans" />).
+    /// </summary>
     public override string ToString() => $"{Key}:{Does}";
 }
