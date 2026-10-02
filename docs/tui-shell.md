@@ -9,9 +9,9 @@ not something else. None of that code is production code.
 
 ## Regions
 
-Panels, since ADR-0021. This section is the target the panels issues build to; until the last of them lands, the
-shell still draws the breadcrumb row, the seam and the gutter it replaces. The rail and the content are each a rounded frame with a title on its top edge; the frames do
-the dividing, so there is no breadcrumb row, no blank row under it and no gutter column.
+Panels, since ADR-0021. The rail and the content are each a rounded frame with a title on its top edge; the frames do
+the dividing, so there is no breadcrumb row, no blank row under it and no gutter column. The content panel is drawn
+(#271); until #272 lands, the rail is still one column of rows rather than the groups' panels below.
 
 ```
 ╭ Timelines ─────╮╭ Home › Post by @ben ──────────────────── fetching.. ╮
@@ -44,9 +44,10 @@ the dividing, so there is no breadcrumb row, no blank row under it and no gutter
 | Content | the rest of the width, full height less the status row | A panel titled with the breadcrumb (below), holding exactly one screen. Its rows start on row 1 |
 | Status | 1 row, full width | The current screen's keys as `Does: key \| Does: key`, as many as fit and `…+N` for the rest; or a notice; or a confirmation; the quota again when the rail is hidden |
 
-The content panel's title is the stack: the crumbs walked through, the one stood on told from them, eliding from the
-left so it always ends where you are, and the fetch mark at its end while a fetch is in flight. Its rows are 60 columns
-wide at an 80-column terminal. That is the width every screen must read well at: the 61 of ADR-0014 less the cell the
+The content panel's title is the stack: the crumbs walked through in `muted`, the one stood on in `panel-title`, eliding
+from the left so it always ends where you are, and the fetch mark at the far end of the edge while a fetch is in flight.
+The mark's 11 columns are held whether or not it is drawn, so it never moves the trail. The panel's edge is always
+`panel-border-active`: it is the panel being read. Its rows are 60 columns wide at an 80-column terminal. That is the width every screen must read well at: the 61 of ADR-0014 less the cell the
 gutter column gave up to the content panel's left edge.
 
 The rail needs 22 rows to frame every group (Timelines 6, Explore 4, Inbox 5, You 3, API 4), and an 80×24 terminal gives
@@ -62,9 +63,11 @@ The frames are this client's own, painted in roles like everything else, not Ter
 a framed region is placed inside the frame (ADR-0021). There is one way to draw one, `Panel` (#270): a rounded edge in
 `panel-border`, or `panel-border-active` for the panel you are in, and the title on the top edge in `panel-title`, with a
 space either side of it and no `┤ ├`, clipped from its end where it does not fit. The rail's groups are to be its rows
-(#272). The content region (#271) is the one place a view draws an edge round rows it does not build: `PaintedView` lays the same edges on a
-one-cell ring round its viewport, so the rows, the scroll and every picture are measured from the inside, and a picture
-scrolled half past an edge is clipped at it rather than drawn over it.
+(#272). The content panel is the one place a view draws an edge round rows it does not build: `PaintedView` lays the
+same edges on a one-cell ring round its viewport, so the rows, the scroll and every picture are measured from the
+inside, and a picture scrolled half past an edge is clipped at it rather than drawn over it. Compose's editor sits
+inside the same edges. The panel's top edge is drawn a second time by a one-row view laid over it, so a tick of the
+fetch mark redraws that row alone rather than the panel and every picture on it (#217).
 
 Every one of those numbers is **columns a terminal draws in, never characters**. `ドット絵アカウント` is nine characters
 and eighteen columns, `é` written as a letter and a combining mark is two characters and one column, and a row padded
@@ -1104,7 +1107,8 @@ which of them had one to put there. #204 did:
 
 > **Changed by ADR-0021.** The trail is now the content panel's title rather than a row of its own. What it says and
 > how it elides stand as below; the row, its `crumb` band and the blank row under it are gone, and `crumb` and
-> `crumb-current` are retired for `panel-title`.
+> `crumb-current` are retired: the crumb stood on is `panel-title` and the ones walked through are `muted` (#271). The
+> fetch mark's columns are now held whether or not it is drawn, so a trail no longer elides differently mid-fetch.
 
 The trail said where you are and drew itself as one `Role.Chrome` span, so it said nothing of the sort — and
 `FeedScreen.Crumb` lowercased the rail's own label, so the sidebar said `Home` and the breadcrumb said `home`. #168
@@ -1498,7 +1502,7 @@ glyph or a position that carries the same meaning when colour is gone.
 | `hashtag` | A tag inside a post's text | the `#` |
 | `mention` | An account named inside a post's text | the `@` |
 | `link` | An address inside a post's text | the scheme |
-| `muted` | Timestamps, counts nobody acted on, hints, a status row key's explanation, and the row's `…+N` overflow mark | position, and `…` on the mark |
+| `muted` | Timestamps, counts nobody acted on, hints, a status row key's explanation, the row's `…+N` overflow mark, and the crumbs walked through on the content panel's title — the `›` between them and the `… › ` a long trail leads with included | position, and `…` on the mark |
 | `byline-name` | A display name | position |
 | `byline-handle` | `username@instance` | the `@` |
 | `audience` | The visibility mark | `○ ◌ ● ✉` |
@@ -1517,24 +1521,13 @@ glyph or a position that carries the same meaning when colour is gone.
 | `rail-unread` | An unread count, and the word on an unread conversation | the number, and the word |
 | `quota` / `quota-low` | Rate-limit budget left, and nearly spent; `quota` also the instance above it, with two or more profiles | the number |
 | `gauge` / `gauge-empty` | The API budget's filled and empty cells | `█` and `░`, and the percentage |
-| `chrome` | The frame's furniture below the breadcrumb: the status row's leading space and ` \| ` separators, the rail's rule | position |
+| `chrome` | The frame's furniture: the status row's leading space and ` \| ` separators, the rail's rule | position |
 | `key` | A key you press: the status row's, the help screen's key column, a confirmation's `y` and `esc` — never prose that names a key, never the padding beside one | position — last in its pair, after the words' colon; first column on the help screen |
 | `panel-border` / `panel-border-active` | A panel's frame, and the frame of the panel you are in: the content panel, and the rail group holding the selected destination | the box characters; which group is active is carried by the current entry's band in colour, and by `▶` on it without |
-| `panel-title` | A panel's title on its top edge: a rail group's name, and the content panel's trail | position, on the edge |
-| `crumb` / `crumb-current` | The breadcrumb row — the crumbs walked through, the `›` between them and the `… › ` a long trail leads with; and the one being stood on, told from them by foreground alone. One band under the whole row, the fetch mark included | position — the current crumb is always the last, and the trail elides from the left |
-| `seam` | The column dividing the rail from the content | the `│` down it |
-| `loading` | The fetch mark on the breadcrumb — the word and up to three dots, laid out at 11 columns | the word itself, and the dots arriving |
+| `panel-title` | A panel's title on its top edge: a rail group's name, and the crumb being stood on at the end of the content panel's trail, told from the crumbs walked through by foreground | position, on the edge — the current crumb is always the last, and the trail elides from the left |
+| `loading` | The fetch mark at the far end of the content panel's title — the word and up to three dots, laid out at 11 columns | the word itself, and the dots arriving |
 | `destructive` | A delete affordance and its confirmation | the word |
 | `error` | A failure the shell has to say out loud | the word |
-
-> **Changing under ADR-0021.** The table above is the roles there are today, and a test holds it to the `Role` enum.
-> The panels roles are in it (#266); the panels work changes the rest in the same commit as the enum, one issue at a
-> time:
->
-> | Role | Paints | Carried without colour by |
-> |---|---|---|
-> | `crumb` / `crumb-current` / `seam` *(retired)* | Their regions are gone; the trail is `panel-title` | – |
-> | `loading` *(moves)* | The fetch mark, now at the end of the content panel's title | unchanged |
 
 The people-side work (#159) added no role, deliberately and in four places: a verified **Custom field** takes a `✓`
 after a value already drawn in `link`, the `⚙ bot` / `⚿ locked` flags carry in their words, a **Suggestion**'s reason is

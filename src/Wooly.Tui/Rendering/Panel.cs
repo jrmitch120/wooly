@@ -20,7 +20,13 @@ public static class Panel
     ///     How many columns of a panel's width its top edge spends on anything but the title: a corner either side and
     ///     a space either side of the title.
     /// </summary>
-    private const int TitleMargin = 4;
+    public const int TitleMargin = 4;
+
+    /// <summary>
+    ///     How many columns of a panel's top edge an end piece spends on anything but itself: a space either side of it,
+    ///     and at least one column of edge parting it from the title.
+    /// </summary>
+    public const int EndMargin = 3;
 
     private const string Across = "─";
 
@@ -41,14 +47,22 @@ public static class Panel
         IReadOnlyList<Line> rows,
         int width,
         int height,
-        bool active)
+        bool active) =>
+        Framed(Top([new Span(title, Role.PanelTitle)], width, active), rows, width, height, active);
+
+    /// <summary>
+    ///     The same, under a top edge already drawn — one whose title says more than a name, like the content panel's
+    ///     trail and fetch mark (<see cref="Top(IReadOnlyList{Span}, IReadOnlyList{Span}, int, bool)" />).
+    /// </summary>
+    /// <param name="top">The top edge, as wide as the panel.</param>
+    public static IReadOnlyList<Line> Framed(Line top, IReadOnlyList<Line> rows, int width, int height, bool active)
     {
         if (height <= 0)
         {
             return [];
         }
 
-        var lines = new List<Line> { Top([new Span(title, Role.PanelTitle)], width, active) };
+        var lines = new List<Line> { top };
 
         for (var at = 0; at < height - 2; at++)
         {
@@ -71,7 +85,18 @@ public static class Panel
     ///     The title as spans, so that one whose parts say different things — the content panel's trail and the fetch
     ///     mark at its end — keeps each its own role.
     /// </param>
-    public static Line Top(IReadOnlyList<Span> title, int width, bool active)
+    public static Line Top(IReadOnlyList<Span> title, int width, bool active) => Top(title, [], width, active);
+
+    /// <summary>
+    ///     The top edge with <paramref name="title" /> at its start and <paramref name="end" /> at its end, the edge
+    ///     running between them: <c>╭ title ──── end ╮</c>.
+    /// </summary>
+    /// <param name="end">
+    ///     What sits at the far end of the edge — the content panel's fetch mark — drawn whole or not at all, and
+    ///     given its room before the title is, so that the title never runs into it. Nothing draws no end and no
+    ///     spaces for one.
+    /// </param>
+    public static Line Top(IReadOnlyList<Span> title, IReadOnlyList<Span> end, int width, bool active)
     {
         var edge = Edge(active);
 
@@ -80,22 +105,27 @@ public static class Panel
             return Line.Of(Dashes(width), edge);
         }
 
-        var shown = Cut(title, width - TitleMargin);
+        var ending = end.Sum(span => span.Width);
+        var ends = ending > 0 && width - TitleMargin - EndMargin - ending >= 0;
+        var room = width - TitleMargin - (ends ? EndMargin + ending : 0);
+
+        var shown = Cut(title, room);
         var columns = shown.Sum(span => span.Width);
 
-        if (columns == 0)
-        {
-            return Line.Of($"╭{Dashes(width - 2)}╮", edge);
-        }
+        // The rule runs from the corner, or from the space after the title, to the space before the end or the far
+        // corner — every column the other pieces do not take.
+        var rule = width - 2 - (columns > 0 ? columns + 2 : 0) - (ends ? ending + 2 : 0);
 
-        return new Line(
+        Span[] spans =
         [
             new Span("╭", edge),
-            new Span(" ", Role.PanelTitle),
-            .. shown,
-            new Span(" ", Role.PanelTitle),
-            new Span($"{Dashes(width - TitleMargin - columns)}╮", edge),
-        ]);
+            .. columns > 0 ? [new Span(" ", Role.PanelTitle), .. shown, new Span(" ", Role.PanelTitle)] : Array.Empty<Span>(),
+            new Span(Dashes(rule), edge),
+            .. ends ? [new Span(" ", Role.PanelTitle), .. end, new Span(" ", Role.PanelTitle)] : Array.Empty<Span>(),
+            new Span("╮", edge),
+        ];
+
+        return new Line([.. spans.Where(span => span.Text.Length > 0)]);
     }
 
     /// <summary>The bottom edge.</summary>

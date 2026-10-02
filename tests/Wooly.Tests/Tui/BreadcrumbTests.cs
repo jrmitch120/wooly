@@ -5,40 +5,38 @@ using Wooly.Tui.Theme;
 namespace Wooly.Tests.Tui;
 
 /// <summary>
-///     The row that says where you are standing. Two things are asserted here and nowhere else: that the crumb you
-///     are on is told from the ones you walked through, and that a trail too long for its width loses the ancestors
-///     rather than the destination (#216). What divides the row from the content under it is
-///     <see cref="SeamTests" />'s.
+///     The content panel's top edge, which is where the breadcrumb is drawn since ADR-0021: the trail as its title,
+///     the crumb you are standing on told from the ones you walked through, a trail too long for the edge losing the
+///     ancestors rather than the destination (#216), and the fetch mark at its end (#271). Where the panel sits in the
+///     shell is <see cref="ContentPanelTests" />'s.
 /// </summary>
 /// <remarks>
-///     Role selection and layout with no terminal in the room (ADR-0005, ADR-0014): what the row is made of, in the
-///     columns it has, which is the whole of what this change moved.
+///     Role selection and layout with no terminal in the room (ADR-0005, ADR-0014): what the edge is made of, in the
+///     columns it has.
 /// </remarks>
 public class BreadcrumbTests
 {
-    /// <summary>The content region's width at an 80-column terminal, which is what the rail leaves (RailLines).</summary>
-    private const int ContentWidth = 61;
+    /// <summary>The content panel's width at an 80-column terminal, its edges included: what the rail leaves.</summary>
+    private const int PanelWidth = 62;
 
     /// <summary>
-    ///     The crumb you are standing on takes <see cref="Role.CrumbCurrent" /> and every crumb you walked through to
-    ///     get there takes <see cref="Role.Crumb" /> — separators included, which keep no role of their own.
+    ///     The crumb you are standing on takes the title's own role and every crumb you walked through to get there is
+    ///     <see cref="Role.Muted" /> — separators included, which keep no role of their own.
     /// </summary>
     [Fact]
-    public void Breadcrumb_DrawsTheCrumbYouAreStandingOnInItsOwnRole()
+    public void Breadcrumb_DrawsTheCrumbYouAreStandingOnInTheTitlesRole()
     {
-        var row = ChromeLines.Breadcrumb(["Home", "Post by @ben", "@ben@hachyderm.io"], dots: 0, ContentWidth);
-
-        var said = Written(row);
+        var edge = ChromeLines.Breadcrumb(["Home", "Post by @ben", "@ben@hachyderm.io"], dots: 0, PanelWidth);
 
         Assert.Equal(
             [
-                (Role.Crumb, "Home"),
-                (Role.Crumb, " › "),
-                (Role.Crumb, "Post by @ben"),
-                (Role.Crumb, " › "),
-                (Role.CrumbCurrent, "@ben@hachyderm.io"),
+                (Role.Muted, "Home"),
+                (Role.Muted, " › "),
+                (Role.Muted, "Post by @ben"),
+                (Role.Muted, " › "),
+                (Role.PanelTitle, "@ben@hachyderm.io"),
             ],
-            said);
+            Trail(edge));
     }
 
     /// <summary>
@@ -48,34 +46,35 @@ public class BreadcrumbTests
     [Fact]
     public void Breadcrumb_DrawsAOneCrumbTrailAsTheCrumbYouAreStandingOn()
     {
-        var row = ChromeLines.Breadcrumb(["Home"], dots: 0, ContentWidth);
+        var edge = ChromeLines.Breadcrumb(["Home"], dots: 0, PanelWidth);
 
-        Assert.Equal([(Role.CrumbCurrent, "Home")], Written(row));
-    }
-
-    /// <summary>A trail that fits is drawn as it arrived, with nothing led in front of it.</summary>
-    [Fact]
-    public void Breadcrumb_LeadsATrailThatFitsWithNothing()
-    {
-        var row = ChromeLines.Breadcrumb(["Home", "Post by @ben"], dots: 0, ContentWidth);
-
-        Assert.StartsWith("Home", row.Text, StringComparison.Ordinal);
-        Assert.DoesNotContain("…", row.Text, StringComparison.Ordinal);
+        Assert.Equal([(Role.PanelTitle, "Home")], Trail(edge));
     }
 
     /// <summary>
-    ///     A trail too long for its width keeps the crumb you are standing on whole and gives up the ones you walked
-    ///     through, saying so with <c>… › </c> — the clip this replaced cut from the right, which kept the crumbs
-    ///     saying where you came from and lost the one saying where you are.
+    ///     The trail is the panel's title: on its top edge, between the corners, with a space either side of it and
+    ///     the content panel's edge in the active role, since it is the panel you are reading.
     /// </summary>
-    /// <remarks>
-    ///     Five deep at 61 columns, which is an 80-column terminal: the last crumb is the one the acceptance criteria
-    ///     names, and the lead is what says the row is not the whole trail.
-    /// </remarks>
+    [Fact]
+    public void Breadcrumb_IsTheContentPanelsTopEdge()
+    {
+        var edge = ChromeLines.Breadcrumb(["Home", "Post by @ben"], dots: 0, PanelWidth);
+
+        Assert.StartsWith("╭ Home › Post by @ben ─", edge.Text, StringComparison.Ordinal);
+        Assert.EndsWith("─╮", edge.Text, StringComparison.Ordinal);
+        Assert.Equal(PanelWidth, edge.Width);
+        Assert.Equal(Role.PanelBorderActive, edge.Spans[0].Role);
+        Assert.Equal(Role.PanelBorderActive, edge.Spans[^1].Role);
+    }
+
+    /// <summary>
+    ///     A trail too long for the edge keeps the crumb you are standing on whole and gives up the ones you walked
+    ///     through, saying so with <c>… › </c>.
+    /// </summary>
     [Fact]
     public void Breadcrumb_ElidesADeepTrailFromTheLeft()
     {
-        var row = ChromeLines.Breadcrumb(
+        var edge = ChromeLines.Breadcrumb(
             [
                 "Home",
                 "Post by @ben@hachyderm.io",
@@ -84,102 +83,43 @@ public class BreadcrumbTests
                 "Keys",
             ],
             dots: 0,
-            ContentWidth);
+            PanelWidth);
 
-        Assert.StartsWith("… › ", row.Text, StringComparison.Ordinal);
-        Assert.EndsWith("› Keys", row.Text.TrimEnd(), StringComparison.Ordinal);
-        Assert.True(row.Width <= ContentWidth, $"The row is {row.Width} columns wide.");
+        Assert.StartsWith("╭ … › ", edge.Text, StringComparison.Ordinal);
+        Assert.Contains("› Keys ─", edge.Text, StringComparison.Ordinal);
+        Assert.Equal(PanelWidth, edge.Width);
 
-        Assert.Contains(row.Spans, span => span is { Role: Role.CrumbCurrent, Text: "Keys" });
-        Assert.Contains(row.Spans, span => span is { Role: Role.Crumb, Text: "… › " });
+        Assert.Contains(edge.Spans, span => span is { Role: Role.PanelTitle, Text: "Keys" });
+        Assert.Contains(edge.Spans, span => span is { Role: Role.Muted, Text: "… › " });
     }
 
     /// <summary>
-    ///     And a trail only two deep elides the same way, since a single crumb can be longer than the row on its
+    ///     And a trail only two deep elides the same way, since a single crumb can be longer than the edge on its
     ///     own: what is dropped is whatever will not fit, and the destination the rail is already drawing is the
     ///     first to go.
     /// </summary>
     [Fact]
     public void Breadcrumb_ElidesAShallowTrailFromTheLeftToo()
     {
-        var row = ChromeLines.Breadcrumb(
-            ["@maria@mastodon.social", "Post by @somebodywithaverylongname@instance.example"],
+        var edge = ChromeLines.Breadcrumb(
+            ["@maria@mastodon.social", "Post by @someone@instance.example"],
             dots: 0,
-            ContentWidth);
+            PanelWidth);
 
-        Assert.StartsWith("… › ", row.Text, StringComparison.Ordinal);
+        Assert.StartsWith("╭ … › ", edge.Text, StringComparison.Ordinal);
         Assert.Contains(
-            row.Spans,
-            span => span is { Role: Role.CrumbCurrent } && span.Text.StartsWith("Post by", StringComparison.Ordinal));
-        Assert.True(row.Width <= ContentWidth, $"The row is {row.Width} columns wide.");
+            edge.Spans,
+            span => span is { Role: Role.PanelTitle } && span.Text.StartsWith("Post by", StringComparison.Ordinal));
+        Assert.Equal(PanelWidth, edge.Width);
     }
 
     /// <summary>
-    ///     The fetch mark's columns come off the trail before the elision is worked out, which is what
-    ///     <see cref="ChromeLines.Breadcrumb" /> already did with its clip: a trail that fits beside no mark elides
-    ///     beside one rather than being drawn over it.
+    ///     The fetch mark never moves the trail: its columns are held for it whether or not it is drawn, so a trail
+    ///     elides the same way at rest as on every tick of a fetch, and the crumb you are standing on stays put as the
+    ///     mark comes and goes (#217, #271).
     /// </summary>
     [Fact]
-    public void Breadcrumb_WorksTheTrailsRoomOutAfterTheFetchMark()
-    {
-        // 55 columns: inside the 60 the row leaves a trail with no mark beside it, and past the 51 it leaves one
-        // with a mark on it.
-        string[] trail = ["Home", "Post by @ben@hachyderm.io", "@maria@fosstodon.org"];
-
-        var still = ChromeLines.Breadcrumb(trail, dots: 0, ContentWidth);
-        var busy = ChromeLines.Breadcrumb(trail, dots: 1, ContentWidth);
-
-        Assert.DoesNotContain("…", still.Text, StringComparison.Ordinal);
-        Assert.StartsWith("… › ", busy.Text, StringComparison.Ordinal);
-        Assert.Contains("fetching.", busy.Text);
-        Assert.True(busy.Width <= ContentWidth, $"The row is {busy.Width} columns wide.");
-    }
-
-    /// <summary>
-    ///     No dots is no mark at all — not the bare word, which on the one row whose job is to say <em>working</em>
-    ///     reads as <em>finished</em>. It is what a fetch not yet a tick old draws, so one that lands in 80ms shows
-    ///     nothing (#217).
-    /// </summary>
-    [Fact]
-    public void Breadcrumb_DrawsNoMarkForNoDots()
-    {
-        var row = ChromeLines.Breadcrumb(["Home"], dots: 0, ContentWidth);
-
-        Assert.DoesNotContain("fetching", row.Text, StringComparison.Ordinal);
-        Assert.DoesNotContain(row.Spans, span => span.Role == Role.Loading && span.Text.Length > 0);
-    }
-
-    /// <summary>
-    ///     One, two and three dots each take the same rightmost 11 columns, the word at the left of them and the dots
-    ///     growing rightward into the rest — so the word never moves, and the trail beside it is the same string on
-    ///     every tick rather than re-elided on each one (#217).
-    /// </summary>
-    [Theory]
-    [InlineData(1, "fetching.  ")]
-    [InlineData(2, "fetching.. ")]
-    [InlineData(3, "fetching...")]
-    public void Breadcrumb_DrawsEveryPhaseOfTheMarkInTheSameElevenColumns(int dots, string mark)
-    {
-        string[] trail = ["Home", "Post by @ben@hachyderm.io"];
-
-        var row = ChromeLines.Breadcrumb(trail, dots, ContentWidth);
-        var first = ChromeLines.Breadcrumb(trail, dots: 1, ContentWidth);
-
-        Assert.Equal(ContentWidth, row.Width);
-        Assert.EndsWith(mark, row.Text, StringComparison.Ordinal);
-        Assert.Equal(first.Text[..^11], row.Text[..^11]);
-    }
-
-    /// <summary>
-    ///     A trail deep enough to elide elides the same way on every tick of a whole cycle — which is what padding the
-    ///     mark to its widest buys: a mark 9 columns wide on one tick and 11 on the next would move the row at both
-    ///     ends on each of them.
-    /// </summary>
-    /// <remarks>
-    ///     And the 11 columns come off the trail, leaving it 49 of the 61 rather than the 51 <c>fetching…</c> left it.
-    /// </remarks>
-    [Fact]
-    public void Breadcrumb_ElidesADeepTrailTheSameWayAcrossAWholeCycle()
+    public void Breadcrumb_ElidesTheSameWayWithTheMarkAsWithout()
     {
         string[] trail =
         [
@@ -190,66 +130,103 @@ public class BreadcrumbTests
             "Keys",
         ];
 
-        var cycle = new[] { 1, 2, 3, 1 }.Select(dots => ChromeLines.Breadcrumb(trail, dots, ContentWidth)).ToList();
-        var trails = cycle.Select(row => row.Text[..^11]).Distinct().ToList();
+        var edges = new[] { 0, 1, 2, 3, 1 }.Select(dots => ChromeLines.Breadcrumb(trail, dots, PanelWidth)).ToList();
+        var trails = edges.Select(Trail).Select(spans => string.Concat(spans.Select(span => span.Text))).Distinct();
 
-        Assert.Single(trails);
-        Assert.StartsWith("… › ", trails[0], StringComparison.Ordinal);
-        Assert.True(trails[0].TrimEnd().Length <= 49, $"The trail is {trails[0].TrimEnd().Length} columns wide.");
-        Assert.All(cycle, row => Assert.Equal(ContentWidth, row.Width));
+        Assert.Equal("… › @maria@mastodon.social following › Keys", Assert.Single(trails));
+        Assert.All(edges, edge => Assert.Equal(PanelWidth, edge.Width));
     }
 
     /// <summary>
-    ///     A crumb that has the separator inside it is still one crumb, because the row is drawn from the stack
+    ///     A trail that fits beside the mark is drawn whole at rest and on every tick — the room held for the mark is
+    ///     the room it would have taken anyway.
+    /// </summary>
+    [Fact]
+    public void Breadcrumb_DrawsATrailThatFitsBesideTheMarkWhole()
+    {
+        string[] trail = ["Home", "Post by @ben@hachyderm.io"];
+
+        Assert.All(
+            new[] { 0, 1, 2, 3 },
+            dots => Assert.StartsWith(
+                "╭ Home › Post by @ben@hachyderm.io ─",
+                ChromeLines.Breadcrumb(trail, dots, PanelWidth).Text,
+                StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    ///     No dots is no mark at all — not the bare word, which on the edge whose job is to say <em>working</em> reads
+    ///     as <em>finished</em>. It is what a fetch not yet a tick old draws, so one that lands in 80ms shows nothing
+    ///     (#217).
+    /// </summary>
+    [Fact]
+    public void Breadcrumb_DrawsNoMarkForNoDots()
+    {
+        var edge = ChromeLines.Breadcrumb(["Home"], dots: 0, PanelWidth);
+
+        Assert.DoesNotContain("fetching", edge.Text, StringComparison.Ordinal);
+        Assert.DoesNotContain(edge.Spans, span => span.Role == Role.Loading);
+    }
+
+    /// <summary>
+    ///     One, two and three dots each take the same 11 columns at the end of the edge, the word at the left of them
+    ///     and the dots growing rightward into the rest — so the word never moves, and nothing else on the edge does
+    ///     either (#217).
+    /// </summary>
+    [Theory]
+    [InlineData(1, "─ fetching.   ╮")]
+    [InlineData(2, "─ fetching..  ╮")]
+    [InlineData(3, "─ fetching... ╮")]
+    public void Breadcrumb_DrawsEveryPhaseOfTheMarkInTheSameElevenColumnsAtTheEnd(int dots, string end)
+    {
+        string[] trail = ["Home", "Post by @ben@hachyderm.io"];
+
+        var edge = ChromeLines.Breadcrumb(trail, dots, PanelWidth);
+        var first = ChromeLines.Breadcrumb(trail, dots: 1, PanelWidth);
+
+        Assert.Equal(PanelWidth, edge.Width);
+        Assert.EndsWith(end, edge.Text, StringComparison.Ordinal);
+        Assert.Equal(first.Text[..^13], edge.Text[..^13]);
+        Assert.Contains(edge.Spans, span => span.Role == Role.Loading && span.Text.StartsWith("fetching", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    ///     A crumb that has the separator inside it is still one crumb, because the edge is drawn from the stack
     ///     rather than from the one string it reads as: <c>/</c> takes whatever is typed at it, so <c>a › b</c> is a
     ///     query somebody is entitled to search for.
     /// </summary>
     [Fact]
     public void Breadcrumb_DrawsACrumbThatHasTheSeparatorInItAsOneCrumb()
     {
-        var row = ChromeLines.Breadcrumb(["Home", "Search a › b"], dots: 0, ContentWidth);
+        var edge = ChromeLines.Breadcrumb(["Home", "Search a › b"], dots: 0, PanelWidth);
 
         Assert.Equal(
-            [(Role.Crumb, "Home"), (Role.Crumb, " › "), (Role.CrumbCurrent, "Search a › b")],
-            Written(row));
+            [(Role.Muted, "Home"), (Role.Muted, " › "), (Role.PanelTitle, "Search a › b")],
+            Trail(edge));
     }
 
     /// <summary>
-    ///     The whole row is one band, however many things are saying something on it: the crumbs, the separators, the
-    ///     lead a long trail elides with, the room left over and the fetch mark. That is what makes the row read as
-    ///     the frame rather than as the first line of what is being read — a band under half of it would read as a
-    ///     highlight on the half it was under (#216).
+    ///     On a panel too narrow to hold the mark, the edge is still the panel's width and still a frame: what does not
+    ///     fit is left off rather than drawn past the corner.
     /// </summary>
-    /// <remarks>
-    ///     Asserted as the backgrounds the theme answers with, which is where a band lives in this client: a span
-    ///     carries its own, and a row is banded by every role on it being banded. Against
-    ///     <see cref="Themes.Dark" />, since <see cref="Themes.Plain" /> has one pair for everything and would pass
-    ///     whatever the roles were.
-    /// </remarks>
-    [Fact]
-    public void Breadcrumb_DrawsTheWholeRowOnOneBand()
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(6)]
+    [InlineData(16)]
+    public void Breadcrumb_IsAsWideAsTheNarrowestPanel(int width)
     {
-        var row = ChromeLines.Breadcrumb(
-            ["Home", "Post by @ben@hachyderm.io", "@maria@mastodon.social following", "Keys"],
-            dots: 1,
-            ContentWidth);
+        var edge = ChromeLines.Breadcrumb(["Home", "Post by @ben"], dots: 2, width);
 
-        var band = Themes.Dark.For(Role.Crumb).Background;
-
-        Assert.NotEqual(Themes.Dark.For(Role.Body).Background, band);
-        Assert.All(row.Spans, span => Assert.Equal(band, Themes.Dark.For(span.Role).Background));
-
-        // And every one of those roles is on the row, so the assertion above is not passing over an empty list.
-        Assert.Contains(row.Spans, span => span.Role == Role.Crumb);
-        Assert.Contains(row.Spans, span => span.Role == Role.CrumbCurrent);
-        Assert.Contains(row.Spans, span => span.Role == Role.Loading);
+        Assert.Equal(width, edge.Width);
     }
 
-    /// <summary>What the row says, up to the padding the fetch mark is pushed to the right of.</summary>
-    private static IReadOnlyList<(Role Role, string Text)> Written(Line row) =>
+    /// <summary>What the trail says: the spans between the space after the corner and the space before the rule.</summary>
+    private static IReadOnlyList<(Role Role, string Text)> Trail(Line edge) =>
     [
-        .. row.Spans
-             .TakeWhile(span => !string.IsNullOrWhiteSpace(span.Text))
-             .Select(span => (span.Role, span.Text)),
+        .. edge.Spans
+               .Skip(2)
+               .TakeWhile(span => span.Role is Role.Muted or Role.PanelTitle && span.Text != " ")
+               .Select(span => (span.Role, span.Text)),
     ];
 }

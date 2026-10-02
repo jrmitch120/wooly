@@ -14,8 +14,8 @@ using Wooly.Tui.Theme;
 namespace Wooly.Tui.Views;
 
 /// <summary>
-///     The shell laid out on a terminal: the rail down the left, the breadcrumb above the content, the content, and
-///     the status row along the bottom (<c>docs/tui-shell.md</c>). Everything it draws it asks the shell for, and
+///     The shell laid out on a terminal: the rail down the left, the content panel titled with the breadcrumb beside
+///     it, and the status row along the bottom (<c>docs/tui-shell.md</c>). Everything it draws it asks the shell for, and
 ///     everything a key means it asks <see cref="Keymap" /> — so this file has no idea what a boost is.
 /// </summary>
 /// <remarks>
@@ -33,18 +33,24 @@ internal sealed class ShellWindow : Window
     /// </summary>
     private const int RowsAPress = 3;
 
-    /// <summary>The first row under the breadcrumb, where the content region and anything laid over it begin.</summary>
+    /// <summary>The first row inside the content panel, where its rows and anything laid over them begin.</summary>
     /// <remarks>
-    ///     Two rather than one: the breadcrumb keeps row 0 and row 1 is held blank, because a breadcrumb drawn hard
-    ///     against the content is a breadcrumb that reads as part of it. A blank row is the separator vocabulary every
-    ///     screen already uses and the one that works where there is no colour, which a band would not (#216).
+    ///     One: the panel's top edge keeps row 0, and is what divides the breadcrumb from the content — the blank row
+    ///     #216 spent on that is given back (ADR-0021).
     /// </remarks>
-    private const int ContentTop = 2;
+    private const int ContentTop = 1;
+
+    /// <summary>The columns and rows a panel's edge takes off each side of what is inside it.</summary>
+    private const int Edge = 1;
 
     /// <summary>
     ///     What the content region answers to among its siblings — four regions are painted the same way and only
     ///     this one shows posts, so it is the one worth being able to name.
     /// </summary>
+    /// <remarks>
+    ///     Its <c>Frame</c> is the whole panel and its <c>Viewport</c> the inside of it, which is the room every screen
+    ///     is drawn in.
+    /// </remarks>
     internal const string ContentId = "content";
 
     /// <summary>
@@ -56,14 +62,14 @@ internal sealed class ShellWindow : Window
     private readonly PaintedView _content;
     private readonly ComposeEditor _editor;
 
-    /// <summary>The rail, the column dividing it from the rest, and the breadcrumb — what <see cref="Railed" /> moves.</summary>
+    /// <summary>The rail, which <see cref="Railed" /> takes away and puts back.</summary>
     private readonly PaintedView _rail;
 
-    /// <inheritdoc cref="_rail" />
-    private readonly PaintedView _gutter;
-
-    /// <inheritdoc cref="_rail" />
-    private readonly PaintedView _breadcrumb;
+    /// <summary>
+    ///     The content panel's top edge, drawn again over the edge the panel draws there — the one row a tick of the
+    ///     fetch mark redraws (<see cref="Shell.Shell.Ticked" />).
+    /// </summary>
+    private readonly PaintedView _title;
     private readonly Shell.Shell _shell;
     private readonly TimeProvider _clock;
     private readonly Action _quit;
@@ -105,15 +111,14 @@ internal sealed class ShellWindow : Window
         _clock = clock;
         _quit = quit;
 
-        // No border and no title: the contract gives the frame two rows, and both of them say something. A box around
-        // the outside would cost two more and say nothing.
+        // No border and no title of Terminal.Gui's: the panels are this client's own, drawn in roles (ADR-0021), and a
+        // box around the outside would cost two rows and two columns and say nothing.
         BorderStyle = Terminal.Gui.Drawing.LineStyle.None;
 
-        // The cells no region covers, which are the window's own: the blank seam under the breadcrumb, and the column
-        // between the rail and the content. Every region clears itself in the theme's page before it draws, so a cell
-        // inside one is themed by construction — and a cell inside none kept whatever Terminal.Gui's default scheme
-        // put there, a grey the theme never chose. One column nobody noticed until #216 gave the same hole a whole
-        // row and it read as a band across the screen.
+        // The cells no region covers, which are the window's own. There are none now that the panels meet the rail and
+        // the status row edge to edge, but every region clears itself in the theme's page before it draws, so a cell
+        // inside one is themed by construction — and a cell inside none keeps whatever Terminal.Gui's default scheme
+        // put there, a grey the theme never chose. A gutter column and a blank row both did, until #216 and #271.
         //
         // Role.Body's attribute is the page, and it is the borrow PaintedView already makes to clear a row: a blank
         // cell shows a background, and the page is what every role without one of its own is drawn on. Nothing here
@@ -129,53 +134,49 @@ internal sealed class ShellWindow : Window
             CanFocus = false,
         };
 
-        var breadcrumb = _breadcrumb = new PaintedView(theme, (width, _) =>
-            [ChromeLines.Breadcrumb(shell.Crumbs, shell.Dots, width)])
-        {
-            X = RailLines.Width + 1,
-            Y = 0,
-            Width = Dim.Fill(),
-            Height = 1,
-            CanFocus = false,
-        };
-
-        // The column dividing the rail from the content: a cell nobody painted until it was, and the only one of the
-        // frame's own furniture that runs down rather than across. It carries a rule as well as a background, so the
-        // division survives a terminal drawing no colour.
-        //
-        // The row under the breadcrumb is not here, and is drawn by nothing: it is the page, which is this window's
-        // own scheme, and its being blank is the whole of what divides the frame from what is being read. The band
-        // that was briefly on it is on the breadcrumb itself now, where it says "this row is the frame" rather than
-        // drawing a line under one.
-        var gutter = _gutter = new PaintedView(theme, (_, height) => ChromeLines.Gutter(height))
-        {
-            X = RailLines.Width,
-            Y = 0,
-            Width = 1,
-            Height = Dim.Fill(1),
-            CanFocus = false,
-        };
-
         // The one region that shows posts, so the one region with pictures to draw in place (docs/tui-shell.md) — and
         // the one that scrolls, which is why the arrow keys below are handed to it and to nothing else. It stops
         // scrolling while a post is being written, which Refresh settles.
+        //
+        // It is a panel titled with the breadcrumb (ADR-0021), its edges laid round its viewport, so the width every
+        // screen is drawn at and every picture's box are the inside of it: 60 columns at an 80-column terminal.
         _content = new PaintedView(
             theme,
             (width, _) => shell.Screen.Lines(new Drawing(width, clock.GetUtcNow(), pictures, hideDrawnCaption)),
-            pictures)
+            pictures,
+            (width, height) => Panel.Framed(
+                ChromeLines.Breadcrumb(shell.Crumbs, shell.Dots, width),
+                [],
+                width,
+                height,
+                active: true))
         {
             Id = ContentId,
-            X = RailLines.Width + 1,
-            Y = ContentTop,
+            X = RailLines.Width,
+            Y = 0,
             Width = Dim.Fill(),
             Height = Dim.Fill(1),
             CanFocus = false,
             Scrolls = true,
         };
 
+        // The same top edge again, as a row of its own laid over the panel's, so that a tick of the fetch mark has one
+        // row to redraw rather than the panel — which places every picture on it each time it is drawn, two and a half
+        // times a second for as long as anything is in flight, for one dot (#217). Both draw the edge from the one
+        // function, so whichever was drawn last, it says the same thing.
+        var title = _title = new PaintedView(theme, (width, _) => [ChromeLines.Breadcrumb(shell.Crumbs, shell.Dots, width)])
+        {
+            X = RailLines.Width,
+            Y = 0,
+            Width = Dim.Fill(),
+            Height = 1,
+            CanFocus = false,
+        };
+
         _editor = new ComposeEditor(() => _ = Send(), () => shell.Back(), shell.WriteWarning)
         {
-            X = RailLines.Width + 1,
+            // Inside the panel's edges on three sides, and under what is being answered on the fourth (below).
+            X = RailLines.Width + Edge,
             // A reply's "answering" block is painted on _content, which this sits in front of and exactly the same
             // size as (below) — so without this, the block is never seen: the editor is opaque and covers it on every
             // frame it is visible. Dim.Fill(1) starting from here still reaches the same floor it always did.
@@ -184,8 +185,8 @@ internal sealed class ShellWindow : Window
             // measuring anything else means deriving that width a second way. Omitting it defaults to null, which is
             // what the first attempt at this did: EditorTop got no Viewport to measure, so Y silently stayed 1 forever.
             Y = Pos.Func(EditorTop, _content),
-            Width = Dim.Fill(),
-            Height = Dim.Fill(1),
+            Width = Dim.Fill(Edge),
+            Height = Dim.Fill(1 + Edge),
             Visible = false,
             WordWrap = true,
         };
@@ -200,7 +201,7 @@ internal sealed class ShellWindow : Window
             CanFocus = false,
         };
 
-        Add(rail, breadcrumb, gutter, _content, _editor, status);
+        Add(rail, _content, title, _editor, status);
 
         _showing = shell.Screen;
 
@@ -211,7 +212,7 @@ internal sealed class ShellWindow : Window
         // A tick of the fetch mark redraws the row it is on and nothing else. Changed would redraw the whole window,
         // and the content region re-places every picture on it each frame — two and a half times a second, for as
         // long as anything is in flight, for one dot (#217).
-        shell.Ticked += breadcrumb.SetNeedsDraw;
+        shell.Ticked += title.SetNeedsDraw;
     }
 
     /// <summary>
@@ -372,9 +373,9 @@ internal sealed class ShellWindow : Window
     /// <remarks>
     ///     The whole frame is redrawn, not the content region alone. Every other key that changes what is on screen
     ///     ends at the shell's <c>Changed</c>, which redraws everything; these two change nothing the shell knows
-    ///     about, so they are the only keys that could have redrawn one region — and the column between the rail and
-    ///     the content belongs to no region. It is the window's own background, so a region redrawn on its own leaves
-    ///     it holding whatever the terminal last put there, which beside a picture is part of the picture.
+    ///     about, so they are the only keys that could have redrawn one region — and the panel's top edge is two
+    ///     regions, the panel's own and the title laid over it, which a redraw of one leaves to whichever was drawn
+    ///     last.
     /// </remarks>
     private void Scrolled(int rows)
     {
@@ -499,13 +500,13 @@ internal sealed class ShellWindow : Window
         }
 
         _railed = _shell.ShowsRail;
-        _rail.Visible = _gutter.Visible = _railed;
+        _rail.Visible = _railed;
 
-        var left = _railed ? RailLines.Width + 1 : 0;
+        var left = _railed ? RailLines.Width : 0;
 
-        _breadcrumb.X = left;
+        _title.X = left;
         _content.X = left;
-        _editor.X = left;
+        _editor.X = left + Edge;
     }
 
     /// <summary>

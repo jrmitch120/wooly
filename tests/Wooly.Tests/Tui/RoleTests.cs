@@ -27,9 +27,7 @@ public partial class RoleTests
     /// </summary>
     private static readonly Role[] NotYetDrawn =
     [
-        Role.PanelBorder, // #270
-        Role.PanelBorderActive, // #270
-        Role.PanelTitle, // #270
+        Role.PanelBorder, // #272
         Role.RailCursor, // #272
         Role.Gauge, // #272
         Role.GaugeEmpty, // #272
@@ -110,8 +108,7 @@ public partial class RoleTests
         Collect(RailLines.Of(rail, new RateLimitQuota(213, 300, null), 10));
         Collect(RailLines.Of(rail, new RateLimitQuota(5, 300, null), 10));
 
-        Collect([ChromeLines.Breadcrumb(["Home"], dots: 1, 61)]);
-        Collect(ChromeLines.Gutter(10));
+        Collect([ChromeLines.Breadcrumb(["Home"], dots: 1, 62)]);
         Collect([
             ChromeLines.Status(
                 [],
@@ -464,8 +461,8 @@ public partial class RoleTests
     [Fact]
     public void Breadcrumb_SaysAFetchIsInFlightAndTheRailDoesNot()
     {
-        var still = ChromeLines.Breadcrumb(["Home"], dots: 0, 61);
-        var busy = ChromeLines.Breadcrumb(["Home"], dots: 1, 61);
+        var still = ChromeLines.Breadcrumb(["Home"], dots: 0, 62);
+        var busy = ChromeLines.Breadcrumb(["Home"], dots: 1, 62);
 
         Assert.DoesNotContain("fetching", still.Text, StringComparison.Ordinal);
         Assert.Contains("fetching.", busy.Text);

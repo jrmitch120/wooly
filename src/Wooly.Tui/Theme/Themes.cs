@@ -30,8 +30,7 @@ public static class Themes
 
     /// <summary>
     ///     The roles drawn on something other than the page: the ones told apart by the band they are drawn in rather
-    ///     than by the text on them, the seam, which is a band with nothing on it at all, and the three that share the
-    ///     breadcrumb row — one row, so one band, whatever each of them is saying on it.
+    ///     than by the text on them.
     /// </summary>
     /// <remarks>
     ///     <see cref="Role.Selection" /> is not one of them. Its <c>▌</c> sits on <see cref="Role.Band" /> with the rest
@@ -43,10 +42,6 @@ public static class Themes
         [Role.Band] = "#2a2942",
         [Role.RailCurrent] = "#2a2942",
         [Role.RailCursor] = "#3a3858",
-        [Role.Seam] = "#1c1a28",
-        [Role.Crumb] = "#1c1a28",
-        [Role.CrumbCurrent] = "#1c1a28",
-        [Role.Loading] = "#1c1a28",
     };
 
     private static readonly Dictionary<Role, string> LightBands = new()
@@ -54,10 +49,6 @@ public static class Themes
         [Role.Band] = "#dcd9e8",
         [Role.RailCurrent] = "#dcd9e8",
         [Role.RailCursor] = "#eeecf3",
-        [Role.Seam] = "#eeecf3",
-        [Role.Crumb] = "#eeecf3",
-        [Role.CrumbCurrent] = "#eeecf3",
-        [Role.Loading] = "#eeecf3",
     };
 
     // Every built-in draws on the terminal's own background, so the app meets the terminal's padding with no seam
@@ -98,9 +89,6 @@ public static class Themes
             [Role.PanelBorder] = "#5c5872",
             [Role.PanelBorderActive] = "#8fa8ff",
             [Role.PanelTitle] = "#a9a5bd",
-            [Role.Crumb] = "#7c7891",
-            [Role.CrumbCurrent] = "#f2f0f7",
-            [Role.Seam] = "#7c7891",
             [Role.Loading] = "#5c5872",
             [Role.Destructive] = "#ff7a93",
             [Role.Error] = "#ff7a93",
@@ -143,9 +131,6 @@ public static class Themes
             [Role.PanelBorder] = "#9b98ad",
             [Role.PanelBorderActive] = "#2848c8",
             [Role.PanelTitle] = "#3f3d52",
-            [Role.Crumb] = "#6a6780",
-            [Role.CrumbCurrent] = "#100e18",
-            [Role.Seam] = "#6a6780",
             [Role.Loading] = "#9b98ad",
             [Role.Destructive] = "#b3123f",
             [Role.Error] = "#b3123f",

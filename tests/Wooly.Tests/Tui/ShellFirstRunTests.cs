@@ -131,7 +131,7 @@ public class ShellFirstRunTests
         built.Host.Drain();
         window.Layout();
 
-        Assert.Equal(RailLines.Width + 1, Content(window).Frame.X);
+        Assert.Equal(RailLines.Width, Content(window).Frame.X);
         Assert.True(Railed(window));
     }
 
