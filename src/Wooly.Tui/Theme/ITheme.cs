@@ -28,4 +28,10 @@ public interface ITheme
     ///     ADR-0014 says none of them does.
     /// </remarks>
     Attribute Banded(Role role);
+
+    /// <summary>
+    ///     Whether this theme draws colour at all. A line builder may ask, and draw a glyph only where it does not: a
+    ///     meaning needs a carrier on every terminal, not a glyph on every terminal (ADR-0021).
+    /// </summary>
+    bool DrawsColour { get; }
 }

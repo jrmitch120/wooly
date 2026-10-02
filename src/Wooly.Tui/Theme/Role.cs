@@ -97,8 +97,9 @@ public enum Role
     Rail,
 
     /// <summary>
-    ///     The rail destination that is selected. Carried without colour by <c>▷</c> while it differs from the
-    ///     cursor's row, which takes <c>▶</c>; the two coincide at rest, so only <c>▶</c> shows.
+    ///     The rail destination that is selected: in colour its band, with no mark (ADR-0021). Carried without colour
+    ///     by <c>▷</c> while it differs from the cursor's row, which takes <c>▶</c>; the two coincide at rest, so only
+    ///     <c>▶</c> shows.
     /// </summary>
     RailCurrent,
 
@@ -124,7 +125,7 @@ public enum Role
     GaugeEmpty,
 
     /// <summary>
-    ///     The frame's furniture: the status row's leading space and its <c> | </c> separators, and the rail's rule.
+    ///     The frame's furniture: the status row's leading space and its <c> | </c> separators.
     ///     Meant to recede. Carried without colour by position.
     /// </summary>
     Chrome,

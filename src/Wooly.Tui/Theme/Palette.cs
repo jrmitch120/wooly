@@ -69,6 +69,10 @@ internal sealed class Palette : ITheme
         return _roles[role].Own is null ? new Attribute(drawn.Foreground, For(Role.Band).Background) : drawn;
     }
 
+    /// <inheritdoc />
+    /// <remarks>Always: a palette is colours, and a terminal that wants none is given the plain theme instead.</remarks>
+    public bool DrawsColour => true;
+
     /// <summary>
     ///     This palette with somebody's own colours laid over it: the roles they named take what they named, and
     ///     everything they left out stays as it was.
