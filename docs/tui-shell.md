@@ -59,8 +59,8 @@ it 23. Shorter than that, it steps down rather than clipping:
 | 15 to 21 | Compact: each group's title as a heading row, no frames, the API panel as one gauge row |
 | fewer than 15 | Compact, and scrolled to keep the cursor's group in view |
 
-The API panel is counted at its 4 rows whether or not there is an instance to put in it, so whether the rail is framed is
-a fact about the terminal's height and never about how many profiles there are; with one profile, the row it does not
+The API panel is counted at its 4 rows whether or not there is an instance to put in it, so whether the rail is framed
+is a fact about the terminal's height and never about how many profiles there are; with one profile, the row it does not
 use is left blank above it. Compact, the instance sits above the gauge row where the rail has a row to spare for it, and
 goes where it has none: the gauge is what the rail is the one thing able to spend. Compact entries are indented under
 their headings by the mark column, blank in colour, so a heading and an entry are told apart on every terminal. The
@@ -69,7 +69,8 @@ scroll is worked out afresh from where the cursor is on every frame, and the gau
 The frames are this client's own, painted in roles like everything else, not Terminal.Gui's `Border`. A picture placed in
 a framed region is placed inside the frame (ADR-0021). There is one way to draw one, `Panel` (#270): a rounded edge in
 `panel-border`, or `panel-border-active` for the panel you are in, and the title on the top edge in `panel-title`, with a
-space either side of it and no `┤ ├`, clipped from its end where it does not fit. The rail's groups are its rows (#272). The content panel is the one place a view draws an edge round rows it does not build: `PaintedView` lays the
+space either side of it and no `┤ ├`, clipped from its end where it does not fit. The rail's groups are its rows
+(#272). The content panel is the one place a view draws an edge round rows it does not build: `PaintedView` lays the
 same edges on a one-cell ring round its viewport, so the rows, the scroll and every picture are measured from the
 inside, and a picture scrolled half past an edge is clipped at it rather than drawn over it. Compose's editor sits
 inside the same edges. The panel's top edge is drawn a second time by a one-row view laid over it, so a tick of the

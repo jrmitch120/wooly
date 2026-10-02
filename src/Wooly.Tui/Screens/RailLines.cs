@@ -44,6 +44,9 @@ public static class RailLines
     /// </summary>
     private const int ApiRows = 4;
 
+    /// <summary>The columns the one mark column takes with the space after it.</summary>
+    private const int MarkColumns = 2;
+
     /// <summary>The columns a panel's two sides take off the rows inside it.</summary>
     private const int Sides = 2;
 
@@ -79,7 +82,7 @@ public static class RailLines
 
         var groups = Groups(rail);
 
-        return height >= groups.Sum(group => group.Holds.Count + Sides) + ApiRows
+        return height >= groups.Sum(group => group.Places.Count + Sides) + ApiRows
             ? Framed(rail, groups, quota, height, instance, coloured)
             : Compact(rail, groups, quota, height, instance, coloured);
     }
@@ -92,7 +95,7 @@ public static class RailLines
     /// </summary>
     private static List<Line> Framed(
         Rail rail,
-        IReadOnlyList<(RailGroup Group, IReadOnlyList<int> Holds)> groups,
+        IReadOnlyList<Run> groups,
         RateLimitQuota? quota,
         int height,
         string? instance,
@@ -101,14 +104,14 @@ public static class RailLines
         const int inside = Width - Sides;
         var lines = new List<Line>();
 
-        foreach (var (group, holds) in groups)
+        foreach (var (group, places) in groups)
         {
             lines.AddRange(Panel.Framed(
                 Title(group),
-                [.. holds.Select(at => Entry(rail, at, inside, coloured ? string.Empty : Mark(rail, at), coloured))],
+                [.. places.Select(at => Entry(rail, at, inside, coloured ? string.Empty : Mark(rail, at), coloured))],
                 Width,
-                holds.Count + Sides,
-                active: holds.Contains(rail.Current)));
+                places.Count + Sides,
+                active: places.Contains(rail.Current)));
         }
 
         List<Line> api = instance is null ? [Gauge(quota, inside)] : [Fact(instance, inside), Gauge(quota, inside)];
@@ -127,7 +130,7 @@ public static class RailLines
     /// </remarks>
     private static List<Line> Compact(
         Rail rail,
-        IReadOnlyList<(RailGroup Group, IReadOnlyList<int> Holds)> groups,
+        IReadOnlyList<Run> groups,
         RateLimitQuota? quota,
         int height,
         string? instance,
@@ -136,13 +139,13 @@ public static class RailLines
         var body = new List<Line>();
         int first = 0, last = 0, cursor = 0;
 
-        foreach (var (group, holds) in groups)
+        foreach (var (group, places) in groups)
         {
-            if (holds.Contains(rail.Cursor))
+            if (places.Contains(rail.Cursor))
             {
                 first = body.Count;
-                last = body.Count + holds.Count;
-                cursor = first + 1 + (rail.Cursor - holds[0]);
+                last = body.Count + places.Count;
+                cursor = first + 1 + (rail.Cursor - places[0]);
             }
 
             body.Add(Line.Of(
@@ -150,7 +153,7 @@ public static class RailLines
 
             // Indented under the heading by the mark column, which colour leaves blank, so a heading and an entry are
             // told apart by where they start on every terminal.
-            body.AddRange(holds.Select(at => Entry(rail, at, Width, coloured ? "  " : Mark(rail, at), coloured)));
+            body.AddRange(places.Select(at => Entry(rail, at, Width, coloured ? new string(' ', MarkColumns) : Mark(rail, at), coloured)));
         }
 
         var spare = height - body.Count - 1;
@@ -193,10 +196,10 @@ public static class RailLines
         return lines.Count > height ? lines.GetRange(lines.Count - height, height) : lines;
     }
 
-    /// <summary>The rail's groups as runs of one group, in the order they are drawn, each with the places it holds.</summary>
-    private static List<(RailGroup Group, IReadOnlyList<int> Holds)> Groups(Rail rail)
+    /// <summary>The rail's groups as runs of one group, in the order they are drawn, each with the places it places.</summary>
+    private static List<Run> Groups(Rail rail)
     {
-        var groups = new List<(RailGroup Group, IReadOnlyList<int> Holds)>();
+        var groups = new List<(RailGroup Group, List<int> Places)>();
 
         for (var at = 0; at < rail.Destinations.Count; at++)
         {
@@ -204,13 +207,13 @@ public static class RailLines
 
             if (groups.Count == 0 || groups[^1].Group != group)
             {
-                groups.Add((group, new List<int>()));
+                groups.Add((group, []));
             }
 
-            ((List<int>)groups[^1].Holds).Add(at);
+            groups[^1].Places.Add(at);
         }
 
-        return groups;
+        return [.. groups.Select(run => new Run(run.Group, run.Places))];
     }
 
     /// <summary>What a rail group is called on its panel's edge, or on its heading row.</summary>
@@ -225,7 +228,7 @@ public static class RailLines
 
     /// <summary>The one mark column and the space after it, for where colour is not drawn.</summary>
     private static string Mark(Rail rail, int at) =>
-        $"{(at == rail.Cursor ? CursorMark : at == rail.Current ? SettledMark : " ")} ";
+        (at == rail.Cursor ? CursorMark : at == rail.Current ? SettledMark : " ").PadRight(MarkColumns);
 
     /// <summary>
     ///     One destination, <paramref name="width" /> columns of it: <paramref name="lead" />, its label, and its unread
@@ -287,4 +290,7 @@ public static class RailLines
     /// </remarks>
     private static Line Fact(string text, int width) =>
         Line.Of(Glyphs.Padded(TextWrap.Clip($" {text}", width), width), Role.Quota);
+
+    /// <summary>One rail group as it stands on this rail: the places on the rail it holds, in the order they are drawn.</summary>
+    private sealed record Run(RailGroup Group, IReadOnlyList<int> Places);
 }
