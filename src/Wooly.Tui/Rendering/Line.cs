@@ -65,6 +65,17 @@ public sealed record Line
     /// </remarks>
     public bool Heads { get; init; }
 
+    /// <summary>
+    ///     Whether this row is part of the thing picked out, and so drawn on <see cref="Theme.Role.Band" /> from one
+    ///     edge of the view to the other rather than on the page (#269).
+    /// </summary>
+    /// <remarks>
+    ///     A mark on the row rather than a role swapped onto each of its spans, because what a row is is decided where
+    ///     it is built — <see cref="Screens.Stamped" /> — and the view that paints it only answers the mark. A span
+    ///     with a background of its own keeps it, so a picked reference still says it is picked on a banded row.
+    /// </remarks>
+    public bool Picked { get; init; }
+
     /// <summary>What the row reads as with the roles taken off — what a test asserts against, and what a screenshot shows.</summary>
     public string Text
     {
@@ -131,6 +142,7 @@ public sealed record Line
             Wants = Wants,
             Item = Item,
             Heads = Heads,
+            Picked = Picked,
         };
     }
 }

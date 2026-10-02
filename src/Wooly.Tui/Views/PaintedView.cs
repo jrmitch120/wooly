@@ -299,23 +299,29 @@ internal sealed class PaintedView : View
 
         _settled = null;
 
+        var page = _theme.For(Role.Body);
+        var band = _theme.For(Role.Band).Background;
+
         for (var row = 0; row < height; row++)
         {
+            var at = _top + row;
+            var line = at >= 0 && at < lines.Count ? lines[at] : null;
+            var picked = line?.Picked == true;
+
             // Cleared first, in the theme's own background, so that a row which is shorter than the one it replaced
-            // does not leave the tail of the old one behind it.
-            SetAttribute(_theme.For(Role.Body));
+            // does not leave the tail of the old one behind it — and on the band, for a row of the thing picked out,
+            // so that the band runs to the edge of the view rather than stopping where the words do (#269).
+            SetAttribute(picked ? page with { Background = band } : page);
             AddStr(0, row, new string(' ', width));
 
-            var at = _top + row;
-
-            if (at < 0 || at >= lines.Count)
+            if (line is null)
             {
                 continue;
             }
 
             var column = 0;
 
-            foreach (var span in lines[at].Spans)
+            foreach (var span in line.Spans)
             {
                 if (column >= width)
                 {
@@ -327,7 +333,11 @@ internal sealed class PaintedView : View
                 // characters is a row painted twice as far right as it was laid out (#207).
                 var text = Glyphs.Cut(span.Text, width - column);
 
-                SetAttribute(_theme.For(span.Role));
+                var drawn = _theme.For(span.Role);
+
+                // Only a span sitting on the page is moved onto the band. One with a background of its own — a picked
+                // reference a theme has given one — is saying something the band does not, and keeps it.
+                SetAttribute(picked && drawn.Background == page.Background ? drawn with { Background = band } : drawn);
                 AddStr(column, row, text);
 
                 column += Glyphs.Columns(text);
