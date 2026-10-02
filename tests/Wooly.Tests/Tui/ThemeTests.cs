@@ -72,11 +72,11 @@ public class ThemeTests
         Assert.Equal(Themes.Dark.For(Role.Muted), theme.For(Role.Muted));
     }
 
-    /// <summary>The roles the panels brought are a theme's to name like any other (#266).</summary>
+    /// <summary>The roles ADR-0021 added are a theme's to name like any other (#266).</summary>
     [Theory]
     [InlineData("panel-border-active", Role.PanelBorderActive)]
     [InlineData("replies", Role.Replies)]
-    public void AThemeMayNameAPanelsRole(string name, Role role)
+    public void AThemeMayNameARoleTheShellGainedWithItsPanels(string name, Role role)
     {
         var theme = Chosen(Written("midnight", new ThemeConfig
         {
@@ -86,8 +86,9 @@ public class ThemeTests
         Assert.Equal(new Color(255, 0, 0), theme.For(role).Foreground);
     }
 
+    /// <summary>A new role misspelt is refused by name like any other, so its author is not left waiting on it.</summary>
     [Fact]
-    public void AThemeMisspellingAPanelsRoleSaysWhichOne()
+    public void AThemeMisspellingARoleTheShellGainedWithItsPanelsSaysWhichOne()
     {
         var config = Written("midnight", new ThemeConfig
         {

@@ -21,14 +21,30 @@ public partial class RoleTests
     private static readonly DateTimeOffset Now = new(2026, 7, 29, 12, 30, 0, TimeSpan.Zero);
 
     /// <summary>
+    ///     The roles in the contract that no view draws yet, each with the issue that will. The second assertion
+    ///     in <see cref="EveryRoleInTheContractIsEmittedBySomeView" /> keeps this honest: a role drawn and still listed
+    ///     here is an exemption somebody forgot to take off.
+    /// </summary>
+    private static readonly Role[] NotYetDrawn =
+    [
+        Role.Band, // #269
+        Role.PanelBorder, // #270
+        Role.PanelBorderActive, // #270
+        Role.PanelTitle, // #270
+        Role.RailCursor, // #272
+        Role.Gauge, // #272
+        Role.GaugeEmpty, // #272
+    ];
+
+    /// <summary>
     ///     Walks every role in the contract and asserts some view actually emits it — the test that would have caught
     ///     <see cref="Role.Poll" /> sitting dead in the contract, themed and documented with nothing ever drawing it,
     ///     before this ticket wired a poll's block bars to it (#80).
     /// </summary>
     /// <remarks>
     ///     <see cref="Role.ReferencePicked" /> was the contract's one other dead role until #83 wired the brackets a
-    ///     picked reference is drawn in, and the exemption came off with it. The panels roles are named before anything
-    ///     draws them (#266), and each comes off <see cref="NotYetDrawn" /> with the issue that draws it.
+    ///     picked reference is drawn in, and the exemption came off with it. The roles ADR-0021 added are named before
+    ///     anything draws them (#266), and each comes off <see cref="NotYetDrawn" /> with the issue that draws it.
     /// </remarks>
     [Fact]
     public void EveryRoleInTheContractIsEmittedBySomeView()
@@ -105,21 +121,6 @@ public partial class RoleTests
         Assert.Empty(Enum.GetValues<Role>().Except(seen).Except(NotYetDrawn));
         Assert.Empty(NotYetDrawn.Intersect(seen));
     }
-
-    /// <summary>
-    ///     The roles in the contract that no view draws yet, each with the issue that will. The second assertion
-    ///     above keeps this honest: a role drawn and still listed here is an exemption somebody forgot to take off.
-    /// </summary>
-    private static readonly Role[] NotYetDrawn =
-    [
-        Role.Band, // #269
-        Role.PanelBorder, // #270
-        Role.PanelBorderActive, // #270
-        Role.PanelTitle, // #270
-        Role.RailCursor, // #272
-        Role.Gauge, // #272
-        Role.GaugeEmpty, // #272
-    ];
 
     /// <summary>Every role in the contract has a name, and the built-in theme has an answer for it.</summary>
     [Fact]

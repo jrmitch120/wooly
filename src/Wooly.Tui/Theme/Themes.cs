@@ -38,7 +38,7 @@ public static class Themes
         [Role.Selection] = "#2a2942",
         [Role.Band] = "#2a2942",
         [Role.RailCurrent] = "#2a2942",
-        [Role.RailCursor] = "#1c1a28",
+        [Role.RailCursor] = "#3a3858",
         [Role.Seam] = "#1c1a28",
         [Role.Crumb] = "#1c1a28",
         [Role.CrumbCurrent] = "#1c1a28",

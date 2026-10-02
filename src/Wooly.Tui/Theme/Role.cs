@@ -85,7 +85,7 @@ public enum Role
     Selection,
 
     /// <summary>
-    ///     Behind every row of the selected thing, not only the one its <see cref="Selection" /> mark is on. A
+    ///     Behind every row of the picked thing, not only the one its <see cref="Selection" /> mark is on. A
     ///     background role. Carried without colour by the <c>▌</c> beside each row.
     /// </summary>
     Band,
@@ -142,7 +142,8 @@ public enum Role
 
     /// <summary>
     ///     The frame of the panel you are in: the content panel, and the rail group holding the selected destination.
-    ///     Carried without colour by the current entry's <c>▶</c>, and in colour also by its band.
+    ///     Which group is active is carried in colour by the current entry's band, and without colour by <c>▶</c> on
+    ///     it.
     /// </summary>
     PanelBorderActive,
 
