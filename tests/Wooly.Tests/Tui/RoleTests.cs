@@ -21,13 +21,30 @@ public partial class RoleTests
     private static readonly DateTimeOffset Now = new(2026, 7, 29, 12, 30, 0, TimeSpan.Zero);
 
     /// <summary>
+    ///     The roles in the contract that no view draws yet, each with the issue that will. The second assertion
+    ///     in <see cref="EveryRoleInTheContractIsEmittedBySomeView" /> keeps this honest: a role drawn and still listed
+    ///     here is an exemption somebody forgot to take off.
+    /// </summary>
+    private static readonly Role[] NotYetDrawn =
+    [
+        Role.Band, // #269
+        Role.PanelBorder, // #270
+        Role.PanelBorderActive, // #270
+        Role.PanelTitle, // #270
+        Role.RailCursor, // #272
+        Role.Gauge, // #272
+        Role.GaugeEmpty, // #272
+    ];
+
+    /// <summary>
     ///     Walks every role in the contract and asserts some view actually emits it — the test that would have caught
     ///     <see cref="Role.Poll" /> sitting dead in the contract, themed and documented with nothing ever drawing it,
     ///     before this ticket wired a poll's block bars to it (#80).
     /// </summary>
     /// <remarks>
-    ///     Nothing is exempt: <see cref="Role.ReferencePicked" /> was the contract's one other dead role until #83
-    ///     wired the brackets a picked reference is drawn in, and the exemption came off with it.
+    ///     <see cref="Role.ReferencePicked" /> was the contract's one other dead role until #83 wired the brackets a
+    ///     picked reference is drawn in, and the exemption came off with it. The roles ADR-0021 added are named before
+    ///     anything draws them (#266), and each comes off <see cref="NotYetDrawn" /> with the issue that draws it.
     /// </remarks>
     [Fact]
     public void EveryRoleInTheContractIsEmittedBySomeView()
@@ -101,7 +118,8 @@ public partial class RoleTests
         Collect([ChromeLines.Status([], "Only your own posts can be deleted.", noticeIsError: true, null, 80)]);
         Collect([ChromeLines.Status([new KeyHint("⏎", "read")], null, noticeIsError: false, asking: null, 80)]);
 
-        Assert.Empty(Enum.GetValues<Role>().Except(seen));
+        Assert.Empty(Enum.GetValues<Role>().Except(seen).Except(NotYetDrawn));
+        Assert.Empty(NotYetDrawn.Intersect(seen));
     }
 
     /// <summary>Every role in the contract has a name, and the built-in theme has an answer for it.</summary>
@@ -166,6 +184,14 @@ public partial class RoleTests
     [InlineData(Role.BoostMine, "boost-mine")]
     [InlineData(Role.RailUnread, "rail-unread")]
     [InlineData(Role.QuotaLow, "quota-low")]
+    [InlineData(Role.PanelBorder, "panel-border")]
+    [InlineData(Role.PanelBorderActive, "panel-border-active")]
+    [InlineData(Role.PanelTitle, "panel-title")]
+    [InlineData(Role.Band, "band")]
+    [InlineData(Role.RailCursor, "rail-cursor")]
+    [InlineData(Role.Gauge, "gauge")]
+    [InlineData(Role.GaugeEmpty, "gauge-empty")]
+    [InlineData(Role.Replies, "replies")]
     public void RoleName_IsTheNameTheContractUses(Role role, string expected)
     {
         Assert.Equal(expected, RoleName.Of(role));
@@ -189,6 +215,32 @@ public partial class RoleTests
         Assert.Contains(mine, line => line.Has(Role.BoostMine));
         Assert.Contains(mine, line => line.Has(Role.FavoriteMine));
         Assert.DoesNotContain(mine, line => line.Has(Role.Boost));
+    }
+
+    /// <summary>
+    ///     A reply count is drawn in a role of its own rather than in <see cref="Role.Muted" />, so it reads as a count
+    ///     beside the boosts and favorites it sits with — on every screen that draws one (#266).
+    /// </summary>
+    [Fact]
+    public void EveryScreenShowingAPostDrawsItsReplyCountInItsOwnRole()
+    {
+        var post = APost.With(id: "1");
+
+        IReadOnlyList<Line>[] screens =
+        [
+            new FeedScreen(
+                new Destination(DestinationKind.Home, "Home", Wooly.Core.Timelines.Timeline.Home),
+                [post]).Lines(new Drawing(61, Now)),
+            new PostScreen(post, new PostThread([], [])).Lines(new Drawing(61, Now)),
+            new ConversationScreen(AConversation.Thread(posts: post)).Lines(new Drawing(61, Now)),
+        ];
+
+        foreach (var lines in screens)
+        {
+            var replies = Assert.Single(lines.SelectMany(line => line.Spans), span => span.Text.StartsWith('↩'));
+
+            Assert.Equal(Role.Replies, replies.Role);
+        }
     }
 
     /// <summary>

@@ -1500,12 +1500,18 @@ glyph or a position that carries the same meaning when colour is gone.
 | `reference-picked` | The brackets around a picked reference | `‹ ›`, always drawn |
 | `boost` / `boost-mine` | The boost mark, and it when it is yours | `↺` (open) vs `⥀` (closed) |
 | `favorite` / `favorite-mine` | The favorite mark, and it when it is yours | `☆` (hollow) vs `★` (filled) |
+| `replies` | The reply count under a post | `↩` |
 | `selection` | The selected row | `▌` in the gutter |
+| `band` | Behind every row of the selected thing | the `▌` beside each row |
 | `rail` / `rail-current` | Destinations, and the one loaded | one glyph, one column: `▶` where the tabbing has got to, `▷` where it settled if that differs — they coincide at rest, so only `▶` shows |
+| `rail-cursor` | The rail entry the tabbing has got to, while the selection has not yet followed it | `▶` without colour; in colour, its band (ADR-0021) |
 | `rail-unread` | An unread count, and the word on an unread conversation | the number, and the word |
 | `quota` / `quota-low` | Rate-limit budget left, and nearly spent; `quota` also the instance above it, with two or more profiles | the number |
+| `gauge` / `gauge-empty` | The API budget's filled and empty cells | `█` and `░`, and the percentage |
 | `chrome` | The frame's furniture below the breadcrumb: the status row's leading space and ` · ` separators, the rail's rule | position |
 | `key` | A key you press: the status row's, the help screen's key column, a confirmation's `y` and `esc` — never prose that names a key, never the padding beside one | position — first in its pair, before the colon; first column on the help screen |
+| `panel-border` / `panel-border-active` | A panel's frame, and the frame of the panel you are in: the content panel, and the rail group holding the selected destination | the box characters; which group is active is carried by the current entry's band in colour, and by `▶` on it without |
+| `panel-title` | A panel's title on its top edge: a rail group's name, and the content panel's trail | position, on the edge |
 | `crumb` / `crumb-current` | The breadcrumb row — the crumbs walked through, the `›` between them and the `… › ` a long trail leads with; and the one being stood on, told from them by foreground alone. One band under the whole row, the fetch mark included | position — the current crumb is always the last, and the trail elides from the left |
 | `seam` | The column dividing the rail from the content | the `│` down it |
 | `loading` | The fetch mark on the breadcrumb — the word and up to three dots, laid out at 11 columns | the word itself, and the dots arriving |
@@ -1513,16 +1519,11 @@ glyph or a position that carries the same meaning when colour is gone.
 | `error` | A failure the shell has to say out loud | the word |
 
 > **Changing under ADR-0021.** The table above is the roles there are today, and a test holds it to the `Role` enum.
-> The panels work changes it in the same commit as the enum, one issue at a time:
+> The panels roles are in it (#266); the panels work changes the rest in the same commit as the enum, one issue at a
+> time:
 >
 > | Role | Paints | Carried without colour by |
 > |---|---|---|
-> | `panel-border` / `panel-border-active` *(new)* | A panel's frame, and the frame of the panel you are in: the content panel, and the rail group holding the selected destination | the box characters; which group is active is carried by the current entry's band in colour, and by `▶` on it without |
-> | `panel-title` *(new)* | A panel's title on its top edge: a rail group's name, and the content panel's trail | position, on the edge |
-> | `band` *(new)* | Behind every row of the selected thing | the `▌` beside each row |
-> | `rail-cursor` *(new)* | The rail entry the tabbing has got to, while the selection has not yet followed it | `▶` without colour; in colour, its band (ADR-0021) |
-> | `gauge` / `gauge-empty` *(new)* | The API budget's filled and empty cells | `█` and `░`, and the percentage |
-> | `replies` *(new)* | The reply count under a post | `↩` |
 > | `crumb` / `crumb-current` / `seam` *(retired)* | Their regions are gone; the trail is `panel-title` | – |
 > | `loading` *(moves)* | The fetch mark, now at the end of the content panel's title | unchanged |
 

@@ -72,6 +72,32 @@ public class ThemeTests
         Assert.Equal(Themes.Dark.For(Role.Muted), theme.For(Role.Muted));
     }
 
+    /// <summary>The roles ADR-0021 added are a theme's to name like any other (#266).</summary>
+    [Theory]
+    [InlineData("panel-border-active", Role.PanelBorderActive)]
+    [InlineData("replies", Role.Replies)]
+    public void AThemeMayNameARoleTheShellGainedWithItsPanels(string name, Role role)
+    {
+        var theme = Chosen(Written("midnight", new ThemeConfig
+        {
+            Roles = new Dictionary<string, ThemeRole> { [name] = new("#ff0000") },
+        }));
+
+        Assert.Equal(new Color(255, 0, 0), theme.For(role).Foreground);
+    }
+
+    /// <summary>A new role misspelt is refused by name like any other, so its author is not left waiting on it.</summary>
+    [Fact]
+    public void AThemeMisspellingARoleTheShellGainedWithItsPanelsSaysWhichOne()
+    {
+        var config = Written("midnight", new ThemeConfig
+        {
+            Roles = new Dictionary<string, ThemeRole> { ["panel-border-actve"] = new("#ff0000") },
+        });
+
+        Assert.Contains("panel-border-actve", Assert.Throws<ConfigurationException>(() => Chosen(config)).Message);
+    }
+
     /// <summary>Hex is written once and quantised by the driver; a name is one of the terminal's own sixteen.</summary>
     [Fact]
     public void AColourIsAHexTripleOrOneOfTheSixteenNames()
