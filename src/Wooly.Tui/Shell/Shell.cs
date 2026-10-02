@@ -1353,7 +1353,7 @@ public sealed class Shell
     private static AddProfileScreen SigningIn(ProfileSummary? again, string? why) =>
         again is null ? new AddProfileScreen(alone: true) : AddProfileScreen.Again(again, why, alone: true);
 
-    /// <summary>The ten, in the order the rail draws them.</summary>
+    /// <summary>The ten, in the order the rail draws them: its groups' order (ADR-0021).</summary>
     private static IReadOnlyList<Destination> Destinations(ActiveProfile? profile, string? hashtag) =>
     [
         new(DestinationKind.Home, "Home", Timeline.Home),
@@ -1363,14 +1363,14 @@ public sealed class Shell
             DestinationKind.Hashtag,
             hashtag is null ? "Hashtag" : $"#{hashtag}",
             hashtag is null ? null : Timeline.Tag(hashtag)),
+
+        // Discover, the only entry the rail has ever grown by (ADR-0019), leads Explore: the tools you go looking with,
+        // ahead of the Inbox that comes to you (ADR-0021).
+        new(DestinationKind.Discover, "Discover"),
+        new(DestinationKind.Search, "Search"),
         new(DestinationKind.Notifications, "Notifications"),
         new(DestinationKind.Messages, "Direct messages"),
         new(DestinationKind.Requests, "Follow requests"),
-        new(DestinationKind.Search, "Search"),
-
-        // The tenth, and the only one the rail has ever grown by: immediately after Search and in its group, the
-        // things you go to when you want something as against the timelines you read (ADR-0019, #181).
-        new(DestinationKind.Discover, "Discover"),
         new(DestinationKind.Profile, profile?.Account is { } account ? $"@{account.Split('@')[0]}" : "Profile"),
     ];
 

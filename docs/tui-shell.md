@@ -81,11 +81,11 @@ A screen is a place in the stack, not a window. Entering one pushes, `esc` pops,
 | Post — the post whole, its ancestor chain above and its replies below | `⏎` on a feed item | #28, ancestors #72 |
 | Account — who they are, what they are to you, their pinned posts and their posts, or their posts and replies | `a` on a feed item or inside a post, `s` to swap runs | shell #28, tie actions #29, the person #164, pinned #172, replies #229 |
 | Follows — everyone an account follows, or everyone who follows it | `w` on an account, `s` to swap sides | #165 |
-| Notifications | A rail destination | #29 |
-| Search — prompt and results | A rail destination, or `/` | #29, moving between kinds #166 |
 | Discover — who to follow, in sections by why | A rail destination | #171 |
-| Follow requests | A rail destination | #29 |
+| Search — prompt and results | A rail destination, or `/` | #29, moving between kinds #166 |
+| Notifications | A rail destination | #29 |
 | Direct messages — conversations, then a thread | A rail destination | #30 |
+| Follow requests | A rail destination | #29 |
 | Compose / reply / edit — a screen on the stack, like any other | `c`, `r` or `e` | #28 |
 | Profiles — every profile on this machine, marked `acting as` and `default` | `ctrl-p` | #240 (ADR-0020) |
 | Add a profile — the instance, a sign-in through the browser or a pasted token, the token checked, a name | `a` on the profiles screen, or launching with nobody to act as | #245, #247 (ADR-0020) |
@@ -145,7 +145,7 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Profiles | `⏎` act as that profile, for this session — not offered on the one already acted as · `D` make it the default, for the CLI and the next launch — not offered on the one already the default · `a` add a profile · `R` sign it in again, replacing its token — offered on every row · `x` remove it, after a confirmation — refused on the one acted as and on the default |
 | Add a profile | `⏎` on to the next step · `t` paste a token instead, while the browser is out or after it failed · `esc` back to the list, calling off a sign-in or a check in flight — or, as the only screen on first run, back to the first step, with `ctrl-q` quit offered (#247) |
 | Compose / reply / edit | `ctrl-s` send or save · `esc` throw it away · `ctrl-w` move the typing between the post and the content warning over it — on all three, each carrying a warning field of its own (#123, #139, #140) |
-| Home, local, federated, hashtag, Notifications, Messages, Requests, Discover, Post, Account, Follows | `g` refresh — evicts the destination's cache entry (where one exists) and re-runs the same fetch its own arrival runs |
+| Home, local, federated, hashtag, Discover, Notifications, Messages, Requests, Post, Account, Follows | `g` refresh — evicts the destination's cache entry (where one exists) and re-runs the same fetch its own arrival runs |
 
 ### What the four screens settled
 

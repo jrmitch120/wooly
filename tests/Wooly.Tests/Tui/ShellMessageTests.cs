@@ -14,7 +14,7 @@ namespace Wooly.Tests.Tui;
 public class ShellMessageTests
 {
     /// <summary>Where the rail's direct messages destination is, counting from Home.</summary>
-    private const int ToMessages = 5;
+    private const int ToMessages = 7;
 
     [Fact]
     public async Task Step_ListsTheConversationsAndCountsTheUnreadOnesOnTheRail()
