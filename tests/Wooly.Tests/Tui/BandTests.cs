@@ -124,6 +124,57 @@ public class BandTests
         Assert.Equal(Row(unmarked, 0), Row(marked, 0));
     }
 
+    /// <summary>
+    ///     On a banded row a role sitting on the page is drawn on the band instead, in its own foreground — the theme's
+    ///     answer rather than one the view puts together (ADR-0014).
+    /// </summary>
+    [Fact]
+    public void ARoleOnThePageIsBandedInItsOwnForeground()
+    {
+        var banded = Themes.Dark.Banded(Role.Body);
+
+        Assert.Equal(Themes.Dark.For(Role.Body).Foreground, banded.Foreground);
+        Assert.Equal(Themes.Dark.For(Role.Band).Background, banded.Background);
+    }
+
+    /// <summary>
+    ///     A role with a background of its own keeps it, even one the same colour as the page: whether it has one is
+    ///     the theme's to know, not something to be guessed by comparing colours.
+    /// </summary>
+    [Fact]
+    public void ARoleWithABackgroundOfItsOwnKeepsItEvenWhereItIsThePagesColour()
+    {
+        var theme = Themes.Chosen(
+            new WoolyConfig
+            {
+                Theme = "midnight",
+                Themes = new Dictionary<string, ThemeConfig>
+                {
+                    ["midnight"] = new()
+                    {
+                        Background = "#12111a",
+                        Roles = new Dictionary<string, ThemeRole>
+                        {
+                            ["reference-picked"] = new("#ffffff", "#12111a"),
+                        },
+                    },
+                },
+            },
+            "/somewhere/config.toml");
+
+        Assert.Equal(theme.For(Role.ReferencePicked), theme.Banded(Role.ReferencePicked));
+    }
+
+    /// <summary>Without colour there is no band to draw on, so a banded role is answered as it always is.</summary>
+    [Fact]
+    public void WithoutColourABandedRoleIsAnsweredAsItAlwaysIs()
+    {
+        foreach (var role in Enum.GetValues<Role>())
+        {
+            Assert.Equal(Themes.Plain.For(role), Themes.Plain.Banded(role));
+        }
+    }
+
     /// <summary>One of each screen, each with three things on it to pick out.</summary>
     private static Screen Of(string kind)
     {

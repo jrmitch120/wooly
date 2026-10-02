@@ -299,9 +299,6 @@ internal sealed class PaintedView : View
 
         _settled = null;
 
-        var page = _theme.For(Role.Body);
-        var band = _theme.For(Role.Band).Background;
-
         for (var row = 0; row < height; row++)
         {
             var at = _top + row;
@@ -311,7 +308,7 @@ internal sealed class PaintedView : View
             // Cleared first, in the theme's own background, so that a row which is shorter than the one it replaced
             // does not leave the tail of the old one behind it — and on the band, for a row of the thing picked out,
             // so that the band runs to the edge of the view rather than stopping where the words do (#269).
-            SetAttribute(picked ? page with { Background = band } : page);
+            SetAttribute(picked ? _theme.Banded(Role.Body) : _theme.For(Role.Body));
             AddStr(0, row, new string(' ', width));
 
             if (line is null)
@@ -333,11 +330,9 @@ internal sealed class PaintedView : View
                 // characters is a row painted twice as far right as it was laid out (#207).
                 var text = Glyphs.Cut(span.Text, width - column);
 
-                var drawn = _theme.For(span.Role);
-
-                // Only a span sitting on the page is moved onto the band. One with a background of its own — a picked
-                // reference a theme has given one — is saying something the band does not, and keeps it.
-                SetAttribute(picked && drawn.Background == page.Background ? drawn with { Background = band } : drawn);
+                // The theme's to answer, not the view's: only a span sitting on the page goes onto the band, and one
+                // with a background of its own — a picked reference a theme has given one — keeps it.
+                SetAttribute(picked ? _theme.Banded(span.Role) : _theme.For(span.Role));
                 AddStr(column, row, text);
 
                 column += Glyphs.Columns(text);

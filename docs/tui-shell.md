@@ -1554,9 +1554,11 @@ can hold in their head.
 `key`'s colour is a rule rather than a hex: one step from `muted` toward `body`, grey with no hue (#221).
 
 `band` is the one role no span takes. Which rows are the selected thing's is decided where they are stamped, and each
-is marked as picked; the view draws a marked row on `band`'s background from edge to edge, under every span sitting on
-the page. A span with a background of its own keeps it, so a picked reference a theme has banded stays told apart
-(#269). The `▌` beside each row is unchanged, and `Scroll`, `j`/`k` and `[`/`]` still find the pick by `selection`.
+is marked as picked; the view draws a marked row from edge to edge in what the theme answers for a banded role — `band`'s
+background under every role that would sit on the page, and its own under one that has one, so a picked reference a
+theme has given a background stays told apart. Whether a role has a background of its own is the theme's to say, never
+a colour the view compares (#269). The `▌` beside each row is unchanged, and `Scroll`, `j`/`k` and `[`/`]` still find
+the pick by `selection`.
 
 The rail used to reserve two columns — `▶` for the cursor, `▸` for the selection — and showed them adjacent almost
 all the time, since the two coincide at rest and differ only for the ~250ms settle window. It now reserves one:

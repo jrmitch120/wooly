@@ -281,5 +281,7 @@ public static class Themes
     private sealed class PlainTheme : ITheme
     {
         public Attribute For(Role role) => Attribute.Default;
+
+        public Attribute Banded(Role role) => Attribute.Default;
     }
 }
