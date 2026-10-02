@@ -261,3 +261,7 @@ the frame drawn round them: the rail and the content become titled panels; the b
 title; the breadcrumb row, the seam row and the gutter column retire, and their roles (`crumb`, `crumb-current`,
 `seam`) with them; the content's floor at 80 columns is 60 rather than 61; and the page is the terminal's own
 background. The #160 amendment's breadcrumb band, seam band and blank row are what that replaces.
+
+ADR-0021 also amends this ADR's rule that colour is never the only thing carrying a meaning. The guarantee stands,
+that nothing vanishes under `NO_COLOR`, but the glyph is owed only where colour is not drawn: in colour a band may carry
+a meaning alone. The rail's `▶`/`▷` is drawn only without colour.

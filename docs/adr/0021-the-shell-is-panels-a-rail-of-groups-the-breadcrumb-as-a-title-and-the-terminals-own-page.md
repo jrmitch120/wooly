@@ -44,9 +44,10 @@ ADR-0019 put Discover "immediately after `Search` and in its group", a group of 
 what you go looking with. That grouping goes. The five split by what each entry is for: Explore holds tools that never
 carry an unread count, and Inbox holds where every unread count lives. The rail's own order becomes the order shown, so
 `tab` and `shift-tab` walk it top to bottom exactly as they walked the old list. The group holding the selected
-destination draws its frame in the active role. The rail's one-column mark (`▶`, and `▷` while the selection lags) stays
-on the current entry's band, because a band alone says nothing under `NO_COLOR` (ADR-0014). The B2 prototype dropped the
-mark and leaned on the band; this ADR does not.
+destination draws its frame in the active role. Where colour is drawn, the band on the cursor's entry is the whole of
+the rail's mark: there is no `▶`, and the ~250ms while the selection settles behind the cursor is not drawn. Where it is
+not drawn (`NO_COLOR`, `TERM=dumb`), the rail keeps its one-column `▶`/`▷` exactly as #67 left it. That is the rule
+below, applied.
 
 A rail group is new vocabulary, distinct from a **Section** (a headed run on a screen, walked with `[`/`]`). "Section"
 was the word that came to hand in the prototype, and it is the one word the rail's boxes must not be called.
@@ -58,6 +59,18 @@ shorter terminal it steps down rather than clipping:
 2. Compact, where they do not: each group's title becomes a heading row, the frames go, and the API panel becomes one
    gauge row (15 rows).
 3. Scrolled, where even that does not fit: the compact rail scrolls to keep the cursor's group in view.
+
+**A meaning needs a carrier on every terminal, not a glyph on every terminal.** ADR-0014 said colour is never the only
+thing carrying a meaning, so every state had a glyph *as well as* a colour. That is amended. The guarantee it existed
+for stands: nothing a reader acts on may vanish under `NO_COLOR`. What changes is that the glyph is owed only where
+colour is not drawn. Where it is drawn, a band may carry a meaning alone. So a line builder may ask whether colour is
+drawn, and draw a glyph only when it is not. B2's rail is the case that earned it: a `▶` on an entry already banded and
+blue said the same thing twice, and the shell read cleaner without it. The test is per meaning and per terminal: with
+colour, is it carried? Without, is it carried? Both answers must be yes, and are tested.
+
+The post's `▌` is not affected: in colour it is the band's edge, and the band without it reads as a stripe rather than a
+selection. Every other glyph ADR-0014 lists (`○ ◌ ● ✉`, `⚠`, `↺`/`★`, `‹ ›`) carries a distinction that colour would
+also have to carry and stays on every terminal.
 
 **`` ` `` and `~` move to the next and previous rail group, landing on its first entry.** `tab` and `shift-tab` are
 unchanged: one destination forward and back. Two alternatives were tried and lost:
@@ -118,7 +131,7 @@ the rail already said.
 
 ## What this supersedes
 
-- **ADR-0014.** Its regions: the rail of 18 columns stays, the breadcrumb, seam and gutter go, and content starts on
+- **ADR-0014.** Its rule that colour never carries a meaning alone, now: a carrier on every terminal. Its regions: the rail of 18 columns stays, the breadcrumb, seam and gutter go, and content starts on
   row 1. Its role table: as above. The #160 amendment's breadcrumb band, seam band and blank row.
 - **ADR-0019.** Discover's place on the rail.
 - **`docs/tui-shell.md` open question 1.**
