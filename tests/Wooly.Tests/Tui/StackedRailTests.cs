@@ -1,11 +1,9 @@
-using Terminal.Gui.App;
 using Terminal.Gui.Input;
 using Wooly.Core.Http;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
-using Wooly.Tui.Views;
 
 namespace Wooly.Tests.Tui;
 
@@ -175,53 +173,6 @@ public class StackedRailTests
         Assert.Equal("│ ██████░░░░░░  50%│", drawn.Rail()[21]);
     }
 
-    private static async Task<Drawn> Draw(int width, int height, ITheme theme, AShell? built = null)
-    {
-        built ??= new AShell();
-
-        var shell = await built.Opened();
-
-        var application = Application.Create();
-        application.Init("ansi");
-        application.Driver!.SetScreenSize(width, height);
-
-        var window = new ShellWindow(shell, theme, built.Clock, () => { }, FakePictures.DrawingNothing());
-
-        application.Begin(window);
-        application.LayoutAndDraw(true);
-
-        return new Drawn(application, window, shell);
-    }
-
-    private sealed record Drawn(IApplication Application, ShellWindow Window, Wooly.Tui.Shell.Shell Shell) : IDisposable
-    {
-        public void Redraw() => Application.LayoutAndDraw(true);
-
-        public void Press(Key key)
-        {
-            Window.NewKeyDownEvent(key);
-            Redraw();
-        }
-
-        /// <summary>The rail's columns of every row above the status row.</summary>
-        public string[] Rail()
-        {
-            var cells = Application.Driver!.Contents!;
-
-            return
-            [
-                .. Enumerable.Range(0, cells.GetLength(0) - 1).Select(row => string.Concat(
-                    Enumerable.Range(0, RailLines.Width).Select(column => cells[row, column].Grapheme))),
-            ];
-        }
-
-        public Terminal.Gui.Drawing.Attribute Cell(int row, int column) =>
-            Application.Driver!.Contents![row, column].Attribute!.Value;
-
-        public void Dispose()
-        {
-            Window.Dispose();
-            Application.Dispose();
-        }
-    }
+    private static Task<DrawnShell> Draw(int width, int height, ITheme theme, AShell? built = null) =>
+        DrawnShell.Of(width, height, theme, built);
 }

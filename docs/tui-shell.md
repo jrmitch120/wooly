@@ -1518,8 +1518,8 @@ glyph or a position that carries the same meaning when colour is gone.
 | *(none — a picture's own pixels)* | A drawn picture | it is the picture |
 | `poll` | Options and their bars | the bar itself, and `✓ `/`[x]` marking a picked one |
 | `reference-picked` | The brackets around a picked reference | `‹ ›`, always drawn |
-| `boost` / `boost-mine` | The boost mark, and it when it is yours | `↺` (open) vs `⥀` (closed) |
-| `favorite` / `favorite-mine` | The favorite mark, and it when it is yours | `☆` (hollow) vs `★` (filled) |
+| `boost` / `boost-mine` | The boost mark, and it when it is yours — one colour in both built-ins, the glyph telling them apart | `↺` (open) vs `⥀` (closed) |
+| `favorite` / `favorite-mine` | The favorite mark, and it when it is yours — one colour in both built-ins, likewise | `☆` (hollow) vs `★` (filled) |
 | `replies` | The reply count under a post | `↩` |
 | `selection` | The selected row | `▌` in the gutter |
 | `band` | Behind every row of the selected thing | the `▌` beside each row |
@@ -1556,7 +1556,9 @@ enforces "no view constructs a colour" names the one file allowed to (ADR-0016);
 themer cannot make an empty-list notice dimmer than a timestamp, and that is a smaller loss than a vocabulary nobody
 can hold in their head.
 
-`key`'s colour is a rule rather than a hex: one step from `muted` toward `body`, grey with no hue (#221).
+`key`'s colour is a rule rather than a hex: an accent, told from its `muted` gloss and the `chrome` around it by hue
+rather than by brightness, and never the one accent that marks where you are. In both built-ins it is the colour a
+`byline-handle` is drawn in, sapphire beside the frames' blue (#273; it was a hueless grey before the panels, #221).
 
 `band` is the one role no span takes. Which rows are the selected thing's is decided where they are stamped, and each
 is marked as picked; the view draws a marked row from edge to edge in what the theme answers for a banded role — `band`'s
@@ -1611,10 +1613,12 @@ content-warning = "#e0af68"
 hashtag         = "#6fcf97"
 mention         = "#e0af68"
 link            = "#8fa8ff"
+replies         = "#a99cc9"
 boost           = "#6fcf97"
 boost-mine      = "#9ef2b8"
 favorite        = "#c58fe8"
 favorite-mine   = "#e0b6ff"
+panel-title     = "#8fa8ff"
 rail-unread     = "bright-red"
 destructive     = "#ff7a93"
 

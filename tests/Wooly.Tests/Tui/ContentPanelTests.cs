@@ -1,5 +1,4 @@
 using System.Drawing;
-using Terminal.Gui.App;
 using Terminal.Gui.ViewBase;
 using Wooly.Core.Posts;
 using Wooly.Core.Paging;
@@ -224,58 +223,11 @@ public class ContentPanelTests
         Assert.StartsWith("╭ Add a profile ─", drawn.Rows()[0], StringComparison.Ordinal);
     }
 
-    /// <summary>
-    ///     The shell drawn once on a <paramref name="width" />×<paramref name="height" /> terminal, opened on its first
-    ///     timeline — or launched, where <paramref name="launch" /> says so, for a shell with nobody to act as.
-    /// </summary>
-    private static async Task<Drawn> Draw(
+    private static Task<DrawnShell> Draw(
         int width,
         int height,
         ITheme? theme = null,
         AShell? built = null,
-        bool launch = false)
-    {
-        built ??= new AShell();
-
-        var shell = launch ? await built.Launched() : await built.Opened();
-
-        var application = Application.Create();
-        application.Init("ansi");
-        application.Driver!.SetScreenSize(width, height);
-
-        var window = new ShellWindow(shell, theme ?? Themes.Plain, built.Clock, () => { }, FakePictures.DrawingNothing());
-
-        application.Begin(window);
-        application.LayoutAndDraw(true);
-
-        return new Drawn(application, window, shell, built);
-    }
-
-    private sealed record Drawn(IApplication Application, ShellWindow Window, Wooly.Tui.Shell.Shell Shell, AShell Built) : IDisposable
-    {
-        public PaintedView Content =>
-            Window.SubViews.OfType<PaintedView>().Single(view => view.Id == ShellWindow.ContentId);
-
-        public void Redraw() => Application.LayoutAndDraw(true);
-
-        public string[] Rows()
-        {
-            var cells = Application.Driver!.Contents!;
-
-            return
-            [
-                .. Enumerable.Range(0, cells.GetLength(0)).Select(row => string.Concat(
-                    Enumerable.Range(0, cells.GetLength(1)).Select(column => cells[row, column].Grapheme))),
-            ];
-        }
-
-        public Terminal.Gui.Drawing.Attribute Cell(int row, int column) =>
-            Application.Driver!.Contents![row, column].Attribute!.Value;
-
-        public void Dispose()
-        {
-            Window.Dispose();
-            Application.Dispose();
-        }
-    }
+        bool launch = false) =>
+        DrawnShell.Of(width, height, theme ?? Themes.Plain, built, launch);
 }
