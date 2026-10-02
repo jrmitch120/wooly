@@ -1610,8 +1610,8 @@ rail-unread     = "bright-red"
 destructive     = "#ff7a93"
 
 # A role may set its own background; a half it leaves out keeps whatever it was overriding.
-[themes.midnight.selection]
-foreground = "#f2f0f7"
+# The band behind the selected thing is themed apart from the page.
+[themes.midnight.band]
 background = "#2a2942"
 ```
 
@@ -1627,8 +1627,11 @@ Rules:
   `dark` with changes on top. The page beats the name because the failure being guarded against is the one a fallback
   must never produce: a theme naming a light page and nothing else, drawn in light text.
 - A role may be a colour or a table of `foreground` and `background`. A half it leaves out keeps what the built-in had
-  there: the theme's page for nearly every role, and its own band for the selected row and the current rail entry — so
-  restating the selection's foreground does not silently take away the band it is drawn in.
+  there: the theme's page for nearly every role, and its own band for `band` and the current rail entry — so restating
+  the current entry's foreground does not silently take away the band it is drawn in.
+- The page and the band are themed apart. `background` moves the page and leaves the band; `band` moves every row of
+  the selected thing, the `▌` beside it included, and leaves the page. `selection` has no background of its own for
+  that reason: it sits on the band with the rest of its row (#269).
 - `background` is the theme's, not a role: setting it moves everything that was sitting on the page. Every built-in
   theme's page is `default`, the terminal's own background, so the app meets the terminal's padding with no seam
   (ADR-0021). A theme may name a colour instead; `default` is also accepted anywhere a role takes a colour.

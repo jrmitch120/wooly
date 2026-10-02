@@ -165,6 +165,43 @@ public class BandTests
         Assert.Equal(theme.For(Role.ReferencePicked), theme.Banded(Role.ReferencePicked));
     }
 
+    /// <summary>
+    ///     The band and the page are themed apart: a theme naming only <c>band</c> moves the whole of a picked row onto
+    ///     it, the <c>▌</c> beside it included, and a theme naming only the page leaves the band where it was.
+    /// </summary>
+    [Fact]
+    public void TheBandAndThePageAreThemedApart()
+    {
+        var banded = Themes.Chosen(
+            new WoolyConfig
+            {
+                Theme = "dark",
+                Themes = new Dictionary<string, ThemeConfig>
+                {
+                    ["dark"] = new()
+                    {
+                        Roles = new Dictionary<string, ThemeRole> { ["band"] = new(null, "#333333") },
+                    },
+                },
+            },
+            "/somewhere/config.toml");
+
+        var paged = Themes.Chosen(
+            new WoolyConfig
+            {
+                Theme = "dark",
+                Themes = new Dictionary<string, ThemeConfig> { ["dark"] = new() { Background = "#222222" } },
+            },
+            "/somewhere/config.toml");
+
+        Assert.All(
+            Enum.GetValues<Role>().Where(role => Themes.Dark.For(role).Background == Color.None).Append(Role.Selection),
+            role => Assert.Equal(new Color(0x33, 0x33, 0x33), banded.Banded(role).Background));
+
+        Assert.Equal(Themes.Dark.For(Role.Band).Background, paged.Banded(Role.Selection).Background);
+        Assert.Equal(new Color(0x22, 0x22, 0x22), paged.For(Role.Body).Background);
+    }
+
     /// <summary>Without colour there is no band to draw on, so a banded role is answered as it always is.</summary>
     [Fact]
     public void WithoutColourABandedRoleIsAnsweredAsItAlwaysIs()
