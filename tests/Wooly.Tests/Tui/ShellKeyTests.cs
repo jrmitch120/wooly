@@ -337,6 +337,64 @@ public class ShellKeyTests
         Assert.Equal(1, shell.Depth);
     }
 
+    /// <summary>
+    ///     The group keys are letters too wherever letters are being typed: a search prompt takes <c>`</c> and
+    ///     <c>~</c> into the query, and the rail's cursor does not move (#265).
+    /// </summary>
+    [Fact]
+    public async Task APromptTakingLettersTakesBacktickAndTildeToo()
+    {
+        var built = new AShell();
+        var shell = await built.Opened();
+
+        using var window = new ShellWindow(
+            shell,
+            Themes.Plain,
+            built.Clock,
+            () => { },
+            FakePictures.DrawingNothing());
+
+        shell.Search();
+        built.Host.Drain();
+
+        var was = shell.Rail.Cursor;
+
+        foreach (var letter in "`~")
+        {
+            window.NewKeyDownEvent(new Key(letter));
+        }
+
+        Assert.Equal("`~", Assert.IsType<SearchScreen>(shell.Screen).Query);
+        Assert.Equal(was, shell.Rail.Cursor);
+    }
+
+    /// <summary>
+    ///     And a post being written takes them as characters, the editor having them before the window does — code
+    ///     in backticks is a thing people post.
+    /// </summary>
+    [Fact]
+    public async Task TheComposeEditorTakesBacktickAndTilde()
+    {
+        var (window, shell) = await Opened();
+
+        using (window)
+        {
+            shell.Compose();
+            window.Layout();
+
+            var was = shell.Rail.Cursor;
+            var editor = window.SubViews.OfType<ComposeEditor>().Single();
+
+            foreach (var letter in "`x`~")
+            {
+                window.NewKeyDownEvent(new Key(letter));
+            }
+
+            Assert.Equal("`x`~", editor.Text);
+            Assert.Equal(was, shell.Rail.Cursor);
+        }
+    }
+
     /// <summary>And the rest of the frame still means what it means everywhere, on that very prompt.</summary>
     [Fact]
     public async Task EveryOtherFrameKeyStillMeansWhatItDoesWhileAPromptIsTakingLetters()

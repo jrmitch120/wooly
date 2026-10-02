@@ -18,7 +18,7 @@ public sealed class NoticeScreen(string crumb, string headline, string? aside = 
     public override string Crumb => crumb;
 
     /// <inheritdoc />
-    protected override IReadOnlyList<KeyHint> OwnKeys => [new("tab", "destination"), PostKeys.Asking];
+    protected override IReadOnlyList<KeyHint> OwnKeys => [.. PostKeys.AlongTheRail, PostKeys.Asking];
 
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(Drawing drawing)

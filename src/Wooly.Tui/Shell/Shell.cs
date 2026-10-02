@@ -277,6 +277,9 @@ public sealed class Shell
     /// </summary>
     public void Step(int by) => Rail.Step(by);
 
+    /// <summary>A rail group keypress, <c>`</c> or <c>~</c>, which settles and fetches as <see cref="Step" /> does.</summary>
+    public void StepGroup(int by) => Rail.StepGroup(by);
+
     /// <summary>
     ///     Carries out what a key meant, once <see cref="Keymap" /> has said what that is. The frame's verbs and the
     ///     ones that act on the picked post of any screen are public here in their own right, so this is a table of
@@ -329,6 +332,8 @@ public sealed class Shell
         Verb.PasteToken => Ran(PasteToken),
         Verb.NextDestination => Ran(() => Step(1)),
         Verb.PreviousDestination => Ran(() => Step(-1)),
+        Verb.NextGroup => Ran(() => StepGroup(1)),
+        Verb.PreviousGroup => Ran(() => StepGroup(-1)),
         Verb.OpenPost => Ran(Enter),
         Verb.OpenAuthor => Ran(OpenAuthor),
         Verb.OpenReference => Ran(OpenReference),

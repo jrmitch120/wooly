@@ -242,12 +242,12 @@ public class ScreenKeyTests
     ///     same assertion as a key kept by accident.
     /// </remarks>
     [Theory]
-    [InlineData("feed-empty", "j/k:post tab:destination c:compose ↓/↑:row ?:keys")]
-    [InlineData("inbox-empty", "j/k:notification g:refresh tab:destination c:compose ↓/↑:row ?:keys")]
-    [InlineData("messages-empty", "j/k:conversation g:refresh tab:destination ↓/↑:row ?:keys")]
-    [InlineData("requests-empty", "j/k:request g:refresh tab:destination ↓/↑:row ?:keys")]
-    [InlineData("search-nothing", "j/k:result /:search again tab:destination ↓/↑:row ?:keys")]
-    [InlineData("discover-empty", "j/k:person g:refresh tab:destination ↓/↑:row ?:keys")]
+    [InlineData("feed-empty", "j/k:post tab:destination `:group c:compose ↓/↑:row ?:keys")]
+    [InlineData("inbox-empty", "j/k:notification g:refresh tab:destination `:group c:compose ↓/↑:row ?:keys")]
+    [InlineData("messages-empty", "j/k:conversation g:refresh tab:destination `:group ↓/↑:row ?:keys")]
+    [InlineData("requests-empty", "j/k:request g:refresh tab:destination `:group ↓/↑:row ?:keys")]
+    [InlineData("search-nothing", "j/k:result /:search again tab:destination `:group ↓/↑:row ?:keys")]
+    [InlineData("discover-empty", "j/k:person g:refresh tab:destination `:group ↓/↑:row ?:keys")]
     [InlineData("profiles-empty", "j/k:profile a:add esc:back ↓/↑:row ?:keys")]
     public void Keys_OnAnEmptyScreenAreTheOnesThatStillDoSomething(string state, string row) =>
         Assert.Equal(row, string.Join(' ', Of(state).Keys));

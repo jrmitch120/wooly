@@ -29,6 +29,12 @@ public enum ShellKey
     /// <summary><c>shift-tab</c>.</summary>
     ShiftTab,
 
+    /// <summary><c>`</c>.</summary>
+    Backtick,
+
+    /// <summary><c>~</c>.</summary>
+    Tilde,
+
     /// <summary><c>↑</c>.</summary>
     Up,
 

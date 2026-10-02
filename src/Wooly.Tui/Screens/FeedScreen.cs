@@ -48,7 +48,7 @@ public sealed class FeedScreen : Screen
         PostKeys.Around(
             new KeyHint("j/k", "post"),
             Refreshes ? [Refreshing] : [],
-            new KeyHint("tab", "destination"));
+            PostKeys.AlongTheRail);
 
     /// <summary>The posts on the timeline, newest first.</summary>
     public IReadOnlyList<Post> Posts => _posts.All;

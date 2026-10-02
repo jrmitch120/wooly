@@ -126,6 +126,12 @@ public enum Verb
     /// <summary><c>shift-tab</c>: the one above it.</summary>
     PreviousDestination,
 
+    /// <summary><c>`</c>: the first destination of the next rail group down, wrapping (ADR-0021).</summary>
+    NextGroup,
+
+    /// <summary><c>~</c>: the first destination of the group above, wrapping.</summary>
+    PreviousGroup,
+
     /// <summary><c>k</c>: the next post, with the screen following it.</summary>
     NextPost,
 

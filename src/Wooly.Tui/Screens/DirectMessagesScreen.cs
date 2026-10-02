@@ -39,7 +39,7 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
         new("⏎", "open", NeedsAPick: true),
         new("m", "mark read", NeedsAPick: true),
         Refreshing,
-        .. PostKeys.Leaving(new KeyHint("tab", "destination")),
+        .. PostKeys.Leaving(PostKeys.AlongTheRail),
     ];
 
     /// <summary>Which conversation is picked out, as an index into what is on screen.</summary>
