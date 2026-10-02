@@ -50,7 +50,7 @@ public class ThemeTests
     ///     (ADR-0021).
     /// </summary>
     [Fact]
-    public void BothBuiltInThemesDrawOnTheTerminalsOwnPage()
+    public void BothBuiltInThemesDrawOnTheTerminalsOwnBackground()
     {
         Assert.Equal(Color.None, Themes.Dark.For(Role.Body).Background);
         Assert.Equal(Color.None, Themes.Light.For(Role.Body).Background);
@@ -60,7 +60,9 @@ public class ThemeTests
     [Theory]
     [InlineData(Role.Selection)]
     [InlineData(Role.RailCurrent)]
-    public void TheBandsOnTheTerminalsOwnPageKeepTheirOwn(Role role)
+    [InlineData(Role.Crumb)]
+    [InlineData(Role.Seam)]
+    public void TheBandsOnTheTerminalsOwnBackgroundKeepTheirOwn(Role role)
     {
         Assert.NotEqual(Color.None, Themes.Dark.For(role).Background);
         Assert.NotEqual(Color.None, Themes.Light.For(role).Background);
@@ -71,7 +73,7 @@ public class ThemeTests
     public void DefaultIsTheTerminalsOwnColour() => Assert.Equal(Color.None, ColourName.Parse("default"));
 
     [Fact]
-    public void AThemeMayNameTheTerminalsOwnPage()
+    public void AThemeMayNameTheTerminalsOwnBackground()
     {
         var theme = Chosen(Written("midnight", new ThemeConfig { Background = "default" }));
 
@@ -103,7 +105,7 @@ public class ThemeTests
     [Theory]
     [InlineData("light")]
     [InlineData("dark")]
-    public void AThemeOnTheTerminalsOwnPageIsReadAgainstTheBuiltInOfItsName(string name)
+    public void AThemeOnTheTerminalsOwnBackgroundIsReadAgainstTheBuiltInOfItsName(string name)
     {
         var theme = Chosen(Written(name, new ThemeConfig { Background = "default" }));
         var builtIn = name == "light" ? Themes.Light : Themes.Dark;
@@ -112,7 +114,7 @@ public class ThemeTests
     }
 
     [Fact]
-    public void AThemeOfNoBuiltInsNameOnTheTerminalsOwnPageIsReadAgainstTheDarkOne() =>
+    public void AThemeOfNoBuiltInsNameOnTheTerminalsOwnBackgroundIsReadAgainstTheDarkOne() =>
         Assert.Equal(
             Themes.Dark.For(Role.Body),
             Chosen(Written("midnight", new ThemeConfig { Background = "default" })).For(Role.Body));

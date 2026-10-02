@@ -57,14 +57,10 @@ public static class Themes
         [Role.Loading] = "#eeecf3",
     };
 
-    /// <summary>
-    ///     The page every built-in draws on: the terminal's own, so the app meets the terminal's padding with no seam
-    ///     (ADR-0021). Only the bands above bring a background of their own.
-    /// </summary>
-    private const string TerminalsOwn = "default";
-
+    // Every built-in draws on the terminal's own background, so the app meets the terminal's padding with no seam
+    // (ADR-0021). Only the bands above bring a background of their own.
     private static readonly Palette DarkPalette = Palette.Of(
-        TerminalsOwn,
+        ColourName.Default,
         new Dictionary<Role, string>
         {
             [Role.Body] = "#d5d2e0",
@@ -109,7 +105,7 @@ public static class Themes
         DarkBands);
 
     private static readonly Palette LightPalette = Palette.Of(
-        TerminalsOwn,
+        ColourName.Default,
         new Dictionary<Role, string>
         {
             [Role.Body] = "#23212e",

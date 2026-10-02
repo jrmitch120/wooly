@@ -21,7 +21,7 @@ public static class ColourName
     ///     The terminal's own colour, which Terminal.Gui writes as <c>CSI 39m</c> or <c>CSI 49m</c> rather than as any
     ///     colour of this client's.
     /// </summary>
-    private const string Default = "default";
+    public const string Default = "default";
 
     /// <summary>
     ///     The sixteen, spelled the way ANSI spells them rather than the way Terminal.Gui's own enum does. Two of them
