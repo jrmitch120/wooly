@@ -111,18 +111,21 @@ public class RailLinesTests
     }
 
     /// <summary>
-    ///     The group holding the selected destination is the one framed in the active role, and it moves when the
-    ///     selection does — not when the cursor does, which only says where the tabbing has got to.
+    ///     The group holding the cursor is the one framed in the active role, and it moves the moment the cursor does —
+    ///     on the press, not when the settle window closes — so a jump into another group says at once where it landed.
+    ///     The selection's band stays where it was until the window closes, in a frame no longer lit.
     /// </summary>
-    [Fact]
-    public void Of_LightsTheGroupHoldingTheSelectionAndMovesItWithTheSelection()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Of_LightsTheGroupHoldingTheCursorAndMovesItWithTheCursor(bool coloured)
     {
         var (rail, host) = TheTen();
 
         Role EdgeOf(IReadOnlyList<Line> lines, string group) =>
             lines.Single(line => line.Text.StartsWith($"╭ {group} ", StringComparison.Ordinal)).Spans[0].Role;
 
-        var atRest = RailLines.Of(rail, Plenty, 23, coloured: true);
+        var atRest = RailLines.Of(rail, Plenty, 23, coloured: coloured);
 
         Assert.Equal(Role.PanelBorderActive, EdgeOf(atRest, "Timelines"));
         Assert.Equal(Role.PanelBorder, EdgeOf(atRest, "Inbox"));
@@ -130,18 +133,19 @@ public class RailLinesTests
 
         rail.Step(6);
 
-        var tabbing = RailLines.Of(rail, Plenty, 23, coloured: true);
+        var tabbing = RailLines.Of(rail, Plenty, 23, coloured: coloured);
 
-        Assert.Equal(Role.PanelBorderActive, EdgeOf(tabbing, "Timelines"));
-        Assert.Equal(Role.PanelBorder, EdgeOf(tabbing, "Inbox"));
+        Assert.Equal(Role.PanelBorder, EdgeOf(tabbing, "Timelines"));
+        Assert.Equal(Role.PanelBorderActive, EdgeOf(tabbing, "Inbox"));
+        Assert.Equal(Role.PanelBorderActive, Row(tabbing, "Notifications").Spans[0].Role);
+        Assert.Equal(Role.RailCurrent, Row(tabbing, "Home").Spans[1].Role);
 
         host.Settle();
 
-        var settled = RailLines.Of(rail, Plenty, 23, coloured: true);
+        var settled = RailLines.Of(rail, Plenty, 23, coloured: coloured);
 
         Assert.Equal(Role.PanelBorder, EdgeOf(settled, "Timelines"));
         Assert.Equal(Role.PanelBorderActive, EdgeOf(settled, "Inbox"));
-        Assert.Equal(Role.PanelBorderActive, Row(settled, "Notifications").Spans[0].Role);
     }
 
     /// <summary>

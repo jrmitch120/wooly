@@ -81,19 +81,28 @@ public class StackedRailTests
 
     /// <summary>
     ///     In colour the cursor's row is drawn on <c>rail-cursor</c> mid-tab and the selected row stays on
-    ///     <c>rail-current</c>, and the group holding the selection keeps its frame lit.
+    ///     <c>rail-current</c> — and a jump into the next group lights that group's frame on the press, before the
+    ///     selection has followed.
     /// </summary>
     [Fact]
-    public async Task InColourTheCursorAndTheSelectionAreBands()
+    public async Task InColourTheCursorAndTheSelectionAreBandsAndTheCursorsGroupIsLit()
     {
-        using var drawn = await Draw(80, 24, Themes.Dark);
+        var built = new AShell();
+
+        using var drawn = await Draw(80, 24, Themes.Dark, built);
 
         drawn.Press(Key.Tab);
 
         Assert.Equal(Themes.Dark.For(Role.RailCurrent), drawn.Cell(1, 1));
         Assert.Equal(Themes.Dark.For(Role.RailCursor), drawn.Cell(2, 1));
         Assert.Equal(Themes.Dark.For(Role.PanelBorderActive), drawn.Cell(0, 0));
-        Assert.Equal(Themes.Dark.For(Role.PanelBorder), drawn.Cell(6, 0));
+
+        drawn.Press((Key)'`');
+
+        Assert.Equal(0, drawn.Shell.Rail.Current);
+        Assert.Equal(Themes.Dark.For(Role.PanelBorder), drawn.Cell(0, 0));
+        Assert.Equal(Themes.Dark.For(Role.PanelBorderActive), drawn.Cell(6, 0));
+        Assert.Equal(Themes.Dark.For(Role.RailCursor), drawn.Cell(7, 1));
     }
 
     /// <summary>

@@ -141,3 +141,12 @@ the rail already said.
 
 `docs/tui-shell.md` carries the enumerable detail (regions, keys, roles, the theme's shape), and the "What the
 breadcrumb settled" and "What the status row settled" sections say which of their rules this changes.
+
+## Amendment: the cursor's group is the lit one (#272)
+
+The group lit in the active role is the one holding the cursor, not the selected destination. Lit by the selection, the
+frame waited out the settle window, so a press of `` ` `` landed in a group that did not say so for a quarter of a
+second. Lit by the cursor, it moves on the press, alongside `rail-cursor`'s band and, without colour, `▶`. Mid-tab the
+selection keeps its `rail-current` band in a frame no longer lit, until the window closes and the two agree again. What
+a press costs is unchanged: the frame is drawing, and the selection still follows, with its one fetch, only once the
+presses stop.

@@ -145,9 +145,9 @@ public enum Role
     PanelBorder,
 
     /// <summary>
-    ///     The frame of the panel you are in: the content panel, and the rail group holding the selected destination.
-    ///     Which group is active is carried in colour by the current entry's band, and without colour by <c>▶</c> on
-    ///     it.
+    ///     The frame of the panel you are in: the content panel, and the rail group holding the cursor — lit on the
+    ///     press, before the selection follows. Which group is active is carried in colour by the cursor's entry's
+    ///     band, and without colour by <c>▶</c> on it.
     /// </summary>
     PanelBorderActive,
 

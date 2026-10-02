@@ -39,7 +39,7 @@ the dividing, so there is no breadcrumb row, no blank row under it and no gutter
 
 | Region | Size | Holds |
 |---|---|---|
-| Rail | 18 columns including its frames, full height less the status row | Four **rail groups**, in colour the selected entry on `rail-current` and, while tabbing, the cursor's entry on `rail-cursor`; without colour `▶`/`▷` (ADR-0021), each its own titled panel, the group holding the selected destination framed in `panel-border-active`; each destination with its unread count; at the foot an `API` panel holding, with two or more profiles, the instance acted as (ADR-0020), then the budget as a gauge. On a terminal too short to frame every group the rail steps down (below) |
+| Rail | 18 columns including its frames, full height less the status row | Four **rail groups**, in colour the selected entry on `rail-current` and, while tabbing, the cursor's entry on `rail-cursor`; without colour `▶`/`▷` (ADR-0021), each its own titled panel, the group holding the cursor framed in `panel-border-active`, on the press rather than once the selection follows; each destination with its unread count; at the foot an `API` panel holding, with two or more profiles, the instance acted as (ADR-0020), then the budget as a gauge. On a terminal too short to frame every group the rail steps down (below) |
 | Content | the rest of the width, full height less the status row | A panel titled with the breadcrumb (below), holding exactly one screen. Its rows start on row 1 |
 | Status | 1 row, full width | The current screen's keys as `Does: key \| Does: key`, as many as fit and `…+N` for the rest; or a notice; or a confirmation; the quota again when the rail is hidden |
 
@@ -1530,7 +1530,7 @@ glyph or a position that carries the same meaning when colour is gone.
 | `gauge` / `gauge-empty` | The API budget's filled and empty cells | `█` and `░`, and the percentage |
 | `chrome` | The frame's furniture: the status row's leading space and ` \| ` separators | position |
 | `key` | A key you press: the status row's, the help screen's key column, a confirmation's `y` and `esc` — never prose that names a key, never the padding beside one | position — last in its pair, after the words' colon; first column on the help screen |
-| `panel-border` / `panel-border-active` | A panel's frame, and the frame of the panel you are in: the content panel, and the rail group holding the selected destination | the box characters; which group is active is carried by the current entry's band in colour, and by `▶` on it without |
+| `panel-border` / `panel-border-active` | A panel's frame, and the frame of the panel you are in: the content panel, and the rail group holding the cursor | the box characters; which group is active is carried by the cursor's entry's band in colour, and by `▶` on it without |
 | `panel-title` | A panel's title on its top edge: a rail group's name, and the crumb being stood on at the end of the content panel's trail, told from the crumbs walked through by foreground | position, on the edge — the current crumb is always the last, and the trail elides from the left |
 | `loading` | The fetch mark at the far end of the content panel's title — the word and up to three dots, laid out at 11 columns | the word itself, and the dots arriving |
 | `destructive` | A delete affordance and its confirmation | the word |

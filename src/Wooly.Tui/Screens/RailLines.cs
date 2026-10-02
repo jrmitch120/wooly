@@ -88,7 +88,7 @@ public static class RailLines
     }
 
     /// <summary>
-    ///     Every group framed as a panel, the one holding the selected destination in the active role, and the
+    ///     Every group framed as a panel, the one holding the cursor in the active role, and the
     ///     <c>API</c> panel held at the foot however tall the terminal is — where a reader learns to look for it, and
     ///     load-bearing rather than decorative: the rail is the one thing that can spend the budget by accident
     ///     (ADR-0014).
@@ -111,7 +111,9 @@ public static class RailLines
                 [.. places.Select(at => Entry(rail, at, inside, coloured ? string.Empty : Mark(rail, at), coloured))],
                 Width,
                 places.Count + Sides,
-                active: places.Contains(rail.Current)));
+                // The cursor's group rather than the selection's, so the frame moves on the press: a jump into another group
+                // says at once where it landed, rather than a settle window later (#272).
+                active: places.Contains(rail.Cursor)));
         }
 
         List<Line> api = instance is null ? [Gauge(quota, inside)] : [Fact(instance, inside), Gauge(quota, inside)];
