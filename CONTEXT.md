@@ -332,8 +332,17 @@ which is why choosing one is a decision of its own (ADR-0014). There are ten, th
 the only entry the rail has ever grown by: it was paid for once, by a screen built in sections so that a second kind of
 suggestion is a heading on it rather than an eleventh entry (ADR-0019). Distinct from a **screen**: a destination is
 the entry on the rail, a screen is what the content region is showing, and drilling from a post into an account changes
-the screen without changing the destination.
+the screen without changing the destination. Every destination belongs to one **Rail group**.
 _Avoid_: tab, section, page
+
+**Rail group**:
+One of the four titled panels the rail's destinations are drawn in, by what they are for: **Timelines** (Home, Local,
+Federated, Hashtag), what you read; **Explore** (Discover, Search), what you go looking with, never carrying an unread
+count; **Inbox** (Notifications, Direct messages, Follow requests), what comes to you, where every unread count lives;
+and **You**, the profile's own account (ADR-0021). The rail's order is the groups' order. Distinct from a **Section**,
+which is a headed run on a screen: `[`/`]` walk sections, `` ` ``/`~` walk rail groups. "Inbox" here names the group,
+not only the notifications that the code's `INotificationInbox` reads.
+_Avoid_: section, box, panel (a rail group is drawn as a panel, but the content is a panel too)
 
 **Arrival**:
 Bringing a **screen** up from its **Subject**, which is one thing however many kinds of screen are read (#100, #233).
