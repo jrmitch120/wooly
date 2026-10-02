@@ -44,6 +44,7 @@ internal sealed class PaintedView : View
     private readonly ITheme _theme;
     private readonly Func<int, int, IReadOnlyList<Line>> _rows;
     private readonly IPictures? _pictures;
+    private readonly Func<int, int, IReadOnlyList<Line>>? _frame;
     private readonly List<PictureView> _boxes = [];
 
     private IReadOnlyList<Line>? _settled;
@@ -57,11 +58,31 @@ internal sealed class PaintedView : View
     ///     Where the pixels for a drawn attachment come from, or <see langword="null" /> for a region that shows no
     ///     posts — the rail and the two chrome rows, which reserve no boxes and would never ask.
     /// </param>
-    public PaintedView(ITheme theme, Func<int, int, IReadOnlyList<Line>> rows, IPictures? pictures = null)
+    /// <param name="frame">
+    ///     The panel this region is drawn inside, given the whole of the view's width and height — <see cref="Panel" />'s
+    ///     rows, of which only the edges are painted — or <see langword="null" /> for a region with no frame.
+    /// </param>
+    /// <remarks>
+    ///     A frame is laid on a one-cell <c>Padding</c> round the view, so everything measured off
+    ///     <see cref="View.Viewport" /> — the rows' width and height, the scroll, a page's worth — is the inside of it,
+    ///     and a picture, which Terminal.Gui clips to the viewport of the view holding it, can never be drawn on the
+    ///     edge however far it has been scrolled past one (ADR-0021).
+    /// </remarks>
+    public PaintedView(
+        ITheme theme,
+        Func<int, int, IReadOnlyList<Line>> rows,
+        IPictures? pictures = null,
+        Func<int, int, IReadOnlyList<Line>>? frame = null)
     {
         _theme = theme;
         _rows = rows;
         _pictures = pictures;
+        _frame = frame;
+
+        if (frame is not null)
+        {
+            Padding.Thickness = new Thickness(1);
+        }
 
         if (pictures is null)
         {
@@ -302,44 +323,76 @@ internal sealed class PaintedView : View
         for (var row = 0; row < height; row++)
         {
             var at = _top + row;
-            var line = at >= 0 && at < lines.Count ? lines[at] : null;
-            var picked = line?.Picked == true;
 
-            // Cleared first, in the theme's own background, so that a row which is shorter than the one it replaced
-            // does not leave the tail of the old one behind it — and on the band, for a row of the thing picked out,
-            // so that the band runs to the edge of the view rather than stopping where the words do (#269).
-            SetAttribute(picked ? _theme.Banded(Role.Body) : _theme.For(Role.Body));
-            AddStr(0, row, new string(' ', width));
-
-            if (line is null)
-            {
-                continue;
-            }
-
-            var column = 0;
-
-            foreach (var span in line.Spans)
-            {
-                if (column >= width)
-                {
-                    break;
-                }
-
-                // Cut and stepped along in the columns a terminal draws in rather than in characters: the run being
-                // painted is the one thing here that knows both, and a row of two-column characters cut by its
-                // characters is a row painted twice as far right as it was laid out (#207).
-                var text = Glyphs.Cut(span.Text, width - column);
-
-                // The theme's to answer, not the view's: only a span sitting on the page goes onto the band, and one
-                // with a background of its own — a picked reference a theme has given one — keeps it.
-                SetAttribute(picked ? _theme.Banded(span.Role) : _theme.For(span.Role));
-                AddStr(column, row, text);
-
-                column += Glyphs.Columns(text);
-            }
+            Paint(at >= 0 && at < lines.Count ? lines[at] : null, 0, row, width);
         }
 
         return true;
+    }
+
+    /// <summary>
+    ///     The frame, painted on the ring of padding round the viewport. Terminal.Gui clips this pass to that ring, so
+    ///     the panel's rows are painted whole and only their edges land — the inside is the viewport's, drawn above.
+    /// </summary>
+    protected override bool OnDrawingAdornments()
+    {
+        if (_frame is null)
+        {
+            return false;
+        }
+
+        var width = Frame.Width;
+        var edges = _frame(width, Frame.Height);
+
+        // Counted from the viewport's corner, which the frame sits one cell above and to the left of.
+        for (var row = 0; row < edges.Count; row++)
+        {
+            Paint(edges[row], -1, row - 1, width);
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    ///     One row, <paramref name="width" /> columns of it from <paramref name="left" />, cleared first and then its
+    ///     spans painted in what the theme answers for each.
+    /// </summary>
+    private void Paint(Line? line, int left, int row, int width)
+    {
+        var picked = line?.Picked == true;
+
+        // Cleared first, in the theme's own background, so that a row which is shorter than the one it replaced
+        // does not leave the tail of the old one behind it — and on the band, for a row of the thing picked out,
+        // so that the band runs to the edge of the view rather than stopping where the words do (#269).
+        SetAttribute(picked ? _theme.Banded(Role.Body) : _theme.For(Role.Body));
+        AddStr(left, row, new string(' ', width));
+
+        if (line is null)
+        {
+            return;
+        }
+
+        var column = 0;
+
+        foreach (var span in line.Spans)
+        {
+            if (column >= width)
+            {
+                break;
+            }
+
+            // Cut and stepped along in the columns a terminal draws in rather than in characters: the run being
+            // painted is the one thing here that knows both, and a row of two-column characters cut by its
+            // characters is a row painted twice as far right as it was laid out (#207).
+            var text = Glyphs.Cut(span.Text, width - column);
+
+            // The theme's to answer, not the view's: only a span sitting on the page goes onto the band, and one
+            // with a background of its own — a picked reference a theme has given one — keeps it.
+            SetAttribute(picked ? _theme.Banded(span.Role) : _theme.For(span.Role));
+            AddStr(left + column, row, text);
+
+            column += Glyphs.Columns(text);
+        }
     }
 
     /// <summary>
