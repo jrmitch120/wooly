@@ -13,42 +13,42 @@ Panels, since ADR-0021. The rail and the content are each a rounded frame with a
 the dividing, so there is no breadcrumb row, no blank row under it and no gutter column.
 
 ```
-╭ Timelines ─────╮╭ Home › Post by @ben ──────────────────── fetching.. ╮
-│Home           3││ content                                             │
-│ Local          ││ (feed · post · account · conversation · search)     │
-│ Federated      ││                                                     │
-│ Hashtag        ││                                                     │
-╰────────────────╯│                                                     │
-╭ Explore ───────╮│                                                     │
-│ Discover       ││                                                     │
-│ Search         ││                                                     │
-╰────────────────╯│                                                     │
-╭ Inbox ─────────╮│                                                     │
-│ Notifications 4││                                                     │
-│ Direct messages││                                                     │
-│ Follow requests││                                                     │
-╰────────────────╯│                                                     │
-╭ You ───────────╮│                                                     │
-│ @jeff          ││                                                     │
-╰────────────────╯│                                                     │
-╭ API ───────────╮│                                                     │
-│ ████████░░  92%││                                                     │
-╰────────────────╯╰─────────────────────────────────────────────────────╯
+╭ Timelines ───────╮╭ Home › Post by @ben ───────────────────────── fetching.. ╮
+│Home             3││ content                                                  │
+│Local             ││ (feed · post · account · conversation · search)          │
+│Federated         ││                                                          │
+│Hashtag           ││                                                          │
+╰──────────────────╯│                                                          │
+╭ Explore ─────────╮│                                                          │
+│Discover          ││                                                          │
+│Search            ││                                                          │
+╰──────────────────╯│                                                          │
+╭ Inbox ───────────╮│                                                          │
+│Notifications    4││                                                          │
+│Direct messages   ││                                                          │
+│Follow requests   ││                                                          │
+╰──────────────────╯│                                                          │
+╭ You ─────────────╮│                                                          │
+│@jeff             ││                                                          │
+╰──────────────────╯│                                                          │
+╭ API ─────────────╮│                                                          │
+│ ██████████░░  92%││                                                          │
+╰──────────────────╯╰──────────────────────────────────────────────────────────╯
  Post: j/k | Refresh: g | Destination: tab | Group: ` | Read: ⏎ | …+10 | Keys: ?
 ```
 
 | Region | Size | Holds |
 |---|---|---|
-| Rail | 18 columns including its frames, full height less the status row | Four **rail groups**, in colour the selected entry on `rail-current` and, while tabbing, the cursor's entry on `rail-cursor`; without colour `▶`/`▷` (ADR-0021), each its own titled panel, the group holding the cursor framed in `panel-border-active`, on the press rather than once the selection follows; each destination with its unread count; at the foot an `API` panel holding, with two or more profiles, the instance acted as (ADR-0020), then the budget as a gauge. On a terminal too short to frame every group the rail steps down (below) |
+| Rail | 20 columns including its frames, full height less the status row | Four **rail groups**, in colour the selected entry on `rail-current` and, while tabbing, the cursor's entry on `rail-cursor`; without colour `▶`/`▷` (ADR-0021), each its own titled panel, the group holding the cursor framed in `panel-border-active`, on the press rather than once the selection follows; each destination with its unread count; at the foot an `API` panel holding, with two or more profiles, the instance acted as (ADR-0020), then the budget as a gauge. On a terminal too short to frame every group the rail steps down (below) |
 | Content | the rest of the width, full height less the status row | A panel titled with the breadcrumb (below), holding exactly one screen. Its rows start on row 1 |
 | Status | 1 row, full width | The current screen's keys as `Does: key \| Does: key`, as many as fit and `…+N` for the rest; or a notice; or a confirmation; the quota again when the rail is hidden |
 
 The content panel's title is the stack: the crumbs walked through in `muted`, the one stood on in `panel-title`, eliding
 from the left so it always ends where you are, and the fetch mark at the far end of the edge while a fetch is in flight.
 The mark's 11 columns are held whether or not it is drawn, so it never moves the trail. The panel's edge is always
-`panel-border-active`: it is the panel being read. Its rows are 60 columns wide at an 80-column terminal. That is the
+`panel-border-active`: it is the panel being read. Its rows are 58 columns wide at an 80-column terminal. That is the
 width every screen must read well at: the 61 of ADR-0014 less the cell the gutter column gave up to the content panel's
-left edge.
+left edge, and less the two the rail took when it widened to 20 so that a label and its count both fit (#272).
 
 The rail needs 22 rows to frame every group (Timelines 6, Explore 4, Inbox 5, You 3, API 4), and an 80×24 terminal gives
 it 23. Shorter than that, it steps down rather than clipping:
@@ -106,7 +106,7 @@ A screen is a place in the stack, not a window. Entering one pushes, `esc` pops,
 | Add a profile — the instance, a sign-in through the browser or a pasted token, the token checked, a name | `a` on the profiles screen, or launching with nobody to act as | #245, #247 (ADR-0020) |
 | Media inside a post or feed item | Drawn in place | #31 (ADR-0016) |
 
-Every screen owes three things: it reads at 61 columns, it says what its keys are on the status row, and it names roles
+Every screen owes three things: it reads at 58 columns, it says what its keys are on the status row, and it names roles
 rather than colours (below).
 
 ## Keys

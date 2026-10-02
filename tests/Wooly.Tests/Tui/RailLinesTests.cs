@@ -84,29 +84,29 @@ public class RailLinesTests
 
         Assert.Equal(
             [
-                "╭ Timelines ─────╮",
-                "│▶ Home          │",
-                "│  Local         │",
-                "│  Federated     │",
-                "│  Hashtag       │",
-                "╰────────────────╯",
-                "╭ Explore ───────╮",
-                "│  Discover      │",
-                "│  Search        │",
-                "╰────────────────╯",
-                "╭ Inbox ─────────╮",
-                "│  Notifications │",
-                "│  Direct messag…│",
-                "│  Follow reques…│",
-                "╰────────────────╯",
-                "╭ You ───────────╮",
-                "│  @jeff         │",
-                "╰────────────────╯",
+                "╭ Timelines ───────╮",
+                "│▶ Home            │",
+                "│  Local           │",
+                "│  Federated       │",
+                "│  Hashtag         │",
+                "╰──────────────────╯",
+                "╭ Explore ─────────╮",
+                "│  Discover        │",
+                "│  Search          │",
+                "╰──────────────────╯",
+                "╭ Inbox ───────────╮",
+                "│  Notifications   │",
+                "│  Direct messages │",
+                "│  Follow requests │",
+                "╰──────────────────╯",
+                "╭ You ─────────────╮",
+                "│  @jeff           │",
+                "╰──────────────────╯",
             ],
             drawn.Take(18));
 
-        Assert.Equal("╭ API ───────────╮", drawn[^3]);
-        Assert.Equal("╰────────────────╯", drawn[^1]);
+        Assert.Equal("╭ API ─────────────╮", drawn[^3]);
+        Assert.Equal("╰──────────────────╯", drawn[^1]);
         Assert.All(drawn[18..^3], text => Assert.Equal(new string(' ', RailLines.Width), text));
     }
 
@@ -235,6 +235,40 @@ public class RailLinesTests
     }
 
     /// <summary>
+    ///     An unread count is parted from its label by a column, in every mode: a label too long for the room is clipped
+    ///     to leave it, so it never runs into the number (<c>Notifications4</c>) and the number is never what is cut.
+    /// </summary>
+    [Theory]
+    [InlineData(30, true)]
+    [InlineData(30, false)]
+    [InlineData(18, true)]
+    [InlineData(18, false)]
+    public void Of_PartsAnUnreadCountFromItsLabel(int height, bool coloured)
+    {
+        var host = new FakeShellHost();
+        var rail = new Rail(
+            [
+                new Destination(DestinationKind.Notifications, "Notifications") { Unread = 4 },
+                new Destination(DestinationKind.Messages, "Direct messages") { Unread = 12 },
+                new Destination(DestinationKind.Requests, "Follow requests") { Unread = 3 },
+            ],
+            host,
+            TimeSpan.FromMilliseconds(250));
+
+        var drawn = RailLines.Of(rail, Plenty, height, coloured: coloured);
+
+        foreach (var (label, count) in new[] { ("Notificat", "4"), ("Direct me", "12"), ("Follow re", "3") })
+        {
+            var row = Row(drawn, label).Text.TrimEnd('│');
+
+            Assert.EndsWith($" {count}", row, StringComparison.Ordinal);
+        }
+
+        Assert.Equal("│▶ Notifications  4│", Row(RailLines.Of(rail, Plenty, 30), "Notificat").Text);
+        Assert.Equal("│  Direct messa… 12│", Row(RailLines.Of(rail, Plenty, 30), "Direct me").Text);
+    }
+
+    /// <summary>
     ///     The API panel holds the budget as a gauge: filled cells in <c>gauge</c>, empty ones in <c>gauge-empty</c>,
     ///     and the percentage left at its end.
     /// </summary>
@@ -245,8 +279,8 @@ public class RailLinesTests
 
         var gauge = RailLines.Of(rail, Plenty, 23)[^2];
 
-        Assert.Equal("│ ████████░░  83%│", gauge.Text);
-        Assert.Contains(gauge.Spans, span => span is { Role: Role.Gauge, Text: "████████" });
+        Assert.Equal("│ ██████████░░  83%│", gauge.Text);
+        Assert.Contains(gauge.Spans, span => span is { Role: Role.Gauge, Text: "██████████" });
         Assert.Contains(gauge.Spans, span => span is { Role: Role.GaugeEmpty, Text: "░░" });
     }
 
@@ -258,7 +292,7 @@ public class RailLinesTests
 
         var gauge = RailLines.Of(rail, new RateLimitQuota(15, 300, null), 23)[^2];
 
-        Assert.Equal("│ █░░░░░░░░░   5%│", gauge.Text);
+        Assert.Equal("│ █░░░░░░░░░░░   5%│", gauge.Text);
         Assert.Contains(gauge.Spans, span => span is { Role: Role.QuotaLow, Text: "█" });
         Assert.Contains(gauge.Spans, span => span.Role == Role.QuotaLow && span.Text.Contains("5%", StringComparison.Ordinal));
         Assert.DoesNotContain(gauge.Spans, span => span.Role == Role.Gauge);
@@ -272,7 +306,7 @@ public class RailLinesTests
 
         var drawn = RailLines.Of(rail, null, 23);
 
-        Assert.Equal("│                │", drawn[^2].Text);
+        Assert.Equal("│                  │", drawn[^2].Text);
         Assert.DoesNotContain(drawn, line => line.Has(Role.Gauge) || line.Has(Role.GaugeEmpty));
     }
 
@@ -287,7 +321,7 @@ public class RailLinesTests
 
         var drawn = RailLines.Of(rail, Plenty, 23, instance: "social.a-very-long-instance.example");
 
-        Assert.Equal("╭ API ───────────╮", drawn[^4].Text);
+        Assert.Equal("╭ API ─────────────╮", drawn[^4].Text);
         Assert.StartsWith("│ social.", drawn[^3].Text, StringComparison.Ordinal);
         Assert.EndsWith("…│", drawn[^3].Text, StringComparison.Ordinal);
         Assert.Contains(drawn[^3].Spans, span => span.Role == Role.Quota && span.Text.Contains("social", StringComparison.Ordinal));
@@ -321,7 +355,7 @@ public class RailLinesTests
                 "  Follow requests",
                 "You",
                 "  @jeff",
-                " ██████████░░  83%",
+                " ████████████░░  83%",
             ],
             drawn.Select(line => line.Text.TrimEnd()));
 

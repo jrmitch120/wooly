@@ -413,12 +413,12 @@ public partial class RoleTests
         var coloured = RailLines.Of(rail, quota: null, height: 30, coloured: true);
 
         // The cursor has moved and the selection has not, so the hollow and filled marks are on different rows.
-        Assert.Equal("│▷ Home          │", plain[1].Text);
-        Assert.Equal("│▶ Local         │", plain[2].Text);
+        Assert.Equal("│▷ Home            │", plain[1].Text);
+        Assert.Equal("│▶ Local           │", plain[2].Text);
         Assert.Equal(Role.RailCurrent, plain[1].Spans[1].Role);
         Assert.Equal(Role.Rail, plain[2].Spans[1].Role);
 
-        Assert.Equal("│Home            │", coloured[1].Text);
+        Assert.Equal("│Home              │", coloured[1].Text);
         Assert.Equal(Role.RailCurrent, coloured[1].Spans[1].Role);
         Assert.Equal(Role.RailCursor, coloured[2].Spans[1].Role);
 
@@ -426,11 +426,11 @@ public partial class RoleTests
         Assert.Contains(counted.Spans, span => span is { Role: Role.RailUnread, Text: "4" });
     }
 
-    /// <summary>The rail is 18 columns however long a destination is called, framed or not (docs/tui-shell.md).</summary>
+    /// <summary>The rail is 20 columns however long a destination is called, framed or not (docs/tui-shell.md).</summary>
     [Theory]
     [InlineData(6)]
     [InlineData(30)]
-    public void Rail_IsEighteenColumnsWide(int height)
+    public void Rail_IsTwentyColumnsWide(int height)
     {
         var rail = new Rail(
             [new Destination(DestinationKind.Messages, "Direct messages") { Unread = 12 }],

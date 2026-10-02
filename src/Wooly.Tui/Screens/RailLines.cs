@@ -9,7 +9,7 @@ namespace Wooly.Tui.Screens;
 /// <summary>
 ///     The rail as rows: the four rail groups, each a panel titled with its name and holding its destinations with
 ///     their unread counts, and an <c>API</c> panel at the foot holding the budget as a gauge — with the instance above
-///     it where there are profiles to tell apart. Eighteen columns, frames included, full height less the status row
+///     it where there are profiles to tell apart. Twenty columns, frames included, full height less the status row
 ///     (<c>docs/tui-shell.md</c>, ADR-0021).
 /// </summary>
 /// <remarks>
@@ -19,8 +19,12 @@ namespace Wooly.Tui.Screens;
 /// </remarks>
 public static class RailLines
 {
-    /// <summary>How wide the rail is, which is what leaves the content panel 62 columns at an 80-column terminal, and 60 inside its edges.</summary>
-    public const int Width = 18;
+    /// <summary>
+    ///     How wide the rail is, which is what leaves the content panel 60 columns at an 80-column terminal, and 58 inside
+    ///     its edges. Twenty rather than ADR-0014's eighteen so that, inside a group's frame and beside the mark column,
+    ///     every label fits whole and a count still has a column parting it from its label (#272).
+    /// </summary>
+    public const int Width = 20;
 
     /// <summary>
     ///     Where the cursor is — where the tabbing has got to. Shown on the cursor's row however it stands, where colour
@@ -248,13 +252,18 @@ public static class RailLines
         var role = current ? Role.RailCurrent : coloured && at == rail.Cursor ? Role.RailCursor : Role.Rail;
 
         var unread = destination.Unread > 0 ? destination.Unread.ToString(CultureInfo.CurrentCulture) : string.Empty;
-        var room = width - Glyphs.Columns(lead) - Glyphs.Columns(unread);
+
+        // A column between a label and its count, so that a label clipped to the room ends in its ellipsis and a gap
+        // rather than running into the number.
+        var room = width - Glyphs.Columns(lead) - (unread.Length > 0 ? Glyphs.Columns(unread) + 1 : 0);
         var label = Glyphs.Padded(TextWrap.Clip(destination.Label, room), room);
 
         return Line.Of([
             .. lead.Length > 0 ? [new Span(lead, role)] : Array.Empty<Span>(),
             new Span(label, role),
-            .. unread.Length > 0 ? [new Span(unread, coloured && current ? Role.RailCurrent : Role.RailUnread)] : Array.Empty<Span>(),
+            .. unread.Length > 0
+                ? [new Span(" ", role), new Span(unread, coloured && current ? Role.RailCurrent : Role.RailUnread)]
+                : Array.Empty<Span>(),
         ]);
     }
 

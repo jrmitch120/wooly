@@ -40,13 +40,13 @@ public class StackedRailTests
 
         var rail = drawn.Rail();
 
-        Assert.Equal("╭ Timelines ─────╮", rail[0]);
-        Assert.Equal("│▶ Home          │", rail[1]);
-        Assert.Equal("╭ Explore ───────╮", rail[6]);
-        Assert.Equal("╭ Inbox ─────────╮", rail[10]);
-        Assert.Equal("╭ You ───────────╮", rail[15]);
-        Assert.Equal("╭ API ───────────╮", rail[20]);
-        Assert.Equal("╰────────────────╯", rail[22]);
+        Assert.Equal("╭ Timelines ───────╮", rail[0]);
+        Assert.Equal("│▶ Home            │", rail[1]);
+        Assert.Equal("╭ Explore ─────────╮", rail[6]);
+        Assert.Equal("╭ Inbox ───────────╮", rail[10]);
+        Assert.Equal("╭ You ─────────────╮", rail[15]);
+        Assert.Equal("╭ API ─────────────╮", rail[20]);
+        Assert.Equal("╰──────────────────╯", rail[22]);
     }
 
     /// <summary>On a terminal too short to frame them, the groups are headings rather than panels.</summary>
@@ -75,8 +75,8 @@ public class StackedRailTests
         plain.Press(Key.Tab);
 
         Assert.DoesNotContain(coloured.Rail(), row => row.Contains('▶', StringComparison.Ordinal) || row.Contains('▷', StringComparison.Ordinal));
-        Assert.Equal("│▷ Home          │", plain.Rail()[1]);
-        Assert.Equal("│▶ Local         │", plain.Rail()[2]);
+        Assert.Equal("│▷ Home            │", plain.Rail()[1]);
+        Assert.Equal("│▶ Local           │", plain.Rail()[2]);
     }
 
     /// <summary>
@@ -167,12 +167,12 @@ public class StackedRailTests
 
         Assert.Null(drawn.Shell.Quota);
         Assert.Equal(" hachyderm.io", drawn.Rail()[20].Trim('│').TrimEnd());
-        Assert.Equal("│                │", drawn.Rail()[21]);
+        Assert.Equal("│                  │", drawn.Rail()[21]);
 
         built.RateLimit.Latest = new RateLimitQuota(150, 300, null);
         drawn.Redraw();
 
-        Assert.Equal("│ █████░░░░░  50%│", drawn.Rail()[21]);
+        Assert.Equal("│ ██████░░░░░░  50%│", drawn.Rail()[21]);
     }
 
     private static async Task<Drawn> Draw(int width, int height, ITheme theme, AShell? built = null)
