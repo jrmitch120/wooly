@@ -1556,7 +1556,9 @@ enforces "no view constructs a colour" names the one file allowed to (ADR-0016);
 themer cannot make an empty-list notice dimmer than a timestamp, and that is a smaller loss than a vocabulary nobody
 can hold in their head.
 
-`key`'s colour is a rule rather than a hex: one step from `muted` toward `body`, grey with no hue (#221).
+`key`'s colour is a rule rather than a hex: an accent, told from its `muted` gloss and the `chrome` around it by hue
+rather than by brightness, and never the one accent that marks where you are. In both built-ins it is the colour a
+`byline-handle` is drawn in, sapphire beside the frames' blue (#273; it was a hueless grey before the panels, #221).
 
 `band` is the one role no span takes. Which rows are the selected thing's is decided where they are stamped, and each
 is marked as picked; the view draws a marked row from edge to edge in what the theme answers for a banded role — `band`'s
@@ -1603,25 +1605,25 @@ theme = "dark"
 
 [themes.midnight]
 background      = "default"
-body            = "#d5d2e0"
-muted           = "#7c7891"
-byline-name     = "#f2f0f7"
-byline-handle   = "#8fa8ff"
-content-warning = "#e0af68"
-hashtag         = "#6fcf97"
-mention         = "#e0af68"
-link            = "#8fa8ff"
-boost           = "#6fcf97"
-boost-mine      = "#9ef2b8"
-favorite        = "#c58fe8"
-favorite-mine   = "#e0b6ff"
+body            = "#cdd6f4"
+muted           = "#6c7086"
+byline-name     = "#cdd6f4"
+byline-handle   = "#74c7ec"
+content-warning = "#fab387"
+hashtag         = "#94e2d5"
+mention         = "#cba6f7"
+link            = "#89b4fa"
+replies         = "#cba6f7"
+boost           = "#a6e3a1"
+favorite        = "#f9e2af"
+panel-title     = "#89b4fa"
 rail-unread     = "bright-red"
-destructive     = "#ff7a93"
+destructive     = "#f38ba8"
 
 # A role may set its own background; a half it leaves out keeps whatever it was overriding.
 # The band behind the selected thing is themed apart from the page.
 [themes.midnight.band]
-background = "#2a2942"
+background = "#16171c"
 ```
 
 Rules:
