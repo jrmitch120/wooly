@@ -1518,8 +1518,8 @@ glyph or a position that carries the same meaning when colour is gone.
 | *(none — a picture's own pixels)* | A drawn picture | it is the picture |
 | `poll` | Options and their bars | the bar itself, and `✓ `/`[x]` marking a picked one |
 | `reference-picked` | The brackets around a picked reference | `‹ ›`, always drawn |
-| `boost` / `boost-mine` | The boost mark, and it when it is yours | `↺` (open) vs `⥀` (closed) |
-| `favorite` / `favorite-mine` | The favorite mark, and it when it is yours | `☆` (hollow) vs `★` (filled) |
+| `boost` / `boost-mine` | The boost mark, and it when it is yours — one colour in both built-ins, the glyph telling them apart | `↺` (open) vs `⥀` (closed) |
+| `favorite` / `favorite-mine` | The favorite mark, and it when it is yours — one colour in both built-ins, likewise | `☆` (hollow) vs `★` (filled) |
 | `replies` | The reply count under a post | `↩` |
 | `selection` | The selected row | `▌` in the gutter |
 | `band` | Behind every row of the selected thing | the `▌` beside each row |
@@ -1605,25 +1605,27 @@ theme = "dark"
 
 [themes.midnight]
 background      = "default"
-body            = "#cdd6f4"
-muted           = "#6c7086"
-byline-name     = "#cdd6f4"
-byline-handle   = "#74c7ec"
-content-warning = "#fab387"
-hashtag         = "#94e2d5"
-mention         = "#cba6f7"
-link            = "#89b4fa"
-replies         = "#cba6f7"
-boost           = "#a6e3a1"
-favorite        = "#f9e2af"
-panel-title     = "#89b4fa"
+body            = "#d5d2e0"
+muted           = "#7c7891"
+byline-name     = "#f2f0f7"
+byline-handle   = "#8fa8ff"
+content-warning = "#e0af68"
+hashtag         = "#6fcf97"
+mention         = "#e0af68"
+link            = "#8fa8ff"
+replies         = "#a99cc9"
+boost           = "#6fcf97"
+boost-mine      = "#9ef2b8"
+favorite        = "#c58fe8"
+favorite-mine   = "#e0b6ff"
+panel-title     = "#8fa8ff"
 rail-unread     = "bright-red"
-destructive     = "#f38ba8"
+destructive     = "#ff7a93"
 
 # A role may set its own background; a half it leaves out keeps whatever it was overriding.
 # The band behind the selected thing is themed apart from the page.
 [themes.midnight.band]
-background = "#16171c"
+background = "#2a2942"
 ```
 
 Rules:

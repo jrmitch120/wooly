@@ -9,7 +9,8 @@ namespace Wooly.Tests.Tui;
 
 /// <summary>
 ///     Which colours a role resolves to, and where they came from (#46). A theme is the one thing in the TUI that
-///     holds a colour, so this is where a colour may be written down in a test — every other test asks about roles.
+///     holds a colour, so this is where a colour may be written down in a test — this and
+///     <see cref="PanelsPaletteTests" />, which holds the built-in to its design. Every other test asks about roles.
 /// </summary>
 public class ThemeTests
 {

@@ -3,6 +3,7 @@ using Terminal.Gui.Drawing;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Theme;
 using Wooly.Tui.Views;
+using Attribute = Terminal.Gui.Drawing.Attribute;
 
 namespace Wooly.Tests.Tui;
 
@@ -28,8 +29,8 @@ public class PanelsPaletteTests
     /// <summary>The rail's current entry, a step lighter than the post band.</summary>
     private const string RailBand = "#1f2128";
 
-    /// <summary>B2's colour for every role, and the band of the roles that bring one of their own.</summary>
-    private static readonly Dictionary<Role, (string Foreground, string? Background)> B2 = new()
+    /// <summary>The prototype's colour for every role, and the band of the roles that bring one of their own.</summary>
+    private static readonly Dictionary<Role, (string Foreground, string? Background)> ThePrototypes = new()
     {
         [Role.Body] = (Text, null),
         [Role.Hashtag] = (Teal, null),
@@ -72,13 +73,13 @@ public class PanelsPaletteTests
 
     /// <summary>The table above is every role, so a role added later is a role this palette has to be asked about.</summary>
     [Fact]
-    public void ThePrototypesTableIsEveryRole() => Assert.Equal(Enum.GetValues<Role>().Order(), B2.Keys.Order());
+    public void ThePrototypesTableIsEveryRole() => Assert.Equal(Enum.GetValues<Role>().Order(), ThePrototypes.Keys.Order());
 
     [Theory]
     [MemberData(nameof(Roles))]
     public void TheDarkThemeIsThePrototypesColourForEveryRole(Role role)
     {
-        var (foreground, background) = B2[role];
+        var (foreground, background) = ThePrototypes[role];
         var drawn = Themes.Dark.For(role);
 
         Assert.Equal(Colour(foreground), drawn.Foreground);
@@ -119,7 +120,7 @@ public class PanelsPaletteTests
     {
         var drawn = await Frame();
 
-        var allowed = B2.Values
+        var allowed = ThePrototypes.Values
             .SelectMany(role => new[]
             {
                 (Colour(role.Foreground), role.Background is null ? Color.None : Colour(role.Background)),
@@ -130,8 +131,10 @@ public class PanelsPaletteTests
         Assert.All(drawn, cell => Assert.Contains((cell.Foreground, cell.Background), allowed));
     }
 
-    /// <summary>The prototype's signature in the frame: blue frames and titles, the picked post on its band, and the
-    /// current rail entry blue on a band a step lighter.</summary>
+    /// <summary>
+    ///     The prototype's signature in the frame: blue frames and titles, the picked post on its band, and the current
+    ///     rail entry blue on a band a step lighter.
+    /// </summary>
     [Fact]
     public async Task AFrameOfTheFeedCarriesTheBlueAccentAndBothBands()
     {
@@ -145,7 +148,7 @@ public class PanelsPaletteTests
     private static Color Colour(string hex) => ColourName.Parse(hex)!.Value;
 
     /// <summary>The shell opened on its first timeline at 110×34, every cell's attribute read back.</summary>
-    private static async Task<List<Terminal.Gui.Drawing.Attribute>> Frame()
+    private static async Task<List<Attribute>> Frame()
     {
         var built = new AShell();
         var shell = await built.Opened();
@@ -158,7 +161,7 @@ public class PanelsPaletteTests
         application.Begin(window);
         application.LayoutAndDraw(true);
 
-        var cells = new List<Terminal.Gui.Drawing.Attribute>();
+        var cells = new List<Attribute>();
 
         foreach (var cell in application.Driver.Contents!)
         {

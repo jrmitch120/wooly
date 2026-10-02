@@ -55,9 +55,10 @@ public static class Themes
     // Every built-in draws on the terminal's own background, so the app meets the terminal's padding with no seam
     // (ADR-0021). Only the bands above bring a background of their own.
     //
-    // The panels palette, tuned in the B2 prototype: Catppuccin Mocha's accents, with blue the one accent — the frame
+    // The panels palette, tuned in the prototype ADR-0021 chose (skin B2 on prototype/tui-skins): Catppuccin Mocha's accents, with blue the one accent — the frame
     // you are in, the titles, the rail's current entry and the gauge — and the picked thing's mark a near-white above
-    // the body text (#273).
+    // the body text (#273). The prototype told yours from anybody's boost and favorite by weight alone, and a theme
+    // here is colours, so the two share one: the glyph carries it, as it does without colour.
     private static readonly Palette DarkPalette = Palette.Of(
         ColourName.Default,
         new Dictionary<Role, string>
