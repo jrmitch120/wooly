@@ -7,8 +7,8 @@ namespace Wooly.Tests.Tui;
 
 /// <summary>
 ///     The status row's one rule (#218, <c>docs/tui-shell.md</c>): as many whole hints as the terminal has room for,
-///     in rank order, then <c>…+N</c> for the ones it could not fit, then <c>Keys: ?</c> — which is never cut. Each hint is drawn
-///     <c>Does: key</c> and the pairs are divided by <c> | </c> (#268).
+///     in rank order, then <c>…+N</c> for the ones it could not fit, then <c>Keys: ?</c> — which is never cut. Each
+///     hint is drawn <c>Does: key</c> and the pairs are divided by <c> | </c> (#268).
 /// </summary>
 /// <remarks>
 ///     All of it asserted against the spans, since the row is a list of spans computed from a width and nothing

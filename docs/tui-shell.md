@@ -1163,6 +1163,8 @@ and #213 settled the row; #216 and #217 build it:
   `j/k:post`, `…+10` and `fetching` are one register and `Already read.` and `Clear every notification? This cannot
   be undone.` are the other. A crumb is neither — it is the name of a place, spelled as above. The mark is the one
   word on the breadcrumb row that is not a place you have been, and the lowercase is what says so.
+  *Changed by ADR-0021* for the status row's hints alone: they are labels, `Post: j/k`, capitalised as lazygit's
+  strip is (#268). `esc keep`, `…+10` and `fetching` stay lowercase.
 
 ### What the status row settled
 
@@ -1259,7 +1261,7 @@ reminder, `?` is the reference.** #169, #214 and #215 settled the row; #218, #21
   — a themer who gives `key` a background would otherwise get a 16-column band across every help row.
 - **The standing test, which is the transferable part**: *a colour distinction is owed where a reader's next action
   depends on telling the two apart.* A key against its gloss passes — you press one and not the other. A separator
-  against a gloss fails: both are furniture. So ` · ` stays `chrome`, every explanation stays `muted`, the `…+N` mark
+  against a gloss fails: both are furniture. So ` · ` stays `chrome` (` | ` on the status row since ADR-0021), every explanation stays `muted`, the `…+N` mark
   stays `muted`, and **`quota`, `audience` and `muted` go on sharing one hex on purpose** — nobody has to tell a
   rate-limit number from a visibility glyph to do anything, and no test forbids two roles sharing a hex. Adjacency
   was the first cut and does not survive: it would force apart every role that ever shares a row. A distinction only
