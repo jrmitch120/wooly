@@ -512,24 +512,24 @@ public partial class RoleTests
         var onAnAccount = ChromeLines.Status(account.Keys, null, noticeIsError: false, asking: null, 80).Text;
         var onTheInbox = ChromeLines.Status(inbox.Keys, null, noticeIsError: false, asking: null, 80).Text;
 
-        Assert.Contains("F:unfollow", onAnAccount);
-        Assert.Contains("M:mute", onAnAccount);
-        Assert.Contains("B:block", onAnAccount);
+        Assert.Contains("Unfollow: F", onAnAccount);
+        Assert.Contains("Mute: M", onAnAccount);
+        Assert.Contains("Block: B", onAnAccount);
 
-        Assert.Contains("d:dismiss", onTheInbox);
-        Assert.Contains("D:clear all", onTheInbox);
+        Assert.Contains("Dismiss: d", onTheInbox);
+        Assert.Contains("Clear all: D", onTheInbox);
 
         // And the two movements #51 split apart are both announced, since neither key does what the other one does —
         // the shared one in the tail of the rank, behind the screen's own keys and the marks alike (#218), so that it
         // is the one the row gives up for them.
-        Assert.Contains("j/k:post", onAnAccount);
+        Assert.Contains("Post: j/k", onAnAccount);
         Assert.Contains(PostKeys.Scrolling, account.Keys);
-        Assert.DoesNotContain("↓/↑:row", onAnAccount);
+        Assert.DoesNotContain("Row: ↓/↑", onAnAccount);
 
         // And the row is still one row, saying how many it had no room for and where to find them.
         Assert.True(onAnAccount.Length <= 80);
         Assert.True(onTheInbox.Length <= 80);
-        Assert.EndsWith(" · ?:keys", onAnAccount, StringComparison.Ordinal);
+        Assert.EndsWith(" | Keys: ?", onAnAccount, StringComparison.Ordinal);
         Assert.Contains("…+", onTheInbox, StringComparison.Ordinal);
     }
 
@@ -544,13 +544,13 @@ public partial class RoleTests
             asking: null,
             80);
 
-        Assert.Contains("⏎:read", keys.Text);
-        Assert.Contains("a:author", keys.Text);
+        Assert.Contains("Read: ⏎", keys.Text);
+        Assert.Contains("Author: a", keys.Text);
 
         // The key takes Key and the explanation Muted — the split #66 draws them in, in the role #221 gave a key —
         // rather than one role for the whole row.
         Assert.Contains(keys.Spans, span => span is { Role: Role.Key, Text: "⏎" });
-        Assert.Contains(keys.Spans, span => span is { Role: Role.Muted, Text: ":read" });
+        Assert.Contains(keys.Spans, span => span is { Role: Role.Muted, Text: "Read: " });
     }
 
     /// <summary>

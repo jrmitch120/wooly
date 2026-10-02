@@ -31,7 +31,7 @@ public class KeyRoleTests
         var row = ChromeLines.Status([new KeyHint("⏎", "read")], null, noticeIsError: false, asking: null, 80);
 
         Assert.Contains(row.Spans, span => span is { Role: Role.Key, Text: "⏎" });
-        Assert.Contains(row.Spans, span => span is { Role: Role.Muted, Text: ":read" });
+        Assert.Contains(row.Spans, span => span is { Role: Role.Muted, Text: "Read: " });
     }
 
     /// <summary>The separators between hints are furniture, and stay it.</summary>
@@ -46,7 +46,7 @@ public class KeyRoleTests
             80);
 
         Assert.All(
-            row.Spans.Where(span => span.Text.Trim() is "·" or ""),
+            row.Spans.Where(span => span.Text.Trim() is "|" or ""),
             span => Assert.Equal(Role.Chrome, span.Role));
     }
 

@@ -35,7 +35,7 @@ the dividing, so there is no breadcrumb row, no blank row under it and no gutter
 ╭ API ───────────╮│                                                     │
 │ ████████░░  92%││                                                     │
 ╰────────────────╯╰─────────────────────────────────────────────────────╯
- Post: j/k | Refresh: g | Destination: tab | Group: ` | Read: ⏎ …+6 | Keys: ?
+ Post: j/k | Refresh: g | Destination: tab | Group: ` | Read: ⏎ | …+10 | Keys: ?
 ```
 
 | Region | Size | Holds |
@@ -198,7 +198,9 @@ not answer them differently:
 - **A screen's own keys go in front of the shared ones on the status row.** The row is one row and draws what it has
   room for from the front (*What the status row settled*), so the keys a reader can find on no other screen are the
   ones that have to be there.
-- **A status row's key and its explanation are visually split**: the key stays `Role.Chrome`, the words explaining it
+- **A status row's key and its explanation are visually split** — *changed by ADR-0021*: the pair is now drawn
+  `Does: key`, the words capitalised as a label (their first letter only, never the key) and the pairs divided by
+  ` | ` (#268); the split by role below stands. As first settled: the key stays `Role.Chrome`, the words explaining it
   take `Role.Muted` — reusing `Muted`'s existing "hints" job rather than adding a role — joined by a tight colon
   (`j/k:post`) in place of the plain space used before. The colon is the no-colour carrier and costs nothing: it is
   the same width as the space it replaces (#66). Brackets and capitalising the key were prototyped and rejected —
@@ -1508,8 +1510,8 @@ glyph or a position that carries the same meaning when colour is gone.
 | `rail-unread` | An unread count, and the word on an unread conversation | the number, and the word |
 | `quota` / `quota-low` | Rate-limit budget left, and nearly spent; `quota` also the instance above it, with two or more profiles | the number |
 | `gauge` / `gauge-empty` | The API budget's filled and empty cells | `█` and `░`, and the percentage |
-| `chrome` | The frame's furniture below the breadcrumb: the status row's leading space and ` · ` separators, the rail's rule | position |
-| `key` | A key you press: the status row's, the help screen's key column, a confirmation's `y` and `esc` — never prose that names a key, never the padding beside one | position — first in its pair, before the colon; first column on the help screen |
+| `chrome` | The frame's furniture below the breadcrumb: the status row's leading space and ` \| ` separators, the rail's rule | position |
+| `key` | A key you press: the status row's, the help screen's key column, a confirmation's `y` and `esc` — never prose that names a key, never the padding beside one | position — last in its pair, after the words' colon; first column on the help screen |
 | `panel-border` / `panel-border-active` | A panel's frame, and the frame of the panel you are in: the content panel, and the rail group holding the selected destination | the box characters; which group is active is carried by the current entry's band in colour, and by `▶` on it without |
 | `panel-title` | A panel's title on its top edge: a rail group's name, and the content panel's trail | position, on the edge |
 | `crumb` / `crumb-current` | The breadcrumb row — the crumbs walked through, the `›` between them and the `… › ` a long trail leads with; and the one being stood on, told from them by foreground alone. One band under the whole row, the fetch mark included | position — the current crumb is always the last, and the trail elides from the left |

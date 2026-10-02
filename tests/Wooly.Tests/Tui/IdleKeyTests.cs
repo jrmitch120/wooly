@@ -195,7 +195,7 @@ public class IdleKeyTests
     private static int Over(Screen screen)
     {
         var mark = ChromeLines.Status(screen.Keys, notice: null, noticeIsError: false, asking: null, width: 80).Text
-            .Split(" · ")
+            .Split(" | ")
             .Single(said => said.StartsWith("…+", StringComparison.Ordinal));
 
         return int.Parse(mark[2..], System.Globalization.CultureInfo.InvariantCulture);

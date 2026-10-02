@@ -55,6 +55,9 @@ public class AccountWalkTests
     private static string Status(Screen screen) =>
         ChromeLines.Status(screen.Keys, notice: null, noticeIsError: false, asking: null, 400).Text;
 
+    /// <summary>A hint as the status row draws it, <c>Does: key</c>.</summary>
+    private static string Drawn(KeyHint key) => string.Concat(key.Spans.Select(span => span.Text));
+
     /// <summary>
     ///     The pick opens on the header, not on the first post: the screen is about the person, and landing below them
     ///     would make the bio something you walk back to.
@@ -284,13 +287,13 @@ public class AccountWalkTests
 
         foreach (var key in PostKeys.OnAPost.Where(key => key != PostKeys.Composing))
         {
-            Assert.DoesNotContain(key.ToString(), onTheHeader);
+            Assert.DoesNotContain(Drawn(key), onTheHeader);
         }
 
         // The screen's own keys are untouched: a tie is with the person, and this is their screen either way.
-        Assert.Contains("F:follow", onTheHeader);
-        Assert.Contains("j/k:post", onTheHeader);
-        Assert.Contains("c:compose", onTheHeader);
+        Assert.Contains("Follow: F", onTheHeader);
+        Assert.Contains("Post: j/k", onTheHeader);
+        Assert.Contains("Compose: c", onTheHeader);
 
         screen.Move(1);
 
@@ -299,9 +302,9 @@ public class AccountWalkTests
         // Less the four that would refuse this post, which is Maria's and hides nothing (#220).
         string[] refusing = ["x:show warning", "p:pin", "e:edit", "d:delete"];
 
-        foreach (var key in PostKeys.OnAPost.Select(key => key.ToString()).Except(refusing))
+        foreach (var key in PostKeys.OnAPost.Where(key => !refusing.Contains(key.ToString())))
         {
-            Assert.Contains(key, onAPost);
+            Assert.Contains(Drawn(key), onAPost);
         }
     }
 
