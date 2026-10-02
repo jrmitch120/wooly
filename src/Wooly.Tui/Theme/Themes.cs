@@ -57,8 +57,10 @@ public static class Themes
         [Role.Loading] = "#eeecf3",
     };
 
+    // Every built-in draws on the terminal's own background, so the app meets the terminal's padding with no seam
+    // (ADR-0021). Only the bands above bring a background of their own.
     private static readonly Palette DarkPalette = Palette.Of(
-        "#12111a",
+        ColourName.Default,
         new Dictionary<Role, string>
         {
             [Role.Body] = "#d5d2e0",
@@ -103,7 +105,7 @@ public static class Themes
         DarkBands);
 
     private static readonly Palette LightPalette = Palette.Of(
-        "#faf9fb",
+        ColourName.Default,
         new Dictionary<Role, string>
         {
             [Role.Body] = "#23212e",
@@ -229,14 +231,15 @@ public static class Themes
 
     /// <summary>
     ///     The built-in a theme is read against: the one whose brightness its page matches, or — for a theme that
-    ///     names no page — the one it shares a name with.
+    ///     names no page, or names the terminal's own, which has no brightness this client can know — the one it
+    ///     shares a name with.
     /// </summary>
     /// <remarks>
     ///     The page comes first, and beats the name, because the failure it is guarding against is the only one a
     ///     fallback must never produce: light text on light paper. A theme that names a light background is a light
     ///     theme whatever it is called, <c>[themes.dark]</c> included.
     /// </remarks>
-    private static Palette Beneath(string name, Color? background) => background is { } page
+    private static Palette Beneath(string name, Color? background) => background is { } page && page != Color.None
         ? IsLight(page) ? LightPalette : DarkPalette
         : BuiltIn(name) ?? DarkPalette;
 

@@ -4,17 +4,25 @@ using Terminal.Gui.Drawing;
 namespace Wooly.Tui.Theme;
 
 /// <summary>
-///     What a colour may be written as in a theme: a hex triple, or one of the sixteen names ANSI has for the colours
-///     a terminal has always had (docs/tui-shell.md).
+///     What a colour may be written as in a theme: a hex triple, one of the sixteen names ANSI has for the colours a
+///     terminal has always had, or <c>default</c> for the terminal's own (docs/tui-shell.md).
 /// </summary>
 /// <remarks>
 ///     Two spellings rather than one because they answer different questions. Hex says exactly which colour, and
 ///     Terminal.Gui quantises it to the nearest of sixteen where the terminal has only sixteen, so a theme is authored
 ///     once. A name says <em>the terminal's own red</em>, which is what a theme that wants to sit inside somebody
-///     else's carefully chosen palette has to be able to say.
+///     else's carefully chosen palette has to be able to say. <c>default</c> goes one further and says <em>whatever the
+///     terminal draws when nobody asks for anything</em>, which is the only colour that meets a terminal's own padding
+///     with no seam (ADR-0021).
 /// </remarks>
 public static class ColourName
 {
+    /// <summary>
+    ///     The terminal's own colour, which Terminal.Gui writes as <c>CSI 39m</c> or <c>CSI 49m</c> rather than as any
+    ///     colour of this client's.
+    /// </summary>
+    public const string Default = "default";
+
     /// <summary>
     ///     The sixteen, spelled the way ANSI spells them rather than the way Terminal.Gui's own enum does. Two of them
     ///     are worth knowing about: ANSI's <c>white</c> is the dim one every terminal writes its text in, and the
@@ -50,6 +58,11 @@ public static class ColourName
 
         var value = written.Trim();
 
+        if (string.Equals(value, Default, StringComparison.OrdinalIgnoreCase))
+        {
+            return Color.None;
+        }
+
         if (Sixteen.TryGetValue(value, out var named))
         {
             return new Color(named);
@@ -75,5 +88,5 @@ public static class ColourName
     /// </summary>
     public static string Rejection(string written) =>
         $"'{written}' is not a colour. Write a hex triple like \"#8fa8ff\", or one of "
-        + $"{string.Join(", ", Sixteen.Keys)}.";
+        + $"{string.Join(", ", Sixteen.Keys)}, or \"{Default}\" for the terminal's own.";
 }

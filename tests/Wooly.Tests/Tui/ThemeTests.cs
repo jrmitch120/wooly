@@ -27,14 +27,15 @@ public class ThemeTests
     }
 
     /// <summary>
-    ///     The two are told apart by what they are drawn on, which is what a reader chose one of them for: the light
-    ///     one's page is brighter than the dark one's in every channel, and its text is darker than its own page.
+    ///     The two are told apart by what they are drawn for, which is what a reader chose one of them for. Both pages
+    ///     are the terminal's own, so it is the bands and the text that differ: the light one's band is brighter than
+    ///     the dark one's in every channel, and each one's text is the other side of its own band.
     /// </summary>
     [Fact]
-    public void TheLightThemeIsDrawnOnLightAndTheDarkOneOnDark()
+    public void TheLightThemeIsDrawnForLightAndTheDarkOneForDark()
     {
-        var light = Themes.Light.For(Role.Body);
-        var dark = Themes.Dark.For(Role.Body);
+        var light = Themes.Light.For(Role.Selection);
+        var dark = Themes.Dark.For(Role.Selection);
 
         Assert.True(light.Background.R > dark.Background.R);
         Assert.True(light.Background.G > dark.Background.G);
@@ -43,6 +44,80 @@ public class ThemeTests
         Assert.True(light.Foreground.R < light.Background.R);
         Assert.True(dark.Foreground.R > dark.Background.R);
     }
+
+    /// <summary>
+    ///     Every built-in draws on the terminal's own background, so the app meets the terminal's padding with no seam
+    ///     (ADR-0021).
+    /// </summary>
+    [Fact]
+    public void BothBuiltInThemesDrawOnTheTerminalsOwnBackground()
+    {
+        Assert.Equal(Color.None, Themes.Dark.For(Role.Body).Background);
+        Assert.Equal(Color.None, Themes.Light.For(Role.Body).Background);
+    }
+
+    /// <summary>The bands that sit on the page keep backgrounds of their own: a band on nothing is no band.</summary>
+    [Theory]
+    [InlineData(Role.Selection)]
+    [InlineData(Role.RailCurrent)]
+    [InlineData(Role.Crumb)]
+    [InlineData(Role.Seam)]
+    public void TheBandsOnTheTerminalsOwnBackgroundKeepTheirOwn(Role role)
+    {
+        Assert.NotEqual(Color.None, Themes.Dark.For(role).Background);
+        Assert.NotEqual(Color.None, Themes.Light.For(role).Background);
+    }
+
+    /// <summary><c>default</c> is the terminal's own colour, wherever a theme takes a colour.</summary>
+    [Fact]
+    public void DefaultIsTheTerminalsOwnColour() => Assert.Equal(Color.None, ColourName.Parse("default"));
+
+    [Fact]
+    public void AThemeMayNameTheTerminalsOwnBackground()
+    {
+        var theme = Chosen(Written("midnight", new ThemeConfig { Background = "default" }));
+
+        Assert.Equal(Color.None, theme.For(Role.Muted).Background);
+    }
+
+    [Fact]
+    public void ARoleMayBeDrawnOnTheTerminalsOwnColour()
+    {
+        var theme = Chosen(Written("midnight", new ThemeConfig
+        {
+            Background = "#000000",
+            Roles = new Dictionary<string, ThemeRole>
+            {
+                ["body"] = new(null, "default"),
+                ["selection"] = new("default", "default"),
+            },
+        }));
+
+        Assert.Equal(Color.None, theme.For(Role.Body).Background);
+        Assert.Equal(Color.None, theme.For(Role.Selection).Foreground);
+        Assert.Equal(Color.None, theme.For(Role.Selection).Background);
+    }
+
+    /// <summary>
+    ///     The terminal's own page has no brightness to match on, so a theme naming it is read against the built-in it
+    ///     shares a name with — as a theme naming no page is.
+    /// </summary>
+    [Theory]
+    [InlineData("light")]
+    [InlineData("dark")]
+    public void AThemeOnTheTerminalsOwnBackgroundIsReadAgainstTheBuiltInOfItsName(string name)
+    {
+        var theme = Chosen(Written(name, new ThemeConfig { Background = "default" }));
+        var builtIn = name == "light" ? Themes.Light : Themes.Dark;
+
+        Assert.Equal(builtIn.For(Role.Body), theme.For(Role.Body));
+    }
+
+    [Fact]
+    public void AThemeOfNoBuiltInsNameOnTheTerminalsOwnBackgroundIsReadAgainstTheDarkOne() =>
+        Assert.Equal(
+            Themes.Dark.For(Role.Body),
+            Chosen(Written("midnight", new ThemeConfig { Background = "default" })).For(Role.Body));
 
     [Fact]
     public void TheThemeIsTheOneTheConfigNamesByName()
@@ -130,6 +205,8 @@ public class ThemeTests
     [InlineData("#8fa8f")]
     [InlineData("8fa8ff")]
     [InlineData("brightblue")]
+    [InlineData("defualt")]
+    [InlineData("none")]
     public void AColourIsRefusedWhereItIsNotWrittenAsOne(string written) => Assert.Null(ColourName.Parse(written));
 
     /// <summary>
@@ -255,14 +332,16 @@ public class ThemeTests
         Assert.Contains("#", refused.Message);
     }
 
-    [Fact]
-    public void AThemeBackgroundThisClientCannotReadSaysSo()
+    [Theory]
+    [InlineData("off-white")]
+    [InlineData("defualt")]
+    public void AThemeBackgroundThisClientCannotReadSaysSo(string written)
     {
-        var config = Written("midnight", new ThemeConfig { Background = "off-white" });
+        var config = Written("midnight", new ThemeConfig { Background = written });
 
         var refused = Assert.Throws<ConfigurationException>(() => Chosen(config));
 
-        Assert.Contains("off-white", refused.Message);
+        Assert.Contains(written, refused.Message);
         Assert.Contains("midnight", refused.Message);
     }
 
