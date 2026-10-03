@@ -141,7 +141,8 @@ public sealed class SearchScreen : Screen
 
     /// <summary>
     ///     What this screen's own <c>⏎</c> does: asks the instance for what has been typed while the prompt is taking
-    ///     letters, and opens what is picked out once it has answered.
+    ///     letters — or opens it straight away, where it is a <see cref="DirectQuery" /> — and opens what is picked
+    ///     out once it has answered.
     /// </summary>
     public override Task Answer(Verb verb, Reach reach) => verb switch
     {
@@ -171,6 +172,14 @@ public sealed class SearchScreen : Screen
             reach.Say(SearchQuery.Rejection, isError: true);
 
             return Task.CompletedTask;
+        }
+
+        // Nothing to ask the instance where what was typed names a tag, since any well-formed tag has a timeline. It
+        // is pushed exactly as picking it from the results would push it, and this screen is left as it was — the
+        // prompt, still taking letters — for esc to come back to.
+        if (DirectQuery.Tag(Query) is { } tag)
+        {
+            return reach.Open(new Subject.Tag(tag));
         }
 
         var query = SearchQuery.For(Query);

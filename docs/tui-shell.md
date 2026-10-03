@@ -92,7 +92,7 @@ A screen is a place in the stack, not a window. Entering one pushes, `esc` pops,
 | Screen | Reached by | Ticket |
 |---|---|---|
 | Feed — home, local, federated, the rail's own hashtag | A rail destination | #28 |
-| Hashtag — a tag walked to, not the rail's own | A search result, or `⏎` on a picked hashtag reference | #29, reference #65 |
+| Hashtag — a tag walked to, not the rail's own | A search result, `⏎` on a `#hashtag` typed into search, or `⏎` on a picked hashtag reference | #29, reference #65, direct #305 |
 | Post — the post whole, its ancestor chain above and its replies below | `⏎` on a feed item | #28, ancestors #72 |
 | Account — who they are, what they are to you, their pinned posts and their posts, or their posts and replies | `a` on a feed item or inside a post, `s` to swap runs | shell #28, tie actions #29, the person #164, pinned #172, replies #229 |
 | Follows — everyone an account follows, or everyone who follows it | `w` on an account, `s` to swap sides | #165 |
@@ -234,6 +234,12 @@ not answer them differently:
   nothing under it to walk back to.
 - **A hashtag a search found opens as a screen on the stack**, not as the rail's hashtag destination. Which tag the
   rail keeps a place for is a setting the reader wrote down, and a search result is not them changing their mind.
+- **`⏎` on a direct query opens what it names instead of searching** (#305). A `#` followed by one tag word — the
+  rule `timeline tag` takes a tag by, so `#日本語` is as direct as `#cats` — opens that tag's timeline pushed onto
+  search, the same screen and breadcrumb (`Search › #cats`) picking a hashtag result gives, and asks the instance
+  nothing, since any well-formed tag has a timeline. `esc` comes back to the prompt as it was left, `#cats` still
+  typed. Anything else — `cats`, `#cats dogs`, a lone `#` — is searched for as before, and the status row says
+  `Search: ⏎` whatever is typed. The CLI's `search` never does this: scripts depend on its one output shape.
 - **`⏎` on a follow request opens whoever is asking**, because the question is about a person and the answer to it is
   on their account screen.
 - **`⏎` inside a post opens anything on the thread but the post itself** — an answer below it, or an ancestor above it
