@@ -129,6 +129,14 @@ internal sealed class DrawnShell : IDisposable
     public void Wheel(int column, int row, bool down = true) =>
         Point(column, row, down ? MouseFlags.WheeledDown : MouseFlags.WheeledUp);
 
+    /// <summary>
+    ///     One notch of the wheel over the cell, handled and not yet drawn — as notches arriving while a slow frame is
+    ///     being drawn are, before the next one.
+    /// </summary>
+    public void WheelUndrawn(int column, int row) =>
+        Application.Mouse.RaiseMouseEvent(
+            new Mouse { ScreenPosition = new Point(column, row), Flags = MouseFlags.WheeledDown });
+
     /// <summary>One sideways notch over the cell, as a trackpad sends when a finger drifts: right, or left.</summary>
     public void WheelSideways(int column, int row, bool right = true) =>
         Point(column, row, right ? MouseFlags.WheeledRight : MouseFlags.WheeledLeft);

@@ -575,6 +575,11 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
   startup, rather than after Terminal.Gui's query, which took seconds in Ghostty. WezTerm answers the query but prints
   placeholders as boxes, so it — like Windows Terminal, Warp, and anything inside tmux or screen — draws through a
   `PictureView` box, sixel preferred over Kitty, as before (ADR-0016).
+- **A sixel is encoded once for each cut of a picture, and handed to the driver ready** (#292, ADR-0023). A picture
+  is scaled to its box once; a box straddling the edge of the page is framed to the rows still on it; each cut is
+  encoded once, kept, and encoded ahead off the UI thread for the next few rows of a scroll. A notch over sixel
+  photographs went from ~104 ms to ~29 ms. Sixel still sends every visible picture on every step — that is the
+  protocol.
 - **A placeholder cell is the size the kernel says** — the window's pixels over its cells (`TIOCGWINSZ`), then the
   protocol's answer, then 10×20. A box keeps the protocol's answer, which is what Terminal.Gui draws it by.
 - **There is no cell-based fallback.** A terminal offering neither sixel nor the Kitty graphics protocol links every

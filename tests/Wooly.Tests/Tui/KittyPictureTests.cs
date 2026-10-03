@@ -166,6 +166,33 @@ public class KittyPictureTests
     }
 
     /// <summary>
+    ///     Through Kitty, a box half off the top keeps the whole box as its frame: the image view sends the picture
+    ///     once and places a crop of it as it moves, which cutting the box down for it — as sixel is — would undo.
+    /// </summary>
+    [Fact]
+    public async Task ABoxDrawnThroughKittyKeepsItsWholeFrameHalfOffThePage()
+    {
+        using var drawn = await DrawnShell.Of(
+            80,
+            24,
+            Themes.Plain,
+            AShellWithAPicture(),
+            pictures: FakePictures.With().Holding("m1", 800, 200),
+            answersKitty: true);
+
+        var box = Assert.Single(drawn.Content.SubViews.OfType<PictureView>(), view => view.Visible);
+        var whole = box.Frame;
+
+        for (var notch = 0; notch < 100 && drawn.Content.Top < whole.Y + 2; notch++)
+        {
+            drawn.Wheel(RailLines.Width + 4, 3);
+        }
+
+        Assert.Equal(-2, box.Frame.Y);
+        Assert.Equal(whole.Height, box.Frame.Height);
+    }
+
+    /// <summary>
     ///     Where placeholders are drawn Terminal.Gui draws no pixels of its own: the picture is the placeholders, and a
     ///     <see cref="PictureView" /> drawing as well would be the 11 MB a scroll this replaced.
     /// </summary>

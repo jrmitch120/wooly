@@ -334,3 +334,7 @@ a scroll sends no image data. Everywhere else this ADR's ladder stands as it is 
 and placing its boxes.
 `Media/KittyPlaceholder.cs` joins `PictureDecoder` on the colour scan's list, because an image id rides in a cell's
 foreground colour.
+
+ADR-0023 changes how a box draws, not where: `PictureView` no longer lets `ImageView` scale and encode the picture on
+every move. It hands the driver a sixel encoded once for each cut of the picture, with a straddling box framed to the
+rows still on the page.

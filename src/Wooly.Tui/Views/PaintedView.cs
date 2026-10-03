@@ -43,12 +43,19 @@ internal sealed class PaintedView : View
     /// </remarks>
     private const int MostBoxes = 24;
 
+    /// <summary>How many rows of a scroll the cuts of a sixel are encoded ahead of it (ADR-0023).</summary>
+    private const int Ahead = 4;
+
     private readonly ITheme _theme;
     private readonly Func<int, int, IReadOnlyList<Line>> _rows;
     private readonly IPictures? _pictures;
     private readonly Func<int, int, IReadOnlyList<Line>>? _frame;
     private readonly List<PictureView> _boxes = [];
     private readonly Placeholders? _placeholders;
+    private readonly SixelPictures _sixels = new();
+
+    /// <summary>Where the page began the last time pictures were placed, which says which way it is moving.</summary>
+    private int _placedAt;
 
     /// <summary>The pictures drawn as placeholders this frame, with the row each starts on and its image id.</summary>
     private List<(Inset Inset, int Top, int Id)> _placed = [];
@@ -568,6 +575,15 @@ internal sealed class PaintedView : View
 
         var wanted = Wanted(lines, height);
 
+        if (_pictures.Cell is not { } cell)
+        {
+            _boxes.ForEach(box => box.Release());
+
+            return;
+        }
+
+        var colours = SixelColours();
+
         // Who draws what, settled for the whole frame before anything moves — see Boxes. Asking box by box is what
         // this used to do, and it could not see that one picture was wanted once and held twice.
         var drawing = Boxes(
@@ -605,12 +621,35 @@ internal sealed class PaintedView : View
 
             var (inset, top, picture) = wanted[at];
             var box = _boxes[which];
-            var frame = new Rectangle(inset.Column, top, inset.Columns, inset.Rows);
 
-            box.Show(inset.Drawn.Id, picture);
+            // Through Kitty the image view draws the whole box, which it sends once and moves (ADR-0016).
+            if (colours == 0)
+            {
+                var whole = new Rectangle(inset.Column, top, inset.Columns, inset.Rows);
 
-            // Only when it has actually moved: setting it throws away the scaled copy and re-encodes the picture,
-            // which on a feed redrawn per keypress would be a re-transmission per keypress.
+                box.Show(inset.Drawn.Id, picture);
+
+                if (box.Frame != whole)
+                {
+                    box.Frame = whole;
+                }
+
+                box.Visible = box.CanDraw;
+
+                continue;
+            }
+
+            // Only the part of the box on the page: a box straddling the top or bottom is framed to the rows still on
+            // it, so the picture is cut here, once per cut, rather than by the driver on every frame (#292).
+            if (OnPage(inset, top, height) is not var (frame, crop))
+            {
+                box.Release();
+
+                continue;
+            }
+
+            box.Show(inset.Drawn.Id, _sixels.Of(inset, picture, cell, crop, colours));
+
             if (box.Frame != frame)
             {
                 box.Frame = frame;
@@ -619,6 +658,66 @@ internal sealed class PaintedView : View
             // Never drawn as coloured cells, whatever ImageView would have been willing to do (ADR-0016).
             box.Visible = box.CanDraw;
         }
+
+        if (colours > 0)
+        {
+            Prepare(lines, height, cell, colours);
+        }
+    }
+
+    /// <summary>
+    ///     Starts encoding, off the UI thread, the cuts of the pictures at the edges of the page that the next few rows
+    ///     of a scroll will want — including a box just off the page, about to come onto it.
+    /// </summary>
+    /// <remarks>
+    ///     A box straddling the edge is cut a row differently on every step, and encoding the cut on the frame that
+    ///     wants it was most of what a step cost once nothing else was encoded twice (#292). An encode takes longer
+    ///     than the gap between two notches of a trackpad, so a row ahead is not far enough: <see cref="Ahead" /> rows
+    ///     the way the page is moving, and one the other way for a reader who turns round. A box wholly on the page is
+    ///     the same cut whichever way it moves, and costs nothing here.
+    /// </remarks>
+    private void Prepare(IReadOnlyList<Line> lines, int height, CellSize cell, int colours)
+    {
+        var moving = Math.Sign(_top - _placedAt);
+
+        _placedAt = _top;
+
+        foreach (var (inset, top, picture) in Wanted(lines, height, near: Ahead))
+        {
+            var now = OnPage(inset, top, height)?.Crop;
+
+            for (var rows = -Ahead; rows <= Ahead; rows++)
+            {
+                // The page moving down is a box moving up it, so a box's top a row higher.
+                var ahead = moving != 0 && Math.Sign(rows) == -moving;
+
+                if (rows == 0 || (!ahead && Math.Abs(rows) > 1))
+                {
+                    continue;
+                }
+
+                if (OnPage(inset, top + rows, height) is { Crop: var next } && next != now)
+                {
+                    _sixels.Prepare(inset, picture, cell, next, colours);
+                }
+            }
+        }
+    }
+
+
+    /// <summary>
+    ///     The part of a box whose top is on row <paramref name="top" /> of the page that is on it — its frame, and
+    ///     which of its rows and columns those are — or <see langword="null" /> where none of it is.
+    /// </summary>
+    private (Rectangle Frame, SixelCrop Crop)? OnPage(Inset inset, int top, int height)
+    {
+        var first = Math.Max(0, -top);
+        var rows = Math.Min(inset.Rows, height - top) - first;
+        var columns = Math.Min(inset.Columns, Viewport.Width - inset.Column);
+
+        return rows < 1 || columns < 1
+            ? null
+            : (new Rectangle(inset.Column, top + first, columns, rows), new SixelCrop(first, rows, columns));
     }
 
     /// <summary>
@@ -652,6 +751,17 @@ internal sealed class PaintedView : View
 
         return placed;
     }
+
+
+    /// <summary>
+    ///     How many colours a sixel is encoded in on this terminal, or none where a box draws through Kitty instead.
+    ///     The same cap Terminal.Gui's image view puts on it: 64, or fewer where the terminal says it has fewer.
+    /// </summary>
+    private int SixelColours() =>
+        App?.Driver is { } driver
+        && RasterProtocol.Chosen(driver.SixelSupport, driver.KittyGraphicsSupport) is PictureWay.Sixel
+            ? Math.Min(64, driver.SixelSupport!.MaxPaletteColors)
+            : 0;
 
     /// <summary>
     ///     Which box draws which of the pictures wanted this frame: the box already holding one where there is one,

@@ -47,6 +47,27 @@ internal sealed class FakePictures : IPictures
     public FakePictures HoldingAvatarOf(string account, int width = 96, int height = 96) =>
         Held(Drawn.Avatar(account, "https://files.mastodon.social/avatars/original.png").Id, width, height);
 
+    /// <summary>
+    ///     Says that the picture for the attachment <paramref name="mediaId" /> has arrived as a busy photograph —
+    ///     every pixel different from its neighbours — which is what makes encoding it cost what a real one does.
+    /// </summary>
+    public FakePictures HoldingPhotograph(string mediaId, int width, int height)
+    {
+        var pixels = new Color[width, height];
+
+        for (var x = 0; x < width; x++)
+        {
+            for (var y = 0; y < height; y++)
+            {
+                pixels[x, y] = new Color((x * 7 + y * 3) % 256, (x * y) % 256, (x * 13 + y * 11) % 256);
+            }
+        }
+
+        _held[mediaId] = new Picture(pixels);
+
+        return this;
+    }
+
     /// <inheritdoc />
     public Picture? Of(Drawn drawn)
     {
