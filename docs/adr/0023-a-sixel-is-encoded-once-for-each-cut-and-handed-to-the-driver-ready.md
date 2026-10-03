@@ -11,11 +11,13 @@ step cost showed that most of it was not (#292, slice 3).
 | Per notch | Median | Worst | Sent |
 |---|---|---|---|
 | Before | 104 ms | 220 ms | ~590 KB |
-| After, notches 16 ms apart over new rows | 29–31 ms | 55–95 ms | ~500 KB |
-| After, notches back to back over new rows | 24–29 ms | 52–100 ms | ~500 KB |
-| After, back over rows already drawn | 17–23 ms | 33–85 ms | ~500 KB |
+| After, notches 16 ms apart over new rows | 27–44 ms | 83–137 ms | ~590 KB |
+| After, notches back to back over new rows | 26–34 ms | 52–87 ms | ~590 KB |
+| After, back over rows already drawn | 23–28 ms | 82–152 ms | ~590 KB |
 
-Each "after" row is the spread over several runs on one machine, an Apple Silicon laptop; the worst case is noisy.
+Each "after" row is the spread over several runs on one machine, an Apple Silicon laptop, with the palette below in
+place; the worst case is noisy. Before the palette was fixed the same runs were ~25–30 ms and ~500 KB. A palette that
+actually covers the picture uses more of its colours, which costs bytes, and the right colours are worth them.
 
 A frame with no pictures on it costs ~23 ms, so a step over pictures now costs about what a step over text does, plus
 the sending. Back to back is a fast flick, where the cuts encoded ahead are not ready in time and some are encoded on
@@ -53,6 +55,16 @@ whole box as before, because its Kitty path sends the picture once and places a 
 already what this does for sixel and cheaper. This leans on two things Terminal.Gui does not promise — the id's shape,
 `ImageView_{hash}`, and an encoded sixel being used as is where the cut is the whole destination — so an upgrade of
 the library is a reason to run the smoke test and the measurement again.
+
+**A sixel's palette is chosen from the whole picture.** The first look at this in WezTerm drew the shapes right and
+the colours wrong: a dark green sign in a pale illustration came out salmon. Terminal.Gui's palette builder
+(`PopularityPaletteWithThreshold`) merges colours in the order it meets them — a column at a time from the left edge —
+and stops at the first 64. A photograph has 64 colours in its first column or two, so the palette was the left edge's,
+and anything only further right was drawn in the nearest of those. `ImageView` used the same builder, so every sixel
+terminal had this before this change too. `SixelPalette` replaces it with ImageSharp's Wu quantizer over the whole
+picture: on two photographs the mean colour error fell from 14 and 31 to 6 and 7, at about the same cost to encode.
+The palette is still 64 colours, as `ImageView`'s was, and is built per cut, so a cut is drawn in its own colours.
+`Media/SixelPalette.cs` joins the colour scan's list, since a palette is the photograph's colours.
 
 **A cut a scroll is about to want is encoded ahead, off the UI thread.** A box at the edge of the page is cut a row
 differently on every step, and encoding that cut on the frame that wanted it was most of what was left once nothing was

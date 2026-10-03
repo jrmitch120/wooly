@@ -186,12 +186,16 @@ internal sealed class SixelPictures(Func<Color[,], int, string>? encode = null, 
         return new Sixel(pixels, _encode(pixels, key.Colours));
     }
 
-    /// <summary>Terminal.Gui's own encoder, in at most <paramref name="colours" /> colours.</summary>
+    /// <summary>
+    ///     Terminal.Gui's own encoder, in at most <paramref name="colours" /> colours chosen from the whole picture
+    ///     (<see cref="SixelPalette" />) rather than from its left edge.
+    /// </summary>
     private static string Encoded(Color[,] pixels, int colours)
     {
         var encoder = new SixelEncoder();
 
         encoder.Quantizer.MaxColors = colours;
+        encoder.Quantizer.PaletteBuildingAlgorithm = new SixelPalette();
 
         return encoder.EncodeSixel(pixels);
     }
