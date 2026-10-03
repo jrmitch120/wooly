@@ -480,6 +480,16 @@ public sealed class Shell
     }
 
     /// <summary>
+    ///     A click on a row of the <paramref name="at" />th thing in the content: that thing is picked, and a reference
+    ///     walked to inside it is let go, so that the <c>⏎</c> after it opens the thing rather than the reference (#290).
+    /// </summary>
+    /// <remarks>
+    ///     The same pick <see cref="Section" /> makes, and the remark goes the same way. Which thing a row is part of
+    ///     is the view's to say, from the very rows it drew under the pointer.
+    /// </remarks>
+    public void Pick(int at) => Section(at);
+
+    /// <summary>
     ///     What <c>←</c> and <c>→</c> do: walk the references inside the picked post — <c>→</c> entering at the first
     ///     and <c>←</c> at the last, clamping at either end (#83).
     /// </summary>

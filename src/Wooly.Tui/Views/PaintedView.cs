@@ -253,6 +253,12 @@ internal sealed class PaintedView : View
     public void Follow() => _following = true;
 
     /// <summary>
+    ///     Leaves the page where it begins now, whatever is picked next, as the arrows do — which is what a click asks
+    ///     for, since the reader picked the thing where they could see it (#290).
+    /// </summary>
+    public void Hold() => _following = false;
+
+    /// <summary>
     ///     Puts the screen back to following the selection and, on the very next frame only, brings the heading of the
     ///     run it is in onto the page with it — what <c>[</c> and <c>]</c> ask for over and above what <c>j</c> and
     ///     <c>k</c> do (#166).
