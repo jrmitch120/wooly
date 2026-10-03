@@ -85,6 +85,19 @@ internal static class ShellKeys
     };
 
     /// <summary>
+    ///     The key a pointer gesture stands for: a right click is <c>esc</c> (#307), each one the terminal reports —
+    ///     Terminal.Gui's double and triple included, since it reports one event as each is let go, so three quick right
+    ///     clicks are three. Only the right button: a ctrl+left click is still a left click, and the middle button is
+    ///     nothing. Every other gesture is <see langword="null" />, being a place on the screen rather than a key.
+    /// </summary>
+    public static ShellKey? Of(Mouse mouse) =>
+        mouse.Flags.HasFlag(MouseFlags.RightButtonClicked)
+        || mouse.Flags.HasFlag(MouseFlags.RightButtonDoubleClicked)
+        || mouse.Flags.HasFlag(MouseFlags.RightButtonTripleClicked)
+            ? ShellKey.Escape
+            : null;
+
+    /// <summary>
     ///     Which of this shell's keys was pressed, or <see langword="null" /> where it was one the shell has no word
     ///     for — a function key, an alt pair, a letter no screen answers to.
     /// </summary>

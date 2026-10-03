@@ -105,6 +105,9 @@ public sealed class ComposeScreen : Screen
     /// <remarks>Only while the warning is taking letters, a post's own text being the editor widget's to take.</remarks>
     public override bool IsTyping => WritingTheWarning;
 
+    /// <inheritdoc />
+    public override bool HoldsADraft => true;
+
     /// <summary>
     ///     What goes out when <c>ctrl-s</c> is pressed, whole: the post this screen publishes, or the change it saves
     ///     to one already published. Said here because this is where the fields are — what is left to the shell is the

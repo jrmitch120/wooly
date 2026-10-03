@@ -279,9 +279,9 @@ internal sealed class ShellWindow : Window
     /// </remarks>
     protected override bool OnMouseEvent(Mouse mouse)
     {
-        if (RightClicked(mouse))
+        if (ShellKeys.Of(mouse) is { } clicked)
         {
-            return Escaped();
+            return RightClicked(clicked);
         }
 
         if (mouse.Flags.HasFlag(MouseFlags.LeftButtonClicked))
@@ -301,10 +301,8 @@ internal sealed class ShellWindow : Window
 
         // A notch is the arrow it stands for, open question and all: anything but the agreeing key declines one, so a
         // notch declines it too and scrolls nothing behind it (story 43).
-        if (_shell.Asking is not null)
+        if (Declined())
         {
-            _ = _shell.Answer(agreed: false);
-
             return true;
         }
 
@@ -390,35 +388,37 @@ internal sealed class ShellWindow : Window
     }
 
     /// <summary>
-    ///     Whether <paramref name="mouse" /> is a right click: each one the terminal reports, Terminal.Gui's double and
-    ///     triple included, since it reports one event as each is let go — so three quick right clicks are three.
-    /// </summary>
-    internal static bool RightClicked(Mouse mouse) =>
-        mouse.Flags.HasFlag(MouseFlags.RightButtonClicked)
-        || mouse.Flags.HasFlag(MouseFlags.RightButtonDoubleClicked)
-        || mouse.Flags.HasFlag(MouseFlags.RightButtonTripleClicked);
-
-    /// <summary>
-    ///     A right click, wherever the pointer is: <c>esc</c> through the <see cref="Keymap" /> on the screen in front,
-    ///     as <see cref="OnKeyDown" /> takes it, open question and all (#307). Nothing while a post is being written,
-    ///     where <c>esc</c> throws the draft away — too much to spend on a button pressed by accident.
+    ///     A right click, wherever the pointer is: <paramref name="pressed" />, the <c>esc</c> it stands for, through the
+    ///     <see cref="Keymap" /> on the screen in front as <see cref="OnKeyDown" /> takes it, open question and all
+    ///     (#307). Nothing on a screen holding a draft, which <c>esc</c> throws away — too much to spend on a button
+    ///     pressed by accident.
     /// </summary>
     /// <returns>Always that it was the shell's, so nothing behind the window answers a right click either.</returns>
-    private bool Escaped()
+    private bool RightClicked(ShellKey pressed)
     {
-        if (_shell.Screen is ComposeScreen)
+        if (_shell.Screen.HoldsADraft || Declined())
         {
             return true;
         }
 
-        if (_shell.Asking is not null)
-        {
-            _ = _shell.Answer(agreed: false);
+        _ = Do(pressed);
 
-            return true;
+        return true;
+    }
+
+    /// <summary>
+    ///     Declines an open confirmation, as any press but the agreeing key does (story 43), for the gestures that stand
+    ///     for such a press.
+    /// </summary>
+    /// <returns>Whether there was one, and the gesture was spent on it.</returns>
+    private bool Declined()
+    {
+        if (_shell.Asking is null)
+        {
+            return false;
         }
 
-        _ = Do(ShellKey.Escape);
+        _ = _shell.Answer(agreed: false);
 
         return true;
     }

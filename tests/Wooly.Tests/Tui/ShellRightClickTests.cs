@@ -76,16 +76,29 @@ public class ShellRightClickTests
         }
     }
 
-    /// <summary>On Add a profile with a sign-in in flight, a right click calls it off, as <c>esc</c> does.</summary>
-    [Fact]
-    public async Task ARightClickCallsOffASignInInFlight()
+    /// <summary>
+    ///     On Add a profile with a sign-in in flight, a right click calls it off, as <c>esc</c> does: opened from the
+    ///     profiles screen it goes back there, and standing alone with nobody to act as it goes back to its first step.
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ARightClickCallsOffASignInInFlight(bool alone)
     {
         var built = new AShell { Authorizer = FakeBrowserAuthorizer.Holding() };
 
-        using var drawn = await DrawnShell.Of(80, Tall, Themes.Plain, built);
+        if (alone)
+        {
+            built.Profiles = FakeProfileRegistry.Holding(current: null);
+        }
 
-        drawn.Press(Key.P.WithCtrl);
-        drawn.Press(Key.A);
+        using var drawn = await DrawnShell.Of(80, Tall, Themes.Plain, built, launch: alone);
+
+        if (!alone)
+        {
+            drawn.Press(Key.P.WithCtrl);
+            drawn.Press(Key.A);
+        }
 
         foreach (var letter in "hachyderm.io")
         {
@@ -101,7 +114,16 @@ public class ShellRightClickTests
         drawn.Settle();
 
         Assert.True(built.Authorizer.Cancelled);
-        Assert.IsType<ProfilesScreen>(drawn.Shell.Screen);
+        Assert.False(drawn.Shell.Fetching);
+
+        if (alone)
+        {
+            Assert.IsType<AddProfileScreen>(drawn.Shell.Screen);
+        }
+        else
+        {
+            Assert.IsType<ProfilesScreen>(drawn.Shell.Screen);
+        }
     }
 
     /// <summary>On a destination's own screen there is nothing to go up out of, and a right click does nothing.</summary>
@@ -134,12 +156,7 @@ public class ShellRightClickTests
 
         var notifications = drawn.Built.Notifications.Reads.Count;
 
-        var (column, row) = over switch
-        {
-            "rail" => (OverRail, Array.FindIndex(drawn.Rail(), line => line.Contains("Notifications"))),
-            "breadcrumb" => (OverContent, 0),
-            _ => (OverContent, Tall - 1),
-        };
+        var (column, row) = Over(drawn, over);
 
         drawn.RightClick(column, row);
         drawn.Settle();
@@ -171,13 +188,7 @@ public class ShellRightClickTests
         editor.Text = "A draft about sheep";
         drawn.Redraw();
 
-        var (column, row) = over switch
-        {
-            "editor" => (OverContent, Tall / 2),
-            "rail" => (OverRail, 2),
-            "breadcrumb" => (OverContent, 0),
-            _ => (OverContent, Tall - 1),
-        };
+        var (column, row) = Over(drawn, over);
 
         drawn.RightClick(column, row, times: 3);
         drawn.Settle();
@@ -228,7 +239,7 @@ public class ShellRightClickTests
 
         var post = drawn.Shell.Screen;
 
-        drawn.Pointed(OverContent, ContentRowOf(drawn, 1), MouseFlags.LeftButtonClicked | MouseFlags.Ctrl);
+        drawn.Point(OverContent, ContentRowOf(drawn, 1), MouseFlags.LeftButtonClicked | MouseFlags.Ctrl);
         drawn.Settle();
 
         Assert.Same(post, drawn.Shell.Screen);
@@ -244,8 +255,8 @@ public class ShellRightClickTests
         var post = drawn.Shell.Screen;
         var rows = drawn.Rows();
 
-        drawn.Pointed(OverContent, ContentRowOf(drawn, 1), MouseFlags.MiddleButtonClicked);
-        drawn.Pointed(OverContent, ContentRowOf(drawn, 1), MouseFlags.MiddleButtonDoubleClicked);
+        drawn.Point(OverContent, ContentRowOf(drawn, 1), MouseFlags.MiddleButtonClicked);
+        drawn.Point(OverContent, ContentRowOf(drawn, 1), MouseFlags.MiddleButtonDoubleClicked);
         drawn.Settle();
 
         Assert.Same(post, drawn.Shell.Screen);
@@ -262,6 +273,18 @@ public class ShellRightClickTests
 
         Assert.Contains(drawn.Rows(), row => row.Contains("mouse") && row.Contains("right click back"));
     }
+
+    /// <summary>
+    ///     A cell <paramref name="over" /> names: the rail's Notifications entry, the breadcrumb, the status row, or the
+    ///     middle of the content — where the compose editor is, while it is in front.
+    /// </summary>
+    private static (int Column, int Row) Over(DrawnShell drawn, string over) => over switch
+    {
+        "rail" => (OverRail, Array.FindIndex(drawn.Rail(), line => line.Contains("Notifications"))),
+        "breadcrumb" => (OverContent, 0),
+        "status" => (OverContent, Tall - 1),
+        _ => (OverContent, Tall / 2),
+    };
 
     /// <summary>
     ///     The shell drawn tall in <paramref name="state" />: on a drilled-in post, or with a level of its own open — a

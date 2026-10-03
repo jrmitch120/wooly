@@ -156,9 +156,6 @@ internal sealed class DrawnShell : IDisposable
         }
     }
 
-    /// <summary>A click of any button and modifier on the cell, as the flags the terminal's report became say.</summary>
-    public void Pointed(int column, int row, MouseFlags flags) => Point(column, row, flags);
-
     /// <summary>One notch of the wheel over the cell: down, towards the foot of the page, or up.</summary>
     public void Wheel(int column, int row, bool down = true) =>
         Point(column, row, down ? MouseFlags.WheeledDown : MouseFlags.WheeledUp);
@@ -180,7 +177,7 @@ internal sealed class DrawnShell : IDisposable
     ///     it reaches whichever view is under the pointer and bubbles from there, which is what makes a wheel over the
     ///     compose editor the editor's and a wheel over the content the window's.
     /// </summary>
-    private void Point(int column, int row, MouseFlags flags)
+    public void Point(int column, int row, MouseFlags flags)
     {
         Application.Mouse.RaiseMouseEvent(new Mouse { ScreenPosition = new Point(column, row), Flags = flags });
         Redraw();

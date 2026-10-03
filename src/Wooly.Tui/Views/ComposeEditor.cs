@@ -54,5 +54,5 @@ internal sealed class ComposeEditor(Action send, Action cancel, Action warn) : T
     ///     A right click is the shell's <c>esc</c>, which on a draft means nothing (#307) — so it is taken here, before
     ///     the editor opens its own context menu on it, and does nothing.
     /// </summary>
-    protected override bool OnMouseEvent(Mouse mouse) => ShellWindow.RightClicked(mouse) || base.OnMouseEvent(mouse);
+    protected override bool OnMouseEvent(Mouse mouse) => ShellKeys.Of(mouse) is not null || base.OnMouseEvent(mouse);
 }
