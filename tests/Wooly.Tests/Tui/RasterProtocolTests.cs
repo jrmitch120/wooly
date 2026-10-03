@@ -12,15 +12,16 @@ namespace Wooly.Tests.Tui;
 public class RasterProtocolTests
 {
     /// <summary>
-    ///     The ladder story 49 asks for, rung by rung: sixel where it is there, Kitty where sixel is not, and coloured
-    ///     cells everywhere else. The third rung is why the TUI needs no link-and-alt-text fallback of its own.
+    ///     The ladder, rung by rung: Kitty where it is there, sixel where Kitty is not, and nothing everywhere else.
+    ///     Story 49 asked for sixel first; Kitty placeholders scroll with the text for nothing and sixel resends every
+    ///     picture on every step, so a terminal offering both — WezTerm — gets Kitty (ADR-0022).
     /// </summary>
     [Theory]
-    [InlineData(true, true, PictureWay.Sixel)]
+    [InlineData(true, true, PictureWay.Kitty)]
     [InlineData(true, false, PictureWay.Sixel)]
     [InlineData(false, true, PictureWay.Kitty)]
     [InlineData(false, false, PictureWay.None)]
-    public void Chosen_PrefersSixelThenKittyThenNothing(bool sixel, bool kitty, PictureWay expected) =>
+    public void Chosen_PrefersKittyThenSixelThenNothing(bool sixel, bool kitty, PictureWay expected) =>
         Assert.Equal(
             expected,
             RasterProtocol.Chosen(

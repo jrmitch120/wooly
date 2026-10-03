@@ -226,6 +226,33 @@ public class PicturesTests
     }
 
     /// <summary>
+    ///     A picture dropped to make room is said to be dropped, by id, so that a terminal holding a copy of it can be
+    ///     told to let go of it too (#292).
+    /// </summary>
+    [Fact]
+    public void Pictures_SaysWhichPictureItDropped()
+    {
+        var dropped = new List<string>();
+
+        using var pictures = new Pictures(
+            (_, _) => Task.FromResult<byte[]?>(null),
+            ADrawingTerminal,
+            () => { },
+            dropped.Add);
+
+        for (var at = 0; at < Pictures.MostHeld; at++)
+        {
+            pictures.Want(Drawn.Attached(APost.APicture(id: $"m{at}")));
+        }
+
+        Assert.Empty(dropped);
+
+        pictures.Want(Drawn.Attached(APost.APicture(id: $"m{Pictures.MostHeld}")));
+
+        Assert.Equal(["m0"], dropped);
+    }
+
+    /// <summary>
     ///     The adapter over <see cref="HttpClient" />, tested at the one seam under it (ADR-0005): what a file server
     ///     answers is what gets decoded.
     /// </summary>

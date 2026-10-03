@@ -16,9 +16,11 @@ namespace Wooly.Tui.Views;
 ///     rather than by discipline: no other view has a way to.
 /// </summary>
 /// <remarks>
-///     The one thing it does not paint itself is a picture, which is drawn over the rows a post reserved for it by a
-///     <see cref="PictureView" /> per box. Those boxes ride the rows: they are placed from the same scroll position the
-///     text is drawn at, on every frame, so a picture cannot come adrift from the post it belongs to (ADR-0016).
+///     On a Kitty terminal it paints the pictures too, as placeholder cells over the rows a post reserved for each: the
+///     picture is sent to the terminal once and is part of the rows from then on, so it moves in the same frame as the
+///     text around it (ADR-0022). Anywhere else a picture is drawn over those rows by a <see cref="PictureView" /> per
+///     box. Those boxes ride the rows: they are placed from the same scroll position the text is drawn at, on every
+///     frame, so a picture cannot come adrift from the post it belongs to (ADR-0016).
 /// </remarks>
 internal sealed class PaintedView : View
 {
@@ -46,6 +48,10 @@ internal sealed class PaintedView : View
     private readonly IPictures? _pictures;
     private readonly Func<int, int, IReadOnlyList<Line>>? _frame;
     private readonly List<PictureView> _boxes = [];
+    private readonly Placeholders? _placeholders;
+
+    /// <summary>The pictures drawn as placeholders this frame, with the row each starts on and its image id.</summary>
+    private List<(Inset Inset, int Top, int Id)> _placed = [];
 
     private IReadOnlyList<Line>? _settled;
     private int _top;
@@ -62,6 +68,10 @@ internal sealed class PaintedView : View
     ///     The panel this region is drawn inside, given the whole of the view's width and height — <see cref="Panel" />'s
     ///     rows, of which only the edges are painted — or <see langword="null" /> for a region with no frame.
     /// </param>
+    /// <param name="placeholders">
+    ///     What a Kitty terminal holds, for drawing pictures as placeholder cells rather than through a box, or
+    ///     <see langword="null" /> to draw every picture through a box (ADR-0022).
+    /// </param>
     /// <remarks>
     ///     A frame is laid on a one-cell <c>Padding</c> round the view, so everything measured off
     ///     <see cref="View.Viewport" /> — the rows' width and height, the scroll, a page's worth — is the inside of it,
@@ -72,12 +82,14 @@ internal sealed class PaintedView : View
         ITheme theme,
         Func<int, int, IReadOnlyList<Line>> rows,
         IPictures? pictures = null,
-        Func<int, int, IReadOnlyList<Line>>? frame = null)
+        Func<int, int, IReadOnlyList<Line>>? frame = null,
+        Placeholders? placeholders = null)
     {
         _theme = theme;
         _rows = rows;
         _pictures = pictures;
         _frame = frame;
+        _placeholders = pictures is null ? null : placeholders;
 
         if (frame is not null)
         {
@@ -327,7 +339,38 @@ internal sealed class PaintedView : View
             Paint(at >= 0 && at < lines.Count ? lines[at] : null, 0, row, width);
         }
 
+        PaintPlaceholders(lines, width, height);
+
         return true;
+    }
+
+    /// <summary>
+    ///     Every row of every picture placed this frame that is on the page, as placeholder cells over the rows its post
+    ///     reserved — including the lower rows of a box whose top has been scrolled off, which the terminal crops
+    ///     (ADR-0022).
+    /// </summary>
+    private void PaintPlaceholders(IReadOnlyList<Line> lines, int width, int height)
+    {
+        foreach (var (inset, top, id) in _placed)
+        {
+            // Cut at the right edge, where the terminal draws the left of the picture and no more.
+            var columns = Math.Min(inset.Columns, width - inset.Column);
+
+            if (columns < 1)
+            {
+                continue;
+            }
+
+            for (var row = Math.Max(0, -top); row < inset.Rows && top + row < height; row++)
+            {
+                var at = _top + top + row;
+                var picked = at < lines.Count && lines[at].Picked;
+
+                // On the band where the post is picked, so a picture with transparency in it shows what the row is on.
+                SetAttribute(KittyPlaceholder.Painted(id, picked ? _theme.Banded(Role.Body) : _theme.For(Role.Body)));
+                AddStr(inset.Column, top + row, KittyPlaceholder.Row(row, columns));
+            }
+        }
     }
 
     /// <summary>
@@ -411,6 +454,7 @@ internal sealed class PaintedView : View
             // Nothing can be drawn, so nothing may be left drawn either: a box still showing from the last size this
             // view had would be a picture over whatever replaces it.
             _boxes.ForEach(box => box.Release());
+            _placed = [];
 
             return;
         }
@@ -418,7 +462,22 @@ internal sealed class PaintedView : View
         var lines = Rows(width, height);
 
         Want(lines, height);
-        Place(lines, height);
+
+        // Whatever the terminal was told to let go of since the last frame, before anything is sent.
+        _placeholders?.Flush();
+
+        if (_placeholders?.Drawing == true)
+        {
+            // Released rather than merely unused, so that nothing drawn through a box before the terminal said it
+            // speaks Kitty is left on screen under the placeholders.
+            _boxes.ForEach(box => box.Release());
+            _placed = Sent(lines, height);
+        }
+        else
+        {
+            _placed = [];
+            Place(lines, height);
+        }
 
         _settled = lines;
     }
@@ -563,6 +622,38 @@ internal sealed class PaintedView : View
     }
 
     /// <summary>
+    ///     The pictures on the page that a Kitty terminal holds, sending any that are ready and have not been sent. A
+    ///     picture still being encoded is left out, and its box keeps the rows it reserved until a redraw brings it.
+    /// </summary>
+    /// <remarks>
+    ///     A screen either side of the page is encoded ahead, the same reach <see cref="Want" /> fetches over, so that a
+    ///     picture scrolled to is usually ready rather than encoded the frame it comes into view (ADR-0022).
+    /// </remarks>
+    private List<(Inset Inset, int Top, int Id)> Sent(IReadOnlyList<Line> lines, int height)
+    {
+        if (_pictures?.Cell is not { } cell)
+        {
+            return [];
+        }
+
+        var placed = new List<(Inset, int, int)>();
+
+        foreach (var (inset, top, picture) in Wanted(lines, height, near: height))
+        {
+            if (top + inset.Rows <= 0 || top >= height)
+            {
+                _placeholders!.Prepare(inset, picture, cell);
+            }
+            else if (_placeholders!.Ready(inset, picture, cell) is { } id)
+            {
+                placed.Add((inset, top, id));
+            }
+        }
+
+        return placed;
+    }
+
+    /// <summary>
     ///     Which box draws which of the pictures wanted this frame: the box already holding one where there is one,
     ///     and never the same box twice.
     /// </summary>
@@ -632,9 +723,10 @@ internal sealed class PaintedView : View
 
     /// <summary>
     ///     The pictures to draw this frame, with the row each starts on — which may be above the top of the view or
-    ///     run past its bottom, for a box being scrolled past.
+    ///     run past its bottom, for a box being scrolled past — and with <paramref name="near" />, those within that
+    ///     many rows of the page as well.
     /// </summary>
-    private List<(Inset Inset, int Top, Picture Picture)> Wanted(IReadOnlyList<Line> lines, int height)
+    private List<(Inset Inset, int Top, Picture Picture)> Wanted(IReadOnlyList<Line> lines, int height, int near = 0)
     {
         var wanted = new List<(Inset, int, Picture)>();
 
@@ -646,7 +738,7 @@ internal sealed class PaintedView : View
 
                 // Off the top or off the bottom. A box straddling either edge is kept and clipped, which is what
                 // keeps a picture visible while it is being scrolled past rather than blinking out at the edge.
-                if (top + inset.Rows <= 0 || top >= height)
+                if (top + inset.Rows <= -near || top >= height + near)
                 {
                     continue;
                 }

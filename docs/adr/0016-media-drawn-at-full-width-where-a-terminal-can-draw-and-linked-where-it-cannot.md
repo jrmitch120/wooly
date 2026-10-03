@@ -324,3 +324,12 @@ ask `Media`, because a poll's answers are words its author typed and the flag is
 unwrap went inside for the warning questions too — a warning belongs to the post inside a boost, and a caller asking
 the wrapper would find none on a boost of a warned post. The CLI is untouched, which is this ADR's own decision
 restated rather than a gap: it links everything, hides nothing, and never puts the question at all.
+
+## Superseded in part by ADR-0022 (a picture sent once and drawn as text)
+
+On a terminal speaking the Kitty graphics protocol, Terminal.Gui no longer draws the pixels: a picture is sent once and
+drawn as Unicode placeholder cells in `PaintedView`'s own rows, so it moves with the text and a scroll sends no image
+data. Kitty is now preferred over sixel, the other way round from story 49, and `RasterProtocol.PreferSixel` is gone.
+The `PictureView` pool, and the rules above for releasing and placing its boxes, stand for sixel.
+`Media/KittyPlaceholder.cs` joins `PictureDecoder` on the colour scan's list, because an image id rides in a cell's
+foreground colour.

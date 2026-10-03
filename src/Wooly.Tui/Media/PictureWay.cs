@@ -7,11 +7,14 @@ namespace Wooly.Tui.Media;
 /// </summary>
 public enum PictureWay
 {
-    /// <summary>Sixel, where the terminal answers that it speaks it. What this client prefers.</summary>
-    Sixel,
-
-    /// <summary>The Kitty graphics protocol, for a terminal that has that and no sixel.</summary>
+    /// <summary>
+    ///     The Kitty graphics protocol's placeholders, where the terminal answers that it speaks it: a picture sent
+    ///     once and drawn as text. What this client prefers (ADR-0022).
+    /// </summary>
     Kitty,
+
+    /// <summary>Sixel, for a terminal that has that and no Kitty graphics.</summary>
+    Sixel,
 
     /// <summary>
     ///     Neither, so nothing is drawn and the attachment is linked the way the CLI links it.

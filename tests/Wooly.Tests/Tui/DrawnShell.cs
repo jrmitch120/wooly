@@ -46,6 +46,14 @@ internal sealed class DrawnShell : IDisposable
     ///     Whether the headless terminal says it draws sixel, which is what puts a picture's box on screen at all — a
     ///     box on a terminal drawing neither protocol is never shown.
     /// </param>
+    /// <param name="kittyImages">
+    ///     The Kitty terminal's image store, where a test is about what it is sent; one nobody reads if not.
+    /// </param>
+    /// <param name="drawsKitty">
+    ///     Whether the headless terminal says it speaks the Kitty graphics protocol, which is what draws a picture as
+    ///     placeholder cells rather than through a box (ADR-0022).
+    /// </param>
+    /// <param name="encoding">Where a picture is encoded for a Kitty terminal, where a test is about when; on the spot if not.</param>
     public static async Task<DrawnShell> Of(
         int width,
         int height,
@@ -53,7 +61,10 @@ internal sealed class DrawnShell : IDisposable
         AShell? built = null,
         bool launch = false,
         IPictures? pictures = null,
-        bool drawsPictures = false)
+        bool drawsPictures = false,
+        FakeTerminalImages? kittyImages = null,
+        bool drawsKitty = false,
+        Action<Action>? encoding = null)
     {
         built ??= new AShell();
 
@@ -68,7 +79,26 @@ internal sealed class DrawnShell : IDisposable
             application.Driver.SetSixelSupport(new Terminal.Gui.Drawing.SixelSupportResult { IsSupported = true });
         }
 
-        var window = new ShellWindow(shell, theme, built.Clock, () => { }, pictures ?? FakePictures.DrawingNothing());
+        if (drawsKitty)
+        {
+            application.Driver.SetKittyGraphicsSupport(
+                new Terminal.Gui.Drawing.KittyGraphicsSupportResult { IsSupported = true });
+        }
+
+        // Encoded on the spot rather than off the UI thread, so that a picture is sent on the frame that first wants it.
+        var placeholders = new Placeholders(
+            kittyImages ?? new FakeTerminalImages(),
+            () => RasterProtocol.DrawsKitty(application.Driver),
+            () => { },
+            encoding ?? (work => work()));
+
+        var window = new ShellWindow(
+            shell,
+            theme,
+            built.Clock,
+            () => { },
+            pictures ?? FakePictures.DrawingNothing(),
+            placeholders: placeholders);
 
         application.Begin(window);
         application.LayoutAndDraw(true);

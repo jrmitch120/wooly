@@ -567,9 +567,11 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
   or not anything is attached beside it — so that one prompt stands above everything a flagged post is holding back.
   The prompt is the one part of this the conversations list leaves off, `x` having nothing to act on there (#120,
   below); the warning above it, and the hiding itself, are the same on every screen.
-- **Sixel is preferred over Kitty, and the preference is subscribed to.** Both capabilities are answers the terminal
-  sends back some frames after startup, so a preference set once at startup is set against nothing and then overwritten
-  (ADR-0016).
+- **Kitty is preferred over sixel, and a Kitty terminal is sent each picture once** (#292, ADR-0022). The picture is
+  drawn as Unicode placeholder cells in the content panel's own rows, so it moves in the same frame as the text, a box
+  half off the page draws the rows still on it, and a scroll sends no image data. It is encoded off the UI thread, and
+  its box keeps the rows it reserved until it is ready. Sixel, which cannot move an image, still draws through a
+  `PictureView` box and resends on every step (ADR-0016).
 - **There is no cell-based fallback.** A terminal offering neither sixel nor the Kitty graphics protocol links every
   attachment, a photograph included, exactly the way the CLI writes one. The coloured-block rendering the ticket asked
   for was built and rejected on the evidence: a photograph as a few dozen rectangles resembles nothing and is worse
