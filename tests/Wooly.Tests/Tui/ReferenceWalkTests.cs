@@ -285,6 +285,64 @@ public class ReferenceWalkTests
         Assert.StartsWith(" Reference: ←/→ | ", Status(opened), StringComparison.Ordinal);
     }
 
+    /// <summary>Every screen a post is walked on says the walk before it starts, from the same rule.</summary>
+    [Theory]
+    [MemberData(nameof(Screens))]
+    public void EveryScreenSaysTheWalkBeforeItStarts(string kind)
+    {
+        var screen = Of(kind);
+
+        Assert.Null(screen.Reference);
+        Assert.Contains(screen.Keys, key => key.Key == "←/→");
+    }
+
+    /// <summary>
+    ///     The account screen's header block is walked with no post picked out, so the post keys come off first — and
+    ///     with no <c>⏎:read</c> left to rank behind, the walk is said in front.
+    /// </summary>
+    [Fact]
+    public void TheAccountHeaderSaysTheWalkFirst()
+    {
+        var account = new AccountScreen(
+            AnAccount.With(bio: "Occasional #linocut poster, at https://maria.example"),
+            [APost.With(content: Said)],
+            pinned: []);
+
+        Assert.Null(account.Picked);
+        Assert.StartsWith(" Reference: ←/→ | ", Status(account), StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    ///     Text behind a content warning has nothing to walk, so the walk is not said until the warning is asked past.
+    /// </summary>
+    [Fact]
+    public void TheWalkIsNotSaidBehindAContentWarning()
+    {
+        var feed = new FeedScreen(
+            new Destination(DestinationKind.Home, "Home"),
+            [APost.With(content: Said, contentWarning: "spoilers")]);
+
+        Assert.DoesNotContain(feed.Keys, key => key.Key == "←/→");
+
+        feed.Reveal();
+
+        Assert.Contains(feed.Keys, key => key.Key == "←/→");
+    }
+
+    /// <summary>On a post carrying a poll, the poll's keys are in front and the walk is still said behind them.</summary>
+    [Fact]
+    public void APollsKeysGoAheadOfTheWalk()
+    {
+        var feed = new FeedScreen(
+            new Destination(DestinationKind.Home, "Home"),
+            [APost.With(content: Said, poll: APost.APoll())]);
+
+        var keys = feed.Keys.Select(key => key.Key).ToList();
+
+        Assert.Equal(["1-0", "v"], keys.Take(2));
+        Assert.True(keys.IndexOf("←/→") > keys.IndexOf("⏎"));
+    }
+
     /// <summary>A post with nothing in it to walk to does not announce the walk.</summary>
     [Fact]
     public void TheStatusRowLeavesTheWalkOffAPostWithNothingToWalkTo()
