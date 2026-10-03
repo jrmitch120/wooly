@@ -148,6 +148,30 @@ public class ProfileRegistryTests : IDisposable
     }
 
     /// <summary>
+    ///     A keyring that will not answer is not a token gone: signing in says the keyring would not answer, and why,
+    ///     rather than sending the user off to authenticate again a profile that is still signed in (#296).
+    /// </summary>
+    [Fact]
+    public void Resolve_ReportsAKeyringThatWillNotAnswerRatherThanAMissingToken()
+    {
+        var keyring = new FakeOsKeyring();
+        var store = new FallbackCredentialStore(
+            () => OsKeyringCredentialStore.Open(() => new GcmKeyring(GcmKeyring.BackingStoreForThisMachine, keyring)),
+            NewCredentialStore());
+        var registry = NewRegistry(store);
+        registry.Add("work", Pointing("hachyderm.io"), "token-work");
+        keyring.RefusesReads = "access denied";
+
+        var exception = Assert.Throws<AuthenticationException>(() => registry.Resolve(null));
+
+        Assert.Contains(
+            TokenStorageDescription.Unanswered(new UnansweredKeyring("work", "access denied")),
+            exception.Message,
+            StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(new UnansweredKeyring("work", "access denied"), Assert.Single(registry.KeyringUnanswered));
+    }
+
+    /// <summary>
     ///     The config file is hand-editable, so it can name a current profile that was never set up. That is a problem
     ///     with the file, and the report says which file and what is wrong with it.
     /// </summary>
@@ -216,6 +240,32 @@ public class ProfileRegistryTests : IDisposable
 
         Assert.Null(keyring.FindAccessToken("work"));
         Assert.Equal(["personal"], NewRegistry(keyring).List().Select(profile => profile.Name));
+    }
+
+    /// <summary>
+    ///     A keyring that will not give the token up fails the removal, and the profile stays, so removing it again
+    ///     once the keyring is unlocked finishes the job rather than leaving a token nothing points at.
+    /// </summary>
+    [Fact]
+    public void Remove_KeepsTheProfileWhenTheKeyringWillNotGiveTheTokenUp()
+    {
+        var keyring = new FakeOsKeyring();
+        var store = new FallbackCredentialStore(
+            () => OsKeyringCredentialStore.Open(() => new GcmKeyring(GcmKeyring.BackingStoreForThisMachine, keyring)),
+            NewCredentialStore());
+        var registry = NewRegistry(store);
+        registry.Add("personal", Pointing("mastodon.social"), "token-personal");
+        registry.Add("work", Pointing("hachyderm.io"), "token-work");
+        keyring.RefusesDeletes = "access denied";
+
+        Assert.Throws<KeyringUnansweredException>(() => registry.Remove("work"));
+        Assert.Equal(["personal", "work"], NewRegistry(store).List().Select(profile => profile.Name));
+
+        keyring.RefusesDeletes = null;
+        registry.Remove("work");
+
+        Assert.DoesNotContain(keyring.Secrets, secret => secret.Key.Account == "work");
+        Assert.Equal(["personal"], NewRegistry(store).List().Select(profile => profile.Name));
     }
 
     /// <summary>

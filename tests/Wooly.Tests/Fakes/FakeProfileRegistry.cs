@@ -39,6 +39,12 @@ internal sealed class FakeProfileRegistry(IReadOnlyList<ProfileSummary> profiles
     /// <inheritdoc />
     public CredentialStorage TokenStorage { get; set; } = CredentialStorage.OsKeyring;
 
+    /// <inheritdoc />
+    public IReadOnlyList<UnansweredKeyring> KeyringUnanswered { get; set; } = [];
+
+    /// <summary>What the keyring says when asked to give a token up, or <see langword="null" /> where it gives it up.</summary>
+    public string? KeyringRefusesDeletes { get; set; }
+
     /// <summary>
     ///     <paramref name="profiles" />, with <paramref name="current" /> the default profile — or none, where
     ///     it is <see langword="null" />.
@@ -100,7 +106,7 @@ internal sealed class FakeProfileRegistry(IReadOnlyList<ProfileSummary> profiles
     }
 
     /// <inheritdoc />
-    /// <remarks>Refuses the default, as the real one does.</remarks>
+    /// <remarks>Refuses the default, and a keyring that will not give the token up, as the real one does.</remarks>
     public ProfileRemoval Remove(string name)
     {
         var removed = _profiles.SingleOrDefault(held => held.Name == name)
@@ -109,6 +115,11 @@ internal sealed class FakeProfileRegistry(IReadOnlyList<ProfileSummary> profiles
         if (removed.IsCurrent)
         {
             throw new DefaultProfileRemovalException(name);
+        }
+
+        if (KeyringRefusesDeletes is { } error)
+        {
+            throw new KeyringUnansweredException(name, new InvalidOperationException(error));
         }
 
         Removed.Add(name);
@@ -121,7 +132,8 @@ internal sealed class FakeProfileRegistry(IReadOnlyList<ProfileSummary> profiles
     /// <remarks>
     ///     With <c>token-</c> and its name for its token, so a test can tell whose token a call went out with — or the last
     ///     one written for it, where it has been signed in again since (#248). No name is
-    ///     the default, and no default is nobody to act as — refused as the real one refuses it.
+    ///     the default, and no default is nobody to act as — refused as the real one refuses it. A profile the keyring
+    ///     would not answer for is refused too, with the keyring's sentence the real one says it in.
     /// </remarks>
     public ActiveProfile Resolve(string? requestedName)
     {
@@ -130,6 +142,11 @@ internal sealed class FakeProfileRegistry(IReadOnlyList<ProfileSummary> profiles
                    ?? throw new AuthenticationException("No profiles have been set up yet.");
         var profile = _profiles.SingleOrDefault(held => held.Name == name)
                       ?? throw new UnknownProfileException(name, [.. _profiles.Select(held => held.Name)]);
+
+        if (KeyringUnanswered.FirstOrDefault(unanswered => unanswered.ProfileName == name) is { } unanswered)
+        {
+            throw new AuthenticationException(TokenStorageDescription.Unanswered(unanswered));
+        }
 
         if (Tokenless.Contains(name))
         {

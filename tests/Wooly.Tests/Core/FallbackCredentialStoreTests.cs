@@ -1,5 +1,6 @@
 using Wooly.Core;
 using Wooly.Core.Credentials;
+using Wooly.Core.Errors;
 using Wooly.Tests.Fakes;
 
 namespace Wooly.Tests.Core;
@@ -231,6 +232,98 @@ public class FallbackCredentialStoreTests : IDisposable
         Assert.Null(nextRun.FindAccessToken("personal"));
         Assert.Null(nextRun.FindAccessToken("work"));
         Assert.False(nextRun.DeleteAccessToken("personal"));
+    }
+
+    /// <summary>
+    ///     A keyring that opens and then will not read — locked, or a prompt declined — is not one with no token in it.
+    ///     The profile still finds nothing, but the store says why, so it is not shown as simply signed out (#296).
+    /// </summary>
+    [Fact]
+    public void FindAccessToken_ReportsAKeyringThatWillNotAnswerForThatProfile()
+    {
+        var store = WithKeyring();
+        store.SaveAccessToken("work", "token-work");
+        _keyring.RefusesReads = "access denied";
+
+        Assert.Null(store.FindAccessToken("work"));
+
+        var unanswered = Assert.Single(store.Unanswered);
+        Assert.Equal("work", unanswered.ProfileName);
+        Assert.Equal("access denied", unanswered.Error);
+    }
+
+    /// <summary>
+    ///     A delete the keyring will not answer fails rather than passing for done: the token would still be in the
+    ///     keyring, out of reach once its profile had gone. Nothing is touched, so trying again finishes the job.
+    /// </summary>
+    [Fact]
+    public void DeleteAccessToken_FailsWhenTheKeyringWillNotAnswer()
+    {
+        _keyring.RefusesWrites = true;
+        var store = WithKeyring();
+        store.SaveAccessToken("work", "token-work");
+        _keyring.RefusesWrites = false;
+        _keyring.RefusesDeletes = "access denied";
+
+        var refusal = Assert.Throws<KeyringUnansweredException>(() => store.DeleteAccessToken("work"));
+
+        Assert.Equal("work", refusal.ProfileName);
+        Assert.Contains("access denied", refusal.Message);
+        Assert.Equal("token-work", store.FindAccessToken("work"));
+        Assert.Equal(CredentialStorage.PlaintextFile, store.Storage);
+    }
+
+    /// <summary>A keyring that answers for the profile later, unlocked, stops being reported for it.</summary>
+    [Fact]
+    public void FindAccessToken_ClearsTheReportOnceTheKeyringAnswersForThatProfile()
+    {
+        var store = WithKeyring();
+        store.SaveAccessToken("work", "token-work");
+        _keyring.RefusesReads = "access denied";
+        store.FindAccessToken("work");
+        _keyring.RefusesReads = null;
+
+        Assert.Equal("token-work", store.FindAccessToken("work"));
+        Assert.Empty(store.Unanswered);
+    }
+
+    /// <summary>A token the file holds is found all the same, and a profile signed in is nothing to warn about.</summary>
+    [Fact]
+    public void FindAccessToken_DoesNotReportAProfileWhoseTokenTheFileHolds()
+    {
+        _keyring.RefusesWrites = true;
+        var store = WithKeyring();
+        store.SaveAccessToken("work", "token-work");
+        _keyring.RefusesReads = "access denied";
+
+        Assert.Equal("token-work", store.FindAccessToken("work"));
+        Assert.Empty(store.Unanswered);
+    }
+
+    /// <summary>Signing in again once the keyring is unlocked puts the token where it belongs, and the report goes.</summary>
+    [Fact]
+    public void SaveAccessToken_ClearsTheReportOnceTheKeyringTakesTheToken()
+    {
+        var store = WithKeyring();
+        _keyring.RefusesReads = "access denied";
+        store.FindAccessToken("work");
+        _keyring.RefusesReads = null;
+
+        store.SaveAccessToken("work", "token-work");
+
+        Assert.Empty(store.Unanswered);
+    }
+
+    /// <summary>A keyring that answers is not reported, whether or not it had a token for the profile.</summary>
+    [Fact]
+    public void Unanswered_IsEmptyWhileTheKeyringAnswers()
+    {
+        var store = WithKeyring();
+
+        store.FindAccessToken("work");
+        store.DeleteAccessToken("work");
+
+        Assert.Empty(store.Unanswered);
     }
 
     private string CredentialFile => Path.Combine(_directory.Path, "credentials.toml");

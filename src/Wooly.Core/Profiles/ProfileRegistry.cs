@@ -16,6 +16,9 @@ public sealed class ProfileRegistry(IConfigStore configStore, ICredentialStore c
     public CredentialStorage TokenStorage => credentialStore.Storage;
 
     /// <inheritdoc />
+    public IReadOnlyList<UnansweredKeyring> KeyringUnanswered => credentialStore.Unanswered;
+
+    /// <inheritdoc />
     public IReadOnlyList<ProfileSummary> List()
     {
         var config = configStore.Load();
@@ -141,9 +144,7 @@ public sealed class ProfileRegistry(IConfigStore configStore, ICredentialStore c
                 $"profile '{name}' has instance '{profile.Instance}'. {InstanceDomain.Rejection(profile.Instance)}");
         }
 
-        var accessToken = credentialStore.FindAccessToken(name)
-                          ?? throw new AuthenticationException(
-                              $"Profile '{name}' has no access token stored. Authenticate it again.");
+        var accessToken = credentialStore.FindAccessToken(name) ?? throw NoAccessToken(name);
 
         return new ActiveProfile
         {
@@ -152,6 +153,22 @@ public sealed class ProfileRegistry(IConfigStore configStore, ICredentialStore c
             Account = profile.Account,
             AccessToken = accessToken,
         };
+    }
+
+    /// <summary>
+    ///     A keyring that would not answer for the profile is said as that, since authenticating again is not what it
+    ///     needs (#296); a token that is simply not there is said as that.
+    /// </summary>
+    private AuthenticationException NoAccessToken(string name)
+    {
+        if (credentialStore.Unanswered.FirstOrDefault(unanswered => unanswered.ProfileName == name) is { } unanswered)
+        {
+            var said = TokenStorageDescription.Unanswered(unanswered);
+
+            return new AuthenticationException($"{char.ToUpperInvariant(said[0])}{said[1..]}");
+        }
+
+        return new AuthenticationException($"Profile '{name}' has no access token stored. Authenticate it again.");
     }
 
     private static AuthenticationException NothingToActAs(WoolyConfig config) => new(

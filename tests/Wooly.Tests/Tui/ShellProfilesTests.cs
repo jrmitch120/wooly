@@ -84,7 +84,7 @@ public class ShellProfilesTests
             new SearchScreen(),
             new HelpScreen(new SearchScreen()),
             new NoticeScreen("Hashtag", "No hashtag set."),
-            new ProfilesScreen([], "personal", null),
+            new ProfilesScreen([], "personal", []),
         ];
 
         Assert.All(screens, screen => Assert.Equal(Verb.Profiles, Keymap.Means(ShellKey.CtrlP, screen)));
@@ -233,6 +233,25 @@ public class ShellProfilesTests
 
         var text = string.Join(" ", AShell.Drawn(opened.Screen).Select(row => row.Trim()));
         Assert.Contains(TokenStorageDescription.For(CredentialStorage.PlaintextFile, shell.Paths), text);
+    }
+
+    /// <summary>
+    ///     A keyring that would not answer for a profile is said there too, so the profile is not taken for signed out
+    ///     (#296).
+    /// </summary>
+    [Fact]
+    public async Task KeyringWarning_IsDrawn_ForAProfileTheKeyringWouldNotAnswerFor()
+    {
+        var shell = new AShell();
+        shell.Profiles.KeyringUnanswered = [new UnansweredKeyring("work", "access denied")];
+
+        var opened = await shell.Opened();
+
+        opened.Press(ShellKey.CtrlP);
+
+        var text = string.Join(" ", AShell.Drawn(opened.Screen).Select(row => row.Trim()));
+        Assert.Contains("would not answer for profile \"work\" (access denied)", text);
+        Assert.DoesNotContain("in the clear", text);
     }
 
     /// <summary>And only there: a keyring is nothing to warn anybody about.</summary>

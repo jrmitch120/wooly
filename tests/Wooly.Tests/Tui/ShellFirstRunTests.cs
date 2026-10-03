@@ -257,6 +257,25 @@ public class ShellFirstRunTests
     }
 
     /// <summary>
+    ///     A keyring that would not answer for the profile says so where a missing token would have, so the reader
+    ///     knows to unlock it rather than taking the profile for signed out (#296).
+    /// </summary>
+    [Fact]
+    public async Task UnansweredKeyring_SaysWhyThatProfileIsSigningInAgain()
+    {
+        var registry = FakeProfileRegistry.Holding(
+            "work",
+            FakeProfileRegistry.Profile("work", Instance, $"jeff@{Instance}"));
+        registry.KeyringUnanswered = [new UnansweredKeyring("work", "access denied")];
+
+        var shell = new AShell { Profiles = registry };
+        var opened = await shell.Launched();
+
+        Assert.IsType<AddProfileScreen>(opened.Screen);
+        Assert.Contains("would not answer for profile \"work\" (access denied)", Joined(opened));
+    }
+
+    /// <summary>
     ///     Signing a profile in again with a token for somebody else writes nothing: the profile would otherwise quietly
     ///     become another person's.
     /// </summary>

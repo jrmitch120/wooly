@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Wooly.Core.Errors;
 
 namespace Wooly.Core.Credentials;
 
@@ -34,8 +35,22 @@ public sealed class FallbackCredentialStore(
     /// </summary>
     private readonly ConcurrentDictionary<string, bool> _refused = new();
 
+    /// <summary>
+    ///     The profiles the keyring would not read for this run, with what it said: a locked keyring, a prompt
+    ///     declined, a service down. A later answer for the profile takes it off, as does its token being found in the
+    ///     file after all (#296).
+    /// </summary>
+    private readonly ConcurrentDictionary<string, string> _unanswered = new();
+
     /// <inheritdoc />
     public CredentialStorage Storage => _refused.IsEmpty ? _chosen.Value.Storage : whenNoKeyring.Storage;
+
+    /// <inheritdoc />
+    public IReadOnlyList<UnansweredKeyring> Unanswered =>
+    [
+        .. _unanswered.OrderBy(entry => entry.Key, StringComparer.Ordinal)
+                      .Select(entry => new UnansweredKeyring(entry.Key, entry.Value)),
+    ];
 
     /// <summary>The keyring, where one opened, and <see langword="null" /> where the file is all there is.</summary>
     private ICredentialStore? Keyring => ReferenceEquals(_chosen.Value, whenNoKeyring) ? null : _chosen.Value;
@@ -47,18 +62,31 @@ public sealed class FallbackCredentialStore(
         {
             try
             {
-                if (keyring.FindAccessToken(profileName) is { } token)
+                var token = keyring.FindAccessToken(profileName);
+                _unanswered.TryRemove(profileName, out _);
+
+                if (token is not null)
                 {
                     return token;
                 }
             }
-            catch (Exception)
+            catch (Exception refusal)
             {
-                // A keyring that will not read is one that has nothing to say; the file may.
+                // The file may still have the token. If it does not, the profile looks signed out, so Unanswered says
+                // why rather than leaving the user to sign in again over a keyring that is only locked.
+                _unanswered[profileName] = refusal.Message;
             }
         }
 
-        return whenNoKeyring.FindAccessToken(profileName);
+        var fromFile = whenNoKeyring.FindAccessToken(profileName);
+
+        if (fromFile is not null)
+        {
+            // Found after all, so the profile does not look signed out and there is nothing to warn about.
+            _unanswered.TryRemove(profileName, out _);
+        }
+
+        return fromFile;
     }
 
     /// <inheritdoc />
@@ -88,9 +116,11 @@ public sealed class FallbackCredentialStore(
         // Held where it belongs now, so a copy an earlier refusal left in the clear goes.
         whenNoKeyring.DeleteAccessToken(profileName);
         _refused.TryRemove(profileName, out _);
+        _unanswered.TryRemove(profileName, out _);
     }
 
     /// <inheritdoc />
+    /// <exception cref="KeyringUnansweredException">The keyring would not give the token up.</exception>
     public bool DeleteAccessToken(string profileName)
     {
         var fromKeyring = false;
@@ -100,10 +130,13 @@ public sealed class FallbackCredentialStore(
             try
             {
                 fromKeyring = keyring.DeleteAccessToken(profileName);
+                _unanswered.TryRemove(profileName, out _);
             }
-            catch (Exception)
+            catch (Exception refusal)
             {
-                // Nothing the keyring would give up; the file is still asked.
+                // Not passed over, as a read is: carrying on would let the profile go and leave its token in the
+                // keyring, out of this client's reach. Nothing has been touched, so trying again finishes the job.
+                throw new KeyringUnansweredException(profileName, refusal);
             }
         }
 
@@ -112,6 +145,7 @@ public sealed class FallbackCredentialStore(
 
         return fromKeyring || fromFile;
     }
+
     private static ICredentialStore Choose(Func<ICredentialStore> openKeyring, ICredentialStore whenNoKeyring)
     {
         try

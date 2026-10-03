@@ -18,11 +18,21 @@ internal sealed class FakeOsKeyring : ICredentialStore
     /// </summary>
     public bool RefusesWrites { get; set; }
 
+    /// <summary>
+    ///     Why reading a token is refused, or <see langword="null" /> where it is not — a locked keyring, or a
+    ///     permission prompt declined. The keyring still opens, since listing what it holds is a different question.
+    /// </summary>
+    public string? RefusesReads { get; set; }
+
+    /// <summary>Why deleting a token is refused, or <see langword="null" /> where it is not.</summary>
+    public string? RefusesDeletes { get; set; }
+
     public IList<string> GetAccounts(string service) =>
         _secrets.Keys.Where(key => key.Service == service).Select(key => key.Account).ToList();
 
-    public ICredential? Get(string service, string account) =>
-        _secrets.TryGetValue((service, account), out var secret) ? new Credential(account, secret) : null;
+    public ICredential? Get(string service, string account) => RefusesReads is { } reason
+        ? throw new InvalidOperationException(reason)
+        : _secrets.TryGetValue((service, account), out var secret) ? new Credential(account, secret) : null;
 
     public void AddOrUpdate(string service, string account, string secret)
     {
@@ -34,7 +44,9 @@ internal sealed class FakeOsKeyring : ICredentialStore
         _secrets[(service, account)] = secret;
     }
 
-    public bool Remove(string service, string account) => _secrets.Remove((service, account));
+    public bool Remove(string service, string account) => RefusesDeletes is { } reason
+        ? throw new InvalidOperationException(reason)
+        : _secrets.Remove((service, account));
 
     private sealed record Credential(string Account, string Password) : ICredential;
 }
