@@ -16,11 +16,14 @@ namespace Wooly.Tests.Tui;
 /// </summary>
 public class ShellPointerTests
 {
-    /// <summary>A column well inside the content panel at an 80-column terminal, clear of its edges.</summary>
-    private const int OverContent = 40;
+    /// <summary>A column inside the content panel, clear of its left edge at any terminal these tests draw.</summary>
+    private const int OverContent = RailLines.Width + 4;
 
-    /// <summary>A column inside the rail.</summary>
-    private const int OverRail = 5;
+    /// <summary>A column inside the rail, clear of its left edge.</summary>
+    private const int OverRail = RailLines.Width / 2;
+
+    /// <summary>A row inside both panels, below their top edges at any terminal these tests draw.</summary>
+    private const int Inside = 3;
 
     /// <summary>
     ///     A wheel notch moves the page exactly as far as one <c>↓</c> or <c>↑</c> does: the window's three-row step,
@@ -39,7 +42,7 @@ public class ShellPointerTests
 
         var from = drawn.Content.Top;
 
-        drawn.Wheel(OverContent, 10, down);
+        drawn.Wheel(OverContent, Inside, down);
 
         var wheeled = drawn.Content.Top;
 
@@ -50,7 +53,7 @@ public class ShellPointerTests
 
         drawn.Press(down ? Key.CursorDown : Key.CursorUp);
 
-        Assert.Equal(drawn.Content.Top, wheeled);
+        Assert.Equal(wheeled, drawn.Content.Top);
         Assert.NotEqual(from, wheeled);
     }
 
@@ -62,38 +65,43 @@ public class ShellPointerTests
 
         drawn.Press(Key.K);
 
-        for (var notch = 0; notch < 30; notch++)
-        {
-            drawn.Wheel(OverContent, 10);
-        }
+        Notches(drawn, 30);
 
         Assert.Equal("220", drawn.Shell.Screen.Picked?.Id);
 
-        for (var notch = 0; notch < 30; notch++)
-        {
-            drawn.Wheel(OverContent, 10, down: false);
-        }
+        Notches(drawn, 30, down: false);
 
         Assert.Equal("220", drawn.Shell.Screen.Picked?.Id);
     }
 
     /// <summary>
-    ///     And the state it leaves is the one the arrows leave: with the pick wheeled off the page, <c>k</c> takes back
-    ///     the topmost post on it rather than stepping on from one nobody can see.
+    ///     And the state it leaves is the one the arrows leave: with the pick wheeled off the page, <c>j</c> and
+    ///     <c>k</c> take back the topmost post on it rather than stepping on from one nobody can see — the same post
+    ///     the same press takes after the arrows have carried the page as far.
     /// </summary>
-    [Fact]
-    public async Task K_ReclaimsThePostOnThePageAfterTheWheelHasCarriedThePickOff()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task JAndK_ReclaimWhatTheyWouldAfterTheArrows(bool next)
     {
-        using var drawn = await Four();
+        using var wheeled = await Four();
+        using var arrowed = await Four();
 
-        for (var notch = 0; notch < 30; notch++)
+        Notches(wheeled, 6);
+
+        for (var pressed = 0; pressed < 6; pressed++)
         {
-            drawn.Wheel(OverContent, 10);
+            arrowed.Press(Key.CursorDown);
         }
 
-        drawn.Press(Key.K);
+        Assert.Equal(arrowed.Content.Top, wheeled.Content.Top);
 
-        Assert.Equal("440", drawn.Shell.Screen.Picked?.Id);
+        wheeled.Press(next ? Key.K : Key.J);
+        arrowed.Press(next ? Key.K : Key.J);
+
+        // Off the first post, which is where a step from the pick the page left behind would have stayed or landed.
+        Assert.NotEqual("110", wheeled.Shell.Screen.Picked?.Id);
+        Assert.Equal(arrowed.Shell.Screen.Picked?.Id, wheeled.Shell.Screen.Picked?.Id);
     }
 
     /// <summary>The wheel stops at the ends of the list rather than scrolling into nothing, as the arrows do.</summary>
@@ -102,20 +110,17 @@ public class ShellPointerTests
     {
         using var drawn = await Four();
 
-        drawn.Wheel(OverContent, 10, down: false);
+        drawn.Wheel(OverContent, Inside, down: false);
 
         Assert.Equal(0, drawn.Content.Top);
 
-        for (var notch = 0; notch < 50; notch++)
-        {
-            drawn.Wheel(OverContent, 10);
-        }
+        Notches(drawn, 50);
 
         var foot = drawn.Content.Top;
 
         Assert.True(foot > 0);
 
-        drawn.Wheel(OverContent, 10);
+        drawn.Wheel(OverContent, Inside);
 
         Assert.Equal(foot, drawn.Content.Top);
 
@@ -155,7 +160,7 @@ public class ShellPointerTests
 
         while (notches < 30 && !drawn.Rows().Any(row => row.Contains("Underneath")))
         {
-            drawn.Wheel(OverContent, 10);
+            drawn.Wheel(OverContent, Inside);
             notches++;
         }
 
@@ -172,10 +177,16 @@ public class ShellPointerTests
     [InlineData(false)]
     public async Task AWheelOverTheRailChangesNothing(bool down)
     {
-        // Short enough that the rail is compact and scrolled, so that it has a scroll to keep.
+        // Short enough that the rail is compact, and its cursor far enough down it to have scrolled it — so that it
+        // has a scroll to keep.
         using var drawn = await Four(height: 12);
 
+        drawn.Shell.Rail.GoTo(DestinationKind.Profile);
+        drawn.Built.Host.Drain();
+        drawn.Redraw();
         drawn.Press(Key.CursorDown);
+
+        Assert.DoesNotContain(drawn.Rail(), row => row.Contains("Home", StringComparison.Ordinal));
 
         var rail = drawn.Rail();
         var cursor = drawn.Shell.Rail.Cursor;
@@ -183,10 +194,7 @@ public class ShellPointerTests
         var top = drawn.Content.Top;
         var picked = drawn.Shell.Screen.Picked?.Id;
 
-        for (var notch = 0; notch < 5; notch++)
-        {
-            drawn.Wheel(OverRail, 3, down);
-        }
+        Notches(drawn, 5, down, OverRail);
 
         Assert.Equal(rail, drawn.Rail());
         Assert.Equal(cursor, drawn.Shell.Rail.Cursor);
@@ -205,7 +213,7 @@ public class ShellPointerTests
 
         Assert.IsType<HelpScreen>(drawn.Shell.Screen);
 
-        drawn.Wheel(OverContent, 5);
+        drawn.Wheel(OverContent, Inside);
 
         var wheeled = drawn.Content.Top;
 
@@ -230,7 +238,7 @@ public class ShellPointerTests
 
         Assert.IsType<NoticeScreen>(drawn.Shell.Screen);
 
-        drawn.Wheel(30, 4);
+        drawn.Wheel(OverContent, Inside);
 
         var wheeled = drawn.Content.Top;
 
@@ -261,7 +269,7 @@ public class ShellPointerTests
 
         Assert.Equal(0, editor.Viewport.Y);
 
-        drawn.Wheel(OverContent, 10);
+        drawn.Wheel(OverContent, Inside + 2);
 
         Assert.True(editor.Viewport.Y > 0);
         Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
@@ -310,6 +318,56 @@ public class ShellPointerTests
         var mouse = Assert.Single(everywhere, text => text.StartsWith("mouse ", StringComparison.Ordinal));
 
         Assert.Contains("wheel", mouse, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    ///     A notch is the arrow it stands for with a question open too: anything but the agreeing key declines one, so
+    ///     a notch declines it and scrolls nothing behind it, as <c>↓</c> does (story 43).
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ANotchDeclinesAnOpenQuestionAsTheArrowDoes(bool wheel)
+    {
+        var answers = Enumerable.Range(1, 3).Select(at => APost.AnAnswer($"Answer {at}", at)).ToList();
+
+        using var drawn = await DrawnShell.Of(
+            80,
+            12,
+            Themes.Plain,
+            new AShell
+            {
+                Timelines = FakeTimelineReader.Holding(
+                    APost.With(id: "110", poll: APost.APoll(options: answers)),
+                    APost.With(id: "220")),
+            });
+
+        drawn.Press(new Key('2'));
+        drawn.Press(Key.V);
+
+        Assert.NotNull(drawn.Shell.Asking);
+
+        if (wheel)
+        {
+            drawn.Wheel(OverContent, Inside);
+        }
+        else
+        {
+            drawn.Press(Key.CursorDown);
+        }
+
+        Assert.Null(drawn.Shell.Asking);
+        Assert.Equal(0, drawn.Content.Top);
+        Assert.Empty(drawn.Built.Engagement.Votes);
+    }
+
+    /// <summary><paramref name="count" /> notches of the wheel over the content, or wherever <paramref name="column" /> says.</summary>
+    private static void Notches(DrawnShell drawn, int count, bool down = true, int column = OverContent)
+    {
+        for (var notch = 0; notch < count; notch++)
+        {
+            drawn.Wheel(column, Inside, down);
+        }
     }
 
     /// <summary>Four posts on a terminal of the given size, drawn.</summary>

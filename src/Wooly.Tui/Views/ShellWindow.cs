@@ -260,19 +260,35 @@ internal sealed class ShellWindow : Window
     /// </remarks>
     protected override bool OnMouseEvent(Mouse mouse)
     {
-        if (!mouse.IsWheel || !_content.FrameToScreen().Contains(mouse.ScreenPosition))
+        if (!_content.FrameToScreen().Contains(mouse.ScreenPosition) || Notched(mouse) is not { } pressed)
         {
             return base.OnMouseEvent(mouse);
         }
 
-        // One notch is one ↓ or ↑: the same page step, so the wheel and the arrows leave a reader in the same place.
-        if (mouse.Flags.HasFlag(MouseFlags.WheeledDown))
+        // A notch is the arrow it stands for, open question and all: anything but the agreeing key declines one, so a
+        // notch declines it too and scrolls nothing behind it (story 43).
+        if (_shell.Asking is not null)
         {
-            return Carry(Verb.ScrollDown);
+            _ = _shell.Answer(agreed: false);
+
+            return true;
         }
 
-        return mouse.Flags.HasFlag(MouseFlags.WheeledUp) ? Carry(Verb.ScrollUp) : base.OnMouseEvent(mouse);
+        return Do(pressed);
     }
+
+    /// <summary>
+    ///     The arrow a wheel notch is — <c>↓</c> or <c>↑</c>, the window's three-row page step either way — or
+    ///     <see langword="null" /> for anything that is not a notch.
+    /// </summary>
+    /// <remarks>
+    ///     A key rather than a verb, so that what the notch does is whatever <see cref="Keymap" /> says that arrow does
+    ///     on the screen in front: the wheel and the arrows cannot drift apart while they are the same press.
+    /// </remarks>
+    private static ShellKey? Notched(Mouse mouse) =>
+        mouse.Flags.HasFlag(MouseFlags.WheeledDown) ? ShellKey.Down
+        : mouse.Flags.HasFlag(MouseFlags.WheeledUp) ? ShellKey.Up
+        : null;
 
     /// <summary>
     ///     What <paramref name="pressed" /> means here, done. The verbs that need a terminal are taken first and the
