@@ -30,11 +30,9 @@ public class ShellComposeLayoutTests
     /// </summary>
     private const int ContentWidth = 60;
 
-    /// <summary>The hairline under the headers and above the foot, inside the two columns of padding (#317).</summary>
-    private const string Hairline = "  ────────────────────────────────────────────────────────";
+    private const string NoWarning = ComposeRows.NoWarning;
 
-    /// <summary>The warning header with nothing written in it and nobody writing (#317).</summary>
-    private const string NoWarning = "     ⚠  none · ctrl-w to add";
+    private static readonly string Hairline = ComposeRows.Hairline(ContentWidth);
 
     /// <summary>
     ///     The editor starts below what is being answered rather than on top of it, and below the headers round it
@@ -220,32 +218,16 @@ public class ShellComposeLayoutTests
     ///     for one.
     /// </summary>
     [Theory]
-    [InlineData("compose")]
-    [InlineData("reply")]
-    [InlineData("edit")]
-    public async Task Warning_IsSpacedTheSameOnEveryCompose(string opening)
+    [InlineData(ComposeFor.Post)]
+    [InlineData(ComposeFor.Reply)]
+    [InlineData(ComposeFor.Edit)]
+    public async Task Warning_IsSpacedTheSameOnEveryCompose(ComposeFor opening)
     {
         var (window, shell) = await Opened(height: 20, post: APost.With(id: "220", account: "jeff@mastodon.social"));
 
         using (window)
         {
-            switch (opening)
-            {
-                case "compose":
-                    shell.Compose();
-
-                    break;
-                case "reply":
-                    shell.Reply();
-
-                    break;
-                default:
-                    shell.Edit();
-
-                    break;
-            }
-
-            var compose = Assert.IsType<ComposeScreen>(shell.Screen);
+            var compose = ComposeRows.Open(shell, opening);
             var band = compose.Lines(new Drawing(ContentWidth, AShell.Now))
                               .Select(line => line.Text)
                               .SkipWhile(line => line != NoWarning)
@@ -345,17 +327,17 @@ public class ShellComposeLayoutTests
     ///     the two columns of padding either side, and down to the foot's hairline and count row (#317).
     /// </summary>
     [Theory]
-    [InlineData("compose", 60, 17, 5)]
-    [InlineData("reply", 60, 17, 7)]
-    [InlineData("edit", 60, 17, 5)]
-    [InlineData("reply", 40, 30, 7)]
-    public async Task EditorAt_SitsUnderWhatIsAboveItAndRunsToTheFoot(string opening, int width, int height, int top)
+    [InlineData(ComposeFor.Post, 60, 17, 5)]
+    [InlineData(ComposeFor.Reply, 60, 17, 7)]
+    [InlineData(ComposeFor.Edit, 60, 17, 5)]
+    [InlineData(ComposeFor.Reply, 40, 30, 7)]
+    public async Task EditorAt_SitsUnderWhatIsAboveItAndRunsToTheFoot(ComposeFor opening, int width, int height, int top)
     {
         var (window, shell) = await Opened(height: 20, post: APost.With(id: "220", account: "jeff@mastodon.social"));
 
         using (window)
         {
-            var compose = Opening(shell, opening);
+            var compose = ComposeRows.Open(shell, opening);
 
             Assert.Equal(
                 new Rectangle(2, top, width - 4, height - top - 2),
@@ -389,16 +371,16 @@ public class ShellComposeLayoutTests
     ///     in the window — with or without the rail beside it.
     /// </summary>
     [Theory]
-    [InlineData("compose")]
-    [InlineData("reply")]
-    [InlineData("edit")]
-    public async Task Window_LaysTheEditorWhereTheScreenSays(string opening)
+    [InlineData(ComposeFor.Post)]
+    [InlineData(ComposeFor.Reply)]
+    [InlineData(ComposeFor.Edit)]
+    public async Task Window_LaysTheEditorWhereTheScreenSays(ComposeFor opening)
     {
         var (window, shell) = await Opened(height: 20, post: APost.With(id: "220", account: "jeff@mastodon.social"));
 
         using (window)
         {
-            var compose = Opening(shell, opening);
+            var compose = ComposeRows.Open(shell, opening);
 
             window.Layout();
 
@@ -537,28 +519,6 @@ public class ShellComposeLayoutTests
         window.Layout();
 
         return (window, Editor(window), (ComposeScreen)shell.Screen);
-    }
-
-    /// <summary>Opens a compose of the kind <paramref name="opening" /> names on the post the shell is showing.</summary>
-    private static ComposeScreen Opening(Wooly.Tui.Shell.Shell shell, string opening)
-    {
-        switch (opening)
-        {
-            case "compose":
-                shell.Compose();
-
-                break;
-            case "reply":
-                shell.Reply();
-
-                break;
-            default:
-                shell.Edit();
-
-                break;
-        }
-
-        return Assert.IsType<ComposeScreen>(shell.Screen);
     }
 
     private static ComposeEditor Editor(View window) => window.SubViews.OfType<ComposeEditor>().Single();

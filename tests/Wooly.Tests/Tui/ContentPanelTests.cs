@@ -182,7 +182,7 @@ public class ContentPanelTests
 
         Assert.StartsWith("  From  @jeff", rows[inside.Y + 1][inside.X..], StringComparison.Ordinal);
         Assert.StartsWith("     ↳  ", rows[inside.Y + 2][inside.X..], StringComparison.Ordinal);
-        Assert.StartsWith("     ⚠  none · ctrl-w to add", rows[inside.Y + 4][inside.X..], StringComparison.Ordinal);
+        Assert.StartsWith(ComposeRows.NoWarning, rows[inside.Y + 4][inside.X..], StringComparison.Ordinal);
         Assert.Equal(compose.EditorAt(inside.Size).Y, editor.Frame.Y - inside.Y);
         Assert.StartsWith("╭ Home › Reply to @", rows[0][RailLines.Width..], StringComparison.Ordinal);
         Assert.All(rows[1..(height - 2)], row => Assert.Equal('│', row[RailLines.Width]));
@@ -202,7 +202,7 @@ public class ContentPanelTests
         var editor = drawn.Window.SubViews.OfType<ComposeEditor>().Single();
 
         Assert.Equal(new Rectangle(RailLines.Width + 3, 6, 54, 14), editor.Frame);
-        Assert.StartsWith("     ⚠  none · ctrl-w to add", drawn.Rows()[3][(RailLines.Width + 1)..], StringComparison.Ordinal);
+        Assert.StartsWith(ComposeRows.NoWarning, drawn.Rows()[3][(RailLines.Width + 1)..], StringComparison.Ordinal);
     }
 
     /// <summary>

@@ -1,0 +1,41 @@
+using Wooly.Tui.Screens;
+
+namespace Wooly.Tests.Tui;
+
+/// <summary>
+///     What a compose screen's rows read as drawn, and the one way a test opens one — so that the wording of a header
+///     is written down once rather than in every test that reads it (#317).
+/// </summary>
+internal static class ComposeRows
+{
+    /// <summary>The warning header with nothing written in it and nobody writing.</summary>
+    public const string NoWarning = "     ⚠  none · ctrl-w to add";
+
+    /// <summary>The warning header holding <paramref name="written" />.</summary>
+    public static string Warning(string written) => $"     ⚠  {written}";
+
+    /// <summary>A hairline across a content region <paramref name="width" /> wide, inside its two columns of padding.</summary>
+    public static string Hairline(int width) => $"  {new string('─', width - 4)}";
+
+    /// <summary>Opens a compose for <paramref name="purpose" /> on the post <paramref name="shell" /> is showing.</summary>
+    public static ComposeScreen Open(Wooly.Tui.Shell.Shell shell, ComposeFor purpose)
+    {
+        switch (purpose)
+        {
+            case ComposeFor.Post:
+                shell.Compose();
+
+                break;
+            case ComposeFor.Reply:
+                shell.Reply();
+
+                break;
+            default:
+                shell.Edit();
+
+                break;
+        }
+
+        return Assert.IsType<ComposeScreen>(shell.Screen);
+    }
+}

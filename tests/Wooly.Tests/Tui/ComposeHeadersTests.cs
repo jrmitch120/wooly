@@ -18,7 +18,7 @@ public class ComposeHeadersTests
 
     private const int Height = 17;
 
-    private const string Rule = "  ────────────────────────────────────────────────────────";
+    private static readonly string Rule = ComposeRows.Hairline(Width);
 
     private static readonly Post Bens = APost.With(id: "220", account: "ben@hachyderm.io");
 
@@ -29,9 +29,9 @@ public class ComposeHeadersTests
     ///     hairline and the row the count will sit on.
     /// </summary>
     [Theory]
-    [InlineData("compose")]
-    [InlineData("edit")]
-    public async Task APostAndAnEditDrawTheFromAndWarningHeadersBetweenTwoHairlines(string opening)
+    [InlineData(ComposeFor.Post)]
+    [InlineData(ComposeFor.Edit)]
+    public async Task APostAndAnEditDrawTheFromAndWarningHeadersBetweenTwoHairlines(ComposeFor opening)
     {
         var compose = await Opening(opening, Mine);
         var rows = Texts(compose);
@@ -40,7 +40,7 @@ public class ComposeHeadersTests
             [
                 string.Empty,
                 "  From  @jeff · mastodon.social",
-                "     ⚠  none · ctrl-w to add",
+                ComposeRows.NoWarning,
                 Rule,
                 string.Empty,
             ],
@@ -54,7 +54,7 @@ public class ComposeHeadersTests
     [Fact]
     public async Task AReplyDrawsTheReplyHeaderAndItsQuoteBetweenFromAndTheWarning()
     {
-        var compose = await Opening("reply", Bens);
+        var compose = await Opening(ComposeFor.Reply, Bens);
 
         Assert.Equal(
             [
@@ -62,7 +62,7 @@ public class ComposeHeadersTests
                 "  From  @jeff · mastodon.social",
                 "     ↳  answering @ben@hachyderm.io",
                 "        │ Hello world",
-                "     ⚠  none · ctrl-w to add",
+                ComposeRows.NoWarning,
                 Rule,
                 string.Empty,
             ],
@@ -73,7 +73,7 @@ public class ComposeHeadersTests
     [Fact]
     public async Task ASelfReplyIsAContinuation()
     {
-        var compose = await Opening("reply", Mine);
+        var compose = await Opening(ComposeFor.Reply, Mine);
 
         Assert.Equal("     ↳  continuing", Texts(compose)[2]);
     }
@@ -82,7 +82,7 @@ public class ComposeHeadersTests
     [Fact]
     public async Task FromIsCutAtThePadding()
     {
-        var compose = await Opening("compose", Mine);
+        var compose = await Opening(ComposeFor.Post, Mine);
         var from = compose.Lines(new Drawing(20, AShell.Now, Height: Height))[1];
 
         Assert.Equal("  From  @jeff · m…", from.Text);
@@ -92,7 +92,7 @@ public class ComposeHeadersTests
     [Fact]
     public async Task FromIsTheHandleThenTheInstance()
     {
-        var compose = await Opening("compose", Mine);
+        var compose = await Opening(ComposeFor.Post, Mine);
         var from = Lines(compose)[1];
 
         Assert.Equal(Role.Muted, Assert.Single(from.Spans, span => span.Text == "From").Role);
@@ -112,7 +112,7 @@ public class ComposeHeadersTests
             account: "ben@hachyderm.io",
             content: "The first thing said.\n\nThe second thing said.\n\nThe third thing said.\n\nThe fourth.");
 
-        var compose = await Opening("reply", paragraphs);
+        var compose = await Opening(ComposeFor.Reply, paragraphs);
         var lines = Lines(compose);
 
         Assert.Equal(
@@ -120,7 +120,7 @@ public class ComposeHeadersTests
                 "        │ The first thing said.",
                 "        │ The second thing said.",
                 "        │ The third thing said.",
-                "     ⚠  none · ctrl-w to add",
+                ComposeRows.NoWarning,
             ],
             lines.Skip(3).Take(4).Select(line => line.Text));
         Assert.All(
@@ -136,7 +136,7 @@ public class ComposeHeadersTests
     [Fact]
     public async Task TheHairlinesAreThePanelsBorder()
     {
-        var compose = await Opening("compose", Mine);
+        var compose = await Opening(ComposeFor.Post, Mine);
         var lines = Lines(compose);
 
         Assert.All(
@@ -148,7 +148,7 @@ public class ComposeHeadersTests
     [Fact]
     public async Task TheMarkIsDimWithNoWarning()
     {
-        var compose = await Opening("compose", Mine);
+        var compose = await Opening(ComposeFor.Post, Mine);
         var warning = Lines(compose)[2];
 
         Assert.DoesNotContain(warning.Spans, span => span.Role == Role.ContentWarning);
@@ -161,10 +161,10 @@ public class ComposeHeadersTests
     {
         var warned = APost.With(id: "220", account: "ben@hachyderm.io", contentWarning: "spoilers");
 
-        var compose = await Opening("reply", warned);
+        var compose = await Opening(ComposeFor.Reply, warned);
         var warning = Lines(compose)[4];
 
-        Assert.Equal("     ⚠  spoilers", warning.Text);
+        Assert.Equal(ComposeRows.Warning("spoilers"), warning.Text);
         Assert.Equal(Role.ContentWarning, Assert.Single(warning.Spans, span => span.Text.Contains('⚠')).Role);
         Assert.Equal(Role.ContentWarning, Assert.Single(warning.Spans, span => span.Text == "spoilers").Role);
     }
@@ -176,23 +176,23 @@ public class ComposeHeadersTests
     [Fact]
     public async Task TheMarkIsLitWhileAWarningIsBeingWritten()
     {
-        var compose = await Opening("compose", Mine);
+        var compose = await Opening(ComposeFor.Post, Mine);
 
         compose.WriteTheWarning();
 
         var warning = Lines(compose)[2];
 
-        Assert.Equal("     ⚠  ▌say what it's about", warning.Text);
+        Assert.Equal(ComposeRows.Warning("▌say what it's about"), warning.Text);
         Assert.Equal(Role.ContentWarning, Assert.Single(warning.Spans, span => span.Text.Contains('⚠')).Role);
         Assert.Equal(Role.Muted, Assert.Single(warning.Spans, span => span.Text == "say what it's about").Role);
     }
 
     /// <summary>The editor starts under the headers, two columns in from either side, and runs to the foot's hairline.</summary>
     [Theory]
-    [InlineData("compose", 5)]
-    [InlineData("edit", 5)]
-    [InlineData("reply", 7)]
-    public async Task TheEditorStartsBelowTheHeaders(string opening, int top)
+    [InlineData(ComposeFor.Post, 5)]
+    [InlineData(ComposeFor.Edit, 5)]
+    [InlineData(ComposeFor.Reply, 7)]
+    public async Task TheEditorStartsBelowTheHeaders(ComposeFor opening, int top)
     {
         var compose = await Opening(opening, Mine);
 
@@ -213,14 +213,14 @@ public class ComposeHeadersTests
     [InlineData(4, 1)]
     public async Task OnAShortTerminalTheQuoteGivesWayBeforeTheWarningAndTheEditor(int height, int top)
     {
-        var compose = await Opening("reply", Bens);
+        var compose = await Opening(ComposeFor.Reply, Bens);
         var lines = compose.Lines(new Drawing(Width, AShell.Now, Height: height));
 
         Assert.Equal(
             new System.Drawing.Rectangle(2, top, Width - 4, 3),
             compose.EditorAt(new System.Drawing.Size(Width, height)));
         Assert.Equal(height, lines.Count);
-        Assert.Contains(lines.Take(top), line => line.Text.StartsWith("     ⚠", StringComparison.Ordinal));
+        Assert.Contains(lines.Take(top), line => line.Text == ComposeRows.NoWarning);
         Assert.Equal(height >= 9, lines.Any(line => line.Text.Contains("↳", StringComparison.Ordinal)));
         Assert.Equal(height >= 12, lines.Any(line => line.Text.Contains("│ Hello", StringComparison.Ordinal)));
     }
@@ -230,26 +230,10 @@ public class ComposeHeadersTests
 
     private static IReadOnlyList<string> Texts(ComposeScreen compose) => [.. Lines(compose).Select(line => line.Text)];
 
-    private static async Task<ComposeScreen> Opening(string opening, Post post)
+    private static async Task<ComposeScreen> Opening(ComposeFor opening, Post post)
     {
         var shell = await new AShell { Timelines = FakeTimelineReader.Holding(post) }.Opened();
 
-        switch (opening)
-        {
-            case "compose":
-                shell.Compose();
-
-                break;
-            case "reply":
-                shell.Reply();
-
-                break;
-            default:
-                shell.Edit();
-
-                break;
-        }
-
-        return Assert.IsType<ComposeScreen>(shell.Screen);
+        return ComposeRows.Open(shell, opening);
     }
 }
