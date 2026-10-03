@@ -28,8 +28,7 @@ public sealed record ComposeFrom(string Handle, string Instance)
     ///     Who <paramref name="profile" /> posts as: its account's username, or the profile's own name where the
     ///     account has not been verified, on the instance the profile signs in to.
     /// </summary>
-    public static ComposeFrom Of(ActiveProfile profile) =>
-        new(profile.Account is { } account ? $"@{account.Split('@')[0]}" : profile.Name, profile.Instance);
+    public static ComposeFrom Of(ActiveProfile profile) => new(profile.Handle ?? profile.Name, profile.Instance);
 }
 
 /// <summary>

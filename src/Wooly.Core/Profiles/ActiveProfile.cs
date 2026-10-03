@@ -16,6 +16,12 @@ public sealed record ActiveProfile
     public required string? Account { get; init; }
 
     /// <summary>
+    ///     The account's username behind an <c>@</c> — <c>@jeff</c> — as the TUI draws who the profile is, on the rail
+    ///     and in compose's From header; or <see langword="null" /> for a profile that has not said who it signs in as.
+    /// </summary>
+    public string? Handle => Account is { } account ? $"@{account.Split('@')[0]}" : null;
+
+    /// <summary>
     ///     Whether <paramref name="account" /> is the one this profile signs in as. Compared on the address, because
     ///     that is the one name for an account that means the same thing on two instances, and without regard to case,
     ///     which an address has none of. A profile that has not said who it signs in as is nobody.

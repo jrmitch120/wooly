@@ -1458,7 +1458,7 @@ public sealed class Shell
         new(DestinationKind.Notifications, "Notifications"),
         new(DestinationKind.Messages, "Direct messages"),
         new(DestinationKind.Requests, "Follow requests"),
-        new(DestinationKind.Profile, profile?.Account is { } account ? $"@{account.Split('@')[0]}" : "Profile"),
+        new(DestinationKind.Profile, profile?.Handle ?? "Profile"),
     ];
 
     /// <summary>
