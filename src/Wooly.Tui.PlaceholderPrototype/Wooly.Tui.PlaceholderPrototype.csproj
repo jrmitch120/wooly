@@ -1,0 +1,16 @@
+<!-- PROTOTYPE (#292), throwaway. Not in Wooly.slnx on purpose. Run with: dotnet run, project src/Wooly.Tui.PlaceholderPrototype -->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <NoWarn>$(NoWarn);CS0618</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SixLabors.ImageSharp" />
+    <PackageReference Include="Terminal.Gui" />
+  </ItemGroup>
+
+</Project>
