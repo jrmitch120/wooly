@@ -22,6 +22,10 @@ public sealed class WindowsCredentialStore : ICredentialStore
     /// <inheritdoc />
     public CredentialStorage Storage => CredentialStorage.OsKeyring;
 
+    /// <inheritdoc />
+    /// <remarks>Never anything: a refusal here is thrown, and it is <see cref="FallbackCredentialStore" /> that remembers it.</remarks>
+    public IReadOnlyList<UnansweredKeyring> Unanswered => [];
+
     /// <summary>
     ///     This user's Credential Manager, asked once before it is handed back, so that one that will not answer fails
     ///     here, where <see cref="FallbackCredentialStore" /> is watching.

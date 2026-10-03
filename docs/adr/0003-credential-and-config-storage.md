@@ -25,3 +25,14 @@ always on the `PATH`, as Xcode's command-line shim, so in practice this is a Lin
 A keyring that opens and then refuses a save no longer loses the token either. It goes to the plaintext file, the store
 reports the file from then on so the warning is shown, and a token is looked for in both places
 (`FallbackCredentialStore`).
+
+## Amended: a keyring that will not answer is said, not taken for a missing token
+
+A keyring that opens can still refuse to read or delete a token: it is locked, a permission prompt was declined, or its
+service is down. `FallbackCredentialStore` used to treat that as a keyring with no token in it, so the profile looked
+signed out and the user was not told why. Now the store remembers, for each such profile, the keyring's error message,
+and reports it as `Unanswered`, next to `Storage` (#296). The front ends show it where they show the plaintext warning:
+on `profile add`, on the TUI's profiles screen, and wherever signing in finds no token. The record for that profile is
+cleared when the keyring next answers for it (a read, a save or a delete), or when its token turns up in the plaintext
+file after all. Nothing is logged. The app has no log, and the user is the one who has to
+unlock the keyring.

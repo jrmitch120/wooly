@@ -16,6 +16,12 @@ public interface IProfileRegistry
     /// </summary>
     CredentialStorage TokenStorage { get; }
 
+    /// <summary>
+    ///     The profiles the keyring would not answer for on this run, which would otherwise look signed out — reported
+    ///     where <see cref="TokenStorage" /> is (#296).
+    /// </summary>
+    IReadOnlyList<UnansweredKeyring> KeyringUnanswered { get; }
+
     /// <summary>Every profile that has been set up, ordered by name. Reads no access tokens.</summary>
     IReadOnlyList<ProfileSummary> List();
 

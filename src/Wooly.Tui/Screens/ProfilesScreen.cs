@@ -14,10 +14,11 @@ namespace Wooly.Tui.Screens;
 /// </remarks>
 /// <param name="profiles">The profiles set up on this machine, in the order the registry lists them.</param>
 /// <param name="actingAs">The name of the profile this session is acting as.</param>
-/// <param name="warning">
-///     What ADR-0003 owes wherever tokens are kept in the clear, or <see langword="null" /> where they are not.
+/// <param name="warnings">
+///     What ADR-0003 owes wherever tokens are kept in the clear, and each profile the keyring would not answer for
+///     (#296) — none, most of the time. Each its own paragraph.
 /// </param>
-public sealed class ProfilesScreen(IReadOnlyList<ProfileSummary> profiles, string actingAs, string? warning)
+public sealed class ProfilesScreen(IReadOnlyList<ProfileSummary> profiles, string actingAs, IReadOnlyList<string> warnings)
     : Screen
 {
     /// <summary>The marker on the profile this session is acting as.</summary>
@@ -110,7 +111,7 @@ public sealed class ProfilesScreen(IReadOnlyList<ProfileSummary> profiles, strin
         // Aligned with the rows under it, which start past the one column the gutter takes.
         var room = Stamped.Room(drawing.Width);
 
-        if (warning is { } said)
+        foreach (var said in warnings)
         {
             lines.AddRange(TextWrap.Wrap(said, room).Select(row => Line.Of($" {row}", Role.ContentWarning)));
             lines.Add(Line.Blank);

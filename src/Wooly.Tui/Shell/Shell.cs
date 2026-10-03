@@ -1939,7 +1939,7 @@ public sealed class Shell
     ///     Every profile on this machine as the profiles screen lists them, read off the local config now.
     /// </summary>
     private ProfilesScreen Listed() =>
-        new(_profiles.Registry.List(), Actor.Profile.Name, _profiles.PlaintextWarning);
+        new(_profiles.Registry.List(), Actor.Profile.Name, _profiles.Warnings);
 
     /// <summary>
     ///     The instance the rail's foot names: this session's, where two or more profiles are set up and there is

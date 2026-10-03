@@ -237,6 +237,29 @@ public class ProfileCommandTests : IDisposable
         Assert.Contains("keyring", run.Output);
     }
 
+    /// <summary>
+    ///     A keyring that will not answer is said where a token in the clear is, with the profile it would not answer
+    ///     for, so that profile is not taken for signed out (#296).
+    /// </summary>
+    [Fact]
+    public void Add_SaysSoWhenTheKeyringWouldNotAnswerForAProfile()
+    {
+        var keyring = new FakeOsKeyring();
+        _credentialStore = new FallbackCredentialStore(
+            () => OsKeyringCredentialStore.Open(() => new GcmKeyring(GcmKeyring.BackingStoreForThisMachine, keyring)),
+            new PlaintextFileCredentialStore(new WoolyPaths(_directory.Path)));
+        Add("work", "hachyderm.io", "token-work");
+        keyring.RefusesReads = "access denied";
+        Run(["profile", "show"]);
+
+        var run = Add("personal", "mastodon.social", "token-personal");
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Contains(
+            $"warning: {TokenStorageDescription.Unanswered(new UnansweredKeyring("work", "access denied"))}",
+            run.Output);
+    }
+
     /// <summary>A profile that cannot authenticate is worse than no profile, so a refused token leaves nothing behind.</summary>
     [Fact]
     public void Add_ReportsATokenTheInstanceRefusesAndWritesNoProfile()
@@ -412,6 +435,27 @@ public class ProfileCommandTests : IDisposable
 
         Assert.DoesNotContain("token-personal", run.Output);
         Assert.Contains("keyring", run.Output);
+    }
+
+    /// <summary>
+    ///     Signing in over a keyring that will not answer says so, and why, rather than that the profile has no token
+    ///     and wants authenticating again (#296).
+    /// </summary>
+    [Fact]
+    public void Show_ReportsAKeyringThatWillNotAnswerRatherThanAMissingToken()
+    {
+        var keyring = new FakeOsKeyring();
+        _credentialStore = new FallbackCredentialStore(
+            () => OsKeyringCredentialStore.Open(() => new GcmKeyring(GcmKeyring.BackingStoreForThisMachine, keyring)),
+            new PlaintextFileCredentialStore(new WoolyPaths(_directory.Path)));
+        Add("work", "hachyderm.io", "token-work");
+        keyring.RefusesReads = "access denied";
+
+        var run = Run(["profile", "show"]);
+
+        Assert.Equal((int)ExitCode.AuthenticationError, run.ExitCode);
+        Assert.Contains("would not answer for profile \"work\" (access denied)", run.ErrorOutput);
+        Assert.DoesNotContain("Authenticate it again", run.ErrorOutput);
     }
 
     [Fact]

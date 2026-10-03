@@ -372,10 +372,10 @@ public class ScreenKeyTests
                 return new HelpScreen(Feed([post]));
 
             case "profiles":
-                return new ProfilesScreen([FakeProfileRegistry.Profile("personal", "mastodon.social", null)], "personal", null);
+                return new ProfilesScreen([FakeProfileRegistry.Profile("personal", "mastodon.social", null)], "personal", []);
 
             case "profiles-empty":
-                return new ProfilesScreen([], "personal", null);
+                return new ProfilesScreen([], "personal", []);
 
             case "add-profile":
                 return new AddProfileScreen();

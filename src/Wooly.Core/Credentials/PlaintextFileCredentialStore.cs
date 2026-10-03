@@ -26,6 +26,10 @@ public sealed class PlaintextFileCredentialStore(WoolyPaths paths) : ICredential
     public CredentialStorage Storage => CredentialStorage.PlaintextFile;
 
     /// <inheritdoc />
+    /// <remarks>Never anything: a refusal here is thrown, and it is <see cref="FallbackCredentialStore" /> that remembers it.</remarks>
+    public IReadOnlyList<UnansweredKeyring> Unanswered => [];
+
+    /// <inheritdoc />
     public string? FindAccessToken(string profileName) =>
         Read().TryGetValue(profileName, out var token) ? token as string : null;
 

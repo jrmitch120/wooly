@@ -27,4 +27,12 @@ public static class TokenStorageDescription
     /// </summary>
     public static string InTheClear(WoolyPaths paths) =>
         $"no OS keyring answered on this machine, so the access token is {For(CredentialStorage.PlaintextFile, paths)}.";
+
+    /// <summary>
+    ///     The warning owed where a keyring would not answer for a profile, as a sentence with nothing in front of it,
+    ///     like <see cref="InTheClear" />: without it the profile only looks signed out (#296).
+    /// </summary>
+    public static string Unanswered(UnansweredKeyring unanswered) =>
+        $"the OS keyring would not answer for profile \"{unanswered.ProfileName}\" ({unanswered.Error}), so it looks " +
+        "signed out. Unlock the keyring and try again.";
 }

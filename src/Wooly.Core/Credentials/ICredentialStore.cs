@@ -10,6 +10,13 @@ public interface ICredentialStore
     CredentialStorage Storage { get; }
 
     /// <summary>
+    ///     The profiles a keyring would not answer for on this run, and what it said — empty for a store that always
+    ///     answers or throws outright. Reported beside <see cref="Storage" /> so that a profile whose token could not be
+    ///     read is not shown as simply signed out.
+    /// </summary>
+    IReadOnlyList<UnansweredKeyring> Unanswered { get; }
+
+    /// <summary>
     ///     The access token stored for <paramref name="profileName" />, or <see langword="null" /> if that profile has
     ///     never signed in.
     /// </summary>

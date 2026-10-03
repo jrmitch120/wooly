@@ -32,11 +32,26 @@ public sealed record ProfilePorts(
     IAccessTokenVerifier Verifier)
 {
     /// <summary>
-    ///     The warning ADR-0003 owes wherever tokens are kept in the clear, or <see langword="null" /> where they are
-    ///     in the keyring. The same words the CLI says it in, since both read <see cref="TokenStorageDescription" />.
+    ///     The warning ADR-0003 owes wherever tokens are kept in the clear, then one for each profile the keyring
+    ///     would not answer for (#296) — none where tokens are in a keyring that answers. The same words the CLI says
+    ///     them in, since both read <see cref="TokenStorageDescription" />.
     /// </summary>
     /// <remarks>Reading which store is in use may open the keyring, which is local — nothing here reaches an instance.</remarks>
-    public string? PlaintextWarning => Registry.TokenStorage is CredentialStorage.PlaintextFile
-        ? $"Warning: {TokenStorageDescription.InTheClear(Paths)}"
-        : null;
+    public IReadOnlyList<string> Warnings
+    {
+        get
+        {
+            var warnings = new List<string>();
+
+            if (Registry.TokenStorage is CredentialStorage.PlaintextFile)
+            {
+                warnings.Add($"Warning: {TokenStorageDescription.InTheClear(Paths)}");
+            }
+
+            warnings.AddRange(Registry.KeyringUnanswered.Select(
+                unanswered => $"Warning: {TokenStorageDescription.Unanswered(unanswered)}"));
+
+            return warnings;
+        }
+    }
 }

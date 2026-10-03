@@ -97,6 +97,7 @@ internal sealed class ProfileAddCommand(
         }
 
         WarnIfTheTokenIsInTheClear();
+        WarnOfAKeyringThatWouldNotAnswer();
 
         return (int)ExitCode.Success;
     }
@@ -187,5 +188,17 @@ internal sealed class ProfileAddCommand(
         }
 
         console.MarkupLineInterpolated($"[yellow]warning:[/] {TokenStorageDescription.InTheClear(paths)}");
+    }
+
+    /// <summary>
+    ///     Said where the plaintext warning is, for the same reason: a profile the keyring would not answer for looks
+    ///     signed out, and without this the user has no way to tell it from one that is (#296).
+    /// </summary>
+    private void WarnOfAKeyringThatWouldNotAnswer()
+    {
+        foreach (var unanswered in profiles.KeyringUnanswered)
+        {
+            console.MarkupLineInterpolated($"[yellow]warning:[/] {TokenStorageDescription.Unanswered(unanswered)}");
+        }
     }
 }

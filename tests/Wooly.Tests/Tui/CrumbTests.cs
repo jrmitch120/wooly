@@ -188,7 +188,7 @@ public class CrumbTests
                 return new FollowsScreen(maria, FollowSide.Followers, mine: false);
 
             case "profiles":
-                return new ProfilesScreen([], "personal", null);
+                return new ProfilesScreen([], "personal", []);
 
             case "add-profile":
                 return new AddProfileScreen();

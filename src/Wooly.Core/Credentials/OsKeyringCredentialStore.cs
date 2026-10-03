@@ -77,6 +77,10 @@ public sealed class OsKeyringCredentialStore : ICredentialStore
     public CredentialStorage Storage => CredentialStorage.OsKeyring;
 
     /// <inheritdoc />
+    /// <remarks>Never anything: a refusal here is thrown, and it is <see cref="FallbackCredentialStore" /> that remembers it.</remarks>
+    public IReadOnlyList<UnansweredKeyring> Unanswered => [];
+
+    /// <inheritdoc />
     public string? FindAccessToken(string profileName) => _keyring.Get(Service, profileName)?.Password;
 
     /// <inheritdoc />
