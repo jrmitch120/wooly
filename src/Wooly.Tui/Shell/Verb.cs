@@ -260,8 +260,8 @@ public enum Verb
     OpenResult,
 
     /// <summary>
-    ///     <c>ctrl-s</c> on a compose screen: send it, or save it. The editor widget is where the text was typed and
-    ///     the screen is where it lives, and this is the one moment the two have to agree.
+    ///     <c>ctrl-s</c> on a compose screen: send it, or save it — whatever the screen holds, which follows the
+    ///     editor widget on every edit (#315).
     /// </summary>
     Send,
 

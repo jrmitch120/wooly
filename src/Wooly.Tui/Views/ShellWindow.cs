@@ -21,9 +21,9 @@ namespace Wooly.Tui.Views;
 /// </summary>
 /// <remarks>
 ///     It names exactly one screen type, and never to decide what a key means (#147): a
-///     <see cref="ComposeScreen" /> is the one screen with a widget of its own laid over the content region, so where
-///     that widget starts, whether it has focus and what text it opens with are this window's questions about its own
-///     furniture. Everything else it knows about screens it knows as <c>Screen</c>.
+///     <see cref="ComposeScreen" /> is the one screen with a widget of its own laid over the content region, so laying
+///     that widget where the screen says it goes, whether it has focus and what text it opens with are this window's
+///     questions about its own furniture. Everything else it knows about screens it knows as <c>Screen</c>.
 /// </remarks>
 internal sealed class ShellWindow : Window
 {
@@ -41,13 +41,6 @@ internal sealed class ShellWindow : Window
     /// </summary>
     private const int RowsANotch = 1;
 
-    /// <summary>The first row inside the content panel, where its rows and anything laid over them begin.</summary>
-    /// <remarks>
-    ///     One: the panel's top edge keeps row 0, and is what divides the breadcrumb from the content — the blank row
-    ///     #216 spent on that is given back (ADR-0021).
-    /// </remarks>
-    private const int ContentTop = 1;
-
     /// <summary>
     ///     The columns and rows a panel's edge takes off each side of what is inside it: the one-cell ring
     ///     <see cref="PaintedView" /> lays a frame on, which the editor laid over the content panel has to sit inside.
@@ -63,12 +56,6 @@ internal sealed class ShellWindow : Window
     ///     is drawn in.
     /// </remarks>
     internal const string ContentId = "content";
-
-    /// <summary>
-    ///     The fewest rows the editor is ever left with, however much of what is being answered wants to sit above it
-    ///     (<see cref="EditorTop" />). Three: a line being written, and one either side of it to see.
-    /// </summary>
-    private const int LeastEditorRows = 3;
 
     private readonly PaintedView _content;
     private readonly ComposeEditor _editor;
@@ -198,22 +185,29 @@ internal sealed class ShellWindow : Window
             CanFocus = false,
         };
 
-        _editor = new ComposeEditor(() => _ = Send(), () => shell.Back(), shell.WriteWarning)
+        _editor = new ComposeEditor(() => _ = shell.Send(), () => shell.Back(), shell.WriteWarning)
         {
-            // Inside the panel's edges on three sides, and under what is being answered on the fourth (below).
-            X = RailLines.Width + Edge,
-            // A reply's "answering" block is painted on _content, which this sits in front of and exactly the same
-            // size as (below) — so without this, the block is never seen: the editor is opaque and covers it on every
-            // frame it is visible. Dim.Fill(1) starting from here still reaches the same floor it always did.
-            // The second argument is the view the function is handed (Pos.Func's own words: "the view where the data
-            // will be retrieved") — _content, because it is _content's own width the block is wrapped against, and
-            // measuring anything else means deriving that width a second way. Omitting it defaults to null, which is
-            // what the first attempt at this did: EditorTop got no Viewport to measure, so Y silently stayed 1 forever.
-            Y = Pos.Func(EditorTop, _content),
-            Width = Dim.Fill(Edge),
-            Height = Dim.Fill(1 + Edge),
+            // Wherever the compose screen says, inside the content panel's viewport (#315): a reply's "answering" block
+            // and the warning band are painted on _content, which this sits in front of, so the screen that paints
+            // them is the one that knows how far down the editor has to start for them to be seen. Every one is read
+            // off _content, which Pos.Func and Dim.Func hand back as "the view where the data will be retrieved" — the
+            // panel's own viewport is the room the screen lays itself out in, and its frame is where that room sits.
+            X = Pos.Func(content => ViewportOrigin(content).X + EditorAt(content).X, _content),
+            Y = Pos.Func(content => ViewportOrigin(content).Y + EditorAt(content).Y, _content),
+            Width = Dim.Func(content => EditorAt(content).Width, _content),
+            Height = Dim.Func(content => EditorAt(content).Height, _content),
             Visible = false,
             WordWrap = true,
+        };
+
+        // The screen's text follows the editor on every edit rather than only at ctrl-s, so whatever reads it while a
+        // post is being written — a count, a list of people to mention — sees what has been typed so far.
+        _editor.ContentsChanged += (_, _) =>
+        {
+            if (_shell.Screen is ComposeScreen compose)
+            {
+                compose.Text = _editor.Text;
+            }
         };
 
         var status = new PaintedView(theme, (width, _) =>
@@ -554,7 +548,7 @@ internal sealed class ShellWindow : Window
                 return true;
 
             case Verb.Send:
-                _ = Send();
+                _ = _shell.Send();
 
                 return true;
 
@@ -685,54 +679,20 @@ internal sealed class ShellWindow : Window
     }
 
     /// <summary>
-    ///     Where the editor starts: the top of the content region, plus however many rows the screen underneath wants
-    ///     for what it is answering — the block <see cref="ComposeScreen.AnsweringHeight" /> counts, painted on
-    ///     <see cref="_content" /> and otherwise hidden by the editor sitting on top of it at the same position.
+    ///     Where the content panel's viewport sits in this window: inside the panel's edge, wherever the rail has left
+    ///     the panel.
     /// </summary>
-    /// <remarks>
-    ///     Never so far down that there is no editor left. The block is up to five rows and ADR-0015 priced the
-    ///     editor's share of a 24-row terminal at more than that, but a terminal can be any size, and
-    ///     <c>Dim.Fill(1)</c> from a row past the bottom is an editor nobody can type in. Pushed off the foot, what
-    ///     goes is the tail of what is being answered rather than the room to answer it.
-    /// </remarks>
-    /// <param name="content">
-    ///     <see cref="_content" />, handed over by <c>Pos.Func</c>. Its viewport is the region the block is wrapped
-    ///     against and shares a foot with the editor, so both the width to measure at and the room to leave come off
-    ///     the one view — rather than off this window, whose own viewport counts the rail and would have to have it
-    ///     taken back off.
-    /// </param>
-    private int EditorTop(View? content)
-    {
-        var width = content?.Viewport.Width ?? 0;
-        var height = content?.Viewport.Height ?? 0;
+    private static Point ViewportOrigin(View? content) =>
+        content is null ? Point.Empty : content.Frame.Location + new Size(Edge, Edge);
 
-        if (width <= 0 || _shell.Screen is not ComposeScreen compose)
-        {
-            return ContentTop;
-        }
-
-        // The editor runs from here to the same foot _content does, so whatever is spent above it comes straight off
-        // its own height — which makes the room to leave a subtraction rather than a second layout.
-        //
-        // The warning field is the last row to give way rather than the first: it is a row the reader types into, and
-        // one they cannot see is worse than a quote of what is being answered that stops early.
-        var room = Math.Max(0, height - LeastEditorRows - compose.WarningHeight);
-        var answering = Math.Min(compose.AnsweringHeight(width), room);
-
-        return ContentTop + answering + compose.WarningHeight;
-    }
-
-    private async Task Send()
-    {
-        if (_shell.Screen is ComposeScreen compose)
-        {
-            // The editor is where the text was typed and the screen is where it lives; this is the one moment the two
-            // have to agree.
-            compose.Text = _editor.Text;
-        }
-
-        await _shell.Send();
-    }
+    /// <summary>
+    ///     Where the compose screen says its editor goes inside <paramref name="content" />'s viewport, or nowhere
+    ///     while no post is being written.
+    /// </summary>
+    private Rectangle EditorAt(View? content) =>
+        content is { Viewport.Width: > 0 } && _shell.Screen is ComposeScreen compose
+            ? compose.EditorAt(content.Viewport.Size)
+            : Rectangle.Empty;
 
     /// <summary>
     ///     Lays the rail out where the shell has one and takes it away where it has none — with nobody to act as, which
@@ -752,7 +712,6 @@ internal sealed class ShellWindow : Window
 
         _title.X = left;
         _content.X = left;
-        _editor.X = left + Edge;
     }
 
     /// <summary>
@@ -817,18 +776,19 @@ internal sealed class ShellWindow : Window
 
         if (composing && !_editor.Visible)
         {
-            _editor.Text = ((ComposeScreen)_shell.Screen).Text;
+            // Laid out before it is filled: where it goes is read only on a layout pass, this screen's block may be a
+            // different height than the last one that pushed the editor open, and an editor still at the nothing it
+            // was sized to while no post was being written wraps its text to no width and loses the caret below.
             _editor.Visible = true;
+            _editor.Layout();
+
+            _editor.Text = ((ComposeScreen)_shell.Screen).Text;
             _editor.SetFocus();
 
             // After whatever the screen opened with rather than in front of it: an editor opened on `@maria ` or on
             // a post being edited puts the caret where the reader's next word goes, which is the end of what is
             // already written (ADR-0013, #85). A caret left at nought types into somebody's name.
             _editor.MoveEnd();
-
-            // Y is Pos.Func(EditorTop), read afresh only on a layout pass — and this screen's "answering" block may
-            // be a different height than the last one that pushed the editor open.
-            _editor.SetNeedsLayout();
         }
         else if (!composing && _editor.Visible)
         {
