@@ -12,13 +12,13 @@ real shell with real posts rather than in mockups. Both are kept out of `main` a
   on the panels skin (tabs in the title, stacked rail, cards, top bar). The **stacked rail** variation won and was tuned
   over several rounds of use. This ADR is what it settled.
 
-**The rail and the content are panels.** Each is a rounded frame with a title on its top edge. The content panel's
-title *is* the breadcrumb: the same trail, eliding from the left as before, the fetch mark straight after it. So the breadcrumb
-row, the blank seam row under it, and the gutter column beside the rail all retire, because the frames now do the
-dividing those three cells did. At 80 columns the content panel's rows are 60 columns wide, one fewer than ADR-0014's
-61, because the gutter column's cell becomes the content panel's left edge. The panel's top edge sits on row 0 where
-the breadcrumb was, and its first row of content is row 1. That gains back the row #216 spent on the seam and pays it
-to the bottom edge.
+**The rail and the content are panels.** Each is a rounded frame with a title on its top edge. The content panel's title
+*is* the breadcrumb: the same trail, eliding from the left as before, the fetch mark straight after it. So the
+breadcrumb row, the blank seam row under it, and the gutter column beside the rail all retire, because the frames now do
+the dividing those three cells did. At 80 columns the content panel's rows are 60 columns wide, one fewer than
+ADR-0014's 61, because the gutter column's cell becomes the content panel's left edge. The panel's top edge sits on row
+0 where the breadcrumb was, and its first row of content is row 1. That gains back the row #216 spent on the seam and
+pays it to the bottom edge.
 
 The frames are drawn by this client, not by Terminal.Gui's `Border` adornment. The prototype used both and the
 difference decided it:
@@ -115,14 +115,13 @@ values tuned in use were measured against a black terminal:
   `rail-cursor`.
 - Retired with their regions: `seam`, `crumb`, `crumb-current`.
 
-`loading` stays, for the fetch mark that now ends the content panel's title. That mark is B2's braille spinner,
-`⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏`, a frame a tick, two spaces after the trail (#281). It replaced the word `fetching` and its dots
-at the far end of the edge, which held 11 columns to the spinner's 3. A frame is never drawn at rest, so without colour
-its presence carries the meaning the word did. It sits beside the crumb you are standing on because that is what the
-fetch is about to replace. Each new role still has to pass ADR-0014's
-test: something a reader's next action depends on telling apart. The frames pass it, because which panel is which is
-the whole of their job. `replies` passes on the same ground as `boost` and `favorite`, since the three counts sit side
-by side.
+`loading` stays, for the fetch mark that now ends the content panel's title. That mark is the braille spinner from the
+B2 (stacked rail) prototype, `⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏`, a frame a tick, two spaces after the trail (#281). It replaced the
+word `fetching` and its dots at the far end of the edge, which held 11 columns to the spinner's 3. A frame is never
+drawn at rest, so without colour its presence carries the meaning the word did. It sits beside the crumb you are
+standing on because that is what the fetch is about to replace. Each new role still has to pass ADR-0014's test:
+something a reader's next action depends on telling apart. The frames pass it, because which panel is which is the whole
+of their job. `replies` passes on the same ground as `boost` and `favorite`, since the three counts sit side by side.
 
 **Rejected, and on the prototype branch if it is ever revisited:**
 

@@ -149,7 +149,7 @@ internal sealed class ShellWindow : Window
             pictures,
             // No rows of the panel's own: the view paints only the frame's edges, round the screen's rows.
             (width, height) => Panel.Framed(
-                ChromeLines.Breadcrumb(shell.Crumbs, shell.Frame, width),
+                ChromeLines.Breadcrumb(shell.Crumbs, shell.SpinnerFrame, width),
                 [],
                 width,
                 height,
@@ -166,9 +166,11 @@ internal sealed class ShellWindow : Window
 
         // The same top edge again, as a row of its own laid over the panel's, so that a tick of the fetch mark has one
         // row to redraw rather than the panel — which places every picture on it each time it is drawn, two and a half
-        // times a second for as long as anything is in flight, for one spinner frame (#217). Both draw the edge from the
-        // one function, so whichever was drawn last, it says the same thing.
-        var title = _title = new PaintedView(theme, (width, _) => [ChromeLines.Breadcrumb(shell.Crumbs, shell.Frame, width)])
+        // times a second for as long as anything is in flight, for one spinner frame (#217). Both draw the edge from
+        // the one function, so whichever was drawn last, it says the same thing.
+        var title = _title = new PaintedView(
+            theme,
+            (width, _) => [ChromeLines.Breadcrumb(shell.Crumbs, shell.SpinnerFrame, width)])
         {
             X = RailLines.Width,
             Y = 0,

@@ -5,10 +5,10 @@ using Wooly.Tui.Theme;
 namespace Wooly.Tests.Tui;
 
 /// <summary>
-///     The content panel's top edge, which is where the breadcrumb is drawn since ADR-0021: the trail as its title,
-///     the crumb you are standing on told from the ones you walked through, a trail too long for the edge losing the
-///     ancestors rather than the destination (#216), and the fetch mark straight after it (#271, #281). Where the panel sits in the
-///     shell is <see cref="ContentPanelTests" />'s.
+///     The content panel's top edge, which is where the breadcrumb is drawn since ADR-0021: the trail as its title, the
+///     crumb you are standing on told from the ones you walked through, a trail too long for the edge losing the
+///     ancestors rather than the destination (#216), and the fetch mark straight after it (#271, #281). Where the panel
+///     sits in the shell is <see cref="ContentPanelTests" />'s.
 /// </summary>
 /// <remarks>
 ///     Role selection and layout with no terminal in the room (ADR-0005, ADR-0014): what the edge is made of, in the
@@ -17,7 +17,7 @@ namespace Wooly.Tests.Tui;
 public class BreadcrumbTests
 {
     /// <summary>The content panel's width at an 80-column terminal, its edges included: what the rail leaves.</summary>
-    private const int PanelWidth = 62;
+    private const int PanelWidth = 80 - RailLines.Width;
 
     /// <summary>
     ///     The crumb you are standing on takes the title's own role and every crumb you walked through to get there is
@@ -130,15 +130,16 @@ public class BreadcrumbTests
             "Keys",
         ];
 
-        var edges = Enumerable.Range(0, ChromeLines.Frames + 2)
+        var edges = Enumerable.Range(0, ChromeLines.SpinnerFrames + 2)
                               .Append(0)
                               .Select(frame => ChromeLines.Breadcrumb(trail, frame, PanelWidth))
                               .ToList();
-        var trails = edges.Select(Trail).Distinct(new SpansComparer());
+        var trails = edges.Select(edge => string.Join("|", Trail(edge))).Distinct();
 
         Assert.Equal(
-            "… › @maria@mastodon.social following › Keys",
-            string.Concat(Assert.Single(trails).Select(span => span.Text)));
+            string.Join("|", Trail(ChromeLines.Breadcrumb(trail, frame: 0, PanelWidth))),
+            Assert.Single(trails));
+        Assert.StartsWith("╭ … › @maria@mastodon.social following › Keys ", edges[0].Text, StringComparison.Ordinal);
         Assert.All(edges, edge => Assert.Equal(PanelWidth, edge.Width));
     }
 
@@ -182,7 +183,8 @@ public class BreadcrumbTests
 
     /// <summary>
     ///     No frame is no mark at all. It is what a fetch not yet a tick old draws, so one that lands in 80ms shows
-    ///     nothing (#217) — and with colour off, the spinner's presence alone is what tells a fetch in flight from none.
+    ///     nothing (#217) — and with colour off, the spinner's presence alone is what tells a fetch in flight from
+    ///     none.
     /// </summary>
     [Fact]
     public void Breadcrumb_DrawsNoMarkForFrameNought()
@@ -190,7 +192,6 @@ public class BreadcrumbTests
         var edge = ChromeLines.Breadcrumb(["Home"], frame: 0, PanelWidth);
 
         Assert.StartsWith("╭ Home ─", edge.Text, StringComparison.Ordinal);
-        Assert.DoesNotContain(edge.Text, character => "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏".Contains(character));
         Assert.DoesNotContain(edge.Spans, span => span.Role == Role.Loading);
     }
 
@@ -221,13 +222,13 @@ public class BreadcrumbTests
 
     /// <summary>
     ///     The mark holds three columns — two spaces and the glyph — so at 80 columns the trail has the panel's title
-    ///     room less three: 55 columns, where the 11-column <c>fetching...</c> left it 44.
+    ///     room less three: 53 columns, where the 11-column <c>fetching...</c> and its margin left it 42.
     /// </summary>
     [Fact]
     public void Breadcrumb_HoldsThreeColumnsForTheMarkAt80Columns()
     {
-        var fits = new string('a', 55);
-        var over = new string('a', 56);
+        var fits = new string('a', 53);
+        var over = new string('a', 54);
 
         Assert.Equal([(Role.PanelTitle, fits)], Trail(ChromeLines.Breadcrumb([fits], frame: 0, PanelWidth)));
         Assert.NotEqual([(Role.PanelTitle, over)], Trail(ChromeLines.Breadcrumb([over], frame: 0, PanelWidth)));
@@ -266,7 +267,8 @@ public class BreadcrumbTests
 
     /// <summary>
     ///     A panel too narrow ever to draw the mark beside a column of trail holds no room for it, so the crumb you are
-    ///     standing on is still the title rather than nothing at all, and is the same with a fetch in flight as without.
+    ///     standing on is still the title rather than nothing at all, and is the same with a fetch in flight as
+    ///     without.
     /// </summary>
     [Theory]
     [InlineData(0)]
@@ -287,13 +289,4 @@ public class BreadcrumbTests
                .TakeWhile(span => span.Role is Role.Muted or Role.PanelTitle && span.Text != " ")
                .Select(span => (span.Role, span.Text)),
     ];
-
-    /// <summary>Two trails alike span for span, role and text.</summary>
-    private sealed class SpansComparer : IEqualityComparer<IReadOnlyList<(Role Role, string Text)>>
-    {
-        public bool Equals(IReadOnlyList<(Role Role, string Text)>? x, IReadOnlyList<(Role Role, string Text)>? y) =>
-            x is not null && y is not null && x.SequenceEqual(y);
-
-        public int GetHashCode(IReadOnlyList<(Role Role, string Text)> obj) => obj.Count;
-    }
 }

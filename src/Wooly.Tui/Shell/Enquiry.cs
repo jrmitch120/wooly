@@ -114,11 +114,11 @@ public sealed class Enquiry(
     public CancellationToken Abandoned => _abandoned.Token;
 
     /// <summary>
-    ///     Which frame of the breadcrumb's spinner is drawn: none until a fetch has been in flight for a whole tick, then
-    ///     the first, the second and so on, and the first again after the last. Decided here, beside the count it
+    ///     Which frame of the breadcrumb's spinner is drawn: none until a fetch has been in flight for a whole tick,
+    ///     then the first, the second and so on, and the first again after the last. Decided here, beside the count it
     ///     depends on, so that it is decided with no terminal (ADR-0005).
     /// </summary>
-    public int Frame { get; private set; }
+    public int SpinnerFrame { get; private set; }
 
     /// <summary>
     ///     Puts a question to the instance, and does something about the answer where one arrives.
@@ -287,7 +287,7 @@ public sealed class Enquiry(
             return;
         }
 
-        Frame = 0;
+        SpinnerFrame = 0;
         _tick?.Dispose();
         _tick = Fetching ? host.After(markStep, Tick) : null;
 
@@ -296,8 +296,8 @@ public sealed class Enquiry(
 
     /// <summary>
     ///     The next frame, or the first again after the last — never none, which would take the spinner off the edge
-    ///     for a beat of every cycle and read as finished. Re-armed a tick at a time, as the countdown is, rather than asking
-    ///     the host for a timer that repeats.
+    ///     for a beat of every cycle and read as finished. Re-armed a tick at a time, as the countdown is, rather than
+    ///     asking the host for a timer that repeats.
     /// </summary>
     private void Tick()
     {
@@ -306,7 +306,7 @@ public sealed class Enquiry(
             return;
         }
 
-        Frame = Frame % ChromeLines.Frames + 1;
+        SpinnerFrame = SpinnerFrame % ChromeLines.SpinnerFrames + 1;
         _tick = host.After(markStep, Tick);
 
         Ticked?.Invoke();

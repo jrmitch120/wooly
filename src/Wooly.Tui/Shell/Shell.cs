@@ -204,7 +204,7 @@ public sealed class Shell
     ///     Which frame of the breadcrumb's spinner is drawn — none until a fetch has been in flight for a whole tick.
     ///     What the mark draws, where <see cref="Fetching" /> is what the shell's own guards ask.
     /// </summary>
-    public int Frame => _enquiry.Frame;
+    public int SpinnerFrame => _enquiry.SpinnerFrame;
 
     /// <summary>
     ///     Something the shell has to say out loud that is not a screen: a refusal, or the countdown on a rate limit

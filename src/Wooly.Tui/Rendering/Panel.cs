@@ -107,8 +107,8 @@ public static class Panel
     }
 
     /// <summary>
-    ///     How many columns a top edge <paramref name="width" /> wide leaves its title. Asked by a caller that has to fit
-    ///     a title to the room before handing it over, as the content panel's trail is elided rather than cut.
+    ///     How many columns a top edge <paramref name="width" /> wide leaves its title. Asked by a caller that has to
+    ///     fit a title to the room before handing it over, as the content panel's trail is elided rather than cut.
     /// </summary>
     public static int TitleRoom(int width) => width - TitleMargin;
 

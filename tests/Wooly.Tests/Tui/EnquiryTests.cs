@@ -286,7 +286,7 @@ public class EnquiryTests
         enquiry.Host.Drain();
 
         Assert.True(enquiry.It.Fetching);
-        Assert.Equal(0, enquiry.It.Frame);
+        Assert.Equal(0, enquiry.It.SpinnerFrame);
 
         held.SetResult("quick");
 
@@ -294,7 +294,7 @@ public class EnquiryTests
 
         enquiry.Host.Drain();
 
-        Assert.Equal(0, enquiry.It.Frame);
+        Assert.Equal(0, enquiry.It.SpinnerFrame);
         Assert.Equal(0, enquiry.Host.Waiting);
     }
 
@@ -313,10 +313,10 @@ public class EnquiryTests
 
         enquiry.Host.Drain();
 
-        for (var tick = 0; tick < ChromeLines.Frames + 1; tick++)
+        for (var tick = 0; tick < ChromeLines.SpinnerFrames + 1; tick++)
         {
             enquiry.Host.Settle();
-            frames.Add(enquiry.It.Frame);
+            frames.Add(enquiry.It.SpinnerFrame);
         }
 
         Assert.Equal([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 1], frames);
@@ -328,7 +328,7 @@ public class EnquiryTests
 
         enquiry.Host.Drain();
 
-        Assert.Equal(0, enquiry.It.Frame);
+        Assert.Equal(0, enquiry.It.SpinnerFrame);
     }
 
     /// <summary>
@@ -349,7 +349,7 @@ public class EnquiryTests
         enquiry.Host.Settle();
         enquiry.Host.Settle();
 
-        Assert.Equal(3, enquiry.It.Frame);
+        Assert.Equal(3, enquiry.It.SpinnerFrame);
 
         first.SetResult("one");
 
@@ -361,11 +361,11 @@ public class EnquiryTests
 
         enquiry.Host.Drain();
 
-        Assert.Equal(0, enquiry.It.Frame);
+        Assert.Equal(0, enquiry.It.SpinnerFrame);
 
         enquiry.Host.Settle();
 
-        Assert.Equal(1, enquiry.It.Frame);
+        Assert.Equal(1, enquiry.It.SpinnerFrame);
 
         second.SetResult("two");
 
@@ -373,8 +373,8 @@ public class EnquiryTests
     }
 
     /// <summary>
-    ///     A tick changes one row, and says so on an event of its own: <see cref="Enquiry.Changed" /> redraws the
-    ///     whole window, pictures and all, which two and a half times a second is not what a spinner frame is worth (#217).
+    ///     A tick changes one row, and says so on an event of its own: <see cref="Enquiry.Changed" /> redraws the whole
+    ///     window, pictures and all, which two and a half times a second is not what a spinner frame is worth (#217).
     /// </summary>
     [Fact]
     public async Task Put_TicksOnItsOwnEventRatherThanOnChanged()
@@ -418,7 +418,7 @@ public class EnquiryTests
         enquiry.Host.Settle();
         enquiry.Host.Settle();
 
-        Assert.Equal(2, enquiry.It.Frame);
+        Assert.Equal(2, enquiry.It.SpinnerFrame);
 
         var changes = enquiry.Changes;
 
@@ -430,12 +430,12 @@ public class EnquiryTests
 
         Assert.True(enquiry.It.Fetching);
         Assert.Equal(changes, enquiry.Changes);
-        Assert.Equal(2, enquiry.It.Frame);
+        Assert.Equal(2, enquiry.It.SpinnerFrame);
         Assert.Equal(1, enquiry.Host.Waiting);
 
         enquiry.Host.Settle();
 
-        Assert.Equal(3, enquiry.It.Frame);
+        Assert.Equal(3, enquiry.It.SpinnerFrame);
 
         second.SetResult("two");
 
@@ -444,13 +444,13 @@ public class EnquiryTests
         enquiry.Host.Drain();
 
         Assert.False(enquiry.It.Fetching);
-        Assert.Equal(0, enquiry.It.Frame);
+        Assert.Equal(0, enquiry.It.SpinnerFrame);
         Assert.Equal(0, enquiry.Host.Waiting);
     }
 
     /// <summary>
-    ///     A rate limit waited out is a question still in flight, so the spinner goes on turning on the breadcrumb while
-    ///     the countdown counts on the status row — two rhythms on two rows.
+    ///     A rate limit waited out is a question still in flight, so the spinner goes on turning on the breadcrumb
+    ///     while the countdown counts on the status row — two rhythms on two rows.
     /// </summary>
     [Fact]
     public async Task Put_GoesOnTickingWhileARateLimitIsWaitedOut()
@@ -472,13 +472,13 @@ public class EnquiryTests
         enquiry.Host.Settle();
 
         Assert.Contains("2s", enquiry.Notice);
-        Assert.Equal(1, enquiry.It.Frame);
+        Assert.Equal(1, enquiry.It.SpinnerFrame);
 
         enquiry.Clock.Advance(TimeSpan.FromSeconds(1));
         enquiry.Host.Settle();
 
         Assert.Contains("1s", enquiry.Notice);
-        Assert.Equal(2, enquiry.It.Frame);
+        Assert.Equal(2, enquiry.It.SpinnerFrame);
 
         enquiry.Clock.Advance(TimeSpan.FromSeconds(1));
         enquiry.Host.SettleAll();
@@ -489,12 +489,12 @@ public class EnquiryTests
 
         Assert.Equal(2, attempts);
         Assert.False(enquiry.It.Fetching);
-        Assert.Equal(0, enquiry.It.Frame);
+        Assert.Equal(0, enquiry.It.SpinnerFrame);
     }
 
     /// <summary>
-    ///     What the shell runs at holds each spinner frame for 400ms, which is the number <c>docs/tui-shell.md</c>'s table gives
-    ///     as the mark step — beside the countdown's second rather than the same as it (#213).
+    ///     What the shell runs at holds each spinner frame for 400ms, which is the number <c>docs/tui-shell.md</c>'s
+    ///     table gives as the mark step — beside the countdown's second rather than the same as it (#213).
     /// </summary>
     [Fact]
     public void ShellTiming_HoldsEachFrameOfTheMarkFor400ms()
@@ -570,7 +570,9 @@ public class EnquiryTests
             It.Ticked += () => Ticks++;
         }
 
-        /// <summary>How long one frame of the fetch mark is held — the shell's own, since nothing here shortens it.</summary>
+        /// <summary>
+        ///     How long one frame of the fetch mark is held — the shell's own, since nothing here shortens it.
+        /// </summary>
         public static readonly TimeSpan MarkStep = ShellTiming.Default.MarkStep;
 
         public FakeShellHost Host { get; } = new();

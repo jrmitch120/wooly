@@ -44,11 +44,11 @@ the dividing, so there is no breadcrumb row, no blank row under it and no gutter
 | Status | 1 row, full width | The current screen's keys as `Does: key \| Does: key`, as many as fit and `…+N` for the rest; or a notice; or a confirmation; the quota again when the rail is hidden |
 
 The content panel's title is the stack: the crumbs walked through in `muted`, the one stood on in `panel-title`, eliding
-from the left so it always ends where you are, and the fetch mark, a braille spinner, two spaces after it while a fetch is
-in flight. The mark's 3 columns are held whether or not it is drawn, so it never moves the trail. The panel's edge is always
-`panel-border-active`: it is the panel being read. Its rows are 58 columns wide at an 80-column terminal. That is the
-width every screen must read well at: the 61 of ADR-0014 less the cell the gutter column gave up to the content panel's
-left edge, and less the two the rail took when it widened to 20 so that a label and its count both fit (#272).
+from the left so it always ends where you are, and the fetch mark, a braille spinner, two spaces after it while a fetch
+is in flight. The mark's 3 columns are held whether or not it is drawn, so it never moves the trail. The panel's edge is
+always `panel-border-active`: it is the panel being read. Its rows are 58 columns wide at an 80-column terminal. That is
+the width every screen must read well at: the 61 of ADR-0014 less the cell the gutter column gave up to the content
+panel's left edge, and less the two the rail took when it widened to 20 so that a label and its count both fit (#272).
 
 The rail needs 22 rows to frame every group (Timelines 6, Explore 4, Inbox 5, You 3, API 4), and an 80×24 terminal gives
 it 23. Shorter than that, it steps down rather than clipping:
@@ -1163,14 +1163,15 @@ and #213 settled the row; #216 and #217 build it:
   the first again after the last, in `loading`, two spaces after the trail's last crumb (#281). Every frame is one
   column, so the mark is as wide on one tick as the next. Its **3 columns** — the two spaces and the glyph — are held
   whether or not it is drawn, so the trail elides in the same room at rest as on every tick and never re-elides as a
-  fetch starts or ends. At 80 columns that leaves the trail 55 columns.
+  fetch starts or ends. At 80 columns that leaves the trail 53 columns.
   It sits **straight after the trail rather than at the far end of the edge**, beside the crumb you are standing on,
   which is what the fetch is about to replace. A trail long enough to elide fills most of its room, so there the
   spinner lands near the end of the edge anyway; a short trail is followed by it. A panel too narrow to hold the mark
   beside a column of trail never draws it, and holds no room for it.
   *Superseded by #281:* the mark was `fetching.` → `fetching..` → `fetching...`, owning the rightmost 11 columns of
-  the edge, which left the trail 44 columns at 80. The word was dropped because a spinner frame is never drawn at
-  rest, so its presence alone says *in flight*, and the 8 columns it gives back go to the trail.
+  the edge and 3 more parting it from the trail, which left the trail 42 columns at 80. The word was dropped because a
+  spinner frame is never drawn at rest, so its presence alone says *in flight*, and the 11 columns it gives back go to
+  the trail.
 - **The mark waits one tick before appearing at all**, so a fetch that lands in 80ms shows nothing and a cached
   destination never flashes one. The delay *is* one `MarkStep` and needs no second number. A four-state cycle with a
   beat of rest was rejected: it takes the mark off the edge for a beat of every cycle, which reads as *finished* on the
@@ -1183,7 +1184,7 @@ and #213 settled the row; #216 and #217 build it:
 - **The spinner goes on turning while a rate limit is waited out.** The wait is inside the same enquiry, so the question
   really is still in flight: the mark ticks at 400ms on the breadcrumb while the status row counts down at 1000ms.
   Freezing it would make the one row that says *alive* say *stuck* at the moment the shell most needs to look alive.
-- **`ChromeLines.Breadcrumb` takes a frame count rather than a flag.** Nought draws no mark, which is what makes
+- **`ChromeLines.Breadcrumb` takes a frame number rather than a flag.** Nought draws no mark, which is what makes
   the delay assertable with no terminal in the room. The frames and the 3 columns they hold stay in `ChromeLines`,
   beside the trail arithmetic they have to agree with; the view hands over a number it counted and nothing else.
 - **The frame is labelled in lowercase; the shell's prose is sentence case with a full stop.** So `esc keep`,
@@ -1687,13 +1688,13 @@ mark for *chosen but not loaded* and none for a fetch in flight — the right-ha
 else, and a fetch is announced once, at the end of the content panel's title. A rail somebody is reading should hold
 still.
 
-That one announcement is the only thing in the shell that animates, and it is laid out so that nothing around it
-moves: 3 columns straight after the content panel's trail, a braille spinner turning a frame every 400ms through ten and
-starting over (#281), and nothing at all until the first tick — so the cached case above never flashes a mark (#213). Whether a fetch is in
-flight keeps its meaning and its two jobs, gating `g` and the follows paging; what changed is only what the
-breadcrumb draws. It is a **count** of questions in flight rather than a flag, because two enquiries overlap readily
-— a boost sent while a timeline is still loading — and the first to finish would otherwise say the shell was idle
-while the second was still running.
+That one announcement is the only thing in the shell that animates, and it is laid out so that nothing around it moves:
+3 columns straight after the content panel's trail, a braille spinner turning a frame every 400ms through ten and
+starting over (#281), and nothing at all until the first tick — so the cached case above never flashes a mark (#213).
+Whether a fetch is in flight keeps its meaning and its two jobs, gating `g` and the follows paging; what changed is only
+what the breadcrumb draws. It is a **count** of questions in flight rather than a flag, because two enquiries overlap
+readily — a boost sent while a timeline is still loading — and the first to finish would otherwise say the shell was
+idle while the second was still running.
 
 The alternatives were built and measured — a cursor that moves free until `⏎` commits, a key per destination, a jump
 list — and all cost one fetch against cycling's six *before* the settle rule, which is what closed the gap. They are on

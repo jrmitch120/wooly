@@ -17,7 +17,7 @@ public static class ChromeLines
     private static readonly string[] Spinner = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
     /// <summary>How many frames the spinner has before it starts over at the first.</summary>
-    public static int Frames => Spinner.Length;
+    public static int SpinnerFrames => Spinner.Length;
 
     /// <summary>What parts the spinner from the trail it follows.</summary>
     private const string Gap = "  ";
@@ -42,8 +42,8 @@ public static class ChromeLines
 
     /// <summary>
     ///     The content panel's top edge, titled with where you are in the stack and with the fetch mark straight after
-    ///     it (ADR-0021). This is the one place a fetch in flight is announced — the rail holds still (ADR-0014) — and it
-    ///     is on the frame of the content it is about to replace, beside the crumb it is about to replace.
+    ///     it (ADR-0021). This is the one place a fetch in flight is announced — the rail holds still (ADR-0014) — and
+    ///     it is on the frame of the content it is about to replace, beside the crumb it is about to replace.
     /// </summary>
     /// <remarks>
     ///     The crumb you are standing on is the last one, and it is drawn in <see cref="Role.PanelTitle" /> — it is
@@ -51,11 +51,11 @@ public static class ChromeLines
     ///     <see cref="Role.Muted" />, separators included, which keep no role of their own (#216, #271).
     ///     <para>
     ///         The mark's columns are held whether or not it is drawn, so the trail is elided in the same room at rest
-    ///         as on every frame, and the crumb you are standing on never moves as a fetch starts and ends. A trail long
-    ///         enough to elide fills its room, so the spinner lands at the end of the edge; a short one is followed by
-    ///         it (#281). The mark is handed over as a frame count rather than a flag, because the view counts and this
-    ///         spells: the frames and their columns stay here beside the trail arithmetic they have to agree with
-    ///         (#217).
+    ///         as on every frame, and the crumb you are standing on never moves as a fetch starts and ends. A trail
+    ///         long enough to elide fills its room, so the spinner lands at the end of the edge; a short one is
+    ///         followed by it (#281). The mark is handed over as a frame number rather than a flag, because the view
+    ///         counts and this spells: the frames and their columns stay here beside the trail arithmetic they have to
+    ///         agree with (#217).
     ///     </para>
     ///     <para>
     ///         Always the active edge: the content panel is the one being read, whichever rail group is lit.
@@ -69,8 +69,8 @@ public static class ChromeLines
     /// </param>
     /// <param name="frame">
     ///     Which of the spinner's frames to draw on this tick, counted from one and wrapping after
-    ///     <see cref="Frames" />. Nought draws no mark at all, which is both "nothing in flight" and "in flight, but
-    ///     not yet for a whole tick".
+    ///     <see cref="SpinnerFrames" />. Nought draws no mark at all, which is both "nothing in flight" and "in flight,
+    ///     but not yet for a whole tick".
     /// </param>
     /// <param name="width">The columns the panel has, its corners included.</param>
     public static Line Breadcrumb(IReadOnlyList<string> crumbs, int frame, int width)

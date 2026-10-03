@@ -367,14 +367,14 @@ public class ShellRefreshTests
 
         Assert.Equal(1, ticks);
         Assert.Equal(0, changes);
-        Assert.Equal(1, opened.Frame);
+        Assert.Equal(1, opened.SpinnerFrame);
 
         held.SetResult(Fetch<Post>.Complete([APost.With(id: "111")]));
 
         await refreshing;
         shell.Host.Drain();
 
-        Assert.Equal(0, opened.Frame);
+        Assert.Equal(0, opened.SpinnerFrame);
     }
 
     /// <summary>
