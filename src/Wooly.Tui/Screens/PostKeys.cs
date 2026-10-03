@@ -175,11 +175,12 @@ public static class PostKeys
     ///     reason <see cref="Around(KeyHint, IReadOnlyList{KeyHint}, KeyHint[])" /> gives: the row draws from the
     ///     front, and the walk means something only on the post being read right now.
     /// </remarks>
-    public static IReadOnlyList<KeyHint> OffAReference(IReadOnlyList<KeyHint> keys)
+    public static IReadOnlyList<KeyHint> BeforeAReference(IReadOnlyList<KeyHint> keys)
     {
-        var after = keys.ToList().IndexOf(Opening) + 1;
+        var opening = keys.ToList().IndexOf(Opening);
+        var at = opening < 0 ? 0 : opening + 1;
 
-        return [.. keys.Take(after), Entering, .. keys.Skip(after)];
+        return [.. keys.Take(at), Entering, .. keys.Skip(at)];
     }
 
     /// <summary>
