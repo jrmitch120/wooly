@@ -184,6 +184,13 @@ public abstract class Screen
     public virtual bool ClearFilter() => false;
 
     /// <summary>
+    ///     Closes a filter prompt that is open, keeping what was typed, which is what a click does to one: a click is a
+    ///     key the prompt does not take, and is spent closing it rather than acting around it (#286).
+    /// </summary>
+    /// <returns>Whether one was open, which is what settles whether the click was spent on it.</returns>
+    public virtual bool CloseFilterPrompt() => false;
+
+    /// <summary>
     ///     The post the reader has picked out, or <see langword="null" /> where this screen has no posts on it. What
     ///     <c>⏎</c>, <c>a</c> and the marks act on.
     /// </summary>

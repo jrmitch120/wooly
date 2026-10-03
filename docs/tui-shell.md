@@ -1522,8 +1522,15 @@ panel the pointer is over. What the gesture then does is a move the keys already
 | Wheel | The rail | Nothing: not the cursor, not the selection, not the rail's scroll and not the page beside it |
 | Wheel sideways | Anywhere | Nothing. A trackpad drifting sideways sends these between vertical notches, and Terminal.Gui's left and right carry up's and down's bits, so they are asked about first and dropped |
 | Wheel, click | The compose editor | Terminal.Gui's own handling: the wheel scrolls the draft and a click places the caret. Nothing of the shell's |
+| Click | A destination on the rail | Arrives there at once, through the rail's immediate path: the cursor and the selection move together, there is no settle window, and any landing the tabbing left waiting is abandoned, so only the destination clicked is read (#288). Which entry a row is comes off the rail's own rows, each carrying its destination's place as its `Line.Item`, so the click lands on what is drawn under the pointer whether the rail is framed, compact or compact and scrolled |
+| Click | A group's title, a compact heading, the API panel | Nothing. Only destinations answer a click |
 
-Clicks on the rail and in the content are not answered yet; #286 brings them in its later slices.
+**Open questions win.** While a confirmation is on the status row or the filter prompt is open, a click anywhere is a
+key the question does not take: it declines the confirmation, or closes the prompt with what was typed still narrowing
+the list, as `⏎` would, and whatever the click was on is not carried out. With nobody to act as there is no rail to
+click, and a click does no more than the keys there allow.
+
+Clicks in the content are not answered yet; #286 brings them in its later slices.
 
 Mouse tracking stays on, and nothing turns it off: drag means nothing, and selecting text to copy goes through the
 terminal's modifier bypass (`⌥` in iTerm2, `Fn` in Terminal.app) until selection is a feature of its own. The `?`

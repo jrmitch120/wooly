@@ -294,6 +294,20 @@ public sealed class FollowsScreen : Screen
     /// <summary>Hands the screen back to walking with what was typed still narrowing it, which is what <c>⏎</c> does.</summary>
     public void Done() => _typing = false;
 
+    /// <inheritdoc />
+    /// <remarks>As <c>⏎</c> closes it, the list still narrowed by what was typed.</remarks>
+    public override bool CloseFilterPrompt()
+    {
+        if (!_typing)
+        {
+            return false;
+        }
+
+        Done();
+
+        return true;
+    }
+
     /// <summary>
     ///     Takes the filter off and puts everyone back, which is what <c>esc</c> does before it means back.
     /// </summary>

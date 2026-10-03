@@ -30,7 +30,7 @@ public sealed class HelpScreen(Screen about) : Screen
         new("` / ~", "move it to the next or previous rail group's first destination"),
         Profiles,
         // The pointer, in one line: it adds no keys of its own, only another way to ask for these (#286).
-        new("mouse", "wheel over the content scrolls it a row at a time"),
+        new("mouse", "wheel scrolls the content a row at a time; a click on the rail arrives"),
     ];
 
     /// <summary>The screen whose keys these are.</summary>
