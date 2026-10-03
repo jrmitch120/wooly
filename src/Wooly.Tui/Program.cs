@@ -100,9 +100,8 @@ try
         });
     }
 
-    // Ghostty and kitty say who they are in the environment, which is known now rather than after the 5–10 seconds
-    // Terminal.Gui's query took to be answered in Ghostty — and they are the terminals known to draw Kitty's
-    // placeholders, which WezTerm answers the query for and then prints as boxes (#292, ADR-0022).
+    // Ghostty and kitty say who they are in the environment, which is known before the first frame — and they are the
+    // terminals known to draw Kitty's placeholders, which WezTerm takes and then prints as boxes (#292, ADR-0022).
     var placeholdersByName = KnownTerminal.DrawsPlaceholders(Environment.GetEnvironmentVariable);
 
     // The cell as the kernel measures it, which is the real one: Terminal.Gui's guess stretched every photograph.

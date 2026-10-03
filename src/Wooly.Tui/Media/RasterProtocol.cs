@@ -12,11 +12,12 @@ namespace Wooly.Tui.Media;
 /// <remarks>
 ///     Placeholders first because a picture is sent once and moves with the text for nothing; sixel cannot move an
 ///     image already on screen, so every scroll resends it. But only where the terminal is known by name to draw them
-///     (<see cref="KnownTerminal" />): answering Terminal.Gui's Kitty query is not enough, because WezTerm answers it
-///     and prints the placeholders as boxes.
+///     (<see cref="KnownTerminal" />): speaking Kitty graphics is not enough, because WezTerm speaks them and prints the
+///     placeholders as boxes.
 ///     <para>
 ///         Everywhere else a picture is drawn through a box, Kitty before sixel, which is also the order
-///         Terminal.Gui's <c>ImageView</c> tries them in. Story 49 asked for sixel first, and ADR-0016 kept it so;
+///         Terminal.Gui's <c>ImageView</c> tries them in. Terminal.Gui says a terminal speaks Kitty only where its
+///         environment names kitty or Ghostty, so in practice a box is sixel. Story 49 asked for sixel first, and ADR-0016 kept it so;
 ///         measuring a scroll reversed it. Kitty sends a picture once and moves it, where sixel sends every picture on
 ///         the page again on every step, and draws it in 256 colours at most (ADR-0023).
 ///     </para>

@@ -3,9 +3,9 @@ using Wooly.Tui.Media;
 namespace Wooly.Tests.Tui;
 
 /// <summary>
-///     A terminal recognised from its own environment as one that draws Kitty's Unicode placeholders — at once, rather
-///     than after the several seconds Terminal.Gui's query takes to be answered in Ghostty, and only where it is sure:
-///     answering the query is not enough, because WezTerm answers it and draws the placeholders as boxes (#292).
+///     A terminal recognised from its own environment as one that draws Kitty's Unicode placeholders — at once, and
+///     only where it is sure: speaking Kitty graphics is not enough, because WezTerm speaks them and draws the
+///     placeholders as boxes (#292).
 /// </summary>
 public class KnownTerminalTests
 {
@@ -56,7 +56,7 @@ public class KnownTerminalTests
 
     /// <summary>
     ///     A multiplexer inherits the variables of the terminal it was started in but does not pass Kitty graphics
-    ///     through, so inside one the query is the only honest answer (tmux passthrough is out of scope).
+    ///     through (tmux passthrough is out of scope).
     /// </summary>
     [Theory]
     [InlineData("TMUX", "/private/tmp/tmux-501/default,1234,0")]

@@ -5,10 +5,10 @@ namespace Wooly.Tui.Media;
 ///     protocol's Unicode placeholders (ADR-0022).
 /// </summary>
 /// <remarks>
-///     Asked of the environment for two reasons. Terminal.Gui's own query took 5–10 seconds to be answered in Ghostty,
-///     and no picture appeared until it was (#292). And answering it is not enough: WezTerm speaks Kitty graphics and
-///     answers yes, but its placeholders are not merged (wezterm/wezterm#7924), so it prints them as boxes. So a
-///     terminal draws placeholders only where it names itself as one known to, and draws through a box otherwise.
+///     Asked of the environment because nothing else can be: the Kitty protocol's own query says whether a terminal
+///     takes Kitty graphics, not whether it draws placeholders, and WezTerm takes them and prints its placeholders as
+///     boxes (wezterm/wezterm#7924). So a terminal draws placeholders only where it names itself as one known to, and
+///     draws through a box otherwise. Read before the first frame, so the first picture waits on nothing (#292).
 /// </remarks>
 internal static class KnownTerminal
 {

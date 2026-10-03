@@ -572,10 +572,10 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
   half off the page draws the rows still on it, and a scroll sends no image data. It is encoded off the UI thread, a
   screen ahead of the page, and its box keeps the rows it reserved until it is ready.
 - **Only a terminal known by name draws placeholders.** Ghostty and kitty are recognised from their environment at
-  startup, rather than after Terminal.Gui's query, which took seconds in Ghostty. WezTerm answers the query but prints
+  startup; nothing can ask a terminal whether it draws placeholders. WezTerm takes Kitty graphics but prints
   placeholders as boxes, so it — like Windows Terminal, Warp, and anything inside tmux or screen — draws through a
-  `PictureView` box: through Kitty where the terminal speaks it, which sends a picture once and moves it, and through
-  sixel otherwise (ADR-0023).
+  `PictureView` box: through Kitty where Terminal.Gui says the terminal speaks it, and through sixel otherwise
+  (ADR-0023). Terminal.Gui says so only for kitty and Ghostty, so in practice every box is sixel.
 - **A sixel is encoded once for each cut of a picture, and handed to the driver ready** (#292, ADR-0023). A picture
   is scaled to its box once; a box straddling the edge of the page is framed to the rows still on it; each cut is
   encoded once, kept, and encoded ahead off the UI thread for the next few rows of a scroll. A notch over sixel

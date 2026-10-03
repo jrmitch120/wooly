@@ -88,7 +88,11 @@ again as it moves. Measured the same way:
 | Kitty | 18–23 ms | 39–61 ms | 114–209 KB on average: placements, and a picture once as it arrives |
 
 #287 measured 11 MB a notch for Kitty through `ImageView`; Terminal.Gui 2.4.17's image view sends a picture once and
-crops it by placement, so that no longer holds. The order is a rule about protocols, not about any one terminal, and
+crops it by placement, so that no longer holds. **In practice this rung is never reached, though.** Terminal.Gui says a
+terminal speaks Kitty only where its environment names kitty or Ghostty (`KittyGraphicsSupportDetector` asks the
+terminal nothing), and those two draw placeholders. WezTerm is never told it speaks Kitty, so it draws sixel, and
+dropping `PreferSixel` changed nothing there. Asking the terminal itself would need Terminal.Gui to read the reply,
+which it does not: the reply would arrive as keys. The order is a rule about protocols, not about any one terminal, and
 it is also the order `ImageView` tries them in, so the picture `PaintedView` encodes for and the one the driver draws
 cannot disagree. Kitty is also drawn in full colour, which sixel cannot be.
 

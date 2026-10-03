@@ -34,8 +34,8 @@ placeholders are drawn.
 
 **Placeholders come first, but only on a terminal known by name to draw them.** Sixel cannot move an image already on
 screen, so every scroll step resends every visible picture; placeholders send none. But speaking the Kitty graphics
-protocol is not the same as drawing its placeholders. WezTerm answers Terminal.Gui's Kitty query, takes the
-transmission, and prints the placeholder cells as boxes: its implementation is an open pull request
+protocol is not the same as drawing its placeholders. WezTerm takes a Kitty transmission and prints the placeholder
+cells as boxes: its implementation is an open pull request
 (wezterm/wezterm#7924), and other clients have had to exclude it by name (yorukot/superfile#1665). #292 assumed WezTerm
 would be the terminal the flip helped; it would have been the one it broke. So `RasterProtocol.Chosen` answers
 `Placeholders` only where `KnownTerminal` names the terminal as Ghostty or kitty, and everywhere else draws through a
@@ -70,18 +70,20 @@ What the prototype taught, kept as rules:
 so painting it builds a colour, which ADR-0014's scan forbids outside the theme. Like `PictureDecoder`'s pixels it is
 content rather than emphasis, and `Media/KittyPlaceholder.cs` joins the scan's short list of files allowed to.
 
-**The name is read from the environment, at startup.** That is also what keeps a picture from waiting: Terminal.Gui
-finds out about Kitty by asking, and in Ghostty the answer took 5–10 seconds, with no picture drawn until it came.
-Ghostty and kitty say who they are (`TERM_PROGRAM` of `ghostty`, `TERM` of `xterm-ghostty` or `xterm-kitty`,
-`KITTY_WINDOW_ID`, `GHOSTTY_RESOURCES_DIR`), and `KnownTerminal` reads that before the first frame. A terminal that
-names itself nowhere — Ghostty over ssh with a plain `TERM`, say — still draws through a box once the query is
-answered. The name is never trusted where it would be wrong:
+**The name is read from the environment, at startup.** No terminal is asked whether it draws placeholders, because
+there is no way to ask: the protocol's own query says whether a terminal takes Kitty graphics, not whether it draws
+placeholders. Terminal.Gui does not ask even that. Its `KittyGraphicsSupportDetector` reads `KITTY_WINDOW_ID` and a
+`TERM_PROGRAM` of `kitty` or `ghostty` and nothing else (2.4.17), and then asks the window's size in pixels, which in
+the prototype held the first picture back 5–10 seconds. Ghostty and kitty say who they are (`TERM_PROGRAM` of
+`ghostty`, `TERM` of `xterm-ghostty` or `xterm-kitty`, `KITTY_WINDOW_ID`, `GHOSTTY_RESOURCES_DIR`), and `KnownTerminal`
+reads that before the first frame. A terminal that names itself nowhere — Ghostty over ssh with a plain `TERM`, say —
+draws through a box. The name is never trusted where it would be wrong:
 
 - **Not in Windows Terminal or WezTerm.** `WT_SESSION`, `WEZTERM_PANE` and a `TERM_PROGRAM` of `WezTerm` outweigh
   everything else, because a `TERM` carried in from elsewhere would otherwise send them placeholders they print as
   boxes. Warp is excluded for the same reason.
 - **Not inside tmux or screen.** A multiplexer inherits the variables of the terminal it was started in but does not
-  pass the protocol through. tmux passthrough is out of scope, and inside one the query is the only honest answer.
+  pass the protocol through. tmux passthrough is out of scope.
 
 **A cell is the size the kernel says it is.** The PNG a picture is sent as is the box's cells in pixels, so a cell
 guessed too small is a picture the terminal stretches into its box: Terminal.Gui's guess was 10×20 where Ghostty's cells
