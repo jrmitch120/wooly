@@ -77,15 +77,18 @@ public class ShellRailClickTests
     }
 
     /// <summary>
-    ///     A click on the destination already shown arrives nowhere new: the screen, the rail and the instance are left
-    ///     as they were.
+    ///     A click on the destination already shown, at its own screen, arrives nowhere new: the screen, what is drawn on
+    ///     it, the rail and the instance are left as they were (#289).
     /// </summary>
     [Fact]
     public async Task ClickingTheDestinationShownAsksForNothing()
     {
-        using var drawn = await DrawnShell.Of(80, Framed, Themes.Plain);
+        using var drawn = await DrawnShell.Of(80, Framed, Themes.Plain, Four());
+
+        drawn.Press(Key.K);
 
         var screen = drawn.Shell.Screen;
+        var rows = drawn.Rows();
         var requests = drawn.Built.Requests;
 
         drawn.Click(OverRail, RowOf(drawn, "Home"));
@@ -93,6 +96,7 @@ public class ShellRailClickTests
         drawn.Redraw();
 
         Assert.Same(screen, drawn.Shell.Screen);
+        Assert.Equal(rows, drawn.Rows());
         Assert.Equal(0, drawn.Shell.Rail.Current);
         Assert.Equal(0, drawn.Shell.Rail.Cursor);
         Assert.Equal(requests, drawn.Built.Requests);
@@ -278,27 +282,6 @@ public class ShellRailClickTests
         Assert.Equal(requests, drawn.Built.Requests);
         Assert.Equal(0, drawn.Shell.Rail.Current);
         Assert.Equal(0, drawn.Shell.Rail.Cursor);
-    }
-
-    /// <summary>On the destination's own screen already, a click on it changes nothing and asks for nothing.</summary>
-    [Fact]
-    public async Task ClickingTheCurrentDestinationAtItsRootDoesNothing()
-    {
-        using var drawn = await DrawnShell.Of(80, Framed, Themes.Plain, Four());
-
-        drawn.Press(Key.K);
-
-        var home = drawn.Shell.Screen;
-        var rows = drawn.Rows();
-        var requests = drawn.Built.Requests;
-
-        drawn.Click(OverRail, RowOf(drawn, "Home"));
-        drawn.Built.Host.Settle();
-        drawn.Redraw();
-
-        Assert.Same(home, drawn.Shell.Screen);
-        Assert.Equal(rows, drawn.Rows());
-        Assert.Equal(requests, drawn.Built.Requests);
     }
 
     /// <summary>
