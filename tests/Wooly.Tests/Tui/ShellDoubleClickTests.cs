@@ -1,9 +1,10 @@
+using System.Drawing;
 using Terminal.Gui.Input;
 using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Theme;
-using static Wooly.Tests.Tui.ShellContentClickTests;
+using static Wooly.Tests.Tui.ContentClicks;
 
 namespace Wooly.Tests.Tui;
 
@@ -35,10 +36,10 @@ public class ShellDoubleClickTests
 
         keyed.Click(OverContent, ContentRowOf(keyed, 1));
         keyed.Press(Key.Enter);
-        Settle(keyed);
+        keyed.Settle();
 
         doubled.DoubleClick(OverContent, ContentRowOf(doubled, 1));
-        Settle(doubled);
+        doubled.Settle();
 
         Assert.NotSame(shown, doubled.Shell.Screen);
         Assert.Equal(keyed.Shell.Screen.GetType(), doubled.Shell.Screen.GetType());
@@ -59,7 +60,7 @@ public class ShellDoubleClickTests
         var account = drawn.Shell.Screen;
 
         drawn.DoubleClick(OverContent, ContentRowOf(drawn, 0));
-        Settle(drawn);
+        drawn.Settle();
 
         Assert.Same(account, drawn.Shell.Screen);
         Assert.Null(drawn.Shell.Screen.Picked);
@@ -86,7 +87,7 @@ public class ShellDoubleClickTests
         Assert.NotNull(drawn.Shell.Screen.Reference);
 
         drawn.DoubleClick(OverContent, RowOf(drawn, "Shearing day"));
-        Settle(drawn);
+        drawn.Settle();
 
         var post = Assert.IsType<PostScreen>(drawn.Shell.Screen);
 
@@ -105,8 +106,10 @@ public class ShellDoubleClickTests
         var feed = drawn.Shell.Screen;
         var rows = drawn.Rows();
 
+        Assert.Null(drawn.Content.ItemAt(new Point(OverContent, Tall - 3)));
+
         drawn.DoubleClick(OverContent, Tall - 3);
-        Settle(drawn);
+        drawn.Settle();
 
         Assert.Same(feed, drawn.Shell.Screen);
         Assert.Equal(rows, drawn.Rows());
@@ -139,7 +142,7 @@ public class ShellDoubleClickTests
         Assert.NotNull(drawn.Shell.Asking);
 
         drawn.DoubleClick(OverContent, RowOf(drawn, "Two sheep"));
-        Settle(drawn);
+        drawn.Settle();
 
         Assert.Null(drawn.Shell.Asking);
         Assert.Same(feed, drawn.Shell.Screen);
@@ -160,17 +163,10 @@ public class ShellDoubleClickTests
         Assert.True(follows.IsTyping);
 
         drawn.DoubleClick(OverContent, RowOf(drawn, "bea@hachyderm.io"));
-        Settle(drawn);
+        drawn.Settle();
 
         Assert.Same(follows, drawn.Shell.Screen);
         Assert.False(follows.IsTyping);
         Assert.Equal("ann@hachyderm.io", follows.PickedPerson?.Address);
-    }
-
-    /// <summary>Whatever the gesture asked of the instance answered, and drawn.</summary>
-    private static void Settle(DrawnShell drawn)
-    {
-        drawn.Built.Host.Drain();
-        drawn.Redraw();
     }
 }

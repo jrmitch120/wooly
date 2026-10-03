@@ -104,7 +104,7 @@ internal sealed class ShellWindow : Window
     ///     Whether the last click was spent declining an open question, which spends the double click it turns out to be
     ///     the first half of (#291).
     /// </summary>
-    private bool _clickAnswered;
+    private bool _clickDeclinedQuestion;
 
     /// <param name="quit">
     ///     What <c>ctrl-q</c> does. Passed in rather than reached for, because the application is the thing that owns
@@ -316,16 +316,16 @@ internal sealed class ShellWindow : Window
     /// <summary>
     ///     A click at <paramref name="at" />. An open question takes it wherever it lands, and is all it does; otherwise
     ///     a click on a destination on the rail arrives there (#288), and a click on a row of a thing in the content
-    ///     picks it (#290) — the first half of a double click among them, which is <see cref="DoubleClicked" />'s. Everything else — a title, a heading, the API panel, a rule, a blank — is part of nothing
-    ///     and ignores it.
+    ///     picks it (#290), the first half of a double click among them (<see cref="DoubleClicked" />). Everything else —
+    ///     a title, a heading, the API panel, a rule, a blank — is part of nothing and ignores it.
     /// </summary>
     /// <returns>Whether the click was the shell's, which is any click on the window while a question is open.</returns>
     private bool Clicked(Point at)
     {
         // A click anywhere declines a confirmation or closes a filter prompt, and is not carried out (story 30, 31).
-        _clickAnswered = _shell.DeclineOpenQuestion();
+        _clickDeclinedQuestion = _shell.DeclineOpenQuestion();
 
-        if (_clickAnswered)
+        if (_clickDeclinedQuestion)
         {
             return true;
         }
@@ -362,7 +362,11 @@ internal sealed class ShellWindow : Window
     /// <returns>Whether the double click was the shell's, as for <see cref="Clicked" />.</returns>
     private bool DoubleClicked(Point at)
     {
-        if (_clickAnswered || _shell.DeclineOpenQuestion())
+        // Spent once: a later pair must not be swallowed by a question its own first click never saw.
+        var declined = _clickDeclinedQuestion;
+        _clickDeclinedQuestion = false;
+
+        if (declined || _shell.DeclineOpenQuestion())
         {
             return true;
         }

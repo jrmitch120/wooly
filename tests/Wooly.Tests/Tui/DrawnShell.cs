@@ -113,6 +113,13 @@ internal sealed class DrawnShell : IDisposable
 
     public void Redraw() => Application.LayoutAndDraw(true);
 
+    /// <summary>Whatever was asked of the instance answered, and drawn.</summary>
+    public void Settle()
+    {
+        Built.Host.Drain();
+        Redraw();
+    }
+
     public void Press(Key key)
     {
         Window.NewKeyDownEvent(key);
