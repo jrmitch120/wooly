@@ -350,7 +350,9 @@ Three moves do it, and they stay distinct inside it. _Arriving_ from the rail la
 put back to one screen, and an empty screen goes up at once because what was showing is about somewhere else — the
 profile's own account included, an arrival with an account subject. _Drilling in_ pushes: a post, an account, a hashtag
 walked to or a conversation appears when its answer lands, and a **Follow list** stands empty at once and fills.
-_Refreshing_ stands a fresher copy in place of what is showing (**Refresh**). Whichever move, the same machinery reads
+_Refreshing_ stands a fresher copy in place of what is showing (**Refresh**). Walking back out to a destination's own
+screen — a click on the destination already shown, drilled in from it (#289) — is none of the three: it is a pop to
+the bottom of the stack, which keeps that screen's page and pick and reads nothing. Whichever move, the same machinery reads
 the subject under an **enquiry**, draws what the one cache still holds rather than asking, keeps what came back, sets
 a destination's unread count off the list it is drawn beside, and reads the next page of a list browsed a page at a
 time. A subject says what it reads and what that becomes; nothing about the sequence is said twice.

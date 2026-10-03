@@ -77,15 +77,18 @@ public class ShellRailClickTests
     }
 
     /// <summary>
-    ///     A click on the destination already shown arrives nowhere new: the screen, the rail and the instance are left
-    ///     as they were.
+    ///     A click on the destination already shown, at its own screen, arrives nowhere new: the screen, what is drawn on
+    ///     it, the rail and the instance are left as they were (#289).
     /// </summary>
     [Fact]
     public async Task ClickingTheDestinationShownAsksForNothing()
     {
-        using var drawn = await DrawnShell.Of(80, Framed, Themes.Plain);
+        using var drawn = await DrawnShell.Of(80, Framed, Themes.Plain, Four());
+
+        drawn.Press(Key.K);
 
         var screen = drawn.Shell.Screen;
+        var rows = drawn.Rows();
         var requests = drawn.Built.Requests;
 
         drawn.Click(OverRail, RowOf(drawn, "Home"));
@@ -93,6 +96,7 @@ public class ShellRailClickTests
         drawn.Redraw();
 
         Assert.Same(screen, drawn.Shell.Screen);
+        Assert.Equal(rows, drawn.Rows());
         Assert.Equal(0, drawn.Shell.Rail.Current);
         Assert.Equal(0, drawn.Shell.Rail.Cursor);
         Assert.Equal(requests, drawn.Built.Requests);
@@ -243,6 +247,95 @@ public class ShellRailClickTests
         Assert.Equal(0, drawn.Built.Requests);
     }
 
+    /// <summary>
+    ///     Drilled from Home into a post and on into its author, a click on Home walks back out to Home's own screen:
+    ///     the stack down to its one bottom screen, that screen's page and pick where the reader left them, and nothing
+    ///     asked of the instance (#289).
+    /// </summary>
+    [Fact]
+    public async Task ClickingTheCurrentDestinationWalksBackToItsOwnScreen()
+    {
+        using var drawn = await DrawnShell.Of(80, Framed, Themes.Plain, Four());
+
+        drawn.Press(Key.K);
+        drawn.Press(Key.CursorDown);
+
+        var home = drawn.Shell.Screen;
+        var picked = home.Picked?.Id;
+        var top = drawn.Content.Top;
+
+        Assert.Equal("220", picked);
+        Assert.True(top > 0);
+
+        await Drill(drawn);
+
+        Assert.Equal(3, drawn.Shell.Depth);
+
+        var requests = drawn.Built.Requests;
+
+        drawn.Click(OverRail, RowOf(drawn, "Home"));
+        drawn.Built.Host.Settle();
+        drawn.Redraw();
+
+        Assert.Same(home, drawn.Shell.Screen);
+        Assert.Equal(["Home"], drawn.Shell.Crumbs);
+        Assert.Equal(picked, drawn.Shell.Screen.Picked?.Id);
+        Assert.Equal(top, drawn.Content.Top);
+        Assert.Equal(requests, drawn.Built.Requests);
+        Assert.Equal(0, drawn.Shell.Rail.Current);
+        Assert.Equal(0, drawn.Shell.Rail.Cursor);
+    }
+
+    /// <summary>
+    ///     The keys get no walk back: tabbing off the current destination and back onto it, drilled in, leaves the stack
+    ///     and the screen on top of it where they were, and asks for nothing (#289).
+    /// </summary>
+    [Fact]
+    public async Task TabbingBackOntoTheCurrentDestinationLeavesTheDrillAlone()
+    {
+        using var drawn = await DrawnShell.Of(80, Framed, Themes.Plain, Four());
+
+        await Drill(drawn);
+
+        var screen = drawn.Shell.Screen;
+        var crumbs = drawn.Shell.Crumbs;
+        var requests = drawn.Built.Requests;
+
+        drawn.Press(Key.Tab);
+        drawn.Press(Key.Tab.WithShift);
+        drawn.Built.Host.Settle();
+        drawn.Redraw();
+
+        Assert.Same(screen, drawn.Shell.Screen);
+        Assert.Equal(crumbs, drawn.Shell.Crumbs);
+        Assert.Equal(requests, drawn.Built.Requests);
+    }
+
+    /// <summary>
+    ///     Tabbed part-way along the rail and then clicking the destination still shown walks back out to it, and the
+    ///     landing the tabbing left waiting is abandoned: the cursor comes back and nothing else is read (#289).
+    /// </summary>
+    [Fact]
+    public async Task ClickingTheCurrentDestinationAfterTabbingWalksBackAndAbandonsTheLanding()
+    {
+        using var drawn = await DrawnShell.Of(80, Framed, Themes.Plain, Four());
+
+        await Drill(drawn);
+
+        var requests = drawn.Built.Requests;
+
+        drawn.Press(Key.Tab);
+        drawn.Press(Key.Tab);
+        drawn.Click(OverRail, RowOf(drawn, "Home"));
+        drawn.Built.Host.Settle();
+        drawn.Redraw();
+
+        Assert.Equal(["Home"], drawn.Shell.Crumbs);
+        Assert.Equal(0, drawn.Shell.Rail.Cursor);
+        Assert.Equal(0, drawn.Shell.Rail.Current);
+        Assert.Equal(requests, drawn.Built.Requests);
+    }
+
     /// <summary>The rail row the first entry, title or panel reading <paramref name="text" /> is drawn on.</summary>
     private static int RowOf(DrawnShell drawn, string text)
     {
@@ -257,6 +350,26 @@ public class ShellRailClickTests
     /// <summary>Where on the rail <paramref name="kind" /> is, as its cursor and selection count it.</summary>
     private static int IndexOf(DrawnShell drawn, DestinationKind kind) =>
         drawn.Shell.Rail.Destinations.ToList().FindIndex(destination => destination.Kind == kind);
+
+    /// <summary>Four posts on Home, by people other than the reader.</summary>
+    private static AShell Four() => new()
+    {
+        Timelines = FakeTimelineReader.Holding(
+            APost.With(id: "110"),
+            APost.With(id: "220"),
+            APost.With(id: "330"),
+            APost.With(id: "440")),
+    };
+
+    /// <summary>Two screens deep from Home: the picked post opened, and its author opened off it.</summary>
+    private static async Task Drill(DrawnShell drawn)
+    {
+        drawn.Press(Key.Enter);
+        drawn.Built.Host.Drain();
+        await drawn.Shell.OpenAuthor();
+        drawn.Built.Host.Drain();
+        drawn.Redraw();
+    }
 
     /// <summary>The shell drawn framed and drilled into a follow list of one, from the author of the post on Home.</summary>
     private static async Task<DrawnShell> OnAFollowList()
