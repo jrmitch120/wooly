@@ -281,15 +281,14 @@ public sealed class Shell
     public void StepGroup(int by) => Rail.StepGroup(by);
 
     /// <summary>
-    ///     A click on the <paramref name="at" />th destination on the rail: the cursor and the selection go there
-    ///     together and it is arrived at at once, abandoning whatever the tabbing left waiting (#288). Nothing with
-    ///     nobody to act as, where the keys go nowhere either.
+    ///     A click on the <paramref name="at" />th destination on the rail. Another destination is arrived at at once:
+    ///     the cursor and the selection go there together, abandoning whatever the tabbing left waiting (#288). The
+    ///     destination already shown is walked back out to instead (<see cref="Unwind" />, #289). Nothing with nobody
+    ///     to act as, where the keys go nowhere either.
     /// </summary>
     /// <remarks>
-    ///     The destination already shown is walked back out to instead: drilled in from it, the stack goes back to its
-    ///     bottom screen — the destination's own — with the page it was left on, as any pop keeps, and nothing asked
-    ///     for (#289). The way a sidebar's entry takes you back to its root. At its root already, nothing happens. The
-    ///     keys have no equivalent: tabbing back onto the destination shown is still a walk that ended where it began.
+    ///     The keys have no equivalent of the walk back: tabbing back onto the destination shown is still a walk that
+    ///     ended where it began.
     /// </remarks>
     public void Arrive(int at)
     {
@@ -302,18 +301,10 @@ public sealed class Shell
 
         Rail.GoTo(Rail.Destinations[at].Kind);
 
-        if (!shown || _stack.Count == 1)
+        if (shown)
         {
-            return;
+            Unwind();
         }
-
-        while (_stack.Count > 1)
-        {
-            Leave(_stack.Count - 1);
-        }
-
-        Notice = null;
-        Changed?.Invoke();
     }
 
     /// <summary>
@@ -1756,6 +1747,31 @@ public sealed class Shell
     {
         Asking = confirmation;
 
+        Changed?.Invoke();
+    }
+
+    /// <summary>
+    ///     Walks the stack back out to its bottom screen — the destination's own — as that many presses of <c>esc</c>
+    ///     would pop it, so the screen keeps the page and the pick it was left on and nothing is asked of the instance
+    ///     (#289). Not <see cref="Reset" />, which lets the bottom screen go too.
+    /// </summary>
+    /// <remarks>
+    ///     At one screen deep it is nothing at all, the notice included: a click on the destination a reader is already
+    ///     on the root of must leave the status row saying what it said.
+    /// </remarks>
+    private void Unwind()
+    {
+        if (_stack.Count == 1)
+        {
+            return;
+        }
+
+        while (_stack.Count > 1)
+        {
+            Leave(_stack.Count - 1);
+        }
+
+        Notice = null;
         Changed?.Invoke();
     }
 

@@ -253,7 +253,7 @@ public class ShellRailClickTests
     ///     asked of the instance (#289).
     /// </summary>
     [Fact]
-    public async Task ClickingTheCurrentDestinationWalksBackToItsRoot()
+    public async Task ClickingTheCurrentDestinationWalksBackToItsOwnScreen()
     {
         using var drawn = await DrawnShell.Of(80, Framed, Themes.Plain, Four());
 
@@ -261,8 +261,10 @@ public class ShellRailClickTests
         drawn.Press(Key.CursorDown);
 
         var home = drawn.Shell.Screen;
+        var picked = home.Picked?.Id;
         var top = drawn.Content.Top;
 
+        Assert.Equal("220", picked);
         Assert.True(top > 0);
 
         await Drill(drawn);
@@ -277,7 +279,7 @@ public class ShellRailClickTests
 
         Assert.Same(home, drawn.Shell.Screen);
         Assert.Equal(["Home"], drawn.Shell.Crumbs);
-        Assert.Equal("220", drawn.Shell.Screen.Picked?.Id);
+        Assert.Equal(picked, drawn.Shell.Screen.Picked?.Id);
         Assert.Equal(top, drawn.Content.Top);
         Assert.Equal(requests, drawn.Built.Requests);
         Assert.Equal(0, drawn.Shell.Rail.Current);
@@ -286,7 +288,7 @@ public class ShellRailClickTests
 
     /// <summary>
     ///     The keys get no walk back: tabbing off the current destination and back onto it, drilled in, leaves the stack
-    ///     where it was.
+    ///     and the screen on top of it where they were, and asks for nothing (#289).
     /// </summary>
     [Fact]
     public async Task TabbingBackOntoTheCurrentDestinationLeavesTheDrillAlone()
@@ -295,14 +297,43 @@ public class ShellRailClickTests
 
         await Drill(drawn);
 
+        var screen = drawn.Shell.Screen;
         var crumbs = drawn.Shell.Crumbs;
+        var requests = drawn.Built.Requests;
 
         drawn.Press(Key.Tab);
         drawn.Press(Key.Tab.WithShift);
         drawn.Built.Host.Settle();
         drawn.Redraw();
 
+        Assert.Same(screen, drawn.Shell.Screen);
         Assert.Equal(crumbs, drawn.Shell.Crumbs);
+        Assert.Equal(requests, drawn.Built.Requests);
+    }
+
+    /// <summary>
+    ///     Tabbed part-way along the rail and then clicking the destination still shown walks back out to it, and the
+    ///     landing the tabbing left waiting is abandoned: the cursor comes back and nothing else is read (#289).
+    /// </summary>
+    [Fact]
+    public async Task ClickingTheCurrentDestinationAfterTabbingWalksBackAndAbandonsTheLanding()
+    {
+        using var drawn = await DrawnShell.Of(80, Framed, Themes.Plain, Four());
+
+        await Drill(drawn);
+
+        var requests = drawn.Built.Requests;
+
+        drawn.Press(Key.Tab);
+        drawn.Press(Key.Tab);
+        drawn.Click(OverRail, RowOf(drawn, "Home"));
+        drawn.Built.Host.Settle();
+        drawn.Redraw();
+
+        Assert.Equal(["Home"], drawn.Shell.Crumbs);
+        Assert.Equal(0, drawn.Shell.Rail.Cursor);
+        Assert.Equal(0, drawn.Shell.Rail.Current);
+        Assert.Equal(requests, drawn.Built.Requests);
     }
 
     /// <summary>The rail row the first entry, title or panel reading <paramref name="text" /> is drawn on.</summary>
