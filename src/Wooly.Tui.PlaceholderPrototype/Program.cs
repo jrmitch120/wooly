@@ -42,12 +42,13 @@ if (selfTest)
     application.Driver!.SetScreenSize(120, 40);
     application.Driver.SetKittyGraphicsSupport(new KittyGraphicsSupportResult { IsSupported = true, Resolution = new System.Drawing.Size(10, 20) });
 
-    var probe = new Feed(photos) { Width = Dim.Fill(), Height = Dim.Fill(1) };
+    var probe = new Feed(photos) { Width = Dim.Fill(), Height = Dim.Fill(1), CanFocus = true };
     var said = "";
     probe.Status = text => said = text;
     var top = new Window { BorderStyle = LineStyle.None };
     top.Add(probe);
     application.Begin(top);
+    probe.SetFocus();
 
     for (var step = 0; step < 6; step++)
     {
@@ -56,7 +57,7 @@ if (selfTest)
         var placeholders = ansi.EnumerateRunes().Count(rune => rune.Value == 0x10EEEE);
         Console.WriteLine($"step {step}: placeholder cells on screen {placeholders} |{said}");
         probe.NewMouseEvent(new Mouse { Flags = MouseFlags.WheeledDown, Position = new System.Drawing.Point(5, 5) });
-        probe.NewMouseEvent(new Mouse { Flags = MouseFlags.WheeledDown, Position = new System.Drawing.Point(5, 5) });
+        top.NewKeyDownEvent(Key.J);
     }
 
     top.Dispose();
@@ -66,12 +67,13 @@ if (selfTest)
 
 application.Init();
 
-var feed = new Feed(photos) { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill(1) };
+var feed = new Feed(photos) { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill(1), CanFocus = true };
 var status = new Label { X = 0, Y = Pos.AnchorEnd(1), Width = Dim.Fill(), Text = "starting…" };
 var window = new Window { BorderStyle = LineStyle.None };
 
 feed.Status = text => status.Text = text;
 window.Add(feed, status);
+window.Initialized += (_, _) => feed.SetFocus();
 window.KeyDown += (_, key) =>
 {
     if (key == Key.Q || key == Key.Q.WithCtrl)
@@ -149,10 +151,25 @@ internal sealed class Feed(List<string> photos) : View
 
     public Action<string>? Status { get; set; }
 
-    private Size CellPixels =>
-        App?.Driver?.KittyGraphicsSupport is { IsSupported: true, Resolution: { Width: > 0, Height: > 0 } r } ? r : new Size(10, 20);
+    /// <summary>
+    ///     The cell's size in pixels: the window's pixel size from the kernel (TIOCGWINSZ, which Ghostty fills in)
+    ///     divided by its cells, else whatever Terminal.Gui's detection reported, else 10×20.
+    /// </summary>
+    private Size CellPixels => Winsize.Cell() ?? (App?.Driver?.KittyGraphicsSupport is { IsSupported: true, Resolution: { Width: > 0, Height: > 0 } r } ? r : new Size(10, 20));
 
-    private bool Kitty => App?.Driver?.KittyGraphicsSupport?.IsSupported == true;
+    private string CellSource => Winsize.Cell() is not null ? "ioctl" : App?.Driver?.KittyGraphicsSupport?.IsSupported == true ? "detected" : "guessed";
+
+    /// <summary>
+    ///     Kitty graphics, known at once from the terminal's own environment where it is one that has them, rather than
+    ///     waiting several seconds on Terminal.Gui's query for the answer.
+    /// </summary>
+    private bool Kitty => KnownKitty || App?.Driver?.KittyGraphicsSupport?.IsSupported == true;
+
+    private static readonly bool KnownKitty =
+        Environment.GetEnvironmentVariable("TERM_PROGRAM") is "ghostty" or "WezTerm"
+        || Environment.GetEnvironmentVariable("TERM") is "xterm-ghostty" or "xterm-kitty"
+        || Environment.GetEnvironmentVariable("KITTY_WINDOW_ID") is not null
+        || Environment.GetEnvironmentVariable("GHOSTTY_RESOURCES_DIR") is not null;
 
     protected override bool OnMouseEvent(Mouse mouse)
     {
@@ -254,7 +271,7 @@ internal sealed class Feed(List<string> photos) : View
         _lastDrawMs = clock.Elapsed.TotalMilliseconds;
 
         Status?.Invoke(
-            $" {(Kitty ? "kitty ✓" : "kitty ✗")}  cell {CellPixels.Width}×{CellPixels.Height}px  row {_top}/{Math.Max(0, _rows.Count - height)}"
+            $" {(Kitty ? KnownKitty ? "kitty ✓ (env)" : "kitty ✓ (detected)" : "kitty ✗")}  cell {CellPixels.Width}×{CellPixels.Height}px ({CellSource})  row {_top}/{Math.Max(0, _rows.Count - height)}"
             + $"  wheel step {_wheelStep} (s)  wheel events {_wheelEvents}  draw {_lastDrawMs:F1}ms"
             + $"  image bytes: this frame {_imageBytesThisScroll / 1024}KB, total {_imageBytesSent / 1024}KB  q quits");
 
@@ -373,4 +390,45 @@ internal sealed class Feed(List<string> photos) : View
     private sealed record TextRow(string Text, bool Muted) : Row;
 
     private sealed record PictureRow(string Path, int Row, int Columns, int Rows) : Row;
+}
+
+/// <summary>The terminal window's size from the kernel, which a terminal that knows its pixels fills in.</summary>
+internal static class Winsize
+{
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    private struct Size4
+    {
+        public ushort Rows;
+        public ushort Columns;
+        public ushort XPixels;
+        public ushort YPixels;
+    }
+
+    [System.Runtime.InteropServices.DllImport("libc", SetLastError = true)]
+    private static extern int ioctl(int fd, ulong request, ref Size4 size);
+
+    public static Size? Cell()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return null;
+        }
+
+        try
+        {
+            var size = new Size4();
+            var request = OperatingSystem.IsMacOS() ? 0x40087468UL : 0x5413UL;
+
+            if (ioctl(1, request, ref size) != 0 || size.Columns == 0 || size.Rows == 0 || size.XPixels == 0 || size.YPixels == 0)
+            {
+                return null;
+            }
+
+            return new Size(size.XPixels / size.Columns, size.YPixels / size.Rows);
+        }
+        catch
+        {
+            return null;
+        }
+    }
 }
