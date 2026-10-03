@@ -490,6 +490,16 @@ copy of that solve for the ones that do not would be a second place for it to di
 `BodyText` used to call a "mark," a word this project had already spent on `Post.Marks` (boost/favorite/pin).
 _Avoid_: mark (for this; reserved for boost/favorite/pin)
 
+**Direct query**:
+What is typed into search when it names one thing rather than asks after something: a `#hashtag` that is one word,
+a handle with an `@` in it (`@alice`, `@alice@host`, `alice@host`), or a single web address. It goes straight to the
+thing it names, pushed onto search exactly as picking that result would push it, instead of listing results. A
+hashtag needs no asking, since any well-formed tag has a timeline. A handle or an address is found only by an exact
+match from the search that was asked anyway, and a query that finds no exact match lists its results like any other.
+A word with none of these signs (`cats`, `alice`) is never direct, which is how a reader asks for everything that
+resembles it. Distinct from a **Reference**, which is found inside written text rather than typed.
+_Avoid_: jump, shortcut (both read as keys), lookup (which is the crossing from an address to an id)
+
 **Mention**:
 Two things one word, told apart by which side of the wire they are on. `Post.Mentions` is everyone a post names, as
 the instance resolved them (`username@instance`) and sent down with the post; a mention **Reference** is the `@maria`
