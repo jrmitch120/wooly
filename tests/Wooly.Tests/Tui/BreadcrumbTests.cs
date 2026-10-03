@@ -156,8 +156,8 @@ public class BreadcrumbTests
             PanelWidth);
         var filled = ChromeLines.Breadcrumb(["Home", new string('a', 70)], frame: 1, PanelWidth);
 
-        Assert.Contains(" › Keys  · ─", elided.Text, StringComparison.Ordinal);
-        Assert.EndsWith("a…  · ╮", filled.Text, StringComparison.Ordinal);
+        Assert.Contains(" › Keys · ─", elided.Text, StringComparison.Ordinal);
+        Assert.EndsWith("a… · ╮", filled.Text, StringComparison.Ordinal);
         Assert.Equal(PanelWidth, filled.Width);
     }
 
@@ -176,7 +176,7 @@ public class BreadcrumbTests
             ChromeLines.Breadcrumb(trail, frame: 0, PanelWidth).Text,
             StringComparison.Ordinal);
         Assert.StartsWith(
-            "╭ Home › Post by @ben@hachyderm.io  ✢ ─",
+            "╭ Home › Post by @ben@hachyderm.io ✢ ─",
             ChromeLines.Breadcrumb(trail, frame: 2, PanelWidth).Text,
             StringComparison.Ordinal);
     }
@@ -192,12 +192,12 @@ public class BreadcrumbTests
         var edge = ChromeLines.Breadcrumb(["Home"], frame: 0, PanelWidth);
 
         Assert.StartsWith("╭ Home ─", edge.Text, StringComparison.Ordinal);
-        Assert.DoesNotContain(edge.Spans, span => span.Role == Role.Loading);
+        Assert.DoesNotContain(edge.Spans, span => span.Role == Role.Spinner);
     }
 
     /// <summary>
-    ///     Each frame is the title's last glyph, one column wide, two spaces after the trail, in
-    ///     <see cref="Role.Loading" />. The star grows to <c>✽</c> and shrinks back to <c>✢</c>, and the tenth frame is
+    ///     Each frame is the title's last glyph, one column wide, a space after the trail — the same space the edge
+    ///     leaves after it, so the star sits evenly between the two — in <see cref="Role.Spinner" />. The star grows to <c>✽</c> and shrinks back to <c>✢</c>, and the tenth frame is
     ///     followed by the first again.
     /// </summary>
     [Theory]
@@ -217,20 +217,20 @@ public class BreadcrumbTests
         var edge = ChromeLines.Breadcrumb(["Home"], frame, PanelWidth);
 
         Assert.Equal(1, Glyphs.Columns(glyph));
-        Assert.StartsWith($"╭ Home  {glyph} ─", edge.Text, StringComparison.Ordinal);
+        Assert.StartsWith($"╭ Home {glyph} ─", edge.Text, StringComparison.Ordinal);
         Assert.Equal(PanelWidth, edge.Width);
-        Assert.Contains(edge.Spans, span => span is { Role: Role.Loading } && span.Text == $"  {glyph}");
+        Assert.Contains(edge.Spans, span => span is { Role: Role.Spinner } && span.Text == $" {glyph}");
     }
 
     /// <summary>
-    ///     The mark holds three columns — two spaces and the glyph — so at 80 columns the trail has the panel's title
-    ///     room less three: 53 columns, where the 11-column <c>fetching...</c> and its margin left it 42.
+    ///     The mark holds two columns — a space and the glyph — so at 80 columns the trail has the panel's title room
+    ///     less two: 54 columns, where the 11-column <c>fetching...</c> and its margin left it 42.
     /// </summary>
     [Fact]
-    public void Breadcrumb_HoldsThreeColumnsForTheMarkAt80Columns()
+    public void Breadcrumb_HoldsTwoColumnsForTheMarkAt80Columns()
     {
-        var fits = new string('a', 53);
-        var over = new string('a', 54);
+        var fits = new string('a', 54);
+        var over = new string('a', 55);
 
         Assert.Equal([(Role.PanelTitle, fits)], Trail(ChromeLines.Breadcrumb([fits], frame: 0, PanelWidth)));
         Assert.NotEqual([(Role.PanelTitle, over)], Trail(ChromeLines.Breadcrumb([over], frame: 0, PanelWidth)));
@@ -277,10 +277,10 @@ public class BreadcrumbTests
     [InlineData(2)]
     public void Breadcrumb_KeepsTheCurrentCrumbOnAPanelTooNarrowForTheMark(int frame)
     {
-        var edge = ChromeLines.Breadcrumb(["Home", "Post by @ben"], frame, width: 7);
+        var edge = ChromeLines.Breadcrumb(["Home", "Post by @ben"], frame, width: 6);
 
-        Assert.Equal("╭ Po… ╮", edge.Text);
-        Assert.DoesNotContain(edge.Spans, span => span.Role == Role.Loading);
+        Assert.Equal("╭ P… ╮", edge.Text);
+        Assert.DoesNotContain(edge.Spans, span => span.Role == Role.Spinner);
     }
 
     /// <summary>What the trail says: the spans between the space after the corner and the space before the rule.</summary>

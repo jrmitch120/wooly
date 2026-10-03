@@ -23,8 +23,11 @@ public static class ChromeLines
     /// <summary>How many frames the spinner has before it starts over at the first.</summary>
     public static int SpinnerFrames => Spinner.Length;
 
-    /// <summary>What parts the spinner from the trail it follows.</summary>
-    private const string Gap = "  ";
+    /// <summary>
+    ///     What parts the spinner from the trail it follows: one space, as the edge leaves one after it, so the star
+    ///     sits evenly between the trail and the rule.
+    /// </summary>
+    private const string Gap = " ";
 
     /// <summary>
     ///     The columns the mark owns, drawn or not: the gap and one frame, so that nothing beside it moves between
@@ -89,7 +92,7 @@ public static class ChromeLines
     }
 
     /// <summary>The fetch mark on its <paramref name="frame" />th frame: the gap, then the frame.</summary>
-    private static Span Mark(int frame) => new($"{Gap}{Spinner[(frame - 1) % Spinner.Length]}", Role.Loading);
+    private static Span Mark(int frame) => new($"{Gap}{Spinner[(frame - 1) % Spinner.Length]}", Role.Spinner);
 
     /// <summary>
     ///     <paramref name="crumbs" /> in the <paramref name="room" /> they have, eliding from the left: the crumb you

@@ -62,6 +62,7 @@ public class PanelsPaletteTests
         [Role.PanelBorderActive] = (Blue, null),
         [Role.PanelTitle] = (Blue, null),
         [Role.Loading] = (Overlay, null),
+        [Role.Spinner] = (Peach, null),
         [Role.Destructive] = (Red, null),
         [Role.Error] = (Red, null),
     };

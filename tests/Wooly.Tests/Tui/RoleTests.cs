@@ -103,6 +103,13 @@ public partial class RoleTests
         Collect(RailLines.Of(rail, new RateLimitQuota(5, 300, null), 10, coloured: true));
 
         Collect([ChromeLines.Breadcrumb(["Home"], frame: 1, 62)]);
+
+        // Waiting for the browser to come back from a sign-in, which is what draws `loading` since the breadcrumb's
+        // spinner took a role of its own.
+        var signingIn = new AddProfileScreen();
+        var authorizer = FakeBrowserAuthorizer.Holding();
+        signingIn.Sent(authorizer, authorizer.AuthorizationUrl, opened: true);
+        Collect(signingIn.Lines(new Drawing(61, Now)));
         Collect([
             ChromeLines.Status(
                 [],
@@ -188,6 +195,7 @@ public partial class RoleTests
     [InlineData(Role.Gauge, "gauge")]
     [InlineData(Role.GaugeEmpty, "gauge-empty")]
     [InlineData(Role.Replies, "replies")]
+    [InlineData(Role.Spinner, "spinner")]
     public void RoleName_IsTheNameTheContractUses(Role role, string expected)
     {
         Assert.Equal(expected, RoleName.Of(role));
@@ -473,8 +481,19 @@ public partial class RoleTests
         var busy = ChromeLines.Breadcrumb(["Home"], frame: 1, 62);
 
         Assert.DoesNotContain("·", still.Text, StringComparison.Ordinal);
-        Assert.Contains("Home  ·", busy.Text, StringComparison.Ordinal);
-        Assert.Contains(busy.Spans, span => span.Role == Role.Loading);
+        Assert.Contains("Home ·", busy.Text, StringComparison.Ordinal);
+        Assert.Contains(busy.Spans, span => span.Role == Role.Spinner);
+    }
+
+    /// <summary>
+    ///     The spinner is a role of its own so that a theme can colour it apart from anything else, and both built-ins
+    ///     draw it as they draw an unread count: the two things on screen that say something has changed.
+    /// </summary>
+    [Fact]
+    public void Spinner_IsDrawnInTheUnreadCountsColourByEveryBuiltIn()
+    {
+        Assert.Equal(Themes.Dark.For(Role.RailUnread), Themes.Dark.For(Role.Spinner));
+        Assert.Equal(Themes.Light.For(Role.RailUnread), Themes.Light.For(Role.Spinner));
     }
 
     /// <summary>A confirmation displaces the keys, in the role that says what kind of thing is being asked.</summary>
