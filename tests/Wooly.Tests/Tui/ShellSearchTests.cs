@@ -241,6 +241,42 @@ public class ShellSearchTests
         Assert.Null(opened.Notice);
     }
 
+    /// <summary>
+    ///     What a handle names goes straight up: while it is being read the prompt stands as it was left, and the
+    ///     results go up under the account only as it lands — never drawn on their own for a frame in between.
+    /// </summary>
+    [Fact]
+    public async Task Find_NeverShowsTheResultsBeforeWhatAHandleNamesOpens()
+    {
+        var shell = new AShell
+        {
+            Search = FakeInstanceSearch.Finding(accounts: [AnAccount.With()], hashtags: [], posts: []),
+            Accounts = FakeAccountRelationships.Holding(AnAccount.With()),
+        };
+
+        var opened = await shell.Opened();
+
+        opened.Search();
+        shell.Host.Drain();
+
+        foreach (var letter in "@alice@hachyderm.io")
+        {
+            opened.Type(letter);
+        }
+
+        opened.Press(ShellKey.Enter);
+        shell.Host.Step();
+
+        var search = Assert.IsType<SearchScreen>(opened.Screen);
+        Assert.True(search.IsTyping);
+        Assert.Equal(0, search.Count);
+
+        shell.Host.Drain();
+
+        Assert.IsType<AccountScreen>(opened.Screen);
+        Assert.Equal(1, search.Count);
+    }
+
     /// <summary>A bare handle is read against the profile's own instance, as a tie is put on one.</summary>
     [Fact]
     public async Task Find_OpensTheLocalAccountABareHandleNames()

@@ -40,6 +40,19 @@ internal sealed class FakeShellHost : IShellHost
         }
     }
 
+    /// <summary>
+    ///     Lets only the work queued so far run, leaving whatever it queues in turn — where a test looks at the frame
+    ///     between one answer landing and the next.
+    /// </summary>
+    public void Step()
+    {
+        var due = _queued.ToList();
+
+        _queued.Clear();
+
+        due.ForEach(work => work());
+    }
+
     /// <inheritdoc />
     public IDisposable After(TimeSpan delay, Action work)
     {

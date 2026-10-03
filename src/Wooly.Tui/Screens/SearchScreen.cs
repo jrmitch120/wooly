@@ -183,9 +183,9 @@ public sealed class SearchScreen : Screen
         }
 
         // A handle or an address asks the one search it always asked, an address in full so that it is resolved
-        // rather than searched for as words. What it found is put up either way, so that esc from what opens comes
-        // back to the results with the query still there — and where it found exactly what was named, that is
-        // opened on top of them, as picking it out would open it.
+        // rather than searched for as words. Where it found exactly what was named, that is opened as picking it out
+        // would open it, and the results go up under it only as it arrives — so esc comes back to them with the query
+        // still there, and the reader is never shown them for the moment the account or the post is being read.
         var typed = Query.Trim();
         var query = SearchQuery.For(DirectQuery.Asking(typed));
 
@@ -193,13 +193,15 @@ public sealed class SearchScreen : Screen
             ask => Searched(ask, reach, query),
             ifStillHere: found =>
             {
-                Found(typed, found);
-                reach.Changed();
-
                 if (DirectQuery.Among(typed, found, reach.Profile.Instance) is { } named)
                 {
-                    _ = reach.Open(Opening(named));
+                    _ = reach.Open(Opening(named), beneath: () => Found(typed, found));
+
+                    return;
                 }
+
+                Found(typed, found);
+                reach.Changed();
             });
     }
 

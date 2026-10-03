@@ -73,7 +73,8 @@ public sealed class Reach
         _enquiry.Put(question, eitherWay, ifStillHere);
 
     /// <summary>Drills into <paramref name="subject" />, on top of whatever is showing.</summary>
-    public Task Open(Subject subject) => _arrival.Open(subject);
+    /// <inheritdoc cref="Arrival.Open" />
+    public Task Open(Subject subject, Action? beneath = null) => _arrival.Open(subject, beneath);
 
     /// <summary>
     ///     Stands <paramref name="subject" /> in place of the screen showing — the other side of a follow list, the

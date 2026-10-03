@@ -168,7 +168,13 @@ public sealed class Arrival(
     }
 
     /// <summary>Drills into <paramref name="subject" />, on top of whatever is showing.</summary>
-    public Task Open(Subject subject) => Bring(subject, Move.Drill);
+    /// <param name="subject">What is opened.</param>
+    /// <param name="beneath">
+    ///     What is done to the screen showing just as <paramref name="subject" /> goes up over it, and not before — so
+    ///     that what <c>esc</c> will come back to changes in the same frame the subject arrives in, rather than being
+    ///     drawn on its own while the subject is read. Never done where the subject never arrives.
+    /// </param>
+    public Task Open(Subject subject, Action? beneath = null) => Bring(subject, Move.Drill, beneath: beneath);
 
     /// <summary>
     ///     Stands <paramref name="subject" /> in place of what is showing — the other side of a follow list, the other
@@ -294,31 +300,37 @@ public sealed class Arrival(
     /// <param name="subject">What is being brought up.</param>
     /// <param name="move">How, which settles where it goes.</param>
     /// <param name="blank">What stands for it where the subject has no placeholder of its own and one is owed.</param>
-    private Task Bring(Subject subject, Move move, Screen? blank = null)
+    /// <param name="beneath">What is done to the screen showing as the first screen for the subject goes up.</param>
+    private Task Bring(Subject subject, Move move, Screen? blank = null, Action? beneath = null)
     {
         var standing = subject.Placeholder(move, profile) ?? blank;
 
         if (standing is not null)
         {
+            beneath?.Invoke();
+            beneath = null;
             Up(standing, subject, move);
         }
 
         if (subject.Cached && cache.Fresh(subject) is { } held)
         {
+            beneath?.Invoke();
             Land(subject, move, standing, held);
 
             return Task.CompletedTask;
         }
 
-        return Read(subject, move, standing);
+        return Read(subject, move, standing, beneath);
     }
 
     /// <summary>Asks for it, and lands what came back while the screen it was asked from is still in front.</summary>
-    private Task Read(Subject subject, Move move, Screen? standing) =>
+    private Task Read(Subject subject, Move move, Screen? standing, Action? beneath = null) =>
         enquiry.Put(
             ask => subject.Read(ask, ports, profile, standing),
             ifStillHere: found =>
             {
+                beneath?.Invoke();
+
                 var screen = Land(subject, move, standing, found);
 
                 if (subject.Cached && found.Held(screen) is { } held)
