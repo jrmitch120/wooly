@@ -388,6 +388,11 @@ mention, or address inside a post's text — replacing `BodyText`'s internal "ma
   ahead of the screen's shared keys, and standing in for any of them it shares a key with, so `⏎` is announced once
   (`PostKeys.OnAReference`). Said by `Screen` itself rather than by each screen, which is why a screen's own list is
   `OwnKeys` and `Keys` is what the status row reads (#83).
+- **`←/→` is announced before the walk starts too**, wherever the picked thing has a reference to walk to — the
+  same `References` the walk itself asks, so the hint shows exactly where the arrows would act. Otherwise the only
+  way to learn the walk exists is to press it. Ranked right behind `⏎:read`, so it never pushes the key used most on
+  a post off the row; where there is no `⏎:read` (inside a post, the account header, a conversation) it goes in
+  front (`PostKeys.BeforeAReference`). On an 80-column feed that leaves it in `…+N` and `?`, which is accepted.
 - **`⏎` does four different things, refusals share one notice** (#85, #109). Which of the four is the role the
   reference draws in, since that vocabulary already tells them apart. A hashtag opens exactly the way a search result
   for one already opens — a `Tag` **Subject** brought up by `Arrival.Open`, which `SearchScreen` reaches through
@@ -1229,7 +1234,8 @@ reminder, `?` is the reference.** #169, #214 and #215 settled the row; #218, #21
 - **The rule, stated once so a screen added later inherits it**: the status row draws as many whole hints as the
   terminal has room for, in rank order, then `…+N` for the ones it could not fit, then `?:keys` — which is never cut.
   A key that cannot act on what is picked out right now is not on the row and not in the count.
-- **The rank**, which is what `PostKeys.Around` assembles: the walk (`j/k:post`, `j/k:thread`, `←/→:reference`); the
+- **The rank**, which is what `PostKeys.Around` assembles: the walk (`j/k:post`, `j/k:thread`, and `←/→:reference` once
+  a reference is picked — before one is, `←/→` ranks right behind `⏎`, as "What references settled" says); the
   screen's own keys, including `g:refresh`; the way out (`esc:back`, or `tab:destination` and `` `:group `` at the
   bottom of the stack); the shared post keys worth reminding somebody of (`⏎` `r` `b` `f` `a` `c`); the tail, which
   is what can be learned anywhere or acts only on your own posts (`↓/↑` `x` `p` `e` `d`); and `?:keys`, pinned. The

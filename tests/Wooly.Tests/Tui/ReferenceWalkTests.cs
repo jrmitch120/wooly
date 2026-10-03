@@ -273,9 +273,16 @@ public class ReferenceWalkTests
     {
         var feed = new FeedScreen(new Destination(DestinationKind.Home, "Home"), [APost.With(content: Said)]);
 
-        var row = ChromeLines.Status(feed.Keys, notice: null, noticeIsError: false, asking: null, 160).Text;
+        Assert.Contains("Read: ⏎ | Reference: ←/→", Status(feed, 160));
+    }
 
-        Assert.Contains("Read: ⏎ | Reference: ←/→", row);
+    /// <summary>Inside a post there is no <c>⏎:read</c> to rank behind, so the walk is said first.</summary>
+    [Fact]
+    public void TheStatusRowSaysTheWalkFirstInsideAPost()
+    {
+        var opened = new PostScreen(APost.With(content: Said), new PostThread([], []));
+
+        Assert.StartsWith(" Reference: ←/→ | ", Status(opened), StringComparison.Ordinal);
     }
 
     /// <summary>A post with nothing in it to walk to does not announce the walk.</summary>
@@ -293,9 +300,12 @@ public class ReferenceWalkTests
     private static IReadOnlyList<Span> Drawn(Screen screen) =>
         [.. screen.Lines(new Drawing(61, AShell.Now)).SelectMany(line => line.Spans)];
 
-    /// <summary>The status row as it reads at 80 columns, which is the width the contract is written for.</summary>
-    private static string Status(Screen screen) =>
-        ChromeLines.Status(screen.Keys, notice: null, noticeIsError: false, asking: null, 80).Text;
+    /// <summary>
+    ///     The status row as it reads at <paramref name="width" /> — 80 columns unless said otherwise, which is the
+    ///     width the contract is written for.
+    /// </summary>
+    private static string Status(Screen screen, int width = 80) =>
+        ChromeLines.Status(screen.Keys, notice: null, noticeIsError: false, asking: null, width).Text;
 
     /// <summary>One of each screen a post is drawn on, each with the same post picked out.</summary>
     private static Screen Of(string kind)

@@ -48,8 +48,8 @@ public abstract class Screen
     /// <summary>
     ///     The keys this screen answers to, for the status row and for <c>?</c> — which while a reference is picked
     ///     out are the three that act on it, ahead of the screen's own (<c>docs/tui-shell.md</c>, #83), and on a post
-    ///     carrying a poll are the two that vote in it (#87). Before one is picked, <c>←/→</c> is said on its own wherever
-    ///     there is a reference to walk to, so the walk can be found without already knowing it is there.
+    ///     carrying a poll are the two that vote in it (#87). Before one is picked, <c>←/→</c> is said without the other two
+    ///     wherever there is a reference to walk to, so the walk can be found without already knowing it is there.
     /// </summary>
     /// <remarks>
     ///     Said here rather than by each screen, because a reference is picked the same way on all of them and a
@@ -83,6 +83,11 @@ public abstract class Screen
     ///         screen already (<see cref="PostKeys.NotYours" />, <see cref="PostKeys.NothingHidden" />, #220). A reveal
     ///         being one-way, <c>x</c> leaves the row the moment it has acted. Dropped here, before the row is built,
     ///         so a dropped key is out of the row's count as well as off it, and <c>?</c> reads the same list.
+    ///     </para>
+    ///     <para>
+    ///         And the rule the other way round for <c>←/→</c>: before a reference is picked it is added wherever
+    ///         <see cref="References" /> has something in it — the same list <see cref="WalkReference" /> asks, so the
+    ///         hint is on the row exactly where the arrows act (<see cref="PostKeys.BeforeAReference" />).
     ///     </para>
     /// </remarks>
     public IReadOnlyList<KeyHint> Keys
@@ -120,7 +125,7 @@ public abstract class Screen
 
             if (References.Count > 0)
             {
-                own = PostKeys.OffAReference(own);
+                own = PostKeys.BeforeAReference(own);
             }
 
             return Poll is { TakesAVote: true } ? PostKeys.OnAPoll(own) : own;
