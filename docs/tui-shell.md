@@ -1503,6 +1503,7 @@ panel the pointer is over. What the gesture then does is a move the keys already
 |---|---|---|
 | Wheel down / up | The content panel | Exactly one `↓` / `↑`: the page moves by the same three rows and clamps at the same ends. **Picked** stays where it is, so after wheeling it off the page `j`/`k` reclaim the topmost thing on the page, as after the arrows. On help and notices too, which are content like any other screen. A notch is that arrow through the **Keymap**, so with a confirmation open it declines it and scrolls nothing, as `↓` does (#287) |
 | Wheel | The rail | Nothing: not the cursor, not the selection, not the rail's scroll and not the page beside it |
+| Wheel sideways | Anywhere | Nothing. A trackpad drifting sideways sends these between vertical notches, and Terminal.Gui's left and right carry up's and down's bits, so they are asked about first and dropped |
 | Wheel, click | The compose editor | Terminal.Gui's own handling: the wheel scrolls the draft and a click places the caret. Nothing of the shell's |
 
 Clicks on the rail and in the content are not answered yet; #286 brings them in its later slices.

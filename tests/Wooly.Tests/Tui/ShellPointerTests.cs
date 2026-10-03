@@ -58,6 +58,33 @@ public class ShellPointerTests
         Assert.NotEqual(from, wheeled);
     }
 
+    /// <summary>
+    ///     A sideways scroll means nothing, in either direction. A trackpad drifting sideways while a reader scrolls
+    ///     down sends a stream of these between the vertical ones, and Terminal.Gui's <c>WheeledRight</c> carries
+    ///     <c>WheeledDown</c>'s bit and <c>WheeledLeft</c> carries <c>WheeledUp</c>'s, so reading them as up and down
+    ///     jerked the page the wrong way for a moment every few rows.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ASidewaysScrollLeavesThePageWhereItWas(bool right)
+    {
+        using var drawn = await Four();
+
+        drawn.Press(Key.CursorDown);
+        drawn.Press(Key.CursorDown);
+
+        var top = drawn.Content.Top;
+
+        for (var notch = 0; notch < 5; notch++)
+        {
+            drawn.WheelSideways(OverContent, Inside, right);
+        }
+
+        Assert.Equal(top, drawn.Content.Top);
+        Assert.Equal("110", drawn.Shell.Screen.Picked?.Id);
+    }
+
     /// <summary>The wheel moves the page and nothing else: what the keys act on stays where it was put.</summary>
     [Fact]
     public async Task TheWheelNeverMovesThePick()

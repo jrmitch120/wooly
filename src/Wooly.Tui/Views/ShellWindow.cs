@@ -284,9 +284,16 @@ internal sealed class ShellWindow : Window
     /// <remarks>
     ///     A key rather than a verb, so that what the notch does is whatever <see cref="Keymap" /> says that arrow does
     ///     on the screen in front: the wheel and the arrows cannot drift apart while they are the same press.
+    ///     <para>
+    ///         A sideways notch is none, and is asked about first: Terminal.Gui's <c>WheeledRight</c> carries
+    ///         <c>WheeledDown</c>'s bit and <c>WheeledLeft</c> carries <c>WheeledUp</c>'s. A trackpad drifting sideways
+    ///         sends a stream of them between the vertical notches, and read as down and up they jerked the page the
+    ///         wrong way for a moment every few rows.
+    ///     </para>
     /// </remarks>
     private static ShellKey? Notched(Mouse mouse) =>
-        mouse.Flags.HasFlag(MouseFlags.WheeledDown) ? ShellKey.Down
+        mouse.Flags.HasFlag(MouseFlags.WheeledLeft) || mouse.Flags.HasFlag(MouseFlags.WheeledRight) ? null
+        : mouse.Flags.HasFlag(MouseFlags.WheeledDown) ? ShellKey.Down
         : mouse.Flags.HasFlag(MouseFlags.WheeledUp) ? ShellKey.Up
         : null;
 
