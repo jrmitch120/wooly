@@ -121,6 +121,80 @@ public class FallbackCredentialStoreTests : IDisposable
         Assert.Empty(_keyring.Secrets);
     }
 
+    /// <summary>
+    ///     A keyring that opens and then refuses the save — as Windows' did, on a service name it could not parse —
+    ///     loses nothing: the token goes to the plaintext file, and the store says that is where tokens now are, so
+    ///     the warning about it is shown. Before, the exception took the whole TUI down.
+    /// </summary>
+    [Fact]
+    public void SaveAccessToken_FallsBackToThePlaintextFileWhenTheKeyringRefusesTheSave()
+    {
+        _keyring.RefusesWrites = true;
+        var store = WithKeyring();
+
+        store.SaveAccessToken("personal", "token-abc");
+
+        Assert.Equal(CredentialStorage.PlaintextFile, store.Storage);
+        Assert.Equal("token-abc", store.FindAccessToken("personal"));
+        Assert.True(File.Exists(CredentialFile));
+        Assert.Empty(_keyring.Secrets);
+    }
+
+    /// <summary>
+    ///     On the next run the keyring opens again, and a token it could not hold is still found — in the file it was
+    ///     put in instead — rather than the profile being signed out.
+    /// </summary>
+    [Fact]
+    public void FindAccessToken_FindsATokenTheKeyringCouldNotHoldOnTheNextRun()
+    {
+        _keyring.RefusesWrites = true;
+        WithKeyring().SaveAccessToken("personal", "token-abc");
+        _keyring.RefusesWrites = false;
+
+        var nextRun = WithKeyring();
+
+        Assert.Equal(CredentialStorage.OsKeyring, nextRun.Storage);
+        Assert.Equal("token-abc", nextRun.FindAccessToken("personal"));
+    }
+
+    /// <summary>
+    ///     A token the keyring does take, once it takes them again, is no longer left in the clear as well — the file's
+    ///     copy is the very thing the keyring is there to avoid.
+    /// </summary>
+    [Fact]
+    public void SaveAccessToken_TakesThePlaintextCopyAwayOnceTheKeyringHoldsTheToken()
+    {
+        _keyring.RefusesWrites = true;
+        WithKeyring().SaveAccessToken("personal", "token-old");
+        _keyring.RefusesWrites = false;
+
+        var nextRun = WithKeyring();
+
+        nextRun.SaveAccessToken("personal", "token-new");
+
+        Assert.Equal("token-new", nextRun.FindAccessToken("personal"));
+        Assert.Null(new PlaintextFileCredentialStore(new WoolyPaths(_directory.Path)).FindAccessToken("personal"));
+    }
+
+    /// <summary>Removing a profile forgets its token wherever it was put.</summary>
+    [Fact]
+    public void DeleteAccessToken_ForgetsTheTokenInTheKeyringAndInTheFile()
+    {
+        _keyring.RefusesWrites = true;
+        WithKeyring().SaveAccessToken("personal", "token-abc");
+        _keyring.RefusesWrites = false;
+
+        var nextRun = WithKeyring();
+
+        nextRun.SaveAccessToken("work", "token-work");
+
+        Assert.True(nextRun.DeleteAccessToken("personal"));
+        Assert.True(nextRun.DeleteAccessToken("work"));
+        Assert.Null(nextRun.FindAccessToken("personal"));
+        Assert.Null(nextRun.FindAccessToken("work"));
+        Assert.False(nextRun.DeleteAccessToken("personal"));
+    }
+
     private string CredentialFile => Path.Combine(_directory.Path, "credentials.toml");
 
     private FallbackCredentialStore WithGcmResolvingTo(string? backingStoreName) => new(

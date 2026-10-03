@@ -12,13 +12,27 @@ internal sealed class FakeOsKeyring : ICredentialStore
 
     public IReadOnlyDictionary<(string Service, string Account), string> Secrets => _secrets;
 
+    /// <summary>
+    ///     Whether writing is refused, as Windows' Credential Manager refused a service name that was not a URI: the
+    ///     keyring opens and reads, and throws on the save.
+    /// </summary>
+    public bool RefusesWrites { get; set; }
+
     public IList<string> GetAccounts(string service) =>
         _secrets.Keys.Where(key => key.Service == service).Select(key => key.Account).ToList();
 
     public ICredential? Get(string service, string account) =>
         _secrets.TryGetValue((service, account), out var secret) ? new Credential(account, secret) : null;
 
-    public void AddOrUpdate(string service, string account, string secret) => _secrets[(service, account)] = secret;
+    public void AddOrUpdate(string service, string account, string secret)
+    {
+        if (RefusesWrites)
+        {
+            throw new UriFormatException("Invalid URI: The format of the URI could not be determined.");
+        }
+
+        _secrets[(service, account)] = secret;
+    }
 
     public bool Remove(string service, string account) => _secrets.Remove((service, account));
 

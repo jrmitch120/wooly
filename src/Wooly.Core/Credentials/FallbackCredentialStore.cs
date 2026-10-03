@@ -5,6 +5,12 @@ namespace Wooly.Core.Credentials;
 ///     none does (ADR-0003). The choice is made once, on first use, and reported through <see cref="Storage" /> so a
 ///     front end can tell the user which tradeoff they are living with.
 /// </summary>
+/// <remarks>
+///     A keyring that opens can still refuse a save — Windows' did, on a service name it could not parse, and the
+///     exception took the TUI down. A refused save is not a token lost: it goes to the plaintext file, the store says
+///     from then on that the file is where tokens are, and a token found in neither place is looked for in both, so
+///     one put in the file on an earlier run is not a profile signed out on this one.
+/// </remarks>
 /// <param name="openKeyring">
 ///     Opens this machine's keyring, or throws if it has none. Kept a delegate so the no-keyring path is reachable in
 ///     a test — and so the keyring, which may prompt or block, is never touched until a token is actually wanted.
@@ -20,19 +26,85 @@ public sealed class FallbackCredentialStore(
     /// </summary>
     private readonly Lazy<ICredentialStore> _chosen = new(() => Choose(openKeyring, whenNoKeyring));
 
-    /// <inheritdoc />
-    public CredentialStorage Storage => _chosen.Value.Storage;
+    /// <summary>Whether a save the keyring refused has put a token in the plaintext file this run.</summary>
+    private volatile bool _refused;
 
     /// <inheritdoc />
-    public string? FindAccessToken(string profileName) => _chosen.Value.FindAccessToken(profileName);
+    public CredentialStorage Storage => _refused ? whenNoKeyring.Storage : _chosen.Value.Storage;
+
+    /// <summary>The keyring, where one opened, and <see langword="null" /> where the file is all there is.</summary>
+    private ICredentialStore? Keyring => ReferenceEquals(_chosen.Value, whenNoKeyring) ? null : _chosen.Value;
 
     /// <inheritdoc />
-    public void SaveAccessToken(string profileName, string accessToken) =>
-        _chosen.Value.SaveAccessToken(profileName, accessToken);
+    public string? FindAccessToken(string profileName)
+    {
+        if (Keyring is { } keyring)
+        {
+            try
+            {
+                if (keyring.FindAccessToken(profileName) is { } token)
+                {
+                    return token;
+                }
+            }
+            catch (Exception)
+            {
+                // A keyring that will not read is one that has nothing to say; the file may.
+            }
+        }
+
+        return whenNoKeyring.FindAccessToken(profileName);
+    }
 
     /// <inheritdoc />
-    public bool DeleteAccessToken(string profileName) => _chosen.Value.DeleteAccessToken(profileName);
+    public void SaveAccessToken(string profileName, string accessToken)
+    {
+        if (Keyring is not { } keyring)
+        {
+            whenNoKeyring.SaveAccessToken(profileName, accessToken);
 
+            return;
+        }
+
+        try
+        {
+            keyring.SaveAccessToken(profileName, accessToken);
+        }
+        catch (Exception)
+        {
+            // Every backend refuses in its own words, as Choose says of opening. Whatever it was, the token is kept
+            // rather than lost, in the file, and Storage says so from here on so the user is told.
+            _refused = true;
+            whenNoKeyring.SaveAccessToken(profileName, accessToken);
+
+            return;
+        }
+
+        // Held where it belongs now, so a copy an earlier refusal left in the clear goes.
+        whenNoKeyring.DeleteAccessToken(profileName);
+    }
+
+    /// <inheritdoc />
+    public bool DeleteAccessToken(string profileName)
+    {
+        var fromKeyring = false;
+
+        if (Keyring is { } keyring)
+        {
+            try
+            {
+                fromKeyring = keyring.DeleteAccessToken(profileName);
+            }
+            catch (Exception)
+            {
+                // Nothing the keyring would give up; the file is still asked.
+            }
+        }
+
+        var fromFile = whenNoKeyring.DeleteAccessToken(profileName);
+
+        return fromKeyring || fromFile;
+    }
     private static ICredentialStore Choose(Func<ICredentialStore> openKeyring, ICredentialStore whenNoKeyring)
     {
         try
