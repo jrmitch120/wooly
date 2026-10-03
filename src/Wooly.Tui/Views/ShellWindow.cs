@@ -250,6 +250,31 @@ internal sealed class ShellWindow : Window
     }
 
     /// <summary>
+    ///     Every mouse event the shell answers to, and where Terminal.Gui's stop, as <see cref="OnKeyDown" /> is for
+    ///     keys. The window works out which panel the pointer is over and turns the gesture into a move the keys already
+    ///     make; what that move means is the shell's (#286, <c>docs/tui-shell.md</c>).
+    /// </summary>
+    /// <remarks>
+    ///     Reached by what the views under the pointer left: the compose editor takes its own wheel and clicks before
+    ///     they bubble here, which is the whole of how a draft scrolls and places its caret.
+    /// </remarks>
+    protected override bool OnMouseEvent(Mouse mouse)
+    {
+        if (!mouse.IsWheel || !_content.FrameToScreen().Contains(mouse.ScreenPosition))
+        {
+            return base.OnMouseEvent(mouse);
+        }
+
+        // One notch is one ↓ or ↑: the same page step, so the wheel and the arrows leave a reader in the same place.
+        if (mouse.Flags.HasFlag(MouseFlags.WheeledDown))
+        {
+            return Carry(Verb.ScrollDown);
+        }
+
+        return mouse.Flags.HasFlag(MouseFlags.WheeledUp) ? Carry(Verb.ScrollUp) : base.OnMouseEvent(mouse);
+    }
+
+    /// <summary>
     ///     What <paramref name="pressed" /> means here, done. The verbs that need a terminal are taken first and the
     ///     rest are the shell's, which is the whole of the division: this window knows how tall the page is, where the
     ///     rows have been scrolled to, what the editor widget is holding, and who owns the run loop — and nothing else
