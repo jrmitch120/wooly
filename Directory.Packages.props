@@ -13,7 +13,7 @@
     <PackageVersion Include="Spectre.Console.Cli" Version="0.55.0" />
 
     <!-- TUI shell (ADR-0002) -->
-    <PackageVersion Include="Terminal.Gui" Version="2.4.17" />
+    <PackageVersion Include="Terminal.Gui" Version="2.5.0" />
 
     <!--
       Decoding a downloaded preview into pixels for the TUI to draw (ADR-0016). Terminal.Gui draws a Color[,] and
