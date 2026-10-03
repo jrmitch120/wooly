@@ -71,6 +71,13 @@ public static class PostKeys
     public static IReadOnlyList<KeyHint> OnAPost { get; } = [.. Reminding, .. Learnable];
 
     /// <summary>
+    ///     Walking into the references inside the picked post, which is said before one is picked as well as after —
+    ///     a reader who has never pressed <c>→</c> has no other way to learn that a post's links, hashtags and mentions
+    ///     can be reached from the keyboard.
+    /// </summary>
+    private static KeyHint Entering { get; } = new("←/→", "reference");
+
+    /// <summary>
     ///     What a picked reference answers to: walking the references inside the post, opening the one picked out, and
     ///     letting it go again (#83). <c>⏎</c> is announced once and means three things — a hashtag's timeline, the
     ///     account a mention names, or an address in the platform's browser (#85) — because what a reader has to know
@@ -78,7 +85,7 @@ public static class PostKeys
     /// </summary>
     private static IReadOnlyList<KeyHint> Walking { get; } =
     [
-        new("←/→", "reference"),
+        Entering,
         new("⏎", "open"),
         new("esc", "back"),
     ];
@@ -157,6 +164,23 @@ public static class PostKeys
     ///     have to be there.
     /// </remarks>
     public static IReadOnlyList<KeyHint> OnAReference(IReadOnlyList<KeyHint> keys) => InFrontOf(Walking, keys);
+
+    /// <summary>
+    ///     <c>←/→</c> among <paramref name="keys" />, on a screen whose picked post has references in it and none of
+    ///     them picked yet — and nowhere else, since an arrow pressed with nothing to walk does nothing here.
+    /// </summary>
+    /// <remarks>
+    ///     Right behind <see cref="Opening" /> where the row has it, so that the key a reader uses on a post most is
+    ///     not pushed off the row by one they use on it less; and in front where it does not — inside a post — for the
+    ///     reason <see cref="Around(KeyHint, IReadOnlyList{KeyHint}, KeyHint[])" /> gives: the row draws from the
+    ///     front, and the walk means something only on the post being read right now.
+    /// </remarks>
+    public static IReadOnlyList<KeyHint> OffAReference(IReadOnlyList<KeyHint> keys)
+    {
+        var after = keys.ToList().IndexOf(Opening) + 1;
+
+        return [.. keys.Take(after), Entering, .. keys.Skip(after)];
+    }
 
     /// <summary>
     ///     <paramref name="inside" /> ahead of <paramref name="keys" />, standing in for any of them it shares a key

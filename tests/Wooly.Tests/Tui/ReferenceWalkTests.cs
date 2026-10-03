@@ -247,7 +247,7 @@ public class ReferenceWalkTests
     {
         var feed = new FeedScreen(new Destination(DestinationKind.Home, "Home"), [APost.With(content: Said)]);
 
-        Assert.DoesNotContain("←/→", Status(feed));
+        Assert.DoesNotContain("Open: ⏎", Status(feed));
 
         feed.WalkReference(1);
 
@@ -262,6 +262,31 @@ public class ReferenceWalkTests
         feed.ClearReference();
 
         Assert.Contains("Read: ⏎", Status(feed));
+    }
+
+    /// <summary>
+    ///     <c>←/→</c> is said before the walk starts as well, wherever the picked post has a reference to walk to —
+    ///     otherwise the only way to learn it is there is to press it. Behind <c>⏎</c>, which it must not push off.
+    /// </summary>
+    [Fact]
+    public void TheStatusRowSaysTheWalkBeforeItStarts()
+    {
+        var feed = new FeedScreen(new Destination(DestinationKind.Home, "Home"), [APost.With(content: Said)]);
+
+        var row = ChromeLines.Status(feed.Keys, notice: null, noticeIsError: false, asking: null, 160).Text;
+
+        Assert.Contains("Read: ⏎ | Reference: ←/→", row);
+    }
+
+    /// <summary>A post with nothing in it to walk to does not announce the walk.</summary>
+    [Fact]
+    public void TheStatusRowLeavesTheWalkOffAPostWithNothingToWalkTo()
+    {
+        var feed = new FeedScreen(
+            new Destination(DestinationKind.Home, "Home"),
+            [APost.With(content: "<p>Nothing to see here.</p>")]);
+
+        Assert.DoesNotContain(feed.Keys, key => key.Key == "←/→");
     }
 
     /// <summary>The spans of every row of a screen, which is what a role is asserted against.</summary>
