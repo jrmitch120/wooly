@@ -196,6 +196,27 @@ public class BreadcrumbTests
     }
 
     /// <summary>
+    ///     No frame is a character Unicode marks as an emoji. Windows' console font has none of these stars, and a star
+    ///     it falls back to Segoe UI Emoji for is drawn in that font's colours: <c>✳</c> was a green square with a white
+    ///     star in it, once a cycle. The emoji in the block the stars come from, spelled out from Unicode's emoji data.
+    /// </summary>
+    [Fact]
+    public void Breadcrumb_DrawsNoFrameOfTheSpinnerThatIsAnEmoji()
+    {
+        string[] emojiDingbats =
+        [
+            "✂", "✅", "✈", "✉", "✊", "✋", "✌", "✍", "✏", "✒", "✔", "✖", "✝", "✡", "✨", "✳", "✴", "❄", "❇", "❌",
+            "❎", "❓", "❔", "❕", "❗", "❣", "❤", "➕", "➖", "➗", "➡", "➰", "➿",
+        ];
+
+        var frames = Enumerable.Range(1, ChromeLines.SpinnerFrames)
+            .Select(frame => ChromeLines.Breadcrumb(["Home"], frame, PanelWidth).Spans
+                .Single(span => span.Role == Role.Spinner).Text.Trim());
+
+        Assert.All(frames, glyph => Assert.DoesNotContain(glyph, emojiDingbats));
+    }
+
+    /// <summary>
     ///     Each frame is the title's last glyph, one column wide, a space after the trail — the same space the edge
     ///     leaves after it, so the star sits evenly between the two — in <see cref="Role.Spinner" />. The star grows to <c>✽</c> and shrinks back to <c>✢</c>, and the tenth frame is
     ///     followed by the first again.
@@ -203,13 +224,13 @@ public class BreadcrumbTests
     [Theory]
     [InlineData(1, "·")]
     [InlineData(2, "✢")]
-    [InlineData(3, "✳")]
+    [InlineData(3, "✱")]
     [InlineData(4, "✶")]
     [InlineData(5, "✻")]
     [InlineData(6, "✽")]
     [InlineData(7, "✻")]
     [InlineData(8, "✶")]
-    [InlineData(9, "✳")]
+    [InlineData(9, "✱")]
     [InlineData(10, "✢")]
     [InlineData(11, "·")]
     public void Breadcrumb_DrawsEachFrameOfTheSpinnerAfterTheTrail(int frame, string glyph)

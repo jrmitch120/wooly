@@ -17,8 +17,13 @@ public static class ChromeLines
     /// <remarks>
     ///     Stars rather than braille, which was tried first: a braille frame's dots sit in the top rows of the cell, so
     ///     it floated above the title it follows. Each star is drawn about the middle of the line, as a letter is.
+    ///     <para>
+    ///         None of them an emoji. Code's third frame is <c>✳</c>, which Unicode marks as one; Windows' console font
+    ///         has none of these stars, and the one it falls back to Segoe UI Emoji for comes out as a green square.
+    ///         <c>✱</c> is the heavy asterisk in its place, the same size between <c>✢</c> and <c>✶</c>.
+    ///     </para>
     /// </remarks>
-    private static readonly string[] Spinner = ["·", "✢", "✳", "✶", "✻", "✽", "✻", "✶", "✳", "✢"];
+    private static readonly string[] Spinner = ["·", "✢", "✱", "✶", "✻", "✽", "✻", "✶", "✱", "✢"];
 
     /// <summary>How many frames the spinner has before it starts over at the first.</summary>
     public static int SpinnerFrames => Spinner.Length;

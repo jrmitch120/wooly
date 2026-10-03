@@ -117,7 +117,7 @@ values tuned in use were measured against a black terminal:
 
 `loading` stays, for the sign-in screen's wait for the browser. The fetch mark that now ends the content panel's title
 has a role of its own, `spinner`, added by #281 so that a theme can colour it apart; both built-ins draw it in
-`rail-unread`'s colour. The mark is a star spinner, `· ✢ ✳ ✶ ✻ ✽` growing and shrinking back as Claude Code's does, a
+`rail-unread`'s colour. The mark is a star spinner, `· ✢ ✱ ✶ ✻ ✽` growing and shrinking back as Claude Code's does, a
 frame a tick, a space after the trail. It replaced the word `fetching` and its dots at the far end of the edge, which
 held 11 columns to the spinner's 2. A frame is never drawn at rest, so without colour its presence carries the meaning
 the word did. It sits beside the crumb you are standing on because that is what the fetch is about to replace. Each new

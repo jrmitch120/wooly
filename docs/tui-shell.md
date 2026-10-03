@@ -13,7 +13,7 @@ Panels, since ADR-0021. The rail and the content are each a rounded frame with a
 the dividing, so there is no breadcrumb row, no blank row under it and no gutter column.
 
 ```
-╭ Timelines ───────╮╭ Home › Post by @ben  ✳ ──────────────────────────────────╮
+╭ Timelines ───────╮╭ Home › Post by @ben  ✱ ──────────────────────────────────╮
 │Home             3││ content                                                  │
 │Local             ││ (feed · post · account · conversation · search)          │
 │Federated         ││                                                          │
@@ -1176,7 +1176,7 @@ and #213 settled the row; #216 and #217 build it:
   row needs said: this is the frame. So `crumb` was added, the band goes under everything on the row — crumbs,
   separators, the `… › ` lead, the room left over and the fetch mark — and the seam under it went back to being
   blank. A band under half the row would read as a highlight on that half, which is the objection this keeps.
-- **The fetch mark moves, and is laid out so nothing else does.** `· ✢ ✳ ✶ ✻ ✽ ✻ ✶ ✳ ✢`, Claude Code's star
+- **The fetch mark moves, and is laid out so nothing else does.** `· ✢ ✱ ✶ ✻ ✽ ✻ ✶ ✱ ✢`, Claude Code's star
   growing from a dot and shrinking back, a frame every 400ms and the first again after the last, in `spinner`, a space
   after the trail's last crumb (#281). One space rather than two, so the star sits evenly between the crumb and the
   edge's rule, which the edge parts from the title by one space too. Every frame is one column, so the mark is as wide
