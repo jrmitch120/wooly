@@ -196,7 +196,7 @@ public class PlaceholdersTests
     ///     an earlier run left in the terminal is drawn and nothing this one sent outlives it.
     /// </summary>
     [Fact]
-    public void ForgetsEverythingBeforeTheFirstPictureAndOnTheWayOut()
+    public void Ready_ForgetsEverythingBeforeTheFirstPictureAndDisposeAgainOnTheWayOut()
     {
         var terminal = new FakeTerminalImages();
         var placeholders = Inline(terminal);
@@ -214,7 +214,7 @@ public class PlaceholdersTests
 
     /// <summary>A terminal that never drew a picture is never sent anything at all, not even a clean-up.</summary>
     [Fact]
-    public void SaysNothingToATerminalItNeverSentAPicture()
+    public void Dispose_SaysNothingToATerminalItNeverSentAPicture()
     {
         var terminal = new FakeTerminalImages();
 

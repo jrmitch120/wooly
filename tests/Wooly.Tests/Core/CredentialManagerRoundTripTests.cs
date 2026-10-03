@@ -17,7 +17,7 @@ public class CredentialManagerRoundTripTests
         Skip = "Writes to this Windows machine's Credential Manager. Set WOOLY_KEYRING_TESTS=1 on Windows to run it.",
         SkipUnless = nameof(Enabled))]
     [System.Runtime.Versioning.SupportedOSPlatform("windows")]
-    public void AnAccessTokenSurvivesAStoreAndReadThroughCredentialManager()
+    public void SaveAccessToken_SurvivesAReadBackThroughCredentialManager()
     {
         var store = WindowsCredentialStore.Open();
 

@@ -176,6 +176,44 @@ public class FallbackCredentialStoreTests : IDisposable
         Assert.Null(new PlaintextFileCredentialStore(new WoolyPaths(_directory.Path)).FindAccessToken("personal"));
     }
 
+    /// <summary>
+    ///     A refusal that passes, within the same run, stops being reported once the keyring has taken the token the
+    ///     file was holding — nothing is left in the clear for the warning to be about.
+    /// </summary>
+    [Fact]
+    public void Storage_ReportsTheKeyringAgainOnceItTakesTheTokenItRefused()
+    {
+        var store = WithKeyring();
+
+        _keyring.RefusesWrites = true;
+        store.SaveAccessToken("personal", "token-old");
+        _keyring.RefusesWrites = false;
+        store.SaveAccessToken("personal", "token-new");
+
+        Assert.Equal(CredentialStorage.OsKeyring, store.Storage);
+    }
+
+    /// <summary>
+    ///     But only for that profile: another one's token the keyring refused is still in the file, and still warned
+    ///     about, until it is saved again or the profile removed.
+    /// </summary>
+    [Fact]
+    public void Storage_ReportsPlaintextWhileAnyRefusedTokenIsStillInTheFile()
+    {
+        var store = WithKeyring();
+
+        _keyring.RefusesWrites = true;
+        store.SaveAccessToken("personal", "token-personal");
+        _keyring.RefusesWrites = false;
+        store.SaveAccessToken("work", "token-work");
+
+        Assert.Equal(CredentialStorage.PlaintextFile, store.Storage);
+
+        store.DeleteAccessToken("personal");
+
+        Assert.Equal(CredentialStorage.OsKeyring, store.Storage);
+    }
+
     /// <summary>Removing a profile forgets its token wherever it was put.</summary>
     [Fact]
     public void DeleteAccessToken_ForgetsTheTokenInTheKeyringAndInTheFile()

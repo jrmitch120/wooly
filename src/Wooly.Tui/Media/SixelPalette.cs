@@ -1,7 +1,6 @@
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
-using SixLabors.ImageSharp.Processing.Processors.Dithering;
 using SixLabors.ImageSharp.Processing.Processors.Quantization;
 using Terminal.Gui.Drawing;
 
@@ -26,8 +25,8 @@ namespace Wooly.Tui.Media;
 ///         for, and is not: at 256 colours it bought little and made every sixel larger (ADR-0023).
 ///     </para>
 ///     <para>
-///         The one file outside the theme and the decoder besides the placeholders that builds a colour, and for the
-///         decoder's reason: these are the photograph's own colours (ADR-0014, ADR-0016).
+///         One of the few files outside the theme that builds a colour, with the decoder, the placeholders and the
+///         picture view, and for the decoder's reason: these are the photograph's own colours (ADR-0014, ADR-0016).
 ///     </para>
 /// </remarks>
 internal sealed class SixelPalette : IStaticPaletteBuilder

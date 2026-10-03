@@ -12,8 +12,9 @@ namespace Wooly.Tui.Media;
 ///     id as its foreground colour (ADR-0022).
 /// </summary>
 /// <remarks>
-///     The one file outside the theme and the decoder that builds a colour, and for the decoder's reason: an image id is
-///     content rather than emphasis, and no theme could answer it (ADR-0014, ADR-0022).
+///     One of the few files outside the theme that builds a colour, with the decoder, the sixel palette and the picture
+///     view, and for the decoder's reason: an image id is content rather than emphasis, and no theme could answer it
+///     (ADR-0014, ADR-0022).
 /// </remarks>
 internal static class KittyPlaceholder
 {

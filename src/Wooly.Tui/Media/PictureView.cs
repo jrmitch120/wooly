@@ -16,7 +16,7 @@ namespace Wooly.Tui.Media;
 ///     Kitty without its placeholders (ADR-0016, ADR-0022).
 /// </summary>
 /// <remarks>
-///     An <see cref="ImageView" /> for one reason only: the driver keeps a raster image from one frame to the next
+///     An <see cref="ImageView" /> above all because the driver keeps a raster image from one frame to the next
 ///     only where an image view that is showing something says it is its own, and that question is not one a view
 ///     outside the library can answer. On a sixel terminal what it draws is its own: <see cref="ImageView" /> scales
 ///     and encodes the whole picture again every time its box moves, which on a scroll is every frame, so this is

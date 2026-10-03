@@ -13,7 +13,10 @@ public enum PictureWay
     /// </summary>
     Placeholders,
 
-    /// <summary>The Kitty graphics protocol through a box, where the terminal answers that it speaks it.</summary>
+    /// <summary>
+    ///     The Kitty graphics protocol through a box, where Terminal.Gui says the terminal speaks it — which it reads from
+    ///     the environment alone, so in practice only kitty or Ghostty not known to draw placeholders.
+    /// </summary>
     Kitty,
 
     /// <summary>Sixel, through a box, for a terminal that has that and no Kitty graphics.</summary>

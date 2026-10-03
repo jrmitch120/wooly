@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+
 namespace Wooly.Core.Credentials;
 
 /// <summary>
@@ -8,7 +10,7 @@ namespace Wooly.Core.Credentials;
 /// <remarks>
 ///     A keyring that opens can still refuse a save — Windows' did, on a service name it could not parse, and the
 ///     exception took the TUI down. A refused save is not a token lost: it goes to the plaintext file, the store says
-///     from then on that the file is where tokens are, and a token found in neither place is looked for in both, so
+///     the file is where tokens are for as long as that token is still in it, and a token found in neither place is looked for in both, so
 ///     one put in the file on an earlier run is not a profile signed out on this one.
 /// </remarks>
 /// <param name="openKeyring">
@@ -26,11 +28,14 @@ public sealed class FallbackCredentialStore(
     /// </summary>
     private readonly Lazy<ICredentialStore> _chosen = new(() => Choose(openKeyring, whenNoKeyring));
 
-    /// <summary>Whether a save the keyring refused has put a token in the plaintext file this run.</summary>
-    private volatile bool _refused;
+    /// <summary>
+    ///     The profiles whose token a save the keyring refused has put in the plaintext file this run, and that are
+    ///     still there: a later save the keyring takes, or the profile's removal, takes one off.
+    /// </summary>
+    private readonly ConcurrentDictionary<string, bool> _refused = new();
 
     /// <inheritdoc />
-    public CredentialStorage Storage => _refused ? whenNoKeyring.Storage : _chosen.Value.Storage;
+    public CredentialStorage Storage => _refused.IsEmpty ? _chosen.Value.Storage : whenNoKeyring.Storage;
 
     /// <summary>The keyring, where one opened, and <see langword="null" /> where the file is all there is.</summary>
     private ICredentialStore? Keyring => ReferenceEquals(_chosen.Value, whenNoKeyring) ? null : _chosen.Value;
@@ -74,7 +79,7 @@ public sealed class FallbackCredentialStore(
         {
             // Every backend refuses in its own words, as Choose says of opening. Whatever it was, the token is kept
             // rather than lost, in the file, and Storage says so from here on so the user is told.
-            _refused = true;
+            _refused[profileName] = true;
             whenNoKeyring.SaveAccessToken(profileName, accessToken);
 
             return;
@@ -82,6 +87,7 @@ public sealed class FallbackCredentialStore(
 
         // Held where it belongs now, so a copy an earlier refusal left in the clear goes.
         whenNoKeyring.DeleteAccessToken(profileName);
+        _refused.TryRemove(profileName, out _);
     }
 
     /// <inheritdoc />
@@ -102,6 +108,7 @@ public sealed class FallbackCredentialStore(
         }
 
         var fromFile = whenNoKeyring.DeleteAccessToken(profileName);
+        _refused.TryRemove(profileName, out _);
 
         return fromKeyring || fromFile;
     }
