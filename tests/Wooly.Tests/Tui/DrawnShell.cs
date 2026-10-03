@@ -122,8 +122,15 @@ internal sealed class DrawnShell : IDisposable
     /// <summary>A left click on the cell at <paramref name="column" />, <paramref name="row" />.</summary>
     public void Click(int column, int row) => Point(column, row, MouseFlags.LeftButtonClicked);
 
-    /// <summary>A double click on the cell, as Terminal.Gui reports one once it has counted the clicks.</summary>
-    public void DoubleClick(int column, int row) => Point(column, row, MouseFlags.LeftButtonDoubleClicked);
+    /// <summary>
+    ///     A double click on the cell, as Terminal.Gui reports one: the first click on its own the moment it is let go,
+    ///     and then the pair once the second is.
+    /// </summary>
+    public void DoubleClick(int column, int row)
+    {
+        Click(column, row);
+        Point(column, row, MouseFlags.LeftButtonDoubleClicked);
+    }
 
     /// <summary>One notch of the wheel over the cell: down, towards the foot of the page, or up.</summary>
     public void Wheel(int column, int row, bool down = true) =>

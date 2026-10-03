@@ -16,10 +16,10 @@ namespace Wooly.Tests.Tui;
 public class ShellContentClickTests
 {
     /// <summary>A column inside the content panel, clear of its left edge and the pick's gutter.</summary>
-    private const int OverContent = RailLines.Width + 4;
+    internal const int OverContent = RailLines.Width + 4;
 
     /// <summary>Tall enough that every screen these tests draw has its first two things on the page.</summary>
-    private const int Tall = 50;
+    internal const int Tall = 50;
 
     /// <summary>
     ///     Any row of a post picks it — its byline, its text, and a picture on it, where the click lands on the picture's
@@ -358,7 +358,7 @@ public class ShellContentClickTests
     }
 
     /// <summary>The terminal row the first row reading <paramref name="text" /> is drawn on, below <paramref name="after" />.</summary>
-    private static int RowOf(DrawnShell drawn, string text, int after = -1)
+    internal static int RowOf(DrawnShell drawn, string text, int after = -1)
     {
         var rows = drawn.Rows();
         var row = Array.FindIndex(
@@ -372,7 +372,7 @@ public class ShellContentClickTests
     }
 
     /// <summary>The first terminal row the content draws as part of the <paramref name="item" />th thing.</summary>
-    private static int ContentRowOf(DrawnShell drawn, int item)
+    internal static int ContentRowOf(DrawnShell drawn, int item)
     {
         var row = Enumerable.Range(0, Tall).FirstOrDefault(
             at => drawn.Content.ItemAt(new Point(OverContent, at)) == item,
@@ -398,7 +398,7 @@ public class ShellContentClickTests
     };
 
     /// <summary>The shell drawn tall on the listing screen <paramref name="screen" /> names, with two things on it.</summary>
-    private static async Task<DrawnShell> On(string screen)
+    internal static async Task<DrawnShell> On(string screen)
     {
         if (screen == "search")
         {
@@ -470,7 +470,7 @@ public class ShellContentClickTests
     }
 
     /// <summary>The shell drawn tall over what a search for sheep found: two accounts, two hashtags and two posts.</summary>
-    private static async Task<DrawnShell> Searched()
+    internal static async Task<DrawnShell> Searched()
     {
         var built = new AShell
         {

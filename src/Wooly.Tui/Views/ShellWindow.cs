@@ -100,6 +100,11 @@ internal sealed class ShellWindow : Window
     /// <summary>Whether the rail is laid out, which it is as built.</summary>
     private bool _railed = true;
 
+    /// <summary>
+    ///     Whether the last click was spent declining an open question, which spends the double click it turns out to be
+    ///     the first half of (#291).
+    /// </summary>
+    private bool _clickAnswered;
 
     /// <param name="quit">
     ///     What <c>ctrl-q</c> does. Passed in rather than reached for, because the application is the thing that owns
@@ -279,6 +284,11 @@ internal sealed class ShellWindow : Window
             return Clicked(mouse.ScreenPosition) || base.OnMouseEvent(mouse);
         }
 
+        if (mouse.Flags.HasFlag(MouseFlags.LeftButtonDoubleClicked))
+        {
+            return DoubleClicked(mouse.ScreenPosition) || base.OnMouseEvent(mouse);
+        }
+
         if (!_content.FrameToScreen().Contains(mouse.ScreenPosition) || Notched(mouse) is not { } pressed)
         {
             return base.OnMouseEvent(mouse);
@@ -306,21 +316,23 @@ internal sealed class ShellWindow : Window
     /// <summary>
     ///     A click at <paramref name="at" />. An open question takes it wherever it lands, and is all it does; otherwise
     ///     a click on a destination on the rail arrives there (#288), and a click on a row of a thing in the content
-    ///     picks it (#290). Everything else — a title, a heading, the API panel, a rule, a blank — is part of nothing
+    ///     picks it (#290) — the first half of a double click among them, which is <see cref="DoubleClicked" />'s. Everything else — a title, a heading, the API panel, a rule, a blank — is part of nothing
     ///     and ignores it.
     /// </summary>
     /// <returns>Whether the click was the shell's, which is any click on the window while a question is open.</returns>
     private bool Clicked(Point at)
     {
         // A click anywhere declines a confirmation or closes a filter prompt, and is not carried out (story 30, 31).
-        if (_shell.DeclineOpenQuestion())
+        _clickAnswered = _shell.DeclineOpenQuestion();
+
+        if (_clickAnswered)
         {
             return true;
         }
 
         if (_content.FrameToScreen().Contains(at))
         {
-            ClickedContent(at);
+            _ = ClickedContent(at);
 
             return true;
         }
@@ -333,6 +345,36 @@ internal sealed class ShellWindow : Window
         if (_rail.ItemAt(at) is { } destination)
         {
             _shell.Arrive(destination);
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    ///     A double click at <paramref name="at" />: in the content, a click on the row and then <c>⏎</c>, meaning
+    ///     whatever <c>⏎</c> means on the screen in front, nothing included (#291). On a row that is part of nothing it
+    ///     is nothing, rather than a <c>⏎</c> on whatever was picked before.
+    /// </summary>
+    /// <remarks>
+    ///     Terminal.Gui reports the pair's first click on its own before the pair, so a pair whose first click was spent
+    ///     on an open question is spent with it, and opens nothing behind the question it closed (story 30, 31).
+    /// </remarks>
+    /// <returns>Whether the double click was the shell's, as for <see cref="Clicked" />.</returns>
+    private bool DoubleClicked(Point at)
+    {
+        if (_clickAnswered || _shell.DeclineOpenQuestion())
+        {
+            return true;
+        }
+
+        if (!_content.FrameToScreen().Contains(at))
+        {
+            return false;
+        }
+
+        if (ClickedContent(at))
+        {
+            _ = Do(ShellKey.Enter);
         }
 
         return true;
@@ -495,15 +537,18 @@ internal sealed class ShellWindow : Window
     ///     is, so that what was clicked does not move out from under the pointer — following the pick would put a tall
     ///     post's byline at the top of the page for a click on its picture (#290).
     /// </summary>
-    private void ClickedContent(Point at)
+    /// <returns>Whether the row was part of a thing, and so picked it.</returns>
+    private bool ClickedContent(Point at)
     {
         if (_content.ItemAt(at) is not { } item)
         {
-            return;
+            return false;
         }
 
         _content.Hold();
         _shell.Section(item);
+
+        return true;
     }
 
     /// <summary>
