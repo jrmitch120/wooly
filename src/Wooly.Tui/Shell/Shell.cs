@@ -285,6 +285,12 @@ public sealed class Shell
     ///     together and it is arrived at at once, abandoning whatever the tabbing left waiting (#288). Nothing with
     ///     nobody to act as, where the keys go nowhere either.
     /// </summary>
+    /// <remarks>
+    ///     The destination already shown is walked back out to instead: drilled in from it, the stack goes back to its
+    ///     bottom screen — the destination's own — with the page it was left on, as any pop keeps, and nothing asked
+    ///     for (#289). The way a sidebar's entry takes you back to its root. At its root already, nothing happens. The
+    ///     keys have no equivalent: tabbing back onto the destination shown is still a walk that ended where it began.
+    /// </remarks>
     public void Arrive(int at)
     {
         if (_acting is null)
@@ -292,7 +298,22 @@ public sealed class Shell
             return;
         }
 
+        var shown = Rail.Current == at;
+
         Rail.GoTo(Rail.Destinations[at].Kind);
+
+        if (!shown || _stack.Count == 1)
+        {
+            return;
+        }
+
+        while (_stack.Count > 1)
+        {
+            Leave(_stack.Count - 1);
+        }
+
+        Notice = null;
+        Changed?.Invoke();
     }
 
     /// <summary>
