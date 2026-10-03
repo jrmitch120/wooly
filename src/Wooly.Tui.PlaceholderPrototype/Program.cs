@@ -223,25 +223,71 @@ internal sealed class Feed(List<string> photos) : View
         || Environment.GetEnvironmentVariable("KITTY_WINDOW_ID") is not null
         || Environment.GetEnvironmentVariable("GHOSTTY_RESOURCES_DIR") is not null;
 
+    // The wheel's events as they arrived, to tell a trackpad sending a stray opposite event apart from us mishandling
+    // one. 'l' writes the log to a file; 'f' toggles the filter that holds back a stray reversal.
+    private readonly Stopwatch _since = Stopwatch.StartNew();
+    private readonly List<string> _log = [];
+    private double _lastEventAt = -1;
+    private int _lastDirection;
+    private double _lastAppliedAt = -1;
+    private int _lastAppliedDirection;
+    private int _reversals;
+    private int _dropped;
+    private bool _filter;
+
+    /// <summary>How soon after a step one way a step the other way counts as a stray rather than a change of mind.</summary>
+    private const double StrayWithinMs = 150;
+
     protected override bool OnMouseEvent(Mouse mouse)
     {
-        if (mouse.Flags.HasFlag(MouseFlags.WheeledDown))
-        {
-            _wheelEvents++;
-            ScrollBy(_wheelStep);
+        var direction = mouse.Flags.HasFlag(MouseFlags.WheeledDown) ? 1 : mouse.Flags.HasFlag(MouseFlags.WheeledUp) ? -1 : 0;
 
-            return true;
+        if (direction == 0)
+        {
+            return false;
         }
 
-        if (mouse.Flags.HasFlag(MouseFlags.WheeledUp))
-        {
-            _wheelEvents++;
-            ScrollBy(-_wheelStep);
+        var now = _since.Elapsed.TotalMilliseconds;
+        var gap = _lastEventAt < 0 ? -1 : now - _lastEventAt;
+        var reversal = _lastDirection != 0 && direction != _lastDirection && gap >= 0 && gap < StrayWithinMs;
 
-            return true;
+        if (reversal)
+        {
+            _reversals++;
         }
 
-        return false;
+        // Held back: the other way from the last step taken, and too soon after it to be a change of mind.
+        var stray = _filter && _lastAppliedDirection != 0 && direction != _lastAppliedDirection
+            && _lastAppliedAt >= 0 && now - _lastAppliedAt < StrayWithinMs;
+
+        if (stray)
+        {
+            _dropped++;
+        }
+        else
+        {
+            _lastAppliedAt = now;
+            _lastAppliedDirection = direction;
+            _wheelEvents++;
+            ScrollBy(direction * _wheelStep);
+        }
+
+        _log.Add($"{now,9:F1}ms  +{(gap < 0 ? 0 : gap),7:F1}ms  {(direction > 0 ? "down" : "UP  ")}  flags={mouse.Flags}{(reversal ? "  <-- REVERSAL" : "")}{(stray ? "  (dropped)" : "")}");
+
+        if (_log.Count > 400)
+        {
+            _log.RemoveAt(0);
+        }
+
+        _lastEventAt = now;
+        _lastDirection = direction;
+
+        if (stray)
+        {
+            SetNeedsDraw();
+        }
+
+        return true;
     }
 
     protected override bool OnKeyDown(Key key)
@@ -253,6 +299,14 @@ internal sealed class Feed(List<string> photos) : View
         if (key == Key.PageDown) { ScrollBy(Viewport.Height); return true; }
         if (key == Key.PageUp) { ScrollBy(-Viewport.Height); return true; }
         if (key == Key.S) { _wheelStep = _wheelStep == 1 ? 3 : 1; SetNeedsDraw(); return true; }
+        if (key == Key.F) { _filter = !_filter; SetNeedsDraw(); return true; }
+        if (key == Key.L)
+        {
+            var file = Path.Combine(Path.GetTempPath(), "wooly-292-wheel.log");
+            File.WriteAllLines(file, [$"filter {(_filter ? "on" : "off")}, reversals {_reversals}, dropped {_dropped}", .. _log]);
+            Status?.Invoke($" wheel log written to {file}");
+            return true;
+        }
 
         return false;
     }
@@ -324,7 +378,7 @@ internal sealed class Feed(List<string> photos) : View
 
         Status?.Invoke(
             $" {(Kitty ? KnownKitty ? "kitty ✓ (env)" : "kitty ✓ (detected)" : "kitty ✗")}  cell {CellPixels.Width}×{CellPixels.Height}px ({CellSource})  row {_top}/{Math.Max(0, _rows.Count - height)}"
-            + $"  wheel step {_wheelStep} (s)  wheel events {_wheelEvents}  draw {_lastDrawMs:F1}ms"
+            + $"  wheel step {_wheelStep} (s)  events {_wheelEvents}  reversals {_reversals}  filter {(_filter ? $"ON, dropped {_dropped}" : "off")} (f)  log (l)  draw {_lastDrawMs:F1}ms"
             + $"  image bytes: this frame {_imageBytesThisScroll / 1024}KB, total {_imageBytesSent / 1024}KB  q quits");
 
         return true;
