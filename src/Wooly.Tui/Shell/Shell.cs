@@ -281,6 +281,46 @@ public sealed class Shell
     public void StepGroup(int by) => Rail.StepGroup(by);
 
     /// <summary>
+    ///     A click on the <paramref name="at" />th destination on the rail: the cursor and the selection go there
+    ///     together and it is arrived at at once, abandoning whatever the tabbing left waiting (#288). Nothing with
+    ///     nobody to act as, where the keys go nowhere either.
+    /// </summary>
+    public void Arrive(int at)
+    {
+        if (_acting is null)
+        {
+            return;
+        }
+
+        Rail.GoTo(Rail.Destinations[at].Kind);
+    }
+
+    /// <summary>
+    ///     What a click does while a question is open, which is all it does: an open confirmation is declined, as any
+    ///     key but the agreeing one declines it, and an open filter prompt is closed (#286). Whatever the click was
+    ///     on is not carried out, so a stray one never confirms anything or acts behind a question.
+    /// </summary>
+    /// <returns>Whether there was a question to spend the click on.</returns>
+    public bool DeclineOpenQuestion()
+    {
+        if (Asking is not null)
+        {
+            _ = Answer(agreed: false);
+
+            return true;
+        }
+
+        if (!Screen.CloseFilterPrompt())
+        {
+            return false;
+        }
+
+        Changed?.Invoke();
+
+        return true;
+    }
+
+    /// <summary>
     ///     Carries out what a key meant, once <see cref="Keymap" /> has said what that is. The frame's verbs and the
     ///     ones that act on the picked post of any screen are public here in their own right, so this is a table of
     ///     one-line arms rather than anywhere a decision is made; every other verb is screen-local, and the screen

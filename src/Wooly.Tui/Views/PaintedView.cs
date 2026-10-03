@@ -180,6 +180,32 @@ internal sealed class PaintedView : View
     }
 
     /// <summary>
+    ///     Which thing the row under the terminal cell <paramref name="screen" /> is part of (<see cref="Line.Item" />),
+    ///     or <see langword="null" /> for a cell outside the rows — on the frame, or below the last of them — or on a row
+    ///     that is part of nothing. What a click is answered from (#286).
+    /// </summary>
+    /// <remarks>
+    ///     Asked of the view for the reason <see cref="Reclaimable" /> is: the rows a reader is pointing at are the ones
+    ///     drawn at this width from where the page last began, and only the view knows both.
+    /// </remarks>
+    public int? ItemAt(Point screen)
+    {
+        var width = Viewport.Width;
+        var height = Viewport.Height;
+        var inside = ViewportToScreen(new Rectangle(Point.Empty, Viewport.Size));
+
+        if (width <= 0 || height <= 0 || !inside.Contains(screen))
+        {
+            return null;
+        }
+
+        var lines = _rows(width, height);
+        var at = _top + screen.Y - inside.Y;
+
+        return at < lines.Count ? lines[at].Item : null;
+    }
+
+    /// <summary>
     ///     What a key that moves the pick has to take back before it moves it: the topmost thing on the page, where
     ///     the pick has none of its rows on it, and <see langword="null" /> while it is still visible.
     /// </summary>

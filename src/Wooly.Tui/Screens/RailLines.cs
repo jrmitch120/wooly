@@ -258,13 +258,15 @@ public static class RailLines
         var room = width - Glyphs.Columns(lead) - (unread.Length > 0 ? Glyphs.Columns(unread) + 1 : 0);
         var label = Glyphs.Padded(TextWrap.Clip(destination.Label, room), room);
 
+        // Part of the destination it draws, by its place on the rail, so that a click on the row can be answered from
+        // the rows themselves in whichever layout drew them (#288) — a title, a heading and the foot are part of none.
         return Line.Of([
             .. lead.Length > 0 ? [new Span(lead, role)] : Array.Empty<Span>(),
             new Span(label, role),
             .. unread.Length > 0
                 ? [new Span(" ", role), new Span(unread, coloured && current ? Role.RailCurrent : Role.RailUnread)]
                 : Array.Empty<Span>(),
-        ]);
+        ]).PartOf(at);
     }
 
     /// <summary>

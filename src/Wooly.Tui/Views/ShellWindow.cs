@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Drawing;
 using Terminal.Gui.App;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
@@ -273,6 +274,11 @@ internal sealed class ShellWindow : Window
     /// </remarks>
     protected override bool OnMouseEvent(Mouse mouse)
     {
+        if (mouse.Flags.HasFlag(MouseFlags.LeftButtonClicked))
+        {
+            return Clicked(mouse.ScreenPosition) || base.OnMouseEvent(mouse);
+        }
+
         if (!_content.FrameToScreen().Contains(mouse.ScreenPosition) || Notched(mouse) is not { } pressed)
         {
             return base.OnMouseEvent(mouse);
@@ -295,6 +301,33 @@ internal sealed class ShellWindow : Window
             Verb.ScrollUp => Notch(-RowsANotch),
             _ => Do(pressed),
         };
+    }
+
+    /// <summary>
+    ///     A click at <paramref name="at" />. An open question takes it wherever it lands, and is all it does; otherwise
+    ///     a click on a destination on the rail arrives there (#288). Everything else on the rail — a title, a heading,
+    ///     the API panel — is part of no destination and ignores it.
+    /// </summary>
+    /// <returns>Whether the click was the shell's, which is any click on the window while a question is open.</returns>
+    private bool Clicked(Point at)
+    {
+        // A click anywhere declines a confirmation or closes a filter prompt, and is not carried out (story 30, 31).
+        if (_shell.DeclineOpenQuestion())
+        {
+            return true;
+        }
+
+        if (!_railed || !_rail.FrameToScreen().Contains(at))
+        {
+            return false;
+        }
+
+        if (_rail.ItemAt(at) is { } destination)
+        {
+            _shell.Arrive(destination);
+        }
+
+        return true;
     }
 
     /// <summary>One notch of the wheel, which moves the page as the arrows do and by its own step.</summary>
