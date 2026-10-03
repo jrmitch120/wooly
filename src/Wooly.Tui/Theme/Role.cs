@@ -93,6 +93,14 @@ public enum Role
     /// </summary>
     Band,
 
+    /// <summary>
+    ///     Text selected in a field being typed into: the compose editor's, which Terminal.Gui asks for as its
+    ///     <c>Active</c> visual role while it draws a selection. A background role, and apart from <see cref="Band" />
+    ///     on purpose: the band is tuned to be barely there, and a selection must not be (#316). Carried without colour
+    ///     by being drawn reversed.
+    /// </summary>
+    SelectedText,
+
     /// <summary>A rail destination.</summary>
     Rail,
 

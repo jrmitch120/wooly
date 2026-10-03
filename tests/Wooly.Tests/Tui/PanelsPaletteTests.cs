@@ -65,6 +65,10 @@ public class PanelsPaletteTests
         [Role.Spinner] = (Peach, null),
         [Role.Destructive] = (Red, null),
         [Role.Error] = (Red, null),
+
+        // Not the prototype's panels skin but the compose prototype's selection (#316): the body's text lifted well
+        // off the page, where the band is tuned to be barely there.
+        [Role.SelectedText] = (Text, Surface2),
     };
 
     public static TheoryData<Role> Roles() => [.. Enum.GetValues<Role>()];

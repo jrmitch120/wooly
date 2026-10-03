@@ -31,6 +31,9 @@ public sealed class ComposeScreen : Screen
     /// <summary>What the warning row says while nobody has written a warning into it.</summary>
     private const string NoWarningWritten = "no content warning";
 
+    /// <summary>What an empty editor says, dimly, where the first letter will go (#316).</summary>
+    public const string Unwritten = "What's on your mind?";
+
     /// <summary>
     ///     The fewest rows the editor is ever left with, however much of what is being answered wants to sit above it
     ///     (<see cref="EditorAt" />). Three: a line being written, and one either side of it to see.
