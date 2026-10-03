@@ -46,8 +46,10 @@ if (selfTest)
 {
     // Headless: a 120×40 terminal that says it speaks Kitty graphics, drawn, scrolled, and read back.
     application.Init("ansi");
-    application.Driver!.SetScreenSize(120, 40);
-    application.Driver.SetKittyGraphicsSupport(new KittyGraphicsSupportResult { IsSupported = true, Resolution = new System.Drawing.Size(10, 20) });
+    var w = int.Parse(Environment.GetEnvironmentVariable("SELFTEST_W") ?? "120");
+    var h = int.Parse(Environment.GetEnvironmentVariable("SELFTEST_H") ?? "40");
+    application.Driver!.SetScreenSize(w, h);
+    application.Driver.SetKittyGraphicsSupport(new KittyGraphicsSupportResult { IsSupported = true, Resolution = new System.Drawing.Size(16, 34) });
 
     var probe = new Feed(photos) { Width = Dim.Fill(), Height = Dim.Fill(1), CanFocus = true };
     var said = "";
@@ -56,6 +58,23 @@ if (selfTest)
     top.Add(probe);
     application.Begin(top);
     probe.SetFocus();
+
+    if (Environment.GetEnvironmentVariable("SELFTEST_DUMP") is { } dump)
+    {
+        application.LayoutAndDraw(true);
+        probe.NewKeyDownEvent(Key.J); // nothing; just make sure it is laid
+        for (var go = 0; go < int.Parse(dump); go++) probe.NewMouseEvent(new Mouse { Flags = MouseFlags.WheeledDown });
+        application.LayoutAndDraw(true);
+        var text = application.Driver.ToAnsi();
+        var lines = text.Split('\n');
+        foreach (var (line, index) in lines.Select((line, index) => (line, index)).Where(pair => pair.line.Contains(char.ConvertFromUtf32(0x10EEEE))).Take(2))
+        {
+            var shown = string.Concat(line.EnumerateRunes().Select(rune => rune.Value == 0x10EEEE ? "▣" : rune.Value is >= 0x300 and < 0x10000 && System.Globalization.CharUnicodeInfo.GetUnicodeCategory(rune.Value) == System.Globalization.UnicodeCategory.NonSpacingMark ? $"[{Array.IndexOf(Diacritics.All, rune.ToString())}]" : rune.Value == 0x1b ? "␛" : rune.ToString()));
+            Console.WriteLine($"row {index}: {shown}");
+        }
+        Console.WriteLine(said);
+        return 0;
+    }
 
     for (var step = 0; step < 6; step++)
     {
@@ -89,6 +108,11 @@ window.KeyDown += (_, key) =>
         key.Handled = true;
     }
 };
+
+// Nothing left over from an earlier run, on the way in or on the way out.
+const string ForgetEveryImage = "\u001b_Ga=d,d=A,q=2\u001b\\";
+window.Initialized += (_, _) => application.Driver!.GetOutput().Write(ForgetEveryImage);
+window.IsRunningChanged += (_, _) => { if (!window.IsRunning) application.Driver?.GetOutput().Write(ForgetEveryImage); };
 
 application.Run(window);
 window.Dispose();
@@ -168,7 +192,10 @@ internal sealed class Feed(List<string> photos) : View
     private Size _laidCell;
     private int _top;
     private int _wheelStep = 1;
-    private int _nextId = 1;
+    // Ids unique to this run, high enough not to collide with anything an earlier run left in the terminal: a
+    // placeholder cell names no placement, so the terminal draws it with the *first* placement it holds for the id —
+    // and a stale one from a previous run, at another size, is a picture fitted into the wrong box.
+    private int _nextId = Random.Shared.Next(0x10000, 0xF00000);
     private long _imageBytesSent;
     private long _imageBytesThisScroll;
     private double _lastDrawMs;
