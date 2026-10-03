@@ -45,6 +45,23 @@ public class SearchCommandTests : IDisposable
         Assert.Equal("personal", search.Profile);
     }
 
+    /// <summary>
+    ///     A hashtag is searched for like anything else here, though the TUI's prompt opens one directly: scripts
+    ///     depend on the command's one output shape, and <c>timeline tag</c> already reads a tag (#305).
+    /// </summary>
+    [Fact]
+    public void Search_SearchesForAHashtagRatherThanReadingIt()
+    {
+        AddProfile();
+
+        var run = Run(["search", "#cats"]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Contains("alice@hachyderm.io", run.Output);
+        Assert.Contains("Hello world", run.Output);
+        Assert.Equal("#cats", Assert.Single(_search.Searches).Query.Text);
+    }
+
     /// <summary>An account is worth finding for what it is: who it is, and how much of a presence it has.</summary>
     [Fact]
     public void Search_ShowsWhoEachAccountIsAndHowMuchOfAPresenceItHas()

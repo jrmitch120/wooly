@@ -132,6 +132,87 @@ public class ShellSearchTests
         Assert.Equal("Hashtag", opened.Rail.Destinations.First(place => place.Kind == DestinationKind.Hashtag).Label);
     }
 
+    /// <summary>
+    ///     A <c>#hashtag</c> typed into the prompt is a direct query: <c>⏎</c> opens its timeline on the stack, the
+    ///     way picking it from the results would, without asking the instance anything — any well-formed tag has one.
+    /// </summary>
+    [Fact]
+    public async Task Find_OpensTheTagAHashtagNamesWithoutSearching()
+    {
+        var shell = new AShell();
+        var opened = await shell.Opened();
+
+        await Found(shell, opened, "#cats");
+
+        Assert.Empty(shell.Search.Searches);
+        Assert.Equal("cats", shell.Timelines.Reads[^1].Timeline.Hashtag);
+        Assert.IsType<FeedScreen>(opened.Screen);
+        Assert.Equal("Search › #cats", opened.Breadcrumb);
+        Assert.Equal("Hashtag", opened.Rail.Destinations.First(place => place.Kind == DestinationKind.Hashtag).Label);
+    }
+
+    /// <summary>
+    ///     <c>esc</c> from a tag opened directly comes back to search as it was left — the prompt, still taking
+    ///     letters, with what was typed still in it and nothing fetched behind it.
+    /// </summary>
+    [Fact]
+    public async Task Escape_FromADirectTag_ComesBackToThePromptAsItWasLeft()
+    {
+        var shell = new AShell();
+        var opened = await shell.Opened();
+
+        await Found(shell, opened, "#cats");
+
+        opened.Press(ShellKey.Escape);
+        shell.Host.Drain();
+
+        var search = Assert.IsType<SearchScreen>(opened.Screen);
+        Assert.True(search.IsTyping);
+        Assert.Equal("#cats", search.Query);
+        Assert.Equal(0, search.Count);
+        Assert.Empty(shell.Search.Searches);
+        Assert.Equal("Search", opened.Breadcrumb);
+    }
+
+    /// <summary>
+    ///     A tag in another script is as well-formed as one in English, so it is as direct.
+    /// </summary>
+    [Theory]
+    [InlineData("日本語")]
+    [InlineData("γάτες")]
+    public async Task Find_OpensATagInAnyScriptWithoutSearching(string tag)
+    {
+        var shell = new AShell();
+        var opened = await shell.Opened();
+
+        await Found(shell, opened, $"#{tag}");
+
+        Assert.Empty(shell.Search.Searches);
+        Assert.Equal(tag, shell.Timelines.Reads[^1].Timeline.Hashtag);
+    }
+
+    /// <summary>
+    ///     What is not a direct query is searched for exactly as before — none of it is turned away, since search
+    ///     takes any text.
+    /// </summary>
+    [Theory]
+    [InlineData("cats")]
+    [InlineData("#cats dogs")]
+    [InlineData("#")]
+    public async Task Find_SearchesForWhatIsNotADirectQuery(string typed)
+    {
+        var shell = new AShell();
+        var opened = await shell.Opened();
+
+        await Found(shell, opened, typed);
+
+        var asked = Assert.Single(shell.Search.Searches);
+        Assert.Equal(typed, asked.Query.Text);
+        Assert.Equal(SearchKind.Everything, asked.Query.Kind);
+        Assert.IsType<SearchScreen>(opened.Screen);
+        Assert.Null(opened.Notice);
+    }
+
     /// <summary>A post a search found is read exactly as one on a timeline is.</summary>
     [Fact]
     public async Task Press_OpensAPostASearchFound()
@@ -234,6 +315,14 @@ public class ShellSearchTests
         shell.Host.Drain();
 
         Assert.Equal(["⏎", "tab"], opened.Keys.Select(key => key.Key));
+
+        // The same whatever is typed, a direct query included: the prompt says what the key is, not where it goes.
+        foreach (var letter in "#cats")
+        {
+            opened.Type(letter);
+        }
+
+        Assert.Equal(["⏎ search", "tab destination"], opened.Keys.Select(key => $"{key.Key} {key.Does}"));
 
         await Found(shell, opened, "cats");
         shell.Host.Drain();
@@ -383,7 +472,10 @@ public class ShellSearchTests
         Assert.Contains("Joined Jan 2020 · follows you", AShell.Drawn(opened.Screen));
     }
 
-    /// <summary>A search screen, having searched for <paramref name="text" />.</summary>
+    /// <summary>
+    ///     A search screen, having had <c>⏎</c> pressed on <paramref name="text" /> — which searches for it, or opens
+    ///     it where it is a direct query.
+    /// </summary>
     private static async Task Found(AShell built, Shell shell, string text)
     {
         shell.Search();
