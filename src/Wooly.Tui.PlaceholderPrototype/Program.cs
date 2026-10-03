@@ -22,6 +22,13 @@ using Attribute = Terminal.Gui.Drawing.Attribute;
 using Color = Terminal.Gui.Drawing.Color;
 using Size = System.Drawing.Size;
 
+if (args.Contains("--winsize"))
+{
+    Console.WriteLine(Winsize.Raw());
+
+    return 0;
+}
+
 var selfTest = args.Contains("--selftest");
 args = [.. args.Where(arg => arg != "--selftest")];
 
@@ -404,8 +411,30 @@ internal static class Winsize
         public ushort YPixels;
     }
 
-    [System.Runtime.InteropServices.DllImport("libc", SetLastError = true)]
-    private static extern int ioctl(int fd, ulong request, ref Size4 size);
+    // ioctl is variadic. On Apple Silicon a variadic argument goes on the stack, not in a register, so declaring it
+    // as ioctl(int, ulong, ref Size4) hands the kernel a garbage address (an access violation, seen in Ghostty). The
+    // six dummies fill the rest of x0–x7, which pushes the pointer onto the stack where a variadic callee reads it.
+    [System.Runtime.InteropServices.DllImport("libc", EntryPoint = "ioctl", SetLastError = true)]
+    private static extern int IoctlArm64(int fd, ulong request, long x2, long x3, long x4, long x5, long x6, long x7, ref Size4 size);
+
+    // Everywhere else (x64, and arm64 Linux) a variadic argument is passed like any other.
+    [System.Runtime.InteropServices.DllImport("libc", EntryPoint = "ioctl", SetLastError = true)]
+    private static extern int Ioctl(int fd, ulong request, ref Size4 size);
+
+    private static int Ask(int fd, ulong request, ref Size4 size) =>
+        OperatingSystem.IsMacOS() && System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture == System.Runtime.InteropServices.Architecture.Arm64
+            ? IoctlArm64(fd, request, 0, 0, 0, 0, 0, 0, ref size)
+            : Ioctl(fd, request, ref size);
+
+    /// <summary>What the kernel says, raw, for the --winsize check.</summary>
+    public static string Raw()
+    {
+        var size = new Size4();
+        var result = Ask(1, OperatingSystem.IsMacOS() ? 0x40087468UL : 0x5413UL, ref size);
+
+        return $"ioctl={result} rows={size.Rows} cols={size.Columns} xpixel={size.XPixels} ypixel={size.YPixels}";
+    }
+
 
     public static Size? Cell()
     {
@@ -419,7 +448,7 @@ internal static class Winsize
             var size = new Size4();
             var request = OperatingSystem.IsMacOS() ? 0x40087468UL : 0x5413UL;
 
-            if (ioctl(1, request, ref size) != 0 || size.Columns == 0 || size.Rows == 0 || size.XPixels == 0 || size.YPixels == 0)
+            if (Ask(1, request, ref size) != 0 || size.Columns == 0 || size.Rows == 0 || size.XPixels == 0 || size.YPixels == 0)
             {
                 return null;
             }
