@@ -95,40 +95,58 @@ window.Dispose();
 
 return 0;
 
-// The photographs macOS ships with, as JPEGs: ImageSharp reads no HEIC, so `sips` converts a few into a temp folder.
+// Real photographs in the shapes a feed carries — landscape, wide and portrait — from picsum.photos (free stock
+// photos, fetched once into a temp folder), falling back to the one full-size photographic wallpaper macOS ships.
 static List<string> MacPhotos()
 {
-    var folder = Path.Combine(Path.GetTempPath(), "wooly-292-prototype");
+    var folder = Path.Combine(Path.GetTempPath(), "wooly-292-prototype-photos");
     Directory.CreateDirectory(folder);
 
-    string[] wanted =
+    (string Name, string Spec)[] wanted =
     [
-        "/System/Library/Desktop Pictures/.thumbnails/The Beach.heic",
-        "/System/Library/Desktop Pictures/.thumbnails/Tree.heic",
-        "/System/Library/Desktop Pictures/Sonoma.heic",
-        "/System/Library/Desktop Pictures/.thumbnails/Valley Light.heic",
-        "/System/Library/Desktop Pictures/.thumbnails/Iridescence.heic",
+        ("Lakeside 3x2", "10/1600/1067"),
+        ("River 16x9", "1015/1600/900"),
+        ("Dog portrait 3x4", "1025/1200/1600"),
+        ("Forest 3x2", "1018/1600/1067"),
+        ("Mountains 2x1", "1036/1600/800"),
     ];
 
     var found = new List<string>();
+    using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
 
-    foreach (var source in wanted.Where(File.Exists))
+    foreach (var (name, spec) in wanted)
     {
-        var target = Path.Combine(folder, Path.GetFileNameWithoutExtension(source) + ".jpg");
+        var target = Path.Combine(folder, name + ".jpg");
 
         if (!File.Exists(target))
         {
-            Process.Start(new ProcessStartInfo("sips", ["-s", "format", "jpeg", "-Z", "1600", source, "--out", target])
+            try
+            {
+                File.WriteAllBytes(target, http.GetByteArrayAsync($"https://picsum.photos/id/{spec}").GetAwaiter().GetResult());
+            }
+            catch
+            {
+                continue;
+            }
+        }
+
+        found.Add(target);
+    }
+
+    if (found.Count == 0 && File.Exists("/System/Library/Desktop Pictures/Sonoma.heic"))
+    {
+        var sonoma = Path.Combine(folder, "Sonoma.jpg");
+
+        if (!File.Exists(sonoma))
+        {
+            Process.Start(new ProcessStartInfo("sips", ["-s", "format", "jpeg", "-Z", "1600", "/System/Library/Desktop Pictures/Sonoma.heic", "--out", sonoma])
             {
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
             })!.WaitForExit();
         }
 
-        if (File.Exists(target))
-        {
-            found.Add(target);
-        }
+        found.Add(sonoma);
     }
 
     return found;
@@ -307,13 +325,24 @@ internal sealed class Feed(List<string> photos) : View
                 rows.Add(new TextRow("Scroll with the trackpad: the picture should move in the same frame as these words.", true));
                 rows.Add(new TextRow("", false));
 
-                // Rows from the photo's shape and the cell's: a cell is taller than it is wide.
-                var boxRows = (int)Math.Round((double)columns * _laidCell.Width * image.Height / image.Width / _laidCell.Height);
-                boxRows = Math.Clamp(boxRows, 1, Math.Min(Diacritics.All.Length, 40));
+                // Full width where the photo's shape allows it; a photo that would then be taller than most of the page
+                // is narrowed instead — fitted, never squashed. Rows and columns both from the photo's shape and the
+                // cell's, since a cell is taller than it is wide.
+                var most = Math.Max(6, Math.Min(Diacritics.All.Length, Viewport.Height * 3 / 4));
+                var boxColumns = columns;
+                var boxRows = (int)Math.Round((double)boxColumns * _laidCell.Width * image.Height / image.Width / _laidCell.Height);
+
+                if (boxRows > most)
+                {
+                    boxRows = most;
+                    boxColumns = (int)Math.Round((double)boxRows * _laidCell.Height * image.Width / image.Height / _laidCell.Width);
+                }
+
+                boxRows = Math.Max(1, boxRows);
 
                 for (var r = 0; r < boxRows; r++)
                 {
-                    rows.Add(new PictureRow(path, r, columns, boxRows));
+                    rows.Add(new PictureRow(path, r, boxColumns, boxRows));
                 }
 
                 rows.Add(new TextRow("", false));
