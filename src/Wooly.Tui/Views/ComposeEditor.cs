@@ -59,8 +59,16 @@ internal sealed class ComposeEditor(Action send, Action cancel, Action warn) : T
         return drawn;
     }
 
+    // PROTOTYPE: first refusal on every key, for the mention list while it is open.
+    public Func<Key, bool>? Intercept { get; set; }
+
     protected override bool OnKeyDown(Key key)
     {
+        if (Intercept?.Invoke(key) == true)
+        {
+            return true;
+        }
+
         // PROTOTYPE: F2 / F3 cycle the compose variants.
         if (key == Key.F2 || key == Key.F3)
         {

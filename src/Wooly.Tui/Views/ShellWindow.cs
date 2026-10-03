@@ -77,6 +77,17 @@ internal sealed class ShellWindow : Window
     // PROTOTYPE: the content warning as a field of its own.
     private readonly ComposeWarningField _warning;
 
+    // PROTOTYPE: @-mention autocomplete (variant A only): the list, what it matches, and where the @-word is.
+    private readonly PaintedView _mentions;
+    private IReadOnlyList<Mentionable> _matches = [];
+    private int _picked;
+    private (int Row, int Start, string Query)? _mention;
+    private (int Row, int Start)? _dismissed;
+    private bool _followsAsked;
+
+    /// <summary>PROTOTYPE: the caret in the text as written — (column, row) — which word wrap does not move.</summary>
+    private Point _unwrapped;
+
     // PROTOTYPE: the bar naming which compose variant is showing.
     private readonly VariantSwitcher? _switcher;
 
@@ -246,7 +257,24 @@ internal sealed class ShellWindow : Window
             Visible = false,
         };
 
-        Add(rail, _content, title, _editor, _warning, status);
+        _mentions = new PaintedView(theme, (width, _) => Mentions.Rows(_matches, _picked, _mention?.Query ?? string.Empty, width))
+        {
+            Visible = false,
+            CanFocus = false,
+            Width = 1,
+            Height = 1,
+        };
+
+        Add(rail, _content, title, _editor, _warning, _mentions, status);
+
+        _editor.ContentsChanged += (_, _) => Mentioned();
+        _editor.UnwrappedCursorPositionChanged += (_, e) =>
+        {
+            _unwrapped = e;
+            Mentioned();
+        };
+        _editor.DrawComplete += (_, _) => PlaceMentions();
+        _editor.Intercept = MentionKey;
 
         // PROTOTYPE: the editor in the theme's roles, a dim placeholder, the count kept live, and the switcher.
         IReadOnlyList<Rendering.Line> Render(Screen screen, int width) =>
@@ -316,6 +344,7 @@ internal sealed class ShellWindow : Window
         {
             _switcher?.Fit();
             SyncFields();
+            Mentioned();
             _warning.SetNeedsLayout();
             _editor.SetNeedsLayout();
             _editor.SetNeedsDraw();
@@ -768,6 +797,154 @@ internal sealed class ShellWindow : Window
         return ContentTop + answering + compose.WarningHeight;
     }
 
+    /// <summary>PROTOTYPE: who you follow, once, for the mention list; the made-up list stays where this fails.</summary>
+    private async Task LoadFollows()
+    {
+        try
+        {
+            var follows = await _shell.Follows();
+
+            if (follows.Count > 0)
+            {
+                Mentions.Known = [.. follows.Select(a => new Mentionable(string.IsNullOrWhiteSpace(a.Author) ? a.Address : a.Author, a.Address))];
+                Mentions.Real = true;
+            }
+        }
+        catch (Exception)
+        {
+            // The made-up list it is.
+        }
+    }
+
+    /// <summary>PROTOTYPE: the caret as (row, column) in the text as written, and that row.</summary>
+    private (int Row, int Column, string Line) Caret()
+    {
+        var lines = _editor.Text.Replace("\r\n", "\n").Split('\n');
+        var at = _unwrapped;
+        var row = Math.Clamp(at.Y, 0, lines.Length - 1);
+
+        return (row, Math.Clamp(at.X, 0, lines[row].Length), lines[row]);
+    }
+
+    /// <summary>PROTOTYPE: works out whether the caret is on an @-word, and what it matches.</summary>
+    private void Mentioned()
+    {
+        var was = _mentions.Visible;
+        _mention = null;
+        _matches = [];
+
+        if (ComposeVariants.Current.Key == "A" && _editor.Visible && _shell.Screen is ComposeScreen { WritingTheWarning: false })
+        {
+            var (row, column, line) = Caret();
+
+            if (Mentions.At(line, column) is { } word)
+            {
+                if (_dismissed != (row, word.Start))
+                {
+                    _dismissed = null;
+                    _mention = (row, word.Start, word.Query);
+                    _matches = Mentions.For(word.Query);
+                }
+            }
+            else
+            {
+                _dismissed = null;
+            }
+        }
+
+        _picked = Math.Clamp(_picked, 0, Math.Max(0, _matches.Count - 1));
+        _mentions.Visible = _matches.Count > 0;
+
+        if (_mentions.Visible)
+        {
+            _mentions.Width = Math.Min(Mentions.Width(_matches), Math.Max(10, _editor.Frame.Width));
+            _mentions.Height = _matches.Count + 2;
+            _mentions.SetNeedsDraw();
+        }
+        else
+        {
+            _picked = 0;
+        }
+
+        if (was != _mentions.Visible)
+        {
+            SetNeedsDraw();
+        }
+    }
+
+    /// <summary>
+    ///     PROTOTYPE: hangs the list under the @-word, or over it where there is no room below — read off where the
+    ///     editor put the terminal's cursor on the frame just drawn, which is the only place word wrap is settled.
+    /// </summary>
+    private void PlaceMentions()
+    {
+        if (!_mentions.Visible || _mention is not { } mention || _editor.Cursor.Position is not { } screen)
+        {
+            return;
+        }
+
+        var caret = ScreenToViewport(screen);
+        var height = _matches.Count + 2;
+        var floor = _editor.Frame.Bottom;
+        var x = Math.Max(_editor.Frame.X, caret.X - (mention.Query.Length + 1));
+        x = Math.Min(x, Math.Max(_editor.Frame.X, _editor.Frame.Right - _mentions.Frame.Width));
+        var y = caret.Y + 1 + height <= floor ? caret.Y + 1 : Math.Max(_editor.Frame.Y, caret.Y - height);
+
+        if (_mentions.Frame.X != x || _mentions.Frame.Y != y)
+        {
+            _mentions.X = x;
+            _mentions.Y = y;
+            SetNeedsLayout();
+            SetNeedsDraw();
+        }
+    }
+
+    /// <summary>PROTOTYPE: the list's keys while it is open; everything else goes on to the editor.</summary>
+    private bool MentionKey(Key key)
+    {
+        if (!_mentions.Visible || _mention is not { } mention)
+        {
+            return false;
+        }
+
+        if (key == Key.CursorDown || key == Key.CursorUp)
+        {
+            _picked = (_picked + (key == Key.CursorDown ? 1 : -1) + _matches.Count) % _matches.Count;
+            _mentions.SetNeedsDraw();
+
+            return true;
+        }
+
+        if (key == Key.Esc)
+        {
+            _dismissed = (mention.Row, mention.Start);
+            Mentioned();
+
+            return true;
+        }
+
+        if (key != Key.Tab && key != Key.Enter)
+        {
+            return false;
+        }
+
+        // Through the editor rather than round it, so the caret lands after the name and undo takes it back out.
+        var chosen = $"@{_matches[_picked].Address} ";
+        var typed = mention.Query.Length + 1;
+        _mentions.Visible = false;
+
+        for (var at = 0; at < typed; at++)
+        {
+            _editor.NewKeyDownEvent(Key.Backspace);
+        }
+
+        _editor.InsertText(chosen);
+        _dismissed = null;
+        Mentioned();
+
+        return true;
+    }
+
     /// <summary>PROTOTYPE: where the showing variant puts the editor, inside the content panel's viewport.</summary>
     private ComposeLayout Laid()
     {
@@ -890,6 +1067,12 @@ internal sealed class ShellWindow : Window
         {
             _editor.Text = ((ComposeScreen)_shell.Screen).Text;
             _warning.Text = ((ComposeScreen)_shell.Screen).Warning;
+
+            if (!_followsAsked)
+            {
+                _followsAsked = true;
+                _ = LoadFollows();
+            }
             _editor.Visible = true;
             _switcher?.Visible = true;
             _editor.SetFocus();
@@ -912,6 +1095,7 @@ internal sealed class ShellWindow : Window
 
         // PROTOTYPE: in place of the editor's CanFocus toggling, which only knew one field.
         SyncFields();
+        Mentioned();
         _warning.SetNeedsLayout();
 
         SetNeedsDraw();

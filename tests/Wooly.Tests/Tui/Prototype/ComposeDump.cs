@@ -9,7 +9,8 @@ using Wooly.Tui.Views;
 
 namespace Wooly.Tests.Tui.Prototype;
 
-// PROTOTYPE — throwaway. Renders the real shell headlessly with compose open, once per variant and state, to .ansi
+// PROTOTYPE — throwaway. Run each test on its own (filter by name): together they hang, the first window staying
+// subscribed to ComposeVariants.Changed after it is disposed. Renders the real shell headlessly with compose open, once per variant and state, to .ansi
 // (ansi2png.py makes a picture of one). Does nothing unless WOOLY_COMPOSE_DUMP names a directory to write into.
 public class ComposeDump
 {
@@ -127,5 +128,65 @@ public class ComposeDump
         Snap("reply");
 
         ComposeVariants.Select("A");
+    }
+
+    [Fact]
+    public async Task MentionList()
+    {
+        var into = Environment.GetEnvironmentVariable("WOOLY_COMPOSE_DUMP");
+
+        if (into is null)
+        {
+            return;
+        }
+
+        var built = new AShell { Timelines = FakeTimelineReader.Holding(Posts), RateLimit = FakeRateLimitReport.Of(212) };
+        var shell = await built.Opened();
+
+        using var application = Application.Create();
+        application.Init("ansi");
+        application.Driver!.SetScreenSize(120, 36);
+
+        using var window = new ShellWindow(shell, Themes.Dark, built.Clock, () => { }, FakePictures.DrawingNothing());
+        application.Begin(window);
+        Directory.CreateDirectory(into);
+        ComposeVariants.Select("A");
+
+        var log = new List<string>();
+
+        void Snap(string name)
+        {
+            application.LayoutAndDraw(true);
+            application.LayoutAndDraw(true);
+            File.WriteAllText(Path.Combine(into, $"M-{name}.ansi"), application.Driver.ToAnsi());
+            log.Add($"{name}: [{(shell.Screen as ComposeScreen)?.Text.Replace("\n", "⏎")}] on compose: {shell.Screen is ComposeScreen}");
+        }
+
+        void Type(string text)
+        {
+            foreach (var letter in text)
+            {
+                window.NewKeyDownEvent(letter == '\n' ? Key.Enter : new Key(letter));
+                application.LayoutAndDraw(true);
+            }
+        }
+
+        shell.Compose();
+        built.Host.Drain();
+        await Task.Delay(200, TestContext.Current.CancellationToken);
+        Wooly.Tui.Prototype.Mentions.Known = Wooly.Tui.Prototype.Mentions.Sample;
+        Type("Coffee this week with @ma");
+        Snap("1-typed");
+        window.NewKeyDownEvent(Key.CursorDown);
+        Snap("2-down");
+        window.NewKeyDownEvent(Key.Tab);
+        Snap("3-tab");
+        Type("and a long run of words so the next mention lands after the editor has wrapped the line onto another row @ken");
+        Snap("4-wrapped");
+        window.NewKeyDownEvent(Key.Esc);
+        Snap("5-esc");
+        Type("\nnobody@example.com should not open it, nor @zzz");
+        Snap("6-none");
+        File.WriteAllText(Path.Combine(into, "mentions.txt"), string.Join("\n", log));
     }
 }

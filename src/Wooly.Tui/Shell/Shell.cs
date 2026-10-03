@@ -182,6 +182,11 @@ public sealed class Shell
     public int Depth => _stack.Count;
 
     /// <summary>PROTOTYPE: the screen under the one on top, which the overlay compose variant draws behind itself.</summary>
+    internal async Task<IReadOnlyList<Wooly.Core.Accounts.Account>> Follows() => _acting is { } acting
+        ? (await _ports.Accounts.List(acting.Profile, Wooly.Core.Relationships.FollowSide.Following, null, 800, CancellationToken.None)).Items
+        : [];
+
+    /// <summary>PROTOTYPE: the screen under the one on top.</summary>
     internal Screen? Under => _stack.Count > 1 ? _stack[^2] : null;
 
     /// <summary>What each screen in the stack is called, outermost first — what the content panel is titled with.</summary>
