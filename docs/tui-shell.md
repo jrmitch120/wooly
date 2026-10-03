@@ -93,8 +93,8 @@ A screen is a place in the stack, not a window. Entering one pushes, `esc` pops,
 |---|---|---|
 | Feed — home, local, federated, the rail's own hashtag | A rail destination | #28 |
 | Hashtag — a tag walked to, not the rail's own | A search result, `⏎` on a `#hashtag` typed into search, or `⏎` on a picked hashtag reference | #29, reference #65, direct #305 |
-| Post — the post whole, its ancestor chain above and its replies below | `⏎` on a feed item | #28, ancestors #72 |
-| Account — who they are, what they are to you, their pinned posts and their posts, or their posts and replies | `a` on a feed item or inside a post, `s` to swap runs | shell #28, tie actions #29, the person #164, pinned #172, replies #229 |
+| Post — the post whole, its ancestor chain above and its replies below | `⏎` on a feed item, or on its address typed into search | #28, ancestors #72, direct #306 |
+| Account — who they are, what they are to you, their pinned posts and their posts, or their posts and replies | `a` on a feed item or inside a post, `⏎` on a handle or profile address typed into search, `s` to swap runs | shell #28, tie actions #29, the person #164, pinned #172, replies #229, direct #306 |
 | Follows — everyone an account follows, or everyone who follows it | `w` on an account, `s` to swap sides | #165 |
 | Discover — who to follow, in sections by why | A rail destination | #171 |
 | Search — prompt and results | A rail destination, or `/` | #29, moving between kinds #166 |
@@ -240,6 +240,17 @@ not answer them differently:
   nothing, since any well-formed tag has a timeline. `esc` comes back to the prompt as it was left, `#cats` still
   typed. Anything else — `cats`, `#cats dogs`, a lone `#` — is searched for as before, and the status row says
   `Search: ⏎` whatever is typed. The CLI's `search` never does this: scripts depend on its one output shape.
+- **`⏎` on a handle or a web address searches, then opens what it names on an exact match** (#306). A handle is
+  `@alice`, `@alice@host` or `alice@host` — an `@` somewhere, no whitespace, one or two parts; a bare `alice` is an
+  ordinary search. An address is a single `http`/`https` address, read as opening a link reads one, so
+  `host/@alice/110` is asked as `https://host/@alice/110` — though without a scheme it needs a dotted host and a path,
+  since a post or a profile always has one, and `node.js` or `3.14` stays a search for words. Either asks the one resolving search it always asked, and no
+  more. A handle opens the account whose full address it is (a bare `@alice` read against the profile's instance); an
+  address opens the one post or account it resolved to. What opens is pushed onto search as picking that result would
+  push it, with the results put up underneath, so `esc` comes back to them and the query. With no exact match —
+  `alice@host` turning up only `alicia@host`, a page that is neither a post nor a profile — the results are listed as
+  for any query, or `Nothing found`, and never an error. `@alice hello`, `@a@b@c` and an address with words after it
+  are ordinary searches.
 - **`⏎` on a follow request opens whoever is asking**, because the question is about a person and the answer to it is
   on their account screen.
 - **`⏎` inside a post opens anything on the thread but the post itself** — an answer below it, or an ancestor above it
