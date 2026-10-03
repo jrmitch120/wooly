@@ -46,6 +46,18 @@ internal sealed class DrawnShell : IDisposable
     ///     Whether the headless terminal says it draws sixel, which is what puts a picture's box on screen at all — a
     ///     box on a terminal drawing neither protocol is never shown.
     /// </param>
+    /// <param name="kittyImages">
+    ///     The Kitty terminal's image store, where a test is about what it is sent; one nobody reads if not.
+    /// </param>
+    /// <param name="drawsPlaceholders">
+    ///     Whether the terminal is known by name to draw Kitty's placeholders, which is what draws a picture as
+    ///     placeholder cells rather than through a box (ADR-0022).
+    /// </param>
+    /// <param name="answersKitty">
+    ///     Whether the headless terminal answers that it speaks the Kitty graphics protocol — which, on a terminal not
+    ///     known by name, still draws through a box.
+    /// </param>
+    /// <param name="encoding">Where a picture is encoded for a Kitty terminal, where a test is about when; on the spot if not.</param>
     public static async Task<DrawnShell> Of(
         int width,
         int height,
@@ -53,7 +65,11 @@ internal sealed class DrawnShell : IDisposable
         AShell? built = null,
         bool launch = false,
         IPictures? pictures = null,
-        bool drawsPictures = false)
+        bool drawsPictures = false,
+        FakeTerminalImages? kittyImages = null,
+        bool drawsPlaceholders = false,
+        bool answersKitty = false,
+        Action<Action>? encoding = null)
     {
         built ??= new AShell();
 
@@ -68,7 +84,26 @@ internal sealed class DrawnShell : IDisposable
             application.Driver.SetSixelSupport(new Terminal.Gui.Drawing.SixelSupportResult { IsSupported = true });
         }
 
-        var window = new ShellWindow(shell, theme, built.Clock, () => { }, pictures ?? FakePictures.DrawingNothing());
+        if (answersKitty)
+        {
+            application.Driver.SetKittyGraphicsSupport(
+                new Terminal.Gui.Drawing.KittyGraphicsSupportResult { IsSupported = true });
+        }
+
+        // Encoded on the spot rather than off the UI thread, so that a picture is sent on the frame that first wants it.
+        var placeholders = new Placeholders(
+            kittyImages ?? new FakeTerminalImages(),
+            drawsPlaceholders,
+            () => { },
+            encoding ?? (work => work()));
+
+        var window = new ShellWindow(
+            shell,
+            theme,
+            built.Clock,
+            () => { },
+            pictures ?? FakePictures.DrawingNothing(),
+            placeholders: placeholders);
 
         application.Begin(window);
         application.LayoutAndDraw(true);
@@ -93,6 +128,14 @@ internal sealed class DrawnShell : IDisposable
     /// <summary>One notch of the wheel over the cell: down, towards the foot of the page, or up.</summary>
     public void Wheel(int column, int row, bool down = true) =>
         Point(column, row, down ? MouseFlags.WheeledDown : MouseFlags.WheeledUp);
+
+    /// <summary>
+    ///     One notch of the wheel over the cell, handled and not yet drawn — as notches arriving while a slow frame is
+    ///     being drawn are, before the next one.
+    /// </summary>
+    public void WheelUndrawn(int column, int row) =>
+        Application.Mouse.RaiseMouseEvent(
+            new Mouse { ScreenPosition = new Point(column, row), Flags = MouseFlags.WheeledDown });
 
     /// <summary>One sideways notch over the cell, as a trackpad sends when a finger drifts: right, or left.</summary>
     public void WheelSideways(int column, int row, bool right = true) =>

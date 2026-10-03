@@ -19,10 +19,15 @@ namespace Wooly.Tui.Media;
 ///     What to do when a picture lands: redraw, so the rows that have been waiting for it fill in. Called off the
 ///     thread the fetch finished on, so whatever is passed here is what has to get back to the UI thread.
 /// </param>
+/// <param name="dropped">
+///     What to do when a picture is let go of to make room, given its <see cref="Drawn.Id" />: tell a Kitty terminal
+///     holding a copy to let go of it too (ADR-0022). Called on whichever thread made the room: the one that asked for a picture, or the one a fetch finished on.
+/// </param>
 public sealed class Pictures(
     Func<string, CancellationToken, Task<byte[]?>> fetch,
     Func<CellSize?> cell,
-    Action arrived) : IPictures, IDisposable
+    Action arrived,
+    Action<string>? dropped = null) : IPictures, IDisposable
 {
     /// <summary>
     ///     How many pictures are held at once. Only a handful can be on screen and only what is near the screen is ever
@@ -78,7 +83,12 @@ public sealed class Pictures(
     /// </summary>
     /// <param name="cell">How big a cell is — see the constructor.</param>
     /// <param name="arrived">What to do when one lands — see the constructor.</param>
-    public static Pictures Over(HttpClient http, Func<CellSize?> cell, Action arrived) => new(
+    /// <param name="dropped">What to do when one is let go of — see the constructor.</param>
+    public static Pictures Over(
+        HttpClient http,
+        Func<CellSize?> cell,
+        Action arrived,
+        Action<string>? dropped = null) => new(
         async (address, cancellation) =>
         {
             // Headers first, so that a length worth refusing is refused before the body is read rather than after it
@@ -95,7 +105,8 @@ public sealed class Pictures(
             return await Read(body, cancellation);
         },
         cell,
-        arrived);
+        arrived,
+        dropped);
 
     /// <inheritdoc />
     public Picture? Of(Drawn drawn)
@@ -109,6 +120,8 @@ public sealed class Pictures(
     /// <inheritdoc />
     public void Want(Drawn drawn)
     {
+        List<string> letGo;
+
         lock (_gate)
         {
             if (_held.ContainsKey(drawn.Id))
@@ -119,8 +132,10 @@ public sealed class Pictures(
             // Written down before the fetch goes out, and holding null until it lands: that is what makes asking on
             // every frame cost one fetch rather than one a frame, and what stops a picture that cannot be had from
             // being asked for again for as long as it is remembered.
-            Remember(drawn.Id, picture: null);
+            letGo = Remember(drawn.Id, picture: null);
         }
+
+        Announce(letGo);
 
         _ = Fetch(drawn);
     }
@@ -187,6 +202,8 @@ public sealed class Pictures(
             return;
         }
 
+        List<string> letGo = [];
+
         lock (_gate)
         {
             // Remembered afresh where it has since been dropped, so that what is held and the order it is dropped in
@@ -197,22 +214,44 @@ public sealed class Pictures(
             }
             else
             {
-                Remember(drawn.Id, picture);
+                letGo = Remember(drawn.Id, picture);
             }
         }
 
+        Announce(letGo);
         arrived();
     }
 
-    /// <summary>Holds a picture, dropping the one held longest once there are more than there is room for.</summary>
-    private void Remember(string id, Picture? picture)
+    /// <summary>
+    ///     Holds a picture, dropping the one held longest once there are more than there is room for, and says which
+    ///     were dropped — to be told outside the lock, since whoever is told may take one of its own.
+    /// </summary>
+    private List<string> Remember(string id, Picture? picture)
     {
+        var letGo = new List<string>();
+
         _held[id] = picture;
         _order.Enqueue(id);
 
         while (_order.Count > MostHeld)
         {
-            _held.Remove(_order.Dequeue());
+            var oldest = _order.Dequeue();
+
+            _held.Remove(oldest);
+            letGo.Add(oldest);
         }
+
+        return letGo;
+    }
+
+    /// <summary>Says which pictures were let go of, outside the lock <see cref="Remember" /> was called under.</summary>
+    private void Announce(List<string> letGo)
+    {
+        if (dropped is null)
+        {
+            return;
+        }
+
+        letGo.ForEach(dropped);
     }
 }

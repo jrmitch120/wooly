@@ -13,7 +13,7 @@ Panels, since ADR-0021. The rail and the content are each a rounded frame with a
 the dividing, so there is no breadcrumb row, no blank row under it and no gutter column.
 
 ```
-╭ Timelines ───────╮╭ Home › Post by @ben  ✳ ──────────────────────────────────╮
+╭ Timelines ───────╮╭ Home › Post by @ben  ✱ ──────────────────────────────────╮
 │Home             3││ content                                                  │
 │Local             ││ (feed · post · account · conversation · search)          │
 │Federated         ││                                                          │
@@ -567,9 +567,26 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
   or not anything is attached beside it — so that one prompt stands above everything a flagged post is holding back.
   The prompt is the one part of this the conversations list leaves off, `x` having nothing to act on there (#120,
   below); the warning above it, and the hiding itself, are the same on every screen.
-- **Sixel is preferred over Kitty, and the preference is subscribed to.** Both capabilities are answers the terminal
-  sends back some frames after startup, so a preference set once at startup is set against nothing and then overwritten
-  (ADR-0016).
+- **Ghostty and kitty are sent each picture once, and draw it as text** (#292, ADR-0022). The picture is drawn as
+  Kitty's Unicode placeholder cells in the content panel's own rows, so it moves in the same frame as the text, a box
+  half off the page draws the rows still on it, and a scroll sends no image data. It is encoded off the UI thread, a
+  screen ahead of the page, and its box keeps the rows it reserved until it is ready.
+- **Only a terminal known by name draws placeholders.** Ghostty and kitty are recognised from their environment at
+  startup; nothing can ask a terminal whether it draws placeholders. WezTerm takes Kitty graphics but prints
+  placeholders as boxes, so it — like Windows Terminal, Warp, and anything inside tmux or screen — draws through a
+  `PictureView` box: through Kitty where Terminal.Gui says the terminal speaks it, and through sixel otherwise
+  (ADR-0023). Terminal.Gui says so only for kitty and Ghostty, so in practice every box is sixel.
+- **A sixel is encoded once for each cut of a picture, and handed to the driver ready** (#292, ADR-0023). A picture
+  is scaled to its box once; a box straddling the edge of the page is framed to the rows still on it; each cut is
+  encoded once, kept, and encoded ahead off the UI thread for the next few rows of a scroll. A notch over sixel
+  photographs went from ~104 ms to ~29 ms. Sixel still sends every visible picture on every step — that is the
+  protocol.
+- **A frame paints each cell once** (#292). The content panel's frame paints its top and bottom edges and the two end
+  cells of each row between, not whole rows for the clip to cut down; a row paints its spans and then clears only
+  what is left; and the viewport is not cleared before the rows that cover all of it. A wheel notch over text went
+  from ~16–19 ms to ~11–13 ms, headless; what remains is Terminal.Gui's own.
+- **A placeholder cell is the size the kernel says** — the window's pixels over its cells (`TIOCGWINSZ`), then the
+  protocol's answer, then 10×20. A box keeps the protocol's answer, which is what Terminal.Gui draws it by.
 - **There is no cell-based fallback.** A terminal offering neither sixel nor the Kitty graphics protocol links every
   attachment, a photograph included, exactly the way the CLI writes one. The coloured-block rendering the ticket asked
   for was built and rejected on the evidence: a photograph as a few dozen rectangles resembles nothing and is worse
@@ -1159,7 +1176,7 @@ and #213 settled the row; #216 and #217 build it:
   row needs said: this is the frame. So `crumb` was added, the band goes under everything on the row — crumbs,
   separators, the `… › ` lead, the room left over and the fetch mark — and the seam under it went back to being
   blank. A band under half the row would read as a highlight on that half, which is the objection this keeps.
-- **The fetch mark moves, and is laid out so nothing else does.** `· ✢ ✳ ✶ ✻ ✽ ✻ ✶ ✳ ✢`, Claude Code's star
+- **The fetch mark moves, and is laid out so nothing else does.** `· ✢ ✱ ✶ ✻ ✽ ✻ ✶ ✱ ✢`, Claude Code's star
   growing from a dot and shrinking back, a frame every 400ms and the first again after the last, in `spinner`, a space
   after the trail's last crumb (#281). One space rather than two, so the star sits evenly between the crumb and the
   edge's rule, which the edge parts from the title by one space too. Every frame is one column, so the mark is as wide

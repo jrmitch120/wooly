@@ -16,9 +16,11 @@ namespace Wooly.Tui.Views;
 ///     rather than by discipline: no other view has a way to.
 /// </summary>
 /// <remarks>
-///     The one thing it does not paint itself is a picture, which is drawn over the rows a post reserved for it by a
-///     <see cref="PictureView" /> per box. Those boxes ride the rows: they are placed from the same scroll position the
-///     text is drawn at, on every frame, so a picture cannot come adrift from the post it belongs to (ADR-0016).
+///     On a Kitty terminal it paints the pictures too, as placeholder cells over the rows a post reserved for each: the
+///     picture is sent to the terminal once and is part of the rows from then on, so it moves in the same frame as the
+///     text around it (ADR-0022). Anywhere else a picture is drawn over those rows by a <see cref="PictureView" /> per
+///     box. Those boxes ride the rows: they are placed from the same scroll position the text is drawn at, on every
+///     frame, so a picture cannot come adrift from the post it belongs to (ADR-0016).
 /// </remarks>
 internal sealed class PaintedView : View
 {
@@ -41,11 +43,22 @@ internal sealed class PaintedView : View
     /// </remarks>
     private const int MostBoxes = 24;
 
+    /// <summary>How many rows of a scroll the cuts of a sixel are encoded ahead of it (ADR-0023).</summary>
+    private const int Ahead = 4;
+
     private readonly ITheme _theme;
     private readonly Func<int, int, IReadOnlyList<Line>> _rows;
     private readonly IPictures? _pictures;
     private readonly Func<int, int, IReadOnlyList<Line>>? _frame;
     private readonly List<PictureView> _boxes = [];
+    private readonly Placeholders? _placeholders;
+    private readonly SixelPictures _sixels = new();
+
+    /// <summary>Where the page began the last time pictures were placed, which says which way it is moving.</summary>
+    private int _placedAt;
+
+    /// <summary>The pictures drawn as placeholders this frame, with the row each starts on and its image id.</summary>
+    private List<(Inset Inset, int Top, int Id)> _placed = [];
 
     private IReadOnlyList<Line>? _settled;
     private int _top;
@@ -62,6 +75,10 @@ internal sealed class PaintedView : View
     ///     The panel this region is drawn inside, given the whole of the view's width and height — <see cref="Panel" />'s
     ///     rows, of which only the edges are painted — or <see langword="null" /> for a region with no frame.
     /// </param>
+    /// <param name="placeholders">
+    ///     What a Kitty terminal holds, for drawing pictures as placeholder cells rather than through a box, or
+    ///     <see langword="null" /> to draw every picture through a box (ADR-0022).
+    /// </param>
     /// <remarks>
     ///     A frame is laid on a one-cell <c>Padding</c> round the view, so everything measured off
     ///     <see cref="View.Viewport" /> — the rows' width and height, the scroll, a page's worth — is the inside of it,
@@ -72,12 +89,14 @@ internal sealed class PaintedView : View
         ITheme theme,
         Func<int, int, IReadOnlyList<Line>> rows,
         IPictures? pictures = null,
-        Func<int, int, IReadOnlyList<Line>>? frame = null)
+        Func<int, int, IReadOnlyList<Line>>? frame = null,
+        Placeholders? placeholders = null)
     {
         _theme = theme;
         _rows = rows;
         _pictures = pictures;
         _frame = frame;
+        _placeholders = pictures is null ? null : placeholders;
 
         if (frame is not null)
         {
@@ -292,15 +311,16 @@ internal sealed class PaintedView : View
     ///     one takes it off the terminal at once and needs no redraw to do it.
     ///     <para>
     ///         Clearing the viewport is the first thing a view does when it draws, so it is the last moment before the
-    ///         boxes are drawn. Nothing is cleared differently for it: the answer is always <see langword="false" />,
-    ///         which is "carry on".
+    ///         boxes are drawn. And the viewport is not cleared at all — the answer is <see langword="true" />, "done" —
+    ///         because <see cref="OnDrawingContent" /> paints every cell of every row of it anyway, and clearing first
+    ///         was painting the page twice a frame (#292).
     ///     </para>
     /// </remarks>
     protected override bool OnClearingViewport()
     {
         Settle();
 
-        return false;
+        return true;
     }
 
     protected override bool OnDrawingContent(DrawContext? context)
@@ -327,13 +347,48 @@ internal sealed class PaintedView : View
             Paint(at >= 0 && at < lines.Count ? lines[at] : null, 0, row, width);
         }
 
+        PaintPlaceholders(lines, width, height);
+
         return true;
     }
 
     /// <summary>
-    ///     The frame, painted on the ring of padding round the viewport. Terminal.Gui clips this pass to that ring, so
-    ///     the panel's rows are painted whole and only their edges land — the inside is the viewport's, drawn above.
+    ///     Every row of every picture placed this frame that is on the page, as placeholder cells over the rows its post
+    ///     reserved — including the lower rows of a box whose top has been scrolled off, which the terminal crops
+    ///     (ADR-0022).
     /// </summary>
+    private void PaintPlaceholders(IReadOnlyList<Line> lines, int width, int height)
+    {
+        foreach (var (inset, top, id) in _placed)
+        {
+            // Cut at the right edge, where the terminal draws the left of the picture and no more.
+            var columns = Math.Min(inset.Columns, width - inset.Column);
+
+            if (columns < 1)
+            {
+                continue;
+            }
+
+            for (var row = Math.Max(0, -top); row < inset.Rows && top + row < height; row++)
+            {
+                var at = _top + top + row;
+                var picked = at < lines.Count && lines[at].Picked;
+
+                // On the band where the post is picked, so a picture with transparency in it shows what the row is on.
+                SetAttribute(KittyPlaceholder.Painted(id, picked ? _theme.Banded(Role.Body) : _theme.For(Role.Body)));
+                AddStr(inset.Column, top + row, KittyPlaceholder.Row(row, columns));
+            }
+        }
+    }
+
+    /// <summary>
+    ///     The frame, painted on the ring of padding round the viewport: its top and bottom edges whole, and of every
+    ///     row between them only the two cells at its ends — the inside is the viewport's, drawn above.
+    /// </summary>
+    /// <remarks>
+    ///     Terminal.Gui clips this pass to the ring, so painting the rows between whole landed only their ends anyway,
+    ///     and paid for every cell inside them first: about half of what the content panel cost to paint (#292).
+    /// </remarks>
     protected override bool OnDrawingAdornments()
     {
         if (_frame is null)
@@ -347,34 +402,46 @@ internal sealed class PaintedView : View
         // Counted from the viewport's corner, which the frame sits one cell above and to the left of.
         for (var row = 0; row < edges.Count; row++)
         {
-            Paint(edges[row], -1, row - 1, width);
+            if (row == 0 || row == edges.Count - 1 || !PaintEnds(edges[row], row - 1, width))
+            {
+                Paint(edges[row], -1, row - 1, width);
+            }
         }
 
         return true;
     }
 
     /// <summary>
-    ///     One row, <paramref name="width" /> columns of it from <paramref name="left" />, cleared first and then its
-    ///     spans painted in what the theme answers for each.
+    ///     The cell at each end of a frame's row and nothing between, where the row is one cell at each end around
+    ///     whatever is inside — which a panel's row is (<see cref="Panel.Between" />). Answers whether it was.
+    /// </summary>
+    private bool PaintEnds(Line line, int row, int width)
+    {
+        if (line.Spans is not [var left, .., var right] || left.Width != 1 || right.Width != 1 || line.Width != width)
+        {
+            return false;
+        }
+
+        var picked = line.Picked;
+
+        SetAttribute(picked ? _theme.Banded(left.Role) : _theme.For(left.Role));
+        AddStr(-1, row, left.Text);
+        SetAttribute(picked ? _theme.Banded(right.Role) : _theme.For(right.Role));
+        AddStr(width - 2, row, right.Text);
+
+        return true;
+    }
+
+    /// <summary>
+    ///     One row, <paramref name="width" /> columns of it from <paramref name="left" />: its spans painted in what
+    ///     the theme answers for each, and the rest of the row cleared after them.
     /// </summary>
     private void Paint(Line? line, int left, int row, int width)
     {
         var picked = line?.Picked == true;
-
-        // Cleared first, in the theme's own background, so that a row which is shorter than the one it replaced
-        // does not leave the tail of the old one behind it — and on the band, for a row of the thing picked out,
-        // so that the band runs to the edge of the view rather than stopping where the words do (#269).
-        SetAttribute(picked ? _theme.Banded(Role.Body) : _theme.For(Role.Body));
-        AddStr(left, row, new string(' ', width));
-
-        if (line is null)
-        {
-            return;
-        }
-
         var column = 0;
 
-        foreach (var span in line.Spans)
+        foreach (var span in line?.Spans ?? [])
         {
             if (column >= width)
             {
@@ -392,6 +459,16 @@ internal sealed class PaintedView : View
             AddStr(left + column, row, text);
 
             column += Glyphs.Columns(text);
+        }
+
+        // The rest cleared, in the theme's own background, so that a row which is shorter than the one it replaced
+        // does not leave the tail of the old one behind it — and on the band, for a row of the thing picked out, so
+        // that the band runs to the edge of the view rather than stopping where the words do (#269). After the spans
+        // rather than under them, so that each cell is painted once (#292).
+        if (column < width)
+        {
+            SetAttribute(picked ? _theme.Banded(Role.Body) : _theme.For(Role.Body));
+            AddStr(left + column, row, new string(' ', width - column));
         }
     }
 
@@ -411,6 +488,7 @@ internal sealed class PaintedView : View
             // Nothing can be drawn, so nothing may be left drawn either: a box still showing from the last size this
             // view had would be a picture over whatever replaces it.
             _boxes.ForEach(box => box.Release());
+            _placed = [];
 
             return;
         }
@@ -418,7 +496,22 @@ internal sealed class PaintedView : View
         var lines = Rows(width, height);
 
         Want(lines, height);
-        Place(lines, height);
+
+        // Whatever the terminal was told to let go of since the last frame, before anything is sent.
+        _placeholders?.Flush();
+
+        if (_placeholders?.Drawing == true)
+        {
+            // Released rather than merely unused, so that nothing drawn through a box before the terminal said it
+            // speaks Kitty is left on screen under the placeholders.
+            _boxes.ForEach(box => box.Release());
+            _placed = Sent(lines, height);
+        }
+        else
+        {
+            _placed = [];
+            Place(lines, height);
+        }
 
         _settled = lines;
     }
@@ -509,6 +602,15 @@ internal sealed class PaintedView : View
 
         var wanted = Wanted(lines, height);
 
+        if (_pictures.Cell is not { } cell)
+        {
+            _boxes.ForEach(box => box.Release());
+
+            return;
+        }
+
+        var colours = SixelColours();
+
         // Who draws what, settled for the whole frame before anything moves — see Boxes. Asking box by box is what
         // this used to do, and it could not see that one picture was wanted once and held twice.
         var drawing = Boxes(
@@ -546,12 +648,35 @@ internal sealed class PaintedView : View
 
             var (inset, top, picture) = wanted[at];
             var box = _boxes[which];
-            var frame = new Rectangle(inset.Column, top, inset.Columns, inset.Rows);
 
-            box.Show(inset.Drawn.Id, picture);
+            // Through Kitty the image view draws the whole box, which it sends once and moves (ADR-0016).
+            if (colours == 0)
+            {
+                var whole = new Rectangle(inset.Column, top, inset.Columns, inset.Rows);
 
-            // Only when it has actually moved: setting it throws away the scaled copy and re-encodes the picture,
-            // which on a feed redrawn per keypress would be a re-transmission per keypress.
+                box.Show(inset.Drawn.Id, picture);
+
+                if (box.Frame != whole)
+                {
+                    box.Frame = whole;
+                }
+
+                box.Visible = box.CanDraw;
+
+                continue;
+            }
+
+            // Only the part of the box on the page: a box straddling the top or bottom is framed to the rows still on
+            // it, so the picture is cut here, once per cut, rather than by the driver on every frame (#292).
+            if (OnPage(inset, top, height) is not var (frame, crop))
+            {
+                box.Release();
+
+                continue;
+            }
+
+            box.Show(inset.Drawn.Id, _sixels.Of(inset, picture, cell, crop, colours));
+
             if (box.Frame != frame)
             {
                 box.Frame = frame;
@@ -560,7 +685,111 @@ internal sealed class PaintedView : View
             // Never drawn as coloured cells, whatever ImageView would have been willing to do (ADR-0016).
             box.Visible = box.CanDraw;
         }
+
+        if (colours > 0)
+        {
+            Prepare(lines, height, cell, colours);
+        }
     }
+
+    /// <summary>
+    ///     Starts encoding, off the UI thread, the cuts of the pictures at the edges of the page that the next few rows
+    ///     of a scroll will want — including a box just off the page, about to come onto it.
+    /// </summary>
+    /// <remarks>
+    ///     A box straddling the edge is cut a row differently on every step, and encoding the cut on the frame that
+    ///     wants it was most of what a step cost once nothing else was encoded twice (#292). An encode takes longer
+    ///     than the gap between two notches of a trackpad, so a row ahead is not far enough: <see cref="Ahead" /> rows
+    ///     the way the page is moving, and one the other way for a reader who turns round. A box wholly on the page is
+    ///     the same cut whichever way it moves, and costs nothing here.
+    /// </remarks>
+    private void Prepare(IReadOnlyList<Line> lines, int height, CellSize cell, int colours)
+    {
+        var moving = Math.Sign(_top - _placedAt);
+
+        _placedAt = _top;
+
+        foreach (var (inset, top, picture) in Wanted(lines, height, near: Ahead))
+        {
+            var now = OnPage(inset, top, height)?.Crop;
+
+            for (var rows = -Ahead; rows <= Ahead; rows++)
+            {
+                // The page moving down is a box moving up it, so a box's top a row higher.
+                var ahead = moving != 0 && Math.Sign(rows) == -moving;
+
+                if (rows == 0 || (!ahead && Math.Abs(rows) > 1))
+                {
+                    continue;
+                }
+
+                if (OnPage(inset, top + rows, height) is { Crop: var next } && next != now)
+                {
+                    _sixels.Prepare(inset, picture, cell, next, colours);
+                }
+            }
+        }
+    }
+
+
+    /// <summary>
+    ///     The part of a box whose top is on row <paramref name="top" /> of the page that is on it — its frame, and
+    ///     which of its rows and columns those are — or <see langword="null" /> where none of it is.
+    /// </summary>
+    private (Rectangle Frame, SixelCrop Crop)? OnPage(Inset inset, int top, int height)
+    {
+        var first = Math.Max(0, -top);
+        var rows = Math.Min(inset.Rows, height - top) - first;
+        var columns = Math.Min(inset.Columns, Viewport.Width - inset.Column);
+
+        return rows < 1 || columns < 1
+            ? null
+            : (new Rectangle(inset.Column, top + first, columns, rows), new SixelCrop(first, rows, columns));
+    }
+
+    /// <summary>
+    ///     The pictures on the page that a Kitty terminal holds, sending any that are ready and have not been sent. A
+    ///     picture still being encoded is left out, and its box keeps the rows it reserved until a redraw brings it.
+    /// </summary>
+    /// <remarks>
+    ///     A screen either side of the page is encoded ahead, the same reach <see cref="Want" /> fetches over, so that a
+    ///     picture scrolled to is usually ready rather than encoded the frame it comes into view (ADR-0022).
+    /// </remarks>
+    private List<(Inset Inset, int Top, int Id)> Sent(IReadOnlyList<Line> lines, int height)
+    {
+        if (_pictures?.Cell is not { } cell)
+        {
+            return [];
+        }
+
+        var placed = new List<(Inset, int, int)>();
+
+        foreach (var (inset, top, picture) in Wanted(lines, height, near: height))
+        {
+            if (top + inset.Rows <= 0 || top >= height)
+            {
+                _placeholders!.Prepare(inset, picture, cell);
+            }
+            else if (_placeholders!.Ready(inset, picture, cell) is { } id)
+            {
+                placed.Add((inset, top, id));
+            }
+        }
+
+        return placed;
+    }
+
+
+    /// <summary>
+    ///     How many colours a sixel is encoded in on this terminal, or none where a box draws through Kitty instead:
+    ///     all 256 sixel allows, or fewer where the terminal says it has fewer. Terminal.Gui's image view stops at 64,
+    ///     at which a photograph's gradients break into patches (ADR-0023).
+    /// </summary>
+    private int SixelColours() =>
+        App?.Driver is { } driver
+        && RasterProtocol.Chosen(driver.SixelSupport, driver.KittyGraphicsSupport) is PictureWay.Sixel
+            ? Math.Min(256, driver.SixelSupport!.MaxPaletteColors)
+            : 0;
 
     /// <summary>
     ///     Which box draws which of the pictures wanted this frame: the box already holding one where there is one,
@@ -632,9 +861,10 @@ internal sealed class PaintedView : View
 
     /// <summary>
     ///     The pictures to draw this frame, with the row each starts on — which may be above the top of the view or
-    ///     run past its bottom, for a box being scrolled past.
+    ///     run past its bottom, for a box being scrolled past — and with <paramref name="near" />, those within that
+    ///     many rows of the page as well.
     /// </summary>
-    private List<(Inset Inset, int Top, Picture Picture)> Wanted(IReadOnlyList<Line> lines, int height)
+    private List<(Inset Inset, int Top, Picture Picture)> Wanted(IReadOnlyList<Line> lines, int height, int near = 0)
     {
         var wanted = new List<(Inset, int, Picture)>();
 
@@ -646,7 +876,7 @@ internal sealed class PaintedView : View
 
                 // Off the top or off the bottom. A box straddling either edge is kept and clipped, which is what
                 // keeps a picture visible while it is being scrolled past rather than blinking out at the edge.
-                if (top + inset.Rows <= 0 || top >= height)
+                if (top + inset.Rows <= -near || top >= height + near)
                 {
                     continue;
                 }

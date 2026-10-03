@@ -109,13 +109,18 @@ internal sealed class ShellWindow : Window
     ///     The reader's <c>hide_drawn_caption</c> preference (#71): whether a picture's caption hides once it is
     ///     actually drawn.
     /// </param>
+    /// <param name="placeholders">
+    ///     What a Kitty terminal holds, for drawing a picture as placeholder cells (ADR-0022), or
+    ///     <see langword="null" /> to draw every picture through a box.
+    /// </param>
     public ShellWindow(
         Shell.Shell shell,
         ITheme theme,
         TimeProvider clock,
         Action quit,
         IPictures pictures,
-        bool hideDrawnCaption = false)
+        bool hideDrawnCaption = false,
+        Placeholders? placeholders = null)
     {
         _shell = shell;
         _clock = clock;
@@ -160,7 +165,8 @@ internal sealed class ShellWindow : Window
                 [],
                 width,
                 height,
-                active: true))
+                active: true),
+            placeholders)
         {
             Id = ContentId,
             X = RailLines.Width,

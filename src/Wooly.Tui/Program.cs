@@ -73,10 +73,6 @@ try
         ShellTiming.Default,
         config.Preferences.Hashtag);
 
-    // Story 49 asks for sixel first and Kitty where sixel is not there, which is the other way round from the order
-    // Terminal.Gui tries them in. Settled once, here, before anything has been drawn (ADR-0016).
-    RasterProtocol.PreferSixel(application.Driver);
-
     // A preview comes off a file server rather than off the API, so it goes out on its own client: it needs no token,
     // it counts against no rate limit, and a picture that will not load must not spend the retry budget a timeline's
     // fetch is relying on.
@@ -104,7 +100,30 @@ try
         });
     }
 
-    using var pictures = Pictures.Over(files, () => RasterProtocol.CellOf(application.Driver), Redraw);
+    // Ghostty and kitty say who they are in the environment, which is known before the first frame — and they are the
+    // terminals known to draw Kitty's placeholders, which WezTerm takes and then prints as boxes (#292, ADR-0022).
+    var placeholdersByName = KnownTerminal.DrawsPlaceholders(Environment.GetEnvironmentVariable);
+
+    // The cell as the kernel measures it, which is the real one: Terminal.Gui's guess stretched every photograph.
+    // Measured again when the screen changes size, a change of font size included.
+    var windowSize = new WindowSize(
+        () => (application.Driver?.Cols ?? 0, application.Driver?.Rows ?? 0),
+        WindowSize.Measure);
+
+    // On a Kitty terminal a picture is sent once and drawn as text (ADR-0022). Written on the UI thread, which is the
+    // only one a frame asks from; the PNG it sends is encoded off it, and a redraw brings the picture in once it is.
+    // Disposed before the application is, which is what takes every picture this run sent off the terminal.
+    using var placeholders = new Placeholders(
+        new KittyImages(sequence => application.Driver?.GetOutput().Write(sequence)),
+        placeholdersByName,
+        Redraw,
+        work => Task.Run(work));
+
+    using var pictures = Pictures.Over(
+        files,
+        () => RasterProtocol.CellOf(application.Driver, placeholdersByName, () => windowSize.Cell),
+        Redraw,
+        placeholders.Drop);
 
     using var window = new ShellWindow(
         shell,
@@ -112,7 +131,8 @@ try
         clock,
         application.RequestStop,
         pictures,
-        config.Preferences.HideDrawnCaption);
+        config.Preferences.HideDrawnCaption,
+        placeholders);
 
     // A paste arrives as one string rather than as keys, before it is handed to whatever has focus. The shell takes
     // it where one of its own fields is typing, and leaves it to the compose editor everywhere else.

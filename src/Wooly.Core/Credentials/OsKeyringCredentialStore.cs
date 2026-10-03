@@ -5,8 +5,9 @@ namespace Wooly.Core.Credentials;
 /// <summary>
 ///     Access tokens held by the OS's own secure store, reached through <c>Devlooped.CredentialManager</c> (ADR-0003).
 ///     That library speaks in (service, account) pairs and prefixes the service with the namespace it was opened
-///     under, so this client's entries read as <c>wooly:access-token</c> in Keychain or Credential Manager,
-///     one per profile.
+///     under, so this client's entries read as <c>wooly:access-token</c> in Keychain or Secret Service, one per
+///     profile. Not on Windows, which reaches Credential Manager through its own API instead
+///     (<see cref="WindowsCredentialStore" />): Git Credential Manager opens only where Git is installed.
 ///     <para>
 ///         Only <see cref="Open()" /> can build one, so the name on this class is a promise rather than a hope: there
 ///         is no way to end up with an <c>OsKeyringCredentialStore</c> over a store that is not the OS keyring.

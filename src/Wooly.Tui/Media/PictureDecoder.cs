@@ -74,6 +74,39 @@ internal static class PictureDecoder
     }
 
     /// <summary>
+    ///     <paramref name="picture" /> resized to exactly <paramref name="width" /> by <paramref name="height" />
+    ///     pixels — the box it is drawn in, so that the terminal is handed pixels it has nothing left to do to.
+    /// </summary>
+    public static Picture Scaled(Picture picture, int width, int height)
+    {
+        if (picture.Width == width && picture.Height == height)
+        {
+            return picture;
+        }
+
+        using var image = new Image<Rgba32>(picture.Width, picture.Height);
+
+        image.ProcessPixelRows(rows =>
+        {
+            for (var y = 0; y < rows.Height; y++)
+            {
+                var row = rows.GetRowSpan(y);
+
+                for (var x = 0; x < row.Length; x++)
+                {
+                    var pixel = picture.Pixels[x, y];
+
+                    row[x] = new Rgba32(pixel.R, pixel.G, pixel.B, pixel.A);
+                }
+            }
+        });
+
+        image.Mutate(context => context.Resize(width, height));
+
+        return new Picture(Pixels(image));
+    }
+
+    /// <summary>
     ///     The image as the array Terminal.Gui's encoders read: indexed <c>[x, y]</c>, width first.
     /// </summary>
     /// <remarks>

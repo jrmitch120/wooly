@@ -50,8 +50,11 @@ public static class ServiceCollectionExtensions
 
         // Which store this resolves to depends on the machine, and is settled on first use rather than here —
         // opening a keyring can prompt or block, and a command that never needs a token should never pay for it.
+        //
+        // On Windows the keyring is Credential Manager through Windows' own API; elsewhere it is Git Credential
+        // Manager, which opens only where Git is installed — something a Windows machine cannot be assumed to have.
         services.AddSingleton<ICredentialStore>(provider => new FallbackCredentialStore(
-            OsKeyringCredentialStore.Open,
+            () => OperatingSystem.IsWindows() ? WindowsCredentialStore.Open() : OsKeyringCredentialStore.Open(),
             new PlaintextFileCredentialStore(provider.GetRequiredService<WoolyPaths>())));
 
         // Sits above both stores. Commands ask this rather than the stores, so that a profile's config half and its

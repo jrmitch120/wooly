@@ -19,12 +19,19 @@ public partial class NoHardCodedColourTests
     private const string TheThemesOwnFolder = "Theme";
 
     /// <summary>
-    ///     The one file outside the theme that builds colours, and the reason it is allowed to: a photograph's own
+    ///     The files outside the theme that build colours, and the reason they are allowed to: a photograph's own
     ///     pixels are the content rather than a role, and there is no sense in which a theme could answer for them
-    ///     (ADR-0016). Named one file at a time rather than by folder, so that a screen dropped in beside it is still
-    ///     caught.
+    ///     (ADR-0016) — and nor could it for the image id a Kitty placeholder cell carries in its colour (ADR-0022), or
+    ///     for the cells under a sixel, which are painted with no colour at all so the driver leaves them to the picture.
+    ///     Named one file at a time rather than by folder, so that a screen dropped in beside them is still caught.
     /// </summary>
-    private static readonly string[] WhereThePixelsAre = [Path.Combine("Media", "PictureDecoder.cs")];
+    private static readonly string[] WhereThePixelsAre =
+    [
+        Path.Combine("Media", "PictureDecoder.cs"),
+        Path.Combine("Media", "KittyPlaceholder.cs"),
+        Path.Combine("Media", "PictureView.cs"),
+        Path.Combine("Media", "SixelPalette.cs"),
+    ];
 
     [Fact]
     public void NoViewOutsideTheThemeConstructsAColour()
