@@ -13,7 +13,7 @@ Panels, since ADR-0021. The rail and the content are each a rounded frame with a
 the dividing, so there is no breadcrumb row, no blank row under it and no gutter column.
 
 ```
-╭ Timelines ───────╮╭ Home › Post by @ben ───────────────────────── fetching.. ╮
+╭ Timelines ───────╮╭ Home › Post by @ben  ⠹ ──────────────────────────────────╮
 │Home             3││ content                                                  │
 │Local             ││ (feed · post · account · conversation · search)          │
 │Federated         ││                                                          │
@@ -44,8 +44,8 @@ the dividing, so there is no breadcrumb row, no blank row under it and no gutter
 | Status | 1 row, full width | The current screen's keys as `Does: key \| Does: key`, as many as fit and `…+N` for the rest; or a notice; or a confirmation; the quota again when the rail is hidden |
 
 The content panel's title is the stack: the crumbs walked through in `muted`, the one stood on in `panel-title`, eliding
-from the left so it always ends where you are, and the fetch mark at the far end of the edge while a fetch is in flight.
-The mark's 11 columns are held whether or not it is drawn, so it never moves the trail. The panel's edge is always
+from the left so it always ends where you are, and the fetch mark, a braille spinner, two spaces after it while a fetch is
+in flight. The mark's 3 columns are held whether or not it is drawn, so it never moves the trail. The panel's edge is always
 `panel-border-active`: it is the panel being read. Its rows are 58 columns wide at an 80-column terminal. That is the
 width every screen must read well at: the 61 of ADR-0014 less the cell the gutter column gave up to the content panel's
 left edge, and less the two the rail took when it widened to 20 so that a label and its count both fit (#272).
@@ -1116,6 +1116,10 @@ which of them had one to put there. #204 did:
 > how it elides stand as below; the row, its `crumb` band and the blank row under it are gone, and `crumb` and
 > `crumb-current` are retired: the crumb stood on is `panel-title` and the ones walked through are `muted` (#271). The
 > fetch mark's columns are now held whether or not it is drawn, so a trail no longer elides differently mid-fetch.
+>
+> **Changed by #281.** The fetch mark is a braille spinner straight after the trail, not the word `fetching` with dots
+> at the end of the edge. The bullets below on the mark say what it is now; the dots are kept only where marked as
+> superseded.
 
 The trail said where you are and drew itself as one `Role.Chrome` span, so it said nothing of the sort — and
 `FeedScreen.Crumb` lowercased the rail's own label, so the sidebar said `Home` and the breadcrumb said `home`. #168
@@ -1155,32 +1159,39 @@ and #213 settled the row; #216 and #217 build it:
   row needs said: this is the frame. So `crumb` was added, the band goes under everything on the row — crumbs,
   separators, the `… › ` lead, the room left over and the fetch mark — and the seam under it went back to being
   blank. A band under half the row would read as a highlight on that half, which is the objection this keeps.
-- **The fetch mark moves, and is laid out so nothing else does.** `fetching.` → `fetching..` → `fetching...` →
-  `fetching.`, a dot every 400ms. It owns the **rightmost 11 columns** with the word at the left of that field and
-  the unfilled dots padded, so the word cannot move and the trail under it cannot re-elide on the tick — a mark 9
-  columns wide on one tick and 11 on the next moves the row at both ends. Those 2 columns come off the trail only
-  while a fetch is in flight: at 61 columns of content the trail has 49 rather than 51. Reserving them permanently
-  was refused, because eliding from the left means the only thing that moves when a fetch starts is the `… › ` lead.
+- **The fetch mark moves, and is laid out so nothing else does.** `⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏`, a frame every 400ms and
+  the first again after the last, in `loading`, two spaces after the trail's last crumb (#281). Every frame is one
+  column, so the mark is as wide on one tick as the next. Its **3 columns** — the two spaces and the glyph — are held
+  whether or not it is drawn, so the trail elides in the same room at rest as on every tick and never re-elides as a
+  fetch starts or ends. At 80 columns that leaves the trail 55 columns.
+  It sits **straight after the trail rather than at the far end of the edge**, beside the crumb you are standing on,
+  which is what the fetch is about to replace. A trail long enough to elide fills most of its room, so there the
+  spinner lands near the end of the edge anyway; a short trail is followed by it. A panel too narrow to hold the mark
+  beside a column of trail never draws it, and holds no room for it.
+  *Superseded by #281:* the mark was `fetching.` → `fetching..` → `fetching...`, owning the rightmost 11 columns of
+  the edge, which left the trail 44 columns at 80. The word was dropped because a spinner frame is never drawn at
+  rest, so its presence alone says *in flight*, and the 8 columns it gives back go to the trail.
 - **The mark waits one tick before appearing at all**, so a fetch that lands in 80ms shows nothing and a cached
   destination never flashes one. The delay *is* one `MarkStep` and needs no second number. A four-state cycle with a
-  beat of rest was rejected: it puts the bare word on screen for a quarter of every cycle, which reads as *finished*
-  on the one row whose job is to say *working*.
+  beat of rest was rejected: it takes the mark off the edge for a beat of every cycle, which reads as *finished* on the
+  one row whose job is to say *working*.
 - **The mark animates on every terminal.** `NO_COLOR` and `TERM=dumb` are about colour, not motion, and holding still
   there was refused rather than overlooked — it would be the shell's first behavioural difference on a plain
-  terminal. In mono the dots are all the motion there is. No new role: the mark stays `loading`, carried without
-  colour by the word itself.
-- **The dots go on arriving while a rate limit is waited out.** The wait is inside the same enquiry, so the question
+  terminal. In mono the spinner is all the motion there is. No new role: the mark stays `loading`, carried without
+  colour by the spinner frame itself — moving, and drawn only while a fetch is in flight. There is no ASCII fallback:
+  the shell already draws `›`, `…` and the box-drawing characters with none.
+- **The spinner goes on turning while a rate limit is waited out.** The wait is inside the same enquiry, so the question
   really is still in flight: the mark ticks at 400ms on the breadcrumb while the status row counts down at 1000ms.
   Freezing it would make the one row that says *alive* say *stuck* at the moment the shell most needs to look alive.
-- **`ChromeLines.Breadcrumb` takes a count of dots rather than a flag.** Nought draws no mark, which is what makes
-  the delay assertable with no terminal in the room. The spelling and the 11-column layout stay in `ChromeLines`,
+- **`ChromeLines.Breadcrumb` takes a frame count rather than a flag.** Nought draws no mark, which is what makes
+  the delay assertable with no terminal in the room. The frames and the 3 columns they hold stay in `ChromeLines`,
   beside the trail arithmetic they have to agree with; the view hands over a number it counted and nothing else.
 - **The frame is labelled in lowercase; the shell's prose is sentence case with a full stop.** So `esc keep`,
-  `j/k:post`, `…+10` and `fetching` are one register and `Already read.` and `Clear every notification? This cannot
-  be undone.` are the other. A crumb is neither — it is the name of a place, spelled as above. The mark is the one
-  word on the breadcrumb row that is not a place you have been, and the lowercase is what says so.
+  `j/k:post` and `…+10` are one register and `Already read.` and `Clear every notification? This cannot be undone.`
+  are the other. A crumb is neither — it is the name of a place, spelled as above.
   *Changed by ADR-0021* for the status row's hints alone: they are labels, `Post: j/k`, capitalised as lazygit's
-  strip is (#268). `esc keep`, `…+10` and `fetching` stay lowercase.
+  strip is (#268). `esc keep` and `…+10` stay lowercase. *Changed by #281:* the breadcrumb's mark is a spinner and
+  says no word, so it is in neither register.
 
 ### What the status row settled
 
@@ -1532,7 +1543,7 @@ glyph or a position that carries the same meaning when colour is gone.
 | `key` | A key you press: the status row's, the help screen's key column, a confirmation's `y` and `esc` — never prose that names a key, never the padding beside one | position — last in its pair, after the words' colon; first column on the help screen |
 | `panel-border` / `panel-border-active` | A panel's frame, and the frame of the panel you are in: the content panel, and the rail group holding the cursor | the box characters; which group is active is carried by the cursor's entry's band in colour, and by `▶` on it without |
 | `panel-title` | A panel's title on its top edge: a rail group's name, and the crumb being stood on at the end of the content panel's trail, told from the crumbs walked through by foreground | position, on the edge — the current crumb is always the last, and the trail elides from the left |
-| `loading` | The fetch mark at the far end of the content panel's title — the word and up to three dots, laid out at 11 columns | the word itself, and the dots arriving |
+| `loading` | The fetch mark two spaces after the content panel's trail — one braille spinner frame, in 3 columns held whether or not it is drawn | a spinner frame, moving, drawn only while a fetch is in flight |
 | `destructive` | A delete affordance and its confirmation | the word |
 | `error` | A failure the shell has to say out loud | the word |
 
@@ -1677,8 +1688,8 @@ else, and a fetch is announced once, at the end of the content panel's title. A 
 still.
 
 That one announcement is the only thing in the shell that animates, and it is laid out so that nothing around it
-moves: 11 columns at the end of the content panel's title, a dot arriving every 400ms up to three and starting over, and
-nothing at all until the first tick — so the cached case above never flashes a mark (#213). Whether a fetch is in
+moves: 3 columns straight after the content panel's trail, a braille spinner turning a frame every 400ms through ten and
+starting over (#281), and nothing at all until the first tick — so the cached case above never flashes a mark (#213). Whether a fetch is in
 flight keeps its meaning and its two jobs, gating `g` and the follows paging; what changed is only what the
 breadcrumb draws. It is a **count** of questions in flight rather than a flag, because two enquiries overlap readily
 — a boost sent while a timeline is still loading — and the first to finish would otherwise say the shell was idle
@@ -1698,7 +1709,7 @@ reader looking for them finds them together.
 | Settle window | 250ms | Long enough that a deliberate double-tap lands as one move; short enough that a single tab does not read as a pause. |
 | Destination cache | 1 minute | Long enough that walking out along the rail and back is free; short enough that a timeline left and returned to a minute later is fetched rather than remembered. This client forgets a destination early when it is the thing that changed it — a post published, deleted or marked. |
 | Countdown step | 1 second | The unit a rate-limit countdown counts in. |
-| Mark step | 400ms | How long one dot of the breadcrumb's fetch mark is held, and — since the mark waits for its first tick — how long a fetch runs before it is announced at all. The slowest rate a glance still catches moving: a second reads as a stall and 250ms as a machine in trouble. Deliberately not the countdown's second, which would say the mark counts something (#213). |
+| Mark step | 400ms | How long one frame of the breadcrumb's spinner is held, and — since the mark waits for its first tick — how long a fetch runs before it is announced at all. The slowest rate a glance still catches moving: a second reads as a stall and 250ms as a machine in trouble. Deliberately not the countdown's second, which would say the mark counts something (#213). |
 | Follow-list threshold | 2,000 | Below it a **Follow list** is held whole and narrowed live; at or above it the screen browses a page at a time and offers no narrowing. Set by the shape of real accounts: a following count is bounded and a followers count is not — 877K followers is ~11,000 requests at 80 a page, which is not a list to promise a search over. |
 
 One cache age for everything, rather than one per kind of destination. The question the cache answers is "is this still

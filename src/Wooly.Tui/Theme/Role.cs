@@ -159,8 +159,8 @@ public enum Role
     PanelTitle,
 
     /// <summary>
-    ///     Stale content while a fetch lands: the fetch mark at the end of the content panel's title. Carried without
-    ///     colour by the mark saying <c>fetching.</c>, and a dot more each tick.
+    ///     Stale content while a fetch lands: the fetch mark straight after the content panel's trail. Carried without
+    ///     colour by a spinner frame, moving, drawn only while a fetch is in flight.
     /// </summary>
     Loading,
 

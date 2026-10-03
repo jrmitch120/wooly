@@ -133,7 +133,7 @@ public class ContentPanelTests
 
         built.Host.Settle();
 
-        Assert.Equal(1, drawn.Shell.Dots);
+        Assert.Equal(1, drawn.Shell.Frame);
         Assert.True(title.NeedsDraw);
         Assert.False(drawn.Content.NeedsDraw);
 

@@ -102,7 +102,7 @@ public partial class RoleTests
         Collect(RailLines.Of(rail, new RateLimitQuota(213, 300, null), 10));
         Collect(RailLines.Of(rail, new RateLimitQuota(5, 300, null), 10, coloured: true));
 
-        Collect([ChromeLines.Breadcrumb(["Home"], dots: 1, 62)]);
+        Collect([ChromeLines.Breadcrumb(["Home"], frame: 1, 62)]);
         Collect([
             ChromeLines.Status(
                 [],
@@ -469,11 +469,11 @@ public partial class RoleTests
     [Fact]
     public void Breadcrumb_SaysAFetchIsInFlightAndTheRailDoesNot()
     {
-        var still = ChromeLines.Breadcrumb(["Home"], dots: 0, 62);
-        var busy = ChromeLines.Breadcrumb(["Home"], dots: 1, 62);
+        var still = ChromeLines.Breadcrumb(["Home"], frame: 0, 62);
+        var busy = ChromeLines.Breadcrumb(["Home"], frame: 1, 62);
 
-        Assert.DoesNotContain("fetching", still.Text, StringComparison.Ordinal);
-        Assert.Contains("fetching.", busy.Text);
+        Assert.DoesNotContain("⠋", still.Text, StringComparison.Ordinal);
+        Assert.Contains("Home  ⠋", busy.Text, StringComparison.Ordinal);
         Assert.Contains(busy.Spans, span => span.Role == Role.Loading);
     }
 

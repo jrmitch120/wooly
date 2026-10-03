@@ -295,7 +295,7 @@ public class ShellRefreshTests
 
     /// <summary>
     ///     A second press while the first is still in flight does nothing at all — no second question, and no
-    ///     in-flight UI beyond the <c>fetching</c> mark the breadcrumb already carries.
+    ///     in-flight UI beyond the spinner the breadcrumb already carries.
     /// </summary>
     [Fact]
     public async Task Refresh_DoesNothingWhileAQuestionIsAlreadyInFlight()
@@ -336,7 +336,7 @@ public class ShellRefreshTests
 
     /// <summary>
     ///     A tick of the fetch mark reaches the window as the breadcrumb's own event and not as
-    ///     <see cref="Shell.Changed" />, which redraws everything — so a dot costs one row (#217).
+    ///     <see cref="Shell.Changed" />, which redraws everything — so a frame costs one row (#217).
     /// </summary>
     [Fact]
     public async Task Refresh_TicksTheFetchMarkWithoutSayingAnythingElseChanged()
@@ -367,14 +367,14 @@ public class ShellRefreshTests
 
         Assert.Equal(1, ticks);
         Assert.Equal(0, changes);
-        Assert.Equal(1, opened.Dots);
+        Assert.Equal(1, opened.Frame);
 
         held.SetResult(Fetch<Post>.Complete([APost.With(id: "111")]));
 
         await refreshing;
         shell.Host.Drain();
 
-        Assert.Equal(0, opened.Dots);
+        Assert.Equal(0, opened.Frame);
     }
 
     /// <summary>

@@ -56,7 +56,7 @@ Gui's own `Scheme` is the *output* of resolving a role, not the vocabulary: its 
 
 **Colour is never the only thing carrying a meaning.** Every state the TUI shows has a glyph before it has a colour:
 `○ ◌ ● ✉` for the four audiences, `⚠` for a content warning, `↺` and `★` for the two marks, `▌` for the selected row,
-the word `fetching…` on the breadcrumb for a fetch in flight. This is not decoration. `Terminal.Gui` reports a terminal as `ColorCapabilityLevel.
+the word `fetching…` on the breadcrumb for a fetch in flight (a braille spinner since #281, below). This is not decoration. `Terminal.Gui` reports a terminal as `ColorCapabilityLevel.
 NoColor` when `NO_COLOR` is set or `TERM=dumb`, and a shell that says "this post is boosted" only by turning a number
 green says nothing at all there — the same nothing it says to a reader who cannot separate that green from that grey.
 Colour makes the glyphs faster to scan; it is never asked to carry a fact by itself.
@@ -224,7 +224,8 @@ that moved.
 
 **The one thing that animates is the one thing that says the shell is alive.** This ADR said a fetch is announced
 once, on the breadcrumb, and that the rail holds still. That stands; the mark now moves — a dot every 400ms, three of
-them, and start over, laid out at its widest so neither the word nor the trail beside it can shift. It waits one tick
+them, and start over, laid out at its widest so neither the word nor the trail beside it can shift (since #281 a
+braille spinner, a frame every 400ms, in columns held so the trail cannot shift either). It waits one tick
 before appearing at all, so a cached destination never flashes it. Two consequences reach this ADR's seams rather
 than the doc's numbers. `IShellHost` keeps its two members: the tick is a one-shot `After` re-armed while anything is
 in flight, exactly as the rate-limit countdown already re-arms one, so the host seam does not grow a repeating timer
@@ -260,7 +261,9 @@ The rail that stays, the stack you walk back out of, and roles in place of colou
 the frame drawn round them: the rail and the content become titled panels; the breadcrumb becomes the content panel's
 title; the breadcrumb row, the seam row and the gutter column retire, and their roles (`crumb`, `crumb-current`,
 `seam`) with them; the content's floor at 80 columns is 60 rather than 61; and the page is the terminal's own
-background. The #160 amendment's breadcrumb band, seam band and blank row are what that replaces.
+background. The #160 amendment's breadcrumb band, seam band and blank row are what that replaces. The fetch mark,
+`fetching…` above, became a braille spinner straight after the trail (#281): a frame drawn only while a fetch is in
+flight carries the meaning without colour as the word did.
 
 ADR-0021 also amends this ADR's rule that colour is never the only thing carrying a meaning. The guarantee stands,
 that nothing vanishes under `NO_COLOR`, but the glyph is owed only where colour is not drawn: in colour a band may carry

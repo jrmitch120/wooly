@@ -119,7 +119,7 @@ try
     application.Paste += (_, pasted) => pasted.Handled = shell.Paste(pasted.Text);
 
     // Started rather than awaited: the first timeline arrives while the shell is already on screen, which is what the
-    // breadcrumb's fetching mark is for.
+    // breadcrumb's spinner is for.
     window.Initialized += (_, _) => _ = shell.Open();
 
     application.Run(window);

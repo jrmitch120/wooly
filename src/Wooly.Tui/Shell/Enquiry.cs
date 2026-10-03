@@ -39,7 +39,7 @@ public delegate void Says(string? notice, bool isError);
 ///     (<see cref="ShellTiming" />).
 /// </param>
 /// <param name="markStep">
-///     How long one dot of the breadcrumb's fetch mark is held, and how long a fetch runs before it has one at all
+///     How long one frame of the breadcrumb's spinner is held, and how long a fetch runs before it has one at all
 ///     (<see cref="ShellTiming" />).
 /// </param>
 /// <param name="inFront">
@@ -69,7 +69,7 @@ public sealed class Enquiry(
     /// </summary>
     private int _inFlight;
 
-    /// <summary>The wait for the fetch mark's next dot, held for as long as anything is in flight.</summary>
+    /// <summary>The wait for the fetch mark's next frame, held for as long as anything is in flight.</summary>
     private IDisposable? _tick;
 
     /// <summary>Raised when the enquiry has something for the reader to see: a countdown, a failure, or silence.</summary>
@@ -79,7 +79,7 @@ public sealed class Enquiry(
     public event Action? Changed;
 
     /// <summary>
-    ///     Raised when the fetch mark has gained a dot, and nothing else has changed. Always on the drawing thread.
+    ///     Raised when the fetch mark has turned a frame, and nothing else has changed. Always on the drawing thread.
     /// </summary>
     /// <remarks>
     ///     Not <see cref="Changed" />, which redraws the whole window — rail, content and every picture placed on it —
@@ -114,11 +114,11 @@ public sealed class Enquiry(
     public CancellationToken Abandoned => _abandoned.Token;
 
     /// <summary>
-    ///     How many dots the breadcrumb's fetch mark has: none until a fetch has been in flight for a whole tick, then
-    ///     one, two and three and one again. Decided here, beside the count it depends on, so that it is decided with
-    ///     no terminal (ADR-0005).
+    ///     Which frame of the breadcrumb's spinner is drawn: none until a fetch has been in flight for a whole tick, then
+    ///     the first, the second and so on, and the first again after the last. Decided here, beside the count it
+    ///     depends on, so that it is decided with no terminal (ADR-0005).
     /// </summary>
-    public int Dots { get; private set; }
+    public int Frame { get; private set; }
 
     /// <summary>
     ///     Puts a question to the instance, and does something about the answer where one arrives.
@@ -287,7 +287,7 @@ public sealed class Enquiry(
             return;
         }
 
-        Dots = 0;
+        Frame = 0;
         _tick?.Dispose();
         _tick = Fetching ? host.After(markStep, Tick) : null;
 
@@ -295,8 +295,8 @@ public sealed class Enquiry(
     });
 
     /// <summary>
-    ///     One dot more, or one again after the most — never none, which would put the bare word on screen for a
-    ///     beat of every cycle and read as finished. Re-armed a tick at a time, as the countdown is, rather than asking
+    ///     The next frame, or the first again after the last — never none, which would take the spinner off the edge
+    ///     for a beat of every cycle and read as finished. Re-armed a tick at a time, as the countdown is, rather than asking
     ///     the host for a timer that repeats.
     /// </summary>
     private void Tick()
@@ -306,7 +306,7 @@ public sealed class Enquiry(
             return;
         }
 
-        Dots = Dots % ChromeLines.MostDots + 1;
+        Frame = Frame % ChromeLines.Frames + 1;
         _tick = host.After(markStep, Tick);
 
         Ticked?.Invoke();

@@ -167,7 +167,7 @@ public sealed class Shell
     public event Action? Changed;
 
     /// <summary>
-    ///     Raised when the breadcrumb's fetch mark has gained a dot and nothing else on screen has changed — so that
+    ///     Raised when the breadcrumb's fetch mark has turned a frame and nothing else on screen has changed — so that
     ///     what is redrawn for it is the one row it is on rather than everything <see cref="Changed" /> redraws.
     /// </summary>
     public event Action? Ticked;
@@ -201,10 +201,10 @@ public sealed class Shell
     public bool ShowsRail => _acting is not null;
 
     /// <summary>
-    ///     How many dots the breadcrumb's fetch mark has on it — none until a fetch has been in flight for a whole
-    ///     tick. What the mark draws, where <see cref="Fetching" /> is what the shell's own guards ask.
+    ///     Which frame of the breadcrumb's spinner is drawn — none until a fetch has been in flight for a whole tick.
+    ///     What the mark draws, where <see cref="Fetching" /> is what the shell's own guards ask.
     /// </summary>
-    public int Dots => _enquiry.Dots;
+    public int Frame => _enquiry.Frame;
 
     /// <summary>
     ///     Something the shell has to say out loud that is not a screen: a refusal, or the countdown on a rate limit
@@ -496,7 +496,7 @@ public sealed class Shell
     /// <remarks>
     ///     Only where the screen says it answers to <c>g</c>, which is the nine the contract names. A second press
     ///     while anything is already in flight does nothing at all — no second question, and no in-flight UI beyond
-    ///     the <c>fetching</c> mark the breadcrumb already carries.
+    ///     the spinner the breadcrumb already carries.
     ///     <para>
     ///         Every one of them goes back through <see cref="Arrival" />, which is one refresh for all of them: what
     ///         to evict, what to read, what it becomes and what it counts are all things the screen's subject already

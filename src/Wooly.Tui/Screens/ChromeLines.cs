@@ -10,20 +10,23 @@ namespace Wooly.Tui.Screens;
 public static class ChromeLines
 {
     /// <summary>
-    ///     What the breadcrumb says while a fetch is in flight, said here and nowhere else — and never on its own: it is
-    ///     always followed by at least one dot (<see cref="Mark" />).
+    ///     The fetch mark's frames, one a tick and the first again after the last, said here and nowhere else. A frame
+    ///     is never drawn at rest, so with colour off its presence and its motion are what tell a fetch in flight from
+    ///     none (#281).
     /// </summary>
-    private const string Fetching = "fetching";
+    private static readonly string[] Spinner = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
-    /// <summary>How many dots the mark grows to before it starts over at one.</summary>
-    public const int MostDots = 3;
+    /// <summary>How many frames the spinner has before it starts over at the first.</summary>
+    public static int Frames => Spinner.Length;
+
+    /// <summary>What parts the spinner from the trail it follows.</summary>
+    private const string Gap = "  ";
 
     /// <summary>
-    ///     The columns the mark owns, drawn or not: the word and the most dots it ever has, so that it is as wide on its
-    ///     first tick as on its last and nothing beside it moves between them (#217) — nor when it comes and goes
-    ///     (#271).
+    ///     The columns the mark owns, drawn or not: the gap and one frame, so that nothing beside it moves between
+    ///     frames (#217), nor as it comes and goes (#271).
     /// </summary>
-    private static readonly int MarkColumns = Glyphs.Columns(Fetching) + MostDots;
+    private static readonly int MarkColumns = Glyphs.Columns(Gap) + Spinner.Max(Glyphs.Columns);
 
     /// <summary>What divides one hint on the status row from the next.</summary>
     private const string Bar = " | ";
@@ -38,20 +41,21 @@ public static class ChromeLines
     private const string Elided = $"…{Separator}";
 
     /// <summary>
-    ///     The content panel's top edge, titled with where you are in the stack and with the fetch mark at its end
-    ///     (ADR-0021). This is the one place a fetch in flight is announced — the rail holds still (ADR-0014) — and it
-    ///     is on the frame of the content it is about to replace.
+    ///     The content panel's top edge, titled with where you are in the stack and with the fetch mark straight after
+    ///     it (ADR-0021). This is the one place a fetch in flight is announced — the rail holds still (ADR-0014) — and it
+    ///     is on the frame of the content it is about to replace, beside the crumb it is about to replace.
     /// </summary>
     /// <remarks>
     ///     The crumb you are standing on is the last one, and it is drawn in <see cref="Role.PanelTitle" /> — it is
     ///     what the panel is showing, so it is the panel's title — while the ones you walked through to get there are
     ///     <see cref="Role.Muted" />, separators included, which keep no role of their own (#216, #271).
     ///     <para>
-    ///         The mark's columns are held at the end of the edge whether or not it is drawn, so the trail is elided
-    ///         in the same room at rest as on every tick, and the crumb you are standing on never moves as a fetch
-    ///         starts and ends. The mark is handed over as a count of dots rather than a flag, because the view counts
-    ///         and this spells: the spelling and its 11 columns stay here beside the trail arithmetic they have to
-    ///         agree with (#217).
+    ///         The mark's columns are held whether or not it is drawn, so the trail is elided in the same room at rest
+    ///         as on every frame, and the crumb you are standing on never moves as a fetch starts and ends. A trail long
+    ///         enough to elide fills its room, so the spinner lands at the end of the edge; a short one is followed by
+    ///         it (#281). The mark is handed over as a frame count rather than a flag, because the view counts and this
+    ///         spells: the frames and their columns stay here beside the trail arithmetic they have to agree with
+    ///         (#217).
     ///     </para>
     ///     <para>
     ///         Always the active edge: the content panel is the one being read, whichever rail group is lit.
@@ -63,25 +67,25 @@ public static class ChromeLines
     ///     again there is a trail whose crumbs are wherever the separator happens to appear, and a reader is entitled
     ///     to search for <c>a › b</c>.
     /// </param>
-    /// <param name="dots">
-    ///     How many dots the fetch mark has on this tick, one to <see cref="MostDots" />. Nought draws no mark at all,
-    ///     which is both "nothing in flight" and "in flight, but not yet for a whole tick".
+    /// <param name="frame">
+    ///     Which of the spinner's frames to draw on this tick, counted from one and wrapping after
+    ///     <see cref="Frames" />. Nought draws no mark at all, which is both "nothing in flight" and "in flight, but
+    ///     not yet for a whole tick".
     /// </param>
     /// <param name="width">The columns the panel has, its corners included.</param>
-    public static Line Breadcrumb(IReadOnlyList<string> crumbs, int dots, int width)
+    public static Line Breadcrumb(IReadOnlyList<string> crumbs, int frame, int width)
     {
-        // A panel too narrow to hold the mark never draws it (Panel.Top), so there is nothing to hold its room for.
-        var room = Panel.TitleRoom(width, MarkColumns) is var held and >= 0 ? held : Panel.TitleRoom(width, 0);
-        IReadOnlyList<Span> mark = dots > 0 ? [new Span(Mark(dots), Role.Loading)] : [];
+        // A panel too narrow to hold the mark beside a column of trail never draws it, so there is nothing to hold its
+        // room for.
+        var titled = Panel.TitleRoom(width);
+        var holds = titled - MarkColumns > 0;
+        var trail = Trail(crumbs, Math.Max(0, holds ? titled - MarkColumns : titled));
 
-        return Panel.Top(Trail(crumbs, Math.Max(0, room)), mark, width, active: true);
+        return Panel.Top(holds && frame > 0 ? [.. trail, Mark(frame)] : trail, width, active: true);
     }
 
-    /// <summary>
-    ///     The fetch mark with <paramref name="dots" /> dots on it, padded to <see cref="MarkColumns" /> — the word at
-    ///     the left of its field and the dots growing rightward into the rest, so the word never moves.
-    /// </summary>
-    private static string Mark(int dots) => $"{Fetching}{new string('.', Math.Min(dots, MostDots))}".PadRight(MarkColumns);
+    /// <summary>The fetch mark on its <paramref name="frame" />th frame: the gap, then the frame.</summary>
+    private static Span Mark(int frame) => new($"{Gap}{Spinner[(frame - 1) % Spinner.Length]}", Role.Loading);
 
     /// <summary>
     ///     <paramref name="crumbs" /> in the <paramref name="room" /> they have, eliding from the left: the crumb you

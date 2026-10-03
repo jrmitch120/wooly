@@ -18,7 +18,7 @@ namespace Wooly.Tui.Shell;
 ///     How often the rate-limit countdown is redrawn while it waits. A second, because that is the unit it counts in.
 /// </param>
 /// <param name="MarkStep">
-///     How long one dot of the breadcrumb's fetch mark is held, and — since the mark waits for its first tick — how
+///     How long one frame of the breadcrumb's spinner is held, and — since the mark waits for its first tick — how
 ///     long a fetch runs before it is announced at all. 400ms: the slowest rate a glance still catches moving, and
 ///     deliberately not the countdown's second, which would say the mark counts something (#213).
 /// </param>
