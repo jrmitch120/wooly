@@ -28,6 +28,7 @@ public static class RoleName
         [Role.Replies] = "replies",
         [Role.Selection] = "selection",
         [Role.Band] = "band",
+        [Role.SelectedText] = "selected-text",
         [Role.Rail] = "rail",
         [Role.RailCurrent] = "rail-current",
         [Role.RailCursor] = "rail-cursor",

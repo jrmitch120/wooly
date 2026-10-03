@@ -68,6 +68,32 @@ public class ThemeTests
         Assert.NotEqual(Color.None, Themes.Light.For(role).Background);
     }
 
+    /// <summary>
+    ///     Selected text is lifted clearly off the page in both built-ins — the body's own text on a background of its
+    ///     own, rather than the band, which is tuned to be barely there (#316).
+    /// </summary>
+    [Fact]
+    public void SelectedTextIsTheBodyOnABackgroundOfItsOwn()
+    {
+        Assert.Equal(
+            new Attribute(Themes.Dark.For(Role.Body).Foreground, ColourName.Parse("#585b70")!.Value),
+            Themes.Dark.For(Role.SelectedText));
+        Assert.Equal(
+            new Attribute(Themes.Light.For(Role.Body).Foreground, ColourName.Parse("#acb0be")!.Value),
+            Themes.Light.For(Role.SelectedText));
+    }
+
+    /// <summary>
+    ///     And with no colour it is drawn reversed — the one role the plain theme draws differently, since a selection
+    ///     is the one thing on screen with no glyph to carry it (#316).
+    /// </summary>
+    [Fact]
+    public void SelectedTextIsReversedWithNoColour()
+    {
+        Assert.Equal(TextStyle.Reverse, Themes.Plain.For(Role.SelectedText).Style & TextStyle.Reverse);
+        Assert.Equal(TextStyle.None, Themes.Plain.For(Role.Body).Style & TextStyle.Reverse);
+    }
+
     /// <summary><c>default</c> is the terminal's own colour, wherever a theme takes a colour.</summary>
     [Fact]
     public void DefaultIsTheTerminalsOwnColour() => Assert.Equal(Color.None, ColourName.Parse("default"));
@@ -151,6 +177,7 @@ public class ThemeTests
     [Theory]
     [InlineData("panel-border-active", Role.PanelBorderActive)]
     [InlineData("replies", Role.Replies)]
+    [InlineData("selected-text", Role.SelectedText)]
     public void AThemeMayNameARoleTheShellGainedWithItsPanels(string name, Role role)
     {
         var theme = Chosen(Written("midnight", new ThemeConfig
@@ -369,7 +396,11 @@ public class ThemeTests
 
         var theme = Themes.ForCurrentTerminal(new WoolyConfig { Theme = "light" }, ConfigFile);
 
-        Assert.All(Enum.GetValues<Role>(), role => Assert.Equal(Attribute.Default, theme.For(role)));
+        // Selected text aside, which is the same pair reversed — a selection having no glyph to carry it (#316).
+        Assert.All(
+            Enum.GetValues<Role>().Except([Role.SelectedText]),
+            role => Assert.Equal(Attribute.Default, theme.For(role)));
+        Assert.Equal(Themes.Plain.For(Role.SelectedText), theme.For(Role.SelectedText));
     }
 
     /// <summary>

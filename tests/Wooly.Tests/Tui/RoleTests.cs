@@ -121,6 +121,10 @@ public partial class RoleTests
         Collect([ChromeLines.Status([], "Only your own posts can be deleted.", noticeIsError: true, null, 80)]);
         Collect([ChromeLines.Status([new KeyHint("⏎", "read")], null, noticeIsError: false, asking: null, 80)]);
 
+        // Selected text is the compose editor's rather than a span's: Terminal.Gui draws a selection in it and asks the
+        // widget which colour, which ComposeThemeTests checks on a drawn frame (#316).
+        seen.Add(Role.SelectedText);
+
         Assert.Empty(Enum.GetValues<Role>().Except(seen).Except(NotYetDrawn));
         Assert.Empty(NotYetDrawn.Intersect(seen));
     }
@@ -196,6 +200,7 @@ public partial class RoleTests
     [InlineData(Role.GaugeEmpty, "gauge-empty")]
     [InlineData(Role.Replies, "replies")]
     [InlineData(Role.Spinner, "spinner")]
+    [InlineData(Role.SelectedText, "selected-text")]
     public void RoleName_IsTheNameTheContractUses(Role role, string expected)
     {
         Assert.Equal(expected, RoleName.Of(role));

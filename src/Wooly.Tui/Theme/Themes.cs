@@ -43,6 +43,9 @@ public static class Themes
         [Role.Band] = "#16171c",
         [Role.RailCurrent] = "#1f2128",
         [Role.RailCursor] = "#313244",
+
+        // Catppuccin's Surface2: a selection lifted well off the page, where the band is barely there (#316).
+        [Role.SelectedText] = "#585b70",
     };
 
     private static readonly Dictionary<Role, string> LightBands = new()
@@ -50,6 +53,7 @@ public static class Themes
         [Role.Band] = "#e9eaef",
         [Role.RailCurrent] = "#dfe1e8",
         [Role.RailCursor] = "#ccd0da",
+        [Role.SelectedText] = "#acb0be",
     };
 
     // Every built-in draws on the terminal's own background, so the app meets the terminal's padding with no seam
@@ -82,6 +86,7 @@ public static class Themes
             [Role.Replies] = "#cba6f7",
             [Role.Selection] = "#f2f0f7",
             [Role.Band] = "#f2f0f7",
+            [Role.SelectedText] = "#cdd6f4",
             [Role.Rail] = "#a6adc8",
             [Role.RailCurrent] = "#89b4fa",
             [Role.RailCursor] = "#cdd6f4",
@@ -128,6 +133,7 @@ public static class Themes
             [Role.Replies] = "#8839ef",
             [Role.Selection] = "#100e18",
             [Role.Band] = "#100e18",
+            [Role.SelectedText] = "#4c4f69",
             [Role.Rail] = "#6c6f85",
             [Role.RailCurrent] = "#1e66f5",
             [Role.RailCursor] = "#4c4f69",
@@ -155,9 +161,9 @@ public static class Themes
     public static ITheme Light => LightPalette;
 
     /// <summary>
-    ///     Every role in one pair, for a terminal that has said it wants no colour. Not a degraded theme but the
-    ///     absence of one: every state the TUI shows carries a glyph before it carries a colour (ADR-0014), so what is
-    ///     left here still says everything the shell has to say.
+    ///     Every role in one pair — and selected text in that pair reversed — for a terminal that has said it wants no
+    ///     colour. Not a degraded theme but the absence of one: every state the TUI shows carries a glyph before it
+    ///     carries a colour (ADR-0014), so what is left here still says everything the shell has to say.
     /// </summary>
     public static ITheme Plain { get; } = new PlainTheme();
 
@@ -277,11 +283,18 @@ public static class Themes
     ///     One pair for everything. Terminal.Gui's own default, which is what its drivers write where the terminal has
     ///     said it has no colour to write.
     /// </summary>
+    /// <remarks>
+    ///     All but selected text, which is that pair reversed: a selection has no glyph to carry it, and a terminal
+    ///     with no colour can still swap the two it has (#316).
+    /// </remarks>
     private sealed class PlainTheme : ITheme
     {
-        public Attribute For(Role role) => Attribute.Default;
+        private static readonly Attribute Reversed =
+            new(Attribute.Default.Foreground, Attribute.Default.Background, TextStyle.Reverse);
 
-        public Attribute Banded(Role role) => Attribute.Default;
+        public Attribute For(Role role) => role == Role.SelectedText ? Reversed : Attribute.Default;
+
+        public Attribute Banded(Role role) => For(role);
 
         public bool DrawsColour => false;
     }

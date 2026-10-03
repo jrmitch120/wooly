@@ -185,7 +185,12 @@ internal sealed class ShellWindow : Window
             CanFocus = false,
         };
 
-        _editor = new ComposeEditor(() => _ = shell.Send(), () => shell.Back(), shell.WriteWarning)
+        _editor = new ComposeEditor(
+            theme,
+            ComposeScreen.EmptyPostHint,
+            () => _ = shell.Send(),
+            () => shell.Back(),
+            shell.WriteWarning)
         {
             // Wherever the compose screen says, inside the content panel's viewport (#315): a reply's "answering" block
             // and the warning band are painted on _content, which this sits in front of, so the screen that paints

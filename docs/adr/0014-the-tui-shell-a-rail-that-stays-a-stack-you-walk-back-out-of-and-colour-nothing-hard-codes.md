@@ -270,3 +270,14 @@ ADR-0021 also amends this ADR's rule that colour is never the only thing carryin
 that nothing vanishes under `NO_COLOR`, but the glyph is owed only where colour is not drawn: in colour a band may carry
 a meaning alone. The rail's `▶`/`▷` is drawn only without colour; in colour, `rail-current` and `rail-cursor` bands carry the same two
 states, and the settle window is unchanged.
+
+## Amendment: selected text gets a role, and no widget keeps Terminal.Gui's colours (#316)
+
+The compose editor was the one widget still drawn in Terminal.Gui's own scheme, so writing a post meant a saturated
+blue box that no theme could change. It now answers every `VisualRole` Terminal.Gui asks it for from the theme: text
+in `body` on the page, and a selection, which Terminal.Gui draws in its `Active` role, in a new role,
+`selected-text`. That role is kept apart from `band` on purpose. The band is tuned to be barely there, and a selection
+has to stand out clearly. The built-ins draw the body's text on Catppuccin's Surface2 (`#585b70`) in `dark` and on
+`#acb0be` in `light`. A selection has no glyph to carry it, so the no-colour theme draws it reversed: the one role
+whose plain answer is not the plain pair. This passes the standing test above, since a reader about to cut or replace
+text has to see which text that is.

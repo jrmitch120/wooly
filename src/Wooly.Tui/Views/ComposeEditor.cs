@@ -1,5 +1,10 @@
+using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
+using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
+using Wooly.Tui.Rendering;
+using Wooly.Tui.Theme;
+using Attribute = Terminal.Gui.Drawing.Attribute;
 
 namespace Wooly.Tui.Views;
 
@@ -17,13 +22,56 @@ namespace Wooly.Tui.Views;
 ///     it handles and an ancestor's handler only ever sees what was left. That is why <c>esc</c> reaches the shell
 ///     from inside an editor at all.
 /// </remarks>
+/// <param name="theme">
+///     What every colour the editor is asked for comes from (#316), so that composing is drawn in the theme's roles
+///     rather than Terminal.Gui's own saturated default.
+/// </param>
+/// <param name="placeholder">What an empty editor says, dimly, where the first letter will go.</param>
 /// <param name="warn">
 ///     <c>ctrl-w</c>: what moves the typing to the content warning over this post (#123). Taken off here for the same
 ///     reason the other two are — a <see cref="TextView" /> has its own uses for a control key, and the field above is
 ///     not one of them.
 /// </param>
-internal sealed class ComposeEditor(Action send, Action cancel, Action warn) : TextView
+internal sealed class ComposeEditor(ITheme theme, string placeholder, Action send, Action cancel, Action warn)
+    : TextView
 {
+    /// <summary>
+    ///     Every visual role Terminal.Gui asks for, answered from the theme: text in <see cref="Role.Body" /> on the
+    ///     page, and a selection — which <see cref="TextView" /> draws in its <c>Active</c> role, as the compose
+    ///     prototype found (#313) — in <see cref="Role.SelectedText" />. Nothing is left to Terminal.Gui's own scheme,
+    ///     so no cell of the editor is a colour the theme cannot change.
+    /// </summary>
+    /// <remarks>
+    ///     <c>Active</c> alone. <c>Highlight</c> is the pointer hovering, which over the page is no selection at all,
+    ///     and the editor has no hot keys to draw.
+    /// </remarks>
+    protected override bool OnGettingAttributeForRole(in VisualRole role, ref Attribute currentAttribute)
+    {
+        currentAttribute = role == VisualRole.Active
+            ? theme.For(Role.SelectedText)
+            : theme.For(Role.Body);
+
+        return true;
+    }
+
+    /// <summary>
+    ///     The placeholder over an empty editor, in <see cref="Role.Muted" /> — drawn only while there is nothing
+    ///     written, so it goes with the first letter and comes back when the post is cleared, and never reads as part
+    ///     of the post.
+    /// </summary>
+    protected override bool OnDrawingContent(DrawContext? context)
+    {
+        var drawn = base.OnDrawingContent(context);
+
+        if (Text.Length == 0 && Viewport.Width > 0)
+        {
+            SetAttribute(theme.For(Role.Muted));
+            AddStr(0, 0, TextWrap.Clip(placeholder, Viewport.Width));
+        }
+
+        return drawn;
+    }
+
     protected override bool OnKeyDown(Key key)
     {
         if (key == Key.Esc)
