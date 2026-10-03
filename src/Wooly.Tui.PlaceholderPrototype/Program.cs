@@ -59,6 +59,23 @@ if (selfTest)
     application.Begin(top);
     probe.SetFocus();
 
+    if (Environment.GetEnvironmentVariable("SELFTEST_SEQ") is { } sequence)
+    {
+        // d = a notch down, u = a notch up, all close together; prints where the page is after each.
+        application.LayoutAndDraw(true);
+        probe.NewKeyDownEvent(Key.F);
+        for (var go = 0; go < 20; go++) probe.NewMouseEvent(new Mouse { Flags = MouseFlags.WheeledDown });
+        var line = new StringBuilder("filter 2 in a row, from row 20: ");
+        foreach (var notch in sequence)
+        {
+            probe.NewMouseEvent(new Mouse { Flags = notch == 'd' ? MouseFlags.WheeledDown : MouseFlags.WheeledUp });
+            application.LayoutAndDraw(true);
+            line.Append($"{notch}→{System.Text.RegularExpressions.Regex.Match(said, @"row (\d+)").Groups[1].Value} ");
+        }
+        Console.WriteLine(line);
+        return 0;
+    }
+
     if (Environment.GetEnvironmentVariable("SELFTEST_DUMP") is { } dump)
     {
         application.LayoutAndDraw(true);
@@ -233,7 +250,14 @@ internal sealed class Feed(List<string> photos) : View
     private int _lastAppliedDirection;
     private int _reversals;
     private int _dropped;
-    private bool _filter;
+    /// <summary>0 = off; otherwise how many events in a row must agree before the direction changes.</summary>
+    private int _filter;
+
+    private int _moving;
+    private int _held;
+
+    /// <summary>A gap this long between events is a new gesture, and its first event goes whichever way it says.</summary>
+    private const double PauseMs = 250;
 
     /// <summary>How soon after a step one way a step the other way counts as a stray rather than a change of mind.</summary>
     private const double StrayWithinMs = 150;
@@ -256,9 +280,25 @@ internal sealed class Feed(List<string> photos) : View
             _reversals++;
         }
 
-        // Held back: the other way from the last step taken, and too soon after it to be a change of mind.
-        var stray = _filter && _lastAppliedDirection != 0 && direction != _lastAppliedDirection
-            && _lastAppliedAt >= 0 && now - _lastAppliedAt < StrayWithinMs;
+        // Held back: the other way from the direction the page is moving in, until enough events in a row agree that
+        // the reader has changed their mind. No clock — a page still moving (the trackpad's inertia included) would
+        // otherwise hold a real reversal back for as long as it kept moving. After a pause it goes through at once.
+        var paused = gap < 0 || gap > PauseMs;
+        var stray = false;
+
+        if (_filter > 0 && _moving != 0 && direction != _moving && !paused)
+        {
+            _held++;
+
+            if (_held < _filter)
+            {
+                stray = true;
+            }
+        }
+        else
+        {
+            _held = 0;
+        }
 
         if (stray)
         {
@@ -266,10 +306,15 @@ internal sealed class Feed(List<string> photos) : View
         }
         else
         {
+            // A confirmed reversal takes the steps it held back too, so a change of mind loses nothing.
+            var steps = _held >= _filter && _held > 0 ? _held : 1;
+
+            _held = 0;
+            _moving = direction;
             _lastAppliedAt = now;
             _lastAppliedDirection = direction;
             _wheelEvents++;
-            ScrollBy(direction * _wheelStep);
+            ScrollBy(direction * _wheelStep * steps);
         }
 
         _log.Add($"{now,9:F1}ms  +{(gap < 0 ? 0 : gap),7:F1}ms  {(direction > 0 ? "down" : "UP  ")}  flags={mouse.Flags}{(reversal ? "  <-- REVERSAL" : "")}{(stray ? "  (dropped)" : "")}");
@@ -299,11 +344,11 @@ internal sealed class Feed(List<string> photos) : View
         if (key == Key.PageDown) { ScrollBy(Viewport.Height); return true; }
         if (key == Key.PageUp) { ScrollBy(-Viewport.Height); return true; }
         if (key == Key.S) { _wheelStep = _wheelStep == 1 ? 3 : 1; SetNeedsDraw(); return true; }
-        if (key == Key.F) { _filter = !_filter; SetNeedsDraw(); return true; }
+        if (key == Key.F) { _filter = _filter switch { 0 => 2, 2 => 3, _ => 0 }; _held = 0; SetNeedsDraw(); return true; }
         if (key == Key.L)
         {
             var file = Path.Combine(Path.GetTempPath(), "wooly-292-wheel.log");
-            File.WriteAllLines(file, [$"filter {(_filter ? "on" : "off")}, reversals {_reversals}, dropped {_dropped}", .. _log]);
+            File.WriteAllLines(file, [$"filter {(_filter == 0 ? "off" : $"{_filter} in a row")}, reversals {_reversals}, dropped {_dropped}", .. _log]);
             Status?.Invoke($" wheel log written to {file}");
             return true;
         }
@@ -378,7 +423,7 @@ internal sealed class Feed(List<string> photos) : View
 
         Status?.Invoke(
             $" {(Kitty ? KnownKitty ? "kitty ✓ (env)" : "kitty ✓ (detected)" : "kitty ✗")}  cell {CellPixels.Width}×{CellPixels.Height}px ({CellSource})  row {_top}/{Math.Max(0, _rows.Count - height)}"
-            + $"  wheel step {_wheelStep} (s)  events {_wheelEvents}  reversals {_reversals}  filter {(_filter ? $"ON, dropped {_dropped}" : "off")} (f)  log (l)  draw {_lastDrawMs:F1}ms"
+            + $"  wheel step {_wheelStep} (s)  events {_wheelEvents}  reversals {_reversals}  filter {(_filter == 0 ? "off" : $"{_filter} in a row, dropped {_dropped}")} (f)  log (l)  draw {_lastDrawMs:F1}ms"
             + $"  image bytes: this frame {_imageBytesThisScroll / 1024}KB, total {_imageBytesSent / 1024}KB  q quits");
 
         return true;
