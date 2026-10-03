@@ -121,7 +121,7 @@ public class KittyPictureTests
             },
             pictures: FakePictures.With().Holding("m1", 800, 200),
             kittyImages: terminal,
-            drawsKitty: true,
+            drawsPlaceholders: true,
             encoding: encoding.Add);
 
         Assert.DoesNotContain(drawn.Rows(), row => row.Contains("A cartoon sheep"));
@@ -143,7 +143,30 @@ public class KittyPictureTests
     }
 
     /// <summary>
-    ///     On a Kitty terminal Terminal.Gui draws no pixels of its own: the picture is the placeholders, and a
+    ///     A terminal that answers that it speaks Kitty graphics, but is not known by name to draw its placeholders,
+    ///     draws through a box: WezTerm answers yes and prints the placeholders as boxes (#292, ADR-0022).
+    /// </summary>
+    [Fact]
+    public async Task ATerminalAnsweringKittyButNotKnownByNameDrawsThroughABox()
+    {
+        var terminal = new FakeTerminalImages();
+
+        using var drawn = await DrawnShell.Of(
+            80,
+            24,
+            Themes.Plain,
+            AShellWithAPicture(),
+            pictures: FakePictures.With().Holding("m1", 800, 200),
+            kittyImages: terminal,
+            answersKitty: true);
+
+        Assert.Empty(terminal.Transmitted);
+        Assert.Empty(Boxed(drawn));
+        Assert.Single(drawn.Content.SubViews.OfType<PictureView>(), view => view.Visible);
+    }
+
+    /// <summary>
+    ///     Where placeholders are drawn Terminal.Gui draws no pixels of its own: the picture is the placeholders, and a
     ///     <see cref="PictureView" /> drawing as well would be the 11 MB a scroll this replaced.
     /// </summary>
     [Fact]
@@ -182,7 +205,7 @@ public class KittyPictureTests
         // A wide picture, so that its box is a few rows and fits on the page whole.
         pictures: FakePictures.With().Holding("m1", 800, 200),
         kittyImages: terminal,
-        drawsKitty: true);
+        drawsPlaceholders: true);
 
     private static AShell AShellWithAPicture() => new()
     {

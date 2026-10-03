@@ -100,18 +100,36 @@ try
         });
     }
 
+    // Ghostty and kitty say who they are in the environment, which is known now rather than after the 5–10 seconds
+    // Terminal.Gui's query took to be answered in Ghostty — and they are the terminals known to draw Kitty's
+    // placeholders, which WezTerm answers the query for and then prints as boxes (#292, ADR-0022).
+    var placeholdersByName = KnownTerminal.DrawsPlaceholders(Environment.GetEnvironmentVariable);
+
+    // Anywhere else a picture is drawn through a box, and story 49 asks for sixel there before Kitty, which is the
+    // other way round from the order Terminal.Gui tries them in (ADR-0016).
+    if (!placeholdersByName)
+    {
+        RasterProtocol.PreferSixel(application.Driver);
+    }
+
+    // The cell as the kernel measures it, which is the real one: Terminal.Gui's guess stretched every photograph.
+    // Measured again when the screen changes size, a change of font size included.
+    var windowSize = new WindowSize(
+        () => (application.Driver?.Cols ?? 0, application.Driver?.Rows ?? 0),
+        WindowSize.Measure);
+
     // On a Kitty terminal a picture is sent once and drawn as text (ADR-0022). Written on the UI thread, which is the
     // only one a frame asks from; the PNG it sends is encoded off it, and a redraw brings the picture in once it is.
     // Disposed before the application is, which is what takes every picture this run sent off the terminal.
     using var placeholders = new Placeholders(
         new KittyImages(sequence => application.Driver?.GetOutput().Write(sequence)),
-        () => RasterProtocol.DrawsKitty(application.Driver),
+        placeholdersByName,
         Redraw,
         work => Task.Run(work));
 
     using var pictures = Pictures.Over(
         files,
-        () => RasterProtocol.CellOf(application.Driver),
+        () => RasterProtocol.CellOf(application.Driver, placeholdersByName, () => windowSize.Cell),
         Redraw,
         placeholders.Drop);
 

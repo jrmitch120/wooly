@@ -49,9 +49,13 @@ internal sealed class DrawnShell : IDisposable
     /// <param name="kittyImages">
     ///     The Kitty terminal's image store, where a test is about what it is sent; one nobody reads if not.
     /// </param>
-    /// <param name="drawsKitty">
-    ///     Whether the headless terminal says it speaks the Kitty graphics protocol, which is what draws a picture as
+    /// <param name="drawsPlaceholders">
+    ///     Whether the terminal is known by name to draw Kitty's placeholders, which is what draws a picture as
     ///     placeholder cells rather than through a box (ADR-0022).
+    /// </param>
+    /// <param name="answersKitty">
+    ///     Whether the headless terminal answers that it speaks the Kitty graphics protocol — which, on a terminal not
+    ///     known by name, still draws through a box.
     /// </param>
     /// <param name="encoding">Where a picture is encoded for a Kitty terminal, where a test is about when; on the spot if not.</param>
     public static async Task<DrawnShell> Of(
@@ -63,7 +67,8 @@ internal sealed class DrawnShell : IDisposable
         IPictures? pictures = null,
         bool drawsPictures = false,
         FakeTerminalImages? kittyImages = null,
-        bool drawsKitty = false,
+        bool drawsPlaceholders = false,
+        bool answersKitty = false,
         Action<Action>? encoding = null)
     {
         built ??= new AShell();
@@ -79,7 +84,7 @@ internal sealed class DrawnShell : IDisposable
             application.Driver.SetSixelSupport(new Terminal.Gui.Drawing.SixelSupportResult { IsSupported = true });
         }
 
-        if (drawsKitty)
+        if (answersKitty)
         {
             application.Driver.SetKittyGraphicsSupport(
                 new Terminal.Gui.Drawing.KittyGraphicsSupportResult { IsSupported = true });
@@ -88,7 +93,7 @@ internal sealed class DrawnShell : IDisposable
         // Encoded on the spot rather than off the UI thread, so that a picture is sent on the frame that first wants it.
         var placeholders = new Placeholders(
             kittyImages ?? new FakeTerminalImages(),
-            () => RasterProtocol.DrawsKitty(application.Driver),
+            drawsPlaceholders,
             () => { },
             encoding ?? (work => work()));
 

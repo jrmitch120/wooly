@@ -93,7 +93,7 @@ public class PlaceholdersTests
         var terminal = new FakeTerminalImages();
         var waiting = new List<Action>();
         var redraws = 0;
-        using var placeholders = new Placeholders(terminal, () => true, () => redraws++, waiting.Add);
+        using var placeholders = new Placeholders(terminal, true, () => redraws++, waiting.Add);
         var inset = Box("m1", columns: 8, rows: 4);
         var picture = APicture(80, 80);
 
@@ -253,7 +253,7 @@ public class PlaceholdersTests
 
     /// <summary>Encoded on the spot, which is what a test wants and what a frame must never do.</summary>
     private static Placeholders Inline(FakeTerminalImages terminal) =>
-        new(terminal, () => true, () => { }, work => work());
+        new(terminal, true, () => { }, work => work());
 
     private static Inset Box(string id, int columns, int rows) =>
         new(new Drawn(id, $"https://files.example/{id}.png"), Column: 0, columns, rows);

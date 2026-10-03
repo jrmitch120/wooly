@@ -13,8 +13,8 @@ namespace Wooly.Tui.Media;
 /// </remarks>
 /// <param name="terminal">The terminal's image store.</param>
 /// <param name="drawing">
-///     Whether pictures are drawn this way at all, which is whether the terminal speaks the Kitty graphics protocol.
-///     Asked afresh each frame, because the terminal says so some frames after the shell is already on screen.
+///     Whether pictures are drawn this way at all, which is whether the terminal is known by name to draw Kitty's
+///     placeholders (<see cref="KnownTerminal" />).
 /// </param>
 /// <param name="encoded">
 ///     What to do when a PNG is ready: redraw, so the box waiting on it fills in. Called on whatever thread encoded it.
@@ -24,7 +24,7 @@ namespace Wooly.Tui.Media;
 /// </param>
 public sealed class Placeholders(
     ITerminalImages terminal,
-    Func<bool> drawing,
+    bool drawing,
     Action encoded,
     Action<Action> elsewhere) : IDisposable
 {
@@ -40,7 +40,7 @@ public sealed class Placeholders(
     private bool _disposed;
 
     /// <summary>Whether pictures are drawn as placeholders on this terminal.</summary>
-    public bool Drawing => drawing();
+    public bool Drawing => drawing;
 
     /// <summary>
     ///     The terminal's id for <paramref name="picture" /> in <paramref name="inset" />'s box, sending it first

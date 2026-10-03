@@ -567,11 +567,16 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
   or not anything is attached beside it — so that one prompt stands above everything a flagged post is holding back.
   The prompt is the one part of this the conversations list leaves off, `x` having nothing to act on there (#120,
   below); the warning above it, and the hiding itself, are the same on every screen.
-- **Kitty is preferred over sixel, and a Kitty terminal is sent each picture once** (#292, ADR-0022). The picture is
-  drawn as Unicode placeholder cells in the content panel's own rows, so it moves in the same frame as the text, a box
-  half off the page draws the rows still on it, and a scroll sends no image data. It is encoded off the UI thread, and
-  its box keeps the rows it reserved until it is ready. Sixel, which cannot move an image, still draws through a
-  `PictureView` box and resends on every step (ADR-0016).
+- **Ghostty and kitty are sent each picture once, and draw it as text** (#292, ADR-0022). The picture is drawn as
+  Kitty's Unicode placeholder cells in the content panel's own rows, so it moves in the same frame as the text, a box
+  half off the page draws the rows still on it, and a scroll sends no image data. It is encoded off the UI thread, a
+  screen ahead of the page, and its box keeps the rows it reserved until it is ready.
+- **Only a terminal known by name draws placeholders.** Ghostty and kitty are recognised from their environment at
+  startup, rather than after Terminal.Gui's query, which took seconds in Ghostty. WezTerm answers the query but prints
+  placeholders as boxes, so it — like Windows Terminal, Warp, and anything inside tmux or screen — draws through a
+  `PictureView` box, sixel preferred over Kitty, as before (ADR-0016).
+- **A placeholder cell is the size the kernel says** — the window's pixels over its cells (`TIOCGWINSZ`), then the
+  protocol's answer, then 10×20. A box keeps the protocol's answer, which is what Terminal.Gui draws it by.
 - **There is no cell-based fallback.** A terminal offering neither sixel nor the Kitty graphics protocol links every
   attachment, a photograph included, exactly the way the CLI writes one. The coloured-block rendering the ticket asked
   for was built and rejected on the evidence: a photograph as a few dozen rectangles resembles nothing and is worse

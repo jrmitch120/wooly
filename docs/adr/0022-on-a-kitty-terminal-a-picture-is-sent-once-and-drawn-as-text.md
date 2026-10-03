@@ -16,8 +16,8 @@ frame its box moves, and crops and resends a photo half scrolled off. That is th
 outside the library, so it cannot be tuned; it has to be replaced. Pictures are central to this client, so the fix was
 not allowed to hide, drop or blank a picture while it scrolls.
 
-**On a terminal speaking the Kitty graphics protocol, ADR-0016's "Terminal.Gui draws the pixels" is replaced by Kitty's
-Unicode placeholders.** Each picture is sent to the terminal once, as a PNG shrunk to its box's pixels (`a=t,f=100`, in
+**On a terminal known to draw them, ADR-0016's "Terminal.Gui draws the pixels" is replaced by Kitty's Unicode
+placeholders.** Each picture is sent to the terminal once, as a PNG shrunk to its box's pixels (`a=t,f=100`, in
 4096-character chunks), and given a virtual placement over its box's columns and rows (`a=p,U=1`). From then on it is
 drawn *as text*: every cell of the box is `U+10EEEE`, then a diacritic naming the cell's row and one naming its column,
 with the image's id as the cell's 24-bit foreground colour. The picture is part of the rows, so it moves in the same
@@ -29,12 +29,18 @@ and that Terminal.Gui passes the placeholder graphemes and their colours through
 the boxes (ADR-0016) now asks, for each box on the page, whether its picture has been sent at this size, and the draw
 writes the placeholder cells for every visible row a box covers — including the lower rows of a box whose top is above
 the page, which is why `Line.Insets` names a box once, on its top row. A box whose picture is not ready yet keeps the
-`▒` its rows already carry. The `PictureView` pool stays, for sixel, and is left empty on a Kitty terminal.
+`▒` its rows already carry. The `PictureView` pool stays for every other terminal, and is left empty where
+placeholders are drawn.
 
-**Kitty is now preferred over sixel, the other way round from ADR-0016.** Sixel cannot move an image already on screen,
-so every scroll step resends every visible picture; Kitty placeholders send none. WezTerm offers both, and is the
-terminal this changes. `RasterProtocol.PreferSixel`, which set Kitty aside on a terminal reporting both, is gone, and
-`RasterProtocol.Chosen` answers Kitty first.
+**Placeholders come first, but only on a terminal known by name to draw them.** Sixel cannot move an image already on
+screen, so every scroll step resends every visible picture; placeholders send none. But speaking the Kitty graphics
+protocol is not the same as drawing its placeholders. WezTerm answers Terminal.Gui's Kitty query, takes the
+transmission, and prints the placeholder cells as boxes: its implementation is an open pull request
+(wezterm/wezterm#7924), and other clients have had to exclude it by name (yorukot/superfile#1665). #292 assumed WezTerm
+would be the terminal the flip helped; it would have been the one it broke. So `RasterProtocol.Chosen` answers
+`Placeholders` only where `KnownTerminal` names the terminal as Ghostty or kitty, and everywhere else keeps ADR-0016's
+ladder unchanged: sixel through a box, then Kitty through a box, with `RasterProtocol.PreferSixel` still setting Kitty
+aside on a terminal that reports both. A terminal that adds placeholders is one line in `KnownTerminal`.
 
 **The terminal's image store is a port.** `ITerminalImages` is what the client says to it: transmit this PNG under this
 id over so many columns and rows, forget this id, forget everything. `KittyImages` writes the escape sequences.
@@ -49,11 +55,11 @@ What the prototype taught, kept as rules:
   old placement in place, and a portrait photograph came out as a one-column sliver. Ids count up from a random base,
   and everything is forgotten (`a=d,d=A`) just before the run's first picture is sent and again on the way out — not
   at startup itself, so that a terminal which never draws a picture is never sent a graphics command at all.
-- **A picture dropped from `Pictures` is forgotten by the terminal** (`a=d,d=I`), every size of it, so the terminal holds
-  no more than the client does. The drop can happen on whatever thread a fetch finished on, so the forget is queued and
+- **A picture dropped from `Pictures` is forgotten by the terminal** (`a=d,d=I`), every size of it, so the terminal
+  holds no more than the client does. The drop can happen on whatever thread a fetch finished on, so the forget is queued and
   written on the UI thread at the next frame.
-- **Encoding is off the UI thread.** A PNG encode took ~260 ms the first time a photo came into view, and doing it inside
-  a draw stalls that scroll. The encode starts once a box is within a screen of the page, the reach a picture is
+- **Encoding is off the UI thread.** A PNG encode took ~260 ms the first time a photo came into view, and doing it
+  inside a draw stalls that scroll. The encode starts once a box is within a screen of the page, the reach a picture is
   fetched over, so a picture scrolled to is usually ready; one that is not keeps its `▒` until it is, and a redraw
   brings it in. The transmission itself is written on the UI thread, before the frame that
   draws its cells.
@@ -64,7 +70,31 @@ What the prototype taught, kept as rules:
 so painting it builds a colour, which ADR-0014's scan forbids outside the theme. Like `PictureDecoder`'s pixels it is
 content rather than emphasis, and `Media/KittyPlaceholder.cs` joins the scan's short list of files allowed to.
 
-Out of scope, and left to the later slices of #292: knowing the cell size from the kernel (`TIOCGWINSZ`) rather than
-Terminal.Gui's guess, recognising a Kitty terminal from its environment rather than waiting seconds on Terminal.Gui's
-query, a cheaper sixel path for Windows Terminal and iTerm2, drawing once per batch of wheel events, and cheaper frames.
-tmux passthrough is not attempted.
+**The name is read from the environment, at startup.** That is also what keeps a picture from waiting: Terminal.Gui
+finds out about Kitty by asking, and in Ghostty the answer took 5–10 seconds, with no picture drawn until it came.
+Ghostty and kitty say who they are (`TERM_PROGRAM` of `ghostty`, `TERM` of `xterm-ghostty` or `xterm-kitty`,
+`KITTY_WINDOW_ID`, `GHOSTTY_RESOURCES_DIR`), and `KnownTerminal` reads that before the first frame. A terminal that
+names itself nowhere — Ghostty over ssh with a plain `TERM`, say — still draws through a box once the query is
+answered. The name is never trusted where it would be wrong:
+
+- **Not in Windows Terminal or WezTerm.** `WT_SESSION`, `WEZTERM_PANE` and a `TERM_PROGRAM` of `WezTerm` outweigh
+  everything else, because a `TERM` carried in from elsewhere would otherwise send them placeholders they print as
+  boxes. Warp is excluded for the same reason.
+- **Not inside tmux or screen.** A multiplexer inherits the variables of the terminal it was started in but does not
+  pass the protocol through. tmux passthrough is out of scope, and inside one the query is the only honest answer.
+
+**A cell is the size the kernel says it is.** The PNG a picture is sent as is the box's cells in pixels, so a cell
+guessed too small is a picture the terminal stretches into its box: Terminal.Gui's guess was 10×20 where Ghostty's cells
+are 16×34. `WindowSize` asks the kernel for the window's size (`TIOCGWINSZ` on standard output) and divides its pixels
+by its cells. It is measured once per size of screen, since a post asks several times a frame and a change of font size
+changes how many cells the window holds. On Apple Silicon `ioctl` has to be declared with six dummy arguments ahead of
+the pointer, because a variadic argument goes on the stack there; the plain declaration crashed the prototype.
+
+- **Then the protocol's answer, then 10×20.** Most terminals fill in no pixels, and Windows has no `TIOCGWINSZ` at all,
+  so it is never called there. Asking the terminal itself (`CSI 16 t`) is left for when a terminal is found that needs
+  it.
+- **A box keeps the protocol's own answer.** Terminal.Gui's image view sizes what it draws by that, and a box shaped by
+  one cell size and filled by another is a picture of the wrong shape.
+
+Out of scope, and left to the later slices of #292: a cheaper sixel path for Windows Terminal and iTerm2, drawing once
+per batch of wheel events, and cheaper frames. tmux passthrough is not attempted.

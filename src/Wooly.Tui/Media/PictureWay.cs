@@ -8,18 +8,21 @@ namespace Wooly.Tui.Media;
 public enum PictureWay
 {
     /// <summary>
-    ///     The Kitty graphics protocol's placeholders, where the terminal answers that it speaks it: a picture sent
-    ///     once and drawn as text. What this client prefers (ADR-0022).
+    ///     Kitty's Unicode placeholders: a picture sent once and drawn as text, so it moves with the rows for nothing.
+    ///     Only on a terminal known by name to draw them (ADR-0022).
     /// </summary>
-    Kitty,
+    Placeholders,
 
-    /// <summary>Sixel, for a terminal that has that and no Kitty graphics.</summary>
+    /// <summary>Sixel, through a box, where the terminal answers that it speaks it.</summary>
     Sixel,
+
+    /// <summary>The Kitty graphics protocol through a box, for a terminal that has that and no sixel.</summary>
+    Kitty,
 
     /// <summary>
     ///     Neither, so nothing is drawn and the attachment is linked the way the CLI links it.
     ///     <para>
-    ///         There was a third rung here — a coloured cell per pixel, which needs nothing of the terminal — and it is
+    ///         There was another rung here — a coloured cell per pixel, which needs nothing of the terminal — and it is
     ///         gone on the evidence of what it produced: a photograph at one block per cell is a few dozen rectangles
     ///         that resemble nothing, and is worse than the description it replaced (ADR-0016).
     ///     </para>
