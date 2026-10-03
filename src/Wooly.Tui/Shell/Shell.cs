@@ -283,7 +283,8 @@ public sealed class Shell
     /// <summary>
     ///     A click on the <paramref name="at" />th destination on the rail. Another destination is arrived at at once:
     ///     the cursor and the selection go there together, abandoning whatever the tabbing left waiting (#288). The
-    ///     destination already shown is walked back out to instead (<see cref="Unwind" />, #289). Nothing with nobody
+    ///     destination already shown is walked back out to instead (<see cref="Unwind" />, #289), unless that would take
+    ///     a draft off the stack (#308). Nothing with nobody
     ///     to act as, where the keys go nowhere either.
     /// </summary>
     /// <remarks>
@@ -303,8 +304,35 @@ public sealed class Shell
 
         if (shown)
         {
-            Unwind();
+            Unwind(0);
         }
+    }
+
+    /// <summary>
+    ///     A click on the crumb <paramref name="depth" /> screens up the stack, counted from nought at the destination's
+    ///     own: everything drilled in above it comes off in one move, and it is in front again as it was left
+    ///     (<see cref="Unwind" />, #308). The first crumb is the destination shown on the rail, and a click on it is a
+    ///     click on that (<see cref="Arrive" />), so the two are one rule.
+    /// </summary>
+    /// <remarks>
+    ///     The crumb in front is nothing, the first among them: one screen deep, it must not snap back a rail cursor
+    ///     tabbing has left waiting the way the rail's click does.
+    /// </remarks>
+    public void WalkBack(int depth)
+    {
+        if (depth >= _stack.Count - 1)
+        {
+            return;
+        }
+
+        if (depth == 0 && _acting is not null)
+        {
+            Arrive(Rail.Current);
+
+            return;
+        }
+
+        Unwind(depth);
     }
 
     /// <summary>
@@ -1753,22 +1781,24 @@ public sealed class Shell
     }
 
     /// <summary>
-    ///     Walks the stack back out to its bottom screen — the destination's own — as that many presses of <c>esc</c>
-    ///     would pop it, so the screen keeps the page and the pick it was left on and nothing is asked of the instance
-    ///     (#289). Not <see cref="Reset" />, which lets the bottom screen go too.
+    ///     Walks the stack back out to the screen <paramref name="depth" /> up it — nought, the destination's own — as
+    ///     that many presses of <c>esc</c> would pop it, so the screen keeps the page, the pick and the reference picked
+    ///     on it, what the screens taken off asked for is dropped with them, and nothing is asked of the instance
+    ///     (#289, #308). Not <see cref="Reset" />, which lets the bottom screen go too.
     /// </summary>
     /// <remarks>
-    ///     At one screen deep it is nothing at all, the notice included: a click on the destination a reader is already
-    ///     on the root of must leave the status row saying what it said.
+    ///     Where it is already in front it is nothing at all, the notice included: a click on where a reader already is
+    ///     must leave the status row saying what it said. Nor where the walk would take off a screen holding a draft,
+    ///     which a click is too little to throw away — the same draft a right click leaves standing (#307).
     /// </remarks>
-    private void Unwind()
+    private void Unwind(int depth)
     {
-        if (_stack.Count == 1)
+        if (depth < 0 || _stack.Count <= depth + 1 || DropsADraft(depth))
         {
             return;
         }
 
-        while (_stack.Count > 1)
+        while (_stack.Count > depth + 1)
         {
             Leave(_stack.Count - 1);
         }
@@ -1776,6 +1806,9 @@ public sealed class Shell
         Notice = null;
         Changed?.Invoke();
     }
+
+    /// <summary>Whether walking back to the screen <paramref name="depth" /> up the stack would take a draft off it.</summary>
+    private bool DropsADraft(int depth) => _stack.Skip(depth + 1).Any(screen => screen.HoldsADraft);
 
     /// <summary>Puts the stack back to one screen, which is what arriving at a destination does.</summary>
     private void Reset(Screen screen)

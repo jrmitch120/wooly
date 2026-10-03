@@ -318,9 +318,10 @@ internal sealed class ShellWindow : Window
 
     /// <summary>
     ///     A click at <paramref name="at" />. An open question takes it wherever it lands, and is all it does; otherwise
-    ///     a click on a destination on the rail arrives there (#288), and a click on a row of a thing in the content
-    ///     picks it (#290), the first half of a double click among them (<see cref="DoubleClicked" />). Everything else —
-    ///     a title, a heading, the API panel, a rule, a blank — is part of nothing and ignores it.
+    ///     a click on a destination on the rail arrives there (#288), a click on a crumb of the breadcrumb walks back to
+    ///     it (#308), and a click on a row of a thing in the content picks it (#290), the first half of a double click
+    ///     among them (<see cref="DoubleClicked" />). Everything else — a title, a heading, the API panel, a separator,
+    ///     the fetch mark, a rule, a blank — is part of nothing and ignores it.
     /// </summary>
     /// <returns>Whether the click was the shell's, which is any click on the window while a question is open.</returns>
     private bool Clicked(Point at)
@@ -330,6 +331,18 @@ internal sealed class ShellWindow : Window
 
         if (_clickDeclinedQuestion)
         {
+            return true;
+        }
+
+        // The breadcrumb is the content panel's top edge, so it is asked about first. Which crumb a column is comes off
+        // the trail as drawn, elided or not, and the crumb in front walks back nowhere.
+        if (_title.FrameToScreen().Contains(at))
+        {
+            if (_title.SpanItemAt(at) is { } depth)
+            {
+                _shell.WalkBack(depth);
+            }
+
             return true;
         }
 
@@ -356,7 +369,8 @@ internal sealed class ShellWindow : Window
     /// <summary>
     ///     A double click at <paramref name="at" />: in the content, a click on the row and then <c>⏎</c>, meaning
     ///     whatever <c>⏎</c> means on the screen in front, nothing included (#291). On a row that is part of nothing it
-    ///     is nothing, rather than a <c>⏎</c> on whatever was picked before.
+    ///     is nothing, rather than a <c>⏎</c> on whatever was picked before — and on the breadcrumb it is its first
+    ///     click's walk back and nothing more, never a <c>⏎</c> on the screen that walk landed on (#308).
     /// </summary>
     /// <remarks>
     ///     Terminal.Gui reports the pair's first click on its own before the pair, so a pair whose first click was spent
@@ -370,6 +384,11 @@ internal sealed class ShellWindow : Window
         _clickDeclinedQuestion = false;
 
         if (declined || _shell.DeclineOpenQuestion())
+        {
+            return true;
+        }
+
+        if (_title.FrameToScreen().Contains(at))
         {
             return true;
         }

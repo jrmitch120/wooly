@@ -33,4 +33,14 @@ public readonly record struct Span(string Text, Role Role)
     ///     than in characters, which are not the same number for anything but Latin text (#207).
     /// </remarks>
     public int Width => Glyphs.Columns(Text);
+
+    /// <summary>
+    ///     Which thing this run stands for, where a row is made of several that a pointer can tell apart — a crumb of the
+    ///     breadcrumb, carrying its place in the stack (#308) — or <see langword="null" /> for a run that stands for none.
+    /// </summary>
+    /// <remarks>
+    ///     <see cref="Line.Item" /> for one row's columns rather than a screen's rows: what a click is answered from, off
+    ///     what is drawn under the pointer rather than off a second reckoning of where each run fell.
+    /// </remarks>
+    public int? Item { get; init; }
 }

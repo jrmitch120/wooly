@@ -29,8 +29,10 @@ public sealed class HelpScreen(Screen about) : Screen
         new("tab / shift-tab", "move the rail's cursor; it settles onto a destination"),
         new("` / ~", "move it to the next or previous rail group's first destination"),
         Profiles,
-        // The pointer, in one line: it adds no keys of its own, only another way to ask for these (#286).
+        // The pointer: it adds no keys of its own, only another way to ask for these (#286). Two lines, the second under
+        // the first with no key of its own, since one no longer fits beside the key column at 80 columns (#308).
         new("mouse", "wheel scrolls the content; a click arrives on the rail and picks a row; a double click is ⏎; right click back"),
+        new(string.Empty, "click a crumb to walk back to it"),
     ];
 
     /// <summary>The screen whose keys these are.</summary>
@@ -74,8 +76,9 @@ public sealed class HelpScreen(Screen about) : Screen
         var spacer = new string(' ', Math.Max(0, keyColumn - columns));
         var used = columns + spacer.Length;
 
+        // A line carried on from the one above has no key, and no empty run of the key's role standing in for one.
         return Line.Of([
-            new Span(key.Key, Role.Key),
+            .. columns > 0 ? [new Span(key.Key, Role.Key)] : Array.Empty<Span>(),
             new Span(spacer, Role.Body),
             new Span(TextWrap.Clip(key.Does, Math.Max(0, width - used)), Role.Body),
         ]);
