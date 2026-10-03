@@ -312,7 +312,7 @@ internal sealed class ShellWindow : Window
     private bool Clicked(Point at)
     {
         // A click anywhere declines a confirmation or closes a filter prompt, and is not carried out (story 30, 31).
-        if (_shell.Hush())
+        if (_shell.DeclineOpenQuestion())
         {
             return true;
         }

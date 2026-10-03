@@ -301,7 +301,7 @@ public sealed class Shell
     ///     on is not carried out, so a stray one never confirms anything or acts behind a question.
     /// </summary>
     /// <returns>Whether there was a question to spend the click on.</returns>
-    public bool Hush()
+    public bool DeclineOpenQuestion()
     {
         if (Asking is not null)
         {

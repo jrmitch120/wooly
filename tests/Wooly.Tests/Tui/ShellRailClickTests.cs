@@ -61,6 +61,7 @@ public class ShellRailClickTests
         using var drawn = await DrawnShell.Of(80, Framed, Themes.Plain);
 
         var timelines = drawn.Built.Timelines.Reads.Count;
+        var requests = drawn.Built.Requests;
 
         drawn.Press(Key.Tab);
         drawn.Press(Key.Tab);
@@ -71,7 +72,30 @@ public class ShellRailClickTests
 
         Assert.Equal(IndexOf(drawn, DestinationKind.Notifications), drawn.Shell.Rail.Current);
         Assert.Equal(timelines, drawn.Built.Timelines.Reads.Count);
+        Assert.Equal(requests + 1, drawn.Built.Requests);
         Assert.IsType<NotificationsScreen>(drawn.Shell.Screen);
+    }
+
+    /// <summary>
+    ///     A click on the destination already shown arrives nowhere new: the screen, the rail and the instance are left
+    ///     as they were.
+    /// </summary>
+    [Fact]
+    public async Task ClickingTheDestinationShownAsksForNothing()
+    {
+        using var drawn = await DrawnShell.Of(80, Framed, Themes.Plain);
+
+        var screen = drawn.Shell.Screen;
+        var requests = drawn.Built.Requests;
+
+        drawn.Click(OverRail, RowOf(drawn, "Home"));
+        drawn.Built.Host.Settle();
+        drawn.Redraw();
+
+        Assert.Same(screen, drawn.Shell.Screen);
+        Assert.Equal(0, drawn.Shell.Rail.Current);
+        Assert.Equal(0, drawn.Shell.Rail.Cursor);
+        Assert.Equal(requests, drawn.Built.Requests);
     }
 
     /// <summary>
@@ -223,13 +247,14 @@ public class ShellRailClickTests
     private static int RowOf(DrawnShell drawn, string text)
     {
         var rows = drawn.Rail();
-        var row = Array.FindIndex(rows, drawn => drawn.Contains(text, StringComparison.Ordinal));
+        var row = Array.FindIndex(rows, line => line.Contains(text, StringComparison.Ordinal));
 
         Assert.True(row >= 0, $"Nothing on the rail reads {text}:\n{string.Join('\n', rows)}");
 
         return row;
     }
 
+    /// <summary>Where on the rail <paramref name="kind" /> is, as its cursor and selection count it.</summary>
     private static int IndexOf(DrawnShell drawn, DestinationKind kind) =>
         drawn.Shell.Rail.Destinations.ToList().FindIndex(destination => destination.Kind == kind);
 

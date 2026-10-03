@@ -101,8 +101,8 @@ public sealed class Rail
 
     /// <summary>
     ///     Puts the cursor and the selection on <paramref name="kind" /> at once, with no settle and no wait, for the
-    ///     places a destination is arrived at other than by tabbing to it — opening the shell, and walking back out of
-    ///     a drill that started somewhere else.
+    ///     places a destination is arrived at other than by tabbing to it — opening the shell, walking back out of a
+    ///     drill that started somewhere else, and a click on the rail (#288).
     /// </summary>
     public void GoTo(DestinationKind kind)
     {
