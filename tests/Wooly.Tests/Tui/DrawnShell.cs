@@ -139,6 +139,23 @@ internal sealed class DrawnShell : IDisposable
         Point(column, row, MouseFlags.LeftButtonDoubleClicked);
     }
 
+    /// <summary>
+    ///     Right clicks on the cell in quick succession, as Terminal.Gui reports them: one event as each is let go — a
+    ///     click, then a double click, then a triple click for the third and every one after it.
+    /// </summary>
+    public void RightClick(int column, int row, int times = 1)
+    {
+        for (var at = 1; at <= times; at++)
+        {
+            Point(column, row, at switch
+            {
+                1 => MouseFlags.RightButtonClicked,
+                2 => MouseFlags.RightButtonDoubleClicked,
+                _ => MouseFlags.RightButtonTripleClicked,
+            });
+        }
+    }
+
     /// <summary>One notch of the wheel over the cell: down, towards the foot of the page, or up.</summary>
     public void Wheel(int column, int row, bool down = true) =>
         Point(column, row, down ? MouseFlags.WheeledDown : MouseFlags.WheeledUp);
@@ -160,7 +177,7 @@ internal sealed class DrawnShell : IDisposable
     ///     it reaches whichever view is under the pointer and bubbles from there, which is what makes a wheel over the
     ///     compose editor the editor's and a wheel over the content the window's.
     /// </summary>
-    private void Point(int column, int row, MouseFlags flags)
+    public void Point(int column, int row, MouseFlags flags)
     {
         Application.Mouse.RaiseMouseEvent(new Mouse { ScreenPosition = new Point(column, row), Flags = flags });
         Redraw();

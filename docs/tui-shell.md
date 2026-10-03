@@ -1552,17 +1552,20 @@ panel the pointer is over. What the gesture then does is a move the keys already
 | Click | A heading, a rule, a blank, the space under the last thing | Nothing. A click never guesses which thing was meant |
 | Double click | A row of a thing in the content | That click, and then `⏎` through the **Keymap** on the screen in front, so it means whatever `⏎` means there: it opens a post, a search result, a conversation, the asker of a follow request or a person, and switches to a profile on the profiles screen. Where `⏎` means nothing for what is picked — the account screen's header block — it picks and does nothing more. The click lets a walked **Reference** go first, so a double click on a post with a hashtag walked to opens the post. Terminal.Gui's own detection says what is a double click (#291) |
 | Double click | A heading, a rule, a blank, the space under the last thing | Nothing: never a `⏎` on what was picked before |
+| Right click | Anywhere: the content, the rail, the breadcrumb, the status row | `esc`, through the **Keymap** on the screen in front, so up one level of whichever kind is open: it lets a picked **Reference** or an uncast poll toggle go before it pops the screen, declines a confirmation, clears the filter prompt's filter (as `esc` does, not as a left click does) and calls off a sign-in in flight on Add a profile. On a destination's own screen it does nothing, and never quits. Over the rail it does not arrive at the destination under the pointer. Each right click the terminal reports is one `esc`, Terminal.Gui's double and triple included, so three quick right clicks walk back three levels. Only the terminal's right button counts: ctrl+click stays a left click, and the middle button means nothing (#307) |
+| Right click | Anywhere, with compose in front | Nothing, since `esc` there throws the draft away. The compose editor's own context menu does not open either |
 
 **Open questions win.** While a confirmation is on the status row or the filter prompt is open, a click anywhere is a
 key the question does not take: it declines the confirmation, or closes the prompt with what was typed still narrowing
 the list, as `⏎` would, and whatever the click was on is not carried out. With nobody to act as there is no rail to
 click, and a click does no more than the keys there allow. Terminal.Gui reports a double click's first click on its own
 before the pair, so a double click whose first click declined a question or closed the prompt is spent with it and
-opens nothing behind it.
+opens nothing behind it. A right click is not one of these clicks but `esc`, and answers the question as `esc` does:
+it declines the confirmation too, but takes the filter off rather than leaving what was typed narrowing the list.
 
 Mouse tracking stays on, and nothing turns it off: drag means nothing, and selecting text to copy goes through the
 terminal's modifier bypass (`⌥` in iTerm2, `Fn` in Terminal.app) until selection is a feature of its own. The `?`
-screen says what the mouse does in one line beside the frame's keys.
+screen says what the mouse does in one line beside the frame's keys, ending `right click back`.
 
 ## Starting it, and the one destination that needs configuring
 

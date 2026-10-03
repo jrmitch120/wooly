@@ -279,6 +279,11 @@ internal sealed class ShellWindow : Window
     /// </remarks>
     protected override bool OnMouseEvent(Mouse mouse)
     {
+        if (ShellKeys.Of(mouse) is { } clicked)
+        {
+            return RightClicked(clicked);
+        }
+
         if (mouse.Flags.HasFlag(MouseFlags.LeftButtonClicked))
         {
             return Clicked(mouse.ScreenPosition) || base.OnMouseEvent(mouse);
@@ -296,10 +301,8 @@ internal sealed class ShellWindow : Window
 
         // A notch is the arrow it stands for, open question and all: anything but the agreeing key declines one, so a
         // notch declines it too and scrolls nothing behind it (story 43).
-        if (_shell.Asking is not null)
+        if (Declined())
         {
-            _ = _shell.Answer(agreed: false);
-
             return true;
         }
 
@@ -380,6 +383,42 @@ internal sealed class ShellWindow : Window
         {
             _ = Do(ShellKey.Enter);
         }
+
+        return true;
+    }
+
+    /// <summary>
+    ///     A right click, wherever the pointer is: <paramref name="pressed" />, the <c>esc</c> it stands for, through the
+    ///     <see cref="Keymap" /> on the screen in front as <see cref="OnKeyDown" /> takes it, open question and all
+    ///     (#307). Nothing on a screen holding a draft, which <c>esc</c> throws away — too much to spend on a button
+    ///     pressed by accident.
+    /// </summary>
+    /// <returns>Always that it was the shell's, so nothing behind the window answers a right click either.</returns>
+    private bool RightClicked(ShellKey pressed)
+    {
+        if (_shell.Screen.HoldsADraft || Declined())
+        {
+            return true;
+        }
+
+        _ = Do(pressed);
+
+        return true;
+    }
+
+    /// <summary>
+    ///     Declines an open confirmation, as any press but the agreeing key does (story 43), for the gestures that stand
+    ///     for such a press.
+    /// </summary>
+    /// <returns>Whether there was one, and the gesture was spent on it.</returns>
+    private bool Declined()
+    {
+        if (_shell.Asking is null)
+        {
+            return false;
+        }
+
+        _ = _shell.Answer(agreed: false);
 
         return true;
     }
