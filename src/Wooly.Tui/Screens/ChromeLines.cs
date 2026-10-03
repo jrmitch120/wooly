@@ -10,11 +10,15 @@ namespace Wooly.Tui.Screens;
 public static class ChromeLines
 {
     /// <summary>
-    ///     The fetch mark's frames, one a tick and the first again after the last, said here and nowhere else. A frame
-    ///     is never drawn at rest, so with colour off its presence and its motion are what tell a fetch in flight from
-    ///     none (#281).
+    ///     The fetch mark's frames, one a tick and the first again after the last, said here and nowhere else: Claude
+    ///     Code's star, growing from a dot and shrinking back. A frame is never drawn at rest, so with colour off its
+    ///     presence and its motion are what tell a fetch in flight from none (#281).
     /// </summary>
-    private static readonly string[] Spinner = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+    /// <remarks>
+    ///     Stars rather than braille, which was tried first: a braille frame's dots sit in the top rows of the cell, so
+    ///     it floated above the title it follows. Each star is drawn about the middle of the line, as a letter is.
+    /// </remarks>
+    private static readonly string[] Spinner = ["·", "✢", "✳", "✶", "✻", "✽", "✻", "✶", "✳", "✢"];
 
     /// <summary>How many frames the spinner has before it starts over at the first.</summary>
     public static int SpinnerFrames => Spinner.Length;

@@ -13,7 +13,7 @@ Panels, since ADR-0021. The rail and the content are each a rounded frame with a
 the dividing, so there is no breadcrumb row, no blank row under it and no gutter column.
 
 ```
-╭ Timelines ───────╮╭ Home › Post by @ben  ⠹ ──────────────────────────────────╮
+╭ Timelines ───────╮╭ Home › Post by @ben  ✳ ──────────────────────────────────╮
 │Home             3││ content                                                  │
 │Local             ││ (feed · post · account · conversation · search)          │
 │Federated         ││                                                          │
@@ -44,7 +44,7 @@ the dividing, so there is no breadcrumb row, no blank row under it and no gutter
 | Status | 1 row, full width | The current screen's keys as `Does: key \| Does: key`, as many as fit and `…+N` for the rest; or a notice; or a confirmation; the quota again when the rail is hidden |
 
 The content panel's title is the stack: the crumbs walked through in `muted`, the one stood on in `panel-title`, eliding
-from the left so it always ends where you are, and the fetch mark, a braille spinner, two spaces after it while a fetch
+from the left so it always ends where you are, and the fetch mark, a star spinner, two spaces after it while a fetch
 is in flight. The mark's 3 columns are held whether or not it is drawn, so it never moves the trail. The panel's edge is
 always `panel-border-active`: it is the panel being read. Its rows are 58 columns wide at an 80-column terminal. That is
 the width every screen must read well at: the 61 of ADR-0014 less the cell the gutter column gave up to the content
@@ -1117,7 +1117,7 @@ which of them had one to put there. #204 did:
 > `crumb-current` are retired: the crumb stood on is `panel-title` and the ones walked through are `muted` (#271). The
 > fetch mark's columns are now held whether or not it is drawn, so a trail no longer elides differently mid-fetch.
 >
-> **Changed by #281.** The fetch mark is a braille spinner straight after the trail, not the word `fetching` with dots
+> **Changed by #281.** The fetch mark is a star spinner straight after the trail, not the word `fetching` with dots
 > at the end of the edge. The bullets below on the mark say what it is now; the dots are kept only where marked as
 > superseded.
 
@@ -1159,8 +1159,8 @@ and #213 settled the row; #216 and #217 build it:
   row needs said: this is the frame. So `crumb` was added, the band goes under everything on the row — crumbs,
   separators, the `… › ` lead, the room left over and the fetch mark — and the seam under it went back to being
   blank. A band under half the row would read as a highlight on that half, which is the objection this keeps.
-- **The fetch mark moves, and is laid out so nothing else does.** `⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏`, a frame every 400ms and
-  the first again after the last, in `loading`, two spaces after the trail's last crumb (#281). Every frame is one
+- **The fetch mark moves, and is laid out so nothing else does.** `· ✢ ✳ ✶ ✻ ✽ ✻ ✶ ✳ ✢`, Claude Code's star
+  growing from a dot and shrinking back, a frame every 400ms and the first again after the last, in `loading`, two spaces after the trail's last crumb (#281). Every frame is one
   column, so the mark is as wide on one tick as the next. Its **3 columns** — the two spaces and the glyph — are held
   whether or not it is drawn, so the trail elides in the same room at rest as on every tick and never re-elides as a
   fetch starts or ends. At 80 columns that leaves the trail 53 columns.
@@ -1168,6 +1168,8 @@ and #213 settled the row; #216 and #217 build it:
   which is what the fetch is about to replace. A trail long enough to elide fills most of its room, so there the
   spinner lands near the end of the edge anyway; a short trail is followed by it. A panel too narrow to hold the mark
   beside a column of trail never draws it, and holds no room for it.
+  A braille spinner (`⠋ ⠙ ⠹ …`) was tried first and dropped: its dots sit in the top rows of the cell, so it floated
+  above the crumb it follows. A star is drawn about the middle of the line, as a letter is.
   *Superseded by #281:* the mark was `fetching.` → `fetching..` → `fetching...`, owning the rightmost 11 columns of
   the edge and 3 more parting it from the trail, which left the trail 42 columns at 80. The word was dropped because a
   spinner frame is never drawn at rest, so its presence alone says *in flight*, and the 11 columns it gives back go to
@@ -1544,7 +1546,7 @@ glyph or a position that carries the same meaning when colour is gone.
 | `key` | A key you press: the status row's, the help screen's key column, a confirmation's `y` and `esc` — never prose that names a key, never the padding beside one | position — last in its pair, after the words' colon; first column on the help screen |
 | `panel-border` / `panel-border-active` | A panel's frame, and the frame of the panel you are in: the content panel, and the rail group holding the cursor | the box characters; which group is active is carried by the cursor's entry's band in colour, and by `▶` on it without |
 | `panel-title` | A panel's title on its top edge: a rail group's name, and the crumb being stood on at the end of the content panel's trail, told from the crumbs walked through by foreground | position, on the edge — the current crumb is always the last, and the trail elides from the left |
-| `loading` | The fetch mark two spaces after the content panel's trail — one braille spinner frame, in 3 columns held whether or not it is drawn | a spinner frame, moving, drawn only while a fetch is in flight |
+| `loading` | The fetch mark two spaces after the content panel's trail — one star spinner frame, in 3 columns held whether or not it is drawn | a spinner frame, moving, drawn only while a fetch is in flight |
 | `destructive` | A delete affordance and its confirmation | the word |
 | `error` | A failure the shell has to say out loud | the word |
 
@@ -1689,7 +1691,7 @@ else, and a fetch is announced once, at the end of the content panel's title. A 
 still.
 
 That one announcement is the only thing in the shell that animates, and it is laid out so that nothing around it moves:
-3 columns straight after the content panel's trail, a braille spinner turning a frame every 400ms through ten and
+3 columns straight after the content panel's trail, a star spinner turning a frame every 400ms through ten and
 starting over (#281), and nothing at all until the first tick — so the cached case above never flashes a mark (#213).
 Whether a fetch is in flight keeps its meaning and its two jobs, gating `g` and the follows paging; what changed is only
 what the breadcrumb draws. It is a **count** of questions in flight rather than a flag, because two enquiries overlap

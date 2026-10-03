@@ -115,8 +115,8 @@ values tuned in use were measured against a black terminal:
   `rail-cursor`.
 - Retired with their regions: `seam`, `crumb`, `crumb-current`.
 
-`loading` stays, for the fetch mark that now ends the content panel's title. That mark is the braille spinner from the
-B2 (stacked rail) prototype, `⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏`, a frame a tick, two spaces after the trail (#281). It replaced the
+`loading` stays, for the fetch mark that now ends the content panel's title. That mark is a star spinner, `· ✢ ✳ ✶ ✻ ✽`
+growing and shrinking back as Claude Code's does, a frame a tick, two spaces after the trail (#281). It replaced the
 word `fetching` and its dots at the far end of the edge, which held 11 columns to the spinner's 3. A frame is never
 drawn at rest, so without colour its presence carries the meaning the word did. It sits beside the crumb you are
 standing on because that is what the fetch is about to replace. Each new role still has to pass ADR-0014's test:

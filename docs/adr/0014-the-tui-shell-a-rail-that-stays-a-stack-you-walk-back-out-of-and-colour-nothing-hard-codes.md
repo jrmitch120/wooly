@@ -262,7 +262,7 @@ title; the breadcrumb row, the seam row and the gutter column retire, and their 
 `seam`) with them; the content's floor at 80 columns is 60 rather than 61; and the page is the terminal's own
 background. The #160 amendment's breadcrumb band, seam band and blank row are what that replaces.
 
-The fetch mark is superseded too (#281). Where this ADR says `fetching…` and a dot every 400ms, the mark is now a braille
+The fetch mark is superseded too (#281). Where this ADR says `fetching…` and a dot every 400ms, the mark is now a star
 spinner straight after the trail, a frame every 400ms in columns held whether or not it is drawn. A frame is drawn only
 while a fetch is in flight, so without colour its presence carries the meaning the word did.
 

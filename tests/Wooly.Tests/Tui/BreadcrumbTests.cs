@@ -156,8 +156,8 @@ public class BreadcrumbTests
             PanelWidth);
         var filled = ChromeLines.Breadcrumb(["Home", new string('a', 70)], frame: 1, PanelWidth);
 
-        Assert.Contains(" › Keys  ⠋ ─", elided.Text, StringComparison.Ordinal);
-        Assert.EndsWith("a…  ⠋ ╮", filled.Text, StringComparison.Ordinal);
+        Assert.Contains(" › Keys  · ─", elided.Text, StringComparison.Ordinal);
+        Assert.EndsWith("a…  · ╮", filled.Text, StringComparison.Ordinal);
         Assert.Equal(PanelWidth, filled.Width);
     }
 
@@ -176,7 +176,7 @@ public class BreadcrumbTests
             ChromeLines.Breadcrumb(trail, frame: 0, PanelWidth).Text,
             StringComparison.Ordinal);
         Assert.StartsWith(
-            "╭ Home › Post by @ben@hachyderm.io  ⠙ ─",
+            "╭ Home › Post by @ben@hachyderm.io  ✢ ─",
             ChromeLines.Breadcrumb(trail, frame: 2, PanelWidth).Text,
             StringComparison.Ordinal);
     }
@@ -196,25 +196,27 @@ public class BreadcrumbTests
     }
 
     /// <summary>
-    ///     Each frame is the title's last glyph, two spaces after the trail, in <see cref="Role.Loading" />, and the
-    ///     tenth is followed by the first again.
+    ///     Each frame is the title's last glyph, one column wide, two spaces after the trail, in
+    ///     <see cref="Role.Loading" />. The star grows to <c>✽</c> and shrinks back to <c>✢</c>, and the tenth frame is
+    ///     followed by the first again.
     /// </summary>
     [Theory]
-    [InlineData(1, "⠋")]
-    [InlineData(2, "⠙")]
-    [InlineData(3, "⠹")]
-    [InlineData(4, "⠸")]
-    [InlineData(5, "⠼")]
-    [InlineData(6, "⠴")]
-    [InlineData(7, "⠦")]
-    [InlineData(8, "⠧")]
-    [InlineData(9, "⠇")]
-    [InlineData(10, "⠏")]
-    [InlineData(11, "⠋")]
+    [InlineData(1, "·")]
+    [InlineData(2, "✢")]
+    [InlineData(3, "✳")]
+    [InlineData(4, "✶")]
+    [InlineData(5, "✻")]
+    [InlineData(6, "✽")]
+    [InlineData(7, "✻")]
+    [InlineData(8, "✶")]
+    [InlineData(9, "✳")]
+    [InlineData(10, "✢")]
+    [InlineData(11, "·")]
     public void Breadcrumb_DrawsEachFrameOfTheSpinnerAfterTheTrail(int frame, string glyph)
     {
         var edge = ChromeLines.Breadcrumb(["Home"], frame, PanelWidth);
 
+        Assert.Equal(1, Glyphs.Columns(glyph));
         Assert.StartsWith($"╭ Home  {glyph} ─", edge.Text, StringComparison.Ordinal);
         Assert.Equal(PanelWidth, edge.Width);
         Assert.Contains(edge.Spans, span => span is { Role: Role.Loading } && span.Text == $"  {glyph}");

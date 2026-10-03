@@ -472,8 +472,8 @@ public partial class RoleTests
         var still = ChromeLines.Breadcrumb(["Home"], frame: 0, 62);
         var busy = ChromeLines.Breadcrumb(["Home"], frame: 1, 62);
 
-        Assert.DoesNotContain("⠋", still.Text, StringComparison.Ordinal);
-        Assert.Contains("Home  ⠋", busy.Text, StringComparison.Ordinal);
+        Assert.DoesNotContain("·", still.Text, StringComparison.Ordinal);
+        Assert.Contains("Home  ·", busy.Text, StringComparison.Ordinal);
         Assert.Contains(busy.Spans, span => span.Role == Role.Loading);
     }
 
