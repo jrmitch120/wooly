@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Wooly.Core.Errors;
 
 namespace Wooly.Core.Credentials;
 
@@ -35,7 +36,7 @@ public sealed class FallbackCredentialStore(
     private readonly ConcurrentDictionary<string, bool> _refused = new();
 
     /// <summary>
-    ///     The profiles the keyring would not read or delete for this run, with what it said: a locked keyring, a prompt
+    ///     The profiles the keyring would not read for this run, with what it said: a locked keyring, a prompt
     ///     declined, a service down. A later answer for the profile takes it off, as does its token being found in the
     ///     file after all (#296).
     /// </summary>
@@ -119,6 +120,7 @@ public sealed class FallbackCredentialStore(
     }
 
     /// <inheritdoc />
+    /// <exception cref="KeyringUnansweredException">The keyring would not give the token up.</exception>
     public bool DeleteAccessToken(string profileName)
     {
         var fromKeyring = false;
@@ -132,8 +134,9 @@ public sealed class FallbackCredentialStore(
             }
             catch (Exception refusal)
             {
-                // The file is still asked. The token may still be in the keyring, and Unanswered says so.
-                _unanswered[profileName] = refusal.Message;
+                // Not passed over, as a read is: carrying on would let the profile go and leave its token in the
+                // keyring, out of this client's reach. Nothing has been touched, so trying again finishes the job.
+                throw new KeyringUnansweredException(profileName, refusal);
             }
         }
 

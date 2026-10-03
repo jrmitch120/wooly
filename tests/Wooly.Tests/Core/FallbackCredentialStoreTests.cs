@@ -1,5 +1,6 @@
 using Wooly.Core;
 using Wooly.Core.Credentials;
+using Wooly.Core.Errors;
 using Wooly.Tests.Fakes;
 
 namespace Wooly.Tests.Core;
@@ -251,17 +252,25 @@ public class FallbackCredentialStoreTests : IDisposable
         Assert.Equal("access denied", unanswered.Error);
     }
 
-    /// <summary>A delete the keyring will not answer may leave the token in it, and is reported the same way.</summary>
+    /// <summary>
+    ///     A delete the keyring will not answer fails rather than passing for done: the token would still be in the
+    ///     keyring, out of reach once its profile had gone. Nothing is touched, so trying again finishes the job.
+    /// </summary>
     [Fact]
-    public void DeleteAccessToken_ReportsAKeyringThatWillNotAnswerForThatProfile()
+    public void DeleteAccessToken_FailsWhenTheKeyringWillNotAnswer()
     {
+        _keyring.RefusesWrites = true;
         var store = WithKeyring();
         store.SaveAccessToken("work", "token-work");
+        _keyring.RefusesWrites = false;
         _keyring.RefusesDeletes = "access denied";
 
-        store.DeleteAccessToken("work");
+        var refusal = Assert.Throws<KeyringUnansweredException>(() => store.DeleteAccessToken("work"));
 
-        Assert.Equal(new UnansweredKeyring("work", "access denied"), Assert.Single(store.Unanswered));
+        Assert.Equal("work", refusal.ProfileName);
+        Assert.Contains("access denied", refusal.Message);
+        Assert.Equal("token-work", store.FindAccessToken("work"));
+        Assert.Equal(CredentialStorage.PlaintextFile, store.Storage);
     }
 
     /// <summary>A keyring that answers for the profile later, unlocked, stops being reported for it.</summary>

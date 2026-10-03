@@ -54,6 +54,27 @@ public class ShellRemoveProfileTests
         Assert.Empty(shell.Profiles.Removed);
     }
 
+    /// <summary>
+    ///     A keyring that will not give the token up leaves the profile where it is, and the status row says why, so
+    ///     the reader can unlock it and remove the profile again.
+    /// </summary>
+    [Fact]
+    public async Task X_Agreed_KeepsTheProfile_WhenTheKeyringWillNotGiveTheTokenUp()
+    {
+        var shell = ThreeProfiles();
+        shell.Profiles.KeyringRefusesDeletes = "access denied";
+        var opened = await shell.Opened();
+
+        OnProfiles(opened, "work");
+        opened.Press(ShellKey.X);
+        await opened.Answer(agreed: true);
+
+        Assert.Empty(shell.Profiles.Removed);
+        Assert.Equal(3, shell.Profiles.List().Count);
+        Assert.Contains("would not answer for profile \"work\" (access denied)", opened.Notice);
+        Assert.True(opened.NoticeIsError);
+    }
+
     [Fact]
     public async Task X_Declined_ChangesNothing()
     {

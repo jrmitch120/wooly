@@ -243,6 +243,32 @@ public class ProfileRegistryTests : IDisposable
     }
 
     /// <summary>
+    ///     A keyring that will not give the token up fails the removal, and the profile stays, so removing it again
+    ///     once the keyring is unlocked finishes the job rather than leaving a token nothing points at.
+    /// </summary>
+    [Fact]
+    public void Remove_KeepsTheProfileWhenTheKeyringWillNotGiveTheTokenUp()
+    {
+        var keyring = new FakeOsKeyring();
+        var store = new FallbackCredentialStore(
+            () => OsKeyringCredentialStore.Open(() => new GcmKeyring(GcmKeyring.BackingStoreForThisMachine, keyring)),
+            NewCredentialStore());
+        var registry = NewRegistry(store);
+        registry.Add("personal", Pointing("mastodon.social"), "token-personal");
+        registry.Add("work", Pointing("hachyderm.io"), "token-work");
+        keyring.RefusesDeletes = "access denied";
+
+        Assert.Throws<KeyringUnansweredException>(() => registry.Remove("work"));
+        Assert.Equal(["personal", "work"], NewRegistry(store).List().Select(profile => profile.Name));
+
+        keyring.RefusesDeletes = null;
+        registry.Remove("work");
+
+        Assert.DoesNotContain(keyring.Secrets, secret => secret.Key.Account == "work");
+        Assert.Equal(["personal"], NewRegistry(store).List().Select(profile => profile.Name));
+    }
+
+    /// <summary>
     ///     The default profile is refused, and nothing is touched: removing it would leave every command with no
     ///     <c>--profile</c> with nothing to act as, and choosing another in its place is the user's to do, not this
     ///     client's. The way out is named.

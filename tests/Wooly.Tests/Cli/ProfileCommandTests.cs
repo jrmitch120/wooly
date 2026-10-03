@@ -369,6 +369,29 @@ public class ProfileCommandTests : IDisposable
         Assert.Contains("mastodon.social", Run(["profile", "show"]).Output);
     }
 
+    /// <summary>
+    ///     A keyring that will not give the token up is reported, in words rather than as a defect, and the profile is
+    ///     left for the next try.
+    /// </summary>
+    [Fact]
+    public void Remove_ReportsAKeyringThatWillNotGiveTheTokenUpAndKeepsTheProfile()
+    {
+        var keyring = new FakeOsKeyring();
+        _credentialStore = new FallbackCredentialStore(
+            () => OsKeyringCredentialStore.Open(() => new GcmKeyring(GcmKeyring.BackingStoreForThisMachine, keyring)),
+            new PlaintextFileCredentialStore(new WoolyPaths(_directory.Path)));
+        Add("personal", "mastodon.social", "token-personal");
+        Add("work", "hachyderm.io", "token-work");
+        keyring.RefusesDeletes = "access denied";
+
+        var run = Run(["profile", "remove", "work"]);
+
+        Assert.Equal((int)ExitCode.Error, run.ExitCode);
+        Assert.Contains("would not answer for profile \"work\" (access denied)", run.ErrorOutput);
+        Assert.DoesNotContain("   at ", run.ErrorOutput);
+        Assert.Contains("hachyderm.io", Run(["profile", "list"]).Output);
+    }
+
     [Fact]
     public void Remove_ReportsAProfileThatWasNeverSetUpAsAUsageError()
     {

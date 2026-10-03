@@ -52,6 +52,9 @@ public interface IProfileRegistry
     /// <returns>What that turned out to do.</returns>
     /// <exception cref="Errors.UnknownProfileException">No profile by that name has been set up.</exception>
     /// <exception cref="Errors.DefaultProfileRemovalException">The profile is the default.</exception>
+    /// <exception cref="Errors.KeyringUnansweredException">
+    ///     The keyring would not give the token up, so the profile was left as it was.
+    /// </exception>
     ProfileRemoval Remove(string name);
 
     /// <summary>

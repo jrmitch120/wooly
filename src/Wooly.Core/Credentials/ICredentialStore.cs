@@ -29,5 +29,6 @@ public interface ICredentialStore
     ///     Forgets <paramref name="profileName" />'s access token. Returns <see langword="false" /> if there was
     ///     nothing to forget.
     /// </summary>
+    /// <exception cref="Errors.KeyringUnansweredException">A keyring would not give the token up.</exception>
     bool DeleteAccessToken(string profileName);
 }

@@ -42,6 +42,9 @@ internal sealed class FakeProfileRegistry(IReadOnlyList<ProfileSummary> profiles
     /// <inheritdoc />
     public IReadOnlyList<UnansweredKeyring> KeyringUnanswered { get; set; } = [];
 
+    /// <summary>What the keyring says when asked to give a token up, or <see langword="null" /> where it gives it up.</summary>
+    public string? KeyringRefusesDeletes { get; set; }
+
     /// <summary>
     ///     <paramref name="profiles" />, with <paramref name="current" /> the default profile — or none, where
     ///     it is <see langword="null" />.
@@ -103,7 +106,7 @@ internal sealed class FakeProfileRegistry(IReadOnlyList<ProfileSummary> profiles
     }
 
     /// <inheritdoc />
-    /// <remarks>Refuses the default, as the real one does.</remarks>
+    /// <remarks>Refuses the default, and a keyring that will not give the token up, as the real one does.</remarks>
     public ProfileRemoval Remove(string name)
     {
         var removed = _profiles.SingleOrDefault(held => held.Name == name)
@@ -112,6 +115,11 @@ internal sealed class FakeProfileRegistry(IReadOnlyList<ProfileSummary> profiles
         if (removed.IsCurrent)
         {
             throw new DefaultProfileRemovalException(name);
+        }
+
+        if (KeyringRefusesDeletes is { } error)
+        {
+            throw new KeyringUnansweredException(name, new InvalidOperationException(error));
         }
 
         Removed.Add(name);
