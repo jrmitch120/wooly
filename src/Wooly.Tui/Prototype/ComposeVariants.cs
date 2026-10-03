@@ -207,8 +207,8 @@ internal sealed class HeadersVariant : ComposeVariant
         var value = Math.Max(1, inner - Label - 2);
         var rows = new List<Line> { Line.Blank };
 
-        Line Header(string label, IReadOnlyList<Span> spans, bool lit = false) =>
-            new([Gap(Pad), new Span(label.PadLeft(Label), lit ? Role.PanelTitle : Role.Muted), Gap(2), .. spans]);
+        Line Header(string label, IReadOnlyList<Span> spans, Role role = Role.Muted) =>
+            new([Gap(Pad), new Span(label.PadLeft(Label), role), Gap(2), .. spans]);
 
         rows.Add(Header("From", [
             new Span(Me(c.Shell), Role.BylineHandle),
@@ -227,7 +227,10 @@ internal sealed class HeadersVariant : ComposeVariant
         }
 
         var hint = c.Compose.WritingTheWarning ? "say what it's about" : "none · ctrl-w to add";
-        rows.Add(Header("CW", WarningValue(c.Compose, value, hint), lit: c.Compose.WritingTheWarning));
+        // The mark a warned post wears in the feed, rather than a "CW" label: lit once there is a warning, or one being
+        // written, and dim while there is none.
+        var warned = c.Compose.WritingTheWarning || c.Compose.Warning.Length > 0;
+        rows.Add(Header(PostLines.WarningMark.Trim(), WarningValue(c.Compose, value, hint), warned ? Role.ContentWarning : Role.Muted));
         rows.Add(new Line([Gap(Pad), new Span(new string('─', inner), Role.PanelBorder)]));
         rows.Add(Line.Blank);
 
