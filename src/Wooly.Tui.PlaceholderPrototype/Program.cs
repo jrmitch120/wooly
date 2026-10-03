@@ -63,9 +63,8 @@ if (selfTest)
     {
         // d = a notch down, u = a notch up, all close together; prints where the page is after each.
         application.LayoutAndDraw(true);
-        probe.NewKeyDownEvent(Key.F);
         for (var go = 0; go < 20; go++) probe.NewMouseEvent(new Mouse { Flags = MouseFlags.WheeledDown });
-        var line = new StringBuilder("filter 2 in a row, from row 20: ");
+        var line = new StringBuilder("filter 3 in a row, from row 20: ");
         foreach (var notch in sequence)
         {
             probe.NewMouseEvent(new Mouse { Flags = notch == 'd' ? MouseFlags.WheeledDown : MouseFlags.WheeledUp });
@@ -251,7 +250,7 @@ internal sealed class Feed(List<string> photos) : View
     private int _reversals;
     private int _dropped;
     /// <summary>0 = off; otherwise how many events in a row must agree before the direction changes.</summary>
-    private int _filter;
+    private int _filter = 3;
 
     private int _moving;
     private int _held;
@@ -344,7 +343,7 @@ internal sealed class Feed(List<string> photos) : View
         if (key == Key.PageDown) { ScrollBy(Viewport.Height); return true; }
         if (key == Key.PageUp) { ScrollBy(-Viewport.Height); return true; }
         if (key == Key.S) { _wheelStep = _wheelStep == 1 ? 3 : 1; SetNeedsDraw(); return true; }
-        if (key == Key.F) { _filter = _filter switch { 0 => 2, 2 => 3, _ => 0 }; _held = 0; SetNeedsDraw(); return true; }
+        if (key == Key.F) { _filter = _filter switch { 3 => 0, 0 => 2, _ => 3 }; _held = 0; SetNeedsDraw(); return true; }
         if (key == Key.L)
         {
             var file = Path.Combine(Path.GetTempPath(), "wooly-292-wheel.log");
