@@ -192,12 +192,13 @@ internal sealed class SixelPictures(Func<Color[,], int, string>? encode = null, 
     /// </summary>
     private static string Encoded(Color[,] pixels, int colours)
     {
+        var (quantized, palette) = SixelPalette.Quantized(pixels, colours, dithered: false);
         var encoder = new SixelEncoder();
 
         encoder.Quantizer.MaxColors = colours;
-        encoder.Quantizer.PaletteBuildingAlgorithm = new SixelPalette();
+        encoder.Quantizer.PaletteBuildingAlgorithm = palette;
 
-        return encoder.EncodeSixel(pixels);
+        return encoder.EncodeSixel(quantized);
     }
 
     /// <summary>The rows and columns of <paramref name="crop" />, cut from the box's pixels.</summary>

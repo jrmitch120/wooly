@@ -754,13 +754,14 @@ internal sealed class PaintedView : View
 
 
     /// <summary>
-    ///     How many colours a sixel is encoded in on this terminal, or none where a box draws through Kitty instead.
-    ///     The same cap Terminal.Gui's image view puts on it: 64, or fewer where the terminal says it has fewer.
+    ///     How many colours a sixel is encoded in on this terminal, or none where a box draws through Kitty instead:
+    ///     all 256 sixel allows, or fewer where the terminal says it has fewer. Terminal.Gui's image view stops at 64,
+    ///     at which a photograph's gradients break into patches (ADR-0023).
     /// </summary>
     private int SixelColours() =>
         App?.Driver is { } driver
         && RasterProtocol.Chosen(driver.SixelSupport, driver.KittyGraphicsSupport) is PictureWay.Sixel
-            ? Math.Min(64, driver.SixelSupport!.MaxPaletteColors)
+            ? Math.Min(256, driver.SixelSupport!.MaxPaletteColors)
             : 0;
 
     /// <summary>

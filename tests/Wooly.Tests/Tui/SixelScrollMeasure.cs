@@ -51,6 +51,7 @@ public class SixelScrollMeasure(ITestOutputHelper output)
         Report("down, new rows, a notch every 16 ms", await Notches(drawn, down: true, apart: TimeSpan.FromMilliseconds(16)));
         Report("down, new rows, back to back", await Notches(drawn, down: true, apart: TimeSpan.Zero));
         Report("up, rows already drawn, back to back", await Notches(drawn, down: false, apart: TimeSpan.Zero));
+        await Pages(drawn);
     }
 
     /// <summary>
@@ -112,6 +113,32 @@ public class SixelScrollMeasure(ITestOutputHelper output)
         times.Sort();
 
         return (times, bytes);
+    }
+
+    /// <summary>A page at a time down rows not drawn yet, as quickly as a reader taps <c>PgDn</c>.</summary>
+    private async Task Pages(DrawnShell drawn)
+    {
+        // Back to the top, then past everything drawn so far, so every page is new.
+        drawn.Press(Terminal.Gui.Input.Key.Home);
+        drawn.Press(Terminal.Gui.Input.Key.PageDown);
+        drawn.Press(Terminal.Gui.Input.Key.PageDown);
+
+        var times = new List<double>();
+
+        for (var page = 0; page < 8; page++)
+        {
+            await Task.Delay(150, TestContext.Current.CancellationToken);
+
+            var clock = Stopwatch.StartNew();
+
+            drawn.Press(Terminal.Gui.Input.Key.PageDown);
+
+            times.Add(clock.Elapsed.TotalMilliseconds);
+        }
+
+        times.Sort();
+
+        output.WriteLine($"8 pages down, 150 ms apart: median {times[4]:F1} ms, worst {times[^1]:F1} ms a page.");
     }
 
     private void Report(string what, (List<double> Times, List<long> Bytes) measured) =>

@@ -63,7 +63,7 @@ and stops at the first 64. A photograph has 64 colours in its first column or tw
 and anything only further right was drawn in the nearest of those. `ImageView` used the same builder, so every sixel
 terminal had this before this change too. `SixelPalette` replaces it with ImageSharp's Wu quantizer over the whole
 picture: on two photographs the mean colour error fell from 14 and 31 to 6 and 7, at about the same cost to encode.
-The palette is still 64 colours, as `ImageView`'s was, and is built per cut, so a cut is drawn in its own colours.
+The palette is built per cut (and is 256 colours now, below), so a cut is drawn in its own colours.
 `Media/SixelPalette.cs` joins the colour scan's list, since a palette is the photograph's colours.
 
 **A cut a scroll is about to want is encoded ahead, off the UI thread.** A box at the edge of the page is cut a row
@@ -96,18 +96,26 @@ which it does not: the reply would arrive as keys. The order is a rule about pro
 it is also the order `ImageView` tries them in, so the picture `PaintedView` encodes for and the one the driver draws
 cannot disagree. Kitty is also drawn in full colour, which sixel cannot be.
 
-**A sixel is still 64 colours.** A photograph's smooth gradients band at 64 — a blurred background breaks into patches —
-and sixel allows 256. But more colours is more bytes and a slower encode, and scrolling smoothly is the complaint this
-is answering. Measured the same way, over new rows, a notch every 16 ms:
+**A sixel is 256 colours, the most it allows, and is quantized before it is encoded.** At 64, the cap Terminal.Gui's
+image view uses, a photograph's smooth gradients broke into patches in WezTerm, with the palette right and too few of
+them. `SixelPalette` now quantizes the picture itself with ImageSharp's Wu quantizer, which leaves every pixel a palette
+colour exactly, so Terminal.Gui's encoder finds each one in a dictionary rather than searching the palette for the
+nearest. That makes the colour count nearly free on this side; what it costs is bytes, which the terminal parses on
+every step. Over new rows, a notch every 16 ms:
 
-| Sixel colours | Median | Sent |
+| Sixel | Sent per notch | Look, on a blurred photograph |
 |---|---|---|
-| 64 | ~26–44 ms | ~590 KB |
-| 128 | 40–62 ms | ~790 KB |
-| 256 | 37–47 ms, 55–79 ms back to back | ~1 MB |
+| 64 colours | ~600 KB | Patches |
+| 64, dithered (Bayer 8×8) | ~730 KB | Smooth, grainy, a little washed out |
+| 128 | ~800 KB | Some banding |
+| 256 | ~1 MB | Close to the original |
 
-So 64 stays, for the terminals that draw only sixel — Windows Terminal and iTerm2 — and the banding is the price of
-scrolling there. Dithering was not tried; it hides banding but makes a sixel larger still.
+256 was chosen by eye in WezTerm, undithered. Scrolling there is still choppier than through placeholders, and turning
+a page quickly is choppier still: a page lands on cuts nothing encoded ahead, and every picture on it is ~1 MB the
+terminal must take in. Encoding the whole of every box within a screen of the page ahead was tried for that and did
+not help. It competed with the frame for the processor and churned the kept cuts, and the median page stayed at
+70–110 ms. **This is as far as sixel goes.** It cannot move an image, so a terminal that draws only sixel will scroll
+pictures less smoothly than one drawing placeholders, however its frames are made.
 
 **Findings for the levers left alone:**
 

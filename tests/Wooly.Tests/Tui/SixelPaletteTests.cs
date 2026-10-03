@@ -11,41 +11,66 @@ namespace Wooly.Tests.Tui;
 public class SixelPaletteTests
 {
     /// <summary>The bug as it was seen: everything on the left is pale and varied, and the dark is all on the right.</summary>
-    [Fact]
-    public void BuildPalette_HasAColourForWhatIsOnlyOnTheRightOfThePicture()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Quantized_DrawsWhatIsOnlyOnTheRightOfThePictureInAColourNearItsOwn(bool dithered)
     {
         var darkGreen = new Color(30, 80, 70);
-        var colours = new List<Color>();
+        var pixels = new Color[200, 100];
 
-        // Read the way Terminal.Gui reads a picture into the builder: a column at a time, from the left.
         for (var x = 0; x < 200; x++)
         {
             for (var y = 0; y < 100; y++)
             {
-                colours.Add(x < 120 ? new Color(150 + (x % 100), 200 + (y % 50), 180 + ((x + y) % 70)) : darkGreen);
+                pixels[x, y] = x < 120 ? new Color(150 + (x % 100), 200 + (y % 50), 180 + ((x + y) % 70)) : darkGreen;
             }
         }
 
-        var palette = new SixelPalette().BuildPalette(colours, maxColors: 64);
+        var (quantized, palette) = SixelPalette.Quantized(pixels, colours: 64, dithered);
 
-        Assert.InRange(palette.Count, 2, 64);
-        Assert.Contains(palette, colour => Distance(colour, darkGreen) < 20);
+        Assert.InRange(palette.Colours.Count, 2, 64);
+        Assert.Contains(palette.Colours, colour => Distance(colour, darkGreen) < 20);
+        Assert.True(Distance(quantized[160, 50], darkGreen) < 20);
+    }
+
+    /// <summary>
+    ///     Every pixel handed to the encoder is a palette colour exactly, which it finds at once, rather than one whose
+    ///     nearest it searches the palette for.
+    /// </summary>
+    [Fact]
+    public void Quantized_LeavesEveryPixelAColourOfThePalette()
+    {
+        var pixels = new Color[40, 30];
+
+        for (var x = 0; x < 40; x++)
+        {
+            for (var y = 0; y < 30; y++)
+            {
+                pixels[x, y] = new Color(x * 6, y * 8, (x * y) % 256);
+            }
+        }
+
+        var (quantized, palette) = SixelPalette.Quantized(pixels, colours: 16, dithered: true);
+
+        Assert.InRange(palette.Colours.Count, 1, 16);
+
+        foreach (var pixel in quantized)
+        {
+            Assert.Contains(pixel, palette.Colours);
+        }
     }
 
     /// <summary>A picture of fewer colours than there is room for is drawn in exactly its own.</summary>
     [Fact]
-    public void BuildPalette_KeepsEveryColourOfAPictureWithFewerThanThereIsRoomFor()
+    public void Quantized_KeepsEveryColourOfAPictureWithFewerThanThereIsRoomFor()
     {
-        var colours = new List<Color> { new(255, 0, 0), new(0, 255, 0), new(0, 0, 255), new(255, 0, 0) };
+        Color[,] pixels = { { new(255, 0, 0), new(0, 255, 0) }, { new(0, 0, 255), new(255, 0, 0) } };
 
-        var palette = new SixelPalette().BuildPalette(colours, maxColors: 64);
+        var (quantized, _) = SixelPalette.Quantized(pixels, colours: 64, dithered: true);
 
-        Assert.Equal(3, palette.Count);
-        Assert.All(colours, colour => Assert.Contains(palette, chosen => Distance(chosen, colour) < 2));
+        Assert.Equal(pixels, quantized);
     }
-
-    [Fact]
-    public void BuildPalette_IsEmptyForNoPicture() => Assert.Empty(new SixelPalette().BuildPalette([], maxColors: 64));
 
     private static double Distance(Color one, Color other) =>
         Math.Sqrt(Math.Pow(one.R - other.R, 2) + Math.Pow(one.G - other.G, 2) + Math.Pow(one.B - other.B, 2));
