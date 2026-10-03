@@ -1,6 +1,5 @@
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
 using SixLabors.ImageSharp.Processing.Processors.Quantization;
 using Terminal.Gui.Drawing;
 
@@ -21,8 +20,8 @@ namespace Wooly.Tui.Media;
 ///     <para>
 ///         The picture is quantized here as well as its palette chosen, so that every pixel the encoder is handed is a
 ///         palette colour exactly, which it finds in a dictionary rather than searching the whole palette for the
-///         nearest of. That is what makes 256 colours cost no more to encode than 64. Dithering is there to be asked
-///         for, and is not: at 256 colours it bought little and made every sixel larger (ADR-0023).
+///         nearest of. That is what makes 256 colours cost no more to encode than 64. It is not dithered: at 256
+///         colours dithering bought little and made every sixel larger (ADR-0023).
 ///     </para>
 ///     <para>
 ///         One of the few files outside the theme that builds a colour, with the decoder, the placeholders and the
@@ -40,9 +39,9 @@ internal sealed class SixelPalette : IStaticPaletteBuilder
 
     /// <summary>
     ///     <paramref name="pixels" /> brought down to at most <paramref name="colours" /> colours chosen from the whole
-    ///     of them — dithered where <paramref name="dithered" /> says — and the palette they are now drawn in.
+    ///     of them, undithered, and the palette they are now drawn in.
     /// </summary>
-    public static (Color[,] Pixels, SixelPalette Palette) Quantized(Color[,] pixels, int colours, bool dithered)
+    public static (Color[,] Pixels, SixelPalette Palette) Quantized(Color[,] pixels, int colours)
     {
         var width = pixels.GetLength(0);
         var height = pixels.GetLength(1);
@@ -72,7 +71,7 @@ internal sealed class SixelPalette : IStaticPaletteBuilder
         var options = new QuantizerOptions
         {
             MaxColors = Math.Clamp(colours, 1, 256),
-            Dither = dithered ? KnownDitherings.Bayer8x8 : null,
+            Dither = null,
         };
 
         using var quantizer = new WuQuantizer(options).CreatePixelSpecificQuantizer<Rgba32>(Configuration.Default);

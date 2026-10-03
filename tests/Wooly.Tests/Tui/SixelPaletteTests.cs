@@ -11,10 +11,8 @@ namespace Wooly.Tests.Tui;
 public class SixelPaletteTests
 {
     /// <summary>The bug as it was seen: everything on the left is pale and varied, and the dark is all on the right.</summary>
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void Quantized_DrawsWhatIsOnlyOnTheRightOfThePictureInAColourNearItsOwn(bool dithered)
+    [Fact]
+    public void Quantized_DrawsWhatIsOnlyOnTheRightOfThePictureInAColourNearItsOwn()
     {
         var darkGreen = new Color(30, 80, 70);
         var pixels = new Color[200, 100];
@@ -27,7 +25,7 @@ public class SixelPaletteTests
             }
         }
 
-        var (quantized, palette) = SixelPalette.Quantized(pixels, colours: 64, dithered);
+        var (quantized, palette) = SixelPalette.Quantized(pixels, colours: 64);
 
         Assert.InRange(palette.Colours.Count, 2, 64);
         Assert.Contains(palette.Colours, colour => Distance(colour, darkGreen) < 20);
@@ -51,7 +49,7 @@ public class SixelPaletteTests
             }
         }
 
-        var (quantized, palette) = SixelPalette.Quantized(pixels, colours: 16, dithered: true);
+        var (quantized, palette) = SixelPalette.Quantized(pixels, colours: 16);
 
         Assert.InRange(palette.Colours.Count, 1, 16);
 
@@ -67,7 +65,7 @@ public class SixelPaletteTests
     {
         Color[,] pixels = { { new(255, 0, 0), new(0, 255, 0) }, { new(0, 0, 255), new(255, 0, 0) } };
 
-        var (quantized, _) = SixelPalette.Quantized(pixels, colours: 64, dithered: true);
+        var (quantized, _) = SixelPalette.Quantized(pixels, colours: 64);
 
         Assert.Equal(pixels, quantized);
     }

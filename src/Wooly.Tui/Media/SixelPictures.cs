@@ -192,7 +192,7 @@ internal sealed class SixelPictures(Func<Color[,], int, string>? encode = null, 
     /// </summary>
     private static string Encoded(Color[,] pixels, int colours)
     {
-        var (quantized, palette) = SixelPalette.Quantized(pixels, colours, dithered: false);
+        var (quantized, palette) = SixelPalette.Quantized(pixels, colours);
         var encoder = new SixelEncoder();
 
         encoder.Quantizer.MaxColors = colours;
