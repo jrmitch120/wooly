@@ -344,6 +344,12 @@ which is a headed run on a screen: `[`/`]` walk sections, `` ` ``/`~` walk rail 
 not only the notifications that the code's `INotificationInbox` reads.
 _Avoid_: section, box, panel (a rail group is drawn as a panel, but the content is a panel too)
 
+**Crumb**:
+One **screen** on the stack, as the breadcrumb names it; the breadcrumb is the stack read from the bottom up, the first
+crumb always the **destination**'s own screen and the last the one in front. Walking back to a crumb takes off what
+was drilled in above it and keeps nothing of it to walk forward to again.
+_Avoid_: tab, history, level (which is also a picked **Reference**, that `esc` leaves before it leaves a screen)
+
 **Arrival**:
 Bringing a **screen** up from its **Subject**, which is one thing however many kinds of screen are read (#100, #233).
 Three moves do it, and they stay distinct inside it. _Arriving_ from the rail lands on a **destination**: the stack is
