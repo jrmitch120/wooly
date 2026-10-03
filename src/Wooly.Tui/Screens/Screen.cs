@@ -48,7 +48,8 @@ public abstract class Screen
     /// <summary>
     ///     The keys this screen answers to, for the status row and for <c>?</c> — which while a reference is picked
     ///     out are the three that act on it, ahead of the screen's own (<c>docs/tui-shell.md</c>, #83), and on a post
-    ///     carrying a poll are the two that vote in it (#87).
+    ///     carrying a poll are the two that vote in it (#87). Before one is picked, <c>←/→</c> is said on its own wherever
+    ///     there is a reference to walk to, so the walk can be found without already knowing it is there.
     /// </summary>
     /// <remarks>
     ///     Said here rather than by each screen, because a reference is picked the same way on all of them and a
@@ -112,9 +113,17 @@ public abstract class Screen
                 }
             }
 
-            return Reference is not null
-                ? PostKeys.OnAReference(own)
-                : Poll is { TakesAVote: true } ? PostKeys.OnAPoll(own) : own;
+            if (Reference is not null)
+            {
+                return PostKeys.OnAReference(own);
+            }
+
+            if (References.Count > 0)
+            {
+                own = PostKeys.OffAReference(own);
+            }
+
+            return Poll is { TakesAVote: true } ? PostKeys.OnAPoll(own) : own;
         }
     }
 
