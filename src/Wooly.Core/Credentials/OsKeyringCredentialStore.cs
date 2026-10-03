@@ -5,8 +5,9 @@ namespace Wooly.Core.Credentials;
 /// <summary>
 ///     Access tokens held by the OS's own secure store, reached through <c>Devlooped.CredentialManager</c> (ADR-0003).
 ///     That library speaks in (service, account) pairs and prefixes the service with the namespace it was opened
-///     under, so this client's entries read as <c>wooly:access-token</c> in Keychain, and as
-///     <c>wooly:wooly://access-token</c> in Windows' Credential Manager (<see cref="ServiceOn" />), one per profile.
+///     under, so this client's entries read as <c>wooly:access-token</c> in Keychain or Secret Service, one per
+///     profile. Not on Windows, which reaches Credential Manager through its own API instead
+///     (<see cref="WindowsCredentialStore" />): Git Credential Manager opens only where Git is installed.
 ///     <para>
 ///         Only <see cref="Open()" /> can build one, so the name on this class is a promise rather than a hope: there
 ///         is no way to end up with an <c>OsKeyringCredentialStore</c> over a store that is not the OS keyring.
@@ -14,33 +15,22 @@ namespace Wooly.Core.Credentials;
 /// </summary>
 public sealed class OsKeyringCredentialStore : ICredentialStore
 {
-    private readonly OsKeyring _keyring;
-    private readonly string _service;
+    /// <summary>
+    ///     What each entry holds. Names the secret rather than the client, because the namespace
+    ///     <see cref="GcmKeyring.Open" /> opens under already supplies the <c>wooly</c> half of the label the
+    ///     OS displays.
+    /// </summary>
+    private const string Service = "access-token";
 
-    private OsKeyringCredentialStore(OsKeyring keyring, string service)
-    {
-        _keyring = keyring;
-        _service = service;
-    }
+    private readonly OsKeyring _keyring;
+
+    private OsKeyringCredentialStore(OsKeyring keyring) => _keyring = keyring;
 
     /// <summary>
     ///     Opens this machine's own keyring, and proves it answers before handing the store back.
     /// </summary>
     /// <exception cref="Exception">No keyring is available, or the one that is refused to answer.</exception>
     public static OsKeyringCredentialStore Open() => Open(GcmKeyring.Open);
-
-    /// <summary>
-    ///     What each entry holds. Names the secret rather than the client, because the namespace
-    ///     <see cref="GcmKeyring.Open" /> opens under already supplies the <c>wooly</c> half of the label the OS
-    ///     displays.
-    /// </summary>
-    /// <remarks>
-    ///     An absolute URI on Windows, because Git Credential Manager's Windows store builds a credential's name by
-    ///     parsing the service as one, and throws on anything else — which crashed the TUI adding its first profile.
-    ///     Plain everywhere else, where it always was: changing it there would orphan every token already filed.
-    /// </remarks>
-    /// <param name="windows">Whether the keyring is Windows' Credential Manager.</param>
-    internal static string ServiceOn(bool windows) => windows ? "wooly://access-token" : "access-token";
 
     /// <summary>
     ///     Accepts Git Credential Manager's answer only if it is the store this client asked for.
@@ -61,13 +51,9 @@ public sealed class OsKeyringCredentialStore : ICredentialStore
     ///     Opens Git Credential Manager. Kept a delegate so that every store GCM can resolve to is reachable in a test
     ///     without reconfiguring the developer's own Git.
     /// </param>
-    /// <param name="windows">
-    ///     Whether the keyring is Windows' Credential Manager (<see cref="ServiceOn" />): this machine's answer, unless
-    ///     a test says otherwise.
-    /// </param>
     /// <exception cref="InvalidOperationException">GCM resolved to something other than this machine's keyring.</exception>
     /// <exception cref="Exception">The keyring GCM named refused to answer.</exception>
-    internal static OsKeyringCredentialStore Open(Func<GcmKeyring> openGcm, bool? windows = null)
+    internal static OsKeyringCredentialStore Open(Func<GcmKeyring> openGcm)
     {
         var gcm = openGcm();
 
@@ -78,11 +64,9 @@ public sealed class OsKeyringCredentialStore : ICredentialStore
                 $"than this machine's keyring ('{GcmKeyring.BackingStoreForThisMachine}').");
         }
 
-        var service = ServiceOn(windows ?? OperatingSystem.IsWindows());
+        gcm.Keyring.GetAccounts(Service);
 
-        gcm.Keyring.GetAccounts(service);
-
-        return new OsKeyringCredentialStore(gcm.Keyring, service);
+        return new OsKeyringCredentialStore(gcm.Keyring);
     }
 
     /// <inheritdoc />
@@ -93,12 +77,12 @@ public sealed class OsKeyringCredentialStore : ICredentialStore
     public CredentialStorage Storage => CredentialStorage.OsKeyring;
 
     /// <inheritdoc />
-    public string? FindAccessToken(string profileName) => _keyring.Get(_service, profileName)?.Password;
+    public string? FindAccessToken(string profileName) => _keyring.Get(Service, profileName)?.Password;
 
     /// <inheritdoc />
     public void SaveAccessToken(string profileName, string accessToken) =>
-        _keyring.AddOrUpdate(_service, profileName, accessToken);
+        _keyring.AddOrUpdate(Service, profileName, accessToken);
 
     /// <inheritdoc />
-    public bool DeleteAccessToken(string profileName) => _keyring.Remove(_service, profileName);
+    public bool DeleteAccessToken(string profileName) => _keyring.Remove(Service, profileName);
 }
