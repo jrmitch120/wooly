@@ -1,3 +1,4 @@
+using Terminal.Gui.Input;
 using Terminal.Gui.Views;
 
 namespace Wooly.Tui.Media;
@@ -24,7 +25,18 @@ internal sealed class PictureView : ImageView
         // A picture is something a reader looks at rather than something they tab to, and the shell's keys all belong
         // to the screen underneath it.
         CanFocus = false;
+
+        // Nor is it something a reader points at. Terminal.Gui's image view zooms on the wheel and pans on a drag, so
+        // a wheel over a picture grew it inside its box and never reached the page (#287): the pointer, like the
+        // keys, is the screen's underneath, and a picture is only ever a part of the rows it sits on.
+        MouseBindings.Clear();
     }
+
+    /// <inheritdoc />
+    /// <remarks>
+    ///     Declined whatever it is, so that it bubbles to the content panel and the window as if no picture were there.
+    /// </remarks>
+    protected override bool OnMouseEvent(Mouse mouse) => false;
 
     /// <summary>Whether this can be drawn at all, which on a terminal with neither protocol it cannot.</summary>
     public bool CanDraw => IsUsingRasterGraphics;

@@ -1493,6 +1493,24 @@ this document now holds it to:
   A refusal of a question asked as a profile no longer acted as says nothing.
 - `R` is its own key because `r` is reply; off the profiles screen it means nothing.
 
+## Pointer
+
+The mouse is another way to ask for what the keys already ask for (#286). It adds no verb and no table beside the
+**Keymap**: `ShellWindow` is where Terminal.Gui's mouse events stop, as it is for keys, and all it works out is which
+panel the pointer is over. What the gesture then does is a move the keys already make.
+
+| Gesture | Over | Does |
+|---|---|---|
+| Wheel down / up | The content panel | Exactly one `↓` / `↑`: the page moves by the same three rows and clamps at the same ends. **Picked** stays where it is, so after wheeling it off the page `j`/`k` reclaim the topmost thing on the page, as after the arrows. On help and notices too, which are content like any other screen. A notch is that arrow through the **Keymap**, so with a confirmation open it declines it and scrolls nothing, as `↓` does (#287) |
+| Wheel | The rail | Nothing: not the cursor, not the selection, not the rail's scroll and not the page beside it |
+| Wheel, click | The compose editor | Terminal.Gui's own handling: the wheel scrolls the draft and a click places the caret. Nothing of the shell's |
+
+Clicks on the rail and in the content are not answered yet; #286 brings them in its later slices.
+
+Mouse tracking stays on, and nothing turns it off: drag means nothing, and selecting text to copy goes through the
+terminal's modifier bypass (`⌥` in iTerm2, `Fn` in Terminal.app) until selection is a feature of its own. The `?`
+screen says what the mouse does in one line beside the frame's keys.
+
 ## Starting it, and the one destination that needs configuring
 
 `wooly-tui` takes one option, `--profile <name>`, and it means what it means everywhere else: act as that profile for

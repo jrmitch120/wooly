@@ -1,6 +1,8 @@
+using System.Drawing;
 using Terminal.Gui.App;
 using Terminal.Gui.Input;
 using Wooly.Tests.Fakes;
+using Wooly.Tui.Media;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Theme;
 using Wooly.Tui.Views;
@@ -39,12 +41,19 @@ internal sealed class DrawnShell : IDisposable
     ///     <paramref name="theme" />, opened on its first timeline — or launched, where <paramref name="launch" /> says
     ///     so, for a shell with nobody to act as.
     /// </summary>
+    /// <param name="pictures">A terminal that draws pictures, where a test is about them; one that draws none if not.</param>
+    /// <param name="drawsPictures">
+    ///     Whether the headless terminal says it draws sixel, which is what puts a picture's box on screen at all — a
+    ///     box on a terminal drawing neither protocol is never shown.
+    /// </param>
     public static async Task<DrawnShell> Of(
         int width,
         int height,
         ITheme theme,
         AShell? built = null,
-        bool launch = false)
+        bool launch = false,
+        IPictures? pictures = null,
+        bool drawsPictures = false)
     {
         built ??= new AShell();
 
@@ -54,7 +63,12 @@ internal sealed class DrawnShell : IDisposable
         application.Init("ansi");
         application.Driver!.SetScreenSize(width, height);
 
-        var window = new ShellWindow(shell, theme, built.Clock, () => { }, FakePictures.DrawingNothing());
+        if (drawsPictures)
+        {
+            application.Driver.SetSixelSupport(new Terminal.Gui.Drawing.SixelSupportResult { IsSupported = true });
+        }
+
+        var window = new ShellWindow(shell, theme, built.Clock, () => { }, pictures ?? FakePictures.DrawingNothing());
 
         application.Begin(window);
         application.LayoutAndDraw(true);
@@ -67,6 +81,27 @@ internal sealed class DrawnShell : IDisposable
     public void Press(Key key)
     {
         Window.NewKeyDownEvent(key);
+        Redraw();
+    }
+
+    /// <summary>A left click on the cell at <paramref name="column" />, <paramref name="row" />.</summary>
+    public void Click(int column, int row) => Point(column, row, MouseFlags.LeftButtonClicked);
+
+    /// <summary>A double click on the cell, as Terminal.Gui reports one once it has counted the clicks.</summary>
+    public void DoubleClick(int column, int row) => Point(column, row, MouseFlags.LeftButtonDoubleClicked);
+
+    /// <summary>One notch of the wheel over the cell: down, towards the foot of the page, or up.</summary>
+    public void Wheel(int column, int row, bool down = true) =>
+        Point(column, row, down ? MouseFlags.WheeledDown : MouseFlags.WheeledUp);
+
+    /// <summary>
+    ///     A mouse event at a cell of the terminal, raised through the application the way a terminal's report is — so
+    ///     it reaches whichever view is under the pointer and bubbles from there, which is what makes a wheel over the
+    ///     compose editor the editor's and a wheel over the content the window's.
+    /// </summary>
+    private void Point(int column, int row, MouseFlags flags)
+    {
+        Application.Mouse.RaiseMouseEvent(new Mouse { ScreenPosition = new Point(column, row), Flags = flags });
         Redraw();
     }
 

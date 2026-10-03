@@ -250,6 +250,47 @@ internal sealed class ShellWindow : Window
     }
 
     /// <summary>
+    ///     Every mouse event the shell answers to, and where Terminal.Gui's stop, as <see cref="OnKeyDown" /> is for
+    ///     keys. The window works out which panel the pointer is over and turns the gesture into a move the keys already
+    ///     make; what that move means is the shell's (#286, <c>docs/tui-shell.md</c>).
+    /// </summary>
+    /// <remarks>
+    ///     Reached by what the views under the pointer left: the compose editor takes its own wheel and clicks before
+    ///     they bubble here, which is the whole of how a draft scrolls and places its caret.
+    /// </remarks>
+    protected override bool OnMouseEvent(Mouse mouse)
+    {
+        if (!_content.FrameToScreen().Contains(mouse.ScreenPosition) || Notched(mouse) is not { } pressed)
+        {
+            return base.OnMouseEvent(mouse);
+        }
+
+        // A notch is the arrow it stands for, open question and all: anything but the agreeing key declines one, so a
+        // notch declines it too and scrolls nothing behind it (story 43).
+        if (_shell.Asking is not null)
+        {
+            _ = _shell.Answer(agreed: false);
+
+            return true;
+        }
+
+        return Do(pressed);
+    }
+
+    /// <summary>
+    ///     The arrow a wheel notch is — <c>↓</c> or <c>↑</c>, the window's three-row page step either way — or
+    ///     <see langword="null" /> for anything that is not a notch.
+    /// </summary>
+    /// <remarks>
+    ///     A key rather than a verb, so that what the notch does is whatever <see cref="Keymap" /> says that arrow does
+    ///     on the screen in front: the wheel and the arrows cannot drift apart while they are the same press.
+    /// </remarks>
+    private static ShellKey? Notched(Mouse mouse) =>
+        mouse.Flags.HasFlag(MouseFlags.WheeledDown) ? ShellKey.Down
+        : mouse.Flags.HasFlag(MouseFlags.WheeledUp) ? ShellKey.Up
+        : null;
+
+    /// <summary>
     ///     What <paramref name="pressed" /> means here, done. The verbs that need a terminal are taken first and the
     ///     rest are the shell's, which is the whole of the division: this window knows how tall the page is, where the
     ///     rows have been scrolled to, what the editor widget is holding, and who owns the run loop — and nothing else
