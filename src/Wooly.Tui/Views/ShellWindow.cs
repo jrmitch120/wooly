@@ -74,6 +74,9 @@ internal sealed class ShellWindow : Window
     private readonly PaintedView _content;
     private readonly ComposeEditor _editor;
 
+    // PROTOTYPE: the content warning as a field of its own.
+    private readonly ComposeWarningField _warning;
+
     // PROTOTYPE: the bar naming which compose variant is showing.
     private readonly VariantSwitcher? _switcher;
 
@@ -209,7 +212,7 @@ internal sealed class ShellWindow : Window
         {
             // Inside the panel's edges on three sides, and under what is being answered on the fourth (below).
             // PROTOTYPE: everywhere the variant says, inside the content panel.
-            X = Pos.Func(_ => (_railed ? RailLines.Width : 0) + Edge + Box().Left, _content),
+            X = Pos.Func(_ => (_railed ? RailLines.Width : 0) + Edge + Laid().Editor.Left, _content),
             // A reply's "answering" block is painted on _content, which this sits in front of and exactly the same
             // size as (below) — so without this, the block is never seen: the editor is opaque and covers it on every
             // frame it is visible. Dim.Fill(1) starting from here still reaches the same floor it always did.
@@ -217,9 +220,9 @@ internal sealed class ShellWindow : Window
             // will be retrieved") — _content, because it is _content's own width the block is wrapped against, and
             // measuring anything else means deriving that width a second way. Omitting it defaults to null, which is
             // what the first attempt at this did: EditorTop got no Viewport to measure, so Y silently stayed 1 forever.
-            Y = Pos.Func(_ => ContentTop + Box().Top, _content),
-            Width = Dim.Func(_ => Box().Width, _content),
-            Height = Dim.Func(_ => Box().Height, _content),
+            Y = Pos.Func(_ => ContentTop + Laid().Editor.Top, _content),
+            Width = Dim.Func(_ => Laid().Editor.Width, _content),
+            Height = Dim.Func(_ => Laid().Editor.Height, _content),
             Visible = false,
             WordWrap = true,
         };
@@ -234,14 +237,26 @@ internal sealed class ShellWindow : Window
             CanFocus = false,
         };
 
-        Add(rail, _content, title, _editor, status);
+        _warning = new ComposeWarningField(() => _ = Send(), () => shell.Back(), shell.WriteWarning)
+        {
+            X = Pos.Func(_ => (_railed ? RailLines.Width : 0) + Edge + (Laid().Warning?.Left ?? 0), _content),
+            Y = Pos.Func(_ => ContentTop + (Laid().Warning?.Top ?? 0), _content),
+            Width = Dim.Func(_ => Laid().Warning?.Width ?? 1, _content),
+            Height = 1,
+            Visible = false,
+        };
+
+        Add(rail, _content, title, _editor, _warning, status);
 
         // PROTOTYPE: the editor in the theme's roles, a dim placeholder, the count kept live, and the switcher.
         IReadOnlyList<Rendering.Line> Render(Screen screen, int width) =>
             screen.Lines(new Drawing(width, clock.GetUtcNow(), pictures, hideDrawnCaption));
 
         var body = theme.For(Role.Body);
-        var picked = theme.Banded(Role.Body);
+        // A selection lifted well off the page: the body's own colour on the dim border's, which is Catppuccin's
+        // Surface2 in the dark theme and its counterpart in the light — rather than the feed's picked-row band, which
+        // is tuned to be barely there. A real one would be a theme role of its own.
+        var picked = new Terminal.Gui.Drawing.Attribute(body.Foreground, theme.For(Role.PanelBorder).Foreground);
         _editor.Colours = role => !ComposeVariants.Current.Themed ? null : role switch
         {
             Terminal.Gui.Drawing.VisualRole.Active or Terminal.Gui.Drawing.VisualRole.Highlight
@@ -251,6 +266,37 @@ internal sealed class ShellWindow : Window
         };
         _editor.Placeholder = () => ComposeVariants.Current.Placeholder;
         _editor.PlaceholderColour = theme.For(Role.Muted);
+        var warned = theme.For(Role.ContentWarning);
+        _warning.Colours = role => role is Terminal.Gui.Drawing.VisualRole.Active or Terminal.Gui.Drawing.VisualRole.Highlight
+            or Terminal.Gui.Drawing.VisualRole.HotActive ? new Terminal.Gui.Drawing.Attribute(warned.Foreground, picked.Background) : warned;
+        _warning.Placeholder = () => Laid().Hint;
+        _warning.PlaceholderColour = theme.For(Role.Muted);
+        _warning.ValueChanged += (_, _) =>
+        {
+            if (_shell.Screen is ComposeScreen writing && _warning.Visible)
+            {
+                writing.Warning = _warning.Text;
+            }
+
+            _content.SetNeedsDraw();
+        };
+
+        // A click into either field is the same as ctrl-w towards it.
+        _warning.HasFocusChanged += (_, e) =>
+        {
+            if (e.NewValue && _shell.Screen is ComposeScreen { WritingTheWarning: false })
+            {
+                shell.WriteWarning();
+            }
+        };
+        _editor.HasFocusChanged += (_, e) =>
+        {
+            if (e.NewValue && _warning.Visible && _shell.Screen is ComposeScreen { WritingTheWarning: true })
+            {
+                shell.WriteWarning();
+            }
+        };
+
         _editor.ContentsChanged += (_, _) =>
         {
             if (_shell.Screen is ComposeScreen writing && _editor.Visible)
@@ -269,6 +315,8 @@ internal sealed class ShellWindow : Window
         ComposeVariants.Changed += () =>
         {
             _switcher?.Fit();
+            SyncFields();
+            _warning.SetNeedsLayout();
             _editor.SetNeedsLayout();
             _editor.SetNeedsDraw();
             _content.SetNeedsDraw();
@@ -721,14 +769,39 @@ internal sealed class ShellWindow : Window
     }
 
     /// <summary>PROTOTYPE: where the showing variant puts the editor, inside the content panel's viewport.</summary>
-    private EditorBox Box()
+    private ComposeLayout Laid()
     {
         var width = _content.Viewport.Width;
         var height = _content.Viewport.Height;
 
         return width <= 0 || height <= 0 || _shell.Screen is not ComposeScreen compose
-            ? new EditorBox(0, 0, 1, 1)
-            : ComposeVariants.Current.Lay(new ComposeContext(_shell, compose, width, height, (_, _) => [])).Editor;
+            ? new ComposeLayout([], new EditorBox(0, 0, 1, 1))
+            : ComposeVariants.Current.Lay(new ComposeContext(_shell, compose, width, height, (_, _) => []));
+    }
+
+    /// <summary>
+    ///     PROTOTYPE: which of the two fields has the typing, and whether the warning has a field at all. A variant
+    ///     with a field lets either take focus — a click included — and keeps WritingTheWarning in step with it.
+    /// </summary>
+    private void SyncFields()
+    {
+        if (_shell.Screen is not ComposeScreen compose || !_editor.Visible)
+        {
+            _warning.Visible = false;
+
+            return;
+        }
+
+        var fielded = Laid().Warning is not null;
+        _warning.Visible = fielded;
+        _editor.CanFocus = fielded || !compose.WritingTheWarning;
+
+        View? wanted = compose.WritingTheWarning ? fielded ? _warning : null : _editor;
+
+        if (wanted is { HasFocus: false })
+        {
+            wanted.SetFocus();
+        }
     }
 
     private async Task Send()
@@ -813,19 +886,10 @@ internal sealed class ShellWindow : Window
         //
         // The two being equal is what says they are out of step — the editor may be focused exactly when the warning
         // is not being written — so this runs on the frames that change one and passes over every other.
-        if (_shell.Screen is ComposeScreen compose && _editor.CanFocus == compose.WritingTheWarning)
-        {
-            _editor.CanFocus = !compose.WritingTheWarning;
-
-            if (_editor.CanFocus && _editor.Visible)
-            {
-                _editor.SetFocus();
-            }
-        }
-
         if (composing && !_editor.Visible)
         {
             _editor.Text = ((ComposeScreen)_shell.Screen).Text;
+            _warning.Text = ((ComposeScreen)_shell.Screen).Warning;
             _editor.Visible = true;
             _switcher?.Visible = true;
             _editor.SetFocus();
@@ -845,6 +909,10 @@ internal sealed class ShellWindow : Window
             _switcher?.Visible = false;
             SetFocus();
         }
+
+        // PROTOTYPE: in place of the editor's CanFocus toggling, which only knew one field.
+        SyncFields();
+        _warning.SetNeedsLayout();
 
         SetNeedsDraw();
     }

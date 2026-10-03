@@ -16,6 +16,12 @@ namespace Wooly.Tui.Prototype;
 /// <summary>Where the live editor sits, inside the content panel's viewport.</summary>
 internal readonly record struct EditorBox(int Left, int Top, int Width, int Height);
 
+/// <summary>
+///     A variant laid out: the rows painted on the content region, where the editor goes, and where the warning's own
+///     one-line field goes — <see langword="null" /> where the warning is painted and typed through the shell, as today.
+/// </summary>
+internal sealed record ComposeLayout(IReadOnlyList<Line> Rows, EditorBox Editor, EditorBox? Warning = null, string Hint = "");
+
 /// <summary>What a variant gets to lay itself out with.</summary>
 internal sealed record ComposeContext(
     Shell.Shell Shell,
@@ -39,7 +45,7 @@ internal abstract class ComposeVariant
     /// <summary>What an empty editor shows, dimmed, where the first letter will go.</summary>
     public virtual string? Placeholder => "What's on your mind?";
 
-    public abstract (IReadOnlyList<Line> Rows, EditorBox Editor) Lay(ComposeContext c);
+    public abstract ComposeLayout Lay(ComposeContext c);
 
     // ---- shared pieces ------------------------------------------------------------------------------------------
 
@@ -179,12 +185,12 @@ internal sealed class TodayVariant : ComposeVariant
     public override bool Themed => false;
     public override string? Placeholder => null;
 
-    public override (IReadOnlyList<Line> Rows, EditorBox Editor) Lay(ComposeContext c)
+    public override ComposeLayout Lay(ComposeContext c)
     {
         var rows = c.Render(c.Compose, c.Width);
         var top = Math.Min(c.Compose.AnsweringHeight(c.Width), Math.Max(0, c.Height - 3 - 2)) + c.Compose.WarningHeight;
 
-        return (rows, new EditorBox(0, top, c.Width, Math.Max(1, c.Height - top)));
+        return new ComposeLayout(rows, new EditorBox(0, top, c.Width, Math.Max(1, c.Height - top)));
     }
 }
 
@@ -201,7 +207,7 @@ internal sealed class HeadersVariant : ComposeVariant
     public override string Name => "Headers";
     public override string Inspiration => "aerc / neomutt compose";
 
-    public override (IReadOnlyList<Line> Rows, EditorBox Editor) Lay(ComposeContext c)
+    public override ComposeLayout Lay(ComposeContext c)
     {
         var inner = Math.Max(1, c.Width - Pad * 2);
         var value = Math.Max(1, inner - Label - 2);
@@ -230,6 +236,7 @@ internal sealed class HeadersVariant : ComposeVariant
         // The mark a warned post wears in the feed, rather than a "CW" label: lit once there is a warning, or one being
         // written, and dim while there is none.
         var warned = c.Compose.WritingTheWarning || c.Compose.Warning.Length > 0;
+        var field = new EditorBox(Pad + Label + 2, rows.Count, value, 1);
         rows.Add(Header(PostLines.WarningMark.Trim(), WarningValue(c.Compose, value, hint), warned ? Role.ContentWarning : Role.Muted));
         rows.Add(new Line([Gap(Pad), new Span(new string('─', inner), Role.PanelBorder)]));
         rows.Add(Line.Blank);
@@ -242,7 +249,7 @@ internal sealed class HeadersVariant : ComposeVariant
         rows.Add(new Line([Gap(Pad), new Span(new string('─', inner), Role.PanelBorder)]));
         rows.Add(new Line([Gap(Pad), .. Spread([], [Counter(c.Compose, "{0} / {1}")], inner).Spans]));
 
-        return (rows, new EditorBox(Pad, top, inner, height));
+        return new ComposeLayout(rows, new EditorBox(Pad, top, inner, height), field, hint);
     }
 }
 
@@ -259,7 +266,7 @@ internal sealed class FieldsVariant : ComposeVariant
     public override string Name => "Fields";
     public override string Inspiration => "charm's huh / gum forms";
 
-    public override (IReadOnlyList<Line> Rows, EditorBox Editor) Lay(ComposeContext c)
+    public override ComposeLayout Lay(ComposeContext c)
     {
         var inner = Math.Max(1, c.Width - Pad * 2 - Indent);
         var warning = c.Compose.WritingTheWarning;
@@ -281,7 +288,9 @@ internal sealed class FieldsVariant : ComposeVariant
         }
 
         rows.Add(Row(warning, new Span("Content warning", warning ? Role.PanelTitle : Role.Body)));
-        rows.Add(Row(warning, [.. WarningValue(c.Compose, inner, "Optional — readers see this before they open the post")]));
+        const string hint = "Optional — readers see this before they open the post";
+        var field = new EditorBox(Pad + Indent, rows.Count, inner, 1);
+        rows.Add(Row(warning, [.. WarningValue(c.Compose, inner, hint)]));
         rows.Add(Line.Blank);
 
         var label = c.Compose.Purpose == ComposeFor.Edit ? "Post (editing)" : "Post";
@@ -309,7 +318,7 @@ internal sealed class FieldsVariant : ComposeVariant
             Counter(c.Compose),
         ]));
 
-        return (rows, new EditorBox(Pad + Indent, top, inner, height));
+        return new ComposeLayout(rows, new EditorBox(Pad + Indent, top, inner, height), field, hint);
     }
 }
 
@@ -323,7 +332,7 @@ internal sealed class OverlayVariant : ComposeVariant
     public override string Name => "Overlay";
     public override string Inspiration => "lazygit's commit popup";
 
-    public override (IReadOnlyList<Line> Rows, EditorBox Editor) Lay(ComposeContext c)
+    public override ComposeLayout Lay(ComposeContext c)
     {
         var width = c.Width;
         var height = c.Height;
@@ -382,6 +391,7 @@ internal sealed class OverlayVariant : ComposeVariant
 
         var hint = c.Compose.WritingTheWarning ? "say what it's about" : "content warning (ctrl-w)";
         var mark = new Span("⚠ ", c.Compose.WritingTheWarning || c.Compose.Warning.Length > 0 ? Role.ContentWarning : Role.Muted);
+        var field = new EditorBox(left + 2 + mark.Width, top + box.Count, inside - mark.Width, 1);
         box.Add(Inner([mark, .. WarningValue(c.Compose, inside - mark.Width, hint)]));
         box.Add(Divider());
 
@@ -417,7 +427,7 @@ internal sealed class OverlayVariant : ComposeVariant
             ]);
         }
 
-        return (rows, new EditorBox(left + 2, top + editorTop, inside, editorHeight));
+        return new ComposeLayout(rows, new EditorBox(left + 2, top + editorTop, inside, editorHeight), field, hint);
     }
 
     /// <summary>Kitty's placeholder cells mean nothing once recoloured, so they go.</summary>

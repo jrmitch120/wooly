@@ -78,8 +78,44 @@ public class ComposeDump
         shell.WriteWarning();
         Type("terminal nerdery");
         Snap("warning");
+
+        // Selecting in each field, which is what the warning being a real field is for.
+        foreach (var variant in new[] { "A", "B", "C" })
+        {
+            ComposeVariants.Select(variant);
+            application.LayoutAndDraw(true);
+            window.NewKeyDownEvent(Key.End);
+
+            for (var at = 0; at < 7; at++)
+            {
+                window.NewKeyDownEvent(Key.CursorLeft.WithShift);
+            }
+
+            application.LayoutAndDraw(true);
+            File.WriteAllText(Path.Combine(into, $"{variant}-select-warning.ansi"), application.Driver.ToAnsi());
+        }
+
         shell.WriteWarning();
+        built.Host.Drain();
         Snap("written");
+
+        foreach (var variant in new[] { "A", "B", "C" })
+        {
+            ComposeVariants.Select(variant);
+            application.LayoutAndDraw(true);
+
+            for (var at = 0; at < 14; at++)
+            {
+                window.NewKeyDownEvent(Key.CursorLeft.WithShift);
+            }
+
+            application.LayoutAndDraw(true);
+            File.WriteAllText(Path.Combine(into, $"{variant}-select-post.ansi"), application.Driver.ToAnsi());
+            window.NewKeyDownEvent(Key.End);
+        }
+
+        File.WriteAllText(Path.Combine(into, "fields.txt"),
+            $"warning: [{((ComposeScreen)shell.Screen).Warning}] writing: {((ComposeScreen)shell.Screen).WritingTheWarning}");
 
         // A reply, from the feed's picked post.
         shell.Back();

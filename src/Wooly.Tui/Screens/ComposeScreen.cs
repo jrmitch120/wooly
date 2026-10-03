@@ -93,7 +93,8 @@ public sealed class ComposeScreen : Screen
     ///     the way out is <see cref="Outgoing" />'s, which is the same field read two ways and the reason nobody
     ///     outside gets to choose between them (#146).
     /// </remarks>
-    public string Warning { get; private set; }
+    // PROTOTYPE: settable, so the warning's own text field can keep it.
+    public string Warning { get; set; }
 
     /// <summary>
     ///     Whether what is typed is going into the warning rather than into the post. Both are on screen at once and
