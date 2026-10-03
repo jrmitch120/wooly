@@ -72,6 +72,7 @@ if (selfTest)
             line.Append($"{notch}→{System.Text.RegularExpressions.Regex.Match(said, @"row (\d+)").Groups[1].Value} ");
         }
         Console.WriteLine(line);
+        Console.WriteLine($"l handled: {top.NewKeyDownEvent(Key.L)}; log exists: {File.Exists(probe.WriteLog())}");
         return 0;
     }
 
@@ -132,6 +133,10 @@ window.IsRunningChanged += (_, _) => { if (!window.IsRunning) application.Driver
 
 application.Run(window);
 window.Dispose();
+application.Dispose();
+
+// After the terminal is given back, so it is the last thing on screen.
+Console.WriteLine($"Wheel log: {feed.WriteLog()}");
 
 return 0;
 
@@ -255,6 +260,15 @@ internal sealed class Feed(List<string> photos) : View
     private int _moving;
     private int _held;
 
+    /// <summary>Writes every wheel event so far to a file in the home folder, and says where.</summary>
+    public string WriteLog()
+    {
+        var file = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "wooly-292-wheel.log");
+        File.WriteAllLines(file, [$"filter {(_filter == 0 ? "off" : $"{_filter} in a row")}, reversals {_reversals}, dropped {_dropped}", .. _log]);
+
+        return file;
+    }
+
     /// <summary>A gap this long between events is a new gesture, and its first event goes whichever way it says.</summary>
     private const double PauseMs = 250;
 
@@ -318,7 +332,7 @@ internal sealed class Feed(List<string> photos) : View
 
         _log.Add($"{now,9:F1}ms  +{(gap < 0 ? 0 : gap),7:F1}ms  {(direction > 0 ? "down" : "UP  ")}  flags={mouse.Flags}{(reversal ? "  <-- REVERSAL" : "")}{(stray ? "  (dropped)" : "")}");
 
-        if (_log.Count > 400)
+        if (_log.Count > 2000)
         {
             _log.RemoveAt(0);
         }
@@ -346,9 +360,7 @@ internal sealed class Feed(List<string> photos) : View
         if (key == Key.F) { _filter = _filter switch { 3 => 0, 0 => 2, _ => 3 }; _held = 0; SetNeedsDraw(); return true; }
         if (key == Key.L)
         {
-            var file = Path.Combine(Path.GetTempPath(), "wooly-292-wheel.log");
-            File.WriteAllLines(file, [$"filter {(_filter == 0 ? "off" : $"{_filter} in a row")}, reversals {_reversals}, dropped {_dropped}", .. _log]);
-            Status?.Invoke($" wheel log written to {file}");
+            Status?.Invoke($" wheel log written to {WriteLog()}");
             return true;
         }
 
