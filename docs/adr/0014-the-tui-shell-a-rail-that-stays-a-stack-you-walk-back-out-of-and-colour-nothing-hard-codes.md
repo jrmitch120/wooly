@@ -262,6 +262,10 @@ title; the breadcrumb row, the seam row and the gutter column retire, and their 
 `seam`) with them; the content's floor at 80 columns is 60 rather than 61; and the page is the terminal's own
 background. The #160 amendment's breadcrumb band, seam band and blank row are what that replaces.
 
+The fetch mark is superseded too (#281). Where this ADR says `fetching…` and a dot every 400ms, the mark is now a star
+spinner straight after the trail, a frame every 400ms in columns held whether or not it is drawn. A frame is drawn only
+while a fetch is in flight, so without colour its presence carries the meaning the word did.
+
 ADR-0021 also amends this ADR's rule that colour is never the only thing carrying a meaning. The guarantee stands,
 that nothing vanishes under `NO_COLOR`, but the glyph is owed only where colour is not drawn: in colour a band may carry
 a meaning alone. The rail's `▶`/`▷` is drawn only without colour; in colour, `rail-current` and `rail-cursor` bands carry the same two

@@ -42,6 +42,7 @@ public static class RoleName
         [Role.PanelBorderActive] = "panel-border-active",
         [Role.PanelTitle] = "panel-title",
         [Role.Loading] = "loading",
+        [Role.Spinner] = "spinner",
         [Role.Destructive] = "destructive",
         [Role.Error] = "error",
     };

@@ -272,11 +272,11 @@ public class EnquiryTests
     }
 
     /// <summary>
-    ///     A fetch not yet a tick old has no dots, so the breadcrumb draws nothing for it: one that lands inside the
+    ///     A fetch not yet a tick old has no frame, so the breadcrumb draws nothing for it: one that lands inside the
     ///     first tick is never announced at all, and a cached destination never flashes a mark (#217).
     /// </summary>
     [Fact]
-    public async Task Put_HasNoDotsUntilTheFirstTick()
+    public async Task Put_HasNoFrameUntilTheFirstTick()
     {
         var enquiry = new AnEnquiry();
         var held = new TaskCompletionSource<string>();
@@ -286,7 +286,7 @@ public class EnquiryTests
         enquiry.Host.Drain();
 
         Assert.True(enquiry.It.Fetching);
-        Assert.Equal(0, enquiry.It.Dots);
+        Assert.Equal(0, enquiry.It.SpinnerFrame);
 
         held.SetResult("quick");
 
@@ -294,32 +294,32 @@ public class EnquiryTests
 
         enquiry.Host.Drain();
 
-        Assert.Equal(0, enquiry.It.Dots);
+        Assert.Equal(0, enquiry.It.SpinnerFrame);
         Assert.Equal(0, enquiry.Host.Waiting);
     }
 
     /// <summary>
-    ///     The mark grows a dot a tick up to three and starts over at one — never at none, which would put the bare
-    ///     word on screen for a quarter of every cycle and read as finished (#217).
+    ///     The spinner moves a frame a tick up to the last and starts over at the first — never at none, which would
+    ///     take it off the edge for a beat of every cycle and read as finished (#217, #281).
     /// </summary>
     [Fact]
-    public async Task Put_GrowsTheMarkADotATickAndStartsOverAtOne()
+    public async Task Put_TurnsTheSpinnerAFrameATickAndStartsOverAtTheFirst()
     {
         var enquiry = new AnEnquiry();
         var held = new TaskCompletionSource<string>();
 
         var putting = enquiry.It.Put(ask => ask.Of(_ => held.Task));
-        var dots = new List<int>();
+        var frames = new List<int>();
 
         enquiry.Host.Drain();
 
-        for (var tick = 0; tick < 4; tick++)
+        for (var tick = 0; tick < ChromeLines.SpinnerFrames + 1; tick++)
         {
             enquiry.Host.Settle();
-            dots.Add(enquiry.It.Dots);
+            frames.Add(enquiry.It.SpinnerFrame);
         }
 
-        Assert.Equal([1, 2, 3, 1], dots);
+        Assert.Equal([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 1], frames);
         Assert.All(enquiry.Host.Delays, delay => Assert.Equal(AnEnquiry.MarkStep, delay));
 
         held.SetResult("done");
@@ -328,12 +328,53 @@ public class EnquiryTests
 
         enquiry.Host.Drain();
 
-        Assert.Equal(0, enquiry.It.Dots);
+        Assert.Equal(0, enquiry.It.SpinnerFrame);
     }
 
     /// <summary>
-    ///     A tick changes one row, and says so on an event of its own: <see cref="Enquiry.Changed" /> redraws the
-    ///     whole window, pictures and all, which two and a half times a second is not what a dot is worth (#217).
+    ///     A fetch that starts after the last one landed starts the spinner from its first frame, rather than wherever
+    ///     the last one left it (#281).
+    /// </summary>
+    [Fact]
+    public async Task Put_StartsANewFetchFromTheFirstFrame()
+    {
+        var enquiry = new AnEnquiry();
+        var first = new TaskCompletionSource<string>();
+        var second = new TaskCompletionSource<string>();
+
+        var one = enquiry.It.Put(ask => ask.Of(_ => first.Task));
+
+        enquiry.Host.Drain();
+        enquiry.Host.Settle();
+        enquiry.Host.Settle();
+        enquiry.Host.Settle();
+
+        Assert.Equal(3, enquiry.It.SpinnerFrame);
+
+        first.SetResult("one");
+
+        await one;
+
+        enquiry.Host.Drain();
+
+        var two = enquiry.It.Put(ask => ask.Of(_ => second.Task));
+
+        enquiry.Host.Drain();
+
+        Assert.Equal(0, enquiry.It.SpinnerFrame);
+
+        enquiry.Host.Settle();
+
+        Assert.Equal(1, enquiry.It.SpinnerFrame);
+
+        second.SetResult("two");
+
+        await two;
+    }
+
+    /// <summary>
+    ///     A tick changes one row, and says so on an event of its own: <see cref="Enquiry.Changed" /> redraws the whole
+    ///     window, pictures and all, which two and a half times a second is not what a spinner frame is worth (#217).
     /// </summary>
     [Fact]
     public async Task Put_TicksOnItsOwnEventRatherThanOnChanged()
@@ -360,7 +401,7 @@ public class EnquiryTests
 
     /// <summary>
     ///     Two questions in flight at once — a boost sent while a timeline is still loading — are a fetch in flight
-    ///     until the second lands, and the first landing neither says otherwise nor starts the dots over. A flag
+    ///     until the second lands, and the first landing neither says otherwise nor starts the spinner over. A flag
     ///     written by both did both, and would have restarted the first tick's wait each time (#217).
     /// </summary>
     [Fact]
@@ -377,7 +418,7 @@ public class EnquiryTests
         enquiry.Host.Settle();
         enquiry.Host.Settle();
 
-        Assert.Equal(2, enquiry.It.Dots);
+        Assert.Equal(2, enquiry.It.SpinnerFrame);
 
         var changes = enquiry.Changes;
 
@@ -389,12 +430,12 @@ public class EnquiryTests
 
         Assert.True(enquiry.It.Fetching);
         Assert.Equal(changes, enquiry.Changes);
-        Assert.Equal(2, enquiry.It.Dots);
+        Assert.Equal(2, enquiry.It.SpinnerFrame);
         Assert.Equal(1, enquiry.Host.Waiting);
 
         enquiry.Host.Settle();
 
-        Assert.Equal(3, enquiry.It.Dots);
+        Assert.Equal(3, enquiry.It.SpinnerFrame);
 
         second.SetResult("two");
 
@@ -403,13 +444,13 @@ public class EnquiryTests
         enquiry.Host.Drain();
 
         Assert.False(enquiry.It.Fetching);
-        Assert.Equal(0, enquiry.It.Dots);
+        Assert.Equal(0, enquiry.It.SpinnerFrame);
         Assert.Equal(0, enquiry.Host.Waiting);
     }
 
     /// <summary>
-    ///     A rate limit waited out is a question still in flight, so the dots go on arriving on the breadcrumb while
-    ///     the countdown counts on the status row — two rhythms on two rows.
+    ///     A rate limit waited out is a question still in flight, so the spinner goes on turning on the breadcrumb
+    ///     while the countdown counts on the status row — two rhythms on two rows.
     /// </summary>
     [Fact]
     public async Task Put_GoesOnTickingWhileARateLimitIsWaitedOut()
@@ -431,13 +472,13 @@ public class EnquiryTests
         enquiry.Host.Settle();
 
         Assert.Contains("2s", enquiry.Notice);
-        Assert.Equal(1, enquiry.It.Dots);
+        Assert.Equal(1, enquiry.It.SpinnerFrame);
 
         enquiry.Clock.Advance(TimeSpan.FromSeconds(1));
         enquiry.Host.Settle();
 
         Assert.Contains("1s", enquiry.Notice);
-        Assert.Equal(2, enquiry.It.Dots);
+        Assert.Equal(2, enquiry.It.SpinnerFrame);
 
         enquiry.Clock.Advance(TimeSpan.FromSeconds(1));
         enquiry.Host.SettleAll();
@@ -448,15 +489,15 @@ public class EnquiryTests
 
         Assert.Equal(2, attempts);
         Assert.False(enquiry.It.Fetching);
-        Assert.Equal(0, enquiry.It.Dots);
+        Assert.Equal(0, enquiry.It.SpinnerFrame);
     }
 
     /// <summary>
-    ///     What the shell runs at holds each dot for 400ms, which is the number <c>docs/tui-shell.md</c>'s table gives
-    ///     as the mark step — beside the countdown's second rather than the same as it (#213).
+    ///     What the shell runs at holds each spinner frame for 400ms, which is the number <c>docs/tui-shell.md</c>'s
+    ///     table gives as the mark step — beside the countdown's second rather than the same as it (#213).
     /// </summary>
     [Fact]
-    public void ShellTiming_HoldsEachDotOfTheMarkFor400ms()
+    public void ShellTiming_HoldsEachFrameOfTheMarkFor400ms()
     {
         Assert.Equal(TimeSpan.FromMilliseconds(400), ShellTiming.Default.MarkStep);
         Assert.NotEqual(ShellTiming.Default.CountdownStep, ShellTiming.Default.MarkStep);
@@ -529,7 +570,9 @@ public class EnquiryTests
             It.Ticked += () => Ticks++;
         }
 
-        /// <summary>How long one dot of the fetch mark is held — the shell's own, since nothing here shortens it.</summary>
+        /// <summary>
+        ///     How long one frame of the fetch mark is held — the shell's own, since nothing here shortens it.
+        /// </summary>
         public static readonly TimeSpan MarkStep = ShellTiming.Default.MarkStep;
 
         public FakeShellHost Host { get; } = new();
@@ -552,7 +595,7 @@ public class EnquiryTests
         /// <summary>How many times it said something on screen had changed.</summary>
         public int Changes { get; private set; }
 
-        /// <summary>How many times the fetch mark gained a dot.</summary>
+        /// <summary>How many times the fetch mark turned a frame.</summary>
         public int Ticks { get; private set; }
     }
 }

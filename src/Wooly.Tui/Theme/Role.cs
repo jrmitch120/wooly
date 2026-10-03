@@ -159,10 +159,17 @@ public enum Role
     PanelTitle,
 
     /// <summary>
-    ///     Stale content while a fetch lands: the fetch mark at the end of the content panel's title. Carried without
-    ///     colour by the mark saying <c>fetching.</c>, and a dot more each tick.
+    ///     Something under way that the reader is waiting on and that says so in words: the sign-in screen's wait for
+    ///     the browser to come back. Carried without colour by the words.
     /// </summary>
     Loading,
+
+    /// <summary>
+    ///     The fetch mark straight after the content panel's trail. A role apart from <see cref="Loading" /> so that a
+    ///     theme can colour it on its own; both built-ins draw it as they draw <see cref="RailUnread" />. Carried
+    ///     without colour by a spinner frame, moving, drawn only while a fetch is in flight.
+    /// </summary>
+    Spinner,
 
     /// <summary>A delete affordance and its confirmation. Carried without colour by the word.</summary>
     Destructive,

@@ -124,9 +124,9 @@ public class PanelTests
     [Fact]
     public void ATitleOfSpansKeepsTheirRoles()
     {
-        var top = Panel.Top([new Span("Home", Role.PanelTitle), new Span(" fetching", Role.Loading)], 24, active: true);
+        var top = Panel.Top([new Span("Home", Role.PanelTitle), new Span(" ✳", Role.Spinner)], 24, active: true);
 
-        Assert.Contains(new Span(" fetching", Role.Loading), top.Spans);
+        Assert.Contains(new Span(" ✳", Role.Spinner), top.Spans);
         Assert.Equal(24, top.Width);
     }
 
