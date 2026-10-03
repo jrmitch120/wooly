@@ -173,6 +173,48 @@ public class ShellCrumbClickTests
         Assert.Equal(requests, drawn.Built.Requests);
     }
 
+    /// <summary>
+    ///     One screen deep, the crumb in front is the first one too, and still nothing: the rail's cursor, tabbed along
+    ///     and waiting to settle, stays where the tabbing left it.
+    /// </summary>
+    [Fact]
+    public async Task TheOnlyCrumbDoesNothing()
+    {
+        using var drawn = await DrawnShell.Of(80, Tall, Themes.Plain, Four());
+
+        drawn.Press(Key.Tab);
+
+        var cursor = drawn.Shell.Rail.Cursor;
+        var waiting = drawn.Built.Host.Waiting;
+
+        drawn.Click(CrumbColumn(drawn, 0), Breadcrumb);
+
+        Assert.Equal(cursor, drawn.Shell.Rail.Cursor);
+        Assert.Equal(waiting, drawn.Built.Host.Waiting);
+        Assert.Equal(0, drawn.Shell.Rail.Current);
+    }
+
+    /// <summary>
+    ///     And the rail's own click on the destination shown, being the first crumb's, leaves a compose drilled in
+    ///     standing too (#289).
+    /// </summary>
+    [Fact]
+    public async Task ARailClickOnTheDestinationShownLeavesADraftStanding()
+    {
+        using var drawn = await Drilled(author: false);
+
+        drawn.Shell.Compose();
+        drawn.Redraw();
+
+        var compose = drawn.Shell.Screen;
+
+        drawn.Click(OverRail, Array.FindIndex(drawn.Rail(), row => row.Contains("Home", StringComparison.Ordinal)));
+        drawn.Settle();
+
+        Assert.Same(compose, drawn.Shell.Screen);
+        Assert.Equal(3, drawn.Shell.Depth);
+    }
+
     /// <summary>The fetch mark spinning at the end of the trail is no crumb either.</summary>
     [Fact]
     public async Task TheSpinnerDoesNothing()

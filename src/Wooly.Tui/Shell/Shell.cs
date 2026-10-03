@@ -283,7 +283,8 @@ public sealed class Shell
     /// <summary>
     ///     A click on the <paramref name="at" />th destination on the rail. Another destination is arrived at at once:
     ///     the cursor and the selection go there together, abandoning whatever the tabbing left waiting (#288). The
-    ///     destination already shown is walked back out to instead (<see cref="Unwind" />, #289). Nothing with nobody
+    ///     destination already shown is walked back out to instead (<see cref="Unwind" />, #289), unless that would take
+    ///     a draft off the stack (#308). Nothing with nobody
     ///     to act as, where the keys go nowhere either.
     /// </summary>
     /// <remarks>
@@ -313,8 +314,17 @@ public sealed class Shell
     ///     (<see cref="Unwind" />, #308). The first crumb is the destination shown on the rail, and a click on it is a
     ///     click on that (<see cref="Arrive" />), so the two are one rule.
     /// </summary>
+    /// <remarks>
+    ///     The crumb in front is nothing, the first among them: one screen deep, it must not snap back a rail cursor
+    ///     tabbing has left waiting the way the rail's click does.
+    /// </remarks>
     public void WalkBack(int depth)
     {
+        if (depth >= _stack.Count - 1)
+        {
+            return;
+        }
+
         if (depth == 0 && _acting is not null)
         {
             Arrive(Rail.Current);
@@ -1783,7 +1793,7 @@ public sealed class Shell
     /// </remarks>
     private void Unwind(int depth)
     {
-        if (depth < 0 || _stack.Count <= depth + 1 || _stack.Skip(depth + 1).Any(screen => screen.HoldsADraft))
+        if (depth < 0 || _stack.Count <= depth + 1 || DropsADraft(depth))
         {
             return;
         }
@@ -1796,6 +1806,9 @@ public sealed class Shell
         Notice = null;
         Changed?.Invoke();
     }
+
+    /// <summary>Whether walking back to the screen <paramref name="depth" /> up the stack would take a draft off it.</summary>
+    private bool DropsADraft(int depth) => _stack.Skip(depth + 1).Any(screen => screen.HoldsADraft);
 
     /// <summary>Puts the stack back to one screen, which is what arriving at a destination does.</summary>
     private void Reset(Screen screen)
