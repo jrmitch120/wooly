@@ -161,9 +161,9 @@ public static class Themes
     public static ITheme Light => LightPalette;
 
     /// <summary>
-    ///     Every role in one pair, for a terminal that has said it wants no colour. Not a degraded theme but the
-    ///     absence of one: every state the TUI shows carries a glyph before it carries a colour (ADR-0014), so what is
-    ///     left here still says everything the shell has to say.
+    ///     Every role in one pair — and selected text in that pair reversed — for a terminal that has said it wants no
+    ///     colour. Not a degraded theme but the absence of one: every state the TUI shows carries a glyph before it
+    ///     carries a colour (ADR-0014), so what is left here still says everything the shell has to say.
     /// </summary>
     public static ITheme Plain { get; } = new PlainTheme();
 

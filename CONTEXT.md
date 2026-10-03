@@ -538,8 +538,8 @@ are each surface's own and differ on purpose — rows on a screen against senten
 What a piece of the TUI is, said in a way a **theme** can answer: a byline's name, a handle, a content warning, a boost
 mark, an unread count, the selected row, text selected in the compose editor. Views name roles and never colours, so
 that the same screen can be themed, degrade to sixteen colours or to none, and be tested on which role it chose
-(ADR-0014). Distinct from Terminal.Gui's
-own `VisualRole`, which describes what a widget is doing (`Normal`, `Focus`) rather than what a boost is.
+(ADR-0014). Distinct from Terminal.Gui's own `VisualRole`, which describes what a widget is doing (`Normal`, `Focus`)
+rather than what a boost is.
 
 **Theme**:
 A named set of colours answering this project's **roles**, written as a table in the same TOML config file as

@@ -32,7 +32,7 @@ public sealed class ComposeScreen : Screen
     private const string NoWarningWritten = "no content warning";
 
     /// <summary>What an empty editor says, dimly, where the first letter will go (#316).</summary>
-    public const string Unwritten = "What's on your mind?";
+    public const string EmptyPostHint = "What's on your mind?";
 
     /// <summary>
     ///     The fewest rows the editor is ever left with, however much of what is being answered wants to sit above it

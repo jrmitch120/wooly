@@ -187,7 +187,7 @@ internal sealed class ShellWindow : Window
 
         _editor = new ComposeEditor(
             theme,
-            ComposeScreen.Unwritten,
+            ComposeScreen.EmptyPostHint,
             () => _ = shell.Send(),
             () => shell.Back(),
             shell.WriteWarning)

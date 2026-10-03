@@ -1,4 +1,5 @@
 using Wooly.Tests.Fakes;
+using Wooly.Tui.Screens;
 using Wooly.Tui.Theme;
 using Wooly.Tui.Views;
 using Attribute = Terminal.Gui.Drawing.Attribute;
@@ -13,21 +14,25 @@ namespace Wooly.Tests.Tui;
 /// </summary>
 public class ComposeThemeTests
 {
-    private const string Placeholder = "What's on your mind?";
+    private const string Placeholder = ComposeScreen.EmptyPostHint;
 
     /// <summary>
     ///     Every cell of a compose screen is a role the theme answers — on the page or on a band — and none is a colour
     ///     Terminal.Gui chose for itself.
     /// </summary>
-    [Fact]
-    public async Task EveryCellOfComposeIsARoleTheThemeAnswers()
+    [Theory]
+    [InlineData("dark")]
+    [InlineData("light")]
+    public async Task EveryCellOfComposeIsARoleTheThemeAnswers(string name)
     {
-        using var drawn = await Composing();
+        var theme = name == "dark" ? Themes.Dark : Themes.Light;
+
+        using var drawn = await Composing(theme);
 
         Type(drawn, "Hello there");
 
         var answered = Enum.GetValues<Role>()
-                           .SelectMany(role => new[] { Themes.Dark.For(role), Themes.Dark.Banded(role) })
+                           .SelectMany(role => new[] { theme.For(role), theme.Banded(role) })
                            .ToHashSet();
 
         Assert.All(drawn.Cells(), cell => Assert.Contains(cell, answered));
@@ -108,9 +113,9 @@ public class ComposeThemeTests
         Assert.DoesNotContain(Placeholder, FirstRow(drawn), StringComparison.Ordinal);
     }
 
-    private static async Task<DrawnShell> Composing()
+    private static async Task<DrawnShell> Composing(ITheme? theme = null)
     {
-        var drawn = await DrawnShell.Of(80, 24, Themes.Dark);
+        var drawn = await DrawnShell.Of(80, 24, theme ?? Themes.Dark);
 
         drawn.Shell.Compose();
         drawn.Redraw();

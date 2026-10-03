@@ -271,7 +271,7 @@ that nothing vanishes under `NO_COLOR`, but the glyph is owed only where colour 
 a meaning alone. The rail's `▶`/`▷` is drawn only without colour; in colour, `rail-current` and `rail-cursor` bands carry the same two
 states, and the settle window is unchanged.
 
-## Amended: selected text gets a role, and no widget keeps Terminal.Gui's colours (#316)
+## Amendment: selected text gets a role, and no widget keeps Terminal.Gui's colours (#316)
 
 The compose editor was the one widget still drawn in Terminal.Gui's own scheme, so writing a post meant a saturated
 blue box that no theme could change. It now answers every `VisualRole` Terminal.Gui asks it for from the theme: text

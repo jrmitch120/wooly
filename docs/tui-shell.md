@@ -1597,7 +1597,8 @@ rather than being a rail entry that swallows a keypress.
 ## Roles
 
 A view names a role; the theme resolves it to an attribute. Nothing constructs a colour (ADR-0014). Each role has a
-glyph or a position that carries the same meaning when colour is gone.
+glyph or a position that carries the same meaning when colour is gone — all but `selected-text`, which has neither and
+is drawn reversed instead (#316).
 
 | Role | Paints | Carried without colour by |
 |---|---|---|
@@ -1738,8 +1739,9 @@ Rules:
   `dark` with changes on top. The page beats the name because the failure being guarded against is the one a fallback
   must never produce: a theme naming a light page and nothing else, drawn in light text.
 - A role may be a colour or a table of `foreground` and `background`. A half it leaves out keeps what the built-in had
-  there: the theme's page for nearly every role, and its own band for `band` and the current rail entry — so restating
-  the current entry's foreground does not silently take away the band it is drawn in.
+  there: the theme's page for nearly every role, and its own background for `band`, `rail-current`, `rail-cursor` and
+  `selected-text` — so restating the current entry's foreground, or a selection's, does not silently take away the
+  background it is drawn on.
 - The page and the band are themed apart. `background` moves the page and leaves the band; `band` moves every row of
   the selected thing, the `▌` beside it included, and leaves the page. `selection` has no background of its own for
   that reason: it sits on the band with the rest of its row (#269).

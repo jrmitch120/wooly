@@ -2,6 +2,7 @@ using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
+using Wooly.Tui.Rendering;
 using Wooly.Tui.Theme;
 using Attribute = Terminal.Gui.Drawing.Attribute;
 
@@ -36,13 +37,17 @@ internal sealed class ComposeEditor(ITheme theme, string placeholder, Action sen
 {
     /// <summary>
     ///     Every visual role Terminal.Gui asks for, answered from the theme: text in <see cref="Role.Body" /> on the
-    ///     page, and a selection — which it draws in its <c>Active</c> role, found in the prototype — in
-    ///     <see cref="Role.SelectedText" />. Nothing is left to Terminal.Gui's own scheme, so no cell of the editor is a
-    ///     colour the theme cannot change.
+    ///     page, and a selection — which <see cref="TextView" /> draws in its <c>Active</c> role, as the compose
+    ///     prototype found (#313) — in <see cref="Role.SelectedText" />. Nothing is left to Terminal.Gui's own scheme,
+    ///     so no cell of the editor is a colour the theme cannot change.
     /// </summary>
+    /// <remarks>
+    ///     <c>Active</c> alone. <c>Highlight</c> is the pointer hovering, which over the page is no selection at all,
+    ///     and the editor has no hot keys to draw.
+    /// </remarks>
     protected override bool OnGettingAttributeForRole(in VisualRole role, ref Attribute currentAttribute)
     {
-        currentAttribute = role is VisualRole.Active or VisualRole.HotActive or VisualRole.Highlight
+        currentAttribute = role == VisualRole.Active
             ? theme.For(Role.SelectedText)
             : theme.For(Role.Body);
 
@@ -61,7 +66,7 @@ internal sealed class ComposeEditor(ITheme theme, string placeholder, Action sen
         if (Text.Length == 0 && Viewport.Width > 0)
         {
             SetAttribute(theme.For(Role.Muted));
-            AddStr(0, 0, placeholder.Length > Viewport.Width ? placeholder[..Viewport.Width] : placeholder);
+            AddStr(0, 0, TextWrap.Clip(placeholder, Viewport.Width));
         }
 
         return drawn;
