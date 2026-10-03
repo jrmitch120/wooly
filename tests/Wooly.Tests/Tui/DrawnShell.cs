@@ -139,6 +139,26 @@ internal sealed class DrawnShell : IDisposable
         Point(column, row, MouseFlags.LeftButtonDoubleClicked);
     }
 
+    /// <summary>
+    ///     Right clicks on the cell in quick succession, as Terminal.Gui reports them: one event as each is let go — a
+    ///     click, then a double click, then a triple click for the third and every one after it.
+    /// </summary>
+    public void RightClick(int column, int row, int times = 1)
+    {
+        for (var at = 1; at <= times; at++)
+        {
+            Point(column, row, at switch
+            {
+                1 => MouseFlags.RightButtonClicked,
+                2 => MouseFlags.RightButtonDoubleClicked,
+                _ => MouseFlags.RightButtonTripleClicked,
+            });
+        }
+    }
+
+    /// <summary>A click of any button and modifier on the cell, as the flags the terminal's report became say.</summary>
+    public void Pointed(int column, int row, MouseFlags flags) => Point(column, row, flags);
+
     /// <summary>One notch of the wheel over the cell: down, towards the foot of the page, or up.</summary>
     public void Wheel(int column, int row, bool down = true) =>
         Point(column, row, down ? MouseFlags.WheeledDown : MouseFlags.WheeledUp);

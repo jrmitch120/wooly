@@ -279,6 +279,11 @@ internal sealed class ShellWindow : Window
     /// </remarks>
     protected override bool OnMouseEvent(Mouse mouse)
     {
+        if (RightClicked(mouse))
+        {
+            return Escaped();
+        }
+
         if (mouse.Flags.HasFlag(MouseFlags.LeftButtonClicked))
         {
             return Clicked(mouse.ScreenPosition) || base.OnMouseEvent(mouse);
@@ -380,6 +385,40 @@ internal sealed class ShellWindow : Window
         {
             _ = Do(ShellKey.Enter);
         }
+
+        return true;
+    }
+
+    /// <summary>
+    ///     Whether <paramref name="mouse" /> is a right click: each one the terminal reports, Terminal.Gui's double and
+    ///     triple included, since it reports one event as each is let go — so three quick right clicks are three.
+    /// </summary>
+    internal static bool RightClicked(Mouse mouse) =>
+        mouse.Flags.HasFlag(MouseFlags.RightButtonClicked)
+        || mouse.Flags.HasFlag(MouseFlags.RightButtonDoubleClicked)
+        || mouse.Flags.HasFlag(MouseFlags.RightButtonTripleClicked);
+
+    /// <summary>
+    ///     A right click, wherever the pointer is: <c>esc</c> through the <see cref="Keymap" /> on the screen in front,
+    ///     as <see cref="OnKeyDown" /> takes it, open question and all (#307). Nothing while a post is being written,
+    ///     where <c>esc</c> throws the draft away — too much to spend on a button pressed by accident.
+    /// </summary>
+    /// <returns>Always that it was the shell's, so nothing behind the window answers a right click either.</returns>
+    private bool Escaped()
+    {
+        if (_shell.Screen is ComposeScreen)
+        {
+            return true;
+        }
+
+        if (_shell.Asking is not null)
+        {
+            _ = _shell.Answer(agreed: false);
+
+            return true;
+        }
+
+        _ = Do(ShellKey.Escape);
 
         return true;
     }
