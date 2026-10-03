@@ -76,6 +76,35 @@ while it is still being prepared is waited for, not encoded twice.
 notch only moves the page's offset and asks for a redraw. Notches arriving during a slow frame are therefore added up
 and drawn by the next one, and a fast flick never queues behind slow frames. That is pinned by a test, not built.
 
+**A box draws through Kitty before sixel, on any terminal that speaks both.** This reverses story 49 and ADR-0016,
+and `RasterProtocol.PreferSixel`, which set Kitty aside on a terminal reporting both, is gone. In WezTerm, which answers
+both and so drew sixel, scrolling past pictures was choppy even with everything above: sixel resends every picture on
+the page on every step. Through a box, Terminal.Gui's image view sends a Kitty picture once and only places a crop of it
+again as it moves. Measured the same way:
+
+| Per notch, through a box | Median | Worst | Sent |
+|---|---|---|---|
+| Sixel | ~26 ms | 55–105 ms | ~590 KB every notch |
+| Kitty | 18–23 ms | 39–61 ms | 114–209 KB on average: placements, and a picture once as it arrives |
+
+#287 measured 11 MB a notch for Kitty through `ImageView`; Terminal.Gui 2.4.17's image view sends a picture once and
+crops it by placement, so that no longer holds. The order is a rule about protocols, not about any one terminal, and
+it is also the order `ImageView` tries them in, so the picture `PaintedView` encodes for and the one the driver draws
+cannot disagree. Kitty is also drawn in full colour, which sixel cannot be.
+
+**A sixel is still 64 colours.** A photograph's smooth gradients band at 64 — a blurred background breaks into patches —
+and sixel allows 256. But more colours is more bytes and a slower encode, and scrolling smoothly is the complaint this
+is answering. Measured the same way, over new rows, a notch every 16 ms:
+
+| Sixel colours | Median | Sent |
+|---|---|---|
+| 64 | ~26–44 ms | ~590 KB |
+| 128 | 40–62 ms | ~790 KB |
+| 256 | 37–47 ms, 55–79 ms back to back | ~1 MB |
+
+So 64 stays, for the terminals that draw only sixel — Windows Terminal and iTerm2 — and the banding is the price of
+scrolling there. Dithering was not tried; it hides banding but makes a sixel larger still.
+
 **Findings for the levers left alone:**
 
 - **Windows Terminal still has no Kitty graphics.** It draws sixel only. Kitty support is an open request

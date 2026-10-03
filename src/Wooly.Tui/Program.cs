@@ -105,13 +105,6 @@ try
     // placeholders, which WezTerm answers the query for and then prints as boxes (#292, ADR-0022).
     var placeholdersByName = KnownTerminal.DrawsPlaceholders(Environment.GetEnvironmentVariable);
 
-    // Anywhere else a picture is drawn through a box, and story 49 asks for sixel there before Kitty, which is the
-    // other way round from the order Terminal.Gui tries them in (ADR-0016).
-    if (!placeholdersByName)
-    {
-        RasterProtocol.PreferSixel(application.Driver);
-    }
-
     // The cell as the kernel measures it, which is the real one: Terminal.Gui's guess stretched every photograph.
     // Measured again when the screen changes size, a change of font size included.
     var windowSize = new WindowSize(

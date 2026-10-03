@@ -12,15 +12,16 @@ namespace Wooly.Tests.Tui;
 public class RasterProtocolTests
 {
     /// <summary>
-    ///     Where nothing is known of the terminal but its answers, the ladder story 49 asks for: sixel where it is
-    ///     there, Kitty through a box where sixel is not, and nothing everywhere else.
+    ///     Where nothing is known of the terminal but its answers: Kitty through a box where it is there, sixel where
+    ///     Kitty is not, and nothing everywhere else. Story 49 asked for sixel first; Kitty sends a picture once and
+    ///     moves it, where sixel sends every picture on the page again on every step of a scroll (#292, ADR-0023).
     /// </summary>
     [Theory]
-    [InlineData(true, true, PictureWay.Sixel)]
+    [InlineData(true, true, PictureWay.Kitty)]
     [InlineData(true, false, PictureWay.Sixel)]
     [InlineData(false, true, PictureWay.Kitty)]
     [InlineData(false, false, PictureWay.None)]
-    public void Chosen_PrefersSixelThenKittyThenNothing(bool sixel, bool kitty, PictureWay expected) =>
+    public void Chosen_PrefersKittyThenSixelThenNothing(bool sixel, bool kitty, PictureWay expected) =>
         Assert.Equal(
             expected,
             RasterProtocol.Chosen(

@@ -13,11 +13,11 @@ public enum PictureWay
     /// </summary>
     Placeholders,
 
-    /// <summary>Sixel, through a box, where the terminal answers that it speaks it.</summary>
-    Sixel,
-
-    /// <summary>The Kitty graphics protocol through a box, for a terminal that has that and no sixel.</summary>
+    /// <summary>The Kitty graphics protocol through a box, where the terminal answers that it speaks it.</summary>
     Kitty,
+
+    /// <summary>Sixel, through a box, for a terminal that has that and no Kitty graphics.</summary>
+    Sixel,
 
     /// <summary>
     ///     Neither, so nothing is drawn and the attachment is linked the way the CLI links it.

@@ -329,9 +329,9 @@ restated rather than a gap: it links everything, hides nothing, and never puts t
 
 On a terminal known by name to draw Kitty's Unicode placeholders (Ghostty, kitty), Terminal.Gui no longer draws the
 pixels: a picture is sent once and drawn as placeholder cells in `PaintedView`'s own rows, so it moves with the text and
-a scroll sends no image data. Everywhere else this ADR's ladder stands as it is — sixel, then Kitty, through a box, with
-`RasterProtocol.PreferSixel` keeping that order — along with the `PictureView` pool and the rules above for releasing
-and placing its boxes.
+a scroll sends no image data. Everywhere else a picture is still drawn through a box, and the `PictureView` pool and the
+rules above for releasing and placing its boxes stand. ADR-0023 reverses this ADR's order of the two, though: Kitty
+through a box comes before sixel now, and `RasterProtocol.PreferSixel` is gone.
 `Media/KittyPlaceholder.cs` joins `PictureDecoder` on the colour scan's list, because an image id rides in a cell's
 foreground colour.
 

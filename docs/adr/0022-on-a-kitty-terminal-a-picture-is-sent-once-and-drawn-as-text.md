@@ -38,9 +38,9 @@ protocol is not the same as drawing its placeholders. WezTerm answers Terminal.G
 transmission, and prints the placeholder cells as boxes: its implementation is an open pull request
 (wezterm/wezterm#7924), and other clients have had to exclude it by name (yorukot/superfile#1665). #292 assumed WezTerm
 would be the terminal the flip helped; it would have been the one it broke. So `RasterProtocol.Chosen` answers
-`Placeholders` only where `KnownTerminal` names the terminal as Ghostty or kitty, and everywhere else keeps ADR-0016's
-ladder unchanged: sixel through a box, then Kitty through a box, with `RasterProtocol.PreferSixel` still setting Kitty
-aside on a terminal that reports both. A terminal that adds placeholders is one line in `KnownTerminal`.
+`Placeholders` only where `KnownTerminal` names the terminal as Ghostty or kitty, and everywhere else draws through a
+box. A terminal that adds placeholders is one line in `KnownTerminal`. (Which protocol a box draws through was left as
+ADR-0016 had it, sixel first, until ADR-0023 measured a scroll and put Kitty first.)
 
 **The terminal's image store is a port.** `ITerminalImages` is what the client says to it: transmit this PNG under this
 id over so many columns and rows, forget this id, forget everything. `KittyImages` writes the escape sequences.

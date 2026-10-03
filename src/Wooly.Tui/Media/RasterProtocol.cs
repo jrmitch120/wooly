@@ -6,8 +6,8 @@ namespace Wooly.Tui.Media;
 
 /// <summary>
 ///     Which way of putting pixels on a terminal this client uses: Kitty's Unicode placeholders where the terminal is
-///     known to draw them, then sixel, then the Kitty graphics protocol through a box, and then nothing at all
-///     (ADR-0016, ADR-0022).
+///     known to draw them, then the Kitty graphics protocol through a box, then sixel, and then nothing at all
+///     (ADR-0016, ADR-0022, ADR-0023).
 /// </summary>
 /// <remarks>
 ///     Placeholders first because a picture is sent once and moves with the text for nothing; sixel cannot move an
@@ -15,37 +15,14 @@ namespace Wooly.Tui.Media;
 ///     (<see cref="KnownTerminal" />): answering Terminal.Gui's Kitty query is not enough, because WezTerm answers it
 ///     and prints the placeholders as boxes.
 ///     <para>
-///         Everywhere else a picture is drawn through Terminal.Gui's <c>ImageView</c>, which tries Kitty first and
-///         sixel second — the other way round from story 49, and from what is cheaper to scroll. Rather than
-///         reimplement the ladder to swap two rungs of it, <see cref="PreferSixel" /> sets Kitty support aside on a
-///         terminal reporting both, so that sixel is what is left.
+///         Everywhere else a picture is drawn through a box, Kitty before sixel, which is also the order
+///         Terminal.Gui's <c>ImageView</c> tries them in. Story 49 asked for sixel first, and ADR-0016 kept it so;
+///         measuring a scroll reversed it. Kitty sends a picture once and moves it, where sixel sends every picture on
+///         the page again on every step, and draws it in 256 colours at most (ADR-0023).
 ///     </para>
 /// </remarks>
 internal static class RasterProtocol
 {
-    /// <summary>
-    ///     Keeps <paramref name="driver" /> on sixel where it reports sixel and Kitty both, now and for as long as it
-    ///     runs — for a terminal drawing through a box rather than in placeholders.
-    /// </summary>
-    /// <remarks>
-    ///     Subscribed to rather than read once, which is the whole of why this is not two lines in <c>Program</c>.
-    ///     Both capabilities are found out by asking the terminal and waiting for its answer, and those answers arrive
-    ///     on the input loop some frames after the application starts — so at the moment the shell is built neither has
-    ///     been reported yet, and whichever lands second would otherwise overwrite a preference settled before it.
-    /// </remarks>
-    public static void PreferSixel(IDriver? driver)
-    {
-        if (driver is null)
-        {
-            return;
-        }
-
-        driver.SixelSupportChanged += (_, _) => Settle(driver);
-        driver.KittyGraphicsSupportChanged += (_, _) => Settle(driver);
-
-        Settle(driver);
-    }
-
     /// <summary>
     ///     How a picture is drawn on a terminal reporting <paramref name="sixel" /> and <paramref name="kitty" />.
     ///     Either may be <see langword="null" />, which is a capability nobody has asked the terminal about yet rather
@@ -62,8 +39,8 @@ internal static class RasterProtocol
         KittyGraphicsSupportResult? kitty,
         bool placeholders = false) =>
         placeholders ? PictureWay.Placeholders
-        : sixel?.IsSupported == true ? PictureWay.Sixel
         : kitty?.IsSupported == true ? PictureWay.Kitty
+        : sixel?.IsSupported == true ? PictureWay.Sixel
         : PictureWay.None;
 
     /// <summary>
@@ -109,17 +86,4 @@ internal static class RasterProtocol
     private static CellSize Sized(Size resolution) => new(
         resolution.Width > 0 ? resolution.Width : 10,
         resolution.Height > 0 ? resolution.Height : 20);
-
-    /// <summary>
-    ///     Puts the driver where <see cref="Chosen" /> says it should be. Setting Kitty aside raises the event this is
-    ///     subscribed to, which comes straight back here and finds nothing left to do — so it settles rather than loops.
-    /// </summary>
-    private static void Settle(IDriver driver)
-    {
-        if (Chosen(driver.SixelSupport, driver.KittyGraphicsSupport) is PictureWay.Sixel
-            && driver.KittyGraphicsSupport?.IsSupported == true)
-        {
-            driver.SetKittyGraphicsSupport(new KittyGraphicsSupportResult { IsSupported = false });
-        }
-    }
 }

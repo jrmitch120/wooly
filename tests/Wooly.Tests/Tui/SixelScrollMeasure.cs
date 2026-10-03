@@ -53,6 +53,40 @@ public class SixelScrollMeasure(ITestOutputHelper output)
         Report("up, rows already drawn, back to back", await Notches(drawn, down: false, apart: TimeSpan.Zero));
     }
 
+    /// <summary>
+    ///     The same, through Kitty in a box — Terminal.Gui's image view, which is what WezTerm would get were it drawn
+    ///     through Kitty rather than sixel.
+    /// </summary>
+    [Fact(Skip = "A measurement, not a test. Set WOOLY_MEASURE=1 to run it.", SkipUnless = nameof(Enabled))]
+    public async Task AWheelNotchOverKittyPhotographsInABox()
+    {
+        var pictures = FakePictures.With();
+        var posts = Enumerable.Range(1, 12)
+            .Select(at =>
+            {
+                pictures.HoldingPhotograph($"m{at}", 853, 640);
+
+                return APost.With(id: $"{at}0", media: [APost.APicture($"m{at}")]);
+            })
+            .ToArray();
+
+        using var drawn = await DrawnShell.Of(
+            120,
+            50,
+            Themes.Plain,
+            new AShell { Timelines = FakeTimelineReader.Holding(posts) },
+            pictures: pictures,
+            answersKitty: true);
+
+        for (var notch = 0; notch < 5; notch++)
+        {
+            drawn.Wheel(RailLines.Width + 4, 3);
+        }
+
+        Report("Kitty in a box, down, a notch every 16 ms", await Notches(drawn, down: true, apart: TimeSpan.FromMilliseconds(16)));
+        Report("Kitty in a box, up, back to back", await Notches(drawn, down: false, apart: TimeSpan.Zero));
+    }
+
     private const int Count = 30;
 
     private static async Task<(List<double> Times, List<long> Bytes)> Notches(DrawnShell drawn, bool down, TimeSpan apart)
