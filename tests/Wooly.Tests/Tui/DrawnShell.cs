@@ -94,6 +94,10 @@ internal sealed class DrawnShell : IDisposable
     public void Wheel(int column, int row, bool down = true) =>
         Point(column, row, down ? MouseFlags.WheeledDown : MouseFlags.WheeledUp);
 
+    /// <summary>One sideways notch over the cell, as a trackpad sends when a finger drifts: right, or left.</summary>
+    public void WheelSideways(int column, int row, bool right = true) =>
+        Point(column, row, right ? MouseFlags.WheeledRight : MouseFlags.WheeledLeft);
+
     /// <summary>
     ///     A mouse event at a cell of the terminal, raised through the application the way a terminal's report is — so
     ///     it reaches whichever view is under the pointer and bubbles from there, which is what makes a wheel over the

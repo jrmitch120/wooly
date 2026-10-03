@@ -33,6 +33,13 @@ internal sealed class ShellWindow : Window
     /// </summary>
     private const int RowsAPress = 3;
 
+    /// <summary>
+    ///     How far one wheel notch moves the screen: a row, the finest step a terminal has. A trackpad sends a stream of
+    ///     small events where a wheel sends a click, and at <see cref="RowsAPress" /> each one a slow scroll read as a run
+    ///     of lurches (#292). Three notches are as far as one press.
+    /// </summary>
+    private const int RowsANotch = 1;
+
     /// <summary>The first row inside the content panel, where its rows and anything laid over them begin.</summary>
     /// <remarks>
     ///     One: the panel's top edge keeps row 0, and is what divides the breadcrumb from the content — the blank row
@@ -274,7 +281,22 @@ internal sealed class ShellWindow : Window
             return true;
         }
 
-        return Do(pressed);
+        // What the arrow means is still the keymap's to say. Where it is a scroll, the wheel's own step is a row rather
+        // than the arrow's three: a trackpad sends many small events, and three rows each read as lurches (#292).
+        return Keymap.Means(pressed, _shell.Screen) switch
+        {
+            Verb.ScrollDown => Notch(RowsANotch),
+            Verb.ScrollUp => Notch(-RowsANotch),
+            _ => Do(pressed),
+        };
+    }
+
+    /// <summary>One notch of the wheel, which moves the page as the arrows do and by its own step.</summary>
+    private bool Notch(int rows)
+    {
+        Scrolled(rows);
+
+        return true;
     }
 
     /// <summary>
@@ -284,9 +306,16 @@ internal sealed class ShellWindow : Window
     /// <remarks>
     ///     A key rather than a verb, so that what the notch does is whatever <see cref="Keymap" /> says that arrow does
     ///     on the screen in front: the wheel and the arrows cannot drift apart while they are the same press.
+    ///     <para>
+    ///         A sideways notch is none, and is asked about first: Terminal.Gui's <c>WheeledRight</c> carries
+    ///         <c>WheeledDown</c>'s bit and <c>WheeledLeft</c> carries <c>WheeledUp</c>'s. A trackpad drifting sideways
+    ///         sends a stream of them between the vertical notches, and read as down and up they jerked the page the
+    ///         wrong way for a moment every few rows.
+    ///     </para>
     /// </remarks>
     private static ShellKey? Notched(Mouse mouse) =>
-        mouse.Flags.HasFlag(MouseFlags.WheeledDown) ? ShellKey.Down
+        mouse.Flags.HasFlag(MouseFlags.WheeledLeft) || mouse.Flags.HasFlag(MouseFlags.WheeledRight) ? null
+        : mouse.Flags.HasFlag(MouseFlags.WheeledDown) ? ShellKey.Down
         : mouse.Flags.HasFlag(MouseFlags.WheeledUp) ? ShellKey.Up
         : null;
 
