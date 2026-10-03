@@ -120,14 +120,14 @@ public static class ChromeLines
 
         if (whole <= room)
         {
-            return [.. crumbs.SelectMany((crumb, at) => Spans(crumb, at, at == standing))];
+            return [.. crumbs.SelectMany((crumb, at) => Spans(crumb, at, at, at == standing))];
         }
 
         var budget = room - Glyphs.Columns(Elided);
 
         if (budget < Glyphs.Columns(crumbs[standing]))
         {
-            return [new Span(TextWrap.Clip(crumbs[standing], room), Role.PanelTitle)];
+            return [new Span(TextWrap.Clip(crumbs[standing], room), Role.PanelTitle) { Item = standing }];
         }
 
         // Leftwards from where you are standing, taking whole crumbs while there is room for one — so the row ends in
@@ -144,19 +144,23 @@ public static class ChromeLines
         return
         [
             new Span(Elided, Role.Muted),
-            .. crumbs.Skip(kept).SelectMany((crumb, at) => Spans(crumb, at, kept + at == standing)),
+            .. crumbs.Skip(kept).SelectMany((crumb, at) => Spans(crumb, at, kept + at, kept + at == standing)),
         ];
     }
 
-    /// <summary>One crumb and the separator in front of it, where it is not the first thing on the row.</summary>
-    private static IEnumerable<Span> Spans(string crumb, int at, bool standing)
+    /// <summary>
+    ///     One crumb and the separator in front of it, where it is not the first thing on the row. The crumb carries
+    ///     <paramref name="depth" />, its place in the stack, which is what a click on it walks back to (#308); the
+    ///     separator carries nothing, so a click between two crumbs is a click on neither.
+    /// </summary>
+    private static IEnumerable<Span> Spans(string crumb, int at, int depth, bool standing)
     {
         if (at > 0)
         {
             yield return new Span(Separator, Role.Muted);
         }
 
-        yield return new Span(crumb, standing ? Role.PanelTitle : Role.Muted);
+        yield return new Span(crumb, standing ? Role.PanelTitle : Role.Muted) { Item = depth };
     }
 
     /// <summary>

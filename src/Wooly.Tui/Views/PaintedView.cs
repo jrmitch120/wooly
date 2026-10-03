@@ -184,15 +184,48 @@ internal sealed class PaintedView : View
     ///     or <see langword="null" /> for a cell outside the rows — on the frame, or below the last of them — or on a row
     ///     that is part of nothing. What a click is answered from (#286).
     /// </summary>
+    public int? ItemAt(Point screen) => LineAt(screen, out _)?.Item;
+
+    /// <summary>
+    ///     Which thing the run under the terminal cell <paramref name="screen" /> stands for (<see cref="Span.Item" />),
+    ///     or <see langword="null" /> for a cell outside the rows, past the end of its row, or on a run that stands for
+    ///     nothing. What a click on one of a row's several things is answered from — a crumb of the breadcrumb (#308).
+    /// </summary>
+    public int? SpanItemAt(Point screen)
+    {
+        if (LineAt(screen, out var column) is not { } line)
+        {
+            return null;
+        }
+
+        foreach (var span in line.Spans)
+        {
+            if (column < span.Width)
+            {
+                return span.Item;
+            }
+
+            column -= span.Width;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    ///     The row drawn under the terminal cell <paramref name="screen" />, and how far into it the cell is, or
+    ///     <see langword="null" /> for a cell outside the rows: on the frame, or below the last of them.
+    /// </summary>
     /// <remarks>
     ///     Asked of the view for the reason <see cref="Reclaimable" /> is: the rows a reader is pointing at are the ones
     ///     drawn at this width from where the page last began, and only the view knows both.
     /// </remarks>
-    public int? ItemAt(Point screen)
+    private Line? LineAt(Point screen, out int column)
     {
         var width = Viewport.Width;
         var height = Viewport.Height;
         var inside = ViewportToScreen(new Rectangle(Point.Empty, Viewport.Size));
+
+        column = screen.X - inside.X;
 
         if (width <= 0 || height <= 0 || !inside.Contains(screen))
         {
@@ -202,7 +235,7 @@ internal sealed class PaintedView : View
         var lines = _rows(width, height);
         var at = _top + screen.Y - inside.Y;
 
-        return at < lines.Count ? lines[at].Item : null;
+        return at < lines.Count ? lines[at] : null;
     }
 
     /// <summary>

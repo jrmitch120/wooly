@@ -303,8 +303,26 @@ public sealed class Shell
 
         if (shown)
         {
-            Unwind();
+            Unwind(0);
         }
+    }
+
+    /// <summary>
+    ///     A click on the crumb <paramref name="depth" /> screens up the stack, counted from nought at the destination's
+    ///     own: everything drilled in above it comes off in one move, and it is in front again as it was left
+    ///     (<see cref="Unwind" />, #308). The first crumb is the destination shown on the rail, and a click on it is a
+    ///     click on that (<see cref="Arrive" />), so the two are one rule.
+    /// </summary>
+    public void WalkBack(int depth)
+    {
+        if (depth == 0 && _acting is not null)
+        {
+            Arrive(Rail.Current);
+
+            return;
+        }
+
+        Unwind(depth);
     }
 
     /// <summary>
@@ -1753,22 +1771,24 @@ public sealed class Shell
     }
 
     /// <summary>
-    ///     Walks the stack back out to its bottom screen — the destination's own — as that many presses of <c>esc</c>
-    ///     would pop it, so the screen keeps the page and the pick it was left on and nothing is asked of the instance
-    ///     (#289). Not <see cref="Reset" />, which lets the bottom screen go too.
+    ///     Walks the stack back out to the screen <paramref name="depth" /> up it — nought, the destination's own — as
+    ///     that many presses of <c>esc</c> would pop it, so the screen keeps the page, the pick and the reference picked
+    ///     on it, what the screens taken off asked for is dropped with them, and nothing is asked of the instance
+    ///     (#289, #308). Not <see cref="Reset" />, which lets the bottom screen go too.
     /// </summary>
     /// <remarks>
-    ///     At one screen deep it is nothing at all, the notice included: a click on the destination a reader is already
-    ///     on the root of must leave the status row saying what it said.
+    ///     Where it is already in front it is nothing at all, the notice included: a click on where a reader already is
+    ///     must leave the status row saying what it said. Nor where the walk would take off a screen holding a draft,
+    ///     which a click is too little to throw away — the same draft a right click leaves standing (#307).
     /// </remarks>
-    private void Unwind()
+    private void Unwind(int depth)
     {
-        if (_stack.Count == 1)
+        if (depth < 0 || _stack.Count <= depth + 1 || _stack.Skip(depth + 1).Any(screen => screen.HoldsADraft))
         {
             return;
         }
 
-        while (_stack.Count > 1)
+        while (_stack.Count > depth + 1)
         {
             Leave(_stack.Count - 1);
         }
