@@ -1,6 +1,7 @@
 using Terminal.Gui.Input;
 using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
+using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
@@ -166,6 +167,34 @@ public class ShellPointerTests
 
         Assert.Contains(drawn.Rows(), row => row.Contains("Underneath"));
         Assert.Equal("110", drawn.Shell.Screen.Picked?.Id);
+    }
+
+    /// <summary>
+    ///     A wheel over a picture scrolls the page like a wheel anywhere else in the content. Terminal.Gui's image view
+    ///     takes the wheel for a zoom of its own, which left the picture growing in its box and the page standing still.
+    /// </summary>
+    [Fact]
+    public async Task AWheelOverAPictureScrollsThePageAndLeavesThePictureAlone()
+    {
+        var pictures = FakePictures.With().Holding("m1", 800, 600);
+
+        var built = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(
+                APost.With(id: "110", media: [APost.APicture("m1")]),
+                APost.With(id: "220"),
+                APost.With(id: "330")),
+        };
+
+        using var drawn = await DrawnShell.Of(80, 24, Themes.Plain, built, pictures: pictures, drawsPictures: true);
+
+        var box = Assert.Single(drawn.Content.SubViews.OfType<PictureView>(), view => view.Visible);
+        var over = box.FrameToScreen();
+
+        drawn.Wheel(over.X + (over.Width / 2), over.Y + (over.Height / 2));
+
+        Assert.Equal(1, box.ZoomLevel);
+        Assert.Equal(3, drawn.Content.Top);
     }
 
     /// <summary>

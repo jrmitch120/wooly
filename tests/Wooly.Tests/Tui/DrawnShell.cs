@@ -42,13 +42,18 @@ internal sealed class DrawnShell : IDisposable
     ///     so, for a shell with nobody to act as.
     /// </summary>
     /// <param name="pictures">A terminal that draws pictures, where a test is about them; one that draws none if not.</param>
+    /// <param name="drawsPictures">
+    ///     Whether the headless terminal says it draws sixel, which is what puts a picture's box on screen at all — a
+    ///     box on a terminal drawing neither protocol is never shown.
+    /// </param>
     public static async Task<DrawnShell> Of(
         int width,
         int height,
         ITheme theme,
         AShell? built = null,
         bool launch = false,
-        IPictures? pictures = null)
+        IPictures? pictures = null,
+        bool drawsPictures = false)
     {
         built ??= new AShell();
 
@@ -57,6 +62,11 @@ internal sealed class DrawnShell : IDisposable
         var application = Terminal.Gui.App.Application.Create();
         application.Init("ansi");
         application.Driver!.SetScreenSize(width, height);
+
+        if (drawsPictures)
+        {
+            application.Driver.SetSixelSupport(new Terminal.Gui.Drawing.SixelSupportResult { IsSupported = true });
+        }
 
         var window = new ShellWindow(shell, theme, built.Clock, () => { }, pictures ?? FakePictures.DrawingNothing());
 
