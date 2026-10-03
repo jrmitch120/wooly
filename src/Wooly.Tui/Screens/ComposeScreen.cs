@@ -247,23 +247,23 @@ public sealed class ComposeScreen : Screen
     private (IReadOnlyList<Line> Rows, Rectangle Editor) Laid(int width, int? height)
     {
         var inner = Math.Max(0, width - (Pad * 2));
-        var value = Math.Max(0, inner - LabelWidth - LabelGap);
+        var valueWidth = Math.Max(0, inner - LabelWidth - LabelGap);
         var hairline = Line.Of(Gap(Pad), new Span(new string('─', inner), Role.PanelBorder));
 
-        var above = new List<Row> { new(Line.Blank, Keep.TopBlank), new(Header("From", Role.Muted, From()), Keep.From) };
+        var above = new List<Row> { new(Line.Blank, Keep.TopBlank), new(Header("From", Role.Muted, From(valueWidth)), Keep.From) };
 
         if (Purpose == ComposeFor.Reply && About is { } answered)
         {
             var said = PostReplyName.Answered(answered.Account, _aboutIsMine);
 
             above.Add(new Row(
-                Header(PostReplyName.Mark, Role.Muted, new Span(TextWrap.Clip(said, value), Role.Muted)),
+                Header(PostReplyName.Mark, Role.Muted, new Span(TextWrap.Clip(said, valueWidth), Role.Muted)),
                 Keep.ReplyHeader));
 
             // Three rows of what was said, and blank ones are not among them (#141): a post's paragraphs arrive as
             // blank lines, so a quote that took its three rows in order spent one of them on a gap.
             const string gutter = "│ ";
-            var quoted = TextWrap.Wrap(answered.Content, Math.Max(1, value - Glyphs.Columns(gutter)))
+            var quoted = TextWrap.Wrap(answered.Content, Math.Max(1, valueWidth - Glyphs.Columns(gutter)))
                                  .Where(row => row.Length > 0)
                                  .Take(3);
 
@@ -275,11 +275,11 @@ public sealed class ComposeScreen : Screen
                 Keep.Quote)));
         }
 
-        above.Add(new Row(WarningHeader(value), Keep.Always));
+        above.Add(new Row(WarningHeader(valueWidth), Keep.Always));
         above.Add(new Row(hairline, Keep.HeaderHairline));
         above.Add(new Row(Line.Blank, Keep.BlankUnderHairline));
 
-        var foot = new List<Row> { new(hairline, Keep.FootHairline), new(Line.Blank, Keep.Count) };
+        var foot = new List<Row> { new(hairline, Keep.FootHairline), new(Line.Blank, Keep.CountRow) };
         var room = height ?? (above.Count + LeastEditorRows + foot.Count);
 
         // Whatever ranks lowest goes first and, among equals, whichever is lowest on the screen: the quote gives up
@@ -287,9 +287,9 @@ public sealed class ComposeScreen : Screen
         while (above.Count + foot.Count + LeastEditorRows > room
                && above.Concat(foot).Where(row => row.Keep != Keep.Always).MinBy(row => row.Keep) is { } least)
         {
-            var from = foot.Contains(least) ? foot : above;
+            var holding = foot.Contains(least) ? foot : above;
 
-            from.RemoveAt(from.FindLastIndex(row => row.Keep == least.Keep));
+            holding.RemoveAt(holding.FindLastIndex(row => row.Keep == least.Keep));
         }
 
         var top = above.Count;
@@ -312,11 +312,22 @@ public sealed class ComposeScreen : Screen
     private static Line Header(string label, Role role, params Span[] value) =>
         Line.Of([Gap(Pad + LabelWidth - Glyphs.Columns(label)), new Span(label, role), Gap(LabelGap), .. value]);
 
-    /// <summary>The From header's value: the handle as a byline's, then the instance, muted.</summary>
-    private Span[] From() =>
-        _from is { } from
-            ? [new Span(from.Handle, Role.BylineHandle), new Span($" · {from.Instance}", Role.Muted)]
-            : [];
+    /// <summary>
+    ///     The From header's value in <paramref name="room" /> columns: the handle as a byline's, then the instance,
+    ///     muted — the instance cut first, since the handle is the half that says whose post this is.
+    /// </summary>
+    private Span[] From(int room)
+    {
+        if (_from is not { } from)
+        {
+            return [];
+        }
+
+        var handle = TextWrap.Clip(from.Handle, room);
+        var instance = TextWrap.Clip($" · {from.Instance}", room - Glyphs.Columns(handle));
+
+        return [new Span(handle, Role.BylineHandle), new Span(instance, Role.Muted)];
+    }
 
     private static Span Gap(int columns) => new(new string(' ', Math.Max(0, columns)), Role.Body);
 
@@ -399,16 +410,17 @@ public sealed class ComposeScreen : Screen
 
     /// <summary>
     ///     How long a row holds out on a terminal too short for everything, lowest first to go: what is being
-    ///     answered gives way before anything the reader types into or reads their own post by.
+    ///     answered gives way first, then the blanks — which say nothing — before the reply header, which says where
+    ///     the reply will land.
     /// </summary>
     private enum Keep
     {
         Quote,
-        ReplyHeader,
         TopBlank,
         BlankUnderHairline,
+        ReplyHeader,
         FootHairline,
-        Count,
+        CountRow,
         From,
         HeaderHairline,
         Always,

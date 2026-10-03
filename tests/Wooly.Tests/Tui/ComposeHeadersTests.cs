@@ -78,6 +78,16 @@ public class ComposeHeadersTests
         Assert.Equal("     ↳  continuing", Texts(compose)[2]);
     }
 
+    /// <summary>A From too long for its row is cut at the padding, the instance before the handle.</summary>
+    [Fact]
+    public async Task FromIsCutAtThePadding()
+    {
+        var compose = await Opening("compose", Mine);
+        var from = compose.Lines(new Drawing(20, AShell.Now, Height: Height))[1];
+
+        Assert.Equal("  From  @jeff · m…", from.Text);
+    }
+
     /// <summary>The From header: the handle as a byline's, the instance muted after it.</summary>
     [Fact]
     public async Task FromIsTheHandleThenTheInstance()
@@ -192,13 +202,14 @@ public class ComposeHeadersTests
     }
 
     /// <summary>
-    ///     On a short terminal the quote gives way first, then the reply header — and the warning row and three rows of
-    ///     editor are kept however short it gets.
+    ///     On a short terminal the quote gives way first, then the blanks, then the reply header — and the warning row
+    ///     and three rows of editor are kept however short it gets.
     /// </summary>
     [Theory]
     [InlineData(12, 7)]
     [InlineData(11, 6)]
-    [InlineData(10, 5)]
+    [InlineData(9, 4)]
+    [InlineData(8, 3)]
     [InlineData(4, 1)]
     public async Task OnAShortTerminalTheQuoteGivesWayBeforeTheWarningAndTheEditor(int height, int top)
     {
@@ -210,7 +221,7 @@ public class ComposeHeadersTests
             compose.EditorAt(new System.Drawing.Size(Width, height)));
         Assert.Equal(height, lines.Count);
         Assert.Contains(lines.Take(top), line => line.Text.StartsWith("     ⚠", StringComparison.Ordinal));
-        Assert.Equal(height >= 11, lines.Any(line => line.Text.Contains("↳", StringComparison.Ordinal)));
+        Assert.Equal(height >= 9, lines.Any(line => line.Text.Contains("↳", StringComparison.Ordinal)));
         Assert.Equal(height >= 12, lines.Any(line => line.Text.Contains("│ Hello", StringComparison.Ordinal)));
     }
 

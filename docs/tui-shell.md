@@ -865,8 +865,8 @@ fresh post, a reply and an edit alike:
 - **The screen paints every row and says where the editor goes**, both from one layout, at the content region's
   height (`Drawing.Height`) — so what is painted and where the editor is laid over it cannot disagree. Where nobody
   says the height, it lays out as tall as its rows and the editor's least want.
-- **On a terminal too short for everything, rows give way in a fixed order**: the quote's tail, the reply header, the
-  blanks, the foot, `From`, the hairline under the headers. The warning header and three rows of editor are kept
+- **On a terminal too short for everything, rows give way in a fixed order**: the quote's tail, the blanks, the reply
+  header, the foot, `From`, the hairline under the headers. The warning header and three rows of editor are kept
   whatever the height — the rule ADR-0015 and #123 already kept, with more dressing in front of it to go first.
 
 ### What the account screen settled
