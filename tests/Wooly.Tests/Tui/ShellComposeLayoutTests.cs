@@ -422,6 +422,29 @@ public class ShellComposeLayoutTests
     }
 
     /// <summary>
+    ///     Not only typing: a paste, which reaches the editor as one string inserted at the caret rather than as keys,
+    ///     and an undo are edits too, and the screen follows both. How much of a paste one undo takes back is the
+    ///     editor's own business, so what is pinned is that the screen ends up where the editor does.
+    /// </summary>
+    [Fact]
+    public async Task Text_FollowsAPasteAndItsUndo()
+    {
+        var (window, editor, compose) = await Replying();
+
+        using (window)
+        {
+            editor.InsertText("thanks!");
+
+            Assert.Equal("@ben@hachyderm.io thanks!", compose.Text);
+
+            window.NewKeyDownEvent(Key.Z.WithCtrl);
+
+            Assert.NotEqual("@ben@hachyderm.io thanks!", editor.Text);
+            Assert.Equal(editor.Text, compose.Text);
+        }
+    }
+
+    /// <summary>
     ///     And <c>ctrl-s</c> sends what was typed into the editor, now that the screen learns it as it is typed rather
     ///     than being handed it at the moment of sending.
     /// </summary>
