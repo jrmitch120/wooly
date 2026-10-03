@@ -24,7 +24,7 @@ the sending. Back to back is a fast flick, where the cuts encoded ahead are not 
 the frame; the time spent encoding ahead is off the UI thread and is not in these numbers. The photographs are
 853×640, the size the decoder holds a 1200×900 one at, so "before" is not the ~235 ms #287 measured with three photos
 on another page. What headless cannot see at all is the terminal parsing and drawing the ~500 KB it is still sent each
-step, which on Windows Terminal may well be most of what a reader feels. The measurement is `SixelScrollMeasure`, skipped unless `WOOLY_MEASURE=1`, so it can be run again on any
+step, which on Windows Terminal may well be most of what a reader feels. The measurement is `ScrollMeasure`, skipped unless `WOOLY_MEASURE=1`, so it can be run again on any
 machine; its remarks give the command. Windows Terminal has not been measured yet. It is the terminal this is for, and a
 manual check there is owed.
 

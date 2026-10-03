@@ -311,15 +311,16 @@ internal sealed class PaintedView : View
     ///     one takes it off the terminal at once and needs no redraw to do it.
     ///     <para>
     ///         Clearing the viewport is the first thing a view does when it draws, so it is the last moment before the
-    ///         boxes are drawn. Nothing is cleared differently for it: the answer is always <see langword="false" />,
-    ///         which is "carry on".
+    ///         boxes are drawn. And the viewport is not cleared at all — the answer is <see langword="true" />, "done" —
+    ///         because <see cref="OnDrawingContent" /> paints every cell of every row of it anyway, and clearing first
+    ///         was painting the page twice a frame (#292).
     ///     </para>
     /// </remarks>
     protected override bool OnClearingViewport()
     {
         Settle();
 
-        return false;
+        return true;
     }
 
     protected override bool OnDrawingContent(DrawContext? context)
@@ -381,9 +382,13 @@ internal sealed class PaintedView : View
     }
 
     /// <summary>
-    ///     The frame, painted on the ring of padding round the viewport. Terminal.Gui clips this pass to that ring, so
-    ///     the panel's rows are painted whole and only their edges land — the inside is the viewport's, drawn above.
+    ///     The frame, painted on the ring of padding round the viewport: its top and bottom edges whole, and of every
+    ///     row between them only the two cells at its ends — the inside is the viewport's, drawn above.
     /// </summary>
+    /// <remarks>
+    ///     Terminal.Gui clips this pass to the ring, so painting the rows between whole landed only their ends anyway,
+    ///     and paid for every cell inside them first: about half of what the content panel cost to paint (#292).
+    /// </remarks>
     protected override bool OnDrawingAdornments()
     {
         if (_frame is null)
@@ -397,34 +402,46 @@ internal sealed class PaintedView : View
         // Counted from the viewport's corner, which the frame sits one cell above and to the left of.
         for (var row = 0; row < edges.Count; row++)
         {
-            Paint(edges[row], -1, row - 1, width);
+            if (row == 0 || row == edges.Count - 1 || !PaintEnds(edges[row], row - 1, width))
+            {
+                Paint(edges[row], -1, row - 1, width);
+            }
         }
 
         return true;
     }
 
     /// <summary>
-    ///     One row, <paramref name="width" /> columns of it from <paramref name="left" />, cleared first and then its
-    ///     spans painted in what the theme answers for each.
+    ///     The cell at each end of a frame's row and nothing between, where the row is one cell at each end around
+    ///     whatever is inside — which a panel's row is (<see cref="Panel.Between" />). Answers whether it was.
+    /// </summary>
+    private bool PaintEnds(Line line, int row, int width)
+    {
+        if (line.Spans is not [var left, .., var right] || left.Width != 1 || right.Width != 1 || line.Width != width)
+        {
+            return false;
+        }
+
+        var picked = line.Picked;
+
+        SetAttribute(picked ? _theme.Banded(left.Role) : _theme.For(left.Role));
+        AddStr(-1, row, left.Text);
+        SetAttribute(picked ? _theme.Banded(right.Role) : _theme.For(right.Role));
+        AddStr(width - 2, row, right.Text);
+
+        return true;
+    }
+
+    /// <summary>
+    ///     One row, <paramref name="width" /> columns of it from <paramref name="left" />: its spans painted in what
+    ///     the theme answers for each, and the rest of the row cleared after them.
     /// </summary>
     private void Paint(Line? line, int left, int row, int width)
     {
         var picked = line?.Picked == true;
-
-        // Cleared first, in the theme's own background, so that a row which is shorter than the one it replaced
-        // does not leave the tail of the old one behind it — and on the band, for a row of the thing picked out,
-        // so that the band runs to the edge of the view rather than stopping where the words do (#269).
-        SetAttribute(picked ? _theme.Banded(Role.Body) : _theme.For(Role.Body));
-        AddStr(left, row, new string(' ', width));
-
-        if (line is null)
-        {
-            return;
-        }
-
         var column = 0;
 
-        foreach (var span in line.Spans)
+        foreach (var span in line?.Spans ?? [])
         {
             if (column >= width)
             {
@@ -442,6 +459,16 @@ internal sealed class PaintedView : View
             AddStr(left + column, row, text);
 
             column += Glyphs.Columns(text);
+        }
+
+        // The rest cleared, in the theme's own background, so that a row which is shorter than the one it replaced
+        // does not leave the tail of the old one behind it — and on the band, for a row of the thing picked out, so
+        // that the band runs to the edge of the view rather than stopping where the words do (#269). After the spans
+        // rather than under them, so that each cell is painted once (#292).
+        if (column < width)
+        {
+            SetAttribute(picked ? _theme.Banded(Role.Body) : _theme.For(Role.Body));
+            AddStr(left + column, row, new string(' ', width - column));
         }
     }
 

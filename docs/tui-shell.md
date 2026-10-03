@@ -581,6 +581,10 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
   encoded once, kept, and encoded ahead off the UI thread for the next few rows of a scroll. A notch over sixel
   photographs went from ~104 ms to ~29 ms. Sixel still sends every visible picture on every step — that is the
   protocol.
+- **A frame paints each cell once** (#292). The content panel's frame paints its top and bottom edges and the two end
+  cells of each row between, not whole rows for the clip to cut down; a row paints its spans and then clears only
+  what is left; and the viewport is not cleared before the rows that cover all of it. A wheel notch over text went
+  from ~16–19 ms to ~11–13 ms, headless; what remains is Terminal.Gui's own.
 - **A placeholder cell is the size the kernel says** — the window's pixels over its cells (`TIOCGWINSZ`), then the
   protocol's answer, then 10×20. A box keeps the protocol's answer, which is what Terminal.Gui draws it by.
 - **There is no cell-based fallback.** A terminal offering neither sixel nor the Kitty graphics protocol links every
