@@ -1683,7 +1683,7 @@ public sealed class Shell
         // reply, since what they picked is somebody named in the post rather than the post itself (#85).
         if (purpose == ComposeFor.Post && Screen.MentionedAs is { } handle)
         {
-            Push(new ComposeScreen(purpose, addressing: $"@{handle}"));
+            Push(new ComposeScreen(purpose, addressing: $"@{handle}", from: ComposeFrom.Of(Actor.Profile)));
 
             return;
         }
@@ -1702,7 +1702,8 @@ public sealed class Shell
             purpose,
             purpose == ComposeFor.Post ? null : about,
             purpose == ComposeFor.Reply ? Addressed(about!) : null,
-            aboutIsMine: purpose == ComposeFor.Reply && IsMine(about!)));
+            aboutIsMine: purpose == ComposeFor.Reply && IsMine(about!),
+            from: ComposeFrom.Of(Actor.Profile)));
     }
 
     /// <summary>

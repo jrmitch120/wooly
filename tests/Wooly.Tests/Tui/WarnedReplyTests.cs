@@ -115,7 +115,7 @@ public class WarnedReplyTests
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
 
         Assert.Equal(string.Empty, compose.Warning);
-        Assert.Contains(compose.Lines(new Drawing(61, AShell.Now)), line => line.Text == "⚠ no content warning");
+        Assert.Contains(compose.Lines(new Drawing(61, AShell.Now)), line => line.Text == "     ⚠  none · ctrl-w to add");
 
         compose.Text = "Saying something of my own";
 
@@ -229,7 +229,7 @@ public class WarnedReplyTests
         var compose = await Editing(MinePlain);
 
         Assert.Equal(string.Empty, compose.Warning);
-        Assert.Contains(compose.Lines(new Drawing(61, AShell.Now)), line => line.Text == "⚠ no content warning");
+        Assert.Contains(compose.Lines(new Drawing(61, AShell.Now)), line => line.Text == "     ⚠  none · ctrl-w to add");
     }
 
     /// <summary>
@@ -319,7 +319,7 @@ public class WarnedReplyTests
         var lines = compose.Lines(new Drawing(61, AShell.Now));
 
         var warning = Assert.Single(lines, line => line.Has(Role.ContentWarning));
-        Assert.Equal("⚠ spoilers", warning.Text);
+        Assert.Equal("     ⚠  spoilers", warning.Text);
     }
 
     /// <summary>
@@ -333,7 +333,7 @@ public class WarnedReplyTests
         var lines = compose.Lines(new Drawing(61, AShell.Now));
 
         Assert.DoesNotContain(lines, line => line.Has(Role.ContentWarning));
-        Assert.Contains(lines, line => line.Text == "⚠ no content warning");
+        Assert.Contains(lines, line => line.Text == "     ⚠  none · ctrl-w to add");
     }
 
     /// <summary>
@@ -366,7 +366,7 @@ public class WarnedReplyTests
         opened.Backspace();
 
         Assert.Equal("cw", compose.Warning);
-        Assert.Contains(compose.Lines(new Drawing(61, AShell.Now)), line => line.Text == "⚠ cw▌");
+        Assert.Contains(compose.Lines(new Drawing(61, AShell.Now)), line => line.Text == "     ⚠  cw▌");
 
         opened.WriteWarning();
 

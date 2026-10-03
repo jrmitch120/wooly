@@ -38,6 +38,35 @@ public class ComposeThemeTests
         Assert.All(drawn.Cells(), cell => Assert.Contains(cell, answered));
     }
 
+    /// <summary>
+    ///     And on a reply to a warned post, which draws every header there is (#317): From, the reply header and its
+    ///     quote, the lit warning, and both hairlines.
+    /// </summary>
+    [Theory]
+    [InlineData("dark")]
+    [InlineData("light")]
+    public async Task EveryCellOfAWarnedReplyIsARoleTheThemeAnswers(string name)
+    {
+        var theme = name == "dark" ? Themes.Dark : Themes.Light;
+        var built = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(
+                APost.With(id: "220", account: "ben@hachyderm.io", contentWarning: "spoilers")),
+        };
+
+        using var drawn = await DrawnShell.Of(80, 24, theme, built);
+
+        drawn.Shell.Reply();
+        drawn.Redraw();
+
+        var answered = Enum.GetValues<Role>()
+                           .SelectMany(role => new[] { theme.For(role), theme.Banded(role) })
+                           .ToHashSet();
+
+        Assert.Contains(drawn.Rows(), row => row.Contains("⚠  spoilers", StringComparison.Ordinal));
+        Assert.All(drawn.Cells(), cell => Assert.Contains(cell, answered));
+    }
+
     /// <summary>The editor's text and the empty rows under it are the body role on the page, edge to edge.</summary>
     [Fact]
     public async Task TheEditorIsTheBodyOnThePage()

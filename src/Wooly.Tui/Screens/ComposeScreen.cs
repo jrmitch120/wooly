@@ -1,5 +1,6 @@
 using System.Drawing;
 using Wooly.Core.Posts;
+using Wooly.Core.Profiles;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Theme;
 
@@ -18,6 +19,19 @@ public enum ComposeFor
     Edit,
 }
 
+/// <summary>Who a compose screen's post goes out as, for its From header (#317).</summary>
+/// <param name="Handle">The profile's account, as a byline's handle: <c>@jeff</c>.</param>
+/// <param name="Instance">The instance it is on, which tells two profiles with the same username apart.</param>
+public sealed record ComposeFrom(string Handle, string Instance)
+{
+    /// <summary>
+    ///     Who <paramref name="profile" /> posts as: its account's username, or the profile's own name where the
+    ///     account has not been verified, on the instance the profile signs in to.
+    /// </summary>
+    public static ComposeFrom Of(ActiveProfile profile) =>
+        new(profile.Account is { } account ? $"@{account.Split('@')[0]}" : profile.Name, profile.Instance);
+}
+
 /// <summary>
 ///     Writing a post: a new one, a reply, or a change to one already published. A screen pushed onto the stack like
 ///     any other, which is what <c>docs/tui-shell.md</c> left open and ADR-0015 settles.
@@ -28,8 +42,20 @@ public enum ComposeFor
 /// </remarks>
 public sealed class ComposeScreen : Screen
 {
-    /// <summary>What the warning row says while nobody has written a warning into it.</summary>
-    private const string NoWarningWritten = "no content warning";
+    /// <summary>What the warning row says while it is empty and nobody is writing in it.</summary>
+    private const string NoWarningWritten = "none · ctrl-w to add";
+
+    /// <summary>What the warning row says while it is empty and is being written in.</summary>
+    private const string WarningBeingWritten = "say what it's about";
+
+    /// <summary>The columns left blank either side of everything on the screen (#317).</summary>
+    private const int Pad = 2;
+
+    /// <summary>How wide the headers' right-aligned label column is: wide enough for <c>From</c>.</summary>
+    private const int LabelWidth = 4;
+
+    /// <summary>The columns between a header's label and its value.</summary>
+    private const int LabelGap = 2;
 
     /// <summary>What an empty editor says, dimly, where the first letter will go (#316).</summary>
     public const string EmptyPostHint = "What's on your mind?";
@@ -41,6 +67,8 @@ public sealed class ComposeScreen : Screen
     private const int LeastEditorRows = 3;
 
     private readonly bool _aboutIsMine;
+
+    private readonly ComposeFrom? _from;
 
     /// <param name="purpose">What this screen was opened to do.</param>
     /// <param name="about">The post being replied to or edited.</param>
@@ -56,11 +84,21 @@ public sealed class ComposeScreen : Screen
     ///     Whether <paramref name="about" /> is the profile's own post — settled by <c>Shell.IsMine</c> where this
     ///     screen is pushed, so the reply label below costs no lookup of its own.
     /// </param>
-    public ComposeScreen(ComposeFor purpose, Post? about = null, string? addressing = null, bool aboutIsMine = false)
+    /// <param name="from">
+    ///     Who the post goes out as, for the From header — or <see langword="null" /> for a screen built with no
+    ///     profile behind it, whose header is the label alone.
+    /// </param>
+    public ComposeScreen(
+        ComposeFor purpose,
+        Post? about = null,
+        string? addressing = null,
+        bool aboutIsMine = false,
+        ComposeFrom? from = null)
     {
         Purpose = purpose;
         About = about;
         _aboutIsMine = aboutIsMine;
+        _from = from;
 
         Opening = purpose switch
         {
@@ -165,37 +203,12 @@ public sealed class ComposeScreen : Screen
         .. WritingTheWarning ? [] : new KeyHint[] { PostKeys.Asking },
     ];
 
-    /// <summary>
-    ///     How many rows the warning band takes up, which is two on every compose screen: the field, and the blank
-    ///     standing above it. Room <see cref="EditorAt" /> leaves above the live editor, the same way
-    ///     <see cref="AnsweringHeight" /> is, and kept whether or not anything has been typed into it, since a field
-    ///     is there to be typed into.
-    /// </summary>
-    /// <remarks>
-    ///     The blank is the band's rather than the reply block's (#143). It reads as space above the warning either
-    ///     way, but only one of the two puts it on every screen: hung off the block, it appeared on a reply and
-    ///     nowhere else, and the one row the three screens have in common was the row they spaced differently.
-    ///     <para>
-    ///         Held at two rows on an edit while an edit had no warning to write, both of them blank, against the habit
-    ///         that a part with nothing in it is skipped rather than spaced (#142) — so that the editor did not start
-    ///         higher on <c>e</c> than on <c>c</c>. #140 gave the edit a field of its own and nothing shifted, which is
-    ///         what that row was being held for.
-    ///     </para>
-    /// </remarks>
-    public int WarningHeight => 2;
-
     /// <inheritdoc />
-    public override IReadOnlyList<Line> Lines(Drawing drawing)
-    {
-        var width = drawing.Width;
-
-        var lines = new List<Line>(Answering(width));
-
-        lines.AddRange(WarningRows(width));
-        lines.AddRange(TextWrap.Wrap(Text.Length == 0 ? " " : Text, width).Select(row => Line.Of(row, Role.Body)));
-
-        return lines;
-    }
+    /// <remarks>
+    ///     The whole of the content region, laid out to its height (<see cref="Drawing.Height" />) rather than
+    ///     scrolled: the headers, the hairline, blank rows where the editor is laid over them, and the foot.
+    /// </remarks>
+    public override IReadOnlyList<Line> Lines(Drawing drawing) => Laid(drawing.Width, drawing.Height).Rows;
 
     /// <inheritdoc />
     /// <remarks>Into the warning, which is the only thing on this screen the shell carries letters into.</remarks>
@@ -208,33 +221,104 @@ public sealed class ComposeScreen : Screen
     public void WriteTheWarning() => WritingTheWarning = !WritingTheWarning;
 
     /// <summary>
-    ///     Where the editor goes inside the content panel's viewport of <paramref name="viewport" />: across the whole
-    ///     width, under what is being answered and the warning band, and down to the foot. Said here rather than worked
-    ///     out by the window from the rows above, because this is what paints those rows (#315).
+    ///     Where the editor goes inside the content panel's viewport of <paramref name="viewport" />: under the
+    ///     headers and the hairline below them, inside the padding either side, and down to the hairline at the foot.
+    ///     Said here rather than worked out by the window from the rows above, because this is what paints those rows
+    ///     (#315) — and both come from the one layout, so they cannot come to disagree.
+    /// </summary>
+    public Rectangle EditorAt(Size viewport) => Laid(viewport.Width, viewport.Height).Editor;
+
+    /// <summary>
+    ///     The screen laid out at <paramref name="width" /> by <paramref name="height" />: every row, top to bottom,
+    ///     and where the editor sits among them (#317, variant A of the prototype).
     /// </summary>
     /// <remarks>
-    ///     Never so far down that there is no editor left. ADR-0015 priced the editor's share of a 24-row terminal at
-    ///     more than what sits above it, but a terminal can be any size, and an editor that starts below the foot is
-    ///     one nobody can type in. Pushed off the foot, what goes is the tail of what is
-    ///     being answered rather than the room to answer it — and the warning band is the last to give way rather
-    ///     than the first: it is a row the reader types into, and one they cannot see is worse than a quote that
-    ///     stops early.
+    ///     A blank; the headers — From, the reply header and its quote on a reply, the warning; a hairline; a blank;
+    ///     the editor; a hairline; the row the count sits on. Two columns of padding either side of all of it.
+    ///     <para>
+    ///         Never so far down that there is no editor left. ADR-0015 priced the editor's share of a 24-row
+    ///         terminal at more than what sits above it, but a terminal can be any size, and an editor that starts
+    ///         below the foot is one nobody can type in. Where there is not room for everything, rows give way in the
+    ///         order <see cref="Row.Keep" /> ranks them: the tail of what is being answered first, the warning never —
+    ///         it is a row the reader types into, and one they cannot see is worse than a quote that stops early.
+    ///         Where nobody says how tall the room is, it is as tall as the rows and the editor's least want.
+    ///     </para>
     /// </remarks>
-    public Rectangle EditorAt(Size viewport)
+    private (IReadOnlyList<Line> Rows, Rectangle Editor) Laid(int width, int? height)
     {
-        var room = Math.Max(0, viewport.Height - LeastEditorRows - WarningHeight);
-        var top = Math.Min(AnsweringHeight(viewport.Width), room) + WarningHeight;
+        var inner = Math.Max(0, width - (Pad * 2));
+        var value = Math.Max(0, inner - LabelWidth - LabelGap);
+        var hairline = Line.Of(Gap(Pad), new Span(new string('─', inner), Role.PanelBorder));
 
-        return new Rectangle(0, top, viewport.Width, Math.Max(0, viewport.Height - top));
+        var above = new List<Row> { new(Line.Blank, Keep.TopBlank), new(Header("From", Role.Muted, From()), Keep.From) };
+
+        if (Purpose == ComposeFor.Reply && About is { } answered)
+        {
+            var said = PostReplyName.Answered(answered.Account, _aboutIsMine);
+
+            above.Add(new Row(
+                Header(PostReplyName.Mark, Role.Muted, new Span(TextWrap.Clip(said, value), Role.Muted)),
+                Keep.ReplyHeader));
+
+            // Three rows of what was said, and blank ones are not among them (#141): a post's paragraphs arrive as
+            // blank lines, so a quote that took its three rows in order spent one of them on a gap.
+            const string gutter = "│ ";
+            var quoted = TextWrap.Wrap(answered.Content, Math.Max(1, value - Glyphs.Columns(gutter)))
+                                 .Where(row => row.Length > 0)
+                                 .Take(3);
+
+            above.AddRange(quoted.Select(row => new Row(
+                Line.Of(
+                    Gap(Pad + LabelWidth + LabelGap),
+                    new Span(gutter, Role.PanelBorder),
+                    new Span(row, Role.Muted)),
+                Keep.Quote)));
+        }
+
+        above.Add(new Row(WarningHeader(value), Keep.Always));
+        above.Add(new Row(hairline, Keep.HeaderHairline));
+        above.Add(new Row(Line.Blank, Keep.BlankUnderHairline));
+
+        var foot = new List<Row> { new(hairline, Keep.FootHairline), new(Line.Blank, Keep.Count) };
+        var room = height ?? (above.Count + LeastEditorRows + foot.Count);
+
+        // Whatever ranks lowest goes first and, among equals, whichever is lowest on the screen: the quote gives up
+        // its tail rather than its start.
+        while (above.Count + foot.Count + LeastEditorRows > room
+               && above.Concat(foot).Where(row => row.Keep != Keep.Always).MinBy(row => row.Keep) is { } least)
+        {
+            var from = foot.Contains(least) ? foot : above;
+
+            from.RemoveAt(from.FindLastIndex(row => row.Keep == least.Keep));
+        }
+
+        var top = above.Count;
+        var editor = Math.Max(0, room - top - foot.Count);
+
+        IReadOnlyList<Line> rows =
+        [
+            .. above.Select(row => row.Line),
+            .. Enumerable.Repeat(Line.Blank, editor),
+            .. foot.Select(row => row.Line),
+        ];
+
+        return (rows, new Rectangle(Math.Min(Pad, width), top, inner, editor));
     }
 
     /// <summary>
-    ///     How many rows <see cref="Answering" /> takes up at <paramref name="width" /> — the room
-    ///     <see cref="EditorAt" /> leaves above the live editor so the two do not draw over one another, since the
-    ///     editor is a separate view laid on top of the one these rows are painted on rather than a row range inside
-    ///     it.
+    ///     A header: <paramref name="label" /> right-aligned in the label column, in <paramref name="role" />, then
+    ///     <paramref name="value" />.
     /// </summary>
-    public int AnsweringHeight(int width) => Answering(width).Count;
+    private static Line Header(string label, Role role, params Span[] value) =>
+        Line.Of([Gap(Pad + LabelWidth - Glyphs.Columns(label)), new Span(label, role), Gap(LabelGap), .. value]);
+
+    /// <summary>The From header's value: the handle as a byline's, then the instance, muted.</summary>
+    private Span[] From() =>
+        _from is { } from
+            ? [new Span(from.Handle, Role.BylineHandle), new Span($" · {from.Instance}", Role.Muted)]
+            : [];
+
+    private static Span Gap(int columns) => new(new string(' ', Math.Max(0, columns)), Role.Body);
 
     /// <summary>
     ///     The post this screen publishes: what was written, whatever warning is over it, and the post it answers
@@ -275,90 +359,58 @@ public sealed class ComposeScreen : Screen
     private PostEdit Changed() => new() { Text = Text, ContentWarning = Warning };
 
     /// <summary>
-    ///     The warning band: a blank, then the field. Both rows from the one method, so what is painted and what
-    ///     <see cref="WarningHeight" /> leaves room for cannot come to differ — and the blank lands above the warning
-    ///     on every compose screen rather than only on the one whose block used to end in it (#143).
-    /// </summary>
-    private IReadOnlyList<Line> WarningRows(int width) => [Line.Blank, WarningRow(width)];
-
-    /// <summary>
-    ///     The field itself: what this post is going behind, on the row between what is being answered and the
-    ///     editor. The mark and the role a warned post's own warning is drawn in (<see cref="PostLines" />), so that a
-    ///     warning being written looks like the warning it will become — but not that row itself, which has neither a
-    ///     caret nor anything to say about a warning nobody has written yet.
+    ///     The warning header: what this post is going behind, under the mark a warned post wears in the feed
+    ///     (<see cref="PostLines.WarningMark" />) and in the role its warning is drawn in, so that a warning being
+    ///     written looks like the warning it will become. The mark is lit while there is a warning or one is being
+    ///     written, and dim while there is none — so a reader sees at a glance whether the post is going out behind one.
     /// </summary>
     /// <remarks>
     ///     Empty, it says so rather than going blank: a row a reader can type into is a row they have to be able to
-    ///     find, and the status row's <c>ctrl-w</c> is the other half of saying so. The caret is a mark rather than a
+    ///     find, and while it is being written it hints at what goes there instead. The caret is a mark rather than a
     ///     colour, the way the search prompt's is, so a terminal with none still says where the typing is going.
     /// </remarks>
-    private Line WarningRow(int width)
+    private Line WarningHeader(int room)
     {
-        const string mark = PostLines.WarningMark;
-        var room = Math.Max(0, width - Glyphs.Columns(mark));
+        var mark = PostLines.WarningMark.Trim();
 
         if (WritingTheWarning)
         {
             // A column left for the caret, which is the one thing on this row that has to stay visible: a reader who
             // has typed past the width would otherwise be looking at a row with no sign of where their next letter
             // goes.
-            return Line.Of(
-                new Span(mark, Role.ContentWarning),
-                new Span(TextWrap.Clip(Warning, Math.Max(0, room - 1)), Role.ContentWarning),
-                new Span("▌", Role.Selection));
+            var written = TextWrap.Clip(Warning, Math.Max(0, room - 1));
+            var hint = Warning.Length == 0 ? TextWrap.Clip(WarningBeingWritten, Math.Max(0, room - 1)) : string.Empty;
+
+            return Header(
+                mark,
+                Role.ContentWarning,
+                new Span(written, Role.ContentWarning),
+                new Span("▌", Role.Selection),
+                new Span(hint, Role.Muted));
         }
 
         return Warning.Length > 0
-            ? Line.Of(
-                new Span(mark, Role.ContentWarning),
-                new Span(TextWrap.Clip(Warning, room), Role.ContentWarning))
-            : Line.Of(
-                new Span(mark, Role.Muted),
-                new Span(TextWrap.Clip(NoWarningWritten, room), Role.Muted));
+            ? Header(mark, Role.ContentWarning, new Span(TextWrap.Clip(Warning, room), Role.ContentWarning))
+            : Header(mark, Role.Muted, new Span(TextWrap.Clip(NoWarningWritten, room), Role.Muted));
     }
 
+    /// <summary>One row of the layout, and how long it holds out on a terminal too short for every row.</summary>
+    private sealed record Row(Line Line, Keep Keep);
+
     /// <summary>
-    ///     What is being answered, which stays on screen above the editor — the thing the rejected "editor under the
-    ///     feed" was for. It costs four rows here and no layout at all. The label is the feed's own reply mark, said
-    ///     by the one thing that says it (<see cref="PostReplyName" />, #82) — never the bare "↳ reply", since compose
-    ///     always holds the full post it answers.
+    ///     How long a row holds out on a terminal too short for everything, lowest first to go: what is being
+    ///     answered gives way before anything the reader types into or reads their own post by.
     /// </summary>
-    /// <returns>
-    ///     The label and up to three rows of what was said, and nothing else: no blank above and none below, so that
-    ///     the warning row underneath is spaced the same here as on a compose that has no block at all.
-    /// </returns>
-    /// <remarks>
-    ///     Three rows of what was said, and blank ones are not among them (#141). A post's paragraphs arrive as blank
-    ///     lines — <c>InstanceHtml.ToPlainText</c> turns <c>&lt;/p&gt;</c> into two newlines and <c>TextWrap</c> keeps
-    ///     the author's own breaks — so a quote that took its three rows in order spent one of them on a gap, and gave
-    ///     the reader two rows of words where there was room for three.
-    ///     <para>
-    ///         Nothing under the last of them, either. The blank that used to end this block belongs to
-    ///         <see cref="WarningRows" /> now (#143): it reads as space above the warning either way, and hung off
-    ///         the block it appeared on a reply and nowhere else — so the one row all three compose screens have in
-    ///         common was the row they spaced differently.
-    ///     </para>
-    /// </remarks>
-    private IReadOnlyList<Line> Answering(int width)
+    private enum Keep
     {
-        if (About is not { } answered || Purpose != ComposeFor.Reply)
-        {
-            return [];
-        }
-
-        var lines = new List<Line>();
-        var label = PostReplyName.Answering(answered.Account, _aboutIsMine);
-        lines.Add(Line.Of(TextWrap.Clip(label, width), Role.Muted));
-
-        var said = TextWrap.Wrap(answered.Content, Math.Max(1, width - 2))
-                           .Where(row => row.Length > 0)
-                           .Take(3);
-
-        foreach (var row in said)
-        {
-            lines.Add(Line.Of($"  {row}", Role.Muted));
-        }
-
-        return lines;
+        Quote,
+        ReplyHeader,
+        TopBlank,
+        BlankUnderHairline,
+        FootHairline,
+        Count,
+        From,
+        HeaderHairline,
+        Always,
     }
 }

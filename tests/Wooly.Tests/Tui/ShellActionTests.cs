@@ -264,8 +264,8 @@ public class ShellActionTests
 
         opened.Reply();
 
-        var label = opened.Screen.Lines(new Drawing(61, AShell.Now))[0].Text;
-        Assert.Equal("↳ answering @ben@hachyderm.io", label);
+        var label = opened.Screen.Lines(new Drawing(61, AShell.Now))[2].Text;
+        Assert.Equal("     ↳  answering @ben@hachyderm.io", label);
     }
 
     /// <summary>A reply to the profile's own post says it is being continued, not answered.</summary>
@@ -277,8 +277,8 @@ public class ShellActionTests
 
         opened.Reply();
 
-        var label = opened.Screen.Lines(new Drawing(61, AShell.Now))[0].Text;
-        Assert.Equal("↳ continuing", label);
+        var label = opened.Screen.Lines(new Drawing(61, AShell.Now))[2].Text;
+        Assert.Equal("     ↳  continuing", label);
     }
 
     /// <summary>

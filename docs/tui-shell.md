@@ -821,7 +821,8 @@ its author remembered to warn it again by hand — which Mastodon's own clients 
   `?` and `/` included, the rule the search prompt already keeps — and the status row says `ctrl-w  back to the post`
   and stops offering the keymap. `esc` still means what it means everywhere: up one level, throwing the whole compose
   away.
-- **The row says it is there when it is empty**, muted: `⚠ no content warning`. A row a reader can type into is a row
+- **The row says it is there when it is empty**, muted — `⚠ no content warning` until the headers layout made it
+  `⚠  none · ctrl-w to add`, and `say what it's about` while it is being written (#317, below). A row a reader can type into is a row
   they have to be able to find, and the status row's `ctrl-w` is the other half of saying so. Written, it takes the
   same `⚠` and the same `content-warning` role a warned post's own warning is drawn in, so a warning being written
   looks like the warning it will become — with a `▌` caret while it is taking letters, a mark rather than a colour, the
@@ -829,8 +830,11 @@ its author remembered to warn it again by hand — which Mastodon's own clients 
 - **A blank row stands above it, on every compose alike** (#143). It was ADR-0015's reply block that used to end in
   one, which is why `c` and `e` had none: hung off the block, the space appeared on a reply and nowhere else, and the
   one row all three screens have in common was the row they spaced differently. The blank belongs to the warning now,
-  so a reply reads label, quote, blank, warning, editor and the other two read blank, warning, editor.
-- **It costs two rows above the editor, and they are the last rows to give way.** ADR-0015's block already gives up
+  so a reply reads label, quote, blank, warning, editor and the other two read blank, warning, editor. The headers
+  layout (#317, below) keeps the rule and moves the blank: it stands above the whole block of headers, on every
+  compose alike.
+- **It costs two rows above the editor, and they are the last rows to give way** — one row since #317, the warning
+  header, which is still the last to go. ADR-0015's block already gives up
   its tail on a terminal too short for everything; the warning band does not, being a row the reader types into rather
   than a quote of something they can see elsewhere. One of the two is a row the reply screen was already spending.
 - **The screen says what goes out; the shell puts it** (#146). `ComposeScreen.Outgoing` answers an `Outgoing` — a
@@ -843,6 +847,27 @@ its author remembered to warn it again by hand — which Mastodon's own clients 
   field, `--cw` and `PostEdit.ContentWarningWanted` all read, rather than the same expression written out three times.
   The CLI's third state is untouched by that: it is `--cw` being absent from the command line, which is a fact about
   the invocation rather than about what was written in it.
+
+### What the compose headers settled
+
+Compose is laid out as a mail client's compose — variant A of the prototype on `prototype/compose` (#313, #317) — on a
+fresh post, a reply and an edit alike:
+
+- **Rows, top to bottom:** a blank; the headers; a hairline; a blank; the editor; a hairline; the row the count sits
+  on (#319). Two columns of padding either side of all of it. The hairlines are `panel-border`.
+- **Headers are a right-aligned label column four wide, two spaces, then the value.** `From` reads the profile's
+  handle in `byline-handle` and ` · instance` muted — the instance said even with one profile set up, since this is
+  the row a reader checks before sending. A reply's header is labelled with the feed's own reply mark rather than a
+  word, and worded by `PostReplyName` (`answering @handle`, or `continuing` for a self-reply), with up to three
+  non-blank rows of what is being answered under it behind a `│ ` gutter. The warning's is labelled with the bare
+  `⚠`, lit in `content-warning` while there is a warning or one is being written and muted otherwise, so the reader
+  sees at a glance whether the post is going out behind one.
+- **The screen paints every row and says where the editor goes**, both from one layout, at the content region's
+  height (`Drawing.Height`) — so what is painted and where the editor is laid over it cannot disagree. Where nobody
+  says the height, it lays out as tall as its rows and the editor's least want.
+- **On a terminal too short for everything, rows give way in a fixed order**: the quote's tail, the reply header, the
+  blanks, the foot, `From`, the hairline under the headers. The warning header and three rows of editor are kept
+  whatever the height — the rule ADR-0015 and #123 already kept, with more dressing in front of it to go first.
 
 ### What the account screen settled
 

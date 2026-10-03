@@ -8,7 +8,7 @@ namespace Wooly.Tui.Rendering;
 ///     one thing.
 /// </summary>
 /// <remarks>
-///     One record rather than an argument apiece, because none of the four is the screen's own business and every one
+///     One record rather than an argument apiece, because none of them is the screen's own business and every one
 ///     of them arrived a ticket at a time: <c>pictures</c> with ADR-0016, <c>hideDrawnCaption</c> with #71, and each
 ///     cost a signature edit at eleven overrides plus a threading change through <see cref="Screens.PostList" /> to
 ///     carry one new fact (#148). What comes next is a field here.
@@ -18,7 +18,7 @@ namespace Wooly.Tui.Rendering;
 ///         linked rather than drawn.
 ///     </para>
 ///     <para>
-///         <see cref="Width" /> is on it though it is the one of the four that genuinely varies call by call within a
+///         <see cref="Width" /> is on it though it is the one of them that genuinely varies call by call within a
 ///         frame — a row is drawn in a column its gutter has already taken, and a message under a conversation in two
 ///         more. It is here because it is still a fact about the terminal rather than about the screen, and because
 ///         leaving it outside would have left <c>Lines</c> taking two parameters, which is the shape this replaces:
@@ -46,11 +46,17 @@ namespace Wooly.Tui.Rendering;
 ///     The reader's <c>hide_drawn_caption</c> preference: whether a picture's caption hides once it is actually drawn
 ///     (#71). Ignored by a screen with no posts on it.
 /// </param>
+/// <param name="Height">
+///     How many rows the content region has, or <see langword="null" /> where nobody said. Ignored by every screen
+///     whose rows scroll; read by compose, which lays itself out to the room rather than scrolling (#317), and which
+///     lays itself out as tall as its own rows want where it is not told.
+/// </param>
 public sealed record Drawing(
     int Width,
     DateTimeOffset Now,
     IPictures? Pictures = null,
-    bool HideDrawnCaption = false)
+    bool HideDrawnCaption = false,
+    int? Height = null)
 {
     /// <summary>The same drawing in less room, which is what a gutter or an indent leaves the thing inside it.</summary>
     /// <remarks>

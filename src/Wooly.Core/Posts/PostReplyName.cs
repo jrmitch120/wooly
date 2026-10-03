@@ -8,6 +8,12 @@ namespace Wooly.Core.Posts;
 public static class PostReplyName
 {
     /// <summary>
+    ///     The mark every one of these opens with — said on its own where something else carries the words, as the
+    ///     compose screen's reply header does with its label column (#317).
+    /// </summary>
+    public const string Mark = "↳";
+
+    /// <summary>
     ///     The mark for <paramref name="post" />, or <see langword="null" /> where it answers nothing.
     /// </summary>
     /// <remarks>
@@ -26,7 +32,7 @@ public static class PostReplyName
 
         return answered.Handle switch
         {
-            null => "↳ reply",
+            null => $"{Mark} reply",
             var handle => Answering(handle, mine: handle == post.Account),
         };
     }
@@ -44,5 +50,12 @@ public static class PostReplyName
     /// </remarks>
     /// <param name="handle">Whose post is being answered.</param>
     /// <param name="mine">Whether that post is the answering account's own, which makes this a thread continued.</param>
-    public static string Answering(string handle, bool mine) => mine ? "↳ continuing" : $"↳ answering @{handle}";
+    public static string Answering(string handle, bool mine) => $"{Mark} {Answered(handle, mine)}";
+
+    /// <summary>
+    ///     <see cref="Answering" /> without its <see cref="Mark" />, for a header that draws the mark as its label and
+    ///     these words as its value (#317) — so the wording is still this class's, and only the layout is the caller's.
+    /// </summary>
+    /// <inheritdoc cref="Answering" />
+    public static string Answered(string handle, bool mine) => mine ? "continuing" : $"answering @{handle}";
 }
