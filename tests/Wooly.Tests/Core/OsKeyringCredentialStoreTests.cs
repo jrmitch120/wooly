@@ -75,9 +75,25 @@ public class OsKeyringCredentialStoreTests
     [Fact]
     public void SaveAccessToken_FilesTheTokenUnderOneServiceKeyedByProfile()
     {
-        NewStore().SaveAccessToken("personal", "token-abc");
+        OpenOver(GcmKeyring.BackingStoreForThisMachine, windows: false).SaveAccessToken("personal", "token-abc");
 
         Assert.Equal([("access-token", "personal")], _keyring.Secrets.Keys);
+    }
+
+    /// <summary>
+    ///     On Windows the service is an absolute URI, because Git Credential Manager's Windows store builds the
+    ///     credential's name by parsing it as one — and threw on <c>access-token</c>, so adding the first profile
+    ///     crashed the TUI. Only Windows: a token already filed on macOS or Linux is filed under the old name.
+    /// </summary>
+    [Fact]
+    public void SaveAccessToken_FilesTheTokenUnderAnAbsoluteUriOnWindows()
+    {
+        OpenOver(GcmKeyring.BackingStoreForThisMachine, windows: true).SaveAccessToken("personal", "token-abc");
+
+        var (service, account) = Assert.Single(_keyring.Secrets.Keys);
+
+        Assert.Equal(("wooly://access-token", "personal"), (service, account));
+        Assert.True(Uri.TryCreate(service, UriKind.Absolute, out _));
     }
 
     [Fact]
@@ -137,6 +153,8 @@ public class OsKeyringCredentialStoreTests
 
     private OsKeyringCredentialStore NewStore() => OpenOver(GcmKeyring.BackingStoreForThisMachine);
 
-    private OsKeyringCredentialStore OpenOver(string? backingStoreName) =>
-        OsKeyringCredentialStore.Open(() => new GcmKeyring(backingStoreName, _keyring));
+    private OsKeyringCredentialStore OpenOver(string? backingStoreName, bool? windows = null) =>
+        OsKeyringCredentialStore.Open(
+            () => new GcmKeyring(backingStoreName, _keyring),
+            windows ?? OperatingSystem.IsWindows());
 }
