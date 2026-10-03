@@ -1368,10 +1368,10 @@ Three things stayed outside it, each deliberately:
   `Confirmation` carries what agreeing to it does, so `D` asks the same way a delete and a vote do.
 - **The verbs that need a terminal.** `ShellWindow` still carries out `ctrl-q`, the four movements that walk the page
   rather than the list, `j`/`k`, `Home`/`End` and `[`/`]` — which move the pick *and* the page — and `ctrl-s`, which
-  has to take the editor widget's text before the shell sends it. Nothing else about a key is the window's: it translates the press
+  the editor widget takes off the keys before the shell's own path can. Nothing else about a key is the window's: it translates the press
   and hands the verb on.
 
-The window's remaining knowledge of `ComposeScreen` is geometry and focus — where the editor widget starts, whether it
+The window's remaining knowledge of `ComposeScreen` is geometry and focus — laying the editor widget where the screen says it goes (#315), whether it
 has the keys, and what text it opens with. That is a window's question about its own furniture and stays there.
 
 ### What the profiles screen settled

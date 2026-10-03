@@ -1,3 +1,4 @@
+using System.Drawing;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Wooly.Core.Posts;
@@ -331,6 +332,146 @@ public class ShellComposeLayoutTests
         }
     }
 
+    /// <summary>
+    ///     The screen says where its editor goes inside the content panel's viewport (#315): under the reply block and
+    ///     the warning band, across the whole width, and down to the foot.
+    /// </summary>
+    [Theory]
+    [InlineData("compose", 60, 17, 2)]
+    [InlineData("reply", 60, 17, 4)]
+    [InlineData("edit", 60, 17, 2)]
+    [InlineData("reply", 40, 30, 4)]
+    public async Task EditorAt_SitsUnderWhatIsAboveItAndRunsToTheFoot(string opening, int width, int height, int top)
+    {
+        var (window, shell) = await Opened(height: 20, post: APost.With(id: "220", account: "jeff@mastodon.social"));
+
+        using (window)
+        {
+            var compose = Opening(shell, opening);
+
+            Assert.Equal(
+                new Rectangle(0, top, width, height - top),
+                compose.EditorAt(new Size(width, height)));
+        }
+    }
+
+    /// <summary>
+    ///     On a viewport too short for everything, the quote gives way first and the editor keeps its three rows — and
+    ///     where there are not even those, it keeps what there is rather than a height below nothing.
+    /// </summary>
+    [Theory]
+    [InlineData(5, 2, 3)]
+    [InlineData(3, 2, 1)]
+    [InlineData(1, 2, 0)]
+    public async Task EditorAt_GivesUpTheQuoteBeforeTheEditor(int height, int top, int rows)
+    {
+        var (window, _, compose) = await Replying();
+
+        using (window)
+        {
+            Assert.Equal(new Rectangle(0, top, ContentWidth, rows), compose.EditorAt(new Size(ContentWidth, height)));
+        }
+    }
+
+    /// <summary>
+    ///     The window lays the editor exactly where the screen says, offset by where the content panel's viewport sits
+    ///     in the window — with or without the rail beside it.
+    /// </summary>
+    [Theory]
+    [InlineData("compose")]
+    [InlineData("reply")]
+    [InlineData("edit")]
+    public async Task Window_LaysTheEditorWhereTheScreenSays(string opening)
+    {
+        var (window, shell) = await Opened(height: 20, post: APost.With(id: "220", account: "jeff@mastodon.social"));
+
+        using (window)
+        {
+            var compose = Opening(shell, opening);
+
+            window.Layout();
+
+            var content = window.SubViews.OfType<PaintedView>().Single(view => view.Id == ShellWindow.ContentId);
+            var at = compose.EditorAt(content.Viewport.Size);
+            var origin = content.Frame.Location + new Size(1, 1);
+
+            Assert.Equal(at with { Location = at.Location + new Size(origin) }, Editor(window).Frame);
+        }
+    }
+
+    /// <summary>
+    ///     The screen's text follows the editor on every edit rather than only at <c>ctrl-s</c> (#315), so anything
+    ///     reading it mid-draft sees what has been typed so far.
+    /// </summary>
+    [Fact]
+    public async Task Text_FollowsTheEditorAsItIsTyped()
+    {
+        var (window, _, compose) = await Replying();
+
+        using (window)
+        {
+            window.NewKeyDownEvent(Key.H);
+            window.NewKeyDownEvent(Key.I);
+
+            Assert.Equal("@ben@hachyderm.io hi", compose.Text);
+
+            window.NewKeyDownEvent(Key.Backspace);
+
+            Assert.Equal("@ben@hachyderm.io h", compose.Text);
+        }
+    }
+
+    /// <summary>
+    ///     Not only typing: a paste, which reaches the editor as one string inserted at the caret rather than as keys,
+    ///     and an undo are edits too, and the screen follows both. How much of a paste one undo takes back is the
+    ///     editor's own business, so what is pinned is that the screen ends up where the editor does.
+    /// </summary>
+    [Fact]
+    public async Task Text_FollowsAPasteAndItsUndo()
+    {
+        var (window, editor, compose) = await Replying();
+
+        using (window)
+        {
+            editor.InsertText("thanks!");
+
+            Assert.Equal("@ben@hachyderm.io thanks!", compose.Text);
+
+            window.NewKeyDownEvent(Key.Z.WithCtrl);
+
+            Assert.NotEqual("@ben@hachyderm.io thanks!", editor.Text);
+            Assert.Equal(editor.Text, compose.Text);
+        }
+    }
+
+    /// <summary>
+    ///     And <c>ctrl-s</c> sends what was typed into the editor, now that the screen learns it as it is typed rather
+    ///     than being handed it at the moment of sending.
+    /// </summary>
+    [Fact]
+    public async Task Send_PublishesWhatWasTypedIntoTheEditor()
+    {
+        var built = new AShell { Timelines = FakeTimelineReader.Holding(APost.With(id: "220")) };
+        var shell = await built.Opened();
+
+        using var window = new ShellWindow(shell, Themes.Plain, built.Clock, () => { }, FakePictures.DrawingNothing())
+        {
+            Width = 80,
+            Height = 20,
+        };
+
+        window.Layout();
+        shell.Compose();
+        window.Layout();
+
+        window.NewKeyDownEvent(Key.H);
+        window.NewKeyDownEvent(Key.I);
+        window.NewKeyDownEvent(Key.S.WithCtrl);
+        built.Host.Drain();
+
+        Assert.Equal("hi", Assert.Single(built.Author.Published).Draft.Text);
+    }
+
     /// <summary>And it scrolls again the moment the reply is thrown away, since the feed is back underneath.</summary>
     [Fact]
     public async Task Back_LetsTheFeedScrollAgainOnceTheReplyIsGone()
@@ -385,6 +526,28 @@ public class ShellComposeLayoutTests
         window.Layout();
 
         return (window, Editor(window), (ComposeScreen)shell.Screen);
+    }
+
+    /// <summary>Opens a compose of the kind <paramref name="opening" /> names on the post the shell is showing.</summary>
+    private static ComposeScreen Opening(Wooly.Tui.Shell.Shell shell, string opening)
+    {
+        switch (opening)
+        {
+            case "compose":
+                shell.Compose();
+
+                break;
+            case "reply":
+                shell.Reply();
+
+                break;
+            default:
+                shell.Edit();
+
+                break;
+        }
+
+        return Assert.IsType<ComposeScreen>(shell.Screen);
     }
 
     private static ComposeEditor Editor(View window) => window.SubViews.OfType<ComposeEditor>().Single();

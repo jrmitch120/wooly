@@ -1,3 +1,4 @@
+using System.Drawing;
 using Wooly.Core.Posts;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Theme;
@@ -29,6 +30,12 @@ public sealed class ComposeScreen : Screen
 {
     /// <summary>What the warning row says while nobody has written a warning into it.</summary>
     private const string NoWarningWritten = "no content warning";
+
+    /// <summary>
+    ///     The fewest rows the editor is ever left with, however much of what is being answered wants to sit above it
+    ///     (<see cref="EditorAt" />). Three: a line being written, and one either side of it to see.
+    /// </summary>
+    private const int LeastEditorRows = 3;
 
     private readonly bool _aboutIsMine;
 
@@ -157,7 +164,7 @@ public sealed class ComposeScreen : Screen
 
     /// <summary>
     ///     How many rows the warning band takes up, which is two on every compose screen: the field, and the blank
-    ///     standing above it. Room the shell has to leave above the live editor, the same way
+    ///     standing above it. Room <see cref="EditorAt" /> leaves above the live editor, the same way
     ///     <see cref="AnsweringHeight" /> is, and kept whether or not anything has been typed into it, since a field
     ///     is there to be typed into.
     /// </summary>
@@ -198,9 +205,31 @@ public sealed class ComposeScreen : Screen
     public void WriteTheWarning() => WritingTheWarning = !WritingTheWarning;
 
     /// <summary>
-    ///     How many rows <see cref="Answering" /> takes up at <paramref name="width" /> — the room the shell has to
-    ///     leave above the live editor so the two do not draw over one another, since the editor is a separate view
-    ///     laid on top of the one these rows are painted on rather than a row range inside it.
+    ///     Where the editor goes inside the content panel's viewport of <paramref name="viewport" />: across the whole
+    ///     width, under what is being answered and the warning band, and down to the foot. Said here rather than worked
+    ///     out by the window from the rows above, because this is what paints those rows (#315).
+    /// </summary>
+    /// <remarks>
+    ///     Never so far down that there is no editor left. ADR-0015 priced the editor's share of a 24-row terminal at
+    ///     more than what sits above it, but a terminal can be any size, and an editor that starts below the foot is
+    ///     one nobody can type in. Pushed off the foot, what goes is the tail of what is
+    ///     being answered rather than the room to answer it — and the warning band is the last to give way rather
+    ///     than the first: it is a row the reader types into, and one they cannot see is worse than a quote that
+    ///     stops early.
+    /// </remarks>
+    public Rectangle EditorAt(Size viewport)
+    {
+        var room = Math.Max(0, viewport.Height - LeastEditorRows - WarningHeight);
+        var top = Math.Min(AnsweringHeight(viewport.Width), room) + WarningHeight;
+
+        return new Rectangle(0, top, viewport.Width, Math.Max(0, viewport.Height - top));
+    }
+
+    /// <summary>
+    ///     How many rows <see cref="Answering" /> takes up at <paramref name="width" /> — the room
+    ///     <see cref="EditorAt" /> leaves above the live editor so the two do not draw over one another, since the
+    ///     editor is a separate view laid on top of the one these rows are painted on rather than a row range inside
+    ///     it.
     /// </summary>
     public int AnsweringHeight(int width) => Answering(width).Count;
 
