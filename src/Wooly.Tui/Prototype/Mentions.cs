@@ -31,6 +31,9 @@ internal static class Mentions
     /// <summary>Who can be suggested: the real follows once fetched, the made-up ones until then.</summary>
     public static IReadOnlyList<Mentionable> Known { get; set; } = Sample;
 
+    /// <summary>Keeps <see cref="Sample" /> whatever the fetch says — for the headless dump, whose fake follows match nothing.</summary>
+    public static bool Pinned { get; set; }
+
     /// <summary>Whether <see cref="Known" /> is the real list, for the footer to say so.</summary>
     public static bool Real { get; set; }
 

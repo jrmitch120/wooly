@@ -804,7 +804,7 @@ internal sealed class ShellWindow : Window
         {
             var follows = await _shell.Follows();
 
-            if (follows.Count > 0)
+            if (follows.Count > 0 && !Mentions.Pinned)
             {
                 Mentions.Known = [.. follows.Select(a => new Mentionable(string.IsNullOrWhiteSpace(a.Author) ? a.Address : a.Author, a.Address))];
                 Mentions.Real = true;

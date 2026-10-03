@@ -151,6 +151,7 @@ public class ComposeDump
         application.Begin(window);
         Directory.CreateDirectory(into);
         ComposeVariants.Select("A");
+        Wooly.Tui.Prototype.Mentions.Pinned = true;
 
         var log = new List<string>();
 
@@ -173,8 +174,6 @@ public class ComposeDump
 
         shell.Compose();
         built.Host.Drain();
-        await Task.Delay(200, TestContext.Current.CancellationToken);
-        Wooly.Tui.Prototype.Mentions.Known = Wooly.Tui.Prototype.Mentions.Sample;
         Type("Coffee this week with @ma");
         Snap("1-typed");
         window.NewKeyDownEvent(Key.CursorDown);
