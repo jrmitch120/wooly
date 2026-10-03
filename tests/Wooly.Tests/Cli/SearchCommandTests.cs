@@ -62,6 +62,25 @@ public class SearchCommandTests : IDisposable
         Assert.Equal("#cats", Assert.Single(_search.Searches).Query.Text);
     }
 
+    /// <summary>
+    ///     A handle or an address is searched for as typed here, though the TUI's prompt opens what one names: scripts
+    ///     depend on the command's one output shape (#306).
+    /// </summary>
+    [Theory]
+    [InlineData("alice@hachyderm.io")]
+    [InlineData("hachyderm.io/@alice")]
+    public void Search_SearchesForAHandleOrAnAddressAsTyped(string typed)
+    {
+        AddProfile();
+
+        var run = Run(["search", typed]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Contains("alice@hachyderm.io", run.Output);
+        Assert.Contains("Hello world", run.Output);
+        Assert.Equal(typed, Assert.Single(_search.Searches).Query.Text);
+    }
+
     /// <summary>An account is worth finding for what it is: who it is, and how much of a presence it has.</summary>
     [Fact]
     public void Search_ShowsWhoEachAccountIsAndHowMuchOfAPresenceItHas()

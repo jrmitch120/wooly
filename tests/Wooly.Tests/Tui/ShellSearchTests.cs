@@ -213,6 +213,231 @@ public class ShellSearchTests
         Assert.Null(opened.Notice);
     }
 
+    /// <summary>
+    ///     A handle typed into the prompt is a direct query: the one search it always asked is asked, and the account
+    ///     whose full address it is opens on the stack the way picking it from the results would — not the near miss
+    ///     listed above it.
+    /// </summary>
+    [Theory]
+    [InlineData("@alice@hachyderm.io")]
+    [InlineData("alice@hachyderm.io")]
+    public async Task Find_OpensTheAccountAHandleMatchesExactly(string typed)
+    {
+        var shell = new AShell
+        {
+            Search = FakeInstanceSearch.Finding(
+                accounts: [AnAccount.With(address: "alicia@hachyderm.io", id: "2"), AnAccount.With(id: "1")]),
+            Accounts = FakeAccountRelationships.Holding(AnAccount.With(id: "1")),
+        };
+
+        var opened = await shell.Opened();
+
+        await Found(shell, opened, typed);
+
+        Assert.Equal(typed, Assert.Single(shell.Search.Searches).Query.Text);
+        Assert.Equal("alice@hachyderm.io", Assert.IsType<AccountScreen>(opened.Screen).Account.Address);
+        Assert.Equal("alice@hachyderm.io", Assert.Single(shell.Accounts.Reads).Account.Text);
+        Assert.StartsWith($"Search {typed} › ", opened.Breadcrumb);
+        Assert.Null(opened.Notice);
+    }
+
+    /// <summary>A bare handle is read against the profile's own instance, as a tie is put on one.</summary>
+    [Fact]
+    public async Task Find_OpensTheLocalAccountABareHandleNames()
+    {
+        var local = AnAccount.With(address: "alice@mastodon.social", id: "1");
+        var shell = new AShell
+        {
+            Search = FakeInstanceSearch.Finding(accounts: [AnAccount.With(id: "2"), local]),
+            Accounts = FakeAccountRelationships.Holding(local),
+        };
+
+        var opened = await shell.Opened();
+
+        await Found(shell, opened, "@alice");
+
+        Assert.Equal("alice@mastodon.social", Assert.IsType<AccountScreen>(opened.Screen).Account.Address);
+    }
+
+    /// <summary>A word with no <c>@</c> in it asks for everything resembling it, whoever it happens to match.</summary>
+    [Fact]
+    public async Task Find_ListsWhatABareWordFindsThoughItMatchesAnAccount()
+    {
+        var shell = new AShell
+        {
+            Search = FakeInstanceSearch.Finding(accounts: [AnAccount.With(address: "alice@mastodon.social")]),
+        };
+
+        var opened = await shell.Opened();
+
+        await Found(shell, opened, "alice");
+
+        Assert.False(Assert.IsType<SearchScreen>(opened.Screen).IsTyping);
+    }
+
+    /// <summary>A post's address opens the post it resolved to, the way picking it from the results would.</summary>
+    [Fact]
+    public async Task Find_OpensThePostAnAddressResolvedTo()
+    {
+        var shell = new AShell
+        {
+            Search = FakeInstanceSearch.Finding(accounts: [], hashtags: [], posts: [APost.With(id: "110")]),
+            Engagement = FakePostEngagement.Answered(APost.With(id: "110"), APost.With(id: "111")),
+        };
+
+        var opened = await shell.Opened();
+
+        await Found(shell, opened, "https://mastodon.social/@jeff/110");
+
+        Assert.Equal("110", Assert.IsType<PostScreen>(opened.Screen).Post.Id);
+        Assert.Null(opened.Notice);
+    }
+
+    /// <summary>
+    ///     A profile's address opens that account — and without a scheme it is the same address, asked of the instance
+    ///     in full so that it is resolved rather than searched for as words.
+    /// </summary>
+    [Theory]
+    [InlineData("https://hachyderm.io/@alice")]
+    [InlineData("hachyderm.io/@alice")]
+    public async Task Find_OpensTheAccountAProfilesAddressResolvedTo(string typed)
+    {
+        var shell = new AShell
+        {
+            Search = FakeInstanceSearch.Finding(accounts: [AnAccount.With()], hashtags: [], posts: []),
+            Accounts = FakeAccountRelationships.Holding(AnAccount.With()),
+        };
+
+        var opened = await shell.Opened();
+
+        await Found(shell, opened, typed);
+
+        Assert.Equal("https://hachyderm.io/@alice", Assert.Single(shell.Search.Searches).Query.Text);
+        Assert.Equal("alice@hachyderm.io", Assert.IsType<AccountScreen>(opened.Screen).Account.Address);
+    }
+
+    /// <summary>
+    ///     With no exact match the results are listed as for any other query, the near miss among them — and never an
+    ///     error, since nothing went wrong.
+    /// </summary>
+    [Theory]
+    [InlineData("alice@hachyderm.io")]
+    [InlineData("https://example.com/notes")]
+    public async Task Find_ListsTheResultsWhereNothingMatchesExactly(string typed)
+    {
+        var shell = new AShell
+        {
+            Search = FakeInstanceSearch.Finding(
+                accounts: [AnAccount.With(address: "alicia@hachyderm.io")],
+                posts: [APost.With()]),
+        };
+
+        var opened = await shell.Opened();
+
+        await Found(shell, opened, typed);
+
+        var search = Assert.IsType<SearchScreen>(opened.Screen);
+        Assert.False(search.IsTyping);
+        Assert.Equal("alicia@hachyderm.io", Assert.Single(search.Accounts).Address);
+        Assert.Null(opened.Notice);
+    }
+
+    /// <summary>An address that resolved to nothing says what any search finding nothing says.</summary>
+    [Fact]
+    public async Task Find_SaysNothingWasFoundWhereAnAddressResolvedToNothing()
+    {
+        var shell = new AShell { Search = FakeInstanceSearch.FindingNothing() };
+        var opened = await shell.Opened();
+
+        await Found(shell, opened, "https://example.com/notes");
+
+        Assert.IsType<SearchScreen>(opened.Screen);
+        Assert.Contains(
+            AShell.Drawn(opened.Screen),
+            line => line.EndsWith("found for https://example.com/notes.", StringComparison.Ordinal));
+        Assert.Null(opened.Notice);
+    }
+
+    /// <summary>
+    ///     <c>esc</c> from what a handle opened comes back to search as it was left: the results of the search that
+    ///     was asked, with the query still there.
+    /// </summary>
+    [Fact]
+    public async Task Escape_FromADirectAccount_ComesBackToTheResults()
+    {
+        var shell = new AShell
+        {
+            Search = FakeInstanceSearch.Finding(
+                accounts: [AnAccount.With(address: "alicia@hachyderm.io", id: "2"), AnAccount.With(id: "1")]),
+            Accounts = FakeAccountRelationships.Holding(AnAccount.With(id: "1")),
+        };
+
+        var opened = await shell.Opened();
+
+        await Found(shell, opened, "@alice@hachyderm.io");
+
+        opened.Press(ShellKey.Escape);
+        shell.Host.Drain();
+
+        var search = Assert.IsType<SearchScreen>(opened.Screen);
+        Assert.False(search.IsTyping);
+        Assert.Equal("@alice@hachyderm.io", search.Asked);
+        Assert.Equal(2, search.Accounts.Count);
+        Assert.Equal("Search @alice@hachyderm.io", opened.Breadcrumb);
+        Assert.Single(shell.Search.Searches);
+    }
+
+    /// <summary>
+    ///     Opening what a handle names costs exactly what searching for it and picking it out costs: the one search,
+    ///     and the read the account screen makes either way — no lookup of its own.
+    /// </summary>
+    [Fact]
+    public async Task Find_AsksNoMoreOfTheInstanceThanSearchingAndPickingWould()
+    {
+        AShell Twin() => new()
+        {
+            Search = FakeInstanceSearch.Finding(accounts: [AnAccount.With()], hashtags: [], posts: []),
+            Accounts = FakeAccountRelationships.Holding(AnAccount.With()),
+        };
+
+        var direct = Twin();
+        var directly = await direct.Opened();
+        var before = direct.Requests;
+
+        await Found(direct, directly, "@alice@hachyderm.io");
+
+        var picked = Twin();
+        var picking = await picked.Opened();
+
+        await Found(picked, picking, "alice");
+        picking.Press(ShellKey.Enter);
+        picked.Host.Drain();
+
+        Assert.IsType<AccountScreen>(directly.Screen);
+        Assert.IsType<AccountScreen>(picking.Screen);
+        Assert.Equal(picked.Requests - before, direct.Requests - before);
+    }
+
+    /// <summary>
+    ///     A phrase with a handle or an address in it, and a handle in three parts, are asked after rather than
+    ///     named — searched for, and listed, whatever they find.
+    /// </summary>
+    [Theory]
+    [InlineData("@alice hello")]
+    [InlineData("@a@b@c")]
+    [InlineData("https://hachyderm.io/@alice look at this")]
+    public async Task Find_ListsWhatAPhraseFinds(string typed)
+    {
+        var shell = new AShell { Search = FakeInstanceSearch.Finding(accounts: [AnAccount.With()], hashtags: [], posts: []) };
+        var opened = await shell.Opened();
+
+        await Found(shell, opened, typed);
+
+        Assert.Equal(typed, Assert.Single(shell.Search.Searches).Query.Text);
+        Assert.False(Assert.IsType<SearchScreen>(opened.Screen).IsTyping);
+        Assert.Null(opened.Notice);
+    }
+
     /// <summary>A post a search found is read exactly as one on a timeline is.</summary>
     [Fact]
     public async Task Press_OpensAPostASearchFound()

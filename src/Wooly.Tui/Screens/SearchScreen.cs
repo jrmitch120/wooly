@@ -182,16 +182,38 @@ public sealed class SearchScreen : Screen
             return reach.Open(new Subject.Tag(tag));
         }
 
-        var query = SearchQuery.For(Query);
+        // A handle or an address asks the one search it always asked, an address in full so that it is resolved
+        // rather than searched for as words. What it found is put up either way, so that esc from what opens comes
+        // back to the results with the query still there — and where it found exactly what was named, that is
+        // opened on top of them, as picking it out would open it.
+        var typed = Query.Trim();
+        var query = SearchQuery.For(DirectQuery.Asking(typed));
 
         return reach.Put(
             ask => Searched(ask, reach, query),
             ifStillHere: found =>
             {
-                Found(query.Text, found);
+                Found(typed, found);
                 reach.Changed();
+
+                if (DirectQuery.Among(typed, found, reach.Profile.Instance) is { } named)
+                {
+                    _ = reach.Open(Opening(named));
+                }
             });
     }
+
+    /// <summary>What a direct query found opens as — the subject picking the same result opens.</summary>
+    private static Subject Opening(DirectQuery.Named named) => named switch
+    {
+        DirectQuery.Named.OfAccount(var account) => Opening(account),
+        DirectQuery.Named.OfPost(var post) => new Subject.Thread(post),
+        _ => throw new ArgumentOutOfRangeException(nameof(named), named, "Not something a direct query opens."),
+    };
+
+    /// <summary>What an account a search found opens as, whether it was picked out or named.</summary>
+    private static Subject Opening(Account account) =>
+        new Subject.Account(AccountAddress.Parse(account.Address), WithReplies: false);
 
     /// <summary>
     ///     What a search found, with the accounts among it carrying where the reader stands with them — two calls
@@ -231,7 +253,7 @@ public sealed class SearchScreen : Screen
     {
         if (PickedAccount is { } account)
         {
-            return reach.Open(new Subject.Account(AccountAddress.Parse(account.Address), WithReplies: false));
+            return reach.Open(Opening(account));
         }
 
         if (PickedHashtag is { } hashtag)
