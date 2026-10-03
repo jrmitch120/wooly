@@ -1525,13 +1525,15 @@ panel the pointer is over. What the gesture then does is a move the keys already
 | Click | A destination on the rail | Arrives there at once, through the rail's immediate path: the cursor and the selection move together, there is no settle window, and any landing the tabbing left waiting is abandoned, so only the destination clicked is read (#288). Which entry a row is comes off the rail's own rows, each carrying its destination's place as its `Line.Item`, so the click lands on what is drawn under the pointer whether the rail is framed, compact or compact and scrolled |
 | Click | The destination already shown | Walks back out to its own screen: drilled in from it, the stack goes back to its one bottom screen with the page and **Picked** it was left on, as any pop keeps, and nothing is asked of the instance — the way a sidebar's entry takes you back to its top page (#289). On its own screen already, nothing. The one move the mouse has that the keys do not: tabbing back onto the destination shown is still a walk that ended where it began |
 | Click | A group's title, a compact heading, the API panel | Nothing. Only destinations answer a click |
+| Click | A row of a thing in the content | Picks that thing, through the same pick `[`/`]` make: any row of it counts — a tall post's byline, its text, a picture on it — since which thing a row is part of is its `Line.Item`, the ordinal `Screen.Pick` takes. The remark on the status row goes, as it does for `j`/`k`, and a **Reference** walked to inside the thing is let go, so the `⏎` after it opens the thing rather than the reference. The page stays where it is rather than following the pick, so what was clicked never moves out from under the pointer. The same on every listing screen, the account screen's header block (after which the post keys go quiet, as after `j`/`k`) and a search's results in their sections among them (#290) |
+| Click | A heading, a rule, a blank, the space under the last thing | Nothing. A click never guesses which thing was meant |
 
 **Open questions win.** While a confirmation is on the status row or the filter prompt is open, a click anywhere is a
 key the question does not take: it declines the confirmation, or closes the prompt with what was typed still narrowing
 the list, as `⏎` would, and whatever the click was on is not carried out. With nobody to act as there is no rail to
 click, and a click does no more than the keys there allow.
 
-Clicks in the content are not answered yet; #286 brings them in its later slices.
+Double clicks are not answered yet; #286 brings them in its last slice.
 
 Mouse tracking stays on, and nothing turns it off: drag means nothing, and selecting text to copy goes through the
 terminal's modifier bypass (`⌥` in iTerm2, `Fn` in Terminal.app) until selection is a feature of its own. The `?`

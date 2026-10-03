@@ -463,7 +463,8 @@ public sealed class Shell
 
     /// <summary>
     ///     What <c>[</c> and <c>]</c> do once the rows have said where they land: pick out the first thing of the run
-    ///     jumped to (#166).
+    ///     jumped to (#166). And what a click in the content does once the rows have said which thing is under the
+    ///     pointer (#290).
     /// </summary>
     /// <remarks>
     ///     Which thing that is belongs to the view, the way <see cref="Walk" />'s reclaim does: only a view knows how
@@ -478,6 +479,7 @@ public sealed class Shell
         // The remark goes with the thing it was said over, for the reason Walk gives.
         Say(null, isError: false);
     }
+
 
     /// <summary>
     ///     What <c>←</c> and <c>→</c> do: walk the references inside the picked post — <c>→</c> entering at the first

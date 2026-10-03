@@ -305,8 +305,9 @@ internal sealed class ShellWindow : Window
 
     /// <summary>
     ///     A click at <paramref name="at" />. An open question takes it wherever it lands, and is all it does; otherwise
-    ///     a click on a destination on the rail arrives there (#288). Everything else on the rail — a title, a heading,
-    ///     the API panel — is part of no destination and ignores it.
+    ///     a click on a destination on the rail arrives there (#288), and a click on a row of a thing in the content
+    ///     picks it (#290). Everything else — a title, a heading, the API panel, a rule, a blank — is part of nothing
+    ///     and ignores it.
     /// </summary>
     /// <returns>Whether the click was the shell's, which is any click on the window while a question is open.</returns>
     private bool Clicked(Point at)
@@ -314,6 +315,13 @@ internal sealed class ShellWindow : Window
         // A click anywhere declines a confirmation or closes a filter prompt, and is not carried out (story 30, 31).
         if (_shell.DeclineOpenQuestion())
         {
+            return true;
+        }
+
+        if (_content.FrameToScreen().Contains(at))
+        {
+            ClickedContent(at);
+
             return true;
         }
 
@@ -480,6 +488,22 @@ internal sealed class ShellWindow : Window
 
         _shell.Section(at);
         _content.Anchor();
+    }
+
+    /// <summary>
+    ///     A click in the content: the thing the row under the pointer is part of is picked, and the page stays where it
+    ///     is, so that what was clicked does not move out from under the pointer — following the pick would put a tall
+    ///     post's byline at the top of the page for a click on its picture (#290).
+    /// </summary>
+    private void ClickedContent(Point at)
+    {
+        if (_content.ItemAt(at) is not { } item)
+        {
+            return;
+        }
+
+        _content.Hold();
+        _shell.Section(item);
     }
 
     /// <summary>
