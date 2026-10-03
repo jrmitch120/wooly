@@ -232,6 +232,29 @@ public class ShellContentClickTests
     }
 
     /// <summary>
+    ///     A result further down a search picks in its own section, as walking to it with the keys does: the second
+    ///     hashtag, after two accounts and the first hashtag.
+    /// </summary>
+    [Fact]
+    public async Task ASearchResultDownTheListPicksInItsSection()
+    {
+        using var drawn = await Searched();
+
+        drawn.Click(OverContent, RowOf(drawn, "#wool"));
+
+        var clicked = drawn.Rows();
+
+        drawn.Press(Key.Home);
+
+        for (var step = 0; step < 3; step++)
+        {
+            drawn.Press(Key.K);
+        }
+
+        Assert.Equal(drawn.Rows(), clicked);
+    }
+
+    /// <summary>
     ///     The post screen picks the post a reply answers, above the one opened, as it picks anything else on it.
     /// </summary>
     [Fact]
@@ -360,6 +383,7 @@ public class ShellContentClickTests
         return row;
     }
 
+    /// <summary>The cell in the middle of a picture's box.</summary>
     private static Point Middle(PictureView box)
     {
         var over = box.FrameToScreen();
@@ -376,6 +400,11 @@ public class ShellContentClickTests
     /// <summary>The shell drawn tall on the listing screen <paramref name="screen" /> names, with two things on it.</summary>
     private static async Task<DrawnShell> On(string screen)
     {
+        if (screen == "search")
+        {
+            return await Searched();
+        }
+
         var ann = AnAccount.With(id: "1", address: "ann@hachyderm.io", author: "Ann");
         var bea = AnAccount.With(id: "2", address: "bea@hachyderm.io", author: "Bea");
 
@@ -394,11 +423,6 @@ public class ShellContentClickTests
                 FakeProfileRegistry.Profile("personal", "mastodon.social", "jeff@mastodon.social"),
                 FakeProfileRegistry.Profile("work", "hachyderm.io", "jeff@hachyderm.io")),
         };
-
-        if (screen == "search")
-        {
-            return await Searched();
-        }
 
         var drawn = await DrawnShell.Of(80, Tall, Themes.Plain, built);
 

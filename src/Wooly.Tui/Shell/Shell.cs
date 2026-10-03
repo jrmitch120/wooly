@@ -463,7 +463,8 @@ public sealed class Shell
 
     /// <summary>
     ///     What <c>[</c> and <c>]</c> do once the rows have said where they land: pick out the first thing of the run
-    ///     jumped to (#166).
+    ///     jumped to (#166). And what a click in the content does once the rows have said which thing is under the
+    ///     pointer (#290).
     /// </summary>
     /// <remarks>
     ///     Which thing that is belongs to the view, the way <see cref="Walk" />'s reclaim does: only a view knows how
@@ -479,15 +480,6 @@ public sealed class Shell
         Say(null, isError: false);
     }
 
-    /// <summary>
-    ///     A click on a row of the <paramref name="at" />th thing in the content: that thing is picked, and a reference
-    ///     walked to inside it is let go, so that the <c>⏎</c> after it opens the thing rather than the reference (#290).
-    /// </summary>
-    /// <remarks>
-    ///     The same pick <see cref="Section" /> makes, and the remark goes the same way. Which thing a row is part of
-    ///     is the view's to say, from the very rows it drew under the pointer.
-    /// </remarks>
-    public void Pick(int at) => Section(at);
 
     /// <summary>
     ///     What <c>←</c> and <c>→</c> do: walk the references inside the picked post — <c>→</c> entering at the first

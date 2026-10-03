@@ -320,7 +320,7 @@ internal sealed class ShellWindow : Window
 
         if (_content.FrameToScreen().Contains(at))
         {
-            Picked(at);
+            ClickedContent(at);
 
             return true;
         }
@@ -495,7 +495,7 @@ internal sealed class ShellWindow : Window
     ///     is, so that what was clicked does not move out from under the pointer — following the pick would put a tall
     ///     post's byline at the top of the page for a click on its picture (#290).
     /// </summary>
-    private void Picked(Point at)
+    private void ClickedContent(Point at)
     {
         if (_content.ItemAt(at) is not { } item)
         {
@@ -503,7 +503,7 @@ internal sealed class ShellWindow : Window
         }
 
         _content.Hold();
-        _shell.Pick(item);
+        _shell.Section(item);
     }
 
     /// <summary>
