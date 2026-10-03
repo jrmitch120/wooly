@@ -27,27 +27,33 @@ public class ShellPointerTests
     private const int Inside = 3;
 
     /// <summary>
-    ///     A wheel notch moves the page exactly as far as one <c>↓</c> or <c>↑</c> does: the window's three-row step,
-    ///     no more and no less (#287).
+    ///     A wheel notch moves the page one row, the finest step a terminal has, so that a trackpad's stream of small
+    ///     events reads as a glide rather than a run of three-row lurches. Three of them are as far as one <c>↓</c> or
+    ///     <c>↑</c>, which is a wheel's worth for a reader on keys (#292).
     /// </summary>
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task ANotchLeavesThePageWhereOneArrowWould(bool down)
+    public async Task ANotchMovesThePageOneRowAndThreeAsFarAsAnArrow(bool down)
     {
         using var drawn = await Four();
 
-        // Two rows' worth down first, so that a notch up has somewhere to go.
+        // Two arrows' worth down first, so that the wheel up has somewhere to go.
         drawn.Press(Key.CursorDown);
         drawn.Press(Key.CursorDown);
 
         var from = drawn.Content.Top;
+        var by = down ? 1 : -1;
 
         drawn.Wheel(OverContent, Inside, down);
 
+        Assert.Equal(from + by, drawn.Content.Top);
+
+        Notches(drawn, 2, down);
+
         var wheeled = drawn.Content.Top;
 
-        // Back to where it was, and the key in its place.
+        // Back to where it was with the key the other way, and the key in the wheel's place.
         drawn.Press(down ? Key.CursorUp : Key.CursorDown);
 
         Assert.Equal(from, drawn.Content.Top);
@@ -55,7 +61,6 @@ public class ShellPointerTests
         drawn.Press(down ? Key.CursorDown : Key.CursorUp);
 
         Assert.Equal(wheeled, drawn.Content.Top);
-        Assert.NotEqual(from, wheeled);
     }
 
     /// <summary>
@@ -115,7 +120,7 @@ public class ShellPointerTests
         using var wheeled = await Four();
         using var arrowed = await Four();
 
-        Notches(wheeled, 6);
+        Notches(wheeled, 18);
 
         for (var pressed = 0; pressed < 6; pressed++)
         {
@@ -186,7 +191,7 @@ public class ShellPointerTests
         // Past the foot of the tall post, onto the one below it, a notch at a time.
         var notches = 0;
 
-        while (notches < 30 && !drawn.Rows().Any(row => row.Contains("Underneath")))
+        while (notches < 100 && !drawn.Rows().Any(row => row.Contains("Underneath")))
         {
             drawn.Wheel(OverContent, Inside);
             notches++;
@@ -221,7 +226,7 @@ public class ShellPointerTests
         drawn.Wheel(over.X + (over.Width / 2), over.Y + (over.Height / 2));
 
         Assert.Equal(1, box.ZoomLevel);
-        Assert.Equal(3, drawn.Content.Top);
+        Assert.Equal(1, drawn.Content.Top);
     }
 
     /// <summary>
@@ -259,7 +264,7 @@ public class ShellPointerTests
         Assert.Equal(picked, drawn.Shell.Screen.Picked?.Id);
     }
 
-    /// <summary>The help screen is often taller than the terminal, and the wheel reads down it as <c>↓</c> does.</summary>
+    /// <summary>The help screen is often taller than the terminal, and the wheel reads down it a row at a time.</summary>
     [Fact]
     public async Task TheWheelScrollsTheHelpScreen()
     {
@@ -271,13 +276,7 @@ public class ShellPointerTests
 
         drawn.Wheel(OverContent, Inside);
 
-        var wheeled = drawn.Content.Top;
-
-        drawn.Press(Key.CursorUp);
-        drawn.Press(Key.CursorDown);
-
-        Assert.True(wheeled > 0);
-        Assert.Equal(wheeled, drawn.Content.Top);
+        Assert.Equal(1, drawn.Content.Top);
     }
 
     /// <summary>
@@ -296,13 +295,7 @@ public class ShellPointerTests
 
         drawn.Wheel(OverContent, Inside);
 
-        var wheeled = drawn.Content.Top;
-
-        drawn.Press(Key.CursorUp);
-        drawn.Press(Key.CursorDown);
-
-        Assert.True(wheeled > 0);
-        Assert.Equal(wheeled, drawn.Content.Top);
+        Assert.Equal(1, drawn.Content.Top);
     }
 
     /// <summary>
