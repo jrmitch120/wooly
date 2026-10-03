@@ -1,4 +1,7 @@
+using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
+using Terminal.Gui.ViewBase;
+using Wooly.Tui.Prototype;
 using Terminal.Gui.Views;
 
 namespace Wooly.Tui.Views;
@@ -24,8 +27,48 @@ namespace Wooly.Tui.Views;
 /// </param>
 internal sealed class ComposeEditor(Action send, Action cancel, Action warn) : TextView
 {
+    // PROTOTYPE: the variant's colours for the editor (null = Terminal.Gui's own), and its dim placeholder.
+    public Func<VisualRole, Terminal.Gui.Drawing.Attribute?>? Colours { get; set; }
+
+    public Func<string?>? Placeholder { get; set; }
+
+    public Terminal.Gui.Drawing.Attribute PlaceholderColour { get; set; }
+
+    protected override bool OnGettingAttributeForRole(in VisualRole role, ref Terminal.Gui.Drawing.Attribute currentAttribute)
+    {
+        if (Colours?.Invoke(role) is { } colour)
+        {
+            currentAttribute = colour;
+
+            return true;
+        }
+
+        return base.OnGettingAttributeForRole(role, ref currentAttribute);
+    }
+
+    protected override bool OnDrawingContent(DrawContext? context)
+    {
+        var drawn = base.OnDrawingContent(context);
+
+        if (Text.Length == 0 && Placeholder?.Invoke() is { } placeholder)
+        {
+            SetAttribute(PlaceholderColour);
+            AddStr(0, 0, placeholder.Length > Viewport.Width ? placeholder[..Math.Max(0, Viewport.Width)] : placeholder);
+        }
+
+        return drawn;
+    }
+
     protected override bool OnKeyDown(Key key)
     {
+        // PROTOTYPE: F2 / F3 cycle the compose variants.
+        if (key == Key.F2 || key == Key.F3)
+        {
+            ComposeVariants.Cycle(key == Key.F2 ? -1 : 1);
+
+            return true;
+        }
+
         if (key == Key.Esc)
         {
             cancel();

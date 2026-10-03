@@ -7,6 +7,7 @@ using Terminal.Gui.Views;
 using Wooly.Core.Posts;
 using Wooly.Core.Relationships;
 using Wooly.Tui.Media;
+using Wooly.Tui.Prototype;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
@@ -72,6 +73,9 @@ internal sealed class ShellWindow : Window
 
     private readonly PaintedView _content;
     private readonly ComposeEditor _editor;
+
+    // PROTOTYPE: the bar naming which compose variant is showing.
+    private readonly VariantSwitcher? _switcher;
 
     /// <summary>The rail, which <see cref="Railed" /> takes away and puts back.</summary>
     private readonly PaintedView _rail;
@@ -163,7 +167,10 @@ internal sealed class ShellWindow : Window
         // screen is drawn at and every picture's box are the inside of it: 58 columns at an 80-column terminal.
         _content = new PaintedView(
             theme,
-            (width, _) => shell.Screen.Lines(new Drawing(width, clock.GetUtcNow(), pictures, hideDrawnCaption)),
+            // PROTOTYPE: a compose screen is laid out by whichever variant is showing.
+            (width, height) => shell.Screen is ComposeScreen composing
+                ? ComposeVariants.Current.Lay(new ComposeContext(shell, composing, width, height, Render)).Rows
+                : shell.Screen.Lines(new Drawing(width, clock.GetUtcNow(), pictures, hideDrawnCaption)),
             pictures,
             // No rows of the panel's own: the view paints only the frame's edges, round the screen's rows.
             (width, height) => Panel.Framed(
@@ -201,7 +208,8 @@ internal sealed class ShellWindow : Window
         _editor = new ComposeEditor(() => _ = Send(), () => shell.Back(), shell.WriteWarning)
         {
             // Inside the panel's edges on three sides, and under what is being answered on the fourth (below).
-            X = RailLines.Width + Edge,
+            // PROTOTYPE: everywhere the variant says, inside the content panel.
+            X = Pos.Func(_ => (_railed ? RailLines.Width : 0) + Edge + Box().Left, _content),
             // A reply's "answering" block is painted on _content, which this sits in front of and exactly the same
             // size as (below) — so without this, the block is never seen: the editor is opaque and covers it on every
             // frame it is visible. Dim.Fill(1) starting from here still reaches the same floor it always did.
@@ -209,9 +217,9 @@ internal sealed class ShellWindow : Window
             // will be retrieved") — _content, because it is _content's own width the block is wrapped against, and
             // measuring anything else means deriving that width a second way. Omitting it defaults to null, which is
             // what the first attempt at this did: EditorTop got no Viewport to measure, so Y silently stayed 1 forever.
-            Y = Pos.Func(EditorTop, _content),
-            Width = Dim.Fill(Edge),
-            Height = Dim.Fill(1 + Edge),
+            Y = Pos.Func(_ => ContentTop + Box().Top, _content),
+            Width = Dim.Func(_ => Box().Width, _content),
+            Height = Dim.Func(_ => Box().Height, _content),
             Visible = false,
             WordWrap = true,
         };
@@ -227,6 +235,46 @@ internal sealed class ShellWindow : Window
         };
 
         Add(rail, _content, title, _editor, status);
+
+        // PROTOTYPE: the editor in the theme's roles, a dim placeholder, the count kept live, and the switcher.
+        IReadOnlyList<Rendering.Line> Render(Screen screen, int width) =>
+            screen.Lines(new Drawing(width, clock.GetUtcNow(), pictures, hideDrawnCaption));
+
+        var body = theme.For(Role.Body);
+        var picked = theme.Banded(Role.Body);
+        _editor.Colours = role => !ComposeVariants.Current.Themed ? null : role switch
+        {
+            Terminal.Gui.Drawing.VisualRole.Active or Terminal.Gui.Drawing.VisualRole.Highlight
+                or Terminal.Gui.Drawing.VisualRole.HotActive => picked,
+            Terminal.Gui.Drawing.VisualRole.ReadOnly or Terminal.Gui.Drawing.VisualRole.Disabled => theme.For(Role.Muted),
+            _ => body,
+        };
+        _editor.Placeholder = () => ComposeVariants.Current.Placeholder;
+        _editor.PlaceholderColour = theme.For(Role.Muted);
+        _editor.ContentsChanged += (_, _) =>
+        {
+            if (_shell.Screen is ComposeScreen writing && _editor.Visible)
+            {
+                writing.Text = _editor.Text;
+            }
+
+            _content.SetNeedsDraw();
+        };
+
+#if DEBUG
+        _switcher = new VariantSwitcher { Visible = false };
+        Add(_switcher);
+#endif
+
+        ComposeVariants.Changed += () =>
+        {
+            _switcher?.Fit();
+            _editor.SetNeedsLayout();
+            _editor.SetNeedsDraw();
+            _content.SetNeedsDraw();
+            SetNeedsLayout();
+            SetNeedsDraw();
+        };
 
         _showing = shell.Screen;
 
@@ -252,6 +300,14 @@ internal sealed class ShellWindow : Window
         if (_shell.Asking is { } asking)
         {
             _ = _shell.Answer(agreed: key == Key.Y && asking.Confirm == "y");
+
+            return true;
+        }
+
+        // PROTOTYPE: F2 / F3 cycle the compose variants while the warning has the typing.
+        if (_shell.Screen is ComposeScreen && (key == Key.F2 || key == Key.F3))
+        {
+            ComposeVariants.Cycle(key == Key.F2 ? -1 : 1);
 
             return true;
         }
@@ -664,6 +720,17 @@ internal sealed class ShellWindow : Window
         return ContentTop + answering + compose.WarningHeight;
     }
 
+    /// <summary>PROTOTYPE: where the showing variant puts the editor, inside the content panel's viewport.</summary>
+    private EditorBox Box()
+    {
+        var width = _content.Viewport.Width;
+        var height = _content.Viewport.Height;
+
+        return width <= 0 || height <= 0 || _shell.Screen is not ComposeScreen compose
+            ? new EditorBox(0, 0, 1, 1)
+            : ComposeVariants.Current.Lay(new ComposeContext(_shell, compose, width, height, (_, _) => [])).Editor;
+    }
+
     private async Task Send()
     {
         if (_shell.Screen is ComposeScreen compose)
@@ -694,7 +761,6 @@ internal sealed class ShellWindow : Window
 
         _title.X = left;
         _content.X = left;
-        _editor.X = left + Edge;
     }
 
     /// <summary>
@@ -761,6 +827,7 @@ internal sealed class ShellWindow : Window
         {
             _editor.Text = ((ComposeScreen)_shell.Screen).Text;
             _editor.Visible = true;
+            _switcher?.Visible = true;
             _editor.SetFocus();
 
             // After whatever the screen opened with rather than in front of it: an editor opened on `@maria ` or on
@@ -775,6 +842,7 @@ internal sealed class ShellWindow : Window
         else if (!composing && _editor.Visible)
         {
             _editor.Visible = false;
+            _switcher?.Visible = false;
             SetFocus();
         }
 

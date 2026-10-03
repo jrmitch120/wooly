@@ -181,6 +181,9 @@ public sealed class Shell
     /// <summary>How deep the drill is, where one is a destination with nothing opened from it.</summary>
     public int Depth => _stack.Count;
 
+    /// <summary>PROTOTYPE: the screen under the one on top, which the overlay compose variant draws behind itself.</summary>
+    internal Screen? Under => _stack.Count > 1 ? _stack[^2] : null;
+
     /// <summary>What each screen in the stack is called, outermost first — what the content panel is titled with.</summary>
     public IReadOnlyList<string> Crumbs => [.. _stack.Select(screen => screen.Crumb)];
 
