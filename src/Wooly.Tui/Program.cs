@@ -50,7 +50,8 @@ try
         provider.GetRequiredService<IInstanceSearch>(),
         provider.GetRequiredService<IFollowSuggestions>(),
         provider.GetRequiredService<IRateLimitReport>(),
-        provider.GetRequiredService<IInstanceLimits>());
+        provider.GetRequiredService<IInstanceLimits>(),
+        provider.GetRequiredService<IAccountDefaults>());
 
     var clock = provider.GetRequiredService<TimeProvider>();
 

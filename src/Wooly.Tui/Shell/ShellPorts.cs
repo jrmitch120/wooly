@@ -41,6 +41,7 @@ namespace Wooly.Tui.Shell;
 /// </param>
 /// <param name="RateLimit">What the instance last said is left of the budget, for the rail's foot.</param>
 /// <param name="Limits">How long the instance lets a post be, for compose's count (#319).</param>
+/// <param name="Defaults">What the account posts at where nothing else says, for what compose starts on (#339).</param>
 public sealed record ShellPorts(
     ITimelineReader Timelines,
     IPostAuthor Author,
@@ -51,7 +52,8 @@ public sealed record ShellPorts(
     IInstanceSearch Search,
     IFollowSuggestions Suggestions,
     IRateLimitReport RateLimit,
-    IInstanceLimits Limits)
+    IInstanceLimits Limits,
+    IAccountDefaults Defaults)
 {
     /// <summary>
     ///     Where the profile stands with <paramref name="people" />, or them exactly as they came where the instance

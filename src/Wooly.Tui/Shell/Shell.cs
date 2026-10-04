@@ -131,6 +131,12 @@ public sealed class Shell
     /// <summary>How long each instance lets a post be, asked as posts are first written there (#319).</summary>
     private readonly LimitsByInstance _limits;
 
+    /// <summary>
+    ///     What each account acted as posts at by default, asked as the session starts acting as it — the fallback for
+    ///     what compose starts on after the config's own preferences (ADR-0024, #339).
+    /// </summary>
+    private readonly DefaultsByProfile _defaults;
+
     /// <param name="opening">
     ///     Who to act as — or, with nobody, what to open onto instead: adding a profile, as the only screen (#247).
     /// </param>
@@ -153,6 +159,7 @@ public sealed class Shell
         _host = host;
         _limits = new LimitsByInstance(ports.Limits, host);
         _limits.Heard += Measured;
+        _defaults = new DefaultsByProfile(ports.Defaults, host);
         _browser = browser;
         _clock = clock;
         _timing = timing;
@@ -1476,6 +1483,12 @@ public sealed class Shell
         _pause?.Wait.Dispose();
         _pause = null;
         _acting = profile is null ? null : Acts(profile, enquiry, new SubjectCache(_clock, _timing.CacheFor));
+
+        // Asked now rather than when compose opens, so that opening it asks nothing (ADR-0024).
+        if (profile is not null)
+        {
+            _defaults.Ask(profile);
+        }
     }
 
     /// <summary>
@@ -1962,7 +1975,7 @@ public sealed class Shell
                 purpose,
                 addressing: $"@{handle}",
                 from: ComposeFrom.Of(Actor.Profile),
-                visibility: _defaultVisibility));
+                visibility: Reaching(purpose, about: null)));
 
             return;
         }
@@ -1988,17 +2001,23 @@ public sealed class Shell
 
     /// <summary>
     ///     What a compose screen's To starts on, which is what would go out if nobody touched it (ADR-0024, #338): the
-    ///     config's <c>default_visibility</c>, or nothing known — and on a reply the narrower of that and the post being
-    ///     answered, which is where a reply with no visibility of its own goes out anyway. An edit shows the post's own.
+    ///     config's <c>default_visibility</c>, else the account's own default as its instance said it (#339), else
+    ///     nothing known — and on a reply the narrower of that and the post being answered, which is where a reply with
+    ///     no visibility of its own goes out anyway. An edit shows the post's own.
     /// </summary>
-    private PostVisibility? Reaching(ComposeFor purpose, Post? about) => (purpose, about) switch
+    private PostVisibility? Reaching(ComposeFor purpose, Post? about)
     {
-        (ComposeFor.Reply, { } answered) => PostAudience.Narrower(
-            _defaultVisibility ?? answered.Visibility,
-            answered.Visibility),
-        (ComposeFor.Edit, { } edited) => edited.Visibility,
-        _ => _defaultVisibility,
-    };
+        var preferred = _defaultVisibility ?? _defaults.For(Actor.Profile).Visibility;
+
+        return (purpose, about) switch
+        {
+            (ComposeFor.Reply, { } answered) => PostAudience.Narrower(
+                preferred ?? answered.Visibility,
+                answered.Visibility),
+            (ComposeFor.Edit, { } edited) => edited.Visibility,
+            _ => preferred,
+        };
+    }
 
     /// <summary>
     ///     Pushes <paramref name="compose" />, measured against its instance's own limit as far as that is known (#319).
