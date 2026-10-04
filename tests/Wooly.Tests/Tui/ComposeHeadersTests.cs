@@ -26,7 +26,7 @@ public class ComposeHeadersTests
 
     /// <summary>
     ///     A fresh post and an edit read the same: a blank, From, the warning, a hairline, a blank, the editor's rows, a
-    ///     hairline and the row the count will sit on.
+    ///     hairline and the count.
     /// </summary>
     [Theory]
     [InlineData(ComposeFor.Post)]
@@ -46,7 +46,8 @@ public class ComposeHeadersTests
             ],
             rows.Take(5));
         Assert.All(rows.Skip(5).Take(Height - 7), row => Assert.Equal(string.Empty, row));
-        Assert.Equal([Rule, string.Empty], rows.Skip(Height - 2));
+        Assert.Equal(Rule, rows[Height - 2]);
+        Assert.EndsWith(" / 500", rows[Height - 1], StringComparison.Ordinal);
         Assert.Equal(Height, rows.Count);
     }
 

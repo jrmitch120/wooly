@@ -868,6 +868,12 @@ fresh post, a reply and an edit alike:
 - **On a terminal too short for everything, rows give way in a fixed order**: the quote's tail, the blanks, the reply
   header, the foot, `From`, the hairline under the headers. The warning header and three rows of editor are kept
   whatever the height — the rule ADR-0015 and #123 already kept, with more dressing in front of it to go first.
+- **The foot counts what has been used of the post's limit** (#319): `n / 500`, right-aligned inside the padding,
+  `muted` to 450, `quota-low` from 451 to 500 and `error` past it. It counts the way the instance judges a post
+  (`PostLength`): by grapheme cluster, any `http(s)://` address as 23, a mention of somebody elsewhere as its
+  `@username` alone, and the warning letter for letter on top of the post, as the instance adds it. 500 is Mastodon's
+  default; the instance's own configured limit is not read. The screen's text follows the editor on every edit, so
+  the count does too, and a reply or an edit counts what it opened with from the start.
 
 ### What mentioning somebody settled
 
