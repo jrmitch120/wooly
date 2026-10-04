@@ -66,7 +66,7 @@ public class PostBylineTests
     }
 
     /// <summary>
-    ///     A followers-only post is named followers beside its mark on the post screen, the word compose and the CLI use, not Mastodon's
+    ///     A post for followers is named followers beside its mark on the post screen, the word compose and the CLI use, not Mastodon's
     ///     <c>private</c> (ADR-0024).
     /// </summary>
     [Fact]

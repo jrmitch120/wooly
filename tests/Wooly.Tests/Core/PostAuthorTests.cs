@@ -103,7 +103,7 @@ public class PostAuthorTests : IDisposable
 
     /// <summary>
     ///     A draft that says nothing about who can see it has to say nothing to the instance either. Filling in
-    ///     "public" would publish an account whose own default is followers-only wider than the account asked for, and
+    ///     "public" would publish an account whose own default is followers wider than the account asked for, and
     ///     that is not a mistake its author can take back.
     /// </summary>
     [Fact]

@@ -195,7 +195,7 @@ internal static class PostWire
     /// <remarks>
     ///     Written out rather than cast, even though the two enums happen to list the same four in the same order.
     ///     A cast would tie this client's meaning of <c>2</c> to a number in somebody else's library, and a release
-    ///     that inserted a fifth member would silently turn every followers-only post public.
+    ///     that inserted a fifth member would silently turn every post for followers public.
     /// </remarks>
     public static PostVisibility ToVisibility(Visibility visibility) => visibility switch
     {

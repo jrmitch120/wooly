@@ -20,7 +20,7 @@ public sealed record PostDraft
 
     /// <summary>
     ///     Who should be able to see it, or <see langword="null" /> to leave the choice to the account's own default on
-    ///     the instance. Null is not a synonym for public: an account whose default is followers-only would have every
+    ///     the instance. Null is not a synonym for public: an account whose default is followers would have every
     ///     post from this client published wider than the account asked for, which is not a mistake an author can take
     ///     back.
     /// </summary>

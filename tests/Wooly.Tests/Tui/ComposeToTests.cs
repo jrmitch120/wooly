@@ -159,7 +159,7 @@ public class ComposeToTests
     }
 
     /// <summary>
-    ///     A reply to a followers-only post opens on followers, with public and unlisted dimmed: neither the keys nor a
+    ///     A reply to a post for followers opens on followers, with public and unlisted dimmed: neither the keys nor a
     ///     click can choose them, and direct, which is narrower, still can.
     /// </summary>
     [Fact]

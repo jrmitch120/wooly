@@ -64,7 +64,7 @@ public class TimelineReaderTests
     }
 
     /// <summary>
-    ///     Read off the post rather than assumed. A reader who cannot see that a post went out followers-only cannot tell
+    ///     Read off the post rather than assumed. A reader who cannot see that a post went out to followers cannot tell
     ///     which of their own posts is safe to quote elsewhere.
     /// </summary>
     [Theory]

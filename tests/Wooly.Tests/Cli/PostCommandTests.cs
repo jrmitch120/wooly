@@ -141,7 +141,7 @@ public class PostCommandTests : IDisposable
 
     /// <summary>
     ///     Said nowhere, the choice stays the account's own. Filling in "public" here would publish an account whose own
-    ///     default is followers-only wider than it asked for.
+    ///     default is followers wider than it asked for.
     /// </summary>
     [Fact]
     public void Create_LeavesVisibilityUnsaidWhenNeitherTheCommandLineNorTheConfigFileSaysIt()
