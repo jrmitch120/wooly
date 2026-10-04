@@ -143,21 +143,24 @@ public sealed class ComposeScreen : Screen
     ///     from the post being changed, and from there the author's to keep, edit or clear. It is their post.
     /// </summary>
     /// <remarks>
-    ///     The row on screen and the thing a keystroke changes, and nothing else's to set: what it <em>means</em> on
-    ///     the way out is <see cref="Outgoing" />'s, which is the same field read two ways and the reason nobody
-    ///     outside gets to choose between them (#146).
+    ///     The field's text, learned through <see cref="RewriteWarning" /> as the field changes, and nothing else's to
+    ///     set: what it <em>means</em> on the way out is <see cref="Outgoing" />'s, which is the same field read two ways
+    ///     and the reason nobody outside gets to choose between them (#146).
     /// </remarks>
     public string Warning { get; private set; }
 
     /// <summary>
     ///     Whether what is typed is going into the warning rather than into the post. Both are on screen at once and
-    ///     <c>ctrl-w</c> moves between them, since a terminal editor takes the keys of whichever field has them.
+    ///     <c>ctrl-w</c> moves between them, since a terminal takes the keys of whichever field has them — and a click
+    ///     into either field moves the typing there too, which keeps this in step (#320).
     /// </summary>
     public bool WritingTheWarning { get; private set; }
 
-    /// <inheritdoc />
-    /// <remarks>Only while the warning is taking letters, a post's own text being the editor widget's to take.</remarks>
-    public override bool IsTyping => WritingTheWarning;
+    /// <summary>
+    ///     What the warning field says, dimly, while it is empty: how to reach it while the typing is in the post, and
+    ///     what goes there while it is in the field.
+    /// </summary>
+    public string WarningHint => WritingTheWarning ? WarningBeingWritten : NoWarningWritten;
 
     /// <inheritdoc />
     public override bool HoldsADraft => true;
@@ -204,9 +207,8 @@ public sealed class ComposeScreen : Screen
 
     /// <inheritdoc />
     /// <remarks>
-    ///     While the warning is taking letters the keymap key goes unsaid, because <c>?</c> is a question somebody is
-    ///     entitled to warn about and every printable key is going into the field — the rule the search prompt already
-    ///     keeps (<c>docs/tui-shell.md</c>).
+    ///     While the warning has the typing the keymap key goes unsaid, because <c>?</c> is a question somebody is
+    ///     entitled to warn about and the field takes it as a letter like any other (#320).
     /// </remarks>
     protected override IReadOnlyList<KeyHint> OwnKeys =>
     [
@@ -223,12 +225,11 @@ public sealed class ComposeScreen : Screen
     /// </remarks>
     public override IReadOnlyList<Line> Lines(Drawing drawing) => Laid(drawing.Width, drawing.Height).Rows;
 
-    /// <inheritdoc />
-    /// <remarks>Into the warning, which is the only thing on this screen the shell carries letters into.</remarks>
-    public override void Type(char letter) => Warning += letter;
-
-    /// <inheritdoc />
-    public override void Backspace() => Warning = Backspaced(Warning);
+    /// <summary>
+    ///     The warning field changed: what it holds now, learned the way the post's text is learned from the editor
+    ///     (#320). The field is the author's to type into; what goes out is still this screen's to say.
+    /// </summary>
+    public void RewriteWarning(string written) => Warning = written;
 
     /// <summary><c>ctrl-w</c>: hands the typing to the warning, or hands it back.</summary>
     public void WriteTheWarning() => WritingTheWarning = !WritingTheWarning;
@@ -240,6 +241,12 @@ public sealed class ComposeScreen : Screen
     ///     (#315) — and both come from the one layout, so they cannot come to disagree.
     /// </summary>
     public Rectangle EditorAt(Size viewport) => Laid(viewport.Width, viewport.Height).Editor;
+
+    /// <summary>
+    ///     Where the warning field goes inside the same viewport: the warning header's value column, on whichever row
+    ///     the headers above it leave it (#320). From the one layout that paints the header, as for the editor.
+    /// </summary>
+    public Rectangle WarningAt(Size viewport) => Laid(viewport.Width, viewport.Height).Warning;
 
     /// <summary>
     ///     The screen laid out at <paramref name="width" /> by <paramref name="height" />: every row, top to bottom,
@@ -257,7 +264,7 @@ public sealed class ComposeScreen : Screen
     ///         Where nobody says how tall the room is, it is as tall as the rows and the editor's least want.
     ///     </para>
     /// </remarks>
-    private (IReadOnlyList<Line> Rows, Rectangle Editor) Laid(int width, int? height)
+    private (IReadOnlyList<Line> Rows, Rectangle Editor, Rectangle Warning) Laid(int width, int? height)
     {
         var inner = Math.Max(0, width - (Pad * 2));
         var valueWidth = Math.Max(0, inner - LabelWidth - LabelGap);
@@ -315,7 +322,14 @@ public sealed class ComposeScreen : Screen
             .. foot.Select(row => row.Line),
         ];
 
-        return (rows, new Rectangle(Math.Min(Pad, width), top, inner, editor));
+        return (
+            rows,
+            new Rectangle(Math.Min(Pad, width), top, inner, editor),
+            new Rectangle(
+                Math.Min(Pad + LabelWidth + LabelGap, width),
+                above.FindIndex(row => row.Keep == Keep.Always),
+                valueWidth,
+                1));
     }
 
     /// <summary>
@@ -410,32 +424,18 @@ public sealed class ComposeScreen : Screen
     /// </summary>
     /// <remarks>
     ///     Empty, it says so rather than going blank: a row a reader can type into is a row they have to be able to
-    ///     find, and while it is being written it hints at what goes there instead. The caret is a mark rather than a
-    ///     colour, the way the search prompt's is, so a terminal with none still says where the typing is going.
+    ///     find, and while it is being written it hints at what goes there instead. The value is painted as the field
+    ///     laid over it shows it (#320), so the row reads the same with no terminal behind it; the caret is the
+    ///     field's, and the terminal's own.
     /// </remarks>
     private Line WarningHeader(int room)
     {
         var mark = PostLines.WarningMark.Trim();
-
-        if (WritingTheWarning)
-        {
-            // A column left for the caret, which is the one thing on this row that has to stay visible: a reader who
-            // has typed past the width would otherwise be looking at a row with no sign of where their next letter
-            // goes.
-            var written = TextWrap.Clip(Warning, Math.Max(0, room - 1));
-            var hint = Warning.Length == 0 ? TextWrap.Clip(WarningBeingWritten, Math.Max(0, room - 1)) : string.Empty;
-
-            return Header(
-                mark,
-                Role.ContentWarning,
-                new Span(written, Role.ContentWarning),
-                new Span("▌", Role.Selection),
-                new Span(hint, Role.Muted));
-        }
+        var role = WritingTheWarning || Warning.Length > 0 ? Role.ContentWarning : Role.Muted;
 
         return Warning.Length > 0
-            ? Header(mark, Role.ContentWarning, new Span(TextWrap.Clip(Warning, room), Role.ContentWarning))
-            : Header(mark, Role.Muted, new Span(TextWrap.Clip(NoWarningWritten, room), Role.Muted));
+            ? Header(mark, role, new Span(TextWrap.Clip(Warning, room), Role.ContentWarning))
+            : Header(mark, role, new Span(TextWrap.Clip(WarningHint, room), Role.Muted));
     }
 
     /// <summary>One row of the layout, and how long it holds out on a terminal too short for every row.</summary>

@@ -337,12 +337,12 @@ public class WarnedReplyTests
     }
 
     /// <summary>
-    ///     Typing goes into the warning while <c>ctrl-w</c> has it, and back into the post afterwards — with the caret
-    ///     drawn where the next letter lands, the way the search prompt's is, so a terminal with no colours still says
-    ///     where the typing is going.
+    ///     <c>ctrl-w</c> moves the typing to the warning and back, and the screen learns what the field holds as it is
+    ///     written (#320) — the row showing it as written, with no caret of the screen's own, the caret being the
+    ///     field's.
     /// </summary>
     [Fact]
-    public async Task WriteWarning_PutsWhatIsTypedIntoTheWarningUntilItIsPressedAgain()
+    public async Task WriteWarning_MovesTheTypingAndTheScreenLearnsTheField()
     {
         var shell = new AShell { Timelines = FakeTimelineReader.Holding(Plain) };
         var opened = await shell.Opened();
@@ -351,44 +351,44 @@ public class WarnedReplyTests
 
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
         Assert.False(compose.WritingTheWarning);
-        Assert.False(compose.IsTyping);
 
         opened.WriteWarning();
 
         Assert.True(compose.WritingTheWarning);
-        Assert.True(compose.IsTyping);
 
-        foreach (var letter in "cw!")
-        {
-            opened.Type(letter);
-        }
-
-        opened.Backspace();
+        opened.RewriteWarning("cw");
 
         Assert.Equal("cw", compose.Warning);
-        Assert.Contains(compose.Lines(new Drawing(61, AShell.Now)), line => line.Text == ComposeRows.Warning("cw▌"));
+        Assert.Contains(compose.Lines(new Drawing(61, AShell.Now)), line => line.Text == ComposeRows.Warning("cw"));
 
         opened.WriteWarning();
 
         Assert.False(compose.WritingTheWarning);
-        Assert.False(compose.IsTyping);
-        Assert.DoesNotContain(compose.Lines(new Drawing(61, AShell.Now)), line => line.Text.Contains('▌'));
+        Assert.Equal("cw", compose.Warning);
     }
 
-    /// <summary>Backspacing an empty field is nothing at all, rather than the letters of the post behind it.</summary>
+    /// <summary>
+    ///     The shell carries no letters into a compose screen, the warning included: the field is a widget and takes
+    ///     its own (#320), so a letter or a backspace the shell is handed reaches neither field.
+    /// </summary>
     [Fact]
-    public async Task Backspace_TakesNothingOffAnEmptyWarning()
+    public async Task Type_ReachesNeitherField()
     {
-        var shell = new AShell { Timelines = FakeTimelineReader.Holding(Plain) };
+        var shell = new AShell { Timelines = FakeTimelineReader.Holding(Warned) };
         var opened = await shell.Opened();
 
         opened.Reply();
         opened.WriteWarning();
-        opened.Backspace();
 
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
 
-        Assert.Equal(string.Empty, compose.Warning);
+        Assert.False(compose.IsTyping);
+
+        opened.Type('x');
+        opened.Backspace();
+
+        Assert.False(opened.Paste("pasted"));
+        Assert.Equal("spoilers", compose.Warning);
         Assert.Equal("@ben@hachyderm.io ", compose.Text);
     }
 
@@ -455,29 +455,17 @@ public class WarnedReplyTests
     }
 
     /// <summary>
-    ///     Writes <paramref name="warning" /> into the field the way a reader does — <c>ctrl-w</c>, backspace over
-    ///     whatever it opened holding, then the keys — and hands the typing back to the post.
+    ///     Writes <paramref name="warning" /> into the field the way a reader does — <c>ctrl-w</c>, the field's text
+    ///     changed, and the typing handed back to the post.
     /// </summary>
     /// <remarks>
-    ///     Typed rather than assigned, the field being the screen's own since #146: what goes into it is what the shell
-    ///     carried there, which is the path the warning actually takes on its way to being sent.
+    ///     Through the shell rather than assigned, the field being the screen's own since #146: the field widget hands
+    ///     its text to the screen through the shell (#320), which is the path the warning takes on its way to being sent.
     /// </remarks>
     private static void Writing(Shell shell, string warning)
     {
-        var compose = Assert.IsType<ComposeScreen>(shell.Screen);
-
         shell.WriteWarning();
-
-        while (compose.Warning.Length > 0)
-        {
-            shell.Backspace();
-        }
-
-        foreach (var letter in warning)
-        {
-            shell.Type(letter);
-        }
-
+        shell.RewriteWarning(warning);
         shell.WriteWarning();
     }
 
