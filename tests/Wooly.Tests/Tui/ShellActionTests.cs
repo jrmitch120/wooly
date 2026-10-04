@@ -246,7 +246,7 @@ public class ShellActionTests
         var shell = new AShell
         {
             Author = FakePostAuthor.Refusing(
-                new PostRefusedException(new InvalidOperationException("Text character limit of 500 exceeded"))),
+                new PostRefusedException("Text character limit of 500 exceeded")),
         };
         var opened = await shell.Opened();
 

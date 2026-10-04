@@ -1,5 +1,4 @@
 using System.Net;
-using System.Text.Json;
 using Wooly.Core.Errors;
 
 namespace Wooly.Core.Http;
@@ -25,33 +24,11 @@ internal sealed class RefusedTokenHandler : DelegatingHandler
         }
 
         var instance = request.RequestUri?.Host ?? "the instance";
-        var reason = await Reason(response, cancellationToken).ConfigureAwait(false);
+        var reason = await InstanceError.Reason(response, cancellationToken).ConfigureAwait(false);
 
         response.Dispose();
 
         throw new AuthenticationException(
             reason is null ? $"{instance} refused the access token." : $"{instance} refused the access token: {reason}");
-    }
-
-    /// <summary>
-    ///     What the instance said was wrong with the token — Mastodon's <c>error</c> — or <see langword="null" /> where
-    ///     it said nothing readable.
-    /// </summary>
-    private static async Task<string?> Reason(HttpResponseMessage response, CancellationToken cancellationToken)
-    {
-        try
-        {
-            var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-
-            using var document = JsonDocument.Parse(body);
-
-            return document.RootElement.TryGetProperty("error", out var error) && error.ValueKind == JsonValueKind.String
-                ? error.GetString()
-                : null;
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
     }
 }

@@ -54,7 +54,7 @@ public class ComposeNoticeTests
     [Fact]
     public async Task TypingIntoTheEditorBringsTheKeysBack()
     {
-        var built = new AShell { Author = FakePostAuthor.Refusing(new PostRefusedException(new InvalidOperationException(TooLong))) };
+        var built = new AShell { Author = FakePostAuthor.Refusing(new PostRefusedException(TooLong)) };
 
         using var drawn = await DrawnShell.Of(80, 24, Themes.Dark, built);
 
@@ -74,7 +74,7 @@ public class ComposeNoticeTests
 
     private static async Task<(Wooly.Tui.Shell.Shell Shell, ComposeScreen Compose)> Refused(bool writingTheWarning = false)
     {
-        var built = new AShell { Author = FakePostAuthor.Refusing(new PostRefusedException(new InvalidOperationException(TooLong))) };
+        var built = new AShell { Author = FakePostAuthor.Refusing(new PostRefusedException(TooLong)) };
         var shell = await built.Opened();
         var compose = ComposeRows.Open(shell, ComposeFor.Post);
 

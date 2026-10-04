@@ -697,6 +697,39 @@ public class PostAuthorTests : IDisposable
         Assert.Contains("character limit of 500 exceeded", refusal.Message);
     }
 
+    /// <summary>
+    ///     Only a 422 is the instance turning the post down. Anything else it refuses with is about something other
+    ///     than the post as written, and is left as it came rather than said as if it were.
+    /// </summary>
+    [Fact]
+    public async Task Publish_LeavesARefusalThatIsNotAboutThePostAsItCame()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Refusal(HttpStatusCode.Forbidden, "This action is not allowed"));
+
+        var refusal = await Record.ExceptionAsync(
+            () => NewAuthor(network).Publish(Profile, Draft("Hello"), TestContext.Current.CancellationToken));
+
+        Assert.IsNotType<PostRefusedException>(refusal);
+    }
+
+    /// <summary>And an edit's read of a post that has gone is not the instance refusing the edit.</summary>
+    [Fact]
+    public async Task Edit_LeavesAPostThatHasGoneAsItCame()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Refusal(HttpStatusCode.NotFound, "Record not found"));
+
+        var refusal = await Record.ExceptionAsync(
+            () => NewAuthor(network).Edit(
+                Profile,
+                "110",
+                new PostEdit { Text = "Changed" },
+                TestContext.Current.CancellationToken));
+
+        Assert.IsNotType<PostRefusedException>(refusal);
+    }
+
     private static PostDraft Draft(string text) => new() { Text = text };
 
     private static ScriptedHttpMessageHandler Answering(string json) =>

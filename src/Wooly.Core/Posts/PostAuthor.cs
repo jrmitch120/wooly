@@ -56,7 +56,7 @@ public sealed class PostAuthor(IMastodonClientFactory clientFactory) : IPostAuth
         // Between the last upload and the publish is the last moment stopping means nothing was published.
         cancellationToken.ThrowIfCancellationRequested();
 
-        var published = await Refusable(() => client.PublishStatus(
+        var published = await client.PublishStatus(
             draft.Text,
             reaching is { } visibility ? PostWire.ToWire(visibility) : null,
             draft.InReplyTo,
@@ -67,7 +67,7 @@ public sealed class PostAuthor(IMastodonClientFactory clientFactory) : IPostAuth
             // client composes that wants one without the other.
             sensitive: draft.ContentWarning is not null,
             spoilerText: draft.ContentWarning,
-            poll: draft.Poll is null ? null : ToWire(draft.Poll)));
+            poll: draft.Poll is null ? null : ToWire(draft.Poll));
 
         return PostWire.ToPost(published, profile);
     }
@@ -94,7 +94,7 @@ public sealed class PostAuthor(IMastodonClientFactory clientFactory) : IPostAuth
             ? edit.ContentWarningWanted
             : existing.SpoilerText ?? string.Empty;
 
-        var edited = await Refusable(() => client.EditStatus(
+        var edited = await client.EditStatus(
             postId,
             edit.Text,
             existing.MediaAttachments.Select(attachment => attachment.Id),
@@ -104,29 +104,9 @@ public sealed class PostAuthor(IMastodonClientFactory clientFactory) : IPostAuth
             // would un-blur those pictures on an edit that only fixed a typo. Erring the other way — leaving something
             // hidden that need not be — is the harmless direction, so unhiding is not something an edit does here.
             sensitive: existing.Sensitive == true || !string.IsNullOrEmpty(contentWarning),
-            spoilerText: contentWarning));
+            spoilerText: contentWarning);
 
         return PostWire.ToPost(edited, profile);
-    }
-
-    /// <summary>
-    ///     Makes the call that sends a post's words, turning the instance's refusal of them — too long for it, most
-    ///     often — into one this client names, so that both front ends can say it in the instance's own words (#319).
-    /// </summary>
-    /// <remarks>
-    ///     Only that call. A refusal before it — a reply's audience, an upload, the read an edit starts with — is about
-    ///     something other than the post as written, and is left to be what it is.
-    /// </remarks>
-    private static async Task<Status> Refusable(Func<Task<Status>> sending)
-    {
-        try
-        {
-            return await sending();
-        }
-        catch (ServerErrorException refusal)
-        {
-            throw new PostRefusedException(refusal);
-        }
     }
 
     /// <inheritdoc />
