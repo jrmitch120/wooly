@@ -12,13 +12,19 @@ namespace Wooly.Tests.Tui;
 public class PeopleToMentionTests
 {
     /// <summary>
-    ///     Replying to somebody and typing the start of their handle offers them, and asking costs nothing: the people
-    ///     came with the screens that were already read.
+    ///     Replying to somebody and typing the start of their handle offers them at once, and asking costs nothing but
+    ///     the one read of the profile's follows the first ask starts (#321): the people came with the screens that
+    ///     were already read.
     /// </summary>
     [Fact]
     public async Task AReplyOffersWhoIsBeingAnswered_WithNoRequest()
     {
-        var shell = new AShell { Timelines = FakeTimelineReader.Holding(APost.With(id: "220", account: "ben@hachyderm.io", author: "Ben Adams")) };
+        var shell = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(APost.With(id: "220", account: "ben@hachyderm.io", author: "Ben Adams")),
+            Accounts = FakeAccountRelationships.HoldingNobody(),
+        };
+
         var opened = await shell.Opened();
 
         opened.Reply();
@@ -27,7 +33,7 @@ public class PeopleToMentionTests
 
         Assert.Equal(["ben@hachyderm.io"], Addresses(opened, "be"));
         Assert.Equal(["ben@hachyderm.io"], Addresses(opened, "ad"));
-        Assert.Equal(before, shell.Requests);
+        Assert.Equal(before + 1, shell.Requests);
     }
 
     /// <summary>

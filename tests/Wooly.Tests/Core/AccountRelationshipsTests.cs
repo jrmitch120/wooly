@@ -366,6 +366,31 @@ public class AccountRelationshipsTests
     }
 
     /// <summary>
+    ///     Each page is handed on as it arrives, before the next is asked for — so a caller reading a long list in the
+    ///     background can offer the first of it without waiting for the last (#321).
+    /// </summary>
+    [Fact]
+    public async Task List_HandsOnEachPageAsItArrives()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(AccountJson("jeff", id: "1")),
+            Page(FullPage(), nextPageAt: "4801"),
+            Page(Accounts(AccountJson("last", id: "999")), nextPageAt: null));
+
+        var pages = new List<(int Accounts, int RequestsSoFar)>();
+
+        await Relationships(network).List(
+            Profile,
+            FollowSide.Following,
+            account: null,
+            100,
+            TestContext.Current.CancellationToken,
+            arrived: page => pages.Add((page.Count, network.Requests.Count)));
+
+        Assert.Equal([(80, 2), (1, 3)], pages);
+    }
+
+    /// <summary>
     ///     Mastodon pages these lists by the id of the follow, not of the account followed, so an instance that names
     ///     no next page has ended the list. Guessing one out of the last account's id would ask for a page starting
     ///     somewhere in another id space altogether, and silently skip or repeat accounts.

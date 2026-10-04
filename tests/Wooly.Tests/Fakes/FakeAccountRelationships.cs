@@ -125,12 +125,24 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
         FollowSide side,
         NamedAccount? account,
         int limit,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Action<IReadOnlyList<Account>>? arrived = null)
     {
         Lists.Add(new Listed(profile.Name, side, account, limit));
         Tokens.Add(profile.AccessToken);
 
-        return _refusal is null ? Task.FromResult(_list) : Task.FromException<Fetch<Account>>(_refusal);
+        if (_refusal is not null)
+        {
+            return Task.FromException<Fetch<Account>>(_refusal);
+        }
+
+        // A page at a time, the most the instance serves of one, as the adapter hands them on.
+        foreach (var page in _list.Items.Chunk(80))
+        {
+            arrived?.Invoke(page);
+        }
+
+        return Task.FromResult(_list);
     }
 
     /// <summary>

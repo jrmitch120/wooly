@@ -249,9 +249,34 @@ public class MentionListTests
         Assert.All(drawn.Cells(), cell => Assert.Contains(cell, answered));
     }
 
-    private static async Task<DrawnShell> Composing(ITheme? theme = null)
+    /// <summary>
+    ///     The profile's follows join an open list as they land (#321): the first <c>@</c> asks for them, and the list
+    ///     already open under the word redraws with them in it, after the people on screen.
+    /// </summary>
+    [Fact]
+    public async Task FollowsJoinAnOpenListAsTheyLand()
     {
-        var drawn = await DrawnShell.Of(80, 24, theme ?? Themes.Dark, new AShell { Timelines = Seen.Timelines });
+        using var drawn = await Composing(
+            accounts: FakeAccountRelationships.Holding(
+                null,
+                AnAccount.With(id: "9", address: "mabel@c.social", author: "Mabel")));
+
+        Type(drawn, "@ma");
+
+        Assert.DoesNotContain(ListRows(drawn), row => row.Contains("@mabel", StringComparison.Ordinal));
+
+        drawn.Settle();
+
+        var rows = ListRows(drawn);
+
+        Assert.Contains("Mark", rows[2], StringComparison.Ordinal);
+        Assert.Contains("Mabel  @mabel@c.social", rows[3], StringComparison.Ordinal);
+    }
+
+    private static async Task<DrawnShell> Composing(ITheme? theme = null, FakeAccountRelationships? accounts = null)
+    {
+        var built = new AShell { Timelines = Seen.Timelines, Accounts = accounts ?? FakeAccountRelationships.HoldingNobody() };
+        var drawn = await DrawnShell.Of(80, 24, theme ?? Themes.Dark, built);
 
         drawn.Shell.Compose();
         drawn.Redraw();

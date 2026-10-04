@@ -899,13 +899,20 @@ Typing `@` at the start of a word in the post opens a list of people to mention 
   drilled into, is refreshed or fills: post authors, boosters, everyone a post mentions, the post being answered,
   conversations, notifications, account screens, follow lists, requests, Discover and search. One person per address,
   the profile's own account left out, nothing written to disk, and a profile switch starts it again.
+- **The profile's follows join them, read once the first `@` is typed (#321).** One background read of the profile's
+  own following list, nobody named, capped at 400 — five pages of 80 — so that somebody following thousands never
+  spends a large share of the rate limit on autocomplete; composing without an `@` costs nothing. Each page is offered
+  as it lands, and an open list redraws with it. The read is not asked through the enquiry: one the rate limit stopped
+  keeps what it got, one refused keeps what was known, both silently, and neither is asked again that session. A follow
+  made through the shell adds the person at once, and an unfollow drops them from the follows — outlasting a page read
+  before it.
 - **An @-word** starts with `@` at the start of a line or after whitespace and runs over letters, digits, `_`, `.`,
   `-` and `@` up to the caret, read from the text as written — off the editor's unwrapped caret — rather than as
   wrapped. So `name@example.com` opens nothing, and a full address is one word. A word that is already a whole address
   somebody in the store answers to closes the list.
 - **Matching** is in three tiers — a handle starting with the query, then any word of the display name starting with
-  it, then a handle containing it — and within a tier the most recently seen first, a screen's top row counting as
-  the one met last. Case is ignored, five at most, and custom-emoji shortcodes come out of names before matching and
+  it, then a handle containing it — and within a tier the people seen first, most recently seen first, a screen's top
+  row counting as the one met last, then the follows by name. Case is ignored, five at most, and custom-emoji shortcodes come out of names before matching and
   drawing.
 - **The list is its own painted view over the editor**, every cell a role: a rounded box in `panel-border`, the picked
   row marked `▌` in `selection` with its name in `reference-picked` and its handle in `byline-handle`, other rows in
