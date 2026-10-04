@@ -41,7 +41,7 @@ public class ComposeLimitTests
         var compose = ComposeRows.Open(shell, ComposeFor.Post);
 
         built.Host.Drain();
-        compose.Text = "https://example.com";
+        shell.Rewrite("https://example.com");
 
         Assert.Equal("30 / 1000", Counted(compose));
     }
@@ -60,7 +60,7 @@ public class ComposeLimitTests
         var compose = ComposeRows.Open(shell, ComposeFor.Post);
 
         built.Host.Drain();
-        compose.Text = new string('a', length);
+        shell.Rewrite(new string('a', length));
 
         Assert.Equal(role, Assert.Single(Count(compose).Spans, span => span.Text.Trim().Length > 0).Role);
     }
@@ -95,17 +95,28 @@ public class ComposeLimitTests
     }
 
     /// <summary>
-    ///     An instance that will not say — here, because the budget is spent — leaves Mastodon's default standing, says
-    ///     nothing about it rather than counting a wait down over the post, and is asked again the next time one is
-    ///     written.
+    ///     An instance that does not answer leaves Mastodon's default standing, says nothing about it rather than
+    ///     counting a wait down over the post, and is asked again the next time one is written.
     /// </summary>
     [Fact]
     public async Task ALimitThatCannotBeReadIsSilentAndAskedAgain()
     {
-        var built = new AShell
-        {
-            Limits = FakeInstanceLimits.Refusing(new RateLimitedException("mastodon.social", AShell.Now.AddHours(1))),
-        };
+        var built = new AShell { Limits = FakeInstanceLimits.Unanswering() };
+
+        await AssertSilentAndAskedAgain(built);
+    }
+
+    /// <summary>And the same where the token is refused, which the reads that fill the screen already say.</summary>
+    [Fact]
+    public async Task ARefusedTokenIsSilentHereToo()
+    {
+        var built = new AShell { Limits = FakeInstanceLimits.Refusing(new AuthenticationException("No.")) };
+
+        await AssertSilentAndAskedAgain(built);
+    }
+
+    private static async Task AssertSilentAndAskedAgain(AShell built)
+    {
         var shell = await built.Opened();
 
         var compose = ComposeRows.Open(shell, ComposeFor.Post);

@@ -1,6 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using System.Net.Http;
-using System.Text.Json;
 using Wooly.Core;
 using Wooly.Core.Accounts;
 using Wooly.Core.Conversations;
@@ -1783,7 +1781,7 @@ public sealed class Shell
         }
         else if (_limitsAsked.Add(instance))
         {
-            _ = Limited(Actor.Profile);
+            _ = AskLimits(Actor.Profile);
         }
     }
 
@@ -1796,24 +1794,29 @@ public sealed class Shell
     ///     on the status row, and nothing here is worth either. A limit that cannot be read leaves Mastodon's default
     ///     standing, silently, and is asked for again the next time a post is written.
     /// </remarks>
-    private async Task Limited(ActiveProfile profile)
+    private async Task AskLimits(ActiveProfile profile)
     {
-        PostLimits limits;
+        PostLimits? limits;
 
         try
         {
             limits = await _ports.Limits.Read(profile, CancellationToken.None);
         }
-        catch (Exception failure) when (failure is WoolyException or HttpRequestException or JsonException)
+        catch (WoolyException)
         {
-            Apply(() => _limitsAsked.Remove(profile.Instance));
-
-            return;
+            // A refused token, which the reads that fill the screen already say with the key that fixes it.
+            limits = null;
         }
 
         Apply(() =>
         {
             _limitsAsked.Remove(profile.Instance);
+
+            if (limits is null)
+            {
+                return;
+            }
+
             _limits[profile.Instance] = limits;
 
             if (Screen is ComposeScreen compose

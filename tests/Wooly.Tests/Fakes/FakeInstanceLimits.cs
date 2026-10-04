@@ -10,10 +10,10 @@ namespace Wooly.Tests.Fakes;
 /// </summary>
 internal sealed class FakeInstanceLimits : IInstanceLimits
 {
-    private readonly PostLimits _limits;
+    private readonly PostLimits? _limits;
     private readonly WoolyException? _refusal;
 
-    private FakeInstanceLimits(PostLimits limits, WoolyException? refusal = null)
+    private FakeInstanceLimits(PostLimits? limits, WoolyException? refusal = null)
     {
         _limits = limits;
         _refusal = refusal;
@@ -28,14 +28,20 @@ internal sealed class FakeInstanceLimits : IInstanceLimits
     /// <summary>An instance setting <paramref name="limits" />, or Mastodon's own where none are said.</summary>
     public static FakeInstanceLimits Setting(PostLimits? limits = null) => new(limits ?? PostLimits.Default);
 
-    /// <summary>An instance that will not say, with <paramref name="refusal" />, having recorded the attempt.</summary>
+    /// <summary>An instance that did not answer — refused, rate-limited, unreachable — having recorded the attempt.</summary>
+    public static FakeInstanceLimits Unanswering() => new(null);
+
+    /// <summary>
+    ///     An instance whose answer is <paramref name="refusal" />, thrown rather than said as nothing: the token
+    ///     refused, which the port leaves for whoever can sign the profile in again to hear.
+    /// </summary>
     public static FakeInstanceLimits Refusing(WoolyException refusal) => new(PostLimits.Default, refusal);
 
-    public Task<PostLimits> Read(ActiveProfile profile, CancellationToken cancellationToken)
+    public Task<PostLimits?> Read(ActiveProfile profile, CancellationToken cancellationToken)
     {
         Reads.Add(profile.Instance);
         Tokens.Add(profile.AccessToken);
 
-        return _refusal is null ? Task.FromResult(_limits) : Task.FromException<PostLimits>(_refusal);
+        return _refusal is null ? Task.FromResult(_limits) : Task.FromException<PostLimits?>(_refusal);
     }
 }

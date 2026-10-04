@@ -2,7 +2,6 @@ using System.Net;
 using System.Net.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Wooly.Core;
-using Wooly.Core.Errors;
 using Wooly.Core.Http;
 using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
@@ -76,21 +75,44 @@ public class InstanceLimitsTests
         Assert.Equal(PostLimits.Default, limits);
     }
 
-    /// <summary>A rate limit is not a limit of 500: it is thrown, and what to make of it is the caller's to say.</summary>
+    /// <summary>
+    ///     A rate limit is not a limit of 500: the instance did not answer, which is said as nothing at all, so the
+    ///     caller can tell it from an answer and ask again.
+    /// </summary>
     [Fact]
-    public async Task Read_ThrowsWhereARateLimitStoppedTheCall()
+    public async Task Read_AnswersNothingWhereARateLimitStoppedTheCall()
     {
         var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Status(HttpStatusCode.TooManyRequests));
 
-        await Assert.ThrowsAsync<RateLimitedException>(() =>
-            Limits(network).Read(Profile, TestContext.Current.CancellationToken));
+        Assert.Null(await Limits(network).Read(Profile, TestContext.Current.CancellationToken));
     }
 
     /// <summary>Nor is an instance that could not be reached.</summary>
     [Fact]
-    public async Task Read_ThrowsWhereTheInstanceCouldNotBeReached() =>
-        await Assert.ThrowsAsync<TransientNetworkException>(() =>
-            Limits(ScriptedHttpMessageHandler.AlwaysUnreachable()).Read(Profile, TestContext.Current.CancellationToken));
+    public async Task Read_AnswersNothingWhereTheInstanceCouldNotBeReached() =>
+        Assert.Null(
+            await Limits(ScriptedHttpMessageHandler.AlwaysUnreachable()).Read(Profile, TestContext.Current.CancellationToken));
+
+    /// <summary>Nor one that took too long, which the HTTP stack says by cancelling a call nobody asked to cancel.</summary>
+    [Fact]
+    public async Task Read_AnswersNothingWhereTheInstanceTookTooLong()
+    {
+        var network = new ScriptedHttpMessageHandler(_ => throw new TaskCanceledException("The request timed out."));
+
+        Assert.Null(await Limits(network).Read(Profile, TestContext.Current.CancellationToken));
+    }
+
+    /// <summary>Nor one that refused, or answered with something that is not Mastodon's.</summary>
+    [Theory]
+    [InlineData(HttpStatusCode.Forbidden, "{}")]
+    [InlineData(HttpStatusCode.OK, "not json")]
+    public async Task Read_AnswersNothingWhereTheInstanceRefusedOrAnsweredNonsense(HttpStatusCode status, string body)
+    {
+        var network = new ScriptedHttpMessageHandler(
+            _ => new HttpResponseMessage(status) { Content = new StringContent(body) });
+
+        Assert.Null(await Limits(network).Read(Profile, TestContext.Current.CancellationToken));
+    }
 
     private static IInstanceLimits Limits(HttpMessageHandler network)
     {

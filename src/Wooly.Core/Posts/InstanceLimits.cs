@@ -1,6 +1,8 @@
 using System.Net;
 using System.Net.Http;
+using System.Text.Json;
 using System.Text.Json.Serialization;
+using Wooly.Core.Errors;
 using Wooly.Core.Http;
 using Wooly.Core.Profiles;
 
@@ -13,34 +15,39 @@ namespace Wooly.Core.Posts;
 ///     and Akkoma answer with — so the call is retried, rate-limit-checked and reported like every other, and the one
 ///     place the answer is read can read all three.
 ///     <para>
-///         Nothing here is caught but the one refusal that means "ask the other one": an instance with no <c>v2</c>
-///         answers 404. Whether a failure is worth telling anybody about is the caller's decision.
+///         An instance with no <c>v2</c> answers 404, which means "ask the other one". Every other way of not
+///         answering is silence, as the port promises; a refused token is left to be said elsewhere.
 ///     </para>
 /// </summary>
 public sealed class InstanceLimits(IHttpClientFactory httpClientFactory) : IInstanceLimits
 {
     /// <inheritdoc />
-    public async Task<PostLimits> Read(ActiveProfile profile, CancellationToken cancellationToken)
+    public async Task<PostLimits?> Read(ActiveProfile profile, CancellationToken cancellationToken)
     {
         InstanceWire? described;
 
         try
         {
-            described = await RawMastodonCall.Get<InstanceWire>(
-                httpClientFactory,
-                profile,
-                "api/v2/instance",
-                [],
-                cancellationToken);
+            try
+            {
+                described = await Described("api/v2/instance");
+            }
+            catch (HttpRequestException refused) when (refused.StatusCode == HttpStatusCode.NotFound)
+            {
+                described = await Described("api/v1/instance");
+            }
         }
-        catch (HttpRequestException refused) when (refused.StatusCode == HttpStatusCode.NotFound)
+        // Each of these is the instance not answering, which the port promises as silence. A timeout is the HTTP
+        // stack cancelling a call nobody asked to cancel, and only that: a cancellation the caller asked for is still
+        // the caller's.
+        catch (Exception unanswered) when (unanswered is RateLimitedException
+                                               or TransientNetworkException
+                                               or HttpRequestException
+                                               or JsonException
+                                           || (unanswered is OperationCanceledException
+                                               && !cancellationToken.IsCancellationRequested))
         {
-            described = await RawMastodonCall.Get<InstanceWire>(
-                httpClientFactory,
-                profile,
-                "api/v1/instance",
-                [],
-                cancellationToken);
+            return null;
         }
 
         var statuses = described?.Configuration?.Statuses;
@@ -48,6 +55,9 @@ public sealed class InstanceLimits(IHttpClientFactory httpClientFactory) : IInst
         return new PostLimits(
             statuses?.MaxCharacters ?? described?.MaxTootChars ?? PostLimits.Default.Characters,
             statuses?.CharactersReservedPerUrl ?? PostLimits.Default.PerAddress);
+
+        Task<InstanceWire?> Described(string path) =>
+            RawMastodonCall.Get<InstanceWire>(httpClientFactory, profile, path, [], cancellationToken);
     }
 
     /// <summary>The little of an instance's description of itself this reads, under every name it goes by.</summary>
