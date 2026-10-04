@@ -67,6 +67,9 @@ internal sealed class ShellWindow : Window
     /// <summary>The people to mention, hung under the @-word being typed in <see cref="_editor" /> (#318).</summary>
     private readonly MentionList _mentions;
 
+    /// <summary>Where the terminal's mouse events arrive, once the window is running; asked ahead of the views.</summary>
+    private IMouse? _mouse;
+
     /// <summary>The rail, which <see cref="Railed" /> takes away and puts back.</summary>
     private readonly PaintedView _rail;
 
@@ -260,6 +263,18 @@ internal sealed class ShellWindow : Window
 
         Add(rail, _content, title, _editor, _warning, _mentions.View, status);
 
+        // A click outside an open list closes it whichever view it lands on, the editor's caret above all, so it is
+        // asked about where the terminal's mouse events arrive — ahead of every view under the pointer (#335).
+        Initialized += (_, _) =>
+        {
+            _mouse = App?.Mouse;
+
+            if (_mouse is not null)
+            {
+                _mouse.MouseEvent += AheadOfTheViews;
+            }
+        };
+
         _showing = shell.Screen;
 
         Railed();
@@ -346,6 +361,29 @@ internal sealed class ShellWindow : Window
             Verb.ScrollUp => Notch(-RowsANotch),
             _ => Do(pressed),
         };
+    }
+
+    /// <summary>
+    ///     A mouse event wherever it landed, before the view under the pointer sees it: spent on closing the list of
+    ///     people to mention where it is a click outside it (#335), and left alone otherwise.
+    /// </summary>
+    private void AheadOfTheViews(object? sender, Mouse mouse)
+    {
+        if (!mouse.Handled)
+        {
+            mouse.Handled = _mentions.ClosedBy(mouse);
+        }
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing && _mouse is not null)
+        {
+            _mouse.MouseEvent -= AheadOfTheViews;
+            _mouse = null;
+        }
+
+        base.Dispose(disposing);
     }
 
     /// <summary>
