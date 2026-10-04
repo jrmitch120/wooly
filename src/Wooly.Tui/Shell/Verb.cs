@@ -275,4 +275,13 @@ public enum Verb
 
     /// <summary><c>↓</c> there, likewise: move the typing to the field below, the post being the last.</summary>
     NextField,
+
+    /// <summary>
+    ///     <c>←</c> there, where the field the typing is in leaves it — which only To does: choose the next visibility
+    ///     to the left that To allows (ADR-0024, #338).
+    /// </summary>
+    PreviousChoice,
+
+    /// <summary><c>→</c> there, likewise: choose the next one to the right.</summary>
+    NextChoice,
 }

@@ -214,3 +214,34 @@ amendment made it to keep the field's two readings the screen's own, and `Outgoi
 paints the warning row whole, the field's text or its hint under the field, so the row reads the same to a test with no
 terminal behind it; the screen says where the field goes (`WarningAt`) from the one layout that paints the row, as it
 does for the editor.
+
+## Amendment: To says who the post goes to (map #333, ticket #338)
+
+ADR-0024 puts the post's visibility on compose as a **To** header directly under From, which changes the layout #317
+settled above and the walk #337 gave the arrows, so it is recorded here.
+
+**The headers are From, To, the reply header and its quote, then ⚠.** To is a row of radio buttons, one per
+visibility, named beside its bubble: `● public  ○ unlisted  ○ followers  ○ direct`. It costs one row on all three
+screens, so a fresh post and an edit spend six rows above the editor and a reply with a full quote ten — on a 24-row
+terminal still more editor than the split region this ADR rejected. The writing still begins in the same place on `c`
+and `e`, which carry the same headers.
+
+**To is never given up, with the warning.** The give-way order on a short terminal is the quote's tail, the blanks,
+the reply header, the foot, From, then the hairline under the headers; To, the warning and three rows of editor are
+kept whatever the height. Where the value column is too narrow for the row, To falls back to the one value chosen
+with an arrow either side, `◂ ● followers ▸`, rather than being cut.
+
+**To is a field the arrows walk, and the screen still says what goes out.** It is laid over its value column as the
+warning field is, and joins the walk where it is drawn: `↑` from the post goes to the warning, then To; `↓` comes
+back. `←`/`→` there choose, and the keymap rather than the widget says so; letters on To are nobody's. A click on a
+value chooses it and gives To the typing. Which values To allows is one fact the screen holds — all four on a fresh
+post, those no wider than the post being answered on a reply, none on an edit — and the dimming, the keys and the
+clicks all read it, so an edit's To takes neither keys, clicks nor the typing. `Outgoing` sends the visibility To
+shows, marked chosen only where the author moved it off what it opened on, so a starting preference too wide for a
+reply is narrowed by `PostAuthor` exactly as on the CLI. Where nothing is known — no `default_visibility` on a fresh
+post — To reads `account default` and sends nothing, as compose did before.
+
+**The window's typing follows one field, not a toggle.** A click into any of the three fields moves the screen's
+`Typing` to that field, where it used to toggle `ctrl-w`'s state; `ctrl-w` keeps its meaning, a jump into the
+warning and back.
+

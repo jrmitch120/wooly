@@ -64,6 +64,9 @@ internal sealed class ShellWindow : Window
     /// <summary>The content warning over the post, laid over its header's value column (#320).</summary>
     private readonly ComposeWarningField _warning;
 
+    /// <summary>Who the post goes to, a row of radio buttons laid over To's value column (#338).</summary>
+    private readonly ComposeToField _to;
+
     /// <summary>The people to mention, hung under the @-word being typed in <see cref="_editor" /> (#318).</summary>
     private readonly MentionList _mentions;
 
@@ -245,10 +248,24 @@ internal sealed class ShellWindow : Window
             _content.SetNeedsDraw();
         };
 
-        // A click into either field is ctrl-w towards it: the typing and WritingTheWarning are one fact, and whichever
-        // way it moved, the screen is told so that the status row, the header's mark and the hint keep up.
-        _warning.HasFocusChanged += (_, focus) => TypingMoved(focus.NewValue, writingTheWarning: true);
-        _editor.HasFocusChanged += (_, focus) => TypingMoved(focus.NewValue, writingTheWarning: false);
+        _to = new ComposeToField(
+            theme,
+            room => (_shell.Screen as ComposeScreen)?.ToSpans(room) ?? [],
+            shell.ClickTo)
+        {
+            // Wherever the compose screen says, as for the warning: To's value column, under From.
+            X = Pos.Func(content => ViewportOrigin(content).X + ToAt(content).X, _content),
+            Y = Pos.Func(content => ViewportOrigin(content).Y + ToAt(content).Y, _content),
+            Width = Dim.Func(content => ToAt(content).Width, _content),
+            Height = Dim.Func(content => ToAt(content).Height, _content),
+            Visible = false,
+        };
+
+        // A click into any field moves the typing there: where the typing is is one fact, the screen's, and whichever
+        // way it moved the screen is told so that the status row, the header's mark and the hint keep up.
+        _to.HasFocusChanged += (_, focus) => TypingMoved(focus.NewValue, ComposeField.To);
+        _warning.HasFocusChanged += (_, focus) => TypingMoved(focus.NewValue, ComposeField.Warning);
+        _editor.HasFocusChanged += (_, focus) => TypingMoved(focus.NewValue, ComposeField.Post);
 
         var status = new PaintedView(theme, (width, _) =>
             [ChromeLines.Status(shell.Keys, shell.Notice, shell.NoticeIsError, shell.Asking, width)])
@@ -263,7 +280,7 @@ internal sealed class ShellWindow : Window
         _mentions = new MentionList(theme, shell, _editor);
         _editor.Ahead = _mentions.Took;
 
-        Add(rail, _content, title, _editor, _warning, _mentions.View, status);
+        Add(rail, _content, title, _editor, _to, _warning, _mentions.View, status);
 
         _showing = shell.Screen;
 
@@ -743,16 +760,21 @@ internal sealed class ShellWindow : Window
             ? compose.WarningAt(content.Viewport.Size)
             : Rectangle.Empty;
 
+    /// <summary>The same for To.</summary>
+    private Rectangle ToAt(View? content) =>
+        content is { Viewport.Width: > 0 } && _shell.Screen is ComposeScreen compose
+            ? compose.ToAt(content.Viewport.Size)
+            : Rectangle.Empty;
+
     /// <summary>
-    ///     One of the two fields gained focus — by a click, or by <see cref="Refresh" /> moving it — and the screen is
-    ///     brought into step where it says the typing is in the other.
+    ///     One of the fields gained focus — by a click, or by <see cref="Refresh" /> moving it — and the screen is
+    ///     brought into step where it says the typing is somewhere else.
     /// </summary>
-    private void TypingMoved(bool gained, bool writingTheWarning)
+    private void TypingMoved(bool gained, ComposeField field)
     {
-        if (gained && _warning.Visible && _shell.Screen is ComposeScreen compose
-            && compose.WritingTheWarning != writingTheWarning)
+        if (gained && _editor.Visible)
         {
-            _shell.WriteWarning();
+            _shell.TypeInto(field);
         }
     }
 
@@ -836,6 +858,10 @@ internal sealed class ShellWindow : Window
             _warning.Text = compose.Warning;
             _warning.MoveEnd();
 
+            // On an edit To takes nothing, so it takes no focus either: a click on it is the screen's to ignore.
+            _to.Visible = true;
+            _to.CanFocus = compose.Takes(ComposeField.To);
+
             _editor.SetFocus();
 
             // After whatever the screen opened with rather than in front of it: an editor opened on `@maria ` or on
@@ -847,14 +873,20 @@ internal sealed class ShellWindow : Window
         {
             _editor.Visible = false;
             _warning.Visible = false;
+            _to.Visible = false;
             SetFocus();
         }
 
-        // The caret is wherever the typing is going: ctrl-w moved it, or a click did and the screen has caught up.
+        // The caret is wherever the typing is going: ctrl-w or an arrow moved it, or a click did and the screen caught up.
         // Both fields take focus at all times, so this only moves it where it is not already.
-        if (_shell.Screen is ComposeScreen { WritingTheWarning: var warning } && _editor.Visible)
+        if (_shell.Screen is ComposeScreen { Typing: var typing } && _editor.Visible)
         {
-            View field = warning ? _warning : _editor;
+            View field = typing switch
+            {
+                ComposeField.To => _to,
+                ComposeField.Warning => _warning,
+                _ => _editor,
+            };
 
             if (!field.HasFocus)
             {

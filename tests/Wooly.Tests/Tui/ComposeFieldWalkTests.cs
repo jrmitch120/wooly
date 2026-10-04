@@ -97,9 +97,12 @@ public class ComposeFieldWalkTests
         Assert.Equal("hi", compose.Text);
     }
 
-    /// <summary><c>↑</c> on the top header has nowhere further up to go, and leaves the typing where it is.</summary>
+    /// <summary>
+    ///     The walk goes through the headers in the order they are drawn — To, then the warning, then the post (#338) —
+    ///     and <c>↑</c> on To, the top header, has nowhere further up to go and leaves the typing where it is.
+    /// </summary>
     [Fact]
-    public async Task UpOnTheTopHeaderStaysThere()
+    public async Task TheWalkGoesThroughToAndTheWarningAsDrawnAndStopsAtTheTop()
     {
         using var drawn = await Composing();
         var compose = Compose(drawn);
@@ -107,8 +110,23 @@ public class ComposeFieldWalkTests
         drawn.Press(Key.CursorUp);
         drawn.Press(Key.CursorUp);
 
+        Assert.Equal(ComposeField.To, compose.Typing);
+        Assert.True(To(drawn).HasFocus);
+
+        drawn.Press(Key.CursorUp);
+
+        Assert.Equal(ComposeField.To, compose.Typing);
+        Assert.True(To(drawn).HasFocus);
+
+        drawn.Press(Key.CursorDown);
+
         Assert.True(compose.WritingTheWarning);
         Assert.True(Field(drawn).HasFocus);
+
+        drawn.Press(Key.CursorDown);
+
+        Assert.Equal(ComposeField.Post, compose.Typing);
+        Assert.True(Editor(drawn).HasFocus);
     }
 
     /// <summary>
@@ -220,6 +238,8 @@ public class ComposeFieldWalkTests
 
     private static ComposeEditor Editor(DrawnShell drawn) =>
         drawn.Window.SubViews.OfType<ComposeEditor>().Single();
+
+    private static ComposeToField To(DrawnShell drawn) => drawn.Window.SubViews.OfType<ComposeToField>().Single();
 
     private static ComposeWarningField Field(DrawnShell drawn) =>
         drawn.Window.SubViews.OfType<ComposeWarningField>().Single();

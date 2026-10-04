@@ -1,4 +1,6 @@
 using Wooly.Core;
+using Wooly.Core.Configuration;
+using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Rendering;
@@ -96,6 +98,12 @@ internal sealed class AShell
     /// <summary>The hashtag the rail keeps a place for, or none.</summary>
     public string? Hashtag { get; set; }
 
+    /// <summary>The config file's <c>default_visibility</c>, which compose's To starts on (#338), or none.</summary>
+    public PostVisibility? DefaultVisibility { get; set; }
+
+    /// <summary>The config file's preferences, as far as these tests set them.</summary>
+    private Preferences Preferences => new() { Hashtag = Hashtag, DefaultVisibility = DefaultVisibility };
+
     /// <summary>
     ///     How long the settle window and the cache are. Real lengths, because the fake host is what decides when a
     ///     wait happens and the clock is what decides how old a cache entry is — neither of them passes on its own.
@@ -128,7 +136,7 @@ internal sealed class AShell
         Browser,
         Clock,
         Timing,
-        Hashtag);
+        Preferences);
 
     /// <summary>
     ///     What <paramref name="screen" /> draws at 61 columns, past the one column the gutter takes — which every
@@ -197,7 +205,8 @@ internal sealed class AShell
             Host,
             Browser,
             Clock,
-            Timing);
+            Timing,
+            Preferences);
 
         await shell.Open();
 

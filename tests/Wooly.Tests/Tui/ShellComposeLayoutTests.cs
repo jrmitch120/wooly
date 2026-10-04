@@ -36,8 +36,8 @@ public class ShellComposeLayoutTests
 
     /// <summary>
     ///     The editor starts below what is being answered rather than on top of it, and below the headers round it
-    ///     (#317): a blank, From, the reply header and the one row "Hello world" wraps to, the warning (#123), a
-    ///     hairline and a blank — seven rows, under the panel's top edge.
+    ///     (#317): a blank, From, To (#338), the reply header and the one row "Hello world" wraps to, the warning (#123),
+    ///     a hairline and a blank — eight rows, under the panel's top edge.
     /// </summary>
     [Fact]
     public async Task Reply_StartsTheEditorBelowWhatIsBeingAnsweredAndTheWarningField()
@@ -48,15 +48,15 @@ public class ShellComposeLayoutTests
         {
             var rows = compose.Lines(new Drawing(ContentWidth, AShell.Now)).Select(line => line.Text).ToList();
 
-            Assert.Equal("        │ Hello world", rows[3]);
-            Assert.Equal(NoWarning, rows[4]);
-            Assert.Equal(8, editor.Frame.Y);
+            Assert.Equal("        │ Hello world", rows[4]);
+            Assert.Equal(NoWarning, rows[5]);
+            Assert.Equal(9, editor.Frame.Y);
         }
     }
 
     /// <summary>
-    ///     And a post with no reply behind it starts five rows down: a blank, From, the warning, which both of the
-    ///     composes that publish a post carry (#139), a hairline and a blank (#317).
+    ///     And a post with no reply behind it starts six rows down: a blank, From, To (#338), the warning, which both of
+    ///     the composes that publish a post carry (#139), a hairline and a blank (#317).
     /// </summary>
     [Fact]
     public async Task Post_StartsTheEditorUnderTheWarningField()
@@ -68,7 +68,7 @@ public class ShellComposeLayoutTests
             shell.Compose();
             window.Layout();
 
-            Assert.Equal(6, Editor(window).Frame.Y);
+            Assert.Equal(7, Editor(window).Frame.Y);
         }
     }
 
@@ -99,7 +99,7 @@ public class ShellComposeLayoutTests
 
             Assert.Equal(ComposeFor.Edit, compose.Purpose);
             Assert.Equal(string.Empty, rows[0].Text);
-            Assert.Equal(NoWarning, rows[2].Text);
+            Assert.Equal(NoWarning, rows[3].Text);
             Assert.Equal(composing, Editor(window).Frame.Y);
         }
     }
@@ -110,9 +110,9 @@ public class ShellComposeLayoutTests
     /// </summary>
     /// <remarks>
     ///     Eight rows: the content panel's top and bottom edges and the status row leave the inside of the panel
-    ///     five, of which the editor keeps three and the warning header one. The warning is the last row to give way
-    ///     rather than the first — it is a row the reader types into, and one they cannot see is worse than a quote
-    ///     that stops early. Of the headers' dressing (#317) only the hairline under them is left.
+    ///     five, of which the editor keeps three, To one and the warning header one. Those two are the last rows to
+    ///     give way rather than the first — the warning is a row the reader types into, and To says who the post
+    ///     reaches (#338). None of the headers' dressing (#317) is left.
     /// </remarks>
     [Fact]
     public async Task Reply_NeverPushesTheEditorPastTheRoomLeftToTypeIn()
@@ -122,7 +122,7 @@ public class ShellComposeLayoutTests
         using (window)
         {
             Assert.Equal(
-                [NoWarning, Hairline, string.Empty, string.Empty, string.Empty],
+                [ComposeRows.ToPublic, NoWarning, string.Empty, string.Empty, string.Empty],
                 compose.Lines(new Drawing(ContentWidth, AShell.Now, Height: 5)).Select(line => line.Text));
             Assert.Equal(2, editor.Frame.Y - 1);
             Assert.Equal(3, editor.Frame.Height);
@@ -156,7 +156,7 @@ public class ShellComposeLayoutTests
             }
 
             Assert.Null(content.Reclaimable);
-            Assert.Equal(8, editor.Frame.Y);
+            Assert.Equal(9, editor.Frame.Y);
         }
     }
 
@@ -179,7 +179,7 @@ public class ShellComposeLayoutTests
         opened.Reply();
 
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
-        var quoted = compose.Lines(new Drawing(ContentWidth, AShell.Now)).Skip(2).Take(5).ToList();
+        var quoted = compose.Lines(new Drawing(ContentWidth, AShell.Now)).Skip(3).Take(5).ToList();
 
         Assert.Equal(
             [
@@ -206,9 +206,10 @@ public class ShellComposeLayoutTests
             var lines = compose.Lines(new Drawing(ContentWidth, AShell.Now));
 
             Assert.Equal(string.Empty, lines[0].Text);
-            Assert.Equal("     ↳  answering @ben@hachyderm.io", lines[2].Text);
-            Assert.Equal("        │ Hello world", lines[3].Text);
-            Assert.Equal(NoWarning, lines[4].Text);
+            Assert.Equal(ComposeRows.ToPublic, lines[2].Text);
+            Assert.Equal("     ↳  answering @ben@hachyderm.io", lines[3].Text);
+            Assert.Equal("        │ Hello world", lines[4].Text);
+            Assert.Equal(NoWarning, lines[5].Text);
         }
     }
 
@@ -329,10 +330,10 @@ public class ShellComposeLayoutTests
     ///     the two columns of padding either side, and down to the foot's hairline and count row (#317).
     /// </summary>
     [Theory]
-    [InlineData(ComposeFor.Post, 60, 17, 5)]
-    [InlineData(ComposeFor.Reply, 60, 17, 7)]
-    [InlineData(ComposeFor.Edit, 60, 17, 5)]
-    [InlineData(ComposeFor.Reply, 40, 30, 7)]
+    [InlineData(ComposeFor.Post, 60, 17, 6)]
+    [InlineData(ComposeFor.Reply, 60, 17, 8)]
+    [InlineData(ComposeFor.Edit, 60, 17, 6)]
+    [InlineData(ComposeFor.Reply, 40, 30, 8)]
     public async Task EditorAt_SitsUnderWhatIsAboveItAndRunsToTheFoot(ComposeFor opening, int width, int height, int top)
     {
         var (window, shell) = await Opened(height: 20, post: APost.With(id: "220", account: "jeff@mastodon.social"));
@@ -349,13 +350,14 @@ public class ShellComposeLayoutTests
 
     /// <summary>
     ///     On a viewport too short for everything, the quote gives way first and the editor keeps its three rows — and
-    ///     where there are not even those, it keeps what there is under the warning rather than a height below nothing.
+    ///     where there are not even those, it keeps what there is under To and the warning rather than a height below
+    ///     nothing.
     /// </summary>
     [Theory]
     [InlineData(11, 6, 3)]
     [InlineData(5, 2, 3)]
-    [InlineData(3, 1, 2)]
-    [InlineData(1, 1, 0)]
+    [InlineData(3, 2, 1)]
+    [InlineData(1, 2, 0)]
     public async Task EditorAt_GivesUpTheQuoteBeforeTheEditor(int height, int top, int rows)
     {
         var (window, _, compose) = await Replying();

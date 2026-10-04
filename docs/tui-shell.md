@@ -159,7 +159,7 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Conversation | `m` mark read, and every key that acts on a post, since each message in it is one |
 | Profiles | `⏎` act as that profile, for this session — not offered on the one already acted as · `D` make it the default, for the CLI and the next launch — not offered on the one already the default · `a` add a profile · `R` sign it in again, replacing its token — offered on every row · `x` remove it, after a confirmation — refused on the one acted as and on the default |
 | Add a profile | `⏎` on to the next step · `t` paste a token instead, while the browser is out or after it failed · `esc` back to the list, calling off a sign-in or a check in flight — or, as the only screen on first run, back to the first step, with `ctrl-q` quit offered (#247) |
-| Compose / reply / edit | `ctrl-s` send or save · `esc` throw it away · `ctrl-w` move the typing between the post and the content warning over it — on all three, each carrying a warning field of its own (#123, #139, #140); `⏎` in the warning hands the typing back too (#320) · `↑` on the post's first line moves the typing up into the headers, `↑`/`↓` move it between the headers that take typing, and `↓` off the last returns it to the post, the way a mail client's do (ADR-0024, #337) — on a header the status row offers `↑↓ field` · `tab`/`shift-tab` are the frame's here as everywhere, never a walk of compose's fields. While the list of people to mention is open: `↑`/`↓` pick · `tab`/`⏎` insert · `esc` close the list, never the draft (#318) |
+| Compose / reply / edit | `ctrl-s` send or save · `esc` throw it away · `ctrl-w` move the typing between the post and the content warning over it — on all three, each carrying a warning field of its own (#123, #139, #140); `⏎` in the warning hands the typing back too (#320) · `↑` on the post's first line moves the typing up into the headers, `↑`/`↓` move it between the headers that take typing, and `↓` off the last returns it to the post, the way a mail client's do (ADR-0024, #337) — on a header the status row offers `↑↓ field` · on **To** `←`/`→` choose the visibility, skipping any it does not allow, and the status row offers `←→ choose` ahead of `↑↓ field` (#338); letters there are nobody's · `tab`/`shift-tab` are the frame's here as everywhere, never a walk of compose's fields. While the list of people to mention is open: `↑`/`↓` pick · `tab`/`⏎` insert · `esc` close the list, never the draft (#318) |
 | Home, local, federated, hashtag, Discover, Notifications, Messages, Requests, Post, Account, Follows | `g` refresh — evicts the destination's cache entry (where one exists) and re-runs the same fetch its own arrival runs |
 
 ### What the four screens settled
@@ -861,7 +861,7 @@ its author remembered to warn it again by hand — which Mastodon's own clients 
 Compose is laid out as a mail client's compose — variant A of the prototype on `prototype/compose` (#313, #317) — on a
 fresh post, a reply and an edit alike:
 
-- **Rows, top to bottom:** a blank; the headers; a hairline; a blank; the editor; a hairline; the row the count sits
+- **Rows, top to bottom:** a blank; the headers — From, To, the reply header and its quote, ⚠ (ADR-0024, #338); a hairline; a blank; the editor; a hairline; the row the count sits
   on (#319). Two columns of padding either side of all of it. The hairlines are `panel-border`.
 - **Headers are a right-aligned label column four wide, two spaces, then the value.** `From` reads the profile's
   handle in `byline-handle` and ` · instance` muted — the instance said even with one profile set up, since this is
@@ -870,12 +870,22 @@ fresh post, a reply and an edit alike:
   non-blank rows of what is being answered under it behind a `│ ` gutter. The warning's is labelled with the bare
   `⚠`, lit in `content-warning` while there is a warning or one is being written and muted otherwise, so the reader
   sees at a glance whether the post is going out behind one.
+- **To says who the post goes to** (ADR-0024, #338): a row of radio buttons, `● public  ○ unlisted  ○ followers
+  ○ direct`, the filled bubble the one chosen. It starts on what would go out — `default_visibility` where the config
+  sets one, and on a reply the narrower of that and the post being answered (the post's own where the config sets
+  none) — and sends what it shows, chosen only where the author moved it, so `PostAuthor` narrows a starting
+  preference exactly as on the CLI. Where nothing is known on a fresh post it reads `◂ account default ▸` and sends
+  nothing. On a reply, values wider than the post being answered are `muted`, skipped by `←`/`→` and ignore clicks; on
+  an edit the whole row is `muted` and takes neither keys, clicks nor the typing, since Mastodon cannot change it.
+  Choosable values are `body`; the chosen one is `selected-text` while To has the typing, which is how a row with no
+  caret shows where the typing is, and reads reversed with no colour. Where the row does not fit, it falls back to the
+  one value with an arrow either side, `◂ ● followers ▸`, the arrows `muted` and a click on one a step.
 - **The screen paints every row and says where the editor goes**, both from one layout, at the content region's
   height (`Drawing.Height`) — so what is painted and where the editor is laid over it cannot disagree. Where nobody
   says the height, it lays out as tall as its rows and the editor's least want.
 - **On a terminal too short for everything, rows give way in a fixed order**: the quote's tail, the blanks, the reply
-  header, the foot, `From`, the hairline under the headers. The warning header and three rows of editor are kept
-  whatever the height — the rule ADR-0015 and #123 already kept, with more dressing in front of it to go first.
+  header, the foot, `From`, the hairline under the headers. **To**, the warning header and three rows of editor are
+  kept whatever the height (#338) — the rule ADR-0015 and #123 already kept, with more dressing in front of it to go first.
 - **The foot counts what has been used of the post's limit** (#319): `n / limit`, right-aligned inside the padding,
   `muted` up to nine tenths of the limit, `quota-low` in the last tenth and `error` past it. It counts the way the
   instance judges a post (`PostLength`): by grapheme cluster, any address Mastodon links (`https://`, `gemini://` and
@@ -1634,6 +1644,7 @@ panel the pointer is over. What the gesture then does is a move the keys already
 | Wheel | The rail | Nothing: not the cursor, not the selection, not the rail's scroll and not the page beside it |
 | Wheel sideways | Anywhere | Nothing. A trackpad drifting sideways sends these between vertical notches, and Terminal.Gui's left and right carry up's and down's bits, so they are asked about first and dropped |
 | Wheel, click | The compose editor | Terminal.Gui's own handling: the wheel scrolls the draft and a click places the caret. Nothing of the shell's |
+| Click | A value of compose's **To** | Chooses it and gives To the typing, so `←`/`→` carry on from there; a click on either arrow of the narrow form steps, and anywhere else on the row gives To the typing. A value To does not allow, and the whole row on an edit, ignores it. The wheel over the row does nothing (ADR-0024, #338) |
 | Click | A destination on the rail | Arrives there at once, through the rail's immediate path: the cursor and the selection move together, there is no settle window, and any landing the tabbing left waiting is abandoned, so only the destination clicked is read (#288). Which entry a row is comes off the rail's own rows, each carrying its destination's place as its `Line.Item`, so the click lands on what is drawn under the pointer whether the rail is framed, compact or compact and scrolled |
 | Click | The destination already shown | Walks back out to its own screen: drilled in from it, the stack goes back to its one bottom screen with the page and **Picked** it was left on, as any pop keeps, and nothing is asked of the instance — the way a sidebar's entry takes you back to its top page (#289). On its own screen already, nothing; nor with a compose drilled in, whose draft a click is too little to throw away. The first crumb of the breadcrumb is the same click (#308). One of the two moves the mouse has that the keys do not: tabbing back onto the destination shown is still a walk that ended where it began |
 | Click | A group's title, a compact heading, the API panel | Nothing. Only destinations answer a click |
@@ -1709,7 +1720,7 @@ is drawn reversed instead (#316).
 | `replies` | The reply count under a post | `↩` |
 | `selection` | The selected row | `▌` in the gutter |
 | `band` | Behind every row of the selected thing | the `▌` beside each row |
-| `selected-text` | Text selected in the compose editor or its warning field (#320) — the body's text on a background of its own, lifted clearly off the page where `band` is barely there (#316) | drawn reversed |
+| `selected-text` | Text selected in the compose editor or its warning field (#320), and the value chosen on To while To has the typing (#338) — the body's text on a background of its own, lifted clearly off the page where `band` is barely there (#316) | drawn reversed |
 | `rail` / `rail-current` | Destinations, and the one loaded — in colour its band, label and count together | without colour, one glyph, one column: `▶` where the tabbing has got to, `▷` where it settled if that differs — they coincide at rest, so only `▶` shows. In colour no mark: the band carries it (ADR-0021) |
 | `rail-cursor` | The rail entry the tabbing has got to, while the selection has not yet followed it | `▶` without colour; in colour, its band (ADR-0021) |
 | `rail-unread` | An unread count, and the word on an unread conversation | the number, and the word |

@@ -72,7 +72,7 @@ try
         provider.GetRequiredService<IWebBrowser>(),
         clock,
         ShellTiming.Default,
-        config.Preferences.Hashtag);
+        config.Preferences);
 
     // A preview comes off a file server rather than off the API, so it goes out on its own client: it needs no token,
     // it counts against no rate limit, and a picture that will not load must not spend the retry budget a timeline's

@@ -423,9 +423,10 @@ public class ShellMessageTests
         Assert.Equal("110", draft.InReplyTo);
         Assert.Contains("All week", draft.Text, StringComparison.Ordinal);
 
-        // Nothing is said about visibility: a reply goes out as narrowly as the post it answers, which the instance
-        // adapter settles by reading that post rather than by this shell guessing (ADR-0013).
-        Assert.Null(draft.Visibility);
+        // Direct, as To shows it, and not chosen: a reply opens on the post it answers and goes out no wider, which
+        // the instance adapter still settles by reading that post (ADR-0013, #338).
+        Assert.Equal(PostVisibility.Direct, draft.Visibility);
+        Assert.False(draft.VisibilityChosen);
     }
 
     /// <summary>

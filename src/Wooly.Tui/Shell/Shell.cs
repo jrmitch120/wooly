@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using Wooly.Core;
 using Wooly.Core.Accounts;
+using Wooly.Core.Configuration;
 using Wooly.Core.Conversations;
 using Wooly.Core.Errors;
 using Wooly.Core.Http;
@@ -71,6 +72,12 @@ public sealed class Shell
     private readonly string? _hashtag;
 
     /// <summary>
+    ///     The visibility the config file says a post goes out at (<c>default_visibility</c>), or <see langword="null" />
+    ///     where it says nothing — what a compose screen's To starts on (ADR-0024, #338).
+    /// </summary>
+    private readonly PostVisibility? _defaultVisibility;
+
+    /// <summary>
     ///     Who this session is acting as, and everything that asks as them or holds what was read as them — which
     ///     <c>⏎</c> on the profiles screen puts a new one in place of, whole (ADR-0020, #243). Nobody, while the shell
     ///     has nobody it can act as and is standing on adding one (#247).
@@ -127,6 +134,10 @@ public sealed class Shell
     /// <param name="opening">
     ///     Who to act as — or, with nobody, what to open onto instead: adding a profile, as the only screen (#247).
     /// </param>
+    /// <param name="preferences">
+    ///     The config file's preferences: the hashtag the rail keeps a place for, and what compose starts on. None
+    ///     where the file sets none.
+    /// </param>
     public Shell(
         Opening opening,
         ShellPorts ports,
@@ -135,7 +146,7 @@ public sealed class Shell
         IWebBrowser browser,
         TimeProvider clock,
         ShellTiming timing,
-        string? hashtag = null)
+        Preferences? preferences = null)
     {
         _ports = ports;
         _profiles = profiles;
@@ -145,9 +156,10 @@ public sealed class Shell
         _browser = browser;
         _clock = clock;
         _timing = timing;
-        _hashtag = hashtag;
+        _hashtag = preferences?.Hashtag;
+        _defaultVisibility = preferences?.DefaultVisibility;
 
-        Rail = new Rail(Destinations(opening.Profile, hashtag), host, timing.Settle);
+        Rail = new Rail(Destinations(opening.Profile, _hashtag), host, timing.Settle);
 
         Begin(opening.Profile);
 
@@ -482,6 +494,8 @@ public sealed class Shell
         Verb.WriteWarning => Ran(WriteWarning),
         Verb.PreviousField => WalkField(-1),
         Verb.NextField => WalkField(1),
+        Verb.PreviousChoice => Choose(-1),
+        Verb.NextChoice => Choose(1),
 
         // Nothing, and the terminal's own — which the window has already taken, and which no screen answers either.
         Verb.None => false,
@@ -1142,6 +1156,54 @@ public sealed class Shell
         Changed?.Invoke();
 
         return true;
+    }
+
+    /// <summary>
+    ///     <c>←</c> or <c>→</c> on a compose screen's To: moves the choice to the next visibility To allows, that way
+    ///     (ADR-0024, #338). Nothing anywhere else.
+    /// </summary>
+    /// <returns>Whether the choice moved, which it does not off either end of the row nor anywhere but To.</returns>
+    public bool Choose(int by)
+    {
+        if (Screen is not ComposeScreen compose || !compose.Choose(by))
+        {
+            return false;
+        }
+
+        Redrafted();
+        Changed?.Invoke();
+
+        return true;
+    }
+
+    /// <summary>
+    ///     The typing went into <paramref name="field" /> of a compose screen another way than its keys — a click, which
+    ///     the screen is brought into step with (#320, #338). Nothing anywhere else, nor where it is already there.
+    /// </summary>
+    public void TypeInto(ComposeField field)
+    {
+        if (Screen is not ComposeScreen compose || !compose.TypeInto(field))
+        {
+            return;
+        }
+
+        Changed?.Invoke();
+    }
+
+    /// <summary>
+    ///     A click on To's value, <paramref name="column" /> columns into a value column <paramref name="room" /> wide:
+    ///     a value To allows is chosen, an arrow steps, and either gives To the typing (ADR-0024, #338). A value To does
+    ///     not allow, and the whole row on an edit, ignore it.
+    /// </summary>
+    public void ClickTo(int column, int room)
+    {
+        if (Screen is not ComposeScreen compose || !compose.ClickTo(column, room))
+        {
+            return;
+        }
+
+        Redrafted();
+        Changed?.Invoke();
     }
 
     /// <summary>
@@ -1896,7 +1958,11 @@ public sealed class Shell
         // reply, since what they picked is somebody named in the post rather than the post itself (#85).
         if (purpose == ComposeFor.Post && Screen.MentionedAs is { } handle)
         {
-            Composing(new ComposeScreen(purpose, addressing: $"@{handle}", from: ComposeFrom.Of(Actor.Profile)));
+            Composing(new ComposeScreen(
+                purpose,
+                addressing: $"@{handle}",
+                from: ComposeFrom.Of(Actor.Profile),
+                visibility: _defaultVisibility));
 
             return;
         }
@@ -1916,8 +1982,23 @@ public sealed class Shell
             purpose == ComposeFor.Post ? null : about,
             purpose == ComposeFor.Reply ? Addressed(about!) : null,
             aboutIsMine: purpose == ComposeFor.Reply && IsMine(about!),
-            from: ComposeFrom.Of(Actor.Profile)));
+            from: ComposeFrom.Of(Actor.Profile),
+            visibility: Reaching(purpose, about)));
     }
+
+    /// <summary>
+    ///     What a compose screen's To starts on, which is what would go out if nobody touched it (ADR-0024, #338): the
+    ///     config's <c>default_visibility</c>, or nothing known — and on a reply the narrower of that and the post being
+    ///     answered, which is where a reply with no visibility of its own goes out anyway. An edit shows the post's own.
+    /// </summary>
+    private PostVisibility? Reaching(ComposeFor purpose, Post? about) => (purpose, about) switch
+    {
+        (ComposeFor.Reply, { } answered) => PostAudience.Narrower(
+            _defaultVisibility ?? answered.Visibility,
+            answered.Visibility),
+        (ComposeFor.Edit, { } edited) => edited.Visibility,
+        _ => _defaultVisibility,
+    };
 
     /// <summary>
     ///     Pushes <paramref name="compose" />, measured against its instance's own limit as far as that is known (#319).
