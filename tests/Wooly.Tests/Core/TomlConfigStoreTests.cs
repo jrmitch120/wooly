@@ -110,14 +110,14 @@ public class TomlConfigStoreTests : IDisposable
             {
                 ["personal"] = new() { Instance = "mastodon.social", Account = "jeff@mastodon.social" },
             },
-            Preferences = new Preferences { DefaultVisibility = PostVisibility.Private },
+            Preferences = new Preferences { DefaultVisibility = PostVisibility.Followers },
         });
 
         var toml = File.ReadAllText(Path.Combine(_directory.Path, "config.toml"));
 
         Assert.Contains("current_profile = \"personal\"", toml);
         Assert.Contains("[preferences]", toml);
-        Assert.Contains("default_visibility = \"private\"", toml);
+        Assert.Contains("default_visibility = \"followers\"", toml);
         Assert.Contains("[profiles.personal]", toml);
         Assert.Contains("instance = \"mastodon.social\"", toml);
         Assert.Contains("account = \"jeff@mastodon.social\"", toml);
@@ -215,6 +215,24 @@ public class TomlConfigStoreTests : IDisposable
         var exception = Assert.Throws<ConfigurationException>(() => NewStore().Load());
 
         Assert.Contains(written, exception.Message);
+    }
+
+    /// <summary>
+    ///     A file written before ADR-0024 says <c>private</c>, Mastodon's word for followers. It still loads, and means
+    ///     the same thing the new word does.
+    /// </summary>
+    [Theory]
+    [InlineData("followers")]
+    [InlineData("private")]
+    public void Load_ReadsFollowersUnderEitherSpelling(string written)
+    {
+        WriteConfigFile(
+            $"""
+             [preferences]
+             default_visibility = "{written}"
+             """);
+
+        Assert.Equal(PostVisibility.Followers, NewStore().Load().Preferences.DefaultVisibility);
     }
 
     [Fact]

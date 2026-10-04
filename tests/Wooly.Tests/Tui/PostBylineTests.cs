@@ -65,6 +65,18 @@ public class PostBylineTests
         Assert.Equal(Row(lines, line => line.Has(Role.BylineName)) + 1, Row(lines, line => line.Has(Role.BylineHandle)));
     }
 
+    /// <summary>
+    ///     A followers-only post is named followers beside its mark on the post screen, the word compose and the CLI use, not Mastodon's
+    ///     <c>private</c> (ADR-0024).
+    /// </summary>
+    [Fact]
+    public void Whole_NamesAFollowersOnlyPostFollowers()
+    {
+        var lines = PostLines.Whole(APost.With(visibility: PostVisibility.Followers), new Drawing(61, Now), default);
+
+        Assert.Contains("● followers", lines.First(line => line.Has(Role.Audience)).Text);
+    }
+
     /// <summary>The blank the two-row shape wants between the byline and the body, so the two do not run together.</summary>
     [Fact]
     public void Feed_LeavesABlankRowBetweenTheBylineAndTheBody()

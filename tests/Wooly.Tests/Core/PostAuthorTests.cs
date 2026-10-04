@@ -62,7 +62,7 @@ public class PostAuthorTests : IDisposable
         Assert.Equal("110", post.Id);
         Assert.Equal("jeff@mastodon.social", post.Account);
         Assert.Equal("Hello world", post.Content);
-        Assert.Equal(PostVisibility.Private, post.Visibility);
+        Assert.Equal(PostVisibility.Followers, post.Visibility);
         Assert.Equal("https://mastodon.social/@jeff/110", post.Url);
     }
 
@@ -87,7 +87,7 @@ public class PostAuthorTests : IDisposable
     [Theory]
     [InlineData(PostVisibility.Public, "visibility=public")]
     [InlineData(PostVisibility.Unlisted, "visibility=unlisted")]
-    [InlineData(PostVisibility.Private, "visibility=private")]
+    [InlineData(PostVisibility.Followers, "visibility=private")]
     [InlineData(PostVisibility.Direct, "visibility=direct")]
     public async Task Publish_PublishesAtTheVisibilityTheDraftAsksFor(PostVisibility visibility, string expected)
     {
