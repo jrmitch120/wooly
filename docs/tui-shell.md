@@ -159,7 +159,7 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Conversation | `m` mark read, and every key that acts on a post, since each message in it is one |
 | Profiles | `⏎` act as that profile, for this session — not offered on the one already acted as · `D` make it the default, for the CLI and the next launch — not offered on the one already the default · `a` add a profile · `R` sign it in again, replacing its token — offered on every row · `x` remove it, after a confirmation — refused on the one acted as and on the default |
 | Add a profile | `⏎` on to the next step · `t` paste a token instead, while the browser is out or after it failed · `esc` back to the list, calling off a sign-in or a check in flight — or, as the only screen on first run, back to the first step, with `ctrl-q` quit offered (#247) |
-| Compose / reply / edit | `ctrl-s` send or save · `esc` throw it away · `ctrl-w` move the typing between the post and the content warning over it — on all three, each carrying a warning field of its own (#123, #139, #140); `⏎` in the warning hands the typing back too (#320) · `↑` on the post's first line moves the typing up into the headers, `↑`/`↓` move it between the headers that take typing, and `↓` off the last returns it to the post, the way a mail client's do (ADR-0024, #337) — on a header the status row offers `↑↓ field` · on **To** `←`/`→` choose the visibility, skipping any it does not allow, and the status row offers `←→ choose` ahead of `↑↓ field` (#338); letters there are nobody's · `tab`/`shift-tab` are the frame's here as everywhere, never a walk of compose's fields. While the list of people to mention is open: `↑`/`↓` pick · `tab`/`⏎` insert · `esc` close the list, never the draft (#318) |
+| Compose / reply / edit | `ctrl-s` send or save · `esc` throw it away · `ctrl-w` move the typing between the post and the content warning over it — on all three, each carrying a warning field of its own (#123, #139, #140); `⏎` in the warning hands the typing back too (#320) · `↑` on the post's first line moves the typing up into the headers, `↑`/`↓` move it between the headers that take typing, and `↓` off the last returns it to the post, the way a mail client's do (ADR-0024, #337) — on a header the status row offers `↑↓ field` · on **To** `←`/`→` choose the visibility, skipping any it does not allow, and the status row offers `←→ choose` ahead of `↑↓ field` (#338); letters there are nobody's · on **Lang** a code or a name typed opens the list of languages, as do a click and `⏎`; the walk goes To, Lang, the warning, the post (#340) · `tab`/`shift-tab` are the frame's here as everywhere, never a walk of compose's fields. While the list of people to mention is open: `↑`/`↓` pick · `tab`/`⏎` insert · `esc` close the list, never the draft (#318). While the list of languages is open: `↑`/`↓` pick · `tab`/`⏎` choose · `esc` close the list, never the draft — and the status row offers those three ahead of the rest (#340) |
 | Home, local, federated, hashtag, Discover, Notifications, Messages, Requests, Post, Account, Follows | `g` refresh — evicts the destination's cache entry (where one exists) and re-runs the same fetch its own arrival runs |
 
 ### What the four screens settled
@@ -952,6 +952,23 @@ Typing `@` at the start of a word in the post opens a list of people to mention 
   A click anywhere outside it closes it as `esc` does, and is spent on that, from the press to the click: the caret
   stays where it was and nothing under the pointer is clicked. So it is asked about ahead of every view, where the
   terminal's mouse events arrive.
+
+### What compose's Lang settled
+
+- **Lang is a one-line field under To (#340)**, laid over its value column as the warning field is over the warning's.
+  It shows a language as its code and its own name, `fr  Français`, the name muted on the painted row. Empty, it says
+  `none · the instance decides` and sends no language.
+- **It starts on the author's own language**: `default_language`, else the account's posting language as its instance
+  said it (#339), else empty — on a reply as on a fresh post, never the answered post's. An edit opens on the post's own
+  and always sends what the field holds, as the warning does (#140); cleared, that is an empty language, which
+  Mastodon reads as "keep the one it has", so clearing a published post's language changes nothing on the instance.
+- **The list of languages is the second `PickList`**, hung under the field and no lower than the panel's foot. Typing
+  narrows it through `PostLanguageName.Matching`: a code typed in full first, then codes it starts, then names in
+  English or their own that hold it. A click on Lang or `⏎` in it opens every language, picked on the one held. A
+  pick writes the language into the field and leaves the typing there; the list's bottom edge says `tab choose`.
+- **What is not a language is refused at send**, with `PostLanguageName.Rejection` as the notice, and nothing goes
+  out — half a name is what the field holds on the way to the whole of one, so it is not refused while typed.
+- **On a short terminal it gives way with From**, being lower, just before it.
 
 ### What the account screen settled
 

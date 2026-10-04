@@ -49,7 +49,7 @@ public class ComposeToTests
     }
 
     /// <summary>
-    ///     The arrows walk up from the post through the warning into To, and there <c>→</c> and <c>←</c> move the
+    ///     The arrows walk up from the post through the warning and Lang into To, and there <c>→</c> and <c>←</c> move the
     ///     choice — and what is sent is what is shown, as chosen.
     /// </summary>
     [Fact]
@@ -58,6 +58,7 @@ public class ComposeToTests
         using var drawn = await Drawn(PostVisibility.Unlisted);
         var compose = Compose(drawn);
 
+        drawn.Press(Key.CursorUp);
         drawn.Press(Key.CursorUp);
         drawn.Press(Key.CursorUp);
 
@@ -88,6 +89,7 @@ public class ComposeToTests
 
         drawn.Press(Key.CursorUp);
         drawn.Press(Key.CursorUp);
+        drawn.Press(Key.CursorUp);
         drawn.Press(Key.CursorLeft);
 
         Assert.Equal(PostVisibility.Public, compose.Visibility);
@@ -113,6 +115,7 @@ public class ComposeToTests
 
         drawn.Press(Key.CursorUp);
         drawn.Press(Key.CursorUp);
+        drawn.Press(Key.CursorUp);
         drawn.Press(right ? Key.CursorRight : Key.CursorLeft);
 
         Assert.Equal(chosen, compose.Visibility);
@@ -124,6 +127,7 @@ public class ComposeToTests
     {
         using var drawn = await Drawn(PostVisibility.Public);
 
+        drawn.Press(Key.CursorUp);
         drawn.Press(Key.CursorUp);
         drawn.Press(Key.CursorUp);
 
@@ -256,8 +260,9 @@ public class ComposeToTests
 
         drawn.Press(Key.CursorUp);
         drawn.Press(Key.CursorUp);
+        drawn.Press(Key.CursorUp);
 
-        Assert.True(compose.WritingTheWarning);
+        Assert.Equal(ComposeField.Lang, compose.Typing);
 
         drawn.Press(Key.CursorLeft);
         drawn.Press(Key.CursorRight);
@@ -321,6 +326,7 @@ public class ComposeToTests
 
         drawn.Press(Key.CursorUp);
         drawn.Press(Key.CursorUp);
+        drawn.Press(Key.CursorUp);
         drawn.Redraw();
 
         var answered = Enum.GetValues<Role>()
@@ -339,6 +345,7 @@ public class ComposeToTests
     {
         using var drawn = await Drawn(PostVisibility.Unlisted, theme: Themes.Plain);
 
+        drawn.Press(Key.CursorUp);
         drawn.Press(Key.CursorUp);
         drawn.Press(Key.CursorUp);
         drawn.Redraw();

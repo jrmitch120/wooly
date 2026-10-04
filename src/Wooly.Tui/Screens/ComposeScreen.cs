@@ -29,6 +29,9 @@ public enum ComposeField
     /// <summary>Who the post goes to: its visibility, chosen on a row of radio buttons (#338).</summary>
     To,
 
+    /// <summary>What language the post is in: a one-line field with a list of languages under it (#340).</summary>
+    Lang,
+
     /// <summary>The content warning over the post (#123, #320).</summary>
     Warning,
 
@@ -71,6 +74,15 @@ public sealed class ComposeScreen : Screen
 
     private const int StepOnItem = -2;
 
+    /// <summary>What Lang says while it is empty, which sends no language and leaves it to the instance (#340).</summary>
+    private const string NoLanguage = "none · the instance decides";
+
+    /// <summary>What Lang says while it is empty and is being typed in.</summary>
+    private const string LanguageBeingTyped = "type a code or a name";
+
+    /// <summary>The columns between a language's code and its own name, in Lang and in its list.</summary>
+    private const string CodeGap = "  ";
+
     /// <summary>What the warning row says while it is empty and nobody is writing in it.</summary>
     private const string NoWarningWritten = "none · ctrl-w to add";
 
@@ -102,6 +114,12 @@ public sealed class ComposeScreen : Screen
     /// <summary>What To opened on, which a draft sends as not chosen for as long as To still shows it (#338).</summary>
     private readonly PostVisibility? _startingVisibility;
 
+    /// <summary>
+    ///     The code Lang opened on, which an edit sends back as it is even where this client lists no such language —
+    ///     the instance knew it, and an author who did not touch Lang has not asked for anything else (#340).
+    /// </summary>
+    private readonly string? _startingLanguage;
+
     /// <param name="purpose">What this screen was opened to do.</param>
     /// <param name="about">The post being replied to or edited.</param>
     /// <param name="addressing">
@@ -126,13 +144,19 @@ public sealed class ComposeScreen : Screen
     ///     known, and To reads "account default" and sends nothing (ADR-0024, #338). An edit shows the post's own
     ///     whatever this says, since Mastodon cannot change it.
     /// </param>
+    /// <param name="language">
+    ///     The code of the language Lang starts on — worked out by the shell from the preferences and the account's own
+    ///     posting language — or <see langword="null" /> to start it empty, which sends none (ADR-0024, #340). An edit
+    ///     shows the post's own whatever this says.
+    /// </param>
     public ComposeScreen(
         ComposeFor purpose,
         Post? about = null,
         string? addressing = null,
         bool aboutIsMine = false,
         ComposeFrom? from = null,
-        PostVisibility? visibility = null)
+        PostVisibility? visibility = null,
+        string? language = null)
     {
         Purpose = purpose;
         About = about;
@@ -141,6 +165,13 @@ public sealed class ComposeScreen : Screen
 
         Visibility = purpose == ComposeFor.Edit && about is not null ? about.Visibility : visibility;
         _startingVisibility = Visibility;
+
+        _startingLanguage = purpose == ComposeFor.Edit && about is not null ? about.Language : language;
+        LanguageField = _startingLanguage switch
+        {
+            null => string.Empty,
+            var code => PostLanguageName.Of(code) is { } known ? Spoken(known) : code,
+        };
 
         Opening = purpose switch
         {
@@ -198,11 +229,47 @@ public sealed class ComposeScreen : Screen
     public PostVisibility? Visibility { get; private set; }
 
     /// <summary>
+    ///     What Lang's field holds, letter for letter (ADR-0024, #340): a language as <see cref="Spoken" /> writes it, a
+    ///     code or a name being typed, nothing, or something that is not a language at all — which is refused at send
+    ///     (<see cref="LanguageRefusal" />) rather than here, since half of a name is what a field holds on the way to
+    ///     the whole of one.
+    /// </summary>
+    public string LanguageField { get; private set; }
+
+    /// <summary>
+    ///     Why the post cannot go out in what Lang holds, or <see langword="null" /> where it can: empty, a language, or
+    ///     the code an edit opened on.
+    /// </summary>
+    public string? LanguageRefusal => Resolved(out _) ? null : PostLanguageName.Rejection(LanguageField.Trim());
+
+    /// <summary>The language Lang holds, if it holds one this client lists — which its list opens picked on.</summary>
+    public PostLanguage? Language => Resolved(out var code) && code is not null ? PostLanguageName.Of(code) : null;
+
+    /// <summary>
+    ///     Whether the list of languages under Lang is open, which the window says as it opens and closes it — so that
+    ///     the status row can offer the list's keys while it is (#340).
+    /// </summary>
+    public bool OfferingLanguages { get; private set; }
+
+    /// <summary>
+    ///     The languages Lang's list offers for what the field holds: those matching what is being typed, or every one
+    ///     where the field is empty or already holds a language whole — a click asking for the list is not a search.
+    /// </summary>
+    public IReadOnlyList<PostLanguage> LanguagesOffered =>
+        LanguageField.Trim().Length == 0 || HoldsALanguageWhole
+            ? PostLanguageName.All
+            : PostLanguageName.Matching(LanguageField);
+
+    /// <summary>Whether Lang holds a language exactly as <see cref="Spoken" /> writes it, as picking one leaves it.</summary>
+    private bool HoldsALanguageWhole => Language is { } language && LanguageField == Spoken(language);
+
+    /// <summary>
     ///     The fields the typing walks, in the order the arrows walk them (ADR-0024, #337): the headers that take typing,
     ///     top to bottom as drawn, then the post under them. A header that comes to take typing is put here and joins
     ///     the walk, with no key rule of its own.
     /// </summary>
-    private static readonly ComposeField[] Fields = [ComposeField.To, ComposeField.Warning, ComposeField.Post];
+    private static readonly ComposeField[] Fields =
+        [ComposeField.To, ComposeField.Lang, ComposeField.Warning, ComposeField.Post];
 
     /// <summary>
     ///     Which field what is typed is going into. Every field is on screen at once and the typing is in one of them,
@@ -223,6 +290,12 @@ public sealed class ComposeScreen : Screen
     ///     what goes there while it is in the field.
     /// </summary>
     public string WarningHint => WritingTheWarning ? WarningBeingWritten : NoWarningWritten;
+
+    /// <summary>
+    ///     What Lang says, dimly, while it is empty: that the instance decides while the typing is elsewhere, and what
+    ///     goes there while it is in Lang (#340).
+    /// </summary>
+    public string LanguageHint => Typing == ComposeField.Lang ? LanguageBeingTyped : NoLanguage;
 
     /// <inheritdoc />
     public override bool HoldsADraft => true;
@@ -280,6 +353,9 @@ public sealed class ComposeScreen : Screen
     /// </remarks>
     protected override IReadOnlyList<KeyHint> OwnKeys =>
     [
+        .. Typing == ComposeField.Lang && OfferingLanguages
+            ? [new KeyHint("↑↓", "pick"), new KeyHint("tab", "choose"), new KeyHint("esc", "close")]
+            : Array.Empty<KeyHint>(),
         .. Typing == ComposeField.To ? [new KeyHint("←→", "choose")] : Array.Empty<KeyHint>(),
         .. OnAHeader ? [new KeyHint("↑↓", "field")] : Array.Empty<KeyHint>(),
         new("ctrl-s", Purpose == ComposeFor.Edit ? "save" : "send"),
@@ -299,6 +375,55 @@ public sealed class ComposeScreen : Screen
     ///     (#320). The field is the author's to type into; what goes out is still this screen's to say.
     /// </summary>
     public void RewriteWarning(string written) => Warning = written;
+
+    /// <summary>
+    ///     Lang's field changed: what it holds now, learned as the warning's is (#340). Whether that is a language is
+    ///     asked at send.
+    /// </summary>
+    public void RewriteLanguage(string written) => LanguageField = written;
+
+    /// <summary>A language picked off Lang's list: the field says it as <see cref="Spoken" /> writes it.</summary>
+    public void PickLanguage(PostLanguage language) => LanguageField = Spoken(language);
+
+    /// <summary>The list of languages under Lang opened or closed, which the status row follows.</summary>
+    public void OfferLanguages(bool open) => OfferingLanguages = open;
+
+    /// <summary>A language as Lang and its list write it: its code, then its own name — <c>fr  Français</c>.</summary>
+    public static string Spoken(PostLanguage language) => $"{language.Code}{CodeGap}{language.OwnName}";
+
+    /// <summary>
+    ///     What Lang's field stands for: nothing, where it is empty; a language, where it holds one as
+    ///     <see cref="Spoken" /> writes it or as <see cref="PostLanguageName.Parse" /> reads a code or a name; or the
+    ///     code it opened on. Anything else is not a language, and this says so.
+    /// </summary>
+    private bool Resolved(out string? code)
+    {
+        var held = LanguageField.Trim();
+
+        code = null;
+
+        if (held.Length == 0)
+        {
+            return true;
+        }
+
+        if (_startingLanguage is { } opened && string.Equals(held, opened, StringComparison.OrdinalIgnoreCase))
+        {
+            code = opened;
+
+            return true;
+        }
+
+        var language = PostLanguageName.Parse(held)
+                       ?? (PostLanguageName.Of(held.Split(' ')[0]) is { } written
+                           && string.Equals(Spoken(written), held, StringComparison.Ordinal)
+                               ? written
+                               : null);
+
+        code = language?.Code;
+
+        return language is not null;
+    }
 
     /// <summary><c>ctrl-w</c>: hands the typing to the warning, or hands it back to the post.</summary>
     public void WriteTheWarning() => Typing = WritingTheWarning ? ComposeField.Post : ComposeField.Warning;
@@ -454,6 +579,12 @@ public sealed class ComposeScreen : Screen
     public Rectangle ToAt(Size viewport) => Laid(viewport.Width, viewport.Height).To;
 
     /// <summary>
+    ///     Where Lang's value goes inside the same viewport, for the field laid over it (#340) — nowhere where a short
+    ///     terminal has given its row up.
+    /// </summary>
+    public Rectangle LangAt(Size viewport) => Laid(viewport.Width, viewport.Height).Lang;
+
+    /// <summary>
     ///     To's value as it is drawn <paramref name="room" /> columns wide — what the row laid over it paints, so that
     ///     row and the one a test reads off <see cref="Lines" /> are the same spans.
     /// </summary>
@@ -464,8 +595,9 @@ public sealed class ComposeScreen : Screen
     ///     and where the editor sits among them (#317, variant A of the prototype).
     /// </summary>
     /// <remarks>
-    ///     A blank; the headers — From, To, the reply header and its quote on a reply, the warning; a hairline; a blank;
-    ///     the editor; a hairline; the row the count sits on. Two columns of padding either side of all of it.
+    ///     A blank; the headers — From, To, Lang, the reply header and its quote on a reply, the warning; a hairline; a
+    ///     blank; the editor; a hairline; the row the count sits on. Two columns of padding either side of all of it.
+    ///     Lang gives way with From, being lower on the screen just before it (#340).
     ///     <para>
     ///         Never so far down that there is no editor left. ADR-0015 priced the editor's share of a 24-row
     ///         terminal at more than what sits above it, but a terminal can be any size, and an editor that starts
@@ -476,19 +608,23 @@ public sealed class ComposeScreen : Screen
     ///         Where nobody says how tall the room is, it is as tall as the rows and the editor's least want.
     ///     </para>
     /// </remarks>
-    private (IReadOnlyList<Line> Rows, Rectangle Editor, Rectangle Warning, Rectangle To) Laid(int width, int? height)
+    private (IReadOnlyList<Line> Rows, Rectangle Editor, Rectangle Warning, Rectangle To, Rectangle Lang) Laid(
+        int width,
+        int? height)
     {
         var inner = Math.Max(0, width - (Pad * 2));
         var valueWidth = Math.Max(0, inner - LabelWidth - LabelGap);
         var hairline = Line.Of(Gap(Pad), new Span(new string('─', inner), Role.PanelBorder));
 
         var to = new Row(Header("To", Role.Muted, ToValue(valueWidth)), Keep.Always);
+        var lang = new Row(Header("Lang", Role.Muted, LangValue(valueWidth)), Keep.From);
 
         var above = new List<Row>
         {
             new(Line.Blank, Keep.TopBlank),
             new(Header("From", Role.Muted, From(valueWidth)), Keep.From),
             to,
+            lang,
         };
 
         if (Purpose == ComposeFor.Reply && About is { } answered)
@@ -546,16 +682,11 @@ public sealed class ComposeScreen : Screen
         return (
             rows,
             new Rectangle(Math.Min(Pad, width), top, inner, editor),
-            new Rectangle(
-                Math.Min(Pad + LabelWidth + LabelGap, width),
-                above.IndexOf(warning),
-                valueWidth,
-                1),
-            new Rectangle(
-                Math.Min(Pad + LabelWidth + LabelGap, width),
-                above.IndexOf(to),
-                valueWidth,
-                1));
+            Value(above.IndexOf(warning)),
+            Value(above.IndexOf(to)),
+            above.Contains(lang) ? Value(above.IndexOf(lang)) : Rectangle.Empty);
+
+        Rectangle Value(int row) => new(Math.Min(Pad + LabelWidth + LabelGap, width), row, valueWidth, 1);
     }
 
     /// <summary>
@@ -623,6 +754,32 @@ public sealed class ComposeScreen : Screen
         ];
 
         return cycle.Sum(span => span.Width) <= room ? cycle : [shown with { Text = TextWrap.Clip(shown.Text, room) }];
+    }
+
+    /// <summary>
+    ///     Lang's value in <paramref name="room" /> columns (#340), painted as the field laid over it shows it so the row
+    ///     reads the same with no terminal behind it: a language's code and, muted, its own name; anything else being
+    ///     typed as it stands; and, empty, a muted hint.
+    /// </summary>
+    private Span[] LangValue(int room)
+    {
+        if (LanguageField.Length == 0)
+        {
+            return [new Span(TextWrap.Clip(LanguageHint, room), Role.Muted)];
+        }
+
+        if (HoldsALanguageWhole && Language is { } language)
+        {
+            var code = TextWrap.Clip(language.Code, room);
+
+            return
+            [
+                new Span(code, Role.Body),
+                new Span(TextWrap.Clip($"{CodeGap}{language.OwnName}", room - Glyphs.Columns(code)), Role.Muted),
+            ];
+        }
+
+        return [new Span(TextWrap.Clip(LanguageField, room), Role.Body)];
     }
 
     private string Bubble(PostVisibility visibility) => visibility == Visibility ? "●" : "○";
@@ -695,6 +852,7 @@ public sealed class ComposeScreen : Screen
         InReplyTo = Purpose == ComposeFor.Reply ? About?.Id : null,
         Visibility = Visibility,
         VisibilityChosen = Visibility != _startingVisibility,
+        Language = Resolved(out var code) ? code : null,
     };
 
     /// <summary>The change this screen saves to the post it was opened on: its text, and the warning over it.</summary>
@@ -710,7 +868,16 @@ public sealed class ComposeScreen : Screen
     ///         the body already carries, the editor being pre-filled from the same post.
     ///     </para>
     /// </remarks>
-    private PostEdit Changed() => new() { Text = Text, ContentWarning = Warning };
+    /// <remarks>
+    ///     The language the same way (#340): whatever Lang holds, always — an empty one as an empty code, which is
+    ///     <see cref="PostEdit.Language" />'s "clear it".
+    /// </remarks>
+    private PostEdit Changed() => new()
+    {
+        Text = Text,
+        ContentWarning = Warning,
+        Language = Resolved(out var code) ? code ?? string.Empty : null,
+    };
 
     /// <summary>
     ///     The warning header: what this post is going behind, under the mark a warned post wears in the feed

@@ -43,19 +43,23 @@ internal sealed class PickList<T>
     /// <param name="columns">How many columns what a thing says takes, which is what the list is sized to.</param>
     /// <param name="picked">What picking a thing does — by key or by click.</param>
     /// <param name="closed">What closing the list without picking does — by <c>esc</c> or by a click elsewhere.</param>
+    /// <param name="picks">What <c>tab</c> is said to do along the list's bottom edge.</param>
     public PickList(
         ITheme theme,
         string id,
         Func<T, bool, IEnumerable<Span>> row,
         Func<T, int> columns,
         Action<T> picked,
-        Action closed)
+        Action closed,
+        string picks = "insert")
     {
         _columns = columns;
         _picked = picked;
         _closed = closed;
 
-        View = new PaintedView(theme, (width, height) => PickLines.Rows(_things, _at, Scrolled(height), height, width, row))
+        View = new PaintedView(
+            theme,
+            (width, height) => PickLines.Rows(_things, _at, Scrolled(height), height, width, row, picks))
         {
             Id = id,
             CanFocus = false,
@@ -74,15 +78,16 @@ internal sealed class PickList<T>
     /// <summary>
     ///     Puts <paramref name="things" /> on offer, opening the list on them or, where there are none, closing it.
     ///     <paramref name="keepingThePick" /> keeps the pick where it was, as when more of the same arrive; otherwise
-    ///     it goes back to the first.
+    ///     it goes back to <paramref name="picking" />, the first unless said otherwise — as a list opened on what its
+    ///     field already holds opens picked on it.
     /// </summary>
-    public void Offer(IReadOnlyList<T> things, bool keepingThePick)
+    public void Offer(IReadOnlyList<T> things, bool keepingThePick, int picking = 0)
     {
         _things = things;
 
         if (!keepingThePick || things.Count == 0)
         {
-            _at = 0;
+            _at = picking;
             _top = 0;
         }
 

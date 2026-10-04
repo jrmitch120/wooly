@@ -25,10 +25,14 @@ public static class PickLines
     /// </summary>
     private const int EdgeDressing = 3;
 
-    private static readonly Span[] Keys =
+    /// <summary>
+    ///     The list's keys along its bottom edge, <c>tab</c> named for what picking does in the field the list is under:
+    ///     <c>insert</c> a mention, <c>choose</c> a language (#340).
+    /// </summary>
+    private static Span[] Keys(string picks) =>
     [
         new(" ↑↓", Role.Key), new(" pick  ", Role.Muted),
-        new("tab", Role.Key), new(" insert  ", Role.Muted),
+        new("tab", Role.Key), new($" {picks}  ", Role.Muted),
         new("esc", Role.Key), new(" close ", Role.Muted),
     ];
 
@@ -45,14 +49,17 @@ public static class PickLines
     ///     along the bottom edge.
     /// </summary>
     /// <param name="row">What a thing says between the mark and the box's side, given whether it is the picked one.</param>
+    /// <param name="picks">What <c>tab</c> is said to do along the bottom edge.</param>
     public static IReadOnlyList<Line> Rows<T>(
         IReadOnlyList<T> things,
         int picked,
         int top,
         int height,
         int width,
-        Func<T, bool, IEnumerable<Span>> row)
+        Func<T, bool, IEnumerable<Span>> row,
+        string picks = "insert")
     {
+        var keys = Keys(picks);
         var inside = Math.Max(0, width - 2);
         var rows = new List<Line> { Line.Of($"╭{new string('─', inside)}╮", Role.PanelBorder) };
         var shown = Math.Max(0, height - Edges);
@@ -62,15 +69,15 @@ public static class PickLines
             rows.Add(Row(row(things[at], at == picked), at == picked, inside).PartOf(at));
         }
 
-        var keys = Keys.Sum(span => span.Width);
+        var columns = keys.Sum(span => span.Width);
 
         rows.Add(
-            keys + EdgeDressing > inside
+            columns + EdgeDressing > inside
                 ? Line.Of($"╰{new string('─', inside)}╯", Role.PanelBorder)
                 : Line.Of(
                 [
-                    new Span($"╰{new string('─', inside - keys - 1)}", Role.PanelBorder),
-                    .. Keys,
+                    new Span($"╰{new string('─', inside - columns - 1)}", Role.PanelBorder),
+                    .. keys,
                     new Span("─╯", Role.PanelBorder),
                 ]));
 

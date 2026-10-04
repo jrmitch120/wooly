@@ -36,8 +36,8 @@ public class ShellComposeLayoutTests
 
     /// <summary>
     ///     The editor starts below what is being answered rather than on top of it, and below the headers round it
-    ///     (#317): a blank, From, To (#338), the reply header and the one row "Hello world" wraps to, the warning (#123),
-    ///     a hairline and a blank — eight rows, under the panel's top edge.
+    ///     (#317): a blank, From, To (#338), Lang (#340), the reply header and the one row "Hello world" wraps to, the
+    ///     warning (#123), a hairline and a blank — nine rows, under the panel's top edge.
     /// </summary>
     [Fact]
     public async Task Reply_StartsTheEditorBelowWhatIsBeingAnsweredAndTheWarningField()
@@ -48,14 +48,14 @@ public class ShellComposeLayoutTests
         {
             var rows = compose.Lines(new Drawing(ContentWidth, AShell.Now)).Select(line => line.Text).ToList();
 
-            Assert.Equal("        │ Hello world", rows[4]);
-            Assert.Equal(NoWarning, rows[5]);
-            Assert.Equal(9, editor.Frame.Y);
+            Assert.Equal("        │ Hello world", rows[5]);
+            Assert.Equal(NoWarning, rows[6]);
+            Assert.Equal(10, editor.Frame.Y);
         }
     }
 
     /// <summary>
-    ///     And a post with no reply behind it starts six rows down: a blank, From, To (#338), the warning, which both of
+    ///     And a post with no reply behind it starts seven rows down: a blank, From, To (#338), Lang (#340), the warning, which both of
     ///     the composes that publish a post carry (#139), a hairline and a blank (#317).
     /// </summary>
     [Fact]
@@ -68,7 +68,7 @@ public class ShellComposeLayoutTests
             shell.Compose();
             window.Layout();
 
-            Assert.Equal(7, Editor(window).Frame.Y);
+            Assert.Equal(8, Editor(window).Frame.Y);
         }
     }
 
@@ -99,7 +99,7 @@ public class ShellComposeLayoutTests
 
             Assert.Equal(ComposeFor.Edit, compose.Purpose);
             Assert.Equal(string.Empty, rows[0].Text);
-            Assert.Equal(NoWarning, rows[3].Text);
+            Assert.Equal(NoWarning, rows[4].Text);
             Assert.Equal(composing, Editor(window).Frame.Y);
         }
     }
@@ -156,7 +156,7 @@ public class ShellComposeLayoutTests
             }
 
             Assert.Null(content.Reclaimable);
-            Assert.Equal(9, editor.Frame.Y);
+            Assert.Equal(10, editor.Frame.Y);
         }
     }
 
@@ -179,7 +179,7 @@ public class ShellComposeLayoutTests
         opened.Reply();
 
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
-        var quoted = compose.Lines(new Drawing(ContentWidth, AShell.Now)).Skip(3).Take(5).ToList();
+        var quoted = compose.Lines(new Drawing(ContentWidth, AShell.Now)).Skip(4).Take(5).ToList();
 
         Assert.Equal(
             [
@@ -207,9 +207,10 @@ public class ShellComposeLayoutTests
 
             Assert.Equal(string.Empty, lines[0].Text);
             Assert.Equal(ComposeRows.ToPublic, lines[2].Text);
-            Assert.Equal("     ↳  answering @ben@hachyderm.io", lines[3].Text);
-            Assert.Equal("        │ Hello world", lines[4].Text);
-            Assert.Equal(NoWarning, lines[5].Text);
+            Assert.Equal(ComposeRows.NoLanguage, lines[3].Text);
+            Assert.Equal("     ↳  answering @ben@hachyderm.io", lines[4].Text);
+            Assert.Equal("        │ Hello world", lines[5].Text);
+            Assert.Equal(NoWarning, lines[6].Text);
         }
     }
 
@@ -330,10 +331,10 @@ public class ShellComposeLayoutTests
     ///     the two columns of padding either side, and down to the foot's hairline and count row (#317).
     /// </summary>
     [Theory]
-    [InlineData(ComposeFor.Post, 60, 17, 6)]
-    [InlineData(ComposeFor.Reply, 60, 17, 8)]
-    [InlineData(ComposeFor.Edit, 60, 17, 6)]
-    [InlineData(ComposeFor.Reply, 40, 30, 8)]
+    [InlineData(ComposeFor.Post, 60, 17, 7)]
+    [InlineData(ComposeFor.Reply, 60, 17, 9)]
+    [InlineData(ComposeFor.Edit, 60, 17, 7)]
+    [InlineData(ComposeFor.Reply, 40, 30, 9)]
     public async Task EditorAt_SitsUnderWhatIsAboveItAndRunsToTheFoot(ComposeFor opening, int width, int height, int top)
     {
         var (window, shell) = await Opened(height: 20, post: APost.With(id: "220", account: "jeff@mastodon.social"));
