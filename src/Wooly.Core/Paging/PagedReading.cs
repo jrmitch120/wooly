@@ -36,6 +36,10 @@ internal static class PagedReading
     ///     asking for the caller's whole limit and searching afterwards would spend every page's worth of calls to
     ///     find a thing on the first page. Where null, the collection runs to the limit or to the end of the list.
     /// </param>
+    /// <param name="arrived">
+    ///     Handed each page as it arrives, before the next is asked for, where a caller has a use for the first of a
+    ///     long list before the last of it is in.
+    /// </param>
     /// <returns>
     ///     What arrived, and the rate limit that stopped the rest if one did. Nothing waits here — ADR-0006 leaves that
     ///     choice to whichever front end is reading.
@@ -47,7 +51,8 @@ internal static class PagedReading
         Func<TWire, TItem> asItem,
         Func<TWire, string>? idOf,
         CancellationToken cancellationToken,
-        Func<TItem, bool>? stopWhen = null)
+        Func<TItem, bool>? stopWhen = null,
+        Action<IReadOnlyList<TItem>>? arrived = null)
     {
         var items = new List<TItem>();
         string? nextPage = null;
@@ -71,9 +76,10 @@ internal static class PagedReading
                 return Fetch<TItem>.StoppedShort(items, rateLimit);
             }
 
-            var arrived = page.Select(asItem).ToList();
+            var read = page.Select(asItem).ToList();
 
-            items.AddRange(arrived);
+            items.AddRange(read);
+            arrived?.Invoke(read);
 
             // Nothing came back, so asking again cannot do better however much the instance says is left.
             if (page.Count == 0)
@@ -84,7 +90,7 @@ internal static class PagedReading
             // What the caller was looking for has turned up, so there is nothing further to ask for. The rest of this
             // page comes back with it rather than being trimmed away: it arrived, and which of a page's items a caller
             // wanted is the caller's business.
-            if (stopWhen is not null && arrived.Any(stopWhen))
+            if (stopWhen is not null && read.Any(stopWhen))
             {
                 break;
             }

@@ -92,7 +92,8 @@ public sealed class AccountRelationships(IMastodonClientFactory clientFactory, I
         FollowSide side,
         NamedAccount? account,
         int limit,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Action<IReadOnlyList<Account>>? arrived = null)
     {
         var client = clientFactory.CreateClient(profile.Instance, profile.AccessToken);
 
@@ -107,7 +108,7 @@ public sealed class AccountRelationships(IMastodonClientFactory clientFactory, I
             options => client.GetAccountFollowers(accountId, options),
             options => client.GetAccountFollowing(accountId, options));
 
-        return await Collect(readPage, profile.Instance, limit, cancellationToken);
+        return await Collect(readPage, profile.Instance, limit, cancellationToken, arrived);
     }
 
     /// <inheritdoc />
@@ -274,7 +275,8 @@ public sealed class AccountRelationships(IMastodonClientFactory clientFactory, I
         Func<ArrayOptions, Task<MastodonList<WireAccount>>> readPage,
         string instance,
         int limit,
-        CancellationToken cancellationToken) =>
+        CancellationToken cancellationToken,
+        Action<IReadOnlyList<Account>>? arrived = null) =>
         PagedReading.Collect(
             limit,
             PageSize,
@@ -285,7 +287,8 @@ public sealed class AccountRelationships(IMastodonClientFactory clientFactory, I
             // and an account's id is a value in another id space altogether. An instance that names no next page has
             // ended the list, and guessing one would silently skip or repeat accounts.
             idOf: null,
-            cancellationToken);
+            cancellationToken,
+            arrived: arrived);
 
     /// <summary>The id of the account the profile signs in as, which is whose lists a user who named nobody meant.</summary>
     /// <remarks>

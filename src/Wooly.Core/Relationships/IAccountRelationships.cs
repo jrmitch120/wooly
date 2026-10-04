@@ -63,6 +63,10 @@ public interface IAccountRelationships
     ///     rather than a lookup worth avoiding.
     /// </param>
     /// <param name="limit">How many accounts to collect, across as many pages as it takes.</param>
+    /// <param name="arrived">
+    ///     Handed each page as it arrives, before the next is asked for — where a reader of a long list in the
+    ///     background has a use for the first of it before the last is in (#321).
+    /// </param>
     /// <exception cref="Errors.UnknownAccountException">
     ///     The instance knows no account by that address — only reachable where the account named carries no id, an
     ///     account already resolved being one the instance has already named.
@@ -72,7 +76,8 @@ public interface IAccountRelationships
         FollowSide side,
         NamedAccount? account,
         int limit,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        Action<IReadOnlyList<Account>>? arrived = null);
 
     /// <summary>
     ///     Where the profile stands with each of <paramref name="accounts" />, all in the one call the endpoint takes

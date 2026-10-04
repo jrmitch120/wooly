@@ -237,9 +237,23 @@ public sealed class Shell
     /// <summary>
     ///     The people a post can mention who best match <paramref name="query" />, what follows the <c>@</c> of the
     ///     word being typed — best first, at most <see cref="PeopleToMention.Most" />, and asking nothing of the
-    ///     instance (#318). Nobody while nobody is being acted as.
+    ///     instance while it answers (#318). The first ask of a session starts reading the profile's follows in the
+    ///     background, which join the answers as they arrive (#321). Nobody while nobody is being acted as.
     /// </summary>
-    public IReadOnlyList<Mentionable> PeopleMatching(string query) => _acting?.People.Matching(query) ?? [];
+    public IReadOnlyList<Mentionable> PeopleMatching(string query)
+    {
+        if (_acting is not { } acting)
+        {
+            return [];
+        }
+
+        if (acting.People.FirstAsked())
+        {
+            _ = ReadFollows(acting);
+        }
+
+        return acting.People.Matching(query);
+    }
 
     /// <summary>What mentioning <paramref name="person" /> writes into a post, as the profile acted as writes it.</summary>
     public string MentionOf(Mentionable person) => _acting?.People.MentionOf(person) ?? $"@{person.Address}";
@@ -1650,6 +1664,47 @@ public sealed class Shell
             });
     }
 
+    /// <summary>
+    ///     Reads the accounts <paramref name="acting" />'s profile follows into the people a post can mention (#321), a
+    ///     page at a time, each offered as it lands so that an open list redraws with it.
+    /// </summary>
+    /// <remarks>
+    ///     Not asked through the enquiry, for the reason <see cref="LimitsByInstance" /> gives: it would count a rate
+    ///     limit down over the post and say a failure on the status row, and a suggestion is worth neither. A read the
+    ///     rate limit stopped keeps the pages that came, and one refused keeps the people already known — silently, and
+    ///     not asked again in the session. Nothing lands after a switch of profile.
+    /// </remarks>
+    private async Task ReadFollows(Acting acting)
+    {
+        var abandoned = _enquiry.Abandoned;
+
+        try
+        {
+            await _ports.Accounts.List(
+                acting.Profile,
+                FollowSide.Following,
+                account: null,
+                PeopleToMention.FollowsRead,
+                abandoned,
+                arrived: page => Apply(() =>
+                {
+                    if (!abandoned.IsCancellationRequested)
+                    {
+                        acting.People.Followed(page);
+                        Changed?.Invoke();
+                    }
+                }));
+        }
+        catch (OperationCanceledException) when (abandoned.IsCancellationRequested)
+        {
+            // Called off by a switch, and nobody left to tell.
+        }
+        catch (WoolyException)
+        {
+            // Refused, which the reads that fill the screen already say with the key that fixes it.
+        }
+    }
+
     /// <summary>Reads the counts the rail carries, none of which is worth failing the shell over.</summary>
     /// <param name="profile">Who the counts are read as.</param>
     /// <param name="abandoned">
@@ -1960,6 +2015,11 @@ public sealed class Shell
     /// </remarks>
     private void Heard(Change change)
     {
+        if (change is Change.Tied(var tied))
+        {
+            _acting?.People.Tied(tied);
+        }
+
         for (var at = _stack.Count - 1; at >= 0; at--)
         {
             if (_stack[at].Heard(change) && _stack.Count > 1)
