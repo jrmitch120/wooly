@@ -138,6 +138,15 @@ Something an instance tells an account happened to it: somebody mentioned it, fo
 its posts. This project names those four and passes any other kind on under the instance's own word for it (ADR-0010).
 A notification is distinct from the post it is about — it has an id of its own, which is what dismisses it.
 
+**Visibility**:
+Who a post reaches, one of four from widest to narrowest: public, unlisted, followers and direct. Fixed when the post
+is published — an edit cannot change it — and a reply is never published wider than the post it answers (ADR-0013).
+Mastodon's wire word for followers is `private`, which reads as "only me" to anybody who has not learned otherwise, so
+this project says followers. The **audience** is the mark that says a post's visibility where colour cannot
+(`○ ◌ ● ✉`), not a second word for the visibility itself.
+_Avoid_: private (outside the wire layer), followers-only, privacy, scope, audience (for the visibility rather than its
+mark)
+
 **Direct message**:
 A post whose visibility is direct, which Mastodon delivers only to the accounts its text mentions. Not a separate kind
 of thing from a post and not composed by a separate path — `dm send` is post authoring with the audience settled and the
