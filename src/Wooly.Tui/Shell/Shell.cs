@@ -480,6 +480,8 @@ public sealed class Shell
         Verb.Refresh => Ran(Refresh),
         Verb.MarkRead => Ran(MarkRead),
         Verb.WriteWarning => Ran(WriteWarning),
+        Verb.PreviousField => WalkField(-1),
+        Verb.NextField => WalkField(1),
 
         // Nothing, and the terminal's own — which the window has already taken, and which no screen answers either.
         Verb.None => false,
@@ -1122,6 +1124,24 @@ public sealed class Shell
         compose.WriteTheWarning();
         Redrafted();
         Changed?.Invoke();
+    }
+
+    /// <summary>
+    ///     <c>↑</c> or <c>↓</c> where a compose screen's field leaves it: moves the typing to the field above or below
+    ///     (ADR-0024, #337). Nothing anywhere else.
+    /// </summary>
+    /// <returns>Whether the typing moved, which it does not off the top header or below the post.</returns>
+    public bool WalkField(int by)
+    {
+        if (Screen is not ComposeScreen compose || !compose.Walk(by))
+        {
+            return false;
+        }
+
+        Redrafted();
+        Changed?.Invoke();
+
+        return true;
     }
 
     /// <summary>
