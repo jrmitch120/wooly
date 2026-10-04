@@ -52,7 +52,7 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
     public override IEnumerable<Mentionable> Seen =>
         Conversations.SelectMany(conversation => (IEnumerable<Mentionable>)
         [
-            .. conversation.With.Select(with => new Mentionable(with, string.Empty)),
+            .. conversation.With.Select(Mentionable.Addressed),
             .. conversation.Latest is { } latest ? Mentionable.In(latest) : [],
         ]);
 

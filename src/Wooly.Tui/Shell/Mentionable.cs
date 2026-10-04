@@ -16,6 +16,9 @@ public sealed partial record Mentionable(string Address, string Name)
     /// <summary>Somebody named <paramref name="name" />, the name's shortcodes taken out on the way in.</summary>
     public static Mentionable Of(string address, string name) => new(address, Plain(name));
 
+    /// <summary>Somebody known only by <paramref name="address" />, as the accounts a post mentions are.</summary>
+    public static Mentionable Addressed(string address) => new(address, string.Empty);
+
     /// <summary>Who an account is.</summary>
     public static Mentionable Of(Account account) => Of(account.Address, account.Author);
 
@@ -37,7 +40,7 @@ public sealed partial record Mentionable(string Address, string Name)
 
         foreach (var mentioned in post.Mentions)
         {
-            yield return new Mentionable(mentioned, string.Empty);
+            yield return Addressed(mentioned);
         }
     }
 

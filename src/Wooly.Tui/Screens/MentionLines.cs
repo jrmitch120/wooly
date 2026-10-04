@@ -13,6 +13,18 @@ public static class MentionLines
     /// <summary>The narrowest the list is drawn, where the editor is wide enough to hold it.</summary>
     public const int LeastWidth = 40;
 
+    /// <summary>The columns a row spends on anything but the person: the box's two sides, the mark and a space.</summary>
+    private const int RowDressing = 4;
+
+    /// <summary>The columns between a name and the handle after it.</summary>
+    private const string NameGap = "  ";
+
+    /// <summary>
+    ///     The columns the bottom edge keeps for its corners and the rule leading into the keys, without which the keys
+    ///     are left off rather than squeezed.
+    /// </summary>
+    private const int EdgeDressing = 3;
+
     private static readonly Span[] Keys =
     [
         new(" ↑↓", Role.Key), new(" pick  ", Role.Muted),
@@ -22,10 +34,7 @@ public static class MentionLines
 
     /// <summary>How wide the list wants to be for <paramref name="people" />: what its widest row needs, or 40.</summary>
     public static int Width(IReadOnlyList<Mentionable> people) =>
-        Math.Max(
-            LeastWidth,
-            people.Select(person => Glyphs.Columns(person.Name) + Glyphs.Columns(person.Address) + 1).DefaultIfEmpty().Max()
-            + 7);
+        Math.Max(LeastWidth, people.Select(Columns).DefaultIfEmpty().Max() + RowDressing);
 
     /// <summary>
     ///     The list <paramref name="width" /> wide: the person at <paramref name="picked" /> marked <c>▌</c> and lifted,
@@ -44,7 +53,7 @@ public static class MentionLines
         var keys = Keys.Sum(span => span.Width);
 
         rows.Add(
-            keys + 3 > inside
+            keys + EdgeDressing > inside
                 ? Line.Of($"╰{new string('─', inside)}╯", Role.PanelBorder)
                 : Line.Of(
                 [
@@ -67,9 +76,9 @@ public static class MentionLines
             new(picked ? "▌" : " ", picked ? Role.Selection : Role.Body),
             new(" ", Role.Body),
             .. Lit(person.Name, NameMatch(person.Name, query), query.Length, name),
-            new(person.Name.Length > 0 ? "  " : string.Empty, Role.Body),
+            new(person.Name.Length > 0 ? NameGap : string.Empty, Role.Body),
             new("@", handle),
-            .. Lit(person.Address, HandleMatch(person.Address, query), query.Length, handle),
+            .. Lit(person.Address, AddressMatch(person.Address, query), query.Length, handle),
         ];
 
         var fitted = Clipped(spans, inside);
@@ -105,8 +114,12 @@ public static class MentionLines
         return -1;
     }
 
+    /// <summary>What a person's name, the gap and their <c>@</c>-handle take, before the row's dressing.</summary>
+    private static int Columns(Mentionable person) =>
+        (person.Name.Length > 0 ? Glyphs.Columns(person.Name) + NameGap.Length : 0) + 1 + Glyphs.Columns(person.Address);
+
     /// <summary>Where in an address <paramref name="query" /> matched, its start first.</summary>
-    private static int HandleMatch(string address, string query) =>
+    private static int AddressMatch(string address, string query) =>
         query.Length == 0 ? -1 : address.IndexOf(query, StringComparison.OrdinalIgnoreCase);
 
     /// <summary><paramref name="text" /> in <paramref name="role" />, with the match at <paramref name="at" /> as a mention.</summary>

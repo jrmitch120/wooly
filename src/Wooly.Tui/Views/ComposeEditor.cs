@@ -79,11 +79,24 @@ internal sealed class ComposeEditor(ITheme theme, string placeholder, Action sen
     }
 
     /// <summary>
-    ///     Puts <paramref name="text" /> in at the caret as one edit — the way a paste goes in, rather than as the
-    ///     letter-by-letter typing <see cref="TextView.InsertText(string)" /> stands in for — so that one undo takes the
-    ///     whole of it back out.
+    ///     Where the caret is, in the coordinates the editor's own frame is laid in — on the row the text wrapped it
+    ///     to, which only the editor knows.
     /// </summary>
-    public void InsertWhole(string text) => OnPaste(text);
+    public System.Drawing.Point Caret =>
+        new(Frame.X + CurrentColumn - Viewport.X, Frame.Y + CurrentRow - Viewport.Y);
+
+    /// <summary>
+    ///     Replaces the <paramref name="length" /> characters before the caret with <paramref name="text" />, as one
+    ///     edit — selected and put in the way a paste goes in, rather than as the letter-by-letter typing
+    ///     <see cref="TextView.InsertText(string)" /> stands in for — so that one undo puts back what was there.
+    /// </summary>
+    public void ReplaceBeforeCaret(int length, string text)
+    {
+        SelectionStartRow = CurrentRow;
+        SelectionStartColumn = CurrentColumn - length;
+        IsSelecting = true;
+        OnPaste(text);
+    }
 
     protected override bool OnKeyDown(Key key)
     {

@@ -147,7 +147,7 @@ internal sealed class MentionList
 
     /// <summary>
     ///     Replaces the word with <paramref name="person" />'s mention and a space, through the editor's own editing —
-    ///     so the caret lands after it and undo takes it back out.
+    ///     so the caret lands after it and one undo puts the word back.
     /// </summary>
     private void Insert(Mentionable person, MentionWord word)
     {
@@ -155,10 +155,7 @@ internal sealed class MentionList
 
         View.Visible = false;
 
-        _editor.SelectionStartRow = _editor.CurrentRow;
-        _editor.SelectionStartColumn = _editor.CurrentColumn - (word.Query.Length + 1);
-        _editor.IsSelecting = true;
-        _editor.InsertWhole(mention);
+        _editor.ReplaceBeforeCaret(word.Query.Length + 1, mention);
         Follow();
     }
 
@@ -188,9 +185,7 @@ internal sealed class MentionList
     private Point At()
     {
         var size = Size();
-        var caret = new Point(
-            _editor.Frame.X + _editor.CurrentColumn - _editor.Viewport.X,
-            _editor.Frame.Y + _editor.CurrentRow - _editor.Viewport.Y);
+        var caret = _editor.Caret;
 
         var typed = (_open?.Word.Query.Length ?? 0) + 1;
         var x = Math.Clamp(caret.X - typed, _editor.Frame.X, Math.Max(_editor.Frame.X, _editor.Frame.Right - size.Width));

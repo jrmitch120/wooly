@@ -52,7 +52,7 @@ public sealed class ConversationScreen : Screen
 
     /// <inheritdoc />
     public override IEnumerable<Mentionable> Seen =>
-        [.. Conversation.With.Select(with => new Mentionable(with, string.Empty)), .. Mentionable.In(Posts)];
+        [.. Conversation.With.Select(Mentionable.Addressed), .. Mentionable.In(Posts)];
 
     /// <inheritdoc />
     public override Post? Picked => _posts.Out;

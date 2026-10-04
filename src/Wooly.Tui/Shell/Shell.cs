@@ -1967,14 +1967,14 @@ public sealed class Shell
         _acting is { } acting && _profiles.Registry.List().Count >= 2 ? acting.Profile.Instance : null;
 
     /// <summary>
-    ///     Takes the screen at <paramref name="at" /> off the stack, and lets it know (<see cref="Screen.Left" />).
-    /// </summary>
-    /// <summary>
     ///     Takes in everybody <paramref name="screen" /> shows as people a post can mention (#318), as it arrives — at
     ///     no cost, being what was already read. Nothing while nobody is being acted as.
     /// </summary>
     private void Saw(Screen screen) => _acting?.People.Saw(screen.Seen);
 
+    /// <summary>
+    ///     Takes the screen at <paramref name="at" /> off the stack, and lets it know (<see cref="Screen.Left" />).
+    /// </summary>
     private void Leave(int at)
     {
         _stack[at].Left();
