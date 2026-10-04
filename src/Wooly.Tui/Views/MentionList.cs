@@ -24,14 +24,11 @@ internal sealed class MentionList
     private readonly Shell.Shell _shell;
     private readonly ComposeEditor _editor;
 
-    /// <summary>Who matches the word being typed, best first; nobody while the list is closed.</summary>
-    private IReadOnlyList<Mentionable> _people = [];
+    /// <summary>Who matches the word being typed, best first, as a list to pick from; nobody while it is closed.</summary>
+    private readonly PickList<Mentionable> _list;
 
     /// <summary>The word the list is open on, and the line it is on in the text as written.</summary>
     private (int Line, MentionWord Word)? _open;
-
-    /// <summary>Which of <see cref="_people" /> <c>tab</c> or <c>enter</c> would insert.</summary>
-    private int _picked;
 
     /// <summary>
     ///     The caret in the text as written, as the editor last said it was — the one place that knows, since its own
@@ -47,18 +44,18 @@ internal sealed class MentionList
         _shell = shell;
         _editor = editor;
 
-        View = new PaintedView(
+        _list = new PickList<Mentionable>(
             theme,
-            (width, _) => MentionLines.Rows(_people, _picked, _open?.Word.Query ?? string.Empty, width))
-        {
-            Id = Id,
-            X = Pos.Func(_ => At().X, editor),
-            Y = Pos.Func(_ => At().Y, editor),
-            Width = Dim.Func(_ => Size().Width, editor),
-            Height = Dim.Func(_ => Size().Height, editor),
-            CanFocus = false,
-            Visible = false,
-        };
+            Id,
+            (person, picked) => MentionLines.Row(person, picked, _open?.Word.Query ?? string.Empty),
+            MentionLines.Columns,
+            Insert,
+            Dismiss);
+
+        View.X = Pos.Func(_ => At().X, editor);
+        View.Y = Pos.Func(_ => At().Y, editor);
+        View.Width = Dim.Func(_ => Size().Width, editor);
+        View.Height = Dim.Func(_ => Size().Height, editor);
 
         editor.ContentsChanged += (_, _) => Follow();
         editor.UnwrappedCursorPositionChanged += (_, moved) =>
@@ -69,7 +66,7 @@ internal sealed class MentionList
     }
 
     /// <summary>The list as drawn, which the window lays over the editor.</summary>
-    public PaintedView View { get; }
+    public PaintedView View => _list.View;
 
     /// <summary>
     ///     Reads the word the caret is at the end of again, and opens, narrows or closes the list to match — on every
@@ -78,9 +75,9 @@ internal sealed class MentionList
     public void Follow()
     {
         var query = _open?.Word.Query;
+        IReadOnlyList<Mentionable> people = [];
 
         _open = null;
-        _people = [];
 
         if (_editor.Visible && _shell.Screen is ComposeScreen { WritingTheWarning: false } && Caret() is var (line, column, text))
         {
@@ -92,65 +89,46 @@ internal sealed class MentionList
             {
                 _dismissed = null;
                 _open = (line, word);
-                _people = _shell.PeopleMatching(word.Query);
+                people = _shell.PeopleMatching(word.Query);
             }
         }
 
-        if (_open?.Word.Query != query || _people.Count == 0)
-        {
-            _picked = 0;
-        }
-
-        View.Visible = _people.Count > 0;
-        View.SetNeedsLayout();
-        View.SetNeedsDraw();
-        View.SuperView?.SetNeedsDraw();
+        _list.Offer(people, keepingThePick: _open?.Word.Query == query);
     }
 
     /// <summary>
-    ///     First refusal on a key the editor was sent: <c>↑</c>/<c>↓</c> move the pick, <c>tab</c>/<c>enter</c> insert
-    ///     it, <c>esc</c> closes the list — while it is open. Nothing at all while it is closed.
+    ///     First refusal on a key the editor was sent: the list's own keys while it is open (<see cref="PickList{T}.Took" />),
+    ///     nothing at all while it is closed.
     /// </summary>
     /// <returns>Whether the list took the key, which the editor then does not see.</returns>
-    public bool Took(Key key)
+    public bool Took(Key key) => _open is not null && _list.Took(key);
+
+    /// <summary>First refusal on a mouse event anywhere: a click outside the open list closes it, as <c>esc</c> does.</summary>
+    /// <returns>Whether the event was spent on closing the list.</returns>
+    public bool ClosedBy(Mouse mouse) => _list.ClosedBy(mouse);
+
+    /// <summary>Closes the list on the word it is open on, which keeps it closed until the caret leaves the word.</summary>
+    private void Dismiss()
     {
-        if (!View.Visible || _open is not var (line, word))
-        {
-            return false;
-        }
-
-        if (key == Key.CursorDown || key == Key.CursorUp)
-        {
-            _picked = (_picked + (key == Key.CursorDown ? 1 : -1) + _people.Count) % _people.Count;
-            View.SetNeedsDraw();
-
-            return true;
-        }
-
-        if (key == Key.Esc)
+        if (_open is var (line, word))
         {
             _dismissed = (line, word.Start);
-            Follow();
-
-            return true;
         }
 
-        if (key != Key.Tab && key != Key.Enter)
-        {
-            return false;
-        }
-
-        Insert(_people[_picked], word);
-
-        return true;
+        Follow();
     }
 
     /// <summary>
     ///     Replaces the word with <paramref name="person" />'s mention and a space, through the editor's own editing —
     ///     so the caret lands after it and one undo puts the word back.
     /// </summary>
-    private void Insert(Mentionable person, MentionWord word)
+    private void Insert(Mentionable person)
     {
+        if (_open is not var (_, word))
+        {
+            return;
+        }
+
         var mention = $"{_shell.MentionOf(person)} ";
 
         View.Visible = false;
@@ -173,9 +151,16 @@ internal sealed class MentionList
         return (row, Math.Clamp(column, 0, lines[row].Length), lines[row]);
     }
 
-    /// <summary>How big the list is drawn: wide enough for its widest row, never wider than the editor.</summary>
-    private Size Size() =>
-        new(Math.Min(MentionLines.Width(_people), _editor.Frame.Width), _people.Count + 2);
+    /// <summary>
+    ///     How big the list is drawn: wide enough for its widest row, never wider than the editor, and no taller than
+    ///     the more room there is under the caret's row before the editor's foot or over it.
+    /// </summary>
+    private Size Size()
+    {
+        var caret = _editor.Caret.Y;
+
+        return _list.Within(_editor.Frame.Width, Math.Max(_editor.Frame.Bottom - caret - 1, caret));
+    }
 
     /// <summary>
     ///     Where the list sits: on the row under the caret, left-aligned on the word's <c>@</c> — or over the line
