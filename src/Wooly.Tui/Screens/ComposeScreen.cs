@@ -295,7 +295,9 @@ public sealed class ComposeScreen : Screen
                 Keep.Quote)));
         }
 
-        above.Add(new Row(WarningHeader(valueWidth), Keep.Always));
+        var warning = new Row(WarningHeader(valueWidth), Keep.Always);
+
+        above.Add(warning);
         above.Add(new Row(hairline, Keep.HeaderHairline));
         above.Add(new Row(Line.Blank, Keep.BlankUnderHairline));
 
@@ -327,7 +329,7 @@ public sealed class ComposeScreen : Screen
             new Rectangle(Math.Min(Pad, width), top, inner, editor),
             new Rectangle(
                 Math.Min(Pad + LabelWidth + LabelGap, width),
-                above.FindIndex(row => row.Keep == Keep.Always),
+                above.IndexOf(warning),
                 valueWidth,
                 1));
     }

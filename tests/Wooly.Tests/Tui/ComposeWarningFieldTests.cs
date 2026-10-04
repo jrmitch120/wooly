@@ -292,6 +292,59 @@ public class ComposeWarningFieldTests
     }
 
     /// <summary>
+    ///     A selection made with shift and the arrows is drawn in the selection role too, and what is left unselected
+    ///     stays the warning's colour.
+    /// </summary>
+    [Fact]
+    public async Task ASelectionMadeWithShiftIsDrawnInTheSelectionRole()
+    {
+        using var drawn = await Replying();
+
+        drawn.Press(Key.W.WithCtrl);
+        Type(drawn, "one two");
+        drawn.Press(Key.CursorLeft.WithShift);
+        drawn.Press(Key.CursorLeft.WithShift);
+        drawn.Press(Key.CursorLeft.WithShift);
+
+        var at = Field(drawn).FrameToScreen();
+
+        Assert.Equal(Themes.Dark.For(Role.ContentWarning), drawn.Cell(at.Y, at.X));
+        Assert.All(
+            Enumerable.Range(at.X + 4, 3),
+            column => Assert.Equal(Themes.Dark.For(Role.SelectedText), drawn.Cell(at.Y, column)));
+    }
+
+    /// <summary>
+    ///     Every cell of a compose with a warning being written and part of it selected is a role the theme answers,
+    ///     none a colour Terminal.Gui chose for itself.
+    /// </summary>
+    [Theory]
+    [InlineData("dark")]
+    [InlineData("light")]
+    public async Task EveryCellWithTheFieldInUseIsARoleTheThemeAnswers(string name)
+    {
+        var theme = name == "dark" ? Themes.Dark : Themes.Light;
+        var built = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(APost.With(id: "220", account: "ben@hachyderm.io")),
+        };
+
+        using var drawn = await DrawnShell.Of(80, 24, theme, built);
+
+        drawn.Shell.Reply();
+        drawn.Redraw();
+        drawn.Press(Key.W.WithCtrl);
+        Type(drawn, "cw");
+        drawn.Press(Key.CursorLeft.WithShift);
+
+        var answered = Enum.GetValues<Role>()
+                           .SelectMany(role => new[] { theme.For(role), theme.Banded(role) })
+                           .ToHashSet();
+
+        Assert.All(drawn.Cells(), cell => Assert.Contains(cell, answered));
+    }
+
+    /// <summary>
     ///     A compose thrown away while the field had the typing gives it back: the next one opens with the editor
     ///     focused.
     /// </summary>

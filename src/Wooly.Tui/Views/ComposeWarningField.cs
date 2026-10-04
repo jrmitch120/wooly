@@ -49,7 +49,9 @@ internal sealed class ComposeWarningField(
         return true;
     }
 
-    /// <summary>The hint over an empty field, in <see cref="Role.Muted" />, drawn only while there is nothing written.</summary>
+    /// <summary>
+    ///     The hint over an empty field, in <see cref="Role.Muted" />, drawn only while there is nothing written.
+    /// </summary>
     protected override bool OnDrawingContent(DrawContext? context)
     {
         var drawn = base.OnDrawingContent(context);
@@ -89,6 +91,8 @@ internal sealed class ComposeWarningField(
         return base.OnKeyDown(key);
     }
 
-    /// <summary>A right click is <c>esc</c>, which on a draft means nothing (#307), and opens no context menu either.</summary>
+    /// <summary>
+    ///     A right click is <c>esc</c>, which on a draft means nothing (#307), and opens no context menu either.
+    /// </summary>
     protected override bool OnMouseEvent(Mouse mouse) => ShellKeys.Of(mouse) is not null || base.OnMouseEvent(mouse);
 }

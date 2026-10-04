@@ -23,7 +23,8 @@ namespace Wooly.Tui.Views;
 ///     It names exactly one screen type, and never to decide what a key means (#147): a
 ///     <see cref="ComposeScreen" /> is the one screen with widgets of its own laid over the content region — the editor
 ///     and the warning field — so laying them where the screen says they go, which has focus and what text they open
-///     with are this window's questions about its own furniture. Everything else it knows about screens it knows as <c>Screen</c>.
+///     with are this window's questions about its own furniture. Everything else it knows about screens it knows as
+///     <c>Screen</c>.
 /// </remarks>
 internal sealed class ShellWindow : Window
 {
