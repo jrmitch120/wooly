@@ -659,6 +659,44 @@ public class PostAuthorTests : IDisposable
         Assert.Equal("Bearer token-personal", request.Headers.Authorization?.ToString());
     }
 
+    /// <summary>
+    ///     An instance turns a post down — too long for it, most often — and says why. That is something the writer is
+    ///     told, in the instance's own words, rather than something this client falls over on.
+    /// </summary>
+    [Fact]
+    public async Task Publish_ReportsTheInstancesRefusalInItsOwnWords()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Refusal(
+                HttpStatusCode.UnprocessableEntity,
+                "Validation failed: Text character limit of 500 exceeded"));
+
+        var refusal = await Assert.ThrowsAsync<PostRefusedException>(
+            () => NewAuthor(network).Publish(Profile, Draft("Too long"), TestContext.Current.CancellationToken));
+
+        Assert.Contains("character limit of 500 exceeded", refusal.Message);
+    }
+
+    /// <summary>And a change to a post, the same way.</summary>
+    [Fact]
+    public async Task Edit_ReportsTheInstancesRefusalInItsOwnWords()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(StatusJson("110")),
+            ScriptedHttpMessageHandler.Refusal(
+                HttpStatusCode.UnprocessableEntity,
+                "Validation failed: Text character limit of 500 exceeded"));
+
+        var refusal = await Assert.ThrowsAsync<PostRefusedException>(
+            () => NewAuthor(network).Edit(
+                Profile,
+                "110",
+                new PostEdit { Text = "Too long" },
+                TestContext.Current.CancellationToken));
+
+        Assert.Contains("character limit of 500 exceeded", refusal.Message);
+    }
+
     private static PostDraft Draft(string text) => new() { Text = text };
 
     private static ScriptedHttpMessageHandler Answering(string json) =>

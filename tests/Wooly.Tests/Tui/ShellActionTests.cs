@@ -1,3 +1,4 @@
+using Wooly.Core.Errors;
 using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Rendering;
@@ -233,6 +234,35 @@ public class ShellActionTests
 
         // The editor is closed once what was in it has gone out.
         Assert.IsType<FeedScreen>(opened.Screen);
+    }
+
+    /// <summary>
+    ///     A post the instance turns down is said, in the instance's words, over the draft — which stays where it is,
+    ///     every word of it, for the writer to cut down and send again.
+    /// </summary>
+    [Fact]
+    public async Task Send_SaysWhyTheInstanceRefusedThePostAndKeepsTheDraft()
+    {
+        var shell = new AShell
+        {
+            Author = FakePostAuthor.Refusing(
+                new PostRefusedException(new InvalidOperationException("Text character limit of 500 exceeded"))),
+        };
+        var opened = await shell.Opened();
+
+        opened.Compose();
+
+        var compose = Assert.IsType<ComposeScreen>(opened.Screen);
+
+        compose.Text = "Far too long";
+
+        await opened.Send();
+        shell.Host.Drain();
+
+        Assert.Contains("character limit of 500 exceeded", opened.Notice);
+        Assert.True(opened.NoticeIsError);
+        Assert.Same(compose, opened.Screen);
+        Assert.Equal("Far too long", compose.Text);
     }
 
     /// <summary>A reply is a draft that names what it answers, which is what the port already takes.</summary>
