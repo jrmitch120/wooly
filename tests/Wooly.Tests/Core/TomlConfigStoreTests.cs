@@ -232,6 +232,67 @@ public class TomlConfigStoreTests : IDisposable
         Assert.Contains("unlisted", exception.Message);
     }
 
+    [Fact]
+    public void Load_ReadsAbsentDefaultLanguageAsNone()
+    {
+        WriteConfigFile(
+            """
+            [preferences]
+            default_visibility = "public"
+            """);
+
+        Assert.Null(NewStore().Load().Preferences.DefaultLanguage);
+    }
+
+    [Fact]
+    public void Save_ThenLoad_RoundTripsDefaultLanguage()
+    {
+        var store = NewStore();
+
+        store.Save(new WoolyConfig { Preferences = new Preferences { DefaultLanguage = "de" } });
+
+        Assert.Equal("de", store.Load().Preferences.DefaultLanguage);
+        Assert.Contains(
+            "default_language = \"de\"",
+            File.ReadAllText(Path.Combine(_directory.Path, "config.toml")));
+    }
+
+    /// <summary>
+    ///     The same words the <c>--language</c> flag takes, so a hand-written name reads as the code it names — and is
+    ///     written back as that code, the one spelling the file keeps.
+    /// </summary>
+    [Theory]
+    [InlineData("de")]
+    [InlineData("German")]
+    [InlineData("Deutsch")]
+    [InlineData("DE")]
+    public void Load_ReadsADefaultLanguageWrittenByHandAsTheCodeItNames(string written)
+    {
+        WriteConfigFile(
+            $"""
+             [preferences]
+             default_language = "{written}"
+             """);
+
+        Assert.Equal("de", NewStore().Load().Preferences.DefaultLanguage);
+    }
+
+    /// <summary>A typo is refused when the file loads, naming the file, rather than quietly sending no language.</summary>
+    [Fact]
+    public void Load_RefusesADefaultLanguageItDoesNotKnowNamingTheFile()
+    {
+        WriteConfigFile(
+            """
+            [preferences]
+            default_language = "Klingon"
+            """);
+
+        var exception = Assert.Throws<ConfigurationException>(() => NewStore().Load());
+
+        Assert.Contains("Klingon", exception.Message);
+        Assert.Contains("config.toml", exception.Message);
+    }
+
     /// <summary>
     ///     A theme is a table in this same file (ADR-0003, #46). What the colours mean is the TUI's to say; what this
     ///     store owes is the shape — which theme was chosen, and what each one puts against each name it uses.

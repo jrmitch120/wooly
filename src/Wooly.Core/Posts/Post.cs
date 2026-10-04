@@ -46,6 +46,13 @@ public sealed record Post
     /// </summary>
     public required PostVisibility Visibility { get; init; }
 
+    /// <summary>
+    ///     The code of the language the instance recorded the post in, or <see langword="null" /> where it recorded none.
+    ///     Kept as the instance said it rather than checked against <see cref="PostLanguageName" />: a post written
+    ///     elsewhere may carry a code this client does not list, and it is still the post's language.
+    /// </summary>
+    public string? Language { get; init; }
+
     /// <summary>How many accounts have boosted it.</summary>
     public required long Boosts { get; init; }
 

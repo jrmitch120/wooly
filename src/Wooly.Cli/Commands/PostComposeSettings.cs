@@ -44,6 +44,12 @@ internal abstract class PostComposeSettings : ProfileScopedSettings
     [Description("Let a voter choose more than one answer.")]
     public bool PollMultipleChoice { get; init; }
 
+    [CommandOption("--language <LANGUAGE>")]
+    [Description(
+        "What language the post is in, as a code (fr), its English name (French) or its own name (Français). "
+        + "Defaults to default_language in the config file, else your instance decides.")]
+    public string? Language { get; init; }
+
     [CommandOption("--json")]
     [Description("Write the published post as JSON, for another program to read.")]
     public bool Json { get; init; }
@@ -92,12 +98,16 @@ internal abstract class PostComposeSettings : ProfileScopedSettings
     ///     The profile's own preferred visibility, used when <c>--visibility</c> does not say — or
     ///     <see langword="null" /> to leave the choice to the account's setting on the instance.
     /// </param>
+    /// <param name="languageWhenUnsaid">
+    ///     The code of the profile's own preferred language, used when <c>--language</c> does not say — or
+    ///     <see langword="null" /> to leave it to the instance.
+    /// </param>
     /// <exception cref="InvalidOperationException">
     ///     These settings describe no draft at all. Unreachable through the command app, which calls
     ///     <see cref="Validate" /> first; said out loud rather than silently publishing something else.
     /// </exception>
-    public PostDraft ToDraft(PostVisibility? visibilityWhenUnsaid) =>
-        TryCompose(visibilityWhenUnsaid, out var draft, out var problem)
+    public PostDraft ToDraft(PostVisibility? visibilityWhenUnsaid, string? languageWhenUnsaid) =>
+        TryCompose(visibilityWhenUnsaid, languageWhenUnsaid, out var draft, out var problem)
             ? draft
             : throw new InvalidOperationException($"These settings describe no post to publish: {problem}");
 
@@ -112,7 +122,7 @@ internal abstract class PostComposeSettings : ProfileScopedSettings
 
         // Every rule is asked by composing the draft, rather than checked over again here: two lists of rules is how
         // the parser comes to accept something the composer then cannot build.
-        return TryCompose(visibilityWhenUnsaid: null, out _, out var problem)
+        return TryCompose(visibilityWhenUnsaid: null, languageWhenUnsaid: null, out _, out var problem)
             ? ValidationResult.Success()
             : ValidationResult.Error(problem);
     }
@@ -124,6 +134,7 @@ internal abstract class PostComposeSettings : ProfileScopedSettings
     /// </summary>
     private bool TryCompose(
         PostVisibility? visibilityWhenUnsaid,
+        string? languageWhenUnsaid,
         [NotNullWhen(true)] out PostDraft? draft,
         [NotNullWhen(false)] out string? problem)
     {
@@ -132,6 +143,20 @@ internal abstract class PostComposeSettings : ProfileScopedSettings
         if (!TryChooseAudience(visibilityWhenUnsaid, out var audience, out problem))
         {
             return false;
+        }
+
+        var language = languageWhenUnsaid;
+
+        if (Language is not null)
+        {
+            if (PostLanguageName.Parse(Language) is not { } named)
+            {
+                problem = PostLanguageName.Rejection(Language);
+
+                return false;
+            }
+
+            language = named.Code;
         }
 
         foreach (var value in Media)
@@ -163,6 +188,7 @@ internal abstract class PostComposeSettings : ProfileScopedSettings
             Visibility = audience.Visibility,
             VisibilityChosen = audience.Chosen,
             InReplyTo = InReplyTo,
+            Language = language,
             Media = Media.Select(MediaOption.Parse).ToList(),
             Poll = poll,
         };

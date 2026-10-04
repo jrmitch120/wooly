@@ -38,4 +38,19 @@ public sealed record PostEdit
     ///     rather than null, since null is the third state above.
     /// </summary>
     public string ContentWarningWanted => ContentWarnings.Written(ContentWarning) ?? string.Empty;
+
+    /// <summary>
+    ///     The language the post should now be in, with the same three states as <see cref="ContentWarning" />:
+    ///     <see langword="null" /> leaves the post's language as it was, an empty string clears it and hands the choice
+    ///     back to the instance, and a code (see <see cref="PostLanguageName" />) replaces it.
+    /// </summary>
+    /// <remarks>
+    ///     Silence is cheap to keep here, unlike the warning's: Mastodon keeps a post's language when an edit leaves it
+    ///     out, so "leave it" sends nothing. Clearing sends nothing either — Mastodon has no way to take a language off
+    ///     a post, and reads a blank one as the post's own — so it differs from leaving it only in what was asked.
+    /// </remarks>
+    public string? Language { get; init; }
+
+    /// <summary>The language to send, or <see langword="null" /> where this edit names none.</summary>
+    public string? LanguageWanted => string.IsNullOrWhiteSpace(Language) ? null : Language;
 }

@@ -43,7 +43,8 @@ internal abstract class PostComposeCommand<TSettings>(
 
         // What the user did not say on the command line, they may have said once in the config file. Read here rather
         // than inside the settings, which have no way to reach a config file and should not learn one.
-        var draft = settings.ToDraft(config.Load().Preferences.DefaultVisibility);
+        var preferences = config.Load().Preferences;
+        var draft = settings.ToDraft(preferences.DefaultVisibility, preferences.DefaultLanguage);
 
         var published = await posts.Publish(profile, draft, cancellationToken);
 

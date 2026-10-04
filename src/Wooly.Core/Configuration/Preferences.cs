@@ -12,6 +12,13 @@ public sealed record Preferences
     public PostVisibility? DefaultVisibility { get; init; }
 
     /// <summary>
+    ///     The code of the language a new post is in when the command line does not say (see
+    ///     <see cref="PostLanguageName" />), or <see langword="null" /> to leave it to the instance. Never applied to an
+    ///     edit, where saying nothing means leaving the post's language as it was.
+    /// </summary>
+    public string? DefaultLanguage { get; init; }
+
+    /// <summary>
     ///     The hashtag the TUI's rail keeps a destination for, without its leading <c>#</c>, or <see langword="null" />
     ///     where the reader has not named one yet. A setting rather than a fixed tag because the four timelines are the
     ///     same four for everybody and a tag worth a permanent place on the rail is not.
