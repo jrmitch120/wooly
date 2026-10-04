@@ -17,7 +17,7 @@ public class PeopleToMentionTests
     ///     were already read.
     /// </summary>
     [Fact]
-    public async Task AReplyOffersWhoIsBeingAnswered_WithNoRequest()
+    public async Task AReplyOffersWhoIsBeingAnswered_AtOnce()
     {
         var shell = new AShell
         {

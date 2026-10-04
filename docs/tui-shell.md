@@ -912,8 +912,8 @@ Typing `@` at the start of a word in the post opens a list of people to mention 
   somebody in the store answers to closes the list.
 - **Matching** is in three tiers — a handle starting with the query, then any word of the display name starting with
   it, then a handle containing it — and within a tier the people seen first, most recently seen first, a screen's top
-  row counting as the one met last, then the follows by name. Case is ignored, five at most, and custom-emoji shortcodes come out of names before matching and
-  drawing.
+  row counting as the one met last, then the follows by name. Case is ignored, five at most, and custom-emoji
+  shortcodes come out of names before matching and drawing.
 - **The list is its own painted view over the editor**, every cell a role: a rounded box in `panel-border`, the picked
   row marked `▌` in `selection` with its name in `reference-picked` and its handle in `byline-handle`, other rows in
   `body` and `muted`, the matched letters in `mention`, and its keys along the bottom edge. At least 40 columns, never
