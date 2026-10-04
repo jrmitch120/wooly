@@ -187,7 +187,7 @@ public class ComposeToTests
         Assert.False(draft.VisibilityChosen);
     }
 
-    /// <summary>On To the status row offers the choosing ahead of the walk.</summary>
+    /// <summary>On To the status row offers the choosing ahead of the walk, which from the top header goes only down.</summary>
     [Fact]
     public async Task OnToTheStatusRowOffersChoosing()
     {
@@ -197,7 +197,7 @@ public class ComposeToTests
         drawn.Press(Key.CursorUp);
         drawn.Press(Key.CursorUp);
 
-        Assert.Contains("Choose: ←→ | Field: ↑↓", drawn.Rows()[^1], StringComparison.Ordinal);
+        Assert.Contains("Choose: ←→ | Field: ↓ ", drawn.Rows()[^1], StringComparison.Ordinal);
     }
 
     /// <summary>

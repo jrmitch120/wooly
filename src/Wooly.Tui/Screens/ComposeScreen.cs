@@ -318,9 +318,10 @@ public sealed class ComposeScreen : Screen
     ///     its own keys before the shell sees them (#320) — so naming it would be offering a press that types a
     ///     question mark.
     ///     <para>
-    ///         On a header the walk between the fields comes first (<c>docs/tui-shell.md</c>, #337): there <c>↑</c> and
-    ///         <c>↓</c> are always the walk's, where in the post they are the caret's but on its first line. On To the
-    ///         choosing comes ahead of that, being what the row is for (#338).
+    ///         The walk between the fields comes first (<c>docs/tui-shell.md</c>, #337), offered only the ways it goes:
+    ///         it stops at either end, so To, the top header, offers <c>↓</c> and the post <c>↑</c> — which in the post
+    ///         walks only off its first line, the caret having it below that. On To the choosing comes ahead of that,
+    ///         being what the row is for (#338).
     ///     </para>
     /// </remarks>
     protected override IReadOnlyList<KeyHint> OwnKeys =>
@@ -329,7 +330,13 @@ public sealed class ComposeScreen : Screen
             ? [new KeyHint("↑↓", "pick"), new KeyHint("tab", "choose"), new KeyHint("esc", "close")]
             : Array.Empty<KeyHint>(),
         .. Typing == ComposeField.To ? [new KeyHint("←→", "choose")] : Array.Empty<KeyHint>(),
-        .. OnAHeader ? [new KeyHint("↑↓", "field")] : Array.Empty<KeyHint>(),
+        .. Walks switch
+        {
+            (true, true) => [new KeyHint("↑↓", "field")],
+            (true, false) => [new KeyHint("↑", "field")],
+            (false, true) => [new KeyHint("↓", "field")],
+            _ => Array.Empty<KeyHint>(),
+        },
         new("ctrl-s", Purpose == ComposeFor.Edit ? "save" : "send"),
         new("ctrl-w", WritingTheWarning ? "back to the post" : "content warning"),
         new("esc", "throw it away"),
@@ -385,17 +392,29 @@ public sealed class ComposeScreen : Screen
     /// </remarks>
     public bool Walk(int by)
     {
-        var walked = _drawn.Where(Takes).ToArray();
-        var to = Array.IndexOf(walked, Typing) + by;
-
-        if (to < 0 || to >= walked.Length)
+        if (WalkedTo(by) is not { } field)
         {
             return false;
         }
 
-        Typing = walked[to];
+        Typing = field;
 
         return true;
+    }
+
+    /// <summary>
+    ///     Which ways the arrows can walk from where the typing is, up and down, for the status row to offer: the walk
+    ///     stops at either end rather than coming round, so To offers only <c>↓</c> and the post only <c>↑</c>.
+    /// </summary>
+    private (bool Up, bool Down) Walks => (WalkedTo(-1) is not null, WalkedTo(1) is not null);
+
+    /// <summary>The field <see cref="Walk" /> would move the typing to, or null off either end.</summary>
+    private ComposeField? WalkedTo(int by)
+    {
+        var walked = _drawn.Where(Takes).ToArray();
+        var to = Array.IndexOf(walked, Typing) + by;
+
+        return to < 0 || to >= walked.Length ? null : walked[to];
     }
 
     /// <summary>Whether <paramref name="field" /> can have the typing at all, which To cannot where it allows nothing.</summary>

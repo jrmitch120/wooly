@@ -188,17 +188,86 @@ public class ComposeFieldWalkTests
         Assert.True(Field(drawn).HasFocus);
     }
 
-    /// <summary>On a header the status row offers the walk; in the post, where <c>↑</c> is mostly the caret's, it does not.</summary>
+    /// <summary>
+    ///     The status row offers the walk only the ways it goes: <c>↑</c> in the post, both on a header between others,
+    ///     and only <c>↓</c> on To, the top header.
+    /// </summary>
     [Fact]
-    public async Task OnAHeaderTheStatusRowOffersTheWalk()
+    public async Task TheStatusRowOffersTheWalkOnlyTheWaysItGoes()
     {
         using var drawn = await Composing();
 
-        Assert.DoesNotContain("Field: ↑↓", drawn.Rows()[^1], StringComparison.Ordinal);
+        Assert.Contains("Field: ↑ ", drawn.Rows()[^1], StringComparison.Ordinal);
 
         drawn.Press(Key.CursorUp);
 
         Assert.Contains("Field: ↑↓", drawn.Rows()[^1], StringComparison.Ordinal);
+
+        drawn.Press(Key.CursorUp);
+        drawn.Press(Key.CursorUp);
+
+        Assert.Contains("Field: ↓ ", drawn.Rows()[^1], StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    ///     <c>↑</c> on To, the top header, stays there: it does not come round to the post, though Terminal.Gui would
+    ///     carry the focus there if nothing answered the key.
+    /// </summary>
+    [Fact]
+    public async Task UpOnToDoesNotComeRoundToThePost()
+    {
+        using var drawn = await Composing();
+        var compose = Compose(drawn);
+
+        drawn.Press(Key.CursorUp);
+        drawn.Press(Key.CursorUp);
+        drawn.Press(Key.CursorUp);
+        drawn.PressThroughTheApplication(Key.CursorUp);
+
+        Assert.Equal(ComposeField.To, compose.Typing);
+        Assert.True(To(drawn).HasFocus);
+    }
+
+    /// <summary><c>↓</c> on the post's last line stays in the post: it does not come round to To.</summary>
+    [Fact]
+    public async Task DownOnThePostsLastLineDoesNotComeRoundToTo()
+    {
+        using var drawn = await Composing();
+        var compose = Compose(drawn);
+
+        Type(drawn, "hi");
+        drawn.PressThroughTheApplication(Key.CursorDown);
+
+        Assert.Equal(ComposeField.Post, compose.Typing);
+        Assert.True(Editor(drawn).HasFocus);
+    }
+
+    /// <summary><c>←</c> and <c>→</c> off either end of To stay on To, rather than carrying the focus elsewhere.</summary>
+    [Fact]
+    public async Task ChoosingOffEitherEndOfToStaysOnTo()
+    {
+        using var drawn = await Composing();
+        var compose = Compose(drawn);
+
+        drawn.Press(Key.CursorUp);
+        drawn.Press(Key.CursorUp);
+        drawn.Press(Key.CursorUp);
+
+        foreach (var _ in Enumerable.Range(0, 6))
+        {
+            drawn.PressThroughTheApplication(Key.CursorRight);
+        }
+
+        Assert.Equal(ComposeField.To, compose.Typing);
+        Assert.True(To(drawn).HasFocus);
+
+        foreach (var _ in Enumerable.Range(0, 6))
+        {
+            drawn.PressThroughTheApplication(Key.CursorLeft);
+        }
+
+        Assert.Equal(ComposeField.To, compose.Typing);
+        Assert.True(To(drawn).HasFocus);
     }
 
     /// <summary><c>tab</c> and <c>shift-tab</c> move the rail's cursor from compose, from either field, as everywhere.</summary>

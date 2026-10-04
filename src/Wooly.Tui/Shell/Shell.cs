@@ -500,10 +500,12 @@ public sealed class Shell
         Verb.Refresh => Ran(Refresh),
         Verb.MarkRead => Ran(MarkRead),
         Verb.WriteWarning => Ran(WriteWarning),
-        Verb.PreviousField => WalkField(-1),
-        Verb.NextField => WalkField(1),
-        Verb.PreviousChoice => Choose(-1),
-        Verb.NextChoice => Choose(1),
+        // Answered whether or not there was anywhere to go, so that an arrow off either end of the walk or of To stops
+        // there rather than falling through to Terminal.Gui, which would carry the focus round to the other end.
+        Verb.PreviousField => Ran(() => _ = WalkField(-1)),
+        Verb.NextField => Ran(() => _ = WalkField(1)),
+        Verb.PreviousChoice => Ran(() => _ = Choose(-1)),
+        Verb.NextChoice => Ran(() => _ = Choose(1)),
 
         // Nothing, and the terminal's own — which the window has already taken, and which no screen answers either.
         Verb.None => false,
