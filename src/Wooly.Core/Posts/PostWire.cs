@@ -41,6 +41,7 @@ internal static class PostWire
             // way in because that is how the client library types the field, and nothing said is nothing marked.
             Sensitive = status.Sensitive ?? false,
             Visibility = ToVisibility(status.Visibility),
+            Language = MastodonWire.SaidOrNothing(status.Language),
             Boosts = status.ReblogCount,
             Favorites = status.FavouritesCount,
             Replies = status.RepliesCount,

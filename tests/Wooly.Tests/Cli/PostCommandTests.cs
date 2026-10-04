@@ -440,6 +440,119 @@ public class PostCommandTests : IDisposable
         Assert.False(draft.VisibilityChosen);
     }
 
+    /// <summary>
+    ///     A language by its code, its English name or its own name — the words <c>default_language</c> and the TUI's
+    ///     list take too — handed on as the code the instance is sent.
+    /// </summary>
+    [Theory]
+    [InlineData("fr")]
+    [InlineData("French")]
+    [InlineData("Français")]
+    [InlineData("FR")]
+    public void Create_SaysWhatLanguageThePostIsIn(string given)
+    {
+        AddProfile();
+
+        var run = Run(["post", "create", "bonjour", "--language", given]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Equal("fr", Assert.Single(_posts.Published).Draft.Language);
+    }
+
+    /// <summary>A typo is turned down by the parser, before anything is published under a language nobody meant.</summary>
+    [Fact]
+    public void Create_ReportsALanguageThisClientDoesNotKnowAsAUsageError()
+    {
+        AddProfile();
+
+        var run = Run(["post", "create", "Hello world", "--language", "Klingon"]);
+
+        Assert.Equal((int)ExitCode.UsageError, run.ExitCode);
+        Assert.Contains("Klingon", run.ErrorOutput);
+        Assert.Empty(_posts.Published);
+    }
+
+    [Fact]
+    public void Create_LeavesTheLanguageToTheInstanceWhenNeitherTheCommandLineNorTheConfigFileSaysIt()
+    {
+        AddProfile();
+
+        Run(["post", "create", "Hello world"]);
+
+        Assert.Null(Assert.Single(_posts.Published).Draft.Language);
+    }
+
+    [Fact]
+    public void Create_FallsBackToTheLanguageTheConfigFilePrefers()
+    {
+        AddProfile();
+        PreferLanguage("de");
+
+        var run = Run(["post", "create", "Hallo Welt"]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Equal("de", Assert.Single(_posts.Published).Draft.Language);
+    }
+
+    [Fact]
+    public void Create_LetsTheCommandLineOverrideTheLanguageTheConfigFilePrefers()
+    {
+        AddProfile();
+        PreferLanguage("de");
+
+        Run(["post", "create", "bonjour", "--language", "fr"]);
+
+        Assert.Equal("fr", Assert.Single(_posts.Published).Draft.Language);
+    }
+
+    [Fact]
+    public void Create_WritesThePublishedPostsLanguageAsMachineReadableJson()
+    {
+        AddProfile();
+        _posts = FakePostAuthor.Answering(APost.With() with { Language = "fr" });
+
+        var run = Run(["post", "create", "bonjour", "--language", "fr", "--json"]);
+
+        Assert.Equal("fr", JsonDocument.Parse(run.Output).RootElement.GetProperty("language").GetString());
+    }
+
+    /// <summary>
+    ///     Null rather than absent, so a script can read the field off every post without first asking whether it is
+    ///     there.
+    /// </summary>
+    [Fact]
+    public void Create_WritesALanguageTheInstanceRecordedNoneOfAsNull()
+    {
+        AddProfile();
+
+        var run = Run(["post", "create", "Hello world", "--json"]);
+
+        var language = JsonDocument.Parse(run.Output).RootElement.GetProperty("language");
+        Assert.Equal(JsonValueKind.Null, language.ValueKind);
+    }
+
+    [Fact]
+    public void Reply_SaysWhatLanguageTheReplyIsIn()
+    {
+        AddProfile();
+
+        var run = Run(["post", "reply", "99", "Genau", "--language", "German"]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Equal("de", Assert.Single(_posts.Published).Draft.Language);
+    }
+
+    [Fact]
+    public void Reply_FallsBackToTheLanguageTheConfigFilePrefers()
+    {
+        AddProfile();
+        PreferLanguage("de");
+
+        Run(["post", "reply", "99", "Genau"]);
+
+        Assert.Equal("de", Assert.Single(_posts.Published).Draft.Language);
+    }
+
     [Fact]
     public void Reply_ReportsAMissingPostIdAsAUsageError()
     {
@@ -503,6 +616,43 @@ public class PostCommandTests : IDisposable
         var edit = Assert.Single(_posts.Edits).Edit;
         Assert.Equal(string.Empty, edit.ContentWarning);
         Assert.True(edit.ChangesContentWarning);
+    }
+
+    [Fact]
+    public void Edit_ChangesTheLanguageWhenGivenOne()
+    {
+        AddProfile();
+
+        var run = Run(["post", "edit", "110", "bonjour", "--language", "fr"]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Equal("fr", Assert.Single(_posts.Edits).Edit.Language);
+    }
+
+    /// <summary>
+    ///     Silence about the language reaches the domain as silence — and the config file's <c>default_language</c> does
+    ///     not fill it, because that is a preference about new posts, and fixing a typo should not relabel an old one.
+    /// </summary>
+    [Fact]
+    public void Edit_LeavesTheLanguageAloneWhenTheCommandLineSaysNothingAboutIt()
+    {
+        AddProfile();
+        PreferLanguage("de");
+
+        Run(["post", "edit", "110", "Fixed the typo"]);
+
+        Assert.Null(Assert.Single(_posts.Edits).Edit.Language);
+    }
+
+    [Fact]
+    public void Edit_ReportsALanguageThisClientDoesNotKnowAsAUsageError()
+    {
+        AddProfile();
+
+        var run = Run(["post", "edit", "110", "Fixed the typo", "--language", "Klingon"]);
+
+        Assert.Equal((int)ExitCode.UsageError, run.ExitCode);
+        Assert.Empty(_posts.Edits);
     }
 
     /// <summary>
@@ -623,6 +773,14 @@ public class PostCommandTests : IDisposable
         var paths = new WoolyPaths(_directory.Path);
 
         File.AppendAllText(paths.ConfigFile, $"{Environment.NewLine}[preferences]{Environment.NewLine}default_visibility = \"{visibility}\"{Environment.NewLine}");
+    }
+
+    /// <summary>Writes the language preference an author would have set by hand.</summary>
+    private void PreferLanguage(string language)
+    {
+        var paths = new WoolyPaths(_directory.Path);
+
+        File.AppendAllText(paths.ConfigFile, $"{Environment.NewLine}[preferences]{Environment.NewLine}default_language = \"{language}\"{Environment.NewLine}");
     }
 
     private CommandRun Run(string[] args, bool atATerminal = false, string? typed = null)

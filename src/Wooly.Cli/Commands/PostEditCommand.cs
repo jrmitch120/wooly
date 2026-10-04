@@ -31,9 +31,36 @@ internal sealed class PostEditCommand(IAnsiConsole console, IProfileRegistry pro
             + "the warning is taken away.")]
         public string? ContentWarning { get; init; }
 
+        [CommandOption("--language <LANGUAGE>")]
+        [Description(
+            "Change what language the post is in, as a code (fr), its English name (French) or its own name "
+            + "(Français). Left off, the post keeps the language it had.")]
+        public string? Language { get; init; }
+
         [CommandOption("--json")]
         [Description("Write the edited post as JSON, for another program to read.")]
         public bool Json { get; init; }
+
+        /// <summary>
+        ///     The code of the language the post should now be in, or <see langword="null" /> to leave it as it was. Not
+        ///     filled in from <c>default_language</c>: that is a preference about new posts, and fixing a typo should not
+        ///     relabel an old one.
+        /// </summary>
+        public string? LanguageCode => Language is null ? null : PostLanguageName.Parse(Language)?.Code;
+
+        public override ValidationResult Validate()
+        {
+            var shared = base.Validate();
+
+            if (!shared.Successful)
+            {
+                return shared;
+            }
+
+            return Language is not null && PostLanguageName.Parse(Language) is null
+                ? ValidationResult.Error(PostLanguageName.Rejection(Language))
+                : ValidationResult.Success();
+        }
     }
 
     protected override async Task<int> ExecuteAsync(
@@ -45,7 +72,12 @@ internal sealed class PostEditCommand(IAnsiConsole console, IProfileRegistry pro
 
         // The three states of --cw, handed on as PostEdit spells them: absent leaves the warning alone, empty takes it
         // away, and anything else replaces it. Nothing is normalised here, because an empty string is the message.
-        var edit = new PostEdit { Text = settings.Text, ContentWarning = settings.ContentWarning };
+        var edit = new PostEdit
+        {
+            Text = settings.Text,
+            ContentWarning = settings.ContentWarning,
+            Language = settings.LanguageCode,
+        };
 
         var edited = await posts.Edit(profile, settings.PostId, edit, cancellationToken);
 

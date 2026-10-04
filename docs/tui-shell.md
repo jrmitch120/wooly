@@ -936,12 +936,22 @@ Typing `@` at the start of a word in the post opens a list of people to mention 
   row marked `▌` in `selection` with its name in `reference-picked` and its handle in `byline-handle`, other rows in
   `body` and `muted`, the matched letters in `mention`, and its keys along the bottom edge. At least 40 columns, never
   wider than the editor; on the row under the caret, left on the word's `@`, or over the line where there is no room
-  below — read from where the editor put its caret, which is the only place word wrap is settled.
+  below — read from where the editor put its caret, which is the only place word wrap is settled. No taller than the
+  more room there is under the caret's row or over it; where that is fewer rows than people, it shows as many as fit
+  and scrolls to keep the pick on them.
+- **It is one list any compose field can offer rows to (#335).** Being a list — the pick, the scroll, the box, the keys
+  and the pointer — is `PickList<T>` and `PickLines`, once; what a row says, where the list hangs and what picking does
+  are the field's. The people to mention are the first such list, and the language list (#340) the second.
 - **Its keys come ahead of the editor's, only while it is open.** `tab`/`⏎` replace the word with `@user` for somebody
   on the profile's own instance or `@user@instance` for anybody else, and a space. The word is selected and replaced
   as one edit, the way a paste goes in, so one undo puts the word back. `esc` closes the list for the rest of that
   word. Closed, it takes nothing: `⏎` adds a line and `esc` throws the draft away, as they always have. Never in the
   warning.
+- **It takes the pointer too, only while it is open (#335).** A click on a person is `tab` on them; a notch of the wheel
+  over it moves the pick a person at a time, stopping at either end, and scrolls; a right click on it is nothing (#307).
+  A click anywhere outside it closes it as `esc` does, and is spent on that, from the press to the click: the caret
+  stays where it was and nothing under the pointer is clicked. So it is asked about ahead of every view, where the
+  terminal's mouse events arrive.
 
 ### What the account screen settled
 
@@ -1645,6 +1655,9 @@ panel the pointer is over. What the gesture then does is a move the keys already
 | Wheel sideways | Anywhere | Nothing. A trackpad drifting sideways sends these between vertical notches, and Terminal.Gui's left and right carry up's and down's bits, so they are asked about first and dropped |
 | Wheel, click | The compose editor | Terminal.Gui's own handling: the wheel scrolls the draft and a click places the caret. Nothing of the shell's |
 | Click | A value of compose's **To** | Chooses it and gives To the typing, so `←`/`→` carry on from there; a click on either arrow of the narrow form steps, and anywhere else on the row gives To the typing. A value To does not allow, and the whole row on an edit, ignores it. The wheel over the row does nothing (ADR-0024, #338) |
+| Click | A person in the open list of people to mention | `tab` on them: their `@user` goes in place of the word and the list closes (#335) |
+| Wheel down / up | The open list of people to mention | Moves the pick a person at a time, stopping at either end, scrolling the list where it holds more people than it shows (#335) |
+| Click | Anywhere outside the open list of people to mention | Closes it, as `esc` does, and nothing more: the caret stays, the draft is as it was, and what is under the pointer is not clicked (#335) |
 | Click | A destination on the rail | Arrives there at once, through the rail's immediate path: the cursor and the selection move together, there is no settle window, and any landing the tabbing left waiting is abandoned, so only the destination clicked is read (#288). Which entry a row is comes off the rail's own rows, each carrying its destination's place as its `Line.Item`, so the click lands on what is drawn under the pointer whether the rail is framed, compact or compact and scrolled |
 | Click | The destination already shown | Walks back out to its own screen: drilled in from it, the stack goes back to its one bottom screen with the page and **Picked** it was left on, as any pop keeps, and nothing is asked of the instance — the way a sidebar's entry takes you back to its top page (#289). On its own screen already, nothing; nor with a compose drilled in, whose draft a click is too little to throw away. The first crumb of the breadcrumb is the same click (#308). One of the two moves the mouse has that the keys do not: tabbing back onto the destination shown is still a walk that ended where it began |
 | Click | A group's title, a compact heading, the API panel | Nothing. Only destinations answer a click |
@@ -1656,7 +1669,7 @@ panel the pointer is over. What the gesture then does is a move the keys already
 | Double click | A heading, a rule, a blank, the space under the last thing | Nothing: never a `⏎` on what was picked before |
 | Double click | The breadcrumb | Its first click's walk back and nothing more: never a `⏎` on the screen it landed on (#308) |
 | Right click | Anywhere: the content, the rail, the breadcrumb, the status row | `esc`, through the **Keymap** on the screen in front, so up one level of whichever kind is open: it lets a picked **Reference** or an uncast poll toggle go before it pops the screen, declines a confirmation, clears the filter prompt's filter (as `esc` does, not as a left click does) and calls off a sign-in in flight on Add a profile. On a destination's own screen it does nothing, and never quits. Over the rail it does not arrive at the destination under the pointer, and over the breadcrumb it does not walk back to the crumb. Each right click the terminal reports is one `esc`, Terminal.Gui's double and triple included, so three quick right clicks walk back three levels. Only the terminal's right button counts: ctrl+click stays a left click, and the middle button means nothing (#307) |
-| Right click | Anywhere, with compose in front | Nothing, since `esc` there throws the draft away. The compose editor's own context menu does not open either |
+| Right click | Anywhere, with compose in front | Nothing, since `esc` there throws the draft away. The compose editor's own context menu does not open either, and on the open list of people to mention it neither closes the list nor picks (#335) |
 
 **Open questions win.** While a confirmation is on the status row or the filter prompt is open, a click anywhere is a
 key the question does not take: it declines the confirmation, or closes the prompt with what was typed still narrowing
