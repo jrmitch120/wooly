@@ -116,6 +116,9 @@ public sealed class SearchScreen : Screen
     /// <summary>The posts that were found.</summary>
     public IReadOnlyList<Post> Posts => [.. _results.All.OfType<Result.OfPost>().Select(one => one.Post)];
 
+    /// <inheritdoc />
+    public override IEnumerable<Mentionable> Seen => [.. Accounts.Select(Mentionable.Of), .. Mentionable.In(Posts)];
+
     /// <summary>The account picked out, or <see langword="null" /> where the picked result is not one.</summary>
     public Account? PickedAccount => _results.Out is Result.OfAccount(var account) ? account : null;
 

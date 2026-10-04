@@ -51,6 +51,10 @@ public sealed class ConversationScreen : Screen
     public IReadOnlyList<Post> Posts => _posts.All;
 
     /// <inheritdoc />
+    public override IEnumerable<Mentionable> Seen =>
+        [.. Conversation.With.Select(with => new Mentionable(with, string.Empty)), .. Mentionable.In(Posts)];
+
+    /// <inheritdoc />
     public override Post? Picked => _posts.Out;
 
     /// <inheritdoc />

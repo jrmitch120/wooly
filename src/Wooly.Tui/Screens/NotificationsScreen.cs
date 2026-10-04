@@ -45,6 +45,9 @@ public sealed class NotificationsScreen(IReadOnlyList<Notification> notification
     /// <summary>What is waiting, newest first.</summary>
     public IReadOnlyList<Notification> Notifications => _notifications.All;
 
+    /// <inheritdoc />
+    public override IEnumerable<Mentionable> Seen => Notifications.SelectMany(Mentionable.In);
+
     /// <summary>
     ///     Something the shell has to say about the inbox rather than about anything in it — that it is empty, or that
     ///     a rate limit cut the read short.

@@ -48,6 +48,14 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
     /// <summary>The conversations, most recently spoken in first.</summary>
     public IReadOnlyList<Conversation> Conversations => _conversations.All;
 
+    /// <inheritdoc />
+    public override IEnumerable<Mentionable> Seen =>
+        Conversations.SelectMany(conversation => (IEnumerable<Mentionable>)
+        [
+            .. conversation.With.Select(with => new Mentionable(with, string.Empty)),
+            .. conversation.Latest is { } latest ? Mentionable.In(latest) : [],
+        ]);
+
     /// <summary>
     ///     Something the shell has to say about the list rather than about anything on it — that nobody has written, or
     ///     that a rate limit cut the listing short.
