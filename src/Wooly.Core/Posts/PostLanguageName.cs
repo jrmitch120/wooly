@@ -8,12 +8,18 @@ namespace Wooly.Core.Posts;
 /// </summary>
 /// <remarks>
 ///     The client holds its own list rather than asking the instance for one, as it holds its own spelling of a
-///     visibility. It is the list Mastodon itself accepts for a post: every ISO 639-1 code, plus the ISO 639-3 codes it
-///     takes for languages that have no two-letter one.
+///     visibility. It is the list Mastodon itself accepts for a post (<c>LanguagesHelper::SUPPORTED_LOCALES</c>): the
+///     ISO 639-1 codes it lists, the regional codes it takes as languages of their own (<c>zh-TW</c>, <c>mn-Mong</c>),
+///     and the ISO 639-3 codes it takes for languages that have no two-letter one. A code Mastodon does not list is not
+///     refused there but quietly replaced by the account's own language, so offering one would publish a post in a
+///     language the author did not choose.
 /// </remarks>
 public static class PostLanguageName
 {
-    /// <summary>Every language this client accepts, ISO 639-1 first and then ISO 639-3, each in code order.</summary>
+    /// <summary>
+    ///     Every language this client accepts, ISO 639-1 first and then ISO 639-3, each in code order with a regional
+    ///     code after the language it belongs to.
+    /// </summary>
     public static IReadOnlyList<PostLanguage> All { get; } =
     [
         new("aa", "Afar", "Afaraf"),
@@ -68,7 +74,6 @@ public static class PostLanguageName
         new("ga", "Irish", "Gaeilge"),
         new("gd", "Scottish Gaelic", "Gàidhlig"),
         new("gl", "Galician", "galego"),
-        new("gn", "Guaraní", "Avañe'ẽ"),
         new("gu", "Gujarati", "ગુજરાતી"),
         new("gv", "Manx", "Gaelg"),
         new("ha", "Hausa", "هَوُسَ"),
@@ -122,8 +127,10 @@ public static class PostLanguageName
         new("mk", "Macedonian", "македонски јазик"),
         new("ml", "Malayalam", "മലയാളം"),
         new("mn", "Mongolian", "Монгол хэл"),
+        new("mn-Mong", "Traditional Mongolian", "ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ"),
         new("mr", "Marathi", "मराठी"),
         new("ms", "Malay", "Bahasa Melayu"),
+        new("ms-Arab", "Jawi Malay", "بهاس ملايو"),
         new("mt", "Maltese", "Malti"),
         new("my", "Burmese", "ဗမာစာ"),
         new("na", "Nauru", "Ekakairũ Naoero"),
@@ -161,7 +168,6 @@ public static class PostLanguageName
         new("si", "Sinhala", "සිංහල"),
         new("sk", "Slovak", "slovenčina"),
         new("sl", "Slovenian", "slovenščina"),
-        new("sm", "Samoan", "gagana fa'a Samoa"),
         new("sn", "Shona", "chiShona"),
         new("so", "Somali", "Soomaaliga"),
         new("sq", "Albanian", "Shqip"),
@@ -199,6 +205,10 @@ public static class PostLanguageName
         new("yo", "Yoruba", "Yorùbá"),
         new("za", "Zhuang", "Saɯ cueŋƅ"),
         new("zh", "Chinese", "中文"),
+        new("zh-CN", "Chinese (China)", "简体中文"),
+        new("zh-HK", "Chinese (Hong Kong)", "繁體中文（香港）"),
+        new("zh-TW", "Chinese (Taiwan)", "繁體中文（臺灣）"),
+        new("zh-YUE", "Cantonese", "廣東話"),
         new("zu", "Zulu", "isiZulu"),
 
         new("ast", "Asturian", "asturianu"),
@@ -211,8 +221,11 @@ public static class PostLanguageName
         new("kab", "Kabyle", "Taqbaylit"),
         new("ldn", "Láadan", "Láadan"),
         new("lfn", "Lingua Franca Nova", "lingua franca nova"),
+        new("lzz", "Lazuri", "ლაზური ნენა"),
         new("moh", "Mohawk", "Kanienʼkéha"),
+        new("nan-TW", "Hokkien (Taiwan)", "臺語 (Hô-ló話)"),
         new("nds", "Low German", "Plattdüütsch"),
+        new("ota", "Ottoman Turkish", "لسان عثمانی"),
         new("pdc", "Pennsylvania Dutch", "Pennsilfaani-Deitsch"),
         new("sco", "Scots", "Scots"),
         new("sma", "Southern Sami", "Åarjelsaemien Gïele"),
@@ -221,6 +234,7 @@ public static class PostLanguageName
         new("tok", "Toki Pona", "toki pona"),
         new("vai", "Vai", "ꕙꔤ"),
         new("xal", "Kalmyk", "Хальмг келн"),
+        new("xmf", "Mingrelian", "მარგალური ნინა"),
         new("zba", "Balaibalan", "باليبلن"),
         new("zgh", "Standard Moroccan Tamazight", "ⵜⴰⵎⴰⵣⵉⵖⵜ"),
     ];
