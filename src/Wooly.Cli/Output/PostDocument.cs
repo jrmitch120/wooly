@@ -28,6 +28,10 @@ namespace Wooly.Cli.Output;
 ///     </para>
 /// </param>
 /// <param name="Visibility">Who can see it, in the same words <c>--visibility</c> takes.</param>
+/// <param name="Language">
+///     The code of the language the instance recorded the post in, and null rather than absent where it recorded none:
+///     most posts carry one, so a script reads the field off every post without first asking whether it is there.
+/// </param>
 /// <param name="InReplyTo">
 ///     What the post answers, or absent on one that answers nothing. It is what lets a script narrow an account's posts
 ///     and replies down to the replies (#211).
@@ -51,6 +55,7 @@ internal sealed record PostDocument(
     [property: JsonPropertyName("sensitive")] bool Sensitive,
     [property: JsonPropertyName("content")] string Content,
     [property: JsonPropertyName("visibility")] string Visibility,
+    [property: JsonPropertyName("language"), JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? Language,
     [property: JsonPropertyName("inReplyTo")] ReplyTargetDocument? InReplyTo,
     [property: JsonPropertyName("boosts")] long Boosts,
     [property: JsonPropertyName("favorites")] long Favorites,
@@ -70,6 +75,7 @@ internal sealed record PostDocument(
         post.Sensitive,
         post.Content,
         PostVisibilityName.Of(post.Visibility),
+        post.Language,
         ReplyTargetDocument.Of(post.InReplyTo),
         post.Boosts,
         post.Favorites,

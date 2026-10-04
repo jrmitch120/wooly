@@ -67,6 +67,7 @@ public sealed class PostAuthor(IMastodonClientFactory clientFactory) : IPostAuth
             // client composes that wants one without the other.
             sensitive: draft.ContentWarning is not null,
             spoilerText: draft.ContentWarning,
+            language: draft.Language,
             poll: draft.Poll is null ? null : ToWire(draft.Poll));
 
         return PostWire.ToPost(published, profile);
@@ -104,7 +105,10 @@ public sealed class PostAuthor(IMastodonClientFactory clientFactory) : IPostAuth
             // would un-blur those pictures on an edit that only fixed a typo. Erring the other way — leaving something
             // hidden that need not be — is the harmless direction, so unhiding is not something an edit does here.
             sensitive: existing.Sensitive == true || !string.IsNullOrEmpty(contentWarning),
-            spoilerText: contentWarning);
+            spoilerText: contentWarning,
+
+            // Left out unless the edit names one, which is how Mastodon is told to keep the post's language.
+            language: edit.LanguageWanted);
 
         return PostWire.ToPost(edited, profile);
     }

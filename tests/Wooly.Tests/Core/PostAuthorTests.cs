@@ -117,6 +117,55 @@ public class PostAuthorTests : IDisposable
     }
 
     /// <summary>
+    ///     What language the post is in, which Mastodon uses to filter timelines by language and to decide when to offer
+    ///     a translation.
+    /// </summary>
+    [Fact]
+    public async Task Publish_SaysWhatLanguageThePostIsIn()
+    {
+        var network = Answering(StatusJson("110"));
+
+        await NewAuthor(network).Publish(
+            Profile,
+            Draft("Bonjour") with { Language = "fr" },
+            TestContext.Current.CancellationToken);
+
+        Assert.Contains("language=fr", network.Bodies[0]);
+    }
+
+    /// <summary>A draft that does not say leaves the language to the instance, rather than guessing one for it.</summary>
+    [Fact]
+    public async Task Publish_LeavesTheLanguageToTheInstanceWhenTheDraftDoesNotSay()
+    {
+        var network = Answering(StatusJson("110"));
+
+        await NewAuthor(network).Publish(Profile, Draft("Hello world"), TestContext.Current.CancellationToken);
+
+        Assert.DoesNotContain("language=", network.Bodies[0]);
+    }
+
+    [Fact]
+    public async Task Publish_ReportsTheLanguageTheInstanceRecordedThePostIn()
+    {
+        var network = Answering(StatusJson("110", language: "fr"));
+
+        var post = await NewAuthor(network).Publish(Profile, Draft("Bonjour"), TestContext.Current.CancellationToken);
+
+        Assert.Equal("fr", post.Language);
+    }
+
+    /// <summary>An instance that recorded no language says null, which is read as no language rather than as one.</summary>
+    [Fact]
+    public async Task Publish_ReportsNoLanguageWhereTheInstanceRecordedNone()
+    {
+        var network = Answering(StatusJson("110"));
+
+        var post = await NewAuthor(network).Publish(Profile, Draft("Hello"), TestContext.Current.CancellationToken);
+
+        Assert.Null(post.Language);
+    }
+
+    /// <summary>
     ///     A reply reads the post it answers before it publishes, because it may not go out wider than that post
     ///     (ADR-0013) — so the request naming the answered post comes first, and the publish second.
     /// </summary>
@@ -625,6 +674,56 @@ public class PostAuthorTests : IDisposable
     }
 
     /// <summary>
+    ///     Mastodon keeps a post's language when an edit leaves it out, so an edit with nothing to say about the
+    ///     language says nothing — fixing a typo should not relabel a post.
+    /// </summary>
+    [Fact]
+    public async Task Edit_LeavesTheLanguageAloneWhenTheEditSaysNothingAboutIt()
+    {
+        var network = Answering(StatusJson("110", language: "de"));
+
+        await NewAuthor(network).Edit(
+            Profile,
+            "110",
+            new PostEdit { Text = "Fixed the typo" },
+            TestContext.Current.CancellationToken);
+
+        Assert.DoesNotContain("language=", network.Bodies[^1]);
+    }
+
+    [Fact]
+    public async Task Edit_ChangesTheLanguageWhenTheEditGivesANewOne()
+    {
+        var network = Answering(StatusJson("110", language: "de"));
+
+        await NewAuthor(network).Edit(
+            Profile,
+            "110",
+            new PostEdit { Text = "Fixed the typo", Language = "fr" },
+            TestContext.Current.CancellationToken);
+
+        Assert.Contains("language=fr", network.Bodies[^1]);
+    }
+
+    /// <summary>
+    ///     A cleared language hands the choice back to the instance, which is told nothing in particular: not the post's
+    ///     old language, and not one made up.
+    /// </summary>
+    [Fact]
+    public async Task Edit_NamesNoLanguageWhenTheEditClearsIt()
+    {
+        var network = Answering(StatusJson("110", language: "de"));
+
+        await NewAuthor(network).Edit(
+            Profile,
+            "110",
+            new PostEdit { Text = "Fixed the typo", Language = string.Empty },
+            TestContext.Current.CancellationToken);
+
+        Assert.DoesNotMatch("language=[a-z]", network.Bodies[^1]);
+    }
+
+    /// <summary>
     ///     The one thing this client will not do rather than do badly: an edit cannot carry a poll through, and a request
     ///     that left the poll out would take it — and every vote cast in it — away.
     /// </summary>
@@ -760,7 +859,8 @@ public class PostAuthorTests : IDisposable
         string? avatarUrl = null,
         string? inReplyToId = null,
         string? inReplyToAccountId = null,
-        string? mentionsJson = null)
+        string? mentionsJson = null,
+        string? language = null)
     {
         var attachments = string.Join(",", (attachmentIds ?? []).Select(AttachmentJson));
 
@@ -775,6 +875,7 @@ public class PostAuthorTests : IDisposable
                    "spoiler_text": "{{contentWarning}}",
                    "sensitive": {{(sensitive ? "true" : "false")}},
                    "visibility": "{{visibility}}",
+                   "language": {{(language is null ? "null" : $"\"{language}\"")}},
                    "reblogs_count": 0,
                    "favourites_count": 0,
                    "replies_count": 0,

@@ -17,6 +17,7 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
     private const string InstanceKey = "instance";
     private const string AccountKey = "account";
     private const string DefaultVisibilityKey = "default_visibility";
+    private const string DefaultLanguageKey = "default_language";
 
     /// <summary>The hashtag the TUI's rail keeps a destination for.</summary>
     private const string HashtagKey = "hashtag";
@@ -64,13 +65,19 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
         }
 
         // Inserted before the profiles so the writer emits the short, general section above the long, per-profile one.
-        if (config.Preferences is { DefaultVisibility: not null } or { Hashtag: not null } or { HideDrawnCaption: true })
+        if (config.Preferences is { DefaultVisibility: not null } or { DefaultLanguage: not null } or { Hashtag: not null }
+            or { HideDrawnCaption: true })
         {
             var preferences = new TomlTable();
 
             if (config.Preferences.DefaultVisibility is { } visibility)
             {
                 preferences[DefaultVisibilityKey] = PostVisibilityName.Of(visibility);
+            }
+
+            if (config.Preferences.DefaultLanguage is { } language)
+            {
+                preferences[DefaultLanguageKey] = language;
             }
 
             if (config.Preferences.Hashtag is { } hashtag)
@@ -267,6 +274,7 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
         return new Preferences
         {
             DefaultVisibility = ReadVisibility(stored),
+            DefaultLanguage = ReadLanguage(stored),
             Hashtag = ReadHashtag(stored),
             HideDrawnCaption = ReadBool(stored, HideDrawnCaptionKey),
         };
@@ -299,6 +307,21 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
         // on the command line is never turned down in the file (or the other way about).
         return PostVisibilityName.Parse(raw)
                ?? throw new ConfigurationException(paths.ConfigFile, PostVisibilityName.Rejection(raw));
+    }
+
+    /// <summary>
+    ///     The code of the language a new post is in, read through the same <see cref="PostLanguageName" /> the
+    ///     <c>--language</c> flag asks, so a name written by hand reads as the code it names.
+    /// </summary>
+    private string? ReadLanguage(TomlTable preferences)
+    {
+        if (ReadString(preferences, DefaultLanguageKey) is not { } raw)
+        {
+            return null;
+        }
+
+        return PostLanguageName.Parse(raw)?.Code
+               ?? throw new ConfigurationException(paths.ConfigFile, PostLanguageName.Rejection(raw));
     }
 
     private string? ReadString(TomlTable table, string key) => table.TryGetValue(key, out var value)
