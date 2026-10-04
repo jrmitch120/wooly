@@ -95,6 +95,12 @@ public sealed class Shell
     private readonly ShellPorts _ports;
 
     /// <summary>
+    ///     The query the people to mention were last asked for, and the wait before the instance's search of the
+    ///     follows is asked for it — which the next different query calls off (#322).
+    /// </summary>
+    private (string Query, IDisposable Wait)? _pause;
+
+    /// <summary>
     ///     This machine's profiles, which the profiles screen lists. Not one of <see cref="ShellPorts" />, for the
     ///     reason <see cref="_browser" /> is not: those reach an instance, and this reaches the local config (ADR-0020).
     /// </summary>
@@ -238,7 +244,9 @@ public sealed class Shell
     ///     The people a post can mention who best match <paramref name="query" />, what follows the <c>@</c> of the
     ///     word being typed — best first, at most <see cref="PeopleToMention.Most" />, and asking nothing of the
     ///     instance while it answers (#318). The first ask of a session starts reading the profile's follows in the
-    ///     background, which join the answers as they arrive (#321). Nobody while nobody is being acted as.
+    ///     background, which join the answers as they arrive (#321). Where those are not all of the follows and fewer
+    ///     than enough answer, the instance's search of them is asked once the asking has paused for a settle — once
+    ///     per pause, and once per query in a session (#322). Nobody while nobody is being acted as.
     /// </summary>
     public IReadOnlyList<Mentionable> PeopleMatching(string query)
     {
@@ -250,6 +258,20 @@ public sealed class Shell
         if (acting.People.FirstAsked())
         {
             _ = ReadFollows(acting);
+        }
+
+        // The same query asked again — a redraw, or the caret moving within the word — is the same pause, not a new
+        // one: only a different query means the typing went on.
+        if (_pause?.Query != query)
+        {
+            _pause?.Wait.Dispose();
+            _pause = acting.People.WorthSearching(query)
+                ? (query, _host.After(_timing.Settle, () =>
+                {
+                    _pause = null;
+                    _ = SearchFollows(acting, query);
+                }))
+                : null;
         }
 
         return acting.People.Matching(query);
@@ -1369,6 +1391,8 @@ public sealed class Shell
             confirm: Confirm,
             added: Added);
 
+        _pause?.Wait.Dispose();
+        _pause = null;
         _acting = profile is null ? null : Acts(profile, enquiry, new SubjectCache(_clock, _timing.CacheFor));
     }
 
@@ -1680,20 +1704,15 @@ public sealed class Shell
 
         try
         {
-            await _ports.Accounts.List(
+            var read = await _ports.Accounts.List(
                 acting.Profile,
                 FollowSide.Following,
                 account: null,
                 PeopleToMention.FollowsRead,
                 abandoned,
-                arrived: page => Apply(() =>
-                {
-                    if (!abandoned.IsCancellationRequested)
-                    {
-                        acting.People.Followed(page);
-                        Changed?.Invoke();
-                    }
-                }));
+                arrived: page => Offer(acting, page, abandoned));
+
+            Apply(() => acting.People.FollowsEnded(read));
         }
         catch (OperationCanceledException) when (abandoned.IsCancellationRequested)
         {
@@ -1704,6 +1723,55 @@ public sealed class Shell
             // Refused, which the reads that fill the screen already say with the key that fixes it.
         }
     }
+
+    /// <summary>
+    ///     Asks the instance's search of <paramref name="acting" />'s follows for <paramref name="query" /> (#322), where
+    ///     it is still worth asking once the pause has come — the follows may have finished arriving meanwhile — and
+    ///     offers what it finds alongside what was known.
+    /// </summary>
+    /// <remarks>
+    ///     Not asked through the enquiry, for the reason <see cref="ReadFollows" /> gives. A refused search leaves the
+    ///     people known as they were, silently, and is not asked again for that query. Nothing lands after a switch of
+    ///     profile.
+    /// </remarks>
+    private async Task SearchFollows(Acting acting, string query)
+    {
+        if (_acting != acting || !acting.People.WorthSearching(query))
+        {
+            return;
+        }
+
+        acting.People.SearchedFor(query);
+
+        var abandoned = _enquiry.Abandoned;
+
+        try
+        {
+            Offer(acting, await _ports.Search.FindFollowed(acting.Profile, query, abandoned), abandoned);
+        }
+        catch (OperationCanceledException) when (abandoned.IsCancellationRequested)
+        {
+            // Called off by a switch, and nobody left to tell.
+        }
+        catch (WoolyException)
+        {
+            // Refused or rate limited, which a suggestion is not worth a word on the status row about.
+        }
+    }
+
+    /// <summary>
+    ///     Offers <paramref name="follows" /> as people to mention, and redraws an open list with them — unless a switch
+    ///     of profile has called off what found them.
+    /// </summary>
+    private void Offer(Acting acting, IEnumerable<Account> follows, CancellationToken abandoned) =>
+        Apply(() =>
+        {
+            if (!abandoned.IsCancellationRequested)
+            {
+                acting.People.Followed(follows);
+                Changed?.Invoke();
+            }
+        });
 
     /// <summary>Reads the counts the rail carries, none of which is worth failing the shell over.</summary>
     /// <param name="profile">Who the counts are read as.</param>

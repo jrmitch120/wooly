@@ -187,16 +187,67 @@ public class InstanceSearchTests
         Assert.Single(network.Requests);
     }
 
+    /// <summary>
+    ///     Who to mention is somebody the profile follows, so the instance is asked for those alone, five at most, and
+    ///     is not sent looking for accounts it has not met — a suggestion is not worth a federated lookup (#322).
+    /// </summary>
+    [Fact]
+    public async Task FindFollowed_AsksForAFewOfTheAccountsTheProfileFollows_UnresolvedAndOnce()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json($"[{AccountJson("maria@b.social")},{AccountJson("mark")}]"));
+
+        var found = await Resolved(network).FindFollowed(Profile, "ma", TestContext.Current.CancellationToken);
+
+        var request = Assert.Single(network.Requests);
+        var asked = request.RequestUri!;
+
+        Assert.Equal("/api/v1/accounts/search", asked.AbsolutePath);
+        Assert.Contains("q=ma", asked.Query);
+        Assert.Contains("limit=5", asked.Query);
+        Assert.Contains("following=true", asked.Query);
+        Assert.DoesNotContain("resolve=true", asked.Query);
+        Assert.Equal("Bearer token-personal", request.Headers.Authorization?.ToString());
+        Assert.Equal(["maria@b.social", "mark@mastodon.social"], found.Select(account => account.Address));
+    }
+
+    /// <summary>A search of follows is one call, as any search is, so a rate limit is raised rather than half-answered.</summary>
+    [Fact]
+    public async Task FindFollowed_RaisesTheRateLimitTheInstanceAnsweredWith()
+    {
+        var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Status(HttpStatusCode.TooManyRequests));
+
+        await Assert.ThrowsAsync<RateLimitedException>(
+            () => Resolved(network).FindFollowed(Profile, "ma", TestContext.Current.CancellationToken));
+    }
+
+    /// <summary>
+    ///     Any other refusal — an instance that will not search follows, or will not for this token — finds nobody,
+    ///     rather than raising what a mention list would have no use for.
+    /// </summary>
+    [Theory]
+    [InlineData(HttpStatusCode.Forbidden)]
+    [InlineData(HttpStatusCode.UnprocessableEntity)]
+    public async Task FindFollowed_FindsNobodyWhereTheInstanceRefuses(HttpStatusCode refusal)
+    {
+        var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Refusal(refusal, "This action is not allowed"));
+
+        var found = await Resolved(network).FindFollowed(Profile, "ma", TestContext.Current.CancellationToken);
+
+        Assert.Empty(found);
+    }
+
+    private static Task<SearchResults> Search(HttpMessageHandler network, SearchQuery query) =>
+        Resolved(network).Find(Profile, query, TestContext.Current.CancellationToken);
+
     /// <summary>Resolved from the container the app builds, so the wiring is under test alongside the behavior.</summary>
-    private static Task<SearchResults> Search(HttpMessageHandler network, SearchQuery query)
+    private static IInstanceSearch Resolved(HttpMessageHandler network)
     {
         var services = new ServiceCollection();
         services.AddWoolyCore();
         services.AddHttpClient(WoolyClient.HttpClientName).ConfigurePrimaryHttpMessageHandler(() => network);
 
-        return services.BuildServiceProvider()
-                       .GetRequiredService<IInstanceSearch>()
-                       .Find(Profile, query, TestContext.Current.CancellationToken);
+        return services.BuildServiceProvider().GetRequiredService<IInstanceSearch>();
     }
 
     private static string Found(string[]? accounts = null, string[]? hashtags = null, string[]? posts = null) =>

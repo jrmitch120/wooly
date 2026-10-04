@@ -906,6 +906,14 @@ Typing `@` at the start of a word in the post opens a list of people to mention 
   keeps what it got, one refused keeps what was known, both silently, and neither is asked again that session. A follow
   made through the shell adds the person at once, and an unfollow drops them from the follows — outlasting a page read
   before it.
+- **Where the follows read are not all of them, the instance searches them (#322).** Not all of them means capped at
+  400, still arriving, or stopped by a refusal. Then a query fewer than five known people answer to is sent to
+  `GET /api/v1/accounts/search` with `following=true`, unresolved, five at most (`IInstanceSearch.FindFollowed`) — but
+  only once asking has paused for the shell's settle (250ms, `ShellTiming.Settle`), once per pause, and whether it is
+  still worth it is asked again when the pause comes, since the follows may have finished meanwhile. A list asking
+  again for the query it already asked for, as a redraw or a caret move does, is the same pause. What it finds joins
+  the follows, one per address, and an open list redraws; each query is searched once a session. Like the read, it is
+  not asked through the enquiry, and a refusal is silent.
 - **An @-word** starts with `@` at the start of a line or after whitespace and runs over letters, digits, `_`, `.`,
   `-` and `@` up to the caret, read from the text as written — off the editor's unwrapped caret — rather than as
   wrapped. So `name@example.com` opens nothing, and a full address is one word. A word that is already a whole address

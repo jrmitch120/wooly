@@ -1,3 +1,6 @@
+using System.Net.Http;
+using System.Text.Json;
+using Mastonet;
 using Wooly.Core.Accounts;
 using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
@@ -37,5 +40,33 @@ public sealed class InstanceSearch(IMastodonClientFactory clientFactory) : IInst
             found.Accounts?.Select(account => AccountWire.ToAccount(account, profile.Instance)).ToList() ?? [],
             found.Hashtags?.Select(HashtagWire.ToHashtag).ToList() ?? [],
             found.Statuses?.Select(status => PostWire.ToPost(status, profile)).ToList() ?? []);
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<Account>> FindFollowed(
+        ActiveProfile profile,
+        string query,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var client = clientFactory.CreateClient(profile.Instance, profile.AccessToken);
+
+        try
+        {
+            var found = await client.SearchAccounts(
+                query,
+                IInstanceSearch.FollowedFound,
+                resolveNonLocalAccouns: false,
+                onlyFollowing: true);
+
+            return [.. found.Select(account => AccountWire.ToAccount(account, profile.Instance))];
+        }
+        // An instance declining to answer, however Mastonet spells it, found nobody worth suggesting — the same
+        // silence #204 gave the standing a list is decorated with. A rate limit is still raised, as the port says.
+        catch (Exception unanswered) when (unanswered is ServerErrorException or HttpRequestException or JsonException)
+        {
+            return [];
+        }
     }
 }

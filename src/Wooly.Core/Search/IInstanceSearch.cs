@@ -1,3 +1,4 @@
+using Wooly.Core.Accounts;
 using Wooly.Core.Profiles;
 
 namespace Wooly.Core.Search;
@@ -21,4 +22,23 @@ public interface IInstanceSearch
     ///     reported alongside a half-answer (ADR-0011).
     /// </returns>
     Task<SearchResults> Find(ActiveProfile profile, SearchQuery query, CancellationToken cancellationToken);
+
+    /// <summary>
+    ///     A few of the accounts <paramref name="profile" /> follows that match <paramref name="query" />, best first —
+    ///     what a post can mention where the follows read so far did not hold enough (#322). Only accounts the instance
+    ///     already knows: a suggestion is not worth sending it to look for one it has not met.
+    /// </summary>
+    /// <param name="profile">Whose follows to search, and the token to ask with.</param>
+    /// <param name="query">What has been typed after the <c>@</c>.</param>
+    /// <returns>
+    ///     At most <see cref="FollowedFound" />, in the order the instance ranked them — and nobody where the instance
+    ///     refused to answer, since a suggestion is not worth saying a refusal over.
+    /// </returns>
+    /// <exception cref="Errors.RateLimitedException">
+    ///     The rate limit refused the search. One call, as <see cref="Find" /> is, so there is no half-answer.
+    /// </exception>
+    Task<IReadOnlyList<Account>> FindFollowed(ActiveProfile profile, string query, CancellationToken cancellationToken);
+
+    /// <summary>The most <see cref="FindFollowed" /> asks for: as many as a mention list shows.</summary>
+    public const int FollowedFound = 5;
 }

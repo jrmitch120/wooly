@@ -1,12 +1,13 @@
 using Wooly.Core.Accounts;
+using Wooly.Core.Paging;
 
 namespace Wooly.Tui.Shell;
 
 /// <summary>
 ///     Who a post can mention, for one profile, for the session (#318): every account the shell has already read, fed
 ///     to it as screens arrive, so suggesting somebody costs no request — and the accounts the profile follows, read
-///     once the first time anybody is asked for (#321). Never written to disk, and dropped with the profile it was
-///     gathered as.
+///     once the first time anybody is asked for (#321), and those the instance's search of them found where that read
+///     was not the whole of them (#322). Never written to disk, and dropped with the profile it was gathered as.
 /// </summary>
 /// <param name="profile">The profile this is gathered as — whose own account is nobody to mention.</param>
 public sealed class PeopleToMention(Core.Profiles.ActiveProfile profile)
@@ -35,8 +36,17 @@ public sealed class PeopleToMention(Core.Profiles.ActiveProfile profile)
     /// <summary>Counts up with every sighting, so a higher one was seen more recently.</summary>
     private long _clock;
 
+    /// <summary>Every query the instance has been asked to search the follows for, which it is not asked again.</summary>
+    private readonly HashSet<string> _searched = new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>Whether anybody has been asked for yet.</summary>
     private bool _asked;
+
+    /// <summary>
+    ///     Whether the follows read are all of them: read to the end, short of the cap, and stopped by nothing. Until
+    ///     then — still arriving, cut off at the cap, or refused — anybody followed may be missing.
+    /// </summary>
+    private bool _followsWhole;
 
     /// <summary>
     ///     Takes in everybody <paramref name="people" /> names, the first of them the most recently seen — a screen's top
@@ -74,8 +84,8 @@ public sealed class PeopleToMention(Core.Profiles.ActiveProfile profile)
     }
 
     /// <summary>
-    ///     Takes in a page of the accounts the profile follows, as it arrives — leaving out anybody a tie has come off
-    ///     since, whom the page was read too early to know about.
+    ///     Takes in a page of the accounts the profile follows, as it arrives or as a search of them finds them —
+    ///     leaving out anybody a tie has come off since, whom the page was read too early to know about.
     /// </summary>
     public void Followed(IEnumerable<Account> page)
     {
@@ -87,6 +97,31 @@ public sealed class PeopleToMention(Core.Profiles.ActiveProfile profile)
             }
         }
     }
+
+    /// <summary>
+    ///     The read of the follows has ended, which settles whether searching them is worth it: one that filled the cap
+    ///     may have stopped with more to come, and one the rate limit stopped did.
+    /// </summary>
+    public void FollowsEnded(Fetch<Account> read) => _followsWhole = read.IsComplete && read.Items.Count < FollowsRead;
+
+    /// <summary>
+    ///     Whether the instance's search of the follows is worth asking for <paramref name="query" />: the follows read
+    ///     are not all of them, fewer than <see cref="Most" /> people known answer to it, it is not already a whole
+    ///     address somebody here answers to, and it has not been searched for already this session (#322).
+    /// </summary>
+    public bool WorthSearching(string query) =>
+        !_followsWhole
+        && query.Length > 0
+        && !_searched.Contains(query)
+        && !_people.ContainsKey(query)
+        && !_follows.ContainsKey(query)
+        && Matching(query).Count < Most;
+
+    /// <summary>
+    ///     Remembers that the follows are being searched for <paramref name="query" />, so that it is not asked for again
+    ///     this session — what the search finds being taken in through <see cref="Followed" />, which keeps it.
+    /// </summary>
+    public void SearchedFor(string query) => _searched.Add(query);
 
     /// <summary>
     ///     A tie went on or came off <paramref name="account" />, which the instance answered with where the profile
