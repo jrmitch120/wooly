@@ -222,7 +222,7 @@ public class ComposeLangTests
         Assert.False(List(drawn).Visible);
         Assert.Equal("ab  аҧсуа бызшәа", second);
         Assert.Equal(second, Field(drawn).Text);
-        Assert.Equal("ab", compose.Language?.Code);
+        Assert.Equal("ab", compose.Lang.Language?.Code);
     }
 
     /// <summary>A click outside the open list closes it, and Lang keeps what it held.</summary>
@@ -327,7 +327,7 @@ public class ComposeLangTests
         var compose = await Opening(ComposeFor.Edit, post: mine);
 
         Assert.Equal("  Lang  xx", Texts(compose)[3]);
-        Assert.Null(compose.LanguageRefusal);
+        Assert.Null(compose.Lang.Refusal);
         Assert.Equal("xx", Saving(compose).Language);
     }
 

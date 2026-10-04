@@ -59,6 +59,19 @@ public class AccountDefaultsTests
     }
 
     /// <summary>
+    ///     A regional posting language Mastodon offers (Chinese as written in Taiwan) is a language this client knows,
+    ///     not an unknown one.
+    /// </summary>
+    [Fact]
+    public async Task Read_TakesARegionalPostingLanguage()
+    {
+        var defaults = await Defaults(Answering("""{"id":"1","source":{"privacy":"public","language":"zh-TW"}}"""))
+            .Read(Profile, TestContext.Current.CancellationToken);
+
+        Assert.Equal(new PostDefaults(PostVisibility.Public, "zh-TW"), defaults);
+    }
+
+    /// <summary>
     ///     A visibility or a language this client does not know is not one to start a post on: it is unknown, and the
     ///     other is still read.
     /// </summary>

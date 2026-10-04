@@ -43,18 +43,10 @@ public sealed class AccountDefaults(IHttpClientFactory httpClientFactory) : IAcc
             return PostDefaults.Unknown;
         }
 
-        return new PostDefaults(ToVisibility(source?.Privacy), PostLanguageName.Of(source?.Language ?? "")?.Code);
+        return new PostDefaults(
+            PostWire.ToVisibility(source?.Privacy),
+            PostLanguageName.Of(source?.Language ?? "")?.Code);
     }
-
-    /// <summary>The wire's word for a visibility, with Mastodon's <c>private</c> read as followers (ADR-0024).</summary>
-    private static PostVisibility? ToVisibility(string? privacy) => privacy switch
-    {
-        "public" => PostVisibility.Public,
-        "unlisted" => PostVisibility.Unlisted,
-        "private" => PostVisibility.Followers,
-        "direct" => PostVisibility.Direct,
-        _ => null,
-    };
 
     /// <summary>The little of the account's own description of itself this reads.</summary>
     private sealed record CredentialsWire

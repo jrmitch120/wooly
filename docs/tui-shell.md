@@ -159,7 +159,7 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Conversation | `m` mark read, and every key that acts on a post, since each message in it is one |
 | Profiles | `⏎` act as that profile, for this session — not offered on the one already acted as · `D` make it the default, for the CLI and the next launch — not offered on the one already the default · `a` add a profile · `R` sign it in again, replacing its token — offered on every row · `x` remove it, after a confirmation — refused on the one acted as and on the default |
 | Add a profile | `⏎` on to the next step · `t` paste a token instead, while the browser is out or after it failed · `esc` back to the list, calling off a sign-in or a check in flight — or, as the only screen on first run, back to the first step, with `ctrl-q` quit offered (#247) |
-| Compose / reply / edit | `ctrl-s` send or save · `esc` throw it away · `ctrl-w` move the typing between the post and the content warning over it — on all three, each carrying a warning field of its own (#123, #139, #140); `⏎` in the warning hands the typing back too (#320) · `↑` on the post's first line moves the typing up into the headers, `↑`/`↓` move it between the headers that take typing, and `↓` off the last returns it to the post, the way a mail client's do (ADR-0024, #337) — on a header the status row offers `↑↓ field` · on **To** `←`/`→` choose the visibility, skipping any it does not allow, and the status row offers `←→ choose` ahead of `↑↓ field` (#338); letters there are nobody's · on **Lang** a code or a name typed opens the list of languages, as do a click and `⏎`; the walk goes To, Lang, the warning, the post (#340) · `tab`/`shift-tab` are the frame's here as everywhere, never a walk of compose's fields. While the list of people to mention is open: `↑`/`↓` pick · `tab`/`⏎` insert · `esc` close the list, never the draft (#318). While the list of languages is open: `↑`/`↓` pick · `tab`/`⏎` choose · `esc` close the list, never the draft — and the status row offers those three ahead of the rest (#340) |
+| Compose / reply / edit | `ctrl-s` send or save · `esc` throw it away · `ctrl-w` move the typing between the post and the content warning over it — on all three, each carrying a warning field of its own (#123, #139, #140); `⏎` in the warning hands the typing back too (#320) · `↑` on the post's first line moves the typing up into the headers, `↑`/`↓` move it between the headers that take typing, and `↓` off the last returns it to the post, the way a mail client's do (ADR-0024, #337) — on a header the status row offers `↑↓ field` · on **To** `←`/`→` choose the visibility, skipping any it does not allow, and the status row offers `←→ choose` ahead of `↑↓ field` (#338); letters there are nobody's · on **Lang** a code or a name typed opens the list of languages, as do a click and `⏎`; the walk goes To, Lang, the warning, the post — the order they are drawn in — and steps over Lang where a short terminal has given its row up (#340) · `tab`/`shift-tab` are the frame's here as everywhere, never a walk of compose's fields. While the list of people to mention is open: `↑`/`↓` pick · `tab`/`⏎` insert · `esc` close the list, never the draft (#318). While the list of languages is open: `↑`/`↓` pick · `tab`/`⏎` choose · `esc` close the list, never the draft — and the status row offers those three ahead of the rest (#340) |
 | Home, local, federated, hashtag, Discover, Notifications, Messages, Requests, Post, Account, Follows | `g` refresh — evicts the destination's cache entry (where one exists) and re-runs the same fetch its own arrival runs |
 
 ### What the four screens settled
@@ -861,7 +861,7 @@ its author remembered to warn it again by hand — which Mastodon's own clients 
 Compose is laid out as a mail client's compose — variant A of the prototype on `prototype/compose` (#313, #317) — on a
 fresh post, a reply and an edit alike:
 
-- **Rows, top to bottom:** a blank; the headers — From, To, the reply header and its quote, ⚠ (ADR-0024, #338); a hairline; a blank; the editor; a hairline; the row the count sits
+- **Rows, top to bottom:** a blank; the headers — From, To, Lang, the reply header and its quote, ⚠ (ADR-0024, #338, #340); a hairline; a blank; the editor; a hairline; the row the count sits
   on (#319). Two columns of padding either side of all of it. The hairlines are `panel-border`.
 - **Headers are a right-aligned label column four wide, two spaces, then the value.** `From` reads the profile's
   handle in `byline-handle` and ` · instance` muted — the instance said even with one profile set up, since this is
@@ -874,8 +874,10 @@ fresh post, a reply and an edit alike:
   ○ direct`, the filled bubble the one chosen. It starts on what would go out — `default_visibility` where the config
   sets one, and on a reply the narrower of that and the post being answered (the post's own where the config sets
   none) — and sends what it shows, chosen only where the author moved it, so `PostAuthor` narrows a starting
-  preference exactly as on the CLI. Where nothing is known on a fresh post it reads `◂ account default ▸` and sends
-  nothing. On a reply, values wider than the post being answered are `muted`, skipped by `←`/`→` and ignore clicks; on
+  preference exactly as on the CLI. Where nothing is known on a fresh post it starts on `account default` and sends
+  nothing, and `account default` stays the row's first choice — `● account default  ○ public  …`, or
+  `◂ ● account default ▸` where that does not fit — so an author who steps off it can step back, by key or by click,
+  and send nothing again. On a reply, values wider than the post being answered are `muted`, skipped by `←`/`→` and ignore clicks; on
   an edit the whole row is `muted` and takes neither keys, clicks nor the typing, since Mastodon cannot change it.
   Choosable values are `body`; the chosen one is `selected-text` while To has the typing, which is how a row with no
   caret shows where the typing is, and reads reversed with no colour. Where the row does not fit, it falls back to the
@@ -884,7 +886,7 @@ fresh post, a reply and an edit alike:
   height (`Drawing.Height`) — so what is painted and where the editor is laid over it cannot disagree. Where nobody
   says the height, it lays out as tall as its rows and the editor's least want.
 - **On a terminal too short for everything, rows give way in a fixed order**: the quote's tail, the blanks, the reply
-  header, the foot, `From`, the hairline under the headers. **To**, the warning header and three rows of editor are
+  header, the foot, `From` and `Lang`, the hairline under the headers. **To**, the warning header and three rows of editor are
   kept whatever the height (#338) — the rule ADR-0015 and #123 already kept, with more dressing in front of it to go first.
 - **The foot counts what has been used of the post's limit** (#319): `n / limit`, right-aligned inside the padding,
   `muted` up to nine tenths of the limit, `quota-low` in the last tenth and `error` past it. It counts the way the
@@ -960,8 +962,9 @@ Typing `@` at the start of a word in the post opens a list of people to mention 
   `none · the instance decides` and sends no language.
 - **It starts on the author's own language**: `default_language`, else the account's posting language as its instance
   said it (#339), else empty — on a reply as on a fresh post, never the answered post's. An edit opens on the post's own
-  and always sends what the field holds, as the warning does (#140); cleared, that is an empty language, which
-  Mastodon reads as "keep the one it has", so clearing a published post's language changes nothing on the instance.
+  and always sends what the field holds, as the warning does (#140); cleared, that is an empty language, which goes
+  out as no language at all. Mastodon cannot remove a post's language — an edit with none keeps the one it has — so
+  clearing Lang on an edit leaves the post's language alone (ADR-0024's amendment).
 - **The list of languages is the second `PickList`**, hung under the field and no lower than the panel's foot. Typing
   narrows it through `PostLanguageName.Matching`: a code typed in full first, then codes it starts, then names in
   English or their own that hold it. A click on Lang or `⏎` in it opens every language, picked on the one held. A

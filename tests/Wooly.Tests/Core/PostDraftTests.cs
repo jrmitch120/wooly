@@ -41,7 +41,7 @@ public class PostDraftTests
         }.Problem);
 
     /// <summary>
-    ///     Not a synonym for public. An account whose own default is followers-only would otherwise have every post from
+    ///     Not a synonym for public. An account whose own default is followers would otherwise have every post from
     ///     this client published wider than the account asked for.
     /// </summary>
     [Fact]

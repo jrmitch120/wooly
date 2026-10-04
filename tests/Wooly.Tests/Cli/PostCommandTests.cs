@@ -141,7 +141,7 @@ public class PostCommandTests : IDisposable
 
     /// <summary>
     ///     Said nowhere, the choice stays the account's own. Filling in "public" here would publish an account whose own
-    ///     default is followers-only wider than it asked for.
+    ///     default is followers wider than it asked for.
     /// </summary>
     [Fact]
     public void Create_LeavesVisibilityUnsaidWhenNeitherTheCommandLineNorTheConfigFileSaysIt()
@@ -457,6 +457,21 @@ public class PostCommandTests : IDisposable
 
         Assert.Equal((int)ExitCode.Success, run.ExitCode);
         Assert.Equal("fr", Assert.Single(_posts.Published).Draft.Language);
+    }
+
+    /// <summary>
+    ///     A regional code Mastodon takes as a language of its own (Chinese as written in Taiwan), handed on whole rather
+    ///     than cut back to the language it belongs to.
+    /// </summary>
+    [Fact]
+    public void Create_SaysARegionalLanguageMastodonTakes()
+    {
+        AddProfile();
+
+        var run = Run(["post", "create", "你好", "--language", "zh-tw"]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Equal("zh-TW", Assert.Single(_posts.Published).Draft.Language);
     }
 
     /// <summary>A typo is turned down by the parser, before anything is published under a language nobody meant.</summary>

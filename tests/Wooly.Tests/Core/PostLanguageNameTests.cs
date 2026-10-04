@@ -76,8 +76,26 @@ public class PostLanguageNameTests
     [InlineData("zh")]
     [InlineData("ckb")]
     [InlineData("kab")]
+
+    // The regional codes Mastodon takes as languages of their own.
+    [InlineData("zh-CN")]
+    [InlineData("zh-HK")]
+    [InlineData("zh-TW")]
+    [InlineData("zh-YUE")]
+    [InlineData("mn-Mong")]
+    [InlineData("ms-Arab")]
+    [InlineData("nan-TW")]
     public void All_HoldsTheLanguagesMastodonTakes(string code) =>
         Assert.Contains(PostLanguageName.All, language => language.Code == code);
+
+    /// <summary>
+    ///     Codes ISO 639-1 has but Mastodon does not list. It would quietly drop one sent with a post and fall back on the
+    ///     account's own language, so the post would not be in the language the author chose.
+    /// </summary>
+    [Theory]
+    [InlineData("gn")]
+    [InlineData("sm")]
+    public void All_HoldsNothingMastodonWouldDrop(string code) => Assert.Null(PostLanguageName.Of(code));
 
     /// <summary>The TUI's list narrowing as an author types a code into it.</summary>
     [Fact]

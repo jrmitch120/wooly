@@ -69,19 +69,11 @@ public sealed class ComposeScreen : Screen
 
     private const string StepOn = "▸";
 
-    /// <summary>What a click on either arrow stands for, as the spans carry it: never a visibility.</summary>
-    private const int StepBackItem = -1;
-
-    private const int StepOnItem = -2;
-
     /// <summary>What Lang says while it is empty, which sends no language and leaves it to the instance (#340).</summary>
     private const string NoLanguage = "none · the instance decides";
 
     /// <summary>What Lang says while it is empty and is being typed in.</summary>
     private const string LanguageBeingTyped = "type a code or a name";
-
-    /// <summary>The columns between a language's code and its own name, in Lang and in its list.</summary>
-    private const string CodeGap = "  ";
 
     /// <summary>What the warning row says while it is empty and nobody is writing in it.</summary>
     private const string NoWarningWritten = "none · ctrl-w to add";
@@ -115,10 +107,16 @@ public sealed class ComposeScreen : Screen
     private readonly PostVisibility? _startingVisibility;
 
     /// <summary>
-    ///     The code Lang opened on, which an edit sends back as it is even where this client lists no such language —
-    ///     the instance knew it, and an author who did not touch Lang has not asked for anything else (#340).
+    ///     What To's row offers, left to right: "account default" first where To opened on it — so that an author who
+    ///     stepped off it can step back and send nothing again — then every visibility, widest first.
     /// </summary>
-    private readonly string? _startingLanguage;
+    private readonly PostVisibility?[] _choices;
+
+    /// <summary>
+    ///     The fields the screen was last drawn with, which the walk keeps to: a short terminal gives Lang's row up
+    ///     (<see cref="Laid" />), and a field that is not on screen is not one to move the typing into.
+    /// </summary>
+    private ComposeField[] _drawn = Fields;
 
     /// <param name="purpose">What this screen was opened to do.</param>
     /// <param name="about">The post being replied to or edited.</param>
@@ -138,16 +136,11 @@ public sealed class ComposeScreen : Screen
     ///     Who the post goes out as, for the From header — or <see langword="null" /> for a screen built with no
     ///     profile behind it, whose header is the label alone.
     /// </param>
-    /// <param name="visibility">
-    ///     What To starts on, which is what would go out if nobody touched it — worked out by the shell, where the
-    ///     preferences and the post being answered are both in reach — or <see langword="null" /> where that is not
-    ///     known, and To reads "account default" and sends nothing (ADR-0024, #338). An edit shows the post's own
-    ///     whatever this says, since Mastodon cannot change it.
-    /// </param>
-    /// <param name="language">
-    ///     The code of the language Lang starts on — worked out by the shell from the preferences and the account's own
-    ///     posting language — or <see langword="null" /> to start it empty, which sends none (ADR-0024, #340). An edit
-    ///     shows the post's own whatever this says.
+    /// <param name="starting">
+    ///     What To and Lang start on, which is what would go out if nobody touched them — worked out by the shell, where
+    ///     the preferences, the account's own defaults and the post being answered are all in reach. An unknown
+    ///     visibility reads "account default" on To and sends nothing (#338); no language leaves Lang empty, which sends
+    ///     none (#340) (ADR-0024).
     /// </param>
     public ComposeScreen(
         ComposeFor purpose,
@@ -155,23 +148,28 @@ public sealed class ComposeScreen : Screen
         string? addressing = null,
         bool aboutIsMine = false,
         ComposeFrom? from = null,
-        PostVisibility? visibility = null,
-        string? language = null)
+        PostDefaults? starting = null)
     {
         Purpose = purpose;
         About = about;
         _aboutIsMine = aboutIsMine;
         _from = from;
 
-        Visibility = purpose == ComposeFor.Edit && about is not null ? about.Visibility : visibility;
-        _startingVisibility = Visibility;
+        // An edit opens on the post's own visibility and language whatever it was handed, the one being what Mastodon
+        // cannot change and the other what the author already said. Here, and nowhere else.
+        var opening = purpose == ComposeFor.Edit && about is not null
+            ? new PostDefaults(about.Visibility, about.Language)
+            : starting ?? PostDefaults.Unknown;
 
-        _startingLanguage = purpose == ComposeFor.Edit && about is not null ? about.Language : language;
-        LanguageField = _startingLanguage switch
-        {
-            null => string.Empty,
-            var code => PostLanguageName.Of(code) is { } known ? Spoken(known) : code,
-        };
+        Visibility = opening.Visibility;
+        _startingVisibility = Visibility;
+        _choices =
+        [
+            .. Visibility is null ? [null] : Array.Empty<PostVisibility?>(),
+            .. Enum.GetValues<PostVisibility>().Select(visibility => (PostVisibility?)visibility),
+        ];
+
+        Lang = ComposeLang.Opening(opening.Language);
 
         Opening = purpose switch
         {
@@ -228,40 +226,14 @@ public sealed class ComposeScreen : Screen
     /// </summary>
     public PostVisibility? Visibility { get; private set; }
 
-    /// <summary>
-    ///     What Lang's field holds, letter for letter (ADR-0024, #340): a language as <see cref="Spoken" /> writes it, a
-    ///     code or a name being typed, nothing, or something that is not a language at all — which is refused at send
-    ///     (<see cref="LanguageRefusal" />) rather than here, since half of a name is what a field holds on the way to
-    ///     the whole of one.
-    /// </summary>
-    public string LanguageField { get; private set; }
-
-    /// <summary>
-    ///     Why the post cannot go out in what Lang holds, or <see langword="null" /> where it can: empty, a language, or
-    ///     the code an edit opened on.
-    /// </summary>
-    public string? LanguageRefusal => Resolved(out _) ? null : PostLanguageName.Rejection(LanguageField.Trim());
-
-    /// <summary>The language Lang holds, if it holds one this client lists — which its list opens picked on.</summary>
-    public PostLanguage? Language => Resolved(out var code) && code is not null ? PostLanguageName.Of(code) : null;
+    /// <summary>What Lang holds, and what that stands for (ADR-0024, #340).</summary>
+    public ComposeLang Lang { get; private set; }
 
     /// <summary>
     ///     Whether the list of languages under Lang is open, which the window says as it opens and closes it — so that
     ///     the status row can offer the list's keys while it is (#340).
     /// </summary>
     public bool OfferingLanguages { get; private set; }
-
-    /// <summary>
-    ///     The languages Lang's list offers for what the field holds: those matching what is being typed, or every one
-    ///     where the field is empty or already holds a language whole — a click asking for the list is not a search.
-    /// </summary>
-    public IReadOnlyList<PostLanguage> LanguagesOffered =>
-        LanguageField.Trim().Length == 0 || HoldsALanguageWhole
-            ? PostLanguageName.All
-            : PostLanguageName.Matching(LanguageField);
-
-    /// <summary>Whether Lang holds a language exactly as <see cref="Spoken" /> writes it, as picking one leaves it.</summary>
-    private bool HoldsALanguageWhole => Language is { } language && LanguageField == Spoken(language);
 
     /// <summary>
     ///     The fields the typing walks, in the order the arrows walk them (ADR-0024, #337): the headers that take typing,
@@ -368,7 +340,14 @@ public sealed class ComposeScreen : Screen
     ///     The whole of the content region, laid out to its height (<see cref="Drawing.Height" />) rather than
     ///     scrolled: the headers, the hairline, blank rows where the editor is laid over them, and the foot.
     /// </remarks>
-    public override IReadOnlyList<Line> Lines(Drawing drawing) => Laid(drawing.Width, drawing.Height).Rows;
+    public override IReadOnlyList<Line> Lines(Drawing drawing)
+    {
+        var laid = Laid(drawing.Width, drawing.Height);
+
+        _drawn = laid.Lang == Rectangle.Empty ? [.. Fields.Where(field => field != ComposeField.Lang)] : Fields;
+
+        return laid.Rows;
+    }
 
     /// <summary>
     ///     The warning field changed: what it holds now, learned the way the post's text is learned from the editor
@@ -380,50 +359,13 @@ public sealed class ComposeScreen : Screen
     ///     Lang's field changed: what it holds now, learned as the warning's is (#340). Whether that is a language is
     ///     asked at send.
     /// </summary>
-    public void RewriteLanguage(string written) => LanguageField = written;
+    public void RewriteLanguage(string written) => Lang = Lang with { Held = written };
 
-    /// <summary>A language picked off Lang's list: the field says it as <see cref="Spoken" /> writes it.</summary>
-    public void PickLanguage(PostLanguage language) => LanguageField = Spoken(language);
+    /// <summary>A language picked off Lang's list: the field says it as <see cref="ComposeLang.Spoken" /> writes it.</summary>
+    public void PickLanguage(PostLanguage language) => Lang = Lang with { Held = ComposeLang.Spoken(language) };
 
     /// <summary>The list of languages under Lang opened or closed, which the status row follows.</summary>
     public void OfferLanguages(bool open) => OfferingLanguages = open;
-
-    /// <summary>A language as Lang and its list write it: its code, then its own name — <c>fr  Français</c>.</summary>
-    public static string Spoken(PostLanguage language) => $"{language.Code}{CodeGap}{language.OwnName}";
-
-    /// <summary>
-    ///     What Lang's field stands for: nothing, where it is empty; a language, where it holds one as
-    ///     <see cref="Spoken" /> writes it or as <see cref="PostLanguageName.Parse" /> reads a code or a name; or the
-    ///     code it opened on. Anything else is not a language, and this says so.
-    /// </summary>
-    private bool Resolved(out string? code)
-    {
-        var held = LanguageField.Trim();
-
-        code = null;
-
-        if (held.Length == 0)
-        {
-            return true;
-        }
-
-        if (_startingLanguage is { } opened && string.Equals(held, opened, StringComparison.OrdinalIgnoreCase))
-        {
-            code = opened;
-
-            return true;
-        }
-
-        var language = PostLanguageName.Parse(held)
-                       ?? (PostLanguageName.Of(held.Split(' ')[0]) is { } written
-                           && string.Equals(Spoken(written), held, StringComparison.Ordinal)
-                               ? written
-                               : null);
-
-        code = language?.Code;
-
-        return language is not null;
-    }
 
     /// <summary><c>ctrl-w</c>: hands the typing to the warning, or hands it back to the post.</summary>
     public void WriteTheWarning() => Typing = WritingTheWarning ? ComposeField.Post : ComposeField.Warning;
@@ -438,11 +380,12 @@ public sealed class ComposeScreen : Screen
     ///     is the post's own business.
     /// </returns>
     /// <remarks>
-    ///     A field that takes nothing is not walked into: To on an edit, which Mastodon cannot change.
+    ///     A field that takes nothing is not walked into: To on an edit, which Mastodon cannot change. Nor is one the
+    ///     screen was last drawn without: Lang, where a short terminal gave its row up.
     /// </remarks>
     public bool Walk(int by)
     {
-        var walked = Fields.Where(Takes).ToArray();
+        var walked = _drawn.Where(Takes).ToArray();
         var to = Array.IndexOf(walked, Typing) + by;
 
         if (to < 0 || to >= walked.Length)
@@ -456,8 +399,7 @@ public sealed class ComposeScreen : Screen
     }
 
     /// <summary>Whether <paramref name="field" /> can have the typing at all, which To cannot where it allows nothing.</summary>
-    public bool Takes(ComposeField field) =>
-        field != ComposeField.To || Enum.GetValues<PostVisibility>().Any(Allows);
+    public bool Takes(ComposeField field) => field != ComposeField.To || _choices.Any(Offers);
 
     /// <summary>
     ///     The typing went into <paramref name="field" /> by a click rather than by this screen's keys, and the screen
@@ -477,13 +419,13 @@ public sealed class ComposeScreen : Screen
     }
 
     /// <summary>
-    ///     <c>←</c> or <c>→</c> (<paramref name="by" /> −1 or 1) on To: the next visibility that way which To allows,
-    ///     skipping any it does not (ADR-0024, #338). From "account default", the first that way from the row's end.
+    ///     <c>←</c> or <c>→</c> (<paramref name="by" /> −1 or 1) on To: the next choice that way which To offers,
+    ///     skipping any it does not (ADR-0024, #338).
     /// </summary>
-    /// <returns>Whether the choice moved: never off To, nor off either end of what it allows.</returns>
+    /// <returns>Whether the choice moved: never off To, nor off either end of what it offers.</returns>
     public bool Choose(int by)
     {
-        if (Typing != ComposeField.To || Stepped(by) is not { } next)
+        if (Typing != ComposeField.To || !Stepped(by, out var next))
         {
             return false;
         }
@@ -495,7 +437,7 @@ public sealed class ComposeScreen : Screen
 
     /// <summary>
     ///     A click <paramref name="column" /> columns into To's value as it is drawn <paramref name="room" /> wide: on a
-    ///     value To allows it chooses it, on an arrow it steps, and anywhere on the row it gives To the typing — but a
+    ///     choice To offers it chooses it, on an arrow it steps, and anywhere on the row it gives To the typing — but a
     ///     value To does not allow ignores it, and so does all of To on an edit (ADR-0024, #338).
     /// </summary>
     /// <returns>Whether anything changed.</returns>
@@ -507,18 +449,17 @@ public sealed class ComposeScreen : Screen
         }
 
         var was = (Visibility, Typing);
-        var item = ItemAt(ToValue(room), column);
 
-        switch (item)
+        switch (ToPartAt(ToRow(room), column))
         {
-            case >= 0 when !Allows((PostVisibility)item):
+            case ToPart.Choice { Visibility: var choice } when !Offers(choice):
                 return false;
-            case >= 0:
-                Visibility = (PostVisibility)item;
+            case ToPart.Choice { Visibility: var choice }:
+                Visibility = choice;
 
                 break;
-            case StepBackItem or StepOnItem:
-                Visibility = Stepped(item == StepOnItem ? 1 : -1) ?? Visibility;
+            case ToPart.Step { By: var by } when Stepped(by, out var next):
+                Visibility = next;
 
                 break;
         }
@@ -528,14 +469,14 @@ public sealed class ComposeScreen : Screen
         return (Visibility, Typing) != was;
     }
 
-    /// <summary>What the span <paramref name="column" /> columns into <paramref name="spans" /> stands for, if anything.</summary>
-    private static int? ItemAt(IEnumerable<Span> spans, int column)
+    /// <summary>What the run <paramref name="column" /> columns into <paramref name="row" /> stands for, if anything.</summary>
+    private static ToPart? ToPartAt(IEnumerable<(Span Span, ToPart? Part)> row, int column)
     {
-        foreach (var span in spans)
+        foreach (var (span, part) in row)
         {
             if (column < span.Width)
             {
-                return span.Item;
+                return part;
             }
 
             column -= span.Width;
@@ -544,22 +485,29 @@ public sealed class ComposeScreen : Screen
         return null;
     }
 
-    /// <summary>The next visibility To allows <paramref name="by" /> along the row from the one chosen, or none.</summary>
-    private PostVisibility? Stepped(int by)
+    /// <summary>The next choice To offers <paramref name="by" /> along the row from the one chosen, if there is one.</summary>
+    private bool Stepped(int by, out PostVisibility? next)
     {
-        var all = Enum.GetValues<PostVisibility>();
-        var from = Visibility is { } chosen ? Array.IndexOf(all, chosen) : by > 0 ? -1 : all.Length;
-
-        for (var at = from + by; at >= 0 && at < all.Length; at += by)
+        for (var at = Array.IndexOf(_choices, Visibility) + by; at >= 0 && at < _choices.Length; at += by)
         {
-            if (Allows(all[at]))
+            if (Offers(_choices[at]))
             {
-                return all[at];
+                next = _choices[at];
+
+                return true;
             }
         }
 
-        return null;
+        next = Visibility;
+
+        return false;
     }
+
+    /// <summary>
+    ///     Whether To's row offers <paramref name="choice" />: a visibility where To <see cref="Allows" /> it, and
+    ///     "account default" anywhere but an edit — it is only on the row where To opened on it.
+    /// </summary>
+    private bool Offers(PostVisibility? choice) => choice is { } visibility ? Allows(visibility) : Purpose != ComposeFor.Edit;
 
     /// <summary>
     ///     Where the editor goes inside the content panel's viewport of <paramref name="viewport" />: under the
@@ -588,7 +536,7 @@ public sealed class ComposeScreen : Screen
     ///     To's value as it is drawn <paramref name="room" /> columns wide — what the row laid over it paints, so that
     ///     row and the one a test reads off <see cref="Lines" /> are the same spans.
     /// </summary>
-    public IReadOnlyList<Span> ToSpans(int room) => ToValue(room);
+    public IReadOnlyList<Span> ToSpans(int room) => [.. ToRow(room).Select(run => run.Span)];
 
     /// <summary>
     ///     The screen laid out at <paramref name="width" /> by <paramref name="height" />: every row, top to bottom,
@@ -616,7 +564,7 @@ public sealed class ComposeScreen : Screen
         var valueWidth = Math.Max(0, inner - LabelWidth - LabelGap);
         var hairline = Line.Of(Gap(Pad), new Span(new string('─', inner), Role.PanelBorder));
 
-        var to = new Row(Header("To", Role.Muted, ToValue(valueWidth)), Keep.Always);
+        var to = new Row(Header("To", Role.Muted, [.. ToSpans(valueWidth)]), Keep.Always);
         var lang = new Row(Header("Lang", Role.Muted, LangValue(valueWidth)), Keep.From);
 
         var above = new List<Row>
@@ -714,46 +662,56 @@ public sealed class ComposeScreen : Screen
     }
 
     /// <summary>
-    ///     To's value in <paramref name="room" /> columns (ADR-0024, #338): every visibility as a radio button, the
+    ///     To's value in <paramref name="room" /> columns (ADR-0024, #338): every choice it offers as a radio button, the
     ///     chosen one filled — or, where that row does not fit, the one chosen with an arrow either side. Values To does
     ///     not allow are muted, and so is all of it on an edit.
     /// </summary>
     /// <remarks>
-    ///     Each value's span carries the visibility it stands for as its <see cref="Span.Item" />, and each arrow the
-    ///     way it steps, so that a click is answered from the very spans that were drawn.
+    ///     Each run comes with what a click on it means — a choice, or a step along the row — so that a click is
+    ///     answered from the very runs that were drawn.
     /// </remarks>
-    private Span[] ToValue(int room)
+    private List<(Span Span, ToPart? Part)> ToRow(int room)
     {
-        var row = Enum.GetValues<PostVisibility>()
-                      .SelectMany((visibility, at) => (Span[])
-                      [
-                          .. at > 0 ? [Gap(2)] : Array.Empty<Span>(),
-                          new Span($"{Bubble(visibility)} {PostVisibilityName.Of(visibility)}", ValueRole(visibility))
-                          {
-                              Item = (int)visibility,
-                          },
-                      ])
-                      .ToArray();
+        var row = new List<(Span Span, ToPart? Part)>();
 
-        if (Visibility is not null && row.Sum(span => span.Width) <= room)
+        foreach (var choice in _choices)
+        {
+            if (row.Count > 0)
+            {
+                row.Add((Gap(2), null));
+            }
+
+            row.Add((Choice(choice), new ToPart.Choice(choice)));
+        }
+
+        if (row.Sum(run => run.Span.Width) <= room)
         {
             return row;
         }
 
-        var shown = Visibility is { } chosen
-            ? new Span($"{Bubble(chosen)} {PostVisibilityName.Of(chosen)}", ValueRole(chosen)) { Item = (int)chosen }
-            : new Span(AccountDefault, Purpose == ComposeFor.Edit ? Role.Muted : Role.Body);
+        var shown = Choice(Visibility);
 
-        Span[] cycle =
+        List<(Span Span, ToPart? Part)> cycle =
         [
-            new(StepBack, Role.Muted) { Item = StepBackItem },
-            Gap(1),
-            shown,
-            Gap(1),
-            new(StepOn, Role.Muted) { Item = StepOnItem },
+            (new Span(StepBack, Role.Muted), new ToPart.Step(-1)),
+            (Gap(1), null),
+            (shown, new ToPart.Choice(Visibility)),
+            (Gap(1), null),
+            (new Span(StepOn, Role.Muted), new ToPart.Step(1)),
         ];
 
-        return cycle.Sum(span => span.Width) <= room ? cycle : [shown with { Text = TextWrap.Clip(shown.Text, room) }];
+        return cycle.Sum(run => run.Span.Width) <= room
+            ? cycle
+            : [(shown with { Text = TextWrap.Clip(shown.Text, room) }, new ToPart.Choice(Visibility))];
+    }
+
+    /// <summary>One of To's choices as a radio button and its name: <c>● followers</c>, <c>○ account default</c>.</summary>
+    private Span Choice(PostVisibility? choice)
+    {
+        var bubble = choice == Visibility ? "●" : "○";
+        var name = choice is { } visibility ? PostVisibilityName.Of(visibility) : AccountDefault;
+
+        return new Span($"{bubble} {name}", ValueRole(choice));
     }
 
     /// <summary>
@@ -763,35 +721,35 @@ public sealed class ComposeScreen : Screen
     /// </summary>
     private Span[] LangValue(int room)
     {
-        if (LanguageField.Length == 0)
+        if (Lang.Held.Length == 0)
         {
             return [new Span(TextWrap.Clip(LanguageHint, room), Role.Muted)];
         }
 
-        if (HoldsALanguageWhole && Language is { } language)
+        if (Lang.HoldsALanguageWhole && Lang.Language is { } language)
         {
             var code = TextWrap.Clip(language.Code, room);
 
             return
             [
                 new Span(code, Role.Body),
-                new Span(TextWrap.Clip($"{CodeGap}{language.OwnName}", room - Glyphs.Columns(code)), Role.Muted),
+                new Span(
+                    TextWrap.Clip($"{ComposeLang.CodeGap}{language.OwnName}", room - Glyphs.Columns(code)),
+                    Role.Muted),
             ];
         }
 
-        return [new Span(TextWrap.Clip(LanguageField, room), Role.Body)];
+        return [new Span(TextWrap.Clip(Lang.Held, room), Role.Body)];
     }
 
-    private string Bubble(PostVisibility visibility) => visibility == Visibility ? "●" : "○";
-
     /// <summary>
-    ///     The role a value of To is drawn in: muted where it cannot be chosen, the selection's where it is chosen and
+    ///     The role a choice on To is drawn in: muted where it cannot be chosen, the selection's where it is chosen and
     ///     To has the typing — which is how a reader sees where the typing went, a row of buttons having no caret — and
     ///     the body's otherwise.
     /// </summary>
-    private Role ValueRole(PostVisibility visibility) =>
-        !Allows(visibility) ? Role.Muted
-        : visibility == Visibility && Typing == ComposeField.To ? Role.SelectedText
+    private Role ValueRole(PostVisibility? choice) =>
+        !Offers(choice) ? Role.Muted
+        : choice == Visibility && Typing == ComposeField.To ? Role.SelectedText
         : Role.Body;
 
     /// <summary>
@@ -852,7 +810,7 @@ public sealed class ComposeScreen : Screen
         InReplyTo = Purpose == ComposeFor.Reply ? About?.Id : null,
         Visibility = Visibility,
         VisibilityChosen = Visibility != _startingVisibility,
-        Language = Resolved(out var code) ? code : null,
+        Language = Lang.Resolves(out var code) ? code : null,
     };
 
     /// <summary>The change this screen saves to the post it was opened on: its text, and the warning over it.</summary>
@@ -876,7 +834,7 @@ public sealed class ComposeScreen : Screen
     {
         Text = Text,
         ContentWarning = Warning,
-        Language = Resolved(out var code) ? code ?? string.Empty : null,
+        Language = Lang.Resolves(out var code) ? code ?? string.Empty : null,
     };
 
     /// <summary>
@@ -903,6 +861,16 @@ public sealed class ComposeScreen : Screen
 
     /// <summary>One row of the layout, and how long it holds out on a terminal too short for every row.</summary>
     private sealed record Row(Line Line, Keep Keep);
+
+    /// <summary>What a run of To's row means to a click on it.</summary>
+    private abstract record ToPart
+    {
+        /// <summary>One of the choices: a visibility, or <see langword="null" /> for "account default".</summary>
+        public sealed record Choice(PostVisibility? Visibility) : ToPart;
+
+        /// <summary>An arrow either side of the one value shown, stepping <paramref name="By" /> along the row.</summary>
+        public sealed record Step(int By) : ToPart;
+    }
 
     /// <summary>
     ///     How long a row holds out on a terminal too short for everything, lowest first to go: what is being

@@ -15,7 +15,7 @@ internal static class ComposeRows
     public const string ToPublic = "    To  ● public  ○ unlisted  ○ followers  ○ direct";
 
     /// <summary>To on a fresh post with no <c>default_visibility</c>, which sends nothing (#338).</summary>
-    public const string ToAccountDefault = "    To  ◂ account default ▸";
+    public const string ToAccountDefault = "    To  ◂ ● account default ▸";
 
     /// <summary>Lang with no language in it, which sends none (#340).</summary>
     public const string NoLanguage = "  Lang  none · the instance decides";

@@ -933,7 +933,7 @@ internal sealed class ShellWindow : Window
 
             _lang.Visible = true;
             _lang.Layout();
-            _languages.Fill(compose.LanguageField);
+            _languages.Fill(compose.Lang.Held);
 
             _editor.SetFocus();
 
