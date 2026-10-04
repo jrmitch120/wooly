@@ -98,7 +98,7 @@ public class ComposeFieldWalkTests
     }
 
     /// <summary>
-    ///     The walk goes through the headers in the order they are drawn — To, then the warning, then the post (#338) —
+    ///     The walk goes through the headers in the order they are drawn — To, Lang, the warning, the post (#338, #340) —
     ///     and <c>↑</c> on To, the top header, has nowhere further up to go and leaves the typing where it is.
     /// </summary>
     [Fact]
@@ -110,6 +110,10 @@ public class ComposeFieldWalkTests
         drawn.Press(Key.CursorUp);
         drawn.Press(Key.CursorUp);
 
+        Assert.Equal(ComposeField.Lang, compose.Typing);
+
+        drawn.Press(Key.CursorUp);
+
         Assert.Equal(ComposeField.To, compose.Typing);
         Assert.True(To(drawn).HasFocus);
 
@@ -117,6 +121,10 @@ public class ComposeFieldWalkTests
 
         Assert.Equal(ComposeField.To, compose.Typing);
         Assert.True(To(drawn).HasFocus);
+
+        drawn.Press(Key.CursorDown);
+
+        Assert.Equal(ComposeField.Lang, compose.Typing);
 
         drawn.Press(Key.CursorDown);
 

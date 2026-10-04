@@ -105,8 +105,16 @@ internal sealed class AShell
     /// <summary>The config file's <c>default_visibility</c>, which compose's To starts on (#338), or none.</summary>
     public PostVisibility? DefaultVisibility { get; set; }
 
+    /// <summary>The config file's <c>default_language</c>, as a code, which compose's Lang starts on (#340), or none.</summary>
+    public string? DefaultLanguage { get; set; }
+
     /// <summary>The config file's preferences, as far as these tests set them.</summary>
-    private Preferences Preferences => new() { Hashtag = Hashtag, DefaultVisibility = DefaultVisibility };
+    private Preferences Preferences => new()
+    {
+        Hashtag = Hashtag,
+        DefaultVisibility = DefaultVisibility,
+        DefaultLanguage = DefaultLanguage,
+    };
 
     /// <summary>
     ///     How long the settle window and the cache are. Real lengths, because the fake host is what decides when a

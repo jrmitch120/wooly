@@ -17,6 +17,9 @@ internal static class ComposeRows
     /// <summary>To on a fresh post with no <c>default_visibility</c>, which sends nothing (#338).</summary>
     public const string ToAccountDefault = "    To  ◂ account default ▸";
 
+    /// <summary>Lang with no language in it, which sends none (#340).</summary>
+    public const string NoLanguage = "  Lang  none · the instance decides";
+
     /// <summary>The warning header holding <paramref name="written" />.</summary>
     public static string Warning(string written) => $"     ⚠  {written}";
 

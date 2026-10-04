@@ -78,6 +78,12 @@ public sealed class Shell
     private readonly PostVisibility? _defaultVisibility;
 
     /// <summary>
+    ///     The language the config file says a post is in (<c>default_language</c>), as a code, or
+    ///     <see langword="null" /> where it says nothing — what a compose screen's Lang starts on (ADR-0024, #340).
+    /// </summary>
+    private readonly string? _defaultLanguage;
+
+    /// <summary>
     ///     Who this session is acting as, and everything that asks as them or holds what was read as them — which
     ///     <c>⏎</c> on the profiles screen puts a new one in place of, whole (ADR-0020, #243). Nobody, while the shell
     ///     has nobody it can act as and is standing on adding one (#247).
@@ -165,6 +171,7 @@ public sealed class Shell
         _timing = timing;
         _hashtag = preferences?.Hashtag;
         _defaultVisibility = preferences?.DefaultVisibility;
+        _defaultLanguage = preferences?.DefaultLanguage;
 
         Rail = new Rail(Destinations(opening.Profile, _hashtag), host, timing.Settle);
 
@@ -1117,6 +1124,47 @@ public sealed class Shell
     }
 
     /// <summary>
+    ///     What Lang holds changed in its field (#340): kept in step as the warning is, so that <c>ctrl-s</c> sends it —
+    ///     or refuses it, where it is not a language.
+    /// </summary>
+    public void RewriteLanguage(string written)
+    {
+        if (Screen is not ComposeScreen compose || compose.LanguageField == written)
+        {
+            return;
+        }
+
+        compose.RewriteLanguage(written);
+        Redrafted();
+        Changed?.Invoke();
+    }
+
+    /// <summary>A language picked off the list under Lang, which Lang then holds (#340).</summary>
+    public void PickLanguage(PostLanguage language)
+    {
+        if (Screen is not ComposeScreen compose)
+        {
+            return;
+        }
+
+        compose.PickLanguage(language);
+        Redrafted();
+        Changed?.Invoke();
+    }
+
+    /// <summary>The list under Lang opened or closed, which the status row follows with its keys (#340).</summary>
+    public void OfferLanguages(bool open)
+    {
+        if (Screen is not ComposeScreen compose || compose.OfferingLanguages == open)
+        {
+            return;
+        }
+
+        compose.OfferLanguages(open);
+        Changed?.Invoke();
+    }
+
+    /// <summary>
     ///     The draft is being worked on, so whatever was said over it is spent (#319). The status row holds a notice
     ///     or the keymap and never both, and while a post is being written the keys go to its fields rather than to
     ///     anything that would otherwise take a notice down — so a refusal of the post would stand, hiding every key
@@ -1405,6 +1453,14 @@ public sealed class Shell
         if (compose.IsEmpty)
         {
             Say("There is nothing written to send.", isError: true);
+
+            return;
+        }
+
+        // A Lang holding something that is not a language is a typo, and a typo is not published as one (#340).
+        if (compose.LanguageRefusal is { } refusal)
+        {
+            Say(refusal, isError: true);
 
             return;
         }
@@ -1975,7 +2031,8 @@ public sealed class Shell
                 purpose,
                 addressing: $"@{handle}",
                 from: ComposeFrom.Of(Actor.Profile),
-                visibility: Reaching(purpose, about: null)));
+                visibility: Reaching(purpose, about: null),
+                language: Speaking(purpose, about: null)));
 
             return;
         }
@@ -1996,7 +2053,8 @@ public sealed class Shell
             purpose == ComposeFor.Reply ? Addressed(about!) : null,
             aboutIsMine: purpose == ComposeFor.Reply && IsMine(about!),
             from: ComposeFrom.Of(Actor.Profile),
-            visibility: Reaching(purpose, about)));
+            visibility: Reaching(purpose, about),
+            language: Speaking(purpose, about)));
     }
 
     /// <summary>
@@ -2018,6 +2076,17 @@ public sealed class Shell
             _ => preferred,
         };
     }
+
+    /// <summary>
+    ///     What a compose screen's Lang starts on, as a code (ADR-0024, #340): the config's <c>default_language</c>, else
+    ///     the account's own posting language as its instance said it (#339), else none — on a reply as on a fresh post,
+    ///     since a reply is in its author's language rather than the answered post's. An edit opens on the post's own.
+    /// </summary>
+    private string? Speaking(ComposeFor purpose, Post? about) => (purpose, about) switch
+    {
+        (ComposeFor.Edit, { } edited) => edited.Language,
+        _ => _defaultLanguage ?? _defaults.For(Actor.Profile).Language,
+    };
 
     /// <summary>
     ///     Pushes <paramref name="compose" />, measured against its instance's own limit as far as that is known (#319).

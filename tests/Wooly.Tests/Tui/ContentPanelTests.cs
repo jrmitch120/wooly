@@ -177,13 +177,14 @@ public class ContentPanelTests
         var rows = drawn.Rows();
 
         Assert.Equal(
-            new Rectangle(inside.X + 2, inside.Y + 8, inside.Width - 4, inside.Height - 10),
+            new Rectangle(inside.X + 2, inside.Y + 9, inside.Width - 4, inside.Height - 11),
             editor.Frame);
 
         Assert.StartsWith("  From  @jeff", rows[inside.Y + 1][inside.X..], StringComparison.Ordinal);
         Assert.StartsWith(ComposeRows.ToPublic, rows[inside.Y + 2][inside.X..], StringComparison.Ordinal);
-        Assert.StartsWith("     ↳  ", rows[inside.Y + 3][inside.X..], StringComparison.Ordinal);
-        Assert.StartsWith(ComposeRows.NoWarning, rows[inside.Y + 5][inside.X..], StringComparison.Ordinal);
+        Assert.StartsWith(ComposeRows.NoLanguage, rows[inside.Y + 3][inside.X..], StringComparison.Ordinal);
+        Assert.StartsWith("     ↳  ", rows[inside.Y + 4][inside.X..], StringComparison.Ordinal);
+        Assert.StartsWith(ComposeRows.NoWarning, rows[inside.Y + 6][inside.X..], StringComparison.Ordinal);
         Assert.Equal(compose.EditorAt(inside.Size).Y, editor.Frame.Y - inside.Y);
         Assert.StartsWith("╭ Home › Reply to @", rows[0][RailLines.Width..], StringComparison.Ordinal);
         Assert.All(rows[1..(height - 2)], row => Assert.Equal('│', row[RailLines.Width]));
@@ -202,9 +203,10 @@ public class ContentPanelTests
 
         var editor = drawn.Window.SubViews.OfType<ComposeEditor>().Single();
 
-        Assert.Equal(new Rectangle(RailLines.Width + 3, 7, 54, 13), editor.Frame);
+        Assert.Equal(new Rectangle(RailLines.Width + 3, 8, 54, 12), editor.Frame);
         Assert.StartsWith(ComposeRows.ToAccountDefault, drawn.Rows()[3][(RailLines.Width + 1)..], StringComparison.Ordinal);
-        Assert.StartsWith(ComposeRows.NoWarning, drawn.Rows()[4][(RailLines.Width + 1)..], StringComparison.Ordinal);
+        Assert.StartsWith(ComposeRows.NoLanguage, drawn.Rows()[4][(RailLines.Width + 1)..], StringComparison.Ordinal);
+        Assert.StartsWith(ComposeRows.NoWarning, drawn.Rows()[5][(RailLines.Width + 1)..], StringComparison.Ordinal);
     }
 
     /// <summary>

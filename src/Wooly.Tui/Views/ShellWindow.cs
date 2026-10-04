@@ -67,8 +67,14 @@ internal sealed class ShellWindow : Window
     /// <summary>Who the post goes to, a row of radio buttons laid over To's value column (#338).</summary>
     private readonly ComposeToField _to;
 
+    /// <summary>What language the post is in, a field laid over Lang's value column (#340).</summary>
+    private readonly ComposeLangField _lang;
+
     /// <summary>The people to mention, hung under the @-word being typed in <see cref="_editor" /> (#318).</summary>
     private readonly MentionList _mentions;
+
+    /// <summary>The languages, hung under <see cref="_lang" /> (#340).</summary>
+    private readonly LanguageList _languages;
 
     /// <summary>Where the terminal's mouse events arrive, once the window is running; asked ahead of the views.</summary>
     private IMouse? _mouse;
@@ -264,9 +270,26 @@ internal sealed class ShellWindow : Window
             Visible = false,
         };
 
+        _lang = new ComposeLangField(
+            theme,
+            () => (_shell.Screen as ComposeScreen)?.LanguageHint ?? string.Empty,
+            () => _ = shell.Send(),
+            () => shell.Back(),
+            shell.WriteWarning)
+        {
+            // Wherever the compose screen says, as for To: Lang's value column, under To — nowhere where a short
+            // terminal has given the row up.
+            X = Pos.Func(content => ViewportOrigin(content).X + LangAt(content).X, _content),
+            Y = Pos.Func(content => ViewportOrigin(content).Y + LangAt(content).Y, _content),
+            Width = Dim.Func(content => LangAt(content).Width, _content),
+            Height = Dim.Func(content => LangAt(content).Height, _content),
+            Visible = false,
+        };
+
         // A click into any field moves the typing there: where the typing is is one fact, the screen's, and whichever
         // way it moved the screen is told so that the status row, the header's mark and the hint keep up.
         _to.HasFocusChanged += (_, focus) => TypingMoved(focus.NewValue, ComposeField.To);
+        _lang.HasFocusChanged += (_, focus) => TypingMoved(focus.NewValue, ComposeField.Lang);
         _warning.HasFocusChanged += (_, focus) => TypingMoved(focus.NewValue, ComposeField.Warning);
         _editor.HasFocusChanged += (_, focus) => TypingMoved(focus.NewValue, ComposeField.Post);
 
@@ -283,7 +306,9 @@ internal sealed class ShellWindow : Window
         _mentions = new MentionList(theme, shell, _editor);
         _editor.Ahead = _mentions.Took;
 
-        Add(rail, _content, title, _editor, _to, _warning, _mentions.View, status);
+        _languages = new LanguageList(theme, shell, _lang, _content);
+
+        Add(rail, _content, title, _editor, _to, _lang, _warning, _mentions.View, _languages.View, status);
 
         // A click outside an open list closes it whichever view it lands on, the editor's caret above all, so it is
         // asked about where the terminal's mouse events arrive — ahead of every view under the pointer (#335).
@@ -393,7 +418,7 @@ internal sealed class ShellWindow : Window
     {
         if (!mouse.Handled)
         {
-            mouse.Handled = _mentions.ClosedBy(mouse);
+            mouse.Handled = _mentions.ClosedBy(mouse) || _languages.ClosedBy(mouse);
         }
     }
 
@@ -804,6 +829,12 @@ internal sealed class ShellWindow : Window
             ? compose.ToAt(content.Viewport.Size)
             : Rectangle.Empty;
 
+    /// <summary>The same for Lang.</summary>
+    private Rectangle LangAt(View? content) =>
+        content is { Viewport.Width: > 0 } && _shell.Screen is ComposeScreen compose
+            ? compose.LangAt(content.Viewport.Size)
+            : Rectangle.Empty;
+
     /// <summary>
     ///     One of the fields gained focus — by a click, or by <see cref="Refresh" /> moving it — and the screen is
     ///     brought into step where it says the typing is somewhere else.
@@ -900,6 +931,10 @@ internal sealed class ShellWindow : Window
             _to.Visible = true;
             _to.CanFocus = compose.Takes(ComposeField.To);
 
+            _lang.Visible = true;
+            _lang.Layout();
+            _languages.Fill(compose.LanguageField);
+
             _editor.SetFocus();
 
             // After whatever the screen opened with rather than in front of it: an editor opened on `@maria ` or on
@@ -912,6 +947,8 @@ internal sealed class ShellWindow : Window
             _editor.Visible = false;
             _warning.Visible = false;
             _to.Visible = false;
+            _languages.Close();
+            _lang.Visible = false;
             SetFocus();
         }
 
@@ -922,6 +959,7 @@ internal sealed class ShellWindow : Window
             View field = typing switch
             {
                 ComposeField.To => _to,
+                ComposeField.Lang => _lang,
                 ComposeField.Warning => _warning,
                 _ => _editor,
             };
