@@ -167,6 +167,20 @@ public class ComposeCountTests
         Assert.Equal(role, Assert.Single(count.Spans, span => span.Text.Trim().Length > 0).Role);
     }
 
+    /// <summary>
+    ///     Nearly full and past the limit are told apart in every theme with colour, so a reader can see which side of
+    ///     the limit the post is on.
+    /// </summary>
+    [Theory]
+    [InlineData("dark")]
+    [InlineData("light")]
+    public void NearlyFullAndPastTheLimitAreDifferentColours(string name)
+    {
+        var theme = name == "dark" ? Themes.Dark : Themes.Light;
+
+        Assert.NotEqual(theme.For(Role.Error), theme.For(Role.QuotaLow));
+    }
+
     /// <summary>Typed into the real editor, the count on screen follows without anything else asking for a redraw.</summary>
     [Fact]
     public async Task TheDrawnCountFollowsTyping()

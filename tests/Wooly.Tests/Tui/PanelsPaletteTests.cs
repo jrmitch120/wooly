@@ -53,7 +53,8 @@ public class PanelsPaletteTests
         [Role.RailCursor] = (Text, Surface0),
         [Role.RailUnread] = (Peach, null),
         [Role.Quota] = (Overlay, null),
-        [Role.QuotaLow] = (Red, null),
+        // Moved off the prototype's red (#319): nearly spent is a warning, and the red is error's.
+        [Role.QuotaLow] = (Yellow, null),
         [Role.Gauge] = (Blue, null),
         [Role.GaugeEmpty] = (Surface1, null),
         [Role.Chrome] = (Surface2, null),
