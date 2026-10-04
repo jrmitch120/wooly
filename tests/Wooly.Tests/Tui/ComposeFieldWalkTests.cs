@@ -138,6 +138,31 @@ public class ComposeFieldWalkTests
     }
 
     /// <summary>
+    ///     On a terminal too short for Lang's row, the walk steps over Lang rather than into a field nobody can see: the
+    ///     warning and To are next to each other, as they are drawn.
+    /// </summary>
+    [Fact]
+    public async Task OnAShortTerminalTheWalkStepsOverLang()
+    {
+        using var drawn = await Composing(rows: 9);
+        var compose = Compose(drawn);
+
+        Assert.DoesNotContain(drawn.Rows(), row => row.Contains("Lang", StringComparison.Ordinal));
+        Assert.Contains(drawn.Rows(), row => row.Contains("To  ", StringComparison.Ordinal));
+
+        drawn.Press(Key.CursorUp);
+        drawn.Press(Key.CursorUp);
+
+        Assert.Equal(ComposeField.To, compose.Typing);
+        Assert.True(To(drawn).HasFocus);
+
+        drawn.Press(Key.CursorDown);
+
+        Assert.True(compose.WritingTheWarning);
+        Assert.True(Field(drawn).HasFocus);
+    }
+
+    /// <summary>
     ///     <c>ctrl-w</c> still jumps between the warning and the post, wherever the arrows left the typing, and the
     ///     status row still says which way it goes next.
     /// </summary>
@@ -219,10 +244,10 @@ public class ComposeFieldWalkTests
         Assert.Equal("@ma", compose.Text);
     }
 
-    private static async Task<DrawnShell> Composing()
+    private static async Task<DrawnShell> Composing(int rows = 24)
     {
         var built = new AShell { Timelines = Seen.Timelines, Accounts = FakeAccountRelationships.HoldingNobody() };
-        var drawn = await DrawnShell.Of(80, 24, Themes.Dark, built);
+        var drawn = await DrawnShell.Of(80, rows, Themes.Dark, built);
 
         drawn.Shell.Compose();
         drawn.Redraw();

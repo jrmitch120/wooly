@@ -109,8 +109,8 @@ internal sealed class LanguageList
             return;
         }
 
-        var offered = compose.LanguagesOffered;
-        var held = compose.Language is { } language ? IndexOf(offered, language) : 0;
+        var offered = compose.Lang.Offered;
+        var held = compose.Lang.Language is { } language ? IndexOf(offered, language) : 0;
 
         Offer(offered, held);
     }
@@ -154,7 +154,7 @@ internal sealed class LanguageList
 
         if (_shell.Screen is ComposeScreen compose)
         {
-            Fill(compose.LanguageField);
+            Fill(compose.Lang.Held);
         }
 
         Close();

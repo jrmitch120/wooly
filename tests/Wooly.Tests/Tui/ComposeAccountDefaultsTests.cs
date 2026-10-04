@@ -109,7 +109,7 @@ public class ComposeAccountDefaultsTests
         var compose = ComposeRows.Open(shell, ComposeFor.Post);
 
         Assert.Equal(PostVisibility.Unlisted, compose.Visibility);
-        Assert.Equal("de", compose.Language?.Code);
+        Assert.Equal("de", compose.Lang.Language?.Code);
         Assert.Equal(["token-personal", "token-work"], built.Defaults.Tokens);
     }
 

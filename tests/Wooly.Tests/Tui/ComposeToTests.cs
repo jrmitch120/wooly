@@ -43,7 +43,7 @@ public class ComposeToTests
 
         compose.Text = "hello";
 
-        Assert.Equal("    To  ◂ account default ▸", Texts(compose)[2]);
+        Assert.Equal("    To  ◂ ● account default ▸", Texts(compose)[2]);
         Assert.Null(compose.Visibility);
         Assert.Null(Publishing(compose).Visibility);
     }
@@ -104,11 +104,12 @@ public class ComposeToTests
         Assert.Equal(ComposeField.To, compose.Typing);
     }
 
-    /// <summary>From account default, <c>→</c> chooses the widest and <c>←</c> the narrowest.</summary>
-    [Theory]
-    [InlineData(true, PostVisibility.Public)]
-    [InlineData(false, PostVisibility.Direct)]
-    public async Task FromAccountDefaultTheArrowsChooseAnEnd(bool right, PostVisibility chosen)
+    /// <summary>
+    ///     Account default is the first choice on a To that opened on it: <c>→</c> from it chooses the widest, and
+    ///     <c>←</c> steps back onto it — after which the post sends no visibility again, as if To had never been touched.
+    /// </summary>
+    [Fact]
+    public async Task TheArrowsStepBackOntoAccountDefaultWhichSendsNone()
     {
         using var drawn = await Drawn(null);
         var compose = Compose(drawn);
@@ -116,9 +117,74 @@ public class ComposeToTests
         drawn.Press(Key.CursorUp);
         drawn.Press(Key.CursorUp);
         drawn.Press(Key.CursorUp);
-        drawn.Press(right ? Key.CursorRight : Key.CursorLeft);
+        drawn.Press(Key.CursorRight);
 
-        Assert.Equal(chosen, compose.Visibility);
+        Assert.Equal(PostVisibility.Public, compose.Visibility);
+
+        drawn.Press(Key.CursorLeft);
+
+        Assert.Null(compose.Visibility);
+        Assert.Contains(drawn.Rows(), row => row.Contains("To  ◂ ● account default ▸", StringComparison.Ordinal));
+
+        drawn.Press(Key.CursorLeft);
+
+        Assert.Null(compose.Visibility);
+
+        compose.Text = "hello";
+
+        var draft = Publishing(compose);
+
+        Assert.Null(draft.Visibility);
+        Assert.False(draft.VisibilityChosen);
+    }
+
+    /// <summary>The mouse steps back onto account default too, by the arrow on the narrow row…</summary>
+    [Fact]
+    public async Task AClickOnTheArrowStepsBackOntoAccountDefault()
+    {
+        using var drawn = await Drawn(null);
+        var compose = Compose(drawn);
+
+        ClickOn(drawn, "▸");
+
+        Assert.Equal(PostVisibility.Public, compose.Visibility);
+
+        ClickOn(drawn, "◂");
+
+        Assert.Null(compose.Visibility);
+
+        compose.Text = "hello";
+
+        Assert.Null(Publishing(compose).Visibility);
+    }
+
+    /// <summary>…and by its own radio button where the whole row fits.</summary>
+    [Fact]
+    public async Task AClickOnAccountDefaultChoosesItWhereTheRowFits()
+    {
+        using var drawn = await Drawn(null, columns: 120);
+        var compose = Compose(drawn);
+
+        Assert.Contains(
+            drawn.Rows(),
+            row => row.Contains(
+                "To  ● account default  ○ public  ○ unlisted  ○ followers  ○ direct",
+                StringComparison.Ordinal));
+
+        ClickOn(drawn, "○ unlisted");
+
+        Assert.Equal(PostVisibility.Unlisted, compose.Visibility);
+
+        ClickOn(drawn, "○ account default");
+
+        Assert.Null(compose.Visibility);
+
+        compose.Text = "hello";
+
+        var draft = Publishing(compose);
+
+        Assert.Null(draft.Visibility);
+        Assert.False(draft.VisibilityChosen);
     }
 
     /// <summary>On To the status row offers the choosing ahead of the walk.</summary>

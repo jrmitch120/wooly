@@ -72,16 +72,11 @@ public sealed class Shell
     private readonly string? _hashtag;
 
     /// <summary>
-    ///     The visibility the config file says a post goes out at (<c>default_visibility</c>), or <see langword="null" />
-    ///     where it says nothing — what a compose screen's To starts on (ADR-0024, #338).
+    ///     What the config file says a post goes out at — <c>default_visibility</c> and <c>default_language</c>, either
+    ///     unknown where it says nothing — which a compose screen's To and Lang start on ahead of the account's own
+    ///     (ADR-0024, #338, #340).
     /// </summary>
-    private readonly PostVisibility? _defaultVisibility;
-
-    /// <summary>
-    ///     The language the config file says a post is in (<c>default_language</c>), as a code, or
-    ///     <see langword="null" /> where it says nothing — what a compose screen's Lang starts on (ADR-0024, #340).
-    /// </summary>
-    private readonly string? _defaultLanguage;
+    private readonly PostDefaults _preferred;
 
     /// <summary>
     ///     Who this session is acting as, and everything that asks as them or holds what was read as them — which
@@ -170,8 +165,7 @@ public sealed class Shell
         _clock = clock;
         _timing = timing;
         _hashtag = preferences?.Hashtag;
-        _defaultVisibility = preferences?.DefaultVisibility;
-        _defaultLanguage = preferences?.DefaultLanguage;
+        _preferred = new PostDefaults(preferences?.DefaultVisibility, preferences?.DefaultLanguage);
 
         Rail = new Rail(Destinations(opening.Profile, _hashtag), host, timing.Settle);
 
@@ -1129,7 +1123,7 @@ public sealed class Shell
     /// </summary>
     public void RewriteLanguage(string written)
     {
-        if (Screen is not ComposeScreen compose || compose.LanguageField == written)
+        if (Screen is not ComposeScreen compose || compose.Lang.Held == written)
         {
             return;
         }
@@ -1458,7 +1452,7 @@ public sealed class Shell
         }
 
         // A Lang holding something that is not a language is a typo, and a typo is not published as one (#340).
-        if (compose.LanguageRefusal is { } refusal)
+        if (compose.Lang.Refusal is { } refusal)
         {
             Say(refusal, isError: true);
 
@@ -2031,8 +2025,7 @@ public sealed class Shell
                 purpose,
                 addressing: $"@{handle}",
                 from: ComposeFrom.Of(Actor.Profile),
-                visibility: Reaching(purpose, about: null),
-                language: Speaking(purpose, about: null)));
+                starting: StartingDefaults(purpose, about: null)));
 
             return;
         }
@@ -2053,40 +2046,28 @@ public sealed class Shell
             purpose == ComposeFor.Reply ? Addressed(about!) : null,
             aboutIsMine: purpose == ComposeFor.Reply && IsMine(about!),
             from: ComposeFrom.Of(Actor.Profile),
-            visibility: Reaching(purpose, about),
-            language: Speaking(purpose, about)));
+            starting: StartingDefaults(purpose, about)));
     }
 
     /// <summary>
-    ///     What a compose screen's To starts on, which is what would go out if nobody touched it (ADR-0024, #338): the
-    ///     config's <c>default_visibility</c>, else the account's own default as its instance said it (#339), else
-    ///     nothing known — and on a reply the narrower of that and the post being answered, which is where a reply with
-    ///     no visibility of its own goes out anyway. An edit shows the post's own.
+    ///     What a compose screen's To and Lang start on, which is what would go out if nobody touched them (ADR-0024): the
+    ///     config's <c>default_visibility</c> and <c>default_language</c>, else the account's own as its instance said
+    ///     them (#339), else nothing known. On a reply the visibility is the narrower of that and the post being
+    ///     answered, which is where a reply with no visibility of its own goes out anyway (#338); the language is not,
+    ///     since a reply is in its author's language rather than the answered post's (#340). An edit opens on the post's
+    ///     own, which is the screen's to say.
     /// </summary>
-    private PostVisibility? Reaching(ComposeFor purpose, Post? about)
+    private PostDefaults StartingDefaults(ComposeFor purpose, Post? about)
     {
-        var preferred = _defaultVisibility ?? _defaults.For(Actor.Profile).Visibility;
+        var preferred = _preferred.Or(_defaults.For(Actor.Profile));
 
-        return (purpose, about) switch
-        {
-            (ComposeFor.Reply, { } answered) => PostAudience.Narrower(
-                preferred ?? answered.Visibility,
-                answered.Visibility),
-            (ComposeFor.Edit, { } edited) => edited.Visibility,
-            _ => preferred,
-        };
+        return purpose == ComposeFor.Reply && about is { } answered
+            ? preferred with
+            {
+                Visibility = PostAudience.Narrower(preferred.Visibility ?? answered.Visibility, answered.Visibility),
+            }
+            : preferred;
     }
-
-    /// <summary>
-    ///     What a compose screen's Lang starts on, as a code (ADR-0024, #340): the config's <c>default_language</c>, else
-    ///     the account's own posting language as its instance said it (#339), else none — on a reply as on a fresh post,
-    ///     since a reply is in its author's language rather than the answered post's. An edit opens on the post's own.
-    /// </summary>
-    private string? Speaking(ComposeFor purpose, Post? about) => (purpose, about) switch
-    {
-        (ComposeFor.Edit, { } edited) => edited.Language,
-        _ => _defaultLanguage ?? _defaults.For(Actor.Profile).Language,
-    };
 
     /// <summary>
     ///     Pushes <paramref name="compose" />, measured against its instance's own limit as far as that is known (#319).
