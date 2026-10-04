@@ -257,12 +257,17 @@ public class KeymapTests
         Assert.Equal(Verb.OpenReference, Means("⏎", feed));
     }
 
-    /// <summary>The three a compose screen answers to, and the one before it that is the frame's (<c>esc</c>).</summary>
+    /// <summary>
+    ///     What a compose screen answers to, and the one before them that is the frame's (<c>esc</c>). The arrows walk
+    ///     its fields wherever the field the typing is in leaves them (ADR-0024, #337).
+    /// </summary>
     [Theory]
     [InlineData("ctrl-s", Verb.Send)]
     [InlineData("ctrl-w", Verb.WriteWarning)]
+    [InlineData("↑", Verb.PreviousField)]
+    [InlineData("↓", Verb.NextField)]
     [InlineData("esc", Verb.Back)]
-    public void AComposeScreenAnswersToItsOwnThree(string key, Verb verb) =>
+    public void AComposeScreenAnswersToItsOwnKeys(string key, Verb verb) =>
         Assert.Equal(verb, Means(key, new ComposeScreen(ComposeFor.Post)));
 
     /// <summary>

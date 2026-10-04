@@ -38,7 +38,7 @@ public static class Keymap
     /// <summary>What <paramref name="key" /> means on <paramref name="screen" />.</summary>
     /// <remarks>
     ///     Read down as the contract is written: the frame first, since those mean the same thing everywhere and a
-    ///     screen may not take them back; then the two a compose screen alone answers; then the four collisions, each
+    ///     screen may not take them back; then the ones a compose screen alone answers; then the four collisions, each
     ///     with the screens that take it away above the meaning it has on all the rest; then the keys that mean one
     ///     thing wherever they are pressed.
     /// </remarks>
@@ -71,6 +71,12 @@ public static class Keymap
         // screen they mean nothing and are left to whatever else wants them.
         (ShellKey.CtrlS, ComposeScreen) => Verb.Send,
         (ShellKey.CtrlW, ComposeScreen) => Verb.WriteWarning,
+
+        // And the arrows, which walk compose's fields the way a mail client's do (ADR-0024, #337) — reaching here only
+        // where the field the typing is in leaves them: a header always, the post on its first line. Whether there was
+        // a field to walk to is the screen's, as for the reference walk below.
+        (ShellKey.Up, ComposeScreen) => Verb.PreviousField,
+        (ShellKey.Down, ComposeScreen) => Verb.NextField,
 
         // The four that collide. A picked reference is a level of its own inside the screen, so ⏎ means the reference
         // wherever one is picked — ahead of whatever the screen's own ⏎ would have meant (#85).
