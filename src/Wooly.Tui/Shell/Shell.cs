@@ -115,6 +115,9 @@ public sealed class Shell
     /// </summary>
     private RateLimitQuota? _quotaBeforeSwitch;
 
+    /// <summary>How long each instance lets a post be, asked as posts are first written there (#319).</summary>
+    private readonly LimitsByInstance _limits;
+
     /// <param name="opening">
     ///     Who to act as — or, with nobody, what to open onto instead: adding a profile, as the only screen (#247).
     /// </param>
@@ -131,6 +134,8 @@ public sealed class Shell
         _ports = ports;
         _profiles = profiles;
         _host = host;
+        _limits = new LimitsByInstance(ports.Limits, host);
+        _limits.Heard += Measured;
         _browser = browser;
         _clock = clock;
         _timing = timing;
@@ -962,6 +967,7 @@ public sealed class Shell
         }
 
         Screen.Type(letter);
+        Redrafted();
         Changed?.Invoke();
     }
 
@@ -1000,6 +1006,7 @@ public sealed class Shell
             }
         }
 
+        Redrafted();
         Changed?.Invoke();
 
         return true;
@@ -1014,7 +1021,38 @@ public sealed class Shell
         }
 
         Screen.Backspace();
+        Redrafted();
         Changed?.Invoke();
+    }
+
+    /// <summary>
+    ///     The post being written changed in the editor: its text, kept in step with every edit so that whatever reads
+    ///     it while it is written — the count, the list of people to mention — sees what has been typed so far.
+    /// </summary>
+    public void Rewrite(string text)
+    {
+        if (Screen is not ComposeScreen compose)
+        {
+            return;
+        }
+
+        compose.Text = text;
+        Redrafted();
+    }
+
+    /// <summary>
+    ///     The draft is being worked on, so whatever was said over it is spent (#319). The status row holds a notice
+    ///     or the keymap and never both, and while a post is being written the keys go to its fields rather than to
+    ///     anything that would otherwise take a notice down — so a refusal of the post would stand, hiding every key
+    ///     compose answers to, until <c>esc</c> threw the draft away. Changing the draft is doing what the notice
+    ///     asked, which is the rule the status row already keeps.
+    /// </summary>
+    private void Redrafted()
+    {
+        if (Screen is ComposeScreen && Notice is not null)
+        {
+            Say(null, isError: false);
+        }
     }
 
     /// <summary>
@@ -1029,6 +1067,7 @@ public sealed class Shell
         }
 
         compose.WriteTheWarning();
+        Redrafted();
         Changed?.Invoke();
     }
 
@@ -1697,7 +1736,7 @@ public sealed class Shell
         // reply, since what they picked is somebody named in the post rather than the post itself (#85).
         if (purpose == ComposeFor.Post && Screen.MentionedAs is { } handle)
         {
-            Push(new ComposeScreen(purpose, addressing: $"@{handle}", from: ComposeFrom.Of(Actor.Profile)));
+            Composing(new ComposeScreen(purpose, addressing: $"@{handle}", from: ComposeFrom.Of(Actor.Profile)));
 
             return;
         }
@@ -1712,12 +1751,36 @@ public sealed class Shell
                 return;
         }
 
-        Push(new ComposeScreen(
+        Composing(new ComposeScreen(
             purpose,
             purpose == ComposeFor.Post ? null : about,
             purpose == ComposeFor.Reply ? Addressed(about!) : null,
             aboutIsMine: purpose == ComposeFor.Reply && IsMine(about!),
             from: ComposeFrom.Of(Actor.Profile)));
+    }
+
+    /// <summary>
+    ///     Pushes <paramref name="compose" />, measured against its instance's own limit as far as that is known (#319).
+    /// </summary>
+    private void Composing(ComposeScreen compose)
+    {
+        compose.Limits = _limits.For(Actor.Profile);
+
+        Push(compose);
+    }
+
+    /// <summary>
+    ///     An instance said how long it lets a post be, which a compose on that instance still in front is measured
+    ///     against from now on.
+    /// </summary>
+    private void Measured(string instance, PostLimits limits)
+    {
+        if (Screen is ComposeScreen compose
+            && string.Equals(_acting?.Profile.Instance, instance, StringComparison.OrdinalIgnoreCase))
+        {
+            compose.Limits = limits;
+            Changed?.Invoke();
+        }
     }
 
     /// <summary>

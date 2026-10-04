@@ -226,7 +226,9 @@ not answer them differently:
   both, which makes a remark left standing every key the screen answers to, hidden. So a remark goes when the reader
   walks to another thing — it was about the one they left — and when they do the thing it asked for, as toggling a poll
   answer does. It already went on `esc` and on arriving anywhere; those two are the same rule said earlier (#87
-  follow-up).
+  follow-up). Over a post being written, the thing asked for is changing the draft: an edit to the post or the warning,
+  or `ctrl-w`, takes the notice down — the keys go to the fields there, and the one key left that would otherwise have
+  cleared it, `esc`, throws the draft away (#319).
 - **`esc` is always up one level, of whichever kind of level is currently open** — amended from "up one level of the
   stack" now that a reference pick is a level of its own. With a reference picked, the first `esc` clears the pick;
   the next pops the screen (#64). This is the one addition ADR-0014's frame keys have taken since being settled.
@@ -868,6 +870,19 @@ fresh post, a reply and an edit alike:
 - **On a terminal too short for everything, rows give way in a fixed order**: the quote's tail, the blanks, the reply
   header, the foot, `From`, the hairline under the headers. The warning header and three rows of editor are kept
   whatever the height — the rule ADR-0015 and #123 already kept, with more dressing in front of it to go first.
+- **The foot counts what has been used of the post's limit** (#319): `n / limit`, right-aligned inside the padding,
+  `muted` up to nine tenths of the limit, `quota-low` in the last tenth and `error` past it. It counts the way the
+  instance judges a post (`PostLength`): by grapheme cluster, any address Mastodon links (`https://`, `gemini://` and
+  the rest) as the instance's length for one, a mention of somebody elsewhere as its `@username` alone, and the warning
+  letter for letter on top of the post, as the instance adds it. The screen's text follows the editor on every edit,
+  so the count does too, and a reply or an edit counts what it opened with from the start.
+- **The limit is the instance's own** (`IInstanceLimits`): `/api/v2/instance`'s `max_characters` and
+  `characters_reserved_per_url`, or `/api/v1/instance` where there is no `v2` — Pleroma's `max_toot_chars` included.
+  `LimitsByInstance` asks it the first time a post is written on an instance rather than at launch, so a reader who
+  never writes one is never charged for it, then holds it by instance for the session: two profiles on one share it,
+  and a switch keeps it. Until it lands, and wherever the instance does not answer, the count is out of Mastodon's 500
+  and 23. It is not put through the enquiry, so a failure says nothing and a rate limit counts nothing down over the
+  post; it is asked again the next time a post is written.
 
 ### What mentioning somebody settled
 

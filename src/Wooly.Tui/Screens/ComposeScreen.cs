@@ -129,7 +129,13 @@ public sealed class ComposeScreen : Screen
     /// </summary>
     public string Opening { get; }
 
-    /// <summary>What has been written so far.</summary>
+    /// <summary>
+    ///     How long the instance lets the post be, which the count is out of: Mastodon's own until the instance has
+    ///     said otherwise, which the shell asks it once a session and hands on as soon as it hears (#319).
+    /// </summary>
+    public PostLimits Limits { get; set; } = PostLimits.Default;
+
+    /// <summary>What has been written so far, kept in step with the editor on every edit.</summary>
     public string Text { get; set; }
 
     /// <summary>
@@ -286,7 +292,7 @@ public sealed class ComposeScreen : Screen
         above.Add(new Row(hairline, Keep.HeaderHairline));
         above.Add(new Row(Line.Blank, Keep.BlankUnderHairline));
 
-        var foot = new List<Row> { new(hairline, Keep.FootHairline), new(Line.Blank, Keep.CountRow) };
+        var foot = new List<Row> { new(hairline, Keep.FootHairline), new(Count(width), Keep.CountRow) };
         var room = height ?? (above.Count + LeastEditorRows + foot.Count);
 
         // Whatever ranks lowest goes first and, among equals, whichever is lowest on the screen: the quote gives up
@@ -334,6 +340,26 @@ public sealed class ComposeScreen : Screen
         var instance = TextWrap.Clip($" · {from.Instance}", room - Glyphs.Columns(handle));
 
         return [new Span(handle, Role.BylineHandle), new Span(instance, Role.Muted)];
+    }
+
+    /// <summary>
+    ///     The count at the foot, right-aligned inside the padding: how much of the post's limit has been used, as the
+    ///     instance will count it (#319) — muted while there is room, in the quota's low colour within the last tenth,
+    ///     and an error's past the limit, so that a reader notices before the instance refuses the post.
+    /// </summary>
+    private Line Count(int width)
+    {
+        var used = PostLength.Of(Text, Warning, Limits);
+        var count = $"{used} / {Limits.Characters}";
+
+        // The most the count can reach and stay muted: past it is the last tenth of the limit.
+        var nearlyFull = Limits.Characters * 9 / 10;
+
+        var role = used > Limits.Characters ? Role.Error
+            : used > nearlyFull ? Role.QuotaLow
+            : Role.Muted;
+
+        return Line.Of(Gap(width - Pad - Glyphs.Columns(count)), new Span(count, role));
     }
 
     private static Span Gap(int columns) => new(new string(' ', Math.Max(0, columns)), Role.Body);

@@ -30,6 +30,7 @@ internal sealed class AShell
         Search = FakeInstanceSearch.Finding();
         Suggestions = FakeFollowSuggestions.Offering();
         RateLimit = FakeRateLimitReport.Silent();
+        Limits = FakeInstanceLimits.Setting();
     }
 
     public FakeShellHost Host { get; }
@@ -53,6 +54,8 @@ internal sealed class AShell
     public FakeFollowSuggestions Suggestions { get; set; }
 
     public FakeRateLimitReport RateLimit { get; set; }
+
+    public FakeInstanceLimits Limits { get; set; }
 
     /// <summary>
     ///     Where an address goes, which is the one thing the shell does that leaves the terminal (#85). Not one of the
@@ -119,7 +122,7 @@ internal sealed class AShell
 
     private Shell Over(Opening opening) => new(
         opening,
-        new ShellPorts(Timelines, Author, Engagement, Accounts, Notifications, Messages, Search, Suggestions, RateLimit),
+        new ShellPorts(Timelines, Author, Engagement, Accounts, Notifications, Messages, Search, Suggestions, RateLimit, Limits),
         new ProfilePorts(Profiles, Paths, Authorizer, Verifier),
         Host,
         Browser,
@@ -154,7 +157,8 @@ internal sealed class AShell
         + Notifications.Reads.Count + Notifications.Dismissals.Count + Notifications.Clearances.Count
         + Messages.Listings.Count + Messages.Shown.Count + Messages.MarkedRead.Count
         + Search.Searches.Count
-        + Suggestions.Reads.Count + Suggestions.Dismissals.Count;
+        + Suggestions.Reads.Count + Suggestions.Dismissals.Count
+        + Limits.Reads.Count;
 
     /// <summary>
     ///     The access token every request to every port that reaches an instance went out with, all told — where a test
@@ -164,6 +168,7 @@ internal sealed class AShell
     [
         .. Timelines.Tokens, .. Author.Tokens, .. Engagement.Tokens, .. Accounts.Tokens, .. Notifications.Tokens,
         .. Messages.Tokens, .. Search.Tokens, .. Suggestions.Tokens,
+        .. Limits.Tokens,
     ];
 
     /// <summary>A shell that has already opened onto its first destination.</summary>
@@ -187,7 +192,7 @@ internal sealed class AShell
     {
         var shell = new Shell(
             Opening.As(registry.Resolve(null)),
-            new ShellPorts(Timelines, Author, Engagement, Accounts, Notifications, Messages, Search, Suggestions, RateLimit),
+            new ShellPorts(Timelines, Author, Engagement, Accounts, Notifications, Messages, Search, Suggestions, RateLimit, Limits),
             new ProfilePorts(registry, paths, Authorizer, Verifier),
             Host,
             Browser,

@@ -49,7 +49,8 @@ try
         provider.GetRequiredService<IDirectMessages>(),
         provider.GetRequiredService<IInstanceSearch>(),
         provider.GetRequiredService<IFollowSuggestions>(),
-        provider.GetRequiredService<IRateLimitReport>());
+        provider.GetRequiredService<IRateLimitReport>(),
+        provider.GetRequiredService<IInstanceLimits>());
 
     var clock = provider.GetRequiredService<TimeProvider>();
 

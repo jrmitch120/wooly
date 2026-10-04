@@ -211,13 +211,7 @@ internal sealed class ShellWindow : Window
 
         // The screen's text follows the editor on every edit rather than only at ctrl-s, so whatever reads it while a
         // post is being written — a count, a list of people to mention — sees what has been typed so far.
-        _editor.ContentsChanged += (_, _) =>
-        {
-            if (_shell.Screen is ComposeScreen compose)
-            {
-                compose.Text = _editor.Text;
-            }
-        };
+        _editor.ContentsChanged += (_, _) => _shell.Rewrite(_editor.Text);
 
         var status = new PaintedView(theme, (width, _) =>
             [ChromeLines.Status(shell.Keys, shell.Notice, shell.NoticeIsError, shell.Asking, width)])
