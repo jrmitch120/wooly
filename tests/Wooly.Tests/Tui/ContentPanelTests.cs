@@ -177,22 +177,20 @@ public class ContentPanelTests
         var rows = drawn.Rows();
 
         Assert.Equal(
-            new Rectangle(
-                inside.X,
-                inside.Y + compose.AnsweringHeight(inside.Width) + compose.WarningHeight,
-                inside.Width,
-                inside.Height - compose.AnsweringHeight(inside.Width) - compose.WarningHeight),
+            new Rectangle(inside.X + 2, inside.Y + 7, inside.Width - 4, inside.Height - 9),
             editor.Frame);
 
-        Assert.StartsWith("↳ ", rows[1][inside.X..], StringComparison.Ordinal);
-        Assert.StartsWith("⚠ no content warning", rows[inside.Y + compose.AnsweringHeight(inside.Width) + 1][inside.X..], StringComparison.Ordinal);
+        Assert.StartsWith("  From  @jeff", rows[inside.Y + 1][inside.X..], StringComparison.Ordinal);
+        Assert.StartsWith("     ↳  ", rows[inside.Y + 2][inside.X..], StringComparison.Ordinal);
+        Assert.StartsWith(ComposeRows.NoWarning, rows[inside.Y + 4][inside.X..], StringComparison.Ordinal);
+        Assert.Equal(compose.EditorAt(inside.Size).Y, editor.Frame.Y - inside.Y);
         Assert.StartsWith("╭ Home › Reply to @", rows[0][RailLines.Width..], StringComparison.Ordinal);
         Assert.All(rows[1..(height - 2)], row => Assert.Equal('│', row[RailLines.Width]));
         Assert.All(rows[1..(height - 2)], row => Assert.Equal('│', row[^1]));
         Assert.StartsWith("╰─", rows[height - 2][RailLines.Width..], StringComparison.Ordinal);
     }
 
-    /// <summary>A post with nothing to answer starts the editor under the warning field, inside the frame.</summary>
+    /// <summary>A post with nothing to answer starts the editor under the headers, inside the frame.</summary>
     [Fact]
     public async Task AComposeDrawsInsideThePanel()
     {
@@ -203,8 +201,8 @@ public class ContentPanelTests
 
         var editor = drawn.Window.SubViews.OfType<ComposeEditor>().Single();
 
-        Assert.Equal(new Rectangle(RailLines.Width + 1, 3, 58, 19), editor.Frame);
-        Assert.StartsWith("⚠ no content warning", drawn.Rows()[2][(RailLines.Width + 1)..], StringComparison.Ordinal);
+        Assert.Equal(new Rectangle(RailLines.Width + 3, 6, 54, 14), editor.Frame);
+        Assert.StartsWith(ComposeRows.NoWarning, drawn.Rows()[3][(RailLines.Width + 1)..], StringComparison.Ordinal);
     }
 
     /// <summary>

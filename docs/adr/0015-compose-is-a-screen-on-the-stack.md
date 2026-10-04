@@ -153,3 +153,36 @@ rather than to what leaves one: it runs before the screen exists, and it reads b
 `ConversationScreen` the reader is standing on. Moving it would be a second decision in a ticket about the first one,
 and the shape #146 names in passing — nineteen guards naming a concrete screen — is a map-level question rather than
 this ticket's.
+
+## Amendment: the screen is a block of headers over the post (map #313, ticket #317)
+
+Compose is laid out as a mail client's compose — variant A of the prototype — on all three screens: a blank, a block
+of right-aligned headers, a hairline, a blank, the editor, and a hairline and the row the count sits on (#319) at the
+foot, two columns in from either side. The headers are **From** (the profile's handle and its instance), the reply
+header on a reply (labelled with the feed's `↳`, worded by `PostReplyName`, and the three-row quote under it), and the
+warning (labelled with the bare `⚠`). That moves what the second amendment above settled, so it is recorded here.
+
+**It costs more rows than the second amendment priced, and it is still inside the price this ADR accepted.** That
+amendment put two rows on every compose screen — the warning and a blank above it — and read a reply as label, quote,
+blank, warning, editor. Now a fresh post and an edit spend five rows above the editor and two below it, and a reply
+with a full quote spends nine above. On a 24-row terminal that leaves the editor fourteen rows on a post and ten on
+the deepest reply. The split region this ADR rejected left six. The blank #143 put above the warning is the blank
+above the whole block now, still on every compose screen alike, and the warning header follows the quote directly, as
+one header follows another.
+
+**The writing still begins in the same place whichever key opened the screen.** A fresh post and an edit carry the
+same headers, so the editor starts at the same row on `c` and `e`. Only a reply is deeper, by its own header and
+quote. That was the reason #142 held the warning's rows blank on an edit, and it holds without anything held blank.
+
+**On a terminal too short for everything, rows give way in a fixed order:** the quote's tail first, as before, then
+the blanks, the reply header, the foot, From and the hairline under the headers. The warning header and three rows of
+editor are never given up — the rule the second amendment kept for the warning, with more dressing in front of it to
+go first. To keep what is painted and where the editor is laid in step, the screen works out both from one layout at
+the content region's height, rather than the window working the editor's place out from the rows.
+
+**It is still not a second layout.** Everything above is rows painted on the content region with the editor laid over
+the rows kept for it. Nothing opens beside the feed, and the screen is still pushed by `c`, `r` or `e` and popped by
+`esc`.
+
+**What it leaves to its own tickets.** The warning is still painted text the shell types letters into. Making it a
+field of its own, and changing how `ctrl-w` moves the typing, is #320's amendment.

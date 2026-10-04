@@ -318,7 +318,9 @@ public class ShellPointerTests
 
         Assert.Equal(0, editor.Viewport.Y);
 
-        drawn.Wheel(OverContent, Inside + 2);
+        var at = editor.FrameToScreen();
+
+        drawn.Wheel(at.X + 1, at.Y + 1);
 
         Assert.True(editor.Viewport.Y > 0);
         Assert.IsType<ComposeScreen>(drawn.Shell.Screen);

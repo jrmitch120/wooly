@@ -150,7 +150,8 @@ internal sealed class ShellWindow : Window
         // screen is drawn at and every picture's box are the inside of it: 58 columns at an 80-column terminal.
         _content = new PaintedView(
             theme,
-            (width, _) => shell.Screen.Lines(new Drawing(width, clock.GetUtcNow(), pictures, hideDrawnCaption)),
+            (width, height) => shell.Screen.Lines(
+                new Drawing(width, clock.GetUtcNow(), pictures, hideDrawnCaption, height)),
             pictures,
             // No rows of the panel's own: the view paints only the frame's edges, round the screen's rows.
             (width, height) => Panel.Framed(
@@ -192,9 +193,9 @@ internal sealed class ShellWindow : Window
             () => shell.Back(),
             shell.WriteWarning)
         {
-            // Wherever the compose screen says, inside the content panel's viewport (#315): a reply's "answering" block
-            // and the warning band are painted on _content, which this sits in front of, so the screen that paints
-            // them is the one that knows how far down the editor has to start for them to be seen. Every one is read
+            // Wherever the compose screen says, inside the content panel's viewport (#315): its headers and hairlines
+            // (#317) are painted on _content, which this sits in front of, so the screen that paints them is the one
+            // that knows how far down the editor has to start for them to be seen. Every one is read
             // off _content, which Pos.Func and Dim.Func hand back as "the view where the data will be retrieved" — the
             // panel's own viewport is the room the screen lays itself out in, and its frame is where that room sits.
             X = Pos.Func(content => ViewportOrigin(content).X + EditorAt(content).X, _content),

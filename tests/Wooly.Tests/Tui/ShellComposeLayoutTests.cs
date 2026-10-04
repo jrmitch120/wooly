@@ -30,10 +30,14 @@ public class ShellComposeLayoutTests
     /// </summary>
     private const int ContentWidth = 60;
 
+    private const string NoWarning = ComposeRows.NoWarning;
+
+    private static readonly string Hairline = ComposeRows.Hairline(ContentWidth);
+
     /// <summary>
-    ///     The editor starts below what is being answered rather than on top of it — two rows here: the label and the
-    ///     one row "Hello world" wraps to — and below the warning band under those (#123), which is the field and the
-    ///     blank above it.
+    ///     The editor starts below what is being answered rather than on top of it, and below the headers round it
+    ///     (#317): a blank, From, the reply header and the one row "Hello world" wraps to, the warning (#123), a
+    ///     hairline and a blank — seven rows, under the panel's top edge.
     /// </summary>
     [Fact]
     public async Task Reply_StartsTheEditorBelowWhatIsBeingAnsweredAndTheWarningField()
@@ -42,15 +46,17 @@ public class ShellComposeLayoutTests
 
         using (window)
         {
-            Assert.Equal(2, compose.AnsweringHeight(ContentWidth));
-            Assert.Equal(2, compose.WarningHeight);
-            Assert.Equal(5, editor.Frame.Y);
+            var rows = compose.Lines(new Drawing(ContentWidth, AShell.Now)).Select(line => line.Text).ToList();
+
+            Assert.Equal("        │ Hello world", rows[3]);
+            Assert.Equal(NoWarning, rows[4]);
+            Assert.Equal(8, editor.Frame.Y);
         }
     }
 
     /// <summary>
-    ///     And a post with no reply behind it starts two rows down: nothing above it to clear but the warning band,
-    ///     which both of the composes that publish a post carry (#139) and which is the field and the blank over it.
+    ///     And a post with no reply behind it starts five rows down: a blank, From, the warning, which both of the
+    ///     composes that publish a post carry (#139), a hairline and a blank (#317).
     /// </summary>
     [Fact]
     public async Task Post_StartsTheEditorUnderTheWarningField()
@@ -62,14 +68,14 @@ public class ShellComposeLayoutTests
             shell.Compose();
             window.Layout();
 
-            Assert.Equal(3, Editor(window).Frame.Y);
+            Assert.Equal(6, Editor(window).Frame.Y);
         }
     }
 
     /// <summary>
-    ///     An edit starts it in the same place, on a band of the same two rows — held blank while an edit had no
-    ///     warning to write (#142) and holding a field of its own since #140, which is the point of having priced the
-    ///     band the same on all three: giving an edit its field moved nothing.
+    ///     An edit starts it in the same place, under the same headers — a warning of its own since #140, and no reply
+    ///     header, which is the point of the headers being the same on all three: the writing begins in the same place
+    ///     whichever key opened the screen (ADR-0015).
     /// </summary>
     [Fact]
     public async Task Edit_StartsTheEditorWhereAFreshPostDoes()
@@ -93,22 +99,20 @@ public class ShellComposeLayoutTests
 
             Assert.Equal(ComposeFor.Edit, compose.Purpose);
             Assert.Equal(string.Empty, rows[0].Text);
-            Assert.Equal("⚠ no content warning", rows[1].Text);
+            Assert.Equal(NoWarning, rows[2].Text);
             Assert.Equal(composing, Editor(window).Frame.Y);
         }
     }
 
     /// <summary>
-    ///     A terminal too short for both keeps the editor and gives up the tail of what is being answered — the block
-    ///     wants three rows and there is only room for one, because an editor pushed to the foot is one nobody can
-    ///     type in.
+    ///     A terminal too short for everything keeps the editor and gives up what is being answered first, because an
+    ///     editor pushed to the foot is one nobody can type in.
     /// </summary>
     /// <remarks>
     ///     Eight rows: the content panel's top and bottom edges and the status row leave the inside of the panel
-    ///     five, of which the editor keeps three and the warning field one. The field is the last row to give way
+    ///     five, of which the editor keeps three and the warning header one. The warning is the last row to give way
     ///     rather than the first — it is a row the reader types into, and one they cannot see is worse than a quote
-    ///     that stops early. The panel's bottom edge costs the row the blank one under the breadcrumb did (#216,
-    ///     ADR-0021), so the smallest terminal this holds on is the same.
+    ///     that stops early. Of the headers' dressing (#317) only the hairline under them is left.
     /// </remarks>
     [Fact]
     public async Task Reply_NeverPushesTheEditorPastTheRoomLeftToTypeIn()
@@ -117,7 +121,9 @@ public class ShellComposeLayoutTests
 
         using (window)
         {
-            Assert.Equal(2, compose.AnsweringHeight(ContentWidth));
+            Assert.Equal(
+                [NoWarning, Hairline, string.Empty, string.Empty, string.Empty],
+                compose.Lines(new Drawing(ContentWidth, AShell.Now, Height: 5)).Select(line => line.Text));
             Assert.Equal(2, editor.Frame.Y - 1);
             Assert.Equal(3, editor.Frame.Height);
         }
@@ -150,7 +156,7 @@ public class ShellComposeLayoutTests
             }
 
             Assert.Null(content.Reclaimable);
-            Assert.Equal(5, editor.Frame.Y);
+            Assert.Equal(8, editor.Frame.Y);
         }
     }
 
@@ -173,23 +179,25 @@ public class ShellComposeLayoutTests
         opened.Reply();
 
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
-        var quoted = compose.Lines(new Drawing(ContentWidth, AShell.Now))
-                            .Take(compose.AnsweringHeight(ContentWidth))
-                            .ToList();
+        var quoted = compose.Lines(new Drawing(ContentWidth, AShell.Now)).Skip(2).Take(5).ToList();
 
         Assert.Equal(
             [
-                "↳ answering @ben@hachyderm.io",
-                "  The first thing said.",
-                "  The second thing said.",
-                "  The third thing said.",
+                "     ↳  answering @ben@hachyderm.io",
+                "        │ The first thing said.",
+                "        │ The second thing said.",
+                "        │ The third thing said.",
+                NoWarning,
             ],
             quoted.Select(line => line.Text));
     }
 
-    /// <summary>A blank row stands between the quote and the warning field, which is what a compose has too (#143).</summary>
+    /// <summary>
+    ///     The warning header sits straight under the quote, as one header under another — the blank that #143 stood
+    ///     above the warning on every compose is the one above the whole block now (#317), which every compose has.
+    /// </summary>
     [Fact]
-    public async Task Reply_PutsABlankRowAboveTheWarningField()
+    public async Task Reply_PutsTheWarningHeaderUnderTheQuote()
     {
         var (window, _, compose) = await Replying();
 
@@ -197,53 +205,35 @@ public class ShellComposeLayoutTests
         {
             var lines = compose.Lines(new Drawing(ContentWidth, AShell.Now));
 
-            Assert.Equal(2, compose.AnsweringHeight(ContentWidth));
-            Assert.Equal("↳ answering @ben@hachyderm.io", lines[0].Text);
-            Assert.Equal("  Hello world", lines[1].Text);
-            Assert.Equal(string.Empty, lines[2].Text);
-            Assert.Equal("⚠ no content warning", lines[3].Text);
+            Assert.Equal(string.Empty, lines[0].Text);
+            Assert.Equal("     ↳  answering @ben@hachyderm.io", lines[2].Text);
+            Assert.Equal("        │ Hello world", lines[3].Text);
+            Assert.Equal(NoWarning, lines[4].Text);
         }
     }
 
     /// <summary>
-    ///     And the band reads the same on all three, once whatever a screen has above it is taken off: a blank, then
-    ///     the field. The blank belongs to the warning rather than to the reply block, which is the whole of what
-    ///     puts it on the two screens that have no block at all (#143) — and since #140 the field on the edit is a
-    ///     field, where it was a row held blank for one.
+    ///     And the warning reads the same on all three, and is followed the same way: the field, the hairline, and a
+    ///     blank above the editor (#317). Since #140 the field on the edit is a field, where it was a row held blank
+    ///     for one.
     /// </summary>
     [Theory]
-    [InlineData("compose")]
-    [InlineData("reply")]
-    [InlineData("edit")]
-    public async Task Warning_IsSpacedTheSameOnEveryCompose(string opening)
+    [InlineData(ComposeFor.Post)]
+    [InlineData(ComposeFor.Reply)]
+    [InlineData(ComposeFor.Edit)]
+    public async Task Warning_IsSpacedTheSameOnEveryCompose(ComposeFor opening)
     {
         var (window, shell) = await Opened(height: 20, post: APost.With(id: "220", account: "jeff@mastodon.social"));
 
         using (window)
         {
-            switch (opening)
-            {
-                case "compose":
-                    shell.Compose();
-
-                    break;
-                case "reply":
-                    shell.Reply();
-
-                    break;
-                default:
-                    shell.Edit();
-
-                    break;
-            }
-
-            var compose = Assert.IsType<ComposeScreen>(shell.Screen);
+            var compose = ComposeRows.Open(shell, opening);
             var band = compose.Lines(new Drawing(ContentWidth, AShell.Now))
-                              .Skip(compose.AnsweringHeight(ContentWidth))
-                              .Take(compose.WarningHeight)
-                              .Select(line => line.Text);
+                              .Select(line => line.Text)
+                              .SkipWhile(line => line != NoWarning)
+                              .Take(3);
 
-            Assert.Equal([string.Empty, "⚠ no content warning"], band);
+            Assert.Equal([NoWarning, Hairline, string.Empty], band);
         }
     }
 
@@ -333,43 +323,46 @@ public class ShellComposeLayoutTests
     }
 
     /// <summary>
-    ///     The screen says where its editor goes inside the content panel's viewport (#315): under the reply block and
-    ///     the warning band, across the whole width, and down to the foot.
+    ///     The screen says where its editor goes inside the content panel's viewport (#315): under the headers, inside
+    ///     the two columns of padding either side, and down to the foot's hairline and count row (#317).
     /// </summary>
     [Theory]
-    [InlineData("compose", 60, 17, 2)]
-    [InlineData("reply", 60, 17, 4)]
-    [InlineData("edit", 60, 17, 2)]
-    [InlineData("reply", 40, 30, 4)]
-    public async Task EditorAt_SitsUnderWhatIsAboveItAndRunsToTheFoot(string opening, int width, int height, int top)
+    [InlineData(ComposeFor.Post, 60, 17, 5)]
+    [InlineData(ComposeFor.Reply, 60, 17, 7)]
+    [InlineData(ComposeFor.Edit, 60, 17, 5)]
+    [InlineData(ComposeFor.Reply, 40, 30, 7)]
+    public async Task EditorAt_SitsUnderWhatIsAboveItAndRunsToTheFoot(ComposeFor opening, int width, int height, int top)
     {
         var (window, shell) = await Opened(height: 20, post: APost.With(id: "220", account: "jeff@mastodon.social"));
 
         using (window)
         {
-            var compose = Opening(shell, opening);
+            var compose = ComposeRows.Open(shell, opening);
 
             Assert.Equal(
-                new Rectangle(0, top, width, height - top),
+                new Rectangle(2, top, width - 4, height - top - 2),
                 compose.EditorAt(new Size(width, height)));
         }
     }
 
     /// <summary>
     ///     On a viewport too short for everything, the quote gives way first and the editor keeps its three rows — and
-    ///     where there are not even those, it keeps what there is rather than a height below nothing.
+    ///     where there are not even those, it keeps what there is under the warning rather than a height below nothing.
     /// </summary>
     [Theory]
+    [InlineData(11, 6, 3)]
     [InlineData(5, 2, 3)]
-    [InlineData(3, 2, 1)]
-    [InlineData(1, 2, 0)]
+    [InlineData(3, 1, 2)]
+    [InlineData(1, 1, 0)]
     public async Task EditorAt_GivesUpTheQuoteBeforeTheEditor(int height, int top, int rows)
     {
         var (window, _, compose) = await Replying();
 
         using (window)
         {
-            Assert.Equal(new Rectangle(0, top, ContentWidth, rows), compose.EditorAt(new Size(ContentWidth, height)));
+            Assert.Equal(
+                new Rectangle(2, top, ContentWidth - 4, rows),
+                compose.EditorAt(new Size(ContentWidth, height)));
         }
     }
 
@@ -378,16 +371,16 @@ public class ShellComposeLayoutTests
     ///     in the window — with or without the rail beside it.
     /// </summary>
     [Theory]
-    [InlineData("compose")]
-    [InlineData("reply")]
-    [InlineData("edit")]
-    public async Task Window_LaysTheEditorWhereTheScreenSays(string opening)
+    [InlineData(ComposeFor.Post)]
+    [InlineData(ComposeFor.Reply)]
+    [InlineData(ComposeFor.Edit)]
+    public async Task Window_LaysTheEditorWhereTheScreenSays(ComposeFor opening)
     {
         var (window, shell) = await Opened(height: 20, post: APost.With(id: "220", account: "jeff@mastodon.social"));
 
         using (window)
         {
-            var compose = Opening(shell, opening);
+            var compose = ComposeRows.Open(shell, opening);
 
             window.Layout();
 
@@ -526,28 +519,6 @@ public class ShellComposeLayoutTests
         window.Layout();
 
         return (window, Editor(window), (ComposeScreen)shell.Screen);
-    }
-
-    /// <summary>Opens a compose of the kind <paramref name="opening" /> names on the post the shell is showing.</summary>
-    private static ComposeScreen Opening(Wooly.Tui.Shell.Shell shell, string opening)
-    {
-        switch (opening)
-        {
-            case "compose":
-                shell.Compose();
-
-                break;
-            case "reply":
-                shell.Reply();
-
-                break;
-            default:
-                shell.Edit();
-
-                break;
-        }
-
-        return Assert.IsType<ComposeScreen>(shell.Screen);
     }
 
     private static ComposeEditor Editor(View window) => window.SubViews.OfType<ComposeEditor>().Single();
