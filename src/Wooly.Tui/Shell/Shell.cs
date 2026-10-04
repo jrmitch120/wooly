@@ -974,6 +974,7 @@ public sealed class Shell
         }
 
         Screen.Type(letter);
+        Redrafted();
         Changed?.Invoke();
     }
 
@@ -1012,6 +1013,7 @@ public sealed class Shell
             }
         }
 
+        Redrafted();
         Changed?.Invoke();
 
         return true;
@@ -1026,7 +1028,38 @@ public sealed class Shell
         }
 
         Screen.Backspace();
+        Redrafted();
         Changed?.Invoke();
+    }
+
+    /// <summary>
+    ///     The post being written changed in the editor: its text, kept in step with every edit so that whatever reads
+    ///     it while it is written — the count, the list of people to mention — sees what has been typed so far.
+    /// </summary>
+    public void Rewrite(string text)
+    {
+        if (Screen is not ComposeScreen compose)
+        {
+            return;
+        }
+
+        compose.Text = text;
+        Redrafted();
+    }
+
+    /// <summary>
+    ///     The draft is being worked on, so whatever was said over it is spent (#319). The status row holds a notice
+    ///     or the keymap and never both, and while a post is being written the keys go to its fields rather than to
+    ///     anything that would otherwise take a notice down — so a refusal of the post would stand, hiding every key
+    ///     compose answers to, until <c>esc</c> threw the draft away. Changing the draft is doing what the notice
+    ///     asked, which is the rule the status row already keeps.
+    /// </summary>
+    private void Redrafted()
+    {
+        if (Screen is ComposeScreen && Notice is not null)
+        {
+            Say(null, isError: false);
+        }
     }
 
     /// <summary>
@@ -1041,6 +1074,7 @@ public sealed class Shell
         }
 
         compose.WriteTheWarning();
+        Redrafted();
         Changed?.Invoke();
     }
 

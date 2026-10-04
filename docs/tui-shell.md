@@ -226,7 +226,9 @@ not answer them differently:
   both, which makes a remark left standing every key the screen answers to, hidden. So a remark goes when the reader
   walks to another thing — it was about the one they left — and when they do the thing it asked for, as toggling a poll
   answer does. It already went on `esc` and on arriving anywhere; those two are the same rule said earlier (#87
-  follow-up).
+  follow-up). Over a post being written, the thing asked for is changing the draft: an edit to the post or the warning,
+  or `ctrl-w`, takes the notice down — the keys go to the fields there, and the one key left that would otherwise have
+  cleared it, `esc`, throws the draft away (#319).
 - **`esc` is always up one level, of whichever kind of level is currently open** — amended from "up one level of the
   stack" now that a reference pick is a level of its own. With a reference picked, the first `esc` clears the pick;
   the next pops the screen (#64). This is the one addition ADR-0014's frame keys have taken since being settled.
