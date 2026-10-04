@@ -49,6 +49,10 @@ public static class Keymap
         // at all.
         (ShellKey.CtrlQ, _) => Verb.Quit,
         (ShellKey.Escape, _) => Verb.Back,
+
+        // Nothing on compose, whose fields take `?` as a letter before the window sees it (#320): a keymap opened only
+        // where no widget has the typing would be one a reader can never reach, over a draft.
+        (ShellKey.Question, ComposeScreen) => Verb.None,
         (ShellKey.Question, _) => Verb.Help,
         (ShellKey.Slash, _) => Verb.Search,
         (ShellKey.Tab, _) => Verb.NextDestination,
@@ -58,9 +62,8 @@ public static class Keymap
 
         // The frame's one ctrl chord besides quitting, because a frame key has to work on screens where letters are
         // typed. Taken back on compose alone: switching from there would drop the draft, and drafts do not survive a
-        // switch (ADR-0020). The keymap opened over compose is still over the draft, so it is taken back there too.
+        // switch (ADR-0020).
         (ShellKey.CtrlP, ComposeScreen) => Verb.None,
-        (ShellKey.CtrlP, HelpScreen { About: ComposeScreen }) => Verb.None,
         (ShellKey.CtrlP, _) => Verb.Profiles,
 
         // Screen-local, and the reason this pair is here rather than on the editor widget alone: the editor gives up

@@ -1454,8 +1454,8 @@ has the keys, and what text it opens with. That is a window's question about its
 
 - **`ctrl-p` is a frame key**, beside `esc`, `ctrl-q`, `?`, `/` and `tab`. It pushes the screen from wherever the reader
   is, drilled in or not, and pressed on the screen itself it pushes no second one. On compose it means nothing: the
-  keymap takes it back there, the help screen drawn over compose leaves it out, and like every frame key it is on no
-  screen's status row.
+  keymap takes it back there, and like every frame key it is on no screen's status row. No help screen is ever drawn
+  over compose for it to be left off, `?` being a letter in both of compose's fields (#320).
 - **A profile is two rows**: its name, followed by `acting as` and `default` where they apply, then the full
   `@handle@instance` — or the instance alone where no account was ever established. The markers are words in `muted`,
   so they read with no colour, and the name is clipped before they are. Profiles are walked with `j`/`k`, one blank row

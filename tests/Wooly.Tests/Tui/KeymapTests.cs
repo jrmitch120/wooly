@@ -45,10 +45,19 @@ public class KeymapTests
     public void TheFrameKeysMeanTheSameThingOnEveryScreen(string key, Verb verb)
     {
         Assert.Equal(verb, Means(key, Feed()));
-        Assert.Equal(verb, Means(key, new ComposeScreen(ComposeFor.Post)));
+        Assert.Equal(key == "?" ? Verb.None : verb, Means(key, new ComposeScreen(ComposeFor.Post)));
         Assert.Equal(verb, Means(key, Searched()));
         Assert.Equal(verb, Means(key, Notifications()));
     }
+
+    /// <summary>
+    ///     The one frame key compose takes back: <c>?</c> is a letter in both of its fields, which take their keys
+    ///     before the window does (#320) — so the keymap it would open is one no reader could reach, and the keymap
+    ///     says so rather than leaving a help screen over a draft to be opened only by a test.
+    /// </summary>
+    [Fact]
+    public void QuestionMarkOpensNoKeymapOnCompose() =>
+        Assert.Equal(Verb.None, Means("?", new ComposeScreen(ComposeFor.Reply)));
 
     /// <summary>
     ///     What a post answers to. <c>k</c> being the next post and <c>j</c> the one before it is the opposite way

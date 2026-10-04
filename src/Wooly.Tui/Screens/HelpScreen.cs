@@ -12,12 +12,6 @@ namespace Wooly.Tui.Screens;
 public sealed class HelpScreen(Screen about) : Screen
 {
     /// <summary>
-    ///     <c>ctrl-p</c>, which opens the profiles screen (ADR-0020). Listed only where <see cref="Keymap" /> says it
-    ///     means something, which is everywhere but over compose.
-    /// </summary>
-    private static readonly KeyHint Profiles = new("ctrl-p", "profiles: who this session is acting as");
-
-    /// <summary>
     ///     The keys that mean the same thing everywhere. What may vary from screen to screen is everything else; these
     ///     are the frame, and a reader has to be able to rely on them.
     /// </summary>
@@ -28,7 +22,7 @@ public sealed class HelpScreen(Screen about) : Screen
         new("?", "these keys"),
         new("tab / shift-tab", "move the rail's cursor; it settles onto a destination"),
         new("` / ~", "move it to the next or previous rail group's first destination"),
-        Profiles,
+        new("ctrl-p", "profiles: who this session is acting as"),
         // The pointer: it adds no keys of its own, only another way to ask for these (#286). Two lines, the second under
         // the first with no key of its own, since one no longer fits beside the key column at 80 columns (#308).
         new("mouse", "wheel scrolls the content; a click arrives on the rail and picks a row; a double click is ⏎; right click back"),
@@ -57,9 +51,7 @@ public sealed class HelpScreen(Screen about) : Screen
         lines.Add(Line.Blank);
         lines.Add(Line.Of("Everywhere", Role.BylineName));
         lines.Add(Line.Blank);
-        lines.AddRange(Frame
-            .Where(key => key != Profiles || Keymap.Means(ShellKey.CtrlP, this) != Verb.None)
-            .Select(key => Row(key, drawing.Width)));
+        lines.AddRange(Frame.Select(key => Row(key, drawing.Width)));
 
         return lines;
     }
