@@ -13,7 +13,7 @@ namespace Wooly.Tests.Tui;
 public class MentionListTests
 {
     /// <summary>A terminal short enough that the compose editor has no room for a list of five.</summary>
-    private const int Short = 14;
+    private const int Short = 13;
 
     /// <summary>The people every test has already seen on its home timeline.</summary>
     private static readonly AShell Seen = new()

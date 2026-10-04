@@ -294,7 +294,7 @@ public class ShellActionTests
 
         opened.Reply();
 
-        var label = opened.Screen.Lines(new Drawing(61, AShell.Now))[2].Text;
+        var label = opened.Screen.Lines(new Drawing(61, AShell.Now))[3].Text;
         Assert.Equal("     ↳  answering @ben@hachyderm.io", label);
     }
 
@@ -307,7 +307,7 @@ public class ShellActionTests
 
         opened.Reply();
 
-        var label = opened.Screen.Lines(new Drawing(61, AShell.Now))[2].Text;
+        var label = opened.Screen.Lines(new Drawing(61, AShell.Now))[3].Text;
         Assert.Equal("     ↳  continuing", label);
     }
 

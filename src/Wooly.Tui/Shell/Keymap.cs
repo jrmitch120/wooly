@@ -78,6 +78,11 @@ public static class Keymap
         (ShellKey.Up, ComposeScreen) => Verb.PreviousField,
         (ShellKey.Down, ComposeScreen) => Verb.NextField,
 
+        // And ← and →, which choose along To (#338). Every other field takes them for its caret, so only To leaves
+        // them, and anywhere else on the screen that declines them they choose nothing.
+        (ShellKey.Left, ComposeScreen) => Verb.PreviousChoice,
+        (ShellKey.Right, ComposeScreen) => Verb.NextChoice,
+
         // The four that collide. A picked reference is a level of its own inside the screen, so ⏎ means the reference
         // wherever one is picked — ahead of whatever the screen's own ⏎ would have meant (#85).
         (ShellKey.Enter, _) when screen.Reference is not null => Verb.OpenReference,
