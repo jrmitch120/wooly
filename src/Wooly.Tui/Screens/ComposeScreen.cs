@@ -48,6 +48,9 @@ public sealed class ComposeScreen : Screen
     /// <summary>What the warning row says while it is empty and is being written in.</summary>
     private const string WarningBeingWritten = "say what it's about";
 
+    /// <summary>The most the count can reach and stay muted: past it is the last tenth of the limit (#319).</summary>
+    private const int NearlyFull = PostLength.Limit * 9 / 10;
+
     /// <summary>The columns left blank either side of everything on the screen (#317).</summary>
     private const int Pad = 2;
 
@@ -349,7 +352,7 @@ public sealed class ComposeScreen : Screen
         var role = used switch
         {
             > PostLength.Limit => Role.Error,
-            > PostLength.Limit * 9 / 10 => Role.QuotaLow,
+            > NearlyFull => Role.QuotaLow,
             _ => Role.Muted,
         };
 
