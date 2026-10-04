@@ -67,3 +67,20 @@ followers (#26).
 `Account` says nothing about what the profile's own account has done about it — following, blocked, muted. Relationship
 management (#26) is where that arrives, and it should extend this record rather than introduce a second account type:
 two of them is how a search result and a followers list come to describe the same account differently.
+
+## Amendment: a search of the profile's follows does not resolve, and finds nobody where refused (map #313, ticket #322)
+
+The mention list in compose asks a second, narrower search of `IInstanceSearch`: `FindFollowed`, which is Mastodon's
+`GET /api/v1/accounts/search` with `following=true`, five at most, through Mastonet's own `SearchAccounts(q, limit,
+resolveNonLocalAccouns, onlyFollowing)` — so this one *does* send a limit, and stays on Mastonet.
+
+**It is not resolving.** "Asking is resolving" above is about a person who pasted an address and means "find me this".
+Somebody the profile follows is somebody its instance has already met, so there is nothing to go and fetch, and a
+lookup that leaves a copy of an account on the instance is not something a suggestion should do behind the reader's
+back while they type.
+
+**A refusal other than the rate limit finds nobody.** The second decision above lets a refused search reach the one
+handler, because a user who typed `search` asked for an answer and is owed the reason there is none. Nobody asked for a
+suggestion, so an instance that will not search follows — a 403 for the token, a 422 for a parameter it does not take —
+answers with no one, as #204 settled for the standing a list is decorated with. A rate limit is still raised, and the
+shell drops it silently; it is raised so that a caller can still tell it apart.

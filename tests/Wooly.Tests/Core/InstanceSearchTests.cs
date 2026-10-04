@@ -197,7 +197,7 @@ public class InstanceSearchTests
         var network = new ScriptedHttpMessageHandler(
             ScriptedHttpMessageHandler.Json($"[{AccountJson("maria@b.social")},{AccountJson("mark")}]"));
 
-        var found = await Services(network).FindFollowed(Profile, "ma", TestContext.Current.CancellationToken);
+        var found = await Resolved(network).FindFollowed(Profile, "ma", TestContext.Current.CancellationToken);
 
         var request = Assert.Single(network.Requests);
         var asked = request.RequestUri!;
@@ -218,14 +218,30 @@ public class InstanceSearchTests
         var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Status(HttpStatusCode.TooManyRequests));
 
         await Assert.ThrowsAsync<RateLimitedException>(
-            () => Services(network).FindFollowed(Profile, "ma", TestContext.Current.CancellationToken));
+            () => Resolved(network).FindFollowed(Profile, "ma", TestContext.Current.CancellationToken));
     }
 
-    /// <summary>Resolved from the container the app builds, so the wiring is under test alongside the behavior.</summary>
-    private static Task<SearchResults> Search(HttpMessageHandler network, SearchQuery query) =>
-        Services(network).Find(Profile, query, TestContext.Current.CancellationToken);
+    /// <summary>
+    ///     Any other refusal — an instance that will not search follows, or will not for this token — finds nobody,
+    ///     rather than raising what a mention list would have no use for.
+    /// </summary>
+    [Theory]
+    [InlineData(HttpStatusCode.Forbidden)]
+    [InlineData(HttpStatusCode.UnprocessableEntity)]
+    public async Task FindFollowed_FindsNobodyWhereTheInstanceRefuses(HttpStatusCode refusal)
+    {
+        var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Refusal(refusal, "This action is not allowed"));
 
-    private static IInstanceSearch Services(HttpMessageHandler network)
+        var found = await Resolved(network).FindFollowed(Profile, "ma", TestContext.Current.CancellationToken);
+
+        Assert.Empty(found);
+    }
+
+    private static Task<SearchResults> Search(HttpMessageHandler network, SearchQuery query) =>
+        Resolved(network).Find(Profile, query, TestContext.Current.CancellationToken);
+
+    /// <summary>Resolved from the container the app builds, so the wiring is under test alongside the behavior.</summary>
+    private static IInstanceSearch Resolved(HttpMessageHandler network)
     {
         var services = new ServiceCollection();
         services.AddWoolyCore();

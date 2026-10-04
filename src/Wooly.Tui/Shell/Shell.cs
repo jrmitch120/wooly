@@ -1710,17 +1710,9 @@ public sealed class Shell
                 account: null,
                 PeopleToMention.FollowsRead,
                 abandoned,
-                arrived: page => Apply(() =>
-                {
-                    if (!abandoned.IsCancellationRequested)
-                    {
-                        acting.People.Followed(page);
-                        Changed?.Invoke();
-                    }
-                }));
+                arrived: page => Offer(acting, page, abandoned));
 
-            // A read that filled the cap may have stopped with more to come, and one the rate limit stopped did.
-            Apply(() => acting.People.FollowsEnded(read.IsComplete && read.Items.Count < PeopleToMention.FollowsRead));
+            Apply(() => acting.People.FollowsEnded(read));
         }
         catch (OperationCanceledException) when (abandoned.IsCancellationRequested)
         {
@@ -1749,22 +1741,13 @@ public sealed class Shell
             return;
         }
 
-        acting.People.Searching(query);
+        acting.People.SearchedFor(query);
 
         var abandoned = _enquiry.Abandoned;
 
         try
         {
-            var found = await _ports.Search.FindFollowed(acting.Profile, query, abandoned);
-
-            Apply(() =>
-            {
-                if (!abandoned.IsCancellationRequested)
-                {
-                    acting.People.Followed(found);
-                    Changed?.Invoke();
-                }
-            });
+            Offer(acting, await _ports.Search.FindFollowed(acting.Profile, query, abandoned), abandoned);
         }
         catch (OperationCanceledException) when (abandoned.IsCancellationRequested)
         {
@@ -1775,6 +1758,20 @@ public sealed class Shell
             // Refused or rate limited, which a suggestion is not worth a word on the status row about.
         }
     }
+
+    /// <summary>
+    ///     Offers <paramref name="follows" /> as people to mention, and redraws an open list with them — unless a switch
+    ///     of profile has called off what found them.
+    /// </summary>
+    private void Offer(Acting acting, IEnumerable<Account> follows, CancellationToken abandoned) =>
+        Apply(() =>
+        {
+            if (!abandoned.IsCancellationRequested)
+            {
+                acting.People.Followed(follows);
+                Changed?.Invoke();
+            }
+        });
 
     /// <summary>Reads the counts the rail carries, none of which is worth failing the shell over.</summary>
     /// <param name="profile">Who the counts are read as.</param>

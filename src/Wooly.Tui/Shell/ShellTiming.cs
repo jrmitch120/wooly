@@ -7,7 +7,9 @@ namespace Wooly.Tui.Shell;
 /// </summary>
 /// <param name="Settle">
 ///     How long the tabbing has to stop for before the rail's selection follows its cursor. 250ms: long enough that a
-///     deliberate double-tap lands as one move, short enough that a single tab does not read as a pause (ADR-0014).
+///     deliberate double-tap lands as one move, short enough that a single tab does not read as a pause (ADR-0014). Also
+///     how long typing an <c>@</c>-word has to stop for before the instance is asked to search the profile's follows for
+///     it (#322), for the same reason: a run of letters is one ask rather than one per letter.
 /// </param>
 /// <param name="CacheFor">
 ///     How long what a destination held stays worth drawing without asking the instance again. A minute: long enough

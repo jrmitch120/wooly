@@ -30,7 +30,10 @@ public interface IInstanceSearch
     /// </summary>
     /// <param name="profile">Whose follows to search, and the token to ask with.</param>
     /// <param name="query">What has been typed after the <c>@</c>.</param>
-    /// <returns>At most <see cref="FollowedFound" />, in the order the instance ranked them.</returns>
+    /// <returns>
+    ///     At most <see cref="FollowedFound" />, in the order the instance ranked them — and nobody where the instance
+    ///     refused to answer, since a suggestion is not worth saying a refusal over.
+    /// </returns>
     /// <exception cref="Errors.RateLimitedException">
     ///     The rate limit refused the search. One call, as <see cref="Find" /> is, so there is no half-answer.
     /// </exception>

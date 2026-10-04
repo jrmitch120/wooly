@@ -1,4 +1,5 @@
 using Wooly.Core.Accounts;
+using Wooly.Core.Paging;
 
 namespace Wooly.Tui.Shell;
 
@@ -45,7 +46,7 @@ public sealed class PeopleToMention(Core.Profiles.ActiveProfile profile)
     ///     Whether the follows read are all of them: read to the end, short of the cap, and stopped by nothing. Until
     ///     then — still arriving, cut off at the cap, or refused — anybody followed may be missing.
     /// </summary>
-    private bool _whole;
+    private bool _followsWhole;
 
     /// <summary>
     ///     Takes in everybody <paramref name="people" /> names, the first of them the most recently seen — a screen's top
@@ -83,8 +84,8 @@ public sealed class PeopleToMention(Core.Profiles.ActiveProfile profile)
     }
 
     /// <summary>
-    ///     Takes in a page of the accounts the profile follows, as it arrives or as a search of them finds them — leaving out anybody a tie has come off
-    ///     since, whom the page was read too early to know about.
+    ///     Takes in a page of the accounts the profile follows, as it arrives or as a search of them finds them —
+    ///     leaving out anybody a tie has come off since, whom the page was read too early to know about.
     /// </summary>
     public void Followed(IEnumerable<Account> page)
     {
@@ -97,8 +98,11 @@ public sealed class PeopleToMention(Core.Profiles.ActiveProfile profile)
         }
     }
 
-    /// <summary>The read of the follows has ended, with all of them or not, which settles whether searching is worth it.</summary>
-    public void FollowsEnded(bool whole) => _whole = whole;
+    /// <summary>
+    ///     The read of the follows has ended, which settles whether searching them is worth it: one that filled the cap
+    ///     may have stopped with more to come, and one the rate limit stopped did.
+    /// </summary>
+    public void FollowsEnded(Fetch<Account> read) => _followsWhole = read.IsComplete && read.Items.Count < FollowsRead;
 
     /// <summary>
     ///     Whether the instance's search of the follows is worth asking for <paramref name="query" />: the follows read
@@ -106,7 +110,7 @@ public sealed class PeopleToMention(Core.Profiles.ActiveProfile profile)
     ///     address somebody here answers to, and it has not been searched for already this session (#322).
     /// </summary>
     public bool WorthSearching(string query) =>
-        !_whole
+        !_followsWhole
         && query.Length > 0
         && !_searched.Contains(query)
         && !_people.ContainsKey(query)
@@ -117,7 +121,7 @@ public sealed class PeopleToMention(Core.Profiles.ActiveProfile profile)
     ///     Remembers that the follows are being searched for <paramref name="query" />, so that it is not asked for again
     ///     this session — what the search finds being taken in through <see cref="Followed" />, which keeps it.
     /// </summary>
-    public void Searching(string query) => _searched.Add(query);
+    public void SearchedFor(string query) => _searched.Add(query);
 
     /// <summary>
     ///     A tie went on or came off <paramref name="account" />, which the instance answered with where the profile
