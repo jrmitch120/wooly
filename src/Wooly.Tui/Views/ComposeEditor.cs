@@ -32,8 +32,17 @@ namespace Wooly.Tui.Views;
 ///     reason the other two are — a <see cref="TextView" /> has its own uses for a control key, and the field above is
 ///     not one of them.
 /// </param>
-internal sealed class ComposeEditor(ITheme theme, string placeholder, Action send, Action cancel, Action warn)
-    : TextView
+/// <param name="up">
+///     <c>↑</c> on the post's first line: what moves the typing up into the headers (ADR-0024, #337). Taken off here
+///     because the editor would otherwise spend the press putting the caret at the start of the line.
+/// </param>
+internal sealed class ComposeEditor(
+    ITheme theme,
+    string placeholder,
+    Action send,
+    Action cancel,
+    Action warn,
+    Action up) : TextView
 {
     /// <summary>
     ///     First refusal on every key, ahead of the editor's own — the list of people to mention, while it is open
@@ -122,6 +131,13 @@ internal sealed class ComposeEditor(ITheme theme, string placeholder, Action sen
         if (key == Key.W.WithCtrl)
         {
             warn();
+
+            return true;
+        }
+
+        if (key == Key.CursorUp && CurrentRow == 0)
+        {
+            up();
 
             return true;
         }

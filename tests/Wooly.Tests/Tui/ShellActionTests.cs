@@ -319,7 +319,7 @@ public class ShellActionTests
     [Theory]
     [InlineData(PostVisibility.Public)]
     [InlineData(PostVisibility.Unlisted)]
-    [InlineData(PostVisibility.Private)]
+    [InlineData(PostVisibility.Followers)]
     public async Task Reply_OpensAddressedToTheAccountItAnswers(PostVisibility visibility)
     {
         var post = APost.With(id: "220", account: "ben@hachyderm.io", visibility: visibility);

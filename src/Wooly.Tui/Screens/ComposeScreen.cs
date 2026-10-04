@@ -20,6 +20,19 @@ public enum ComposeFor
     Edit,
 }
 
+/// <summary>
+///     Where on a compose screen the typing is going: one of the headers that takes typing, or the post itself
+///     (ADR-0024, #337).
+/// </summary>
+public enum ComposeField
+{
+    /// <summary>The content warning over the post (#123, #320).</summary>
+    Warning,
+
+    /// <summary>The post being written.</summary>
+    Post,
+}
+
 /// <summary>Who a compose screen's post goes out as, for its From header (#317).</summary>
 /// <param name="Handle">The profile's account, as a byline's handle: <c>@jeff</c>.</param>
 /// <param name="Instance">The instance it is on, which tells two profiles with the same username apart.</param>
@@ -150,11 +163,25 @@ public sealed class ComposeScreen : Screen
     public string Warning { get; private set; }
 
     /// <summary>
-    ///     Whether what is typed is going into the warning rather than into the post. Both are on screen at once and
-    ///     <c>ctrl-w</c> moves between them, since a terminal takes the keys of whichever field has them — and a click
-    ///     into either field moves the typing there too, which keeps this in step (#320).
+    ///     The fields the typing walks, in the order the arrows walk them (ADR-0024, #337): the headers that take typing,
+    ///     top to bottom as drawn, then the post under them. A header that comes to take typing is put here and joins
+    ///     the walk, with no key rule of its own.
     /// </summary>
-    public bool WritingTheWarning { get; private set; }
+    private static readonly ComposeField[] Fields = [ComposeField.Warning, ComposeField.Post];
+
+    /// <summary>
+    ///     Which field what is typed is going into. Every field is on screen at once and the typing is in one of them,
+    ///     since a terminal takes the keys of whichever field has them: the arrows walk it (<see cref="Walk" />),
+    ///     <c>ctrl-w</c> jumps it into the warning and back, and a click into a field moves it there too, which keeps
+    ///     this in step (#320).
+    /// </summary>
+    public ComposeField Typing { get; private set; } = ComposeField.Post;
+
+    /// <summary>Whether what is typed is going into the warning rather than into the post.</summary>
+    public bool WritingTheWarning => Typing == ComposeField.Warning;
+
+    /// <summary>Whether the typing is in one of the headers rather than in the post.</summary>
+    public bool OnAHeader => Typing != ComposeField.Post;
 
     /// <summary>
     ///     What the warning field says, dimly, while it is empty: how to reach it while the typing is in the post, and
@@ -210,9 +237,14 @@ public sealed class ComposeScreen : Screen
     ///     No keymap key, in either field: <c>?</c> is a letter in the post and in the warning alike, each field taking
     ///     its own keys before the shell sees them (#320) — so naming it would be offering a press that types a
     ///     question mark.
+    ///     <para>
+    ///         On a header the walk between the fields comes first (<c>docs/tui-shell.md</c>, #337): there <c>↑</c> and
+    ///         <c>↓</c> are always the walk's, where in the post they are the caret's but on its first line.
+    ///     </para>
     /// </remarks>
     protected override IReadOnlyList<KeyHint> OwnKeys =>
     [
+        .. OnAHeader ? [new KeyHint("↑↓", "field")] : Array.Empty<KeyHint>(),
         new("ctrl-s", Purpose == ComposeFor.Edit ? "save" : "send"),
         new("ctrl-w", WritingTheWarning ? "back to the post" : "content warning"),
         new("esc", "throw it away"),
@@ -231,8 +263,31 @@ public sealed class ComposeScreen : Screen
     /// </summary>
     public void RewriteWarning(string written) => Warning = written;
 
-    /// <summary><c>ctrl-w</c>: hands the typing to the warning, or hands it back.</summary>
-    public void WriteTheWarning() => WritingTheWarning = !WritingTheWarning;
+    /// <summary><c>ctrl-w</c>: hands the typing to the warning, or hands it back to the post.</summary>
+    public void WriteTheWarning() => Typing = WritingTheWarning ? ComposeField.Post : ComposeField.Warning;
+
+    /// <summary>
+    ///     <c>↑</c> or <c>↓</c> (<paramref name="by" /> −1 or 1): moves the typing to the field above or below in
+    ///     <see cref="Fields" /> — out of the post into the last header, between the headers, and off the last header
+    ///     back into the post (ADR-0024, #337).
+    /// </summary>
+    /// <returns>
+    ///     Whether it moved, which it does not off either end: there is nothing above the top header, and below the post
+    ///     is the post's own business.
+    /// </returns>
+    public bool Walk(int by)
+    {
+        var to = Array.IndexOf(Fields, Typing) + by;
+
+        if (to < 0 || to >= Fields.Length)
+        {
+            return false;
+        }
+
+        Typing = Fields[to];
+
+        return true;
+    }
 
     /// <summary>
     ///     Where the editor goes inside the content panel's viewport of <paramref name="viewport" />: under the

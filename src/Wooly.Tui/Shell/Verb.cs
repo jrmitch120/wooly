@@ -267,4 +267,12 @@ public enum Verb
 
     /// <summary><c>ctrl-w</c> there: move the typing between the post and the warning over it.</summary>
     WriteWarning,
+
+    /// <summary>
+    ///     <c>↑</c> there, where the field the typing is in leaves it: move the typing to the field above (ADR-0024, #337).
+    /// </summary>
+    PreviousField,
+
+    /// <summary><c>↓</c> there, likewise: move the typing to the field below, the post being the last.</summary>
+    NextField,
 }

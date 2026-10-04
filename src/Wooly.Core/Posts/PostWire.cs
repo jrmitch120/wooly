@@ -194,13 +194,13 @@ internal static class PostWire
     /// <remarks>
     ///     Written out rather than cast, even though the two enums happen to list the same four in the same order.
     ///     A cast would tie this client's meaning of <c>2</c> to a number in somebody else's library, and a release
-    ///     that inserted a fifth member would silently turn every private post public.
+    ///     that inserted a fifth member would silently turn every followers-only post public.
     /// </remarks>
     public static PostVisibility ToVisibility(Visibility visibility) => visibility switch
     {
         Visibility.Public => PostVisibility.Public,
         Visibility.Unlisted => PostVisibility.Unlisted,
-        Visibility.Private => PostVisibility.Private,
+        Visibility.Private => PostVisibility.Followers,
         Visibility.Direct => PostVisibility.Direct,
         _ => throw new ArgumentOutOfRangeException(
             nameof(visibility),
@@ -214,7 +214,7 @@ internal static class PostWire
     {
         PostVisibility.Public => Visibility.Public,
         PostVisibility.Unlisted => Visibility.Unlisted,
-        PostVisibility.Private => Visibility.Private,
+        PostVisibility.Followers => Visibility.Private,
         PostVisibility.Direct => Visibility.Direct,
         _ => throw new ArgumentOutOfRangeException(
             nameof(visibility),

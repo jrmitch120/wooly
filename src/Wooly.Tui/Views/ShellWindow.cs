@@ -201,7 +201,8 @@ internal sealed class ShellWindow : Window
             ComposeScreen.EmptyPostHint,
             () => _ = shell.Send(),
             () => shell.Back(),
-            shell.WriteWarning)
+            shell.WriteWarning,
+            () => shell.WalkField(-1))
         {
             // Wherever the compose screen says, inside the content panel's viewport (#315): its headers and hairlines
             // (#317) are painted on _content, which this sits in front of, so the screen that paints them is the one
@@ -214,6 +215,10 @@ internal sealed class ShellWindow : Window
             Height = Dim.Func(content => EditorAt(content).Height, _content),
             Visible = false,
             WordWrap = true,
+
+            // tab is the frame's on every screen, compose included (docs/tui-shell.md, ADR-0024): it moves the rail's
+            // cursor rather than putting a tab into the post.
+            TabKeyAddsTab = false,
         };
 
         // The screen's text follows the editor on every edit rather than only at ctrl-s, so whatever reads it while a

@@ -84,9 +84,12 @@ public class PostCommandTests : IDisposable
     [Theory]
     [InlineData("public", PostVisibility.Public)]
     [InlineData("unlisted", PostVisibility.Unlisted)]
-    [InlineData("private", PostVisibility.Private)]
+    [InlineData("followers", PostVisibility.Followers)]
     [InlineData("direct", PostVisibility.Direct)]
-    [InlineData("PRIVATE", PostVisibility.Private)]
+
+    // Mastodon's word for followers, which scripts written before ADR-0024 pass and which keeps working.
+    [InlineData("private", PostVisibility.Followers)]
+    [InlineData("PRIVATE", PostVisibility.Followers)]
     public void Create_PublishesAtTheVisibilityAsked(string given, PostVisibility expected)
     {
         AddProfile();
@@ -102,10 +105,38 @@ public class PostCommandTests : IDisposable
     {
         AddProfile();
 
-        var run = Run(["post", "create", "Hello world", "--visibility", "followers"]);
+        var run = Run(["post", "create", "Hello world", "--visibility", "friends"]);
 
         Assert.Equal((int)ExitCode.UsageError, run.ExitCode);
+        Assert.Contains("public, unlisted, followers, direct", run.ErrorOutput);
         Assert.Empty(_posts.Published);
+    }
+
+    /// <summary>The report uses the word the flag does, not the word Mastodon puts on the wire (ADR-0024).</summary>
+    [Fact]
+    public void Create_ReportsAFollowersOnlyPostAsFollowers()
+    {
+        AddProfile();
+        _posts = FakePostAuthor.Answering(APost.With(visibility: PostVisibility.Followers));
+
+        var run = Run(["post", "create", "Hello world", "--visibility", "followers"]);
+
+        Assert.Contains("Posted 110 (followers).", run.Output);
+    }
+
+    /// <summary>
+    ///     A breaking change to ADR-0007's contract, made on purpose: the machine-readable output describes the post in
+    ///     the same word the human-readable one does (ADR-0024).
+    /// </summary>
+    [Fact]
+    public void Create_NamesAFollowersOnlyPostFollowersInTheJsonItWrites()
+    {
+        AddProfile();
+        _posts = FakePostAuthor.Answering(APost.With(visibility: PostVisibility.Followers));
+
+        var run = Run(["post", "create", "Hello world", "--visibility", "followers", "--json"]);
+
+        Assert.Equal("followers", JsonDocument.Parse(run.Output).RootElement.GetProperty("visibility").GetString());
     }
 
     /// <summary>
@@ -131,19 +162,19 @@ public class PostCommandTests : IDisposable
     public void Create_FallsBackToTheVisibilityTheConfigFilePrefers()
     {
         AddProfile();
-        PreferVisibility("private");
+        PreferVisibility("followers");
 
         var run = Run(["post", "create", "Hello world"]);
 
         Assert.Equal((int)ExitCode.Success, run.ExitCode);
-        Assert.Equal(PostVisibility.Private, Assert.Single(_posts.Published).Draft.Visibility);
+        Assert.Equal(PostVisibility.Followers, Assert.Single(_posts.Published).Draft.Visibility);
     }
 
     [Fact]
     public void Create_LetsTheCommandLineOverrideTheVisibilityTheConfigFilePrefers()
     {
         AddProfile();
-        PreferVisibility("private");
+        PreferVisibility("followers");
 
         var run = Run(["post", "create", "Hello world", "--visibility", "public"]);
 
@@ -360,7 +391,7 @@ public class PostCommandTests : IDisposable
 
         var run = Run([
             "post", "reply", "99", "Quite so",
-            "--cw", "spoilers", "--visibility", "private",
+            "--cw", "spoilers", "--visibility", "followers",
             "--media", _directory.WriteFile("cat.png"),
         ]);
 
@@ -370,7 +401,7 @@ public class PostCommandTests : IDisposable
         Assert.Equal("99", draft.InReplyTo);
         Assert.Equal("Quite so", draft.Text);
         Assert.Equal("spoilers", draft.ContentWarning);
-        Assert.Equal(PostVisibility.Private, draft.Visibility);
+        Assert.Equal(PostVisibility.Followers, draft.Visibility);
         Assert.Single(draft.Media);
     }
 
@@ -385,10 +416,10 @@ public class PostCommandTests : IDisposable
     {
         AddProfile();
 
-        Run(["post", "reply", "99", "Quite so", "--visibility", "private"]);
+        Run(["post", "reply", "99", "Quite so", "--visibility", "followers"]);
 
         var draft = Assert.Single(_posts.Published).Draft;
-        Assert.Equal(PostVisibility.Private, draft.Visibility);
+        Assert.Equal(PostVisibility.Followers, draft.Visibility);
         Assert.True(draft.VisibilityChosen);
     }
 
