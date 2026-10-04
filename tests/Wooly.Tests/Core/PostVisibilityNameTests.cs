@@ -12,13 +12,18 @@ public class PostVisibilityNameTests
     [Theory]
     [InlineData("public", PostVisibility.Public)]
     [InlineData("unlisted", PostVisibility.Unlisted)]
-    [InlineData("private", PostVisibility.Private)]
+    [InlineData("followers", PostVisibility.Followers)]
     [InlineData("direct", PostVisibility.Direct)]
 
+    // Mastodon's own word, which this client spelled unchanged before ADR-0024. Config files and scripts written then
+    // say it, and keep working.
+    [InlineData("private", PostVisibility.Followers)]
+    [InlineData("PRIVATE", PostVisibility.Followers)]
+
     // A user typing a word at a shell prompt does not think about its case, and neither does one hand-editing a file.
-    [InlineData("Private", PostVisibility.Private)]
+    [InlineData("Followers", PostVisibility.Followers)]
     [InlineData("DIRECT", PostVisibility.Direct)]
-    [InlineData("  private  ", PostVisibility.Private)]
+    [InlineData("  followers  ", PostVisibility.Followers)]
     public void Parse_ReadsAVisibilityHoweverItWasSpelled(string name, PostVisibility expected) =>
         Assert.Equal(expected, PostVisibilityName.Parse(name));
 
@@ -26,7 +31,7 @@ public class PostVisibilityNameTests
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
-    [InlineData("followers")]
+    [InlineData("friends")]
     [InlineData("secret")]
 
     // What Enum.TryParse would have accepted and no user could have meant: the number behind the name, and a
@@ -35,19 +40,26 @@ public class PostVisibilityNameTests
     [InlineData("public,direct")]
     public void Parse_RefusesWhatIsNotAVisibility(string? name) => Assert.Null(PostVisibilityName.Parse(name));
 
+    [Theory]
+    [InlineData(PostVisibility.Public, "public")]
+    [InlineData(PostVisibility.Unlisted, "unlisted")]
+    [InlineData(PostVisibility.Followers, "followers")]
+    [InlineData(PostVisibility.Direct, "direct")]
+    public void Of_SpellsEachVisibilityInThisProjectsWords(PostVisibility visibility, string expected) =>
+        Assert.Equal(expected, PostVisibilityName.Of(visibility));
+
     [Fact]
     public void Of_SpellsEveryVisibilityTheWayBothTheFlagAndTheFileTakeIt() =>
         Assert.All(Enum.GetValues<PostVisibility>(), visibility =>
             Assert.Equal(visibility, PostVisibilityName.Parse(PostVisibilityName.Of(visibility))));
 
-    /// <summary>With four to choose from, listing them is usually the whole answer.</summary>
+    /// <summary>
+    ///     With four to choose from, listing them is usually the whole answer. The alias is left out: offering both words
+    ///     would invite the one this project avoids.
+    /// </summary>
     [Fact]
-    public void Rejection_ListsTheWordsThatWouldHaveWorked()
-    {
-        var rejection = PostVisibilityName.Rejection("followers");
-
-        Assert.Contains("followers", rejection);
-        Assert.Contains("public", rejection);
-        Assert.Contains("direct", rejection);
-    }
+    public void Rejection_ListsTheWordsThatWouldHaveWorked() =>
+        Assert.Equal(
+            "'friends' is not a post visibility. Use one of: public, unlisted, followers, direct.",
+            PostVisibilityName.Rejection("friends"));
 }

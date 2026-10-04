@@ -1,17 +1,27 @@
 namespace Wooly.Core.Posts;
 
 /// <summary>
-///     How a <see cref="PostVisibility" /> is spelled where a user writes one, in the one place every entry point can
-///     reach it. Two of them already exist — the <c>--visibility</c> flag and the <c>default_visibility</c> key in the
-///     config file — and a user who writes <c>private</c> in the file and <c>private</c> on the command line has
-///     written the same word, so the two cannot be allowed to accept different sets of them.
+///     How a <see cref="PostVisibility" /> is spelled wherever a person or a script reads or writes one, in the one place
+///     every entry point can reach it: the <c>--visibility</c> flag, the <c>default_visibility</c> key in the config
+///     file, the CLI's report, <c>--json</c> and the feed's byline. A user who writes <c>followers</c> in the file and
+///     <c>followers</c> on the command line has written the same word, so the two cannot be allowed to accept different
+///     sets of them.
 /// </summary>
+/// <remarks>
+///     Mastodon's wire word for followers is <c>private</c>, which reads as "only me" to anybody who has not learned
+///     otherwise, so this project says followers (ADR-0024). <c>private</c> is accepted here as an alias, permanently,
+///     so that config files and scripts written before the change keep working; it is never written, and never offered
+///     in <see cref="Accepted" />. The wire's own spelling is <see cref="PostWire" />'s, not this.
+/// </remarks>
 public static class PostVisibilityName
 {
+    /// <summary>Mastodon's word for <see cref="PostVisibility.Followers" />, still read as it.</summary>
+    private const string FollowersAlias = "private";
+
     /// <summary>The spelling of <paramref name="visibility" />: lower case, as both the flag and the file take it.</summary>
     public static string Of(PostVisibility visibility) => visibility.ToString().ToLowerInvariant();
 
-    /// <summary>Every spelling this client accepts, listed the way an error message wants them.</summary>
+    /// <summary>Every spelling this client offers, listed the way an error message wants them.</summary>
     public static string Accepted => string.Join(", ", Enum.GetValues<PostVisibility>().Select(Of));
 
     /// <summary>
@@ -30,6 +40,11 @@ public static class PostVisibilityName
         }
 
         var trimmed = name.Trim();
+
+        if (string.Equals(FollowersAlias, trimmed, StringComparison.OrdinalIgnoreCase))
+        {
+            return PostVisibility.Followers;
+        }
 
         foreach (var visibility in Enum.GetValues<PostVisibility>())
         {

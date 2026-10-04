@@ -231,7 +231,7 @@ public static class PostLines
     {
         PostVisibility.Public => "○",
         PostVisibility.Unlisted => "◌",
-        PostVisibility.Private => "●",
+        PostVisibility.Followers => "●",
         PostVisibility.Direct => "✉",
         _ => throw new ArgumentOutOfRangeException(nameof(visibility), visibility, "Not an audience this client draws."),
     };

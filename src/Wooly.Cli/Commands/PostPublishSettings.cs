@@ -14,7 +14,7 @@ internal abstract class PostPublishSettings : PostComposeSettings
 {
     [CommandOption("--visibility <WHO>")]
     [Description(
-        "Who can see the post: public (anyone), unlisted (anyone with the link), private (your followers) or "
+        "Who can see the post: public (anyone), unlisted (anyone with the link), followers (only your followers) or "
         + "direct (only the accounts mentioned). Defaults to your own setting on the instance.")]
     public string? Visibility { get; init; }
 
