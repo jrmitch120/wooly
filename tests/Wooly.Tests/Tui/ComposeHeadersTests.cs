@@ -183,7 +183,7 @@ public class ComposeHeadersTests
 
         var warning = Lines(compose)[2];
 
-        Assert.Equal(ComposeRows.Warning("▌say what it's about"), warning.Text);
+        Assert.Equal(ComposeRows.Warning("say what it's about"), warning.Text);
         Assert.Equal(Role.ContentWarning, Assert.Single(warning.Spans, span => span.Text.Contains('⚠')).Role);
         Assert.Equal(Role.Muted, Assert.Single(warning.Spans, span => span.Text == "say what it's about").Role);
     }

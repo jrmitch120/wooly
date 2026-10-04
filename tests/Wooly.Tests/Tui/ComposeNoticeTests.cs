@@ -33,7 +33,7 @@ public class ComposeNoticeTests
     {
         var (shell, compose) = await Refused(writingTheWarning: true);
 
-        shell.Backspace();
+        shell.RewriteWarning("!");
 
         Assert.Null(shell.Notice);
         Assert.True(compose.WritingTheWarning);
@@ -83,7 +83,7 @@ public class ComposeNoticeTests
         if (writingTheWarning)
         {
             shell.WriteWarning();
-            shell.Type('!');
+            shell.RewriteWarning("!!");
         }
 
         await shell.Send();

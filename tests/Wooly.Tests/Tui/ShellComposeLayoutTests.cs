@@ -239,8 +239,9 @@ public class ShellComposeLayoutTests
 
     /// <summary>
     ///     <c>ctrl-w</c> hands the keys to the warning field above the editor and takes them back again (#123). The
-    ///     editor keeps its text and its place and gives up focus, so what is typed lands in the field rather than in
-    ///     the post — and the terminal's own cursor is not left blinking in a body nobody is writing in.
+    ///     editor keeps its text and its place and gives up focus to the field (#320), so what is typed lands in the
+    ///     field rather than in the post — and the terminal's own cursor is not left blinking in a body nobody is
+    ///     writing in. Both stay able to take focus, so a click can move the typing either way.
     /// </summary>
     [Fact]
     public async Task Warning_TakesWhatIsTypedWhileCtrlWHasIt()
@@ -249,13 +250,14 @@ public class ShellComposeLayoutTests
 
         using (window)
         {
-            Assert.True(editor.CanFocus);
+            Assert.True(editor.HasFocus);
 
             window.NewKeyDownEvent(Key.W.WithCtrl);
 
             Assert.True(compose.WritingTheWarning);
-            Assert.False(editor.CanFocus);
+            Assert.True(editor.CanFocus);
             Assert.False(editor.HasFocus);
+            Assert.True(window.SubViews.OfType<ComposeWarningField>().Single().HasFocus);
 
             window.NewKeyDownEvent(Key.C);
             window.NewKeyDownEvent(Key.W);
@@ -266,7 +268,7 @@ public class ShellComposeLayoutTests
             window.NewKeyDownEvent(Key.W.WithCtrl);
 
             Assert.False(compose.WritingTheWarning);
-            Assert.True(editor.CanFocus);
+            Assert.True(editor.HasFocus);
         }
     }
 

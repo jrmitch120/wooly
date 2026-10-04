@@ -186,3 +186,31 @@ the rows kept for it. Nothing opens beside the feed, and the screen is still pus
 
 **What it leaves to its own tickets.** The warning is still painted text the shell types letters into. Making it a
 field of its own, and changing how `ctrl-w` moves the typing, is #320's amendment.
+
+## Amendment: the content warning is a field of its own (map #313, ticket #320)
+
+The warning was painted text the shell typed letters into: `ComposeScreen` answered `IsTyping` while `ctrl-w` had the
+typing, the window's typing path carried each printable key to `Type` and `Backspace`, and a `▌` painted on the row
+stood for the caret. It could not be selected, a caret could not be moved through it, it took no paste of its own and
+no click. It is now a one-line text field laid over the warning header's value column, the way the editor is laid over
+the body, so it edits exactly as the post does. That changes what the second amendment above said about how `ctrl-w`
+moves the typing, so it is recorded here.
+
+**The field takes its own keys, and the same keys off the widget the editor does.** `esc` throws the draft away,
+`ctrl-s` sends, `ctrl-w` hands the typing back — and `enter` hands it back too, since finishing a one-line field is
+finishing it. A right click does nothing, as on the editor (#307). Every other key is the field's before it bubbles to
+the window, so `?`, `/` and `c` are letters in it without a rule of the shell's: the search prompt's rule is no longer
+what keeps them out of the keymap. A compose screen never answers `IsTyping`, and the shell's `Type`, `Backspace` and
+`Paste` carry nothing into it.
+
+**`ctrl-w` and where the typing is stay one fact.** `ctrl-w` toggles `WritingTheWarning` and the window focuses
+whichever field it names. A click that focuses either field toggles it to match, so the status row's `ctrl-w` keeps
+saying which way it goes next however the typing got there. Both fields can take focus at all times: the editor no
+longer gives up `CanFocus` while the warning is being written.
+
+**The screen still decides what goes out.** It learns the field's text through `RewriteWarning`, as it learns the
+editor's through `Text` — every change, so the count reads it. `Warning`'s setter stays private, which the third
+amendment made it to keep the field's two readings the screen's own, and `Outgoing` is unchanged. The screen still
+paints the warning row whole, the field's text or its hint under the field, so the row reads the same to a test with no
+terminal behind it; the screen says where the field goes (`WarningAt`) from the one layout that paints the row, as it
+does for the editor.

@@ -21,9 +21,10 @@ namespace Wooly.Tui.Views;
 /// </summary>
 /// <remarks>
 ///     It names exactly one screen type, and never to decide what a key means (#147): a
-///     <see cref="ComposeScreen" /> is the one screen with a widget of its own laid over the content region, so laying
-///     that widget where the screen says it goes, whether it has focus and what text it opens with are this window's
-///     questions about its own furniture. Everything else it knows about screens it knows as <c>Screen</c>.
+///     <see cref="ComposeScreen" /> is the one screen with widgets of its own laid over the content region — the editor
+///     and the warning field — so laying them where the screen says they go, which has focus and what text they open
+///     with are this window's questions about its own furniture. Everything else it knows about screens it knows as
+///     <c>Screen</c>.
 /// </remarks>
 internal sealed class ShellWindow : Window
 {
@@ -59,6 +60,9 @@ internal sealed class ShellWindow : Window
 
     private readonly PaintedView _content;
     private readonly ComposeEditor _editor;
+
+    /// <summary>The content warning over the post, laid over its header's value column (#320).</summary>
+    private readonly ComposeWarningField _warning;
 
     /// <summary>The people to mention, hung under the @-word being typed in <see cref="_editor" /> (#318).</summary>
     private readonly MentionList _mentions;
@@ -213,6 +217,34 @@ internal sealed class ShellWindow : Window
         // post is being written — a count, a list of people to mention — sees what has been typed so far.
         _editor.ContentsChanged += (_, _) => _shell.Rewrite(_editor.Text);
 
+        _warning = new ComposeWarningField(
+            theme,
+            () => (_shell.Screen as ComposeScreen)?.WarningHint ?? string.Empty,
+            () => _ = shell.Send(),
+            () => shell.Back(),
+            shell.WriteWarning)
+        {
+            // Wherever the compose screen says, as for the editor: its header's value column, on whichever row the
+            // headers above it leave it.
+            X = Pos.Func(content => ViewportOrigin(content).X + WarningAt(content).X, _content),
+            Y = Pos.Func(content => ViewportOrigin(content).Y + WarningAt(content).Y, _content),
+            Width = Dim.Func(content => WarningAt(content).Width, _content),
+            Height = Dim.Func(content => WarningAt(content).Height, _content),
+            Visible = false,
+        };
+
+        // The same for the warning, and the count is painted on the content region, which has to be told.
+        _warning.ValueChanged += (_, _) =>
+        {
+            _shell.RewriteWarning(_warning.Text);
+            _content.SetNeedsDraw();
+        };
+
+        // A click into either field is ctrl-w towards it: the typing and WritingTheWarning are one fact, and whichever
+        // way it moved, the screen is told so that the status row, the header's mark and the hint keep up.
+        _warning.HasFocusChanged += (_, focus) => TypingMoved(focus.NewValue, writingTheWarning: true);
+        _editor.HasFocusChanged += (_, focus) => TypingMoved(focus.NewValue, writingTheWarning: false);
+
         var status = new PaintedView(theme, (width, _) =>
             [ChromeLines.Status(shell.Keys, shell.Notice, shell.NoticeIsError, shell.Asking, width)])
         {
@@ -226,7 +258,7 @@ internal sealed class ShellWindow : Window
         _mentions = new MentionList(theme, shell, _editor);
         _editor.Ahead = _mentions.Took;
 
-        Add(rail, _content, title, _editor, _mentions.View, status);
+        Add(rail, _content, title, _editor, _warning, _mentions.View, status);
 
         _showing = shell.Screen;
 
@@ -700,6 +732,25 @@ internal sealed class ShellWindow : Window
             ? compose.EditorAt(content.Viewport.Size)
             : Rectangle.Empty;
 
+    /// <summary>The same for the warning field.</summary>
+    private Rectangle WarningAt(View? content) =>
+        content is { Viewport.Width: > 0 } && _shell.Screen is ComposeScreen compose
+            ? compose.WarningAt(content.Viewport.Size)
+            : Rectangle.Empty;
+
+    /// <summary>
+    ///     One of the two fields gained focus — by a click, or by <see cref="Refresh" /> moving it — and the screen is
+    ///     brought into step where it says the typing is in the other.
+    /// </summary>
+    private void TypingMoved(bool gained, bool writingTheWarning)
+    {
+        if (gained && _warning.Visible && _shell.Screen is ComposeScreen compose
+            && compose.WritingTheWarning != writingTheWarning)
+        {
+            _shell.WriteWarning();
+        }
+    }
+
     /// <summary>
     ///     Lays the rail out where the shell has one and takes it away where it has none — with nobody to act as, which
     ///     leaves only adding a profile and every column to it (#247). Only on the frame where that changes.
@@ -764,31 +815,22 @@ internal sealed class ShellWindow : Window
         // screen with nothing picked out on it is one Scroll.To never scrolls back.
         _content.Scrolls = !composing;
 
-        // The caret is where the typing is going, which while the warning has it is the row above: the editor keeps
-        // its text and its place and gives up focus, so the letters fall through this window's own typing path into
-        // the field, and the terminal's cursor is not left blinking in a body nobody is writing in.
-        //
-        // The two being equal is what says they are out of step — the editor may be focused exactly when the warning
-        // is not being written — so this runs on the frames that change one and passes over every other.
-        if (_shell.Screen is ComposeScreen compose && _editor.CanFocus == compose.WritingTheWarning)
-        {
-            _editor.CanFocus = !compose.WritingTheWarning;
-
-            if (_editor.CanFocus && _editor.Visible)
-            {
-                _editor.SetFocus();
-            }
-        }
-
         if (composing && !_editor.Visible)
         {
+            var compose = (ComposeScreen)_shell.Screen;
+
             // Laid out before it is filled: where it goes is read only on a layout pass, this screen's block may be a
             // different height than the last one that pushed the editor open, and an editor still at the nothing it
             // was sized to while no post was being written wraps its text to no width and loses the caret below.
             _editor.Visible = true;
             _editor.Layout();
+            _editor.Text = compose.Text;
 
-            _editor.Text = ((ComposeScreen)_shell.Screen).Text;
+            _warning.Visible = true;
+            _warning.Layout();
+            _warning.Text = compose.Warning;
+            _warning.MoveEnd();
+
             _editor.SetFocus();
 
             // After whatever the screen opened with rather than in front of it: an editor opened on `@maria ` or on
@@ -799,7 +841,20 @@ internal sealed class ShellWindow : Window
         else if (!composing && _editor.Visible)
         {
             _editor.Visible = false;
+            _warning.Visible = false;
             SetFocus();
+        }
+
+        // The caret is wherever the typing is going: ctrl-w moved it, or a click did and the screen has caught up.
+        // Both fields take focus at all times, so this only moves it where it is not already.
+        if (_shell.Screen is ComposeScreen { WritingTheWarning: var warning } && _editor.Visible)
+        {
+            View field = warning ? _warning : _editor;
+
+            if (!field.HasFocus)
+            {
+                field.SetFocus();
+            }
         }
 
         // After the editor has been shown or hidden, and on every change of the shell's — a profile switch, or more

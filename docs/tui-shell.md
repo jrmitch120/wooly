@@ -159,7 +159,7 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Conversation | `m` mark read, and every key that acts on a post, since each message in it is one |
 | Profiles | `⏎` act as that profile, for this session — not offered on the one already acted as · `D` make it the default, for the CLI and the next launch — not offered on the one already the default · `a` add a profile · `R` sign it in again, replacing its token — offered on every row · `x` remove it, after a confirmation — refused on the one acted as and on the default |
 | Add a profile | `⏎` on to the next step · `t` paste a token instead, while the browser is out or after it failed · `esc` back to the list, calling off a sign-in or a check in flight — or, as the only screen on first run, back to the first step, with `ctrl-q` quit offered (#247) |
-| Compose / reply / edit | `ctrl-s` send or save · `esc` throw it away · `ctrl-w` move the typing between the post and the content warning over it — on all three, each carrying a warning field of its own (#123, #139, #140). While the list of people to mention is open: `↑`/`↓` pick · `tab`/`⏎` insert · `esc` close the list, never the draft (#318) |
+| Compose / reply / edit | `ctrl-s` send or save · `esc` throw it away · `ctrl-w` move the typing between the post and the content warning over it — on all three, each carrying a warning field of its own (#123, #139, #140); `⏎` in the warning hands the typing back too (#320). While the list of people to mention is open: `↑`/`↓` pick · `tab`/`⏎` insert · `esc` close the list, never the draft (#318) |
 | Home, local, federated, hashtag, Discover, Notifications, Messages, Requests, Post, Account, Follows | `g` refresh — evicts the destination's cache entry (where one exists) and re-runs the same fetch its own arrival runs |
 
 ### What the four screens settled
@@ -818,17 +818,23 @@ its author remembered to warn it again by hand — which Mastodon's own clients 
   skipped rather than spaced — and it was the exception that earned it: an editor that starts higher on `e` than on `c`
   moves the thing the reader is typing into, which is worse than two rows of chrome that are briefly empty. #140 filled
   the field in and nothing else shifted, which is what the row was being held for.
-- **`ctrl-w` moves the typing between the two**, because a terminal editor takes the keys of whichever field has them.
-  While the warning has them the editor gives up focus and keeps its text, every printable key goes into the field —
-  `?` and `/` included, the rule the search prompt already keeps — and the status row says `ctrl-w  back to the post`
-  and stops offering the keymap. `esc` still means what it means everywhere: up one level, throwing the whole compose
-  away.
+- **`ctrl-w` moves the typing between the two**, because a terminal takes the keys of whichever field has them.
+  While the warning has them the editor keeps its text and its place, every printable key goes into the field — `?`
+  and `/` included — and the status row says `ctrl-w  back to the post`. Neither field offers the keymap: `?` is a letter in the post and
+  the warning alike, so compose's status row names no `?` (#320). `esc` still
+  means what it means everywhere: up one level, throwing the whole compose away.
+- **The warning is a field of its own** (#320), a one-line text field laid over its header's value column the way the
+  editor is laid over the body: it selects with shift and the arrows, moves by word, takes a paste and takes the
+  mouse. It takes `esc`, `ctrl-s` and `ctrl-w` off the widget as the editor does, and `enter` hands the typing back to
+  the post. A click into either field moves the typing there and keeps `ctrl-w`'s direction in step. Its keys are its
+  own before they bubble, so `?` is a letter in it with no rule of the shell's, and the shell carries no letters into a
+  compose screen at all. Selected text is drawn in `selected-text`, as in the post.
 - **The row says it is there when it is empty**, muted — `⚠ no content warning` until the headers layout made it
   `⚠  none · ctrl-w to add`, and `say what it's about` while it is being written (#317, below). A row a reader can type into is a row
   they have to be able to find, and the status row's `ctrl-w` is the other half of saying so. Written, it takes the
   same `⚠` and the same `content-warning` role a warned post's own warning is drawn in, so a warning being written
-  looks like the warning it will become — with a `▌` caret while it is taking letters, a mark rather than a colour, the
-  way the search prompt's is.
+  looks like the warning it will become. The caret is the field's own, the terminal's cursor, since #320 — before
+  that a painted `▌` stood for it, the way the search prompt's does.
 - **A blank row stands above it, on every compose alike** (#143). It was ADR-0015's reply block that used to end in
   one, which is why `c` and `e` had none: hung off the block, the space appeared on a reply and nowhere else, and the
   one row all three screens have in common was the row they spaced differently. The blank belongs to the warning now,
@@ -1448,8 +1454,8 @@ has the keys, and what text it opens with. That is a window's question about its
 
 - **`ctrl-p` is a frame key**, beside `esc`, `ctrl-q`, `?`, `/` and `tab`. It pushes the screen from wherever the reader
   is, drilled in or not, and pressed on the screen itself it pushes no second one. On compose it means nothing: the
-  keymap takes it back there, the help screen drawn over compose leaves it out, and like every frame key it is on no
-  screen's status row.
+  keymap takes it back there, and like every frame key it is on no screen's status row. No help screen is ever drawn
+  over compose for it to be left off, `?` being a letter in both of compose's fields (#320).
 - **A profile is two rows**: its name, followed by `acting as` and `default` where they apply, then the full
   `@handle@instance` — or the instance alone where no account was ever established. The markers are words in `muted`,
   so they read with no colour, and the name is clipped before they are. Profiles are walked with `j`/`k`, one blank row
@@ -1688,7 +1694,7 @@ is drawn reversed instead (#316).
 | `replies` | The reply count under a post | `↩` |
 | `selection` | The selected row | `▌` in the gutter |
 | `band` | Behind every row of the selected thing | the `▌` beside each row |
-| `selected-text` | Text selected in the compose editor — the body's text on a background of its own, lifted clearly off the page where `band` is barely there (#316) | drawn reversed |
+| `selected-text` | Text selected in the compose editor or its warning field (#320) — the body's text on a background of its own, lifted clearly off the page where `band` is barely there (#316) | drawn reversed |
 | `rail` / `rail-current` | Destinations, and the one loaded — in colour its band, label and count together | without colour, one glyph, one column: `▶` where the tabbing has got to, `▷` where it settled if that differs — they coincide at rest, so only `▶` shows. In colour no mark: the band carries it (ADR-0021) |
 | `rail-cursor` | The rail entry the tabbing has got to, while the selection has not yet followed it | `▶` without colour; in colour, its band (ADR-0021) |
 | `rail-unread` | An unread count, and the word on an unread conversation | the number, and the word |

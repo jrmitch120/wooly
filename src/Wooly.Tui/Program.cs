@@ -136,7 +136,8 @@ try
         placeholders);
 
     // A paste arrives as one string rather than as keys, before it is handed to whatever has focus. The shell takes
-    // it where one of its own fields is typing, and leaves it to the compose editor everywhere else.
+    // it where one of its own fields is typing, and leaves it to whatever has focus everywhere else — the compose
+    // editor or its warning field above all, which take their own pastes (#320).
     application.Paste += (_, pasted) => pasted.Handled = shell.Paste(pasted.Text);
 
     // Started rather than awaited: the first timeline arrives while the shell is already on screen, which is what the

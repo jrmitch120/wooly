@@ -92,19 +92,18 @@ public class ShellProfilesTests
     }
 
     /// <summary>
-    ///     The keymap opened over compose is still over the draft, and lists no <c>ctrl-p</c> — so the key does
-    ///     nothing there either, rather than being answered where it is not announced.
+    ///     No keymap opens over compose at all (#320): <c>?</c> is a letter in either of its fields, so nothing is left
+    ///     standing over the draft for <c>ctrl-p</c> to switch away from.
     /// </summary>
     [Fact]
-    public async Task CtrlP_OnTheKeymapOverCompose_DoesNothing()
+    public async Task Question_OnCompose_OpensNoKeymap()
     {
         var opened = await new AShell().Opened();
 
         opened.Press(ShellKey.C);
-        opened.Press(ShellKey.Question);
 
-        Assert.False(opened.Press(ShellKey.CtrlP));
-        Assert.IsType<HelpScreen>(opened.Screen);
+        Assert.False(opened.Press(ShellKey.Question));
+        Assert.IsType<ComposeScreen>(opened.Screen);
     }
 
     /// <summary>Switching would drop a draft, and drafts do not survive one — so on compose the key does nothing.</summary>
@@ -284,21 +283,15 @@ public class ShellProfilesTests
         Assert.False(opened.Fetching);
     }
 
-    /// <summary>The help screen lists it with the frame's keys, except over compose, where it does nothing.</summary>
+    /// <summary>The help screen lists it with the frame's keys.</summary>
     [Fact]
-    public async Task Help_ListsCtrlP_ExceptOverCompose()
+    public async Task Help_ListsCtrlP()
     {
         var opened = await new AShell().Opened();
 
         opened.Press(ShellKey.Question);
 
         Assert.Contains(Rows(opened.Screen), row => row.StartsWith("ctrl-p"));
-
-        opened.Press(ShellKey.Escape);
-        opened.Press(ShellKey.C);
-        opened.Press(ShellKey.Question);
-
-        Assert.DoesNotContain(Rows(opened.Screen), row => row.StartsWith("ctrl-p"));
     }
 
     /// <summary>With one profile there is nothing to tell apart, so the rail's foot names no instance (#241).</summary>

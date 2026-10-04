@@ -952,8 +952,8 @@ public sealed class Shell
     }
 
     /// <summary>
-    ///     Puts a letter into whatever is being typed into: the search prompt, or a compose screen's content warning
-    ///     while <c>ctrl-w</c> has it. Never a post's own text, which is typed into the editor widget itself.
+    ///     Puts a letter into whatever is being typed into: the search prompt, say. Never a compose screen's fields,
+    ///     which are widgets of their own and take their own letters (#320).
     /// </summary>
     /// <remarks>
     ///     Which screen it is going to is the screen's own answer (<see cref="Screen.IsTyping" />) rather than a type
@@ -982,8 +982,9 @@ public sealed class Shell
     ///     line break is then trimmed of it like any other whitespace — and any other control character is left out.
     ///     <para>
     ///         Nothing where the screen is not typing, and not a run of keys either: a paste is text, and replaying it
-    ///         as keys would boost, compose and delete by whatever letters it happened to hold. The compose editor is
-    ///         a widget of its own and takes its own pastes, which is what answering no leaves it to.
+    ///         as keys would boost, compose and delete by whatever letters it happened to hold. The compose editor and
+    ///         its warning field are widgets of their own and take their own pastes, which is what answering no leaves
+    ///         them to.
     ///     </para>
     /// </remarks>
     /// <returns>Whether the paste was taken, which is what settles whether it is left for whatever has focus.</returns>
@@ -1037,6 +1038,22 @@ public sealed class Shell
         }
 
         compose.Text = text;
+        Redrafted();
+    }
+
+    /// <summary>
+    ///     The warning over the post being written changed in its field (#320): kept in step with every edit, as the
+    ///     post's text is, so that the count reads it and <c>ctrl-s</c> sends it.
+    /// </summary>
+    public void RewriteWarning(string written)
+    {
+        // The field filled in as the screen opens is the field saying back what it was told, not an edit.
+        if (Screen is not ComposeScreen compose || compose.Warning == written)
+        {
+            return;
+        }
+
+        compose.RewriteWarning(written);
         Redrafted();
     }
 
