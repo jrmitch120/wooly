@@ -1,4 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Net.Http;
+using System.Text.Json;
 using Wooly.Core;
 using Wooly.Core.Accounts;
 using Wooly.Core.Conversations;
@@ -114,6 +116,16 @@ public sealed class Shell
     ///     foot does not draw, being somebody else's budget, until an instance reports the new one's (#243).
     /// </summary>
     private RateLimitQuota? _quotaBeforeSwitch;
+
+    /// <summary>
+    ///     How long each instance lets a post be, by instance, for whatever is left of the session (#319). By instance
+    ///     rather than by profile, since the limit is the instance's setting and two profiles on one share it; and kept
+    ///     across a switch for the same reason.
+    /// </summary>
+    private readonly Dictionary<string, PostLimits> _limits = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The instances whose limits have been asked for and not yet answered, so none is asked twice at once.</summary>
+    private readonly HashSet<string> _limitsAsked = new(StringComparer.OrdinalIgnoreCase);
 
     /// <param name="opening">
     ///     Who to act as — or, with nobody, what to open onto instead: adding a profile, as the only screen (#247).
@@ -1697,7 +1709,7 @@ public sealed class Shell
         // reply, since what they picked is somebody named in the post rather than the post itself (#85).
         if (purpose == ComposeFor.Post && Screen.MentionedAs is { } handle)
         {
-            Push(new ComposeScreen(purpose, addressing: $"@{handle}", from: ComposeFrom.Of(Actor.Profile)));
+            Composing(new ComposeScreen(purpose, addressing: $"@{handle}", from: ComposeFrom.Of(Actor.Profile)));
 
             return;
         }
@@ -1712,12 +1724,71 @@ public sealed class Shell
                 return;
         }
 
-        Push(new ComposeScreen(
+        Composing(new ComposeScreen(
             purpose,
             purpose == ComposeFor.Post ? null : about,
             purpose == ComposeFor.Reply ? Addressed(about!) : null,
             aboutIsMine: purpose == ComposeFor.Reply && IsMine(about!),
             from: ComposeFrom.Of(Actor.Profile)));
+    }
+
+    /// <summary>
+    ///     Pushes <paramref name="compose" />, measured against its instance's own limit where that is known — and
+    ///     where it is not, asks for it, the first time a post is written there rather than at launch, so that a
+    ///     reader who never writes one is never charged a request for it (#319).
+    /// </summary>
+    private void Composing(ComposeScreen compose)
+    {
+        var instance = Actor.Profile.Instance;
+
+        Push(compose);
+
+        if (_limits.TryGetValue(instance, out var known))
+        {
+            compose.Limits = known;
+        }
+        else if (_limitsAsked.Add(instance))
+        {
+            _ = Limited(Actor.Profile);
+        }
+    }
+
+    /// <summary>
+    ///     Asks <paramref name="profile" />'s instance how long it lets a post be, and hands the answer to whatever
+    ///     compose on that instance is in front when it lands.
+    /// </summary>
+    /// <remarks>
+    ///     Not put through the enquiry, on purpose: it would count a rate limit down over the post and say a failure
+    ///     on the status row, and nothing here is worth either. A limit that cannot be read leaves Mastodon's default
+    ///     standing, silently, and is asked for again the next time a post is written.
+    /// </remarks>
+    private async Task Limited(ActiveProfile profile)
+    {
+        PostLimits limits;
+
+        try
+        {
+            limits = await _ports.Limits.Read(profile, CancellationToken.None);
+        }
+        catch (Exception failure) when (failure is WoolyException or HttpRequestException or JsonException)
+        {
+            Apply(() => _limitsAsked.Remove(profile.Instance));
+
+            return;
+        }
+
+        Apply(() =>
+        {
+            _limitsAsked.Remove(profile.Instance);
+            _limits[profile.Instance] = limits;
+
+            if (Screen is ComposeScreen compose
+                && string.Equals(_acting?.Profile.Instance, profile.Instance, StringComparison.OrdinalIgnoreCase))
+            {
+                compose.Limits = limits;
+                Changed?.Invoke();
+            }
+        });
     }
 
     /// <summary>

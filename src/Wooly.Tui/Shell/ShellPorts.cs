@@ -40,6 +40,7 @@ namespace Wooly.Tui.Shell;
 ///     doc scopes it to ties reached through one family of endpoints (ADR-0019).
 /// </param>
 /// <param name="RateLimit">What the instance last said is left of the budget, for the rail's foot.</param>
+/// <param name="Limits">How long the instance lets a post be, for compose's count (#319).</param>
 public sealed record ShellPorts(
     ITimelineReader Timelines,
     IPostAuthor Author,
@@ -49,7 +50,8 @@ public sealed record ShellPorts(
     IDirectMessages Messages,
     IInstanceSearch Search,
     IFollowSuggestions Suggestions,
-    IRateLimitReport RateLimit)
+    IRateLimitReport RateLimit,
+    IInstanceLimits Limits)
 {
     /// <summary>
     ///     Where the profile stands with <paramref name="people" />, or them exactly as they came where the instance

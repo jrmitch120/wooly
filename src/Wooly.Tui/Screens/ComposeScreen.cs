@@ -48,9 +48,6 @@ public sealed class ComposeScreen : Screen
     /// <summary>What the warning row says while it is empty and is being written in.</summary>
     private const string WarningBeingWritten = "say what it's about";
 
-    /// <summary>The most the count can reach and stay muted: past it is the last tenth of the limit (#319).</summary>
-    private const int NearlyFull = PostLength.Limit * 9 / 10;
-
     /// <summary>The columns left blank either side of everything on the screen (#317).</summary>
     private const int Pad = 2;
 
@@ -131,6 +128,12 @@ public sealed class ComposeScreen : Screen
     ///     client had to address, and nothing for anything else.
     /// </summary>
     public string Opening { get; }
+
+    /// <summary>
+    ///     How long the instance lets the post be, which the count is out of: Mastodon's own until the instance has
+    ///     said otherwise, which the shell asks it once a session and hands on as soon as it hears (#319).
+    /// </summary>
+    public PostLimits Limits { get; set; } = PostLimits.Default;
 
     /// <summary>What has been written so far, kept in step with the editor on every edit.</summary>
     public string Text { get; set; }
@@ -346,15 +349,15 @@ public sealed class ComposeScreen : Screen
     /// </summary>
     private Line Count(int width)
     {
-        var used = PostLength.Of(Text, Warning);
-        var count = $"{used} / {PostLength.Limit}";
+        var used = PostLength.Of(Text, Warning, Limits);
+        var count = $"{used} / {Limits.Characters}";
 
-        var role = used switch
-        {
-            > PostLength.Limit => Role.Error,
-            > NearlyFull => Role.QuotaLow,
-            _ => Role.Muted,
-        };
+        // The most the count can reach and stay muted: past it is the last tenth of the limit.
+        var nearlyFull = Limits.Characters * 9 / 10;
+
+        var role = used > Limits.Characters ? Role.Error
+            : used > nearlyFull ? Role.QuotaLow
+            : Role.Muted;
 
         return Line.Of(Gap(width - Pad - Glyphs.Columns(count)), new Span(count, role));
     }

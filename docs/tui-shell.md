@@ -868,13 +868,19 @@ fresh post, a reply and an edit alike:
 - **On a terminal too short for everything, rows give way in a fixed order**: the quote's tail, the blanks, the reply
   header, the foot, `From`, the hairline under the headers. The warning header and three rows of editor are kept
   whatever the height — the rule ADR-0015 and #123 already kept, with more dressing in front of it to go first.
-- **The foot counts what has been used of the post's limit** (#319): `n / 500`, right-aligned inside the padding,
-  `muted` to 450, `quota-low` from 451 to 500 and `error` past it. It counts the way the instance judges a post
-  (`PostLength`): by grapheme cluster, any address Mastodon links (`https://`, `gemini://` and the rest) as 23, a
-  mention of somebody elsewhere as its `@username` alone, and the warning letter for letter on top of the post, as the
-  instance adds it. 500 is Mastodon's default; the instance's own configured limit is not read. The screen's text
-  follows the editor on every edit, so the count does too, and a reply or an edit counts what it opened with from the
-  start.
+- **The foot counts what has been used of the post's limit** (#319): `n / limit`, right-aligned inside the padding,
+  `muted` up to nine tenths of the limit, `quota-low` in the last tenth and `error` past it. It counts the way the
+  instance judges a post (`PostLength`): by grapheme cluster, any address Mastodon links (`https://`, `gemini://` and
+  the rest) as the instance's length for one, a mention of somebody elsewhere as its `@username` alone, and the warning
+  letter for letter on top of the post, as the instance adds it. The screen's text follows the editor on every edit,
+  so the count does too, and a reply or an edit counts what it opened with from the start.
+- **The limit is the instance's own** (`IInstanceLimits`): `/api/v2/instance`'s `max_characters` and
+  `characters_reserved_per_url`, or `/api/v1/instance` where there is no `v2` — Pleroma's `max_toot_chars` included.
+  Asked the first time a post is written on an instance rather than at launch, so a reader who never writes one is
+  never charged for it, then held by instance for the session: two profiles on one share it, and a switch keeps it.
+  Until it lands, and wherever it cannot be read, the count is out of Mastodon's 500 and 23. It is not put through
+  the enquiry, so a failure says nothing and a rate limit counts nothing down over the post; it is asked again the
+  next time a post is written.
 
 ### What mentioning somebody settled
 

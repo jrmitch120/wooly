@@ -66,6 +66,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IPostEngagement, PostEngagement>();
         services.AddSingleton<INotificationInbox, NotificationInbox>();
         services.AddSingleton<IInstanceSearch, InstanceSearch>();
+        services.AddSingleton<IInstanceLimits, InstanceLimits>();
         services.AddSingleton<IAccountRelationships, AccountRelationships>();
         services.AddSingleton<IFollowSuggestions, FollowSuggestions>();
         services.AddSingleton<IDirectMessages, DirectMessages>();

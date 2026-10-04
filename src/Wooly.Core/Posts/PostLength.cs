@@ -5,8 +5,9 @@ namespace Wooly.Core.Posts;
 
 /// <summary>
 ///     How long a post is the way a Mastodon instance judges it (#319): by grapheme cluster, so that an emoji built of
-///     several code points is one character; with any address counting as <see cref="AddressLength" /> however long it
-///     is; and with a mention of somebody on another instance counting only its <c>@username</c> part.
+///     several code points is one character; with any address counting as the instance's
+///     <see cref="PostLimits.PerAddress" /> however long it is; and with a mention of somebody on another instance
+///     counting only its <c>@username</c> part.
 /// </summary>
 /// <remarks>
 ///     The instance counts the warning and the post together, so both are counted here — the warning letter for letter,
@@ -24,19 +25,16 @@ namespace Wooly.Core.Posts;
 /// </remarks>
 public static partial class PostLength
 {
-    /// <summary>How long a post may be: Mastodon's default. An instance can configure its own, which is not read.</summary>
-    public const int Limit = 500;
-
-    /// <summary>What any address counts as, the length of the shortened links Mastodon allows for.</summary>
-    public const int AddressLength = 23;
-
-    /// <summary>How long <paramref name="text" /> behind <paramref name="warning" /> is, as the instance counts it.</summary>
-    public static int Of(string text, string? warning)
+    /// <summary>
+    ///     How long <paramref name="text" /> behind <paramref name="warning" /> is, as an instance setting
+    ///     <paramref name="limits" /> counts it.
+    /// </summary>
+    public static int Of(string text, string? warning, PostLimits limits)
     {
         var counted = Shortened().Replace(
             text,
             match => match.Groups["address"].Success
-                ? new string('x', AddressLength)
+                ? new string('x', limits.PerAddress)
                 : $"@{match.Groups["username"].Value}");
 
         return new StringInfo($"{ContentWarnings.Written(warning)}{counted}").LengthInTextElements;
