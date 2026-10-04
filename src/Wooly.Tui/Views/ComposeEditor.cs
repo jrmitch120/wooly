@@ -36,6 +36,12 @@ internal sealed class ComposeEditor(ITheme theme, string placeholder, Action sen
     : TextView
 {
     /// <summary>
+    ///     First refusal on every key, ahead of the editor's own — the list of people to mention, while it is open
+    ///     (#318). A key it takes the editor never sees.
+    /// </summary>
+    public Func<Key, bool>? Ahead { get; set; }
+
+    /// <summary>
     ///     Every visual role Terminal.Gui asks for, answered from the theme: text in <see cref="Role.Body" /> on the
     ///     page, and a selection — which <see cref="TextView" /> draws in its <c>Active</c> role, as the compose
     ///     prototype found (#313) — in <see cref="Role.SelectedText" />. Nothing is left to Terminal.Gui's own scheme,
@@ -72,8 +78,33 @@ internal sealed class ComposeEditor(ITheme theme, string placeholder, Action sen
         return drawn;
     }
 
+    /// <summary>
+    ///     Where the caret is, in the coordinates the editor's own frame is laid in — on the row the text wrapped it
+    ///     to, which only the editor knows.
+    /// </summary>
+    public System.Drawing.Point Caret =>
+        new(Frame.X + CurrentColumn - Viewport.X, Frame.Y + CurrentRow - Viewport.Y);
+
+    /// <summary>
+    ///     Replaces the <paramref name="length" /> characters before the caret with <paramref name="text" />, as one
+    ///     edit — selected and put in the way a paste goes in, rather than as the letter-by-letter typing
+    ///     <see cref="TextView.InsertText(string)" /> stands in for — so that one undo puts back what was there.
+    /// </summary>
+    public void ReplaceBeforeCaret(int length, string text)
+    {
+        SelectionStartRow = CurrentRow;
+        SelectionStartColumn = CurrentColumn - length;
+        IsSelecting = true;
+        OnPaste(text);
+    }
+
     protected override bool OnKeyDown(Key key)
     {
+        if (Ahead?.Invoke(key) == true)
+        {
+            return true;
+        }
+
         if (key == Key.Esc)
         {
             cancel();

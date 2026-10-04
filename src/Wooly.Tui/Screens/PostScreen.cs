@@ -81,6 +81,9 @@ public sealed class PostScreen : Screen
     /// <summary>The post this screen is about.</summary>
     public Post Post => _posts.All[Head];
 
+    /// <inheritdoc />
+    public override IEnumerable<Mentionable> Seen => Mentionable.In(_posts.All);
+
     /// <summary>What it answers, the root of the thread first and the post it directly answers last.</summary>
     public IReadOnlyList<Post> Ancestors => [.. _posts.All.Take(Head)];
 

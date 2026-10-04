@@ -43,6 +43,9 @@ public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string?
     /// <summary>Who is waiting, in the order the instance listed them.</summary>
     public IReadOnlyList<Account> Waiting => _waiting.All;
 
+    /// <inheritdoc />
+    public override IEnumerable<Mentionable> Seen => Waiting.Select(Mentionable.Of);
+
     /// <summary>
     ///     Something the shell has to say about the list rather than about anybody on it — that nobody is waiting, or
     ///     that a rate limit cut the read short.

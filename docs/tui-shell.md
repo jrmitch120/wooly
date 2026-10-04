@@ -159,7 +159,7 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Conversation | `m` mark read, and every key that acts on a post, since each message in it is one |
 | Profiles | `⏎` act as that profile, for this session — not offered on the one already acted as · `D` make it the default, for the CLI and the next launch — not offered on the one already the default · `a` add a profile · `R` sign it in again, replacing its token — offered on every row · `x` remove it, after a confirmation — refused on the one acted as and on the default |
 | Add a profile | `⏎` on to the next step · `t` paste a token instead, while the browser is out or after it failed · `esc` back to the list, calling off a sign-in or a check in flight — or, as the only screen on first run, back to the first step, with `ctrl-q` quit offered (#247) |
-| Compose / reply / edit | `ctrl-s` send or save · `esc` throw it away · `ctrl-w` move the typing between the post and the content warning over it — on all three, each carrying a warning field of its own (#123, #139, #140) |
+| Compose / reply / edit | `ctrl-s` send or save · `esc` throw it away · `ctrl-w` move the typing between the post and the content warning over it — on all three, each carrying a warning field of its own (#123, #139, #140). While the list of people to mention is open: `↑`/`↓` pick · `tab`/`⏎` insert · `esc` close the list, never the draft (#318) |
 | Home, local, federated, hashtag, Discover, Notifications, Messages, Requests, Post, Account, Follows | `g` refresh — evicts the destination's cache entry (where one exists) and re-runs the same fetch its own arrival runs |
 
 ### What the four screens settled
@@ -868,6 +868,34 @@ fresh post, a reply and an edit alike:
 - **On a terminal too short for everything, rows give way in a fixed order**: the quote's tail, the blanks, the reply
   header, the foot, `From`, the hairline under the headers. The warning header and three rows of editor are kept
   whatever the height — the rule ADR-0015 and #123 already kept, with more dressing in front of it to go first.
+
+### What mentioning somebody settled
+
+Typing `@` at the start of a word in the post opens a list of people to mention under it (#318, #313):
+
+- **The people come from what is already on screen, so suggesting one costs no request.** The shell keeps a store per
+  profile for the session (`PeopleToMention`), and every screen says who it shows (`Screen.Seen`) as it arrives, is
+  drilled into, is refreshed or fills: post authors, boosters, everyone a post mentions, the post being answered,
+  conversations, notifications, account screens, follow lists, requests, Discover and search. One person per address,
+  the profile's own account left out, nothing written to disk, and a profile switch starts it again.
+- **An @-word** starts with `@` at the start of a line or after whitespace and runs over letters, digits, `_`, `.`,
+  `-` and `@` up to the caret, read from the text as written — off the editor's unwrapped caret — rather than as
+  wrapped. So `name@example.com` opens nothing, and a full address is one word. A word that is already a whole address
+  somebody in the store answers to closes the list.
+- **Matching** is in three tiers — a handle starting with the query, then any word of the display name starting with
+  it, then a handle containing it — and within a tier the most recently seen first, a screen's top row counting as
+  the one met last. Case is ignored, five at most, and custom-emoji shortcodes come out of names before matching and
+  drawing.
+- **The list is its own painted view over the editor**, every cell a role: a rounded box in `panel-border`, the picked
+  row marked `▌` in `selection` with its name in `reference-picked` and its handle in `byline-handle`, other rows in
+  `body` and `muted`, the matched letters in `mention`, and its keys along the bottom edge. At least 40 columns, never
+  wider than the editor; on the row under the caret, left on the word's `@`, or over the line where there is no room
+  below — read from where the editor put its caret, which is the only place word wrap is settled.
+- **Its keys come ahead of the editor's, only while it is open.** `tab`/`⏎` replace the word with `@user` for somebody
+  on the profile's own instance or `@user@instance` for anybody else, and a space. The word is selected and replaced
+  as one edit, the way a paste goes in, so one undo puts the word back. `esc` closes the list for the rest of that
+  word. Closed, it takes nothing: `⏎` adds a line and `esc` throws the draft away, as they always have. Never in the
+  warning.
 
 ### What the account screen settled
 

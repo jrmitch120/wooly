@@ -70,6 +70,9 @@ public sealed class DiscoverScreen : Screen
     /// <summary>Everyone on the list, in the order they are drawn.</summary>
     public IReadOnlyList<Account> People => [.. _offered.All.Select(offer => offer.Person)];
 
+    /// <inheritdoc />
+    public override IEnumerable<Mentionable> Seen => People.Select(Mentionable.Of);
+
     /// <summary>
     ///     What the shell has to say about the list rather than about anybody on it. An instance offering nobody is a
     ///     real answer and is said as one — no apology for a new account or a small instance, and no

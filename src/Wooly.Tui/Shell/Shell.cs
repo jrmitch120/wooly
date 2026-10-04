@@ -229,6 +229,16 @@ public sealed class Shell
     /// </summary>
     public string? Instance => _instance;
 
+    /// <summary>
+    ///     The people a post can mention who best match <paramref name="query" />, what follows the <c>@</c> of the
+    ///     word being typed — best first, at most <see cref="PeopleToMention.Most" />, and asking nothing of the
+    ///     instance (#318). Nobody while nobody is being acted as.
+    /// </summary>
+    public IReadOnlyList<Mentionable> PeopleMatching(string query) => _acting?.People.Matching(query) ?? [];
+
+    /// <summary>What mentioning <paramref name="person" /> writes into a post, as the profile acted as writes it.</summary>
+    public string MentionOf(Mentionable person) => _acting?.People.MentionOf(person) ?? $"@{person.Address}";
+
     /// <summary>The keys the current screen answers to, for the status row.</summary>
     public IReadOnlyList<KeyHint> Keys => Screen.Keys;
 
@@ -1306,7 +1316,11 @@ public sealed class Shell
         arrival.Arrives += Reset;
         arrival.Drills += Push;
         arrival.Refreshes += Freshened;
-        arrival.Filled += () => Say(null, isError: false);
+        arrival.Filled += () =>
+        {
+            Saw(Screen);
+            Say(null, isError: false);
+        };
         arrival.Counts += Counted;
         arrival.Moves += Moved;
         arrival.Heard += Heard;
@@ -1320,7 +1334,7 @@ public sealed class Shell
             confirm: Confirm,
             changed: () => Changed?.Invoke());
 
-        return new Acting(profile, arrival, reach, cache);
+        return new Acting(profile, arrival, reach, cache, new PeopleToMention(profile));
     }
 
     /// <summary>
@@ -1768,6 +1782,7 @@ public sealed class Shell
     private void Push(Screen screen)
     {
         _stack.Add(screen);
+        Saw(screen);
         Notice = null;
 
         Changed?.Invoke();
@@ -1817,6 +1832,7 @@ public sealed class Shell
         _stack.ForEach(left => left.Left());
         _stack.Clear();
         _stack.Add(screen);
+        Saw(screen);
         Notice = null;
 
         Changed?.Invoke();
@@ -1840,6 +1856,7 @@ public sealed class Shell
     {
         _stack[^1].Left();
         _stack[^1] = fresh;
+        Saw(fresh);
 
         // Gone with the screen it was said over, the same as at a push or an arrival: what a reader was told about the
         // list they were looking at is not about the one in front of them now.
@@ -1950,6 +1967,12 @@ public sealed class Shell
         _acting is { } acting && _profiles.Registry.List().Count >= 2 ? acting.Profile.Instance : null;
 
     /// <summary>
+    ///     Takes in everybody <paramref name="screen" /> shows as people a post can mention (#318), as it arrives — at
+    ///     no cost, being what was already read. Nothing while nobody is being acted as.
+    /// </summary>
+    private void Saw(Screen screen) => _acting?.People.Saw(screen.Seen);
+
+    /// <summary>
     ///     Takes the screen at <paramref name="at" /> off the stack, and lets it know (<see cref="Screen.Left" />).
     /// </summary>
     private void Leave(int at)
@@ -1982,11 +2005,13 @@ public sealed class Shell
     /// </param>
     /// <param name="Reach">What a screen can reach of this shell while it answers a verb of its own (#232).</param>
     /// <param name="Cache">What the arrival holds of what was read, kept where the profile is only signed in again.</param>
+    /// <param name="People">Who a post can mention, gathered as this profile for the session (#318).</param>
     private sealed record Acting(
         ActiveProfile Profile,
         Arrival Arrival,
         Reach Reach,
-        SubjectCache Cache)
+        SubjectCache Cache,
+        PeopleToMention People)
     {
         /// <summary>
         ///     The conversations <c>m</c> has been pressed on and not yet answered about, by id — so a second press

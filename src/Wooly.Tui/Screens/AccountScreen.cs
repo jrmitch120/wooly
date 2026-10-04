@@ -105,6 +105,10 @@ public sealed class AccountScreen : Screen
     /// </remarks>
     public Account Account => _walking.Account;
 
+    /// <inheritdoc />
+    public override IEnumerable<Mentionable> Seen =>
+        [Mentionable.Of(Account), .. Familiar?.Select(Mentionable.Of) ?? [], .. Mentionable.In(Posts)];
+
     /// <summary>
     ///     The posts of theirs that are on the screen, in the order they are drawn and walked: what they have pinned,
     ///     in the instance's own pin order, and then their timeline newest first (#182).

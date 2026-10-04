@@ -82,6 +82,9 @@ public sealed class FollowsScreen : Screen
     /// <summary>Everyone read so far, whatever the filter is leaving out.</summary>
     public IReadOnlyList<Account> People => _all;
 
+    /// <inheritdoc />
+    public override IEnumerable<Mentionable> Seen => [Mentionable.Of(Whose), .. People.Select(Mentionable.Of)];
+
     /// <summary>Whoever is on screen, which is everyone read where no filter is narrowing them.</summary>
     public IReadOnlyList<Account> Shown => _walking.All;
 

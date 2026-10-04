@@ -60,6 +60,9 @@ internal sealed class ShellWindow : Window
     private readonly PaintedView _content;
     private readonly ComposeEditor _editor;
 
+    /// <summary>The people to mention, hung under the @-word being typed in <see cref="_editor" /> (#318).</summary>
+    private readonly MentionList _mentions;
+
     /// <summary>The rail, which <see cref="Railed" /> takes away and puts back.</summary>
     private readonly PaintedView _rail;
 
@@ -226,7 +229,10 @@ internal sealed class ShellWindow : Window
             CanFocus = false,
         };
 
-        Add(rail, _content, title, _editor, status);
+        _mentions = new MentionList(theme, shell, _editor);
+        _editor.Ahead = _mentions.Took;
+
+        Add(rail, _content, title, _editor, _mentions.View, status);
 
         _showing = shell.Screen;
 
@@ -801,6 +807,10 @@ internal sealed class ShellWindow : Window
             _editor.Visible = false;
             SetFocus();
         }
+
+        // After the editor has been shown or hidden, and on every change of the shell's — a profile switch, or more
+        // people arriving — since either can change what the word being typed matches.
+        _mentions.Follow();
 
         SetNeedsDraw();
     }

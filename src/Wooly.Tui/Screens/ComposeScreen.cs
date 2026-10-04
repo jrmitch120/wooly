@@ -2,6 +2,7 @@ using System.Drawing;
 using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
 using Wooly.Tui.Rendering;
+using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 
 namespace Wooly.Tui.Screens;
@@ -154,6 +155,13 @@ public sealed class ComposeScreen : Screen
 
     /// <inheritdoc />
     public override bool HoldsADraft => true;
+
+    /// <inheritdoc />
+    /// <remarks>
+    ///     Whoever wrote the post this one is about and everyone it names, so that the person being answered is the
+    ///     most recently seen — and one keystroke away — once the screen is pushed.
+    /// </remarks>
+    public override IEnumerable<Mentionable> Seen => About is { } about ? Mentionable.In(about) : [];
 
     /// <summary>
     ///     What goes out when <c>ctrl-s</c> is pressed, whole: the post this screen publishes, or the change it saves

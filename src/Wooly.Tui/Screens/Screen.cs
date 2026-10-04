@@ -159,6 +159,12 @@ public abstract class Screen
     public virtual bool Refreshes => false;
 
     /// <summary>
+    ///     Everybody this screen shows, top to bottom, for the people a post can mention (#318) — read off what the
+    ///     screen already holds, so gathering them costs no request. Nobody, on a screen that shows no accounts.
+    /// </summary>
+    public virtual IEnumerable<Mentionable> Seen => [];
+
+    /// <summary>
     ///     What this screen was read from, which is what <c>g</c> asks again and what a page more is read from — or
     ///     <see langword="null" /> on a screen that is read from nothing: the search prompt, which is its own question
     ///     (#84), the compose editor, the keymap, a notice (#233).

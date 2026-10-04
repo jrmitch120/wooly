@@ -53,6 +53,9 @@ public sealed class FeedScreen : Screen
     /// <summary>The posts on the timeline, newest first.</summary>
     public IReadOnlyList<Post> Posts => _posts.All;
 
+    /// <inheritdoc />
+    public override IEnumerable<Mentionable> Seen => Mentionable.In(Posts);
+
     /// <summary>
     ///     Something the shell has to say about this timeline rather than about a post on it — that it is empty, or
     ///     that a rate limit cut it short.
