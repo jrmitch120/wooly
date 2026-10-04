@@ -137,6 +137,22 @@ public class ComposeWarningFieldTests
         Assert.Equal("c?", compose.Warning);
     }
 
+    /// <summary>
+    ///     And <c>?</c> is a letter in the post too, which is why compose's status row offers no keymap key.
+    /// </summary>
+    [Fact]
+    public async Task AQuestionMarkInThePostIsALetter()
+    {
+        using var drawn = await Replying();
+        var compose = Compose(drawn);
+
+        Type(drawn, "?");
+
+        Assert.Same(compose, drawn.Shell.Screen);
+        Assert.Equal($"{Mention}?", compose.Text);
+        Assert.DoesNotContain("?", drawn.Rows()[^1], StringComparison.Ordinal);
+    }
+
     /// <summary><c>esc</c> from the field throws the draft away, as it does from the post.</summary>
     [Fact]
     public async Task Esc_FromTheFieldThrowsTheDraftAway()

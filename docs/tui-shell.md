@@ -820,7 +820,8 @@ its author remembered to warn it again by hand — which Mastodon's own clients 
   the field in and nothing else shifted, which is what the row was being held for.
 - **`ctrl-w` moves the typing between the two**, because a terminal takes the keys of whichever field has them.
   While the warning has them the editor keeps its text and its place, every printable key goes into the field — `?`
-  and `/` included — and the status row says `ctrl-w  back to the post` and stops offering the keymap. `esc` still
+  and `/` included — and the status row says `ctrl-w  back to the post`. Neither field offers the keymap: `?` is a letter in the post and
+  the warning alike, so compose's status row names no `?` (#320). `esc` still
   means what it means everywhere: up one level, throwing the whole compose away.
 - **The warning is a field of its own** (#320), a one-line text field laid over its header's value column the way the
   editor is laid over the body: it selects with shift and the arrows, moves by word, takes a paste and takes the

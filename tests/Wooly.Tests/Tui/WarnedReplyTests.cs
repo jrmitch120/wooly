@@ -393,9 +393,9 @@ public class WarnedReplyTests
     }
 
     /// <summary>
-    ///     The status row names the key wherever there is a field to reach, and says which way it goes — and while the
-    ///     field is taking letters it stops offering <c>?</c>, which is going into the warning like every other
-    ///     printable key (the rule the search prompt already keeps).
+    ///     The status row names the key wherever there is a field to reach, and says which way it goes — and never
+    ///     offers <c>?</c>, which goes into whichever field has the typing as a letter like any other: there is no
+    ///     press on a compose screen that opens the keymap, so naming one would be a key that does nothing (#320).
     /// </summary>
     [Fact]
     public async Task Keys_NameTheWarningKeyAndWhatItDoesNext()
@@ -408,7 +408,7 @@ public class WarnedReplyTests
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
 
         Assert.Contains(compose.Keys, key => key is { Key: "ctrl-w", Does: "content warning" });
-        Assert.Contains(compose.Keys, key => key.Key == "?");
+        Assert.DoesNotContain(compose.Keys, key => key.Key == "?");
 
         opened.WriteWarning();
 

@@ -207,15 +207,15 @@ public sealed class ComposeScreen : Screen
 
     /// <inheritdoc />
     /// <remarks>
-    ///     While the warning has the typing the keymap key goes unsaid, because <c>?</c> is a question somebody is
-    ///     entitled to warn about and the field takes it as a letter like any other (#320).
+    ///     No keymap key, in either field: <c>?</c> is a letter in the post and in the warning alike, each field taking
+    ///     its own keys before the shell sees them (#320) — so naming it would be offering a press that types a
+    ///     question mark.
     /// </remarks>
     protected override IReadOnlyList<KeyHint> OwnKeys =>
     [
         new("ctrl-s", Purpose == ComposeFor.Edit ? "save" : "send"),
         new("ctrl-w", WritingTheWarning ? "back to the post" : "content warning"),
         new("esc", "throw it away"),
-        .. WritingTheWarning ? [] : new KeyHint[] { PostKeys.Asking },
     ];
 
     /// <inheritdoc />
