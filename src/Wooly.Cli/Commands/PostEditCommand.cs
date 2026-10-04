@@ -46,7 +46,13 @@ internal sealed class PostEditCommand(IAnsiConsole console, IProfileRegistry pro
         ///     filled in from <c>default_language</c>: that is a preference about new posts, and fixing a typo should not
         ///     relabel an old one.
         /// </summary>
-        public string? LanguageCode => Language is null ? null : PostLanguageName.Parse(Language)?.Code;
+        public string? LanguageCode => Named?.Code;
+
+        /// <summary>
+        ///     The language <see cref="Language" /> spells, read in this one place for both the check and the edit, so
+        ///     the two cannot come to read it differently.
+        /// </summary>
+        private PostLanguage? Named => PostLanguageName.Parse(Language);
 
         public override ValidationResult Validate()
         {
@@ -57,7 +63,7 @@ internal sealed class PostEditCommand(IAnsiConsole console, IProfileRegistry pro
                 return shared;
             }
 
-            return Language is not null && PostLanguageName.Parse(Language) is null
+            return Language is not null && Named is null
                 ? ValidationResult.Error(PostLanguageName.Rejection(Language))
                 : ValidationResult.Success();
         }

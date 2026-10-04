@@ -209,6 +209,20 @@ internal static class PostWire
             "Not a visibility this client knows."),
     };
 
+    /// <summary>
+    ///     What this project calls a visibility the wire spelled as a plain word, where it is read by hand rather than
+    ///     through Mastonet (<see cref="AccountDefaults" />) — Mastodon's <c>private</c> read as followers (ADR-0024) —
+    ///     or <see langword="null" /> for a word this client has no visibility for, which an instance on a fork may send.
+    /// </summary>
+    public static PostVisibility? ToVisibility(string? word) => word switch
+    {
+        "public" => PostVisibility.Public,
+        "unlisted" => PostVisibility.Unlisted,
+        "private" => PostVisibility.Followers,
+        "direct" => PostVisibility.Direct,
+        _ => null,
+    };
+
     /// <summary>How the wire spells the visibility this client was asked for.</summary>
     /// <remarks>Written out for the reason <see cref="ToVisibility" /> gives, in the direction that publishes a post.</remarks>
     public static Visibility ToWire(PostVisibility visibility) => visibility switch
