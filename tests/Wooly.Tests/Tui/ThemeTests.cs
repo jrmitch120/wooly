@@ -12,6 +12,7 @@ namespace Wooly.Tests.Tui;
 ///     holds a colour, so this is where a colour may be written down in a test — this and
 ///     <see cref="PanelsPaletteTests" />, which holds the built-in to its design. Every other test asks about roles.
 /// </summary>
+[Collection(TerminalEnvironmentCollection.Name)]
 public class ThemeTests
 {
     private const string ConfigFile = "/somewhere/config.toml";
