@@ -115,15 +115,8 @@ public sealed class Shell
     /// </summary>
     private RateLimitQuota? _quotaBeforeSwitch;
 
-    /// <summary>
-    ///     How long each instance lets a post be, by instance, for whatever is left of the session (#319). By instance
-    ///     rather than by profile, since the limit is the instance's setting and two profiles on one share it; and kept
-    ///     across a switch for the same reason.
-    /// </summary>
-    private readonly Dictionary<string, PostLimits> _limits = new(StringComparer.OrdinalIgnoreCase);
-
-    /// <summary>The instances whose limits have been asked for and not yet answered, so none is asked twice at once.</summary>
-    private readonly HashSet<string> _limitsAsked = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>How long each instance lets a post be, asked as posts are first written there (#319).</summary>
+    private readonly LimitsByInstance _limits;
 
     /// <param name="opening">
     ///     Who to act as — or, with nobody, what to open onto instead: adding a profile, as the only screen (#247).
@@ -141,6 +134,8 @@ public sealed class Shell
         _ports = ports;
         _profiles = profiles;
         _host = host;
+        _limits = new LimitsByInstance(ports.Limits, host);
+        _limits.Heard += Measured;
         _browser = browser;
         _clock = clock;
         _timing = timing;
@@ -1765,67 +1760,27 @@ public sealed class Shell
     }
 
     /// <summary>
-    ///     Pushes <paramref name="compose" />, measured against its instance's own limit where that is known — and
-    ///     where it is not, asks for it, the first time a post is written there rather than at launch, so that a
-    ///     reader who never writes one is never charged a request for it (#319).
+    ///     Pushes <paramref name="compose" />, measured against its instance's own limit as far as that is known (#319).
     /// </summary>
     private void Composing(ComposeScreen compose)
     {
-        var instance = Actor.Profile.Instance;
+        compose.Limits = _limits.For(Actor.Profile);
 
         Push(compose);
-
-        if (_limits.TryGetValue(instance, out var known))
-        {
-            compose.Limits = known;
-        }
-        else if (_limitsAsked.Add(instance))
-        {
-            _ = AskLimits(Actor.Profile);
-        }
     }
 
     /// <summary>
-    ///     Asks <paramref name="profile" />'s instance how long it lets a post be, and hands the answer to whatever
-    ///     compose on that instance is in front when it lands.
+    ///     An instance said how long it lets a post be, which a compose on that instance still in front is measured
+    ///     against from now on.
     /// </summary>
-    /// <remarks>
-    ///     Not put through the enquiry, on purpose: it would count a rate limit down over the post and say a failure
-    ///     on the status row, and nothing here is worth either. A limit that cannot be read leaves Mastodon's default
-    ///     standing, silently, and is asked for again the next time a post is written.
-    /// </remarks>
-    private async Task AskLimits(ActiveProfile profile)
+    private void Measured(string instance, PostLimits limits)
     {
-        PostLimits? limits;
-
-        try
+        if (Screen is ComposeScreen compose
+            && string.Equals(_acting?.Profile.Instance, instance, StringComparison.OrdinalIgnoreCase))
         {
-            limits = await _ports.Limits.Read(profile, CancellationToken.None);
+            compose.Limits = limits;
+            Changed?.Invoke();
         }
-        catch (WoolyException)
-        {
-            // A refused token, which the reads that fill the screen already say with the key that fixes it.
-            limits = null;
-        }
-
-        Apply(() =>
-        {
-            _limitsAsked.Remove(profile.Instance);
-
-            if (limits is null)
-            {
-                return;
-            }
-
-            _limits[profile.Instance] = limits;
-
-            if (Screen is ComposeScreen compose
-                && string.Equals(_acting?.Profile.Instance, profile.Instance, StringComparison.OrdinalIgnoreCase))
-            {
-                compose.Limits = limits;
-                Changed?.Invoke();
-            }
-        });
     }
 
     /// <summary>

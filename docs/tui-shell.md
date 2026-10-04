@@ -878,11 +878,11 @@ fresh post, a reply and an edit alike:
   so the count does too, and a reply or an edit counts what it opened with from the start.
 - **The limit is the instance's own** (`IInstanceLimits`): `/api/v2/instance`'s `max_characters` and
   `characters_reserved_per_url`, or `/api/v1/instance` where there is no `v2` — Pleroma's `max_toot_chars` included.
-  Asked the first time a post is written on an instance rather than at launch, so a reader who never writes one is
-  never charged for it, then held by instance for the session: two profiles on one share it, and a switch keeps it.
-  Until it lands, and wherever it cannot be read, the count is out of Mastodon's 500 and 23. It is not put through
-  the enquiry, so a failure says nothing and a rate limit counts nothing down over the post; it is asked again the
-  next time a post is written.
+  `LimitsByInstance` asks it the first time a post is written on an instance rather than at launch, so a reader who
+  never writes one is never charged for it, then holds it by instance for the session: two profiles on one share it,
+  and a switch keeps it. Until it lands, and wherever the instance does not answer, the count is out of Mastodon's 500
+  and 23. It is not put through the enquiry, so a failure says nothing and a rate limit counts nothing down over the
+  post; it is asked again the next time a post is written.
 
 ### What mentioning somebody settled
 
