@@ -348,7 +348,7 @@ public partial class RoleTests
     [Theory]
     [InlineData(PostVisibility.Public, "○")]
     [InlineData(PostVisibility.Unlisted, "◌")]
-    [InlineData(PostVisibility.Private, "●")]
+    [InlineData(PostVisibility.Followers, "●")]
     [InlineData(PostVisibility.Direct, "✉")]
     public void Feed_MarksWhoCanSeeAPostWithAGlyph(PostVisibility visibility, string glyph)
     {

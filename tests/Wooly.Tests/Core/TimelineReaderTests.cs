@@ -70,7 +70,7 @@ public class TimelineReaderTests
     [Theory]
     [InlineData("public", PostVisibility.Public)]
     [InlineData("unlisted", PostVisibility.Unlisted)]
-    [InlineData("private", PostVisibility.Private)]
+    [InlineData("private", PostVisibility.Followers)]
     [InlineData("direct", PostVisibility.Direct)]
     public async Task Read_ReportsWhoCanSeeEachPost(string wire, PostVisibility expected)
     {
