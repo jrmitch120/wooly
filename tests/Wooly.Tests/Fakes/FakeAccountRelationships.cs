@@ -14,13 +14,19 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
 {
     private readonly Fetch<Account> _list;
     private readonly Exception? _refusal;
+    private readonly bool _unfinished;
     private Account _subject;
 
-    private FakeAccountRelationships(Account subject, Fetch<Account> list, Exception? refusal = null)
+    private FakeAccountRelationships(
+        Account subject,
+        Fetch<Account> list,
+        Exception? refusal = null,
+        bool unfinished = false)
     {
         _subject = subject;
         _list = list;
         _refusal = refusal;
+        _unfinished = unfinished;
     }
 
     /// <summary>The access token every call was made with, in order — where a test proves who it was made as.</summary>
@@ -95,6 +101,13 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
                 listing,
                 new RateLimitedException("mastodon.social", new DateTimeOffset(2026, 7, 29, 13, 0, 0, TimeSpan.Zero))));
 
+    /// <summary>
+    ///     An instance part way through a list: <paramref name="listing" /> has arrived, and the rest never does — where
+    ///     a test looks at what is offered while a long read is still going.
+    /// </summary>
+    public static FakeAccountRelationships StillListing(params Account[] listing) =>
+        new(AnAccount.With(), Fetch<Account>.Complete(listing), unfinished: true);
+
     /// <summary>An instance that refuses everything with <paramref name="refusal" />, having recorded the attempt.</summary>
     public static FakeAccountRelationships Refusing(Exception refusal) =>
         new(AnAccount.With(), Fetch<Account>.Complete([]), refusal);
@@ -136,13 +149,16 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
             return Task.FromException<Fetch<Account>>(_refusal);
         }
 
-        // A page at a time, the most the instance serves of one, as the adapter hands them on.
-        foreach (var page in _list.Items.Chunk(80))
+        // A page at a time, the most the instance serves of one, as the adapter hands them on — and no more than was
+        // asked for, which is where the adapter stops.
+        var read = _list with { Items = [.. _list.Items.Take(limit)] };
+
+        foreach (var page in read.Items.Chunk(80))
         {
             arrived?.Invoke(page);
         }
 
-        return Task.FromResult(_list);
+        return _unfinished ? new TaskCompletionSource<Fetch<Account>>().Task : Task.FromResult(read);
     }
 
     /// <summary>

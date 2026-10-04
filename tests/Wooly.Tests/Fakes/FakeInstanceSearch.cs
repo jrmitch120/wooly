@@ -39,6 +39,12 @@ internal sealed class FakeInstanceSearch : IInstanceSearch
     /// <summary>Every search it was asked for, in order — where a test proves what a command went looking for.</summary>
     public List<Call> Searches { get; } = [];
 
+    /// <summary>
+    ///     Every search of the profile's follows it was asked for, in order: who it was made as and what was typed
+    ///     (#322).
+    /// </summary>
+    public List<(string Profile, string Query)> FollowedSearches { get; } = [];
+
     /// <summary>An instance holding all three kinds of thing, whatever is searched for.</summary>
     public static FakeInstanceSearch Finding(
         Account[]? accounts = null,
@@ -68,6 +74,22 @@ internal sealed class FakeInstanceSearch : IInstanceSearch
         return _refusal is null
             ? Task.FromResult(SearchResults.Matching(query.Kind, _accounts, _hashtags, _posts))
             : Task.FromException<SearchResults>(_refusal);
+    }
+
+    /// <summary>
+    ///     Every account it holds, whatever is typed — where a test says who the instance knows the profile follows.
+    /// </summary>
+    public Task<IReadOnlyList<Account>> FindFollowed(
+        ActiveProfile profile,
+        string query,
+        CancellationToken cancellationToken)
+    {
+        FollowedSearches.Add((profile.Name, query));
+        Tokens.Add(profile.AccessToken);
+
+        return _refusal is null
+            ? Task.FromResult(_accounts)
+            : Task.FromException<IReadOnlyList<Account>>(_refusal);
     }
 
     /// <summary>One search: which profile it was made as, and what it asked for.</summary>

@@ -38,4 +38,22 @@ public sealed class InstanceSearch(IMastodonClientFactory clientFactory) : IInst
             found.Hashtags?.Select(HashtagWire.ToHashtag).ToList() ?? [],
             found.Statuses?.Select(status => PostWire.ToPost(status, profile)).ToList() ?? []);
     }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<Account>> FindFollowed(
+        ActiveProfile profile,
+        string query,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var client = clientFactory.CreateClient(profile.Instance, profile.AccessToken);
+        var found = await client.SearchAccounts(
+            query,
+            IInstanceSearch.FollowedFound,
+            resolveNonLocalAccouns: false,
+            onlyFollowing: true);
+
+        return [.. found.Select(account => AccountWire.ToAccount(account, profile.Instance))];
+    }
 }
