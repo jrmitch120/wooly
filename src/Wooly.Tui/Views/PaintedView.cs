@@ -60,6 +60,7 @@ internal sealed class PaintedView : View
     private readonly Placeholders? _placeholders;
     private readonly SixelPictures _sixels;
     private readonly TimeProvider _clock;
+    private readonly SynchronizedFrames? _frames;
 
     /// <summary>Where the page began the last time pictures were placed, which says which way it is moving.</summary>
     private int _placedAt;
@@ -94,6 +95,7 @@ internal sealed class PaintedView : View
     /// </param>
     /// <param name="clock">What says how long the page has been still, which decides a sixel rough or sharp (#342).</param>
     /// <param name="sixels">Where the sixels are encoded and kept; a cache of this view's own if not.</param>
+    /// <param name="frames">What wraps a frame this view draws in synchronized output, if anything does.</param>
     /// <remarks>
     ///     A frame is laid on a one-cell <c>Padding</c> round the view, so everything measured off
     ///     <see cref="View.Viewport" /> — the rows' width and height, the scroll, a page's worth — is the inside of it,
@@ -107,11 +109,13 @@ internal sealed class PaintedView : View
         Func<int, int, IReadOnlyList<Line>>? frame = null,
         Placeholders? placeholders = null,
         TimeProvider? clock = null,
-        SixelPictures? sixels = null)
+        SixelPictures? sixels = null,
+        SynchronizedFrames? frames = null)
     {
         _theme = theme;
         _clock = clock ?? TimeProvider.System;
         _sixels = sixels ?? new SixelPictures(backdrop: Backdrop);
+        _frames = frames;
         _rows = rows;
         _pictures = pictures;
         _frame = frame;
@@ -402,6 +406,8 @@ internal sealed class PaintedView : View
     /// </remarks>
     protected override bool OnClearingViewport()
     {
+        // Before anything of this frame can have been written: it is still being drawn.
+        _frames?.Open();
         Settle();
 
         return true;

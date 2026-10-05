@@ -169,6 +169,16 @@ These are one run each on the same machine, and noisier than the table above; th
   blended onto the theme's page where it names one, and otherwise onto the terminal's own background, which
   Terminal.Gui asks for at startup (OSC 11) and every built-in theme draws on. Where neither is known they stay
   transparent, as before. Averaging a rough cut keeps the alpha, so rough and sharp agree.
+- **A frame with pictures in it is synchronized output (DEC mode 2026)**, the follow-up the findings above left open.
+  With frames a third the size, the tear that remained was a terminal painting part way through one: an avatar
+  directly under a rule arrived a moment before the rule did. Terminal.Gui 2.5 still writes a frame with nothing either
+  side of it and keeps the ways to replace its output internal; a spike that reached them by reflection proved the
+  mode cures it in WezTerm, and was thrown away. `SynchronizedFrames` brackets the frame from public ground instead:
+  `CSI ?2026h` is written as the content region starts drawing — a frame cannot be written before it is drawn — and
+  `CSI ?2026l` once `LayoutAndDrawComplete` says it is done, which a probe's byte stream showed is after the frame is
+  written. Were that to change, the frame would go out unsynchronized, as before; and a block still open when the next
+  pass of the main loop begins is closed there, which is documented to come first. Terminals without the mode ignore
+  both, and a loop that draws no content writes neither.
 - **Kitty is untouched**, through a box or as placeholders: it sends a picture once and moves it, and has nothing to
   save here.
 

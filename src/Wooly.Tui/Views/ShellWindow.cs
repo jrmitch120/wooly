@@ -126,6 +126,10 @@ internal sealed class ShellWindow : Window
     ///     <see langword="null" /> to draw every picture through a box.
     /// </param>
     /// <param name="sixels">Where a sixel terminal's pictures are encoded and kept; a cache of the window's own if not.</param>
+    /// <param name="frames">
+    ///     What wraps a frame in synchronized output, opened as the content region draws — the region with the pictures,
+    ///     whose text and sixels must land together — or <see langword="null" /> for none.
+    /// </param>
     public ShellWindow(
         Shell.Shell shell,
         ITheme theme,
@@ -134,7 +138,8 @@ internal sealed class ShellWindow : Window
         IPictures pictures,
         bool hideDrawnCaption = false,
         Placeholders? placeholders = null,
-        SixelPictures? sixels = null)
+        SixelPictures? sixels = null,
+        SynchronizedFrames? frames = null)
     {
         _shell = shell;
         _clock = clock;
@@ -183,7 +188,8 @@ internal sealed class ShellWindow : Window
                 active: true),
             placeholders,
             clock,
-            sixels)
+            sixels,
+            frames)
         {
             Id = ContentId,
             X = RailLines.Width,

@@ -127,6 +127,11 @@ try
         Redraw,
         placeholders.Drop);
 
+    // Each frame with pictures in it written whole, where the terminal can hold one back until it is (#342).
+    var frames = new SynchronizedFrames(sequence => application.Driver?.GetOutput().Write(sequence));
+
+    frames.Over(application);
+
     using var window = new ShellWindow(
         shell,
         theme,
@@ -134,7 +139,8 @@ try
         application.RequestStop,
         pictures,
         config.Preferences.HideDrawnCaption,
-        placeholders);
+        placeholders,
+        frames: frames);
 
     // A paste arrives as one string rather than as keys, before it is handed to whatever has focus. The shell takes
     // it where one of its own fields is typing, and leaves it to whatever has focus everywhere else — the compose
