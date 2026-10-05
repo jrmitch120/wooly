@@ -84,9 +84,12 @@ public class PostCommandTests : IDisposable
     [Theory]
     [InlineData("public", PostVisibility.Public)]
     [InlineData("unlisted", PostVisibility.Unlisted)]
-    [InlineData("private", PostVisibility.Private)]
+    [InlineData("followers", PostVisibility.Followers)]
     [InlineData("direct", PostVisibility.Direct)]
-    [InlineData("PRIVATE", PostVisibility.Private)]
+
+    // Mastodon's word for followers, which scripts written before ADR-0024 pass and which keeps working.
+    [InlineData("private", PostVisibility.Followers)]
+    [InlineData("PRIVATE", PostVisibility.Followers)]
     public void Create_PublishesAtTheVisibilityAsked(string given, PostVisibility expected)
     {
         AddProfile();
@@ -102,15 +105,43 @@ public class PostCommandTests : IDisposable
     {
         AddProfile();
 
-        var run = Run(["post", "create", "Hello world", "--visibility", "followers"]);
+        var run = Run(["post", "create", "Hello world", "--visibility", "friends"]);
 
         Assert.Equal((int)ExitCode.UsageError, run.ExitCode);
+        Assert.Contains("public, unlisted, followers, direct", run.ErrorOutput);
         Assert.Empty(_posts.Published);
+    }
+
+    /// <summary>The report uses the word the flag does, not the word Mastodon puts on the wire (ADR-0024).</summary>
+    [Fact]
+    public void Create_ReportsAFollowersOnlyPostAsFollowers()
+    {
+        AddProfile();
+        _posts = FakePostAuthor.Answering(APost.With(visibility: PostVisibility.Followers));
+
+        var run = Run(["post", "create", "Hello world", "--visibility", "followers"]);
+
+        Assert.Contains("Posted 110 (followers).", run.Output);
+    }
+
+    /// <summary>
+    ///     A breaking change to ADR-0007's contract, made on purpose: the machine-readable output describes the post in
+    ///     the same word the human-readable one does (ADR-0024).
+    /// </summary>
+    [Fact]
+    public void Create_NamesAFollowersOnlyPostFollowersInTheJsonItWrites()
+    {
+        AddProfile();
+        _posts = FakePostAuthor.Answering(APost.With(visibility: PostVisibility.Followers));
+
+        var run = Run(["post", "create", "Hello world", "--visibility", "followers", "--json"]);
+
+        Assert.Equal("followers", JsonDocument.Parse(run.Output).RootElement.GetProperty("visibility").GetString());
     }
 
     /// <summary>
     ///     Said nowhere, the choice stays the account's own. Filling in "public" here would publish an account whose own
-    ///     default is followers-only wider than it asked for.
+    ///     default is followers wider than it asked for.
     /// </summary>
     [Fact]
     public void Create_LeavesVisibilityUnsaidWhenNeitherTheCommandLineNorTheConfigFileSaysIt()
@@ -131,19 +162,19 @@ public class PostCommandTests : IDisposable
     public void Create_FallsBackToTheVisibilityTheConfigFilePrefers()
     {
         AddProfile();
-        PreferVisibility("private");
+        PreferVisibility("followers");
 
         var run = Run(["post", "create", "Hello world"]);
 
         Assert.Equal((int)ExitCode.Success, run.ExitCode);
-        Assert.Equal(PostVisibility.Private, Assert.Single(_posts.Published).Draft.Visibility);
+        Assert.Equal(PostVisibility.Followers, Assert.Single(_posts.Published).Draft.Visibility);
     }
 
     [Fact]
     public void Create_LetsTheCommandLineOverrideTheVisibilityTheConfigFilePrefers()
     {
         AddProfile();
-        PreferVisibility("private");
+        PreferVisibility("followers");
 
         var run = Run(["post", "create", "Hello world", "--visibility", "public"]);
 
@@ -360,7 +391,7 @@ public class PostCommandTests : IDisposable
 
         var run = Run([
             "post", "reply", "99", "Quite so",
-            "--cw", "spoilers", "--visibility", "private",
+            "--cw", "spoilers", "--visibility", "followers",
             "--media", _directory.WriteFile("cat.png"),
         ]);
 
@@ -370,7 +401,7 @@ public class PostCommandTests : IDisposable
         Assert.Equal("99", draft.InReplyTo);
         Assert.Equal("Quite so", draft.Text);
         Assert.Equal("spoilers", draft.ContentWarning);
-        Assert.Equal(PostVisibility.Private, draft.Visibility);
+        Assert.Equal(PostVisibility.Followers, draft.Visibility);
         Assert.Single(draft.Media);
     }
 
@@ -385,10 +416,10 @@ public class PostCommandTests : IDisposable
     {
         AddProfile();
 
-        Run(["post", "reply", "99", "Quite so", "--visibility", "private"]);
+        Run(["post", "reply", "99", "Quite so", "--visibility", "followers"]);
 
         var draft = Assert.Single(_posts.Published).Draft;
-        Assert.Equal(PostVisibility.Private, draft.Visibility);
+        Assert.Equal(PostVisibility.Followers, draft.Visibility);
         Assert.True(draft.VisibilityChosen);
     }
 
@@ -407,6 +438,134 @@ public class PostCommandTests : IDisposable
         var draft = Assert.Single(_posts.Published).Draft;
         Assert.Equal(PostVisibility.Public, draft.Visibility);
         Assert.False(draft.VisibilityChosen);
+    }
+
+    /// <summary>
+    ///     A language by its code, its English name or its own name — the words <c>default_language</c> and the TUI's
+    ///     list take too — handed on as the code the instance is sent.
+    /// </summary>
+    [Theory]
+    [InlineData("fr")]
+    [InlineData("French")]
+    [InlineData("Français")]
+    [InlineData("FR")]
+    public void Create_SaysWhatLanguageThePostIsIn(string given)
+    {
+        AddProfile();
+
+        var run = Run(["post", "create", "bonjour", "--language", given]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Equal("fr", Assert.Single(_posts.Published).Draft.Language);
+    }
+
+    /// <summary>
+    ///     A regional code Mastodon takes as a language of its own (Chinese as written in Taiwan), handed on whole rather
+    ///     than cut back to the language it belongs to.
+    /// </summary>
+    [Fact]
+    public void Create_SaysARegionalLanguageMastodonTakes()
+    {
+        AddProfile();
+
+        var run = Run(["post", "create", "你好", "--language", "zh-tw"]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Equal("zh-TW", Assert.Single(_posts.Published).Draft.Language);
+    }
+
+    /// <summary>A typo is turned down by the parser, before anything is published under a language nobody meant.</summary>
+    [Fact]
+    public void Create_ReportsALanguageThisClientDoesNotKnowAsAUsageError()
+    {
+        AddProfile();
+
+        var run = Run(["post", "create", "Hello world", "--language", "Klingon"]);
+
+        Assert.Equal((int)ExitCode.UsageError, run.ExitCode);
+        Assert.Contains("Klingon", run.ErrorOutput);
+        Assert.Empty(_posts.Published);
+    }
+
+    [Fact]
+    public void Create_LeavesTheLanguageToTheInstanceWhenNeitherTheCommandLineNorTheConfigFileSaysIt()
+    {
+        AddProfile();
+
+        Run(["post", "create", "Hello world"]);
+
+        Assert.Null(Assert.Single(_posts.Published).Draft.Language);
+    }
+
+    [Fact]
+    public void Create_FallsBackToTheLanguageTheConfigFilePrefers()
+    {
+        AddProfile();
+        PreferLanguage("de");
+
+        var run = Run(["post", "create", "Hallo Welt"]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Equal("de", Assert.Single(_posts.Published).Draft.Language);
+    }
+
+    [Fact]
+    public void Create_LetsTheCommandLineOverrideTheLanguageTheConfigFilePrefers()
+    {
+        AddProfile();
+        PreferLanguage("de");
+
+        Run(["post", "create", "bonjour", "--language", "fr"]);
+
+        Assert.Equal("fr", Assert.Single(_posts.Published).Draft.Language);
+    }
+
+    [Fact]
+    public void Create_WritesThePublishedPostsLanguageAsMachineReadableJson()
+    {
+        AddProfile();
+        _posts = FakePostAuthor.Answering(APost.With() with { Language = "fr" });
+
+        var run = Run(["post", "create", "bonjour", "--language", "fr", "--json"]);
+
+        Assert.Equal("fr", JsonDocument.Parse(run.Output).RootElement.GetProperty("language").GetString());
+    }
+
+    /// <summary>
+    ///     Null rather than absent, so a script can read the field off every post without first asking whether it is
+    ///     there.
+    /// </summary>
+    [Fact]
+    public void Create_WritesALanguageTheInstanceRecordedNoneOfAsNull()
+    {
+        AddProfile();
+
+        var run = Run(["post", "create", "Hello world", "--json"]);
+
+        var language = JsonDocument.Parse(run.Output).RootElement.GetProperty("language");
+        Assert.Equal(JsonValueKind.Null, language.ValueKind);
+    }
+
+    [Fact]
+    public void Reply_SaysWhatLanguageTheReplyIsIn()
+    {
+        AddProfile();
+
+        var run = Run(["post", "reply", "99", "Genau", "--language", "German"]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Equal("de", Assert.Single(_posts.Published).Draft.Language);
+    }
+
+    [Fact]
+    public void Reply_FallsBackToTheLanguageTheConfigFilePrefers()
+    {
+        AddProfile();
+        PreferLanguage("de");
+
+        Run(["post", "reply", "99", "Genau"]);
+
+        Assert.Equal("de", Assert.Single(_posts.Published).Draft.Language);
     }
 
     [Fact]
@@ -472,6 +631,43 @@ public class PostCommandTests : IDisposable
         var edit = Assert.Single(_posts.Edits).Edit;
         Assert.Equal(string.Empty, edit.ContentWarning);
         Assert.True(edit.ChangesContentWarning);
+    }
+
+    [Fact]
+    public void Edit_ChangesTheLanguageWhenGivenOne()
+    {
+        AddProfile();
+
+        var run = Run(["post", "edit", "110", "bonjour", "--language", "fr"]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Equal("fr", Assert.Single(_posts.Edits).Edit.Language);
+    }
+
+    /// <summary>
+    ///     Silence about the language reaches the domain as silence — and the config file's <c>default_language</c> does
+    ///     not fill it, because that is a preference about new posts, and fixing a typo should not relabel an old one.
+    /// </summary>
+    [Fact]
+    public void Edit_LeavesTheLanguageAloneWhenTheCommandLineSaysNothingAboutIt()
+    {
+        AddProfile();
+        PreferLanguage("de");
+
+        Run(["post", "edit", "110", "Fixed the typo"]);
+
+        Assert.Null(Assert.Single(_posts.Edits).Edit.Language);
+    }
+
+    [Fact]
+    public void Edit_ReportsALanguageThisClientDoesNotKnowAsAUsageError()
+    {
+        AddProfile();
+
+        var run = Run(["post", "edit", "110", "Fixed the typo", "--language", "Klingon"]);
+
+        Assert.Equal((int)ExitCode.UsageError, run.ExitCode);
+        Assert.Empty(_posts.Edits);
     }
 
     /// <summary>
@@ -592,6 +788,14 @@ public class PostCommandTests : IDisposable
         var paths = new WoolyPaths(_directory.Path);
 
         File.AppendAllText(paths.ConfigFile, $"{Environment.NewLine}[preferences]{Environment.NewLine}default_visibility = \"{visibility}\"{Environment.NewLine}");
+    }
+
+    /// <summary>Writes the language preference an author would have set by hand.</summary>
+    private void PreferLanguage(string language)
+    {
+        var paths = new WoolyPaths(_directory.Path);
+
+        File.AppendAllText(paths.ConfigFile, $"{Environment.NewLine}[preferences]{Environment.NewLine}default_language = \"{language}\"{Environment.NewLine}");
     }
 
     private CommandRun Run(string[] args, bool atATerminal = false, string? typed = null)

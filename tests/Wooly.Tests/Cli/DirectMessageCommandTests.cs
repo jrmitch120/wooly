@@ -330,6 +330,29 @@ public class DirectMessageCommandTests : IDisposable
         Assert.Equal(PostVisibility.Direct, composed.Draft.Visibility);
     }
 
+    /// <summary>A direct message says what language it is in the same way any other post does.</summary>
+    [Fact]
+    public void Send_SaysWhatLanguageTheMessageIsIn()
+    {
+        AddProfile();
+
+        var run = Run(["dm", "send", "alice@hachyderm.io", "Bonjour", "--language", "Français"]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Equal("fr", Assert.Single(_posts.Published).Draft.Language);
+    }
+
+    [Fact]
+    public void Send_ReportsALanguageThisClientDoesNotKnowAsAUsageError()
+    {
+        AddProfile();
+
+        var run = Run(["dm", "send", "alice@hachyderm.io", "Hello", "--language", "Klingon"]);
+
+        Assert.Equal((int)ExitCode.UsageError, run.ExitCode);
+        Assert.Empty(_posts.Published);
+    }
+
     /// <summary>
     ///     An option offered where only one value is possible is one somebody will pass another value to, so
     ///     <c>dm send</c> does not offer <c>--visibility</c> at all — and strict parsing answers anyone who tries.

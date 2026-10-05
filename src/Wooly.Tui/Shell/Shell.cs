@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using Wooly.Core;
 using Wooly.Core.Accounts;
+using Wooly.Core.Configuration;
 using Wooly.Core.Conversations;
 using Wooly.Core.Errors;
 using Wooly.Core.Http;
@@ -71,6 +72,13 @@ public sealed class Shell
     private readonly string? _hashtag;
 
     /// <summary>
+    ///     What the config file says a post goes out at — <c>default_visibility</c> and <c>default_language</c>, either
+    ///     unknown where it says nothing — which a compose screen's To and Lang start on ahead of the account's own
+    ///     (ADR-0024, #338, #340).
+    /// </summary>
+    private readonly PostDefaults _preferred;
+
+    /// <summary>
     ///     Who this session is acting as, and everything that asks as them or holds what was read as them — which
     ///     <c>⏎</c> on the profiles screen puts a new one in place of, whole (ADR-0020, #243). Nobody, while the shell
     ///     has nobody it can act as and is standing on adding one (#247).
@@ -124,8 +132,18 @@ public sealed class Shell
     /// <summary>How long each instance lets a post be, asked as posts are first written there (#319).</summary>
     private readonly LimitsByInstance _limits;
 
+    /// <summary>
+    ///     What each account acted as posts at by default, asked as the session starts acting as it — the fallback for
+    ///     what compose starts on after the config's own preferences (ADR-0024, #339).
+    /// </summary>
+    private readonly DefaultsByProfile _defaults;
+
     /// <param name="opening">
     ///     Who to act as — or, with nobody, what to open onto instead: adding a profile, as the only screen (#247).
+    /// </param>
+    /// <param name="preferences">
+    ///     The config file's preferences: the hashtag the rail keeps a place for, and what compose starts on. None
+    ///     where the file sets none.
     /// </param>
     public Shell(
         Opening opening,
@@ -135,19 +153,21 @@ public sealed class Shell
         IWebBrowser browser,
         TimeProvider clock,
         ShellTiming timing,
-        string? hashtag = null)
+        Preferences? preferences = null)
     {
         _ports = ports;
         _profiles = profiles;
         _host = host;
         _limits = new LimitsByInstance(ports.Limits, host);
         _limits.Heard += Measured;
+        _defaults = new DefaultsByProfile(ports.Defaults, host);
         _browser = browser;
         _clock = clock;
         _timing = timing;
-        _hashtag = hashtag;
+        _hashtag = preferences?.Hashtag;
+        _preferred = new PostDefaults(preferences?.DefaultVisibility, preferences?.DefaultLanguage);
 
-        Rail = new Rail(Destinations(opening.Profile, hashtag), host, timing.Settle);
+        Rail = new Rail(Destinations(opening.Profile, _hashtag), host, timing.Settle);
 
         Begin(opening.Profile);
 
@@ -480,6 +500,12 @@ public sealed class Shell
         Verb.Refresh => Ran(Refresh),
         Verb.MarkRead => Ran(MarkRead),
         Verb.WriteWarning => Ran(WriteWarning),
+        // Answered whether or not there was anywhere to go, so that an arrow off either end of the walk or of To stops
+        // there rather than falling through to Terminal.Gui, which would carry the focus round to the other end.
+        Verb.PreviousField => Ran(() => _ = WalkField(-1)),
+        Verb.NextField => Ran(() => _ = WalkField(1)),
+        Verb.PreviousChoice => Ran(() => _ = Choose(-1)),
+        Verb.NextChoice => Ran(() => _ = Choose(1)),
 
         // Nothing, and the terminal's own — which the window has already taken, and which no screen answers either.
         Verb.None => false,
@@ -1094,6 +1120,47 @@ public sealed class Shell
     }
 
     /// <summary>
+    ///     What Lang holds changed in its field (#340): kept in step as the warning is, so that <c>ctrl-s</c> sends it —
+    ///     or refuses it, where it is not a language.
+    /// </summary>
+    public void RewriteLanguage(string written)
+    {
+        if (Screen is not ComposeScreen compose || compose.Lang.Held == written)
+        {
+            return;
+        }
+
+        compose.RewriteLanguage(written);
+        Redrafted();
+        Changed?.Invoke();
+    }
+
+    /// <summary>A language picked off the list under Lang, which Lang then holds (#340).</summary>
+    public void PickLanguage(PostLanguage language)
+    {
+        if (Screen is not ComposeScreen compose)
+        {
+            return;
+        }
+
+        compose.PickLanguage(language);
+        Redrafted();
+        Changed?.Invoke();
+    }
+
+    /// <summary>The list under Lang opened or closed, which the status row follows with its keys (#340).</summary>
+    public void OfferLanguages(bool open)
+    {
+        if (Screen is not ComposeScreen compose || compose.OfferingLanguages == open)
+        {
+            return;
+        }
+
+        compose.OfferLanguages(open);
+        Changed?.Invoke();
+    }
+
+    /// <summary>
     ///     The draft is being worked on, so whatever was said over it is spent (#319). The status row holds a notice
     ///     or the keymap and never both, and while a post is being written the keys go to its fields rather than to
     ///     anything that would otherwise take a notice down — so a refusal of the post would stand, hiding every key
@@ -1120,6 +1187,72 @@ public sealed class Shell
         }
 
         compose.WriteTheWarning();
+        Redrafted();
+        Changed?.Invoke();
+    }
+
+    /// <summary>
+    ///     <c>↑</c> or <c>↓</c> where a compose screen's field leaves it: moves the typing to the field above or below
+    ///     (ADR-0024, #337). Nothing anywhere else.
+    /// </summary>
+    /// <returns>Whether the typing moved, which it does not off the top header or below the post.</returns>
+    public bool WalkField(int by)
+    {
+        if (Screen is not ComposeScreen compose || !compose.Walk(by))
+        {
+            return false;
+        }
+
+        Redrafted();
+        Changed?.Invoke();
+
+        return true;
+    }
+
+    /// <summary>
+    ///     <c>←</c> or <c>→</c> on a compose screen's To: moves the choice to the next visibility To allows, that way
+    ///     (ADR-0024, #338). Nothing anywhere else.
+    /// </summary>
+    /// <returns>Whether the choice moved, which it does not off either end of the row nor anywhere but To.</returns>
+    public bool Choose(int by)
+    {
+        if (Screen is not ComposeScreen compose || !compose.Choose(by))
+        {
+            return false;
+        }
+
+        Redrafted();
+        Changed?.Invoke();
+
+        return true;
+    }
+
+    /// <summary>
+    ///     The typing went into <paramref name="field" /> of a compose screen another way than its keys — a click, which
+    ///     the screen is brought into step with (#320, #338). Nothing anywhere else, nor where it is already there.
+    /// </summary>
+    public void TypeInto(ComposeField field)
+    {
+        if (Screen is not ComposeScreen compose || !compose.TypeInto(field))
+        {
+            return;
+        }
+
+        Changed?.Invoke();
+    }
+
+    /// <summary>
+    ///     A click on To's value, <paramref name="column" /> columns into a value column <paramref name="room" /> wide:
+    ///     a value To allows is chosen, an arrow steps, and either gives To the typing (ADR-0024, #338). A value To does
+    ///     not allow, and the whole row on an edit, ignore it.
+    /// </summary>
+    public void ClickTo(int column, int room)
+    {
+        if (Screen is not ComposeScreen compose || !compose.ClickTo(column, room))
+        {
+            return;
+        }
+
         Redrafted();
         Changed?.Invoke();
     }
@@ -1320,6 +1453,14 @@ public sealed class Shell
             return;
         }
 
+        // A Lang holding something that is not a language is a typo, and a typo is not published as one (#340).
+        if (compose.Lang.Refusal is { } refusal)
+        {
+            Say(refusal, isError: true);
+
+            return;
+        }
+
         // Taken now rather than read when the call is made, which a rate-limit wait can put after a switch (#243).
         var profile = Actor.Profile;
 
@@ -1394,6 +1535,12 @@ public sealed class Shell
         _pause?.Wait.Dispose();
         _pause = null;
         _acting = profile is null ? null : Acts(profile, enquiry, new SubjectCache(_clock, _timing.CacheFor));
+
+        // Asked now rather than when compose opens, so that opening it asks nothing (ADR-0024).
+        if (profile is not null)
+        {
+            _defaults.Ask(profile);
+        }
     }
 
     /// <summary>
@@ -1876,7 +2023,11 @@ public sealed class Shell
         // reply, since what they picked is somebody named in the post rather than the post itself (#85).
         if (purpose == ComposeFor.Post && Screen.MentionedAs is { } handle)
         {
-            Composing(new ComposeScreen(purpose, addressing: $"@{handle}", from: ComposeFrom.Of(Actor.Profile)));
+            Composing(new ComposeScreen(
+                purpose,
+                addressing: $"@{handle}",
+                from: ComposeFrom.Of(Actor.Profile),
+                starting: StartingDefaults(purpose, about: null)));
 
             return;
         }
@@ -1896,7 +2047,28 @@ public sealed class Shell
             purpose == ComposeFor.Post ? null : about,
             purpose == ComposeFor.Reply ? Addressed(about!) : null,
             aboutIsMine: purpose == ComposeFor.Reply && IsMine(about!),
-            from: ComposeFrom.Of(Actor.Profile)));
+            from: ComposeFrom.Of(Actor.Profile),
+            starting: StartingDefaults(purpose, about)));
+    }
+
+    /// <summary>
+    ///     What a compose screen's To and Lang start on, which is what would go out if nobody touched them (ADR-0024): the
+    ///     config's <c>default_visibility</c> and <c>default_language</c>, else the account's own as its instance said
+    ///     them (#339), else nothing known. On a reply the visibility is the narrower of that and the post being
+    ///     answered, which is where a reply with no visibility of its own goes out anyway (#338); the language is not,
+    ///     since a reply is in its author's language rather than the answered post's (#340). An edit opens on the post's
+    ///     own, which is the screen's to say.
+    /// </summary>
+    private PostDefaults StartingDefaults(ComposeFor purpose, Post? about)
+    {
+        var preferred = _preferred.Or(_defaults.For(Actor.Profile));
+
+        return purpose == ComposeFor.Reply && about is { } answered
+            ? preferred with
+            {
+                Visibility = PostAudience.Narrower(preferred.Visibility ?? answered.Visibility, answered.Visibility),
+            }
+            : preferred;
     }
 
     /// <summary>

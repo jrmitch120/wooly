@@ -20,7 +20,7 @@ public sealed record PostDraft
 
     /// <summary>
     ///     Who should be able to see it, or <see langword="null" /> to leave the choice to the account's own default on
-    ///     the instance. Null is not a synonym for public: an account whose default is followers-only would have every
+    ///     the instance. Null is not a synonym for public: an account whose default is followers would have every
     ///     post from this client published wider than the account asked for, which is not a mistake an author can take
     ///     back.
     /// </summary>
@@ -42,6 +42,12 @@ public sealed record PostDraft
     ///     The id of the post this one answers, or <see langword="null" /> if it answers nothing.
     /// </summary>
     public string? InReplyTo { get; init; }
+
+    /// <summary>
+    ///     The code of the language the post is in (see <see cref="PostLanguageName" />), or <see langword="null" /> to
+    ///     send none and leave it to the instance.
+    /// </summary>
+    public string? Language { get; init; }
 
     /// <summary>Files to attach, in the order they should appear on the post.</summary>
     public IReadOnlyList<MediaAttachment> Media { get; init; } = [];

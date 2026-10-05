@@ -604,6 +604,22 @@ public class TimelineCommandTests : IDisposable
     }
 
     /// <summary>
+    ///     Read off the wire as Mastodon's <c>private</c>, written as followers: the word every other output uses for
+    ///     the same post (ADR-0024).
+    /// </summary>
+    [Fact]
+    public void Home_NamesAFollowersOnlyPostFollowersInTheJsonItWrites()
+    {
+        AddProfile();
+        _timelines = FakeTimelineReader.Holding(APost.With(visibility: PostVisibility.Followers));
+
+        var run = Run(["timeline", "home", "--json"]);
+
+        var post = Assert.Single(JsonDocument.Parse(run.Output).RootElement.GetProperty("posts").EnumerateArray().ToList());
+        Assert.Equal("followers", post.GetProperty("visibility").GetString());
+    }
+
+    /// <summary>
     ///     What a post answers, which the human output has always said and this output never did — so a pipe handed an
     ///     account's posts and replies had no way to narrow them back down to the replies (#211). Left out on a post
     ///     answering nothing, and the account left out where the post does not name who it answers, the way every

@@ -11,6 +11,15 @@ internal static class ComposeRows
     /// <summary>The warning header with nothing written in it and nobody writing.</summary>
     public const string NoWarning = "     ⚠  none · ctrl-w to add";
 
+    /// <summary>To on a post going out public, as every post <c>APost</c> builds does (#338).</summary>
+    public const string ToPublic = "    To  ● public  ○ unlisted  ○ followers  ○ direct";
+
+    /// <summary>To on a fresh post with no <c>default_visibility</c>, which sends nothing (#338).</summary>
+    public const string ToAccountDefault = "    To  ◂ ● account default ▸";
+
+    /// <summary>Lang with no language in it, which sends none (#340).</summary>
+    public const string NoLanguage = "  Lang  none · the instance decides";
+
     /// <summary>The warning header holding <paramref name="written" />.</summary>
     public static string Warning(string written) => $"     ⚠  {written}";
 

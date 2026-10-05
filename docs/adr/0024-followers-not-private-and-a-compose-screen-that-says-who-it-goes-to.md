@@ -60,6 +60,36 @@ and the whole row on an edit, ignores the click. A click on **Lang** opens its l
 wheel scrolls it, and a click outside closes it without changing anything. The language list and the mention list are
 one list, so the mention list takes the mouse the same way rather than staying the one list on screen that does not.
 
+## Amendment: what review of the landed spec settled (spec #333)
+
+**The walk follows the drawn order.** The spec listed the fields as ⚠, To, Lang; the screen draws them To, Lang, ⚠,
+and the arrows walk them in that order, then the post — the order a reader sees is the order `↑`/`↓` take. A field a
+short terminal has given up (Lang, which goes with From) is stepped over rather than walked into unseen.
+
+**"Account default" stays a choice.** Where To opens on "account default" — nothing known on a fresh post — it is the
+first choice on the row, `● account default  ○ public  …`, so an author who steps off it can step back with the keys or
+the mouse and send no visibility again. It is only there where To opened on it: a known default is a visibility, and
+offering "whatever the account says" beside it would offer the same thing twice. The whole row is wider than a
+standard terminal's value column, so there it is usually the narrow fallback, `◂ ● account default ▸`.
+
+**Clearing Lang on an edit leaves the post's language alone.** Mastodon cannot remove a post's language:
+`UpdateStatusService` sets it to the first of the language sent, the post's own, the account's posting language and the
+instance's default that is a language it knows, so a blank one falls through to the post's own. Lang on an edit still
+sends what it holds, and an empty field is still sent as `PostEdit.Language`'s "clear it", which on the wire is
+nothing — so clearing it changes nothing on the instance. A post's language can be corrected, not taken away.
+
+**The languages are Mastodon's own list.** `PostLanguageName` holds exactly what Mastodon validates a post's language
+against (`LanguagesHelper::SUPPORTED_LOCALES`): its ISO 639-1 codes, the regional codes it takes as languages of their
+own (`zh-TW`, `zh-YUE`, `mn-Mong`, `nan-TW` and the rest), and its ISO 639-3 codes. Mastodon does not refuse a code
+outside it; it quietly replaces it with the account's posting language — so a code this client offered beyond the list
+would publish a post in a language the author did not choose.
+
+**The account's defaults are read by hand.** `AccountDefaults` reads `verify_credentials` through `RawMastodonCall`
+rather than Mastonet, as `InstanceLimits` does, so that `source.privacy` is read as a plain word: a fork can answer
+with a privacy Mastodon has no name for (`local`), which is a default this client does not know rather than an answer
+it cannot read at all. `PostWire` stays the one place the wire's visibility words are translated; the hand-made call
+asks it rather than spelling `private` again.
+
 ## Consequences
 
 Scheduled posts, attachments, polls and media marked sensitive without a warning are still not on the TUI's compose

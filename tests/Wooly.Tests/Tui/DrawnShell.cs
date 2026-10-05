@@ -126,6 +126,16 @@ internal sealed class DrawnShell : IDisposable
         Redraw();
     }
 
+    /// <summary>
+    ///     A key as the terminal hands it over, through the application rather than straight to the window — so that one
+    ///     nothing answers falls through to Terminal.Gui's own navigation, as it would in the running TUI.
+    /// </summary>
+    public void PressThroughTheApplication(Key key)
+    {
+        Application.Keyboard.RaiseKeyDownEvent(key);
+        Redraw();
+    }
+
     /// <summary>A left click on the cell at <paramref name="column" />, <paramref name="row" />.</summary>
     public void Click(int column, int row) => Point(column, row, MouseFlags.LeftButtonClicked);
 

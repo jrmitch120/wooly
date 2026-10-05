@@ -82,6 +82,7 @@ public class ShellSwitchTests
         [
             shell.Timelines.Tokens, shell.Author.Tokens, shell.Engagement.Tokens, shell.Accounts.Tokens,
             shell.Notifications.Tokens, shell.Messages.Tokens, shell.Search.Tokens, shell.Suggestions.Tokens,
+            shell.Defaults.Tokens,
         ];
         Array.ForEach(tokens, list => list.Clear());
 

@@ -20,6 +20,25 @@ public enum ComposeFor
     Edit,
 }
 
+/// <summary>
+///     Where on a compose screen the typing is going: one of the headers that takes typing, or the post itself
+///     (ADR-0024, #337).
+/// </summary>
+public enum ComposeField
+{
+    /// <summary>Who the post goes to: its visibility, chosen on a row of radio buttons (#338).</summary>
+    To,
+
+    /// <summary>What language the post is in: a one-line field with a list of languages under it (#340).</summary>
+    Lang,
+
+    /// <summary>The content warning over the post (#123, #320).</summary>
+    Warning,
+
+    /// <summary>The post being written.</summary>
+    Post,
+}
+
 /// <summary>Who a compose screen's post goes out as, for its From header (#317).</summary>
 /// <param name="Handle">The profile's account, as a byline's handle: <c>@jeff</c>.</param>
 /// <param name="Instance">The instance it is on, which tells two profiles with the same username apart.</param>
@@ -42,6 +61,20 @@ public sealed record ComposeFrom(string Handle, string Instance)
 /// </remarks>
 public sealed class ComposeScreen : Screen
 {
+    /// <summary>What To says while it is the account's own default on the instance, which this screen cannot see.</summary>
+    private const string AccountDefault = "account default";
+
+    /// <summary>The arrows either side of To's one value where the whole row does not fit (#338).</summary>
+    private const string StepBack = "◂";
+
+    private const string StepOn = "▸";
+
+    /// <summary>What Lang says while it is empty, which sends no language and leaves it to the instance (#340).</summary>
+    private const string NoLanguage = "none · the instance decides";
+
+    /// <summary>What Lang says while it is empty and is being typed in.</summary>
+    private const string LanguageBeingTyped = "type a code or a name";
+
     /// <summary>What the warning row says while it is empty and nobody is writing in it.</summary>
     private const string NoWarningWritten = "none · ctrl-w to add";
 
@@ -70,6 +103,21 @@ public sealed class ComposeScreen : Screen
 
     private readonly ComposeFrom? _from;
 
+    /// <summary>What To opened on, which a draft sends as not chosen for as long as To still shows it (#338).</summary>
+    private readonly PostVisibility? _startingVisibility;
+
+    /// <summary>
+    ///     What To's row offers, left to right: "account default" first where To opened on it — so that an author who
+    ///     stepped off it can step back and send nothing again — then every visibility, widest first.
+    /// </summary>
+    private readonly PostVisibility?[] _choices;
+
+    /// <summary>
+    ///     The fields the screen was last drawn with, which the walk keeps to: a short terminal gives Lang's row up
+    ///     (<see cref="Laid" />), and a field that is not on screen is not one to move the typing into.
+    /// </summary>
+    private ComposeField[] _drawn = Fields;
+
     /// <param name="purpose">What this screen was opened to do.</param>
     /// <param name="about">The post being replied to or edited.</param>
     /// <param name="addressing">
@@ -88,17 +136,40 @@ public sealed class ComposeScreen : Screen
     ///     Who the post goes out as, for the From header — or <see langword="null" /> for a screen built with no
     ///     profile behind it, whose header is the label alone.
     /// </param>
+    /// <param name="starting">
+    ///     What To and Lang start on, which is what would go out if nobody touched them — worked out by the shell, where
+    ///     the preferences, the account's own defaults and the post being answered are all in reach. An unknown
+    ///     visibility reads "account default" on To and sends nothing (#338); no language leaves Lang empty, which sends
+    ///     none (#340) (ADR-0024).
+    /// </param>
     public ComposeScreen(
         ComposeFor purpose,
         Post? about = null,
         string? addressing = null,
         bool aboutIsMine = false,
-        ComposeFrom? from = null)
+        ComposeFrom? from = null,
+        PostDefaults? starting = null)
     {
         Purpose = purpose;
         About = about;
         _aboutIsMine = aboutIsMine;
         _from = from;
+
+        // An edit opens on the post's own visibility and language whatever it was handed, the one being what Mastodon
+        // cannot change and the other what the author already said. Here, and nowhere else.
+        var opening = purpose == ComposeFor.Edit && about is not null
+            ? new PostDefaults(about.Visibility, about.Language)
+            : starting ?? PostDefaults.Unknown;
+
+        Visibility = opening.Visibility;
+        _startingVisibility = Visibility;
+        _choices =
+        [
+            .. Visibility is null ? [null] : Array.Empty<PostVisibility?>(),
+            .. Enum.GetValues<PostVisibility>().Select(visibility => (PostVisibility?)visibility),
+        ];
+
+        Lang = ComposeLang.Opening(opening.Language);
 
         Opening = purpose switch
         {
@@ -150,17 +221,53 @@ public sealed class ComposeScreen : Screen
     public string Warning { get; private set; }
 
     /// <summary>
-    ///     Whether what is typed is going into the warning rather than into the post. Both are on screen at once and
-    ///     <c>ctrl-w</c> moves between them, since a terminal takes the keys of whichever field has them — and a click
-    ///     into either field moves the typing there too, which keeps this in step (#320).
+    ///     Who the post goes to, as To shows it (ADR-0024, #338): what goes out, or <see langword="null" /> while it is
+    ///     the account's own default on the instance, which this screen cannot see and so sends nothing for.
     /// </summary>
-    public bool WritingTheWarning { get; private set; }
+    public PostVisibility? Visibility { get; private set; }
+
+    /// <summary>What Lang holds, and what that stands for (ADR-0024, #340).</summary>
+    public ComposeLang Lang { get; private set; }
+
+    /// <summary>
+    ///     Whether the list of languages under Lang is open, which the window says as it opens and closes it — so that
+    ///     the status row can offer the list's keys while it is (#340).
+    /// </summary>
+    public bool OfferingLanguages { get; private set; }
+
+    /// <summary>
+    ///     The fields the typing walks, in the order the arrows walk them (ADR-0024, #337): the headers that take typing,
+    ///     top to bottom as drawn, then the post under them. A header that comes to take typing is put here and joins
+    ///     the walk, with no key rule of its own.
+    /// </summary>
+    private static readonly ComposeField[] Fields =
+        [ComposeField.To, ComposeField.Lang, ComposeField.Warning, ComposeField.Post];
+
+    /// <summary>
+    ///     Which field what is typed is going into. Every field is on screen at once and the typing is in one of them,
+    ///     since a terminal takes the keys of whichever field has them: the arrows walk it (<see cref="Walk" />),
+    ///     <c>ctrl-w</c> jumps it into the warning and back, and a click into a field moves it there too, which keeps
+    ///     this in step (#320).
+    /// </summary>
+    public ComposeField Typing { get; private set; } = ComposeField.Post;
+
+    /// <summary>Whether what is typed is going into the warning rather than into the post.</summary>
+    public bool WritingTheWarning => Typing == ComposeField.Warning;
+
+    /// <summary>Whether the typing is in one of the headers rather than in the post.</summary>
+    public bool OnAHeader => Typing != ComposeField.Post;
 
     /// <summary>
     ///     What the warning field says, dimly, while it is empty: how to reach it while the typing is in the post, and
     ///     what goes there while it is in the field.
     /// </summary>
     public string WarningHint => WritingTheWarning ? WarningBeingWritten : NoWarningWritten;
+
+    /// <summary>
+    ///     What Lang says, dimly, while it is empty: that the instance decides while the typing is elsewhere, and what
+    ///     goes there while it is in Lang (#340).
+    /// </summary>
+    public string LanguageHint => Typing == ComposeField.Lang ? LanguageBeingTyped : NoLanguage;
 
     /// <inheritdoc />
     public override bool HoldsADraft => true;
@@ -210,9 +317,26 @@ public sealed class ComposeScreen : Screen
     ///     No keymap key, in either field: <c>?</c> is a letter in the post and in the warning alike, each field taking
     ///     its own keys before the shell sees them (#320) — so naming it would be offering a press that types a
     ///     question mark.
+    ///     <para>
+    ///         The walk between the fields comes first (<c>docs/tui-shell.md</c>, #337), offered only the ways it goes:
+    ///         it stops at either end, so To, the top header, offers <c>↓</c> and the post <c>↑</c> — which in the post
+    ///         walks only off its first line, the caret having it below that. On To the choosing comes ahead of that,
+    ///         being what the row is for (#338).
+    ///     </para>
     /// </remarks>
     protected override IReadOnlyList<KeyHint> OwnKeys =>
     [
+        .. Typing == ComposeField.Lang && OfferingLanguages
+            ? [new KeyHint("↑↓", "pick"), new KeyHint("tab", "choose"), new KeyHint("esc", "close")]
+            : Array.Empty<KeyHint>(),
+        .. Typing == ComposeField.To ? [new KeyHint("←→", "choose")] : Array.Empty<KeyHint>(),
+        .. Walks switch
+        {
+            (true, true) => [new KeyHint("↑↓", "field")],
+            (true, false) => [new KeyHint("↑", "field")],
+            (false, true) => [new KeyHint("↓", "field")],
+            _ => Array.Empty<KeyHint>(),
+        },
         new("ctrl-s", Purpose == ComposeFor.Edit ? "save" : "send"),
         new("ctrl-w", WritingTheWarning ? "back to the post" : "content warning"),
         new("esc", "throw it away"),
@@ -223,7 +347,14 @@ public sealed class ComposeScreen : Screen
     ///     The whole of the content region, laid out to its height (<see cref="Drawing.Height" />) rather than
     ///     scrolled: the headers, the hairline, blank rows where the editor is laid over them, and the foot.
     /// </remarks>
-    public override IReadOnlyList<Line> Lines(Drawing drawing) => Laid(drawing.Width, drawing.Height).Rows;
+    public override IReadOnlyList<Line> Lines(Drawing drawing)
+    {
+        var laid = Laid(drawing.Width, drawing.Height);
+
+        _drawn = laid.Lang == Rectangle.Empty ? [.. Fields.Where(field => field != ComposeField.Lang)] : Fields;
+
+        return laid.Rows;
+    }
 
     /// <summary>
     ///     The warning field changed: what it holds now, learned the way the post's text is learned from the editor
@@ -231,8 +362,171 @@ public sealed class ComposeScreen : Screen
     /// </summary>
     public void RewriteWarning(string written) => Warning = written;
 
-    /// <summary><c>ctrl-w</c>: hands the typing to the warning, or hands it back.</summary>
-    public void WriteTheWarning() => WritingTheWarning = !WritingTheWarning;
+    /// <summary>
+    ///     Lang's field changed: what it holds now, learned as the warning's is (#340). Whether that is a language is
+    ///     asked at send.
+    /// </summary>
+    public void RewriteLanguage(string written) => Lang = Lang with { Held = written };
+
+    /// <summary>A language picked off Lang's list: the field says it as <see cref="ComposeLang.Spoken" /> writes it.</summary>
+    public void PickLanguage(PostLanguage language) => Lang = Lang with { Held = ComposeLang.Spoken(language) };
+
+    /// <summary>The list of languages under Lang opened or closed, which the status row follows.</summary>
+    public void OfferLanguages(bool open) => OfferingLanguages = open;
+
+    /// <summary><c>ctrl-w</c>: hands the typing to the warning, or hands it back to the post.</summary>
+    public void WriteTheWarning() => Typing = WritingTheWarning ? ComposeField.Post : ComposeField.Warning;
+
+    /// <summary>
+    ///     <c>↑</c> or <c>↓</c> (<paramref name="by" /> −1 or 1): moves the typing to the field above or below in
+    ///     <see cref="Fields" /> — out of the post into the last header, between the headers, and off the last header
+    ///     back into the post (ADR-0024, #337).
+    /// </summary>
+    /// <returns>
+    ///     Whether it moved, which it does not off either end: there is nothing above the top header, and below the post
+    ///     is the post's own business.
+    /// </returns>
+    /// <remarks>
+    ///     A field that takes nothing is not walked into: To on an edit, which Mastodon cannot change. Nor is one the
+    ///     screen was last drawn without: Lang, where a short terminal gave its row up.
+    /// </remarks>
+    public bool Walk(int by)
+    {
+        if (WalkedTo(by) is not { } field)
+        {
+            return false;
+        }
+
+        Typing = field;
+
+        return true;
+    }
+
+    /// <summary>
+    ///     Which ways the arrows can walk from where the typing is, up and down, for the status row to offer: the walk
+    ///     stops at either end rather than coming round, so To offers only <c>↓</c> and the post only <c>↑</c>.
+    /// </summary>
+    private (bool Up, bool Down) Walks => (WalkedTo(-1) is not null, WalkedTo(1) is not null);
+
+    /// <summary>The field <see cref="Walk" /> would move the typing to, or null off either end.</summary>
+    private ComposeField? WalkedTo(int by)
+    {
+        var walked = _drawn.Where(Takes).ToArray();
+        var to = Array.IndexOf(walked, Typing) + by;
+
+        return to < 0 || to >= walked.Length ? null : walked[to];
+    }
+
+    /// <summary>Whether <paramref name="field" /> can have the typing at all, which To cannot where it allows nothing.</summary>
+    public bool Takes(ComposeField field) => field != ComposeField.To || _choices.Any(Offers);
+
+    /// <summary>
+    ///     The typing went into <paramref name="field" /> by a click rather than by this screen's keys, and the screen
+    ///     follows it there (#320, #338).
+    /// </summary>
+    /// <returns>Whether that moved it, which it does not where it was already there or the field takes nothing.</returns>
+    public bool TypeInto(ComposeField field)
+    {
+        if (Typing == field || !Takes(field))
+        {
+            return false;
+        }
+
+        Typing = field;
+
+        return true;
+    }
+
+    /// <summary>
+    ///     <c>←</c> or <c>→</c> (<paramref name="by" /> −1 or 1) on To: the next choice that way which To offers,
+    ///     skipping any it does not (ADR-0024, #338).
+    /// </summary>
+    /// <returns>Whether the choice moved: never off To, nor off either end of what it offers.</returns>
+    public bool Choose(int by)
+    {
+        if (Typing != ComposeField.To || !Stepped(by, out var next))
+        {
+            return false;
+        }
+
+        Visibility = next;
+
+        return true;
+    }
+
+    /// <summary>
+    ///     A click <paramref name="column" /> columns into To's value as it is drawn <paramref name="room" /> wide: on a
+    ///     choice To offers it chooses it, on an arrow it steps, and anywhere on the row it gives To the typing — but a
+    ///     value To does not allow ignores it, and so does all of To on an edit (ADR-0024, #338).
+    /// </summary>
+    /// <returns>Whether anything changed.</returns>
+    public bool ClickTo(int column, int room)
+    {
+        if (!Takes(ComposeField.To))
+        {
+            return false;
+        }
+
+        var was = (Visibility, Typing);
+
+        switch (ToPartAt(ToRow(room), column))
+        {
+            case ToPart.Choice { Visibility: var choice } when !Offers(choice):
+                return false;
+            case ToPart.Choice { Visibility: var choice }:
+                Visibility = choice;
+
+                break;
+            case ToPart.Step { By: var by } when Stepped(by, out var next):
+                Visibility = next;
+
+                break;
+        }
+
+        Typing = ComposeField.To;
+
+        return (Visibility, Typing) != was;
+    }
+
+    /// <summary>What the run <paramref name="column" /> columns into <paramref name="row" /> stands for, if anything.</summary>
+    private static ToPart? ToPartAt(IEnumerable<(Span Span, ToPart? Part)> row, int column)
+    {
+        foreach (var (span, part) in row)
+        {
+            if (column < span.Width)
+            {
+                return part;
+            }
+
+            column -= span.Width;
+        }
+
+        return null;
+    }
+
+    /// <summary>The next choice To offers <paramref name="by" /> along the row from the one chosen, if there is one.</summary>
+    private bool Stepped(int by, out PostVisibility? next)
+    {
+        for (var at = Array.IndexOf(_choices, Visibility) + by; at >= 0 && at < _choices.Length; at += by)
+        {
+            if (Offers(_choices[at]))
+            {
+                next = _choices[at];
+
+                return true;
+            }
+        }
+
+        next = Visibility;
+
+        return false;
+    }
+
+    /// <summary>
+    ///     Whether To's row offers <paramref name="choice" />: a visibility where To <see cref="Allows" /> it, and
+    ///     "account default" anywhere but an edit — it is only on the row where To opened on it.
+    /// </summary>
+    private bool Offers(PostVisibility? choice) => choice is { } visibility ? Allows(visibility) : Purpose != ComposeFor.Edit;
 
     /// <summary>
     ///     Where the editor goes inside the content panel's viewport of <paramref name="viewport" />: under the
@@ -248,29 +542,57 @@ public sealed class ComposeScreen : Screen
     /// </summary>
     public Rectangle WarningAt(Size viewport) => Laid(viewport.Width, viewport.Height).Warning;
 
+    /// <summary>Where To's value goes inside the same viewport, for the row of buttons laid over it (#338).</summary>
+    public Rectangle ToAt(Size viewport) => Laid(viewport.Width, viewport.Height).To;
+
+    /// <summary>
+    ///     Where Lang's value goes inside the same viewport, for the field laid over it (#340) — nowhere where a short
+    ///     terminal has given its row up.
+    /// </summary>
+    public Rectangle LangAt(Size viewport) => Laid(viewport.Width, viewport.Height).Lang;
+
+    /// <summary>
+    ///     To's value as it is drawn <paramref name="room" /> columns wide — what the row laid over it paints, so that
+    ///     row and the one a test reads off <see cref="Lines" /> are the same spans.
+    /// </summary>
+    public IReadOnlyList<Span> ToSpans(int room) => [.. ToRow(room).Select(run => run.Span)];
+
     /// <summary>
     ///     The screen laid out at <paramref name="width" /> by <paramref name="height" />: every row, top to bottom,
     ///     and where the editor sits among them (#317, variant A of the prototype).
     /// </summary>
     /// <remarks>
-    ///     A blank; the headers — From, the reply header and its quote on a reply, the warning; a hairline; a blank;
-    ///     the editor; a hairline; the row the count sits on. Two columns of padding either side of all of it.
+    ///     A blank; the headers — From, To, Lang, the reply header and its quote on a reply, the warning; a hairline; a
+    ///     blank; the editor; a hairline; the row the count sits on. Two columns of padding either side of all of it.
+    ///     Lang gives way with From, being lower on the screen just before it (#340).
     ///     <para>
     ///         Never so far down that there is no editor left. ADR-0015 priced the editor's share of a 24-row
     ///         terminal at more than what sits above it, but a terminal can be any size, and an editor that starts
     ///         below the foot is one nobody can type in. Where there is not room for everything, rows give way in the
-    ///         order <see cref="Row.Keep" /> ranks them: the tail of what is being answered first, the warning never —
-    ///         it is a row the reader types into, and one they cannot see is worse than a quote that stops early.
+    ///         order <see cref="Row.Keep" /> ranks them: the tail of what is being answered first, To and the warning
+    ///         never — the warning is a row the reader types into, and one they cannot see is worse than a quote that
+    ///         stops early, and To says who the post reaches (#338).
     ///         Where nobody says how tall the room is, it is as tall as the rows and the editor's least want.
     ///     </para>
     /// </remarks>
-    private (IReadOnlyList<Line> Rows, Rectangle Editor, Rectangle Warning) Laid(int width, int? height)
+    private (IReadOnlyList<Line> Rows, Rectangle Editor, Rectangle Warning, Rectangle To, Rectangle Lang) Laid(
+        int width,
+        int? height)
     {
         var inner = Math.Max(0, width - (Pad * 2));
         var valueWidth = Math.Max(0, inner - LabelWidth - LabelGap);
         var hairline = Line.Of(Gap(Pad), new Span(new string('─', inner), Role.PanelBorder));
 
-        var above = new List<Row> { new(Line.Blank, Keep.TopBlank), new(Header("From", Role.Muted, From(valueWidth)), Keep.From) };
+        var to = new Row(Header("To", Role.Muted, [.. ToSpans(valueWidth)]), Keep.Always);
+        var lang = new Row(Header("Lang", Role.Muted, LangValue(valueWidth)), Keep.From);
+
+        var above = new List<Row>
+        {
+            new(Line.Blank, Keep.TopBlank),
+            new(Header("From", Role.Muted, From(valueWidth)), Keep.From),
+            to,
+            lang,
+        };
 
         if (Purpose == ComposeFor.Reply && About is { } answered)
         {
@@ -327,11 +649,11 @@ public sealed class ComposeScreen : Screen
         return (
             rows,
             new Rectangle(Math.Min(Pad, width), top, inner, editor),
-            new Rectangle(
-                Math.Min(Pad + LabelWidth + LabelGap, width),
-                above.IndexOf(warning),
-                valueWidth,
-                1));
+            Value(above.IndexOf(warning)),
+            Value(above.IndexOf(to)),
+            above.Contains(lang) ? Value(above.IndexOf(lang)) : Rectangle.Empty);
+
+        Rectangle Value(int row) => new(Math.Min(Pad + LabelWidth + LabelGap, width), row, valueWidth, 1);
     }
 
     /// <summary>
@@ -357,6 +679,109 @@ public sealed class ComposeScreen : Screen
 
         return [new Span(handle, Role.BylineHandle), new Span(instance, Role.Muted)];
     }
+
+    /// <summary>
+    ///     To's value in <paramref name="room" /> columns (ADR-0024, #338): every choice it offers as a radio button, the
+    ///     chosen one filled — or, where that row does not fit, the one chosen with an arrow either side. Values To does
+    ///     not allow are muted, and so is all of it on an edit.
+    /// </summary>
+    /// <remarks>
+    ///     Each run comes with what a click on it means — a choice, or a step along the row — so that a click is
+    ///     answered from the very runs that were drawn.
+    /// </remarks>
+    private List<(Span Span, ToPart? Part)> ToRow(int room)
+    {
+        var row = new List<(Span Span, ToPart? Part)>();
+
+        foreach (var choice in _choices)
+        {
+            if (row.Count > 0)
+            {
+                row.Add((Gap(2), null));
+            }
+
+            row.Add((Choice(choice), new ToPart.Choice(choice)));
+        }
+
+        if (row.Sum(run => run.Span.Width) <= room)
+        {
+            return row;
+        }
+
+        var shown = Choice(Visibility);
+
+        List<(Span Span, ToPart? Part)> cycle =
+        [
+            (new Span(StepBack, Role.Muted), new ToPart.Step(-1)),
+            (Gap(1), null),
+            (shown, new ToPart.Choice(Visibility)),
+            (Gap(1), null),
+            (new Span(StepOn, Role.Muted), new ToPart.Step(1)),
+        ];
+
+        return cycle.Sum(run => run.Span.Width) <= room
+            ? cycle
+            : [(shown with { Text = TextWrap.Clip(shown.Text, room) }, new ToPart.Choice(Visibility))];
+    }
+
+    /// <summary>One of To's choices as a radio button and its name: <c>● followers</c>, <c>○ account default</c>.</summary>
+    private Span Choice(PostVisibility? choice)
+    {
+        var bubble = choice == Visibility ? "●" : "○";
+        var name = choice is { } visibility ? PostVisibilityName.Of(visibility) : AccountDefault;
+
+        return new Span($"{bubble} {name}", ValueRole(choice));
+    }
+
+    /// <summary>
+    ///     Lang's value in <paramref name="room" /> columns (#340), painted as the field laid over it shows it so the row
+    ///     reads the same with no terminal behind it: a language's code and, muted, its own name; anything else being
+    ///     typed as it stands; and, empty, a muted hint.
+    /// </summary>
+    private Span[] LangValue(int room)
+    {
+        if (Lang.Held.Length == 0)
+        {
+            return [new Span(TextWrap.Clip(LanguageHint, room), Role.Muted)];
+        }
+
+        if (Lang.HoldsALanguageWhole && Lang.Language is { } language)
+        {
+            var code = TextWrap.Clip(language.Code, room);
+
+            return
+            [
+                new Span(code, Role.Body),
+                new Span(
+                    TextWrap.Clip($"{ComposeLang.CodeGap}{language.OwnName}", room - Glyphs.Columns(code)),
+                    Role.Muted),
+            ];
+        }
+
+        return [new Span(TextWrap.Clip(Lang.Held, room), Role.Body)];
+    }
+
+    /// <summary>
+    ///     The role a choice on To is drawn in: muted where it cannot be chosen, the selection's where it is chosen and
+    ///     To has the typing — which is how a reader sees where the typing went, a row of buttons having no caret — and
+    ///     the body's otherwise.
+    /// </summary>
+    private Role ValueRole(PostVisibility? choice) =>
+        !Offers(choice) ? Role.Muted
+        : choice == Visibility && Typing == ComposeField.To ? Role.SelectedText
+        : Role.Body;
+
+    /// <summary>
+    ///     Whether To may be set to <paramref name="visibility" />: any on a fresh post, none on an edit — Mastodon cannot
+    ///     change a published post's visibility — and on a reply only as narrow as the post being answered or narrower,
+    ///     so the screen never offers what ADR-0013 would refuse. The keys, the clicks and the dimming all read this.
+    /// </summary>
+    public bool Allows(PostVisibility visibility) => Purpose switch
+    {
+        ComposeFor.Edit => false,
+        ComposeFor.Reply when About is { } answered => !PostAudience.IsWiderThan(visibility, answered.Visibility),
+        _ => true,
+    };
 
     /// <summary>
     ///     The count at the foot, right-aligned inside the padding: how much of the post's limit has been used, as the
@@ -391,9 +816,10 @@ public sealed class ComposeScreen : Screen
     ///     assembled here: they are one field meaning two things, and the screen holding the field is the only place
     ///     that can be expected to know which is which.
     ///     <para>
-    ///         Silence rather than a visibility of the screen's choosing. A reply is answered as narrowly as the post
-    ///         it answers, and a post says nothing so that the account's own default on the instance decides — this
-    ///         shell has no visibility picker to have been told anything by.
+    ///         The visibility To shows, chosen only where the author moved it off what it opened on (#338): a
+    ///         preference To started on is still a preference, and <c>PostAuthor</c> narrows one too wide for the post
+    ///         being answered exactly as it does on the CLI, where a choice that wide is refused. Unknown sends nothing,
+    ///         which leaves it to the account's own default — or, on a reply, to the post being answered.
     ///     </para>
     /// </remarks>
     private PostDraft Drafted() => new()
@@ -401,6 +827,9 @@ public sealed class ComposeScreen : Screen
         Text = Text,
         ContentWarning = ContentWarnings.Written(Warning),
         InReplyTo = Purpose == ComposeFor.Reply ? About?.Id : null,
+        Visibility = Visibility,
+        VisibilityChosen = Visibility != _startingVisibility,
+        Language = Lang.Resolves(out var code) ? code : null,
     };
 
     /// <summary>The change this screen saves to the post it was opened on: its text, and the warning over it.</summary>
@@ -416,7 +845,16 @@ public sealed class ComposeScreen : Screen
     ///         the body already carries, the editor being pre-filled from the same post.
     ///     </para>
     /// </remarks>
-    private PostEdit Changed() => new() { Text = Text, ContentWarning = Warning };
+    /// <remarks>
+    ///     The language the same way (#340): whatever Lang holds, always — an empty one as an empty code, which is
+    ///     <see cref="PostEdit.Language" />'s "clear it".
+    /// </remarks>
+    private PostEdit Changed() => new()
+    {
+        Text = Text,
+        ContentWarning = Warning,
+        Language = Lang.Resolves(out var code) ? code ?? string.Empty : null,
+    };
 
     /// <summary>
     ///     The warning header: what this post is going behind, under the mark a warned post wears in the feed
@@ -442,6 +880,16 @@ public sealed class ComposeScreen : Screen
 
     /// <summary>One row of the layout, and how long it holds out on a terminal too short for every row.</summary>
     private sealed record Row(Line Line, Keep Keep);
+
+    /// <summary>What a run of To's row means to a click on it.</summary>
+    private abstract record ToPart
+    {
+        /// <summary>One of the choices: a visibility, or <see langword="null" /> for "account default".</summary>
+        public sealed record Choice(PostVisibility? Visibility) : ToPart;
+
+        /// <summary>An arrow either side of the one value shown, stepping <paramref name="By" /> along the row.</summary>
+        public sealed record Step(int By) : ToPart;
+    }
 
     /// <summary>
     ///     How long a row holds out on a terminal too short for everything, lowest first to go: what is being

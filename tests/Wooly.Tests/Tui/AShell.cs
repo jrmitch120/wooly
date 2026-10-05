@@ -1,4 +1,6 @@
 using Wooly.Core;
+using Wooly.Core.Configuration;
+using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Rendering;
@@ -31,6 +33,7 @@ internal sealed class AShell
         Suggestions = FakeFollowSuggestions.Offering();
         RateLimit = FakeRateLimitReport.Silent();
         Limits = FakeInstanceLimits.Setting();
+        Defaults = FakeAccountDefaults.Setting();
     }
 
     public FakeShellHost Host { get; }
@@ -56,6 +59,9 @@ internal sealed class AShell
     public FakeRateLimitReport RateLimit { get; set; }
 
     public FakeInstanceLimits Limits { get; set; }
+
+    /// <summary>What each profile's account posts at by default, which compose starts on (#339). Nothing, unless said.</summary>
+    public FakeAccountDefaults Defaults { get; set; }
 
     /// <summary>
     ///     Where an address goes, which is the one thing the shell does that leaves the terminal (#85). Not one of the
@@ -96,6 +102,20 @@ internal sealed class AShell
     /// <summary>The hashtag the rail keeps a place for, or none.</summary>
     public string? Hashtag { get; set; }
 
+    /// <summary>The config file's <c>default_visibility</c>, which compose's To starts on (#338), or none.</summary>
+    public PostVisibility? DefaultVisibility { get; set; }
+
+    /// <summary>The config file's <c>default_language</c>, as a code, which compose's Lang starts on (#340), or none.</summary>
+    public string? DefaultLanguage { get; set; }
+
+    /// <summary>The config file's preferences, as far as these tests set them.</summary>
+    private Preferences Preferences => new()
+    {
+        Hashtag = Hashtag,
+        DefaultVisibility = DefaultVisibility,
+        DefaultLanguage = DefaultLanguage,
+    };
+
     /// <summary>
     ///     How long the settle window and the cache are. Real lengths, because the fake host is what decides when a
     ///     wait happens and the clock is what decides how old a cache entry is — neither of them passes on its own.
@@ -122,13 +142,13 @@ internal sealed class AShell
 
     private Shell Over(Opening opening) => new(
         opening,
-        new ShellPorts(Timelines, Author, Engagement, Accounts, Notifications, Messages, Search, Suggestions, RateLimit, Limits),
+        new ShellPorts(Timelines, Author, Engagement, Accounts, Notifications, Messages, Search, Suggestions, RateLimit, Limits, Defaults),
         new ProfilePorts(Profiles, Paths, Authorizer, Verifier),
         Host,
         Browser,
         Clock,
         Timing,
-        Hashtag);
+        Preferences);
 
     /// <summary>
     ///     What <paramref name="screen" /> draws at 61 columns, past the one column the gutter takes — which every
@@ -158,7 +178,7 @@ internal sealed class AShell
         + Messages.Listings.Count + Messages.Shown.Count + Messages.MarkedRead.Count
         + Search.Searches.Count + Search.FollowedSearches.Count
         + Suggestions.Reads.Count + Suggestions.Dismissals.Count
-        + Limits.Reads.Count;
+        + Limits.Reads.Count + Defaults.Reads.Count;
 
     /// <summary>
     ///     The access token every request to every port that reaches an instance went out with, all told — where a test
@@ -168,7 +188,7 @@ internal sealed class AShell
     [
         .. Timelines.Tokens, .. Author.Tokens, .. Engagement.Tokens, .. Accounts.Tokens, .. Notifications.Tokens,
         .. Messages.Tokens, .. Search.Tokens, .. Suggestions.Tokens,
-        .. Limits.Tokens,
+        .. Limits.Tokens, .. Defaults.Tokens,
     ];
 
     /// <summary>A shell that has already opened onto its first destination.</summary>
@@ -192,12 +212,13 @@ internal sealed class AShell
     {
         var shell = new Shell(
             Opening.As(registry.Resolve(null)),
-            new ShellPorts(Timelines, Author, Engagement, Accounts, Notifications, Messages, Search, Suggestions, RateLimit, Limits),
+            new ShellPorts(Timelines, Author, Engagement, Accounts, Notifications, Messages, Search, Suggestions, RateLimit, Limits, Defaults),
             new ProfilePorts(registry, paths, Authorizer, Verifier),
             Host,
             Browser,
             Clock,
-            Timing);
+            Timing,
+            Preferences);
 
         await shell.Open();
 

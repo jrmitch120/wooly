@@ -12,6 +12,9 @@ namespace Wooly.Tests.Tui;
 /// </summary>
 public class MentionListTests
 {
+    /// <summary>A terminal short enough that the compose editor has no room for a list of five.</summary>
+    private const int Short = 13;
+
     /// <summary>The people every test has already seen on its home timeline.</summary>
     private static readonly AShell Seen = new()
     {
@@ -271,6 +274,163 @@ public class MentionListTests
 
         Assert.Contains("Mark", rows[2], StringComparison.Ordinal);
         Assert.Contains("Mabel  @mabel@c.social", rows[3], StringComparison.Ordinal);
+    }
+
+    /// <summary>A click on a person inserts them, as <c>tab</c> does on the picked one, and closes the list.</summary>
+    [Fact]
+    public async Task AClickOnAPersonInsertsThem()
+    {
+        using var drawn = await Composing();
+
+        Type(drawn, "hi @ma");
+
+        var at = List(drawn).FrameToScreen();
+
+        drawn.Click(at.X + 4, at.Y + 2);
+
+        Assert.Equal("hi @mark ", Editor(drawn).Text);
+        Assert.False(List(drawn).Visible);
+    }
+
+    /// <summary>
+    ///     A click outside the open list closes it and does nothing else — not even move the caret, so the next letter
+    ///     typed carries on the word — whether the terminal reports it as one click or as the press, release and click
+    ///     it is made of.
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AClickOutsideTheListClosesItAndLeavesTheDraft(bool asAPressAndRelease)
+    {
+        using var drawn = await Composing();
+
+        Type(drawn, "hi @ma");
+
+        var editor = Editor(drawn).FrameToScreen();
+        var (column, row) = (editor.X + 1, editor.Bottom - 1);
+
+        if (asAPressAndRelease)
+        {
+            drawn.Point(column, row, MouseFlags.LeftButtonPressed);
+            drawn.Point(column, row, MouseFlags.LeftButtonReleased);
+        }
+
+        drawn.Click(column, row);
+
+        Assert.False(List(drawn).Visible);
+        Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
+
+        Type(drawn, "x");
+
+        Assert.Equal("hi @max", Editor(drawn).Text);
+        Assert.False(List(drawn).Visible);
+    }
+
+    /// <summary>A click on the rail while the list is open closes the list, and goes nowhere.</summary>
+    [Fact]
+    public async Task AClickOnTheRailOnlyClosesTheList()
+    {
+        using var drawn = await Composing();
+
+        Type(drawn, "hi @ma");
+        drawn.Click(2, 2);
+
+        Assert.False(List(drawn).Visible);
+        Assert.Equal("hi @ma", Assert.IsType<ComposeScreen>(drawn.Shell.Screen).Text);
+    }
+
+    /// <summary>
+    ///     A notch of the wheel over the list moves the pick a person at a time, and stops at either end rather than
+    ///     going round; the draft is untouched.
+    /// </summary>
+    [Fact]
+    public async Task TheWheelOverTheListMovesThePick()
+    {
+        using var drawn = await Composing();
+
+        Type(drawn, "@ma");
+
+        var at = List(drawn).FrameToScreen();
+
+        drawn.Wheel(at.X + 4, at.Y + 1);
+
+        Assert.StartsWith("│▌ Mark", ListRows(drawn)[2], StringComparison.Ordinal);
+
+        drawn.Wheel(at.X + 4, at.Y + 1);
+
+        Assert.StartsWith("│▌ Mark", ListRows(drawn)[2], StringComparison.Ordinal);
+
+        drawn.Wheel(at.X + 4, at.Y + 1, down: false);
+
+        Assert.StartsWith("│▌ Maria", ListRows(drawn)[1], StringComparison.Ordinal);
+        Assert.Equal("@ma", Editor(drawn).Text);
+    }
+
+    /// <summary>
+    ///     Where the editor has no room for everybody the list holds, it shows as many as fit, and the wheel and the
+    ///     arrows scroll the rest into view under the pick.
+    /// </summary>
+    [Fact]
+    public async Task AListTallerThanItsRoomScrollsToThePick()
+    {
+        var five = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(
+                APost.With(id: "1", account: "maa@a.social", author: "Maa"),
+                APost.With(id: "2", account: "mab@a.social", author: "Mab"),
+                APost.With(id: "3", account: "mac@a.social", author: "Mac"),
+                APost.With(id: "4", account: "mad@a.social", author: "Mad"),
+                APost.With(id: "5", account: "mae@a.social", author: "Mae")),
+            Accounts = FakeAccountRelationships.HoldingNobody(),
+        };
+
+        using var drawn = await DrawnShell.Of(80, Short, Themes.Dark, five);
+
+        drawn.Shell.Compose();
+        drawn.Redraw();
+        Type(drawn, "@ma");
+
+        var rows = ListRows(drawn);
+        var shown = rows.Count - 2;
+
+        Assert.True(shown is > 0 and < 5, $"{shown} of 5 shown:\n{string.Join('\n', drawn.Rows())}");
+        Assert.StartsWith("│▌ Maa", rows[1], StringComparison.Ordinal);
+
+        var at = List(drawn).FrameToScreen();
+
+        for (var notch = 0; notch < 4; notch++)
+        {
+            drawn.Wheel(at.X + 4, at.Y + 1);
+        }
+
+        rows = ListRows(drawn);
+
+        Assert.StartsWith("│▌ Mae", rows[shown], StringComparison.Ordinal);
+        Assert.DoesNotContain(rows, row => row.Contains("Maa", StringComparison.Ordinal));
+
+        drawn.Press(Key.CursorDown);
+
+        Assert.StartsWith("│▌ Maa", ListRows(drawn)[1], StringComparison.Ordinal);
+
+        drawn.Press(Key.Tab);
+
+        Assert.Equal("@maa@a.social ", Editor(drawn).Text);
+    }
+
+    /// <summary>A right click on the list is nothing: no-one is inserted, the list stays open, and the draft stays (#307).</summary>
+    [Fact]
+    public async Task ARightClickOnTheListDoesNothing()
+    {
+        using var drawn = await Composing();
+
+        Type(drawn, "hi @ma");
+
+        var at = List(drawn).FrameToScreen();
+
+        drawn.RightClick(at.X + 4, at.Y + 2);
+
+        Assert.True(List(drawn).Visible);
+        Assert.Equal("hi @ma", Assert.IsType<ComposeScreen>(drawn.Shell.Screen).Text);
     }
 
     private static async Task<DrawnShell> Composing(ITheme? theme = null, FakeAccountRelationships? accounts = null)

@@ -110,14 +110,14 @@ public class TomlConfigStoreTests : IDisposable
             {
                 ["personal"] = new() { Instance = "mastodon.social", Account = "jeff@mastodon.social" },
             },
-            Preferences = new Preferences { DefaultVisibility = PostVisibility.Private },
+            Preferences = new Preferences { DefaultVisibility = PostVisibility.Followers },
         });
 
         var toml = File.ReadAllText(Path.Combine(_directory.Path, "config.toml"));
 
         Assert.Contains("current_profile = \"personal\"", toml);
         Assert.Contains("[preferences]", toml);
-        Assert.Contains("default_visibility = \"private\"", toml);
+        Assert.Contains("default_visibility = \"followers\"", toml);
         Assert.Contains("[profiles.personal]", toml);
         Assert.Contains("instance = \"mastodon.social\"", toml);
         Assert.Contains("account = \"jeff@mastodon.social\"", toml);
@@ -217,6 +217,24 @@ public class TomlConfigStoreTests : IDisposable
         Assert.Contains(written, exception.Message);
     }
 
+    /// <summary>
+    ///     A file written before ADR-0024 says <c>private</c>, Mastodon's word for followers. It still loads, and means
+    ///     the same thing the new word does.
+    /// </summary>
+    [Theory]
+    [InlineData("followers")]
+    [InlineData("private")]
+    public void Load_ReadsFollowersUnderEitherSpelling(string written)
+    {
+        WriteConfigFile(
+            $"""
+             [preferences]
+             default_visibility = "{written}"
+             """);
+
+        Assert.Equal(PostVisibility.Followers, NewStore().Load().Preferences.DefaultVisibility);
+    }
+
     [Fact]
     public void Load_ListsTheVisibilitiesItAcceptsWhenGivenOneItDoesNot()
     {
@@ -230,6 +248,67 @@ public class TomlConfigStoreTests : IDisposable
 
         Assert.Contains("friends-only", exception.Message);
         Assert.Contains("unlisted", exception.Message);
+    }
+
+    [Fact]
+    public void Load_ReadsAbsentDefaultLanguageAsNone()
+    {
+        WriteConfigFile(
+            """
+            [preferences]
+            default_visibility = "public"
+            """);
+
+        Assert.Null(NewStore().Load().Preferences.DefaultLanguage);
+    }
+
+    [Fact]
+    public void Save_ThenLoad_RoundTripsDefaultLanguage()
+    {
+        var store = NewStore();
+
+        store.Save(new WoolyConfig { Preferences = new Preferences { DefaultLanguage = "de" } });
+
+        Assert.Equal("de", store.Load().Preferences.DefaultLanguage);
+        Assert.Contains(
+            "default_language = \"de\"",
+            File.ReadAllText(Path.Combine(_directory.Path, "config.toml")));
+    }
+
+    /// <summary>
+    ///     The same words the <c>--language</c> flag takes, so a hand-written name reads as the code it names — and is
+    ///     written back as that code, the one spelling the file keeps.
+    /// </summary>
+    [Theory]
+    [InlineData("de")]
+    [InlineData("German")]
+    [InlineData("Deutsch")]
+    [InlineData("DE")]
+    public void Load_ReadsADefaultLanguageWrittenByHandAsTheCodeItNames(string written)
+    {
+        WriteConfigFile(
+            $"""
+             [preferences]
+             default_language = "{written}"
+             """);
+
+        Assert.Equal("de", NewStore().Load().Preferences.DefaultLanguage);
+    }
+
+    /// <summary>A typo is refused when the file loads, naming the file, rather than quietly sending no language.</summary>
+    [Fact]
+    public void Load_RefusesADefaultLanguageItDoesNotKnowNamingTheFile()
+    {
+        WriteConfigFile(
+            """
+            [preferences]
+            default_language = "Klingon"
+            """);
+
+        var exception = Assert.Throws<ConfigurationException>(() => NewStore().Load());
+
+        Assert.Contains("Klingon", exception.Message);
+        Assert.Contains("config.toml", exception.Message);
     }
 
     /// <summary>
