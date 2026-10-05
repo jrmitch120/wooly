@@ -169,6 +169,61 @@ public class SixelPicturesTests
         Assert.Equal(1, told);
     }
 
+    /// <summary>
+    ///     A picture's transparent pixels are laid on the page before it is encoded, so the sixel covers its cells whole —
+    ///     transparent, it showed whatever text had been on those cells before the page moved. Half transparent is half
+    ///     the page; opaque is left alone.
+    /// </summary>
+    [Fact]
+    public void Of_LaysTransparentPixelsOnTheBackdrop()
+    {
+        var encoded = new List<Color[,]>();
+        var sixels = new SixelPictures(
+            (pixels, _) =>
+            {
+                encoded.Add(pixels);
+
+                return "";
+            },
+            backdrop: () => new Color(0, 0, 200));
+        var pixels = new Color[80, 80];
+
+        for (var x = 0; x < 80; x++)
+        {
+            for (var y = 0; y < 80; y++)
+            {
+                pixels[x, y] = new Color(200, 0, 0, 255);
+            }
+        }
+
+        pixels[0, 0] = new Color(200, 0, 0, 0);
+        pixels[2, 0] = new Color(200, 0, 0, 255 / 2);
+
+        var crop = new SixelCrop(Top: 0, Rows: 4, Columns: 8);
+        var sharp = sixels.Of(Box("m1", 8, 4), new Picture(pixels), Cell, crop, colours: 256);
+        sixels.Of(Box("m1", 8, 4), new Picture(pixels), Cell, crop, colours: 256, rough: true);
+
+        Assert.Equal(new Color(0, 0, 200), encoded[0][0, 0]);
+        Assert.Equal(new Color(99, 0, 100), encoded[0][2, 0]);
+        Assert.Equal(new Color(200, 0, 0), encoded[0][5, 5]);
+        Assert.Equal(new Color(0, 0, 200), sharp.Pixels[0, 0]);
+        Assert.All(new[] { encoded[0][0, 0], encoded[1][0, 0], encoded[1][2, 0] }, pixel => Assert.Equal(255, pixel.A));
+    }
+
+    /// <summary>Where the page is not known the picture is left as it is, its transparency and all.</summary>
+    [Fact]
+    public void Of_LeavesTransparencyWhereThereIsNoBackdrop()
+    {
+        var pixels = new Color[80, 80];
+
+        pixels[0, 0] = new Color(200, 0, 0, 0);
+
+        var sixel = new SixelPictures((_, _) => "")
+            .Of(Box("m1", 8, 4), new Picture(pixels), Cell, new SixelCrop(0, 4, 8), colours: 256);
+
+        Assert.Equal(0, sixel.Pixels[0, 0].A);
+    }
+
     /// <summary>A crop is a megabyte or so, so only so many are kept; the one used longest ago goes first.</summary>
     [Fact]
     public void Of_KeepsNoMoreThanItHasRoomFor()

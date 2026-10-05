@@ -111,7 +111,7 @@ internal sealed class PaintedView : View
     {
         _theme = theme;
         _clock = clock ?? TimeProvider.System;
-        _sixels = sixels ?? new SixelPictures();
+        _sixels = sixels ?? new SixelPictures(backdrop: Backdrop);
         _rows = rows;
         _pictures = pictures;
         _frame = frame;
@@ -946,6 +946,24 @@ internal sealed class PaintedView : View
         return placed;
     }
 
+
+    /// <summary>
+    ///     The page a sixel's transparent pixels are laid on: the theme's, where it names one, and otherwise the
+    ///     terminal's own background as it answered when asked at startup — every built-in theme draws on that. Nothing
+    ///     where neither is known, which leaves them transparent.
+    /// </summary>
+    private Terminal.Gui.Drawing.Color? Backdrop()
+    {
+        var none = Terminal.Gui.Drawing.Color.None;
+        var page = _theme.For(Role.Body).Background;
+
+        if (_theme.DrawsColour && page != none && page != Terminal.Gui.Drawing.Attribute.Default.Background)
+        {
+            return page;
+        }
+
+        return App?.Driver?.DefaultAttribute?.Background is { } terminal && terminal != none ? terminal : null;
+    }
 
     /// <summary>
     ///     How many colours a sixel is encoded in on this terminal, or none where a box draws through Kitty instead:

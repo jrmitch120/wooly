@@ -163,6 +163,12 @@ These are one run each on the same machine, and noisier than the table above; th
   step of it. Only a cut with neither — a picture arriving on a still page — is encoded sharp on the frame, as before.
 - **What is encoded ahead of a scroll is rough**, since the next step of a scroll is drawn rough.
 - **Rough and sharp are held apart**, so each is encoded once, and the cache holds 48 cuts rather than 32 to keep both.
+- **A picture is laid on the page before it is encoded.** A sixel with transparent pixels lets the cells under it show
+  through, and those cells are left unwritten — that is how the driver knows they are the picture's — so an avatar with
+  a transparent background showed the text that had been there before the page moved. Transparent pixels are now
+  blended onto the theme's page where it names one, and otherwise onto the terminal's own background, which
+  Terminal.Gui asks for at startup (OSC 11) and every built-in theme draws on. Where neither is known they stay
+  transparent, as before. Averaging a rough cut keeps the alpha, so rough and sharp agree.
 - **Kitty is untouched**, through a box or as placeholders: it sends a picture once and moves it, and has nothing to
   save here.
 

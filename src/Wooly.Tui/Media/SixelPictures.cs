@@ -34,7 +34,14 @@ public sealed record Sixel(Color[,] Pixels, string Encoded);
 /// <param name="elsewhere">
 ///     Where a crop asked for ahead of time is encoded: off the UI thread in the client, and wherever a test says.
 /// </param>
-internal sealed class SixelPictures(Func<Color[,], int, string>? encode = null, Action<Action>? elsewhere = null)
+/// <param name="backdrop">
+///     What a picture's transparent pixels are laid on before it is encoded — the page it is drawn on, where that is
+///     known — or <see langword="null" /> where it is not, which leaves them transparent.
+/// </param>
+internal sealed class SixelPictures(
+    Func<Color[,], int, string>? encode = null,
+    Action<Action>? elsewhere = null,
+    Func<Color?>? backdrop = null)
 {
     /// <summary>
     ///     How many crops are kept. A crop is its pixels at four bytes each — a megabyte or so for a photograph across a
@@ -51,6 +58,7 @@ internal sealed class SixelPictures(Func<Color[,], int, string>? encode = null, 
     public const int RoughColours = 64;
 
     private readonly Func<Color[,], int, string> _encode = encode ?? Encoded;
+    private readonly Func<Color?> _backdrop = backdrop ?? (() => null);
     private readonly Action<Action> _elsewhere = elsewhere ?? (work => Task.Run(work));
     private readonly Lock _gate = new();
     private readonly Dictionary<Key, LinkedListNode<(Key Key, Sixel Sixel)>> _held = [];
@@ -176,8 +184,8 @@ internal sealed class SixelPictures(Func<Color[,], int, string>? encode = null, 
         });
     }
 
-    private static Key KeyOf(Inset inset, CellSize cell, SixelCrop crop, int colours, bool rough) =>
-        new(new Scale(inset.Drawn.Id, inset.Columns, inset.Rows, cell), crop, rough ? Math.Min(colours, RoughColours) : colours, rough);
+    private Key KeyOf(Inset inset, CellSize cell, SixelCrop crop, int colours, bool rough) =>
+        new(new Scale(inset.Drawn.Id, inset.Columns, inset.Rows, cell, _backdrop()), crop, rough ? Math.Min(colours, RoughColours) : colours, rough);
 
     /// <summary>Holds a sixel, letting go of the one used longest ago once there are more than there is room for.</summary>
     private void Hold(Key key, Sixel sixel)
@@ -236,7 +244,8 @@ internal sealed class SixelPictures(Func<Color[,], int, string>? encode = null, 
                 var block = new Color(
                     (a.R + b.R + c.R + d.R) / 4,
                     (a.G + b.G + c.G + d.G) / 4,
-                    (a.B + b.B + c.B + d.B) / 4);
+                    (a.B + b.B + c.B + d.B) / 4,
+                    (a.A + b.A + c.A + d.A) / 4);
 
                 coarse[x, y] = block;
                 coarse[right, y] = block;
@@ -299,7 +308,9 @@ internal sealed class SixelPictures(Func<Color[,], int, string>? encode = null, 
             }
         }
 
-        var scaled = PictureDecoder.Scaled(picture, scale.Columns * scale.Cell.Width, scale.Rows * scale.Cell.Height);
+        var scaled = Laid(
+            PictureDecoder.Scaled(picture, scale.Columns * scale.Cell.Width, scale.Rows * scale.Cell.Height),
+            scale.Backdrop);
 
         lock (_gate)
         {
@@ -309,8 +320,51 @@ internal sealed class SixelPictures(Func<Color[,], int, string>? encode = null, 
         return scaled;
     }
 
-    /// <summary>One picture at one box size, on one size of cell.</summary>
-    private readonly record struct Scale(string Drawn, int Columns, int Rows, CellSize Cell);
+    /// <summary>
+    ///     <paramref name="picture" /> laid on <paramref name="backdrop" />, so that it has no transparent pixels left.
+    /// </summary>
+    /// <remarks>
+    ///     A sixel with transparent pixels is drawn with the terminal's cells showing through them — and the cells under a
+    ///     picture are left unwritten, since that is how the driver knows they are the picture's. So what showed through
+    ///     an avatar with a transparent background was whatever text had been on those cells before the page moved. Laid
+    ///     on the page, the picture covers its cells whole, as it does through Kitty.
+    /// </remarks>
+    internal static Picture Laid(Picture picture, Color? backdrop)
+    {
+        if (backdrop is not { } page)
+        {
+            return picture;
+        }
+
+        var width = picture.Width;
+        var height = picture.Height;
+        Color[,]? laid = null;
+
+        for (var x = 0; x < width; x++)
+        {
+            for (var y = 0; y < height; y++)
+            {
+                var pixel = picture.Pixels[x, y];
+
+                if (pixel.A == 255)
+                {
+                    continue;
+                }
+
+                laid ??= (Color[,])picture.Pixels.Clone();
+
+                laid[x, y] = new Color(
+                    ((pixel.R * pixel.A) + (page.R * (255 - pixel.A))) / 255,
+                    ((pixel.G * pixel.A) + (page.G * (255 - pixel.A))) / 255,
+                    ((pixel.B * pixel.A) + (page.B * (255 - pixel.A))) / 255);
+            }
+        }
+
+        return laid is null ? picture : new Picture(laid);
+    }
+
+    /// <summary>One picture at one box size, on one size of cell, laid on one backdrop.</summary>
+    private readonly record struct Scale(string Drawn, int Columns, int Rows, CellSize Cell, Color? Backdrop);
 
     /// <summary>One crop of a scaled picture, in so many colours, and whether it is the rough one.</summary>
     private readonly record struct Key(Scale Scale, SixelCrop Crop, int Colours, bool Rough);
