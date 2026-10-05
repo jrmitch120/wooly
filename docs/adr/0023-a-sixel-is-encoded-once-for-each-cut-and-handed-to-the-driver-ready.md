@@ -182,5 +182,5 @@ These are one run each on the same machine, and noisier than the table above; th
 - **Kitty is untouched**, through a box or as placeholders: it sends a picture once and moves it, and has nothing to
   save here.
 
-A reader may see a gradient band for a moment as a picture moves, and smooth out as it stops. That is the trade. Whether it reads as
-smoother is for WezTerm, where sixel is tested, to show, and Windows Terminal is still owed the manual check.
+A reader may see a gradient band for a moment as a picture moves, and smooth out as it stops. That is the trade. It
+reads as smoother in WezTerm, where sixel is tested; Windows Terminal is still owed the manual check.
