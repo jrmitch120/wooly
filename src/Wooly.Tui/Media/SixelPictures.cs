@@ -52,8 +52,9 @@ internal sealed class SixelPictures(
     public const int MostHeld = 48;
 
     /// <summary>
-    ///     How many colours a rough cut is encoded in, at most: a quarter of the 256 a sharp one has, which with the
-    ///     halved resolution makes it about a third of the bytes on a busy photograph (#342).
+    ///     How many colours a rough cut is encoded in, at most: a quarter of the 256 a sharp one has, which on a busy
+    ///     photograph is a half to two thirds of the bytes (#342). The resolution is left alone — halved, it saved more,
+    ///     and was plain to see on a large monitor.
     /// </summary>
     public const int RoughColours = 64;
 
@@ -68,8 +69,8 @@ internal sealed class SixelPictures(
 
     /// <summary>
     ///     <paramref name="crop" /> of <paramref name="picture" /> drawn in <paramref name="inset" />'s box, encoded in
-    ///     <paramref name="colours" /> colours — or, <paramref name="rough" />, at half the resolution and in no more
-    ///     than <see cref="RoughColours" />, for a page that is moving. Encoded here, on the frame asking, only where it
+    ///     <paramref name="colours" /> colours — or, <paramref name="rough" />, in no more than
+    ///     <see cref="RoughColours" />, for a page that is moving. Encoded here, on the frame asking, only where it
     ///     was neither asked for before nor prepared.
     /// </summary>
     public Sixel Of(Inset inset, Picture picture, CellSize cell, SixelCrop crop, int colours, bool rough = false)
@@ -185,7 +186,7 @@ internal sealed class SixelPictures(
     }
 
     private Key KeyOf(Inset inset, CellSize cell, SixelCrop crop, int colours, bool rough) =>
-        new(new Scale(inset.Drawn.Id, inset.Columns, inset.Rows, cell, _backdrop()), crop, rough ? Math.Min(colours, RoughColours) : colours, rough);
+        new(new Scale(inset.Drawn.Id, inset.Columns, inset.Rows, cell, _backdrop()), crop, rough ? Math.Min(colours, RoughColours) : colours);
 
     /// <summary>Holds a sixel, letting go of the one used longest ago once there are more than there is room for.</summary>
     private void Hold(Key key, Sixel sixel)
@@ -220,41 +221,7 @@ internal sealed class SixelPictures(
     {
         var pixels = Cropped(Scaled(key.Scale, picture), key.Scale.Cell, key.Crop);
 
-        return new Sixel(pixels, _encode(key.Rough ? Coarsened(pixels) : pixels, key.Colours));
-    }
-
-    /// <summary>
-    ///     <paramref name="pixels" /> at half the resolution and the same size: each two-by-two block the average of the
-    ///     four. Sixel draws a pixel for a pixel, so a picture cannot be sent smaller and stretched; what this saves is in
-    ///     the encoding, where a band of blocks says fewer colours and longer runs of each.
-    /// </summary>
-    internal static Color[,] Coarsened(Color[,] pixels)
-    {
-        var width = pixels.GetLength(0);
-        var height = pixels.GetLength(1);
-        var coarse = new Color[width, height];
-
-        for (var x = 0; x < width; x += 2)
-        {
-            for (var y = 0; y < height; y += 2)
-            {
-                var right = Math.Min(x + 1, width - 1);
-                var below = Math.Min(y + 1, height - 1);
-                var (a, b, c, d) = (pixels[x, y], pixels[right, y], pixels[x, below], pixels[right, below]);
-                var block = new Color(
-                    (a.R + b.R + c.R + d.R) / 4,
-                    (a.G + b.G + c.G + d.G) / 4,
-                    (a.B + b.B + c.B + d.B) / 4,
-                    (a.A + b.A + c.A + d.A) / 4);
-
-                coarse[x, y] = block;
-                coarse[right, y] = block;
-                coarse[x, below] = block;
-                coarse[right, below] = block;
-            }
-        }
-
-        return coarse;
+        return new Sixel(pixels, _encode(pixels, key.Colours));
     }
 
     /// <summary>
@@ -366,6 +333,9 @@ internal sealed class SixelPictures(
     /// <summary>One picture at one box size, on one size of cell, laid on one backdrop.</summary>
     private readonly record struct Scale(string Drawn, int Columns, int Rows, CellSize Cell, Color? Backdrop);
 
-    /// <summary>One crop of a scaled picture, in so many colours, and whether it is the rough one.</summary>
-    private readonly record struct Key(Scale Scale, SixelCrop Crop, int Colours, bool Rough);
+    /// <summary>
+    ///     One crop of a scaled picture, in so many colours — which is all that tells a rough cut from a sharp one, so
+    ///     on a terminal with no more colours than a rough cut has, the two are the same cut.
+    /// </summary>
+    private readonly record struct Key(Scale Scale, SixelCrop Crop, int Colours);
 }

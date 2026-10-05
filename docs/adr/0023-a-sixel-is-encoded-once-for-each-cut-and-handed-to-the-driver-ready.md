@@ -133,24 +133,24 @@ pictures less smoothly than one drawing placeholders, however its frames are mad
 
 "This is as far as sixel goes" was about the protocol, and it stands: every step sends every picture again. What it
 took for granted is that every step sends every picture *sharp*. A reader does not study a picture going past, so while
-the page is moving each cut is now encoded **rough** — the crop at half its resolution, each two-by-two block the
-average of the four, in at most 64 colours — and once the page has been still for 150 ms it is drawn **sharp** again,
-256 colours at full resolution, without waiting for a key.
+the page is moving each cut is now encoded **rough** — the same crop at full resolution, in at most 64 colours — and
+once the page has been still for 150 ms it is drawn **sharp** again, in 256, without waiting for a key.
 
-Sixel draws one pixel for every pixel it is sent, so a picture cannot be sent small and stretched; the rough cut is the
-same size, and what it saves is in the encoding: a band of blocks names fewer colours and longer runs of each. On three
-853×853 pictures with this client's own palette and encoder, rough was 35–70% of sharp's bytes (a busy one ~0.55 MB
-against ~1.4 MB) and 1.5–4× faster to encode. Half resolution at 64 colours was chosen over a quarter, which saved
-another third of the bytes at half the detail again. Measured as before:
+On four 853×853 pictures with this client's own palette and encoder, 64 colours was 45–80% of 256's bytes — a busy
+one ~0.8–1 MB against ~1.4–1.5 MB. Halving the resolution as well, each two-by-two block the average of the four, saved
+more (35–70%, ~0.55 MB) and was tried first; on a large monitor the softened pictures going past were plain to see,
+and once synchronized output (below) had taken the tearing away the extra bytes were the cheaper thing to give up. A
+rough cut and a sharp one differ only in colours, so on a terminal with 64 or fewer they are one cut. Measured as
+before:
 
 | Per notch, sixel | Median | Worst | Sent |
 |---|---|---|---|
 | Sharp, notches 16 ms apart over new rows | 59 ms | 142 ms | ~1,026 KB |
-| Rough, the same | 22 ms | 56 ms | ~335 KB |
+| Rough, the same | 49 ms | 115 ms | ~598 KB |
 | Sharp, back to back | 41 ms | 174 ms | ~1,020 KB |
-| Rough, back to back | 19 ms | 160 ms | ~333 KB |
+| Rough, back to back | 20 ms | 63 ms | ~594 KB |
 | Sharp, a page turned | 85 ms | 346 ms | |
-| Rough, a page turned | 54 ms | 206 ms | |
+| Rough, a page turned | 48 ms | 244 ms | |
 
 These are one run each on the same machine, and noisier than the table above; the bytes are the steady part.
 
@@ -168,9 +168,9 @@ These are one run each on the same machine, and noisier than the table above; th
   a transparent background showed the text that had been there before the page moved. Transparent pixels are now
   blended onto the theme's page where it names one, and otherwise onto the terminal's own background, which
   Terminal.Gui asks for at startup (OSC 11) and every built-in theme draws on. Where neither is known they stay
-  transparent, as before. Averaging a rough cut keeps the alpha, so rough and sharp agree.
+  transparent, as before.
 - **A frame with pictures in it is synchronized output (DEC mode 2026)**, the follow-up the findings above left open.
-  With frames a third the size, the tear that remained was a terminal painting part way through one: an avatar
+  With frames lighter, the tear that remained was a terminal painting part way through one: an avatar
   directly under a rule arrived a moment before the rule did. Terminal.Gui 2.5 still writes a frame with nothing either
   side of it and keeps the ways to replace its output internal; a spike that reached them by reflection proved the
   mode cures it in WezTerm, and was thrown away. `SynchronizedFrames` brackets the frame from public ground instead:
@@ -182,5 +182,5 @@ These are one run each on the same machine, and noisier than the table above; th
 - **Kitty is untouched**, through a box or as placeholders: it sends a picture once and moves it, and has nothing to
   save here.
 
-A reader will see a picture soften for a moment as it moves and sharpen as it stops. That is the trade. Whether it reads as
+A reader may see a gradient band for a moment as a picture moves, and smooth out as it stops. That is the trade. Whether it reads as
 smoother is for WezTerm, where sixel is tested, to show, and Windows Terminal is still owed the manual check.

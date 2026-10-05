@@ -100,11 +100,11 @@ public class SixelPicturesTests
     }
 
     /// <summary>
-    ///     A rough cut, for a page that is moving, is the same crop at half the resolution and in at most
+    ///     A rough cut, for a page that is moving, is the same crop at the same resolution in at most
     ///     <see cref="SixelPictures.RoughColours" /> — kept apart from the sharp one, so each is encoded once (#342).
     /// </summary>
     [Fact]
-    public void Of_RoughIsTheCropAtHalfTheResolutionInFewerColours()
+    public void Of_RoughIsTheSameCropInFewerColours()
     {
         var encoded = new List<(Color[,] Pixels, int Colours)>();
         var sixels = new SixelPictures((pixels, colours) =>
@@ -132,16 +132,27 @@ public class SixelPicturesTests
 
         Assert.Equal(["256", "64"], [sharp.Encoded, rough.Encoded]);
         Assert.Equal(2, encoded.Count);
+        Assert.Equal(pixels[1, 1], encoded[1].Pixels[1, 1]);
+        Assert.NotEqual(encoded[1].Pixels[0, 0], encoded[1].Pixels[1, 1]);
+    }
 
-        var coarse = encoded[1].Pixels;
+    /// <summary>
+    ///     On a terminal with no more colours than a rough cut has, rough and sharp are one cut, encoded once — so a
+    ///     page coming to rest has nothing to encode again.
+    /// </summary>
+    [Fact]
+    public void Of_RoughAndSharpAreOneCutWhereTheTerminalHasFewColours()
+    {
+        var encodes = 0;
+        var sixels = new SixelPictures((_, _) => $"{++encodes}");
+        var inset = Box("m1", columns: 8, rows: 4);
+        var crop = new SixelCrop(Top: 0, Rows: 4, Columns: 8);
 
-        Assert.Equal((80, 80), (coarse.GetLength(0), coarse.GetLength(1)));
-        Assert.Equal(coarse[0, 0], coarse[1, 1]);
-        Assert.Equal(new Color(1, 1, 0), coarse[0, 0]);
-        Assert.NotEqual(coarse[1, 1], coarse[2, 2]);
+        var rough = sixels.Of(inset, APicture(80, 80), Cell, crop, colours: 16, rough: true);
+        var sharp = sixels.Of(inset, APicture(80, 80), Cell, crop, colours: 16);
 
-        // What the driver is handed as the cut's pixels is the crop itself: only the encoding is rough.
-        Assert.Equal(pixels[1, 1], rough.Pixels[1, 1]);
+        Assert.Same(rough, sharp);
+        Assert.Equal(1, encodes);
     }
 
     /// <summary>

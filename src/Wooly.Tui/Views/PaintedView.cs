@@ -825,8 +825,8 @@ internal sealed class PaintedView : View
 
 
     /// <summary>
-    ///     Whether the page moved so lately that its sixels are drawn rough — half the resolution, a quarter of the
-    ///     colours, about a third of the bytes (#342). A sixel is sent again whole on every step, and on a busy
+    ///     Whether the page moved so lately that its sixels are drawn rough — a quarter of the colours, a half to two
+    ///     thirds of the bytes (#342). A sixel is sent again whole on every step, and on a busy
     ///     photograph a sharp one is a megabyte the terminal must take in each time (ADR-0023). Once it has been still
     ///     for <see cref="Quiet" />, a redraw is asked for that draws it sharp, without waiting for a key.
     /// </summary>
