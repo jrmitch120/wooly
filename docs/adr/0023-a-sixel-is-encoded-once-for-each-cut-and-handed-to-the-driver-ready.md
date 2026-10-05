@@ -128,3 +128,43 @@ pictures less smoothly than one drawing placeholders, however its frames are mad
   the write of a frame: `LayoutAndDrawComplete` fires after it, and nothing fires before it. Wrapping frames would mean
   writing the mode on from inside a view's draw and off from that event. That is fragile enough to want a terminal to
   try it on, and it is left for a follow-up.
+
+## Amendment: a sixel is rough while the page moves, and sharp once it is still (#342)
+
+"This is as far as sixel goes" was about the protocol, and it stands: every step sends every picture again. What it
+took for granted is that every step sends every picture *sharp*. A reader does not study a picture going past, so while
+the page is moving each cut is now encoded **rough** — the crop at half its resolution, each two-by-two block the
+average of the four, in at most 64 colours — and once the page has been still for 150 ms it is drawn **sharp** again,
+256 colours at full resolution, without waiting for a key.
+
+Sixel draws one pixel for every pixel it is sent, so a picture cannot be sent small and stretched; the rough cut is the
+same size, and what it saves is in the encoding: a band of blocks names fewer colours and longer runs of each. On three
+853×853 pictures with this client's own palette and encoder, rough was 35–70% of sharp's bytes (a busy one ~0.55 MB
+against ~1.4 MB) and 1.5–4× faster to encode. Half resolution at 64 colours was chosen over a quarter, which saved
+another third of the bytes at half the detail again. Measured as before:
+
+| Per notch, sixel | Median | Worst | Sent |
+|---|---|---|---|
+| Sharp, notches 16 ms apart over new rows | 59 ms | 142 ms | ~1,026 KB |
+| Rough, the same | 22 ms | 56 ms | ~335 KB |
+| Sharp, back to back | 41 ms | 174 ms | ~1,020 KB |
+| Rough, back to back | 19 ms | 160 ms | ~333 KB |
+| Sharp, a page turned | 85 ms | 346 ms | |
+| Rough, a page turned | 54 ms | 206 ms | |
+
+These are one run each on the same machine, and noisier than the table above; the bytes are the steady part.
+
+- **Moving is the page having moved within the quiet.** `PaintedView` notes the time whenever a frame finds the page
+  somewhere other than where the last one left it — a wheel, the arrows, the selection carried along — and draws rough
+  until 150 ms have passed with no such frame, longer than the gap between two notches or two repeats of a held key. A
+  timeout then asks for the redraw that draws sharp. The clock is the shell's, so a test moves it by hand.
+- **The sharp cut is encoded off the UI thread.** The frame that finds the page still shows the rough cut it already
+  holds and prepares the sharp one elsewhere, redrawing when it is ready, so the end of a scroll costs no more than a
+  step of it. Only a cut with neither — a picture arriving on a still page — is encoded sharp on the frame, as before.
+- **What is encoded ahead of a scroll is rough**, since the next step of a scroll is drawn rough.
+- **Rough and sharp are held apart**, so each is encoded once, and the cache holds 48 cuts rather than 32 to keep both.
+- **Kitty is untouched**, through a box or as placeholders: it sends a picture once and moves it, and has nothing to
+  save here.
+
+A reader will see a picture soften for a moment as it moves and sharpen as it stops. That is the trade. Whether it reads as
+smoother is for WezTerm, where sixel is tested, to show, and Windows Terminal is still owed the manual check.

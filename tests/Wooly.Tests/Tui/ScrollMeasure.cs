@@ -14,6 +14,10 @@ namespace Wooly.Tests.Tui;
 ///     Run with <c>WOOLY_MEASURE=1 dotnet test -c Release --filter ScrollMeasure --logger "console;verbosity=detailed"</c>.
 ///     The terminal is 120×50 and the photographs are busy ones at the size <c>PictureDecoder</c> holds them, as #287's
 ///     were measured.
+///     <para>
+///         The shell's clock never moves here, so once the page has moved a sixel is always drawn rough: these are the
+///         steps of a scroll, which is what a reader feels (#342, ADR-0023).
+///     </para>
 /// </remarks>
 public class ScrollMeasure(ITestOutputHelper output)
 {

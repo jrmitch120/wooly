@@ -99,6 +99,76 @@ public class SixelPicturesTests
         Assert.Equal("sixel", sixels.Of(inset, APicture(80, 80), Cell, crop, colours: 64).Encoded);
     }
 
+    /// <summary>
+    ///     A rough cut, for a page that is moving, is the same crop at half the resolution and in at most
+    ///     <see cref="SixelPictures.RoughColours" /> — kept apart from the sharp one, so each is encoded once (#342).
+    /// </summary>
+    [Fact]
+    public void Of_RoughIsTheCropAtHalfTheResolutionInFewerColours()
+    {
+        var encoded = new List<(Color[,] Pixels, int Colours)>();
+        var sixels = new SixelPictures((pixels, colours) =>
+        {
+            encoded.Add((pixels, colours));
+
+            return $"{colours}";
+        });
+        var pixels = new Color[80, 80];
+
+        for (var x = 0; x < 80; x++)
+        {
+            for (var y = 0; y < 80; y++)
+            {
+                pixels[x, y] = new Color(x * 3, y * 3, 0);
+            }
+        }
+
+        var inset = Box("m1", columns: 8, rows: 4);
+        var crop = new SixelCrop(Top: 0, Rows: 4, Columns: 8);
+
+        var sharp = sixels.Of(inset, new Picture(pixels), Cell, crop, colours: 256);
+        var rough = sixels.Of(inset, new Picture(pixels), Cell, crop, colours: 256, rough: true);
+        sixels.Of(inset, new Picture(pixels), Cell, crop, colours: 256, rough: true);
+
+        Assert.Equal(["256", "64"], [sharp.Encoded, rough.Encoded]);
+        Assert.Equal(2, encoded.Count);
+
+        var coarse = encoded[1].Pixels;
+
+        Assert.Equal((80, 80), (coarse.GetLength(0), coarse.GetLength(1)));
+        Assert.Equal(coarse[0, 0], coarse[1, 1]);
+        Assert.Equal(new Color(1, 1, 0), coarse[0, 0]);
+        Assert.NotEqual(coarse[1, 1], coarse[2, 2]);
+
+        // What the driver is handed as the cut's pixels is the crop itself: only the encoding is rough.
+        Assert.Equal(pixels[1, 1], rough.Pixels[1, 1]);
+    }
+
+    /// <summary>
+    ///     A crop prepared with somebody waiting on it says so once it is held, and only to the call that started it —
+    ///     the sharp cut of a still page is asked for on every frame until it is ready, and is announced once.
+    /// </summary>
+    [Fact]
+    public void Prepare_SaysOnceWhenTheCropIsHeld()
+    {
+        var elsewhere = new List<Action>();
+        var sixels = new SixelPictures((_, _) => "sixel", elsewhere.Add);
+        var inset = Box("m1", columns: 8, rows: 4);
+        var crop = new SixelCrop(Top: 0, Rows: 4, Columns: 8);
+        var told = 0;
+
+        sixels.Prepare(inset, APicture(80, 80), Cell, crop, colours: 256, ready: () => told++);
+        sixels.Prepare(inset, APicture(80, 80), Cell, crop, colours: 256, ready: () => told++);
+
+        Assert.Null(sixels.Held(inset, Cell, crop, colours: 256));
+        Assert.Equal(0, told);
+
+        Assert.Single(elsewhere)();
+
+        Assert.NotNull(sixels.Held(inset, Cell, crop, colours: 256));
+        Assert.Equal(1, told);
+    }
+
     /// <summary>A crop is a megabyte or so, so only so many are kept; the one used longest ago goes first.</summary>
     [Fact]
     public void Of_KeepsNoMoreThanItHasRoomFor()
