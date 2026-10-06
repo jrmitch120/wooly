@@ -487,8 +487,8 @@ public static class PostLines
             // reader, which is what the box was reserved to stop (ADR-0025). The box's own top row carries the Wants
             // then, there being no caption to carry it.
             yield return hideDrawnCaption
-                ? [.. Reserved(box, pictures, cell, drawn)]
-                : [described, .. Reserved(box, pictures, cell)];
+                ? [.. Reserved(box, attached.Blurhash, pictures, cell, drawn)]
+                : [described, .. Reserved(box, attached.Blurhash, pictures, cell)];
         }
     }
 
@@ -551,7 +551,11 @@ public static class PostLines
         // the network was (ADR-0025).
         return Inset.For(drawn, attached.Shape, cell, width, mostRows) is not { } box
             ? [Label(saysWhatItShows: true) with { Wants = drawn }]
-            : [Label(saysWhatItShows: !hideDrawnCaption) with { Wants = drawn }, .. Reserved(box, pictures, cell)];
+            :
+            [
+                Label(saysWhatItShows: !hideDrawnCaption) with { Wants = drawn },
+                .. Reserved(box, attached.Blurhash, pictures, cell),
+            ];
     }
 
     /// <summary>
@@ -641,19 +645,32 @@ public static class PostLines
     ///     </para>
     /// </remarks>
     /// <param name="box">The box the shape settled.</param>
+    /// <param name="blurhash">
+    ///     The instance's blurhash of the picture, which is drawn over the shade while the picture is not here, or
+    ///     <see langword="null" /> where it sent none (#349).
+    /// </param>
     /// <param name="wants">
     ///     What the box's top row says it is waiting for, where no caption above it is there to say so — or
     ///     <see langword="null" /> where one is.
     /// </param>
-    private static IEnumerable<Line> Reserved(Inset box, IPictures pictures, CellSize cell, Drawn? wants = null)
+    private static IEnumerable<Line> Reserved(
+        Inset box,
+        string? blurhash,
+        IPictures pictures,
+        CellSize cell,
+        Drawn? wants = null)
     {
         if (pictures.Of(box.Drawn) is not { } picture)
         {
+            // The blur is set into the whole box over the shade rather than in place of it: the shade is what shows
+            // until the blur is encoded and drawn, and what shows where it never decodes at all (#349).
+            var blur = StandIn.Blurred(box, blurhash);
+
             for (var row = 0; row < box.Rows; row++)
             {
                 var shade = Line.Of(StandIn.Row(box.Columns));
 
-                yield return row == 0 ? shade with { Wants = wants } : shade;
+                yield return row == 0 ? shade with { Wants = wants, Insets = blur is null ? [] : [blur] } : shade;
             }
 
             yield break;
@@ -749,7 +766,7 @@ public static class PostLines
             && pictures?.Cell is { } cell
             && Inset.For(drawn, link.Shape, cell, width, mostRows) is { } box)
         {
-            lines.AddRange(Reserved(box, pictures, cell));
+            lines.AddRange(Reserved(box, link.Blurhash, pictures, cell));
         }
 
         return lines;

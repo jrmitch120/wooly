@@ -61,7 +61,8 @@ internal static class APost
         string? providerName = "Example News",
         string? image = "https://files.example.com/sheep/card.png",
         string? author = "Maria Shepherd",
-        PictureShape? shape = null) => new()
+        PictureShape? shape = null,
+        string? blurhash = null) => new()
     {
         Url = url,
         Title = title,
@@ -70,6 +71,7 @@ internal static class APost
         Image = image,
         Author = author,
         Shape = shape,
+        Blurhash = blurhash,
     };
 
     /// <summary>A picture attached to a post, with the description its author gave it.</summary>
@@ -79,15 +81,17 @@ internal static class APost
     public static PostMedia APicture(
         string id = "m1",
         string? description = "A cartoon sheep",
-        PictureShape? shape = null) =>
-        Attached(MediaKind.Image, id, description, shape);
+        PictureShape? shape = null,
+        string? blurhash = null) =>
+        Attached(MediaKind.Image, id, description, shape, blurhash);
 
     /// <summary>An attachment of any kind, for a test that is about the kind rather than about a picture.</summary>
     public static PostMedia Attached(
         MediaKind kind,
         string id = "m1",
         string? description = "A cartoon sheep",
-        PictureShape? shape = null) => new()
+        PictureShape? shape = null,
+        string? blurhash = null) => new()
     {
         Id = id,
         Kind = kind,
@@ -95,6 +99,7 @@ internal static class APost
         Preview = $"https://files.mastodon.social/{id}/small.png",
         Description = description,
         Shape = shape,
+        Blurhash = blurhash,
     };
 
     /// <summary>The three marks, said one at a time, for a test that is about one of them.</summary>

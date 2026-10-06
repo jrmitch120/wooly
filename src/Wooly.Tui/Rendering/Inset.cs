@@ -34,6 +34,17 @@ public sealed record Inset(Drawn Drawn, int Column, int Columns, int Rows)
     public const int WholeRows = 32;
 
     /// <summary>
+    ///     The pixels of a <b>Stand-in</b>'s blur, already in hand, where this inset is one (<see cref="StandIn.Blurred" />)
+    ///     — or <see langword="null" /> for a picture, whose pixels are looked up from <see cref="IPictures" />.
+    /// </summary>
+    /// <remarks>
+    ///     Carried on the inset rather than looked up, because a blur is decoded from the post itself and never fetched:
+    ///     keeping it out of the picture cache is what stops a screen of blurs crowding out the pictures they stand in
+    ///     for (#349, ADR-0025).
+    /// </remarks>
+    public Picture? Blurred { get; init; }
+
+    /// <summary>
     ///     What a box is reserved at where the instance reported no shape: sixteen wide by nine tall, the shape most
     ///     photographs and video frames are nearest to, so that even then a guess is a box and not a jump (ADR-0025).
     /// </summary>

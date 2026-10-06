@@ -51,4 +51,15 @@ public sealed record Drawn(string Id, string Address)
     /// <param name="account">Whose avatar it is, as <c>username@instance</c>.</param>
     /// <param name="address">Where to fetch it.</param>
     public static Drawn Avatar(string account, string address) => new($"avatar:{account}", address);
+
+    /// <summary>
+    ///     The blur a <b>Stand-in</b> draws of <paramref name="picture" /> while it is on its way (#349).
+    /// </summary>
+    /// <remarks>
+    ///     Named apart from the picture it stands in for, so that everything keyed by a picture's id — a box, a Kitty
+    ///     image, a sixel's crops — holds the two as two things, and lets go of the blur when the picture replaces it
+    ///     rather than mistaking one for the other. Its address is the picture's and is never fetched: a blur is
+    ///     decoded from the post (<see cref="Blurs" />), not sent for.
+    /// </remarks>
+    public static Drawn Blur(Drawn picture) => new($"blur:{picture.Id}", picture.Address);
 }

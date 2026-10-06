@@ -1,3 +1,4 @@
+using Wooly.Tui.Media;
 using Wooly.Tui.Theme;
 
 namespace Wooly.Tui.Rendering;
@@ -19,4 +20,21 @@ public static class StandIn
 
     /// <summary>One row of a Stand-in <paramref name="columns" /> wide.</summary>
     public static Span Row(int columns) => new(new string(Shade, Math.Max(0, columns)), Role.StandIn);
+
+    /// <summary>
+    ///     The blur to draw over <paramref name="box" />'s shade, the size of the whole box, or <see langword="null" />
+    ///     where there is no <paramref name="blurhash" /> or it does not decode — which leaves the shade alone (#349).
+    /// </summary>
+    /// <remarks>
+    ///     Drawn through the same raster path as the picture it stands in for, on sixel and Kitty alike, and stretched
+    ///     to the box rather than fitted to it: a blur has no proportions of its own to keep, and filling the box is
+    ///     what makes the picture arriving read as sharpening. Named apart from that picture (<see cref="Drawn.Blur" />)
+    ///     so that the box drawing one lets go of it, and the terminal deletes it, when the other takes its place
+    ///     (ADR-0022). Its pixels come from <see cref="Blurs" />, never from the picture cache, so a screen of blurs
+    ///     can never crowd out the pictures they stand in for (ADR-0025).
+    /// </remarks>
+    public static Inset? Blurred(Inset box, string? blurhash) =>
+        blurhash is not null && Blurs.Of(blurhash) is { } blur
+            ? box with { Drawn = Drawn.Blur(box.Drawn), Blurred = blur }
+            : null;
 }
