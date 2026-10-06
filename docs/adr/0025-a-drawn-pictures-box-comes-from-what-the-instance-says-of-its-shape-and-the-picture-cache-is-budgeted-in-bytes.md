@@ -39,7 +39,16 @@ Stand-in is a plain shaded fill in a theme role. Avatars never come with a blurh
 picture that cannot be fetched at all keeps its Stand-in, and its box stays. ADR-0016's "nothing about a picture is
 ever reported as an error" still holds. The only change is that a failure no longer costs rows either.
 
-The Stand-in has no caption or description inside it. That text stays on its own row under the box, where it is today.
+A blur is held apart from the picture cache, and is not counted in its budgets. It is decoded from the post rather than
+fetched, at 32 × 32 pixels whatever the box, because a blur has no detail to lose by being stretched. That is 4 KB a
+blur, and `Blurs` remembers the 256 decoded most recently, so a megabyte at most. Counting blurs in the cache's budget
+would let a screen of them push out the pictures they are waiting on. `Blurs` is made by the shell and handed to the
+screens on their `Drawing`, the way the picture cache is, rather than held process-wide. On Kitty a blur sent to the
+terminal is a picture the terminal holds like any other, so the view tells the terminal to forget it once it is no
+longer near the page: when its picture replaces it, when it is scrolled away, or when there is no room left to draw the
+page at all (ADR-0022).
+
+The Stand-in has no caption or description inside it. That text stays on its own row above the box, where it is today.
 Writing it inside the Stand-in as well would show it twice, with the second copy disappearing when the picture lands. It
 would also break `HideDrawnCaption`: a reader who turned captions off would still see one in every box whose picture had
 not arrived yet, so the setting would depend on network timing. A Stand-in with no text means the same thing whether
@@ -57,15 +66,21 @@ how it is shaped. The warning, or `⚠ Sensitive media`, is what a warned post s
 on screen is never let go of.**
 
 - **Decoded pixels, about 64 MB.** These are downscaled when they are decoded to the largest box the current window
-  could draw: the full content width by the post screen's thirty-two rows, in pixels. This is what `Of` answers from.
+  could draw: the full content width by the post screen's thirty-two rows, in pixels. The content width is the inside of
+  the panel posts are drawn in, 58 columns at an 80-column terminal, not the whole window's. This is what `Of` answers
+  from.
 - **Downloaded bytes, about 32 MB.** A decoded picture that is let go of can be decoded again from these without going
   back to the network, and so can a picture held at a size the window has since grown past.
 
 Each tier lets go of the picture wanted longest ago. When a picture was fetched does not matter. Anything marked as on
 screen in the latest frame is never let go of from the decoded tier, even when that tier is over budget. The screen is
-small, so being over budget by that much is bounded. Kitty is still told to forget a picture only when it leaves the
-decoded tier, so the terminal holds no more than the client does (ADR-0022), and a picture still held is not sent to the
-terminal again.
+small, so being over budget by that much is bounded. Kitty is still told to forget a picture only when its pixels leave
+the decoded tier, so the terminal holds no more than the client does (ADR-0022), and a picture still held is not sent to
+the terminal again. Pixels decoded again for a wider window replace the ones held, and that counts as the old pixels
+leaving: the copy the terminal holds at the old size is forgotten, and the sharper one is sent in its place.
+
+A picture waiting its turn to be decoded again from its file keeps that file, however far over budget the bytes tier is
+while it waits. Letting go of the file would turn the decode it is waiting for into a fetch.
 
 These budgets replace `MostHeld`. They are also the cap a future infinite-scroll timeline will rely on. A count was the
 wrong unit for that, because it treats an avatar thumbnail and a full-width photograph as the same cost.
@@ -74,8 +89,11 @@ So the port changes too. `IPictures.Want(drawn)`, one picture at a time, becomes
 pictures wanted, nearest first, with those on screen marked. Only a whole frame can say which pictures are on screen
 now, which pictures used to be wanted and are not any more, and which order fetches should start in. `Of` stays a
 lookup that fetches nothing, as ADR-0016 had it. The view wants about three screens ahead in the direction of travel
-and one behind, or two either side when the page is not moving. Fetches still start under the existing limit of four at
-a time, nearest first. A queued fetch whose picture is no longer wanted is abandoned before it starts. A fetch already
+and one behind. Before the page has moved at all it wants two either side. Once it has moved, a frame drawn with the page
+standing still keeps the reach of the way it last moved, rather than going back to two either side. Most frames drawn
+with the page still are a picture landing, and reaching less far on each of them would abandon the fetches queued for the
+far screen every time a near picture arrived. Fetches still start under the existing limit of four at a time, nearest
+first. A queued fetch whose picture is no longer wanted is abandoned before it starts. A fetch already
 in flight finishes and lands in the bytes tier.
 
 **What the budgets were chosen against, and where to change them.** A decoded picture is four bytes a pixel. At the
