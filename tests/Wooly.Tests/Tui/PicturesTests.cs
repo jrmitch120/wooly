@@ -366,6 +366,40 @@ public class PicturesTests
     }
 
     /// <summary>
+    ///     The cell and the window's width are asked for outside the cache's lock: whatever answers them is the
+    ///     application's, and may be waiting on a thread that is itself waiting on the cache — a picture landing, or a
+    ///     frame asking for one — which under the lock would be each waiting on the other for good.
+    /// </summary>
+    [Fact]
+    public async Task Pictures_AsksTheWindowItsSizeOutsideItsLock()
+    {
+        Pictures? pictures = null;
+        var waited = true;
+
+        // A window that, to answer, needs another thread to have asked the cache something first.
+        int Columns()
+        {
+            waited &= Task.Run(() => pictures!.Of(APicture("m"))).Wait(TimeSpan.FromSeconds(2));
+
+            return 100;
+        }
+
+        CellSize? Cell()
+        {
+            waited &= Task.Run(() => pictures!.Of(APicture("m"))).Wait(TimeSpan.FromSeconds(2));
+
+            return new CellSize(10, 20);
+        }
+
+        using var made = pictures = APictures(_ => APng(4, 4), out var landings, columns: Columns, cell: Cell);
+
+        pictures.Want([OnScreen(APicture("m"))]);
+        await landings.Landed(1);
+
+        Assert.True(waited);
+    }
+
+    /// <summary>
     ///     A picture is held at no more than the largest box this window could draw it in: the full width of the
     ///     window by the post screen's row cap, in pixels (ADR-0025). A hundred columns of ten-pixel cells is a thousand
     ///     pixels across, so a photograph four thousand across is held at a thousand, in its own proportions.

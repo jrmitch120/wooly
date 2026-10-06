@@ -184,6 +184,13 @@ public sealed class Pictures(
     {
         List<string> letGo;
 
+        // Asked once a frame, here on the thread that lays out rows, because that is the only thread the window's size
+        // may be asked from — and before the lock rather than under it, because whatever answers is the application's
+        // and may itself be waiting on a thread that is waiting on this lock. Whatever decodes a picture later reads
+        // the room worked out from these.
+        var size = cell();
+        var across = columns?.Invoke();
+
         lock (_gate)
         {
             // What is already waiting its turn, and what this frame sends for that was not: the two that make up the
@@ -201,9 +208,7 @@ public sealed class Pictures(
             {
                 var held = Renewed(taking[at].Drawn);
 
-                // Worked out here, on the thread that lays out rows, because that is the only thread the window's size
-                // may be asked from; whatever decodes the picture later reads it from here.
-                held.Room = Room(held.Drawn);
+                held.Room = Room(held.Drawn, size, across);
             }
 
             var pixelsLeft = DecodedBudget;
@@ -616,9 +621,12 @@ public sealed class Pictures(
     ///     otherwise the window's full width by <see cref="Rendering.Inset.WholeRows" /> rows. Any larger and the pixels
     ///     are held only to be thrown away by the scale down to the box, at four bytes each.
     /// </summary>
-    private Size Room(Drawn drawn)
+    /// <param name="drawn">The picture.</param>
+    /// <param name="cell">How big a cell is now, as <c>cell</c> answered for this frame.</param>
+    /// <param name="columns">How many columns wide the window is now, as <c>columns</c> answered for this frame.</param>
+    private static Size Room(Drawn drawn, CellSize? cell, int? columns)
     {
-        if (cell() is not { Width: > 0, Height: > 0 } size)
+        if (cell is not { Width: > 0, Height: > 0 } size)
         {
             return PictureDecoder.SomeRoom;
         }
@@ -628,7 +636,7 @@ public sealed class Pictures(
             return new Size(Math.Max(1, most) * size.Width, Math.Max(1, tall) * size.Height);
         }
 
-        var across = columns?.Invoke() is > 0 and var wide ? wide * size.Width : PictureDecoder.LongestSide;
+        var across = columns is > 0 and var wide ? wide * size.Width : PictureDecoder.LongestSide;
 
         return new Size(across, Rendering.Inset.WholeRows * size.Height);
     }
