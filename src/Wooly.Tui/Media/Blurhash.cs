@@ -8,8 +8,9 @@ namespace Wooly.Tui.Media;
 /// </summary>
 /// <remarks>
 ///     The algorithm is the blurhash project's own (github.com/woltapp/blurhash), which is short and public: a size flag,
-///     a quantised maximum, an average colour, then a handful of cosine components, all in a base 83 of its own. Written
-///     here rather than taken as a package because it is a page of arithmetic, and a dependency is a supply line to keep for good.
+///     a quantised maximum, an average colour, then a handful of cosine components, all in a base 83 of its own.
+///     Written here rather than taken as a package because it is a page of arithmetic, and a dependency is a supply line
+///     to keep for good.
 ///     <para>
 ///         Whatever does not decode — a hash the wrong length for its own size flag, a character outside its alphabet, a
 ///         value past what its field can hold — is <see langword="null" /> rather than a failure, so the box it was for

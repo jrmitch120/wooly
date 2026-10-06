@@ -62,6 +62,12 @@ internal sealed class PaintedView : View
     private List<(Inset Inset, int Top, int Id)> _placed = [];
 
     /// <summary>
+    ///     The Stand-in blurs a Kitty terminal has been handed to hold, by <see cref="Drawn.Id" />, as of the last
+    ///     frame. What <see cref="LetGoOfBlurs" /> tells it to forget once they are no longer near the page.
+    /// </summary>
+    private HashSet<string> _blursHeld = [];
+
+    /// <summary>
     ///     Where the page began the last time a frame said what it wants, or <see langword="null" /> before the first
     ///     frame of the rows it is on — nothing to have moved from yet.
     /// </summary>
@@ -584,6 +590,7 @@ internal sealed class PaintedView : View
         var lines = Rows(width, height);
 
         Want(lines, height);
+        LetGoOfBlurs(lines, height);
 
         // Whatever the terminal was told to let go of since the last frame, before anything is sent.
         _placeholders?.Flush();
@@ -891,6 +898,39 @@ internal sealed class PaintedView : View
     }
 
     /// <summary>
+    ///     Tells a Kitty terminal drawing placeholders to forget every Stand-in blur it was handed that is no longer near
+    ///     the page — replaced by the picture it stood in for, or scrolled away (#349).
+    /// </summary>
+    /// <remarks>
+    ///     A picture is forgotten when the cache lets go of it (ADR-0025), but a blur is never in the cache, so nothing
+    ///     else would ever say so: a blur nobody deletes is an image the terminal holds for the rest of the run, which
+    ///     is the invariant ADR-0022 keeps for pictures. Said before the frame's <see cref="Placeholders.Flush" />, so a
+    ///     blur replaced this frame is gone from the terminal in the frame its picture is sent. One scrolled back to is
+    ///     simply encoded and sent again — it is a few kilobytes. Through a box, the box's own release does this
+    ///     (<see cref="Place" />).
+    /// </remarks>
+    private void LetGoOfBlurs(IReadOnlyList<Line> lines, int height)
+    {
+        if (_placeholders?.Drawing != true)
+        {
+            return;
+        }
+
+        // The blurs Sent is about to prepare or place this frame: the same reach, a screen either side of the page.
+        var near = Wanted(lines, height, near: height)
+            .Where(wanted => wanted.Inset.Blurred is not null)
+            .Select(wanted => wanted.Inset.Drawn.Id)
+            .ToHashSet();
+
+        foreach (var gone in _blursHeld.Where(id => !near.Contains(id)))
+        {
+            _placeholders.Drop(gone);
+        }
+
+        _blursHeld = near;
+    }
+
+    /// <summary>
     ///     The pictures on the page that a Kitty terminal holds, sending any that are ready and have not been sent. A
     ///     picture still being encoded is left out, and its box keeps the rows it reserved until a redraw brings it.
     /// </summary>
@@ -1043,7 +1083,8 @@ internal sealed class PaintedView : View
                     continue;
                 }
 
-                if (_pictures!.Of(inset.Drawn) is { } picture)
+                // A Stand-in's blur carries its own pixels and is never looked up: it is not the cache's to hold (#349).
+                if ((inset.Blurred ?? _pictures!.Of(inset.Drawn)) is { } picture)
                 {
                     wanted.Add((inset, top, picture));
                 }
