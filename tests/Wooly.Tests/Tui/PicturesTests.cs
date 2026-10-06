@@ -674,8 +674,9 @@ public class PicturesTests
     }
 
     /// <summary>
-    ///     A cache over a fetch that answers with <paramref name="serve" />'s bytes for each address, writing down every
-    ///     address it is asked for in <paramref name="asked" /> and every picture let go of in <paramref name="dropped" />.
+    ///     A cache over a fetch that answers with <paramref name="serve" />'s bytes for each address, writing down
+    ///     every address it is asked for in <paramref name="asked" /> and every picture let go of in
+    ///     <paramref name="dropped" />.
     /// </summary>
     private static Pictures APictures(
         Func<string, byte[]?> serve,
@@ -737,7 +738,9 @@ public class PicturesTests
     /// <summary>An attachment's picture, by the attachment's id.</summary>
     private static Drawn APicture(string id) => Drawn.Attached(APost.APicture(id: id));
 
-    /// <summary>An attachment's picture, by the id the instance gave it — which is also the address it is fetched from.</summary>
+    /// <summary>
+    ///     An attachment's picture, by the id the instance gave it — which is also the address it is fetched from.
+    /// </summary>
     private static Drawn Picture(string id) => new(id, id);
 
     /// <summary>As many pictures as are fetched at once, named <c>b0</c> on, to keep every fetch busy.</summary>
@@ -830,7 +833,9 @@ public class PicturesTests
             }
         }
 
-        /// <summary>Lets the fetch of <paramref name="address" /> finish, with <paramref name="bytes" /> or nothing.</summary>
+        /// <summary>
+        ///     Lets the fetch of <paramref name="address" /> finish, with <paramref name="bytes" /> or nothing.
+        /// </summary>
         public void Answer(string address, byte[]? bytes = null)
         {
             lock (_gate)

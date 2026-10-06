@@ -54,7 +54,9 @@ public readonly record struct Avatar(Drawn? Wanted, Inset? Box, int Held, int Ga
     public static Avatar Header(string account, string? address, IPictures? pictures) =>
         Of(account, address, pictures, HeaderColumns, HeaderRows, gap: 2);
 
-    /// <summary>How wide the header's box is, which is the largest an avatar is ever drawn (<see cref="Drawn.Largest" />).</summary>
+    /// <summary>
+    ///     How wide the header's box is, which is the largest an avatar is ever drawn (<see cref="Drawn.Largest" />).
+    /// </summary>
     internal const int HeaderColumns = 8;
 
     /// <summary>How tall the header's box is, which is the largest an avatar is ever drawn.</summary>

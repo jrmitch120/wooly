@@ -163,7 +163,9 @@ public class PictureWantingTests
 
     private sealed record Shown(IApplication Application, Runnable Window, PaintedView View) : IDisposable
     {
-        /// <summary>Moves the page by <paramref name="rows" />, as the arrows do, and draws the frame that follows.</summary>
+        /// <summary>
+        ///     Moves the page by <paramref name="rows" />, as the arrows do, and draws the frame that follows.
+        /// </summary>
         public void Step(int rows)
         {
             View.Step(rows);

@@ -118,7 +118,9 @@ public sealed class Pictures(
     /// <summary>How many bytes of pixels are held: what <see cref="DecodedBudget" /> bounds.</summary>
     private long _decoded;
 
-    /// <summary>How many bytes of files, and of remembering, are held: what <see cref="EncodedBudget" /> bounds.</summary>
+    /// <summary>
+    ///     How many bytes of files, and of remembering, are held: what <see cref="EncodedBudget" /> bounds.
+    /// </summary>
     private long _encoded;
 
     /// <inheritdoc />
@@ -252,7 +254,8 @@ public sealed class Pictures(
             _queued =
             [
                 .. taking.Select(wanted => wanted.Drawn)
-                         .Where(drawn => sending.Contains(drawn.Id) && _held.GetValueOrDefault(drawn.Id) is { Coming: true }),
+                         .Where(drawn => sending.Contains(drawn.Id)
+                                         && _held.GetValueOrDefault(drawn.Id) is { Coming: true }),
             ];
         }
 
@@ -633,10 +636,10 @@ public sealed class Pictures(
     private static long Cost(Size size) => 4L * size.Width * size.Height;
 
     /// <summary>
-    ///     The largest box <paramref name="drawn" /> could be drawn in on this window, in pixels, which is as large as it
-    ///     is ever worth decoding: the box it is given where it has one of its own (<see cref="Drawn.Largest" />), and
-    ///     otherwise the content region's full width by <see cref="Rendering.Inset.WholeRows" /> rows. Any larger and the pixels
-    ///     are held only to be thrown away by the scale down to the box, at four bytes each.
+    ///     The largest box <paramref name="drawn" /> could be drawn in on this window, in pixels, which is as large as
+    ///     it is ever worth decoding: the box it is given where it has one of its own (<see cref="Drawn.Largest" />),
+    ///     and otherwise the content region's full width by <see cref="Rendering.Inset.WholeRows" /> rows. Any larger
+    ///     and the pixels are held only to be thrown away by the scale down to the box, at four bytes each.
     /// </summary>
     /// <param name="drawn">The picture.</param>
     /// <param name="cell">How big a cell is now, as <c>cell</c> answered for this frame.</param>
@@ -686,7 +689,9 @@ public sealed class Pictures(
         /// <summary>The decoded pixels, while the decoded tier holds them: what <see cref="Of" /> answers.</summary>
         public Picture? Picture { get; set; }
 
-        /// <summary>How long the file is, kept after the file is let go of, so that it is not fetched to find out.</summary>
+        /// <summary>
+        ///     How long the file is, kept after the file is let go of, so that it is not fetched to find out.
+        /// </summary>
         public int? Length { get; set; }
 
         /// <summary>How big the picture is stored, from its file's header.</summary>

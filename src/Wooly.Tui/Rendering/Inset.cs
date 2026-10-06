@@ -34,8 +34,9 @@ public sealed record Inset(Drawn Drawn, int Column, int Columns, int Rows)
     public const int WholeRows = 32;
 
     /// <summary>
-    ///     The pixels of a <b>Stand-in</b>'s blur, already in hand, where this inset is one (<see cref="StandIn.WithBlur" />)
-    ///     — or <see langword="null" /> for a picture, whose pixels are looked up from <see cref="IPictures" />.
+    ///     The pixels of a <b>Stand-in</b>'s blur, already in hand, where this inset is one
+    ///     (<see cref="StandIn.WithBlur" />) — or <see langword="null" /> for a picture, whose pixels are looked up from
+    ///     <see cref="IPictures" />.
     /// </summary>
     /// <remarks>
     ///     Carried on the inset rather than looked up, because a blur is decoded from the post itself and never fetched:
@@ -68,7 +69,9 @@ public sealed record Inset(Drawn Drawn, int Column, int Columns, int Rows)
     ///     </para>
     /// </remarks>
     /// <param name="drawn">The picture being drawn.</param>
-    /// <param name="shape">The shape the instance reported for it, or <see langword="null" /> where it reported none.</param>
+    /// <param name="shape">
+    ///     The shape the instance reported for it, or <see langword="null" /> where it reported none.
+    /// </param>
     /// <param name="cell">How many pixels one cell is, which is what turns those proportions into rows and columns.</param>
     /// <param name="width">How many columns there are to draw in.</param>
     /// <param name="mostRows">The most rows this box may take.</param>

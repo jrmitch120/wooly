@@ -97,7 +97,15 @@ public static class PostLines
                 .. Byline(shown, width, drawing.Now, pictures),
             ],
             Body(show, width, reading, saysHowToAskPast),
-            .. Media(show, width, pictures, drawing.Blurs, Inset.FeedRows, drawing.HideDrawnCaption, reading, saysHowToAskPast),
+            .. Media(
+                show,
+                width,
+                pictures,
+                drawing.Blurs,
+                Inset.FeedRows,
+                drawing.HideDrawnCaption,
+                reading,
+                saysHowToAskPast),
             LinkPreview(show, width, pictures, drawing.Blurs, Inset.FeedRows, reading),
             Poll(show, width, reading),
             [Counts(shown, spelledOut: false)],
@@ -147,7 +155,15 @@ public static class PostLines
             ],
             // The post screen is about this post, so x is always something that can act on it here.
             Body(show, width, reading, saysHowToAskPast: true),
-            .. Media(show, width, pictures, drawing.Blurs, Inset.WholeRows, drawing.HideDrawnCaption, reading, saysHowToAskPast: true),
+            .. Media(
+                show,
+                width,
+                pictures,
+                drawing.Blurs,
+                Inset.WholeRows,
+                drawing.HideDrawnCaption,
+                reading,
+                saysHowToAskPast: true),
             LinkPreview(show, width, pictures, drawing.Blurs, Inset.WholeRows, reading),
             Poll(show, width, reading),
             [Counts(shown, spelledOut: true)],
@@ -373,8 +389,9 @@ public static class PostLines
     ///     Which case an attachment falls into is settled here rather than at the view, because it changes how many
     ///     rows the post takes. A picture this terminal can draw gets a box, reserved from the shape the instance
     ///     reported whether or not its pixels have landed, and its Stand-in until they do (ADR-0025); a picture this
-    ///     terminal cannot draw at all gets the link and description the CLI already gives it (ADR-0016). There is no cell-by-cell fallback: a photograph reduced to one coloured block
-    ///     per cell is not a picture of anything (ADR-0016).
+    ///     terminal cannot draw at all gets the link and description the CLI already gives it (ADR-0016). There is no
+    ///     cell-by-cell fallback: a photograph reduced to one coloured block per cell is not a picture of anything
+    ///     (ADR-0016).
     ///     <para>
     ///         The split is <see cref="PostMedia.Opens" /> rather than <see cref="PostMedia.IsDrawable" />, and the two
     ///         stopped being opposites in #110: a video is walked <em>and</em> drawn. What tells the two halves apart
