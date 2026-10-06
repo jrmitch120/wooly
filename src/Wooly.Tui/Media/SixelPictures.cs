@@ -52,11 +52,11 @@ internal sealed class SixelPictures(
     public const int MostHeld = 48;
 
     /// <summary>
-    ///     How many colours a rough cut is encoded in, at most: a quarter of the 256 a sharp one has, which on a busy
-    ///     photograph is a half to two thirds of the bytes (#342). The resolution is left alone — halved, it saved more,
-    ///     and was plain to see on a large monitor.
+    ///     How many colours a rough cut is encoded in, at most: half the 256 a sharp one has, which is about three
+    ///     quarters of the bytes (#342). Halving the resolution saved more and was plain to see on a large monitor; 64
+    ///     colours saved more and broke the gradients of a hazy scene into bands as it went past.
     /// </summary>
-    public const int RoughColours = 64;
+    public const int RoughColours = 128;
 
     private readonly Func<Color[,], int, string> _encode = encode ?? Encoded;
     private readonly Func<Color?> _backdrop = backdrop ?? (() => null);

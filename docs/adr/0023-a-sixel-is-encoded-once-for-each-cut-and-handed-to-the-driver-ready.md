@@ -133,24 +133,26 @@ pictures less smoothly than one drawing placeholders, however its frames are mad
 
 "This is as far as sixel goes" was about the protocol, and it stands: every step sends every picture again. What it
 took for granted is that every step sends every picture *sharp*. A reader does not study a picture going past, so while
-the page is moving each cut is now encoded **rough** — the same crop at full resolution, in at most 64 colours — and
+the page is moving each cut is now encoded **rough** — the same crop at full resolution, in at most 128 colours — and
 once the page has been still for 150 ms it is drawn **sharp** again, in 256, without waiting for a key.
 
-On four 853×853 pictures with this client's own palette and encoder, 64 colours was 45–80% of 256's bytes — a busy
-one ~0.8–1 MB against ~1.4–1.5 MB. Halving the resolution as well, each two-by-two block the average of the four, saved
-more (35–70%, ~0.55 MB) and was tried first; on a large monitor the softened pictures going past were plain to see,
-and once synchronized output (below) had taken the tearing away the extra bytes were the cheaper thing to give up. A
-rough cut and a sharp one differ only in colours, so on a terminal with 64 or fewer they are one cut. Measured as
-before:
+That took three tries, judged by eye in WezTerm on a large monitor. Halving the resolution as well as cutting to 64
+colours, each two-by-two block the average of the four, sent 35–70% of sharp's bytes on four 853×853 pictures — and
+the softened pictures going past were plain to see. Full resolution at 64 colours sent 45–80%, and broke the haze,
+sky and neon glow of a rendered scene into bands. At 128 colours a scene like that is 73–74% of sharp's bytes, with
+little banding left. Dithering was measured as a way to keep 64 and lose the bands, and does the opposite of saving:
+it breaks up the runs of one colour that sixel's encoding compresses, so on those scenes a dithered 64 was 99–127% of
+sharp. A rough cut and a sharp one differ only in colours, so on a terminal with 128 or fewer they are one cut.
+Measured as before:
 
 | Per notch, sixel | Median | Worst | Sent |
 |---|---|---|---|
 | Sharp, notches 16 ms apart over new rows | 59 ms | 142 ms | ~1,026 KB |
-| Rough, the same | 49 ms | 115 ms | ~598 KB |
+| Rough, the same | 42 ms | 113 ms | ~804 KB |
 | Sharp, back to back | 41 ms | 174 ms | ~1,020 KB |
-| Rough, back to back | 20 ms | 63 ms | ~594 KB |
+| Rough, back to back | 29 ms | 145 ms | ~799 KB |
 | Sharp, a page turned | 85 ms | 346 ms | |
-| Rough, a page turned | 48 ms | 244 ms | |
+| Rough, a page turned | 127 ms | 214 ms | |
 
 These are one run each on the same machine, and noisier than the table above; the bytes are the steady part.
 
@@ -182,5 +184,6 @@ These are one run each on the same machine, and noisier than the table above; th
 - **Kitty is untouched**, through a box or as placeholders: it sends a picture once and moves it, and has nothing to
   save here.
 
-A reader may see a gradient band for a moment as a picture moves, and smooth out as it stops. That is the trade. It
-reads as smoother in WezTerm, where sixel is tested; Windows Terminal is still owed the manual check.
+What a rough cut buys is now modest — about a fifth of the bytes — and most of what made scrolling feel smoother in
+WezTerm was synchronized output. If a terminal shows no difference, rough cuts are the part to take out. Windows
+Terminal is still owed the manual check.

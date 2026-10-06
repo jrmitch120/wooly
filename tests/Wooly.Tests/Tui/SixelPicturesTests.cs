@@ -130,7 +130,7 @@ public class SixelPicturesTests
         var rough = sixels.Of(inset, new Picture(pixels), Cell, crop, colours: 256, rough: true);
         sixels.Of(inset, new Picture(pixels), Cell, crop, colours: 256, rough: true);
 
-        Assert.Equal(["256", "64"], [sharp.Encoded, rough.Encoded]);
+        Assert.Equal(["256", $"{SixelPictures.RoughColours}"], [sharp.Encoded, rough.Encoded]);
         Assert.Equal(2, encoded.Count);
         Assert.Equal(pixels[1, 1], encoded[1].Pixels[1, 1]);
         Assert.NotEqual(encoded[1].Pixels[0, 0], encoded[1].Pixels[1, 1]);
