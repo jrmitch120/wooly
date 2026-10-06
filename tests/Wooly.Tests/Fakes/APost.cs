@@ -71,20 +71,28 @@ internal static class APost
     };
 
     /// <summary>A picture attached to a post, with the description its author gave it.</summary>
-    public static PostMedia APicture(string id = "m1", string? description = "A cartoon sheep") =>
-        Attached(MediaKind.Image, id, description);
+    /// <param name="shape">
+    ///     The shape the instance reported for it, or none — which is a box at the TUI's 16:9 default (ADR-0025).
+    /// </param>
+    public static PostMedia APicture(
+        string id = "m1",
+        string? description = "A cartoon sheep",
+        PictureShape? shape = null) =>
+        Attached(MediaKind.Image, id, description, shape);
 
     /// <summary>An attachment of any kind, for a test that is about the kind rather than about a picture.</summary>
     public static PostMedia Attached(
         MediaKind kind,
         string id = "m1",
-        string? description = "A cartoon sheep") => new()
+        string? description = "A cartoon sheep",
+        PictureShape? shape = null) => new()
     {
         Id = id,
         Kind = kind,
         Url = $"https://files.mastodon.social/{id}/original.png",
         Preview = $"https://files.mastodon.social/{id}/small.png",
         Description = description,
+        Shape = shape,
     };
 
     /// <summary>The three marks, said one at a time, for a test that is about one of them.</summary>

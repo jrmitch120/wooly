@@ -1745,6 +1745,7 @@ is drawn reversed instead (#316).
 | `audience` | The visibility mark | `○ ◌ ● ✉` |
 | `content-warning` | A warning and its text | `⚠` |
 | `media` | Image placeholders, attachment links, a link preview's title, and the columns a byline holds for an avatar | `▒▒▒▒`, `⏵` |
+| `stand-in` | A drawn picture's box while the picture is not here: the shaded fill standing in for it, at its size (ADR-0025) | `░` |
 | *(none — a picture's own pixels)* | A drawn picture | it is the picture |
 | `poll` | Options and their bars | the bar itself, and `✓ `/`[x]` marking a picked one |
 | `reference-picked` | The brackets around a picked reference | `‹ ›`, always drawn |
