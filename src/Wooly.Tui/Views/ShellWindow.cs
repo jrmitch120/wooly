@@ -125,6 +125,10 @@ internal sealed class ShellWindow : Window
     ///     What a Kitty terminal holds, for drawing a picture as placeholder cells (ADR-0022), or
     ///     <see langword="null" /> to draw every picture through a box.
     /// </param>
+    /// <param name="frames">
+    ///     What wraps a frame in synchronized output, opened as the content region draws — the region with the pictures,
+    ///     whose text and sixels must land together — or <see langword="null" /> for none.
+    /// </param>
     public ShellWindow(
         Shell.Shell shell,
         ITheme theme,
@@ -132,7 +136,8 @@ internal sealed class ShellWindow : Window
         Action quit,
         IPictures pictures,
         bool hideDrawnCaption = false,
-        Placeholders? placeholders = null)
+        Placeholders? placeholders = null,
+        SynchronizedFrames? frames = null)
     {
         _shell = shell;
         _clock = clock;
@@ -179,7 +184,8 @@ internal sealed class ShellWindow : Window
                 width,
                 height,
                 active: true),
-            placeholders)
+            placeholders,
+            frames)
         {
             Id = ContentId,
             X = RailLines.Width,

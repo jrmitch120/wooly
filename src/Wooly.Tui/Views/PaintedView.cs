@@ -52,7 +52,8 @@ internal sealed class PaintedView : View
     private readonly Func<int, int, IReadOnlyList<Line>>? _frame;
     private readonly List<PictureView> _boxes = [];
     private readonly Placeholders? _placeholders;
-    private readonly SixelPictures _sixels = new();
+    private readonly SixelPictures _sixels;
+    private readonly SynchronizedFrames? _frames;
 
     /// <summary>Where the page began the last time pictures were placed, which says which way it is moving.</summary>
     private int _placedAt;
@@ -79,6 +80,7 @@ internal sealed class PaintedView : View
     ///     What a Kitty terminal holds, for drawing pictures as placeholder cells rather than through a box, or
     ///     <see langword="null" /> to draw every picture through a box (ADR-0022).
     /// </param>
+    /// <param name="frames">What wraps a frame this view draws in synchronized output, if anything does.</param>
     /// <remarks>
     ///     A frame is laid on a one-cell <c>Padding</c> round the view, so everything measured off
     ///     <see cref="View.Viewport" /> — the rows' width and height, the scroll, a page's worth — is the inside of it,
@@ -90,9 +92,12 @@ internal sealed class PaintedView : View
         Func<int, int, IReadOnlyList<Line>> rows,
         IPictures? pictures = null,
         Func<int, int, IReadOnlyList<Line>>? frame = null,
-        Placeholders? placeholders = null)
+        Placeholders? placeholders = null,
+        SynchronizedFrames? frames = null)
     {
         _theme = theme;
+        _sixels = new SixelPictures(backdrop: Backdrop);
+        _frames = frames;
         _rows = rows;
         _pictures = pictures;
         _frame = frame;
@@ -383,6 +388,8 @@ internal sealed class PaintedView : View
     /// </remarks>
     protected override bool OnClearingViewport()
     {
+        // Before anything of this frame can have been written: it is still being drawn.
+        _frames?.Open();
         Settle();
 
         return true;
@@ -844,6 +851,24 @@ internal sealed class PaintedView : View
         return placed;
     }
 
+
+    /// <summary>
+    ///     The page a sixel's transparent pixels are laid on: the theme's, where it names one, and otherwise the
+    ///     terminal's own background as it answered when asked at startup — every built-in theme draws on that. Nothing
+    ///     where neither is known, which leaves them transparent.
+    /// </summary>
+    private Terminal.Gui.Drawing.Color? Backdrop()
+    {
+        var none = Terminal.Gui.Drawing.Color.None;
+        var page = _theme.For(Role.Body).Background;
+
+        if (_theme.DrawsColour && page != none && page != Terminal.Gui.Drawing.Attribute.Default.Background)
+        {
+            return page;
+        }
+
+        return App?.Driver?.DefaultAttribute?.Background is { } terminal && terminal != none ? terminal : null;
+    }
 
     /// <summary>
     ///     How many colours a sixel is encoded in on this terminal, or none where a box draws through Kitty instead:

@@ -31,6 +31,7 @@ public partial class NoHardCodedColourTests
         Path.Combine("Media", "KittyPlaceholder.cs"),
         Path.Combine("Media", "PictureView.cs"),
         Path.Combine("Media", "SixelPalette.cs"),
+        Path.Combine("Media", "SixelPictures.cs"),
     ];
 
     [Fact]

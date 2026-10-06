@@ -128,3 +128,43 @@ pictures less smoothly than one drawing placeholders, however its frames are mad
   the write of a frame: `LayoutAndDrawComplete` fires after it, and nothing fires before it. Wrapping frames would mean
   writing the mode on from inside a view's draw and off from that event. That is fragile enough to want a terminal to
   try it on, and it is left for a follow-up.
+
+## Amendment: a frame is written whole, and a picture covers its cells (#342)
+
+"This is as far as sixel goes" was about the protocol, and it stands: every step sends every picture again. What
+remained choppy in WezTerm was less the bytes than how they landed, and two things changed that.
+
+**A frame with pictures in it is synchronized output (DEC mode 2026).** A terminal painting part way through a frame
+showed an avatar directly under a rule a moment before the rule — the tear the findings above expected this mode to
+cure, and it did. Terminal.Gui 2.5 still writes a frame with nothing either side of it and keeps the ways to replace its
+output internal; a spike that reached them by reflection proved the mode in WezTerm, and was thrown away.
+`SynchronizedFrames` brackets the frame from public ground instead: `CSI ?2026h` is written as the content region starts
+drawing — a frame cannot be written before it is drawn — and `CSI ?2026l` once `LayoutAndDrawComplete` says it is done,
+which a probe's byte stream showed is after the frame is written. Were that to change, the frame would go out
+unsynchronized, as before; and a block still open when the next pass of the main loop begins is closed there, which is
+documented to come first. Terminals without the mode ignore both, and a loop that draws no content writes neither.
+
+**A picture is laid on the page before it is encoded.** A sixel with transparent pixels lets the cells under it show
+through, and those cells are left unwritten — that is how the driver knows they are the picture's — so an avatar with a
+transparent background showed the text that had been there before the page moved. Transparent pixels are now blended
+onto the theme's page where it names one, and otherwise onto the terminal's own background, which Terminal.Gui asks for
+at startup (OSC 11) and every built-in theme draws on. Where neither is known they stay transparent, as before.
+
+Kitty is untouched by either, through a box or as placeholders, beyond its frames being synchronized too.
+
+**Rough while moving, sharp when still, was built and taken out.** The idea was that a reader does not study a picture
+going past: encode each cut in fewer colours while the page moves, and redraw it sharp 150 ms after it stops. It took
+three tries, judged by eye in WezTerm on a large monitor, and each was a worse trade than the last:
+
+- Half the resolution and 64 colours sent 35–70% of a sharp cut's bytes on four 853×853 pictures. The softened
+  pictures going past were plain to see.
+- Full resolution and 64 colours sent 45–80%, and broke the haze, sky and neon glow of a rendered scene into bands.
+- 128 colours sent 73–74% on scenes like that, with little banding left — about a fifth saved. Dithering was measured as
+  a way to keep 64 and lose the bands, and breaks up the runs of one colour that sixel's encoding compresses, so a
+  dithered 64 was 99–127% of sharp on those scenes.
+
+At 128 a notch over the measurement's photographs sent ~800 KB against ~1,026 KB sharp. Scrolling on Windows Terminal
+felt great with rough cuts at 128 and synchronized output together, and a fifth of the bytes was judged too little to
+keep for a timer, a redraw on settling, two cuts of every picture and a larger cache; Windows Terminal without them is
+the check still owed. Should sending ever be what a reader feels again, fewer colours
+while moving is where to look, at no fewer than 128.

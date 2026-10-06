@@ -58,6 +58,7 @@ internal sealed class DrawnShell : IDisposable
     ///     known by name, still draws through a box.
     /// </param>
     /// <param name="encoding">Where a picture is encoded for a Kitty terminal, where a test is about when; on the spot if not.</param>
+    /// <param name="frames">What wraps each frame in synchronized output, closed by the application as it is in the client.</param>
     public static async Task<DrawnShell> Of(
         int width,
         int height,
@@ -69,7 +70,8 @@ internal sealed class DrawnShell : IDisposable
         FakeTerminalImages? kittyImages = null,
         bool drawsPlaceholders = false,
         bool answersKitty = false,
-        Action<Action>? encoding = null)
+        Action<Action>? encoding = null,
+        SynchronizedFrames? frames = null)
     {
         built ??= new AShell();
 
@@ -103,7 +105,10 @@ internal sealed class DrawnShell : IDisposable
             built.Clock,
             () => { },
             pictures ?? FakePictures.DrawingNothing(),
-            placeholders: placeholders);
+            placeholders: placeholders,
+            frames: frames);
+
+        frames?.Over(application);
 
         application.Begin(window);
         application.LayoutAndDraw(true);
