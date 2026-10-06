@@ -338,3 +338,10 @@ foreground colour.
 ADR-0023 changes how a box draws, not where: `PictureView` no longer lets `ImageView` scale and encode the picture on
 every move. It hands the driver a sixel encoded once for each cut of the picture, with a straddling box framed to the
 rows still on the page.
+
+## Superseded in part by ADR-0025 (boxes from the instance's shape, a cache budgeted in bytes)
+
+A box's rows follow from the shape the instance reports for a picture (16:9 where it gives none), not from the
+picture's own pixels, and the box is there from the first frame with a **Stand-in** in it rather than appearing when
+the pixels land. A picture of another shape is fitted and centred inside it. The bounded number of pictures held is two
+byte budgets ordered by when each was last wanted, and what is on screen is never let go of.
