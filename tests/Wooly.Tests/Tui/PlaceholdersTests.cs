@@ -66,6 +66,25 @@ public class PlaceholdersTests
     }
 
     /// <summary>
+    ///     A picture decoded again at a larger size, for a window made wider, is sent again in the same box: the sharper
+    ///     pixels are the point of decoding it again, and naming the image already sent would keep the blurred one on
+    ///     screen (ADR-0025).
+    /// </summary>
+    [Fact]
+    public void Ready_SendsAPictureDecodedAgainAtAnotherSizeAgain()
+    {
+        var terminal = new FakeTerminalImages();
+        using var placeholders = Inline(terminal);
+        var inset = Box("m1", columns: 8, rows: 4);
+
+        var blurred = placeholders.Ready(inset, APicture(40, 40), Cell);
+        var sharp = placeholders.Ready(inset, APicture(80, 80), Cell);
+
+        Assert.NotEqual(blurred, sharp);
+        Assert.Equal(2, terminal.Transmitted.Count);
+    }
+
+    /// <summary>
     ///     The same avatar over a run of one author's posts is one image, however many boxes show it, and where each
     ///     box starts makes no difference to it.
     /// </summary>

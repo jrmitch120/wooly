@@ -52,7 +52,13 @@ public readonly record struct Avatar(Drawn? Wanted, Inset? Box, int Held, int Ga
     /// </summary>
     /// <inheritdoc cref="Of" path="/param" />
     public static Avatar Header(string account, string? address, IPictures? pictures) =>
-        Of(account, address, pictures, columns: 8, rows: 4, gap: 2);
+        Of(account, address, pictures, HeaderColumns, HeaderRows, gap: 2);
+
+    /// <summary>How wide the header's box is, which is the largest an avatar is ever drawn (<see cref="Drawn.Largest" />).</summary>
+    internal const int HeaderColumns = 8;
+
+    /// <summary>How tall the header's box is, which is the largest an avatar is ever drawn.</summary>
+    internal const int HeaderRows = 4;
 
     /// <summary>How many columns it costs in all: the box and the gap after it, or none.</summary>
     public int Width => Wanted is null ? 0 : Held + Gap;

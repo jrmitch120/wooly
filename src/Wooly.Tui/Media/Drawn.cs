@@ -20,6 +20,17 @@ namespace Wooly.Tui.Media;
 public sealed record Drawn(string Id, string Address)
 {
     /// <summary>
+    ///     The largest box this picture is ever drawn in, in cells, or <see langword="null" /> where that is as wide as
+    ///     the window and as tall as the post screen allows — which is every picture but an avatar.
+    /// </summary>
+    /// <remarks>
+    ///     What <see cref="Pictures" /> decodes it to, so that a picture is never held larger than it can be drawn
+    ///     (ADR-0025). An avatar's box is fixed, and an instance serves it at hundreds of pixels square: decoded to
+    ///     the window instead, each one would cost hundreds of kilobytes to draw a few dozen pixels.
+    /// </remarks>
+    public (int Columns, int Rows)? Largest { get; init; }
+
+    /// <summary>
     ///     An attachment on a post, at the smaller copy where the instance offered one. A terminal draws a few hundred
     ///     pixels across at most, and fetching a photograph at full size to throw nine tenths of it away is somebody's
     ///     data allowance.
@@ -50,5 +61,8 @@ public sealed record Drawn(string Id, string Address)
     /// </summary>
     /// <param name="account">Whose avatar it is, as <c>username@instance</c>.</param>
     /// <param name="address">Where to fetch it.</param>
-    public static Drawn Avatar(string account, string address) => new($"avatar:{account}", address);
+    public static Drawn Avatar(string account, string address) => new($"avatar:{account}", address)
+    {
+        Largest = (Rendering.Avatar.HeaderColumns, Rendering.Avatar.HeaderRows),
+    };
 }

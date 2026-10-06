@@ -1,10 +1,19 @@
+using Size = SixLabors.ImageSharp.Size;
+
 namespace Wooly.Tui.Media;
 
 /// <summary>
-///     The pictures the TUI has, fetched once each and held for as long as a frame has wanted them recently enough. Asked on every draw
-///     and answering at once, because a screen is redrawn on every keypress and a fetch per frame would be a fetch per
-///     keypress (ADR-0016).
+///     The pictures the TUI has, fetched once each and held for as long as a frame has wanted them recently enough.
+///     Asked on every draw and answering at once, because a screen is redrawn on every keypress and a fetch per frame
+///     would be a fetch per keypress (ADR-0016).
 /// </summary>
+/// <remarks>
+///     Held in two tiers, each budgeted in bytes and each letting go of the picture a frame wanted longest ago
+///     (ADR-0025): the decoded pixels, which are what <see cref="Of" /> answers from, and the downloaded files they were
+///     decoded from. Pixels cost ten to fifty times what their file does, so letting go of the pixels while keeping the
+///     file makes a picture scrolled back to cost a decode rather than a fetch — and makes a window grown wider cost a
+///     decode too, rather than a picture drawn blurred or fetched again.
+/// </remarks>
 /// <param name="fetch">
 ///     How the bytes at an address are got. A delegate rather than an <see cref="HttpClient" /> so that a test can
 ///     answer without a socket, and so the one thing this class is about — asked once, held, and announced when it
@@ -20,34 +29,47 @@ namespace Wooly.Tui.Media;
 ///     thread the fetch finished on, so whatever is passed here is what has to get back to the UI thread.
 /// </param>
 /// <param name="dropped">
-///     What to do when a picture is let go of to make room, given its <see cref="Drawn.Id" />: tell a Kitty terminal
-///     holding a copy to let go of it too (ADR-0022). Called on the thread that said what a frame wants, since that is
-///     the only thing that makes room.
+///     What to do when a picture's pixels are let go of to make room, given its <see cref="Drawn.Id" />: tell a Kitty
+///     terminal holding a copy to let go of it too (ADR-0022). Only for the decoded tier: a picture whose file alone is
+///     let go of has nothing on the terminal that this client is not still drawing. Called on whichever thread made the
+///     room — the one saying what a frame wants, or the one a picture landed on.
+/// </param>
+/// <param name="columns">
+///     How many columns wide the window is now, or <see langword="null" /> where nothing says. With the cell, that is
+///     the largest box a picture could be drawn in here, which is the size it is decoded to (ADR-0025). Asked afresh
+///     each frame, on the thread saying what the frame wants, because the window can be made wider.
 /// </param>
 public sealed class Pictures(
     Func<string, CancellationToken, Task<byte[]?>> fetch,
     Func<CellSize?> cell,
     Action arrived,
-    Action<string>? dropped = null) : IPictures, IDisposable
+    Action<string>? dropped = null,
+    Func<int>? columns = null) : IPictures, IDisposable
 {
     /// <summary>
-    ///     How many pictures are held at once. Only a handful can be on screen and only what is near the screen is ever
-    ///     sent for, so this is a scroll or two of slack rather than a gallery — and a picture is megabytes once it is
-    ///     pixels, so a client holding a morning's scrolling would be holding a morning's scrolling in memory.
-    ///     <para>
-    ///         Raised from sixteen when a byline gained an avatar (#77), which about doubled how many pictures a
-    ///         screenful wants: the three screens either side of the viewport that <c>Want</c> reaches over are some
-    ///         ten posts, and ten posts can want ten avatars and their attachments besides. A cache too small for both
-    ///         would drop and re-fetch an avatar every frame, which is a fetch per keypress — the very thing holding
-    ///         pictures at all exists to prevent. An avatar is a thumbnail rather than a photograph, so the memory
-    ///         this admits is nothing like twice what sixteen did.
-    ///     </para>
-    ///     <para>
-    ///         Past this only for what is on screen, which is never let go of however many pictures that is; the
-    ///         screen is small, so how far past is bounded (ADR-0025).
-    ///     </para>
+    ///     How many bytes of decoded pixels are held, at four bytes a pixel — about two dozen photographs at the size a
+    ///     wide window draws them, and every avatar on several screens besides (ADR-0025). Past this only for what is on
+    ///     screen, which is never let go of however much that is; the screen is small, so how far past is bounded.
     /// </summary>
-    public const int MostHeld = 32;
+    /// <remarks>
+    ///     A starting point rather than a measurement. A window large enough to raise the size each picture is decoded
+    ///     to raises what each costs, and this is the first number to revisit if that becomes common.
+    /// </remarks>
+    public const long DecodedBudget = 64L * 1024 * 1024;
+
+    /// <summary>
+    ///     How many bytes of downloaded files are held, so that a picture whose pixels were let go of is decoded again
+    ///     rather than fetched again. A preview is tens of kilobytes, so this is several hundred of them: a morning's
+    ///     scroll back, or two destinations' worth (ADR-0025). Also a starting point.
+    /// </summary>
+    public const long EncodedBudget = 32L * 1024 * 1024;
+
+    /// <summary>
+    ///     What remembering a picture costs the encoded tier besides its file: its name, its address, its size and its
+    ///     place in the order. Counted so that a picture whose file is gone, or which could not be had at all, is held
+    ///     to the budget as well — remembered, so that it is not asked for again on every frame, but not for ever.
+    /// </summary>
+    public const int Remembering = 1024;
 
     /// <summary>
     ///     How many bytes of a download are worth reading. A preview is tens of kilobytes; anything of this size is
@@ -68,17 +90,24 @@ public sealed class Pictures(
 
     private readonly Lock _gate = new();
     private readonly SemaphoreSlim _atATime = new(AtATime, AtATime);
-    private readonly Dictionary<string, Picture?> _held = [];
+    private readonly Dictionary<string, Held> _held = [];
 
-    /// <summary>What is held, wanted longest ago first — the order it is let go of in.</summary>
-    private readonly LinkedList<string> _wanted = new();
+    /// <summary>What is remembered, wanted longest ago first — the order both tiers let go of it in.</summary>
+    private readonly LinkedList<Held> _wanted = new();
 
-    /// <summary>Where each held picture is in <see cref="_wanted" />, so that wanting it again is not a search.</summary>
-    private readonly Dictionary<string, LinkedListNode<string>> _places = [];
-
-    /// <summary>What the latest frame had on screen, which is never let go of.</summary>
+    /// <summary>What the latest frame had on screen, which is never let go of from the decoded tier.</summary>
     private HashSet<string> _onScreen = [];
+
     private readonly CancellationTokenSource _abandoned = new();
+
+    /// <summary>How many frames have said what they want, which is what names the latest of them.</summary>
+    private long _frame;
+
+    /// <summary>How many bytes of pixels are held: what <see cref="DecodedBudget" /> bounds.</summary>
+    private long _decoded;
+
+    /// <summary>How many bytes of files, and of remembering, are held: what <see cref="EncodedBudget" /> bounds.</summary>
+    private long _encoded;
 
     /// <inheritdoc />
     public CellSize? Cell => cell();
@@ -97,11 +126,13 @@ public sealed class Pictures(
     /// <param name="cell">How big a cell is — see the constructor.</param>
     /// <param name="arrived">What to do when one lands — see the constructor.</param>
     /// <param name="dropped">What to do when one is let go of — see the constructor.</param>
+    /// <param name="columns">How wide the window is — see the constructor.</param>
     public static Pictures Over(
         HttpClient http,
         Func<CellSize?> cell,
         Action arrived,
-        Action<string>? dropped = null) => new(
+        Action<string>? dropped = null,
+        Func<int>? columns = null) => new(
         async (address, cancellation) =>
         {
             // Headers first, so that a length worth refusing is refused before the body is read rather than after it
@@ -119,22 +150,25 @@ public sealed class Pictures(
         },
         cell,
         arrived,
-        dropped);
+        dropped,
+        columns);
 
     /// <inheritdoc />
     public Picture? Of(Drawn drawn)
     {
         lock (_gate)
         {
-            return _held.GetValueOrDefault(drawn.Id);
+            return _held.GetValueOrDefault(drawn.Id)?.Picture;
         }
     }
 
     /// <inheritdoc />
     /// <remarks>
-    ///     Only as much of <paramref name="frame" /> is taken as there is room for, nearest first, and everything on
-    ///     screen whatever room that leaves. Taking the rest would send for pictures only to let go of them again at
-    ///     once, and send for them again on the next frame, which is a fetch per keypress.
+    ///     Only as much of <paramref name="frame" /> is taken into each tier as there is room for, nearest first, and
+    ///     everything on screen whatever room that leaves. Taking the rest would fetch or decode pictures only to let go
+    ///     of them again at once, and fetch or decode them again on the next frame, which is a fetch or a decode per
+    ///     keypress. Past the decoded tier's room a picture is still fetched while the encoded tier has room for its
+    ///     file, so that by the time it is scrolled to it is a decode away rather than a fetch.
     /// </remarks>
     public void Want(IReadOnlyList<WantedPicture> frame)
     {
@@ -143,7 +177,9 @@ public sealed class Pictures(
 
         lock (_gate)
         {
-            var taking = Taken(frame);
+            var taking = Distinct(frame);
+
+            _frame++;
 
             _onScreen = [.. taking.Where(wanted => wanted.OnScreen).Select(wanted => wanted.Drawn.Id)];
 
@@ -151,29 +187,46 @@ public sealed class Pictures(
             // frame's to be let go of.
             for (var at = taking.Count - 1; at >= 0; at--)
             {
-                var drawn = taking[at].Drawn;
+                var held = Renewed(taking[at].Drawn);
 
-                if (_places.Remove(drawn.Id, out var place))
+                // Worked out here, on the thread that lays out rows, because that is the only thread the window's size
+                // may be asked from; whatever decodes the picture later reads it from here.
+                held.Room = Room(held.Drawn);
+            }
+
+            var pixelsLeft = DecodedBudget;
+            var bytesLeft = EncodedBudget;
+
+            foreach (var wanted in taking)
+            {
+                var held = _held[wanted.Drawn.Id];
+
+                // A size not known yet is a picture never fetched, taken while there is any room at all: what it costs
+                // is only learnt by fetching it, and once it is known the next frame goes by it. Going by a guess
+                // instead would either fetch nothing near a screen of photographs or everything near one of avatars.
+                var keepsFile = wanted.OnScreen || (held.Length is { } length ? length <= bytesLeft : bytesLeft > 0);
+                var decodes = wanted.OnScreen || (held.Pixels is { } pixels ? pixels <= pixelsLeft : pixelsLeft > 0);
+
+                bytesLeft -= keepsFile ? held.Length ?? 0 : 0;
+                pixelsLeft -= decodes ? held.Pixels ?? 0 : 0;
+                held.DecodesIn = decodes ? _frame : held.DecodesIn;
+
+                if (held.Coming || held.Failed)
                 {
-                    _wanted.Remove(place);
-                }
-                else
-                {
-                    // Written down before the fetch goes out, and holding null until it lands: that is what makes
-                    // asking on every frame cost one fetch rather than one a frame, and what stops a picture that
-                    // cannot be had from being asked for again for as long as it is remembered.
-                    _held[drawn.Id] = null;
-                    sending.Add(drawn);
+                    continue;
                 }
 
-                _places[drawn.Id] = _wanted.AddLast(drawn.Id);
+                var fetches = held.Bytes is null && held.Picture is null && (keepsFile || decodes);
+                var decodesAgain = decodes && held.Bytes is not null && (held.Picture is null || held.Grown);
+
+                if (fetches || decodesAgain)
+                {
+                    held.Coming = true;
+                    sending.Add(held.Drawn);
+                }
             }
 
             letGo = LetGo();
-
-            // Nearest first, and none that this very frame has already let go of.
-            sending.Reverse();
-            sending.RemoveAll(drawn => !_held.ContainsKey(drawn.Id));
         }
 
         Announce(letGo);
@@ -185,11 +238,10 @@ public sealed class Pictures(
     }
 
     /// <summary>
-    ///     The part of <paramref name="frame" /> there is room for: its nearest <see cref="MostHeld" /> pictures, and
-    ///     every one on screen past them. Each picture once, where a frame wants the same one twice — the same author's
-    ///     avatar on two posts — and on screen if either was.
+    ///     Each picture in <paramref name="frame" /> once, nearest first, where a frame wants the same one twice — the
+    ///     same author's avatar on two posts — and on screen if either was.
     /// </summary>
-    private static List<WantedPicture> Taken(IReadOnlyList<WantedPicture> frame)
+    private static List<WantedPicture> Distinct(IReadOnlyList<WantedPicture> frame)
     {
         var taking = new List<WantedPicture>();
         var where = new Dictionary<string, int>();
@@ -200,7 +252,7 @@ public sealed class Pictures(
             {
                 taking[at] = taking[at] with { OnScreen = taking[at].OnScreen || wanted.OnScreen };
             }
-            else if (taking.Count < MostHeld || wanted.OnScreen)
+            else
             {
                 where[wanted.Drawn.Id] = taking.Count;
                 taking.Add(wanted);
@@ -208,6 +260,40 @@ public sealed class Pictures(
         }
 
         return taking;
+    }
+
+    /// <summary>
+    ///     What is remembered of <paramref name="drawn" />, made the most recently wanted — or a new memory of it, where
+    ///     there was none. Under the lock.
+    /// </summary>
+    private Held Renewed(Drawn drawn)
+    {
+        if (_held.TryGetValue(drawn.Id, out var held))
+        {
+            _wanted.Remove(held.Place);
+            _wanted.AddLast(held.Place);
+
+            return held;
+        }
+
+        // Written down before anything is sent for: that is what makes asking on every frame cost one fetch rather
+        // than one a frame.
+        return Remembered(drawn, _wanted.AddLast);
+    }
+
+    /// <summary>
+    ///     A new memory of <paramref name="drawn" />, put in the order by <paramref name="place" /> and costing its
+    ///     remembering from now on. Under the lock.
+    /// </summary>
+    private Held Remembered(Drawn drawn, Func<Held, LinkedListNode<Held>> place)
+    {
+        var held = new Held(drawn);
+
+        held.Place = place(held);
+        _held[drawn.Id] = held;
+        _encoded += Remembering;
+
+        return held;
     }
 
     /// <summary>
@@ -236,8 +322,15 @@ public sealed class Pictures(
         return null;
     }
 
+    /// <summary>
+    ///     Gets <paramref name="drawn" />'s pixels: from its file where that is already held, from the network where
+    ///     not, and decoded only where the latest frame had room for them. A file fetched for a picture the decoded tier
+    ///     had no room for is held as a file, and decoded when the picture is scrolled to.
+    /// </summary>
     private async Task Fetch(Drawn drawn)
     {
+        byte[]? bytes = null;
+        Size? stored = null;
         Picture? picture = null;
 
         try
@@ -249,9 +342,20 @@ public sealed class Pictures(
 
             try
             {
-                if (await fetch(drawn.Address, _abandoned.Token) is { } bytes)
+                lock (_gate)
                 {
-                    picture = PictureDecoder.From(bytes);
+                    bytes = _held.GetValueOrDefault(drawn.Id)?.Bytes;
+                }
+
+                bytes ??= await fetch(drawn.Address, _abandoned.Token);
+
+                if (bytes is not null)
+                {
+                    // Off the thread that asked, which is the UI thread itself where the file was already held: a
+                    // decode is the slow part, and a frame waiting on one would be a frame that stuttered.
+                    var file = bytes;
+
+                    (stored, picture) = await Task.Run(() => Decoded(drawn, file), _abandoned.Token);
                 }
             }
             finally
@@ -265,54 +369,175 @@ public sealed class Pictures(
             // attached to it, and an error row where a photograph was meant to be would be worse than the description.
         }
 
-        // Already remembered as nothing by Of, and left that way so it is not asked for again. A shell that has been
-        // closed is not told about a picture either: there is nothing left to draw it on.
-        if (picture is null || _abandoned.IsCancellationRequested)
+        // A shell that has been closed is not told about a picture: there is nothing left to draw it on.
+        if (_abandoned.IsCancellationRequested)
         {
             return;
         }
 
+        List<string> letGo;
+        bool landed;
+
         lock (_gate)
         {
-            // Let go of while it was on its way, so wanted by no frame since: not taken back, because taking it back
-            // as the most recently wanted would let go of something a frame did want to make room for it.
-            if (!_held.ContainsKey(drawn.Id))
-            {
-                return;
-            }
-
-            _held[drawn.Id] = picture;
+            landed = Land(drawn, stored is null ? null : bytes, stored, picture);
+            letGo = LetGo();
         }
 
-        arrived();
+        Announce(letGo);
+
+        if (landed)
+        {
+            arrived();
+        }
     }
 
     /// <summary>
-    ///     Lets go of the pictures wanted longest ago until there are no more than there is room for, passing over any
-    ///     on screen in the latest frame however far over that leaves it, and says which were let go of — to be told
-    ///     outside the lock, since whoever is told may take one of its own.
+    ///     How big the picture in <paramref name="bytes" /> is stored, and its pixels at the size the latest frame said
+    ///     to decode it to where that frame had room for them — or nothing at all where the bytes are not a picture.
+    ///     Outside the lock, because this is the slow part.
+    /// </summary>
+    private (Size? Stored, Picture? Picture) Decoded(Drawn drawn, byte[] bytes)
+    {
+        if (PictureDecoder.Measured(bytes) is not { } stored)
+        {
+            return (null, null);
+        }
+
+        Size room;
+
+        lock (_gate)
+        {
+            if (_held.GetValueOrDefault(drawn.Id) is not { } held || held.DecodesIn != _frame)
+            {
+                return (stored, null);
+            }
+
+            room = held.Room;
+        }
+
+        return (stored, PictureDecoder.From(bytes, room));
+    }
+
+    /// <summary>
+    ///     Writes down what came of sending for <paramref name="drawn" />, and says whether there are new pixels to
+    ///     draw. Under the lock.
+    /// </summary>
+    private bool Land(Drawn drawn, byte[]? bytes, Size? stored, Picture? picture)
+    {
+        // Never forgotten while it was on its way (LetGo), so there is somewhere for it to land. Where the page moved on
+        // while it was coming, it lands as a file alone, because Decoded asked the latest frame whether to decode it:
+        // the file of a picture scrolled past, kept so that scrolling back to it is a decode rather than a fetch
+        // (ADR-0025). Only a shell closing forgets it, and that is not told about anything.
+        if (!_held.TryGetValue(drawn.Id, out var held))
+        {
+            return false;
+        }
+
+        held.Coming = false;
+
+        if (bytes is null || stored is null)
+        {
+            // Remembered as nothing, so that it is not asked for again for as long as it is remembered.
+            held.Failed = true;
+
+            return false;
+        }
+
+        held.Stored = stored;
+        Keep(held, bytes);
+
+        if (picture is null)
+        {
+            return false;
+        }
+
+        Show(held, picture);
+
+        return true;
+    }
+
+    /// <summary>
+    ///     Lets go of what was wanted longest ago until each tier is back within its budget, and says whose pixels were
+    ///     let go of — to be told outside the lock, since whoever is told may take one of its own. Pixels on screen in
+    ///     the latest frame are passed over however far over budget that leaves the decoded tier. A picture with
+    ///     neither pixels nor file left is forgotten where the encoded tier still needs the room remembering it takes,
+    ///     and is sent for again if it is ever wanted again.
     /// </summary>
     private List<string> LetGo()
     {
         var letGo = new List<string>();
-        var place = _wanted.First;
 
-        while (_held.Count > MostHeld && place is not null)
+        for (var place = _wanted.First; place is not null && _decoded > DecodedBudget; place = place.Next)
         {
-            var next = place.Next;
-
-            if (!_onScreen.Contains(place.Value))
+            if (place.Value.Picture is not null && !_onScreen.Contains(place.Value.Drawn.Id))
             {
-                _wanted.Remove(place);
-                _places.Remove(place.Value);
-                _held.Remove(place.Value);
-                letGo.Add(place.Value);
+                Show(place.Value, null);
+                letGo.Add(place.Value.Drawn.Id);
             }
+        }
 
-            place = next;
+        for (var place = _wanted.First; place is not null && _encoded > EncodedBudget;)
+        {
+            var held = place.Value;
+
+            place = place.Next;
+            Keep(held, null);
+
+            if (_encoded > EncodedBudget && held.Picture is null && !held.Coming)
+            {
+                _wanted.Remove(held.Place);
+                _held.Remove(held.Drawn.Id);
+                _encoded -= Remembering;
+            }
         }
 
         return letGo;
+    }
+
+    /// <summary>Holds <paramref name="bytes" /> as <paramref name="held" />'s file, or none, keeping the tally.</summary>
+    private void Keep(Held held, byte[]? bytes)
+    {
+        _encoded += (bytes?.LongLength ?? 0) - (held.Bytes?.LongLength ?? 0);
+        held.Bytes = bytes;
+
+        if (bytes is not null)
+        {
+            held.Length = bytes.Length;
+        }
+    }
+
+    /// <summary>Holds <paramref name="picture" /> as <paramref name="held" />'s pixels, or none, keeping the tally.</summary>
+    private void Show(Held held, Picture? picture)
+    {
+        _decoded += Cost(picture) - Cost(held.Picture);
+        held.Picture = picture;
+    }
+
+    /// <summary>What <paramref name="picture" />'s pixels cost: four bytes each.</summary>
+    private static long Cost(Picture? picture) => picture is null ? 0 : 4L * picture.Width * picture.Height;
+
+    /// <summary>
+    ///     The largest box <paramref name="drawn" /> could be drawn in on this window, in pixels, which is as large as it
+    ///     is ever worth decoding: the box it is given where it has one of its own (<see cref="Drawn.Largest" />), and
+    ///     otherwise the window's full width by <see cref="Rendering.Inset.WholeRows" /> rows. Any larger and the pixels
+    ///     are held only to be thrown away by the scale down to the box, at four bytes each.
+    /// </summary>
+    private Size Room(Drawn drawn)
+    {
+        if (cell() is not { Width: > 0, Height: > 0 } size)
+        {
+            return PictureDecoder.SomeRoom;
+        }
+
+        if (drawn.Largest is var (most, tall))
+        {
+            return new Size(Math.Max(1, most) * size.Width, Math.Max(1, tall) * size.Height);
+        }
+
+        var across = columns?.Invoke() is > 0 and var wide ? wide * size.Width : PictureDecoder.LongestSide;
+
+        return new Size(across, Rendering.Inset.WholeRows * size.Height);
     }
 
     /// <summary>Says which pictures were let go of, outside the lock <see cref="LetGo" /> was called under.</summary>
@@ -324,5 +549,64 @@ public sealed class Pictures(
         }
 
         letGo.ForEach(dropped);
+    }
+
+    /// <summary>
+    ///     Everything remembered of one picture: its file and its pixels where either is held, what is known of its
+    ///     size, and whether it is on its way. Read and written under the lock only.
+    /// </summary>
+    private sealed class Held(Drawn drawn)
+    {
+        public Drawn Drawn { get; } = drawn;
+
+        /// <summary>Where this is in the order pictures were wanted in.</summary>
+        public LinkedListNode<Held> Place { get; set; } = null!;
+
+        /// <summary>The downloaded file, while the encoded tier holds it.</summary>
+        public byte[]? Bytes { get; set; }
+
+        /// <summary>The decoded pixels, while the decoded tier holds them: what <see cref="Of" /> answers.</summary>
+        public Picture? Picture { get; set; }
+
+        /// <summary>How long the file is, kept after the file is let go of, so that it is not fetched to find out.</summary>
+        public int? Length { get; set; }
+
+        /// <summary>How big the picture is stored, from its file's header.</summary>
+        public Size? Stored { get; set; }
+
+        /// <summary>The largest box the latest frame could draw it in, in pixels: what it is decoded to.</summary>
+        public Size Room { get; set; } = PictureDecoder.SomeRoom;
+
+        /// <summary>
+        ///     The latest frame that had room in the decoded tier for this picture's pixels. Kept as a frame rather than
+        ///     a yes or no, so that a frame not wanting it at all says no without every picture remembered being
+        ///     visited to say so.
+        /// </summary>
+        public long DecodesIn { get; set; } = -1;
+
+        /// <summary>Whether it is being fetched or decoded now, so that a frame does not send for it twice.</summary>
+        public bool Coming { get; set; }
+
+        /// <summary>Whether it could not be had, so is not asked for again for as long as it is remembered.</summary>
+        public bool Failed { get; set; }
+
+        /// <summary>
+        ///     What its pixels cost decoded for <see cref="Room" />, or <see langword="null" /> while its size is not
+        ///     known — or what the pixels held cost, where that is more: a window made smaller does not decode a picture
+        ///     again, so the larger pixels are what stay held.
+        /// </summary>
+        public long? Pixels =>
+            Stored is { } stored
+                ? Math.Max(Cost(Picture), 4L * PictureDecoder.Fitted(stored, Room).Width * PictureDecoder.Fitted(stored, Room).Height)
+                : null;
+
+        /// <summary>
+        ///     Whether the window has grown past what the pixels held were decoded for, so that decoding the file again
+        ///     would draw the picture sharper. Never where the window has shrunk: the pixels held are drawn scaled down.
+        /// </summary>
+        public bool Grown =>
+            Picture is { } picture && Stored is { } stored
+            && PictureDecoder.Fitted(stored, Room) is var fitted
+            && (fitted.Width > picture.Width || fitted.Height > picture.Height);
     }
 }

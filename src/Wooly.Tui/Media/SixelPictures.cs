@@ -67,7 +67,7 @@ internal sealed class SixelPictures(
     /// </summary>
     public Sixel Of(Inset inset, Picture picture, CellSize cell, SixelCrop crop, int colours)
     {
-        var key = KeyOf(inset, cell, crop, colours);
+        var key = KeyOf(inset, picture, cell, crop, colours);
         TaskCompletionSource<Sixel>? preparing;
 
         lock (_gate)
@@ -111,7 +111,7 @@ internal sealed class SixelPictures(
     /// </summary>
     public void Prepare(Inset inset, Picture picture, CellSize cell, SixelCrop crop, int colours)
     {
-        var key = KeyOf(inset, cell, crop, colours);
+        var key = KeyOf(inset, picture, cell, crop, colours);
         var preparing = new TaskCompletionSource<Sixel>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         lock (_gate)
@@ -155,8 +155,11 @@ internal sealed class SixelPictures(
         });
     }
 
-    private Key KeyOf(Inset inset, CellSize cell, SixelCrop crop, int colours) =>
-        new(new Scale(inset.Drawn.Id, inset.Columns, inset.Rows, cell, _backdrop()), crop, colours);
+    private Key KeyOf(Inset inset, Picture picture, CellSize cell, SixelCrop crop, int colours) =>
+        new(
+            new Scale(inset.Drawn.Id, inset.Columns, inset.Rows, cell, _backdrop(), (picture.Width, picture.Height)),
+            crop,
+            colours);
 
     /// <summary>Holds a sixel, letting go of the one used longest ago once there are more than there is room for.</summary>
     private void Hold(Key key, Sixel sixel)
@@ -300,8 +303,17 @@ internal sealed class SixelPictures(
         return laid is null ? picture : new Picture(laid);
     }
 
-    /// <summary>One picture at one box size, on one size of cell, laid on one backdrop.</summary>
-    private readonly record struct Scale(string Drawn, int Columns, int Rows, CellSize Cell, Color? Backdrop);
+    /// <summary>
+    ///     One picture at one box size, on one size of cell, laid on one backdrop. The size it was decoded at is part
+    ///     of it, because a picture decoded again for a wider window is sharper pixels in the same box (ADR-0025).
+    /// </summary>
+    private readonly record struct Scale(
+        string Drawn,
+        int Columns,
+        int Rows,
+        CellSize Cell,
+        Color? Backdrop,
+        (int Width, int Height) Decoded);
 
     /// <summary>One crop of a scaled picture, in so many colours.</summary>
     private readonly record struct Key(Scale Scale, SixelCrop Crop, int Colours);

@@ -125,7 +125,8 @@ try
         files,
         () => RasterProtocol.CellOf(application.Driver, placeholdersByName, () => windowSize.Cell),
         Redraw,
-        placeholders.Drop);
+        placeholders.Drop,
+        () => application.Driver?.Cols ?? 0);
 
     // Each frame with pictures in it written whole, where the terminal can hold one back until it is (#342).
     var frames = new SynchronizedFrames(sequence => application.Driver?.GetOutput().Write(sequence));
