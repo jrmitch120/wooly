@@ -1,3 +1,4 @@
+using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Media;
 using Wooly.Tui.Screens;
@@ -52,7 +53,7 @@ public class SixelBoxTests
                 Timelines = FakeTimelineReader.Holding(
                     APost.With(id: "110"),
                     APost.With(id: "220"),
-                    APost.With(id: "330", media: [APost.APicture("m1")]),
+                    APost.With(id: "330", media: [APost.APicture("m1", shape: new PictureShape(800, 400))]),
                     APost.With(id: "440")),
             },
             pictures: FakePictures.With().Holding("m1", 800, 400),

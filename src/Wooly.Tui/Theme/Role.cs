@@ -56,6 +56,14 @@ public enum Role
     /// </summary>
     Media,
 
+    /// <summary>
+    ///     A <b>drawn</b> picture's box while the picture is not here: the plain shaded fill that stands in for it, at
+    ///     its size, so nothing moves when one replaces the other (ADR-0025). Carried without colour by <c>░</c>. Its
+    ///     own role rather than <see cref="Media" />'s, because a box of the media colour the size of a photograph
+    ///     shouts, and this is meant to recede until the picture lands on it.
+    /// </summary>
+    StandIn,
+
     /// <summary>A poll's options and their bars. Carried without colour by the bar itself.</summary>
     Poll,
 

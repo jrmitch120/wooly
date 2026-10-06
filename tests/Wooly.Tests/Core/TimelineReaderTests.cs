@@ -333,6 +333,63 @@ public class TimelineReaderTests
         Assert.Null(Assert.Single(Assert.Single(fetch.Items).Media).Description);
     }
 
+    /// <summary>
+    ///     The shape of the preview this client fetches, which is what a drawn picture's box is settled from before its
+    ///     pixels arrive (ADR-0025). <c>small</c> describes the preview and <c>original</c> the file itself, so where
+    ///     both are sent it is <c>small</c> that says how the picture will be drawn.
+    /// </summary>
+    [Fact]
+    public async Task Read_ReportsTheShapeOfThePreviewTheInstanceDescribed()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(Page(PostJson("110", media: MediaJson(meta: """
+                {
+                  "original": { "width": 4000, "height": 3000, "aspect": 1.3333 },
+                  "small": { "width": 640, "height": 480, "aspect": 1.3333 }
+                }
+                """)))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        Assert.Equal(new PictureShape(640, 480), Assert.Single(Assert.Single(fetch.Items).Media).Shape);
+    }
+
+    /// <summary>
+    ///     The original's shape is the same picture's at a different size, so it stands in where the preview's was not
+    ///     said in full — which is a better guess at the box than the 16:9 the TUI falls back on.
+    /// </summary>
+    [Theory]
+    [InlineData("""{ "original": { "width": 1200, "height": 1600 } }""")]
+    [InlineData("""{ "original": { "width": 1200, "height": 1600 }, "small": { "width": 300 } }""")]
+    public async Task Read_FallsBackOnTheOriginalsShapeWhereThePreviewsWasNotSaid(string meta)
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(Page(PostJson("110", media: MediaJson(meta: meta)))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        Assert.Equal(new PictureShape(1200, 1600), Assert.Single(Assert.Single(fetch.Items).Media).Shape);
+    }
+
+    /// <summary>
+    ///     No shape where the instance said none in full, rather than a guess made here: the default box is the TUI's
+    ///     to choose, and a width with no height is no shape at all.
+    /// </summary>
+    [Theory]
+    [InlineData("null")]
+    [InlineData("{}")]
+    [InlineData("""{ "small": { "width": 640 }, "original": { "height": 480 } }""")]
+    [InlineData("""{ "small": { "width": 0, "height": 480 } }""")]
+    public async Task Read_ReportsNoShapeWhereTheInstanceSaidNoneInFull(string meta)
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(Page(PostJson("110", media: MediaJson(meta: meta)))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        Assert.Null(Assert.Single(Assert.Single(fetch.Items).Media).Shape);
+    }
+
     /// <summary>A post carrying nothing carries an empty list, which is not a hole for a caller to check for.</summary>
     [Fact]
     public async Task Read_ReportsAPostWithNothingAttachedAsCarryingNoMedia()
@@ -877,14 +934,16 @@ public class TimelineReaderTests
     private static string MediaJson(
         string id = "m1",
         string type = "image",
-        string? description = "A cartoon sheep") =>
+        string? description = "A cartoon sheep",
+        string meta = "null") =>
         $$"""
           [{
             "id": "{{id}}",
             "type": "{{type}}",
             "url": "https://files.mastodon.social/{{id}}/original.png",
             "preview_url": "https://files.mastodon.social/{{id}}/small.png",
-            "description": "{{description}}"
+            "description": "{{description}}",
+            "meta": {{meta}}
           }]
           """;
 
