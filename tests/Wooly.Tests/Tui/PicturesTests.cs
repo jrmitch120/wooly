@@ -351,6 +351,85 @@ public class PicturesTests
     }
 
     /// <summary>
+    ///     Fetches start nearest the screen first, whatever order the pictures were first wanted in: a picture wanted
+    ///     far ahead and still waiting for its turn goes after one the page has since come near. Never more than
+    ///     <see cref="Pictures.AtATime" /> at once while they do.
+    /// </summary>
+    [Fact]
+    public async Task Pictures_StartsTheNearestFetchFirst()
+    {
+        var fetch = new Gated();
+
+        using var pictures = new Pictures(fetch.Fetch, ADrawingTerminal, () => { });
+
+        var busy = Busy();
+
+        pictures.Want([.. busy, Near(Picture("far"))]);
+        pictures.Want([.. busy, Near(Picture("near")), Near(Picture("far"))]);
+
+        Assert.Equal(Pictures.AtATime, fetch.Asked.Count);
+
+        fetch.Answer("b0");
+        await fetch.Until(Pictures.AtATime + 1);
+
+        fetch.Answer("b1");
+        await fetch.Until(Pictures.AtATime + 2);
+
+        Assert.Equal(["near", "far"], fetch.Asked.Skip(Pictures.AtATime));
+    }
+
+    /// <summary>
+    ///     A picture still waiting for its turn when a frame stops wanting it is never fetched: the page has left it
+    ///     behind, and fetching it would hold up what the page is now near. Wanted again later, it is sent for then.
+    /// </summary>
+    [Fact]
+    public async Task Pictures_AbandonsAQueuedFetchNoLongerWanted()
+    {
+        var fetch = new Gated();
+
+        using var pictures = new Pictures(fetch.Fetch, ADrawingTerminal, () => { });
+
+        var busy = Busy();
+
+        pictures.Want([.. busy, Near(Picture("left behind"))]);
+        pictures.Want([.. busy, Near(Picture("ahead"))]);
+
+        fetch.Answer("b0");
+        await fetch.Until(Pictures.AtATime + 1);
+
+        fetch.Answer("b1");
+        fetch.Answer("b2");
+        fetch.Answer("b3");
+        fetch.Answer("ahead");
+
+        pictures.Want([Near(Picture("left behind"))]);
+        await fetch.Until(Pictures.AtATime + 2);
+
+        Assert.Equal(["ahead", "left behind"], fetch.Asked.Skip(Pictures.AtATime));
+    }
+
+    /// <summary>
+    ///     A fetch already under way when its picture stops being wanted is let finish, and what it brings is held:
+    ///     the bytes are already on their way, and the reader may yet turn round.
+    /// </summary>
+    [Fact]
+    public async Task Pictures_HoldsWhatAnInFlightFetchBringsAfterItIsNoLongerWanted()
+    {
+        var fetch = new Gated();
+        var landed = new TaskCompletionSource();
+
+        using var pictures = new Pictures(fetch.Fetch, ADrawingTerminal, landed.SetResult);
+
+        pictures.Want([Near(Picture("leaving"))]);
+        pictures.Want([Near(Picture("elsewhere"))]);
+
+        fetch.Answer("leaving", APng(4, 4));
+        await landed.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        Assert.NotNull(pictures.Of(Picture("leaving")));
+    }
+
+    /// <summary>
     ///     The adapter over <see cref="HttpClient" />, tested at the one seam under it (ADR-0005): what a file server
     ///     answers is what gets decoded.
     /// </summary>
@@ -423,6 +502,13 @@ public class PicturesTests
         Assert.False(landed);
     }
 
+    /// <summary>An attachment's picture, by the id the instance gave it — which is also the address it is fetched from.</summary>
+    private static Drawn Picture(string id) => new(id, id);
+
+    /// <summary>As many pictures as are fetched at once, named <c>b0</c> on, to keep every fetch busy.</summary>
+    private static List<WantedPicture> Busy() =>
+        [.. Enumerable.Range(0, Pictures.AtATime).Select(at => Near(Picture($"b{at}")))];
+
     /// <summary>A picture a frame wants that is near the screen but not on it.</summary>
     private static WantedPicture Near(Drawn drawn) => new(drawn, OnScreen: false);
 
@@ -448,5 +534,69 @@ public class PicturesTests
         image.Save(bytes, encoder);
 
         return bytes.ToArray();
+    }
+
+    /// <summary>
+    ///     A file server that answers only when told to, so that a test can hold fetches open and see which are
+    ///     started, and in what order, while they are.
+    /// </summary>
+    private sealed class Gated
+    {
+        private readonly Lock _gate = new();
+        private readonly Dictionary<string, TaskCompletionSource<byte[]?>> _answers = [];
+        private readonly List<string> _asked = [];
+
+        /// <summary>Every address asked for, in the order the fetches started.</summary>
+        public List<string> Asked
+        {
+            get
+            {
+                lock (_gate)
+                {
+                    return [.. _asked];
+                }
+            }
+        }
+
+        public Task<byte[]?> Fetch(string address, CancellationToken cancellation)
+        {
+            lock (_gate)
+            {
+                _asked.Add(address);
+
+                return Answering(address).Task;
+            }
+        }
+
+        /// <summary>Lets the fetch of <paramref name="address" /> finish, with <paramref name="bytes" /> or nothing.</summary>
+        public void Answer(string address, byte[]? bytes = null)
+        {
+            lock (_gate)
+            {
+                Answering(address).TrySetResult(bytes);
+            }
+        }
+
+        /// <summary>Waits for <paramref name="count" /> fetches to have started.</summary>
+        public async Task Until(int count)
+        {
+            var giveUp = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+
+            while (Asked.Count < count && DateTime.UtcNow < giveUp)
+            {
+                await Task.Delay(5, TestContext.Current.CancellationToken);
+            }
+        }
+
+        private TaskCompletionSource<byte[]?> Answering(string address)
+        {
+            if (!_answers.TryGetValue(address, out var answer))
+            {
+                answer = new TaskCompletionSource<byte[]?>(TaskCreationOptions.RunContinuationsAsynchronously);
+                _answers[address] = answer;
+            }
+
+            return answer;
+        }
     }
 }
