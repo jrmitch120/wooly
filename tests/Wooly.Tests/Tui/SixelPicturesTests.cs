@@ -100,87 +100,6 @@ public class SixelPicturesTests
     }
 
     /// <summary>
-    ///     A rough cut, for a page that is moving, is the same crop at the same resolution in at most
-    ///     <see cref="SixelPictures.RoughColours" /> — kept apart from the sharp one, so each is encoded once (#342).
-    /// </summary>
-    [Fact]
-    public void Of_RoughIsTheSameCropInFewerColours()
-    {
-        var encoded = new List<(Color[,] Pixels, int Colours)>();
-        var sixels = new SixelPictures((pixels, colours) =>
-        {
-            encoded.Add((pixels, colours));
-
-            return $"{colours}";
-        });
-        var pixels = new Color[80, 80];
-
-        for (var x = 0; x < 80; x++)
-        {
-            for (var y = 0; y < 80; y++)
-            {
-                pixels[x, y] = new Color(x * 3, y * 3, 0);
-            }
-        }
-
-        var inset = Box("m1", columns: 8, rows: 4);
-        var crop = new SixelCrop(Top: 0, Rows: 4, Columns: 8);
-
-        var sharp = sixels.Of(inset, new Picture(pixels), Cell, crop, colours: 256);
-        var rough = sixels.Of(inset, new Picture(pixels), Cell, crop, colours: 256, rough: true);
-        sixels.Of(inset, new Picture(pixels), Cell, crop, colours: 256, rough: true);
-
-        Assert.Equal(["256", $"{SixelPictures.RoughColours}"], [sharp.Encoded, rough.Encoded]);
-        Assert.Equal(2, encoded.Count);
-        Assert.Equal(pixels[1, 1], encoded[1].Pixels[1, 1]);
-        Assert.NotEqual(encoded[1].Pixels[0, 0], encoded[1].Pixels[1, 1]);
-    }
-
-    /// <summary>
-    ///     On a terminal with no more colours than a rough cut has, rough and sharp are one cut, encoded once — so a
-    ///     page coming to rest has nothing to encode again.
-    /// </summary>
-    [Fact]
-    public void Of_RoughAndSharpAreOneCutWhereTheTerminalHasFewColours()
-    {
-        var encodes = 0;
-        var sixels = new SixelPictures((_, _) => $"{++encodes}");
-        var inset = Box("m1", columns: 8, rows: 4);
-        var crop = new SixelCrop(Top: 0, Rows: 4, Columns: 8);
-
-        var rough = sixels.Of(inset, APicture(80, 80), Cell, crop, colours: 16, rough: true);
-        var sharp = sixels.Of(inset, APicture(80, 80), Cell, crop, colours: 16);
-
-        Assert.Same(rough, sharp);
-        Assert.Equal(1, encodes);
-    }
-
-    /// <summary>
-    ///     A crop prepared with somebody waiting on it says so once it is held, and only to the call that started it —
-    ///     the sharp cut of a still page is asked for on every frame until it is ready, and is announced once.
-    /// </summary>
-    [Fact]
-    public void Prepare_SaysOnceWhenTheCropIsHeld()
-    {
-        var elsewhere = new List<Action>();
-        var sixels = new SixelPictures((_, _) => "sixel", elsewhere.Add);
-        var inset = Box("m1", columns: 8, rows: 4);
-        var crop = new SixelCrop(Top: 0, Rows: 4, Columns: 8);
-        var told = 0;
-
-        sixels.Prepare(inset, APicture(80, 80), Cell, crop, colours: 256, ready: () => told++);
-        sixels.Prepare(inset, APicture(80, 80), Cell, crop, colours: 256, ready: () => told++);
-
-        Assert.Null(sixels.Held(inset, Cell, crop, colours: 256));
-        Assert.Equal(0, told);
-
-        Assert.Single(elsewhere)();
-
-        Assert.NotNull(sixels.Held(inset, Cell, crop, colours: 256));
-        Assert.Equal(1, told);
-    }
-
-    /// <summary>
     ///     A picture's transparent pixels are laid on the page before it is encoded, so the sixel covers its cells whole —
     ///     transparent, it showed whatever text had been on those cells before the page moved. Half transparent is half
     ///     the page; opaque is left alone.
@@ -212,13 +131,12 @@ public class SixelPicturesTests
 
         var crop = new SixelCrop(Top: 0, Rows: 4, Columns: 8);
         var sharp = sixels.Of(Box("m1", 8, 4), new Picture(pixels), Cell, crop, colours: 256);
-        sixels.Of(Box("m1", 8, 4), new Picture(pixels), Cell, crop, colours: 256, rough: true);
 
         Assert.Equal(new Color(0, 0, 200), encoded[0][0, 0]);
         Assert.Equal(new Color(99, 0, 100), encoded[0][2, 0]);
         Assert.Equal(new Color(200, 0, 0), encoded[0][5, 5]);
         Assert.Equal(new Color(0, 0, 200), sharp.Pixels[0, 0]);
-        Assert.All(new[] { encoded[0][0, 0], encoded[1][0, 0], encoded[1][2, 0] }, pixel => Assert.Equal(255, pixel.A));
+        Assert.All(new[] { encoded[0][0, 0], encoded[0][2, 0] }, pixel => Assert.Equal(255, pixel.A));
     }
 
     /// <summary>Where the page is not known the picture is left as it is, its transparency and all.</summary>

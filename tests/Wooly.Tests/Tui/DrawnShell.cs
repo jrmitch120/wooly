@@ -59,7 +59,6 @@ internal sealed class DrawnShell : IDisposable
     /// </param>
     /// <param name="encoding">Where a picture is encoded for a Kitty terminal, where a test is about when; on the spot if not.</param>
     /// <param name="frames">What wraps each frame in synchronized output, closed by the application as it is in the client.</param>
-    /// <param name="sixels">Where a sixel terminal's pictures are encoded and kept, where a test is about which; the window's own if not.</param>
     public static async Task<DrawnShell> Of(
         int width,
         int height,
@@ -72,7 +71,6 @@ internal sealed class DrawnShell : IDisposable
         bool drawsPlaceholders = false,
         bool answersKitty = false,
         Action<Action>? encoding = null,
-        SixelPictures? sixels = null,
         SynchronizedFrames? frames = null)
     {
         built ??= new AShell();
@@ -108,7 +106,6 @@ internal sealed class DrawnShell : IDisposable
             () => { },
             pictures ?? FakePictures.DrawingNothing(),
             placeholders: placeholders,
-            sixels: sixels,
             frames: frames);
 
         frames?.Over(application);

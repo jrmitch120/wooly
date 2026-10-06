@@ -2,7 +2,6 @@ using Wooly.Tests.Fakes;
 using Wooly.Tui.Media;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Theme;
-using Wooly.Tui.Views;
 
 namespace Wooly.Tests.Tui;
 
@@ -101,87 +100,6 @@ public class SixelBoxTests
         Assert.Equal(5, drawn.Content.Top);
         Assert.NotEqual(before, drawn.Rows());
     }
-
-    /// <summary>
-    ///     While the page is moving its pictures are handed to the driver rough — half the resolution, a quarter of the
-    ///     colours, about a third of the bytes — and once it has been still for a moment, sharp again, without a key
-    ///     to ask for it (#342).
-    /// </summary>
-    [Fact]
-    public async Task APictureIsRoughWhileThePageMovesAndSharpOnceItIsStill()
-    {
-        var built = new AShell
-        {
-            Timelines = FakeTimelineReader.Holding(
-                APost.With(id: "110", media: [APost.APicture("m1")]),
-                APost.With(id: "220"),
-                APost.With(id: "330"),
-                APost.With(id: "440")),
-        };
-        using var drawn = await Drawn(built, new SixelPictures((_, colours) => colours == SixelPictures.RoughColours ? "rough" : "sharp", work => work()));
-
-        var box = Assert.Single(drawn.Content.SubViews.OfType<PictureView>(), view => view.Visible);
-
-        Assert.Equal("sharp", box.Shown?.Encoded);
-
-        drawn.Wheel(OverContent, 3);
-        Assert.Equal("rough", box.Shown?.Encoded);
-
-        built.Clock.Advance(PaintedView.Quiet / 2);
-        drawn.Redraw();
-        Assert.Equal("rough", box.Shown?.Encoded);
-
-        built.Clock.Advance(PaintedView.Quiet);
-        drawn.Redraw();
-        Assert.Equal("sharp", box.Shown?.Encoded);
-    }
-
-    /// <summary>
-    ///     Nothing is encoded sharp while the page is moving — neither the cuts drawn nor those encoded ahead of the
-    ///     scroll, since the next step of it is drawn rough too.
-    /// </summary>
-    [Fact]
-    public async Task NothingIsEncodedSharpWhileThePageMoves()
-    {
-        var built = new AShell
-        {
-            Timelines = FakeTimelineReader.Holding(
-                APost.With(id: "110", media: [APost.APicture("m1")]),
-                APost.With(id: "220"),
-                APost.With(id: "330"),
-                APost.With(id: "440")),
-        };
-        var encoded = new List<int>();
-        using var drawn = await Drawn(built, new SixelPictures((_, colours) =>
-        {
-            encoded.Add(colours);
-
-            return "";
-        }, work => work()));
-
-        var box = Assert.Single(drawn.Content.SubViews.OfType<PictureView>(), view => view.Visible);
-        var top = box.Frame.Y;
-
-        // The page as it opened, still, which is drawn sharp.
-        encoded.Clear();
-
-        for (var notch = 0; notch < 100 && drawn.Content.Top < top + 2; notch++)
-        {
-            drawn.Wheel(OverContent, 3);
-        }
-
-        Assert.NotEmpty(encoded);
-        Assert.All(encoded, colours => Assert.Equal(SixelPictures.RoughColours, colours));
-    }
-
-    private static Task<DrawnShell> Drawn(AShell built, SixelPictures sixels) => DrawnShell.Of(
-        80,
-        24,
-        Themes.Plain,
-        built,
-        pictures: FakePictures.With().Holding("m1", 800, 400),
-        drawsPictures: true,
-        sixels: sixels);
 
     private static Task<DrawnShell> Drawn() => DrawnShell.Of(
         80,

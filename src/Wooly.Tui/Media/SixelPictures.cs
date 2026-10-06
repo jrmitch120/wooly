@@ -49,14 +49,7 @@ internal sealed class SixelPictures(
     ///     to. A page holds a handful of pictures, those at its edges a few crops each as it scrolls and is encoded
     ///     ahead, and every crop on the page is used again each frame, so it is never the one let go of.
     /// </summary>
-    public const int MostHeld = 48;
-
-    /// <summary>
-    ///     How many colours a rough cut is encoded in, at most: half the 256 a sharp one has, which is about three
-    ///     quarters of the bytes (#342). Halving the resolution saved more and was plain to see on a large monitor; 64
-    ///     colours saved more and broke the gradients of a hazy scene into bands as it went past.
-    /// </summary>
-    public const int RoughColours = 128;
+    public const int MostHeld = 32;
 
     private readonly Func<Color[,], int, string> _encode = encode ?? Encoded;
     private readonly Func<Color?> _backdrop = backdrop ?? (() => null);
@@ -69,13 +62,12 @@ internal sealed class SixelPictures(
 
     /// <summary>
     ///     <paramref name="crop" /> of <paramref name="picture" /> drawn in <paramref name="inset" />'s box, encoded in
-    ///     <paramref name="colours" /> colours — or, <paramref name="rough" />, in no more than
-    ///     <see cref="RoughColours" />, for a page that is moving. Encoded here, on the frame asking, only where it
-    ///     was neither asked for before nor prepared.
+    ///     <paramref name="colours" /> colours. Encoded here, on the frame asking, only where it was neither asked for
+    ///     before nor prepared.
     /// </summary>
-    public Sixel Of(Inset inset, Picture picture, CellSize cell, SixelCrop crop, int colours, bool rough = false)
+    public Sixel Of(Inset inset, Picture picture, CellSize cell, SixelCrop crop, int colours)
     {
-        var key = KeyOf(inset, cell, crop, colours, rough);
+        var key = KeyOf(inset, cell, crop, colours);
         TaskCompletionSource<Sixel>? preparing;
 
         lock (_gate)
@@ -113,34 +105,13 @@ internal sealed class SixelPictures(
         return sixel;
     }
 
-    /// <summary>The same, if it is held already, without encoding anything; <see langword="null" /> if it is not.</summary>
-    public Sixel? Held(Inset inset, CellSize cell, SixelCrop crop, int colours, bool rough = false)
-    {
-        lock (_gate)
-        {
-            return _held.TryGetValue(KeyOf(inset, cell, crop, colours, rough), out var known) ? known.Value.Sixel : null;
-        }
-    }
-
     /// <summary>
-    ///     Starts encoding <paramref name="crop" /> elsewhere: for a crop the next step of a scroll will want — a box
-    ///     straddling the edge of the page, cut a row higher or lower than it is now — or the sharp cut of one drawn
-    ///     rough while the page was moving, now that it has stopped.
+    ///     Starts encoding <paramref name="crop" /> elsewhere, for a crop the next step of a scroll will want: a box
+    ///     straddling the edge of the page, cut a row higher or lower than it is now.
     /// </summary>
-    /// <param name="ready">
-    ///     Told once the crop is held, on whichever thread encoded it — and only if this call is what started it, so a
-    ///     crop asked for on every frame until it is ready is announced once.
-    /// </param>
-    public void Prepare(
-        Inset inset,
-        Picture picture,
-        CellSize cell,
-        SixelCrop crop,
-        int colours,
-        bool rough = false,
-        Action? ready = null)
+    public void Prepare(Inset inset, Picture picture, CellSize cell, SixelCrop crop, int colours)
     {
-        var key = KeyOf(inset, cell, crop, colours, rough);
+        var key = KeyOf(inset, cell, crop, colours);
         var preparing = new TaskCompletionSource<Sixel>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         lock (_gate)
@@ -166,7 +137,6 @@ internal sealed class SixelPictures(
                 }
 
                 preparing.SetResult(sixel);
-                ready?.Invoke();
             }
             catch (Exception failure)
             {
@@ -185,8 +155,8 @@ internal sealed class SixelPictures(
         });
     }
 
-    private Key KeyOf(Inset inset, CellSize cell, SixelCrop crop, int colours, bool rough) =>
-        new(new Scale(inset.Drawn.Id, inset.Columns, inset.Rows, cell, _backdrop()), crop, rough ? Math.Min(colours, RoughColours) : colours);
+    private Key KeyOf(Inset inset, CellSize cell, SixelCrop crop, int colours) =>
+        new(new Scale(inset.Drawn.Id, inset.Columns, inset.Rows, cell, _backdrop()), crop, colours);
 
     /// <summary>Holds a sixel, letting go of the one used longest ago once there are more than there is room for.</summary>
     private void Hold(Key key, Sixel sixel)
@@ -333,9 +303,6 @@ internal sealed class SixelPictures(
     /// <summary>One picture at one box size, on one size of cell, laid on one backdrop.</summary>
     private readonly record struct Scale(string Drawn, int Columns, int Rows, CellSize Cell, Color? Backdrop);
 
-    /// <summary>
-    ///     One crop of a scaled picture, in so many colours — which is all that tells a rough cut from a sharp one, so
-    ///     on a terminal with no more colours than a rough cut has, the two are the same cut.
-    /// </summary>
+    /// <summary>One crop of a scaled picture, in so many colours.</summary>
     private readonly record struct Key(Scale Scale, SixelCrop Crop, int Colours);
 }

@@ -129,61 +129,41 @@ pictures less smoothly than one drawing placeholders, however its frames are mad
   writing the mode on from inside a view's draw and off from that event. That is fragile enough to want a terminal to
   try it on, and it is left for a follow-up.
 
-## Amendment: a sixel is rough while the page moves, and sharp once it is still (#342)
+## Amendment: a frame is written whole, and a picture covers its cells (#342)
 
-"This is as far as sixel goes" was about the protocol, and it stands: every step sends every picture again. What it
-took for granted is that every step sends every picture *sharp*. A reader does not study a picture going past, so while
-the page is moving each cut is now encoded **rough** — the same crop at full resolution, in at most 128 colours — and
-once the page has been still for 150 ms it is drawn **sharp** again, in 256, without waiting for a key.
+"This is as far as sixel goes" was about the protocol, and it stands: every step sends every picture again. What
+remained choppy in WezTerm was less the bytes than how they landed, and two things changed that.
 
-That took three tries, judged by eye in WezTerm on a large monitor. Halving the resolution as well as cutting to 64
-colours, each two-by-two block the average of the four, sent 35–70% of sharp's bytes on four 853×853 pictures — and
-the softened pictures going past were plain to see. Full resolution at 64 colours sent 45–80%, and broke the haze,
-sky and neon glow of a rendered scene into bands. At 128 colours a scene like that is 73–74% of sharp's bytes, with
-little banding left. Dithering was measured as a way to keep 64 and lose the bands, and does the opposite of saving:
-it breaks up the runs of one colour that sixel's encoding compresses, so on those scenes a dithered 64 was 99–127% of
-sharp. A rough cut and a sharp one differ only in colours, so on a terminal with 128 or fewer they are one cut.
-Measured as before:
+**A frame with pictures in it is synchronized output (DEC mode 2026).** A terminal painting part way through a frame
+showed an avatar directly under a rule a moment before the rule — the tear the findings above expected this mode to
+cure, and it did. Terminal.Gui 2.5 still writes a frame with nothing either side of it and keeps the ways to replace its
+output internal; a spike that reached them by reflection proved the mode in WezTerm, and was thrown away.
+`SynchronizedFrames` brackets the frame from public ground instead: `CSI ?2026h` is written as the content region starts
+drawing — a frame cannot be written before it is drawn — and `CSI ?2026l` once `LayoutAndDrawComplete` says it is done,
+which a probe's byte stream showed is after the frame is written. Were that to change, the frame would go out
+unsynchronized, as before; and a block still open when the next pass of the main loop begins is closed there, which is
+documented to come first. Terminals without the mode ignore both, and a loop that draws no content writes neither.
 
-| Per notch, sixel | Median | Worst | Sent |
-|---|---|---|---|
-| Sharp, notches 16 ms apart over new rows | 59 ms | 142 ms | ~1,026 KB |
-| Rough, the same | 42 ms | 113 ms | ~804 KB |
-| Sharp, back to back | 41 ms | 174 ms | ~1,020 KB |
-| Rough, back to back | 29 ms | 145 ms | ~799 KB |
-| Sharp, a page turned | 85 ms | 346 ms | |
-| Rough, a page turned | 127 ms | 214 ms | |
+**A picture is laid on the page before it is encoded.** A sixel with transparent pixels lets the cells under it show
+through, and those cells are left unwritten — that is how the driver knows they are the picture's — so an avatar with a
+transparent background showed the text that had been there before the page moved. Transparent pixels are now blended
+onto the theme's page where it names one, and otherwise onto the terminal's own background, which Terminal.Gui asks for
+at startup (OSC 11) and every built-in theme draws on. Where neither is known they stay transparent, as before.
 
-These are one run each on the same machine, and noisier than the table above; the bytes are the steady part.
+Kitty is untouched by either, through a box or as placeholders, beyond its frames being synchronized too.
 
-- **Moving is the page having moved within the quiet.** `PaintedView` notes the time whenever a frame finds the page
-  somewhere other than where the last one left it — a wheel, the arrows, the selection carried along — and draws rough
-  until 150 ms have passed with no such frame, longer than the gap between two notches or two repeats of a held key. A
-  timeout then asks for the redraw that draws sharp. The clock is the shell's, so a test moves it by hand.
-- **The sharp cut is encoded off the UI thread.** The frame that finds the page still shows the rough cut it already
-  holds and prepares the sharp one elsewhere, redrawing when it is ready, so the end of a scroll costs no more than a
-  step of it. Only a cut with neither — a picture arriving on a still page — is encoded sharp on the frame, as before.
-- **What is encoded ahead of a scroll is rough**, since the next step of a scroll is drawn rough.
-- **Rough and sharp are held apart**, so each is encoded once, and the cache holds 48 cuts rather than 32 to keep both.
-- **A picture is laid on the page before it is encoded.** A sixel with transparent pixels lets the cells under it show
-  through, and those cells are left unwritten — that is how the driver knows they are the picture's — so an avatar with
-  a transparent background showed the text that had been there before the page moved. Transparent pixels are now
-  blended onto the theme's page where it names one, and otherwise onto the terminal's own background, which
-  Terminal.Gui asks for at startup (OSC 11) and every built-in theme draws on. Where neither is known they stay
-  transparent, as before.
-- **A frame with pictures in it is synchronized output (DEC mode 2026)**, the follow-up the findings above left open.
-  With frames lighter, the tear that remained was a terminal painting part way through one: an avatar
-  directly under a rule arrived a moment before the rule did. Terminal.Gui 2.5 still writes a frame with nothing either
-  side of it and keeps the ways to replace its output internal; a spike that reached them by reflection proved the
-  mode cures it in WezTerm, and was thrown away. `SynchronizedFrames` brackets the frame from public ground instead:
-  `CSI ?2026h` is written as the content region starts drawing — a frame cannot be written before it is drawn — and
-  `CSI ?2026l` once `LayoutAndDrawComplete` says it is done, which a probe's byte stream showed is after the frame is
-  written. Were that to change, the frame would go out unsynchronized, as before; and a block still open when the next
-  pass of the main loop begins is closed there, which is documented to come first. Terminals without the mode ignore
-  both, and a loop that draws no content writes neither.
-- **Kitty is untouched**, through a box or as placeholders: it sends a picture once and moves it, and has nothing to
-  save here.
+**Rough while moving, sharp when still, was built and taken out.** The idea was that a reader does not study a picture
+going past: encode each cut in fewer colours while the page moves, and redraw it sharp 150 ms after it stops. It took
+three tries, judged by eye in WezTerm on a large monitor, and each was a worse trade than the last:
 
-What a rough cut buys is now modest — about a fifth of the bytes — and most of what made scrolling feel smoother in
-WezTerm was synchronized output. If a terminal shows no difference, rough cuts are the part to take out. Windows
-Terminal is still owed the manual check.
+- Half the resolution and 64 colours sent 35–70% of a sharp cut's bytes on four 853×853 pictures. The softened
+  pictures going past were plain to see.
+- Full resolution and 64 colours sent 45–80%, and broke the haze, sky and neon glow of a rendered scene into bands.
+- 128 colours sent 73–74% on scenes like that, with little banding left — about a fifth saved. Dithering was measured as
+  a way to keep 64 and lose the bands, and breaks up the runs of one colour that sixel's encoding compresses, so a
+  dithered 64 was 99–127% of sharp on those scenes.
+
+At 128 a notch over the measurement's photographs sent ~800 KB against ~1,026 KB sharp. With synchronized output in
+place that saving was not felt — scrolling on Windows Terminal felt great with it — and it cost a timer, a redraw on
+settling, two cuts of every picture and a larger cache. Should sending ever be what a reader feels again, fewer colours
+while moving is where to look, at no fewer than 128.

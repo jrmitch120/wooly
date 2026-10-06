@@ -65,9 +65,6 @@ internal sealed class PictureView : ImageView
     /// <summary>Which picture is being shown, as <see cref="Drawn.Id" />, or <see langword="null" /> while none is.</summary>
     public string? PictureId { get; private set; }
 
-    /// <summary>The part of a picture being handed to the driver as sixel, or <see langword="null" /> where none is.</summary>
-    internal Sixel? Shown => _sixel;
-
     /// <summary>
     ///     Shows the whole of <paramref name="picture" />, as the one <paramref name="pictureId" /> names, for the image
     ///     view to draw through Kitty.

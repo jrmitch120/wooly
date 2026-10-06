@@ -46,12 +46,6 @@ internal sealed class PaintedView : View
     /// <summary>How many rows of a scroll the cuts of a sixel are encoded ahead of it (ADR-0023).</summary>
     private const int Ahead = 4;
 
-    /// <summary>
-    ///     How long the page must have been still before its sixels are drawn sharp rather than rough (#342): longer than
-    ///     the gap between two notches of a wheel or two repeats of a held key, so a scroll is rough from end to end.
-    /// </summary>
-    internal static readonly TimeSpan Quiet = TimeSpan.FromMilliseconds(150);
-
     private readonly ITheme _theme;
     private readonly Func<int, int, IReadOnlyList<Line>> _rows;
     private readonly IPictures? _pictures;
@@ -59,17 +53,10 @@ internal sealed class PaintedView : View
     private readonly List<PictureView> _boxes = [];
     private readonly Placeholders? _placeholders;
     private readonly SixelPictures _sixels;
-    private readonly TimeProvider _clock;
     private readonly SynchronizedFrames? _frames;
 
     /// <summary>Where the page began the last time pictures were placed, which says which way it is moving.</summary>
     private int _placedAt;
-
-    /// <summary>When the page was last seen to have moved, which says whether its sixels are drawn rough.</summary>
-    private DateTimeOffset _movedAt = DateTimeOffset.MinValue;
-
-    /// <summary>Whether a redraw is already waiting for the page to have been still for <see cref="Quiet" />.</summary>
-    private bool _awaitingQuiet;
 
     /// <summary>The pictures drawn as placeholders this frame, with the row each starts on and its image id.</summary>
     private List<(Inset Inset, int Top, int Id)> _placed = [];
@@ -93,8 +80,6 @@ internal sealed class PaintedView : View
     ///     What a Kitty terminal holds, for drawing pictures as placeholder cells rather than through a box, or
     ///     <see langword="null" /> to draw every picture through a box (ADR-0022).
     /// </param>
-    /// <param name="clock">What says how long the page has been still, which decides a sixel rough or sharp (#342).</param>
-    /// <param name="sixels">Where the sixels are encoded and kept; a cache of this view's own if not.</param>
     /// <param name="frames">What wraps a frame this view draws in synchronized output, if anything does.</param>
     /// <remarks>
     ///     A frame is laid on a one-cell <c>Padding</c> round the view, so everything measured off
@@ -108,13 +93,10 @@ internal sealed class PaintedView : View
         IPictures? pictures = null,
         Func<int, int, IReadOnlyList<Line>>? frame = null,
         Placeholders? placeholders = null,
-        TimeProvider? clock = null,
-        SixelPictures? sixels = null,
         SynchronizedFrames? frames = null)
     {
         _theme = theme;
-        _clock = clock ?? TimeProvider.System;
-        _sixels = sixels ?? new SixelPictures(backdrop: Backdrop);
+        _sixels = new SixelPictures(backdrop: Backdrop);
         _frames = frames;
         _rows = rows;
         _pictures = pictures;
@@ -700,7 +682,6 @@ internal sealed class PaintedView : View
         }
 
         var colours = SixelColours();
-        var rough = colours > 0 && wanted.Count > 0 && Moving();
 
         // Who draws what, settled for the whole frame before anything moves — see Boxes. Asking box by box is what
         // this used to do, and it could not see that one picture was wanted once and held twice.
@@ -766,7 +747,7 @@ internal sealed class PaintedView : View
                 continue;
             }
 
-            box.Show(inset.Drawn.Id, Cut(inset, picture, cell, crop, colours, rough));
+            box.Show(inset.Drawn.Id, _sixels.Of(inset, picture, cell, crop, colours));
 
             if (box.Frame != frame)
             {
@@ -816,94 +797,12 @@ internal sealed class PaintedView : View
 
                 if (OnPage(inset, top + rows, height) is { Crop: var next } && next != now)
                 {
-                    // Rough, because the next step of a scroll is drawn rough (#342).
-                    _sixels.Prepare(inset, picture, cell, next, colours, rough: true);
+                    _sixels.Prepare(inset, picture, cell, next, colours);
                 }
             }
         }
     }
 
-
-    /// <summary>
-    ///     Whether the page moved so lately that its sixels are drawn rough — half the colours, about three quarters
-    ///     of the bytes (#342). A sixel is sent again whole on every step, and on a busy
-    ///     photograph a sharp one is a megabyte the terminal must take in each time (ADR-0023). Once it has been still
-    ///     for <see cref="Quiet" />, a redraw is asked for that draws it sharp, without waiting for a key.
-    /// </summary>
-    private bool Moving()
-    {
-        var now = _clock.GetUtcNow();
-
-        if (_top != _placedAt)
-        {
-            _movedAt = now;
-        }
-
-        if (now - _movedAt >= Quiet)
-        {
-            return false;
-        }
-
-        if (!_awaitingQuiet && App is { } app)
-        {
-            _awaitingQuiet = true;
-
-            app.AddTimeout(Quiet, () =>
-            {
-                var left = Quiet - (_clock.GetUtcNow() - _movedAt);
-
-                if (left > TimeSpan.Zero)
-                {
-                    // Moved again since this was asked for: wait out what is left of the quiet from then.
-                    app.AddTimeout(left, () => Quieted());
-
-                    return false;
-                }
-
-                return Quieted();
-            });
-        }
-
-        return true;
-
-        bool Quieted()
-        {
-            _awaitingQuiet = false;
-            SetNeedsDraw();
-
-            return false;
-        }
-    }
-
-    /// <summary>
-    ///     The cut of a picture to show: the rough one while the page is moving; the sharp one once it is still, if it is
-    ///     held — and, if it is not, the rough one again while the sharp one is encoded elsewhere, so that the frame which
-    ///     follows a scroll costs no more than one during it. Encoded on the frame only where there is neither.
-    /// </summary>
-    private Sixel Cut(Inset inset, Picture picture, CellSize cell, SixelCrop crop, int colours, bool rough)
-    {
-        if (rough)
-        {
-            return _sixels.Of(inset, picture, cell, crop, colours, rough: true);
-        }
-
-        if (_sixels.Held(inset, cell, crop, colours) is { } sharp)
-        {
-            return sharp;
-        }
-
-        if (_sixels.Held(inset, cell, crop, colours, rough: true) is null)
-        {
-            return _sixels.Of(inset, picture, cell, crop, colours);
-        }
-
-        _sixels.Prepare(inset, picture, cell, crop, colours, ready: () => App?.Invoke(SetNeedsDraw));
-
-        // Prepared on the spot where a test says so, and then drawn sharp at once.
-        return _sixels.Held(inset, cell, crop, colours)
-            ?? _sixels.Held(inset, cell, crop, colours, rough: true)
-            ?? _sixels.Of(inset, picture, cell, crop, colours);
-    }
 
     /// <summary>
     ///     The part of a box whose top is on row <paramref name="top" /> of the page that is on it — its frame, and
