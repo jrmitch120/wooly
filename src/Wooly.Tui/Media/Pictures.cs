@@ -36,9 +36,10 @@ namespace Wooly.Tui.Media;
 ///     or the one a picture landed on.
 /// </param>
 /// <param name="columns">
-///     How many columns wide the window is now, or <see langword="null" /> where nothing says. With the cell, that is
-///     the largest box a picture could be drawn in here, which is the size it is decoded to (ADR-0025). Asked afresh
-///     each frame, on the thread saying what the frame wants, because the window can be made wider.
+///     How many columns wide the content region is now — the inside of the panel posts are drawn in — or
+///     <see langword="null" /> or nought where nothing says. With the cell, that is the largest box a picture could be
+///     drawn in here, which is the size it is decoded to (ADR-0025). Asked afresh each frame, on the thread saying
+///     what the frame wants, because the window can be made wider.
 /// </param>
 public sealed class Pictures(
     Func<string, CancellationToken, Task<byte[]?>> fetch,
@@ -136,7 +137,7 @@ public sealed class Pictures(
     /// <param name="cell">How big a cell is — see the constructor.</param>
     /// <param name="arrived">What to do when one lands — see the constructor.</param>
     /// <param name="dropped">What to do when one is let go of — see the constructor.</param>
-    /// <param name="columns">How wide the window is — see the constructor.</param>
+    /// <param name="columns">How wide the content region is — see the constructor.</param>
     public static Pictures Over(
         HttpClient http,
         Func<CellSize?> cell,
@@ -618,12 +619,12 @@ public sealed class Pictures(
     /// <summary>
     ///     The largest box <paramref name="drawn" /> could be drawn in on this window, in pixels, which is as large as it
     ///     is ever worth decoding: the box it is given where it has one of its own (<see cref="Drawn.Largest" />), and
-    ///     otherwise the window's full width by <see cref="Rendering.Inset.WholeRows" /> rows. Any larger and the pixels
+    ///     otherwise the content region's full width by <see cref="Rendering.Inset.WholeRows" /> rows. Any larger and the pixels
     ///     are held only to be thrown away by the scale down to the box, at four bytes each.
     /// </summary>
     /// <param name="drawn">The picture.</param>
     /// <param name="cell">How big a cell is now, as <c>cell</c> answered for this frame.</param>
-    /// <param name="columns">How many columns wide the window is now, as <c>columns</c> answered for this frame.</param>
+    /// <param name="columns">How wide the content region is now, as <c>columns</c> answered for this frame.</param>
     private static Size Room(Drawn drawn, CellSize? cell, int? columns)
     {
         if (cell is not { Width: > 0, Height: > 0 } size)
