@@ -505,6 +505,42 @@ public class PicturesTests
     }
 
     /// <summary>
+    ///     A picture waiting its turn to be decoded again from its file keeps that file however far over its budget the
+    ///     encoded tier goes while it waits: letting go of it would turn the decode it is queued for into a second
+    ///     fetch, which is what holding the file was for (ADR-0025).
+    /// </summary>
+    [Fact]
+    public async Task Pictures_KeepsTheFileOfAPictureWaitingToBeDecodedAgain()
+    {
+        var fetch = new Gated();
+        var landings = new Landings();
+        var width = 50;
+
+        using var pictures = new Pictures(fetch.Fetch, ADrawingTerminal, landings.Land, columns: () => width);
+
+        // A real picture with padding after it, so the file is most of the encoded tier on its own.
+        var file = (byte[])[.. APng(4000, 1000), .. new byte[Pictures.EncodedBudget - (64 * Pictures.Remembering)]];
+
+        pictures.Want([OnScreen(Picture("m"))]);
+        fetch.Answer("m", file);
+        await landings.Landed(1);
+
+        // Grown, so it is to be decoded again — but behind fetches that hold every turn, and alongside enough new
+        // pictures that remembering them takes the encoded tier over its budget while it waits.
+        width = 100;
+
+        var more = Enumerable.Range(0, 128).Select(at => Near(Picture($"x{at}")));
+
+        pictures.Want([.. Busy(), OnScreen(Picture("m")), .. more]);
+
+        fetch.Answer("b0");
+        await landings.Landed(2);
+
+        Assert.Equal(1000, pictures.Of(Picture("m"))?.Width);
+        Assert.Single(fetch.Asked, address => address == "m");
+    }
+
+    /// <summary>
     ///     The adapter over <see cref="HttpClient" />, tested at the one seam under it (ADR-0005): what a file server
     ///     answers is what gets decoded.
     /// </summary>

@@ -558,9 +558,17 @@ public sealed class Pictures(
             var held = place.Value;
 
             place = place.Next;
+
+            // Passed over while it is on its way: one waiting to be decoded again reads its file when its turn comes,
+            // and letting go of the file before then turns that decode into a second fetch.
+            if (held.Coming)
+            {
+                continue;
+            }
+
             Keep(held, null);
 
-            if (_encoded > EncodedBudget && held.Picture is null && !held.Coming)
+            if (_encoded > EncodedBudget && held.Picture is null)
             {
                 _wanted.Remove(held.Place);
                 _held.Remove(held.Drawn.Id);
