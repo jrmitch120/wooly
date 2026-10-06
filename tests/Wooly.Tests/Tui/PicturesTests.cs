@@ -97,14 +97,14 @@ public class PicturesTests
 
         var media = APost.APicture();
 
-        pictures.Want(Drawn.Attached(media));
+        pictures.Want([Near(Drawn.Attached(media))]);
 
         await landed.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         Assert.NotNull(pictures.Of(Drawn.Attached(media)));
         Assert.NotNull(pictures.Of(Drawn.Attached(media)));
 
-        pictures.Want(Drawn.Attached(media));
+        pictures.Want([Near(Drawn.Attached(media))]);
 
         Assert.Equal(media.Preview, Assert.Single(asked));
     }
@@ -128,7 +128,7 @@ public class PicturesTests
             ADrawingTerminal,
             () => { });
 
-        pictures.Want(Drawn.Attached(APost.APicture() with { Preview = null }));
+        pictures.Want([Near(Drawn.Attached(APost.APicture() with { Preview = null }))]);
 
         Assert.Equal(APost.APicture().Url, Assert.Single(asked));
     }
@@ -152,9 +152,9 @@ public class PicturesTests
             ADrawingTerminal,
             () => { });
 
-        pictures.Want(Drawn.Attached(APost.APicture()));
-        pictures.Want(Drawn.Attached(APost.APicture()));
-        pictures.Want(Drawn.Attached(APost.APicture()));
+        pictures.Want([Near(Drawn.Attached(APost.APicture()))]);
+        pictures.Want([Near(Drawn.Attached(APost.APicture()))]);
+        pictures.Want([Near(Drawn.Attached(APost.APicture()))]);
 
         Assert.Null(pictures.Of(Drawn.Attached(APost.APicture())));
         Assert.Equal(1, asks);
@@ -178,8 +178,8 @@ public class PicturesTests
                 }
             });
 
-        pictures.Want(Drawn.Attached(APost.APicture(id: "m1")));
-        pictures.Want(Drawn.Attached(APost.APicture(id: "m2")));
+        pictures.Want([Near(Drawn.Attached(APost.APicture(id: "m1")))]);
+        pictures.Want([Near(Drawn.Attached(APost.APicture(id: "m2")))]);
 
         await both.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
@@ -188,8 +188,8 @@ public class PicturesTests
     }
 
     /// <summary>
-    ///     A morning's scrolling is not held in memory. Past what it has room for, the attachment asked for longest
-    ///     ago is the one dropped, and the ones since are all still there.
+    ///     A morning's scrolling is not held in memory. Past what it has room for, the attachment wanted longest ago
+    ///     is the one dropped, and the ones since are all still there.
     /// </summary>
     [Fact]
     public void Pictures_HoldsNoMoreThanItHasRoomFor()
@@ -209,18 +209,18 @@ public class PicturesTests
         // One more than there is room for, which drops the first.
         for (var at = 0; at <= Pictures.MostHeld; at++)
         {
-            pictures.Want(Drawn.Attached(APost.APicture(id: $"m{at}")));
+            pictures.Want([Near(Drawn.Attached(APost.APicture(id: $"m{at}")))]);
         }
 
         Assert.Equal(Pictures.MostHeld + 1, asks);
 
         // The most recent is still remembered, so wanting it again sends for nothing.
-        pictures.Want(Drawn.Attached(APost.APicture(id: $"m{Pictures.MostHeld}")));
+        pictures.Want([Near(Drawn.Attached(APost.APicture(id: $"m{Pictures.MostHeld}")))]);
 
         Assert.Equal(Pictures.MostHeld + 1, asks);
 
         // The first is gone, so wanting it again sends for it again — which is what having dropped it means.
-        pictures.Want(Drawn.Attached(APost.APicture(id: "m0")));
+        pictures.Want([Near(Drawn.Attached(APost.APicture(id: "m0")))]);
 
         Assert.Equal(Pictures.MostHeld + 2, asks);
     }
@@ -242,14 +242,112 @@ public class PicturesTests
 
         for (var at = 0; at < Pictures.MostHeld; at++)
         {
-            pictures.Want(Drawn.Attached(APost.APicture(id: $"m{at}")));
+            pictures.Want([Near(Drawn.Attached(APost.APicture(id: $"m{at}")))]);
         }
 
         Assert.Empty(dropped);
 
-        pictures.Want(Drawn.Attached(APost.APicture(id: $"m{Pictures.MostHeld}")));
+        pictures.Want([Near(Drawn.Attached(APost.APicture(id: $"m{Pictures.MostHeld}")))]);
 
         Assert.Equal(["m0"], dropped);
+    }
+
+    /// <summary>
+    ///     Wanting a picture again is what keeps it: the one let go of is the one wanted longest ago, not the one
+    ///     fetched longest ago. Going by the fetch is how a picture still on screen came to be dropped mid-scroll, and
+    ///     sent for again a frame later (#345).
+    /// </summary>
+    [Fact]
+    public void Pictures_LetsGoOfThePictureWantedLongestAgo()
+    {
+        var dropped = new List<string>();
+
+        using var pictures = new Pictures(
+            (_, _) => Task.FromResult<byte[]?>(null),
+            ADrawingTerminal,
+            () => { },
+            dropped.Add);
+
+        for (var at = 0; at < Pictures.MostHeld; at++)
+        {
+            pictures.Want([Near(Drawn.Attached(APost.APicture(id: $"m{at}")))]);
+        }
+
+        // The first fetched, wanted again: it is now the most recently wanted, and the second is the oldest.
+        pictures.Want([Near(Drawn.Attached(APost.APicture(id: "m0")))]);
+        pictures.Want([Near(Drawn.Attached(APost.APicture(id: "new")))]);
+
+        Assert.Equal(["m1"], dropped);
+    }
+
+    /// <summary>
+    ///     What is on screen in the latest frame is never let go of, however far over its room that leaves the cache.
+    ///     Once it is off screen it is ordinary again, and the farthest of what a frame wanted goes first.
+    /// </summary>
+    [Fact]
+    public void Pictures_NeverLetsGoOfWhatIsOnScreen()
+    {
+        var asked = new List<string>();
+        var dropped = new List<string>();
+
+        using var pictures = new Pictures(
+            (address, _) =>
+            {
+                asked.Add(address);
+
+                return Task.FromResult<byte[]?>(null);
+            },
+            ADrawingTerminal,
+            () => { },
+            dropped.Add);
+
+        var screenful = Enumerable.Range(0, Pictures.MostHeld + 3)
+                                  .Select(at => Drawn.Attached(APost.APicture(id: $"s{at}")))
+                                  .ToList();
+
+        pictures.Want([.. screenful.Select(OnScreen)]);
+
+        Assert.Equal(Pictures.MostHeld + 3, asked.Count);
+        Assert.Empty(dropped);
+
+        // The page moves on: the next frame has none of them on screen, so the cache comes back to its room, letting
+        // go of the four of them farthest from where the screen was.
+        pictures.Want([Near(Drawn.Attached(APost.APicture(id: "next")))]);
+
+        Assert.Equal(["s34", "s33", "s32", "s31"], dropped);
+    }
+
+    /// <summary>
+    ///     A frame wanting more than there is room for is sent for nearest first and only as far as the room goes.
+    ///     Sending for the rest would only have them let go of again at once, and sent for again on the next frame,
+    ///     which is a fetch per keypress.
+    /// </summary>
+    [Fact]
+    public void Pictures_SendsForNoMoreOfAFrameThanItHasRoomFor()
+    {
+        var asked = new List<string>();
+        var dropped = new List<string>();
+
+        using var pictures = new Pictures(
+            (address, _) =>
+            {
+                asked.Add(address);
+
+                return Task.FromResult<byte[]?>(null);
+            },
+            ADrawingTerminal,
+            () => { },
+            dropped.Add);
+
+        var frame = Enumerable.Range(0, Pictures.MostHeld + 3)
+                              .Select(at => Near(Drawn.Attached(APost.APicture(id: $"m{at}"))))
+                              .ToList();
+
+        pictures.Want(frame);
+        pictures.Want(frame);
+
+        Assert.Equal(Pictures.MostHeld, asked.Count);
+        Assert.Empty(dropped);
     }
 
     /// <summary>
@@ -269,7 +367,7 @@ public class PicturesTests
         using var http = new HttpClient(network);
         using var pictures = Pictures.Over(http, ADrawingTerminal, landed.SetResult);
 
-        pictures.Want(Drawn.Attached(APost.APicture()));
+        pictures.Want([Near(Drawn.Attached(APost.APicture()))]);
 
         await landed.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
@@ -289,7 +387,7 @@ public class PicturesTests
         using var http = new HttpClient(network);
         using var pictures = Pictures.Over(http, ADrawingTerminal, () => { });
 
-        pictures.Want(Drawn.Attached(APost.APicture()));
+        pictures.Want([Near(Drawn.Attached(APost.APicture()))]);
 
         Assert.Null(pictures.Of(Drawn.Attached(APost.APicture())));
     }
@@ -313,7 +411,7 @@ public class PicturesTests
         using var http = new HttpClient(network);
         using var pictures = Pictures.Over(http, ADrawingTerminal, () => landed = true);
 
-        pictures.Want(Drawn.Attached(APost.APicture()));
+        pictures.Want([Near(Drawn.Attached(APost.APicture()))]);
 
         // Nothing announces a refusal, so the wait is for the request to have been made and answered.
         while (network.Requests.Count == 0)
@@ -324,6 +422,12 @@ public class PicturesTests
         Assert.Null(pictures.Of(Drawn.Attached(APost.APicture())));
         Assert.False(landed);
     }
+
+    /// <summary>A picture a frame wants that is near the screen but not on it.</summary>
+    private static WantedPicture Near(Drawn drawn) => new(drawn, OnScreen: false);
+
+    /// <summary>A picture a frame wants that is on screen in it.</summary>
+    private static WantedPicture OnScreen(Drawn drawn) => new(drawn, OnScreen: true);
 
     /// <summary>A terminal that draws pictures, since none of these tests is about one that does not.</summary>
     private static CellSize? ADrawingTerminal() => new CellSize(10, 20);

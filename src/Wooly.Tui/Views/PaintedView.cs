@@ -589,7 +589,8 @@ internal sealed class PaintedView : View
     }
 
     /// <summary>
-    ///     Sends for the pictures of the attachments near enough to the screen to be worth having, and for no others.
+    ///     Says which pictures this frame wants: those near enough to the screen to be worth having, nearest first,
+    ///     with those on it marked, and no others.
     /// </summary>
     /// <remarks>
     ///     The one place that knows where the scroll has got to, which is why this is the view's job and not the post's
@@ -599,6 +600,12 @@ internal sealed class PaintedView : View
     ///     <para>
     ///         A screen's worth either side of what is showing, so that a picture is usually there by the time it is
     ///         scrolled to rather than arriving after it.
+    ///     </para>
+    ///     <para>
+    ///         Said for the whole frame at once, because the cache needs the whole of it: what is on screen is what it
+    ///         must never let go of, and what is nearest is what it should keep longest (ADR-0025). A picture is on
+    ///         screen where the row that wants it is, or where any of its box is — a photograph scrolled half off the
+    ///         top has its row off the page and its lower half still on it.
     ///     </para>
     /// </remarks>
     private void Want(IReadOnlyList<Line> lines, int height)
@@ -611,13 +618,43 @@ internal sealed class PaintedView : View
         var from = _top - height;
         var to = _top + (height * 2);
 
-        for (var at = Math.Max(0, from); at < Math.Min(lines.Count, to); at++)
+        // The rows each picture takes, from the row that wants it to the foot of its box. Only a picture some row
+        // wants is said at all, which is what keeps a warned post's pictures from being sent for (ADR-0016).
+        var spans = new Dictionary<string, (Drawn Drawn, int First, int Last)>();
+
+        void Spans(Drawn drawn, int first, int last) =>
+            spans[drawn.Id] = spans.TryGetValue(drawn.Id, out var span)
+                ? (drawn, Math.Min(span.First, first), Math.Max(span.Last, last))
+                : (drawn, first, last);
+
+        for (var at = 0; at < lines.Count; at++)
         {
-            if (lines[at].Wants is { } drawn)
+            if (lines[at].Wants is { } drawn && at >= from && at < to)
             {
-                _pictures.Want(drawn);
+                Spans(drawn, at, at);
             }
         }
+
+        for (var at = 0; at < lines.Count; at++)
+        {
+            foreach (var inset in lines[at].Insets.Where(inset => spans.ContainsKey(inset.Drawn.Id)))
+            {
+                Spans(inset.Drawn, at, at + inset.Rows - 1);
+            }
+        }
+
+        var bottom = _top + height - 1;
+
+        // How many rows lie between a picture and the page: none for one on it.
+        int Distance((Drawn Drawn, int First, int Last) span) =>
+            span.Last < _top ? _top - span.Last : span.First > bottom ? span.First - bottom : 0;
+
+        _pictures.Want(
+        [
+            .. spans.Values
+                    .OrderBy(Distance)
+                    .Select(span => new WantedPicture(span.Drawn, OnScreen: Distance(span) == 0)),
+        ]);
     }
 
     /// <summary>The rows to draw, and where the scroll has got to.</summary>

@@ -1,7 +1,7 @@
 namespace Wooly.Tui.Media;
 
 /// <summary>
-///     The pictures the TUI has, fetched once each and held for as long as they are worth holding. Asked on every draw
+///     The pictures the TUI has, fetched once each and held for as long as a frame has wanted them recently enough. Asked on every draw
 ///     and answering at once, because a screen is redrawn on every keypress and a fetch per frame would be a fetch per
 ///     keypress (ADR-0016).
 /// </summary>
@@ -21,7 +21,8 @@ namespace Wooly.Tui.Media;
 /// </param>
 /// <param name="dropped">
 ///     What to do when a picture is let go of to make room, given its <see cref="Drawn.Id" />: tell a Kitty terminal
-///     holding a copy to let go of it too (ADR-0022). Called on whichever thread made the room: the one that asked for a picture, or the one a fetch finished on.
+///     holding a copy to let go of it too (ADR-0022). Called on the thread that said what a frame wants, since that is
+///     the only thing that makes room.
 /// </param>
 public sealed class Pictures(
     Func<string, CancellationToken, Task<byte[]?>> fetch,
@@ -40,6 +41,10 @@ public sealed class Pictures(
     ///         would drop and re-fetch an avatar every frame, which is a fetch per keypress — the very thing holding
     ///         pictures at all exists to prevent. An avatar is a thumbnail rather than a photograph, so the memory
     ///         this admits is nothing like twice what sixteen did.
+    ///     </para>
+    ///     <para>
+    ///         Past this only for what is on screen, which is never let go of however many pictures that is; the
+    ///         screen is small, so how far past is bounded (ADR-0025).
     ///     </para>
     /// </summary>
     public const int MostHeld = 32;
@@ -64,7 +69,15 @@ public sealed class Pictures(
     private readonly Lock _gate = new();
     private readonly SemaphoreSlim _atATime = new(AtATime, AtATime);
     private readonly Dictionary<string, Picture?> _held = [];
-    private readonly Queue<string> _order = new();
+
+    /// <summary>What is held, wanted longest ago first — the order it is let go of in.</summary>
+    private readonly LinkedList<string> _wanted = new();
+
+    /// <summary>Where each held picture is in <see cref="_wanted" />, so that wanting it again is not a search.</summary>
+    private readonly Dictionary<string, LinkedListNode<string>> _places = [];
+
+    /// <summary>What the latest frame had on screen, which is never let go of.</summary>
+    private HashSet<string> _onScreen = [];
     private readonly CancellationTokenSource _abandoned = new();
 
     /// <inheritdoc />
@@ -118,26 +131,83 @@ public sealed class Pictures(
     }
 
     /// <inheritdoc />
-    public void Want(Drawn drawn)
+    /// <remarks>
+    ///     Only as much of <paramref name="frame" /> is taken as there is room for, nearest first, and everything on
+    ///     screen whatever room that leaves. Taking the rest would send for pictures only to let go of them again at
+    ///     once, and send for them again on the next frame, which is a fetch per keypress.
+    /// </remarks>
+    public void Want(IReadOnlyList<WantedPicture> frame)
     {
+        var sending = new List<Drawn>();
         List<string> letGo;
 
         lock (_gate)
         {
-            if (_held.ContainsKey(drawn.Id))
+            var taking = Taken(frame);
+
+            _onScreen = [.. taking.Where(wanted => wanted.OnScreen).Select(wanted => wanted.Drawn.Id)];
+
+            // Renewed farthest first, so that the nearest ends up the most recently wanted and is the last of this
+            // frame's to be let go of.
+            for (var at = taking.Count - 1; at >= 0; at--)
             {
-                return;
+                var drawn = taking[at].Drawn;
+
+                if (_places.Remove(drawn.Id, out var place))
+                {
+                    _wanted.Remove(place);
+                }
+                else
+                {
+                    // Written down before the fetch goes out, and holding null until it lands: that is what makes
+                    // asking on every frame cost one fetch rather than one a frame, and what stops a picture that
+                    // cannot be had from being asked for again for as long as it is remembered.
+                    _held[drawn.Id] = null;
+                    sending.Add(drawn);
+                }
+
+                _places[drawn.Id] = _wanted.AddLast(drawn.Id);
             }
 
-            // Written down before the fetch goes out, and holding null until it lands: that is what makes asking on
-            // every frame cost one fetch rather than one a frame, and what stops a picture that cannot be had from
-            // being asked for again for as long as it is remembered.
-            letGo = Remember(drawn.Id, picture: null);
+            letGo = LetGo();
+
+            // Nearest first, and none that this very frame has already let go of.
+            sending.Reverse();
+            sending.RemoveAll(drawn => !_held.ContainsKey(drawn.Id));
         }
 
         Announce(letGo);
 
-        _ = Fetch(drawn);
+        foreach (var drawn in sending)
+        {
+            _ = Fetch(drawn);
+        }
+    }
+
+    /// <summary>
+    ///     The part of <paramref name="frame" /> there is room for: its nearest <see cref="MostHeld" /> pictures, and
+    ///     every one on screen past them. Each picture once, where a frame wants the same one twice — the same author's
+    ///     avatar on two posts — and on screen if either was.
+    /// </summary>
+    private static List<WantedPicture> Taken(IReadOnlyList<WantedPicture> frame)
+    {
+        var taking = new List<WantedPicture>();
+        var where = new Dictionary<string, int>();
+
+        foreach (var wanted in frame)
+        {
+            if (where.TryGetValue(wanted.Drawn.Id, out var at))
+            {
+                taking[at] = taking[at] with { OnScreen = taking[at].OnScreen || wanted.OnScreen };
+            }
+            else if (taking.Count < MostHeld || wanted.OnScreen)
+            {
+                where[wanted.Drawn.Id] = taking.Count;
+                taking.Add(wanted);
+            }
+        }
+
+        return taking;
     }
 
     /// <summary>
@@ -202,49 +272,50 @@ public sealed class Pictures(
             return;
         }
 
-        List<string> letGo = [];
-
         lock (_gate)
         {
-            // Remembered afresh where it has since been dropped, so that what is held and the order it is dropped in
-            // cannot come apart and leave the cache growing without a bound.
-            if (_held.ContainsKey(drawn.Id))
+            // Let go of while it was on its way, so wanted by no frame since: not taken back, because taking it back
+            // as the most recently wanted would let go of something a frame did want to make room for it.
+            if (!_held.ContainsKey(drawn.Id))
             {
-                _held[drawn.Id] = picture;
+                return;
             }
-            else
-            {
-                letGo = Remember(drawn.Id, picture);
-            }
+
+            _held[drawn.Id] = picture;
         }
 
-        Announce(letGo);
         arrived();
     }
 
     /// <summary>
-    ///     Holds a picture, dropping the one held longest once there are more than there is room for, and says which
-    ///     were dropped — to be told outside the lock, since whoever is told may take one of its own.
+    ///     Lets go of the pictures wanted longest ago until there are no more than there is room for, passing over any
+    ///     on screen in the latest frame however far over that leaves it, and says which were let go of — to be told
+    ///     outside the lock, since whoever is told may take one of its own.
     /// </summary>
-    private List<string> Remember(string id, Picture? picture)
+    private List<string> LetGo()
     {
         var letGo = new List<string>();
+        var place = _wanted.First;
 
-        _held[id] = picture;
-        _order.Enqueue(id);
-
-        while (_order.Count > MostHeld)
+        while (_held.Count > MostHeld && place is not null)
         {
-            var oldest = _order.Dequeue();
+            var next = place.Next;
 
-            _held.Remove(oldest);
-            letGo.Add(oldest);
+            if (!_onScreen.Contains(place.Value))
+            {
+                _wanted.Remove(place);
+                _places.Remove(place.Value);
+                _held.Remove(place.Value);
+                letGo.Add(place.Value);
+            }
+
+            place = next;
         }
 
         return letGo;
     }
 
-    /// <summary>Says which pictures were let go of, outside the lock <see cref="Remember" /> was called under.</summary>
+    /// <summary>Says which pictures were let go of, outside the lock <see cref="LetGo" /> was called under.</summary>
     private void Announce(List<string> letGo)
     {
         if (dropped is null)

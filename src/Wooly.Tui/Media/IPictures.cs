@@ -30,12 +30,15 @@ public interface IPictures
     Picture? Of(Drawn drawn);
 
     /// <summary>
-    ///     Says that <paramref name="drawn" /> is on screen, or nearly, and its picture is worth having.
+    ///     Says which pictures this frame wants: everything on screen or near it, nearest first, with those on screen
+    ///     marked. Whatever was wanted before and is not in <paramref name="frame" /> is wanted no more.
     /// </summary>
     /// <remarks>
-    ///     Safe to call on every frame: a picture is sent for once, a redraw is how the picture appears when it
-    ///     lands, and one that cannot be had is not asked for again. Said by whatever knows where the scroll has got
-    ///     to, which is the view rather than the post.
+    ///     One call a frame rather than one a picture, because only a whole frame can say which pictures are on screen
+    ///     now and which used to be wanted and are not any more — and those are what a cache needs, to know what it
+    ///     must never let go of and what it should let go of first (ADR-0025). Safe to call on every frame: a picture
+    ///     is sent for once, a redraw is how the picture appears when it lands, and one that cannot be had is not
+    ///     asked for again. Said by whatever knows where the scroll has got to, which is the view rather than the post.
     /// </remarks>
-    void Want(Drawn drawn);
+    void Want(IReadOnlyList<WantedPicture> frame);
 }
