@@ -579,7 +579,7 @@ public class PicturesTests
         using var pictures = new Pictures(fetch.Fetch, ADrawingTerminal, landings.Land, columns: () => width);
 
         // A real picture with padding after it, so the file is most of the encoded tier on its own.
-        var file = (byte[])[.. APng(4000, 1000), .. new byte[Pictures.EncodedBudget - (64 * Pictures.Remembering)]];
+        var file = (byte[])[.. APng(4000, 1000), .. new byte[Pictures.EncodedBudget - (64 * Pictures.RememberingCost)]];
 
         pictures.Want([OnScreen(Picture("m"))]);
         fetch.Answer("m", file);

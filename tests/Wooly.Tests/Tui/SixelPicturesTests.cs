@@ -31,7 +31,7 @@ public class SixelPicturesTests
 
     /// <summary>
     ///     A picture decoded again at a larger size, for a window made wider, is encoded again in the same box: the
-    ///     sharper pixels are the point of decoding it again, and the crop kept from the blurred one would hide them
+    ///     sharper pixels are the point of decoding it again, and the crop kept from the softer one would hide them
     ///     (ADR-0025).
     /// </summary>
     [Fact]

@@ -12,7 +12,7 @@ namespace Wooly.Tui.Media;
 ///     (ADR-0025): the decoded pixels, which are what <see cref="Of" /> answers from, and the downloaded files they were
 ///     decoded from. Pixels cost ten to fifty times what their file does, so letting go of the pixels while keeping the
 ///     file makes a picture scrolled back to cost a decode rather than a fetch — and makes a window grown wider cost a
-///     decode too, rather than a picture drawn blurred or fetched again.
+///     decode too, rather than a picture drawn soft or fetched again.
 /// </remarks>
 /// <param name="fetch">
 ///     How the bytes at an address are got. A delegate rather than an <see cref="HttpClient" /> so that a test can
@@ -71,7 +71,7 @@ public sealed class Pictures(
     ///     place in the order. Counted so that a picture whose file is gone, or which could not be had at all, is held
     ///     to the budget as well — remembered, so that it is not asked for again on every frame, but not for ever.
     /// </summary>
-    public const int Remembering = 1024;
+    public const int RememberingCost = 1024;
 
     /// <summary>
     ///     How many bytes of a download are worth reading. A preview is tens of kilobytes; anything of this size is
@@ -284,7 +284,7 @@ public sealed class Pictures(
             {
                 _wanted.Remove(held.Place);
                 _held.Remove(drawn.Id);
-                _encoded -= Remembering;
+                _encoded -= RememberingCost;
             }
         }
     }
@@ -370,7 +370,7 @@ public sealed class Pictures(
 
         held.Place = place(held);
         _held[drawn.Id] = held;
-        _encoded += Remembering;
+        _encoded += RememberingCost;
 
         return held;
     }
@@ -528,7 +528,7 @@ public sealed class Pictures(
         }
 
         held.Stored = stored;
-        Keep(held, bytes);
+        HoldFile(held, bytes);
 
         if (picture is null)
         {
@@ -543,7 +543,7 @@ public sealed class Pictures(
             letGo.Add(drawn.Id);
         }
 
-        Show(held, picture);
+        HoldPixels(held, picture);
 
         return true;
     }
@@ -563,7 +563,7 @@ public sealed class Pictures(
         {
             if (place.Value.Picture is not null && !_onScreen.Contains(place.Value.Drawn.Id))
             {
-                Show(place.Value, null);
+                LetGoOfPixels(place.Value);
                 letGo.Add(place.Value.Drawn.Id);
             }
         }
@@ -581,40 +581,56 @@ public sealed class Pictures(
                 continue;
             }
 
-            Keep(held, null);
+            LetGoOfFile(held);
 
             if (_encoded > EncodedBudget && held.Picture is null)
             {
                 _wanted.Remove(held.Place);
                 _held.Remove(held.Drawn.Id);
-                _encoded -= Remembering;
+                _encoded -= RememberingCost;
             }
         }
 
         return letGo;
     }
 
-    /// <summary>Holds <paramref name="bytes" /> as <paramref name="held" />'s file, or none, keeping the tally.</summary>
-    private void Keep(Held held, byte[]? bytes)
+    /// <summary>Holds <paramref name="bytes" /> as <paramref name="held" />'s file, keeping the tally.</summary>
+    private void HoldFile(Held held, byte[] bytes)
     {
-        _encoded += (bytes?.LongLength ?? 0) - (held.Bytes?.LongLength ?? 0);
+        _encoded += bytes.LongLength - (held.Bytes?.LongLength ?? 0);
         held.Bytes = bytes;
-
-        if (bytes is not null)
-        {
-            held.Length = bytes.Length;
-        }
+        held.Length = bytes.Length;
     }
 
-    /// <summary>Holds <paramref name="picture" /> as <paramref name="held" />'s pixels, or none, keeping the tally.</summary>
-    private void Show(Held held, Picture? picture)
+    /// <summary>
+    ///     Lets go of <paramref name="held" />'s file, keeping the tally — and keeping how long it was, so that what
+    ///     it costs is still known without fetching it again.
+    /// </summary>
+    private void LetGoOfFile(Held held)
+    {
+        _encoded -= held.Bytes?.LongLength ?? 0;
+        held.Bytes = null;
+    }
+
+    /// <summary>Holds <paramref name="picture" /> as <paramref name="held" />'s pixels, keeping the tally.</summary>
+    private void HoldPixels(Held held, Picture picture)
     {
         _decoded += Cost(picture) - Cost(held.Picture);
         held.Picture = picture;
     }
 
+    /// <summary>Lets go of <paramref name="held" />'s pixels, keeping the tally.</summary>
+    private void LetGoOfPixels(Held held)
+    {
+        _decoded -= Cost(held.Picture);
+        held.Picture = null;
+    }
+
     /// <summary>What <paramref name="picture" />'s pixels cost: four bytes each.</summary>
-    private static long Cost(Picture? picture) => picture is null ? 0 : 4L * picture.Width * picture.Height;
+    private static long Cost(Picture? picture) => picture is null ? 0 : Cost(new Size(picture.Width, picture.Height));
+
+    /// <summary>What pixels <paramref name="size" /> cost: four bytes each.</summary>
+    private static long Cost(Size size) => 4L * size.Width * size.Height;
 
     /// <summary>
     ///     The largest box <paramref name="drawn" /> could be drawn in on this window, in pixels, which is as large as it
@@ -699,7 +715,7 @@ public sealed class Pictures(
         /// </summary>
         public long? Pixels =>
             Stored is { } stored
-                ? Math.Max(Cost(Picture), 4L * PictureDecoder.Fitted(stored, Room).Width * PictureDecoder.Fitted(stored, Room).Height)
+                ? Math.Max(Cost(Picture), Cost(PictureDecoder.Fitted(stored, Room)))
                 : null;
 
         /// <summary>

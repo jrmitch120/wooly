@@ -8,19 +8,19 @@ using Wooly.Tui.Theme;
 namespace Wooly.Tests.Tui;
 
 /// <summary>
-///     A <b>Stand-in</b> blurred from the instance's blurhash where it sent one (#349, ADR-0025): the same box, the
+///     A <b>Stand-in</b>'s blur from the instance's blurhash where it sent one (#349, ADR-0025): the same box, the
 ///     same rows, with the blur drawn over the shade through the same raster path a picture is — so that the picture
 ///     arriving reads as sharpening rather than popping in.
 /// </summary>
 /// <remarks>
 ///     Held against <see cref="PostLines" /> through <see cref="FakePictures" />, as <c>ReservedBoxTests</c> holds the
 ///     box itself: which rows there are, and what is set into them to be drawn. Drawing the blur through each raster
-///     path is <c>BlurredStandInDrawingTests</c>'.
+///     path is <c>StandInBlurDrawingTests</c>'.
 /// </remarks>
-public class BlurredStandInTests
+public class StandInBlurTests
 {
     /// <summary>The blurhash project's own example: four components across and three down.</summary>
-    public const string Blurred = "LEHV6nWB2yk8pyo0adR*.7kCMdnj";
+    public const string AHash = "LEHV6nWB2yk8pyo0adR*.7kCMdnj";
 
     private static readonly DateTimeOffset Now = new(2026, 7, 29, 12, 30, 0, TimeSpan.Zero);
 
@@ -37,7 +37,7 @@ public class BlurredStandInTests
     [Fact]
     public void Feed_SetsTheBlurIntoTheWholeBoxWhereTheInstanceSentABlurhash()
     {
-        var post = APost.With(media: [APost.APicture(shape: Wide, blurhash: Blurred)]);
+        var post = APost.With(media: [APost.APicture(shape: Wide, blurhash: AHash)]);
 
         var lines = PostLines.Feed(post, new Drawing(61, Now, FakePictures.With()), default);
 
@@ -47,7 +47,7 @@ public class BlurredStandInTests
         var blur = Assert.Single(lines.SelectMany(line => line.Insets));
         Assert.Same(shaded[0], Assert.Single(lines, line => line.Insets.Count > 0));
         Assert.Equal((0, 61, 8), (blur.Column, blur.Columns, blur.Rows));
-        Assert.NotNull(blur.Blurred);
+        Assert.NotNull(blur.Blur);
         Assert.NotEqual("m1", blur.Drawn.Id);
     }
 
@@ -58,7 +58,7 @@ public class BlurredStandInTests
     [Fact]
     public void Feed_ReplacesTheBlurWithThePictureInPlace()
     {
-        var post = APost.With(media: [APost.APicture(shape: Wide, blurhash: Blurred)]);
+        var post = APost.With(media: [APost.APicture(shape: Wide, blurhash: AHash)]);
 
         var waiting = PostLines.Feed(post, new Drawing(61, Now, FakePictures.With()), default);
         var held = PostLines.Feed(post, new Drawing(61, Now, FakePictures.With().Holding("m1", 800, 200)), default);
@@ -70,7 +70,7 @@ public class BlurredStandInTests
 
         var picture = Assert.Single(held.SelectMany(line => line.Insets));
         Assert.Equal("m1", picture.Drawn.Id);
-        Assert.Null(picture.Blurred);
+        Assert.Null(picture.Blur);
     }
 
     /// <summary>
@@ -100,8 +100,8 @@ public class BlurredStandInTests
     {
         var post = APost.With(
             sensitive: true,
-            media: [APost.APicture(shape: Wide, blurhash: Blurred)],
-            linkPreview: APost.ALinkPreview(shape: Wide, blurhash: Blurred));
+            media: [APost.APicture(shape: Wide, blurhash: AHash)],
+            linkPreview: APost.ALinkPreview(shape: Wide, blurhash: AHash));
 
         var hidden = PostLines.Feed(post, new Drawing(61, Now, FakePictures.With()), default);
 
@@ -109,14 +109,14 @@ public class BlurredStandInTests
 
         var revealed = PostLines.Feed(post, new Drawing(61, Now, FakePictures.With()), new Reading(Revealed: true));
 
-        Assert.Equal(2, revealed.SelectMany(line => line.Insets).Count(inset => inset.Blurred is not null));
+        Assert.Equal(2, revealed.SelectMany(line => line.Insets).Count(inset => inset.Blur is not null));
     }
 
-    /// <summary>A link preview's picture is blurred the same way, from its card's blurhash.</summary>
+    /// <summary>A link preview's Stand-in gets its blur the same way, from its card's blurhash.</summary>
     [Fact]
     public void Feed_SetsTheBlurIntoALinkPreviewsBox()
     {
-        var link = APost.ALinkPreview(shape: Wide, blurhash: Blurred);
+        var link = APost.ALinkPreview(shape: Wide, blurhash: AHash);
         var post = APost.With(linkPreview: link);
 
         var waiting = PostLines.Feed(post, new Drawing(61, Now, FakePictures.With()), default);
@@ -127,10 +127,10 @@ public class BlurredStandInTests
 
         var blur = Assert.Single(waiting.SelectMany(line => line.Insets));
         Assert.Equal((0, 61, 8), (blur.Column, blur.Columns, blur.Rows));
-        Assert.NotNull(blur.Blurred);
+        Assert.NotNull(blur.Blur);
 
         Assert.Equal(waiting.Count, held.Count);
-        Assert.Null(Assert.Single(held.SelectMany(line => line.Insets)).Blurred);
+        Assert.Null(Assert.Single(held.SelectMany(line => line.Insets)).Blur);
     }
 
     /// <summary>
@@ -141,7 +141,7 @@ public class BlurredStandInTests
     public void Feed_NeverAsksThePictureCacheForTheBlur()
     {
         var pictures = FakePictures.With();
-        var post = APost.With(media: [APost.APicture(shape: Wide, blurhash: Blurred)]);
+        var post = APost.With(media: [APost.APicture(shape: Wide, blurhash: AHash)]);
 
         _ = PostLines.Feed(post, new Drawing(61, Now, pictures), default);
 

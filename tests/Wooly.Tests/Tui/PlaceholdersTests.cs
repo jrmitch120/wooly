@@ -67,7 +67,7 @@ public class PlaceholdersTests
 
     /// <summary>
     ///     A picture decoded again at a larger size, for a window made wider, is sent again in the same box: the sharper
-    ///     pixels are the point of decoding it again, and naming the image already sent would keep the blurred one on
+    ///     pixels are the point of decoding it again, and naming the image already sent would keep the softer one on
     ///     screen (ADR-0025).
     /// </summary>
     [Fact]
@@ -77,10 +77,10 @@ public class PlaceholdersTests
         using var placeholders = Inline(terminal);
         var inset = Box("m1", columns: 8, rows: 4);
 
-        var blurred = placeholders.Ready(inset, APicture(40, 40), Cell);
+        var soft = placeholders.Ready(inset, APicture(40, 40), Cell);
         var sharp = placeholders.Ready(inset, APicture(80, 80), Cell);
 
-        Assert.NotEqual(blurred, sharp);
+        Assert.NotEqual(soft, sharp);
         Assert.Equal(2, terminal.Transmitted.Count);
     }
 

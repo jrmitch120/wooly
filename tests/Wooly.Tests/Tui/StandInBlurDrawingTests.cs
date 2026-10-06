@@ -13,7 +13,7 @@ namespace Wooly.Tests.Tui;
 ///     forget are here — a blur sent to the terminal is let go of when the picture replaces it or it is scrolled away,
 ///     the same as a picture is (ADR-0022).
 /// </summary>
-public class BlurredStandInDrawingTests
+public class StandInBlurDrawingTests
 {
     private const string Placeholder = "\U0010EEEE";
 
@@ -31,7 +31,7 @@ public class BlurredStandInDrawingTests
             80,
             24,
             Themes.Plain,
-            AShellWithABlurredPicture(),
+            AShellWithAPictureAndItsBlurhash(),
             pictures: pictures,
             kittyImages: terminal,
             drawsPlaceholders: true);
@@ -60,7 +60,7 @@ public class BlurredStandInDrawingTests
             80,
             24,
             Themes.Plain,
-            AShellWithABlurredPicture(followedBy: 30),
+            AShellWithAPictureAndItsBlurhash(followedBy: 30),
             pictures: FakePictures.With(),
             kittyImages: terminal,
             drawsPlaceholders: true);
@@ -89,7 +89,7 @@ public class BlurredStandInDrawingTests
             80,
             24,
             Themes.Plain,
-            AShellWithABlurredPicture(),
+            AShellWithAPictureAndItsBlurhash(),
             pictures: FakePictures.With(),
             kittyImages: terminal,
             drawsPlaceholders: true);
@@ -118,7 +118,7 @@ public class BlurredStandInDrawingTests
             80,
             24,
             Themes.Plain,
-            AShellWithABlurredPicture(),
+            AShellWithAPictureAndItsBlurhash(),
             pictures: pictures,
             drawsPictures: sixel,
             answersKitty: kitty);
@@ -148,7 +148,7 @@ public class BlurredStandInDrawingTests
             80,
             24,
             Themes.Plain,
-            AShellWithABlurredPicture(),
+            AShellWithAPictureAndItsBlurhash(),
             pictures: pictures,
             drawsPictures: true);
 
@@ -156,13 +156,13 @@ public class BlurredStandInDrawingTests
         Assert.All(pictures.Sent, id => Assert.Equal("m1", id));
     }
 
-    private static AShell AShellWithABlurredPicture(int followedBy = 4) => new()
+    private static AShell AShellWithAPictureAndItsBlurhash(int followedBy = 4) => new()
     {
         Timelines = FakeTimelineReader.Holding(
         [
             APost.With(
                 id: "100",
-                media: [APost.APicture("m1", shape: new PictureShape(800, 200), blurhash: BlurredStandInTests.Blurred)]),
+                media: [APost.APicture("m1", shape: new PictureShape(800, 200), blurhash: StandInBlurTests.AHash)]),
             .. Enumerable.Range(1, followedBy).Select(at => APost.With(id: $"{100 + at}")),
         ]),
     };

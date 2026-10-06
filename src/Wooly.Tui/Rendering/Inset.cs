@@ -34,7 +34,7 @@ public sealed record Inset(Drawn Drawn, int Column, int Columns, int Rows)
     public const int WholeRows = 32;
 
     /// <summary>
-    ///     The pixels of a <b>Stand-in</b>'s blur, already in hand, where this inset is one (<see cref="StandIn.Blurred" />)
+    ///     The pixels of a <b>Stand-in</b>'s blur, already in hand, where this inset is one (<see cref="StandIn.WithBlur" />)
     ///     — or <see langword="null" /> for a picture, whose pixels are looked up from <see cref="IPictures" />.
     /// </summary>
     /// <remarks>
@@ -42,7 +42,7 @@ public sealed record Inset(Drawn Drawn, int Column, int Columns, int Rows)
     ///     keeping it out of the picture cache is what stops a screen of blurs crowding out the pictures they stand in
     ///     for (#349, ADR-0025).
     /// </remarks>
-    public Picture? Blurred { get; init; }
+    public Picture? Blur { get; init; }
 
     /// <summary>
     ///     What a box is reserved at where the instance reported no shape: sixteen wide by nine tall, the shape most

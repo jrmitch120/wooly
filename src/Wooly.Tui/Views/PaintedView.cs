@@ -665,7 +665,8 @@ internal sealed class PaintedView : View
         // wants is said at all, which is what keeps a warned post's pictures from being sent for (ADR-0016).
         var spans = new Dictionary<string, (Drawn Drawn, int First, int Last)>();
 
-        void Spans(Drawn drawn, int first, int last) =>
+        // Widens the rows a picture is said to take to reach first to last as well, or says them where none were yet.
+        void Widen(Drawn drawn, int first, int last) =>
             spans[drawn.Id] = spans.TryGetValue(drawn.Id, out var span)
                 ? (drawn, Math.Min(span.First, first), Math.Max(span.Last, last))
                 : (drawn, first, last);
@@ -674,7 +675,7 @@ internal sealed class PaintedView : View
         {
             if (lines[at].Wants is { } drawn && at >= from && at < to)
             {
-                Spans(drawn, at, at);
+                Widen(drawn, at, at);
             }
         }
 
@@ -682,7 +683,7 @@ internal sealed class PaintedView : View
         {
             foreach (var inset in lines[at].Insets.Where(inset => spans.ContainsKey(inset.Drawn.Id)))
             {
-                Spans(inset.Drawn, at, at + inset.Rows - 1);
+                Widen(inset.Drawn, at, at + inset.Rows - 1);
             }
         }
 
@@ -925,7 +926,7 @@ internal sealed class PaintedView : View
             ?
             [
                 .. Wanted(lines, height, near: height)
-                   .Where(wanted => wanted.Inset.Blurred is not null)
+                   .Where(wanted => wanted.Inset.Blur is not null)
                    .Select(wanted => wanted.Inset.Drawn.Id),
             ]
             : [];
@@ -1092,7 +1093,7 @@ internal sealed class PaintedView : View
                 }
 
                 // A Stand-in's blur carries its own pixels and is never looked up: it is not the cache's to hold (#349).
-                if ((inset.Blurred ?? _pictures!.Of(inset.Drawn)) is { } picture)
+                if ((inset.Blur ?? _pictures!.Of(inset.Drawn)) is { } picture)
                 {
                     wanted.Add((inset, top, picture));
                 }

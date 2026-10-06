@@ -157,7 +157,7 @@ internal sealed class SixelPictures(
 
     private Key KeyOf(Inset inset, Picture picture, CellSize cell, SixelCrop crop, int colours) =>
         new(
-            new Scale(inset.Drawn.Id, inset.Columns, inset.Rows, cell, _backdrop(), (picture.Width, picture.Height)),
+            new Scale(inset.Drawn.Id, inset.Columns, inset.Rows, cell, _backdrop(), DecodedSize.Of(picture)),
             crop,
             colours);
 
@@ -304,8 +304,8 @@ internal sealed class SixelPictures(
     }
 
     /// <summary>
-    ///     One picture at one box size, on one size of cell, laid on one backdrop. The size it was decoded at is part
-    ///     of it, because a picture decoded again for a wider window is sharper pixels in the same box (ADR-0025).
+    ///     One picture at one box size, on one size of cell, laid on one backdrop, from pixels decoded at one size
+    ///     (<see cref="DecodedSize" />).
     /// </summary>
     private readonly record struct Scale(
         string Drawn,
@@ -313,7 +313,7 @@ internal sealed class SixelPictures(
         int Rows,
         CellSize Cell,
         Color? Backdrop,
-        (int Width, int Height) Decoded);
+        DecodedSize Decoded);
 
     /// <summary>One crop of a scaled picture, in so many colours.</summary>
     private readonly record struct Key(Scale Scale, SixelCrop Crop, int Colours);

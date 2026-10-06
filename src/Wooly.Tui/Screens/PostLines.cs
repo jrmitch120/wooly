@@ -664,7 +664,7 @@ public static class PostLines
         {
             // The blur is set into the whole box over the shade rather than in place of it: the shade is what shows
             // until the blur is encoded and drawn, and what shows where it never decodes at all (#349).
-            var blur = StandIn.Blurred(box, blurhash);
+            var blur = StandIn.WithBlur(box, blurhash);
 
             for (var row = 0; row < box.Rows; row++)
             {

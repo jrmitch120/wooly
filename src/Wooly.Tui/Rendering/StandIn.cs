@@ -33,8 +33,8 @@ public static class StandIn
     ///     (ADR-0022). Its pixels come from <see cref="Blurs" />, never from the picture cache, so a screen of blurs
     ///     can never crowd out the pictures they stand in for (ADR-0025).
     /// </remarks>
-    public static Inset? Blurred(Inset box, string? blurhash) =>
+    public static Inset? WithBlur(Inset box, string? blurhash) =>
         blurhash is not null && Blurs.Of(blurhash) is { } blur
-            ? box with { Drawn = Drawn.Blur(box.Drawn), Blurred = blur }
+            ? box with { Drawn = Drawn.Blur(box.Drawn), Blur = blur }
             : null;
 }

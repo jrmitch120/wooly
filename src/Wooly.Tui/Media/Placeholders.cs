@@ -162,7 +162,7 @@ public sealed class Placeholders(
             return null;
         }
 
-        var sized = new Sized(inset.Drawn.Id, inset.Columns, inset.Rows, cell, (picture.Width, picture.Height));
+        var sized = new Sized(inset.Drawn.Id, inset.Columns, inset.Rows, cell, DecodedSize.Of(picture));
         Image image;
 
         lock (_gate)
@@ -210,11 +210,10 @@ public sealed class Placeholders(
     }
 
     /// <summary>
-    ///     One picture at one box size, on one size of cell — which is what one image id means. The size it was
-    ///     decoded at is part of it, because a picture decoded again for a wider window is sharper pixels in the same
-    ///     box, and is sent again for that (ADR-0025).
+    ///     One picture at one box size, on one size of cell, from pixels decoded at one size
+    ///     (<see cref="DecodedSize" />) — which is what one image id means.
     /// </summary>
-    private sealed record Sized(string Drawn, int Columns, int Rows, CellSize Cell, (int Width, int Height) Decoded);
+    private sealed record Sized(string Drawn, int Columns, int Rows, CellSize Cell, DecodedSize Decoded);
 
     /// <summary>Where one image has got to: being encoded, encoded and waiting to be sent, or sent.</summary>
     private sealed class Image(int id)

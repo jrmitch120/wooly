@@ -391,14 +391,14 @@ public class TimelineReaderTests
     }
 
     /// <summary>
-    ///     The instance's blurhash of the attachment, carried as it was sent: what the TUI's Stand-in is blurred from
+    ///     The instance's blurhash of the attachment, carried as it was sent: what the TUI's Stand-in takes its blur from
     ///     while the picture is on its way (ADR-0025, #349).
     /// </summary>
     [Fact]
     public async Task Read_ReportsTheAttachmentsBlurhash()
     {
         var network = new ScriptedHttpMessageHandler(
-            ScriptedHttpMessageHandler.Json(Page(PostJson("110", media: MediaJson(blurhash: Blurred)))));
+            ScriptedHttpMessageHandler.Json(Page(PostJson("110", media: MediaJson(blurhash: AHash)))));
 
         var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
 
@@ -500,7 +500,7 @@ public class TimelineReaderTests
     public async Task Read_ReportsTheLinkPreviewsBlurhash()
     {
         var network = new ScriptedHttpMessageHandler(
-            ScriptedHttpMessageHandler.Json(Page(PostJson("110", card: CardJson(blurhash: Blurred)))));
+            ScriptedHttpMessageHandler.Json(Page(PostJson("110", card: CardJson(blurhash: AHash)))));
 
         var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
 
@@ -1050,7 +1050,7 @@ public class TimelineReaderTests
           """;
 
     /// <summary>A blurhash as the wire sends one, quoted: the reference example from the blurhash project.</summary>
-    private const string Blurred = "\"LEHV6nWB2yk8pyo0adR*.7kCMdnj\"";
+    private const string AHash = "\"LEHV6nWB2yk8pyo0adR*.7kCMdnj\"";
 
     /// <summary>
     ///     One link preview, as the wire serves one back on a post. Every field ADR-0018 drops is sent alongside the
