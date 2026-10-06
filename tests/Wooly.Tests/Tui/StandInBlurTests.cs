@@ -27,6 +27,9 @@ public class StandInBlurTests
     /// <summary>800×200 at 61 columns of 10×20-pixel cells: eight rows, as in <c>ReservedBoxTests</c>.</summary>
     private static readonly PictureShape Wide = new(800, 200);
 
+    /// <summary>The rows at 61 columns, now, over <paramref name="pictures" />, with blurs to decode.</summary>
+    private static Drawing ADrawing(IPictures pictures) => new(61, Now, pictures, Blurs: new Blurs());
+
     private static List<Line> StandIn(IEnumerable<Line> lines) =>
         [.. lines.Where(line => line.Has(Role.StandIn))];
 
@@ -39,7 +42,7 @@ public class StandInBlurTests
     {
         var post = APost.With(media: [APost.APicture(shape: Wide, blurhash: AHash)]);
 
-        var lines = PostLines.Feed(post, new Drawing(61, Now, FakePictures.With()), default);
+        var lines = PostLines.Feed(post, ADrawing(FakePictures.With()), default);
 
         var shaded = StandIn(lines);
         Assert.Equal(8, shaded.Count);
@@ -52,6 +55,25 @@ public class StandInBlurTests
     }
 
     /// <summary>
+    ///     The blur is the one the drawing's <see cref="Blurs" /> decoded and holds, rather than one decoded again for
+    ///     every row worked out — and a drawing given none draws the shaded fill alone, as a screen laid out with no
+    ///     terminal in the room draws no picture.
+    /// </summary>
+    [Fact]
+    public void Feed_TakesTheBlurFromTheBlursItIsDrawnWith()
+    {
+        var blurs = new Blurs();
+        var post = APost.With(media: [APost.APicture(shape: Wide, blurhash: AHash)]);
+
+        var lines = PostLines.Feed(post, new Drawing(61, Now, FakePictures.With(), Blurs: blurs), default);
+        var unblurred = PostLines.Feed(post, new Drawing(61, Now, FakePictures.With()), default);
+
+        Assert.Same(blurs.Of(AHash), Assert.Single(lines.SelectMany(line => line.Insets)).Blur);
+        Assert.Empty(unblurred.SelectMany(line => line.Insets));
+        Assert.Equal(8, StandIn(unblurred).Count);
+    }
+
+    /// <summary>
     ///     And the blur is replaced by the picture in place: the same rows, the box's top row carrying the picture now
     ///     and no blur anywhere.
     /// </summary>
@@ -60,8 +82,8 @@ public class StandInBlurTests
     {
         var post = APost.With(media: [APost.APicture(shape: Wide, blurhash: AHash)]);
 
-        var waiting = PostLines.Feed(post, new Drawing(61, Now, FakePictures.With()), default);
-        var held = PostLines.Feed(post, new Drawing(61, Now, FakePictures.With().Holding("m1", 800, 200)), default);
+        var waiting = PostLines.Feed(post, ADrawing(FakePictures.With()), default);
+        var held = PostLines.Feed(post, ADrawing(FakePictures.With().Holding("m1", 800, 200)), default);
 
         Assert.Equal(waiting.Count, held.Count);
         Assert.Equal(
@@ -85,7 +107,7 @@ public class StandInBlurTests
     {
         var post = APost.With(media: [APost.APicture(shape: Wide, blurhash: blurhash)]);
 
-        var lines = PostLines.Feed(post, new Drawing(61, Now, FakePictures.With()), default);
+        var lines = PostLines.Feed(post, ADrawing(FakePictures.With()), default);
 
         Assert.Equal(8, StandIn(lines).Count);
         Assert.Empty(lines.SelectMany(line => line.Insets));
@@ -103,11 +125,11 @@ public class StandInBlurTests
             media: [APost.APicture(shape: Wide, blurhash: AHash)],
             linkPreview: APost.ALinkPreview(shape: Wide, blurhash: AHash));
 
-        var hidden = PostLines.Feed(post, new Drawing(61, Now, FakePictures.With()), default);
+        var hidden = PostLines.Feed(post, ADrawing(FakePictures.With()), default);
 
         Assert.Empty(hidden.SelectMany(line => line.Insets));
 
-        var revealed = PostLines.Feed(post, new Drawing(61, Now, FakePictures.With()), new Reading(Revealed: true));
+        var revealed = PostLines.Feed(post, ADrawing(FakePictures.With()), new Reading(Revealed: true));
 
         Assert.Equal(2, revealed.SelectMany(line => line.Insets).Count(inset => inset.Blur is not null));
     }
@@ -119,10 +141,10 @@ public class StandInBlurTests
         var link = APost.ALinkPreview(shape: Wide, blurhash: AHash);
         var post = APost.With(linkPreview: link);
 
-        var waiting = PostLines.Feed(post, new Drawing(61, Now, FakePictures.With()), default);
+        var waiting = PostLines.Feed(post, ADrawing(FakePictures.With()), default);
         var held = PostLines.Feed(
             post,
-            new Drawing(61, Now, FakePictures.With().HoldingLinkPreview(link, 800, 200)),
+            ADrawing(FakePictures.With().HoldingLinkPreview(link, 800, 200)),
             default);
 
         var blur = Assert.Single(waiting.SelectMany(line => line.Insets));
@@ -143,7 +165,7 @@ public class StandInBlurTests
         var pictures = FakePictures.With();
         var post = APost.With(media: [APost.APicture(shape: Wide, blurhash: AHash)]);
 
-        _ = PostLines.Feed(post, new Drawing(61, Now, pictures), default);
+        _ = PostLines.Feed(post, ADrawing(pictures), default);
 
         Assert.All(pictures.Asked, id => Assert.Equal("m1", id));
     }

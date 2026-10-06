@@ -146,6 +146,7 @@ try
         pictures,
         config.Preferences.HideDrawnCaption,
         placeholders,
+        new Blurs(),
         frames: frames);
 
     // A paste arrives as one string rather than as keys, before it is handed to whatever has focus. The shell takes

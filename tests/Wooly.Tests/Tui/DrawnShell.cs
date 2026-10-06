@@ -106,6 +106,7 @@ internal sealed class DrawnShell : IDisposable
             () => { },
             pictures ?? FakePictures.DrawingNothing(),
             placeholders: placeholders,
+            blurs: new Blurs(),
             frames: frames);
 
         frames?.Over(application);

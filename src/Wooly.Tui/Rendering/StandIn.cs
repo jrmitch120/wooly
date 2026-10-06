@@ -23,7 +23,8 @@ public static class StandIn
 
     /// <summary>
     ///     The blur to draw over <paramref name="box" />'s shade, the size of the whole box, or <see langword="null" />
-    ///     where there is no <paramref name="blurhash" /> or it does not decode — which leaves the shade alone (#349).
+    ///     where there is no <paramref name="blurhash" />, no <paramref name="blurs" /> to decode it, or it does not
+    ///     decode — which leaves the shade alone (#349).
     /// </summary>
     /// <remarks>
     ///     Drawn through the same raster path as the picture it stands in for, on sixel and Kitty alike, and stretched
@@ -33,8 +34,11 @@ public static class StandIn
     ///     (ADR-0022). Its pixels come from <see cref="Blurs" />, never from the picture cache, so a screen of blurs
     ///     can never crowd out the pictures they stand in for (ADR-0025).
     /// </remarks>
-    public static Inset? WithBlur(Inset box, string? blurhash) =>
-        blurhash is not null && Blurs.Of(blurhash) is { } blur
+    /// <param name="box">The box the Stand-in fills.</param>
+    /// <param name="blurhash">The instance's blurhash of the picture, where it sent one.</param>
+    /// <param name="blurs">What decodes the blur and holds it, or <see langword="null" /> where none is drawn.</param>
+    public static Inset? WithBlur(Inset box, string? blurhash, Blurs? blurs) =>
+        blurhash is not null && blurs?.Of(blurhash) is { } blur
             ? box with { Drawn = Drawn.Blur(box.Drawn), Blur = blur }
             : null;
 }

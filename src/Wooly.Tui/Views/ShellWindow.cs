@@ -132,6 +132,10 @@ internal sealed class ShellWindow : Window
     ///     What a Kitty terminal holds, for drawing a picture as placeholder cells (ADR-0022), or
     ///     <see langword="null" /> to draw every picture through a box.
     /// </param>
+    /// <param name="blurs">
+    ///     What a Stand-in's blur is decoded by and held in (#349), or <see langword="null" /> to draw every Stand-in
+    ///     as its shaded fill alone.
+    /// </param>
     /// <param name="frames">
     ///     What wraps a frame in synchronized output, opened as the content region draws — the region with the pictures,
     ///     whose text and sixels must land together — or <see langword="null" /> for none.
@@ -144,6 +148,7 @@ internal sealed class ShellWindow : Window
         IPictures pictures,
         bool hideDrawnCaption = false,
         Placeholders? placeholders = null,
+        Blurs? blurs = null,
         SynchronizedFrames? frames = null)
     {
         _shell = shell;
@@ -182,7 +187,7 @@ internal sealed class ShellWindow : Window
         _content = new PaintedView(
             theme,
             (width, height) => shell.Screen.Lines(
-                new Drawing(width, clock.GetUtcNow(), pictures, hideDrawnCaption, height)),
+                new Drawing(width, clock.GetUtcNow(), pictures, hideDrawnCaption, height, blurs)),
             pictures,
             // No rows of the panel's own: the view paints only the frame's edges, round the screen's rows.
             (width, height) => Panel.Framed(

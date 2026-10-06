@@ -51,12 +51,18 @@ namespace Wooly.Tui.Rendering;
 ///     whose rows scroll; read by compose, which lays itself out to the room rather than scrolling (#317), and which
 ///     lays itself out as tall as its own rows want where it is not told.
 /// </param>
+/// <param name="Blurs">
+///     What a <b>Stand-in</b>'s blur is decoded by and held in, or <see langword="null" /> where none is to be drawn —
+///     which leaves every Stand-in its shaded fill alone (#349). The shell's own, apart from <see cref="Pictures" />
+///     for the reason <see cref="Media.Blurs" /> gives.
+/// </param>
 public sealed record Drawing(
     int Width,
     DateTimeOffset Now,
     IPictures? Pictures = null,
     bool HideDrawnCaption = false,
-    int? Height = null)
+    int? Height = null,
+    Blurs? Blurs = null)
 {
     /// <summary>The same drawing in less room, which is what a gutter or an indent leaves the thing inside it.</summary>
     /// <remarks>

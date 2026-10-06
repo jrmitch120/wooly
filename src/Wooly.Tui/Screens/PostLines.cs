@@ -97,8 +97,8 @@ public static class PostLines
                 .. Byline(shown, width, drawing.Now, pictures),
             ],
             Body(show, width, reading, saysHowToAskPast),
-            .. Media(show, width, pictures, Inset.FeedRows, drawing.HideDrawnCaption, reading, saysHowToAskPast),
-            LinkPreview(show, width, pictures, Inset.FeedRows, reading),
+            .. Media(show, width, pictures, drawing.Blurs, Inset.FeedRows, drawing.HideDrawnCaption, reading, saysHowToAskPast),
+            LinkPreview(show, width, pictures, drawing.Blurs, Inset.FeedRows, reading),
             Poll(show, width, reading),
             [Counts(shown, spelledOut: false)],
         ]);
@@ -147,8 +147,8 @@ public static class PostLines
             ],
             // The post screen is about this post, so x is always something that can act on it here.
             Body(show, width, reading, saysHowToAskPast: true),
-            .. Media(show, width, pictures, Inset.WholeRows, drawing.HideDrawnCaption, reading, saysHowToAskPast: true),
-            LinkPreview(show, width, pictures, Inset.WholeRows, reading),
+            .. Media(show, width, pictures, drawing.Blurs, Inset.WholeRows, drawing.HideDrawnCaption, reading, saysHowToAskPast: true),
+            LinkPreview(show, width, pictures, drawing.Blurs, Inset.WholeRows, reading),
             Poll(show, width, reading),
             [Counts(shown, spelledOut: true)],
         ]);
@@ -389,6 +389,7 @@ public static class PostLines
     ///     off (#113).
     /// </param>
     /// <param name="pictures">What can be drawn and what is here, or <see langword="null" /> where nothing can be.</param>
+    /// <param name="blurs">What a Stand-in's blur comes from, or <see langword="null" /> where none is drawn.</param>
     /// <param name="mostRows">The most rows a picture may take, which is what a feed and a whole post differ on.</param>
     /// <param name="hideDrawnCaption">
     ///     Whether what an attachment says it shows drops where a box is drawn for it (#71) — a picture's own caption,
@@ -413,6 +414,7 @@ public static class PostLines
         OnShow show,
         int width,
         IPictures? pictures,
+        Blurs? blurs,
         int mostRows,
         bool hideDrawnCaption,
         Reading reading,
@@ -455,6 +457,7 @@ public static class PostLines
                     reading.Reference,
                     width,
                     pictures,
+                    blurs,
                     mostRows,
                     hideDrawnCaption);
 
@@ -487,8 +490,8 @@ public static class PostLines
             // reader, which is what the box was reserved to stop (ADR-0025). The box's own top row carries the Wants
             // then, there being no caption to carry it.
             yield return hideDrawnCaption
-                ? [.. Reserved(box, attached.Blurhash, pictures, cell, drawn)]
-                : [described, .. Reserved(box, attached.Blurhash, pictures, cell)];
+                ? [.. Reserved(box, attached.Blurhash, blurs, pictures, cell, drawn)]
+                : [described, .. Reserved(box, attached.Blurhash, blurs, pictures, cell)];
         }
     }
 
@@ -531,6 +534,7 @@ public static class PostLines
         Reference? picked,
         int width,
         IPictures? pictures,
+        Blurs? blurs,
         int mostRows,
         bool hideDrawnCaption)
     {
@@ -554,7 +558,7 @@ public static class PostLines
             :
             [
                 Label(saysWhatItShows: !hideDrawnCaption) with { Wants = drawn },
-                .. Reserved(box, attached.Blurhash, pictures, cell),
+                .. Reserved(box, attached.Blurhash, blurs, pictures, cell),
             ];
     }
 
@@ -649,6 +653,7 @@ public static class PostLines
     ///     The instance's blurhash of the picture, which is drawn over the shade while the picture is not here, or
     ///     <see langword="null" /> where it sent none (#349).
     /// </param>
+    /// <param name="blurs">What decodes that blurhash, or <see langword="null" /> where no blur is drawn.</param>
     /// <param name="wants">
     ///     What the box's top row says it is waiting for, where no caption above it is there to say so — or
     ///     <see langword="null" /> where one is.
@@ -656,6 +661,7 @@ public static class PostLines
     private static IEnumerable<Line> Reserved(
         Inset box,
         string? blurhash,
+        Blurs? blurs,
         IPictures pictures,
         CellSize cell,
         Drawn? wants = null)
@@ -664,7 +670,7 @@ public static class PostLines
         {
             // The blur is set into the whole box over the shade rather than in place of it: the shade is what shows
             // until the blur is encoded and drawn, and what shows where it never decodes at all (#349).
-            var blur = StandIn.WithBlur(box, blurhash);
+            var blur = StandIn.WithBlur(box, blurhash, blurs);
 
             for (var row = 0; row < box.Rows; row++)
             {
@@ -737,6 +743,7 @@ public static class PostLines
         OnShow show,
         int width,
         IPictures? pictures,
+        Blurs? blurs,
         int mostRows,
         Reading reading)
     {
@@ -766,7 +773,7 @@ public static class PostLines
             && pictures?.Cell is { } cell
             && Inset.For(drawn, link.Shape, cell, width, mostRows) is { } box)
         {
-            lines.AddRange(Reserved(box, link.Blurhash, pictures, cell));
+            lines.AddRange(Reserved(box, link.Blurhash, blurs, pictures, cell));
         }
 
         return lines;

@@ -73,4 +73,43 @@ public class BlurhashTests
     {
         Assert.Null(Blurhash.Decode("00TI:j", width, height));
     }
+
+    /// <summary>
+    ///     A hash is decoded once by the blurs that hold it and answered from them after, since rows are worked out on
+    ///     every frame; and each holder of blurs decodes its own, so nothing one shell or test decodes is another's.
+    /// </summary>
+    [Fact]
+    public void Blurs_DecodesAHashOnceAndHoldsItForThemAlone()
+    {
+        var blurs = new Blurs();
+
+        var blur = blurs.Of("00TI:j");
+
+        Assert.NotNull(blur);
+        Assert.Equal(Blurs.Side, blur.Width);
+        Assert.Same(blur, blurs.Of("00TI:j"));
+        Assert.NotSame(blur, new Blurs().Of("00TI:j"));
+    }
+
+    /// <summary>
+    ///     Past <see cref="Blurs.MostBlurs" /> the blur decoded longest ago is let go of, and decoded again if it is
+    ///     asked for again.
+    /// </summary>
+    [Fact]
+    public void Blurs_LetsGoOfTheBlurDecodedLongestAgoPastTheMost()
+    {
+        var blurs = new Blurs();
+        var first = blurs.Of("00TI:j");
+
+        for (var at = 0; at < Blurs.MostBlurs; at++)
+        {
+            _ = blurs.Of(string.Concat("00", Base83(at / 83), Base83(at % 83), ":j"));
+        }
+
+        Assert.NotSame(first, blurs.Of("00TI:j"));
+    }
+
+    /// <summary>One digit of the blurhash's base 83, so a test can make as many distinct hashes as it needs.</summary>
+    private static string Base83(int digit) =>
+        "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz#$%*+,-.:;=?@[]^_{|}~"[digit].ToString();
 }
