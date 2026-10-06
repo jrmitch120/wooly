@@ -60,7 +60,8 @@ internal static class APost
         string? description = "What a flock does all winter",
         string? providerName = "Example News",
         string? image = "https://files.example.com/sheep/card.png",
-        string? author = "Maria Shepherd") => new()
+        string? author = "Maria Shepherd",
+        PictureShape? shape = null) => new()
     {
         Url = url,
         Title = title,
@@ -68,6 +69,7 @@ internal static class APost
         ProviderName = providerName,
         Image = image,
         Author = author,
+        Shape = shape,
     };
 
     /// <summary>A picture attached to a post, with the description its author gave it.</summary>

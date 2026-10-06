@@ -655,6 +655,10 @@ a picture — is drawn after everything the author attached (#116, ADR-0018):
   is left is the words. `Drawn.LinkPreview` names it by the *link's* address rather than the picture's, the way an
   avatar is named by its handle: the same article shared by two accounts is one picture however each instance spells
   the proxy it serves the pixels through.
+- **Its box is reserved from the card's own `width`/`height`** (#348, ADR-0025), as an attachment's is from its
+  metadata: there from the first frame, shaded in its `stand-in` until the picture lands, and the picture fitted and
+  centred inside it where its proportions differ. A card whose sides are not both positive — instances send `0` where
+  they have no picture — is no shape, and the box is the same 16:9 default an attachment without one gets.
 - **`hide_drawn_caption` does not touch it**, which is the one thing it does differently from an attachment. That
   preference drops what a picture says *it shows* once the picture is on screen saying it (#71); a preview's
   description is about the page rather than about the picture beside it, so a box landing under the words does not

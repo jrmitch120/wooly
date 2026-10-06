@@ -70,15 +70,6 @@ public sealed record Inset(Drawn Drawn, int Column, int Columns, int Rows)
     }
 
     /// <summary>
-    ///     The box <paramref name="picture" /> gets at its own proportions, for what still sizes a box from the pixels:
-    ///     a link preview's picture, until it is given a shape of its own (#348).
-    /// </summary>
-    /// <inheritdoc cref="For(Drawn, PictureShape?, CellSize, int, int)" path="/param" />
-    /// <param name="picture">Its pixels, whose proportions settle the shape of the box.</param>
-    public static Inset? For(Drawn drawn, Picture picture, CellSize cell, int width, int mostRows) =>
-        Sized(drawn, picture.Width, picture.Height, cell, width, mostRows);
-
-    /// <summary>
     ///     Where <paramref name="picture" /> goes inside this box: as large as fits without squashing it, centred, with
     ///     the page around it where its proportions are not the box's. The box itself is unchanged, which is the point:
     ///     a shape reported wrongly, or the 16:9 guessed where none was, costs a strip of space rather than a jump

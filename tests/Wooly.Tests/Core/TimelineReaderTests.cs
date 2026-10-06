@@ -424,6 +424,43 @@ public class TimelineReaderTests
     }
 
     /// <summary>
+    ///     The shape of the picture the instance chose for the link, which is what its box is settled from before the
+    ///     picture arrives, the way an attachment's is (ADR-0025, #348).
+    /// </summary>
+    [Fact]
+    public async Task Read_ReportsTheShapeOfTheLinkPreviewsPicture()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(Page(PostJson("110", card: CardJson(width: "400", height: "210")))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        Assert.Equal(new PictureShape(400, 210), Assert.Single(fetch.Items).LinkPreview?.Shape);
+    }
+
+    /// <summary>
+    ///     No shape where the card gave none, or gave one with a side of nothing — instances send <c>0</c> for a card
+    ///     with no picture rather than leaving the fields out, and that is no proportions to size a box from. The
+    ///     default box is the TUI's to choose.
+    /// </summary>
+    [Theory]
+    [InlineData("null", "null")]
+    [InlineData("0", "0")]
+    [InlineData("400", "0")]
+    [InlineData("-1", "210")]
+    public async Task Read_ReportsNoShapeForALinkPreviewWhoseCardSaidNoneInFull(string width, string height)
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(Page(PostJson("110", card: CardJson(width: width, height: height)))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        var linkPreview = Assert.Single(fetch.Items).LinkPreview;
+        Assert.NotNull(linkPreview);
+        Assert.Null(linkPreview.Shape);
+    }
+
+    /// <summary>
     ///     Most posts link to nothing, and a post the instance previewed nothing on carries nothing — not an empty
     ///     preview for a reader to be shown a blank box for.
     /// </summary>
@@ -949,8 +986,9 @@ public class TimelineReaderTests
 
     /// <summary>
     ///     One link preview, as the wire serves one back on a post. Every field ADR-0018 drops is sent alongside the
-    ///     ones it keeps — the player's markup and size, the author's own address, when the page was published — so
-    ///     that a mapping which reached for one of them would have something to reach for.
+    ///     ones it keeps — the player's markup, the author's own address, when the page was published — so that a
+    ///     mapping which reached for one of them would have something to reach for. Its width and height are kept
+    ///     since ADR-0025, as the picture's shape, and are parameters so a test can say a card gave none.
     /// </summary>
     private static string CardJson(
         string url = "https://example.com/sheep",
@@ -958,7 +996,9 @@ public class TimelineReaderTests
         string description = "A field guide to every breed.",
         string providerName = "Example",
         string image = "https://example.com/sheep.png",
-        string authorName = "Maria") =>
+        string authorName = "Maria",
+        string width = "640",
+        string height = "480") =>
         $$"""
           {
             "url": "{{url}}",
@@ -970,8 +1010,8 @@ public class TimelineReaderTests
             "provider_name": "{{providerName}}",
             "provider_url": "https://example.com",
             "html": "<iframe src=\"https://example.com/embed\"></iframe>",
-            "width": 640,
-            "height": 480,
+            "width": {{width}},
+            "height": {{height}},
             "image": "{{image}}",
             "embed_url": "https://example.com/embed",
             "blurhash": "UFC?",

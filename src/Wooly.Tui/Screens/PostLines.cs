@@ -555,18 +555,6 @@ public static class PostLines
     }
 
     /// <summary>
-    ///     The box a link preview's pixels get, or <see langword="null" /> while they are not here — which is the same
-    ///     answer as a picture that will never arrive, and deliberately so (ADR-0016).
-    /// </summary>
-    /// <remarks>
-    ///     Still sized from the pixels, where an attachment's box is reserved from its shape (<see cref="Reserved" />):
-    ///     a card's own shape is #348's. A lookup and nothing else: asking never sends for anything, and only the view
-    ///     — the one thing that knows where the scroll has got to — may do that (ADR-0016).
-    /// </remarks>
-    private static Inset? BoxFor(Drawn drawn, IPictures pictures, CellSize cell, int width, int mostRows) =>
-        pictures.Of(drawn) is { } picture ? Inset.For(drawn, picture, cell, width, mostRows) : null;
-
-    /// <summary>
     ///     A <c>Video</c>, <c>Animation</c>, <c>Audio</c> or <c>Unknown</c> attachment's own row: the mark, its kind
     ///     capitalized — bracketed where <paramref name="picked" /> names this attachment — and its description
     ///     alongside where its author gave one and <paramref name="saysWhatItShows" /> (ADR-0017, #109).
@@ -632,20 +620,6 @@ public static class PostLines
     private static string Capitalized(string word) => $"{char.ToUpperInvariant(word[0])}{word[1..]}";
 
     /// <summary>
-    ///     The rows a picture is drawn over. The first carries the box; the rest are rows of the screen the box covers,
-    ///     and they are rows of the post so that everything below the picture is where the picture leaves it.
-    /// </summary>
-    private static IEnumerable<Line> Box(Inset inset)
-    {
-        yield return new Line([new Span(new string(' ', inset.Columns), Role.Media)]) { Insets = [inset] };
-
-        for (var row = 1; row < inset.Rows; row++)
-        {
-            yield return Line.Blank;
-        }
-    }
-
-    /// <summary>
     ///     The rows of a box reserved before its picture arrives: its <b>Stand-in</b> while the pixels are not here,
     ///     and the picture fitted and centred inside it once they are — the same number of rows either way, so the
     ///     picture landing, or being let go of, or never coming at all moves nothing under it (ADR-0025).
@@ -653,8 +627,12 @@ public static class PostLines
     /// <remarks>
     ///     The Stand-in is a plain shade the size of the box with no text in it. The caption is said once, on its own
     ///     row above the box, and a second copy inside the shade would go when the picture came and would show where
-    ///     the reader turned captions off (ADR-0025). A lookup and nothing else, the way <see cref="BoxFor" /> is:
-    ///     asking never sends for anything.
+    ///     the reader turned captions off (ADR-0025). A lookup and nothing else: asking never sends for anything, and
+    ///     only the view — the one thing that knows where the scroll has got to — may do that (ADR-0016).
+    ///     <para>
+    ///         Said once for an attachment's box, a video's preview and a link preview's picture (#348), so the three
+    ///         cannot come to reserve, shade or fit differently.
+    ///     </para>
     ///     <para>
     ///         The picture's inset goes on whichever row of the box its centred top lands on, rather than always on the
     ///         first: a row carries the inset its pixels start on, and that is how the view already places a picture
@@ -764,11 +742,14 @@ public static class PostLines
             .. LinkPreviewSays(link, width),
         ];
 
+        // Reserved from the shape the card gave, or the 16:9 default where it gave none worth trusting, whether or not
+        // the picture is here yet — the same box and Stand-in an attachment gets, so a link card moves nothing when its
+        // picture lands either (ADR-0025, #348). The walked row above already carries the Wants.
         if (drawn is not null
             && pictures?.Cell is { } cell
-            && BoxFor(drawn, pictures, cell, width, mostRows) is { } inset)
+            && Inset.For(drawn, link.Shape, cell, width, mostRows) is { } box)
         {
-            lines.AddRange(Box(inset));
+            lines.AddRange(Reserved(box, pictures, cell));
         }
 
         return lines;

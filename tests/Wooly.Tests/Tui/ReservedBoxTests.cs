@@ -246,6 +246,107 @@ public class ReservedBoxTests
     }
 
     /// <summary>
+    ///     A link preview's picture is reserved the way an attachment's is, from the shape its card gave: the box is
+    ///     under the preview's words from the first frame, shaded, and the rows are the same rows once the picture is
+    ///     held (#348).
+    /// </summary>
+    [Fact]
+    public void Feed_ReservesALinkPreviewsPictureBeforeItArrivesAndMovesNothingWhenItDoes()
+    {
+        var link = APost.ALinkPreview(shape: Wide);
+        var post = APost.With(linkPreview: link);
+
+        var waiting = PostLines.Feed(post, new Drawing(61, Now, FakePictures.With()), default);
+        var held = PostLines.Feed(
+            post,
+            new Drawing(61, Now, FakePictures.With().HoldingLinkPreview(link, 800, 200)),
+            default);
+
+        Assert.Equal(8, StandIn(waiting).Count);
+        Assert.All(StandIn(waiting), line => Assert.Equal(new string('░', 61), line.Text));
+        Assert.Equal(waiting.Count, held.Count);
+
+        for (var at = 0; at < waiting.Count; at++)
+        {
+            if (waiting[at].Has(Role.StandIn))
+            {
+                Assert.True(string.IsNullOrWhiteSpace(held[at].Text), $"Row {at} of the box says \"{held[at].Text}\".");
+            }
+            else
+            {
+                Assert.Equal(waiting[at].Text, held[at].Text);
+            }
+        }
+
+        var inset = Assert.Single(held.SelectMany(line => line.Insets));
+        Assert.Equal((0, 61, 8), (inset.Column, inset.Columns, inset.Rows));
+        Assert.Empty(StandIn(held));
+    }
+
+    /// <summary>
+    ///     Where the card gave no shape the box is the same 16:9 an attachment's is: eleven rows of forty at forty
+    ///     columns. Implausible sides never get this far — they are no shape from the wire on (#348).
+    /// </summary>
+    [Fact]
+    public void Feed_ReservesASixteenByNineBoxForALinkPreviewWithNoShape()
+    {
+        var lines = PostLines.Feed(
+            APost.With(linkPreview: APost.ALinkPreview(shape: null)),
+            new Drawing(40, Now, FakePictures.With()),
+            default);
+
+        var shaded = StandIn(lines);
+        Assert.Equal(11, shaded.Count);
+        Assert.All(shaded, line => Assert.Equal(40, line.Width));
+    }
+
+    /// <summary>
+    ///     A link preview's picture of another shape than its card said is fitted inside the box and centred, as an
+    ///     attachment's is: a square in a 61×8 box is 16 wide, 22 columns in, on the box's top row.
+    /// </summary>
+    [Fact]
+    public void Feed_CentresALinkPreviewsPictureInsideItsBox()
+    {
+        var link = APost.ALinkPreview(shape: Wide);
+        var post = APost.With(linkPreview: link);
+
+        var waiting = PostLines.Feed(post, new Drawing(61, Now, FakePictures.With()), default);
+        var held = PostLines.Feed(
+            post,
+            new Drawing(61, Now, FakePictures.With().HoldingLinkPreview(link, 400, 400)),
+            default);
+
+        var top = waiting.ToList().FindIndex(line => line.Has(Role.StandIn));
+        var carrying = held.ToList().FindIndex(line => line.Insets.Count > 0);
+        var inset = held[carrying].Insets.Single();
+
+        Assert.Equal(waiting.Count, held.Count);
+        Assert.Equal(top, carrying);
+        Assert.Equal((22, 16, 8), (inset.Column, inset.Columns, inset.Rows));
+    }
+
+    /// <summary>
+    ///     A link preview behind a warning reserves nothing and sends for nothing until asked past, and then its whole
+    ///     box is there at once, shaded (#348, ADR-0025).
+    /// </summary>
+    [Fact]
+    public void Feed_ReservesNothingForAWarnedPostsLinkPreviewUntilAskedPast()
+    {
+        var post = APost.With(sensitive: true, linkPreview: APost.ALinkPreview(shape: Wide));
+        var pictures = FakePictures.With();
+
+        var hidden = PostLines.Feed(post, new Drawing(61, Now, pictures), default);
+
+        Assert.Empty(StandIn(hidden));
+        Assert.DoesNotContain(hidden, line => line.Wants is not null);
+        Assert.Empty(pictures.Asked);
+
+        var revealed = PostLines.Feed(post, new Drawing(61, Now, pictures), new Reading(Revealed: true));
+
+        Assert.Equal(8, StandIn(revealed).Count);
+    }
+
+    /// <summary>
     ///     An avatar keeps the fixed box it already had and shows the shade in it until the face arrives: the byline's
     ///     rows say the same thing in the same columns either way, and only the four cells beside them change.
     /// </summary>

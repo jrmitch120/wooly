@@ -102,6 +102,11 @@ internal static class PostWire
             ProviderName = MastodonWire.SaidOrNothing(card.ProviderName),
             Image = MastodonWire.SaidOrNothing(card.Image),
             Author = MastodonWire.SaidOrNothing(card.AuthorName),
+
+            // The card's own width and height, which Mastodon fills from the picture it fetched for the link. An
+            // instance sends 0 for both where it has none, so the plausibility check is PictureShape's: both sides
+            // positive or no shape at all, and the 16:9 default is the TUI's to fall back on (ADR-0025).
+            Shape = PictureShape.Of(card.Width, card.Height),
         };
     }
 
