@@ -163,7 +163,8 @@ three tries, judged by eye in WezTerm on a large monitor, and each was a worse t
   a way to keep 64 and lose the bands, and breaks up the runs of one colour that sixel's encoding compresses, so a
   dithered 64 was 99–127% of sharp on those scenes.
 
-At 128 a notch over the measurement's photographs sent ~800 KB against ~1,026 KB sharp. With synchronized output in
-place that saving was not felt — scrolling on Windows Terminal felt great with it — and it cost a timer, a redraw on
-settling, two cuts of every picture and a larger cache. Should sending ever be what a reader feels again, fewer colours
+At 128 a notch over the measurement's photographs sent ~800 KB against ~1,026 KB sharp. Scrolling on Windows Terminal
+felt great with rough cuts at 128 and synchronized output together, and a fifth of the bytes was judged too little to
+keep for a timer, a redraw on settling, two cuts of every picture and a larger cache; Windows Terminal without them is
+the check still owed. Should sending ever be what a reader feels again, fewer colours
 while moving is where to look, at no fewer than 128.
