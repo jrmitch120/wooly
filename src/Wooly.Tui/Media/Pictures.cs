@@ -29,10 +29,11 @@ namespace Wooly.Tui.Media;
 ///     thread the fetch finished on, so whatever is passed here is what has to get back to the UI thread.
 /// </param>
 /// <param name="dropped">
-///     What to do when a picture's pixels are let go of to make room, given its <see cref="Drawn.Id" />: tell a Kitty
-///     terminal holding a copy to let go of it too (ADR-0022). Only for the decoded tier: a picture whose file alone is
-///     let go of has nothing on the terminal that this client is not still drawing. Called on whichever thread made the
-///     room — the one saying what a frame wants, or the one a picture landed on.
+///     What to do when a picture's pixels are let go of — to make room, or replaced by pixels decoded again for a wider
+///     window — given its <see cref="Drawn.Id" />: tell a Kitty terminal holding a copy to let go of it too
+///     (ADR-0022). Only for the decoded tier: a picture whose file alone is let go of has nothing on the terminal that
+///     this client is not still drawing. Called on whichever thread made the room — the one saying what a frame wants,
+///     or the one a picture landed on.
 /// </param>
 /// <param name="columns">
 ///     How many columns wide the window is now, or <see langword="null" /> where nothing says. With the cell, that is
@@ -451,13 +452,13 @@ public sealed class Pictures(
             return;
         }
 
-        List<string> letGo;
+        var letGo = new List<string>();
         bool landed;
 
         lock (_gate)
         {
-            landed = Land(drawn, stored is null ? null : bytes, stored, picture);
-            letGo = LetGo();
+            landed = Land(drawn, stored is null ? null : bytes, stored, picture, letGo);
+            letGo.AddRange(LetGo());
         }
 
         Announce(letGo);
@@ -497,9 +498,9 @@ public sealed class Pictures(
 
     /// <summary>
     ///     Writes down what came of sending for <paramref name="drawn" />, and says whether there are new pixels to
-    ///     draw. Under the lock.
+    ///     draw — adding it to <paramref name="letGo" /> where those replace pixels it already held. Under the lock.
     /// </summary>
-    private bool Land(Drawn drawn, byte[]? bytes, Size? stored, Picture? picture)
+    private bool Land(Drawn drawn, byte[]? bytes, Size? stored, Picture? picture, List<string> letGo)
     {
         // Never forgotten while it was on its way (LetGo), so there is somewhere for it to land. Where the page moved on
         // while it was coming, it lands as a file alone, because Decoded asked the latest frame whether to decode it:
@@ -526,6 +527,14 @@ public sealed class Pictures(
         if (picture is null)
         {
             return false;
+        }
+
+        // Decoded again for a wider window: the pixels it replaces are let go of as surely as any made room for, and a
+        // Kitty terminal holding a copy sent at the old size is told so (ADR-0022) — that copy's id is keyed on the
+        // size it was decoded at, so nothing would ever ask for it, or delete it, again.
+        if (held.Picture is not null)
+        {
+            letGo.Add(drawn.Id);
         }
 
         Show(held, picture);

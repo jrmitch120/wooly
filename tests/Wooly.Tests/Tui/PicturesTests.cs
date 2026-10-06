@@ -340,6 +340,32 @@ public class PicturesTests
     }
 
     /// <summary>
+    ///     Pixels decoded again for a wider window replace the ones held, and those are said to be let go of like any
+    ///     others: a Kitty terminal holding a copy decoded at the old size is told to drop it, rather than holding it
+    ///     for the rest of the run beside the sharper copy sent in its place (ADR-0022).
+    /// </summary>
+    [Fact]
+    public async Task Pictures_SaysThePixelsADecodeAgainReplacesAreLetGoOf()
+    {
+        var dropped = new List<string>();
+        var width = 50;
+
+        using var pictures = APictures(_ => APng(4000, 1000), out var landings, columns: () => width, dropped: dropped);
+
+        pictures.Want([OnScreen(APicture("m"))]);
+        await landings.Landed(1);
+
+        Assert.Empty(dropped);
+
+        width = 100;
+        pictures.Want([OnScreen(APicture("m"))]);
+        await landings.Landed(2);
+
+        Assert.Equal(["m"], dropped);
+        Assert.Equal(1000, pictures.Of(APicture("m"))?.Width);
+    }
+
+    /// <summary>
     ///     A picture is held at no more than the largest box this window could draw it in: the full width of the
     ///     window by the post screen's row cap, in pixels (ADR-0025). A hundred columns of ten-pixel cells is a thousand
     ///     pixels across, so a photograph four thousand across is held at a thousand, in its own proportions.
