@@ -340,48 +340,6 @@ public class PicturesTests
     }
 
     /// <summary>
-    ///     A fetch still on its way when the page moved on is not wasted: it lands as a file, undecoded, since no frame
-    ///     has wanted its pixels since. Scrolling back to it is then a decode rather than a second fetch (ADR-0025).
-    /// </summary>
-    [Fact]
-    public async Task Pictures_KeepsTheFileOfAFetchThatLandsAfterThePageMovedOn()
-    {
-        var asked = new List<string>();
-        var slow = new TaskCompletionSource<byte[]?>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var landings = new Landings();
-
-        using var pictures = new Pictures(
-            (address, _) =>
-            {
-                lock (asked)
-                {
-                    asked.Add(address);
-                }
-
-                return address == APicture("slow").Address ? slow.Task : Task.FromResult<byte[]?>(APng(4, 4));
-            },
-            ADrawingTerminal,
-            landings.Land,
-            columns: () => 100);
-
-        pictures.Want([Near(APicture("slow"))]);
-        pictures.Want([Near(APicture("other"))]);
-        await landings.Landed(1);
-
-        slow.SetResult(APng(4, 4));
-        await Task.Delay(200, TestContext.Current.CancellationToken);
-
-        Assert.Equal(1, landings.Count);
-        Assert.Null(pictures.Of(APicture("slow")));
-
-        pictures.Want([Near(APicture("slow"))]);
-        await landings.Landed(2);
-
-        Assert.NotNull(pictures.Of(APicture("slow")));
-        Assert.Equal(2, asked.Count);
-    }
-
-    /// <summary>
     ///     A picture is held at no more than the largest box this window could draw it in: the full width of the
     ///     window by the post screen's row cap, in pixels (ADR-0025). A hundred columns of ten-pixel cells is a thousand
     ///     pixels across, so a photograph four thousand across is held at a thousand, in its own proportions.
@@ -457,6 +415,93 @@ public class PicturesTests
 
         Assert.NotNull(pictures.Of(APicture("m0")));
         Assert.Equal(fitting + 1, asked.Count);
+    }
+
+    /// <summary>
+    ///     Fetches start nearest the screen first, whatever order the pictures were first wanted in: a picture wanted
+    ///     far ahead and still waiting for its turn goes after one the page has since come near. Never more than
+    ///     <see cref="Pictures.AtATime" /> at once while they do.
+    /// </summary>
+    [Fact]
+    public async Task Pictures_StartsTheNearestFetchFirst()
+    {
+        var fetch = new Gated();
+
+        using var pictures = new Pictures(fetch.Fetch, ADrawingTerminal, () => { });
+
+        var busy = Busy();
+
+        pictures.Want([.. busy, Near(Picture("far"))]);
+        pictures.Want([.. busy, Near(Picture("near")), Near(Picture("far"))]);
+
+        Assert.Equal(Pictures.AtATime, fetch.Asked.Count);
+
+        fetch.Answer("b0");
+        await fetch.Until(Pictures.AtATime + 1);
+
+        fetch.Answer("b1");
+        await fetch.Until(Pictures.AtATime + 2);
+
+        Assert.Equal(["near", "far"], fetch.Asked.Skip(Pictures.AtATime));
+    }
+
+    /// <summary>
+    ///     A picture still waiting for its turn when a frame stops wanting it is never fetched: the page has left it
+    ///     behind, and fetching it would hold up what the page is now near. Wanted again later, it is sent for then.
+    /// </summary>
+    [Fact]
+    public async Task Pictures_AbandonsAQueuedFetchNoLongerWanted()
+    {
+        var fetch = new Gated();
+
+        using var pictures = new Pictures(fetch.Fetch, ADrawingTerminal, () => { });
+
+        var busy = Busy();
+
+        pictures.Want([.. busy, Near(Picture("left behind"))]);
+        pictures.Want([.. busy, Near(Picture("ahead"))]);
+
+        fetch.Answer("b0");
+        await fetch.Until(Pictures.AtATime + 1);
+
+        fetch.Answer("b1");
+        fetch.Answer("b2");
+        fetch.Answer("b3");
+        fetch.Answer("ahead");
+
+        pictures.Want([Near(Picture("left behind"))]);
+        await fetch.Until(Pictures.AtATime + 2);
+
+        Assert.Equal(["ahead", "left behind"], fetch.Asked.Skip(Pictures.AtATime));
+    }
+
+    /// <summary>
+    ///     A fetch already under way when its picture stops being wanted is let finish, and what it brings is held:
+    ///     the bytes are already on their way, and the reader may yet turn round. Held as a file, undecoded, since no
+    ///     frame has wanted its pixels since — so turning round is a decode rather than a second fetch (ADR-0025).
+    /// </summary>
+    [Fact]
+    public async Task Pictures_HoldsWhatAnInFlightFetchBringsAfterItIsNoLongerWanted()
+    {
+        var fetch = new Gated();
+        var landings = new Landings();
+
+        using var pictures = new Pictures(fetch.Fetch, ADrawingTerminal, landings.Land);
+
+        pictures.Want([Near(Picture("leaving"))]);
+        pictures.Want([Near(Picture("elsewhere"))]);
+
+        fetch.Answer("leaving", APng(4, 4));
+        await Task.Delay(200, TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, landings.Count);
+        Assert.Null(pictures.Of(Picture("leaving")));
+
+        pictures.Want([Near(Picture("leaving"))]);
+        await landings.Landed(1);
+
+        Assert.NotNull(pictures.Of(Picture("leaving")));
+        Assert.Equal(["leaving", "elsewhere"], fetch.Asked);
     }
 
     /// <summary>
@@ -596,6 +641,13 @@ public class PicturesTests
     /// <summary>An attachment's picture, by the attachment's id.</summary>
     private static Drawn APicture(string id) => Drawn.Attached(APost.APicture(id: id));
 
+    /// <summary>An attachment's picture, by the id the instance gave it — which is also the address it is fetched from.</summary>
+    private static Drawn Picture(string id) => new(id, id);
+
+    /// <summary>As many pictures as are fetched at once, named <c>b0</c> on, to keep every fetch busy.</summary>
+    private static List<WantedPicture> Busy() =>
+        [.. Enumerable.Range(0, Pictures.AtATime).Select(at => Near(Picture($"b{at}")))];
+
     /// <summary>A picture a frame wants that is near the screen but not on it.</summary>
     private static WantedPicture Near(Drawn drawn) => new(drawn, OnScreen: false);
 
@@ -648,5 +700,69 @@ public class PicturesTests
         image.Save(bytes, encoder);
 
         return bytes.ToArray();
+    }
+
+    /// <summary>
+    ///     A file server that answers only when told to, so that a test can hold fetches open and see which are
+    ///     started, and in what order, while they are.
+    /// </summary>
+    private sealed class Gated
+    {
+        private readonly Lock _gate = new();
+        private readonly Dictionary<string, TaskCompletionSource<byte[]?>> _answers = [];
+        private readonly List<string> _asked = [];
+
+        /// <summary>Every address asked for, in the order the fetches started.</summary>
+        public List<string> Asked
+        {
+            get
+            {
+                lock (_gate)
+                {
+                    return [.. _asked];
+                }
+            }
+        }
+
+        public Task<byte[]?> Fetch(string address, CancellationToken cancellation)
+        {
+            lock (_gate)
+            {
+                _asked.Add(address);
+
+                return Answering(address).Task;
+            }
+        }
+
+        /// <summary>Lets the fetch of <paramref name="address" /> finish, with <paramref name="bytes" /> or nothing.</summary>
+        public void Answer(string address, byte[]? bytes = null)
+        {
+            lock (_gate)
+            {
+                Answering(address).TrySetResult(bytes);
+            }
+        }
+
+        /// <summary>Waits for <paramref name="count" /> fetches to have started.</summary>
+        public async Task Until(int count)
+        {
+            var giveUp = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+
+            while (Asked.Count < count && DateTime.UtcNow < giveUp)
+            {
+                await Task.Delay(5, TestContext.Current.CancellationToken);
+            }
+        }
+
+        private TaskCompletionSource<byte[]?> Answering(string address)
+        {
+            if (!_answers.TryGetValue(address, out var answer))
+            {
+                answer = new TaskCompletionSource<byte[]?>(TaskCreationOptions.RunContinuationsAsynchronously);
+                _answers[address] = answer;
+            }
+
+            return answer;
+        }
     }
 }

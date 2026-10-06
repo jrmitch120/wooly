@@ -371,9 +371,9 @@ public static class PostLines
     /// </summary>
     /// <remarks>
     ///     Which case an attachment falls into is settled here rather than at the view, because it changes how many
-    ///     rows the post takes. A picture this terminal can draw and has the pixels for gets a box; a picture whose
-    ///     pixels have not landed yet, or that this terminal cannot draw at all, gets the link and description the CLI
-    ///     already gives it (ADR-0016). There is no cell-by-cell fallback: a photograph reduced to one coloured block
+    ///     rows the post takes. A picture this terminal can draw gets a box, reserved from the shape the instance
+    ///     reported whether or not its pixels have landed, and its Stand-in until they do (ADR-0025); a picture this
+    ///     terminal cannot draw at all gets the link and description the CLI already gives it (ADR-0016). There is no cell-by-cell fallback: a photograph reduced to one coloured block
     ///     per cell is not a picture of anything (ADR-0016).
     ///     <para>
     ///         The split is <see cref="PostMedia.Opens" /> rather than <see cref="PostMedia.IsDrawable" />, and the two
@@ -391,10 +391,10 @@ public static class PostLines
     /// <param name="pictures">What can be drawn and what is here, or <see langword="null" /> where nothing can be.</param>
     /// <param name="mostRows">The most rows a picture may take, which is what a feed and a whole post differ on.</param>
     /// <param name="hideDrawnCaption">
-    ///     Whether what an attachment says it shows drops once its pixels are actually drawn (#71) — a picture's own
-    ///     caption, and since #110 a video's description under its label, on the same terms. Anything still on its way
-    ///     keeps what it says regardless: that is the whole of what a reader has while the pixels are not here yet, and
-    ///     hiding it would be an arrival flicker rather than a quieter post.
+    ///     Whether what an attachment says it shows drops where a box is drawn for it (#71) — a picture's own caption,
+    ///     and since #110 a video's description under its label, on the same terms. Since ADR-0025 that is wherever
+    ///     the box is reserved, from the first frame and not from when the pixels land: the box is there either way,
+    ///     and a caption taken down on arrival would move the post under the reader.
     /// </param>
     /// <param name="reading">
     ///     What this reader has done to this post, which is what says whether one of its attachment references is
@@ -475,14 +475,20 @@ public static class PostLines
             var drawn = Drawn.Attached(attached);
             var described = Described(attached, MediaMark, width) with { Wants = drawn };
 
-            if (BoxFor(drawn, pictures, cell, width, mostRows) is not { } inset)
+            if (Inset.For(drawn, attached.Shape, cell, width, mostRows) is not { } box)
             {
                 yield return [described];
 
                 continue;
             }
 
-            yield return hideDrawnCaption ? [.. Box(inset)] : [described, .. Box(inset)];
+            // Hidden from the first frame where the reader asked for it, not from when the picture lands: the box is
+            // there either way, so a caption taken down on arrival would be a row going and the post moving under the
+            // reader, which is what the box was reserved to stop (ADR-0025). The box's own top row carries the Wants
+            // then, there being no caption to carry it.
+            yield return hideDrawnCaption
+                ? [.. Reserved(box, pictures, cell, drawn)]
+                : [described, .. Reserved(box, pictures, cell)];
         }
     }
 
@@ -511,8 +517,8 @@ public static class PostLines
     /// <remarks>
     ///     The label is the fixed point of all four cases: it is in the same row whether the preview is coming, has
     ///     landed, or was never going to, because it is what <c>⏎</c> acts on rather than a caption standing in for
-    ///     something. Only the description under it moves, and only behind the same preference a picture's caption
-    ///     already hides behind (#71) — what a box has landed and taken over saying.
+    ///     something. Only the description after it goes, and only behind the same preference a picture's caption
+    ///     already hides behind (#71) — what a box under it has taken over saying, from the frame it is reserved in.
     ///     <para>
     ///         A sound and an unknown kind never reach the box at all, however much cover art an instance sends with
     ///         them, and neither does a video the instance offered no preview of — both are
@@ -540,22 +546,13 @@ public static class PostLines
         // row is what the view reads to decide the pixels are worth sending for.
         var drawn = Drawn.Attached(attached);
 
-        return BoxFor(drawn, pictures, cell, width, mostRows) is not { } inset
+        // The description goes behind the preference from the first frame rather than when the preview lands, for the
+        // reason a picture's caption does: the box is already there, and the setting should not depend on how quick
+        // the network was (ADR-0025).
+        return Inset.For(drawn, attached.Shape, cell, width, mostRows) is not { } box
             ? [Label(saysWhatItShows: true) with { Wants = drawn }]
-            : [Label(saysWhatItShows: !hideDrawnCaption) with { Wants = drawn }, .. Box(inset)];
+            : [Label(saysWhatItShows: !hideDrawnCaption) with { Wants = drawn }, .. Reserved(box, pictures, cell)];
     }
-
-    /// <summary>
-    ///     The box <paramref name="drawn" />'s pixels get, or <see langword="null" /> while they are not here — which
-    ///     is the same answer as a picture that will never arrive, and deliberately so (ADR-0016).
-    /// </summary>
-    /// <remarks>
-    ///     The one lookup-and-size a picture's own rows and a video's preview both go through, said once so the two
-    ///     cannot come to size the same box differently. A lookup and nothing else: asking never sends for anything,
-    ///     and only the view — the one thing that knows where the scroll has got to — may do that (ADR-0016).
-    /// </remarks>
-    private static Inset? BoxFor(Drawn drawn, IPictures pictures, CellSize cell, int width, int mostRows) =>
-        pictures.Of(drawn) is { } picture ? Inset.For(drawn, picture, cell, width, mostRows) : null;
 
     /// <summary>
     ///     A <c>Video</c>, <c>Animation</c>, <c>Audio</c> or <c>Unknown</c> attachment's own row: the mark, its kind
@@ -567,8 +564,9 @@ public static class PostLines
     ///     the whole reason the raw rows <see cref="LinkedImage" /> still prints for a picture are gone from here.
     /// </remarks>
     /// <param name="saysWhatItShows">
-    ///     Whether the author's description is written after the label. Off once a preview has landed under it and the
-    ///     reader has asked for that (#71); the label itself is never off, so nothing on the row moves either way.
+    ///     Whether the author's description is written after the label. Off where a preview's box is reserved under it
+    ///     and the reader has asked for that (#71, ADR-0025); the label itself is never off, so nothing on the row
+    ///     moves either way.
     /// </param>
     private static Line AttachmentReferenceLine(
         PostMedia attached,
@@ -622,16 +620,57 @@ public static class PostLines
     private static string Capitalized(string word) => $"{char.ToUpperInvariant(word[0])}{word[1..]}";
 
     /// <summary>
-    ///     The rows a picture is drawn over. The first carries the box; the rest are rows of the screen the box covers,
-    ///     and they are rows of the post so that everything below the picture is where the picture leaves it.
+    ///     The rows of a box reserved before its picture arrives: its <b>Stand-in</b> while the pixels are not here,
+    ///     and the picture fitted and centred inside it once they are — the same number of rows either way, so the
+    ///     picture landing, or being let go of, or never coming at all moves nothing under it (ADR-0025).
     /// </summary>
-    private static IEnumerable<Line> Box(Inset inset)
+    /// <remarks>
+    ///     The Stand-in is a plain shade the size of the box with no text in it. The caption is said once, on its own
+    ///     row above the box, and a second copy inside the shade would go when the picture came and would show where
+    ///     the reader turned captions off (ADR-0025). A lookup and nothing else: asking never sends for anything, and
+    ///     only the view — the one thing that knows where the scroll has got to — may do that (ADR-0016).
+    ///     <para>
+    ///         Said once for an attachment's box, a video's preview and a link preview's picture (#348), so the three
+    ///         cannot come to reserve, shade or fit differently.
+    ///     </para>
+    ///     <para>
+    ///         The picture's inset goes on whichever row of the box its centred top lands on, rather than always on the
+    ///         first: a row carries the inset its pixels start on, and that is how the view already places a picture
+    ///         whatever row it is on. The rest of the box is blank page, so a picture narrower or shorter than the shape
+    ///         it was reserved at has the page's own background round it.
+    ///     </para>
+    /// </remarks>
+    /// <param name="box">The box the shape settled.</param>
+    /// <param name="wants">
+    ///     What the box's top row says it is waiting for, where no caption above it is there to say so — or
+    ///     <see langword="null" /> where one is.
+    /// </param>
+    private static IEnumerable<Line> Reserved(Inset box, IPictures pictures, CellSize cell, Drawn? wants = null)
     {
-        yield return new Line([new Span(new string(' ', inset.Columns), Role.Media)]) { Insets = [inset] };
-
-        for (var row = 1; row < inset.Rows; row++)
+        if (pictures.Of(box.Drawn) is not { } picture)
         {
-            yield return Line.Blank;
+            for (var row = 0; row < box.Rows; row++)
+            {
+                var shade = Line.Of(StandIn.Row(box.Columns));
+
+                yield return row == 0 ? shade with { Wants = wants } : shade;
+            }
+
+            yield break;
+        }
+
+        var (fitted, down) = box.Fit(picture, cell);
+
+        for (var row = 0; row < box.Rows; row++)
+        {
+            var line = row != down
+                ? Line.Blank
+                : new Line([
+                    new Span(new string(' ', fitted.Column), Role.Body),
+                    new Span(new string(' ', fitted.Columns), Role.Media),
+                ]) { Insets = [fitted] };
+
+            yield return row == 0 ? line with { Wants = wants } : line;
         }
     }
 
@@ -703,11 +742,14 @@ public static class PostLines
             .. LinkPreviewSays(link, width),
         ];
 
+        // Reserved from the shape the card gave, or the 16:9 default where it gave none worth trusting, whether or not
+        // the picture is here yet — the same box and Stand-in an attachment gets, so a link card moves nothing when its
+        // picture lands either (ADR-0025, #348). The walked row above already carries the Wants.
         if (drawn is not null
             && pictures?.Cell is { } cell
-            && BoxFor(drawn, pictures, cell, width, mostRows) is { } inset)
+            && Inset.For(drawn, link.Shape, cell, width, mostRows) is { } box)
         {
-            lines.AddRange(Box(inset));
+            lines.AddRange(Reserved(box, pictures, cell));
         }
 
         return lines;

@@ -19,7 +19,7 @@ public class AttachmentPreviewTests
     /// <summary>
     ///     The second acceptance criterion: a video and an animation the instance offered a preview of get a box, off
     ///     the same <c>Drawn</c>/<c>Inset</c>/<c>IPictures</c> pipeline a picture already goes through — sized the same
-    ///     way, from the preview's own proportions.
+    ///     way, from the shape the instance reported for the preview (ADR-0025).
     /// </summary>
     [Theory]
     [InlineData(MediaKind.Video)]
@@ -27,7 +27,7 @@ public class AttachmentPreviewTests
     public void Feed_DrawsAVideosOwnPreviewInABoxOfItsOwn(MediaKind kind)
     {
         var lines = PostLines.Feed(
-            APost.With(media: [APost.Attached(kind)]),
+            APost.With(media: [APost.Attached(kind, shape: new PictureShape(400, 200))]),
             new Drawing(61, Now, FakePictures.With(new CellSize(10, 20)).Holding("m1", 400, 200)),
             default);
 
@@ -155,11 +155,12 @@ public class AttachmentPreviewTests
     }
 
     /// <summary>
-    ///     The other half of the fifth: the description stands while the preview is still on its way, and where none is
-    ///     ever coming. Hiding it before there is a box would be an arrival flicker rather than a quieter post.
+    ///     The other half of the fifth, as ADR-0025 settled it: the description goes as soon as the preview's box is
+    ///     reserved rather than when it lands, so the preference means the same thing however quick the network was —
+    ///     and it stands where no box is ever coming, on a terminal that draws nothing.
     /// </summary>
     [Fact]
-    public void Feed_KeepsTheDescriptionWhileThePreviewIsStillComingOrIsNeverComing()
+    public void Feed_HidesTheDescriptionOnceTheBoxIsReservedAndKeepsItWhereNoneIsComing()
     {
         var described = APost.With(media: [APost.Attached(MediaKind.Video, description: "Sheep, at length")]);
 
@@ -172,14 +173,9 @@ public class AttachmentPreviewTests
             new Drawing(61, Now, FakePictures.DrawingNothing(), HideDrawnCaption: true),
             default);
 
-        Assert.Empty(waiting.SelectMany(line => line.Insets));
-
-        foreach (var lines in new[] { waiting, never })
-        {
-            Assert.Contains(
-                lines,
-                line => line.Text.Contains("⏵ Video Sheep, at length", StringComparison.Ordinal));
-        }
+        Assert.DoesNotContain(waiting, line => line.Text.Contains("Sheep, at length", StringComparison.Ordinal));
+        Assert.Contains(waiting, line => line.Text.Contains("⏵ Video", StringComparison.Ordinal));
+        Assert.Contains(never, line => line.Text.Contains("⏵ Video Sheep, at length", StringComparison.Ordinal));
     }
 
     /// <summary>The default, as it is for a picture: the description stays put under a preview that has landed.</summary>
@@ -220,7 +216,10 @@ public class AttachmentPreviewTests
     [Fact]
     public void Whole_BracketsThePickedLabelAndStillDrawsThePreviewUnderIt()
     {
-        var post = APost.With(media: [APost.Attached(MediaKind.Video, description: "Sheep, at length")]);
+        var post = APost.With(media:
+        [
+            APost.Attached(MediaKind.Video, description: "Sheep, at length", shape: new PictureShape(400, 400)),
+        ]);
         var pictures = FakePictures.With(new CellSize(10, 20)).Holding("m1", 400, 400);
 
         var reference = AttachmentReferences.Of(post).Single();

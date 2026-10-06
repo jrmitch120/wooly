@@ -36,6 +36,18 @@ public sealed record PostMedia
     public string? Description { get; init; }
 
     /// <summary>
+    ///     The shape of what is drawn inline, as the instance reported it: the metadata's <c>small</c> entry, which
+    ///     describes the <see cref="Preview" />, and <c>original</c> where <c>small</c> does not have both sides.
+    ///     <see langword="null" /> where neither does. What the TUI settles this attachment's box from before its
+    ///     pixels arrive, so that they move nothing when they do (ADR-0025).
+    /// </summary>
+    /// <remarks>
+    ///     Neither the CLI's text nor its <c>--json</c> carries this. Nothing outside the TUI uses it yet, and a
+    ///     field added to a script's input is one that script's author never asked for (ADR-0025's Consequences).
+    /// </remarks>
+    public PictureShape? Shape { get; init; }
+
+    /// <summary>
     ///     Whether there are pixels a terminal can put in a box for this: a still picture, and a video or an animation
     ///     the instance offered a <see cref="Preview" /> of.
     /// </summary>

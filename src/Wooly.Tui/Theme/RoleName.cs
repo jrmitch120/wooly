@@ -19,6 +19,7 @@ public static class RoleName
         [Role.Audience] = "audience",
         [Role.ContentWarning] = "content-warning",
         [Role.Media] = "media",
+        [Role.StandIn] = "stand-in",
         [Role.Poll] = "poll",
         [Role.ReferencePicked] = "reference-picked",
         [Role.Boost] = "boost",

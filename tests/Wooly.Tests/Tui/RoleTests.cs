@@ -198,6 +198,7 @@ public partial class RoleTests
     [InlineData(Role.RailCursor, "rail-cursor")]
     [InlineData(Role.Gauge, "gauge")]
     [InlineData(Role.GaugeEmpty, "gauge-empty")]
+    [InlineData(Role.StandIn, "stand-in")]
     [InlineData(Role.Replies, "replies")]
     [InlineData(Role.Spinner, "spinner")]
     [InlineData(Role.SelectedText, "selected-text")]

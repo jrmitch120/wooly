@@ -78,7 +78,8 @@ public sealed class Pictures(
     public const int MostBytes = 8 * 1024 * 1024;
 
     /// <summary>
-    ///     How many pictures are fetched and decoded at once. Small on purpose: see <see cref="Fetch" />.
+    ///     How many pictures are fetched and decoded at once. Small on purpose: see <see cref="Fetch" />. The rest wait
+    ///     their turn nearest first (<see cref="Pump" />).
     /// </summary>
     public const int AtATime = 4;
 
@@ -89,7 +90,6 @@ public sealed class Pictures(
     public static readonly TimeSpan Patience = TimeSpan.FromSeconds(10);
 
     private readonly Lock _gate = new();
-    private readonly SemaphoreSlim _atATime = new(AtATime, AtATime);
     private readonly Dictionary<string, Held> _held = [];
 
     /// <summary>What is remembered, wanted longest ago first — the order both tiers let go of it in.</summary>
@@ -97,6 +97,16 @@ public sealed class Pictures(
 
     /// <summary>What the latest frame had on screen, which is never let go of from the decoded tier.</summary>
     private HashSet<string> _onScreen = [];
+
+    /// <summary>
+    ///     What has been sent for and not yet started, nearest the screen first as of the latest frame. Put back in
+    ///     order on every frame, because the order pictures were first wanted in says nothing about which the page is
+    ///     near now (#352).
+    /// </summary>
+    private List<Drawn> _queued = [];
+
+    /// <summary>How many fetches and decodes are under way, never more than <see cref="AtATime" />.</summary>
+    private int _fetching;
 
     private readonly CancellationTokenSource _abandoned = new();
 
@@ -117,7 +127,6 @@ public sealed class Pictures(
     {
         _abandoned.Cancel();
         _abandoned.Dispose();
-        _atATime.Dispose();
     }
 
     /// <summary>
@@ -172,11 +181,13 @@ public sealed class Pictures(
     /// </remarks>
     public void Want(IReadOnlyList<WantedPicture> frame)
     {
-        var sending = new List<Drawn>();
         List<string> letGo;
 
         lock (_gate)
         {
+            // What is already waiting its turn, and what this frame sends for that was not: the two that make up the
+            // queue once this frame has put it in order.
+            var sending = _queued.Select(drawn => drawn.Id).ToHashSet();
             var taking = Distinct(frame);
 
             _frame++;
@@ -222,18 +233,79 @@ public sealed class Pictures(
                 if (fetches || decodesAgain)
                 {
                     held.Coming = true;
-                    sending.Add(held.Drawn);
+                    sending.Add(held.Drawn.Id);
                 }
             }
 
+            Abandon(taking);
+
             letGo = LetGo();
+
+            // Nearest first as this frame has it, and none that this very frame abandoned or let go of.
+            _queued =
+            [
+                .. taking.Select(wanted => wanted.Drawn)
+                         .Where(drawn => sending.Contains(drawn.Id) && _held.GetValueOrDefault(drawn.Id) is { Coming: true }),
+            ];
         }
 
         Announce(letGo);
+        Pump();
+    }
 
-        foreach (var drawn in sending)
+    /// <summary>
+    ///     Takes back every picture still waiting its turn that <paramref name="taking" /> no longer wants: the page has
+    ///     left it behind, and fetching it would hold up what the page is near now. One with nothing held yet is
+    ///     forgotten as though it had never been asked for, rather than remembered as nothing, so that a frame that
+    ///     wants it again sends for it again; one waiting only to be decoded from its file keeps the file. One already
+    ///     under way is not touched — its bytes are on their way, and it lands as a file (ADR-0025).
+    /// </summary>
+    private void Abandon(List<WantedPicture> taking)
+    {
+        var wanting = taking.Select(wanted => wanted.Drawn.Id).ToHashSet();
+
+        foreach (var drawn in _queued.Where(drawn => !wanting.Contains(drawn.Id)))
         {
-            _ = Fetch(drawn);
+            if (_held.GetValueOrDefault(drawn.Id) is not { } held)
+            {
+                continue;
+            }
+
+            held.Coming = false;
+
+            if (held.Bytes is null && held.Picture is null)
+            {
+                _wanted.Remove(held.Place);
+                _held.Remove(drawn.Id);
+                _encoded -= Remembering;
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Starts the nearest of what is waiting, for as many as there is room for under <see cref="AtATime" />. Called
+    ///     when a frame has said what it wants and whenever a fetch finishes, which are the only two things that change
+    ///     what can start.
+    /// </summary>
+    private void Pump()
+    {
+        while (true)
+        {
+            Drawn next;
+
+            lock (_gate)
+            {
+                if (_fetching >= AtATime || _queued.Count == 0 || _abandoned.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                next = _queued[0];
+                _queued.RemoveAt(0);
+                _fetching++;
+            }
+
+            _ = Fetch(next);
         }
     }
 
@@ -335,11 +407,10 @@ public sealed class Pictures(
 
         try
         {
-            // A few at a time. Decoding holds the whole of a picture in memory before it is scaled down, so a screenful
-            // arriving at once is a screenful of originals held at once — which is how this ran a machine out of memory
-            // rather than merely making it wait (ADR-0016).
-            await _atATime.WaitAsync(_abandoned.Token);
-
+            // A few at a time, which Pump has already seen to before starting this one. Decoding holds the whole of a
+            // picture in memory before it is scaled down, so a screenful arriving at once is a screenful of originals
+            // held at once — which is how this ran a machine out of memory rather than merely making it wait
+            // (ADR-0016).
             try
             {
                 lock (_gate)
@@ -360,7 +431,12 @@ public sealed class Pictures(
             }
             finally
             {
-                _atATime.Release();
+                lock (_gate)
+                {
+                    _fetching--;
+                }
+
+                Pump();
             }
         }
         catch (Exception failure) when (failure is not OutOfMemoryException)

@@ -131,7 +131,7 @@ public class PostBylineTests
 
         var name = lines.First(line => line.Has(Role.BylineName));
 
-        Assert.StartsWith("     ", name.Text, StringComparison.Ordinal);
+        Assert.StartsWith("░░░░ ", name.Text, StringComparison.Ordinal);
         Assert.Equal("avatar:maria@fosstodon.org", name.Wants?.Id);
     }
 

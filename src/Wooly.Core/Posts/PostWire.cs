@@ -102,6 +102,11 @@ internal static class PostWire
             ProviderName = MastodonWire.SaidOrNothing(card.ProviderName),
             Image = MastodonWire.SaidOrNothing(card.Image),
             Author = MastodonWire.SaidOrNothing(card.AuthorName),
+
+            // The card's own width and height, which Mastodon fills from the picture it fetched for the link. An
+            // instance sends 0 for both where it has none, so the plausibility check is PictureShape's: both sides
+            // positive or no shape at all, and the 16:9 default is the TUI's to fall back on (ADR-0025).
+            Shape = PictureShape.Of(card.Width, card.Height),
         };
     }
 
@@ -175,6 +180,11 @@ internal static class PostWire
         // The wire says "described as nothing" with an empty string, which is not the same thing as a description to
         // read out.
         Description = MastodonWire.SaidOrNothing(attachment.Description),
+
+        // small describes the preview this client fetches, so it is the shape the picture will be drawn at; original is
+        // the same picture at another size, and a better guess than the TUI's 16:9 where small was not said in full.
+        Shape = PictureShape.Of(attachment.Meta?.Small?.Width, attachment.Meta?.Small?.Height)
+                ?? PictureShape.Of(attachment.Meta?.Original?.Width, attachment.Meta?.Original?.Height),
     };
 
     /// <summary>

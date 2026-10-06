@@ -333,7 +333,7 @@ public class AccountHeaderTests
 
         Assert.Empty(lines[0].Insets);
         Assert.Equal("avatar:alice@hachyderm.io", lines[0].Wants?.Id);
-        Assert.StartsWith("          Alice", lines[0].Text);
+        Assert.StartsWith("░░░░░░░░  Alice", lines[0].Text);
     }
 
     /// <summary>No row runs past the width, however long a name, a field's label or a handle in common is.</summary>

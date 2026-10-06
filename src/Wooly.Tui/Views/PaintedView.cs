@@ -61,6 +61,18 @@ internal sealed class PaintedView : View
     /// <summary>The pictures drawn as placeholders this frame, with the row each starts on and its image id.</summary>
     private List<(Inset Inset, int Top, int Id)> _placed = [];
 
+    /// <summary>
+    ///     Where the page began the last time a frame said what it wants, or <see langword="null" /> before the first
+    ///     frame of the rows it is on — nothing to have moved from yet.
+    /// </summary>
+    private int? _wantedAt;
+
+    /// <summary>
+    ///     Which way the page last moved — down positive, up negative — or nought for a page that has not moved yet.
+    ///     What decides which way <see cref="Want" /> reaches further.
+    /// </summary>
+    private int _travel;
+
     private IReadOnlyList<Line>? _settled;
     private int _top;
     private bool _following = true;
@@ -367,6 +379,10 @@ internal sealed class PaintedView : View
     {
         _top = top;
         _following = following;
+
+        // Rows that are another lot, or the same lot come back to: either way nothing has been moved through yet.
+        _wantedAt = null;
+        _travel = 0;
     }
 
     /// <summary>
@@ -598,8 +614,12 @@ internal sealed class PaintedView : View
     ///     picture from there would fetch and decode the lot to draw the handful that fit, which is how this came to
     ///     run a machine out of memory.
     ///     <para>
-    ///         A screen's worth either side of what is showing, so that a picture is usually there by the time it is
-    ///         scrolled to rather than arriving after it.
+    ///         Three screens ahead the way the page last moved and one behind, or two either side of a page that has
+    ///         not moved yet, so that a picture is usually there by the time it is scrolled to and the reader never
+    ///         sees its Stand-in — and one who turns round still finds the screen behind them covered (#352). The way
+    ///         the page last moved rather than the way it moved this frame: a frame drawn with the page standing still
+    ///         is most often a picture landing, and reaching less far on it would abandon the fetches queued for the
+    ///         far screen every time one of the near ones arrived.
     ///     </para>
     ///     <para>
     ///         Said for the whole frame at once, because the cache needs the whole of it: what is on screen is what it
@@ -615,8 +635,22 @@ internal sealed class PaintedView : View
             return;
         }
 
-        var from = _top - height;
-        var to = _top + (height * 2);
+        if (_wantedAt is { } was && _top != was)
+        {
+            _travel = Math.Sign(_top - was);
+        }
+
+        _wantedAt = _top;
+
+        var (above, below) = _travel switch
+        {
+            > 0 => (1, 3),
+            < 0 => (3, 1),
+            _ => (2, 2),
+        };
+
+        var from = _top - (height * above);
+        var to = _top + height + (height * below);
 
         // The rows each picture takes, from the row that wants it to the foot of its box. Only a picture some row
         // wants is said at all, which is what keeps a warned post's pictures from being sent for (ADR-0016).
@@ -861,8 +895,9 @@ internal sealed class PaintedView : View
     ///     picture still being encoded is left out, and its box keeps the rows it reserved until a redraw brings it.
     /// </summary>
     /// <remarks>
-    ///     A screen either side of the page is encoded ahead, the same reach <see cref="Want" /> fetches over, so that a
-    ///     picture scrolled to is usually ready rather than encoded the frame it comes into view (ADR-0022).
+    ///     A screen either side of the page is encoded ahead — inside the reach <see cref="Want" /> fetches over, so
+    ///     the pixels are usually here to encode — so that a picture scrolled to is usually ready rather than encoded
+    ///     the frame it comes into view (ADR-0022).
     /// </remarks>
     private List<(Inset Inset, int Top, int Id)> Sent(IReadOnlyList<Line> lines, int height)
     {
