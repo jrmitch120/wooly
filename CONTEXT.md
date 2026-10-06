@@ -107,8 +107,15 @@ picture hangs off the post; an author's avatar hangs off the author, and calling
 have made "something on a post besides its text" mean something else wherever an avatar went. The third is the picture
 an instance chose for a **Link preview**, named by the link's own address the way an avatar is named by its handle, so
 that the same article shared twice is fetched once (#116). Nothing outside a TUI has one: the CLI **links** everything
-(ADR-0016).
+(ADR-0016). Its box is settled before its pixels arrive, from what the instance says of its shape, so a picture
+arriving or being let go of never moves the rows around it.
 _Avoid_: image, media (for the avatar half of this)
+
+**Stand-in**:
+What a **drawn** picture's box shows while the picture itself is not here: the instance's blur of it where one was sent,
+a plain shaded fill otherwise. The same size as the picture it stands in for, so nothing moves when one replaces the
+other. A **warned** post has none until it is asked past, since a blur still shows what a warning hides.
+_Avoid_: placeholder (Kitty's), blur, blurred (a **warned** post's), skeleton
 
 **Drawing**:
 The conditions a screen is drawn under, as one thing (`Drawing`): how much room there is, what moment to measure ages
