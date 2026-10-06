@@ -583,6 +583,8 @@ internal sealed class PaintedView : View
             // view had would be a picture over whatever replaces it.
             _boxes.ForEach(box => box.Release());
             _placed = [];
+            LetGoOfBlurs([], 0);
+            _placeholders?.Flush();
 
             return;
         }
@@ -911,16 +913,22 @@ internal sealed class PaintedView : View
     /// </remarks>
     private void LetGoOfBlurs(IReadOnlyList<Line> lines, int height)
     {
-        if (_placeholders?.Drawing != true)
+        if (_placeholders is null)
         {
             return;
         }
 
         // The blurs Sent is about to prepare or place this frame: the same reach, a screen either side of the page.
-        var near = Wanted(lines, height, near: height)
-            .Where(wanted => wanted.Inset.Blurred is not null)
-            .Select(wanted => wanted.Inset.Drawn.Id)
-            .ToHashSet();
+        // None where nothing is sent this way, or there is no page to be near — and then every blur held is let go of,
+        // rather than kept for a frame that may never come.
+        HashSet<string> near = _placeholders.Drawing && height > 0
+            ?
+            [
+                .. Wanted(lines, height, near: height)
+                   .Where(wanted => wanted.Inset.Blurred is not null)
+                   .Select(wanted => wanted.Inset.Drawn.Id),
+            ]
+            : [];
 
         foreach (var gone in _blursHeld.Where(id => !near.Contains(id)))
         {

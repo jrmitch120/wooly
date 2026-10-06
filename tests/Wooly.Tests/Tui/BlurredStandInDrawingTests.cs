@@ -76,6 +76,33 @@ public class BlurredStandInDrawingTests
     }
 
     /// <summary>
+    ///     And a window made too small to draw the page in at all forgets the blurs it was holding, as it releases its
+    ///     boxes: the page has nothing near it any more, so a blur kept would be held for as long as the window stays
+    ///     that small, and for the rest of the run if it never grows back.
+    /// </summary>
+    [Fact]
+    public async Task KittyForgetsABlurWhenThereIsNoRoomLeftToDrawThePage()
+    {
+        var terminal = new FakeTerminalImages();
+
+        using var drawn = await DrawnShell.Of(
+            80,
+            24,
+            Themes.Plain,
+            AShellWithABlurredPicture(),
+            pictures: FakePictures.With(),
+            kittyImages: terminal,
+            drawsPlaceholders: true);
+
+        var blur = Assert.Single(terminal.Transmitted);
+
+        drawn.Application.Driver!.SetScreenSize(80, 1);
+        drawn.Redraw();
+
+        Assert.Contains(blur.Id, terminal.Forgotten);
+    }
+
+    /// <summary>
     ///     Through a box — sixel, or Kitty on a terminal not known to draw its placeholders — the blur is held by a
     ///     box of its own, and that box lets go of it when the picture lands: the picture is never put over a blur
     ///     the terminal has not been told to drop.
