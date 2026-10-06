@@ -18,8 +18,14 @@ internal sealed class FakePictures : IPictures
     /// <summary>Every picture looked up, by id, in order.</summary>
     public List<string> Asked { get; } = [];
 
-    /// <summary>Every picture sent for, by id, in order — what proves only what is near the screen is fetched.</summary>
+    /// <summary>
+    ///     Every picture sent for, by id, in order, frame after frame — what proves only what is near the screen is
+    ///     fetched.
+    /// </summary>
     public List<string> Sent { get; } = [];
+
+    /// <summary>Every frame's wants as the view said them: nearest first, with those on screen marked.</summary>
+    public List<IReadOnlyList<WantedPicture>> Frames { get; } = [];
 
     /// <inheritdoc />
     public CellSize? Cell { get; }
@@ -77,7 +83,11 @@ internal sealed class FakePictures : IPictures
     }
 
     /// <inheritdoc />
-    public void Want(Drawn drawn) => Sent.Add(drawn.Id);
+    public void Want(IReadOnlyList<WantedPicture> frame)
+    {
+        Frames.Add(frame);
+        Sent.AddRange(frame.Select(wanted => wanted.Drawn.Id));
+    }
 
     private FakePictures Held(string id, int width, int height)
     {
