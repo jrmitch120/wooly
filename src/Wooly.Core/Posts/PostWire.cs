@@ -107,6 +107,9 @@ internal static class PostWire
             // instance sends 0 for both where it has none, so the plausibility check is PictureShape's: both sides
             // positive or no shape at all, and the 16:9 default is the TUI's to fall back on (ADR-0025).
             Shape = PictureShape.Of(card.Width, card.Height),
+
+            // Mastodon blurs the card's picture as it does an attachment's, and says "none" the same two ways.
+            Blurhash = MastodonWire.SaidOrNothing(card.BlurHash),
         };
     }
 
@@ -185,6 +188,9 @@ internal static class PostWire
         // the same picture at another size, and a better guess than the TUI's 16:9 where small was not said in full.
         Shape = PictureShape.Of(attachment.Meta?.Small?.Width, attachment.Meta?.Small?.Height)
                 ?? PictureShape.Of(attachment.Meta?.Original?.Width, attachment.Meta?.Original?.Height),
+
+        // Unchecked here: a blurhash that does not decode is the TUI's shaded fill, not a post that failed to read.
+        Blurhash = MastodonWire.SaidOrNothing(attachment.BlurHash),
     };
 
     /// <summary>

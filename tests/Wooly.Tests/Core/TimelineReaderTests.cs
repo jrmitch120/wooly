@@ -390,6 +390,38 @@ public class TimelineReaderTests
         Assert.Null(Assert.Single(Assert.Single(fetch.Items).Media).Shape);
     }
 
+    /// <summary>
+    ///     The instance's blurhash of the attachment, carried as it was sent: what the TUI's Stand-in is blurred from
+    ///     while the picture is on its way (ADR-0025, #349).
+    /// </summary>
+    [Fact]
+    public async Task Read_ReportsTheAttachmentsBlurhash()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(Page(PostJson("110", media: MediaJson(blurhash: Blurred)))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        Assert.Equal("LEHV6nWB2yk8pyo0adR*.7kCMdnj", Assert.Single(Assert.Single(fetch.Items).Media).Blurhash);
+    }
+
+    /// <summary>
+    ///     None where the instance sent none — null, or the empty string the wire says "nothing" with — so the TUI's
+    ///     Stand-in is the shaded fill rather than a blur of nothing.
+    /// </summary>
+    [Theory]
+    [InlineData("null")]
+    [InlineData("\"\"")]
+    public async Task Read_ReportsNoBlurhashWhereTheInstanceSentNone(string blurhash)
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(Page(PostJson("110", media: MediaJson(blurhash: blurhash)))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        Assert.Null(Assert.Single(Assert.Single(fetch.Items).Media).Blurhash);
+    }
+
     /// <summary>A post carrying nothing carries an empty list, which is not a hole for a caller to check for.</summary>
     [Fact]
     public async Task Read_ReportsAPostWithNothingAttachedAsCarryingNoMedia()
@@ -458,6 +490,37 @@ public class TimelineReaderTests
         var linkPreview = Assert.Single(fetch.Items).LinkPreview;
         Assert.NotNull(linkPreview);
         Assert.Null(linkPreview.Shape);
+    }
+
+    /// <summary>
+    ///     The card's blurhash of the picture the instance chose for the link, for the Stand-in its box shows while the
+    ///     picture is on its way — the same as an attachment's (ADR-0025, #349).
+    /// </summary>
+    [Fact]
+    public async Task Read_ReportsTheLinkPreviewsBlurhash()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(Page(PostJson("110", card: CardJson(blurhash: Blurred)))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        Assert.Equal("LEHV6nWB2yk8pyo0adR*.7kCMdnj", Assert.Single(fetch.Items).LinkPreview?.Blurhash);
+    }
+
+    /// <summary>None where the card sent none, so the link preview's Stand-in is the shaded fill.</summary>
+    [Theory]
+    [InlineData("null")]
+    [InlineData("\"\"")]
+    public async Task Read_ReportsNoBlurhashForALinkPreviewWhoseCardSentNone(string blurhash)
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(Page(PostJson("110", card: CardJson(blurhash: blurhash)))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        var linkPreview = Assert.Single(fetch.Items).LinkPreview;
+        Assert.NotNull(linkPreview);
+        Assert.Null(linkPreview.Blurhash);
     }
 
     /// <summary>
@@ -972,7 +1035,8 @@ public class TimelineReaderTests
         string id = "m1",
         string type = "image",
         string? description = "A cartoon sheep",
-        string meta = "null") =>
+        string meta = "null",
+        string blurhash = "null") =>
         $$"""
           [{
             "id": "{{id}}",
@@ -980,9 +1044,13 @@ public class TimelineReaderTests
             "url": "https://files.mastodon.social/{{id}}/original.png",
             "preview_url": "https://files.mastodon.social/{{id}}/small.png",
             "description": "{{description}}",
-            "meta": {{meta}}
+            "meta": {{meta}},
+            "blurhash": {{blurhash}}
           }]
           """;
+
+    /// <summary>A blurhash as the wire sends one, quoted: the reference example from the blurhash project.</summary>
+    private const string Blurred = "\"LEHV6nWB2yk8pyo0adR*.7kCMdnj\"";
 
     /// <summary>
     ///     One link preview, as the wire serves one back on a post. Every field ADR-0018 drops is sent alongside the
@@ -998,7 +1066,8 @@ public class TimelineReaderTests
         string image = "https://example.com/sheep.png",
         string authorName = "Maria",
         string width = "640",
-        string height = "480") =>
+        string height = "480",
+        string blurhash = "\"UFC?\"") =>
         $$"""
           {
             "url": "{{url}}",
@@ -1014,7 +1083,7 @@ public class TimelineReaderTests
             "height": {{height}},
             "image": "{{image}}",
             "embed_url": "https://example.com/embed",
-            "blurhash": "UFC?",
+            "blurhash": {{blurhash}},
             "published_at": "2026-07-28T09:00:00.000Z"
           }
           """;

@@ -57,6 +57,16 @@ public sealed record LinkPreview
     public PictureShape? Shape { get; init; }
 
     /// <summary>
+    ///     The instance's blurhash of <see cref="Image" />, or <see langword="null" /> where the card carried none.
+    ///     What the TUI's <b>Stand-in</b> shows in this preview's box while its picture is on its way — the same as an
+    ///     attachment's <see cref="PostMedia.Blurhash" /> (ADR-0025, #349).
+    /// </summary>
+    /// <remarks>
+    ///     Carried unchecked and kept out of the CLI's output, for the reasons an attachment's is.
+    /// </remarks>
+    public string? Blurhash { get; init; }
+
+    /// <summary>
     ///     Who the page says wrote it, or <see langword="null" /> where it says nothing. Shown as plain byline text the
     ///     same way <see cref="Post.Author" /> is, and never a reference of its own: their address usually differs from
     ///     <see cref="Url" /> and rarely matters enough to open, which is where consistency with attachments stops being
