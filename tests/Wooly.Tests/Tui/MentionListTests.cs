@@ -33,7 +33,7 @@ public class MentionListTests
         Type(drawn, "hi @ma");
 
         var list = List(drawn);
-        var editor = Editor(drawn).Frame;
+        var editor = Editor(drawn).FrameToScreen();
         var rows = ListRows(drawn);
 
         Assert.True(list.Visible);
@@ -124,7 +124,7 @@ public class MentionListTests
     public async Task TheWordIsReplacedOnALaterLineOrAWrappedRow()
     {
         using var drawn = await Composing();
-        var wide = new string('x', Editor(drawn).Frame.Width - 4);
+        var wide = new string('x', Editor(drawn).FrameToScreen().Width - 4);
 
         Type(drawn, "first");
         drawn.Press(Key.Enter);
@@ -204,7 +204,7 @@ public class MentionListTests
     public async Task OnAWrappedLineTheListIsUnderTheRowBeingTyped()
     {
         using var drawn = await Composing();
-        var editor = Editor(drawn).Frame;
+        var editor = Editor(drawn).FrameToScreen();
 
         Type(drawn, $"{new string('x', editor.Width - 4)} more words and @ma");
 
@@ -217,7 +217,7 @@ public class MentionListTests
     public async Task NearTheFootTheListOpensAbove()
     {
         using var drawn = await Composing();
-        var editor = Editor(drawn).Frame;
+        var editor = Editor(drawn).FrameToScreen();
 
         for (var line = 0; line < editor.Height - 2; line++)
         {
@@ -433,6 +433,24 @@ public class MentionListTests
         Assert.Equal("hi @ma", Assert.IsType<ComposeScreen>(drawn.Shell.Screen).Text);
     }
 
+    /// <summary>
+    ///     While the list is open, <c>↑</c> is the list's, even on the post's first line: it walks no field (#337). Moved
+    ///     here from the field-walk tests, which no longer build the list (#365).
+    /// </summary>
+    [Fact]
+    public async Task WhileTheListIsOpenUpIsTheListsEvenOnTheFirstLine()
+    {
+        using var drawn = await Composing();
+        var compose = Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
+
+        Type(drawn, "@ma");
+        drawn.Press(Key.CursorUp);
+
+        Assert.False(compose.WritingTheWarning);
+        Assert.True(Editor(drawn).HasFocus);
+        Assert.Equal("@ma", compose.Text);
+    }
+
     private static async Task<DrawnShell> Composing(ITheme? theme = null, FakeAccountRelationships? accounts = null)
     {
         var built = new AShell { Timelines = Seen.Timelines, Accounts = accounts ?? FakeAccountRelationships.HoldingNobody() };
@@ -454,7 +472,7 @@ public class MentionListTests
         drawn.Redraw();
     }
 
-    private static ComposeEditor Editor(DrawnShell drawn) => drawn.Window.SubViews.OfType<ComposeEditor>().Single();
+    private static ComposeEditor Editor(DrawnShell drawn) => drawn.Window.ComposeField<ComposeEditor>();
 
     private static PaintedView List(DrawnShell drawn) =>
         drawn.Window.SubViews.OfType<PaintedView>().Single(view => view.Id == MentionList.Id);

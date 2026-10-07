@@ -183,7 +183,7 @@ public class ShellRightClickTests
         drawn.Redraw();
 
         var compose = drawn.Shell.Screen;
-        var editor = drawn.Window.SubViews.OfType<ComposeEditor>().Single();
+        var editor = drawn.Window.ComposeField<ComposeEditor>();
 
         editor.Text = "A draft about sheep";
         drawn.Redraw();

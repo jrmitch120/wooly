@@ -18,22 +18,24 @@ internal sealed class LanguageList
     /// <summary>The list's <c>Id</c> among the window's views.</summary>
     internal const string Id = "languages";
 
-    /// <summary>The columns and rows the content panel's edge takes off each side of what is inside it.</summary>
-    private const int Edge = 1;
-
     private readonly Shell.Shell _shell;
     private readonly ComposeLangField _field;
-    private readonly View _content;
+    private readonly View _over;
     private readonly PickList<PostLanguage> _list;
 
     /// <summary>Whether the field's text is being set from here rather than typed, which opens nothing.</summary>
     private bool _filling;
 
-    public LanguageList(ITheme theme, Shell.Shell shell, ComposeLangField field, View content)
+    /// <param name="field">Lang, which the list hangs under.</param>
+    /// <param name="over">
+    ///     The view Lang is laid in, over the content viewport: this list is laid beside it rather than in it, so it is
+    ///     placed by where that view sits as well as by where Lang sits in it, and kept inside it.
+    /// </param>
+    public LanguageList(ITheme theme, Shell.Shell shell, ComposeLangField field, View over)
     {
         _shell = shell;
         _field = field;
-        _content = content;
+        _over = over;
 
         _list = new PickList<PostLanguage>(
             theme,
@@ -44,10 +46,10 @@ internal sealed class LanguageList
             Close,
             picks: "choose");
 
-        View.X = Pos.Func(_ => field.Frame.X, field);
-        View.Y = Pos.Func(_ => field.Frame.Bottom, field);
-        View.Width = Dim.Func(_ => Size().Width, field);
-        View.Height = Dim.Func(_ => Size().Height, field);
+        View.X = Pos.Func(_ => Over().X + field.Frame.X, over);
+        View.Y = Pos.Func(_ => Over().Y + field.Frame.Bottom, over);
+        View.Width = Dim.Func(_ => Size().Width, over);
+        View.Height = Dim.Func(_ => Size().Height, over);
 
         field.Ahead = Took;
         field.Asked = Ask;
@@ -118,7 +120,8 @@ internal sealed class LanguageList
     /// <summary>The field's text changed: the screen told, and the list narrowed to what it now matches.</summary>
     private void Typed()
     {
-        if (_filling)
+        // Typed only where Lang has the typing: compose opening fills it from the draft without, which opens nothing.
+        if (_filling || !_field.HasFocus)
         {
             return;
         }
@@ -174,16 +177,18 @@ internal sealed class LanguageList
     }
 
     /// <summary>
-    ///     How big the list is drawn: wide enough for its widest language, and no further down than the content panel's
-    ///     foot.
+    ///     How big the list is drawn: wide enough for its widest language, and no further right or down than the content
+    ///     viewport Lang is laid in.
     /// </summary>
     private Size Size()
     {
-        var viewport = _content.Frame;
-        var top = _field.Frame.Bottom;
+        var viewport = _over.Viewport.Size;
 
         return _list.Within(
-            Math.Max(0, viewport.Right - Edge - _field.Frame.X),
-            Math.Max(0, viewport.Bottom - Edge - top));
+            Math.Max(0, viewport.Width - _field.Frame.X),
+            Math.Max(0, viewport.Height - _field.Frame.Bottom));
     }
+
+    /// <summary>Where the view Lang is laid in sits, among the views this list is laid with.</summary>
+    private Point Over() => _over.Frame.Location;
 }

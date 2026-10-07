@@ -1,7 +1,5 @@
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
-using Wooly.Tui.Theme;
-using Wooly.Tui.Views;
 using Key = Terminal.Gui.Input.Key;
 
 namespace Wooly.Tests.Tui;
@@ -9,31 +7,25 @@ namespace Wooly.Tests.Tui;
 /// <summary>
 ///     The arrow keys walk compose's fields the way a mail client's do (ADR-0024, #337): <c>↑</c> off the post's first
 ///     line goes up into the headers, <c>↑</c>/<c>↓</c> move between them, and <c>↓</c> off the last comes back to the
-///     post — while <c>tab</c> keeps the meaning it has on every screen.
+///     post — while <c>tab</c> keeps the meaning it has on every screen. Walked in <see cref="Wooly.Tui.Views.ComposeView" />
+///     over a shell (#365).
 /// </summary>
 public class ComposeFieldWalkTests
 {
-    private static readonly AShell Seen = new()
-    {
-        Timelines = FakeTimelineReader.Holding(
-            APost.With(id: "1", account: "maria@fosstodon.org", author: "Maria Gonzalez"),
-            APost.With(id: "2", account: "mark@mastodon.social", author: "Mark")),
-    };
-
     /// <summary><c>↑</c> on the post's first line moves the typing up into the warning, and what is typed lands there.</summary>
     [Fact]
     public async Task UpOnTheFirstLineMovesTheTypingIntoTheWarning()
     {
-        using var drawn = await Composing();
-        var compose = Compose(drawn);
+        using var view = await Composing();
+        var compose = view.Compose;
 
-        Type(drawn, "hi");
-        drawn.Press(Key.CursorUp);
+        view.Type("hi");
+        view.Press(Key.CursorUp);
 
         Assert.True(compose.WritingTheWarning);
-        Assert.True(Field(drawn).HasFocus);
+        Assert.True(view.Warning.HasFocus);
 
-        Type(drawn, "cw");
+        view.Type("cw");
 
         Assert.Equal("cw", compose.Warning);
         Assert.Equal("hi", compose.Text);
@@ -43,18 +35,18 @@ public class ComposeFieldWalkTests
     [Fact]
     public async Task UpOnALaterLineMovesTheCaret()
     {
-        using var drawn = await Composing();
-        var compose = Compose(drawn);
+        using var view = await Composing();
+        var compose = view.Compose;
 
-        Type(drawn, "one");
-        drawn.Press(Key.Enter);
-        Type(drawn, "two");
-        drawn.Press(Key.CursorUp);
+        view.Type("one");
+        view.Press(Key.Enter);
+        view.Type("two");
+        view.Press(Key.CursorUp);
 
         Assert.False(compose.WritingTheWarning);
-        Assert.True(Editor(drawn).HasFocus);
+        Assert.True(view.Editor.HasFocus);
 
-        Type(drawn, "!");
+        view.Type("!");
 
         Assert.Equal(["one!", "two"], Lines(compose.Text));
     }
@@ -66,32 +58,32 @@ public class ComposeFieldWalkTests
     [Fact]
     public async Task UpOnAWrappedRowMovesTheCaret()
     {
-        using var drawn = await Composing();
-        var compose = Compose(drawn);
-        var words = string.Join(' ', Enumerable.Repeat("word", Editor(drawn).Frame.Width / 4));
+        using var view = await Composing();
+        var compose = view.Compose;
+        var words = string.Join(' ', Enumerable.Repeat("word", view.Editor.Frame.Width / 4));
 
-        Type(drawn, words);
-        drawn.Press(Key.CursorUp);
+        view.Type(words);
+        view.Press(Key.CursorUp);
 
         Assert.False(compose.WritingTheWarning);
-        Assert.True(Editor(drawn).HasFocus);
+        Assert.True(view.Editor.HasFocus);
     }
 
     /// <summary><c>↓</c> in the warning, the last header, hands the typing back to the post.</summary>
     [Fact]
     public async Task DownInTheWarningReturnsTheTypingToThePost()
     {
-        using var drawn = await Composing();
-        var compose = Compose(drawn);
+        using var view = await Composing();
+        var compose = view.Compose;
 
-        drawn.Press(Key.CursorUp);
-        Type(drawn, "cw");
-        drawn.Press(Key.CursorDown);
+        view.Press(Key.CursorUp);
+        view.Type("cw");
+        view.Press(Key.CursorDown);
 
         Assert.False(compose.WritingTheWarning);
-        Assert.True(Editor(drawn).HasFocus);
+        Assert.True(view.Editor.HasFocus);
 
-        Type(drawn, "hi");
+        view.Type("hi");
 
         Assert.Equal("cw", compose.Warning);
         Assert.Equal("hi", compose.Text);
@@ -104,62 +96,63 @@ public class ComposeFieldWalkTests
     [Fact]
     public async Task TheWalkGoesThroughToAndTheWarningAsDrawnAndStopsAtTheTop()
     {
-        using var drawn = await Composing();
-        var compose = Compose(drawn);
+        using var view = await Composing();
+        var compose = view.Compose;
 
-        drawn.Press(Key.CursorUp);
-        drawn.Press(Key.CursorUp);
+        view.Press(Key.CursorUp);
+        view.Press(Key.CursorUp);
+
+        Assert.Equal(ComposeField.Lang, compose.Typing);
+        Assert.True(view.Lang.HasFocus);
+
+        view.Press(Key.CursorUp);
+
+        Assert.Equal(ComposeField.To, compose.Typing);
+        Assert.True(view.To.HasFocus);
+
+        view.Press(Key.CursorUp);
+
+        Assert.Equal(ComposeField.To, compose.Typing);
+        Assert.True(view.To.HasFocus);
+
+        view.Press(Key.CursorDown);
 
         Assert.Equal(ComposeField.Lang, compose.Typing);
 
-        drawn.Press(Key.CursorUp);
-
-        Assert.Equal(ComposeField.To, compose.Typing);
-        Assert.True(To(drawn).HasFocus);
-
-        drawn.Press(Key.CursorUp);
-
-        Assert.Equal(ComposeField.To, compose.Typing);
-        Assert.True(To(drawn).HasFocus);
-
-        drawn.Press(Key.CursorDown);
-
-        Assert.Equal(ComposeField.Lang, compose.Typing);
-
-        drawn.Press(Key.CursorDown);
+        view.Press(Key.CursorDown);
 
         Assert.True(compose.WritingTheWarning);
-        Assert.True(Field(drawn).HasFocus);
+        Assert.True(view.Warning.HasFocus);
 
-        drawn.Press(Key.CursorDown);
+        view.Press(Key.CursorDown);
 
         Assert.Equal(ComposeField.Post, compose.Typing);
-        Assert.True(Editor(drawn).HasFocus);
+        Assert.True(view.Editor.HasFocus);
     }
 
     /// <summary>
-    ///     On a terminal too short for Lang's row, the walk steps over Lang rather than into a field nobody can see: the
+    ///     In a viewport too short for Lang's row, the walk steps over Lang rather than into a field nobody can see: the
     ///     warning and To are next to each other, as they are drawn.
     /// </summary>
     [Fact]
-    public async Task OnAShortTerminalTheWalkStepsOverLang()
+    public async Task InAShortViewportTheWalkStepsOverLang()
     {
-        using var drawn = await Composing(rows: 9);
-        var compose = Compose(drawn);
+        using var view = await Composing(height: 6);
+        var compose = view.Compose;
 
-        Assert.DoesNotContain(drawn.Rows(), row => row.Contains("Lang", StringComparison.Ordinal));
-        Assert.Contains(drawn.Rows(), row => row.Contains("To  ", StringComparison.Ordinal));
+        Assert.DoesNotContain(view.Rows(), row => row.Contains("Lang", StringComparison.Ordinal));
+        Assert.Contains(view.Rows(), row => row.Contains("To  ", StringComparison.Ordinal));
 
-        drawn.Press(Key.CursorUp);
-        drawn.Press(Key.CursorUp);
+        view.Press(Key.CursorUp);
+        view.Press(Key.CursorUp);
 
         Assert.Equal(ComposeField.To, compose.Typing);
-        Assert.True(To(drawn).HasFocus);
+        Assert.True(view.To.HasFocus);
 
-        drawn.Press(Key.CursorDown);
+        view.Press(Key.CursorDown);
 
         Assert.True(compose.WritingTheWarning);
-        Assert.True(Field(drawn).HasFocus);
+        Assert.True(view.Warning.HasFocus);
     }
 
     /// <summary>
@@ -169,23 +162,23 @@ public class ComposeFieldWalkTests
     [Fact]
     public async Task CtrlWStillJumpsBetweenTheWarningAndThePost()
     {
-        using var drawn = await Composing();
-        var compose = Compose(drawn);
+        using var view = await Composing();
+        var compose = view.Compose;
 
-        drawn.Press(Key.CursorUp);
+        view.Press(Key.CursorUp);
 
-        Assert.Contains("Back to the post: ctrl-w", drawn.Rows()[^1], StringComparison.Ordinal);
+        Assert.Contains("Back to the post: ctrl-w", view.Status(), StringComparison.Ordinal);
 
-        drawn.Press(Key.W.WithCtrl);
+        view.Press(Key.W.WithCtrl);
 
         Assert.False(compose.WritingTheWarning);
-        Assert.True(Editor(drawn).HasFocus);
-        Assert.Contains("Content warning: ctrl-w", drawn.Rows()[^1], StringComparison.Ordinal);
+        Assert.True(view.Editor.HasFocus);
+        Assert.Contains("Content warning: ctrl-w", view.Status(), StringComparison.Ordinal);
 
-        drawn.Press(Key.W.WithCtrl);
+        view.Press(Key.W.WithCtrl);
 
         Assert.True(compose.WritingTheWarning);
-        Assert.True(Field(drawn).HasFocus);
+        Assert.True(view.Warning.HasFocus);
     }
 
     /// <summary>
@@ -195,18 +188,18 @@ public class ComposeFieldWalkTests
     [Fact]
     public async Task TheStatusRowOffersTheWalkOnlyTheWaysItGoes()
     {
-        using var drawn = await Composing();
+        using var view = await Composing();
 
-        Assert.Contains("Field: ↑ ", drawn.Rows()[^1], StringComparison.Ordinal);
+        Assert.Contains("Field: ↑ ", view.Status(), StringComparison.Ordinal);
 
-        drawn.Press(Key.CursorUp);
+        view.Press(Key.CursorUp);
 
-        Assert.Contains("Field: ↑↓", drawn.Rows()[^1], StringComparison.Ordinal);
+        Assert.Contains("Field: ↑↓", view.Status(), StringComparison.Ordinal);
 
-        drawn.Press(Key.CursorUp);
-        drawn.Press(Key.CursorUp);
+        view.Press(Key.CursorUp);
+        view.Press(Key.CursorUp);
 
-        Assert.Contains("Field: ↓ ", drawn.Rows()[^1], StringComparison.Ordinal);
+        Assert.Contains("Field: ↓ ", view.Status(), StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -216,133 +209,91 @@ public class ComposeFieldWalkTests
     [Fact]
     public async Task UpOnToDoesNotComeRoundToThePost()
     {
-        using var drawn = await Composing();
-        var compose = Compose(drawn);
+        using var view = await Composing();
+        var compose = view.Compose;
 
-        drawn.Press(Key.CursorUp);
-        drawn.Press(Key.CursorUp);
-        drawn.Press(Key.CursorUp);
-        drawn.PressThroughTheApplication(Key.CursorUp);
+        view.Press(Key.CursorUp);
+        view.Press(Key.CursorUp);
+        view.Press(Key.CursorUp);
+        view.PressThroughTheApplication(Key.CursorUp);
 
         Assert.Equal(ComposeField.To, compose.Typing);
-        Assert.True(To(drawn).HasFocus);
+        Assert.True(view.To.HasFocus);
     }
 
     /// <summary><c>↓</c> on the post's last line stays in the post: it does not come round to To.</summary>
     [Fact]
     public async Task DownOnThePostsLastLineDoesNotComeRoundToTo()
     {
-        using var drawn = await Composing();
-        var compose = Compose(drawn);
+        using var view = await Composing();
+        var compose = view.Compose;
 
-        Type(drawn, "hi");
-        drawn.PressThroughTheApplication(Key.CursorDown);
+        view.Type("hi");
+        view.PressThroughTheApplication(Key.CursorDown);
 
         Assert.Equal(ComposeField.Post, compose.Typing);
-        Assert.True(Editor(drawn).HasFocus);
+        Assert.True(view.Editor.HasFocus);
     }
 
     /// <summary><c>←</c> and <c>→</c> off either end of To stay on To, rather than carrying the focus elsewhere.</summary>
     [Fact]
     public async Task ChoosingOffEitherEndOfToStaysOnTo()
     {
-        using var drawn = await Composing();
-        var compose = Compose(drawn);
+        using var view = await Composing();
+        var compose = view.Compose;
 
-        drawn.Press(Key.CursorUp);
-        drawn.Press(Key.CursorUp);
-        drawn.Press(Key.CursorUp);
-
-        foreach (var _ in Enumerable.Range(0, 6))
-        {
-            drawn.PressThroughTheApplication(Key.CursorRight);
-        }
-
-        Assert.Equal(ComposeField.To, compose.Typing);
-        Assert.True(To(drawn).HasFocus);
+        view.Press(Key.CursorUp);
+        view.Press(Key.CursorUp);
+        view.Press(Key.CursorUp);
 
         foreach (var _ in Enumerable.Range(0, 6))
         {
-            drawn.PressThroughTheApplication(Key.CursorLeft);
+            view.PressThroughTheApplication(Key.CursorRight);
         }
 
         Assert.Equal(ComposeField.To, compose.Typing);
-        Assert.True(To(drawn).HasFocus);
+        Assert.True(view.To.HasFocus);
+
+        foreach (var _ in Enumerable.Range(0, 6))
+        {
+            view.PressThroughTheApplication(Key.CursorLeft);
+        }
+
+        Assert.Equal(ComposeField.To, compose.Typing);
+        Assert.True(view.To.HasFocus);
     }
 
-    /// <summary><c>tab</c> and <c>shift-tab</c> move the rail's cursor from compose, from either field, as everywhere.</summary>
+    /// <summary>
+    ///     <c>tab</c> and <c>shift-tab</c> are the frame's on compose too, from the post or the warning: no field takes
+    ///     them, so they reach the window — which moves the rail with them — and the draft is untouched.
+    /// </summary>
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task TabMovesTheRailFromCompose(bool fromTheWarning)
+    public async Task TabIsLeftToTheWindow(bool fromTheWarning)
     {
-        using var drawn = await Composing();
-        var compose = Compose(drawn);
+        using var view = await Composing();
+        var compose = view.Compose;
 
         if (fromTheWarning)
         {
-            drawn.Press(Key.CursorUp);
+            view.Press(Key.CursorUp);
         }
 
-        var was = drawn.Shell.Rail.Cursor;
+        view.Window.Reached.Clear();
+        view.Press(Key.Tab);
+        view.Press(Key.Tab.WithShift);
 
-        drawn.Press(Key.Tab);
-
-        Assert.Equal(was + 1, drawn.Shell.Rail.Cursor);
+        Assert.Equal([Key.Tab, Key.Tab.WithShift], view.Window.Reached);
         Assert.Equal(fromTheWarning, compose.WritingTheWarning);
         Assert.Equal(string.Empty, compose.Text);
         Assert.Equal(string.Empty, compose.Warning);
-
-        drawn.Press(Key.Tab.WithShift);
-
-        Assert.Equal(was, drawn.Shell.Rail.Cursor);
     }
 
-    /// <summary>While the list of people to mention is open, <c>↑</c> is the list's, even on the post's first line.</summary>
-    [Fact]
-    public async Task WhileTheMentionListIsOpenUpIsTheLists()
-    {
-        using var drawn = await Composing();
-        var compose = Compose(drawn);
-
-        Type(drawn, "@ma");
-        drawn.Press(Key.CursorUp);
-
-        Assert.False(compose.WritingTheWarning);
-        Assert.True(Editor(drawn).HasFocus);
-        Assert.Equal("@ma", compose.Text);
-    }
-
-    private static async Task<DrawnShell> Composing(int rows = 24)
-    {
-        var built = new AShell { Timelines = Seen.Timelines, Accounts = FakeAccountRelationships.HoldingNobody() };
-        var drawn = await DrawnShell.Of(80, rows, Themes.Dark, built);
-
-        drawn.Shell.Compose();
-        drawn.Redraw();
-
-        return drawn;
-    }
-
-    private static ComposeScreen Compose(DrawnShell drawn) => Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
+    private static async Task<ComposedView> Composing(int height = ComposedView.Height) =>
+        await ComposedView.Of(
+            new AShell { Accounts = FakeAccountRelationships.HoldingNobody() },
+            height: height);
 
     private static string[] Lines(string text) => text.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
-
-    private static void Type(DrawnShell drawn, string text)
-    {
-        foreach (var letter in text)
-        {
-            drawn.Window.NewKeyDownEvent(new Key(letter));
-        }
-
-        drawn.Redraw();
-    }
-
-    private static ComposeEditor Editor(DrawnShell drawn) =>
-        drawn.Window.SubViews.OfType<ComposeEditor>().Single();
-
-    private static ComposeToField To(DrawnShell drawn) => drawn.Window.SubViews.OfType<ComposeToField>().Single();
-
-    private static ComposeWarningField Field(DrawnShell drawn) =>
-        drawn.Window.SubViews.OfType<ComposeWarningField>().Single();
 }

@@ -20,11 +20,9 @@ namespace Wooly.Tui.Views;
 ///     everything a key means it asks <see cref="Keymap" /> — so this file has no idea what a boost is.
 /// </summary>
 /// <remarks>
-///     It names exactly one screen type, and never to decide what a key means (#147): a
-///     <see cref="ComposeScreen" /> is the one screen with widgets of its own laid over the content region — the editor
-///     and the warning field — so laying them where the screen says they go, which has focus and what text they open
-///     with are this window's questions about its own furniture. Everything else it knows about screens it knows as
-///     <c>Screen</c>.
+///     It names no screen type: everything it knows about screens it knows as <c>Screen</c>. Compose is the one screen
+///     with widgets of its own, and they are <see cref="ComposeView" />'s — where they sit, which has focus and what they
+///     open with — which this window adds once over the content panel's viewport (#365).
 /// </remarks>
 internal sealed class ShellWindow : Window
 {
@@ -59,21 +57,14 @@ internal sealed class ShellWindow : Window
     internal const string ContentId = "content";
 
     private readonly PaintedView _content;
-    private readonly ComposeEditor _editor;
 
-    /// <summary>The content warning over the post, laid over its header's value column (#320).</summary>
-    private readonly ComposeWarningField _warning;
+    /// <summary>Compose's fields, laid over the content panel's viewport (#365).</summary>
+    private readonly ComposeView _compose;
 
-    /// <summary>Who the post goes to, a row of radio buttons laid over To's value column (#338).</summary>
-    private readonly ComposeToField _to;
-
-    /// <summary>What language the post is in, a field laid over Lang's value column (#340).</summary>
-    private readonly ComposeLangField _lang;
-
-    /// <summary>The people to mention, hung under the @-word being typed in <see cref="_editor" /> (#318).</summary>
+    /// <summary>The people to mention, hung under the @-word being typed in compose's editor (#318).</summary>
     private readonly MentionList _mentions;
 
-    /// <summary>The languages, hung under <see cref="_lang" /> (#340).</summary>
+    /// <summary>The languages, hung under compose's Lang (#340).</summary>
     private readonly LanguageList _languages;
 
     /// <summary>Where the terminal's mouse events arrive, once the window is running; asked ahead of the views.</summary>
@@ -225,93 +216,16 @@ internal sealed class ShellWindow : Window
             CanFocus = false,
         };
 
-        _editor = new ComposeEditor(
-            theme,
-            ComposeScreen.EmptyPostHint,
-            () => _ = shell.Send(),
-            () => shell.Back(),
-            WriteWarning,
-            () => shell.EditCompose(compose => compose.Walk(-1)))
+        // Compose's fields, over the panel's viewport: the room the compose screen lays itself out in, inside the panel's
+        // edge, wherever the rail has left the panel. Every one is read off _content, which Pos.Func and Dim.Func hand
+        // back as "the view where the data will be retrieved".
+        _compose = new ComposeView(theme, shell)
         {
-            // Wherever the compose screen says, inside the content panel's viewport (#315): its headers and hairlines
-            // (#317) are painted on _content, which this sits in front of, so the screen that paints them is the one
-            // that knows how far down the editor has to start for them to be seen. Every one is read
-            // off _content, which Pos.Func and Dim.Func hand back as "the view where the data will be retrieved" — the
-            // panel's own viewport is the room the screen lays itself out in, and its frame is where that room sits.
-            X = Pos.Func(content => ViewportOrigin(content).X + EditorAt(content).X, _content),
-            Y = Pos.Func(content => ViewportOrigin(content).Y + EditorAt(content).Y, _content),
-            Width = Dim.Func(content => EditorAt(content).Width, _content),
-            Height = Dim.Func(content => EditorAt(content).Height, _content),
-            Visible = false,
-            WordWrap = true,
-
-            // tab is the frame's on every screen, compose included (docs/tui-shell.md, ADR-0024): it moves the rail's
-            // cursor rather than putting a tab into the post.
-            TabKeyAddsTab = false,
+            X = Pos.Func(content => ViewportOrigin(content).X, _content),
+            Y = Pos.Func(content => ViewportOrigin(content).Y, _content),
+            Width = Dim.Func(content => content?.Viewport.Width ?? 0, _content),
+            Height = Dim.Func(content => content?.Viewport.Height ?? 0, _content),
         };
-
-        // The screen's text follows the editor on every edit rather than only at ctrl-s, so whatever reads it while a
-        // post is being written — a count, a list of people to mention — sees what has been typed so far.
-        _editor.ContentsChanged += (_, _) => _shell.EditCompose(compose => compose.Rewrite(_editor.Text));
-
-        _warning = new ComposeWarningField(
-            theme,
-            () => (_shell.Screen as ComposeScreen)?.WarningHint ?? string.Empty,
-            () => _ = shell.Send(),
-            () => shell.Back(),
-            WriteWarning)
-        {
-            // Wherever the compose screen says, as for the editor: its header's value column, on whichever row the
-            // headers above it leave it.
-            X = Pos.Func(content => ViewportOrigin(content).X + WarningAt(content).X, _content),
-            Y = Pos.Func(content => ViewportOrigin(content).Y + WarningAt(content).Y, _content),
-            Width = Dim.Func(content => WarningAt(content).Width, _content),
-            Height = Dim.Func(content => WarningAt(content).Height, _content),
-            Visible = false,
-        };
-
-        // The same for the warning, and the count is painted on the content region, which has to be told.
-        _warning.ValueChanged += (_, _) =>
-        {
-            _shell.EditCompose(compose => compose.RewriteWarning(_warning.Text));
-            _content.SetNeedsDraw();
-        };
-
-        _to = new ComposeToField(
-            theme,
-            room => (_shell.Screen as ComposeScreen)?.ToSpans(room) ?? [],
-            (column, room) => shell.EditCompose(compose => compose.ClickTo(column, room)))
-        {
-            // Wherever the compose screen says, as for the warning: To's value column, under From.
-            X = Pos.Func(content => ViewportOrigin(content).X + ToAt(content).X, _content),
-            Y = Pos.Func(content => ViewportOrigin(content).Y + ToAt(content).Y, _content),
-            Width = Dim.Func(content => ToAt(content).Width, _content),
-            Height = Dim.Func(content => ToAt(content).Height, _content),
-            Visible = false,
-        };
-
-        _lang = new ComposeLangField(
-            theme,
-            () => (_shell.Screen as ComposeScreen)?.LanguageHint ?? string.Empty,
-            () => _ = shell.Send(),
-            () => shell.Back(),
-            WriteWarning)
-        {
-            // Wherever the compose screen says, as for To: Lang's value column, under To — nowhere where a short
-            // terminal has given the row up.
-            X = Pos.Func(content => ViewportOrigin(content).X + LangAt(content).X, _content),
-            Y = Pos.Func(content => ViewportOrigin(content).Y + LangAt(content).Y, _content),
-            Width = Dim.Func(content => LangAt(content).Width, _content),
-            Height = Dim.Func(content => LangAt(content).Height, _content),
-            Visible = false,
-        };
-
-        // A click into any field moves the typing there: where the typing is is one fact, the screen's, and whichever
-        // way it moved the screen is told so that the status row, the header's mark and the hint keep up.
-        _to.HasFocusChanged += (_, focus) => TypingMoved(focus.NewValue, ComposeField.To);
-        _lang.HasFocusChanged += (_, focus) => TypingMoved(focus.NewValue, ComposeField.Lang);
-        _warning.HasFocusChanged += (_, focus) => TypingMoved(focus.NewValue, ComposeField.Warning);
-        _editor.HasFocusChanged += (_, focus) => TypingMoved(focus.NewValue, ComposeField.Post);
 
         var status = new PaintedView(theme, (width, _) =>
             [ChromeLines.Status(shell.Keys, shell.Notice, shell.NoticeIsError, shell.Asking, width)])
@@ -323,12 +237,12 @@ internal sealed class ShellWindow : Window
             CanFocus = false,
         };
 
-        _mentions = new MentionList(theme, shell, _editor);
-        _editor.Ahead = _mentions.Took;
+        _mentions = new MentionList(theme, shell, _compose.Editor, _compose);
+        _compose.Editor.Ahead = _mentions.Took;
 
-        _languages = new LanguageList(theme, shell, _lang, _content);
+        _languages = new LanguageList(theme, shell, _compose.Lang, _compose);
 
-        Add(rail, _content, title, _editor, _to, _lang, _warning, _mentions.View, _languages.View, status);
+        Add(rail, _content, title, _compose, _mentions.View, _languages.View, status);
 
         // A click outside an open list closes it whichever view it lands on, the editor's caret above all, so it is
         // asked about where the terminal's mouse events arrive — ahead of every view under the pointer (#335).
@@ -829,48 +743,6 @@ internal sealed class ShellWindow : Window
         content is null ? Point.Empty : content.Frame.Location + new Size(Edge, Edge);
 
     /// <summary>
-    ///     Where the compose screen says its editor goes inside <paramref name="content" />'s viewport, or nowhere
-    ///     while no post is being written.
-    /// </summary>
-    private Rectangle EditorAt(View? content) =>
-        content is { Viewport.Width: > 0 } && _shell.Screen is ComposeScreen compose
-            ? compose.EditorAt(content.Viewport.Size)
-            : Rectangle.Empty;
-
-    /// <summary>The same for the warning field.</summary>
-    private Rectangle WarningAt(View? content) =>
-        content is { Viewport.Width: > 0 } && _shell.Screen is ComposeScreen compose
-            ? compose.WarningAt(content.Viewport.Size)
-            : Rectangle.Empty;
-
-    /// <summary>The same for To.</summary>
-    private Rectangle ToAt(View? content) =>
-        content is { Viewport.Width: > 0 } && _shell.Screen is ComposeScreen compose
-            ? compose.ToAt(content.Viewport.Size)
-            : Rectangle.Empty;
-
-    /// <summary>The same for Lang.</summary>
-    private Rectangle LangAt(View? content) =>
-        content is { Viewport.Width: > 0 } && _shell.Screen is ComposeScreen compose
-            ? compose.LangAt(content.Viewport.Size)
-            : Rectangle.Empty;
-
-    /// <summary><c>ctrl-w</c> in any of compose's fields: the typing to the warning and back (#123).</summary>
-    private void WriteWarning() => _shell.EditCompose(compose => compose.WriteTheWarning());
-
-    /// <summary>
-    ///     One of the fields gained focus — by a click, or by <see cref="Refresh" /> moving it — and the screen is
-    ///     brought into step where it says the typing is somewhere else.
-    /// </summary>
-    private void TypingMoved(bool gained, ComposeField field)
-    {
-        if (gained && _editor.Visible)
-        {
-            _shell.EditCompose(compose => compose.TypeInto(field));
-        }
-    }
-
-    /// <summary>
     ///     Lays the rail out where the shell has one and takes it away where it has none — with nobody to act as, which
     ///     leaves only adding a profile and every column to it (#247). Only on the frame where that changes.
     /// </summary>
@@ -891,8 +763,8 @@ internal sealed class ShellWindow : Window
     }
 
     /// <summary>
-    ///     Puts the editor in front of the content while a post is being written, and takes it away again. Which of
-    ///     the two is showing is a fact about the stack, not a mode this view keeps of its own.
+    ///     Settles the window to what the shell now says: the rail, the scroll, and the content's scrolling while
+    ///     compose's fields are in front of it.
     /// </summary>
     /// <remarks>
     ///     Also where a screen being replaced is noticed, which is what settles the scroll: pushing a screen and
@@ -925,73 +797,13 @@ internal sealed class ShellWindow : Window
             _content.Resume(_showing.Began, _showing.Followed);
         }
 
-        var composing = _shell.Screen is ComposeScreen;
-
         // Nothing below the block being answered is readable while composing — the editor is in front of all of it —
         // so scrolling the region can only take that block away and put rows nobody can place in its stead. ADR-0015
         // priced this as "you cannot scroll the timeline while composing" and left it to the editor to make true,
         // which it does not: a key the editor declines at the end of its own text still reaches this window, and a
-        // screen with nothing picked out on it is one Scroll.To never scrolls back.
-        _content.Scrolls = !composing;
-
-        if (composing && !_editor.Visible)
-        {
-            var compose = (ComposeScreen)_shell.Screen;
-
-            // Laid out before it is filled: where it goes is read only on a layout pass, this screen's block may be a
-            // different height than the last one that pushed the editor open, and an editor still at the nothing it
-            // was sized to while no post was being written wraps its text to no width and loses the caret below.
-            _editor.Visible = true;
-            _editor.Layout();
-            _editor.Text = compose.Text;
-
-            _warning.Visible = true;
-            _warning.Layout();
-            _warning.Text = compose.Warning;
-            _warning.MoveEnd();
-
-            // On an edit To takes nothing, so it takes no focus either: a click on it is the screen's to ignore.
-            _to.Visible = true;
-            _to.CanFocus = compose.Takes(ComposeField.To);
-
-            _lang.Visible = true;
-            _lang.Layout();
-            _languages.Fill(compose.Lang.Held);
-
-            _editor.SetFocus();
-
-            // After whatever the screen opened with rather than in front of it: an editor opened on `@maria ` or on
-            // a post being edited puts the caret where the reader's next word goes, which is the end of what is
-            // already written (ADR-0013, #85). A caret left at nought types into somebody's name.
-            _editor.MoveEnd();
-        }
-        else if (!composing && _editor.Visible)
-        {
-            _editor.Visible = false;
-            _warning.Visible = false;
-            _to.Visible = false;
-            _languages.Close();
-            _lang.Visible = false;
-            SetFocus();
-        }
-
-        // The caret is wherever the typing is going: ctrl-w or an arrow moved it, or a click did and the screen caught up.
-        // Both fields take focus at all times, so this only moves it where it is not already.
-        if (_shell.Screen is ComposeScreen { Typing: var typing } && _editor.Visible)
-        {
-            View field = typing switch
-            {
-                ComposeField.To => _to,
-                ComposeField.Lang => _lang,
-                ComposeField.Warning => _warning,
-                _ => _editor,
-            };
-
-            if (!field.HasFocus)
-            {
-                field.SetFocus();
-            }
-        }
+        // screen with nothing picked out on it is one Scroll.To never scrolls back. Compose's view settled whether it
+        // shows ahead of this, on the same change.
+        _content.Scrolls = !_compose.Visible;
 
         // After the editor has been shown or hidden, and on every change of the shell's — a profile switch, or more
         // people arriving — since either can change what the word being typed matches.

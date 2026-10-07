@@ -23,6 +23,7 @@ internal sealed class MentionList
 
     private readonly Shell.Shell _shell;
     private readonly ComposeEditor _editor;
+    private readonly View _over;
 
     /// <summary>Who matches the word being typed, best first, as a list to pick from; nobody while it is closed.</summary>
     private readonly PickList<Mentionable> _list;
@@ -39,10 +40,15 @@ internal sealed class MentionList
     /// <summary>The word <c>esc</c> closed the list on, by line and start, which keeps it closed until the caret leaves it.</summary>
     private (int Line, int Start)? _dismissed;
 
-    public MentionList(ITheme theme, Shell.Shell shell, ComposeEditor editor)
+    /// <param name="over">
+    ///     The view the editor is laid in: this list is laid beside it rather than in it, so it is placed by where that
+    ///     view sits as well as by where the editor puts its caret.
+    /// </param>
+    public MentionList(ITheme theme, Shell.Shell shell, ComposeEditor editor, View over)
     {
         _shell = shell;
         _editor = editor;
+        _over = over;
 
         _list = new PickList<Mentionable>(
             theme,
@@ -52,10 +58,11 @@ internal sealed class MentionList
             Insert,
             Dismiss);
 
-        View.X = Pos.Func(_ => At().X, editor);
-        View.Y = Pos.Func(_ => At().Y, editor);
-        View.Width = Dim.Func(_ => Size().Width, editor);
-        View.Height = Dim.Func(_ => Size().Height, editor);
+        // The editor is laid in compose's view and this list beside it, so where it sits is where that view does too.
+        View.X = Pos.Func(_ => Over().X + At().X, over);
+        View.Y = Pos.Func(_ => Over().Y + At().Y, over);
+        View.Width = Dim.Func(_ => Size().Width, over);
+        View.Height = Dim.Func(_ => Size().Height, over);
 
         editor.ContentsChanged += (_, _) => Follow();
         editor.UnwrappedCursorPositionChanged += (_, moved) =>
@@ -161,6 +168,9 @@ internal sealed class MentionList
 
         return _list.Within(_editor.Frame.Width, Math.Max(_editor.Frame.Bottom - caret - 1, caret));
     }
+
+    /// <summary>Where the view the editor is laid in sits, among the views this list is laid with.</summary>
+    private Point Over() => _over.Frame.Location;
 
     /// <summary>
     ///     Where the list sits: on the row under the caret, left-aligned on the word's <c>@</c> — or over the line

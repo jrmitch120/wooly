@@ -10,7 +10,9 @@ namespace Wooly.Tests.Tui;
 
 /// <summary>
 ///     Compose says what language a post is in (ADR-0024, #340): a <b>Lang</b> header under To, a one-line field with
-///     the shared list under it, starting on the author's own language and sending what it holds.
+///     the shared list under it, starting on the author's own language and sending what it holds. The field is walked
+///     to in <see cref="ComposeView" /> over a shell (#365); the cases about the list under it still draw the whole shell,
+///     which holds the list until it moves into <see cref="ComposeView" /> too (#366).
 /// </summary>
 public class ComposeLangTests
 {
@@ -88,25 +90,43 @@ public class ComposeLangTests
     [Fact]
     public async Task TheArrowsWalkThroughLangInTheOrderItIsDrawn()
     {
-        using var drawn = await Drawn();
-        var compose = Compose(drawn);
+        using var view = await ComposedView.Of(
+            new AShell { Accounts = FakeAccountRelationships.HoldingNobody(), DefaultLanguage = "fr" });
+        var compose = view.Compose;
 
-        drawn.Press(Key.CursorUp);
+        view.Press(Key.CursorUp);
         Assert.Equal(ComposeField.Warning, compose.Typing);
 
-        drawn.Press(Key.CursorUp);
+        view.Press(Key.CursorUp);
         Assert.Equal(ComposeField.Lang, compose.Typing);
-        Assert.True(Field(drawn).HasFocus);
+        Assert.True(view.Lang.HasFocus);
 
-        drawn.Press(Key.CursorUp);
+        view.Press(Key.CursorUp);
         Assert.Equal(ComposeField.To, compose.Typing);
 
-        drawn.Press(Key.CursorDown);
+        view.Press(Key.CursorDown);
         Assert.Equal(ComposeField.Lang, compose.Typing);
 
-        drawn.Press(Key.CursorDown);
-        drawn.Press(Key.CursorDown);
+        view.Press(Key.CursorDown);
+        view.Press(Key.CursorDown);
         Assert.Equal(ComposeField.Post, compose.Typing);
+        Assert.Equal("fr  Français", view.Lang.Text);
+    }
+
+    /// <summary>
+    ///     Lang sits in its header's value column, opens on what the draft holds, and shows it there in its own name —
+    ///     not a list of languages, which only typing in Lang opens.
+    /// </summary>
+    [Fact]
+    public async Task LangOpensOnTheDraftsLanguageInItsValueColumn()
+    {
+        using var view = await ComposedView.Of(new AShell { DefaultLanguage = "de" });
+        var at = view.Lang.FrameToScreen();
+
+        Assert.Equal("Lang  ", view.Rows()[at.Y].Substring(at.X - 6, 6));
+        Assert.StartsWith("de  Deutsch", view.Shown(view.Lang), StringComparison.Ordinal);
+        Assert.Equal("de", view.Compose.Lang.Language?.Code);
+        Assert.Equal(ComposeField.Post, view.Compose.Typing);
     }
 
     /// <summary>
@@ -171,6 +191,25 @@ public class ComposeLangTests
 
         Assert.Equal("de  Deutsch", Field(drawn).Text);
         Assert.Equal("de", Publishing(compose).Language);
+    }
+
+    /// <summary>
+    ///     A compose opening on a language fills Lang with it and opens no list: only typing in Lang does, and the
+    ///     typing opens in the post.
+    /// </summary>
+    [Theory]
+    [InlineData("de", "de  Deutsch")]
+    [InlineData("eng", "eng")]
+    public async Task OpeningOnALanguageOpensNoList(string code, string held)
+    {
+        var mine = APost.With(id: "110", account: "jeff@mastodon.social") with { Language = code };
+
+        using var drawn = await Drawn(post: mine, opening: ComposeFor.Edit);
+
+        Assert.Equal(held, Field(drawn).Text);
+        Assert.False(List(drawn).Visible);
+        Assert.Equal(ComposeField.Post, Compose(drawn).Typing);
+        Assert.DoesNotContain("Pick: ↑↓", drawn.Rows()[^1], StringComparison.Ordinal);
     }
 
     /// <summary>While the list is open, the status row offers its keys.</summary>
@@ -377,7 +416,7 @@ public class ComposeLangTests
         drawn.Redraw();
     }
 
-    private static ComposeLangField Field(DrawnShell drawn) => drawn.Window.SubViews.OfType<ComposeLangField>().Single();
+    private static ComposeLangField Field(DrawnShell drawn) => drawn.Window.ComposeField<ComposeLangField>();
 
     private static PaintedView List(DrawnShell drawn) =>
         drawn.Window.SubViews.OfType<PaintedView>().Single(view => view.Id == LanguageList.Id);

@@ -50,7 +50,7 @@ public class ShellComposeLayoutTests
 
             Assert.Equal("        │ Hello world", rows[5]);
             Assert.Equal(NoWarning, rows[6]);
-            Assert.Equal(10, editor.Frame.Y);
+            Assert.Equal(10, editor.FrameToScreen().Y);
         }
     }
 
@@ -68,7 +68,7 @@ public class ShellComposeLayoutTests
             shell.Compose();
             window.Layout();
 
-            Assert.Equal(8, Editor(window).Frame.Y);
+            Assert.Equal(8, Editor(window).FrameToScreen().Y);
         }
     }
 
@@ -87,7 +87,7 @@ public class ShellComposeLayoutTests
             shell.Compose();
             window.Layout();
 
-            var composing = Editor(window).Frame.Y;
+            var composing = Editor(window).FrameToScreen().Y;
 
             shell.Back();
             shell.Edit();
@@ -100,7 +100,7 @@ public class ShellComposeLayoutTests
             Assert.Equal(ComposeFor.Edit, compose.Purpose);
             Assert.Equal(string.Empty, rows[0].Text);
             Assert.Equal(NoWarning, rows[4].Text);
-            Assert.Equal(composing, Editor(window).Frame.Y);
+            Assert.Equal(composing, Editor(window).FrameToScreen().Y);
         }
     }
 
@@ -124,8 +124,8 @@ public class ShellComposeLayoutTests
             Assert.Equal(
                 [ComposeRows.ToPublic, NoWarning, string.Empty, string.Empty, string.Empty],
                 compose.Lines(new Drawing(ContentWidth, AShell.Now, Height: 5)).Select(line => line.Text));
-            Assert.Equal(2, editor.Frame.Y - 1);
-            Assert.Equal(3, editor.Frame.Height);
+            Assert.Equal(2, editor.FrameToScreen().Y - 1);
+            Assert.Equal(3, editor.FrameToScreen().Height);
         }
     }
 
@@ -156,7 +156,7 @@ public class ShellComposeLayoutTests
             }
 
             Assert.Null(content.Reclaimable);
-            Assert.Equal(10, editor.Frame.Y);
+            Assert.Equal(10, editor.FrameToScreen().Y);
         }
     }
 
@@ -259,7 +259,7 @@ public class ShellComposeLayoutTests
             Assert.True(compose.WritingTheWarning);
             Assert.True(editor.CanFocus);
             Assert.False(editor.HasFocus);
-            Assert.True(window.SubViews.OfType<ComposeWarningField>().Single().HasFocus);
+            Assert.True(window.ComposeField<ComposeWarningField>().HasFocus);
 
             window.NewKeyDownEvent(Key.C);
             window.NewKeyDownEvent(Key.W);
@@ -393,7 +393,7 @@ public class ShellComposeLayoutTests
             var at = compose.EditorAt(content.Viewport.Size);
             var origin = content.Frame.Location + new Size(1, 1);
 
-            Assert.Equal(at with { Location = at.Location + new Size(origin) }, Editor(window).Frame);
+            Assert.Equal(at with { Location = at.Location + new Size(origin) }, Editor(window).FrameToScreen());
         }
     }
 
@@ -526,5 +526,5 @@ public class ShellComposeLayoutTests
         return (window, Editor(window), (ComposeScreen)shell.Screen);
     }
 
-    private static ComposeEditor Editor(View window) => window.SubViews.OfType<ComposeEditor>().Single();
+    private static ComposeEditor Editor(View window) => window.ComposeField<ComposeEditor>();
 }

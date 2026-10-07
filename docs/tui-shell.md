@@ -1508,8 +1508,11 @@ Three things stayed outside it, each deliberately:
   the editor widget takes off the keys before the shell's own path can. Nothing else about a key is the window's: it translates the press
   and hands the verb on.
 
-The window's remaining knowledge of `ComposeScreen` is geometry and focus — laying the editor widget where the screen says it goes (#315), whether it
-has the keys, and what text it opens with. That is a window's question about its own furniture and stays there.
+The window knows nothing of `ComposeScreen`. Compose's geometry and focus — laying the editor and the warning, To and
+Lang fields where the screen says they go (#315), which has the keys, and what each opens with — are `ComposeView`'s, one
+view the window adds once over the content panel's viewport (#365). It also takes the arrows no field took and walks the
+fields with them, as the keymap says they mean on compose. The lists of people to mention and of languages are still
+laid beside it by the window, until they move into it (#366).
 
 ### What the profiles screen settled
 

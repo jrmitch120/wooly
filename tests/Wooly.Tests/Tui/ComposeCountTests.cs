@@ -181,25 +181,30 @@ public class ComposeCountTests
         Assert.NotEqual(theme.For(Role.Error), theme.For(Role.QuotaLow));
     }
 
-    /// <summary>Typed into the real editor, the count on screen follows without anything else asking for a redraw.</summary>
+    /// <summary>
+    ///     Typed into compose's real fields — the post, and then the warning — the count follows each letter, and each
+    ///     is announced as a change, which is what has the window draw the count again.
+    /// </summary>
     [Fact]
-    public async Task TheDrawnCountFollowsTyping()
+    public async Task TheCountFollowsTypingInThePostAndTheWarning()
     {
-        using var drawn = await DrawnShell.Of(80, 24, Themes.Dark);
+        using var view = await ComposedView.Of();
+        var changes = 0;
 
-        drawn.Shell.Compose();
-        drawn.Redraw();
+        view.Shell.Changed += () => changes++;
 
-        Assert.Contains(drawn.Rows(), row => row.Contains(" 0 / 500  │", StringComparison.Ordinal));
+        view.Type("Hello");
 
-        foreach (var letter in "Hello")
-        {
-            drawn.Window.NewKeyDownEvent(new Key(letter));
-        }
+        Assert.Equal("5 / 500", Counted(view.Compose));
+        Assert.Equal(5, changes);
 
-        drawn.Application.LayoutAndDraw();
+        view.Press(Key.W.WithCtrl);
+        changes = 0;
+        view.Type("cw!");
 
-        Assert.Contains(drawn.Rows(), row => row.Contains(" 5 / 500  │", StringComparison.Ordinal));
+        Assert.Equal("8 / 500", Counted(view.Compose));
+        Assert.Equal(3, changes);
+        Assert.Contains(view.Rows(), row => row.Contains(" 8 / 500", StringComparison.Ordinal));
     }
 
     private static Line Count(ComposeScreen compose) =>

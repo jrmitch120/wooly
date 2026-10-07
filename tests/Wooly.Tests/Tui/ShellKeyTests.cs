@@ -284,7 +284,7 @@ public class ShellKeyTests
 
             // A reply opens on the handle it is answering, with the caret after it — so there is somewhere to the
             // left of the caret for the key to move it to.
-            var editor = window.SubViews.OfType<ComposeEditor>().Single();
+            var editor = window.ComposeField<ComposeEditor>();
             var at = editor.CurrentColumn;
 
             Assert.Equal("@ben@hachyderm.io ".Length, at);
@@ -383,7 +383,7 @@ public class ShellKeyTests
             window.Layout();
 
             var was = shell.Rail.Cursor;
-            var editor = window.SubViews.OfType<ComposeEditor>().Single();
+            var editor = window.ComposeField<ComposeEditor>();
 
             foreach (var letter in "`x`~")
             {

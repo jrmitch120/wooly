@@ -310,7 +310,7 @@ public class ShellPointerTests
         drawn.Shell.Compose();
         drawn.Redraw();
 
-        var editor = drawn.Window.SubViews.OfType<ComposeEditor>().Single();
+        var editor = drawn.Window.ComposeField<ComposeEditor>();
 
         editor.Text = string.Join('\n', Enumerable.Range(1, 60).Select(line => $"Line {line}"));
         editor.MoveHome();
