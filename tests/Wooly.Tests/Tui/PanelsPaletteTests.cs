@@ -39,6 +39,7 @@ public class PanelsPaletteTests
         [Role.Audience] = (Overlay, null),
         [Role.ContentWarning] = (Peach, null),
         [Role.Media] = (Teal, null),
+        [Role.StandIn] = (Surface1, null),
         [Role.Poll] = (Mauve, null),
         [Role.ReferencePicked] = (PickMark, null),
         [Role.Boost] = (Green, null),

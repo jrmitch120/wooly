@@ -121,18 +121,24 @@ try
         Redraw,
         work => Task.Run(work));
 
+    // Decoded to the content region's width, the widest a picture's box can be (ADR-0025). The window is built after
+    // the cache it draws from, so the cache asks it through this; a frame only asks once the window is drawing, and
+    // nought before then decodes to the decoder's own bounds.
+    ShellWindow? shellWindow = null;
+
     using var pictures = Pictures.Over(
         files,
         () => RasterProtocol.CellOf(application.Driver, placeholdersByName, () => windowSize.Cell),
         Redraw,
-        placeholders.Drop);
+        placeholders.Drop,
+        () => shellWindow?.ContentColumns ?? 0);
 
     // Each frame with pictures in it written whole, where the terminal can hold one back until it is (#342).
     var frames = new SynchronizedFrames(sequence => application.Driver?.GetOutput().Write(sequence));
 
     frames.Over(application);
 
-    using var window = new ShellWindow(
+    using var window = shellWindow = new ShellWindow(
         shell,
         theme,
         clock,
@@ -140,6 +146,7 @@ try
         pictures,
         config.Preferences.HideDrawnCaption,
         placeholders,
+        new Blurs(),
         frames: frames);
 
     // A paste arrives as one string rather than as keys, before it is handed to whatever has focus. The shell takes

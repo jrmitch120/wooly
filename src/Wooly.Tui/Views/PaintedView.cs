@@ -61,6 +61,24 @@ internal sealed class PaintedView : View
     /// <summary>The pictures drawn as placeholders this frame, with the row each starts on and its image id.</summary>
     private List<(Inset Inset, int Top, int Id)> _placed = [];
 
+    /// <summary>
+    ///     The Stand-in blurs a Kitty terminal has been handed to hold, by <see cref="Drawn.Id" />, as of the last
+    ///     frame. What <see cref="LetGoOfBlurs" /> tells it to forget once they are no longer near the page.
+    /// </summary>
+    private HashSet<string> _blursHeld = [];
+
+    /// <summary>
+    ///     Where the page began the last time a frame said what it wants, or <see langword="null" /> before the first
+    ///     frame of the rows it is on — nothing to have moved from yet.
+    /// </summary>
+    private int? _wantedAt;
+
+    /// <summary>
+    ///     Which way the page last moved — down positive, up negative — or nought for a page that has not moved yet.
+    ///     What decides which way <see cref="Want" /> reaches further.
+    /// </summary>
+    private int _travel;
+
     private IReadOnlyList<Line>? _settled;
     private int _top;
     private bool _following = true;
@@ -367,6 +385,10 @@ internal sealed class PaintedView : View
     {
         _top = top;
         _following = following;
+
+        // Rows that are another lot, or the same lot come back to: either way nothing has been moved through yet.
+        _wantedAt = null;
+        _travel = 0;
     }
 
     /// <summary>
@@ -561,6 +583,8 @@ internal sealed class PaintedView : View
             // view had would be a picture over whatever replaces it.
             _boxes.ForEach(box => box.Release());
             _placed = [];
+            LetGoOfBlurs([], 0);
+            _placeholders?.Flush();
 
             return;
         }
@@ -568,6 +592,7 @@ internal sealed class PaintedView : View
         var lines = Rows(width, height);
 
         Want(lines, height);
+        LetGoOfBlurs(lines, height);
 
         // Whatever the terminal was told to let go of since the last frame, before anything is sent.
         _placeholders?.Flush();
@@ -589,7 +614,8 @@ internal sealed class PaintedView : View
     }
 
     /// <summary>
-    ///     Sends for the pictures of the attachments near enough to the screen to be worth having, and for no others.
+    ///     Says which pictures this frame wants: those near enough to the screen to be worth having, nearest first,
+    ///     with those on it marked, and no others.
     /// </summary>
     /// <remarks>
     ///     The one place that knows where the scroll has got to, which is why this is the view's job and not the post's
@@ -597,8 +623,18 @@ internal sealed class PaintedView : View
     ///     picture from there would fetch and decode the lot to draw the handful that fit, which is how this came to
     ///     run a machine out of memory.
     ///     <para>
-    ///         A screen's worth either side of what is showing, so that a picture is usually there by the time it is
-    ///         scrolled to rather than arriving after it.
+    ///         Three screens ahead the way the page last moved and one behind, or two either side of a page that has
+    ///         not moved yet, so that a picture is usually there by the time it is scrolled to and the reader never
+    ///         sees its Stand-in — and one who turns round still finds the screen behind them covered (#352). The way
+    ///         the page last moved rather than the way it moved this frame: a frame drawn with the page standing still
+    ///         is most often a picture landing, and reaching less far on it would abandon the fetches queued for the
+    ///         far screen every time one of the near ones arrived.
+    ///     </para>
+    ///     <para>
+    ///         Said for the whole frame at once, because the cache needs the whole of it: what is on screen is what it
+    ///         must never let go of, and what is nearest is what it should keep longest (ADR-0025). A picture is on
+    ///         screen where the row that wants it is, or where any of its box is — a photograph scrolled half off the
+    ///         top has its row off the page and its lower half still on it.
     ///     </para>
     /// </remarks>
     private void Want(IReadOnlyList<Line> lines, int height)
@@ -608,16 +644,61 @@ internal sealed class PaintedView : View
             return;
         }
 
-        var from = _top - height;
-        var to = _top + (height * 2);
-
-        for (var at = Math.Max(0, from); at < Math.Min(lines.Count, to); at++)
+        if (_wantedAt is { } was && _top != was)
         {
-            if (lines[at].Wants is { } drawn)
+            _travel = Math.Sign(_top - was);
+        }
+
+        _wantedAt = _top;
+
+        var (above, below) = _travel switch
+        {
+            > 0 => (1, 3),
+            < 0 => (3, 1),
+            _ => (2, 2),
+        };
+
+        var from = _top - (height * above);
+        var to = _top + height + (height * below);
+
+        // The rows each picture takes, from the row that wants it to the foot of its box. Only a picture some row
+        // wants is said at all, which is what keeps a warned post's pictures from being sent for (ADR-0016).
+        var spans = new Dictionary<string, (Drawn Drawn, int First, int Last)>();
+
+        // Widens the rows a picture is said to take to reach first to last as well, or says them where none were yet.
+        void Widen(Drawn drawn, int first, int last) =>
+            spans[drawn.Id] = spans.TryGetValue(drawn.Id, out var span)
+                ? (drawn, Math.Min(span.First, first), Math.Max(span.Last, last))
+                : (drawn, first, last);
+
+        for (var at = 0; at < lines.Count; at++)
+        {
+            if (lines[at].Wants is { } drawn && at >= from && at < to)
             {
-                _pictures.Want(drawn);
+                Widen(drawn, at, at);
             }
         }
+
+        for (var at = 0; at < lines.Count; at++)
+        {
+            foreach (var inset in lines[at].Insets.Where(inset => spans.ContainsKey(inset.Drawn.Id)))
+            {
+                Widen(inset.Drawn, at, at + inset.Rows - 1);
+            }
+        }
+
+        var bottom = _top + height - 1;
+
+        // How many rows lie between a picture and the page: none for one on it.
+        int Distance((Drawn Drawn, int First, int Last) span) =>
+            span.Last < _top ? _top - span.Last : span.First > bottom ? span.First - bottom : 0;
+
+        _pictures.Want(
+        [
+            .. spans.Values
+                    .OrderBy(Distance)
+                    .Select(span => new WantedPicture(span.Drawn, OnScreen: Distance(span) == 0)),
+        ]);
     }
 
     /// <summary>The rows to draw, and where the scroll has got to.</summary>
@@ -820,12 +901,52 @@ internal sealed class PaintedView : View
     }
 
     /// <summary>
+    ///     Tells a Kitty terminal drawing placeholders to forget every Stand-in blur it was handed that is no longer near
+    ///     the page — replaced by the picture it stood in for, or scrolled away (#349).
+    /// </summary>
+    /// <remarks>
+    ///     A picture is forgotten when the cache lets go of it (ADR-0025), but a blur is never in the cache, so nothing
+    ///     else would ever say so: a blur nobody deletes is an image the terminal holds for the rest of the run, which
+    ///     is the invariant ADR-0022 keeps for pictures. Said before the frame's <see cref="Placeholders.Flush" />, so a
+    ///     blur replaced this frame is gone from the terminal in the frame its picture is sent. One scrolled back to is
+    ///     simply encoded and sent again — it is a few kilobytes. Through a box, the box's own release does this
+    ///     (<see cref="Place" />).
+    /// </remarks>
+    private void LetGoOfBlurs(IReadOnlyList<Line> lines, int height)
+    {
+        if (_placeholders is null)
+        {
+            return;
+        }
+
+        // The blurs Sent is about to prepare or place this frame: the same reach, a screen either side of the page.
+        // None where nothing is sent this way, or there is no page to be near — and then every blur held is let go of,
+        // rather than kept for a frame that may never come.
+        HashSet<string> near = _placeholders.Drawing && height > 0
+            ?
+            [
+                .. Wanted(lines, height, near: height)
+                   .Where(wanted => wanted.Inset.Blur is not null)
+                   .Select(wanted => wanted.Inset.Drawn.Id),
+            ]
+            : [];
+
+        foreach (var gone in _blursHeld.Where(id => !near.Contains(id)))
+        {
+            _placeholders.Drop(gone);
+        }
+
+        _blursHeld = near;
+    }
+
+    /// <summary>
     ///     The pictures on the page that a Kitty terminal holds, sending any that are ready and have not been sent. A
     ///     picture still being encoded is left out, and its box keeps the rows it reserved until a redraw brings it.
     /// </summary>
     /// <remarks>
-    ///     A screen either side of the page is encoded ahead, the same reach <see cref="Want" /> fetches over, so that a
-    ///     picture scrolled to is usually ready rather than encoded the frame it comes into view (ADR-0022).
+    ///     A screen either side of the page is encoded ahead — inside the reach <see cref="Want" /> fetches over, so
+    ///     the pixels are usually here to encode — so that a picture scrolled to is usually ready rather than encoded
+    ///     the frame it comes into view (ADR-0022).
     /// </remarks>
     private List<(Inset Inset, int Top, int Id)> Sent(IReadOnlyList<Line> lines, int height)
     {
@@ -971,7 +1092,8 @@ internal sealed class PaintedView : View
                     continue;
                 }
 
-                if (_pictures!.Of(inset.Drawn) is { } picture)
+                // A Stand-in's blur carries its own pixels and is never looked up: it is not the cache's to hold (#349).
+                if ((inset.Blur ?? _pictures!.Of(inset.Drawn)) is { } picture)
                 {
                     wanted.Add((inset, top, picture));
                 }

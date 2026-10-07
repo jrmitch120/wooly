@@ -97,14 +97,14 @@ public class PicturesTests
 
         var media = APost.APicture();
 
-        pictures.Want(Drawn.Attached(media));
+        pictures.Want([Near(Drawn.Attached(media))]);
 
         await landed.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         Assert.NotNull(pictures.Of(Drawn.Attached(media)));
         Assert.NotNull(pictures.Of(Drawn.Attached(media)));
 
-        pictures.Want(Drawn.Attached(media));
+        pictures.Want([Near(Drawn.Attached(media))]);
 
         Assert.Equal(media.Preview, Assert.Single(asked));
     }
@@ -128,7 +128,7 @@ public class PicturesTests
             ADrawingTerminal,
             () => { });
 
-        pictures.Want(Drawn.Attached(APost.APicture() with { Preview = null }));
+        pictures.Want([Near(Drawn.Attached(APost.APicture() with { Preview = null }))]);
 
         Assert.Equal(APost.APicture().Url, Assert.Single(asked));
     }
@@ -152,9 +152,9 @@ public class PicturesTests
             ADrawingTerminal,
             () => { });
 
-        pictures.Want(Drawn.Attached(APost.APicture()));
-        pictures.Want(Drawn.Attached(APost.APicture()));
-        pictures.Want(Drawn.Attached(APost.APicture()));
+        pictures.Want([Near(Drawn.Attached(APost.APicture()))]);
+        pictures.Want([Near(Drawn.Attached(APost.APicture()))]);
+        pictures.Want([Near(Drawn.Attached(APost.APicture()))]);
 
         Assert.Null(pictures.Of(Drawn.Attached(APost.APicture())));
         Assert.Equal(1, asks);
@@ -178,8 +178,7 @@ public class PicturesTests
                 }
             });
 
-        pictures.Want(Drawn.Attached(APost.APicture(id: "m1")));
-        pictures.Want(Drawn.Attached(APost.APicture(id: "m2")));
+        pictures.Want([Near(Drawn.Attached(APost.APicture(id: "m1"))), Near(Drawn.Attached(APost.APicture(id: "m2")))]);
 
         await both.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
@@ -188,68 +187,417 @@ public class PicturesTests
     }
 
     /// <summary>
-    ///     A morning's scrolling is not held in memory. Past what it has room for, the attachment asked for longest
-    ///     ago is the one dropped, and the ones since are all still there.
+    ///     A file is held to a budget in bytes too, past which the file wanted longest ago is let go of. A picture whose
+    ///     pixels and file have both gone is fetched again when it is next wanted, which is what having let go of it
+    ///     means — and is the only way a picture once fetched is fetched twice (ADR-0025).
     /// </summary>
     [Fact]
-    public void Pictures_HoldsNoMoreThanItHasRoomFor()
+    public async Task Pictures_FetchesAPictureAgainOnlyOnceItsFileIsLetGoOfToo()
     {
-        var asks = 0;
+        var asked = new List<string>();
+        var dropped = new List<string>();
+        var photograph = ANoisyPng(1000, 640);
 
-        using var pictures = new Pictures(
-            (_, _) =>
-            {
-                asks++;
+        using var pictures = APictures(_ => photograph, out var landings, asked: asked, dropped: dropped);
 
-                return Task.FromResult<byte[]?>(null);
-            },
-            ADrawingTerminal,
-            () => { });
+        var fitting = (int)(Pictures.DecodedBudget / (1000L * 640 * 4));
 
-        // One more than there is room for, which drops the first.
-        for (var at = 0; at <= Pictures.MostHeld; at++)
+        for (var at = 0; at <= fitting; at++)
         {
-            pictures.Want(Drawn.Attached(APost.APicture(id: $"m{at}")));
+            pictures.Want([Near(APicture($"m{at}"))]);
+            await landings.Landed(at + 1);
         }
 
-        Assert.Equal(Pictures.MostHeld + 1, asks);
+        // Its pixels went to make room in the decoded tier, and its file long before, since files of this size fill
+        // the encoded tier's budget in fewer pictures than pixels fill the decoded tier's.
+        Assert.Equal(["m0"], dropped);
+        Assert.True(photograph.Length * (fitting + 1L) > Pictures.EncodedBudget);
 
-        // The most recent is still remembered, so wanting it again sends for nothing.
-        pictures.Want(Drawn.Attached(APost.APicture(id: $"m{Pictures.MostHeld}")));
+        pictures.Want([Near(APicture("m0"))]);
+        await landings.Landed(fitting + 2);
 
-        Assert.Equal(Pictures.MostHeld + 1, asks);
-
-        // The first is gone, so wanting it again sends for it again — which is what having dropped it means.
-        pictures.Want(Drawn.Attached(APost.APicture(id: "m0")));
-
-        Assert.Equal(Pictures.MostHeld + 2, asks);
+        Assert.Equal(fitting + 2, asked.Count);
     }
 
     /// <summary>
-    ///     A picture dropped to make room is said to be dropped, by id, so that a terminal holding a copy of it can be
-    ///     told to let go of it too (#292).
+    ///     Wanting a picture again is what keeps it: the one let go of is the one wanted longest ago, not the one
+    ///     fetched longest ago. Going by the fetch is how a picture still on screen came to be dropped mid-scroll, and
+    ///     sent for again a frame later (#345).
     /// </summary>
     [Fact]
-    public void Pictures_SaysWhichPictureItDropped()
+    public async Task Pictures_LetsGoOfThePictureWantedLongestAgo()
     {
         var dropped = new List<string>();
 
-        using var pictures = new Pictures(
-            (_, _) => Task.FromResult<byte[]?>(null),
-            ADrawingTerminal,
-            () => { },
-            dropped.Add);
+        using var pictures = APictures(_ => APng(1000, 640), out var landings, dropped: dropped);
 
-        for (var at = 0; at < Pictures.MostHeld; at++)
+        var fitting = (int)(Pictures.DecodedBudget / (1000L * 640 * 4));
+
+        for (var at = 0; at < fitting; at++)
         {
-            pictures.Want(Drawn.Attached(APost.APicture(id: $"m{at}")));
+            pictures.Want([Near(APicture($"m{at}"))]);
+            await landings.Landed(at + 1);
+        }
+
+        // The first fetched, wanted again: it is now the most recently wanted, and the second is the oldest.
+        pictures.Want([Near(APicture("m0"))]);
+        pictures.Want([Near(APicture("new"))]);
+        await landings.Landed(fitting + 1);
+
+        Assert.Equal(["m1"], dropped);
+    }
+
+    /// <summary>
+    ///     What is on screen in the latest frame is never let go of, however far over its budget that leaves the
+    ///     decoded tier. Once it is off screen it is ordinary again, and the farthest of what a frame wanted goes first.
+    /// </summary>
+    [Fact]
+    public async Task Pictures_NeverLetsGoOfWhatIsOnScreen()
+    {
+        var dropped = new List<string>();
+
+        using var pictures = APictures(_ => APng(1000, 640), out var landings, dropped: dropped);
+
+        var fitting = (int)(Pictures.DecodedBudget / (1000L * 640 * 4));
+        var screenful = Enumerable.Range(0, fitting + 3).Select(at => APicture($"s{at}")).ToList();
+
+        pictures.Want([.. screenful.Select(OnScreen)]);
+        await landings.Landed(fitting + 3);
+
+        Assert.Empty(dropped);
+        Assert.All(screenful, drawn => Assert.NotNull(pictures.Of(drawn)));
+
+        // The page moves on: the next frame has none of them on screen, so the tier comes back to its budget, letting
+        // go of the four of them farthest from where the screen was — three for the screenful, one for what is next.
+        pictures.Want([Near(APicture("next"))]);
+        await landings.Landed(fitting + 4);
+
+        Assert.Equal([$"s{fitting + 2}", $"s{fitting + 1}", $"s{fitting}", $"s{fitting - 1}"], dropped);
+    }
+
+    /// <summary>
+    ///     A frame wanting more pixels than there is room for decodes, once their sizes are known, only as many as
+    ///     there is room for, nearest first. Decoding the rest would only let go of them again at once, and decode them
+    ///     again on the next frame, which is a decode per keypress.
+    /// </summary>
+    [Fact]
+    public async Task Pictures_DecodesNoMoreOfAFrameThanItHasRoomFor()
+    {
+        var asked = new List<string>();
+        var dropped = new List<string>();
+
+        using var pictures = APictures(_ => APng(1000, 640), out var landings, asked: asked, dropped: dropped);
+
+        var fitting = (int)(Pictures.DecodedBudget / (1000L * 640 * 4));
+        var frame = Enumerable.Range(0, fitting + 3).Select(at => Near(APicture($"m{at}"))).ToList();
+
+        // Nothing's size is known before it is fetched, so the first frame finds out by decoding the lot.
+        pictures.Want(frame);
+        await landings.Landed(fitting + 3);
+
+        Assert.Equal(3, dropped.Count);
+
+        pictures.Want(frame);
+        pictures.Want(frame);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
+
+        Assert.Equal(fitting + 3, landings.Count);
+        Assert.Equal(fitting + 3, asked.Count);
+        Assert.Equal(3, dropped.Count);
+    }
+
+    /// <summary>
+    ///     A window made wider can draw a picture larger than it was decoded for, so it is decoded again at the new
+    ///     size from the file already held, and lands again to be drawn sharp — with no fetch (ADR-0025).
+    /// </summary>
+    [Fact]
+    public async Task Pictures_DecodesAPictureAgainWhenTheWindowGrowsWithoutFetching()
+    {
+        var asked = new List<string>();
+        var width = 50;
+
+        using var pictures = APictures(_ => APng(4000, 1000), out var landings, columns: () => width, asked: asked);
+
+        pictures.Want([OnScreen(APicture("m"))]);
+        await landings.Landed(1);
+
+        Assert.Equal(500, pictures.Of(APicture("m"))?.Width);
+
+        width = 100;
+        pictures.Want([OnScreen(APicture("m"))]);
+        await landings.Landed(2);
+
+        Assert.Equal(1000, pictures.Of(APicture("m"))?.Width);
+        Assert.Single(asked);
+
+        // Narrower again: the sharper pixels are drawn scaled down rather than decoded a third time.
+        width = 50;
+        pictures.Want([OnScreen(APicture("m"))]);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, landings.Count);
+        Assert.Equal(1000, pictures.Of(APicture("m"))?.Width);
+    }
+
+    /// <summary>
+    ///     Pixels decoded again for a wider window replace the ones held, and those are said to be let go of like any
+    ///     others: a Kitty terminal holding a copy decoded at the old size is told to drop it, rather than holding it
+    ///     for the rest of the run beside the sharper copy sent in its place (ADR-0022).
+    /// </summary>
+    [Fact]
+    public async Task Pictures_SaysThePixelsADecodeAgainReplacesAreLetGoOf()
+    {
+        var dropped = new List<string>();
+        var width = 50;
+
+        using var pictures = APictures(_ => APng(4000, 1000), out var landings, columns: () => width, dropped: dropped);
+
+        pictures.Want([OnScreen(APicture("m"))]);
+        await landings.Landed(1);
+
+        Assert.Empty(dropped);
+
+        width = 100;
+        pictures.Want([OnScreen(APicture("m"))]);
+        await landings.Landed(2);
+
+        Assert.Equal(["m"], dropped);
+        Assert.Equal(1000, pictures.Of(APicture("m"))?.Width);
+    }
+
+    /// <summary>
+    ///     The cell and the window's width are asked for outside the cache's lock: whatever answers them is the
+    ///     application's, and may be waiting on a thread that is itself waiting on the cache — a picture landing, or a
+    ///     frame asking for one — which under the lock would be each waiting on the other for good.
+    /// </summary>
+    [Fact]
+    public async Task Pictures_AsksTheWindowItsSizeOutsideItsLock()
+    {
+        Pictures? pictures = null;
+        var waited = true;
+
+        // A window that, to answer, needs another thread to have asked the cache something first.
+        int Columns()
+        {
+            waited &= Task.Run(() => pictures!.Of(APicture("m"))).Wait(TimeSpan.FromSeconds(2));
+
+            return 100;
+        }
+
+        CellSize? Cell()
+        {
+            waited &= Task.Run(() => pictures!.Of(APicture("m"))).Wait(TimeSpan.FromSeconds(2));
+
+            return new CellSize(10, 20);
+        }
+
+        using var made = pictures = APictures(_ => APng(4, 4), out var landings, columns: Columns, cell: Cell);
+
+        pictures.Want([OnScreen(APicture("m"))]);
+        await landings.Landed(1);
+
+        Assert.True(waited);
+    }
+
+    /// <summary>
+    ///     A picture is held at no more than the largest box this window could draw it in: the full width of the
+    ///     window by the post screen's row cap, in pixels (ADR-0025). A hundred columns of ten-pixel cells is a thousand
+    ///     pixels across, so a photograph four thousand across is held at a thousand, in its own proportions.
+    /// </summary>
+    [Fact]
+    public async Task Pictures_HoldsAPictureAtTheLargestBoxThisWindowCouldDraw()
+    {
+        using var pictures = APictures(_ => APng(4000, 1000), out var landings, columns: () => 100);
+
+        pictures.Want([Near(Drawn.Attached(APost.APicture()))]);
+
+        await landings.Landed(1);
+
+        var picture = pictures.Of(Drawn.Attached(APost.APicture()));
+
+        Assert.NotNull(picture);
+        Assert.Equal(1000, picture.Width);
+        Assert.Equal(250, picture.Height);
+    }
+
+    /// <summary>
+    ///     An avatar is never drawn larger than an account screen's header box, eight cells by four, so that is all it
+    ///     is held at: an avatar costs kilobytes, not the hundreds an instance's 400-pixel square would decode to.
+    /// </summary>
+    [Fact]
+    public async Task Pictures_HoldsAnAvatarAtItsOwnBox()
+    {
+        using var pictures = APictures(_ => APng(400, 400), out var landings);
+
+        pictures.Want([Near(Drawn.Avatar("alice@example.social", "https://files.example/alice.png"))]);
+
+        await landings.Landed(1);
+
+        var picture = pictures.Of(Drawn.Avatar("alice@example.social", "https://files.example/alice.png"));
+
+        Assert.NotNull(picture);
+        Assert.Equal(80, picture.Width);
+        Assert.Equal(80, picture.Height);
+    }
+
+    /// <summary>
+    ///     Pixels are held to a budget in bytes, not a count of pictures: past it the picture wanted longest ago is let
+    ///     go of, and said to be. Its downloaded bytes are still held, so wanting it again decodes it again from those,
+    ///     and the network is not asked twice (ADR-0025).
+    /// </summary>
+    [Fact]
+    public async Task Pictures_DecodesAPictureLetGoOfAgainFromItsBytesWithoutFetching()
+    {
+        var asked = new List<string>();
+        var dropped = new List<string>();
+
+        using var pictures = APictures(_ => APng(1000, 640), out var landings, asked: asked, dropped: dropped);
+
+        // Each a thousand by 640 at four bytes a pixel, which is the largest a hundred-column window draws them.
+        var fitting = (int)(Pictures.DecodedBudget / (1000L * 640 * 4));
+
+        for (var at = 0; at < fitting; at++)
+        {
+            pictures.Want([Near(APicture($"m{at}"))]);
+            await landings.Landed(at + 1);
         }
 
         Assert.Empty(dropped);
 
-        pictures.Want(Drawn.Attached(APost.APicture(id: $"m{Pictures.MostHeld}")));
+        pictures.Want([Near(APicture("over"))]);
+        await landings.Landed(fitting + 1);
 
         Assert.Equal(["m0"], dropped);
+        Assert.Null(pictures.Of(APicture("m0")));
+
+        pictures.Want([Near(APicture("m0"))]);
+        await landings.Landed(fitting + 2);
+
+        Assert.NotNull(pictures.Of(APicture("m0")));
+        Assert.Equal(fitting + 1, asked.Count);
+    }
+
+    /// <summary>
+    ///     Fetches start nearest the screen first, whatever order the pictures were first wanted in: a picture wanted
+    ///     far ahead and still waiting for its turn goes after one the page has since come near. Never more than
+    ///     <see cref="Pictures.AtATime" /> at once while they do.
+    /// </summary>
+    [Fact]
+    public async Task Pictures_StartsTheNearestFetchFirst()
+    {
+        var fetch = new Gated();
+
+        using var pictures = new Pictures(fetch.Fetch, ADrawingTerminal, () => { });
+
+        var busy = Busy();
+
+        pictures.Want([.. busy, Near(Picture("far"))]);
+        pictures.Want([.. busy, Near(Picture("near")), Near(Picture("far"))]);
+
+        Assert.Equal(Pictures.AtATime, fetch.Asked.Count);
+
+        fetch.Answer("b0");
+        await fetch.Until(Pictures.AtATime + 1);
+
+        fetch.Answer("b1");
+        await fetch.Until(Pictures.AtATime + 2);
+
+        Assert.Equal(["near", "far"], fetch.Asked.Skip(Pictures.AtATime));
+    }
+
+    /// <summary>
+    ///     A picture still waiting for its turn when a frame stops wanting it is never fetched: the page has left it
+    ///     behind, and fetching it would hold up what the page is now near. Wanted again later, it is sent for then.
+    /// </summary>
+    [Fact]
+    public async Task Pictures_AbandonsAQueuedFetchNoLongerWanted()
+    {
+        var fetch = new Gated();
+
+        using var pictures = new Pictures(fetch.Fetch, ADrawingTerminal, () => { });
+
+        var busy = Busy();
+
+        pictures.Want([.. busy, Near(Picture("left behind"))]);
+        pictures.Want([.. busy, Near(Picture("ahead"))]);
+
+        fetch.Answer("b0");
+        await fetch.Until(Pictures.AtATime + 1);
+
+        fetch.Answer("b1");
+        fetch.Answer("b2");
+        fetch.Answer("b3");
+        fetch.Answer("ahead");
+
+        pictures.Want([Near(Picture("left behind"))]);
+        await fetch.Until(Pictures.AtATime + 2);
+
+        Assert.Equal(["ahead", "left behind"], fetch.Asked.Skip(Pictures.AtATime));
+    }
+
+    /// <summary>
+    ///     A fetch already under way when its picture stops being wanted is let finish, and what it brings is held:
+    ///     the bytes are already on their way, and the reader may yet turn round. Held as a file, undecoded, since no
+    ///     frame has wanted its pixels since — so turning round is a decode rather than a second fetch (ADR-0025).
+    /// </summary>
+    [Fact]
+    public async Task Pictures_HoldsWhatAnInFlightFetchBringsAfterItIsNoLongerWanted()
+    {
+        var fetch = new Gated();
+        var landings = new Landings();
+
+        using var pictures = new Pictures(fetch.Fetch, ADrawingTerminal, landings.Land);
+
+        pictures.Want([Near(Picture("leaving"))]);
+        pictures.Want([Near(Picture("elsewhere"))]);
+
+        fetch.Answer("leaving", APng(4, 4));
+        await Task.Delay(200, TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, landings.Count);
+        Assert.Null(pictures.Of(Picture("leaving")));
+
+        pictures.Want([Near(Picture("leaving"))]);
+        await landings.Landed(1);
+
+        Assert.NotNull(pictures.Of(Picture("leaving")));
+        Assert.Equal(["leaving", "elsewhere"], fetch.Asked);
+    }
+
+    /// <summary>
+    ///     A picture waiting its turn to be decoded again from its file keeps that file however far over its budget the
+    ///     encoded tier goes while it waits: letting go of it would turn the decode it is queued for into a second
+    ///     fetch, which is what holding the file was for (ADR-0025).
+    /// </summary>
+    [Fact]
+    public async Task Pictures_KeepsTheFileOfAPictureWaitingToBeDecodedAgain()
+    {
+        var fetch = new Gated();
+        var landings = new Landings();
+        var width = 50;
+
+        using var pictures = new Pictures(fetch.Fetch, ADrawingTerminal, landings.Land, columns: () => width);
+
+        // A real picture with padding after it, so the file is most of the encoded tier on its own.
+        var file = (byte[])[.. APng(4000, 1000), .. new byte[Pictures.EncodedBudget - (64 * Pictures.RememberingCost)]];
+
+        pictures.Want([OnScreen(Picture("m"))]);
+        fetch.Answer("m", file);
+        await landings.Landed(1);
+
+        // Grown, so it is to be decoded again — but behind fetches that hold every turn, and alongside enough new
+        // pictures that remembering them takes the encoded tier over its budget while it waits.
+        width = 100;
+
+        var more = Enumerable.Range(0, 128).Select(at => Near(Picture($"x{at}")));
+
+        pictures.Want([.. Busy(), OnScreen(Picture("m")), .. more]);
+
+        fetch.Answer("b0");
+        await landings.Landed(2);
+
+        Assert.Equal(1000, pictures.Of(Picture("m"))?.Width);
+        Assert.Single(fetch.Asked, address => address == "m");
     }
 
     /// <summary>
@@ -269,7 +617,7 @@ public class PicturesTests
         using var http = new HttpClient(network);
         using var pictures = Pictures.Over(http, ADrawingTerminal, landed.SetResult);
 
-        pictures.Want(Drawn.Attached(APost.APicture()));
+        pictures.Want([Near(Drawn.Attached(APost.APicture()))]);
 
         await landed.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
@@ -289,7 +637,7 @@ public class PicturesTests
         using var http = new HttpClient(network);
         using var pictures = Pictures.Over(http, ADrawingTerminal, () => { });
 
-        pictures.Want(Drawn.Attached(APost.APicture()));
+        pictures.Want([Near(Drawn.Attached(APost.APicture()))]);
 
         Assert.Null(pictures.Of(Drawn.Attached(APost.APicture())));
     }
@@ -313,7 +661,7 @@ public class PicturesTests
         using var http = new HttpClient(network);
         using var pictures = Pictures.Over(http, ADrawingTerminal, () => landed = true);
 
-        pictures.Want(Drawn.Attached(APost.APicture()));
+        pictures.Want([Near(Drawn.Attached(APost.APicture()))]);
 
         // Nothing announces a refusal, so the wait is for the request to have been made and answered.
         while (network.Requests.Count == 0)
@@ -325,12 +673,119 @@ public class PicturesTests
         Assert.False(landed);
     }
 
+    /// <summary>
+    ///     A cache over a fetch that answers with <paramref name="serve" />'s bytes for each address, writing down
+    ///     every address it is asked for in <paramref name="asked" /> and every picture let go of in
+    ///     <paramref name="dropped" />.
+    /// </summary>
+    private static Pictures APictures(
+        Func<string, byte[]?> serve,
+        out Landings landings,
+        Func<int>? columns = null,
+        Func<CellSize?>? cell = null,
+        List<string>? asked = null,
+        List<string>? dropped = null)
+    {
+        var landed = new Landings();
+
+        landings = landed;
+
+        return new Pictures(
+            (address, _) =>
+            {
+                lock (landed)
+                {
+                    asked?.Add(address);
+                }
+
+                return Task.FromResult(serve(address));
+            },
+            cell ?? ADrawingTerminal,
+            landed.Land,
+            id =>
+            {
+                lock (landed)
+                {
+                    dropped?.Add(id);
+                }
+            },
+            columns ?? (() => 100));
+    }
+
+    /// <summary>How many times a cache has said a picture landed, and a way to wait for the next of them.</summary>
+    private sealed class Landings
+    {
+        private int _landed;
+
+        public int Count => Volatile.Read(ref _landed);
+
+        public void Land() => Interlocked.Increment(ref _landed);
+
+        /// <summary>Waits until <paramref name="count" /> pictures in all have landed.</summary>
+        public async Task Landed(int count)
+        {
+            var giveUp = DateTime.UtcNow + TimeSpan.FromSeconds(10);
+
+            while (Count < count)
+            {
+                Assert.True(DateTime.UtcNow < giveUp, $"{Count} of {count} pictures landed");
+
+                await Task.Delay(5, TestContext.Current.CancellationToken);
+            }
+        }
+    }
+
+    /// <summary>An attachment's picture, by the attachment's id.</summary>
+    private static Drawn APicture(string id) => Drawn.Attached(APost.APicture(id: id));
+
+    /// <summary>
+    ///     An attachment's picture, by the id the instance gave it — which is also the address it is fetched from.
+    /// </summary>
+    private static Drawn Picture(string id) => new(id, id);
+
+    /// <summary>As many pictures as are fetched at once, named <c>b0</c> on, to keep every fetch busy.</summary>
+    private static List<WantedPicture> Busy() =>
+        [.. Enumerable.Range(0, Pictures.AtATime).Select(at => Near(Picture($"b{at}")))];
+
+    /// <summary>A picture a frame wants that is near the screen but not on it.</summary>
+    private static WantedPicture Near(Drawn drawn) => new(drawn, OnScreen: false);
+
+    /// <summary>A picture a frame wants that is on screen in it.</summary>
+    private static WantedPicture OnScreen(Drawn drawn) => new(drawn, OnScreen: true);
+
     /// <summary>A terminal that draws pictures, since none of these tests is about one that does not.</summary>
     private static CellSize? ADrawingTerminal() => new CellSize(10, 20);
 
     private static byte[] APng(int width, int height) => Encoded(width, height, new PngEncoder());
 
     private static byte[] AJpeg(int width, int height) => Encoded(width, height, new JpegEncoder());
+
+    /// <summary>
+    ///     A PNG of noise, which no compressor can shrink: a file about as large as its pixels, where a blank picture's
+    ///     file is a few hundred bytes whatever its size.
+    /// </summary>
+    private static byte[] ANoisyPng(int width, int height)
+    {
+        var noise = new Random(345);
+
+        using var image = new Image<Rgba32>(width, height);
+        using var bytes = new MemoryStream();
+
+        image.ProcessPixelRows(rows =>
+        {
+            for (var y = 0; y < rows.Height; y++)
+            {
+                foreach (ref var pixel in rows.GetRowSpan(y))
+                {
+                    pixel = new Rgba32((byte)noise.Next(256), (byte)noise.Next(256), (byte)noise.Next(256));
+                }
+            }
+        });
+
+        image.Save(bytes, new PngEncoder());
+
+        return bytes.ToArray();
+    }
 
     /// <summary>
     ///     A real file in a real format, rather than a byte array a test made up: what is being proved is that what an
@@ -344,5 +799,71 @@ public class PicturesTests
         image.Save(bytes, encoder);
 
         return bytes.ToArray();
+    }
+
+    /// <summary>
+    ///     A file server that answers only when told to, so that a test can hold fetches open and see which are
+    ///     started, and in what order, while they are.
+    /// </summary>
+    private sealed class Gated
+    {
+        private readonly Lock _gate = new();
+        private readonly Dictionary<string, TaskCompletionSource<byte[]?>> _answers = [];
+        private readonly List<string> _asked = [];
+
+        /// <summary>Every address asked for, in the order the fetches started.</summary>
+        public List<string> Asked
+        {
+            get
+            {
+                lock (_gate)
+                {
+                    return [.. _asked];
+                }
+            }
+        }
+
+        public Task<byte[]?> Fetch(string address, CancellationToken cancellation)
+        {
+            lock (_gate)
+            {
+                _asked.Add(address);
+
+                return Answering(address).Task;
+            }
+        }
+
+        /// <summary>
+        ///     Lets the fetch of <paramref name="address" /> finish, with <paramref name="bytes" /> or nothing.
+        /// </summary>
+        public void Answer(string address, byte[]? bytes = null)
+        {
+            lock (_gate)
+            {
+                Answering(address).TrySetResult(bytes);
+            }
+        }
+
+        /// <summary>Waits for <paramref name="count" /> fetches to have started.</summary>
+        public async Task Until(int count)
+        {
+            var giveUp = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+
+            while (Asked.Count < count && DateTime.UtcNow < giveUp)
+            {
+                await Task.Delay(5, TestContext.Current.CancellationToken);
+            }
+        }
+
+        private TaskCompletionSource<byte[]?> Answering(string address)
+        {
+            if (!_answers.TryGetValue(address, out var answer))
+            {
+                answer = new TaskCompletionSource<byte[]?>(TaskCreationOptions.RunContinuationsAsynchronously);
+                _answers[address] = answer;
+            }
+
+            return answer;
+        }
     }
 }

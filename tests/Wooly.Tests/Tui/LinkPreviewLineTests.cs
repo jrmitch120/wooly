@@ -94,12 +94,13 @@ public class LinkPreviewLineTests
 
     /// <summary>
     ///     The second acceptance criterion: the link preview's own picture goes through the exact
-    ///     <c>Drawn</c>/<c>Inset</c>/<c>IPictures</c> pipeline an attachment's does — same width-driven box, same cap.
+    ///     <c>Drawn</c>/<c>Inset</c>/<c>IPictures</c> pipeline an attachment's does — the same width-driven box from
+    ///     the shape the card gave, and the same cap (ADR-0025).
     /// </summary>
     [Fact]
     public void Feed_DrawsTheLinkPreviewsPictureInTheSameBoxAnAttachmentsGoesIn()
     {
-        var link = APost.ALinkPreview();
+        var link = APost.ALinkPreview(shape: new PictureShape(400, 200));
 
         var lines = PostLines.Feed(
             APost.With(linkPreview: link),
@@ -238,7 +239,7 @@ public class LinkPreviewLineTests
     [Fact]
     public void Whole_BracketsThePickedRowAndDrawsThePictureUnderIt()
     {
-        var link = APost.ALinkPreview();
+        var link = APost.ALinkPreview(shape: new PictureShape(400, 400));
         var post = APost.With(linkPreview: link);
 
         var lines = PostLines.Whole(

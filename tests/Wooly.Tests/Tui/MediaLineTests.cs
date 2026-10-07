@@ -25,7 +25,7 @@ public class MediaLineTests
     public void Feed_GivesAPictureABoxToBeDrawnIn()
     {
         var lines = PostLines.Feed(
-            APost.With(media: [APost.APicture()]),
+            APost.With(media: [APost.APicture(shape: new PictureShape(400, 300))]),
             new Drawing(61, Now, FakePictures.With().Holding("m1", 400, 300)),
             default);
 
@@ -39,8 +39,8 @@ public class MediaLineTests
 
     /// <summary>
     ///     The box takes the full width it is allowed, which is the whole difference between an inline picture and a
-    ///     thumbnail — and the rows follow from the picture's own proportions and the size of a cell, so a wide
-    ///     photograph is drawn wide and a tall one tall.
+    ///     thumbnail — and the rows follow from the shape the instance reported and the size of a cell (ADR-0025), so a
+    ///     wide photograph is drawn wide and a tall one tall.
     /// </summary>
     [Theory]
 
@@ -57,7 +57,7 @@ public class MediaLineTests
         int expectedRows)
     {
         var lines = PostLines.Feed(
-            APost.With(media: [APost.APicture()]),
+            APost.With(media: [APost.APicture(shape: new PictureShape(pictureWidth, pictureHeight))]),
             new Drawing(61, Now, FakePictures.With(new CellSize(10, 20)).Holding("m1", pictureWidth, pictureHeight)),
             default);
 
@@ -75,7 +75,7 @@ public class MediaLineTests
     public void Feed_ShrinksAPictureTooTallForTheRoomRatherThanCroppingOrStretchingIt()
     {
         var lines = PostLines.Feed(
-            APost.With(media: [APost.APicture()]),
+            APost.With(media: [APost.APicture(shape: new PictureShape(300, 900))]),
             new Drawing(120, Now, FakePictures.With(new CellSize(10, 20)).Holding("m1", 300, 900)),
             default);
 
@@ -96,7 +96,7 @@ public class MediaLineTests
     public void Whole_GivesATallPictureMoreRoomThanAFeedItemDoes()
     {
         var pictures = FakePictures.With(new CellSize(10, 20)).Holding("m1", 400, 400);
-        var post = APost.With(media: [APost.APicture()]);
+        var post = APost.With(media: [APost.APicture(shape: new PictureShape(400, 400))]);
 
         var drawing = new Drawing(61, Now, pictures);
 
@@ -418,8 +418,8 @@ public class MediaLineTests
     }
 
     /// <summary>
-    ///     Issue #71. The second acceptance criterion: <c>hide_drawn_caption</c> hides <c>Described</c> only once a
-    ///     picture is actually drawn — the same branch that emits <c>Box(inset)</c>.
+    ///     Issue #71. The second acceptance criterion: <c>hide_drawn_caption</c> hides <c>Described</c> where a
+    ///     picture is drawn — which since ADR-0025 is wherever its box is reserved, landed or not.
     /// </summary>
     [Fact]
     public void Feed_HidesTheCaptionOnceThePictureIsActuallyDrawnWhenAskedTo()
@@ -461,11 +461,13 @@ public class MediaLineTests
     }
 
     /// <summary>
-    ///     The third acceptance criterion, second half: a terminal that can draw but has not gotten this picture yet is
-    ///     treated the same as one that cannot draw at all — both keep the caption, so there is no arrival flicker.
+    ///     The third acceptance criterion, second half, as ADR-0025 settled it: a terminal that can draw but has not
+    ///     got this picture yet already has its box, so the caption is hidden from the first frame. Keeping it until
+    ///     the picture landed was #71's way of avoiding an arrival flicker; with the box reserved, keeping it would be
+    ///     the flicker, a row going out from under the reader when the pixels came.
     /// </summary>
     [Fact]
-    public void Feed_StillShowsTheCaptionWhileThePictureIsOnItsWayEvenWhenAskedToHideIt()
+    public void Feed_HidesTheCaptionWhileThePictureIsOnItsWayWhenAskedTo()
     {
         var lines = PostLines.Feed(
             APost.With(media: [APost.APicture(description: "A cartoon sheep")]),
@@ -473,7 +475,7 @@ public class MediaLineTests
             default);
 
         Assert.Empty(lines.SelectMany(line => line.Insets));
-        Assert.Contains(lines, line => line.Text.Contains("▒▒▒▒ A cartoon sheep", StringComparison.Ordinal));
+        Assert.DoesNotContain(lines, line => line.Text.Contains("A cartoon sheep", StringComparison.Ordinal));
     }
 
     /// <summary>The fourth acceptance criterion: a feed item and the post screen hide it exactly alike.</summary>

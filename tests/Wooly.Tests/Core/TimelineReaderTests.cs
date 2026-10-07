@@ -333,6 +333,95 @@ public class TimelineReaderTests
         Assert.Null(Assert.Single(Assert.Single(fetch.Items).Media).Description);
     }
 
+    /// <summary>
+    ///     The shape of the preview this client fetches, which is what a drawn picture's box is settled from before its
+    ///     pixels arrive (ADR-0025). <c>small</c> describes the preview and <c>original</c> the file itself, so where
+    ///     both are sent it is <c>small</c> that says how the picture will be drawn.
+    /// </summary>
+    [Fact]
+    public async Task Read_ReportsTheShapeOfThePreviewTheInstanceDescribed()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(Page(PostJson("110", media: MediaJson(meta: """
+                {
+                  "original": { "width": 4000, "height": 3000, "aspect": 1.3333 },
+                  "small": { "width": 640, "height": 480, "aspect": 1.3333 }
+                }
+                """)))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        Assert.Equal(new PictureShape(640, 480), Assert.Single(Assert.Single(fetch.Items).Media).Shape);
+    }
+
+    /// <summary>
+    ///     The original's shape is the same picture's at a different size, so it stands in where the preview's was not
+    ///     said in full — which is a better guess at the box than the 16:9 the TUI falls back on.
+    /// </summary>
+    [Theory]
+    [InlineData("""{ "original": { "width": 1200, "height": 1600 } }""")]
+    [InlineData("""{ "original": { "width": 1200, "height": 1600 }, "small": { "width": 300 } }""")]
+    public async Task Read_FallsBackOnTheOriginalsShapeWhereThePreviewsWasNotSaid(string meta)
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(Page(PostJson("110", media: MediaJson(meta: meta)))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        Assert.Equal(new PictureShape(1200, 1600), Assert.Single(Assert.Single(fetch.Items).Media).Shape);
+    }
+
+    /// <summary>
+    ///     No shape where the instance said none in full, rather than a guess made here: the default box is the TUI's
+    ///     to choose, and a width with no height is no shape at all.
+    /// </summary>
+    [Theory]
+    [InlineData("null")]
+    [InlineData("{}")]
+    [InlineData("""{ "small": { "width": 640 }, "original": { "height": 480 } }""")]
+    [InlineData("""{ "small": { "width": 0, "height": 480 } }""")]
+    public async Task Read_ReportsNoShapeWhereTheInstanceSaidNoneInFull(string meta)
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(Page(PostJson("110", media: MediaJson(meta: meta)))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        Assert.Null(Assert.Single(Assert.Single(fetch.Items).Media).Shape);
+    }
+
+    /// <summary>
+    ///     The instance's blurhash of the attachment, carried as it was sent: what the TUI's Stand-in takes its blur from
+    ///     while the picture is on its way (ADR-0025, #349).
+    /// </summary>
+    [Fact]
+    public async Task Read_ReportsTheAttachmentsBlurhash()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(Page(PostJson("110", media: MediaJson(blurhash: AHash)))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        Assert.Equal("LEHV6nWB2yk8pyo0adR*.7kCMdnj", Assert.Single(Assert.Single(fetch.Items).Media).Blurhash);
+    }
+
+    /// <summary>
+    ///     None where the instance sent none — null, or the empty string the wire says "nothing" with — so the TUI's
+    ///     Stand-in is the shaded fill rather than a blur of nothing.
+    /// </summary>
+    [Theory]
+    [InlineData("null")]
+    [InlineData("\"\"")]
+    public async Task Read_ReportsNoBlurhashWhereTheInstanceSentNone(string blurhash)
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(Page(PostJson("110", media: MediaJson(blurhash: blurhash)))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        Assert.Null(Assert.Single(Assert.Single(fetch.Items).Media).Blurhash);
+    }
+
     /// <summary>A post carrying nothing carries an empty list, which is not a hole for a caller to check for.</summary>
     [Fact]
     public async Task Read_ReportsAPostWithNothingAttachedAsCarryingNoMedia()
@@ -364,6 +453,74 @@ public class TimelineReaderTests
         Assert.Equal("Example", linkPreview.ProviderName);
         Assert.Equal("https://example.com/sheep.png", linkPreview.Image);
         Assert.Equal("Maria", linkPreview.Author);
+    }
+
+    /// <summary>
+    ///     The shape of the picture the instance chose for the link, which is what its box is settled from before the
+    ///     picture arrives, the way an attachment's is (ADR-0025, #348).
+    /// </summary>
+    [Fact]
+    public async Task Read_ReportsTheShapeOfTheLinkPreviewsPicture()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(Page(PostJson("110", card: CardJson(width: "400", height: "210")))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        Assert.Equal(new PictureShape(400, 210), Assert.Single(fetch.Items).LinkPreview?.Shape);
+    }
+
+    /// <summary>
+    ///     No shape where the card gave none, or gave one with a side of nothing — instances send <c>0</c> for a card
+    ///     with no picture rather than leaving the fields out, and that is no proportions to size a box from. The
+    ///     default box is the TUI's to choose.
+    /// </summary>
+    [Theory]
+    [InlineData("null", "null")]
+    [InlineData("0", "0")]
+    [InlineData("400", "0")]
+    [InlineData("-1", "210")]
+    public async Task Read_ReportsNoShapeForALinkPreviewWhoseCardSaidNoneInFull(string width, string height)
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(Page(PostJson("110", card: CardJson(width: width, height: height)))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        var linkPreview = Assert.Single(fetch.Items).LinkPreview;
+        Assert.NotNull(linkPreview);
+        Assert.Null(linkPreview.Shape);
+    }
+
+    /// <summary>
+    ///     The card's blurhash of the picture the instance chose for the link, for the Stand-in its box shows while the
+    ///     picture is on its way — the same as an attachment's (ADR-0025, #349).
+    /// </summary>
+    [Fact]
+    public async Task Read_ReportsTheLinkPreviewsBlurhash()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(Page(PostJson("110", card: CardJson(blurhash: AHash)))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        Assert.Equal("LEHV6nWB2yk8pyo0adR*.7kCMdnj", Assert.Single(fetch.Items).LinkPreview?.Blurhash);
+    }
+
+    /// <summary>None where the card sent none, so the link preview's Stand-in is the shaded fill.</summary>
+    [Theory]
+    [InlineData("null")]
+    [InlineData("\"\"")]
+    public async Task Read_ReportsNoBlurhashForALinkPreviewWhoseCardSentNone(string blurhash)
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(Page(PostJson("110", card: CardJson(blurhash: blurhash)))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        var linkPreview = Assert.Single(fetch.Items).LinkPreview;
+        Assert.NotNull(linkPreview);
+        Assert.Null(linkPreview.Blurhash);
     }
 
     /// <summary>
@@ -877,21 +1034,29 @@ public class TimelineReaderTests
     private static string MediaJson(
         string id = "m1",
         string type = "image",
-        string? description = "A cartoon sheep") =>
+        string? description = "A cartoon sheep",
+        string meta = "null",
+        string blurhash = "null") =>
         $$"""
           [{
             "id": "{{id}}",
             "type": "{{type}}",
             "url": "https://files.mastodon.social/{{id}}/original.png",
             "preview_url": "https://files.mastodon.social/{{id}}/small.png",
-            "description": "{{description}}"
+            "description": "{{description}}",
+            "meta": {{meta}},
+            "blurhash": {{blurhash}}
           }]
           """;
 
+    /// <summary>A blurhash as the wire sends one, quoted: the reference example from the blurhash project.</summary>
+    private const string AHash = "\"LEHV6nWB2yk8pyo0adR*.7kCMdnj\"";
+
     /// <summary>
     ///     One link preview, as the wire serves one back on a post. Every field ADR-0018 drops is sent alongside the
-    ///     ones it keeps — the player's markup and size, the author's own address, when the page was published — so
-    ///     that a mapping which reached for one of them would have something to reach for.
+    ///     ones it keeps — the player's markup, the author's own address, when the page was published — so that a
+    ///     mapping which reached for one of them would have something to reach for. Its width and height are kept
+    ///     since ADR-0025, as the picture's shape, and are parameters so a test can say a card gave none.
     /// </summary>
     private static string CardJson(
         string url = "https://example.com/sheep",
@@ -899,7 +1064,10 @@ public class TimelineReaderTests
         string description = "A field guide to every breed.",
         string providerName = "Example",
         string image = "https://example.com/sheep.png",
-        string authorName = "Maria") =>
+        string authorName = "Maria",
+        string width = "640",
+        string height = "480",
+        string blurhash = "\"UFC?\"") =>
         $$"""
           {
             "url": "{{url}}",
@@ -911,11 +1079,11 @@ public class TimelineReaderTests
             "provider_name": "{{providerName}}",
             "provider_url": "https://example.com",
             "html": "<iframe src=\"https://example.com/embed\"></iframe>",
-            "width": 640,
-            "height": 480,
+            "width": {{width}},
+            "height": {{height}},
             "image": "{{image}}",
             "embed_url": "https://example.com/embed",
-            "blurhash": "UFC?",
+            "blurhash": {{blurhash}},
             "published_at": "2026-07-28T09:00:00.000Z"
           }
           """;

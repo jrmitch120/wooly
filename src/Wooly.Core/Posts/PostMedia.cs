@@ -36,6 +36,31 @@ public sealed record PostMedia
     public string? Description { get; init; }
 
     /// <summary>
+    ///     The shape of what is drawn inline, as the instance reported it: the metadata's <c>small</c> entry, which
+    ///     describes the <see cref="Preview" />, and <c>original</c> where <c>small</c> does not have both sides.
+    ///     <see langword="null" /> where neither does. What the TUI settles this attachment's box from before its
+    ///     pixels arrive, so that they move nothing when they do (ADR-0025).
+    /// </summary>
+    /// <remarks>
+    ///     Neither the CLI's text nor its <c>--json</c> carries this. Nothing outside the TUI uses it yet, and a
+    ///     field added to a script's input is one that script's author never asked for (ADR-0025's Consequences).
+    /// </remarks>
+    public PictureShape? Shape { get; init; }
+
+    /// <summary>
+    ///     The instance's blurhash of the picture — a few dozen characters that decode to a blur of its colours and
+    ///     rough composition — or <see langword="null" /> where it sent none. What the TUI's <b>Stand-in</b> shows in
+    ///     this attachment's box while the picture is on its way, so that its arriving reads as sharpening rather than
+    ///     popping in (ADR-0025, #349).
+    /// </summary>
+    /// <remarks>
+    ///     Carried as it was sent, unchecked: whether it decodes is the TUI's question, and one that does not is a
+    ///     shaded fill there rather than a failure here. Neither the CLI's text nor its <c>--json</c> carries this, for
+    ///     the reason <see cref="Shape" /> is kept out of them.
+    /// </remarks>
+    public string? Blurhash { get; init; }
+
+    /// <summary>
     ///     Whether there are pixels a terminal can put in a box for this: a still picture, and a video or an animation
     ///     the instance offered a <see cref="Preview" /> of.
     /// </summary>

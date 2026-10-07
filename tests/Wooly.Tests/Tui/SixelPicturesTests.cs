@@ -29,6 +29,26 @@ public class SixelPicturesTests
         Assert.Equal("sixel 1", first.Encoded);
     }
 
+    /// <summary>
+    ///     A picture decoded again at a larger size, for a window made wider, is encoded again in the same box: the
+    ///     sharper pixels are the point of decoding it again, and the crop kept from the softer one would hide them
+    ///     (ADR-0025).
+    /// </summary>
+    [Fact]
+    public void Of_EncodesAPictureDecodedAgainAtAnotherSizeAgain()
+    {
+        var encodes = 0;
+        var sixels = new SixelPictures((_, _) => $"sixel {++encodes}");
+        var inset = Box("m1", columns: 8, rows: 4);
+        var crop = new SixelCrop(Top: 0, Rows: 4, Columns: 8);
+
+        sixels.Of(inset, APicture(40, 40), Cell, crop, colours: 64);
+        var sharp = sixels.Of(inset, APicture(160, 160), Cell, crop, colours: 64);
+
+        Assert.Equal(2, encodes);
+        Assert.Equal("sixel 2", sharp.Encoded);
+    }
+
     /// <summary>The pixels are the box's in pixels, scaled once — not the picture's own, scaled by the terminal.</summary>
     [Fact]
     public void Of_IsTheBoxInPixels()

@@ -112,6 +112,13 @@ internal sealed class ShellWindow : Window
     /// </summary>
     private bool _clickDeclinedQuestion;
 
+    /// <summary>
+    ///     How many columns wide the content region is inside its panel: the widest any picture's box can be drawn, so
+    ///     the width a picture is worth decoding to (ADR-0025) — 58 at an 80-column terminal. Asked on the UI thread,
+    ///     which is the only one a view's size may be read on; nought before the window is first laid out.
+    /// </summary>
+    public int ContentColumns => _content.Viewport.Width;
+
     /// <param name="quit">
     ///     What <c>ctrl-q</c> does. Passed in rather than reached for, because the application is the thing that owns
     ///     the run loop and this window is one of the things running in it.
@@ -125,6 +132,10 @@ internal sealed class ShellWindow : Window
     ///     What a Kitty terminal holds, for drawing a picture as placeholder cells (ADR-0022), or
     ///     <see langword="null" /> to draw every picture through a box.
     /// </param>
+    /// <param name="blurs">
+    ///     What a Stand-in's blur is decoded by and held in (#349), or <see langword="null" /> to draw every Stand-in
+    ///     as its shaded fill alone.
+    /// </param>
     /// <param name="frames">
     ///     What wraps a frame in synchronized output, opened as the content region draws — the region with the pictures,
     ///     whose text and sixels must land together — or <see langword="null" /> for none.
@@ -137,6 +148,7 @@ internal sealed class ShellWindow : Window
         IPictures pictures,
         bool hideDrawnCaption = false,
         Placeholders? placeholders = null,
+        Blurs? blurs = null,
         SynchronizedFrames? frames = null)
     {
         _shell = shell;
@@ -175,7 +187,7 @@ internal sealed class ShellWindow : Window
         _content = new PaintedView(
             theme,
             (width, height) => shell.Screen.Lines(
-                new Drawing(width, clock.GetUtcNow(), pictures, hideDrawnCaption, height)),
+                new Drawing(width, clock.GetUtcNow(), pictures, hideDrawnCaption, height, blurs)),
             pictures,
             // No rows of the panel's own: the view paints only the frame's edges, round the screen's rows.
             (width, height) => Panel.Framed(

@@ -14,10 +14,10 @@ namespace Wooly.Tui.Rendering;
 ///     could not be fetched keeps its columns, because the two answers <see cref="IPictures.Of" /> gives — not here
 ///     yet, and never coming — are the same answer.
 ///     <para>
-///         Where one <em>is</em> coming the columns are taken from the first frame, before the pixels land, which is
-///         the opposite of what an attachment does: an attachment's box appears under its description and pushes
-///         nothing sideways, where a byline that gained five columns on arrival would shove the name across the row as
-///         the reader was reading it.
+///         Where one <em>is</em> coming the columns are taken from the first frame, before the pixels land, and show
+///         the <see cref="StandIn" />'s shade until they do: a byline that gained five columns on arrival would shove
+///         the name across the row as the reader was reading it. An attachment's box has been reserved the same way
+///         since ADR-0025, from the shape the instance reported; an avatar's is fixed and needs no shape.
 ///     </para>
 ///     <para>
 ///         Said once for the two places that spend them — a post's byline at 4×2 (#62) and an account screen's header
@@ -52,7 +52,15 @@ public readonly record struct Avatar(Drawn? Wanted, Inset? Box, int Held, int Ga
     /// </summary>
     /// <inheritdoc cref="Of" path="/param" />
     public static Avatar Header(string account, string? address, IPictures? pictures) =>
-        Of(account, address, pictures, columns: 8, rows: 4, gap: 2);
+        Of(account, address, pictures, HeaderColumns, HeaderRows, gap: 2);
+
+    /// <summary>
+    ///     How wide the header's box is, which is the largest an avatar is ever drawn (<see cref="Drawn.Largest" />).
+    /// </summary>
+    internal const int HeaderColumns = 8;
+
+    /// <summary>How tall the header's box is, which is the largest an avatar is ever drawn.</summary>
+    internal const int HeaderRows = 4;
 
     /// <summary>How many columns it costs in all: the box and the gap after it, or none.</summary>
     public int Width => Wanted is null ? 0 : Held + Gap;
@@ -114,12 +122,16 @@ public readonly record struct Avatar(Drawn? Wanted, Inset? Box, int Held, int Ga
 
         // Copied out because a lambda inside a struct cannot reach the instance it is written in.
         var box = Box;
-        var held = new string(' ', Held);
+
+        // The Stand-in in the columns while the face is not here, on every row the box covers, and blank once it is:
+        // the same columns either way, so the name beside it never moves (ADR-0025). Avatars come with no blurhash,
+        // so theirs is always the shade.
+        var held = box is null ? StandIn.Row(Held) : new Span(new string(' ', Held), Role.Media);
         var gap = new string(' ', Gap);
 
         return rows.Select((row, at) =>
         {
-            var beside = row.After(new Span(held, Role.Media), new Span(gap, Role.Body));
+            var beside = row.After(held, new Span(gap, Role.Body));
 
             return at > 0 ? beside : beside with { Insets = box is null ? [] : [box], Wants = wanted };
         });
