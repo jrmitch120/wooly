@@ -91,10 +91,12 @@ again as it moves. Measured the same way:
 picture once and crops it by placement, so that no longer holds. **In practice this rung is never reached, though.**
 Terminal.Gui says a terminal speaks Kitty only where its environment names kitty or Ghostty
 (`KittyGraphicsSupportDetector` asks the terminal nothing), and those two draw placeholders. WezTerm is never told it
-speaks Kitty, so it draws sixel, and dropping `PreferSixel` changed nothing there. Asking the terminal itself would need
-Terminal.Gui to read the reply, which it does not: the reply would arrive as keys. The order is a rule about protocols,
-not about any one terminal, and it is also the order `ImageView` tries them in, so the picture `PaintedView` encodes for
-and the one the driver draws cannot disagree. Kitty is also drawn in full colour, which sixel cannot be.
+speaks Kitty, so it draws sixel, and dropping `PreferSixel` changed nothing there. Asking the terminal itself needs
+Terminal.Gui to read the reply, and this record first said it would arrive as keys. 2.5.0 does read it: fed through its
+`AnsiInputProcessor`, an `OK` reply is caught by an expected response ending in `OK`, and the `ESC \` that closes it is
+swallowed. An error reply is not caught, and a few of its letters still arrive as keys. The order is a rule about
+protocols, not about any one terminal, and it is also the order `ImageView` tries them in, so the picture `PaintedView`
+encodes for and the one the driver draws cannot disagree. Kitty is also drawn in full colour, which sixel cannot be.
 
 **A sixel is 256 colours, the most it allows, and is quantized before it is encoded.** At 64, the cap Terminal.Gui's
 image view uses, a photograph's smooth gradients broke into patches in WezTerm, with the palette right and too few of
