@@ -31,8 +31,8 @@ public sealed record Line
     ///     What a post is made of does not depend on where the reader has scrolled to, so every post in a list works
     ///     out its rows whether or not it is anywhere near the screen. Sending for a picture from there would send for
     ///     an account's whole gallery to draw the four of it that fit. So the rows only say which pictures they
-    ///     <em>want</em>, and whatever knows where the scroll has got to — the view — decides which of those are worth
-    ///     asking for (ADR-0016).
+    ///     <em>want</em>, and <see cref="Media.Placing" />, handed the scroll by the view that knows where it has got
+    ///     to, decides which of those are worth asking for (ADR-0016).
     /// </remarks>
     public Drawn? Wants { get; init; }
 

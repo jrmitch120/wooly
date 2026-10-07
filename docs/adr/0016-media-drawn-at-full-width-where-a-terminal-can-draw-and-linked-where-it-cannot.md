@@ -349,3 +349,11 @@ byte budgets ordered by when each was last wanted, and what is on screen is neve
 ## Amendment: `RasterProtocol.Chosen` is now `Raster` (#357)
 
 The choice of rung named above is made in working out a `Raster`, which carries the way, the cell and the sixel colours.
+
+## Amendment: the view hands the scroll to Placing, where pictures are wanted and placed (#363)
+
+Where this ADR says `PaintedView` keeps the rules for releasing and placing boxes, and that only `PaintedView` says
+`Want`, read `Placing`. The view remains the one place that knows the scroll: it works out the rows and where the page
+begins once a frame, from `OnClearingViewport`, and hands both to `Placing`, which says which pictures the frame wants,
+places or releases every box, and hands back the placeholder cells for the view to paint. Only a picture some row wants
+is said, so a warned post's pictures are still never sent for. The rules themselves stand unchanged.

@@ -105,7 +105,6 @@ internal sealed class DrawnShell : IDisposable
         // Encoded on the spot rather than off the UI thread, so that a picture is sent on the frame that first wants it.
         var placeholders = new Placeholders(
             kittyImages ?? new FakeTerminalImages(),
-            drawsPlaceholders,
             () => { },
             encoding ?? (work => work()));
 

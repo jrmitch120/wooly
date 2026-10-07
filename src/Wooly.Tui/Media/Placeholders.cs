@@ -10,12 +10,15 @@ namespace Wooly.Tui.Media;
 ///     Asked from the frame, on the UI thread, which is the only thread the terminal is written to on. The one slow
 ///     part — encoding a PNG — is handed to <c>elsewhere</c>, so a frame never waits on it: the box keeps the rows it
 ///     reserved until the PNG is ready, a redraw is asked for, and the next frame sends it.
+///     <para>
+///         Whether pictures are drawn this way at all is the <see cref="Raster" />'s to say, and nobody else's:
+///         <see cref="Placing" /> sends and prepares pictures through this only on a frame whose Raster says
+///         placeholders, and drops what the cache let go of only then (#357, #362). It drops the Stand-in blurs held and
+///         flushes on every frame, whatever the Raster: a frame that has stopped drawing placeholders still has to tell
+///         the terminal to forget what it was holding.
+///     </para>
 /// </remarks>
 /// <param name="terminal">The terminal's image store.</param>
-/// <param name="drawing">
-///     Whether pictures are drawn this way at all, which is whether the terminal is known by name to draw Kitty's
-///     placeholders (<see cref="KnownTerminal" />).
-/// </param>
 /// <param name="encoded">
 ///     What to do when a PNG is ready: redraw, so the box waiting on it fills in. Called on whatever thread encoded it.
 /// </param>
@@ -24,7 +27,6 @@ namespace Wooly.Tui.Media;
 /// </param>
 public sealed class Placeholders(
     ITerminalImages terminal,
-    bool drawing,
     Action encoded,
     Action<Action> elsewhere) : IDisposable
 {
@@ -38,9 +40,6 @@ public sealed class Placeholders(
     private int _next = Random.Shared.Next(0x10000, 0xF00000);
     private bool _sentAny;
     private bool _disposed;
-
-    /// <summary>Whether pictures are drawn as placeholders on this terminal.</summary>
-    public bool Drawing => drawing;
 
     /// <summary>
     ///     The terminal's id for <paramref name="picture" /> in <paramref name="inset" />'s box, sending it first

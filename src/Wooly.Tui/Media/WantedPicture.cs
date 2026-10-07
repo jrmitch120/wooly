@@ -5,7 +5,7 @@ namespace Wooly.Tui.Media;
 /// </summary>
 /// <remarks>
 ///     What a frame says to <see cref="IPictures.Want" />, nearest first. Being on screen is what the cache is never
-///     to let go of, and only the view that drew the frame knows it, so it travels with the picture rather than being
+///     to let go of, and only what placed the frame knows it, so it travels with the picture rather than being
 ///     worked out again from where the picture came in the list (ADR-0025).
 /// </remarks>
 /// <param name="Drawn">The picture.</param>

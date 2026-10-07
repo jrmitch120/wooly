@@ -117,7 +117,6 @@ try
     // Disposed before the application is, which is what takes every picture this run sent off the terminal.
     using var placeholders = new Placeholders(
         new KittyImages(sequence => application.Driver?.GetOutput().Write(sequence)),
-        placeholdersByName,
         Redraw,
         work => Task.Run(work));
 

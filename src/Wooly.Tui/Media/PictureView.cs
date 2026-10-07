@@ -30,7 +30,7 @@ namespace Wooly.Tui.Media;
 ///         this is the belt to that braces.
 ///     </para>
 /// </remarks>
-internal sealed class PictureView : ImageView
+internal sealed class PictureView : ImageView, IPictureBox
 {
     /// <summary>
     ///     What the cells under a picture are painted in: blank, with no background at all, which is how the driver
@@ -40,6 +40,19 @@ internal sealed class PictureView : ImageView
     private static readonly Attribute UnderThePicture = new(Color.None, Color.None);
 
     private Sixel? _sixel;
+
+    /// <summary>
+    ///     Makes a box and adds it to <paramref name="holder" />, hidden: the program's way of making the boxes a view
+    ///     draws pictures through (<see cref="IPictureBox" />, #360).
+    /// </summary>
+    public static IPictureBox AddedTo(View holder)
+    {
+        var box = new PictureView { Visible = false };
+
+        holder.Add(box);
+
+        return box;
+    }
 
     public PictureView()
     {
@@ -129,7 +142,7 @@ internal sealed class PictureView : ImageView
     ///     as the picture's, so the driver leaves them to it.
     /// </summary>
     /// <remarks>
-    ///     The box is never larger than the part of the picture on the page (<c>PaintedView</c> frames it so), so the
+    ///     The box is never larger than the part of the picture on the page (<see cref="Placing" /> frames it so), so the
     ///     driver is never left to cut it at the edge — which it does by encoding the cut again, on every frame. A
     ///     whole picture shown for Kitty is the image view's own to draw.
     /// </remarks>
