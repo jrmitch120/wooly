@@ -352,16 +352,16 @@ public class WarnedReplyTests
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
         Assert.False(compose.WritingTheWarning);
 
-        opened.WriteWarning();
+        opened.ChangeCompose(compose => compose.WriteTheWarning());
 
         Assert.True(compose.WritingTheWarning);
 
-        opened.RewriteWarning("cw");
+        opened.ChangeCompose(compose => compose.RewriteWarning("cw"));
 
         Assert.Equal("cw", compose.Warning);
         Assert.Contains(compose.Lines(new Drawing(61, AShell.Now)), line => line.Text == ComposeRows.Warning("cw"));
 
-        opened.WriteWarning();
+        opened.ChangeCompose(compose => compose.WriteTheWarning());
 
         Assert.False(compose.WritingTheWarning);
         Assert.Equal("cw", compose.Warning);
@@ -378,7 +378,7 @@ public class WarnedReplyTests
         var opened = await shell.Opened();
 
         opened.Reply();
-        opened.WriteWarning();
+        opened.ChangeCompose(compose => compose.WriteTheWarning());
 
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
 
@@ -410,7 +410,7 @@ public class WarnedReplyTests
         Assert.Contains(compose.Keys, key => key is { Key: "ctrl-w", Does: "content warning" });
         Assert.DoesNotContain(compose.Keys, key => key.Key == "?");
 
-        opened.WriteWarning();
+        opened.ChangeCompose(compose => compose.WriteTheWarning());
 
         Assert.Contains(compose.Keys, key => key is { Key: "ctrl-w", Does: "back to the post" });
         Assert.DoesNotContain(compose.Keys, key => key.Key == "?");
@@ -424,7 +424,7 @@ public class WarnedReplyTests
         var opened = await shell.Opened();
 
         opened.Edit();
-        opened.WriteWarning();
+        opened.ChangeCompose(compose => compose.WriteTheWarning());
 
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
 
@@ -464,9 +464,9 @@ public class WarnedReplyTests
     /// </remarks>
     private static void Writing(Shell shell, string warning)
     {
-        shell.WriteWarning();
-        shell.RewriteWarning(warning);
-        shell.WriteWarning();
+        shell.ChangeCompose(compose => compose.WriteTheWarning());
+        shell.ChangeCompose(compose => compose.RewriteWarning(warning));
+        shell.ChangeCompose(compose => compose.WriteTheWarning());
     }
 
     /// <summary>The draft this compose screen answers with, which is what <c>ctrl-s</c> hands the shell to publish.</summary>

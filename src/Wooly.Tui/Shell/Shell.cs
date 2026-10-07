@@ -499,13 +499,13 @@ public sealed class Shell
         Verb.Vote => Ran(AskToVote),
         Verb.Refresh => Ran(Refresh),
         Verb.MarkRead => Ran(MarkRead),
-        Verb.WriteWarning => Ran(WriteWarning),
+        Verb.WriteWarning => Ran(() => _ = ChangeCompose(compose => compose.WriteTheWarning())),
         // Answered whether or not there was anywhere to go, so that an arrow off either end of the walk or of To stops
         // there rather than falling through to Terminal.Gui, which would carry the focus round to the other end.
-        Verb.PreviousField => Ran(() => _ = WalkField(-1)),
-        Verb.NextField => Ran(() => _ = WalkField(1)),
-        Verb.PreviousChoice => Ran(() => _ = Choose(-1)),
-        Verb.NextChoice => Ran(() => _ = Choose(1)),
+        Verb.PreviousField => Ran(() => _ = ChangeCompose(compose => compose.Walk(-1))),
+        Verb.NextField => Ran(() => _ = ChangeCompose(compose => compose.Walk(1))),
+        Verb.PreviousChoice => Ran(() => _ = ChangeCompose(compose => compose.Choose(-1))),
+        Verb.NextChoice => Ran(() => _ = ChangeCompose(compose => compose.Choose(1))),
 
         // Nothing, and the terminal's own — which the window has already taken, and which no screen answers either.
         Verb.None => false,
@@ -1029,7 +1029,6 @@ public sealed class Shell
         }
 
         Screen.Type(letter);
-        Redrafted();
         Changed?.Invoke();
     }
 
@@ -1069,7 +1068,6 @@ public sealed class Shell
             }
         }
 
-        Redrafted();
         Changed?.Invoke();
 
         return true;
@@ -1084,177 +1082,43 @@ public sealed class Shell
         }
 
         Screen.Backspace();
-        Redrafted();
         Changed?.Invoke();
     }
 
     /// <summary>
-    ///     The post being written changed in the editor: its text, kept in step with every edit so that whatever reads
-    ///     it while it is written — the count, the list of people to mention — sees what has been typed so far.
+    ///     Makes <paramref name="change" /> to the compose screen on top — every change to a draft comes in here, from
+    ///     its fields, its lists and its keys — and settles what follows from it by the one rule (#364): a change that
+    ///     says it <see cref="ComposeChange.Edited" /> spends a notice said over the draft, and anything but no change at
+    ///     all is announced so the screen is drawn again.
     /// </summary>
-    public void Rewrite(string text)
+    /// <remarks>
+    ///     A notice is spent by an edit of the draft and not by a move (#319). The status row holds a notice or the
+    ///     keymap and never both, and while a post is being written the keys go to its fields rather than to anything
+    ///     that would otherwise take a notice down — so a refusal of the post would stand, hiding every key compose
+    ///     answers to, until <c>esc</c> threw the draft away. Changing the draft is doing what the notice asked; walking
+    ///     the fields, choosing on To or opening a list is not, and leaves the notice to be read.
+    /// </remarks>
+    /// <returns>What the change was, or nothing where compose is not on top and no change was made.</returns>
+    public ComposeChange ChangeCompose(Func<ComposeScreen, ComposeChange> change)
     {
         if (Screen is not ComposeScreen compose)
         {
-            return;
+            return ComposeChange.None;
         }
 
-        compose.Text = text;
-        Redrafted();
-    }
+        var made = change(compose);
 
-    /// <summary>
-    ///     The warning over the post being written changed in its field (#320): kept in step with every edit, as the
-    ///     post's text is, so that the count reads it and <c>ctrl-s</c> sends it.
-    /// </summary>
-    public void RewriteWarning(string written)
-    {
-        // The field filled in as the screen opens is the field saying back what it was told, not an edit.
-        if (Screen is not ComposeScreen compose || compose.Warning == written)
+        if (made == ComposeChange.Edited && Notice is not null)
         {
-            return;
-        }
-
-        compose.RewriteWarning(written);
-        Redrafted();
-    }
-
-    /// <summary>
-    ///     What Lang holds changed in its field (#340): kept in step as the warning is, so that <c>ctrl-s</c> sends it —
-    ///     or refuses it, where it is not a language.
-    /// </summary>
-    public void RewriteLanguage(string written)
-    {
-        if (Screen is not ComposeScreen compose || compose.Lang.Held == written)
-        {
-            return;
-        }
-
-        compose.RewriteLanguage(written);
-        Redrafted();
-        Changed?.Invoke();
-    }
-
-    /// <summary>A language picked off the list under Lang, which Lang then holds (#340).</summary>
-    public void PickLanguage(PostLanguage language)
-    {
-        if (Screen is not ComposeScreen compose)
-        {
-            return;
-        }
-
-        compose.PickLanguage(language);
-        Redrafted();
-        Changed?.Invoke();
-    }
-
-    /// <summary>The list under Lang opened or closed, which the status row follows with its keys (#340).</summary>
-    public void OfferLanguages(bool open)
-    {
-        if (Screen is not ComposeScreen compose || compose.OfferingLanguages == open)
-        {
-            return;
-        }
-
-        compose.OfferLanguages(open);
-        Changed?.Invoke();
-    }
-
-    /// <summary>
-    ///     The draft is being worked on, so whatever was said over it is spent (#319). The status row holds a notice
-    ///     or the keymap and never both, and while a post is being written the keys go to its fields rather than to
-    ///     anything that would otherwise take a notice down — so a refusal of the post would stand, hiding every key
-    ///     compose answers to, until <c>esc</c> threw the draft away. Changing the draft is doing what the notice
-    ///     asked, which is the rule the status row already keeps.
-    /// </summary>
-    private void Redrafted()
-    {
-        if (Screen is ComposeScreen && Notice is not null)
-        {
+            // Saying nothing announces the change itself.
             Say(null, isError: false);
         }
-    }
-
-    /// <summary>
-    ///     <c>ctrl-w</c>: moves the typing between the post being written and the warning over it (#123), on all three
-    ///     compose screens since #140 gave an edit a field of its own. Nothing at all anywhere else.
-    /// </summary>
-    public void WriteWarning()
-    {
-        if (Screen is not ComposeScreen compose)
+        else if (made != ComposeChange.None)
         {
-            return;
+            Changed?.Invoke();
         }
 
-        compose.WriteTheWarning();
-        Redrafted();
-        Changed?.Invoke();
-    }
-
-    /// <summary>
-    ///     <c>↑</c> or <c>↓</c> where a compose screen's field leaves it: moves the typing to the field above or below
-    ///     (ADR-0024, #337). Nothing anywhere else.
-    /// </summary>
-    /// <returns>Whether the typing moved, which it does not off the top header or below the post.</returns>
-    public bool WalkField(int by)
-    {
-        if (Screen is not ComposeScreen compose || !compose.Walk(by))
-        {
-            return false;
-        }
-
-        Redrafted();
-        Changed?.Invoke();
-
-        return true;
-    }
-
-    /// <summary>
-    ///     <c>←</c> or <c>→</c> on a compose screen's To: moves the choice to the next visibility To allows, that way
-    ///     (ADR-0024, #338). Nothing anywhere else.
-    /// </summary>
-    /// <returns>Whether the choice moved, which it does not off either end of the row nor anywhere but To.</returns>
-    public bool Choose(int by)
-    {
-        if (Screen is not ComposeScreen compose || !compose.Choose(by))
-        {
-            return false;
-        }
-
-        Redrafted();
-        Changed?.Invoke();
-
-        return true;
-    }
-
-    /// <summary>
-    ///     The typing went into <paramref name="field" /> of a compose screen another way than its keys — a click, which
-    ///     the screen is brought into step with (#320, #338). Nothing anywhere else, nor where it is already there.
-    /// </summary>
-    public void TypeInto(ComposeField field)
-    {
-        if (Screen is not ComposeScreen compose || !compose.TypeInto(field))
-        {
-            return;
-        }
-
-        Changed?.Invoke();
-    }
-
-    /// <summary>
-    ///     A click on To's value, <paramref name="column" /> columns into a value column <paramref name="room" /> wide:
-    ///     a value To allows is chosen, an arrow steps, and either gives To the typing (ADR-0024, #338). A value To does
-    ///     not allow, and the whole row on an edit, ignore it.
-    /// </summary>
-    public void ClickTo(int column, int room)
-    {
-        if (Screen is not ComposeScreen compose || !compose.ClickTo(column, room))
-        {
-            return;
-        }
-
-        Redrafted();
-        Changed?.Invoke();
+        return made;
     }
 
     /// <summary>

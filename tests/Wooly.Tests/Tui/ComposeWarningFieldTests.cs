@@ -4,14 +4,13 @@ using Wooly.Tui.Screens;
 using Wooly.Tui.Theme;
 using Wooly.Tui.Views;
 using Key = Terminal.Gui.Input.Key;
-using MouseFlags = Terminal.Gui.Input.MouseFlags;
 
 namespace Wooly.Tests.Tui;
 
 /// <summary>
 ///     The content warning as a field of its own, laid over its header's value column the way the editor is laid over
 ///     the body (#320): it selects, moves by word, takes a paste and takes the mouse, and the keys the shell takes off
-///     the editor it takes off the field too.
+///     the editor it takes off the field too. Typed into in <see cref="ComposeView" /> over a shell (#365).
 /// </summary>
 public class ComposeWarningFieldTests
 {
@@ -24,25 +23,25 @@ public class ComposeWarningFieldTests
     [Fact]
     public async Task CtrlW_MovesTheTypingIntoTheFieldAndBack()
     {
-        using var drawn = await Replying();
-        var compose = Compose(drawn);
+        using var view = await Replying();
+        var compose = view.Compose;
 
-        drawn.Press(Key.W.WithCtrl);
+        view.Press(Key.W.WithCtrl);
 
         Assert.True(compose.WritingTheWarning);
-        Assert.True(Field(drawn).HasFocus);
+        Assert.True(view.Warning.HasFocus);
 
-        Type(drawn, "cw");
+        view.Type("cw");
 
         Assert.Equal("cw", compose.Warning);
         Assert.Equal(Mention, compose.Text);
 
-        drawn.Press(Key.W.WithCtrl);
+        view.Press(Key.W.WithCtrl);
 
         Assert.False(compose.WritingTheWarning);
-        Assert.True(Editor(drawn).HasFocus);
+        Assert.True(view.Editor.HasFocus);
 
-        Type(drawn, "hi");
+        view.Type("hi");
 
         Assert.Equal("cw", compose.Warning);
         Assert.Equal($"{Mention}hi", compose.Text);
@@ -52,15 +51,15 @@ public class ComposeWarningFieldTests
     [Fact]
     public async Task Enter_HandsTheTypingBackToThePost()
     {
-        using var drawn = await Replying();
-        var compose = Compose(drawn);
+        using var view = await Replying();
+        var compose = view.Compose;
 
-        drawn.Press(Key.W.WithCtrl);
-        Type(drawn, "cw");
-        drawn.Press(Key.Enter);
+        view.Press(Key.W.WithCtrl);
+        view.Type("cw");
+        view.Press(Key.Enter);
 
         Assert.False(compose.WritingTheWarning);
-        Assert.True(Editor(drawn).HasFocus);
+        Assert.True(view.Editor.HasFocus);
         Assert.Equal("cw", compose.Warning);
         Assert.Equal(Mention, compose.Text);
     }
@@ -69,13 +68,13 @@ public class ComposeWarningFieldTests
     [Fact]
     public async Task TheStatusRowSaysWhichWayCtrlWGoesNext()
     {
-        using var drawn = await Replying();
+        using var view = await Replying();
 
-        Assert.Contains("Content warning: ctrl-w", drawn.Rows()[^1], StringComparison.Ordinal);
+        Assert.Contains("Content warning: ctrl-w", view.Status(), StringComparison.Ordinal);
 
-        drawn.Press(Key.W.WithCtrl);
+        view.Press(Key.W.WithCtrl);
 
-        Assert.Contains("Back to the post: ctrl-w", drawn.Rows()[^1], StringComparison.Ordinal);
+        Assert.Contains("Back to the post: ctrl-w", view.Status(), StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -85,22 +84,22 @@ public class ComposeWarningFieldTests
     [Fact]
     public async Task TheFieldMovesByWordAndSelects()
     {
-        using var drawn = await Replying();
-        var compose = Compose(drawn);
+        using var view = await Replying();
+        var compose = view.Compose;
 
-        drawn.Press(Key.W.WithCtrl);
-        Type(drawn, "one two");
+        view.Press(Key.W.WithCtrl);
+        view.Type("one two");
 
-        drawn.Press(Key.CursorLeft.WithCtrl);
-        drawn.Press(Key.Backspace);
+        view.Press(Key.CursorLeft.WithCtrl);
+        view.Press(Key.Backspace);
 
         Assert.Equal("onetwo", compose.Warning);
 
-        drawn.Press(Key.End);
-        drawn.Press(Key.CursorLeft.WithShift);
-        drawn.Press(Key.CursorLeft.WithShift);
-        drawn.Press(Key.CursorLeft.WithShift);
-        Type(drawn, "six");
+        view.Press(Key.End);
+        view.Press(Key.CursorLeft.WithShift);
+        view.Press(Key.CursorLeft.WithShift);
+        view.Press(Key.CursorLeft.WithShift);
+        view.Type("six");
 
         Assert.Equal("onesix", compose.Warning);
     }
@@ -109,12 +108,11 @@ public class ComposeWarningFieldTests
     [Fact]
     public async Task APasteGoesIntoTheField()
     {
-        using var drawn = await Replying();
-        var compose = Compose(drawn);
+        using var view = await Replying();
+        var compose = view.Compose;
 
-        drawn.Press(Key.W.WithCtrl);
-        drawn.Application.RaisePasteEvent("spoilers");
-        drawn.Redraw();
+        view.Press(Key.W.WithCtrl);
+        view.Paste("spoilers");
 
         Assert.Equal("spoilers", compose.Warning);
         Assert.Equal(Mention, compose.Text);
@@ -122,18 +120,20 @@ public class ComposeWarningFieldTests
 
     /// <summary>
     ///     <c>?</c> is a letter in the field rather than the keymap: a warning is entitled to ask a question. And so is
-    ///     every other key the shell would otherwise act on — <c>c</c> does not open a second compose.
+    ///     every other key the shell would otherwise act on — <c>c</c> never reaches the window to open a second compose.
     /// </summary>
     [Fact]
     public async Task KeysTheShellActsOnAreLettersInTheField()
     {
-        using var drawn = await Replying();
-        var compose = Compose(drawn);
+        using var view = await Replying();
+        var compose = view.Compose;
 
-        drawn.Press(Key.W.WithCtrl);
-        Type(drawn, "c?");
+        view.Press(Key.W.WithCtrl);
+        view.Window.Reached.Clear();
+        view.Type("c?");
 
-        Assert.Same(compose, drawn.Shell.Screen);
+        Assert.Empty(view.Window.Reached);
+        Assert.Same(compose, view.Shell.Screen);
         Assert.Equal("c?", compose.Warning);
     }
 
@@ -143,42 +143,43 @@ public class ComposeWarningFieldTests
     [Fact]
     public async Task AQuestionMarkInThePostIsALetter()
     {
-        using var drawn = await Replying();
-        var compose = Compose(drawn);
+        using var view = await Replying();
+        var compose = view.Compose;
 
-        Type(drawn, "?");
+        view.Type("?");
 
-        Assert.Same(compose, drawn.Shell.Screen);
+        Assert.Empty(view.Window.Reached);
+        Assert.Same(compose, view.Shell.Screen);
         Assert.Equal($"{Mention}?", compose.Text);
-        Assert.DoesNotContain("?", drawn.Rows()[^1], StringComparison.Ordinal);
+        Assert.DoesNotContain("?", view.Status(), StringComparison.Ordinal);
     }
 
     /// <summary><c>esc</c> from the field throws the draft away, as it does from the post.</summary>
     [Fact]
     public async Task Esc_FromTheFieldThrowsTheDraftAway()
     {
-        using var drawn = await Replying();
+        using var view = await Replying();
 
-        drawn.Press(Key.W.WithCtrl);
-        Type(drawn, "cw");
-        drawn.Press(Key.Esc);
+        view.Press(Key.W.WithCtrl);
+        view.Type("cw");
+        view.Press(Key.Esc);
 
-        Assert.IsNotType<ComposeScreen>(drawn.Shell.Screen);
+        Assert.IsNotType<ComposeScreen>(view.Shell.Screen);
     }
 
     /// <summary><c>ctrl-s</c> from the field sends the post with the warning over it, as it does from the post.</summary>
     [Fact]
     public async Task CtrlS_FromTheFieldSendsThePostBehindTheWarning()
     {
-        using var drawn = await Replying();
+        using var view = await Replying();
 
-        Type(drawn, "hi");
-        drawn.Press(Key.W.WithCtrl);
-        Type(drawn, "cw");
-        drawn.Press(Key.S.WithCtrl);
-        drawn.Settle();
+        view.Type("hi");
+        view.Press(Key.W.WithCtrl);
+        view.Type("cw");
+        view.Press(Key.S.WithCtrl);
+        view.Settle();
 
-        var draft = Assert.Single(drawn.Built.Author.Published).Draft;
+        var draft = Assert.Single(view.Built.Author.Published).Draft;
 
         Assert.Equal($"{Mention}hi", draft.Text);
         Assert.Equal("cw", draft.ContentWarning);
@@ -191,46 +192,43 @@ public class ComposeWarningFieldTests
     [Fact]
     public async Task AClickMovesTheTypingBetweenTheFields()
     {
-        using var drawn = await Replying();
-        var compose = Compose(drawn);
-        var field = Field(drawn).FrameToScreen();
-        var editor = Editor(drawn).FrameToScreen();
+        using var view = await Replying();
+        var compose = view.Compose;
+        var field = view.Warning.FrameToScreen();
+        var editor = view.Editor.FrameToScreen();
 
-        drawn.Point(field.X, field.Y, MouseFlags.LeftButtonPressed);
-        drawn.Point(field.X, field.Y, MouseFlags.LeftButtonReleased);
-        drawn.Click(field.X, field.Y);
+        view.Click(field.X, field.Y);
 
         Assert.True(compose.WritingTheWarning);
-        Assert.True(Field(drawn).HasFocus);
+        Assert.True(view.Warning.HasFocus);
 
-        Type(drawn, "cw");
+        view.Type("cw");
 
         Assert.Equal("cw", compose.Warning);
 
-        drawn.Point(editor.X, editor.Y, MouseFlags.LeftButtonPressed);
-        drawn.Point(editor.X, editor.Y, MouseFlags.LeftButtonReleased);
-        drawn.Click(editor.X, editor.Y);
+        view.Click(editor.X, editor.Y);
 
         Assert.False(compose.WritingTheWarning);
-        Assert.True(Editor(drawn).HasFocus);
+        Assert.True(view.Editor.HasFocus);
 
-        drawn.Press(Key.W.WithCtrl);
+        view.Press(Key.W.WithCtrl);
 
         Assert.True(compose.WritingTheWarning);
-        Assert.True(Field(drawn).HasFocus);
+        Assert.True(view.Warning.HasFocus);
     }
 
     /// <summary>A right click on the field does nothing, as on the editor: on a draft it would be <c>esc</c> (#307).</summary>
     [Fact]
     public async Task ARightClickOnTheFieldDoesNothing()
     {
-        using var drawn = await Replying();
-        var compose = Compose(drawn);
-        var field = Field(drawn).FrameToScreen();
+        using var view = await Replying();
+        var compose = view.Compose;
+        var field = view.Warning.FrameToScreen();
 
-        drawn.RightClick(field.X, field.Y);
+        view.RightClick(field.X, field.Y);
 
-        Assert.Same(compose, drawn.Shell.Screen);
+        Assert.Same(compose, view.Shell.Screen);
+        Assert.False(compose.WritingTheWarning);
     }
 
     /// <summary>A reply opens the field on the answered post's warning (#123), and an edit on the post's own (#140).</summary>
@@ -245,25 +243,22 @@ public class ComposeWarningFieldTests
                 APost.With(id: "220", account: "jeff@mastodon.social", contentWarning: "spoilers")),
         };
 
-        using var drawn = await DrawnShell.Of(80, 24, Themes.Dark, built);
+        using var view = await ComposedView.Of(built, opening);
 
-        ComposeRows.Open(drawn.Shell, opening);
-        drawn.Redraw();
-
-        Assert.Equal("spoilers", Field(drawn).Text);
-        Assert.Contains(drawn.Rows(), row => row.Contains("⚠  spoilers", StringComparison.Ordinal));
+        Assert.Equal("spoilers", view.Warning.Text);
+        Assert.Contains(view.Rows(), row => row.Contains("⚠  spoilers", StringComparison.Ordinal));
     }
 
     /// <summary>The field sits on the warning header's row, in its value column, wherever the headers put it.</summary>
     [Fact]
     public async Task TheFieldSitsInTheWarningHeadersValueColumn()
     {
-        using var drawn = await Replying();
-        var at = Field(drawn).FrameToScreen();
-        var row = drawn.Rows()[at.Y];
+        using var view = await Replying();
+        var at = view.Warning.FrameToScreen();
+        var row = view.Rows()[at.Y];
 
         Assert.Equal("⚠  ", row.Substring(at.X - 3, 3));
-        Assert.Equal(Editor(drawn).FrameToScreen().Right, at.Right);
+        Assert.Equal(view.Editor.FrameToScreen().Right, at.Right);
     }
 
     /// <summary>
@@ -273,38 +268,38 @@ public class ComposeWarningFieldTests
     [Fact]
     public async Task TheFieldHintsWhileEmptyAndIsTheWarningsColourOnceWritten()
     {
-        using var drawn = await Replying();
-        var at = Field(drawn).FrameToScreen();
+        using var view = await Replying();
+        var at = view.Warning.FrameToScreen();
 
-        Assert.StartsWith("none · ctrl-w to add", drawn.Rows()[at.Y][at.X..], StringComparison.Ordinal);
-        Assert.Equal(Themes.Dark.For(Role.Muted), drawn.Cell(at.Y, at.X));
+        Assert.StartsWith("none · ctrl-w to add", view.Rows()[at.Y][at.X..], StringComparison.Ordinal);
+        Assert.Equal(Themes.Dark.For(Role.Muted), view.Cell(at.Y, at.X));
 
-        drawn.Press(Key.W.WithCtrl);
+        view.Press(Key.W.WithCtrl);
 
-        Assert.StartsWith("say what it's about", drawn.Rows()[at.Y][at.X..], StringComparison.Ordinal);
+        Assert.StartsWith("say what it's about", view.Rows()[at.Y][at.X..], StringComparison.Ordinal);
 
-        Type(drawn, "cw");
+        view.Type("cw");
 
-        Assert.Equal("cw", drawn.Rows()[at.Y].Substring(at.X, at.Width).TrimEnd());
-        Assert.Equal(Themes.Dark.For(Role.ContentWarning), drawn.Cell(at.Y, at.X));
+        Assert.Equal("cw", view.Rows()[at.Y].Substring(at.X, at.Width).TrimEnd());
+        Assert.Equal(Themes.Dark.For(Role.ContentWarning), view.Cell(at.Y, at.X));
     }
 
     /// <summary>Selected text in the field is drawn in the selection role, as it is in the post (#316).</summary>
     [Fact]
     public async Task SelectedTextInTheFieldIsDrawnInTheSelectionRole()
     {
-        using var drawn = await Replying();
+        using var view = await Replying();
 
-        drawn.Press(Key.W.WithCtrl);
-        Type(drawn, "cw!");
-        Field(drawn).SelectAll();
-        drawn.Redraw();
+        view.Press(Key.W.WithCtrl);
+        view.Type("cw!");
+        view.Warning.SelectAll();
+        view.Redraw();
 
-        var at = Field(drawn).FrameToScreen();
+        var at = view.Warning.FrameToScreen();
 
         Assert.All(
             Enumerable.Range(at.X, 3),
-            column => Assert.Equal(Themes.Dark.For(Role.SelectedText), drawn.Cell(at.Y, column)));
+            column => Assert.Equal(Themes.Dark.For(Role.SelectedText), view.Cell(at.Y, column)));
     }
 
     /// <summary>
@@ -314,20 +309,20 @@ public class ComposeWarningFieldTests
     [Fact]
     public async Task ASelectionMadeWithShiftIsDrawnInTheSelectionRole()
     {
-        using var drawn = await Replying();
+        using var view = await Replying();
 
-        drawn.Press(Key.W.WithCtrl);
-        Type(drawn, "one two");
-        drawn.Press(Key.CursorLeft.WithShift);
-        drawn.Press(Key.CursorLeft.WithShift);
-        drawn.Press(Key.CursorLeft.WithShift);
+        view.Press(Key.W.WithCtrl);
+        view.Type("one two");
+        view.Press(Key.CursorLeft.WithShift);
+        view.Press(Key.CursorLeft.WithShift);
+        view.Press(Key.CursorLeft.WithShift);
 
-        var at = Field(drawn).FrameToScreen();
+        var at = view.Warning.FrameToScreen();
 
-        Assert.Equal(Themes.Dark.For(Role.ContentWarning), drawn.Cell(at.Y, at.X));
+        Assert.Equal(Themes.Dark.For(Role.ContentWarning), view.Cell(at.Y, at.X));
         Assert.All(
             Enumerable.Range(at.X + 4, 3),
-            column => Assert.Equal(Themes.Dark.For(Role.SelectedText), drawn.Cell(at.Y, column)));
+            column => Assert.Equal(Themes.Dark.For(Role.SelectedText), view.Cell(at.Y, column)));
     }
 
     /// <summary>
@@ -345,19 +340,17 @@ public class ComposeWarningFieldTests
             Timelines = FakeTimelineReader.Holding(APost.With(id: "220", account: "ben@hachyderm.io")),
         };
 
-        using var drawn = await DrawnShell.Of(80, 24, theme, built);
+        using var view = await ComposedView.Of(built, ComposeFor.Reply, theme: theme);
 
-        drawn.Shell.Reply();
-        drawn.Redraw();
-        drawn.Press(Key.W.WithCtrl);
-        Type(drawn, "cw");
-        drawn.Press(Key.CursorLeft.WithShift);
+        view.Press(Key.W.WithCtrl);
+        view.Type("cw");
+        view.Press(Key.CursorLeft.WithShift);
 
         var answered = Enum.GetValues<Role>()
                            .SelectMany(role => new[] { theme.For(role), theme.Banded(role) })
                            .ToHashSet();
 
-        Assert.All(drawn.Cells(), cell => Assert.Contains(cell, answered));
+        Assert.All(view.Cells(), cell => Assert.Contains(cell, answered));
     }
 
     /// <summary>
@@ -367,50 +360,22 @@ public class ComposeWarningFieldTests
     [Fact]
     public async Task TheNextComposeOpensOnItsEditor()
     {
-        using var drawn = await Replying();
+        using var view = await Replying();
 
-        drawn.Press(Key.W.WithCtrl);
-        drawn.Press(Key.Esc);
+        view.Press(Key.W.WithCtrl);
+        view.Press(Key.Esc);
 
-        drawn.Shell.Reply();
-        drawn.Redraw();
+        view.Shell.Reply();
+        view.Redraw();
 
-        Assert.False(Compose(drawn).WritingTheWarning);
-        Assert.True(Editor(drawn).HasFocus);
-        Assert.Equal(string.Empty, Field(drawn).Text);
+        Assert.False(view.Compose.WritingTheWarning);
+        Assert.True(view.Editor.HasFocus);
+        Assert.Equal(string.Empty, view.Warning.Text);
     }
 
-    /// <summary>A reply to a post with no warning, drawn on an 80×24 terminal.</summary>
-    private static async Task<DrawnShell> Replying()
-    {
-        var built = new AShell
-        {
-            Timelines = FakeTimelineReader.Holding(APost.With(id: "220", account: "ben@hachyderm.io")),
-        };
-
-        var drawn = await DrawnShell.Of(80, 24, Themes.Dark, built);
-
-        drawn.Shell.Reply();
-        drawn.Redraw();
-
-        return drawn;
-    }
-
-    private static ComposeScreen Compose(DrawnShell drawn) => Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
-
-    private static void Type(DrawnShell drawn, string text)
-    {
-        foreach (var letter in text)
-        {
-            drawn.Window.NewKeyDownEvent(new Key(letter));
-        }
-
-        drawn.Redraw();
-    }
-
-    private static ComposeEditor Editor(DrawnShell drawn) =>
-        drawn.Window.SubViews.OfType<ComposeEditor>().Single();
-
-    private static ComposeWarningField Field(DrawnShell drawn) =>
-        drawn.Window.SubViews.OfType<ComposeWarningField>().Single();
+    /// <summary>Compose's fields over a reply to a post with no warning.</summary>
+    private static Task<ComposedView> Replying() =>
+        ComposedView.Of(
+            new AShell { Timelines = FakeTimelineReader.Holding(APost.With(id: "220", account: "ben@hachyderm.io")) },
+            ComposeFor.Reply);
 }

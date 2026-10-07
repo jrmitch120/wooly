@@ -10,7 +10,7 @@ namespace Wooly.Tests.Tui;
 /// <summary>
 ///     The compose screen drawn in the theme (#316): the editor's text in the body role on the terminal's own page
 ///     rather than in Terminal.Gui's saturated default, selected text in a role of its own, and a dim placeholder in an
-///     empty editor.
+///     empty editor. Drawn by <see cref="ComposeView" /> over the screen's own rows (#365).
 /// </summary>
 public class ComposeThemeTests
 {
@@ -27,15 +27,15 @@ public class ComposeThemeTests
     {
         var theme = name == "dark" ? Themes.Dark : Themes.Light;
 
-        using var drawn = await Composing(theme);
+        using var view = await Composing(theme);
 
-        Type(drawn, "Hello there");
+        view.Type("Hello there");
 
         var answered = Enum.GetValues<Role>()
                            .SelectMany(role => new[] { theme.For(role), theme.Banded(role) })
                            .ToHashSet();
 
-        Assert.All(drawn.Cells(), cell => Assert.Contains(cell, answered));
+        Assert.All(view.Cells(), cell => Assert.Contains(cell, answered));
     }
 
     /// <summary>
@@ -54,48 +54,45 @@ public class ComposeThemeTests
                 APost.With(id: "220", account: "ben@hachyderm.io", contentWarning: "spoilers")),
         };
 
-        using var drawn = await DrawnShell.Of(80, 24, theme, built);
-
-        drawn.Shell.Reply();
-        drawn.Redraw();
+        using var view = await ComposedView.Of(built, ComposeFor.Reply, theme: theme);
 
         var answered = Enum.GetValues<Role>()
                            .SelectMany(role => new[] { theme.For(role), theme.Banded(role) })
                            .ToHashSet();
 
-        Assert.Contains(drawn.Rows(), row => row.Contains("⚠  spoilers", StringComparison.Ordinal));
-        Assert.All(drawn.Cells(), cell => Assert.Contains(cell, answered));
+        Assert.Contains(view.Rows(), row => row.Contains("⚠  spoilers", StringComparison.Ordinal));
+        Assert.All(view.Cells(), cell => Assert.Contains(cell, answered));
     }
 
     /// <summary>The editor's text and the empty rows under it are the body role on the page, edge to edge.</summary>
     [Fact]
     public async Task TheEditorIsTheBodyOnThePage()
     {
-        using var drawn = await Composing();
+        using var view = await Composing();
 
-        Type(drawn, "Hello there");
+        view.Type("Hello there");
 
         var body = Themes.Dark.For(Role.Body);
 
-        Assert.All(EditorCells(drawn), cell => Assert.Equal(body, cell));
+        Assert.All(EditorCells(view), cell => Assert.Equal(body, cell));
     }
 
     /// <summary>Selected text is drawn in the selection role rather than the band or Terminal.Gui's own.</summary>
     [Fact]
     public async Task SelectedTextIsDrawnInItsOwnRole()
     {
-        using var drawn = await Composing();
+        using var view = await Composing();
 
-        Type(drawn, "Hello");
+        view.Type("Hello");
 
-        Editor(drawn).SelectAll();
-        drawn.Redraw();
+        view.Editor.SelectAll();
+        view.Redraw();
 
-        var at = Editor(drawn).FrameToScreen();
+        var at = view.Editor.FrameToScreen();
 
         Assert.All(
             Enumerable.Range(at.X, "Hello".Length),
-            column => Assert.Equal(Themes.Dark.For(Role.SelectedText), drawn.Cell(at.Y, column)));
+            column => Assert.Equal(Themes.Dark.For(Role.SelectedText), view.Cell(at.Y, column)));
     }
 
     /// <summary>
@@ -105,22 +102,22 @@ public class ComposeThemeTests
     [Fact]
     public async Task AnEmptyEditorShowsAPlaceholderUntilALetterIsTyped()
     {
-        using var drawn = await Composing();
+        using var view = await Composing();
 
-        Assert.Equal(Placeholder, FirstRow(drawn)[..Placeholder.Length]);
+        Assert.Equal(Placeholder, FirstRow(view)[..Placeholder.Length]);
         Assert.All(
-            Enumerable.Range(Editor(drawn).FrameToScreen().X, Placeholder.Length),
+            Enumerable.Range(view.Editor.FrameToScreen().X, Placeholder.Length),
             column => Assert.Equal(
                 Themes.Dark.For(Role.Muted),
-                drawn.Cell(Editor(drawn).FrameToScreen().Y, column)));
+                view.Cell(view.Editor.FrameToScreen().Y, column)));
 
-        Type(drawn, "a");
+        view.Type("a");
 
-        Assert.Equal("a", FirstRow(drawn).TrimEnd());
+        Assert.Equal("a", FirstRow(view).TrimEnd());
 
-        drawn.Press(Key.Backspace);
+        view.Press(Key.Backspace);
 
-        Assert.Equal(Placeholder, FirstRow(drawn)[..Placeholder.Length]);
+        Assert.Equal(Placeholder, FirstRow(view)[..Placeholder.Length]);
     }
 
     /// <summary>A reply opens on the mention it is addressed with, so it opens with no placeholder over it.</summary>
@@ -132,56 +129,27 @@ public class ComposeThemeTests
             Timelines = FakeTimelineReader.Holding(APost.With(id: "220", account: "ben@hachyderm.io")),
         };
 
-        using var drawn = await DrawnShell.Of(80, 24, Themes.Dark, built);
+        using var view = await ComposedView.Of(built, ComposeFor.Reply);
 
-        drawn.Shell.Reply();
-        drawn.Redraw();
+        Assert.Equal("@ben@hachyderm.io ", view.Editor.Text);
 
-        Assert.Equal("@ben@hachyderm.io ", Editor(drawn).Text);
-
-        Assert.DoesNotContain(Placeholder, FirstRow(drawn), StringComparison.Ordinal);
+        Assert.DoesNotContain(Placeholder, FirstRow(view), StringComparison.Ordinal);
     }
 
-    private static async Task<DrawnShell> Composing(ITheme? theme = null)
-    {
-        var drawn = await DrawnShell.Of(80, 24, theme ?? Themes.Dark);
-
-        drawn.Shell.Compose();
-        drawn.Redraw();
-
-        return drawn;
-    }
-
-    private static void Type(DrawnShell drawn, string text)
-    {
-        foreach (var letter in text)
-        {
-            drawn.Window.NewKeyDownEvent(new Key(letter));
-        }
-
-        drawn.Redraw();
-    }
-
-    private static ComposeEditor Editor(DrawnShell drawn) =>
-        drawn.Window.SubViews.OfType<ComposeEditor>().Single();
+    private static Task<ComposedView> Composing(ITheme? theme = null) => ComposedView.Of(theme: theme);
 
     /// <summary>The editor's first row, as drawn.</summary>
-    private static string FirstRow(DrawnShell drawn)
-    {
-        var at = Editor(drawn).FrameToScreen();
+    private static string FirstRow(ComposedView view) => view.Shown(view.Editor);
 
-        return drawn.Rows()[at.Y].Substring(at.X, at.Width);
-    }
-
-    private static IEnumerable<Attribute> EditorCells(DrawnShell drawn)
+    private static IEnumerable<Attribute> EditorCells(ComposedView view)
     {
-        var at = Editor(drawn).FrameToScreen();
+        var at = view.Editor.FrameToScreen();
 
         for (var row = at.Top; row < at.Bottom; row++)
         {
             for (var column = at.Left; column < at.Right; column++)
             {
-                yield return drawn.Cell(row, column);
+                yield return view.Cell(row, column);
             }
         }
     }

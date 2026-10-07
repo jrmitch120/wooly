@@ -15,25 +15,26 @@ namespace Wooly.Tui.Views;
 /// </summary>
 internal sealed class LanguageList
 {
-    /// <summary>The list's <c>Id</c> among the window's views.</summary>
+    /// <summary>The list's <c>Id</c> among compose's views.</summary>
     internal const string Id = "languages";
-
-    /// <summary>The columns and rows the content panel's edge takes off each side of what is inside it.</summary>
-    private const int Edge = 1;
 
     private readonly Shell.Shell _shell;
     private readonly ComposeLangField _field;
-    private readonly View _content;
+    private readonly View _over;
     private readonly PickList<PostLanguage> _list;
 
     /// <summary>Whether the field's text is being set from here rather than typed, which opens nothing.</summary>
     private bool _filling;
 
-    public LanguageList(ITheme theme, Shell.Shell shell, ComposeLangField field, View content)
+    /// <param name="field">Lang, which the list hangs under.</param>
+    /// <param name="over">
+    ///     The view Lang is laid in, over the content viewport: this list is laid beside Lang in it, and kept inside it.
+    /// </param>
+    public LanguageList(ITheme theme, Shell.Shell shell, ComposeLangField field, View over)
     {
         _shell = shell;
         _field = field;
-        _content = content;
+        _over = over;
 
         _list = new PickList<PostLanguage>(
             theme,
@@ -44,10 +45,10 @@ internal sealed class LanguageList
             Close,
             picks: "choose");
 
-        View.X = Pos.Func(_ => field.Frame.X, field);
-        View.Y = Pos.Func(_ => field.Frame.Bottom, field);
-        View.Width = Dim.Func(_ => Size().Width, field);
-        View.Height = Dim.Func(_ => Size().Height, field);
+        View.X = Pos.Func(_ => field.Frame.X);
+        View.Y = Pos.Func(_ => field.Frame.Bottom);
+        View.Width = Dim.Func(_ => Size().Width);
+        View.Height = Dim.Func(_ => Size().Height);
 
         field.Ahead = Took;
         field.Asked = Ask;
@@ -61,12 +62,12 @@ internal sealed class LanguageList
         };
     }
 
-    /// <summary>The list as drawn, which the window lays over whatever is under Lang.</summary>
+    /// <summary>The list as drawn, which compose's view lays over whatever is under Lang.</summary>
     public PaintedView View => _list.View;
 
     /// <summary>
-    ///     Puts <paramref name="text" /> in the field as the screen holds it — as compose opens — rather than as typed,
-    ///     so it opens no list.
+    ///     Puts <paramref name="text" /> in the field as the screen holds it — as compose opens, or as a language is
+    ///     picked — rather than as typed, so it opens no list.
     /// </summary>
     public void Fill(string text)
     {
@@ -92,7 +93,7 @@ internal sealed class LanguageList
         }
 
         _list.Offer([], keepingThePick: false);
-        _shell.OfferLanguages(false);
+        _shell.ChangeCompose(compose => compose.OfferLanguages(false));
     }
 
     /// <summary>First refusal on a mouse event anywhere: a click outside the open list closes it.</summary>
@@ -123,7 +124,7 @@ internal sealed class LanguageList
             return;
         }
 
-        _shell.RewriteLanguage(_field.Text);
+        _shell.ChangeCompose(compose => compose.RewriteLanguage(_field.Text));
 
         if (_shell.Screen is not ComposeScreen || _field.Text.Trim().Length == 0)
         {
@@ -143,14 +144,14 @@ internal sealed class LanguageList
 
         if (_list.Open != was)
         {
-            _shell.OfferLanguages(_list.Open);
+            _shell.ChangeCompose(compose => compose.OfferLanguages(_list.Open));
         }
     }
 
     /// <summary>A language picked: written into Lang, and the list closed, with the typing still in Lang.</summary>
     private void Pick(PostLanguage language)
     {
-        _shell.PickLanguage(language);
+        _shell.ChangeCompose(compose => compose.PickLanguage(language));
 
         if (_shell.Screen is ComposeScreen compose)
         {
@@ -174,16 +175,15 @@ internal sealed class LanguageList
     }
 
     /// <summary>
-    ///     How big the list is drawn: wide enough for its widest language, and no further down than the content panel's
-    ///     foot.
+    ///     How big the list is drawn: wide enough for its widest language, and no further right or down than the content
+    ///     viewport Lang is laid in.
     /// </summary>
     private Size Size()
     {
-        var viewport = _content.Frame;
-        var top = _field.Frame.Bottom;
+        var viewport = _over.Viewport.Size;
 
         return _list.Within(
-            Math.Max(0, viewport.Right - Edge - _field.Frame.X),
-            Math.Max(0, viewport.Bottom - Edge - top));
+            Math.Max(0, viewport.Width - _field.Frame.X),
+            Math.Max(0, viewport.Height - _field.Frame.Bottom));
     }
 }

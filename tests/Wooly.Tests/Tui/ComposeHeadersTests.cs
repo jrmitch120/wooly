@@ -238,6 +238,22 @@ public class ComposeHeadersTests
         Assert.Equal(height >= 7, lines.Any(line => line.Text.Contains("From", StringComparison.Ordinal)));
     }
 
+    /// <summary>
+    ///     Where there are not even three rows under To and the warning, the editor keeps what there is rather than a
+    ///     height below nothing.
+    /// </summary>
+    [Theory]
+    [InlineData(3, 1)]
+    [InlineData(1, 0)]
+    public async Task TooShortForThreeRowsTheEditorKeepsWhatThereIs(int height, int rows)
+    {
+        var compose = await Opening(ComposeFor.Reply, Bens);
+
+        Assert.Equal(
+            new System.Drawing.Rectangle(2, 2, Width - 4, rows),
+            compose.EditorAt(new System.Drawing.Size(Width, height)));
+    }
+
     private static IReadOnlyList<Line> Lines(ComposeScreen compose) =>
         compose.Lines(new Drawing(Width, AShell.Now, Height: Height));
 

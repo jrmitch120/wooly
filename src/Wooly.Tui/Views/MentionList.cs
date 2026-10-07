@@ -18,7 +18,7 @@ namespace Wooly.Tui.Views;
 /// </remarks>
 internal sealed class MentionList
 {
-    /// <summary>The list's <c>Id</c> among the window's views.</summary>
+    /// <summary>The list's <c>Id</c> among compose's views.</summary>
     internal const string Id = "mentions";
 
     private readonly Shell.Shell _shell;
@@ -39,6 +39,7 @@ internal sealed class MentionList
     /// <summary>The word <c>esc</c> closed the list on, by line and start, which keeps it closed until the caret leaves it.</summary>
     private (int Line, int Start)? _dismissed;
 
+    /// <param name="editor">The post's editor, which this list is laid beside in the same view and hangs under.</param>
     public MentionList(ITheme theme, Shell.Shell shell, ComposeEditor editor)
     {
         _shell = shell;
@@ -52,10 +53,11 @@ internal sealed class MentionList
             Insert,
             Dismiss);
 
-        View.X = Pos.Func(_ => At().X, editor);
-        View.Y = Pos.Func(_ => At().Y, editor);
-        View.Width = Dim.Func(_ => Size().Width, editor);
-        View.Height = Dim.Func(_ => Size().Height, editor);
+        // Laid beside the editor in compose's view, so where the editor puts its caret is where in that view it goes.
+        View.X = Pos.Func(_ => At().X);
+        View.Y = Pos.Func(_ => At().Y);
+        View.Width = Dim.Func(_ => Size().Width);
+        View.Height = Dim.Func(_ => Size().Height);
 
         editor.ContentsChanged += (_, _) => Follow();
         editor.UnwrappedCursorPositionChanged += (_, moved) =>
@@ -65,7 +67,7 @@ internal sealed class MentionList
         };
     }
 
-    /// <summary>The list as drawn, which the window lays over the editor.</summary>
+    /// <summary>The list as drawn, which compose's view lays over the editor.</summary>
     public PaintedView View => _list.View;
 
     /// <summary>

@@ -82,3 +82,11 @@ it fakes are one or two calls deep, which is the condition that decision rests o
 where this ADR and ADR-0006 put them: thin adapters over Mastonet, and the cross-cutting HTTP layer. Driving a window
 is not licence to widen them, and does not tempt anyone to — a shell reaches an instance through `Wooly.Core` ports,
 so there is no HTTP underneath a TUI test to fake in the first place.
+
+**Since then, some tests do start an application.** The paragraph above that says no test touches `IApplication` was
+true when it was written and is not now. A test that has to see what was drawn — a picture placed, a band, a framed
+region, a whole window or compose's view (`DrawnShell`, `ComposedView`) — calls `Application.Create()` and
+`Init("ansi")`, sets a screen size and reads the driver's cells back. That is still no harness of the kind this ADR
+priced: no input injector, no run loop, no terminal, and keys still arrive as `NewKeyDownEvent` on a view. What holds
+is the production half: the shell and its screens reach the terminal only through `IShellHost`, and `IApplication`
+stays on the views' side of it.

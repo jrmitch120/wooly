@@ -312,7 +312,7 @@ public class ShellCrumbClickTests
         drawn.Redraw();
 
         var compose = Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
-        var editor = drawn.Window.SubViews.OfType<ComposeEditor>().Single();
+        var editor = drawn.Window.ComposeField<ComposeEditor>();
 
         // Held on the screen as well as in the editor, as it is once the editor has given it up to the keys screen.
         compose.Text = editor.Text = "A draft about sheep";

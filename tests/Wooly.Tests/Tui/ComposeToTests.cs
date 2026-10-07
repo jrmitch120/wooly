@@ -3,14 +3,14 @@ using Wooly.Tests.Fakes;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Theme;
-using Wooly.Tui.Views;
 using Key = Terminal.Gui.Input.Key;
 
 namespace Wooly.Tests.Tui;
 
 /// <summary>
 ///     Compose says who a post goes to (ADR-0024, #338): a <b>To</b> header under From, a row of radio buttons with
-///     one per visibility, starting on what would go out and sending what it shows.
+///     one per visibility, starting on what would go out and sending what it shows. Chosen on in
+///     <see cref="Wooly.Tui.Views.ComposeView" /> over a shell (#365).
 /// </summary>
 public class ComposeToTests
 {
@@ -55,22 +55,22 @@ public class ComposeToTests
     [Fact]
     public async Task TheArrowsChangeTheChoiceAndWhatIsSentMatches()
     {
-        using var drawn = await Drawn(PostVisibility.Unlisted);
-        var compose = Compose(drawn);
+        using var view = await Drawn(PostVisibility.Unlisted);
+        var compose = view.Compose;
 
-        drawn.Press(Key.CursorUp);
-        drawn.Press(Key.CursorUp);
-        drawn.Press(Key.CursorUp);
+        view.Press(Key.CursorUp);
+        view.Press(Key.CursorUp);
+        view.Press(Key.CursorUp);
 
         Assert.Equal(ComposeField.To, compose.Typing);
 
-        drawn.Press(Key.CursorRight);
+        view.Press(Key.CursorRight);
 
         Assert.Equal(PostVisibility.Followers, compose.Visibility);
-        Assert.Contains(drawn.Rows(), row => row.Contains("To  ○ public  ○ unlisted  ● followers  ○ direct", StringComparison.Ordinal));
+        Assert.Contains(view.Rows(), row => row.Contains("To  ○ public  ○ unlisted  ● followers  ○ direct", StringComparison.Ordinal));
 
-        drawn.Press(Key.CursorLeft);
-        drawn.Press(Key.CursorLeft);
+        view.Press(Key.CursorLeft);
+        view.Press(Key.CursorLeft);
 
         compose.Text = "hello";
 
@@ -84,22 +84,22 @@ public class ComposeToTests
     [Fact]
     public async Task TheArrowsStopAtTheEndsAndLettersDoNothing()
     {
-        using var drawn = await Drawn(PostVisibility.Public);
-        var compose = Compose(drawn);
+        using var view = await Drawn(PostVisibility.Public);
+        var compose = view.Compose;
 
-        drawn.Press(Key.CursorUp);
-        drawn.Press(Key.CursorUp);
-        drawn.Press(Key.CursorUp);
-        drawn.Press(Key.CursorLeft);
+        view.Press(Key.CursorUp);
+        view.Press(Key.CursorUp);
+        view.Press(Key.CursorUp);
+        view.Press(Key.CursorLeft);
 
         Assert.Equal(PostVisibility.Public, compose.Visibility);
 
         foreach (var letter in "crb")
         {
-            drawn.Press(new Key(letter));
+            view.Press(new Key(letter));
         }
 
-        Assert.Same(compose, drawn.Shell.Screen);
+        Assert.Same(compose, view.Shell.Screen);
         Assert.Equal(string.Empty, compose.Text);
         Assert.Equal(ComposeField.To, compose.Typing);
     }
@@ -111,22 +111,22 @@ public class ComposeToTests
     [Fact]
     public async Task TheArrowsStepBackOntoAccountDefaultWhichSendsNone()
     {
-        using var drawn = await Drawn(null);
-        var compose = Compose(drawn);
+        using var view = await Drawn(null);
+        var compose = view.Compose;
 
-        drawn.Press(Key.CursorUp);
-        drawn.Press(Key.CursorUp);
-        drawn.Press(Key.CursorUp);
-        drawn.Press(Key.CursorRight);
+        view.Press(Key.CursorUp);
+        view.Press(Key.CursorUp);
+        view.Press(Key.CursorUp);
+        view.Press(Key.CursorRight);
 
         Assert.Equal(PostVisibility.Public, compose.Visibility);
 
-        drawn.Press(Key.CursorLeft);
+        view.Press(Key.CursorLeft);
 
         Assert.Null(compose.Visibility);
-        Assert.Contains(drawn.Rows(), row => row.Contains("To  ◂ ● account default ▸", StringComparison.Ordinal));
+        Assert.Contains(view.Rows(), row => row.Contains("To  ◂ ● account default ▸", StringComparison.Ordinal));
 
-        drawn.Press(Key.CursorLeft);
+        view.Press(Key.CursorLeft);
 
         Assert.Null(compose.Visibility);
 
@@ -142,14 +142,14 @@ public class ComposeToTests
     [Fact]
     public async Task AClickOnTheArrowStepsBackOntoAccountDefault()
     {
-        using var drawn = await Drawn(null);
-        var compose = Compose(drawn);
+        using var view = await Drawn(null);
+        var compose = view.Compose;
 
-        ClickOn(drawn, "▸");
+        view.ClickOn("▸");
 
         Assert.Equal(PostVisibility.Public, compose.Visibility);
 
-        ClickOn(drawn, "◂");
+        view.ClickOn("◂");
 
         Assert.Null(compose.Visibility);
 
@@ -162,20 +162,20 @@ public class ComposeToTests
     [Fact]
     public async Task AClickOnAccountDefaultChoosesItWhereTheRowFits()
     {
-        using var drawn = await Drawn(null, columns: 120);
-        var compose = Compose(drawn);
+        using var view = await Drawn(null, width: 98);
+        var compose = view.Compose;
 
         Assert.Contains(
-            drawn.Rows(),
+            view.Rows(),
             row => row.Contains(
                 "To  ● account default  ○ public  ○ unlisted  ○ followers  ○ direct",
                 StringComparison.Ordinal));
 
-        ClickOn(drawn, "○ unlisted");
+        view.ClickOn("○ unlisted");
 
         Assert.Equal(PostVisibility.Unlisted, compose.Visibility);
 
-        ClickOn(drawn, "○ account default");
+        view.ClickOn("○ account default");
 
         Assert.Null(compose.Visibility);
 
@@ -191,13 +191,13 @@ public class ComposeToTests
     [Fact]
     public async Task OnToTheStatusRowOffersChoosing()
     {
-        using var drawn = await Drawn(PostVisibility.Public);
+        using var view = await Drawn(PostVisibility.Public);
 
-        drawn.Press(Key.CursorUp);
-        drawn.Press(Key.CursorUp);
-        drawn.Press(Key.CursorUp);
+        view.Press(Key.CursorUp);
+        view.Press(Key.CursorUp);
+        view.Press(Key.CursorUp);
 
-        Assert.Contains("Choose: ←→ | Field: ↓ ", drawn.Rows()[^1], StringComparison.Ordinal);
+        Assert.Contains("Choose: ←→ | Field: ↓ ", view.Status(), StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -206,16 +206,16 @@ public class ComposeToTests
     [Fact]
     public async Task AClickChoosesAValueAndTheArrowsCarryOnFromThere()
     {
-        using var drawn = await Drawn(PostVisibility.Public);
-        var compose = Compose(drawn);
+        using var view = await Drawn(PostVisibility.Public);
+        var compose = view.Compose;
 
-        ClickOn(drawn, "○ followers");
+        view.ClickOn("○ followers");
 
         Assert.Equal(PostVisibility.Followers, compose.Visibility);
         Assert.Equal(ComposeField.To, compose.Typing);
-        Assert.True(To(drawn).HasFocus);
+        Assert.True(view.To.HasFocus);
 
-        drawn.Press(Key.CursorRight);
+        view.Press(Key.CursorRight);
 
         Assert.Equal(PostVisibility.Direct, compose.Visibility);
 
@@ -233,8 +233,8 @@ public class ComposeToTests
     {
         var followers = APost.With(id: "220", account: "ben@hachyderm.io", visibility: PostVisibility.Followers);
 
-        using var drawn = await Drawn(PostVisibility.Public, followers, ComposeFor.Reply);
-        var compose = Compose(drawn);
+        using var view = await Drawn(PostVisibility.Public, followers, ComposeFor.Reply);
+        var compose = view.Compose;
 
         Assert.Equal(PostVisibility.Followers, compose.Visibility);
 
@@ -245,20 +245,20 @@ public class ComposeToTests
         Assert.Equal(Role.Body, Assert.Single(to.Spans, span => span.Text == "● followers").Role);
         Assert.Equal(Role.Body, Assert.Single(to.Spans, span => span.Text == "○ direct").Role);
 
-        ClickOn(drawn, "○ public");
+        view.ClickOn("○ public");
 
         Assert.Equal(PostVisibility.Followers, compose.Visibility);
 
-        ClickOn(drawn, "● followers");
-        drawn.Press(Key.CursorLeft);
+        view.ClickOn("● followers");
+        view.Press(Key.CursorLeft);
 
         Assert.Equal(PostVisibility.Followers, compose.Visibility);
 
-        drawn.Press(Key.CursorRight);
+        view.Press(Key.CursorRight);
 
         Assert.Equal(PostVisibility.Direct, compose.Visibility);
 
-        ClickOn(drawn, "○ unlisted");
+        view.ClickOn("○ unlisted");
 
         Assert.Equal(PostVisibility.Direct, compose.Visibility);
     }
@@ -269,13 +269,13 @@ public class ComposeToTests
     {
         var direct = APost.With(id: "220", account: "ben@hachyderm.io", visibility: PostVisibility.Direct);
 
-        using var drawn = await Drawn(PostVisibility.Public, direct, ComposeFor.Reply);
-        var compose = Compose(drawn);
+        using var view = await Drawn(PostVisibility.Public, direct, ComposeFor.Reply);
+        var compose = view.Compose;
 
         Assert.Equal(PostVisibility.Direct, compose.Visibility);
 
-        ClickOn(drawn, "○ followers");
-        drawn.Press(Key.CursorLeft);
+        view.ClickOn("○ followers");
+        view.Press(Key.CursorLeft);
 
         Assert.Equal(PostVisibility.Direct, compose.Visibility);
         Assert.All(
@@ -309,8 +309,8 @@ public class ComposeToTests
     {
         var mine = APost.With(id: "110", account: "jeff@mastodon.social", visibility: PostVisibility.Unlisted);
 
-        using var drawn = await Drawn(PostVisibility.Public, mine, ComposeFor.Edit);
-        var compose = Compose(drawn);
+        using var view = await Drawn(PostVisibility.Public, mine, ComposeFor.Edit);
+        var compose = view.Compose;
 
         Assert.Equal(PostVisibility.Unlisted, compose.Visibility);
 
@@ -319,19 +319,19 @@ public class ComposeToTests
         Assert.Equal("    To  ○ public  ● unlisted  ○ followers  ○ direct", to.Text);
         Assert.All(to.Spans.Where(span => span.Text.Trim().Length > 0 && span.Text != "To"), span => Assert.Equal(Role.Muted, span.Role));
 
-        ClickOn(drawn, "○ followers");
+        view.ClickOn("○ followers");
 
         Assert.Equal(PostVisibility.Unlisted, compose.Visibility);
         Assert.Equal(ComposeField.Post, compose.Typing);
 
-        drawn.Press(Key.CursorUp);
-        drawn.Press(Key.CursorUp);
-        drawn.Press(Key.CursorUp);
+        view.Press(Key.CursorUp);
+        view.Press(Key.CursorUp);
+        view.Press(Key.CursorUp);
 
         Assert.Equal(ComposeField.Lang, compose.Typing);
 
-        drawn.Press(Key.CursorLeft);
-        drawn.Press(Key.CursorRight);
+        view.Press(Key.CursorLeft);
+        view.Press(Key.CursorRight);
 
         Assert.Equal(PostVisibility.Unlisted, compose.Visibility);
         Assert.IsType<Outgoing.Saving>(compose.Outgoing);
@@ -380,26 +380,26 @@ public class ComposeToTests
     ///     arrows of the narrow form alike.
     /// </summary>
     [Theory]
-    [InlineData("dark", 80)]
-    [InlineData("light", 80)]
-    [InlineData("dark", 50)]
-    public async Task EveryCellOfToIsARoleTheThemeAnswers(string name, int columns)
+    [InlineData("dark", ComposedView.Width)]
+    [InlineData("light", ComposedView.Width)]
+    [InlineData("dark", 28)]
+    public async Task EveryCellOfToIsARoleTheThemeAnswers(string name, int width)
     {
         var theme = name == "dark" ? Themes.Dark : Themes.Light;
         var followers = APost.With(id: "220", account: "ben@hachyderm.io", visibility: PostVisibility.Followers);
 
-        using var drawn = await Drawn(PostVisibility.Public, followers, ComposeFor.Reply, theme, columns);
+        using var view = await Drawn(PostVisibility.Public, followers, ComposeFor.Reply, theme, width);
 
-        drawn.Press(Key.CursorUp);
-        drawn.Press(Key.CursorUp);
-        drawn.Press(Key.CursorUp);
-        drawn.Redraw();
+        view.Press(Key.CursorUp);
+        view.Press(Key.CursorUp);
+        view.Press(Key.CursorUp);
+        view.Redraw();
 
         var answered = Enum.GetValues<Role>()
                            .SelectMany(role => new[] { theme.For(role), theme.Banded(role) })
                            .ToHashSet();
 
-        Assert.All(drawn.Cells(), cell => Assert.Contains(cell, answered));
+        Assert.All(view.Cells(), cell => Assert.Contains(cell, answered));
     }
 
     /// <summary>
@@ -409,54 +409,38 @@ public class ComposeToTests
     [Fact]
     public async Task WithColourOffTheRowStillReads()
     {
-        using var drawn = await Drawn(PostVisibility.Unlisted, theme: Themes.Plain);
+        using var view = await Drawn(PostVisibility.Unlisted, theme: Themes.Plain);
 
-        drawn.Press(Key.CursorUp);
-        drawn.Press(Key.CursorUp);
-        drawn.Press(Key.CursorUp);
-        drawn.Redraw();
+        view.Press(Key.CursorUp);
+        view.Press(Key.CursorUp);
+        view.Press(Key.CursorUp);
+        view.Redraw();
 
-        var row = ContentClicks.RowOf(drawn, "● unlisted");
-        var column = drawn.Rows()[row].IndexOf("● unlisted", StringComparison.Ordinal);
+        var at = view.To.FrameToScreen();
+        var column = at.X + view.Shown(view.To).IndexOf("● unlisted", StringComparison.Ordinal);
 
-        Assert.Contains("○ public  ● unlisted  ○ followers  ○ direct", drawn.Rows()[row], StringComparison.Ordinal);
-        Assert.Equal(Themes.Plain.For(Role.SelectedText), drawn.Cell(row, column));
-        Assert.NotEqual(Themes.Plain.For(Role.SelectedText), drawn.Cell(row, column - 3));
+        Assert.StartsWith("○ public  ● unlisted  ○ followers  ○ direct", view.Shown(view.To), StringComparison.Ordinal);
+        Assert.Equal(Themes.Plain.For(Role.SelectedText), view.Cell(at.Y, column));
+        Assert.NotEqual(Themes.Plain.For(Role.SelectedText), view.Cell(at.Y, column - 3));
     }
 
-    private static void ClickOn(DrawnShell drawn, string text)
-    {
-        var row = ContentClicks.RowOf(drawn, text);
-
-        drawn.Click(drawn.Rows()[row].IndexOf(text, StringComparison.Ordinal), row);
-        drawn.Redraw();
-    }
-
-    private static ComposeToField To(DrawnShell drawn) => drawn.Window.SubViews.OfType<ComposeToField>().Single();
-
-    private static async Task<DrawnShell> Drawn(
+    /// <summary>Compose's fields over a compose opened for <paramref name="opening" />, <paramref name="width" /> wide.</summary>
+    private static Task<ComposedView> Drawn(
         PostVisibility? preferred,
         Post? post = null,
         ComposeFor opening = ComposeFor.Post,
         ITheme? theme = null,
-        int columns = 80)
-    {
-        var built = new AShell
-        {
-            Timelines = FakeTimelineReader.Holding(post ?? APost.With(id: "220", account: "ben@hachyderm.io")),
-            Accounts = FakeAccountRelationships.HoldingNobody(),
-            DefaultVisibility = preferred,
-        };
-
-        var drawn = await DrawnShell.Of(columns, 24, theme ?? Themes.Dark, built);
-
-        ComposeRows.Open(drawn.Shell, opening);
-        drawn.Redraw();
-
-        return drawn;
-    }
-
-    private static ComposeScreen Compose(DrawnShell drawn) => Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
+        int width = ComposedView.Width) =>
+        ComposedView.Of(
+            new AShell
+            {
+                Timelines = FakeTimelineReader.Holding(post ?? APost.With(id: "220", account: "ben@hachyderm.io")),
+                Accounts = FakeAccountRelationships.HoldingNobody(),
+                DefaultVisibility = preferred,
+            },
+            opening,
+            width,
+            theme: theme);
 
     private static PostDraft Publishing(ComposeScreen compose) =>
         Assert.IsType<Outgoing.Publishing>(compose.Outgoing).Draft;
