@@ -54,6 +54,12 @@ internal sealed class ComposedView : IDisposable
 
     public ComposeLangField Lang => View.SubViews.OfType<ComposeLangField>().Single();
 
+    /// <summary>The list of people to mention, among the view's own (#366).</summary>
+    public PaintedView Mentions => List(MentionList.Id);
+
+    /// <summary>The list of languages, among the view's own (#366).</summary>
+    public PaintedView Languages => List(LanguageList.Id);
+
     /// <summary>
     ///     A compose opened for <paramref name="opening" /> over the post <paramref name="built" />'s shell opens on,
     ///     with a view <paramref name="width" /> × <paramref name="height" /> built over it in
@@ -184,6 +190,10 @@ internal sealed class ComposedView : IDisposable
         Click(rows[row].IndexOf(text, StringComparison.Ordinal) + past, row);
     }
 
+    /// <summary>One notch of the wheel over the cell: down, or up.</summary>
+    public void Wheel(int column, int row, bool down = true) =>
+        Point(column, row, down ? MouseFlags.WheeledDown : MouseFlags.WheeledUp);
+
     public void RightClick(int column, int row) => Point(column, row, MouseFlags.RightButtonClicked);
 
     public void Point(int column, int row, MouseFlags flags)
@@ -202,6 +212,14 @@ internal sealed class ComposedView : IDisposable
             .. Enumerable.Range(0, cells.GetLength(0)).Select(row => string.Concat(
                 Enumerable.Range(0, cells.GetLength(1)).Select(column => cells[row, column].Grapheme))),
         ];
+    }
+
+    /// <summary><paramref name="list" />'s rows as drawn on the terminal.</summary>
+    public IReadOnlyList<string> RowsOf(View list)
+    {
+        var at = list.FrameToScreen();
+
+        return [.. Rows()[at.Y..at.Bottom].Select(row => row.Substring(at.X, at.Width))];
     }
 
     /// <summary>What <paramref name="field" /> shows, as drawn on its row.</summary>
@@ -230,6 +248,8 @@ internal sealed class ComposedView : IDisposable
     /// <summary>The status row as the shell's window would draw it, 80 columns wide.</summary>
     public string Status() =>
         ChromeLines.Status(Shell.Keys, Shell.Notice, Shell.NoticeIsError, Shell.Asking, 80).Text;
+
+    private PaintedView List(string id) => View.SubViews.OfType<PaintedView>().Single(view => view.Id == id);
 
     public void Dispose()
     {

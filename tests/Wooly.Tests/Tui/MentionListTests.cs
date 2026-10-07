@@ -8,12 +8,13 @@ namespace Wooly.Tests.Tui;
 
 /// <summary>
 ///     Typing <c>@</c> at the start of a word in the post opens a list of people to mention under it (#318), driven
-///     the way a reader drives it: keys into the real window, and what is drawn read back off the terminal.
+///     the way a reader drives it: keys and clicks into <see cref="ComposeView" /> over a shell, which owns the list
+///     (#366), and what is drawn read back off the terminal.
 /// </summary>
 public class MentionListTests
 {
-    /// <summary>A terminal short enough that the compose editor has no room for a list of five.</summary>
-    private const int Short = 13;
+    /// <summary>A content viewport short enough that the compose editor has no room for a list of five.</summary>
+    private const int Short = 10;
 
     /// <summary>The people every test has already seen on its home timeline.</summary>
     private static readonly AShell Seen = new()
@@ -32,13 +33,13 @@ public class MentionListTests
 
         Type(drawn, "hi @ma");
 
-        var list = List(drawn);
+        var list = List(drawn).FrameToScreen();
         var editor = Editor(drawn).FrameToScreen();
         var rows = ListRows(drawn);
 
-        Assert.True(list.Visible);
-        Assert.Equal(editor.Y + 1, list.Frame.Y);
-        Assert.Equal(editor.X + 3, list.Frame.X);
+        Assert.True(List(drawn).Visible);
+        Assert.Equal(editor.Y + 1, list.Y);
+        Assert.Equal(editor.X + 3, list.X);
         Assert.Contains(rows, row => row.Contains("Maria Gonzalez  @maria@fosstodon.org", StringComparison.Ordinal));
         Assert.Contains(rows, row => row.Contains("Mark  @mark@mastodon.social", StringComparison.Ordinal));
         Assert.DoesNotContain(rows, row => row.Contains("@ben", StringComparison.Ordinal));
@@ -209,7 +210,7 @@ public class MentionListTests
         Type(drawn, $"{new string('x', editor.Width - 4)} more words and @ma");
 
         Assert.Equal(1, Editor(drawn).CurrentRow);
-        Assert.Equal(editor.Y + 2, List(drawn).Frame.Y);
+        Assert.Equal(editor.Y + 2, List(drawn).FrameToScreen().Y);
     }
 
     /// <summary>Near the editor's foot, where there is no room under the line, the list opens over it.</summary>
@@ -229,7 +230,7 @@ public class MentionListTests
         var caret = editor.Y + editor.Height - 2;
 
         Assert.Equal(caret, editor.Y + Editor(drawn).CurrentRow - Editor(drawn).Viewport.Y);
-        Assert.Equal(caret, List(drawn).Frame.Bottom);
+        Assert.Equal(caret, List(drawn).FrameToScreen().Bottom);
     }
 
     /// <summary>Every cell of the open list is a role the theme answers.</summary>
@@ -326,14 +327,19 @@ public class MentionListTests
         Assert.False(List(drawn).Visible);
     }
 
-    /// <summary>A click on the rail while the list is open closes the list, and goes nowhere.</summary>
+    /// <summary>
+    ///     A click on what is behind the view while the list is open — the From header, painted by the panel under it —
+    ///     closes the list, and goes nowhere: the typing stays in the post.
+    /// </summary>
     [Fact]
-    public async Task AClickOnTheRailOnlyClosesTheList()
+    public async Task AClickBehindTheViewOnlyClosesTheList()
     {
         using var drawn = await Composing();
 
         Type(drawn, "hi @ma");
-        drawn.Click(2, 2);
+        drawn.ClickOn("From");
+
+        Assert.Equal(ComposeField.Post, Assert.IsType<ComposeScreen>(drawn.Shell.Screen).Typing);
 
         Assert.False(List(drawn).Visible);
         Assert.Equal("hi @ma", Assert.IsType<ComposeScreen>(drawn.Shell.Screen).Text);
@@ -384,10 +390,8 @@ public class MentionListTests
             Accounts = FakeAccountRelationships.HoldingNobody(),
         };
 
-        using var drawn = await DrawnShell.Of(80, Short, Themes.Dark, five);
+        using var drawn = await ComposedView.Of(five, height: Short);
 
-        drawn.Shell.Compose();
-        drawn.Redraw();
         Type(drawn, "@ma");
 
         var rows = ListRows(drawn);
@@ -434,8 +438,7 @@ public class MentionListTests
     }
 
     /// <summary>
-    ///     While the list is open, <c>↑</c> is the list's, even on the post's first line: it walks no field (#337). Moved
-    ///     here from the field-walk tests, which no longer build the list (#365).
+    ///     While the list is open, <c>↑</c> is the list's, even on the post's first line: it walks no field (#337).
     /// </summary>
     [Fact]
     public async Task WhileTheListIsOpenUpIsTheListsEvenOnTheFirstLine()
@@ -451,37 +454,17 @@ public class MentionListTests
         Assert.Equal("@ma", compose.Text);
     }
 
-    private static async Task<DrawnShell> Composing(ITheme? theme = null, FakeAccountRelationships? accounts = null)
-    {
-        var built = new AShell { Timelines = Seen.Timelines, Accounts = accounts ?? FakeAccountRelationships.HoldingNobody() };
-        var drawn = await DrawnShell.Of(80, 24, theme ?? Themes.Dark, built);
+    private static Task<ComposedView> Composing(ITheme? theme = null, FakeAccountRelationships? accounts = null) =>
+        ComposedView.Of(
+            new AShell { Timelines = Seen.Timelines, Accounts = accounts ?? FakeAccountRelationships.HoldingNobody() },
+            theme: theme);
 
-        drawn.Shell.Compose();
-        drawn.Redraw();
+    private static void Type(ComposedView drawn, string text) => drawn.Type(text);
 
-        return drawn;
-    }
+    private static ComposeEditor Editor(ComposedView drawn) => drawn.Editor;
 
-    private static void Type(DrawnShell drawn, string text)
-    {
-        foreach (var letter in text)
-        {
-            drawn.Window.NewKeyDownEvent(new Key(letter));
-        }
-
-        drawn.Redraw();
-    }
-
-    private static ComposeEditor Editor(DrawnShell drawn) => drawn.Window.ComposeField<ComposeEditor>();
-
-    private static PaintedView List(DrawnShell drawn) =>
-        drawn.Window.SubViews.OfType<PaintedView>().Single(view => view.Id == MentionList.Id);
+    private static PaintedView List(ComposedView drawn) => drawn.Mentions;
 
     /// <summary>The list's rows as drawn on the terminal.</summary>
-    private static IReadOnlyList<string> ListRows(DrawnShell drawn)
-    {
-        var at = List(drawn).FrameToScreen();
-
-        return [.. drawn.Rows()[at.Y..at.Bottom].Select(row => row.Substring(at.X, at.Width))];
-    }
+    private static IReadOnlyList<string> ListRows(ComposedView drawn) => drawn.RowsOf(drawn.Mentions);
 }

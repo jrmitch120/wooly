@@ -1,4 +1,5 @@
 using System.Drawing;
+using Terminal.Gui.App;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Wooly.Tui.Screens;
@@ -9,7 +10,8 @@ namespace Wooly.Tui.Views;
 
 /// <summary>
 ///     Compose's fields, in one view laid over the content viewport (#365): the editor, and the warning, To and Lang
-///     fields. Each sits where the compose screen lays it, shows while compose is on top and opens on what the draft
+///     fields, with the list of people to mention hung under the post and the list of languages under Lang (#366). Each
+///     field sits where the compose screen lays it, shows while compose is on top and opens on what the draft
 ///     holds, and where the typing is stays one fact — the screen's — whichever way it moved. Every edit it makes goes
 ///     through the shell's one way in (<see cref="Shell.Shell.EditCompose" />).
 /// </summary>
@@ -34,6 +36,15 @@ internal sealed class ComposeView : View
 
     /// <summary>What language the post is in, a field laid over Lang's value column (#340).</summary>
     private readonly ComposeLangField _lang;
+
+    /// <summary>The people to mention, hung under the @-word being typed in the post (#318).</summary>
+    private readonly MentionList _mentions;
+
+    /// <summary>The languages, hung under Lang (#340).</summary>
+    private readonly LanguageList _languages;
+
+    /// <summary>Where the terminal's mouse events arrive, once the view is running; asked ahead of the views.</summary>
+    private IMouse? _mouse;
 
     public ComposeView(ITheme theme, Shell.Shell shell)
     {
@@ -128,18 +139,31 @@ internal sealed class ComposeView : View
         _warning.HasFocusChanged += (_, focus) => TypingMoved(focus.NewValue, ComposeField.Warning);
         _editor.HasFocusChanged += (_, focus) => TypingMoved(focus.NewValue, ComposeField.Post);
 
-        Add(_editor, _to, _lang, _warning);
+        // The lists hang under the fields they serve, laid in this view after the fields so they draw over them.
+        _mentions = new MentionList(theme, shell, _editor);
+        _editor.Ahead = _mentions.Took;
+
+        _languages = new LanguageList(theme, shell, _lang, this);
+
+        Add(_editor, _to, _lang, _warning, _mentions.View, _languages.View);
+
+        // A click outside an open list closes it whichever view it lands on — the editor's caret, the content behind
+        // this view, the rail — so it is asked about where the terminal's mouse events arrive, ahead of every view
+        // under the pointer (#335).
+        Initialized += (_, _) =>
+        {
+            _mouse = App?.Mouse;
+
+            if (_mouse is not null)
+            {
+                _mouse.MouseEvent += AheadOfTheViews;
+            }
+        };
 
         shell.Changed += Refresh;
 
         Refresh();
     }
-
-    /// <summary>The editor, which the list of people to mention hangs under until it moves in here (#366).</summary>
-    internal ComposeEditor Editor => _editor;
-
-    /// <summary>Lang, which the list of languages hangs under until it moves in here (#366).</summary>
-    internal ComposeLangField Lang => _lang;
 
     /// <summary>
     ///     The keys no field took that walk the fields or choose on To — <c>↑</c>/<c>↓</c>, <c>←</c>/<c>→</c> — made
@@ -156,9 +180,27 @@ internal sealed class ComposeView : View
         if (disposing)
         {
             _shell.Changed -= Refresh;
+
+            if (_mouse is not null)
+            {
+                _mouse.MouseEvent -= AheadOfTheViews;
+                _mouse = null;
+            }
         }
 
         base.Dispose(disposing);
+    }
+
+    /// <summary>
+    ///     A mouse event wherever it landed, before the view under the pointer sees it: spent on closing an open list
+    ///     where it is a click outside it (#335), and left alone otherwise.
+    /// </summary>
+    private void AheadOfTheViews(object? sender, Mouse mouse)
+    {
+        if (!mouse.Handled)
+        {
+            mouse.Handled = _mentions.ClosedBy(mouse) || _languages.ClosedBy(mouse);
+        }
     }
 
     /// <summary>
@@ -235,6 +277,10 @@ internal sealed class ComposeView : View
                 field.SetFocus();
             }
         }
+
+        // After the editor has been shown or hidden, and on every change of the shell's — a profile switch, or more
+        // people arriving — since either can change what the word being typed matches.
+        _mentions.Follow();
 
         SetNeedsDraw();
     }

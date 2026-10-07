@@ -61,15 +61,6 @@ internal sealed class ShellWindow : Window
     /// <summary>Compose's fields, laid over the content panel's viewport (#365).</summary>
     private readonly ComposeView _compose;
 
-    /// <summary>The people to mention, hung under the @-word being typed in compose's editor (#318).</summary>
-    private readonly MentionList _mentions;
-
-    /// <summary>The languages, hung under compose's Lang (#340).</summary>
-    private readonly LanguageList _languages;
-
-    /// <summary>Where the terminal's mouse events arrive, once the window is running; asked ahead of the views.</summary>
-    private IMouse? _mouse;
-
     /// <summary>The rail, which <see cref="Railed" /> takes away and puts back.</summary>
     private readonly PaintedView _rail;
 
@@ -237,24 +228,7 @@ internal sealed class ShellWindow : Window
             CanFocus = false,
         };
 
-        _mentions = new MentionList(theme, shell, _compose.Editor, _compose);
-        _compose.Editor.Ahead = _mentions.Took;
-
-        _languages = new LanguageList(theme, shell, _compose.Lang, _compose);
-
-        Add(rail, _content, title, _compose, _mentions.View, _languages.View, status);
-
-        // A click outside an open list closes it whichever view it lands on, the editor's caret above all, so it is
-        // asked about where the terminal's mouse events arrive — ahead of every view under the pointer (#335).
-        Initialized += (_, _) =>
-        {
-            _mouse = App?.Mouse;
-
-            if (_mouse is not null)
-            {
-                _mouse.MouseEvent += AheadOfTheViews;
-            }
-        };
+        Add(rail, _content, title, _compose, status);
 
         _showing = shell.Screen;
 
@@ -342,29 +316,6 @@ internal sealed class ShellWindow : Window
             Verb.ScrollUp => Notch(-RowsANotch),
             _ => Do(pressed),
         };
-    }
-
-    /// <summary>
-    ///     A mouse event wherever it landed, before the view under the pointer sees it: spent on closing the list of
-    ///     people to mention where it is a click outside it (#335), and left alone otherwise.
-    /// </summary>
-    private void AheadOfTheViews(object? sender, Mouse mouse)
-    {
-        if (!mouse.Handled)
-        {
-            mouse.Handled = _mentions.ClosedBy(mouse) || _languages.ClosedBy(mouse);
-        }
-    }
-
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing && _mouse is not null)
-        {
-            _mouse.MouseEvent -= AheadOfTheViews;
-            _mouse = null;
-        }
-
-        base.Dispose(disposing);
     }
 
     /// <summary>
@@ -804,10 +755,6 @@ internal sealed class ShellWindow : Window
         // screen with nothing picked out on it is one Scroll.To never scrolls back. Compose's view settled whether it
         // shows ahead of this, on the same change.
         _content.Scrolls = !_compose.Visible;
-
-        // After the editor has been shown or hidden, and on every change of the shell's — a profile switch, or more
-        // people arriving — since either can change what the word being typed matches.
-        _mentions.Follow();
 
         SetNeedsDraw();
     }

@@ -1511,8 +1511,9 @@ Three things stayed outside it, each deliberately:
 The window knows nothing of `ComposeScreen`. Compose's geometry and focus — laying the editor and the warning, To and
 Lang fields where the screen says they go (#315), which has the keys, and what each opens with — are `ComposeView`'s, one
 view the window adds once over the content panel's viewport (#365). It also takes the arrows no field took and walks the
-fields with them, as the keymap says they mean on compose. The lists of people to mention and of languages are still
-laid beside it by the window, until they move into it (#366).
+fields with them, as the keymap says they mean on compose. The lists of people to mention and of languages are its too,
+each hung under the field it serves and asked about every click ahead of the views (#366): the window knows nothing of
+compose beyond adding `ComposeView` and saying where the content viewport is.
 
 ### What the profiles screen settled
 

@@ -10,9 +10,8 @@ namespace Wooly.Tests.Tui;
 
 /// <summary>
 ///     Compose says what language a post is in (ADR-0024, #340): a <b>Lang</b> header under To, a one-line field with
-///     the shared list under it, starting on the author's own language and sending what it holds. The field is walked
-///     to in <see cref="ComposeView" /> over a shell (#365); the cases about the list under it still draw the whole shell,
-///     which holds the list until it moves into <see cref="ComposeView" /> too (#366).
+///     the shared list under it, starting on the author's own language and sending what it holds. The field and the
+///     list under it are driven in <see cref="ComposeView" /> over a shell, which owns both (#365, #366).
 /// </summary>
 public class ComposeLangTests
 {
@@ -209,7 +208,7 @@ public class ComposeLangTests
         Assert.Equal(held, Field(drawn).Text);
         Assert.False(List(drawn).Visible);
         Assert.Equal(ComposeField.Post, Compose(drawn).Typing);
-        Assert.DoesNotContain("Pick: ↑↓", drawn.Rows()[^1], StringComparison.Ordinal);
+        Assert.DoesNotContain("Pick: ↑↓", drawn.Status(), StringComparison.Ordinal);
     }
 
     /// <summary>While the list is open, the status row offers its keys.</summary>
@@ -220,15 +219,15 @@ public class ComposeLangTests
 
         OnLang(drawn);
 
-        Assert.DoesNotContain("Pick: ↑↓", drawn.Rows()[^1], StringComparison.Ordinal);
+        Assert.DoesNotContain("Pick: ↑↓", drawn.Status(), StringComparison.Ordinal);
 
         Type(drawn, "fr");
 
-        Assert.Contains("Pick: ↑↓ | Choose: tab | Close: esc", drawn.Rows()[^1], StringComparison.Ordinal);
+        Assert.Contains("Pick: ↑↓ | Choose: tab | Close: esc", drawn.Status(), StringComparison.Ordinal);
 
         drawn.Press(Key.Esc);
 
-        Assert.DoesNotContain("Pick: ↑↓", drawn.Rows()[^1], StringComparison.Ordinal);
+        Assert.DoesNotContain("Pick: ↑↓", drawn.Status(), StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -392,64 +391,39 @@ public class ComposeLangTests
         Assert.All(drawn.Cells(), cell => Assert.Contains(cell, answered));
     }
 
-    private static void OnLang(DrawnShell drawn)
+    private static void OnLang(ComposedView drawn)
     {
         drawn.Press(Key.CursorUp);
         drawn.Press(Key.CursorUp);
     }
 
-    private static void Type(DrawnShell drawn, string text)
-    {
-        foreach (var letter in text)
-        {
-            drawn.Window.NewKeyDownEvent(new Key(letter));
-        }
+    private static void Type(ComposedView drawn, string text) => drawn.Type(text);
 
-        drawn.Redraw();
-    }
+    /// <summary>A click in the value column of the header reading <paramref name="text" />.</summary>
+    private static void ClickOn(ComposedView drawn, string text) => drawn.ClickOn(text, text.Length + 3);
 
-    private static void ClickOn(DrawnShell drawn, string text)
-    {
-        var row = ContentClicks.RowOf(drawn, text);
+    private static ComposeLangField Field(ComposedView drawn) => drawn.Lang;
 
-        drawn.Click(drawn.Rows()[row].IndexOf(text, StringComparison.Ordinal) + text.Length + 3, row);
-        drawn.Redraw();
-    }
+    private static PaintedView List(ComposedView drawn) => drawn.Languages;
 
-    private static ComposeLangField Field(DrawnShell drawn) => drawn.Window.ComposeField<ComposeLangField>();
+    private static IReadOnlyList<string> ListRows(ComposedView drawn) => drawn.RowsOf(drawn.Languages);
 
-    private static PaintedView List(DrawnShell drawn) =>
-        drawn.Window.SubViews.OfType<PaintedView>().Single(view => view.Id == LanguageList.Id);
+    private static ComposeScreen Compose(ComposedView drawn) => drawn.Compose;
 
-    private static IReadOnlyList<string> ListRows(DrawnShell drawn)
-    {
-        var at = List(drawn).FrameToScreen();
-
-        return [.. drawn.Rows()[at.Y..at.Bottom].Select(row => row.Substring(at.X, at.Width))];
-    }
-
-    private static ComposeScreen Compose(DrawnShell drawn) => Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
-
-    private static async Task<DrawnShell> Drawn(
+    private static Task<ComposedView> Drawn(
         string? preferred = null,
         Post? post = null,
         ComposeFor opening = ComposeFor.Post,
-        ITheme? theme = null)
-    {
-        var built = new AShell
-        {
-            Timelines = FakeTimelineReader.Holding(post ?? APost.With(id: "220", account: "ben@hachyderm.io")),
-            Accounts = FakeAccountRelationships.HoldingNobody(),
-            DefaultLanguage = preferred,
-        };
-
-        var drawn = await DrawnShell.Of(80, 24, theme ?? Themes.Dark, built);
-
-        ComposeRows.Open(drawn.Shell, opening);
-        drawn.Redraw();
-
-        return drawn;
-    }
+        ITheme? theme = null) =>
+        ComposedView.Of(
+            new AShell
+            {
+                Timelines = FakeTimelineReader.Holding(post ?? APost.With(id: "220", account: "ben@hachyderm.io")),
+                Accounts = FakeAccountRelationships.HoldingNobody(),
+                DefaultLanguage = preferred,
+            },
+            opening,
+            theme: theme);
 
     private static PostDraft Publishing(ComposeScreen compose) =>
         Assert.IsType<Outgoing.Publishing>(compose.Outgoing).Draft;

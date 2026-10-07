@@ -15,7 +15,7 @@ namespace Wooly.Tui.Views;
 /// </summary>
 internal sealed class LanguageList
 {
-    /// <summary>The list's <c>Id</c> among the window's views.</summary>
+    /// <summary>The list's <c>Id</c> among compose's views.</summary>
     internal const string Id = "languages";
 
     private readonly Shell.Shell _shell;
@@ -28,8 +28,7 @@ internal sealed class LanguageList
 
     /// <param name="field">Lang, which the list hangs under.</param>
     /// <param name="over">
-    ///     The view Lang is laid in, over the content viewport: this list is laid beside it rather than in it, so it is
-    ///     placed by where that view sits as well as by where Lang sits in it, and kept inside it.
+    ///     The view Lang is laid in, over the content viewport: this list is laid beside Lang in it, and kept inside it.
     /// </param>
     public LanguageList(ITheme theme, Shell.Shell shell, ComposeLangField field, View over)
     {
@@ -46,10 +45,10 @@ internal sealed class LanguageList
             Close,
             picks: "choose");
 
-        View.X = Pos.Func(_ => Over().X + field.Frame.X, over);
-        View.Y = Pos.Func(_ => Over().Y + field.Frame.Bottom, over);
-        View.Width = Dim.Func(_ => Size().Width, over);
-        View.Height = Dim.Func(_ => Size().Height, over);
+        View.X = Pos.Func(_ => field.Frame.X);
+        View.Y = Pos.Func(_ => field.Frame.Bottom);
+        View.Width = Dim.Func(_ => Size().Width);
+        View.Height = Dim.Func(_ => Size().Height);
 
         field.Ahead = Took;
         field.Asked = Ask;
@@ -63,7 +62,7 @@ internal sealed class LanguageList
         };
     }
 
-    /// <summary>The list as drawn, which the window lays over whatever is under Lang.</summary>
+    /// <summary>The list as drawn, which compose's view lays over whatever is under Lang.</summary>
     public PaintedView View => _list.View;
 
     /// <summary>
@@ -188,7 +187,4 @@ internal sealed class LanguageList
             Math.Max(0, viewport.Width - _field.Frame.X),
             Math.Max(0, viewport.Height - _field.Frame.Bottom));
     }
-
-    /// <summary>Where the view Lang is laid in sits, among the views this list is laid with.</summary>
-    private Point Over() => _over.Frame.Location;
 }

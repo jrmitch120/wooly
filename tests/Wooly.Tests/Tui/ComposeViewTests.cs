@@ -49,6 +49,26 @@ public class ComposeViewTests
         Assert.Equal("@ben@hachyderm.io hi", view.Compose.Text);
     }
 
+    /// <summary>
+    ///     Not only typing: a paste and an undo are edits too, and the screen's text follows both (#315). How much of a
+    ///     paste one undo takes back is the editor's own business, so what is pinned is that the screen ends up where
+    ///     the editor does.
+    /// </summary>
+    [Fact]
+    public async Task TheDraftFollowsAPasteAndItsUndo()
+    {
+        using var view = await ComposedView.Of(Answering, ComposeFor.Reply);
+
+        view.Paste("thanks!");
+
+        Assert.Equal("@ben@hachyderm.io thanks!", view.Compose.Text);
+
+        view.Press(Key.Z.WithCtrl);
+
+        Assert.NotEqual("@ben@hachyderm.io thanks!", view.Editor.Text);
+        Assert.Equal(view.Editor.Text, view.Compose.Text);
+    }
+
     /// <summary>A view built over a shell already composing shows the fields from the start.</summary>
     [Fact]
     public async Task AViewBuiltOverAnOpenComposeShowsItsFields()
@@ -118,6 +138,13 @@ public class ComposeViewTests
 
         Assert.Equal(ComposeField.Lang, compose.Typing);
         Assert.True(view.Lang.HasFocus);
+
+        // The click on Lang opened the list of languages under it, and the first click outside that is spent on
+        // closing it (#335, #366): it takes the second to move the typing.
+        view.Click(view.Editor);
+
+        Assert.False(view.Languages.Visible);
+        Assert.Equal(ComposeField.Lang, compose.Typing);
 
         view.Click(view.Editor);
 
