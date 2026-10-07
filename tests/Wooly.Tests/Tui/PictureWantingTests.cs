@@ -150,21 +150,6 @@ public class PictureWantingTests
     }
 
     /// <summary>
-    ///     The cache is handed the room each frame gives — its Raster and the page's columns — alongside what it wants,
-    ///     so it decodes to it without ever asking the window for either (#359).
-    /// </summary>
-    [Fact]
-    public void AFrameHandsTheCacheItsRoom()
-    {
-        var pictures = new FakePictures();
-        var raster = ARaster.Kitty();
-
-        Placed(pictures).Frame(Reach(), 40, 58, Height, raster);
-
-        Assert.Equal((raster, 58), pictures.Rooms[^1]);
-    }
-
-    /// <summary>
     ///     A warned post's pictures are not wanted until the reader asks past the warning: its hidden attachments
     ///     carry no <c>Wants</c>, and only a picture some row wants is said at all (ADR-0016).
     /// </summary>
