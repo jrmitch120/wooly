@@ -271,6 +271,26 @@ internal sealed class ShellWindow : Window
     }
 
     /// <summary>
+    ///     Compose's fields drawn again with the content panel whenever the panel is about to be, since they are laid
+    ///     over it and a panel redrawn alone paints its rows over them.
+    /// </summary>
+    /// <remarks>
+    ///     Terminal.Gui draws the later of two siblings first, and a field keeps what is under it only by having drawn
+    ///     there first. A field nothing has changed is not drawn, so the panel's rows went over it: the pictures on the
+    ///     page a reply was opened from are let go of while the panel draws, which lays the panel out again on the next
+    ///     frame, and the reply's mention was left blank on the terminal until a key redrew the editor.
+    /// </remarks>
+    protected override bool OnDrawingSubViews(DrawContext? context)
+    {
+        if (_content.NeedsDraw && _compose.Visible)
+        {
+            _compose.SetNeedsDraw();
+        }
+
+        return base.OnDrawingSubViews(context);
+    }
+
+    /// <summary>
     ///     Every mouse event the shell answers to, and where Terminal.Gui's stop, as <see cref="OnKeyDown" /> is for
     ///     keys. The window works out which panel the pointer is over and turns the gesture into a move the keys already
     ///     make; what that move means is the shell's (#286, <c>docs/tui-shell.md</c>).
