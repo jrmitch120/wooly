@@ -310,6 +310,44 @@ public class ComposeDiscardTests
         Assert.DoesNotContain("Discard", Status(drawn), StringComparison.Ordinal);
     }
 
+    /// <summary>
+    ///     A click or a wheel notch over the draft while the question is open is a press the question does not take, as
+    ///     anywhere else (open questions win): it keeps the draft, and the editor neither moves its caret nor scrolls.
+    /// </summary>
+    [Theory]
+    [InlineData("click")]
+    [InlineData("wheel")]
+    public async Task APointerOverTheDraft_KeepsItAndDoesNothingElse(string pointer)
+    {
+        using var drawn = await Composing();
+        var compose = drawn.Shell.Screen;
+        var editor = drawn.Window.ComposeField<ComposeEditor>();
+        var at = editor.FrameToScreen();
+
+        Type(drawn, "sheep");
+        drawn.Press(Key.Esc);
+
+        var caret = editor.CurrentColumn;
+
+        if (pointer == "click")
+        {
+            drawn.Point(at.X, at.Y, MouseFlags.LeftButtonPressed);
+            drawn.Point(at.X, at.Y, MouseFlags.LeftButtonReleased);
+            drawn.Click(at.X, at.Y);
+        }
+        else
+        {
+            drawn.Wheel(at.X, at.Y);
+        }
+
+        drawn.Settle();
+
+        Assert.Null(drawn.Shell.Asking);
+        Assert.Same(compose, drawn.Shell.Screen);
+        Assert.Equal("sheep", editor.Text);
+        Assert.Equal(caret, editor.CurrentColumn);
+    }
+
     /// <summary>The question asked from the warning field is answered there too, and the field takes no letter of it.</summary>
     [Fact]
     public async Task FromTheWarningField_TheQuestionIsAnsweredAndNothingIsTyped()

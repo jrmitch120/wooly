@@ -798,7 +798,7 @@ public sealed class Shell
 
         if (_stack.Count > 1)
         {
-            Leaving(_stack.Count - 1, ShellKey.Escape, Popped);
+            Leaving(_stack.Count - 1, ShellKey.Escape, Pop);
 
             return;
         }
@@ -2134,7 +2134,7 @@ public sealed class Shell
     }
 
     /// <summary>Takes the screen on top off, which is what <c>esc</c> does once nothing inside it is left to let go.</summary>
-    private void Popped()
+    private void Pop()
     {
         Leave(_stack.Count - 1);
 

@@ -178,16 +178,47 @@ internal sealed class ComposeView : View
 
     /// <summary>
     ///     A mouse event wherever it landed, before the view under the pointer sees it: a right click while compose is in
-    ///     front, which is its <c>esc</c> wherever it lands (#373); spent on closing an open list where it is a click
+    ///     front, which is its <c>esc</c> wherever it lands (#373); any other press over a field while a question is
+    ///     open, which the question takes (<see cref="Withheld" />); spent on closing an open list where it is a click
     ///     outside it (#335); and left alone otherwise.
     /// </summary>
     private void AheadOfTheViews(object? sender, Mouse mouse)
     {
         if (!mouse.Handled)
         {
-            mouse.Handled = RightClicked(mouse) || _mentions.ClosedBy(mouse) || _languages.ClosedBy(mouse);
+            mouse.Handled = RightClicked(mouse)
+                            || Withheld(mouse)
+                            || _mentions.ClosedBy(mouse)
+                            || _languages.ClosedBy(mouse);
         }
     }
+
+    /// <summary>
+    ///     A button or the wheel over one of compose's fields while a question is open on the status row: kept from the
+    ///     field, so no caret moves and no draft scrolls behind the question, and a click or a notch declines it, as
+    ///     they do anywhere else in the shell (open questions win, #373). Elsewhere the window declines it itself.
+    /// </summary>
+    /// <returns>Whether the event was over a field and spent.</returns>
+    private bool Withheld(Mouse mouse)
+    {
+        if (_shell.Asking is null || !Visible || !Over(mouse.ScreenPosition))
+        {
+            return false;
+        }
+
+        if (mouse.Flags.HasFlag(MouseFlags.LeftButtonClicked)
+            || mouse.Flags.HasFlag(MouseFlags.WheeledDown)
+            || mouse.Flags.HasFlag(MouseFlags.WheeledUp))
+        {
+            _ = _shell.Answer(pressed: null);
+        }
+
+        return mouse.Flags != MouseFlags.None && mouse.Flags != MouseFlags.PositionReport;
+    }
+
+    /// <summary>Whether <paramref name="at" /> is over one of the fields, which take the pointer before the window does.</summary>
+    private bool Over(Point at) =>
+        new View[] { _editor, _to, _lang, _warning }.Any(field => field.Visible && field.FrameToScreen().Contains(at));
 
     /// <summary>
     ///     A right click with compose in front: <c>esc</c>, wherever it lands — over a field, which would otherwise keep
