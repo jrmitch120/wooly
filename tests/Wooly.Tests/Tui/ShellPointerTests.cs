@@ -412,7 +412,6 @@ public class ShellPointerTests
         Assert.Empty(drawn.Built.Engagement.Votes);
     }
 
-    /// <summary><paramref name="count" /> notches of the wheel over the content, or wherever <paramref name="column" /> says.</summary>
     /// <summary>
     ///     Notches that arrive while a frame is being drawn are added up and drawn once, by the next frame — a notch
     ///     moves the page and draws nothing, so a fast flick never queues behind slow frames (#292).
@@ -456,6 +455,7 @@ public class ShellPointerTests
         Assert.NotEqual(before, drawn.Rows());
     }
 
+    /// <summary><paramref name="count" /> notches of the wheel over the content, or wherever <paramref name="column" /> says.</summary>
     private static void Notches(DrawnShell drawn, int count, bool down = true, int column = OverContent)
     {
         for (var notch = 0; notch < count; notch++)
