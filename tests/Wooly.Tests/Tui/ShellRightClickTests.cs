@@ -169,7 +169,7 @@ public class ShellRightClickTests
     /// <summary>
     ///     With compose in front a right click is <c>esc</c> wherever it lands, so over a touched draft it asks before
     ///     throwing it away (#373): the draft stands, and the editor's own context menu does not open. A second right
-    ///     click agrees, as a second <c>esc</c> does.
+    ///     click keeps it, as a second <c>esc</c> does, and only <c>y</c> agrees.
     /// </summary>
     [Theory]
     [InlineData("editor")]
@@ -201,6 +201,13 @@ public class ShellRightClickTests
         Assert.Null(drawn.Application.Popovers?.GetActivePopover());
 
         drawn.RightClick(column, row);
+        drawn.Settle();
+
+        Assert.Null(drawn.Shell.Asking);
+        Assert.Same(compose, drawn.Shell.Screen);
+
+        drawn.RightClick(column, row);
+        drawn.Press(Key.Y);
         drawn.Settle();
 
         Assert.Null(drawn.Shell.Asking);

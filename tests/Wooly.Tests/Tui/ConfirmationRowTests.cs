@@ -114,14 +114,12 @@ public class ConfirmationRowTests
 
     /// <summary>
     ///     The question asked before a touched compose is thrown away reads <c>Discard this post? y / n</c> (#373): no
-    ///     warning, and no <c>esc keep</c>, since <c>esc</c> may be the very key that agrees to it.
+    ///     warning, and no <c>esc keep</c>, since it is put in front of <c>esc</c> among other ways out.
     /// </summary>
-    [Theory]
-    [InlineData(ShellKey.Escape)]
-    [InlineData(null)]
-    public void TheDiscardQuestion_IsAnsweredYesOrNo(ShellKey? again)
+    [Fact]
+    public void TheDiscardQuestion_IsAnsweredYesOrNo()
     {
-        var row = Row(Confirmation.Discarding(Pressing.Nothing, again), 80);
+        var row = Row(Confirmation.Discarding(Pressing.Nothing), 80);
 
         Assert.Equal(" Discard this post?  y / n", row.Text);
         Assert.Equal(
@@ -133,23 +131,23 @@ public class ConfirmationRowTests
     [Fact]
     public void TheDiscardQuestion_GivesWayBeforeItsAnswer()
     {
-        var row = Row(Confirmation.Discarding(Pressing.Nothing, ShellKey.Escape), 16);
+        var row = Row(Confirmation.Discarding(Pressing.Nothing), 16);
 
         Assert.Equal(" Discard…  y / n", row.Text);
     }
 
     /// <summary>
-    ///     <c>y</c> agrees to every confirmation, and the key that put one agrees to it pressed again; anything else —
+    ///     <c>y</c> agrees to every confirmation, and only <c>y</c>: anything else — the key that put it pressed again,
     ///     another key, or a press that is no key of the shell's — keeps.
     /// </summary>
     [Fact]
-    public void YOrTheKeyThatAsked_Agrees()
+    public void OnlyY_Agrees()
     {
-        var discarding = Confirmation.Discarding(Pressing.Nothing, ShellKey.Tab);
+        var discarding = Confirmation.Discarding(Pressing.Nothing);
         var deleting = Of("delete");
 
         Assert.True(discarding.AgreedBy(ShellKey.Y));
-        Assert.True(discarding.AgreedBy(ShellKey.Tab));
+        Assert.False(discarding.AgreedBy(ShellKey.Tab));
         Assert.False(discarding.AgreedBy(ShellKey.ShiftTab));
         Assert.False(discarding.AgreedBy(null));
         Assert.True(deleting.AgreedBy(ShellKey.Y));

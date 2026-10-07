@@ -156,7 +156,7 @@ public class ComposeWarningFieldTests
 
     /// <summary>
     ///     <c>esc</c> from the field throws the draft away, as it does from the post — asking first, since the warning
-    ///     written in it is a change (#373), and going on the second.
+    ///     written in it is a change (#373), and going on a <c>y</c>.
     /// </summary>
     [Fact]
     public async Task Esc_FromTheFieldThrowsTheDraftAway()
@@ -170,7 +170,7 @@ public class ComposeWarningFieldTests
         Assert.NotNull(view.Shell.Asking);
         Assert.IsType<ComposeScreen>(view.Shell.Screen);
 
-        view.Press(Key.Esc);
+        view.Press(Key.Y);
 
         Assert.IsNotType<ComposeScreen>(view.Shell.Screen);
     }
