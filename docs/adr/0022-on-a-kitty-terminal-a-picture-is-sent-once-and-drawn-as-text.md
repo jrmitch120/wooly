@@ -110,3 +110,8 @@ once through `IPictures.Drain`. The content view drains it once a frame, before 
 placeholders to drop each one; on a terminal not drawing placeholders the list is discarded. A picture let go of as
 another lands is drained on the redraw that landing already asks for, so the terminal's copy is still deleted, a frame
 later at most. Kitty is told anything only from the UI thread, and nothing the cache does reaches into it.
+
+## Amendment: `RasterProtocol.Chosen` is now `Raster` (#357)
+
+The choice of `Placeholders` named above is made in working out a `Raster`, which carries the way, the cell and the
+sixel colours.
