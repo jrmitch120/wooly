@@ -36,7 +36,7 @@ internal sealed class PaintedView : View
     private readonly Func<Raster> _raster;
 
     /// <summary>The pictures drawn as placeholders this frame, with the row each starts on and its image id.</summary>
-    private IReadOnlyList<(Inset Inset, int Top, int Id)> _placed = [];
+    private IReadOnlyList<Placement> _placed = [];
 
     private IReadOnlyList<Line>? _settled;
     private int _top;

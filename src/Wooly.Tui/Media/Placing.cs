@@ -63,19 +63,16 @@ internal sealed class Placing
     private HashSet<string> _blursHeld = [];
 
     /// <summary>
-    ///     Where the page began the last time a frame said what it wants, or <see langword="null" /> before the first
-    ///     frame of the rows it is on — nothing to have moved from yet.
+    ///     Where the page began on the last frame there was a page, or <see langword="null" /> before the first frame of
+    ///     the rows it is on — nothing to have moved from yet.
     /// </summary>
-    private int? _wantedAt;
+    private int? _lastTop;
 
     /// <summary>
     ///     Which way the page last moved — down positive, up negative — or nought for a page that has not moved yet.
     ///     What decides which way <see cref="Want" /> reaches further.
     /// </summary>
     private int _travel;
-
-    /// <summary>Where the page began when sixel cuts were last encoded ahead, which says which way it is moving.</summary>
-    private int _placedAt;
 
     /// <param name="pictures">Where the pixels for a drawn picture come from.</param>
     /// <param name="box">
@@ -101,11 +98,12 @@ internal sealed class Placing
 
     /// <summary>
     ///     Says that the rows the next frame hands over are another lot, or the same lot come back to — either way,
-    ///     nothing has been moved through yet, so <see cref="Want" /> reaches two screens either side again.
+    ///     nothing has been moved through yet, so <see cref="Want" /> reaches two screens either side again and the
+    ///     cuts of a sixel are encoded a row either way rather than ahead.
     /// </summary>
     public void Resume()
     {
-        _wantedAt = null;
+        _lastTop = null;
         _travel = 0;
     }
 
@@ -122,49 +120,56 @@ internal sealed class Placing
     ///     left showing from the last size there was over whatever replaces it.
     /// </param>
     /// <param name="raster">How this terminal paints pixels, as the frame was settled under.</param>
-    /// <returns>
-    ///     The pictures to paint as placeholder cells, with the row of the page each starts on and the id the
-    ///     terminal holds it under — none but where the terminal draws placeholders.
-    /// </returns>
-    public IReadOnlyList<(Inset Inset, int Top, int Id)> Frame(
-        IReadOnlyList<Line> lines,
-        int top,
-        int width,
-        int height,
-        Raster raster)
+    /// <returns>The pictures to paint as placeholder cells — none but where the terminal draws placeholders.</returns>
+    public IReadOnlyList<Placement> Frame(IReadOnlyList<Line> lines, int top, int width, int height, Raster raster)
     {
+        var page = new Page(lines, top, width, height);
+
+        // What pictures are drawn as this frame, if they are drawn as placeholders at all: the one place the Raster's
+        // way is asked about them. Anywhere else nothing is sent that way, so nothing sent is near to be held.
+        var drawing = raster.Way is PictureWay.Placeholders ? _placeholders : null;
+        var moving = 0;
+
         // Said before a terminal that draws nothing is let off the rest, so the cache is told every frame there is a
         // page — but not of a frame with no page to be near.
-        if (width > 0 && height > 0)
+        if (page.HasRoom)
         {
-            Want(lines, top, width, height, raster);
+            moving = Moved(top);
+            Want(page, raster);
         }
 
-        if (width <= 0 || height <= 0 || raster.Cell is not { } cell)
+        if (!page.HasRoom || raster.Cell is not { } cell)
         {
             ReleaseAll();
-            LetGoOfBlurs([], top, 0, raster);
-            LetGoOfPictures(raster);
+            LetGoOfBlurs([]);
+            LetGoOfPictures(drawing);
             _placeholders?.Flush();
 
             return [];
         }
 
-        LetGoOfBlurs(lines, top, height, raster);
-        LetGoOfPictures(raster);
+        LetGoOfBlurs(drawing is null ? [] : BlursNear(page));
+        LetGoOfPictures(drawing);
 
         // Whatever the terminal was told to let go of since the last frame, before anything is sent.
         _placeholders?.Flush();
 
         switch (raster.Way)
         {
+            case PictureWay.Placeholders:
+                // Released rather than merely unused, so that nothing drawn through a box before the terminal said it
+                // draws placeholders is left on screen under them.
+                ReleaseAll();
+
+                return drawing is null ? [] : Sent(drawing, page, cell);
+
             case PictureWay.Sixel:
-                Place(lines, top, width, height, (box, inset, at, picture) =>
+                Place(page, (box, inset, at, picture) =>
                 {
                     // Only the part of the box on the page: a box straddling the top or bottom is framed to the rows
                     // still on it, so the picture is cut here, once per cut, rather than by the driver on every
                     // frame (#292).
-                    if (OnPage(inset, at, width, height) is not var (frame, crop))
+                    if (OnPage(inset, at, page) is not var (frame, crop))
                     {
                         box.Release();
 
@@ -176,25 +181,18 @@ internal sealed class Placing
                         _sixels.Of(inset, picture, cell, crop, raster.SixelColours)));
                 });
 
-                Prepare(lines, top, width, height, cell, raster.SixelColours);
+                Prepare(page, moving, cell, raster.SixelColours);
 
                 break;
 
             case PictureWay.Kitty:
                 // Through Kitty the image view draws the whole box, which it sends once and moves (ADR-0016).
-                Place(lines, top, width, height, (box, inset, at, picture) => Shown(
+                Place(page, (box, inset, at, picture) => Shown(
                     box,
                     new Rectangle(inset.Column, at, inset.Columns, inset.Rows),
                     () => box.Show(inset.Drawn.Id, picture)));
 
                 break;
-
-            case PictureWay.Placeholders:
-                // Released rather than merely unused, so that nothing drawn through a box before the terminal said it
-                // draws placeholders is left on screen under them.
-                ReleaseAll();
-
-                return _placeholders is null ? [] : Sent(lines, top, height, cell);
 
             default:
                 ReleaseAll();
@@ -203,6 +201,25 @@ internal sealed class Placing
         }
 
         return [];
+    }
+
+    /// <summary>
+    ///     Which way the page has moved since the last frame there was a page — down positive, up negative, and nought
+    ///     for one standing still or on the first frame of its rows — remembered as the way the page last moved where
+    ///     it moved at all. The one answer to which way the page is going, for what is wanted and what is encoded ahead.
+    /// </summary>
+    private int Moved(int top)
+    {
+        var moved = _lastTop is { } was ? Math.Sign(top - was) : 0;
+
+        _lastTop = top;
+
+        if (moved != 0)
+        {
+            _travel = moved;
+        }
+
+        return moved;
     }
 
     /// <summary>
@@ -229,14 +246,9 @@ internal sealed class Placing
     ///         top has its row off the page and its lower half still on it.
     ///     </para>
     /// </remarks>
-    private void Want(IReadOnlyList<Line> lines, int top, int width, int height, Raster raster)
+    private void Want(Page page, Raster raster)
     {
-        if (_wantedAt is { } was && top != was)
-        {
-            _travel = Math.Sign(top - was);
-        }
-
-        _wantedAt = top;
+        var (lines, top, width, height) = page;
 
         var (above, below) = _travel switch
         {
@@ -297,23 +309,19 @@ internal sealed class Placing
     ///     past its bottom, for a box being scrolled past — and with <paramref name="near" />, those within that many
     ///     rows of the page as well.
     /// </summary>
-    private List<(Inset Inset, int Top, Picture Picture)> Wanted(
-        IReadOnlyList<Line> lines,
-        int top,
-        int height,
-        int near = 0)
+    private List<(Inset Inset, int Top, Picture Picture)> Wanted(Page page, int near = 0)
     {
         var wanted = new List<(Inset, int, Picture)>();
 
-        for (var at = 0; at < lines.Count; at++)
+        for (var at = 0; at < page.Lines.Count; at++)
         {
-            foreach (var inset in lines[at].Insets)
+            foreach (var inset in page.Lines[at].Insets)
             {
-                var from = at - top;
+                var from = at - page.Top;
 
                 // Off the top or off the bottom. A box straddling either edge is kept and clipped, which is what
                 // keeps a picture visible while it is being scrolled past rather than blinking out at the edge.
-                if (from + inset.Rows <= -near || from >= height + near)
+                if (from + inset.Rows <= -near || from >= page.Height + near)
                 {
                     continue;
                 }
@@ -338,19 +346,19 @@ internal sealed class Placing
     ///     so the pixels are usually here to encode — so that a picture scrolled to is usually ready rather than
     ///     encoded the frame it comes into view (ADR-0022).
     /// </remarks>
-    private List<(Inset Inset, int Top, int Id)> Sent(IReadOnlyList<Line> lines, int top, int height, CellSize cell)
+    private List<Placement> Sent(Placeholders drawing, Page page, CellSize cell)
     {
-        var placed = new List<(Inset, int, int)>();
+        var placed = new List<Placement>();
 
-        foreach (var (inset, at, picture) in Wanted(lines, top, height, near: height))
+        foreach (var (inset, at, picture) in Wanted(page, near: page.Height))
         {
-            if (at + inset.Rows <= 0 || at >= height)
+            if (at + inset.Rows <= 0 || at >= page.Height)
             {
-                _placeholders!.Prepare(inset, picture, cell);
+                drawing.Prepare(inset, picture, cell);
             }
-            else if (_placeholders!.Ready(inset, picture, cell) is { } id)
+            else if (drawing.Ready(inset, picture, cell) is { } id)
             {
-                placed.Add((inset, at, id));
+                placed.Add(new Placement(inset, at, id));
             }
         }
 
@@ -358,8 +366,21 @@ internal sealed class Placing
     }
 
     /// <summary>
-    ///     Tells a Kitty terminal drawing placeholders to forget every Stand-in blur it was handed that is no longer near
-    ///     the page — replaced by the picture it stood in for, or scrolled away (#349).
+    ///     The Stand-in blurs <see cref="Sent" /> is about to prepare or place this frame, by <see cref="Drawn.Id" />:
+    ///     the same reach, a screen either side of the page.
+    /// </summary>
+    private HashSet<string> BlursNear(Page page) =>
+    [
+        .. Wanted(page, near: page.Height)
+           .Where(wanted => wanted.Inset.Blur is not null)
+           .Select(wanted => wanted.Inset.Drawn.Id),
+    ];
+
+    /// <summary>
+    ///     Tells a Kitty terminal drawing placeholders to forget every Stand-in blur it was handed that is not
+    ///     <paramref name="near" /> the page — replaced by the picture it stood in for, or scrolled away (#349). None is
+    ///     near where nothing is sent that way, or there is no page to be near, and then every blur held is let go of,
+    ///     rather than kept for a frame that may never come.
     /// </summary>
     /// <remarks>
     ///     A picture is forgotten when the cache lets go of it (ADR-0025), but a blur is never in the cache, so nothing
@@ -368,24 +389,12 @@ internal sealed class Placing
     ///     blur replaced this frame is gone from the terminal in the frame its picture is sent. One scrolled back to is
     ///     simply encoded and sent again — it is a few kilobytes. Through a box, the box's own release does this.
     /// </remarks>
-    private void LetGoOfBlurs(IReadOnlyList<Line> lines, int top, int height, Raster raster)
+    private void LetGoOfBlurs(HashSet<string> near)
     {
         if (_placeholders is null)
         {
             return;
         }
-
-        // The blurs Sent is about to prepare or place this frame: the same reach, a screen either side of the page.
-        // None where nothing is sent this way, or there is no page to be near — and then every blur held is let go of,
-        // rather than kept for a frame that may never come.
-        HashSet<string> near = raster.Way is PictureWay.Placeholders && height > 0
-            ?
-            [
-                .. Wanted(lines, top, height, near: height)
-                   .Where(wanted => wanted.Inset.Blur is not null)
-                   .Select(wanted => wanted.Inset.Drawn.Id),
-            ]
-            : [];
 
         foreach (var gone in _blursHeld.Where(id => !near.Contains(id)))
         {
@@ -396,24 +405,24 @@ internal sealed class Placing
     }
 
     /// <summary>
-    ///     Drains what the cache has let go of since the last frame and tells a Kitty terminal drawing placeholders to
-    ///     forget each of them, every size it holds (ADR-0022) — here, on the UI thread, before the frame's
-    ///     <see cref="Placeholders.Flush" />, rather than wherever the cache let go of it. One let go of as another
-    ///     landed is drained on the redraw that landing asked for. Anywhere else nothing was sent this way, so the list
-    ///     is drained and discarded.
+    ///     Drains what the cache has let go of since the last frame and tells <paramref name="drawing" /> — a Kitty
+    ///     terminal drawing placeholders — to forget each of them, every size it holds (ADR-0022): here, on the UI
+    ///     thread, before the frame's <see cref="Placeholders.Flush" />, rather than wherever the cache let go of it.
+    ///     One let go of as another landed is drained on the redraw that landing asked for. Where pictures are not
+    ///     drawn as placeholders nothing was sent that way, so the list is drained and discarded.
     /// </summary>
-    private void LetGoOfPictures(Raster raster)
+    private void LetGoOfPictures(Placeholders? drawing)
     {
         var letGo = _pictures.Drain();
 
-        if (raster.Way is not PictureWay.Placeholders || _placeholders is null)
+        if (drawing is null)
         {
             return;
         }
 
         foreach (var gone in letGo)
         {
-            _placeholders.Drop(gone);
+            drawing.Drop(gone);
         }
     }
 
@@ -423,14 +432,9 @@ internal sealed class Placing
     ///     Gives each picture on the page a box and lets go of every other, all of them released before any is placed,
     ///     and <paramref name="show" /> putting each picture in the box it was given.
     /// </summary>
-    private void Place(
-        IReadOnlyList<Line> lines,
-        int top,
-        int width,
-        int height,
-        Action<IPictureBox, Inset, int, Picture> show)
+    private void Place(Page page, Action<IPictureBox, Inset, int, Picture> show)
     {
-        var wanted = Wanted(lines, top, height);
+        var wanted = Wanted(page);
 
         // Who draws what, settled for the whole frame before anything moves — see Boxes. Asking box by box is what
         // this used to do, and it could not see that one picture was wanted once and held twice.
@@ -495,18 +499,19 @@ internal sealed class Placing
     ///     A box straddling the edge is cut a row differently on every step, and encoding the cut on the frame that
     ///     wants it was most of what a step cost once nothing else was encoded twice (#292). An encode takes longer
     ///     than the gap between two notches of a trackpad, so a row ahead is not far enough: <see cref="Ahead" /> rows
-    ///     the way the page is moving, and one the other way for a reader who turns round. A box wholly on the page is
-    ///     the same cut whichever way it moves, and costs nothing here.
+    ///     the way the page moved this frame, and one the other way for a reader who turns round. A page standing
+    ///     still, or on the first frame of its rows, is cut a row either way. A box wholly on the page is the same cut
+    ///     whichever way it moves, and costs nothing here.
     /// </remarks>
-    private void Prepare(IReadOnlyList<Line> lines, int top, int width, int height, CellSize cell, int colours)
+    /// <param name="page">The page.</param>
+    /// <param name="moving">Which way the page moved this frame, as <see cref="Moved" /> says.</param>
+    /// <param name="cell">How many pixels a cell is.</param>
+    /// <param name="colours">How many colours a sixel is encoded in.</param>
+    private void Prepare(Page page, int moving, CellSize cell, int colours)
     {
-        var moving = Math.Sign(top - _placedAt);
-
-        _placedAt = top;
-
-        foreach (var (inset, at, picture) in Wanted(lines, top, height, near: Ahead))
+        foreach (var (inset, at, picture) in Wanted(page, near: Ahead))
         {
-            var now = OnPage(inset, at, width, height)?.Crop;
+            var now = OnPage(inset, at, page)?.Crop;
 
             for (var rows = -Ahead; rows <= Ahead; rows++)
             {
@@ -518,7 +523,7 @@ internal sealed class Placing
                     continue;
                 }
 
-                if (OnPage(inset, at + rows, width, height) is { Crop: var next } && next != now)
+                if (OnPage(inset, at + rows, page) is { Crop: var next } && next != now)
                 {
                     _sixels.Prepare(inset, picture, cell, next, colours);
                 }
@@ -530,15 +535,24 @@ internal sealed class Placing
     ///     The part of a box whose top is on row <paramref name="top" /> of the page that is on it — its frame, and
     ///     which of its rows and columns those are — or <see langword="null" /> where none of it is.
     /// </summary>
-    private static (Rectangle Frame, SixelCrop Crop)? OnPage(Inset inset, int top, int width, int height)
+    private static (Rectangle Frame, SixelCrop Crop)? OnPage(Inset inset, int top, Page page)
     {
         var first = Math.Max(0, -top);
-        var rows = Math.Min(inset.Rows, height - top) - first;
-        var columns = Math.Min(inset.Columns, width - inset.Column);
+        var rows = Math.Min(inset.Rows, page.Height - top) - first;
+        var columns = Math.Min(inset.Columns, page.Width - inset.Column);
 
         return rows < 1 || columns < 1
             ? null
             : (new Rectangle(inset.Column, top + first, columns, rows), new SixelCrop(first, rows, columns));
+    }
+
+    /// <summary>
+    ///     The rows a frame hands over, the row of them the page begins on, and how many columns and rows the page has.
+    /// </summary>
+    private readonly record struct Page(IReadOnlyList<Line> Lines, int Top, int Width, int Height)
+    {
+        /// <summary>Whether there is a page at all — none where the window has shrunk to nothing.</summary>
+        public bool HasRoom => Width > 0 && Height > 0;
     }
 
     /// <summary>

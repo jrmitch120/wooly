@@ -372,6 +372,36 @@ public class PlacingTests
     }
 
     /// <summary>
+    ///     Rows resumed have not been moved through yet, so their first frame encodes a row either way and nothing
+    ///     further ahead — rather than reaching on the way the last rows were going, which is the same answer
+    ///     <see cref="PictureWantingTests.ResumedRowsReachTwoScreensEitherSideAgain" /> gives what is wanted.
+    /// </summary>
+    [Fact]
+    public void ResumedRowsEncodeOnlyARowEitherWayOnTheirFirstFrame()
+    {
+        var encoded = new List<int>();
+        var frame = new AFrame(
+            new FakePictures().Holding("m1", 40, 160),
+            encode: (pixels, _) =>
+            {
+                encoded.Add(pixels.GetLength(1) / 20);
+
+                return "sixel";
+            });
+        var rows = Rows(Box("m1", at: 8, rows: 8));
+
+        frame.Place(rows, top: 0, ARaster.Sixel());
+        frame.Place(rows, top: 1, ARaster.Sixel());
+        frame.Placing.Resume();
+        encoded.Clear();
+
+        // Six rows of the box on the page, and the seven and five a row either way: all encoded on the way here.
+        frame.Place(rows, top: 4, ARaster.Sixel());
+
+        Assert.Empty(encoded);
+    }
+
+    /// <summary>
     ///     On a Kitty terminal drawing placeholders, a picture on the page is sent once and handed back as a placement:
     ///     its box, the row of the page it starts on, and the id the terminal holds it under (ADR-0022).
     /// </summary>
@@ -673,7 +703,7 @@ public class PlacingTests
         public Rectangle? FramedLast(string id) =>
             Log.LastOrDefault(call => call.What is Kind.Framed && call.Picture == id)?.Frame;
 
-        public IReadOnlyList<(Inset Inset, int Top, int Id)> Place(
+        public IReadOnlyList<Placement> Place(
             IReadOnlyList<Line> rows,
             int top,
             Raster raster,

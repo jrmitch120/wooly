@@ -12,7 +12,10 @@ namespace Wooly.Tui.Media;
 ///     reserved until the PNG is ready, a redraw is asked for, and the next frame sends it.
 ///     <para>
 ///         Whether pictures are drawn this way at all is the <see cref="Raster" />'s to say, and nobody else's:
-///         <see cref="Placing" /> asks this only on a frame whose Raster says placeholders (#357, #362).
+///         <see cref="Placing" /> sends and prepares pictures through this only on a frame whose Raster says
+///         placeholders, and drops what the cache let go of only then (#357, #362). It drops the Stand-in blurs held and
+///         flushes on every frame, whatever the Raster: a frame that has stopped drawing placeholders still has to tell
+///         the terminal to forget what it was holding.
 ///     </para>
 /// </remarks>
 /// <param name="terminal">The terminal's image store.</param>
