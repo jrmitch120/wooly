@@ -174,7 +174,10 @@ public class PicturesTests
                 }
             });
 
-        pictures.Want([Near(Drawn.Attached(APost.APicture(id: "m1"))), Near(Drawn.Attached(APost.APicture(id: "m2")))], ADrawingTerminal, Wide);
+        pictures.Want(
+            [Near(Drawn.Attached(APost.APicture(id: "m1"))), Near(Drawn.Attached(APost.APicture(id: "m2")))],
+            ADrawingTerminal,
+            Wide);
 
         await both.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
@@ -428,7 +431,10 @@ public class PicturesTests
     {
         using var pictures = APictures(_ => APng(400, 400), out var landings);
 
-        pictures.Want([Near(Drawn.Avatar("alice@example.social", "https://files.example/alice.png"))], ADrawingTerminal, Wide);
+        pictures.Want(
+            [Near(Drawn.Avatar("alice@example.social", "https://files.example/alice.png"))],
+            ADrawingTerminal,
+            Wide);
 
         await landings.Landed(1);
 

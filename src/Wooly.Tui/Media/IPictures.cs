@@ -44,8 +44,8 @@ public interface IPictures
     ///     asked for again. Said by whatever knows where the scroll has got to, which is the view rather than the post.
     ///     <para>
     ///         Handed the frame's room rather than asking the window for it, so that nothing a cache does calls back
-    ///         into the window — under its lock or otherwise — and the deadlock fixed in 463531b cannot be written
-    ///         again (#359).
+    ///         into the window — under its lock or otherwise — and the deadlock of asking the window its size under
+    ///         that lock (#351) cannot be written again (#359).
     ///     </para>
     /// </remarks>
     void Want(IReadOnlyList<WantedPicture> frame, Raster raster, int columns);

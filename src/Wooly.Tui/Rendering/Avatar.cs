@@ -91,7 +91,7 @@ public readonly record struct Avatar(Drawn? Wanted, Inset? Box, int Held, int Ga
         int rows,
         int gap)
     {
-        if (pictures is null || raster?.Cell is null || address is null)
+        if (!Drawing.Draws(pictures, raster, out _) || address is null)
         {
             return default;
         }

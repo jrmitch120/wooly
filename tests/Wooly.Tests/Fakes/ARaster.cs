@@ -4,7 +4,8 @@ namespace Wooly.Tests.Fakes;
 
 /// <summary>
 ///     How a terminal paints pixels, said outright for a <see cref="Wooly.Tui.Rendering.Drawing" /> laid out with no
-///     terminal in the room — at 10×20 unless a test says otherwise, which is what both protocols fall back to reporting.
+///     terminal in the room — at 10×20 unless a test says otherwise, which is what both sixel and Kitty graphics fall
+///     back to reporting.
 /// </summary>
 internal static class ARaster
 {

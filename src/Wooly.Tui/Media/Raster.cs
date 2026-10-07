@@ -5,16 +5,16 @@ using Terminal.Gui.Drivers;
 namespace Wooly.Tui.Media;
 
 /// <summary>
-///     How this terminal paints pixels, as one value: the way a picture is drawn, how big a cell is, and how many colours
-///     a sixel is encoded in. Worked out by the window once a frame and carried on the <see cref="Rendering.Drawing" />,
-///     so that the screens, the view and the picture cache cannot come to disagree about what kind of terminal this is
-///     (#354).
+///     How this terminal paints pixels, as one value: the way a picture is drawn, how big a cell is, and how many
+///     colours a sixel is encoded in. Worked out once a frame, as the content region settles it, and carried on the
+///     <see cref="Rendering.Drawing" />, so that the screens, the view and the picture cache cannot come to disagree
+///     about what kind of terminal this is (#357).
 /// </summary>
 /// <remarks>
-///     Kitty's Unicode placeholders where the terminal is known to draw them, then the Kitty graphics protocol through a
-///     box, then sixel, and then nothing at all (ADR-0016, ADR-0022, ADR-0023). Placeholders first because a picture is
-///     sent once and moves with the text for nothing; sixel cannot move an image already on screen, so every scroll
-///     resends it. But only where the terminal is known by name to draw them (<see cref="KnownTerminal" />): speaking
+///     Kitty's Unicode placeholders where the terminal is known to draw them, then Kitty graphics through a box, then
+///     sixel, and then nothing at all (ADR-0016, ADR-0022, ADR-0023). Placeholders first because a picture is sent
+///     once and moves with the text for nothing; sixel cannot move an image already on screen, so every scroll resends
+///     it. But only where the terminal is known by name to draw them (<see cref="KnownTerminal" />): speaking
 ///     Kitty graphics is not enough, because WezTerm speaks them and prints the placeholders as boxes.
 ///     <para>
 ///         Everywhere else a picture is drawn through a box, Kitty before sixel, which is also the order
@@ -48,16 +48,16 @@ public sealed record Raster(PictureWay Way, CellSize? Cell, int SixelColours)
         Of(driver?.SixelSupport, driver?.KittyGraphicsSupport, placeholders, measured);
 
     /// <summary>
-    ///     How a terminal reporting <paramref name="sixel" /> and <paramref name="kitty" /> paints pixels. Either may be
-    ///     <see langword="null" />, which is a capability nobody has asked the terminal about yet rather than one it has
-    ///     denied — and not one to draw through either.
+    ///     How a terminal reporting <paramref name="sixel" /> and <paramref name="kitty" /> paints pixels. Either may
+    ///     be <see langword="null" />, which is a capability nobody has asked the terminal about yet rather than one it
+    ///     has denied — and not one to draw through either.
     /// </summary>
     /// <remarks>
-    ///     In placeholders, the cell the kernel measured, then whatever either protocol answered, then 10×20: the PNG a
-    ///     picture is sent as is the box's cells in pixels, so a cell guessed too small is a picture the terminal
-    ///     stretches into its box (#292). Only asked of the kernel there. Through a box, the protocol's own answer,
-    ///     because Terminal.Gui's image view sizes what it draws by that — and a box shaped by one cell size and filled
-    ///     by another is a picture of the wrong shape.
+    ///     In placeholders, the cell the kernel measured, then whatever the terminal answered about Kitty graphics or
+    ///     sixel, then 10×20: the PNG a picture is sent as is the box's cells in pixels, so a cell guessed too small is
+    ///     a picture the terminal stretches into its box (#292). Only asked of the kernel there. Through a box, the
+    ///     terminal's own answer for the way it draws, because Terminal.Gui's image view sizes what it draws by that —
+    ///     and a box shaped by one cell size and filled by another is a picture of the wrong shape.
     ///     <para>
     ///         A sixel in all 256 colours sixel allows, or fewer where the terminal says it has fewer. Terminal.Gui's
     ///         image view stops at 64, at which a photograph's gradients break into patches (ADR-0023).
@@ -90,7 +90,8 @@ public sealed record Raster(PictureWay Way, CellSize? Cell, int SixelColours)
         };
 
     /// <summary>
-    ///     Which way a picture is drawn: the one place it is chosen, with the placeholders taken into account every time.
+    ///     Which way a picture is drawn: the one place it is chosen, with the placeholders taken into account every
+    ///     time.
     /// </summary>
     private static PictureWay Chosen(
         SixelSupportResult? sixel,
@@ -102,8 +103,8 @@ public sealed record Raster(PictureWay Way, CellSize? Cell, int SixelColours)
         : PictureWay.None;
 
     /// <summary>
-    ///     A reported resolution, or the 10×20 both detectors fall back to where the terminal answered that it speaks
-    ///     the protocol but not how big its cells are — and where nothing has been answered at all.
+    ///     A reported resolution, or the 10×20 both detectors fall back to where the terminal answered that it draws
+    ///     that way but not how big its cells are — and where nothing has been answered at all.
     /// </summary>
     private static CellSize Sized(Size resolution) => new(
         resolution.Width > 0 ? resolution.Width : 10,
