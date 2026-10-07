@@ -26,6 +26,9 @@ internal sealed class FakePictures : IPictures
     /// <summary>Every frame's wants as the view said them: nearest first, with those on screen marked.</summary>
     public List<IReadOnlyList<WantedPicture>> Frames { get; } = [];
 
+    /// <summary>The room each frame gave alongside its wants: its Raster and the content region's columns.</summary>
+    public List<(Raster Raster, int Columns)> Rooms { get; } = [];
+
     /// <summary>Says that the picture for the attachment <paramref name="mediaId" /> has arrived, at the given size in pixels.</summary>
     public FakePictures Holding(string mediaId, int width, int height) => Held(mediaId, width, height);
 
@@ -70,9 +73,10 @@ internal sealed class FakePictures : IPictures
     }
 
     /// <inheritdoc />
-    public void Want(IReadOnlyList<WantedPicture> frame)
+    public void Want(IReadOnlyList<WantedPicture> frame, Raster raster, int columns)
     {
         Frames.Add(frame);
+        Rooms.Add((raster, columns));
         Sent.AddRange(frame.Select(wanted => wanted.Drawn.Id));
     }
 

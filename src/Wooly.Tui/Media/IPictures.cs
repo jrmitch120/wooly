@@ -27,14 +27,28 @@ public interface IPictures
     ///     Says which pictures this frame wants: everything on screen or near it, nearest first, with those on screen
     ///     marked. Whatever was wanted before and is not in <paramref name="frame" /> is wanted no more.
     /// </summary>
+    /// <param name="frame">The pictures this frame wants, nearest first.</param>
+    /// <param name="raster">
+    ///     How this terminal paints pixels in this frame: its cell is what a picture is decoded to the size of, and a
+    ///     terminal that draws none decodes to the decoder's own bounds.
+    /// </param>
+    /// <param name="columns">
+    ///     How many columns wide the content region is in this frame — the widest any picture's box can be — or nought
+    ///     before the window has drawn, which decodes to the decoder's own bounds (ADR-0025).
+    /// </param>
     /// <remarks>
     ///     One call a frame rather than one a picture, because only a whole frame can say which pictures are on screen
     ///     now and which used to be wanted and are not any more — and those are what a cache needs, to know what it
     ///     must never let go of and what it should let go of first (ADR-0025). Safe to call on every frame: a picture
     ///     is sent for once, a redraw is how the picture appears when it lands, and one that cannot be had is not
     ///     asked for again. Said by whatever knows where the scroll has got to, which is the view rather than the post.
+    ///     <para>
+    ///         Handed the frame's room rather than asking the window for it, so that nothing a cache does calls back
+    ///         into the window — under its lock or otherwise — and the deadlock fixed in 463531b cannot be written
+    ///         again (#359).
+    ///     </para>
     /// </remarks>
-    void Want(IReadOnlyList<WantedPicture> frame);
+    void Want(IReadOnlyList<WantedPicture> frame, Raster raster, int columns);
 
     /// <summary>
     ///     The pictures let go of since the last drain, by <see cref="Drawn.Id" />, each handed back once and never
