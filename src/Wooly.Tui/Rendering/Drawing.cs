@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Wooly.Tui.Media;
 
 namespace Wooly.Tui.Rendering;
@@ -37,8 +38,9 @@ namespace Wooly.Tui.Rendering;
 ///     in the room — which reads as every attachment being linked rather than drawn.
 /// </param>
 /// <param name="Raster">
-///     How this terminal paints pixels, worked out by the window once a frame, or <see langword="null" /> where nobody
-///     said — which, like <see cref="Media.Raster.None" />, reads as every attachment being linked rather than drawn.
+///     How this terminal paints pixels, worked out once a frame as the content region settles it, or
+///     <see langword="null" /> where nobody said — which, like <see cref="Media.Raster.None" />, reads as every
+///     attachment being linked rather than drawn.
 ///     <para>
 ///         A screen needs this while it is working out its rows rather than while they are being painted, because it
 ///         changes what the rows are: the cell settles how many rows a picture's box takes, and an attachment on a
@@ -77,4 +79,23 @@ public sealed record Drawing(
     /// </remarks>
     /// <param name="width">The room left.</param>
     public Drawing In(int width) => this with { Width = width };
+
+    /// <summary>
+    ///     Whether a picture is drawn at all under <paramref name="pictures" /> and <paramref name="raster" />, and the
+    ///     cell it is drawn at where it is. Not where nobody said where pixels come from, nor on a terminal with no cell
+    ///     to draw at — either of which links every picture rather than drawing it (ADR-0016).
+    /// </summary>
+    /// <remarks>
+    ///     Said once for every place that decides between a box and a link, so that none of them can ask one of the two
+    ///     and forget the other.
+    /// </remarks>
+    /// <param name="pictures">Where the pixels come from, if anywhere.</param>
+    /// <param name="raster">How this terminal paints pixels, if anybody said.</param>
+    /// <param name="cell">The cell a picture is drawn at, where one is drawn.</param>
+    public static bool Draws([NotNullWhen(true)] IPictures? pictures, Raster? raster, out CellSize cell)
+    {
+        cell = raster?.Cell ?? default;
+
+        return pictures is not null && raster?.Cell is not null;
+    }
 }

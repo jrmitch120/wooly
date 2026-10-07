@@ -495,7 +495,7 @@ public static class PostLines
                 continue;
             }
 
-            if (pictures is null || raster?.Cell is not { } cell)
+            if (!Drawing.Draws(pictures, raster, out var cell))
             {
                 yield return [.. LinkedImage(attached, width)];
 
@@ -571,7 +571,7 @@ public static class PostLines
         Line Label(bool saysWhatItShows) =>
             AttachmentReferenceLine(attached, reference, picked, width, saysWhatItShows);
 
-        if (!attached.IsDrawable || pictures is null || raster?.Cell is not { } cell)
+        if (!attached.IsDrawable || !Drawing.Draws(pictures, raster, out var cell))
         {
             return [Label(saysWhatItShows: true)];
         }
@@ -787,7 +787,7 @@ public static class PostLines
 
         // Null on a terminal that draws nothing and where the instance chose no picture alike — the two answers that
         // read the same, which is what "linked rather than drawn" already means for an attachment (ADR-0016).
-        var drawn = pictures is null || raster?.Cell is null ? null : Drawn.LinkPreview(link);
+        var drawn = Drawing.Draws(pictures, raster, out _) ? Drawn.LinkPreview(link) : null;
 
         // The words first and always, so nothing a reader is looking at moves when the pixels land underneath them.
         // The walked row is what carries the Wants, the way an attachment's own description does.
@@ -801,8 +801,7 @@ public static class PostLines
         // the picture is here yet — the same box and Stand-in an attachment gets, so a link card moves nothing when its
         // picture lands either (ADR-0025, #348). The walked row above already carries the Wants.
         if (drawn is not null
-            && pictures is not null
-            && raster?.Cell is { } cell
+            && Drawing.Draws(pictures, raster, out var cell)
             && Inset.For(drawn, link.Shape, cell, width, mostRows) is { } box)
         {
             lines.AddRange(Reserved(box, link.Blurhash, blurs, pictures, cell));

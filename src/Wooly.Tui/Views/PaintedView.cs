@@ -993,7 +993,7 @@ internal sealed class PaintedView : View
     /// </remarks>
     private List<(Inset Inset, int Top, int Id)> Sent(IReadOnlyList<Line> lines, int height)
     {
-        if (_pictures is null || Raster.Cell is not { } cell)
+        if (!Drawing.Draws(_pictures, Raster, out var cell))
         {
             return [];
         }
