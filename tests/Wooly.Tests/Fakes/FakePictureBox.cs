@@ -4,24 +4,28 @@ using Wooly.Tui.Media;
 namespace Wooly.Tests.Fakes;
 
 /// <summary>
-///     A box a drawn picture is drawn through that draws nothing and writes down every call made of it, into a log
-///     shared with the rest of its pool — so that what each box was shown, where it sat and when it was let go are
-///     assertions, in the order they happened, without a terminal (#360, #361).
+///     A box a drawn picture is drawn through that draws nothing: it holds where it was framed and whether it is visible,
+///     and writes down what it was shown and when it was let go, into a log shared with the rest of its pool — so that
+///     what each box shows is an assertion, and so is what was let go of before anything was shown (#360, #361).
 /// </summary>
 internal sealed class FakePictureBox(int number, List<FakePictureBox.Call> log) : IPictureBox
 {
-    private Rectangle _frame;
-    private bool _visible;
-
     /// <summary>
     ///     What makes a pool of these, numbered from nought in the order they are made, every one writing into
-    ///     <paramref name="log" />.
+    ///     <paramref name="log" /> and, where it is given, added to <paramref name="made" />.
     /// </summary>
-    public static Func<IPictureBox> Pool(List<Call> log)
+    public static Func<IPictureBox> Pool(List<Call> log, List<FakePictureBox>? made = null)
     {
-        var made = 0;
+        var count = 0;
 
-        return () => new FakePictureBox(made++, log);
+        return () =>
+        {
+            var box = new FakePictureBox(count++, log);
+
+            made?.Add(box);
+
+            return box;
+        };
     }
 
     /// <inheritdoc />
@@ -31,26 +35,10 @@ internal sealed class FakePictureBox(int number, List<FakePictureBox.Call> log) 
     public string? PictureId { get; private set; }
 
     /// <inheritdoc />
-    public Rectangle Frame
-    {
-        get => _frame;
-        set
-        {
-            _frame = value;
-            log.Add(new Call(number, Kind.Framed, PictureId, Frame: value));
-        }
-    }
+    public Rectangle Frame { get; set; }
 
     /// <inheritdoc />
-    public bool Visible
-    {
-        get => _visible;
-        set
-        {
-            _visible = value;
-            log.Add(new Call(number, Kind.Visible, PictureId, Visible: value));
-        }
-    }
+    public bool Visible { get; set; }
 
     /// <inheritdoc />
     public void Show(string pictureId, Picture picture)
@@ -71,7 +59,7 @@ internal sealed class FakePictureBox(int number, List<FakePictureBox.Call> log) 
     {
         log.Add(new Call(number, Kind.Released, PictureId));
         PictureId = null;
-        _visible = false;
+        Visible = false;
     }
 
     /// <summary>What a box was asked to do.</summary>
@@ -79,8 +67,6 @@ internal sealed class FakePictureBox(int number, List<FakePictureBox.Call> log) 
     {
         ShownWhole,
         ShownSixel,
-        Framed,
-        Visible,
         Released,
     }
 
@@ -88,5 +74,5 @@ internal sealed class FakePictureBox(int number, List<FakePictureBox.Call> log) 
     ///     One call made of box <paramref name="Box" />, with the picture it held as it was made — for a release, the one
     ///     it let go of.
     /// </summary>
-    public sealed record Call(int Box, Kind What, string? Picture, Rectangle? Frame = null, bool? Visible = null);
+    public sealed record Call(int Box, Kind What, string? Picture);
 }

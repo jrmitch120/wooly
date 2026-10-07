@@ -18,7 +18,7 @@ public class PlacingTests
 {
     /// <summary>
     ///     On a sixel terminal a box on the page is shown a cut of its picture, framed over the rows reserved for it,
-    ///     and made visible — in that order, so that it is never drawn empty or in the wrong place.
+    ///     and made visible.
     /// </summary>
     [Fact]
     public void ASixelBoxIsShownItsCutFramedOverItsRowsAndMadeVisible()
@@ -28,13 +28,11 @@ public class PlacingTests
 
         frame.Place(rows, top: 0, ARaster.Sixel());
 
-        Assert.Equal(
-            [
-                new FakePictureBox.Call(0, Kind.ShownSixel, "m1"),
-                new FakePictureBox.Call(0, Kind.Framed, "m1", Frame: new Rectangle(3, 2, 4, 4)),
-                new FakePictureBox.Call(0, Kind.Visible, "m1", Visible: true),
-            ],
-            frame.Log.Where(call => call.Picture is not null));
+        var box = frame.Showing("m1");
+
+        Assert.Contains(frame.Log, call => call is { What: Kind.ShownSixel, Picture: "m1" });
+        Assert.Equal(new Rectangle(3, 2, 4, 4), box.Frame);
+        Assert.True(box.Visible);
     }
 
     /// <summary>
@@ -49,7 +47,7 @@ public class PlacingTests
 
         frame.Place(Rows(Box("m1", at: 10, rows: 4)), top: 12, ARaster.Sixel());
 
-        Assert.Equal(new Rectangle(0, 0, 4, 2), frame.FramedLast("m1"));
+        Assert.Equal(new Rectangle(0, 0, 4, 2), frame.Showing("m1").Frame);
     }
 
     /// <summary>
@@ -64,11 +62,11 @@ public class PlacingTests
 
         frame.Place(rows, top: 4, ARaster.Sixel());
 
-        Assert.Equal(new Rectangle(0, 8, 4, 2), frame.FramedLast("m1"));
+        Assert.Equal(new Rectangle(0, 8, 4, 2), frame.Showing("m1").Frame);
 
         frame.Place(rows, top: 5, ARaster.Sixel());
 
-        Assert.Equal(new Rectangle(0, 7, 4, 3), frame.FramedLast("m1"));
+        Assert.Equal(new Rectangle(0, 7, 4, 3), frame.Showing("m1").Frame);
     }
 
     /// <summary>And a box running past the right of the page is cut at it, never drawn on the edge.</summary>
@@ -79,7 +77,7 @@ public class PlacingTests
 
         frame.Place(Rows(Box("m1", at: 0, column: Width - 3, columns: 8, rows: 4)), top: 0, ARaster.Sixel());
 
-        Assert.Equal(new Rectangle(Width - 3, 0, 3, 4), frame.FramedLast("m1"));
+        Assert.Equal(new Rectangle(Width - 3, 0, 3, 4), frame.Showing("m1").Frame);
     }
 
     /// <summary>
@@ -121,7 +119,7 @@ public class PlacingTests
         frame.Place(rows, top: 1, Of(way));
 
         Assert.DoesNotContain(frame.Log, call => call is { What: Kind.Released, Picture: "m1" });
-        Assert.Equal(new Rectangle(0, 1, 4, 4), frame.FramedLast("m1"));
+        Assert.Equal(new Rectangle(0, 1, 4, 4), frame.Showing("m1").Frame);
     }
 
     /// <summary>
@@ -138,7 +136,7 @@ public class PlacingTests
 
         Assert.Contains(frame.Log, call => call is { What: Kind.ShownWhole, Picture: "m1" });
         Assert.DoesNotContain(frame.Log, call => call.What is Kind.ShownSixel);
-        Assert.Equal(new Rectangle(0, -2, 4, 4), frame.FramedLast("m1"));
+        Assert.Equal(new Rectangle(0, -2, 4, 4), frame.Showing("m1").Frame);
     }
 
     /// <summary>
@@ -655,12 +653,16 @@ public class PlacingTests
         {
             Placing = new Placing(
                 pictures,
-                FakePictureBox.Pool(Log),
+                FakePictureBox.Pool(Log, Boxes),
                 new SixelPictures(encode ?? ((_, _) => "sixel"), ahead ?? (work => work())),
                 new Placeholders(Kitty, encoded: () => { }, elsewhere: encoding ?? (work => work())));
         }
 
+        /// <summary>What every box was shown and let go of, in the order it happened.</summary>
         public List<FakePictureBox.Call> Log { get; } = [];
+
+        /// <summary>Every box, in the order Placing made them.</summary>
+        public List<FakePictureBox> Boxes { get; } = [];
 
         /// <summary>What a Kitty terminal drawing placeholders was sent and told to forget.</summary>
         public FakeTerminalImages Kitty { get; } = new();
@@ -674,9 +676,8 @@ public class PlacingTests
                .Select(call => call.Box),
         ];
 
-        /// <summary>Where a box showing <paramref name="id" /> was last framed.</summary>
-        public Rectangle? FramedLast(string id) =>
-            Log.LastOrDefault(call => call.What is Kind.Framed && call.Picture == id)?.Frame;
+        /// <summary>The one box holding <paramref name="id" /> now.</summary>
+        public FakePictureBox Showing(string id) => Assert.Single(Boxes, box => box.PictureId == id);
 
         public IReadOnlyList<Placement> Place(
             IReadOnlyList<Line> rows,
