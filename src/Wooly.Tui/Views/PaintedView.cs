@@ -584,6 +584,7 @@ internal sealed class PaintedView : View
             _boxes.ForEach(box => box.Release());
             _placed = [];
             LetGoOfBlurs([], 0);
+            LetGoOfPictures();
             _placeholders?.Flush();
 
             return;
@@ -593,6 +594,7 @@ internal sealed class PaintedView : View
 
         Want(lines, height);
         LetGoOfBlurs(lines, height);
+        LetGoOfPictures();
 
         // Whatever the terminal was told to let go of since the last frame, before anything is sent.
         _placeholders?.Flush();
@@ -937,6 +939,28 @@ internal sealed class PaintedView : View
         }
 
         _blursHeld = near;
+    }
+
+    /// <summary>
+    ///     Drains what the cache has let go of since the last frame and tells a Kitty terminal drawing placeholders to
+    ///     forget each of them, every size it holds (ADR-0022) — here, on the UI thread, before the frame's
+    ///     <see cref="Placeholders.Flush" />, rather than wherever the cache let go of it. One let go of as another
+    ///     landed is drained on the redraw that landing asked for. Anywhere else nothing was sent this way, so the list
+    ///     is drained and discarded.
+    /// </summary>
+    private void LetGoOfPictures()
+    {
+        var letGo = _pictures?.Drain() ?? [];
+
+        if (_placeholders?.Drawing != true)
+        {
+            return;
+        }
+
+        foreach (var gone in letGo)
+        {
+            _placeholders.Drop(gone);
+        }
     }
 
     /// <summary>

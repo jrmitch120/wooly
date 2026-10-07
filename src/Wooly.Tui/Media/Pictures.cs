@@ -28,13 +28,6 @@ namespace Wooly.Tui.Media;
 ///     What to do when a picture lands: redraw, so the rows that have been waiting for it fill in. Called off the
 ///     thread the fetch finished on, so whatever is passed here is what has to get back to the UI thread.
 /// </param>
-/// <param name="dropped">
-///     What to do when a picture's pixels are let go of — to make room, or replaced by pixels decoded again for a wider
-///     window — given its <see cref="Drawn.Id" />: tell a Kitty terminal holding a copy to let go of it too
-///     (ADR-0022). Only for the decoded tier: a picture whose file alone is let go of has nothing on the terminal that
-///     this client is not still drawing. Called on whichever thread made the room — the one saying what a frame wants,
-///     or the one a picture landed on.
-/// </param>
 /// <param name="columns">
 ///     How many columns wide the content region is now — the inside of the panel posts are drawn in — or
 ///     <see langword="null" /> or nought where nothing says. With the cell, that is the largest box a picture could be
@@ -45,7 +38,6 @@ public sealed class Pictures(
     Func<string, CancellationToken, Task<byte[]?>> fetch,
     Func<CellSize?> cell,
     Action arrived,
-    Action<string>? dropped = null,
     Func<int>? columns = null) : IPictures, IDisposable
 {
     /// <summary>
@@ -107,6 +99,14 @@ public sealed class Pictures(
     /// </summary>
     private List<Drawn> _queued = [];
 
+    /// <summary>
+    ///     Whose pixels have been let go of since the last <see cref="Drain" />, by <see cref="Drawn.Id" />, each once,
+    ///     in the order they went — to make room, or replaced by pixels decoded again for a wider window. Only the
+    ///     decoded tier's: a picture whose file alone is let go of has nothing on a terminal that this client is not
+    ///     still drawing.
+    /// </summary>
+    private readonly List<string> _letGo = [];
+
     /// <summary>How many fetches and decodes are under way, never more than <see cref="AtATime" />.</summary>
     private int _fetching;
 
@@ -138,13 +138,11 @@ public sealed class Pictures(
     /// </summary>
     /// <param name="cell">How big a cell is — see the constructor.</param>
     /// <param name="arrived">What to do when one lands — see the constructor.</param>
-    /// <param name="dropped">What to do when one is let go of — see the constructor.</param>
     /// <param name="columns">How wide the content region is — see the constructor.</param>
     public static Pictures Over(
         HttpClient http,
         Func<CellSize?> cell,
         Action arrived,
-        Action<string>? dropped = null,
         Func<int>? columns = null) => new(
         async (address, cancellation) =>
         {
@@ -163,7 +161,6 @@ public sealed class Pictures(
         },
         cell,
         arrived,
-        dropped,
         columns);
 
     /// <inheritdoc />
@@ -172,6 +169,19 @@ public sealed class Pictures(
         lock (_gate)
         {
             return _held.GetValueOrDefault(drawn.Id)?.Picture;
+        }
+    }
+
+    /// <inheritdoc />
+    public IReadOnlyList<string> Drain()
+    {
+        lock (_gate)
+        {
+            string[] letGo = [.. _letGo];
+
+            _letGo.Clear();
+
+            return letGo;
         }
     }
 
@@ -185,8 +195,6 @@ public sealed class Pictures(
     /// </remarks>
     public void Want(IReadOnlyList<WantedPicture> frame)
     {
-        List<string> letGo;
-
         // Asked once a frame, here on the thread that lays out rows, because that is the only thread the window's size
         // may be asked from — and before the lock rather than under it, because whatever answers is the application's
         // and may itself be waiting on a thread that is waiting on this lock. Whatever decodes a picture later reads
@@ -248,7 +256,7 @@ public sealed class Pictures(
 
             Abandon(taking);
 
-            letGo = LetGo();
+            LetGo();
 
             // Nearest first as this frame has it, and none that this very frame abandoned or let go of.
             _queued =
@@ -259,7 +267,6 @@ public sealed class Pictures(
             ];
         }
 
-        Announce(letGo);
         Pump();
     }
 
@@ -461,16 +468,13 @@ public sealed class Pictures(
             return;
         }
 
-        var letGo = new List<string>();
         bool landed;
 
         lock (_gate)
         {
-            landed = Land(drawn, stored is null ? null : bytes, stored, picture, letGo);
-            letGo.AddRange(LetGo());
+            landed = Land(drawn, stored is null ? null : bytes, stored, picture);
+            LetGo();
         }
-
-        Announce(letGo);
 
         if (landed)
         {
@@ -507,9 +511,9 @@ public sealed class Pictures(
 
     /// <summary>
     ///     Writes down what came of sending for <paramref name="drawn" />, and says whether there are new pixels to
-    ///     draw — adding it to <paramref name="letGo" /> where those replace pixels it already held. Under the lock.
+    ///     draw — letting go of the pixels it already held where those are replaced. Under the lock.
     /// </summary>
-    private bool Land(Drawn drawn, byte[]? bytes, Size? stored, Picture? picture, List<string> letGo)
+    private bool Land(Drawn drawn, byte[]? bytes, Size? stored, Picture? picture)
     {
         // Never forgotten while it was on its way (LetGo), so there is somewhere for it to land. Where the page moved on
         // while it was coming, it lands as a file alone, because Decoded asked the latest frame whether to decode it:
@@ -539,11 +543,11 @@ public sealed class Pictures(
         }
 
         // Decoded again for a wider window: the pixels it replaces are let go of as surely as any made room for, and a
-        // Kitty terminal holding a copy sent at the old size is told so (ADR-0022) — that copy's id is keyed on the
-        // size it was decoded at, so nothing would ever ask for it, or delete it, again.
+        // Kitty terminal holding a copy sent at the old size is told so once this is drained (ADR-0022) — that copy's
+        // id is keyed on the size it was decoded at, so nothing would ever ask for it, or delete it, again.
         if (held.Picture is not null)
         {
-            letGo.Add(drawn.Id);
+            HandBack(drawn.Id);
         }
 
         HoldPixels(held, picture);
@@ -552,22 +556,20 @@ public sealed class Pictures(
     }
 
     /// <summary>
-    ///     Lets go of what was wanted longest ago until each tier is back within its budget, and says whose pixels were
-    ///     let go of — to be told outside the lock, since whoever is told may take one of its own. Pixels on screen in
+    ///     Lets go of what was wanted longest ago until each tier is back within its budget, writing down whose pixels
+    ///     were let go of for the next <see cref="Drain" />. Under the lock. Pixels on screen in
     ///     the latest frame are passed over however far over budget that leaves the decoded tier. A picture with
     ///     neither pixels nor file left is forgotten where the encoded tier still needs the room remembering it takes,
     ///     and is sent for again if it is ever wanted again.
     /// </summary>
-    private List<string> LetGo()
+    private void LetGo()
     {
-        var letGo = new List<string>();
-
         for (var place = _wanted.First; place is not null && _decoded > DecodedBudget; place = place.Next)
         {
             if (place.Value.Picture is not null && !_onScreen.Contains(place.Value.Drawn.Id))
             {
                 LetGoOfPixels(place.Value);
-                letGo.Add(place.Value.Drawn.Id);
+                HandBack(place.Value.Drawn.Id);
             }
         }
 
@@ -593,8 +595,6 @@ public sealed class Pictures(
                 _encoded -= RememberingCost;
             }
         }
-
-        return letGo;
     }
 
     /// <summary>Holds <paramref name="bytes" /> as <paramref name="held" />'s file, keeping the tally.</summary>
@@ -661,15 +661,16 @@ public sealed class Pictures(
         return new Size(across, Rendering.Inset.WholeRows * size.Height);
     }
 
-    /// <summary>Says which pictures were let go of, outside the lock <see cref="LetGo" /> was called under.</summary>
-    private void Announce(List<string> letGo)
+    /// <summary>
+    ///     Writes down that <paramref name="drawnId" />'s pixels were let go of, for the next <see cref="Drain" /> —
+    ///     once, however often that happens before it. Under the lock.
+    /// </summary>
+    private void HandBack(string drawnId)
     {
-        if (dropped is null)
+        if (!_letGo.Contains(drawnId))
         {
-            return;
+            _letGo.Add(drawnId);
         }
-
-        letGo.ForEach(dropped);
     }
 
     /// <summary>
