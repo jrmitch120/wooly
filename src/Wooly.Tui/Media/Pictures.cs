@@ -22,7 +22,7 @@ namespace Wooly.Tui.Media;
 /// <param name="cell">
 ///     How big a cell is on this terminal, or <see langword="null" /> where it draws no pictures at all. Asked afresh
 ///     each time rather than settled once, because the terminal answers the questions behind it some frames after the
-///     shell is already on screen (<see cref="RasterProtocol" />).
+///     shell is already on screen (<see cref="Raster" />).
 /// </param>
 /// <param name="arrived">
 ///     What to do when a picture lands: redraw, so the rows that have been waiting for it fill in. Called off the

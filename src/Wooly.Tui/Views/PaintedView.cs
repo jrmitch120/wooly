@@ -998,7 +998,7 @@ internal sealed class PaintedView : View
     /// </summary>
     private int SixelColours() =>
         App?.Driver is { } driver
-        && RasterProtocol.Chosen(driver.SixelSupport, driver.KittyGraphicsSupport) is PictureWay.Sixel
+        && Raster.Of(driver, placeholders: false, () => null).Way is PictureWay.Sixel
             ? Math.Min(256, driver.SixelSupport!.MaxPaletteColors)
             : 0;
 

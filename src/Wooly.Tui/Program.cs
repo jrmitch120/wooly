@@ -128,7 +128,7 @@ try
 
     using var pictures = Pictures.Over(
         files,
-        () => RasterProtocol.CellOf(application.Driver, placeholdersByName, () => windowSize.Cell),
+        () => Raster.Of(application.Driver, placeholdersByName, () => windowSize.Cell).Cell,
         Redraw,
         placeholders.Drop,
         () => shellWindow?.ContentColumns ?? 0);

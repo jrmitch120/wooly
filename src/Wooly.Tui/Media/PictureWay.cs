@@ -2,7 +2,7 @@ namespace Wooly.Tui.Media;
 
 /// <summary>
 ///     The ways pixels can reach a terminal, in the order this client tries them. Which one a given terminal gets is
-///     <see cref="RasterProtocol.Chosen" />, and it is the one part of drawing a picture that is worth a test with no
+///     <see cref="Raster" />'s, and it is the one part of drawing a picture that is worth a test with no
 ///     terminal in the room (#2's testing decisions).
 /// </summary>
 public enum PictureWay
