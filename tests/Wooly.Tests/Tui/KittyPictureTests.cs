@@ -73,7 +73,9 @@ public class KittyPictureTests
 
     /// <summary>
     ///     A terminal that answers that it speaks Kitty graphics, but is not known by name to draw its placeholders,
-    ///     draws through a box: WezTerm answers yes and prints the placeholders as boxes (#292, ADR-0022).
+    ///     draws through a box: WezTerm answers yes and prints the placeholders as boxes (#292, ADR-0022). Wiring: the
+    ///     terminal's own answers, through <see cref="Raster.Of" />, reaching <see cref="Placing" /> as the way it
+    ///     places — which no test of either alone covers (<see cref="RasterTests" />, <see cref="PlacingTests" />).
     /// </summary>
     [Fact]
     public async Task ATerminalAnsweringKittyButNotKnownByNameDrawsThroughABox()
@@ -122,7 +124,10 @@ public class KittyPictureTests
         Assert.Single(drawn.Content.SubViews.OfType<PictureView>(), view => view.Visible);
     }
 
-    /// <summary>A sixel terminal still draws through the boxes, and sends nothing to a Kitty image store.</summary>
+    /// <summary>
+    ///     A sixel terminal still draws through the boxes, and sends nothing to a Kitty image store. Wiring, as above:
+    ///     a terminal answering sixel, through <see cref="Raster.Of" />, reaching <see cref="Placing" />.
+    /// </summary>
     [Fact]
     public async Task ASixelTerminalStillDrawsThroughTheBoxes()
     {
