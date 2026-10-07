@@ -119,14 +119,6 @@ internal sealed class ShellWindow : Window
     /// </summary>
     public int ContentColumns => _content.Viewport.Width;
 
-    /// <summary>
-    ///     How this terminal paints pixels as of the frame being drawn, or <see cref="Media.Raster.None" /> before the
-    ///     first. Worked out once a frame, as the content region asks for its rows, and the same value the screens are
-    ///     handed on the <see cref="Drawing" />, the region draws its pictures by and the picture cache decodes to — so
-    ///     none of them can come to disagree about what kind of terminal this is (#357). Read on the UI thread.
-    /// </summary>
-    public Raster Raster { get; private set; } = Raster.None;
-
     /// <param name="quit">
     ///     What <c>ctrl-q</c> does. Passed in rather than reached for, because the application is the thing that owns
     ///     the run loop and this window is one of the things running in it.
@@ -199,13 +191,11 @@ internal sealed class ShellWindow : Window
         // screen is drawn at and every picture's box are the inside of it: 58 columns at an 80-column terminal.
         _content = new PaintedView(
             theme,
-            (width, height) =>
-            {
-                Raster = raster?.Invoke() ?? Raster.None;
-
-                return shell.Screen.Lines(
-                    new Drawing(width, clock.GetUtcNow(), pictures, Raster, hideDrawnCaption, height, blurs));
-            },
+            // Laid out under the Raster the region settled the frame by, read rather than asked again here, so that a
+            // click or a key between frames lays the rows out as they were drawn (#357). Never called before the
+            // region is built, which is all the null-forgiving says.
+            (width, height) => shell.Screen.Lines(
+                new Drawing(width, clock.GetUtcNow(), pictures, _content!.Raster, hideDrawnCaption, height, blurs)),
             pictures,
             // No rows of the panel's own: the view paints only the frame's edges, round the screen's rows.
             (width, height) => Panel.Framed(
@@ -216,7 +206,7 @@ internal sealed class ShellWindow : Window
                 active: true),
             placeholders,
             frames,
-            () => Raster)
+            raster)
         {
             Id = ContentId,
             X = RailLines.Width,

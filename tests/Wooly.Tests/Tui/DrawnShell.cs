@@ -63,6 +63,10 @@ internal sealed class DrawnShell : IDisposable
     ///     How the terminal paints pixels, said outright, where a test is about pictures on a terminal that has
     ///     answered nothing; worked out from what the headless terminal answered, as the client does, if not.
     /// </param>
+    /// <param name="answers">
+    ///     How the terminal paints pixels each time it is asked, where a test is about an answer that changes between
+    ///     frames; <paramref name="raster" /> if not.
+    /// </param>
     public static async Task<DrawnShell> Of(
         int width,
         int height,
@@ -76,7 +80,8 @@ internal sealed class DrawnShell : IDisposable
         bool answersKitty = false,
         Action<Action>? encoding = null,
         SynchronizedFrames? frames = null,
-        Raster? raster = null)
+        Raster? raster = null,
+        Func<Raster>? answers = null)
     {
         built ??= new AShell();
 
@@ -113,7 +118,7 @@ internal sealed class DrawnShell : IDisposable
             placeholders: placeholders,
             blurs: new Blurs(),
             frames: frames,
-            raster: () => raster ?? Raster.Of(application.Driver, drawsPlaceholders, () => null));
+            raster: answers ?? (() => raster ?? Raster.Of(application.Driver, drawsPlaceholders, () => null)));
 
         frames?.Over(application);
 

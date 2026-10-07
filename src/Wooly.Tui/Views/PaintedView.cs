@@ -101,8 +101,8 @@ internal sealed class PaintedView : View
     /// </param>
     /// <param name="frames">What wraps a frame this view draws in synchronized output, if anything does.</param>
     /// <param name="raster">
-    ///     How this terminal paints pixels as of the frame being drawn — the one its rows were laid out under, read
-    ///     after them — or <see langword="null" /> for a terminal that draws none.
+    ///     How this terminal paints pixels, asked once a frame as the frame is settled (<see cref="Raster" />), or
+    ///     <see langword="null" /> for a terminal that draws none.
     /// </param>
     /// <remarks>
     ///     A frame is laid on a one-cell <c>Padding</c> round the view, so everything measured off
@@ -158,6 +158,14 @@ internal sealed class PaintedView : View
     ///     right rather than merely frozen where it was left.
     /// </remarks>
     public bool Scrolls { get; set; }
+
+    /// <summary>
+    ///     How this terminal paints pixels as of the last frame settled, or <see cref="Media.Raster.None" /> before the
+    ///     first. Worked out once a frame, before the rows are, and read rather than asked again everywhere else — the
+    ///     rows laid out for a click or a key between frames included — so the rows, the boxes and the picture cache
+    ///     all go by the one answer the page was drawn under (#357). Read on the UI thread.
+    /// </summary>
+    public Raster Raster { get; private set; } = Raster.None;
 
     /// <summary>
     ///     The item <c>j</c> and <c>k</c> should take back — the topmost one on the page — or <see langword="null" />
@@ -580,6 +588,7 @@ internal sealed class PaintedView : View
     private void Settle()
     {
         _settled = null;
+        Raster = _raster();
 
         var width = Viewport.Width;
         var height = Viewport.Height;
@@ -710,7 +719,7 @@ internal sealed class PaintedView : View
                         .OrderBy(Distance)
                         .Select(span => new WantedPicture(span.Drawn, OnScreen: Distance(span) == 0)),
             ],
-            _raster(),
+            Raster,
             width);
     }
 
@@ -767,7 +776,7 @@ internal sealed class PaintedView : View
         }
 
         var wanted = Wanted(lines, height);
-        var raster = _raster();
+        var raster = Raster;
 
         if (raster.Cell is not { } cell)
         {
@@ -984,7 +993,7 @@ internal sealed class PaintedView : View
     /// </remarks>
     private List<(Inset Inset, int Top, int Id)> Sent(IReadOnlyList<Line> lines, int height)
     {
-        if (_pictures is null || _raster().Cell is not { } cell)
+        if (_pictures is null || Raster.Cell is not { } cell)
         {
             return [];
         }

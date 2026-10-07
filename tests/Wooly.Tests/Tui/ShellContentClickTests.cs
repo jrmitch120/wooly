@@ -86,6 +86,35 @@ public class ShellContentClickTests
     }
 
     /// <summary>
+    ///     A click between two frames is answered from the rows as the last frame drew them, under the Raster that frame
+    ///     worked out — not under one the terminal has answered since, which would lay a picture's box where the page
+    ///     still shows a link and put the post under the pointer somewhere else (#357).
+    /// </summary>
+    [Fact]
+    public async Task AClickBetweenFramesIsAnsweredFromTheRowsAsDrawn()
+    {
+        var pictures = new FakePictures().Holding("m1", 800, 600);
+
+        var built = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(
+                APost.With(id: "110", content: "One sheep", media: [APost.APicture("m1")]),
+                APost.With(id: "220", content: "Two sheep")),
+        };
+
+        var answered = Raster.None;
+
+        using var drawn = await DrawnShell.Of(80, Tall, Themes.Plain, built, pictures: pictures, answers: () => answered);
+
+        var row = RowOf(drawn, "Two sheep");
+
+        // The terminal answers that it draws pictures after the frame is drawn, and before the next one.
+        answered = ARaster.Kitty();
+
+        Assert.Equal(1, drawn.Content.ItemAt(new Point(OverContent, row)));
+    }
+
+    /// <summary>
     ///     A row that is part of nothing — the rule and blank between two posts, a section heading, and the space under
     ///     the last thing — changes nothing at all.
     /// </summary>
