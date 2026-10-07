@@ -248,6 +248,10 @@ internal sealed class ComposeView : View
         {
             var focused = HasFocus;
 
+            // Closed outright rather than left to Lang losing the typing, so that no list is still open over the next
+            // compose, whose screen offers none (#366).
+            _languages.Close();
+
             _editor.Visible = false;
             _warning.Visible = false;
             _to.Visible = false;

@@ -263,6 +263,31 @@ public class ComposeLangTests
         Assert.Equal("ab", compose.Lang.Language?.Code);
     }
 
+    /// <summary>Sending with the list open leaves compose and closes it, so the next compose opens on no list.</summary>
+    [Fact]
+    public async Task LeavingComposeClosesTheList()
+    {
+        using var drawn = await Drawn();
+
+        Compose(drawn).Text = "bonjour";
+        OnLang(drawn);
+        Type(drawn, "fr");
+
+        Assert.True(List(drawn).Visible);
+
+        drawn.Press(Key.S.WithCtrl);
+        drawn.Settle();
+
+        Assert.IsNotType<ComposeScreen>(drawn.Shell.Screen);
+
+        ComposeRows.Open(drawn.Shell, ComposeFor.Post);
+        drawn.Redraw();
+
+        Assert.False(List(drawn).Visible);
+        Assert.False(Compose(drawn).OfferingLanguages);
+        Assert.DoesNotContain("Pick: ↑↓", drawn.Status(), StringComparison.Ordinal);
+    }
+
     /// <summary>A click outside the open list closes it, and Lang keeps what it held.</summary>
     [Fact]
     public async Task AClickOutsideTheListClosesItUnchanged()
