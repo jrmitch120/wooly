@@ -223,8 +223,8 @@ internal sealed class ComposeView : View
     /// <summary>
     ///     A right click with compose in front: <c>esc</c>, wherever it lands — over a field, which would otherwise keep
     ///     it to itself, as anywhere else. It asks before a touched draft is thrown away and, pressed again on that
-    ///     question, keeps the draft, the way <c>esc</c> does (#373). Neither list under the pointer closes or picks for it, and
-    ///     the editor's own context menu never opens.
+    ///     question, keeps the draft, the way <c>esc</c> does (#373). Neither list under the pointer closes or picks for
+    ///     it, and the editor's own context menu never opens.
     /// </summary>
     /// <returns>Whether it was one, and spent.</returns>
     private bool RightClicked(Mouse mouse)

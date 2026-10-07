@@ -431,8 +431,9 @@ internal sealed class ShellWindow : Window
     /// <summary>
     ///     A right click, wherever the pointer is: <paramref name="pressed" />, the <c>esc</c> it stands for, through the
     ///     <see cref="Keymap" /> on the screen in front as <see cref="OnKeyDown" /> takes it, open question and all
-    ///     (#307). On an open question it is the no anything but <c>y</c> is (#373). With compose in front it never gets here: the compose view takes it
-    ///     ahead of the fields under the pointer, which keep their own right clicks to themselves.
+    ///     (#307). On an open question it is the no anything but <c>y</c> is (#373). With compose in front it never gets
+    ///     here: the compose view takes it ahead of the fields under the pointer, which keep their own right clicks to
+    ///     themselves.
     /// </summary>
     /// <returns>Always that it was the shell's, so nothing behind the window answers a right click either.</returns>
     private bool RightClicked(ShellKey pressed)
