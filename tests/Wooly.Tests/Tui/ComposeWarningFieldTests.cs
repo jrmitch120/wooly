@@ -154,7 +154,10 @@ public class ComposeWarningFieldTests
         Assert.DoesNotContain("?", view.Status(), StringComparison.Ordinal);
     }
 
-    /// <summary><c>esc</c> from the field throws the draft away, as it does from the post.</summary>
+    /// <summary>
+    ///     <c>esc</c> from the field throws the draft away, as it does from the post — asking first, since the warning
+    ///     written in it is a change (#373), and going on the second.
+    /// </summary>
     [Fact]
     public async Task Esc_FromTheFieldThrowsTheDraftAway()
     {
@@ -162,6 +165,11 @@ public class ComposeWarningFieldTests
 
         view.Press(Key.W.WithCtrl);
         view.Type("cw");
+        view.Press(Key.Esc);
+
+        Assert.NotNull(view.Shell.Asking);
+        Assert.IsType<ComposeScreen>(view.Shell.Screen);
+
         view.Press(Key.Esc);
 
         Assert.IsNotType<ComposeScreen>(view.Shell.Screen);
@@ -217,18 +225,31 @@ public class ComposeWarningFieldTests
         Assert.True(view.Warning.HasFocus);
     }
 
-    /// <summary>A right click on the field does nothing, as on the editor: on a draft it would be <c>esc</c> (#307).</summary>
+    /// <summary>
+    ///     A right click on the field is <c>esc</c>, as anywhere on compose (#373): it asks over a touched draft, and
+    ///     leaves an untouched one, as this reply still holding only its mention is. It does not move the typing.
+    /// </summary>
     [Fact]
-    public async Task ARightClickOnTheFieldDoesNothing()
+    public async Task ARightClickOnTheFieldIsEsc()
     {
         using var view = await Replying();
         var compose = view.Compose;
         var field = view.Warning.FrameToScreen();
 
+        view.Type("hi");
         view.RightClick(field.X, field.Y);
 
+        Assert.NotNull(view.Shell.Asking);
         Assert.Same(compose, view.Shell.Screen);
         Assert.False(compose.WritingTheWarning);
+
+        view.Press(Key.N);
+        view.Press(Key.Backspace);
+        view.Press(Key.Backspace);
+        view.RightClick(field.X, field.Y);
+
+        Assert.Null(view.Shell.Asking);
+        Assert.IsNotType<ComposeScreen>(view.Shell.Screen);
     }
 
     /// <summary>A reply opens the field on the answered post's warning (#123), and an edit on the post's own (#140).</summary>

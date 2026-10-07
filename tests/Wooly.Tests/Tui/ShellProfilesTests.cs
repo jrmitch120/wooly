@@ -69,11 +69,11 @@ public class ShellProfilesTests
     }
 
     /// <summary>
-    ///     Every screen but compose. Asked of the keymap across the screens there are, since a frame key that one
-    ///     screen took back is the thing the frame exists to rule out.
+    ///     Every screen, compose included (#373). Asked of the keymap across the screens there are, since a frame key
+    ///     that one screen took back is the thing the frame exists to rule out.
     /// </summary>
     [Fact]
-    public void CtrlP_MeansProfilesOnEveryScreenButCompose()
+    public void CtrlP_MeansProfilesOnEveryScreen()
     {
         Screen[] screens =
         [
@@ -85,10 +85,10 @@ public class ShellProfilesTests
             new HelpScreen(new SearchScreen()),
             new NoticeScreen("Hashtag", "No hashtag set."),
             new ProfilesScreen([], "personal", []),
+            new ComposeScreen(ComposeFor.Post),
         ];
 
         Assert.All(screens, screen => Assert.Equal(Verb.Profiles, Keymap.Means(ShellKey.CtrlP, screen)));
-        Assert.Equal(Verb.None, Keymap.Means(ShellKey.CtrlP, new ComposeScreen(ComposeFor.Post)));
     }
 
     /// <summary>
@@ -106,17 +106,22 @@ public class ShellProfilesTests
         Assert.IsType<ComposeScreen>(opened.Screen);
     }
 
-    /// <summary>Switching would drop a draft, and drafts do not survive one — so on compose the key does nothing.</summary>
+    /// <summary>
+    ///     Drafts do not survive a switch (ADR-0020), so on compose the key is a way out of the draft: an untouched one is
+    ///     taken off and the profiles screen opened in its place, rather than over a draft a switch would throw away
+    ///     (#373). Compose's status row still names only compose's own keys.
+    /// </summary>
     [Fact]
-    public async Task CtrlP_OnCompose_DoesNothing_AndIsNotOnTheStatusRow()
+    public async Task CtrlP_OnAnUntouchedCompose_OpensProfilesInItsPlace()
     {
         var opened = await new AShell().Opened();
 
         opened.Press(ShellKey.C);
 
-        Assert.False(opened.Press(ShellKey.CtrlP));
-        Assert.IsType<ComposeScreen>(opened.Screen);
         Assert.DoesNotContain(opened.Keys, key => key.Key == "ctrl-p");
+        Assert.True(opened.Press(ShellKey.CtrlP));
+        Assert.IsType<ProfilesScreen>(opened.Screen);
+        Assert.Equal(2, opened.Depth);
     }
 
     /// <summary>Pressed again on the screen itself, it is where the reader already is — not a second one on top.</summary>

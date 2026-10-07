@@ -61,6 +61,7 @@ internal static class ShellKeys
         ['v'] = ShellKey.V,
         ['w'] = ShellKey.W,
         ['x'] = ShellKey.X,
+        ['y'] = ShellKey.Y,
         ['B'] = ShellKey.CapitalB,
         ['D'] = ShellKey.CapitalD,
         ['F'] = ShellKey.CapitalF,

@@ -61,9 +61,7 @@ public static class Keymap
         (ShellKey.Tilde, _) => Verb.PreviousGroup,
 
         // The frame's one ctrl chord besides quitting, because a frame key has to work on screens where letters are
-        // typed. Taken back on compose alone: switching from there would drop the draft, and drafts do not survive a
-        // switch (ADR-0020).
-        (ShellKey.CtrlP, ComposeScreen) => Verb.None,
+        // typed. On compose too, where it is a way out of the draft and asks first like every other (ADR-0020, #373).
         (ShellKey.CtrlP, _) => Verb.Profiles,
 
         // Screen-local, and the reason this pair is here rather than on the editor widget alone: the editor gives up
@@ -177,7 +175,7 @@ public static class Keymap
         (ShellKey.One or ShellKey.Two or ShellKey.Three or ShellKey.Four or ShellKey.Five, _) => Verb.Toggle,
         (ShellKey.Six or ShellKey.Seven or ShellKey.Eight or ShellKey.Nine or ShellKey.Zero, _) => Verb.Toggle,
 
-        // ctrl-s and ctrl-w off a compose screen, ctrl-p on one, and nothing else.
+        // ctrl-s and ctrl-w off a compose screen, y, and nothing else.
         _ => Verb.None,
     };
 

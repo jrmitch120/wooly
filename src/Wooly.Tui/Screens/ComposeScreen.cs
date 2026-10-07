@@ -125,6 +125,12 @@ public sealed class ComposeScreen : Screen
     /// <summary>What To opened on, which a draft sends as not chosen for as long as To still shows it (#338).</summary>
     private readonly PostVisibility? _startingVisibility;
 
+    /// <summary>What the warning field opened on, which <see cref="Touched" /> measures it against.</summary>
+    private readonly string _startingWarning;
+
+    /// <summary>What Lang opened holding, which <see cref="Touched" /> measures it against.</summary>
+    private readonly string _startingLanguage;
+
     /// <summary>
     ///     What To's row offers, left to right: "account default" first where To opened on it — so that an author who
     ///     stepped off it can step back and send nothing again — then every visibility, widest first.
@@ -189,6 +195,7 @@ public sealed class ComposeScreen : Screen
         ];
 
         Lang = ComposeLang.Opening(opening.Language);
+        _startingLanguage = Lang.Held;
 
         Opening = purpose switch
         {
@@ -205,6 +212,7 @@ public sealed class ComposeScreen : Screen
         // than no field at all (#139). Only the words the author wrote carry across: the instance's sensitive flag is
         // a mark over the attachments and says nothing a field could hold.
         Warning = about?.ContentWarning ?? string.Empty;
+        _startingWarning = Warning;
     }
 
     /// <summary>What this screen was opened to do.</summary>
@@ -302,8 +310,21 @@ public sealed class ComposeScreen : Screen
     /// </summary>
     public string LanguageHint => Typing == ComposeField.Lang ? LanguageBeingTyped : NoLanguage;
 
-    /// <inheritdoc />
-    public override bool HoldsADraft => true;
+    /// <summary>
+    ///     Whether anything here differs from what the screen opened with — the post, its warning, To or Lang — which is
+    ///     what makes throwing it away worth a question (#373). What it holds rather than whether a key was pressed: a
+    ///     reply still holding only the mention and the warning it opened on is untouched, and so is a letter typed and
+    ///     rubbed out again.
+    /// </summary>
+    /// <remarks>
+    ///     The post is compared line ending for line ending alike, so that an editor writing its lines back its own way
+    ///     does not count as somebody having written something.
+    /// </remarks>
+    public bool Touched =>
+        !string.Equals(Text.ReplaceLineEndings(), Opening.ReplaceLineEndings(), StringComparison.Ordinal)
+        || !string.Equals(Warning, _startingWarning, StringComparison.Ordinal)
+        || Visibility != _startingVisibility
+        || !string.Equals(Lang.Held, _startingLanguage, StringComparison.Ordinal);
 
     /// <inheritdoc />
     /// <remarks>

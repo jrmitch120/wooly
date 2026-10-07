@@ -178,15 +178,24 @@ public static class ChromeLines
         {
             // The two keys take the role a key has and the words beside them do not (#221): these are the columns
             // #219 reserved as the ones that must never be cut, and the keys in them are the ones a reader presses.
-            IReadOnlyList<Span> answer =
-            [
-                new Span("  ", Role.Chrome),
-                new Span(question.Confirm, Role.Key),
-                new Span($" {question.Going}", Role.Muted),
-                new Span(" · ", Role.Chrome),
-                new Span("esc", Role.Key),
-                new Span(" keep", Role.Muted),
-            ];
+            // A question esc may agree to is answered yes or no (#373): "esc keep" would be a lie about one esc put.
+            IReadOnlyList<Span> answer = !question.YesOrNo
+                ?
+                [
+                    new Span("  ", Role.Chrome),
+                    new Span(question.Confirm, Role.Key),
+                    new Span($" {question.Going}", Role.Muted),
+                    new Span(" · ", Role.Chrome),
+                    new Span("esc", Role.Key),
+                    new Span(" keep", Role.Muted),
+                ]
+                :
+                [
+                    new Span("  ", Role.Chrome),
+                    new Span(question.Confirm, Role.Key),
+                    new Span(" / ", Role.Chrome),
+                    new Span("n", Role.Key),
+                ];
 
             // The answer's columns are reserved first. A row narrower than the answer alone is narrower than the shell
             // draws: the question gets no room at all there, and the answer is clipped rather than left blank.
@@ -215,7 +224,7 @@ public static class ChromeLines
     /// </remarks>
     private static string Asked(Shell.Confirmation question, int room)
     {
-        var whole = $" {question.Ask} {question.Warning}";
+        var whole = question.Warning.Length == 0 ? $" {question.Ask}" : $" {question.Ask} {question.Warning}";
 
         return Glyphs.Columns(whole) <= room ? whole : TextWrap.Clip($" {question.Ask}", room);
     }

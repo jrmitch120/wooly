@@ -12,8 +12,10 @@ somewhere you read. It has unread counts and it costs a fetch to arrive at. The 
 what is on this machine and fetches nothing.
 
 The key is a ctrl chord because the frame-wide keys have to work on every screen, including the ones where letters are
-typed as text. It does nothing on compose. Switching from compose would drop the draft, and this ADR does not give
-drafts a way to survive a switch.
+typed as text. ~~It does nothing on compose.~~ Switching from compose would drop the draft, and this ADR does not give
+drafts a way to survive a switch. (Amended by #373: on compose `ctrl-p` is a way out of the draft — it takes the
+compose off and opens the profiles screen in its place, asking `Discard this post? y / n` first where the draft has been
+touched, as every way out of a compose screen now does.)
 
 ## Two words for two things: default, and acting as
 
@@ -84,4 +86,5 @@ because compose is where acting as the wrong account does harm.
 
 - **Rename**: out of scope. Remove and add again covers it.
 - **Unread counts for other profiles**: each one spends another profile's rate limit to answer a question nobody asked.
-- **Keeping a draft across a switch**: `ctrl-p` does nothing on compose instead.
+- **Keeping a draft across a switch**: `ctrl-p` on compose throws the draft away instead, asking first where it was
+  touched (#373).
