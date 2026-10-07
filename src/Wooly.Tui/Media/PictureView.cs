@@ -142,7 +142,7 @@ internal sealed class PictureView : ImageView, IPictureBox
     ///     as the picture's, so the driver leaves them to it.
     /// </summary>
     /// <remarks>
-    ///     The box is never larger than the part of the picture on the page (<c>PaintedView</c> frames it so), so the
+    ///     The box is never larger than the part of the picture on the page (<see cref="Placing" /> frames it so), so the
     ///     driver is never left to cut it at the edge — which it does by encoding the cut again, on every frame. A
     ///     whole picture shown for Kitty is the image view's own to draw.
     /// </remarks>

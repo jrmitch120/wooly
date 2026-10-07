@@ -222,11 +222,11 @@ public class KittyPictureTests
     }
 
     /// <summary>
-    ///     Through Kitty, a box half off the top keeps the whole box as its frame: the image view sends the picture
-    ///     once and places a crop of it as it moves, which cutting the box down for it — as sixel is — would undo.
+    ///     A window shrunk too small to draw the page in at all lets go of every box the content panel holds, so that
+    ///     no picture is left drawn over whatever replaces the page — and draws it again once it grows back.
     /// </summary>
     [Fact]
-    public async Task ABoxDrawnThroughKittyKeepsItsWholeFrameHalfOffThePage()
+    public async Task AWindowShrunkToNothingLetsGoOfEveryBoxAndPlacesThemAgainOnceItGrows()
     {
         using var drawn = await DrawnShell.Of(
             80,
@@ -234,30 +234,19 @@ public class KittyPictureTests
             Themes.Plain,
             AShellWithAPicture(),
             pictures: new FakePictures().Holding("m1", 800, 200),
-            answersKitty: true);
+            drawsPictures: true);
 
-        var box = Assert.Single(drawn.Content.SubViews.OfType<PictureView>(), view => view.Visible);
-        var whole = box.Frame;
+        Assert.Single(drawn.Content.SubViews.OfType<PictureView>(), view => view.Visible);
 
-        for (var notch = 0; notch < 100 && drawn.Content.Top < whole.Y + 2; notch++)
-        {
-            drawn.Wheel(RailLines.Width + 4, 3);
-        }
+        drawn.Application.Driver!.SetScreenSize(80, 1);
+        drawn.Redraw();
 
-        Assert.Equal(-2, box.Frame.Y);
-        Assert.Equal(whole.Height, box.Frame.Height);
-    }
+        Assert.All(drawn.Content.SubViews.OfType<PictureView>(), view => Assert.Null(view.PictureId));
 
-    /// <summary>
-    ///     Where placeholders are drawn Terminal.Gui draws no pixels of its own: the picture is the placeholders, and a
-    ///     <see cref="PictureView" /> drawing as well would be the 11 MB a scroll this replaced.
-    /// </summary>
-    [Fact]
-    public async Task NoPictureViewDrawsOnAKittyTerminal()
-    {
-        using var drawn = await Drawn(new FakeTerminalImages());
+        drawn.Application.Driver!.SetScreenSize(80, 24);
+        drawn.Redraw();
 
-        Assert.DoesNotContain(drawn.Content.SubViews.OfType<PictureView>(), view => view.Visible);
+        Assert.Single(drawn.Content.SubViews.OfType<PictureView>(), view => view.Visible);
     }
 
     /// <summary>A sixel terminal still draws through the boxes, and sends nothing to a Kitty image store.</summary>

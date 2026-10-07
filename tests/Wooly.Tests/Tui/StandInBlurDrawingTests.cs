@@ -103,14 +103,14 @@ public class StandInBlurDrawingTests
     }
 
     /// <summary>
-    ///     Through a box — sixel, or Kitty on a terminal not known to draw its placeholders — the blur is held by a
-    ///     box of its own, and that box lets go of it when the picture lands: the picture is never put over a blur
-    ///     the terminal has not been told to drop.
+    ///     Through a box — sixel, or Kitty on a terminal not known to draw its placeholders — the blur is drawn until
+    ///     the picture lands, and the picture on the redraw its landing asks for. Wiring only: which box lets go of
+    ///     what, and in what order, is <see cref="Placing" />'s (<see cref="PlacingTests" />).
     /// </summary>
     [Theory]
     [InlineData(true, false)]
     [InlineData(false, true)]
-    public async Task ABoxDrawsTheBlurThenLetsGoOfItWhenThePictureReplacesIt(bool sixel, bool kitty)
+    public async Task ABoxDrawsTheBlurAndThenThePictureOnceItLands(bool sixel, bool kitty)
     {
         var pictures = new FakePictures();
 
@@ -130,9 +130,6 @@ public class StandInBlurDrawingTests
         drawn.Redraw();
 
         Assert.Equal("m1", Assert.Single(drawn.Content.SubViews.OfType<PictureView>(), view => view.Visible).PictureId);
-        Assert.DoesNotContain(
-            drawn.Content.SubViews.OfType<PictureView>(),
-            view => view.PictureId?.StartsWith("blur:", StringComparison.Ordinal) == true);
     }
 
     /// <summary>

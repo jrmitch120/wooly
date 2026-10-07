@@ -413,6 +413,49 @@ public class ShellPointerTests
     }
 
     /// <summary><paramref name="count" /> notches of the wheel over the content, or wherever <paramref name="column" /> says.</summary>
+    /// <summary>
+    ///     Notches that arrive while a frame is being drawn are added up and drawn once, by the next frame — a notch
+    ///     moves the page and draws nothing, so a fast flick never queues behind slow frames (#292).
+    /// </summary>
+    /// <remarks>
+    ///     This holds the half of it that is this client's: a notch draws nothing of its own. The other half — that
+    ///     Terminal.Gui takes every input waiting before it draws a frame — is the library's main loop
+    ///     (<c>ApplicationMainLoop.IterationImpl</c> drains the input queue, then draws), and is not something a
+    ///     headless test drives through.
+    /// </remarks>
+    [Fact]
+    public async Task NotchesBetweenTwoFramesAreDrawnTogetherByTheNext()
+    {
+        using var drawn = await DrawnShell.Of(
+            80,
+            24,
+            Themes.Plain,
+            new AShell
+            {
+                Timelines = FakeTimelineReader.Holding(
+                    APost.With(id: "110", media: [APost.APicture("m1")]),
+                    APost.With(id: "220"),
+                    APost.With(id: "330"),
+                    APost.With(id: "440")),
+            },
+            pictures: new FakePictures().Holding("m1", 800, 400),
+            drawsPictures: true);
+
+        var before = drawn.Rows();
+
+        for (var notch = 0; notch < 5; notch++)
+        {
+            drawn.WheelUndrawn(OverContent, 3);
+        }
+
+        Assert.Equal(before, drawn.Rows());
+
+        drawn.Redraw();
+
+        Assert.Equal(5, drawn.Content.Top);
+        Assert.NotEqual(before, drawn.Rows());
+    }
+
     private static void Notches(DrawnShell drawn, int count, bool down = true, int column = OverContent)
     {
         for (var notch = 0; notch < count; notch++)

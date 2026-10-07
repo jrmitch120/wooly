@@ -18,46 +18,21 @@ namespace Wooly.Tui.Views;
 /// <remarks>
 ///     On a Kitty terminal it paints the pictures too, as placeholder cells over the rows a post reserved for each: the
 ///     picture is sent to the terminal once and is part of the rows from then on, so it moves in the same frame as the
-///     text around it (ADR-0022). Anywhere else a picture is drawn over those rows by a <see cref="PictureView" /> per
-///     box. Those boxes ride the rows: they are placed from the same scroll position the text is drawn at, on every
-///     frame, so a picture cannot come adrift from the post it belongs to (ADR-0016).
+///     text around it (ADR-0022). Anywhere else a picture is drawn over those rows through a box, a
+///     <see cref="PictureView" /> added to this view, which <see cref="Placing" /> puts where the rows say from the
+///     same scroll position the text is drawn at, on every frame, so a picture cannot come adrift from the post it
+///     belongs to (ADR-0016, #361).
 /// </remarks>
 internal sealed class PaintedView : View
 {
-    /// <summary>
-    ///     How many pictures can be on screen at once. Generous for the tallest terminal anybody reads a feed on.
-    /// </summary>
-    /// <remarks>
-    ///     Eight until a byline gained an avatar (#77), which is the change that made this a count of posts rather
-    ///     than a count of attachments: an attachment is a few rows tall and a post's text stands between one and the
-    ///     next, so a screen could only ever hold a handful — but every post wants a box now, and a tall terminal
-    ///     shows a dozen posts before it shows a single photograph. A screen wanting more pictures than there are
-    ///     boxes draws what it can and drops the rest, which is a picture silently missing.
-    ///     <para>
-    ///         Fixed, and every one of them built before anything is drawn, because the alternative is adding a
-    ///         subview from inside a draw — which mutates the tree the draw is walking, and leaves the release of a
-    ///         vanished picture depending on whether this frame happened to be the one that grew the pool. A stale
-    ///         Kitty placement is not erased by drawing text over it (ADR-0016), so that shows up as a picture stuck
-    ///         over somebody's post.
-    ///     </para>
-    /// </remarks>
-    private const int MostBoxes = 24;
-
-    /// <summary>How many rows of a scroll the cuts of a sixel are encoded ahead of it (ADR-0023).</summary>
-    private const int Ahead = 4;
-
     private readonly ITheme _theme;
     private readonly Func<int, int, IReadOnlyList<Line>> _rows;
     private readonly IPictures? _pictures;
     private readonly Func<int, int, IReadOnlyList<Line>>? _frame;
-    private readonly List<IPictureBox> _boxes = [];
+    private readonly Placing? _placing;
     private readonly Placeholders? _placeholders;
-    private readonly SixelPictures _sixels;
     private readonly SynchronizedFrames? _frames;
     private readonly Func<Raster> _raster;
-
-    /// <summary>Where the page began the last time pictures were placed, which says which way it is moving.</summary>
-    private int _placedAt;
 
     /// <summary>The pictures drawn as placeholders this frame, with the row each starts on and its image id.</summary>
     private List<(Inset Inset, int Top, int Id)> _placed = [];
@@ -104,10 +79,6 @@ internal sealed class PaintedView : View
     ///     How this terminal paints pixels, asked once a frame as the frame is settled (<see cref="Raster" />), or
     ///     <see langword="null" /> for a terminal that draws none.
     /// </param>
-    /// <param name="boxes">
-    ///     What makes a box a picture is drawn through, given this view to add it to: <see cref="PictureView.AddedTo" />
-    ///     unless a test says otherwise (#360).
-    /// </param>
     /// <remarks>
     ///     A frame is laid on a one-cell <c>Padding</c> round the view, so everything measured off
     ///     <see cref="View.Viewport" /> — the rows' width and height, the scroll, a page's worth — is the inside of it,
@@ -121,12 +92,10 @@ internal sealed class PaintedView : View
         Func<int, int, IReadOnlyList<Line>>? frame = null,
         Placeholders? placeholders = null,
         SynchronizedFrames? frames = null,
-        Func<Raster>? raster = null,
-        Func<View, IPictureBox>? boxes = null)
+        Func<Raster>? raster = null)
     {
         _theme = theme;
         _raster = raster ?? (() => Raster.None);
-        _sixels = new SixelPictures(backdrop: Backdrop);
         _frames = frames;
         _rows = rows;
         _pictures = pictures;
@@ -138,17 +107,10 @@ internal sealed class PaintedView : View
             Padding.Thickness = new Thickness(1);
         }
 
-        if (pictures is null)
-        {
-            return;
-        }
-
-        boxes ??= PictureView.AddedTo;
-
-        for (var at = 0; at < MostBoxes; at++)
-        {
-            _boxes.Add(boxes(this));
-        }
+        // Every box added to this view now, before anything is drawn (Placing.MostBoxes says why).
+        _placing = pictures is null
+            ? null
+            : new Placing(pictures, () => PictureView.AddedTo(this), new SixelPictures(backdrop: Backdrop));
     }
 
     /// <summary>
@@ -601,7 +563,7 @@ internal sealed class PaintedView : View
         {
             // Nothing can be drawn, so nothing may be left drawn either: a box still showing from the last size this
             // view had would be a picture over whatever replaces it.
-            _boxes.ForEach(box => box.Release());
+            _placing?.Frame([], _top, width, height, Raster);
             _placed = [];
             LetGoOfBlurs([], 0);
             LetGoOfPictures();
@@ -619,18 +581,9 @@ internal sealed class PaintedView : View
         // Whatever the terminal was told to let go of since the last frame, before anything is sent.
         _placeholders?.Flush();
 
-        if (_placeholders?.Drawing == true)
-        {
-            // Released rather than merely unused, so that nothing drawn through a box before the terminal said it
-            // speaks Kitty is left on screen under the placeholders.
-            _boxes.ForEach(box => box.Release());
-            _placed = Sent(lines, height);
-        }
-        else
-        {
-            _placed = [];
-            Place(lines, height);
-        }
+        // Every box placed or let go of, by the Raster's way: none of them where pictures are placeholders.
+        _placing?.Frame(lines, _top, width, height, Raster);
+        _placed = _placeholders?.Drawing == true ? Sent(lines, height) : [];
 
         _settled = lines;
     }
@@ -755,177 +708,6 @@ internal sealed class PaintedView : View
     }
 
     /// <summary>
-    ///     Puts a picture over each box the rows reserved, in the same pass that drew the rows and from the same scroll
-    ///     position, so that what is drawn and what is scrolled cannot disagree.
-    /// </summary>
-    /// <remarks>
-    ///     The boxes are a pool rather than a view per attachment: a feed of twenty posts is drawn on every keypress,
-    ///     and building and disposing a view per picture per frame would be the cost of scrolling. A box with nothing
-    ///     in it — a picture still on its way, or one that could not be had — is hidden rather than drawn empty, which
-    ///     leaves the row saying <c>▒▒▒▒</c> and what it shows as the whole of the answer.
-    ///     <para>
-    ///         Every box is either given a place here or released here, on every frame and with no path out that does
-    ///         neither — and everything is released before anything is placed, so a picture is never put on screen over
-    ///         one the terminal has not yet been told to drop. That invariant is the whole of what keeps a picture from
-    ///         sticking, and it holds because <see cref="Boxes" /> answers for every box at once: a box is kept only
-    ///         where it has been given the very picture it is already holding, so being kept and being placed are the
-    ///         same list rather than two lists that can disagree.
-    ///     </para>
-    /// </remarks>
-    private void Place(IReadOnlyList<Line> lines, int height)
-    {
-        if (_pictures is null)
-        {
-            return;
-        }
-
-        var wanted = Wanted(lines, height);
-        var raster = Raster;
-
-        if (raster.Cell is not { } cell)
-        {
-            _boxes.ForEach(box => box.Release());
-
-            return;
-        }
-
-        // Who draws what, settled for the whole frame before anything moves — see Boxes. Asking box by box is what
-        // this used to do, and it could not see that one picture was wanted once and held twice.
-        var drawing = Boxes(
-            [.. _boxes.Select(box => box.PictureId)],
-            [.. wanted.Select(want => want.Inset.Drawn.Id)]);
-
-        // Which boxes are already holding the picture they have been given, and so have nothing to be told.
-        var keeping = new HashSet<int>();
-
-        for (var at = 0; at < wanted.Count; at++)
-        {
-            if (drawing[at] is { } which && _boxes[which].PictureId == wanted[at].Inset.Drawn.Id)
-            {
-                keeping.Add(which);
-            }
-        }
-
-        // Let go first, and of everything else, before anything is put anywhere. A box is released the moment it stops
-        // holding a picture that is wanted where it is holding it — doing that after placing the rest would leave a
-        // frame in which the old placement is still on screen under the new one.
-        for (var box = 0; box < _boxes.Count; box++)
-        {
-            if (!keeping.Contains(box))
-            {
-                _boxes[box].Release();
-            }
-        }
-
-        for (var at = 0; at < wanted.Count; at++)
-        {
-            if (drawing[at] is not { } which)
-            {
-                continue;
-            }
-
-            var (inset, top, picture) = wanted[at];
-            var box = _boxes[which];
-
-            // Through Kitty the image view draws the whole box, which it sends once and moves (ADR-0016).
-            if (raster.Way is not PictureWay.Sixel)
-            {
-                var whole = new Rectangle(inset.Column, top, inset.Columns, inset.Rows);
-
-                box.Show(inset.Drawn.Id, picture);
-
-                if (box.Frame != whole)
-                {
-                    box.Frame = whole;
-                }
-
-                box.Visible = box.CanDraw;
-
-                continue;
-            }
-
-            // Only the part of the box on the page: a box straddling the top or bottom is framed to the rows still on
-            // it, so the picture is cut here, once per cut, rather than by the driver on every frame (#292).
-            if (OnPage(inset, top, height) is not var (frame, crop))
-            {
-                box.Release();
-
-                continue;
-            }
-
-            box.Show(inset.Drawn.Id, _sixels.Of(inset, picture, cell, crop, raster.SixelColours));
-
-            if (box.Frame != frame)
-            {
-                box.Frame = frame;
-            }
-
-            // Never drawn as coloured cells, whatever ImageView would have been willing to do (ADR-0016).
-            box.Visible = box.CanDraw;
-        }
-
-        if (raster.Way is PictureWay.Sixel)
-        {
-            Prepare(lines, height, cell, raster.SixelColours);
-        }
-    }
-
-    /// <summary>
-    ///     Starts encoding, off the UI thread, the cuts of the pictures at the edges of the page that the next few rows
-    ///     of a scroll will want — including a box just off the page, about to come onto it.
-    /// </summary>
-    /// <remarks>
-    ///     A box straddling the edge is cut a row differently on every step, and encoding the cut on the frame that
-    ///     wants it was most of what a step cost once nothing else was encoded twice (#292). An encode takes longer
-    ///     than the gap between two notches of a trackpad, so a row ahead is not far enough: <see cref="Ahead" /> rows
-    ///     the way the page is moving, and one the other way for a reader who turns round. A box wholly on the page is
-    ///     the same cut whichever way it moves, and costs nothing here.
-    /// </remarks>
-    private void Prepare(IReadOnlyList<Line> lines, int height, CellSize cell, int colours)
-    {
-        var moving = Math.Sign(_top - _placedAt);
-
-        _placedAt = _top;
-
-        foreach (var (inset, top, picture) in Wanted(lines, height, near: Ahead))
-        {
-            var now = OnPage(inset, top, height)?.Crop;
-
-            for (var rows = -Ahead; rows <= Ahead; rows++)
-            {
-                // The page moving down is a box moving up it, so a box's top a row higher.
-                var ahead = moving != 0 && Math.Sign(rows) == -moving;
-
-                if (rows == 0 || (!ahead && Math.Abs(rows) > 1))
-                {
-                    continue;
-                }
-
-                if (OnPage(inset, top + rows, height) is { Crop: var next } && next != now)
-                {
-                    _sixels.Prepare(inset, picture, cell, next, colours);
-                }
-            }
-        }
-    }
-
-
-    /// <summary>
-    ///     The part of a box whose top is on row <paramref name="top" /> of the page that is on it — its frame, and
-    ///     which of its rows and columns those are — or <see langword="null" /> where none of it is.
-    /// </summary>
-    private (Rectangle Frame, SixelCrop Crop)? OnPage(Inset inset, int top, int height)
-    {
-        var first = Math.Max(0, -top);
-        var rows = Math.Min(inset.Rows, height - top) - first;
-        var columns = Math.Min(inset.Columns, Viewport.Width - inset.Column);
-
-        return rows < 1 || columns < 1
-            ? null
-            : (new Rectangle(inset.Column, top + first, columns, rows), new SixelCrop(first, rows, columns));
-    }
-
-    /// <summary>
     ///     Tells a Kitty terminal drawing placeholders to forget every Stand-in blur it was handed that is no longer near
     ///     the page — replaced by the picture it stood in for, or scrolled away (#349).
     /// </summary>
@@ -935,7 +717,7 @@ internal sealed class PaintedView : View
     ///     is the invariant ADR-0022 keeps for pictures. Said before the frame's <see cref="Placeholders.Flush" />, so a
     ///     blur replaced this frame is gone from the terminal in the frame its picture is sent. One scrolled back to is
     ///     simply encoded and sent again — it is a few kilobytes. Through a box, the box's own release does this
-    ///     (<see cref="Place" />).
+    ///     (<see cref="Placing" />).
     /// </remarks>
     private void LetGoOfBlurs(IReadOnlyList<Line> lines, int height)
     {
@@ -950,7 +732,7 @@ internal sealed class PaintedView : View
         HashSet<string> near = _placeholders.Drawing && height > 0
             ?
             [
-                .. Wanted(lines, height, near: height)
+                .. Placing.Wanted(_pictures!, lines, _top, height, near: height)
                    .Where(wanted => wanted.Inset.Blur is not null)
                    .Select(wanted => wanted.Inset.Drawn.Id),
             ]
@@ -1004,7 +786,7 @@ internal sealed class PaintedView : View
 
         var placed = new List<(Inset, int, int)>();
 
-        foreach (var (inset, top, picture) in Wanted(lines, height, near: height))
+        foreach (var (inset, top, picture) in Placing.Wanted(_pictures!, lines, _top, height, near: height))
         {
             if (top + inset.Rows <= 0 || top >= height)
             {
@@ -1018,7 +800,6 @@ internal sealed class PaintedView : View
 
         return placed;
     }
-
 
     /// <summary>
     ///     The page a sixel's transparent pixels are laid on: the theme's, where it names one, and otherwise the
@@ -1037,106 +818,4 @@ internal sealed class PaintedView : View
 
         return App?.Driver?.DefaultAttribute?.Background is { } terminal && terminal != none ? terminal : null;
     }
-
-    /// <summary>
-    ///     Which box draws which of the pictures wanted this frame: the box already holding one where there is one,
-    ///     and never the same box twice.
-    /// </summary>
-    /// <remarks>
-    ///     One picture may be wanted more than once on a page — an account's avatar over a run of their posts, or a
-    ///     boost and the post it boosts — so a box is matched to a <em>place</em> a picture is wanted rather than to
-    ///     the picture. Deciding box by box instead is what put a stuck avatar over somebody's post: asked whether the
-    ///     picture it held was still wanted <em>anywhere</em>, both of two boxes holding one avatar said yes, one of
-    ///     them was given the single place left, and the other was neither moved nor released — and a Kitty placement
-    ///     nobody deletes is not erased by drawing text over it (ADR-0016).
-    ///     <para>
-    ///         A box holding nothing is preferred over one being released this frame, so that a view never goes from
-    ///         one picture straight to another within a frame: the terminal is told to drop the first, and only a
-    ///         frame later is the second put there. Reusing a released box is the last resort, there so that a screen
-    ///         with more pictures on it than there are boxes draws what it can rather than dropping one.
-    ///     </para>
-    /// </remarks>
-    /// <param name="held">What each box is holding, by index, and <see langword="null" /> for one holding nothing.</param>
-    /// <param name="wanted">The pictures to draw, in the order they appear, by id — the same id may appear twice.</param>
-    /// <returns>
-    ///     The box drawing each wanted picture, by index into <paramref name="held" />, or <see langword="null" />
-    ///     where there was no box left for it.
-    /// </returns>
-    internal static int?[] Boxes(IReadOnlyList<string?> held, IReadOnlyList<string> wanted)
-    {
-        var drawing = new int?[wanted.Count];
-        var spoken = new bool[held.Count];
-
-        // Three passes, in the order a box is preferred: one already holding this very picture, then one holding
-        // nothing, then one whose picture is being dropped this frame anyway.
-        for (var at = 0; at < wanted.Count; at++)
-        {
-            Take(at, box => held[box] == wanted[at]);
-        }
-
-        for (var at = 0; at < wanted.Count; at++)
-        {
-            Take(at, box => held[box] is null);
-        }
-
-        for (var at = 0; at < wanted.Count; at++)
-        {
-            Take(at, _ => true);
-        }
-
-        return drawing;
-
-        void Take(int at, Func<int, bool> suits)
-        {
-            if (drawing[at] is not null)
-            {
-                return;
-            }
-
-            for (var box = 0; box < held.Count; box++)
-            {
-                if (!spoken[box] && suits(box))
-                {
-                    drawing[at] = box;
-                    spoken[box] = true;
-
-                    return;
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    ///     The pictures to draw this frame, with the row each starts on — which may be above the top of the view or
-    ///     run past its bottom, for a box being scrolled past — and with <paramref name="near" />, those within that
-    ///     many rows of the page as well.
-    /// </summary>
-    private List<(Inset Inset, int Top, Picture Picture)> Wanted(IReadOnlyList<Line> lines, int height, int near = 0)
-    {
-        var wanted = new List<(Inset, int, Picture)>();
-
-        for (var at = 0; at < lines.Count; at++)
-        {
-            foreach (var inset in lines[at].Insets)
-            {
-                var top = at - _top;
-
-                // Off the top or off the bottom. A box straddling either edge is kept and clipped, which is what
-                // keeps a picture visible while it is being scrolled past rather than blinking out at the edge.
-                if (top + inset.Rows <= -near || top >= height + near)
-                {
-                    continue;
-                }
-
-                // A Stand-in's blur carries its own pixels and is never looked up: it is not the cache's to hold (#349).
-                if ((inset.Blur ?? _pictures!.Of(inset.Drawn)) is { } picture)
-                {
-                    wanted.Add((inset, top, picture));
-                }
-            }
-        }
-
-        return wanted;
-    }
-
 }

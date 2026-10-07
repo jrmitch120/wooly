@@ -147,8 +147,7 @@ internal sealed class ShellWindow : Window
         Placeholders? placeholders = null,
         Blurs? blurs = null,
         SynchronizedFrames? frames = null,
-        Func<Raster>? raster = null,
-        Func<View, IPictureBox>? boxes = null)
+        Func<Raster>? raster = null)
     {
         _shell = shell;
         _clock = clock;
@@ -200,8 +199,7 @@ internal sealed class ShellWindow : Window
                 active: true),
             placeholders,
             frames,
-            raster,
-            boxes ?? PictureView.AddedTo)
+            raster)
         {
             Id = ContentId,
             X = RailLines.Width,

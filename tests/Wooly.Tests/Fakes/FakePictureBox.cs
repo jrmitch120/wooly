@@ -1,5 +1,4 @@
 using System.Drawing;
-using Terminal.Gui.ViewBase;
 using Wooly.Tui.Media;
 
 namespace Wooly.Tests.Fakes;
@@ -7,7 +6,7 @@ namespace Wooly.Tests.Fakes;
 /// <summary>
 ///     A box a drawn picture is drawn through that draws nothing and writes down every call made of it, into a log
 ///     shared with the rest of its pool — so that what each box was shown, where it sat and when it was let go are
-///     assertions, in the order they happened, without a terminal (#360).
+///     assertions, in the order they happened, without a terminal (#360, #361).
 /// </summary>
 internal sealed class FakePictureBox(int number, List<FakePictureBox.Call> log) : IPictureBox
 {
@@ -18,11 +17,11 @@ internal sealed class FakePictureBox(int number, List<FakePictureBox.Call> log) 
     ///     What makes a pool of these, numbered from nought in the order they are made, every one writing into
     ///     <paramref name="log" />.
     /// </summary>
-    public static Func<View, IPictureBox> Pool(List<Call> log)
+    public static Func<IPictureBox> Pool(List<Call> log)
     {
         var made = 0;
 
-        return _ => new FakePictureBox(made++, log);
+        return () => new FakePictureBox(made++, log);
     }
 
     /// <inheritdoc />
