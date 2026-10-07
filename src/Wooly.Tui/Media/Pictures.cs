@@ -516,7 +516,7 @@ public sealed class Pictures(
         // id is keyed on the size it was decoded at, so nothing would ever ask for it, or delete it, again.
         if (held.Picture is not null)
         {
-            HandBack(drawn.Id);
+            RecordLetGo(drawn.Id);
         }
 
         HoldPixels(held, picture);
@@ -526,10 +526,10 @@ public sealed class Pictures(
 
     /// <summary>
     ///     Lets go of what was wanted longest ago until each tier is back within its budget, writing down whose pixels
-    ///     were let go of for the next <see cref="Drain" />. Under the lock. Pixels on screen in
-    ///     the latest frame are passed over however far over budget that leaves the decoded tier. A picture with
-    ///     neither pixels nor file left is forgotten where the encoded tier still needs the room remembering it takes,
-    ///     and is sent for again if it is ever wanted again.
+    ///     were let go of for the next <see cref="Drain" />. Under the lock. Pixels on screen in the latest frame are
+    ///     passed over however far over budget that leaves the decoded tier. A picture with neither pixels nor file left
+    ///     is forgotten where the encoded tier still needs the room remembering it takes, and is sent for again if it is
+    ///     ever wanted again.
     /// </summary>
     private void LetGo()
     {
@@ -538,7 +538,7 @@ public sealed class Pictures(
             if (place.Value.Picture is not null && !_onScreen.Contains(place.Value.Drawn.Id))
             {
                 LetGoOfPixels(place.Value);
-                HandBack(place.Value.Drawn.Id);
+                RecordLetGo(place.Value.Drawn.Id);
             }
         }
 
@@ -634,7 +634,7 @@ public sealed class Pictures(
     ///     Writes down that <paramref name="drawnId" />'s pixels were let go of, for the next <see cref="Drain" /> —
     ///     once, however often that happens before it. Under the lock.
     /// </summary>
-    private void HandBack(string drawnId)
+    private void RecordLetGo(string drawnId)
     {
         if (!_letGo.Contains(drawnId))
         {
