@@ -12,6 +12,7 @@ namespace Wooly.Tests.Fakes;
 internal sealed class FakePictures : IPictures
 {
     private readonly Dictionary<string, Picture> _held = [];
+    private readonly List<string> _letGo = [];
 
     /// <summary>Every picture looked up, by id, in order.</summary>
     public List<string> Asked { get; } = [];
@@ -73,6 +74,27 @@ internal sealed class FakePictures : IPictures
     {
         Frames.Add(frame);
         Sent.AddRange(frame.Select(wanted => wanted.Drawn.Id));
+    }
+
+    /// <inheritdoc />
+    public IReadOnlyList<string> Drain()
+    {
+        string[] letGo = [.. _letGo];
+
+        _letGo.Clear();
+
+        return letGo;
+    }
+
+    /// <summary>
+    ///     Says that the cache has let go of the picture <paramref name="id" /> names, to be handed back by the next
+    ///     <see cref="Drain" /> — what a view should pass on to a Kitty terminal holding a copy.
+    /// </summary>
+    public FakePictures LettingGo(string id)
+    {
+        _letGo.Add(id);
+
+        return this;
     }
 
     private FakePictures Held(string id, int width, int height)

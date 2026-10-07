@@ -131,7 +131,6 @@ try
         files,
         () => shellWindow?.Raster.Cell,
         Redraw,
-        placeholders.Drop,
         () => shellWindow?.ContentColumns ?? 0);
 
     // Each frame with pictures in it written whole, where the terminal can hold one back until it is (#342).
