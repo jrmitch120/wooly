@@ -143,6 +143,62 @@ public class KittyPictureTests
     }
 
     /// <summary>
+    ///     A picture the cache lets go of is forgotten by the terminal on the next frame, every size of it, so that the
+    ///     terminal does not hold it for the rest of the run (ADR-0022) — told from the frame, on the UI thread, rather
+    ///     than from wherever the cache let go of it.
+    /// </summary>
+    [Fact]
+    public async Task APictureTheCacheLetGoOfIsForgottenOnTheNextFrame()
+    {
+        var terminal = new FakeTerminalImages();
+        var pictures = FakePictures.With().Holding("m1", 800, 200);
+
+        using var drawn = await DrawnShell.Of(
+            80,
+            24,
+            Themes.Plain,
+            AShellWithAPicture(),
+            pictures: pictures,
+            kittyImages: terminal,
+            drawsPlaceholders: true);
+
+        var sent = Assert.Single(terminal.Transmitted);
+
+        Assert.Empty(terminal.Forgotten);
+
+        pictures.LettingGo("m1");
+        drawn.Redraw();
+
+        Assert.Equal([sent.Id], terminal.Forgotten);
+    }
+
+    /// <summary>
+    ///     On a terminal not drawing placeholders, what the cache let go of is still drained each frame — there is
+    ///     nothing on the terminal to forget, so it is simply discarded rather than left to pile up.
+    /// </summary>
+    [Fact]
+    public async Task WhatTheCacheLetGoOfIsDrainedWhereNoPlaceholdersAreDrawn()
+    {
+        var terminal = new FakeTerminalImages();
+        var pictures = FakePictures.With().Holding("m1", 800, 600);
+
+        using var drawn = await DrawnShell.Of(
+            80,
+            24,
+            Themes.Plain,
+            AShellWithAPicture(),
+            pictures: pictures,
+            drawsPictures: true,
+            kittyImages: terminal);
+
+        pictures.LettingGo("m1");
+        drawn.Redraw();
+
+        Assert.Empty(pictures.Drain());
+        Assert.Empty(terminal.Forgotten);
+    }
+
+    /// <summary>
     ///     A terminal that answers that it speaks Kitty graphics, but is not known by name to draw its placeholders,
     ///     draws through a box: WezTerm answers yes and prints the placeholders as boxes (#292, ADR-0022).
     /// </summary>

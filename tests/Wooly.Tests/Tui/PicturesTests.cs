@@ -195,10 +195,9 @@ public class PicturesTests
     public async Task Pictures_FetchesAPictureAgainOnlyOnceItsFileIsLetGoOfToo()
     {
         var asked = new List<string>();
-        var dropped = new List<string>();
         var photograph = ANoisyPng(1000, 640);
 
-        using var pictures = APictures(_ => photograph, out var landings, asked: asked, dropped: dropped);
+        using var pictures = APictures(_ => photograph, out var landings, asked: asked);
 
         var fitting = (int)(Pictures.DecodedBudget / (1000L * 640 * 4));
 
@@ -210,7 +209,7 @@ public class PicturesTests
 
         // Its pixels went to make room in the decoded tier, and its file long before, since files of this size fill
         // the encoded tier's budget in fewer pictures than pixels fill the decoded tier's.
-        Assert.Equal(["m0"], dropped);
+        Assert.Equal(["m0"], pictures.Drain());
         Assert.True(photograph.Length * (fitting + 1L) > Pictures.EncodedBudget);
 
         pictures.Want([Near(APicture("m0"))]);
@@ -227,9 +226,8 @@ public class PicturesTests
     [Fact]
     public async Task Pictures_LetsGoOfThePictureWantedLongestAgo()
     {
-        var dropped = new List<string>();
 
-        using var pictures = APictures(_ => APng(1000, 640), out var landings, dropped: dropped);
+        using var pictures = APictures(_ => APng(1000, 640), out var landings);
 
         var fitting = (int)(Pictures.DecodedBudget / (1000L * 640 * 4));
 
@@ -244,7 +242,7 @@ public class PicturesTests
         pictures.Want([Near(APicture("new"))]);
         await landings.Landed(fitting + 1);
 
-        Assert.Equal(["m1"], dropped);
+        Assert.Equal(["m1"], pictures.Drain());
     }
 
     /// <summary>
@@ -254,9 +252,8 @@ public class PicturesTests
     [Fact]
     public async Task Pictures_NeverLetsGoOfWhatIsOnScreen()
     {
-        var dropped = new List<string>();
 
-        using var pictures = APictures(_ => APng(1000, 640), out var landings, dropped: dropped);
+        using var pictures = APictures(_ => APng(1000, 640), out var landings);
 
         var fitting = (int)(Pictures.DecodedBudget / (1000L * 640 * 4));
         var screenful = Enumerable.Range(0, fitting + 3).Select(at => APicture($"s{at}")).ToList();
@@ -264,7 +261,7 @@ public class PicturesTests
         pictures.Want([.. screenful.Select(OnScreen)]);
         await landings.Landed(fitting + 3);
 
-        Assert.Empty(dropped);
+        Assert.Empty(pictures.Drain());
         Assert.All(screenful, drawn => Assert.NotNull(pictures.Of(drawn)));
 
         // The page moves on: the next frame has none of them on screen, so the tier comes back to its budget, letting
@@ -272,7 +269,7 @@ public class PicturesTests
         pictures.Want([Near(APicture("next"))]);
         await landings.Landed(fitting + 4);
 
-        Assert.Equal([$"s{fitting + 2}", $"s{fitting + 1}", $"s{fitting}", $"s{fitting - 1}"], dropped);
+        Assert.Equal([$"s{fitting + 2}", $"s{fitting + 1}", $"s{fitting}", $"s{fitting - 1}"], pictures.Drain());
     }
 
     /// <summary>
@@ -284,9 +281,8 @@ public class PicturesTests
     public async Task Pictures_DecodesNoMoreOfAFrameThanItHasRoomFor()
     {
         var asked = new List<string>();
-        var dropped = new List<string>();
 
-        using var pictures = APictures(_ => APng(1000, 640), out var landings, asked: asked, dropped: dropped);
+        using var pictures = APictures(_ => APng(1000, 640), out var landings, asked: asked);
 
         var fitting = (int)(Pictures.DecodedBudget / (1000L * 640 * 4));
         var frame = Enumerable.Range(0, fitting + 3).Select(at => Near(APicture($"m{at}"))).ToList();
@@ -295,7 +291,7 @@ public class PicturesTests
         pictures.Want(frame);
         await landings.Landed(fitting + 3);
 
-        Assert.Equal(3, dropped.Count);
+        Assert.Equal(3, pictures.Drain().Count);
 
         pictures.Want(frame);
         pictures.Want(frame);
@@ -303,7 +299,7 @@ public class PicturesTests
 
         Assert.Equal(fitting + 3, landings.Count);
         Assert.Equal(fitting + 3, asked.Count);
-        Assert.Equal(3, dropped.Count);
+        Assert.Empty(pictures.Drain());
     }
 
     /// <summary>
@@ -347,22 +343,48 @@ public class PicturesTests
     [Fact]
     public async Task Pictures_SaysThePixelsADecodeAgainReplacesAreLetGoOf()
     {
-        var dropped = new List<string>();
         var width = 50;
 
-        using var pictures = APictures(_ => APng(4000, 1000), out var landings, columns: () => width, dropped: dropped);
+        using var pictures = APictures(_ => APng(4000, 1000), out var landings, columns: () => width);
 
         pictures.Want([OnScreen(APicture("m"))]);
         await landings.Landed(1);
 
-        Assert.Empty(dropped);
+        Assert.Empty(pictures.Drain());
 
         width = 100;
         pictures.Want([OnScreen(APicture("m"))]);
         await landings.Landed(2);
 
-        Assert.Equal(["m"], dropped);
+        Assert.Equal(["m"], pictures.Drain());
         Assert.Equal(1000, pictures.Of(APicture("m"))?.Width);
+        Assert.Empty(pictures.Drain());
+    }
+
+    /// <summary>
+    ///     A picture let go of twice before anything drains — decoded again for a wider window, then again for a wider
+    ///     one still — is handed back once: telling a Kitty terminal to forget it once forgets every size it holds.
+    /// </summary>
+    [Fact]
+    public async Task Pictures_HandsBackAPictureLetGoOfTwiceBeforeADrainOnce()
+    {
+        var width = 50;
+
+        using var pictures = APictures(_ => APng(4000, 1000), out var landings, columns: () => width);
+
+        pictures.Want([OnScreen(APicture("m"))]);
+        await landings.Landed(1);
+
+        width = 100;
+        pictures.Want([OnScreen(APicture("m"))]);
+        await landings.Landed(2);
+
+        width = 150;
+        pictures.Want([OnScreen(APicture("m"))]);
+        await landings.Landed(3);
+
+        Assert.Equal(1500, pictures.Of(APicture("m"))?.Width);
+        Assert.Equal(["m"], pictures.Drain());
     }
 
     /// <summary>
@@ -449,9 +471,8 @@ public class PicturesTests
     public async Task Pictures_DecodesAPictureLetGoOfAgainFromItsBytesWithoutFetching()
     {
         var asked = new List<string>();
-        var dropped = new List<string>();
 
-        using var pictures = APictures(_ => APng(1000, 640), out var landings, asked: asked, dropped: dropped);
+        using var pictures = APictures(_ => APng(1000, 640), out var landings, asked: asked);
 
         // Each a thousand by 640 at four bytes a pixel, which is the largest a hundred-column window draws them.
         var fitting = (int)(Pictures.DecodedBudget / (1000L * 640 * 4));
@@ -462,12 +483,12 @@ public class PicturesTests
             await landings.Landed(at + 1);
         }
 
-        Assert.Empty(dropped);
+        Assert.Empty(pictures.Drain());
 
         pictures.Want([Near(APicture("over"))]);
         await landings.Landed(fitting + 1);
 
-        Assert.Equal(["m0"], dropped);
+        Assert.Equal(["m0"], pictures.Drain());
         Assert.Null(pictures.Of(APicture("m0")));
 
         pictures.Want([Near(APicture("m0"))]);
@@ -675,16 +696,14 @@ public class PicturesTests
 
     /// <summary>
     ///     A cache over a fetch that answers with <paramref name="serve" />'s bytes for each address, writing down
-    ///     every address it is asked for in <paramref name="asked" /> and every picture let go of in
-    ///     <paramref name="dropped" />.
+    ///     every address it is asked for in <paramref name="asked" />.
     /// </summary>
     private static Pictures APictures(
         Func<string, byte[]?> serve,
         out Landings landings,
         Func<int>? columns = null,
         Func<CellSize?>? cell = null,
-        List<string>? asked = null,
-        List<string>? dropped = null)
+        List<string>? asked = null)
     {
         var landed = new Landings();
 
@@ -702,13 +721,6 @@ public class PicturesTests
             },
             cell ?? ADrawingTerminal,
             landed.Land,
-            id =>
-            {
-                lock (landed)
-                {
-                    dropped?.Add(id);
-                }
-            },
             columns ?? (() => 100));
     }
 

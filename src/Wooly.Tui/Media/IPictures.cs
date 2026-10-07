@@ -41,4 +41,16 @@ public interface IPictures
     ///     asked for again. Said by whatever knows where the scroll has got to, which is the view rather than the post.
     /// </remarks>
     void Want(IReadOnlyList<WantedPicture> frame);
+
+    /// <summary>
+    ///     The pictures let go of since the last drain, by <see cref="Drawn.Id" />, each handed back once and never
+    ///     again — whether a frame's <see cref="Want" /> let go of them or a picture landing did.
+    /// </summary>
+    /// <remarks>
+    ///     Handed back rather than announced, so that whatever has to hear of them — a Kitty terminal holding a copy,
+    ///     which is told to let go of it too (ADR-0022) — hears on the UI thread, once a frame, and never under this
+    ///     cache's lock or on a thread a picture landed on. One let go of as another lands is drained on the redraw
+    ///     that landing asks for.
+    /// </remarks>
+    IReadOnlyList<string> Drain();
 }
