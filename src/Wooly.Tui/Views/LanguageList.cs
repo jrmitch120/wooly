@@ -66,8 +66,8 @@ internal sealed class LanguageList
     public PaintedView View => _list.View;
 
     /// <summary>
-    ///     Puts <paramref name="text" /> in the field as the screen holds it — as compose opens — rather than as typed,
-    ///     so it opens no list.
+    ///     Puts <paramref name="text" /> in the field as the screen holds it — as compose opens, or as a language is
+    ///     picked — rather than as typed, so it opens no list.
     /// </summary>
     public void Fill(string text)
     {
@@ -119,8 +119,7 @@ internal sealed class LanguageList
     /// <summary>The field's text changed: the screen told, and the list narrowed to what it now matches.</summary>
     private void Typed()
     {
-        // Typed only where Lang has the typing: compose opening fills it from the draft without, which opens nothing.
-        if (_filling || !_field.HasFocus)
+        if (_filling)
         {
             return;
         }

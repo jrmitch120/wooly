@@ -231,11 +231,10 @@ internal sealed class ComposeView : View
             _to.Visible = true;
             _to.CanFocus = compose.Takes(ComposeField.To);
 
-            // Filled while it does not have the typing, which opens no list of languages.
+            // Filled as the screen holds it rather than typed, which opens no list of languages.
             _lang.Visible = true;
             _lang.Layout();
-            _lang.Text = compose.Lang.Held;
-            _lang.MoveEnd();
+            _languages.Fill(compose.Lang.Held);
 
             _editor.SetFocus();
 
