@@ -57,80 +57,58 @@ internal sealed class ComposeView : View
         // the content panel's.
         ViewportSettings |= ViewportSettingsFlags.Transparent | ViewportSettingsFlags.TransparentMouse;
 
-        _editor = new ComposeEditor(
-            theme,
-            ComposeScreen.EmptyPostHint,
-            () => _ = shell.Send(),
-            () => shell.Back(),
-            WriteWarning,
-            () => shell.ChangeCompose(compose => compose.Walk(-1)))
-        {
-            // Wherever the compose screen says, inside the viewport this view is laid over (#315): its headers and
-            // hairlines (#317) are painted behind it, so the screen that paints them is the one that knows how far down
-            // the editor has to start for them to be seen.
-            X = Pos.Func(_ => EditorAt().X),
-            Y = Pos.Func(_ => EditorAt().Y),
-            Width = Dim.Func(_ => EditorAt().Width),
-            Height = Dim.Func(_ => EditorAt().Height),
-            Visible = false,
-            WordWrap = true,
+        // Each field is wherever the compose screen says, inside the viewport this view is laid over (#315): the
+        // headers and hairlines (#317) are painted behind, so the screen that paints them is the one that knows where
+        // the editor has to start for them to be seen, and on which row each header's value column is — Lang's nowhere
+        // where a short viewport has given its row up.
+        _editor = Placed(
+            new ComposeEditor(
+                theme,
+                ComposeScreen.EmptyPostHint,
+                Send,
+                Back,
+                WriteWarning,
+                () => _shell.ChangeCompose(compose => compose.Walk(-1)))
+            {
+                WordWrap = true,
 
-            // tab is the frame's on every screen, compose included (docs/tui-shell.md, ADR-0024): it moves the rail's
-            // cursor rather than putting a tab into the post.
-            TabKeyAddsTab = false,
-        };
+                // tab is the frame's on every screen, compose included (docs/tui-shell.md, ADR-0024): it moves the
+                // rail's cursor rather than putting a tab into the post.
+                TabKeyAddsTab = false,
+            },
+            (compose, room) => compose.EditorAt(room));
 
         // The screen's text follows the editor on every edit rather than only at ctrl-s, so whatever reads it while a
         // post is being written — a count, a list of people to mention — sees what has been typed so far.
         _editor.ContentsChanged += (_, _) => _shell.ChangeCompose(compose => compose.Rewrite(_editor.Text));
 
-        _warning = new ComposeWarningField(
-            theme,
-            () => (_shell.Screen as ComposeScreen)?.WarningHint ?? string.Empty,
-            () => _ = shell.Send(),
-            () => shell.Back(),
-            WriteWarning)
-        {
-            // Wherever the compose screen says, as for the editor: its header's value column, on whichever row the
-            // headers above it leave it.
-            X = Pos.Func(_ => WarningAt().X),
-            Y = Pos.Func(_ => WarningAt().Y),
-            Width = Dim.Func(_ => WarningAt().Width),
-            Height = Dim.Func(_ => WarningAt().Height),
-            Visible = false,
-        };
+        _warning = Placed(
+            new ComposeWarningField(
+                theme,
+                () => (_shell.Screen as ComposeScreen)?.WarningHint ?? string.Empty,
+                Send,
+                Back,
+                WriteWarning),
+            (compose, room) => compose.WarningAt(room));
 
         // The same for the warning. The count is painted behind, on rows an edit announces as changed.
         _warning.ValueChanged += (_, _) => _shell.ChangeCompose(compose => compose.RewriteWarning(_warning.Text));
 
-        _to = new ComposeToField(
-            theme,
-            room => (_shell.Screen as ComposeScreen)?.ToSpans(room) ?? [],
-            (column, room) => shell.ChangeCompose(compose => compose.ClickTo(column, room)))
-        {
-            // Wherever the compose screen says, as for the warning: To's value column, under From.
-            X = Pos.Func(_ => ToAt().X),
-            Y = Pos.Func(_ => ToAt().Y),
-            Width = Dim.Func(_ => ToAt().Width),
-            Height = Dim.Func(_ => ToAt().Height),
-            Visible = false,
-        };
+        _to = Placed(
+            new ComposeToField(
+                theme,
+                room => (_shell.Screen as ComposeScreen)?.ToSpans(room) ?? [],
+                (column, room) => _shell.ChangeCompose(compose => compose.ClickTo(column, room))),
+            (compose, room) => compose.ToAt(room));
 
-        _lang = new ComposeLangField(
-            theme,
-            () => (_shell.Screen as ComposeScreen)?.LanguageHint ?? string.Empty,
-            () => _ = shell.Send(),
-            () => shell.Back(),
-            WriteWarning)
-        {
-            // Wherever the compose screen says, as for To: Lang's value column, under To — nowhere where a short
-            // viewport has given the row up.
-            X = Pos.Func(_ => LangAt().X),
-            Y = Pos.Func(_ => LangAt().Y),
-            Width = Dim.Func(_ => LangAt().Width),
-            Height = Dim.Func(_ => LangAt().Height),
-            Visible = false,
-        };
+        _lang = Placed(
+            new ComposeLangField(
+                theme,
+                () => (_shell.Screen as ComposeScreen)?.LanguageHint ?? string.Empty,
+                Send,
+                Back,
+                WriteWarning),
+            (compose, room) => compose.LangAt(room));
 
         // A click into any field moves the typing there: where the typing is is one fact, the screen's, and whichever
         // way it moved the screen is told so that the status row, the header's mark and the hint keep up.
@@ -160,7 +138,7 @@ internal sealed class ComposeView : View
             }
         };
 
-        shell.Changed += Refresh;
+        _shell.Changed += Refresh;
 
         Refresh();
     }
@@ -288,20 +266,30 @@ internal sealed class ComposeView : View
         SetNeedsDraw();
     }
 
-    /// <summary>Where the compose screen says its editor goes in this view, or nowhere while no post is being written.</summary>
-    private Rectangle EditorAt() => Laid(compose => compose.EditorAt(Viewport.Size));
+    /// <summary>
+    ///     <paramref name="field" />, hidden until compose comes on top and laid wherever <paramref name="at" /> says
+    ///     the compose screen puts it in this view's viewport — nowhere while no post is being written.
+    /// </summary>
+    private T Placed<T>(T field, Func<ComposeScreen, Size, Rectangle> at)
+        where T : View
+    {
+        Rectangle Laid() =>
+            Viewport.Width > 0 && _shell.Screen is ComposeScreen compose ? at(compose, Viewport.Size) : Rectangle.Empty;
 
-    /// <summary>The same for the warning field.</summary>
-    private Rectangle WarningAt() => Laid(compose => compose.WarningAt(Viewport.Size));
+        field.X = Pos.Func(_ => Laid().X);
+        field.Y = Pos.Func(_ => Laid().Y);
+        field.Width = Dim.Func(_ => Laid().Width);
+        field.Height = Dim.Func(_ => Laid().Height);
+        field.Visible = false;
 
-    /// <summary>The same for To.</summary>
-    private Rectangle ToAt() => Laid(compose => compose.ToAt(Viewport.Size));
+        return field;
+    }
 
-    /// <summary>The same for Lang.</summary>
-    private Rectangle LangAt() => Laid(compose => compose.LangAt(Viewport.Size));
+    /// <summary><c>ctrl-s</c> in any of compose's fields.</summary>
+    private void Send() => _ = _shell.Send();
 
-    private Rectangle Laid(Func<ComposeScreen, Rectangle> at) =>
-        Viewport.Width > 0 && _shell.Screen is ComposeScreen compose ? at(compose) : Rectangle.Empty;
+    /// <summary><c>esc</c> in any of compose's fields.</summary>
+    private void Back() => _shell.Back();
 
     /// <summary><c>ctrl-w</c> in any of compose's fields: the typing to the warning and back (#123).</summary>
     private void WriteWarning() => _shell.ChangeCompose(compose => compose.WriteTheWarning());
