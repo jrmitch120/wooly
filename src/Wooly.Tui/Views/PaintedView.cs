@@ -54,6 +54,7 @@ internal sealed class PaintedView : View
     private readonly Placeholders? _placeholders;
     private readonly SixelPictures _sixels;
     private readonly SynchronizedFrames? _frames;
+    private readonly Func<Raster> _raster;
 
     /// <summary>Where the page began the last time pictures were placed, which says which way it is moving.</summary>
     private int _placedAt;
@@ -99,6 +100,10 @@ internal sealed class PaintedView : View
     ///     <see langword="null" /> to draw every picture through a box (ADR-0022).
     /// </param>
     /// <param name="frames">What wraps a frame this view draws in synchronized output, if anything does.</param>
+    /// <param name="raster">
+    ///     How this terminal paints pixels as of the frame being drawn — the one its rows were laid out under, read
+    ///     after them — or <see langword="null" /> for a terminal that draws none.
+    /// </param>
     /// <remarks>
     ///     A frame is laid on a one-cell <c>Padding</c> round the view, so everything measured off
     ///     <see cref="View.Viewport" /> — the rows' width and height, the scroll, a page's worth — is the inside of it,
@@ -111,9 +116,11 @@ internal sealed class PaintedView : View
         IPictures? pictures = null,
         Func<int, int, IReadOnlyList<Line>>? frame = null,
         Placeholders? placeholders = null,
-        SynchronizedFrames? frames = null)
+        SynchronizedFrames? frames = null,
+        Func<Raster>? raster = null)
     {
         _theme = theme;
+        _raster = raster ?? (() => Raster.None);
         _sixels = new SixelPictures(backdrop: Backdrop);
         _frames = frames;
         _rows = rows;
@@ -754,15 +761,14 @@ internal sealed class PaintedView : View
         }
 
         var wanted = Wanted(lines, height);
+        var raster = _raster();
 
-        if (_pictures.Cell is not { } cell)
+        if (raster.Cell is not { } cell)
         {
             _boxes.ForEach(box => box.Release());
 
             return;
         }
-
-        var colours = SixelColours();
 
         // Who draws what, settled for the whole frame before anything moves — see Boxes. Asking box by box is what
         // this used to do, and it could not see that one picture was wanted once and held twice.
@@ -803,7 +809,7 @@ internal sealed class PaintedView : View
             var box = _boxes[which];
 
             // Through Kitty the image view draws the whole box, which it sends once and moves (ADR-0016).
-            if (colours == 0)
+            if (raster.Way is not PictureWay.Sixel)
             {
                 var whole = new Rectangle(inset.Column, top, inset.Columns, inset.Rows);
 
@@ -828,7 +834,7 @@ internal sealed class PaintedView : View
                 continue;
             }
 
-            box.Show(inset.Drawn.Id, _sixels.Of(inset, picture, cell, crop, colours));
+            box.Show(inset.Drawn.Id, _sixels.Of(inset, picture, cell, crop, raster.SixelColours));
 
             if (box.Frame != frame)
             {
@@ -839,9 +845,9 @@ internal sealed class PaintedView : View
             box.Visible = box.CanDraw;
         }
 
-        if (colours > 0)
+        if (raster.Way is PictureWay.Sixel)
         {
-            Prepare(lines, height, cell, colours);
+            Prepare(lines, height, cell, raster.SixelColours);
         }
     }
 
@@ -950,7 +956,7 @@ internal sealed class PaintedView : View
     /// </remarks>
     private List<(Inset Inset, int Top, int Id)> Sent(IReadOnlyList<Line> lines, int height)
     {
-        if (_pictures?.Cell is not { } cell)
+        if (_pictures is null || _raster().Cell is not { } cell)
         {
             return [];
         }
@@ -990,17 +996,6 @@ internal sealed class PaintedView : View
 
         return App?.Driver?.DefaultAttribute?.Background is { } terminal && terminal != none ? terminal : null;
     }
-
-    /// <summary>
-    ///     How many colours a sixel is encoded in on this terminal, or none where a box draws through Kitty instead:
-    ///     all 256 sixel allows, or fewer where the terminal says it has fewer. Terminal.Gui's image view stops at 64,
-    ///     at which a photograph's gradients break into patches (ADR-0023).
-    /// </summary>
-    private int SixelColours() =>
-        App?.Driver is { } driver
-        && Raster.Of(driver, placeholders: false, () => null).Way is PictureWay.Sixel
-            ? Math.Min(256, driver.SixelSupport!.MaxPaletteColors)
-            : 0;
 
     /// <summary>
     ///     Which box draws which of the pictures wanted this frame: the box already holding one where there is one,

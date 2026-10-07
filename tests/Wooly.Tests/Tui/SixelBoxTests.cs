@@ -56,7 +56,7 @@ public class SixelBoxTests
                     APost.With(id: "330", media: [APost.APicture("m1", shape: new PictureShape(800, 400))]),
                     APost.With(id: "440")),
             },
-            pictures: FakePictures.With().Holding("m1", 800, 400),
+            pictures: new FakePictures().Holding("m1", 800, 400),
             drawsPictures: true);
 
         var box = Assert.Single(drawn.Content.SubViews.OfType<PictureView>(), view => view.Visible);
@@ -114,6 +114,6 @@ public class SixelBoxTests
                 APost.With(id: "330"),
                 APost.With(id: "440")),
         },
-        pictures: FakePictures.With().Holding("m1", 800, 400),
+        pictures: new FakePictures().Holding("m1", 800, 400),
         drawsPictures: true);
 }

@@ -38,7 +38,7 @@ public class SensitiveMediaTests
     {
         var lines = PostLines.Feed(
             Hiding(contentWarning, sensitive),
-            new Drawing(61, Now, FakePictures.With().Holding("m1", 400, 300).Holding("m2", 400, 300)),
+            new Drawing(61, Now, new FakePictures().Holding("m1", 400, 300).Holding("m2", 400, 300), ARaster.Sixel()),
             default);
 
         Assert.Empty(lines.SelectMany(line => line.Insets));
@@ -58,9 +58,12 @@ public class SensitiveMediaTests
     [MemberData(nameof(Warned))]
     public void Feed_SendsForNothingWhileAWarnedPostsAttachmentsAreHidden(string? contentWarning, bool sensitive)
     {
-        var pictures = FakePictures.With();
+        var pictures = new FakePictures();
 
-        var lines = PostLines.Feed(Hiding(contentWarning, sensitive), new Drawing(61, Now, pictures), default);
+        var lines = PostLines.Feed(
+            Hiding(contentWarning, sensitive),
+            new Drawing(61, Now, pictures, ARaster.Sixel()),
+            default);
 
         Assert.DoesNotContain(lines, line => line.Wants is not null);
         Assert.Empty(pictures.Asked);
@@ -74,16 +77,16 @@ public class SensitiveMediaTests
     [Fact]
     public void Feed_ReadsExactlyAsItDoesTodayOnceTheReaderHasAskedPastTheWarning()
     {
-        var pictures = FakePictures.With().Holding("m1", 400, 300).Holding("m2", 400, 300);
+        var pictures = new FakePictures().Holding("m1", 400, 300).Holding("m2", 400, 300);
 
         var revealed = PostLines.Feed(
             Hiding(contentWarning: null, sensitive: true),
-            new Drawing(61, Now, pictures),
+            new Drawing(61, Now, pictures, ARaster.Sixel()),
             new Reading(Revealed: true));
 
         var plain = PostLines.Feed(
             Hiding(contentWarning: null, sensitive: false),
-            new Drawing(61, Now, pictures),
+            new Drawing(61, Now, pictures, ARaster.Sixel()),
             default);
 
         Assert.Equal(plain.Select(line => line.Text), revealed.Select(line => line.Text));
@@ -98,12 +101,15 @@ public class SensitiveMediaTests
     public void Whole_HidesAWarnedPostsAttachmentsAndShowsThemOnceAsked()
     {
         var post = Hiding(contentWarning: null, sensitive: true);
-        var pictures = FakePictures.With().Holding("m1", 400, 300);
+        var pictures = new FakePictures().Holding("m1", 400, 300);
 
-        Assert.Empty(PostLines.Whole(post, new Drawing(61, Now, pictures), default).SelectMany(line => line.Insets));
+        Assert.Empty(PostLines.Whole(
+            post,
+            new Drawing(61, Now, pictures, ARaster.Sixel()),
+            default).SelectMany(line => line.Insets));
 
         Assert.NotEmpty(PostLines
-                        .Whole(post, new Drawing(61, Now, pictures), new Reading(Revealed: true))
+                        .Whole(post, new Drawing(61, Now, pictures, ARaster.Sixel()), new Reading(Revealed: true))
                         .SelectMany(line => line.Insets));
     }
 
@@ -117,7 +123,7 @@ public class SensitiveMediaTests
     {
         var lines = PostLines.Feed(
             Hiding(contentWarning: null, sensitive: true),
-            new Drawing(61, Now, FakePictures.With()),
+            new Drawing(61, Now, new FakePictures(), ARaster.Sixel()),
             default);
 
         Assert.Contains(lines, line => line.Text.Contains("⚠ Sensitive media", StringComparison.Ordinal));
@@ -133,7 +139,7 @@ public class SensitiveMediaTests
     {
         var lines = PostLines.Feed(
             Hiding(contentWarning: "spoilers", sensitive: true),
-            new Drawing(61, Now, FakePictures.With()),
+            new Drawing(61, Now, new FakePictures(), ARaster.Sixel()),
             default);
 
         Assert.DoesNotContain(lines, line => line.Text.Contains("Sensitive media", StringComparison.Ordinal));
@@ -152,7 +158,7 @@ public class SensitiveMediaTests
     {
         var post = APost.With(sensitive: true);
 
-        var lines = PostLines.Feed(post, new Drawing(61, Now, FakePictures.With()), default);
+        var lines = PostLines.Feed(post, new Drawing(61, Now, new FakePictures(), ARaster.Sixel()), default);
 
         Assert.DoesNotContain(lines, line => line.Text.Contains("Sensitive media", StringComparison.Ordinal));
         Assert.False(Feed(post).Reveal());
@@ -167,7 +173,7 @@ public class SensitiveMediaTests
     {
         var lines = PostLines.Feed(
             APost.With(media: [APost.APicture()]),
-            new Drawing(61, Now, FakePictures.With().Holding("m1", 400, 300)),
+            new Drawing(61, Now, new FakePictures().Holding("m1", 400, 300), ARaster.Sixel()),
             default);
 
         Assert.NotEmpty(lines.SelectMany(line => line.Insets));
@@ -216,7 +222,10 @@ public class SensitiveMediaTests
     {
         var boost = APost.With(id: "1", content: string.Empty, boosted: Hiding(contentWarning: null, sensitive: true));
 
-        var lines = PostLines.Feed(boost, new Drawing(61, Now, FakePictures.With().Holding("m1", 400, 300)), default);
+        var lines = PostLines.Feed(
+            boost,
+            new Drawing(61, Now, new FakePictures().Holding("m1", 400, 300), ARaster.Sixel()),
+            default);
 
         Assert.Empty(lines.SelectMany(line => line.Insets));
 

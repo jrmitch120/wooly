@@ -119,7 +119,7 @@ public class KittyPictureTests
                     APost.With(id: "440"),
                     APost.With(id: "550", media: [APost.APicture("m1")])),
             },
-            pictures: FakePictures.With().Holding("m1", 800, 200),
+            pictures: new FakePictures().Holding("m1", 800, 200),
             kittyImages: terminal,
             drawsPlaceholders: true,
             encoding: encoding.Add);
@@ -156,7 +156,7 @@ public class KittyPictureTests
             24,
             Themes.Plain,
             AShellWithAPicture(),
-            pictures: FakePictures.With().Holding("m1", 800, 200),
+            pictures: new FakePictures().Holding("m1", 800, 200),
             kittyImages: terminal,
             answersKitty: true);
 
@@ -177,7 +177,7 @@ public class KittyPictureTests
             24,
             Themes.Plain,
             AShellWithAPicture(),
-            pictures: FakePictures.With().Holding("m1", 800, 200),
+            pictures: new FakePictures().Holding("m1", 800, 200),
             answersKitty: true);
 
         var box = Assert.Single(drawn.Content.SubViews.OfType<PictureView>(), view => view.Visible);
@@ -215,7 +215,7 @@ public class KittyPictureTests
             24,
             Themes.Plain,
             AShellWithAPicture(),
-            pictures: FakePictures.With().Holding("m1", 800, 600),
+            pictures: new FakePictures().Holding("m1", 800, 600),
             drawsPictures: true,
             kittyImages: terminal);
 
@@ -230,7 +230,7 @@ public class KittyPictureTests
         Themes.Plain,
         AShellWithAPicture(),
         // A wide picture, so that its box is a few rows and fits on the page whole.
-        pictures: FakePictures.With().Holding("m1", 800, 200),
+        pictures: new FakePictures().Holding("m1", 800, 200),
         kittyImages: terminal,
         drawsPlaceholders: true);
 

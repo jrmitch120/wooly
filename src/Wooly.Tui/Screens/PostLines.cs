@@ -87,6 +87,7 @@ public static class PostLines
     {
         var width = drawing.Width;
         var pictures = drawing.Pictures;
+        var raster = drawing.Raster;
         var show = OnShow.Of(post, reading);
         var shown = show.Shown;
 
@@ -94,19 +95,20 @@ public static class PostLines
             [
                 .. Boosted(post, $"{post.Author} boosted", width),
                 .. Answering(shown, width),
-                .. Byline(shown, width, drawing.Now, pictures),
+                .. Byline(shown, width, drawing.Now, pictures, raster),
             ],
             Body(show, width, reading, saysHowToAskPast),
             .. Media(
                 show,
                 width,
                 pictures,
+                raster,
                 drawing.Blurs,
                 Inset.FeedRows,
                 drawing.HideDrawnCaption,
                 reading,
                 saysHowToAskPast),
-            LinkPreview(show, width, pictures, drawing.Blurs, Inset.FeedRows, reading),
+            LinkPreview(show, width, pictures, raster, drawing.Blurs, Inset.FeedRows, reading),
             Poll(show, width, reading),
             [Counts(shown, spelledOut: false)],
         ]);
@@ -129,9 +131,10 @@ public static class PostLines
     {
         var width = drawing.Width;
         var pictures = drawing.Pictures;
+        var raster = drawing.Raster;
         var show = OnShow.Of(post, reading);
         var shown = show.Shown;
-        var avatar = Avatar.Byline(shown.Account, shown.AvatarUrl, pictures);
+        var avatar = Avatar.Byline(shown.Account, shown.AvatarUrl, pictures, raster);
         var room = Math.Max(0, width - avatar.Width);
 
         return Parts([
@@ -159,12 +162,13 @@ public static class PostLines
                 show,
                 width,
                 pictures,
+                raster,
                 drawing.Blurs,
                 Inset.WholeRows,
                 drawing.HideDrawnCaption,
                 reading,
                 saysHowToAskPast: true),
-            LinkPreview(show, width, pictures, drawing.Blurs, Inset.WholeRows, reading),
+            LinkPreview(show, width, pictures, raster, drawing.Blurs, Inset.WholeRows, reading),
             Poll(show, width, reading),
             [Counts(shown, spelledOut: true)],
         ]);
@@ -284,9 +288,14 @@ public static class PostLines
     ///     the two-row shape wants ahead of the body — and five columns, spent on these rows alone: the body, the
     ///     media and the counts stay full width, because this is a byline with a picture in it rather than an indent.
     /// </remarks>
-    private static IEnumerable<Line> Byline(Post post, int width, DateTimeOffset now, IPictures? pictures)
+    private static IEnumerable<Line> Byline(
+        Post post,
+        int width,
+        DateTimeOffset now,
+        IPictures? pictures,
+        Raster? raster)
     {
-        var avatar = Avatar.Byline(post.Account, post.AvatarUrl, pictures);
+        var avatar = Avatar.Byline(post.Account, post.AvatarUrl, pictures, raster);
         var room = Math.Max(0, width - avatar.Width);
 
         var tail = new Span($"{Audience(post.Visibility)} {Elapsed.Since(post.PostedAt, now)}", Role.Audience);
@@ -405,7 +414,8 @@ public static class PostLines
     ///     answers to either part of the warning: the instance's flag hides what is attached with no text to read it
     ///     off (#113).
     /// </param>
-    /// <param name="pictures">What can be drawn and what is here, or <see langword="null" /> where nothing can be.</param>
+    /// <param name="pictures">What is here, or <see langword="null" /> where nothing can be drawn.</param>
+    /// <param name="raster">How this terminal paints pixels, or <see langword="null" /> where nobody said.</param>
     /// <param name="blurs">What a Stand-in's blur comes from, or <see langword="null" /> where none is drawn.</param>
     /// <param name="mostRows">The most rows a picture may take, which is what a feed and a whole post differ on.</param>
     /// <param name="hideDrawnCaption">
@@ -431,6 +441,7 @@ public static class PostLines
         OnShow show,
         int width,
         IPictures? pictures,
+        Raster? raster,
         Blurs? blurs,
         int mostRows,
         bool hideDrawnCaption,
@@ -474,6 +485,7 @@ public static class PostLines
                     reading.Reference,
                     width,
                     pictures,
+                    raster,
                     blurs,
                     mostRows,
                     hideDrawnCaption);
@@ -483,7 +495,7 @@ public static class PostLines
                 continue;
             }
 
-            if (pictures?.Cell is not { } cell)
+            if (pictures is null || raster?.Cell is not { } cell)
             {
                 yield return [.. LinkedImage(attached, width)];
 
@@ -551,6 +563,7 @@ public static class PostLines
         Reference? picked,
         int width,
         IPictures? pictures,
+        Raster? raster,
         Blurs? blurs,
         int mostRows,
         bool hideDrawnCaption)
@@ -558,7 +571,7 @@ public static class PostLines
         Line Label(bool saysWhatItShows) =>
             AttachmentReferenceLine(attached, reference, picked, width, saysWhatItShows);
 
-        if (!attached.IsDrawable || pictures?.Cell is not { } cell)
+        if (!attached.IsDrawable || pictures is null || raster?.Cell is not { } cell)
         {
             return [Label(saysWhatItShows: true)];
         }
@@ -760,6 +773,7 @@ public static class PostLines
         OnShow show,
         int width,
         IPictures? pictures,
+        Raster? raster,
         Blurs? blurs,
         int mostRows,
         Reading reading)
@@ -773,7 +787,7 @@ public static class PostLines
 
         // Null on a terminal that draws nothing and where the instance chose no picture alike — the two answers that
         // read the same, which is what "linked rather than drawn" already means for an attachment (ADR-0016).
-        var drawn = pictures?.Cell is null ? null : Drawn.LinkPreview(link);
+        var drawn = pictures is null || raster?.Cell is null ? null : Drawn.LinkPreview(link);
 
         // The words first and always, so nothing a reader is looking at moves when the pixels land underneath them.
         // The walked row is what carries the Wants, the way an attachment's own description does.
@@ -787,7 +801,8 @@ public static class PostLines
         // the picture is here yet — the same box and Stand-in an attachment gets, so a link card moves nothing when its
         // picture lands either (ADR-0025, #348). The walked row above already carries the Wants.
         if (drawn is not null
-            && pictures?.Cell is { } cell
+            && pictures is not null
+            && raster?.Cell is { } cell
             && Inset.For(drawn, link.Shape, cell, width, mostRows) is { } box)
         {
             lines.AddRange(Reserved(box, link.Blurhash, blurs, pictures, cell));

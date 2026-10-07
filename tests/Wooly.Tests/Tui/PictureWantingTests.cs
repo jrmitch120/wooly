@@ -26,7 +26,7 @@ public class PictureWantingTests
     [Fact]
     public async Task AFrameWantsWhatIsNearestFirstWithWhatIsOnScreenMarked()
     {
-        var pictures = FakePictures.With();
+        var pictures = new FakePictures();
         var rows = Enumerable.Range(0, 60).Select(at => Line.Of($"row {at}", Role.Body)).ToArray();
 
         Wanting(rows, 15, "behind");
@@ -51,7 +51,7 @@ public class PictureWantingTests
     [Fact]
     public async Task AStillPageWantsTwoScreensEitherSide()
     {
-        var pictures = FakePictures.With();
+        var pictures = new FakePictures();
         var rows = Reach();
 
         using var shown = await Draw(rows, pictures, top: 40);
@@ -66,7 +66,7 @@ public class PictureWantingTests
     [Fact]
     public async Task APageScrollingDownWantsThreeScreensBelowAndOneAbove()
     {
-        var pictures = FakePictures.With();
+        var pictures = new FakePictures();
 
         using var shown = await Draw(Reach(), pictures, top: 40);
 
@@ -81,7 +81,7 @@ public class PictureWantingTests
     [Fact]
     public async Task APageScrollingUpWantsThreeScreensAboveAndOneBelow()
     {
-        var pictures = FakePictures.With();
+        var pictures = new FakePictures();
 
         using var shown = await Draw(Reach(), pictures, top: 45);
 
@@ -98,7 +98,7 @@ public class PictureWantingTests
     [Fact]
     public async Task APageThatStopsKeepsReachingTheWayItWasGoing()
     {
-        var pictures = FakePictures.With();
+        var pictures = new FakePictures();
 
         using var shown = await Draw(Reach(), pictures, top: 40);
 

@@ -119,6 +119,14 @@ internal sealed class ShellWindow : Window
     /// </summary>
     public int ContentColumns => _content.Viewport.Width;
 
+    /// <summary>
+    ///     How this terminal paints pixels as of the frame being drawn, or <see cref="Media.Raster.None" /> before the
+    ///     first. Worked out once a frame, as the content region asks for its rows, and the same value the screens are
+    ///     handed on the <see cref="Drawing" />, the region draws its pictures by and the picture cache decodes to — so
+    ///     none of them can come to disagree about what kind of terminal this is (#357). Read on the UI thread.
+    /// </summary>
+    public Raster Raster { get; private set; } = Raster.None;
+
     /// <param name="quit">
     ///     What <c>ctrl-q</c> does. Passed in rather than reached for, because the application is the thing that owns
     ///     the run loop and this window is one of the things running in it.
@@ -140,6 +148,10 @@ internal sealed class ShellWindow : Window
     ///     What wraps a frame in synchronized output, opened as the content region draws — the region with the pictures,
     ///     whose text and sixels must land together — or <see langword="null" /> for none.
     /// </param>
+    /// <param name="raster">
+    ///     How this terminal paints pixels, asked once a frame because the terminal answers some frames after the shell
+    ///     is on screen — or <see langword="null" /> for a terminal that draws none, which links every picture.
+    /// </param>
     public ShellWindow(
         Shell.Shell shell,
         ITheme theme,
@@ -149,7 +161,8 @@ internal sealed class ShellWindow : Window
         bool hideDrawnCaption = false,
         Placeholders? placeholders = null,
         Blurs? blurs = null,
-        SynchronizedFrames? frames = null)
+        SynchronizedFrames? frames = null,
+        Func<Raster>? raster = null)
     {
         _shell = shell;
         _clock = clock;
@@ -186,8 +199,13 @@ internal sealed class ShellWindow : Window
         // screen is drawn at and every picture's box are the inside of it: 58 columns at an 80-column terminal.
         _content = new PaintedView(
             theme,
-            (width, height) => shell.Screen.Lines(
-                new Drawing(width, clock.GetUtcNow(), pictures, hideDrawnCaption, height, blurs)),
+            (width, height) =>
+            {
+                Raster = raster?.Invoke() ?? Raster.None;
+
+                return shell.Screen.Lines(
+                    new Drawing(width, clock.GetUtcNow(), pictures, Raster, hideDrawnCaption, height, blurs));
+            },
             pictures,
             // No rows of the panel's own: the view paints only the frame's edges, round the screen's rows.
             (width, height) => Panel.Framed(
@@ -197,7 +215,8 @@ internal sealed class ShellWindow : Window
                 height,
                 active: true),
             placeholders,
-            frames)
+            frames,
+            () => Raster)
         {
             Id = ContentId,
             X = RailLines.Width,

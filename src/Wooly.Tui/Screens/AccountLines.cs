@@ -128,7 +128,7 @@ public static class AccountLines
     /// </param>
     public static IReadOnlyList<Line> Block(Account account, Drawing drawing, string said = "")
     {
-        var avatar = Avatar.Header(account.Address, account.AvatarUrl, drawing.Pictures);
+        var avatar = Avatar.Header(account.Address, account.AvatarUrl, drawing.Pictures, drawing.Raster);
         var room = Math.Max(0, drawing.Width - avatar.Width);
 
         // What the screen says goes on the end of the row rather than in it, so a flag stays a fact about the person

@@ -33,7 +33,7 @@ public class LinkPreviewLineTests
             APost.With(
                 media: [APost.APicture(), APost.Attached(MediaKind.Video, id: "m2")],
                 linkPreview: APost.ALinkPreview()),
-            new Drawing(61, Now, FakePictures.DrawingNothing()),
+            new Drawing(61, Now, new FakePictures()),
             default);
 
         Assert.True(
@@ -50,7 +50,7 @@ public class LinkPreviewLineTests
     {
         var lines = PostLines.Feed(
             APost.With(linkPreview: APost.ALinkPreview()),
-            new Drawing(61, Now, FakePictures.DrawingNothing()),
+            new Drawing(61, Now, new FakePictures()),
             default);
 
         Assert.Contains(lines, line => line.Text.Contains("⏵ Sheep, at length", StringComparison.Ordinal));
@@ -71,7 +71,7 @@ public class LinkPreviewLineTests
     {
         var lines = PostLines.Feed(
             APost.With(linkPreview: APost.ALinkPreview(title: null, providerName: providerName)),
-            new Drawing(61, Now, FakePictures.DrawingNothing()),
+            new Drawing(61, Now, new FakePictures()),
             default);
 
         Assert.Contains(lines, line => line.Text.Contains(said, StringComparison.Ordinal));
@@ -86,7 +86,7 @@ public class LinkPreviewLineTests
     {
         var lines = PostLines.Feed(
             APost.With(linkPreview: APost.ALinkPreview(title: null)),
-            new Drawing(61, Now, FakePictures.DrawingNothing()),
+            new Drawing(61, Now, new FakePictures()),
             default);
 
         Assert.Equal(1, lines.Count(line => line.Text.Contains("Example News", StringComparison.Ordinal)));
@@ -104,7 +104,7 @@ public class LinkPreviewLineTests
 
         var lines = PostLines.Feed(
             APost.With(linkPreview: link),
-            new Drawing(61, Now, FakePictures.With(new CellSize(10, 20)).HoldingLinkPreview(link, 400, 200)),
+            new Drawing(61, Now, new FakePictures().HoldingLinkPreview(link, 400, 200), ARaster.Sixel()),
             default);
 
         var inset = Assert.Single(lines.SelectMany(line => line.Insets));
@@ -121,7 +121,7 @@ public class LinkPreviewLineTests
     {
         var lines = PostLines.Feed(
             APost.With(linkPreview: APost.ALinkPreview()),
-            new Drawing(61, Now, FakePictures.With()),
+            new Drawing(61, Now, new FakePictures(), ARaster.Sixel()),
             default);
 
         var wanted = Assert.Single(lines, line => line.Wants is not null).Wants;
@@ -138,7 +138,7 @@ public class LinkPreviewLineTests
     {
         var lines = PostLines.Feed(
             APost.With(linkPreview: APost.ALinkPreview(image: null)),
-            new Drawing(61, Now, FakePictures.With()),
+            new Drawing(61, Now, new FakePictures(), ARaster.Sixel()),
             default);
 
         Assert.Empty(lines.SelectMany(line => line.Insets));
@@ -155,7 +155,7 @@ public class LinkPreviewLineTests
     {
         var lines = PostLines.Feed(
             APost.With(linkPreview: APost.ALinkPreview()),
-            new Drawing(61, Now, FakePictures.DrawingNothing()),
+            new Drawing(61, Now, new FakePictures()),
             default);
 
         Assert.Empty(lines.SelectMany(line => line.Insets));
@@ -174,7 +174,7 @@ public class LinkPreviewLineTests
 
         var lines = PostLines.Feed(
             APost.With(linkPreview: link),
-            new Drawing(61, Now, FakePictures.With().HoldingLinkPreview(link, 400, 300)),
+            new Drawing(61, Now, new FakePictures().HoldingLinkPreview(link, 400, 300), ARaster.Sixel()),
             default);
 
         var box = lines.ToList().FindIndex(line => line.Insets.Count > 0);
@@ -193,7 +193,7 @@ public class LinkPreviewLineTests
     {
         var lines = PostLines.Feed(
             APost.With(linkPreview: APost.ALinkPreview()),
-            new Drawing(61, Now, FakePictures.DrawingNothing()),
+            new Drawing(61, Now, new FakePictures()),
             default);
 
         var byline = Assert.Single(lines, line => line.Text.Contains("by Maria Shepherd", StringComparison.Ordinal));
@@ -207,7 +207,7 @@ public class LinkPreviewLineTests
     {
         var lines = PostLines.Feed(
             APost.With(linkPreview: APost.ALinkPreview(author: null)),
-            new Drawing(61, Now, FakePictures.DrawingNothing()),
+            new Drawing(61, Now, new FakePictures()),
             default);
 
         Assert.DoesNotContain(lines, line => line.Text.Contains(" by ", StringComparison.Ordinal));
@@ -225,7 +225,12 @@ public class LinkPreviewLineTests
 
         var lines = PostLines.Feed(
             APost.With(linkPreview: link),
-            new Drawing(61, Now, FakePictures.With().HoldingLinkPreview(link, 400, 300), HideDrawnCaption: true),
+            new Drawing(
+                61,
+                Now,
+                new FakePictures().HoldingLinkPreview(link, 400, 300),
+                ARaster.Sixel(),
+                HideDrawnCaption: true),
             default);
 
         Assert.NotEmpty(lines.SelectMany(line => line.Insets));
@@ -244,7 +249,7 @@ public class LinkPreviewLineTests
 
         var lines = PostLines.Whole(
             post,
-            new Drawing(61, Now, FakePictures.With(new CellSize(10, 20)).HoldingLinkPreview(link, 400, 400)),
+            new Drawing(61, Now, new FakePictures().HoldingLinkPreview(link, 400, 400), ARaster.Sixel()),
             new Reading(Reference: LinkPreviewReference.Of(post)));
 
         var inset = Assert.Single(lines.SelectMany(line => line.Insets));
@@ -265,7 +270,7 @@ public class LinkPreviewLineTests
             content: string.Empty,
             boosted: APost.With(id: "2", linkPreview: APost.ALinkPreview()));
 
-        var lines = PostLines.Feed(boost, new Drawing(61, Now, FakePictures.DrawingNothing()), default);
+        var lines = PostLines.Feed(boost, new Drawing(61, Now, new FakePictures()), default);
 
         Assert.Contains(lines, line => line.Text.Contains("⏵ Sheep, at length", StringComparison.Ordinal));
     }
@@ -274,7 +279,7 @@ public class LinkPreviewLineTests
     [Fact]
     public void Feed_DrawsNothingExtraForAPostWithNoLinkPreview()
     {
-        var lines = PostLines.Feed(APost.With(), new Drawing(61, Now, FakePictures.With()), default);
+        var lines = PostLines.Feed(APost.With(), new Drawing(61, Now, new FakePictures(), ARaster.Sixel()), default);
 
         Assert.DoesNotContain(lines, line => line.Text.Contains("⏵", StringComparison.Ordinal));
         Assert.DoesNotContain(lines, line => line.Wants is not null);
