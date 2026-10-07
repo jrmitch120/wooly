@@ -59,6 +59,10 @@ internal sealed class DrawnShell : IDisposable
     /// </param>
     /// <param name="encoding">Where a picture is encoded for a Kitty terminal, where a test is about when; on the spot if not.</param>
     /// <param name="frames">What wraps each frame in synchronized output, closed by the application as it is in the client.</param>
+    /// <param name="raster">
+    ///     How the terminal paints pixels, said outright, where a test is about pictures on a terminal that has
+    ///     answered nothing; worked out from what the headless terminal answered, as the client does, if not.
+    /// </param>
     public static async Task<DrawnShell> Of(
         int width,
         int height,
@@ -71,7 +75,8 @@ internal sealed class DrawnShell : IDisposable
         bool drawsPlaceholders = false,
         bool answersKitty = false,
         Action<Action>? encoding = null,
-        SynchronizedFrames? frames = null)
+        SynchronizedFrames? frames = null,
+        Raster? raster = null)
     {
         built ??= new AShell();
 
@@ -104,10 +109,11 @@ internal sealed class DrawnShell : IDisposable
             theme,
             built.Clock,
             () => { },
-            pictures ?? FakePictures.DrawingNothing(),
+            pictures ?? new FakePictures(),
             placeholders: placeholders,
             blurs: new Blurs(),
-            frames: frames);
+            frames: frames,
+            raster: () => raster ?? Raster.Of(application.Driver, drawsPlaceholders, () => null));
 
         frames?.Over(application);
 

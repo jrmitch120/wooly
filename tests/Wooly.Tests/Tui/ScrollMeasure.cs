@@ -22,7 +22,7 @@ public class ScrollMeasure(ITestOutputHelper output)
     [Fact(Skip = "A measurement, not a test. Set WOOLY_MEASURE=1 to run it.", SkipUnless = nameof(Enabled))]
     public async Task AWheelNotchOverSixelPhotographs()
     {
-        var pictures = FakePictures.With();
+        var pictures = new FakePictures();
         var posts = Enumerable.Range(1, 12)
             .Select(at =>
             {
@@ -61,7 +61,7 @@ public class ScrollMeasure(ITestOutputHelper output)
     [Fact(Skip = "A measurement, not a test. Set WOOLY_MEASURE=1 to run it.", SkipUnless = nameof(Enabled))]
     public async Task AWheelNotchOverKittyPhotographsInABox()
     {
-        var pictures = FakePictures.With();
+        var pictures = new FakePictures();
         var posts = Enumerable.Range(1, 12)
             .Select(at =>
             {

@@ -20,9 +20,10 @@ namespace Wooly.Tui.Media;
 ///     lands — is testable on its own.
 /// </param>
 /// <param name="cell">
-///     How big a cell is on this terminal, or <see langword="null" /> where it draws no pictures at all. Asked afresh
-///     each time rather than settled once, because the terminal answers the questions behind it some frames after the
-///     shell is already on screen (<see cref="RasterProtocol" />).
+///     How big a cell is on this terminal, or <see langword="null" /> where it draws no pictures at all: the cell of
+///     the <see cref="Raster" /> the window worked out for the frame saying what it wants. Asked afresh each frame
+///     rather than settled once, because the terminal answers the questions behind it some frames after the shell is
+///     already on screen.
 /// </param>
 /// <param name="arrived">
 ///     What to do when a picture lands: redraw, so the rows that have been waiting for it fill in. Called off the
@@ -122,9 +123,6 @@ public sealed class Pictures(
     ///     How many bytes of files, and of remembering, are held: what <see cref="EncodedBudget" /> bounds.
     /// </summary>
     private long _encoded;
-
-    /// <inheritdoc />
-    public CellSize? Cell => cell();
 
     /// <summary>Stops anything still being fetched, for a shell that is closing.</summary>
     public void Dispose()

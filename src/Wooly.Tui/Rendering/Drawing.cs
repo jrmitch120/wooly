@@ -13,9 +13,9 @@ namespace Wooly.Tui.Rendering;
 ///     cost a signature edit at eleven overrides plus a threading change through <see cref="Screens.PostList" /> to
 ///     carry one new fact (#148). What comes next is a field here.
 ///     <para>
-///         The two beyond width and the moment default, so a caller says only what it cares about: a screen laid out
-///         with no terminal in the room is <c>new Drawing(width, now)</c>, and that reads as every attachment being
-///         linked rather than drawn.
+///         Everything beyond width and the moment defaults, so a caller says only what it cares about: a screen laid
+///         out with no terminal in the room is <c>new Drawing(width, now)</c>, and that reads as every attachment
+///         being linked rather than drawn.
 ///     </para>
 ///     <para>
 ///         <see cref="Width" /> is on it though it is the one of them that genuinely varies call by call within a
@@ -33,13 +33,16 @@ namespace Wooly.Tui.Rendering;
 /// <param name="Width">How wide the content region is — 58 at an 80-column terminal, inside the panel's edges.</param>
 /// <param name="Now">What to measure timestamps against.</param>
 /// <param name="Pictures">
-///     What this terminal can draw and which attachments' pixels have arrived, or <see langword="null" /> for a screen
-///     being laid out with no terminal in the room — which is every test, and which reads as every attachment being
-///     linked rather than drawn.
+///     Which attachments' pixels have arrived, or <see langword="null" /> for a screen being laid out with no terminal
+///     in the room — which reads as every attachment being linked rather than drawn.
+/// </param>
+/// <param name="Raster">
+///     How this terminal paints pixels, worked out by the window once a frame, or <see langword="null" /> where nobody
+///     said — which, like <see cref="Media.Raster.None" />, reads as every attachment being linked rather than drawn.
 ///     <para>
 ///         A screen needs this while it is working out its rows rather than while they are being painted, because it
-///         changes what the rows are: a picture's own proportions settle how many rows its box takes, and an
-///         attachment on a terminal that draws nothing becomes a link and a description instead (ADR-0016).
+///         changes what the rows are: the cell settles how many rows a picture's box takes, and an attachment on a
+///         terminal that draws nothing becomes a link and a description instead (ADR-0016).
 ///     </para>
 /// </param>
 /// <param name="HideDrawnCaption">
@@ -60,6 +63,7 @@ public sealed record Drawing(
     int Width,
     DateTimeOffset Now,
     IPictures? Pictures = null,
+    Raster? Raster = null,
     bool HideDrawnCaption = false,
     int? Height = null,
     Blurs? Blurs = null)

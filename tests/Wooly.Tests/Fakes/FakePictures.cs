@@ -5,16 +5,14 @@ using Wooly.Tui.Media;
 namespace Wooly.Tests.Fakes;
 
 /// <summary>
-///     A terminal's answer about pictures, said outright: whether it draws them at all, how big its cells are, and
-///     whose pixels have arrived. Stands in for the real one so a screen can be laid out with no terminal and no
-///     network, which is the whole reason <see cref="IPictures" /> is a port.
+///     Whose pixels have arrived, said outright. Stands in for the real cache so a screen can be laid out with no
+///     network, which is the whole reason <see cref="IPictures" /> is a port. Whether the terminal draws them at all,
+///     and how big its cells are, is the <see cref="Raster" /> on the drawing instead (#357).
 /// </summary>
 internal sealed class FakePictures : IPictures
 {
     private readonly Dictionary<string, Picture> _held = [];
     private readonly List<string> _letGo = [];
-
-    private FakePictures(CellSize? cell) => Cell = cell;
 
     /// <summary>Every picture looked up, by id, in order.</summary>
     public List<string> Asked { get; } = [];
@@ -27,18 +25,6 @@ internal sealed class FakePictures : IPictures
 
     /// <summary>Every frame's wants as the view said them: nearest first, with those on screen marked.</summary>
     public List<IReadOnlyList<WantedPicture>> Frames { get; } = [];
-
-    /// <inheritdoc />
-    public CellSize? Cell { get; }
-
-    /// <summary>A terminal that draws nothing: neither sixel nor the Kitty graphics protocol.</summary>
-    public static FakePictures DrawingNothing() => new(cell: null);
-
-    /// <summary>
-    ///     A terminal that draws, with cells <paramref name="cell" /> pixels each — 10×20 being what both protocols
-    ///     fall back to reporting.
-    /// </summary>
-    public static FakePictures With(CellSize? cell = null) => new(cell ?? new CellSize(10, 20));
 
     /// <summary>Says that the picture for the attachment <paramref name="mediaId" /> has arrived, at the given size in pixels.</summary>
     public FakePictures Holding(string mediaId, int width, int height) => Held(mediaId, width, height);

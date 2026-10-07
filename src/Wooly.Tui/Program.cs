@@ -121,14 +121,15 @@ try
         Redraw,
         work => Task.Run(work));
 
-    // Decoded to the content region's width, the widest a picture's box can be (ADR-0025). The window is built after
-    // the cache it draws from, so the cache asks it through this; a frame only asks once the window is drawing, and
-    // nought before then decodes to the decoder's own bounds.
+    // Decoded to the content region's width, the widest a picture's box can be, at the cell of the Raster the window
+    // worked out for the frame (ADR-0025, #357). The window is built after the cache it draws from, so the cache asks
+    // it through this; a frame only asks once the window is drawing, and nought before then decodes to the decoder's
+    // own bounds.
     ShellWindow? shellWindow = null;
 
     using var pictures = Pictures.Over(
         files,
-        () => RasterProtocol.CellOf(application.Driver, placeholdersByName, () => windowSize.Cell),
+        () => shellWindow?.Raster.Cell,
         Redraw,
         () => shellWindow?.ContentColumns ?? 0);
 
@@ -146,7 +147,12 @@ try
         config.Preferences.HideDrawnCaption,
         placeholders,
         new Blurs(),
-        frames: frames);
+        frames: frames,
+
+        // How this terminal paints pixels, worked out here and nowhere else, once a frame: the terminal answers its
+        // sixel and Kitty questions some frames after the shell is on screen, and a change of font size changes the
+        // cell.
+        raster: () => Raster.Of(application.Driver, placeholdersByName, () => windowSize.Cell));
 
     // A paste arrives as one string rather than as keys, before it is handed to whatever has focus. The shell takes
     // it where one of its own fields is typing, and leaves it to whatever has focus everywhere else — the compose

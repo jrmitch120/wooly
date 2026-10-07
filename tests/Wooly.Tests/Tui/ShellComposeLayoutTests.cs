@@ -452,7 +452,7 @@ public class ShellComposeLayoutTests
         var built = new AShell { Timelines = FakeTimelineReader.Holding(APost.With(id: "220")) };
         var shell = await built.Opened();
 
-        using var window = new ShellWindow(shell, Themes.Plain, built.Clock, () => { }, FakePictures.DrawingNothing())
+        using var window = new ShellWindow(shell, Themes.Plain, built.Clock, () => { }, new FakePictures())
         {
             Width = 80,
             Height = 20,
@@ -503,7 +503,7 @@ public class ShellComposeLayoutTests
 
         var shell = await built.Opened();
 
-        var window = new ShellWindow(shell, Themes.Plain, built.Clock, () => { }, FakePictures.DrawingNothing())
+        var window = new ShellWindow(shell, Themes.Plain, built.Clock, () => { }, new FakePictures())
         {
             Width = 80,
             Height = height,

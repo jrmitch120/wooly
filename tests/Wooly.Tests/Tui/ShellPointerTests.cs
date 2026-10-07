@@ -169,7 +169,7 @@ public class ShellPointerTests
     [Fact]
     public async Task TheWheelReachesTheFootOfAPostTallerThanTheTerminal()
     {
-        var pictures = FakePictures.With()
+        var pictures = new FakePictures()
             .Holding("m1", 800, 600)
             .Holding("m2", 800, 600)
             .Holding("m3", 800, 600);
@@ -184,7 +184,7 @@ public class ShellPointerTests
                 APost.With(id: "220", content: "Underneath")),
         };
 
-        using var drawn = await DrawnShell.Of(80, 24, Themes.Plain, built, pictures: pictures);
+        using var drawn = await DrawnShell.Of(80, 24, Themes.Plain, built, pictures: pictures, raster: ARaster.Kitty());
 
         Assert.DoesNotContain(drawn.Rows(), row => row.Contains("Underneath"));
 
@@ -208,7 +208,7 @@ public class ShellPointerTests
     [Fact]
     public async Task AWheelOverAPictureScrollsThePageAndLeavesThePictureAlone()
     {
-        var pictures = FakePictures.With().Holding("m1", 800, 600);
+        var pictures = new FakePictures().Holding("m1", 800, 600);
 
         var built = new AShell
         {

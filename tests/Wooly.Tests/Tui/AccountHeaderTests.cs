@@ -25,8 +25,9 @@ public class AccountHeaderTests
         Account account,
         IReadOnlyList<Account>? familiar = null,
         int width = 61,
-        IPictures? pictures = null) =>
-        AccountLines.Header(account, familiar, new Drawing(width, Now, pictures));
+        IPictures? pictures = null,
+        Raster? raster = null) =>
+        AccountLines.Header(account, familiar, new Drawing(width, Now, pictures, raster ?? ARaster.Sixel()));
 
     /// <summary>An account that wrote nothing about itself and stands in no relation the instance was asked about.</summary>
     private static Account Bare() => AnAccount.With(bio: string.Empty);
@@ -294,7 +295,7 @@ public class AccountHeaderTests
     [Fact]
     public void Header_ReclaimsTheAvatarsColumnsWhereNoPictureIsComing()
     {
-        var lines = Header(Bare(), pictures: FakePictures.DrawingNothing());
+        var lines = Header(Bare(), pictures: new FakePictures(), raster: Raster.None);
 
         Assert.Equal("Alice", lines[0].Text);
         Assert.DoesNotContain(lines.Take(4), line => line.Has(Role.Media));
@@ -309,7 +310,7 @@ public class AccountHeaderTests
     {
         var lines = Header(
             Bare(),
-            pictures: FakePictures.With().HoldingAvatarOf("alice@hachyderm.io", 96, 96));
+            pictures: new FakePictures().HoldingAvatarOf("alice@hachyderm.io", 96, 96));
 
         var inset = Assert.Single(lines[0].Insets);
 
@@ -329,7 +330,7 @@ public class AccountHeaderTests
     [Fact]
     public void Header_HoldsTheAvatarsColumnsWhileThePixelsAreStillOnTheirWay()
     {
-        var lines = Header(Bare(), pictures: FakePictures.With());
+        var lines = Header(Bare(), pictures: new FakePictures());
 
         Assert.Empty(lines[0].Insets);
         Assert.Equal("avatar:alice@hachyderm.io", lines[0].Wants?.Id);
@@ -355,7 +356,7 @@ public class AccountHeaderTests
                 AnAccount.With(address: "a-third-person@a-third-extremely-long-instance-domain.example"),
                 AnAccount.With(address: "a-fourth@yet-another-long-domain.example"),
             ],
-            pictures: FakePictures.With().HoldingAvatarOf("somebody@an-extremely-long-instance-domain.example"));
+            pictures: new FakePictures().HoldingAvatarOf("somebody@an-extremely-long-instance-domain.example"));
 
         Assert.All(lines, line => Assert.True(line.Width <= 61, $"'{line.Text}' is {line.Width} columns"));
     }

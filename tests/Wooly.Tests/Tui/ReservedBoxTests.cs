@@ -41,8 +41,11 @@ public class ReservedBoxTests
     {
         var post = APost.With(media: [APost.APicture(shape: Wide)]);
 
-        var waiting = PostLines.Feed(post, new Drawing(61, Now, FakePictures.With()), default);
-        var held = PostLines.Feed(post, new Drawing(61, Now, FakePictures.With().Holding("m1", 800, 200)), default);
+        var waiting = PostLines.Feed(post, new Drawing(61, Now, new FakePictures(), ARaster.Sixel()), default);
+        var held = PostLines.Feed(
+            post,
+            new Drawing(61, Now, new FakePictures().Holding("m1", 800, 200), ARaster.Sixel()),
+            default);
 
         Assert.Equal(8, StandIn(waiting).Count);
         Assert.Equal(waiting.Count, held.Count);
@@ -70,10 +73,10 @@ public class ReservedBoxTests
     [Fact]
     public void Feed_LeavesTheStandInWhereAPictureNeverArrives()
     {
-        var pictures = FakePictures.With();
+        var pictures = new FakePictures();
         var post = APost.With(media: [APost.APicture(shape: Wide)]);
 
-        var lines = PostLines.Feed(post, new Drawing(61, Now, pictures), default);
+        var lines = PostLines.Feed(post, new Drawing(61, Now, pictures, ARaster.Sixel()), default);
 
         Assert.Equal(8, StandIn(lines).Count);
         Assert.Empty(lines.SelectMany(line => line.Insets));
@@ -89,7 +92,7 @@ public class ReservedBoxTests
     {
         var post = APost.With(media: [APost.APicture(shape: Wide, description: "A cartoon sheep")]);
 
-        var lines = PostLines.Feed(post, new Drawing(61, Now, FakePictures.With()), default);
+        var lines = PostLines.Feed(post, new Drawing(61, Now, new FakePictures(), ARaster.Sixel()), default);
 
         Assert.All(StandIn(lines), line =>
         {
@@ -110,7 +113,7 @@ public class ReservedBoxTests
     {
         var lines = PostLines.Feed(
             APost.With(media: [APost.APicture(shape: null)]),
-            new Drawing(40, Now, FakePictures.With()),
+            new Drawing(40, Now, new FakePictures(), ARaster.Sixel()),
             default);
 
         var shaded = StandIn(lines);
@@ -127,7 +130,7 @@ public class ReservedBoxTests
     {
         var lines = PostLines.Feed(
             APost.With(media: [APost.APicture(shape: null)]),
-            new Drawing(61, Now, FakePictures.With()),
+            new Drawing(61, Now, new FakePictures(), ARaster.Sixel()),
             default);
 
         var shaded = StandIn(lines);
@@ -144,8 +147,11 @@ public class ReservedBoxTests
     {
         var post = APost.With(media: [APost.APicture(shape: Wide)]);
 
-        var waiting = PostLines.Feed(post, new Drawing(61, Now, FakePictures.With()), default);
-        var held = PostLines.Feed(post, new Drawing(61, Now, FakePictures.With().Holding("m1", 400, 400)), default);
+        var waiting = PostLines.Feed(post, new Drawing(61, Now, new FakePictures(), ARaster.Sixel()), default);
+        var held = PostLines.Feed(
+            post,
+            new Drawing(61, Now, new FakePictures().Holding("m1", 400, 400), ARaster.Sixel()),
+            default);
 
         var top = waiting.ToList().FindIndex(line => line.Has(Role.StandIn));
         var carrying = held.ToList().FindIndex(line => line.Insets.Count > 0);
@@ -166,8 +172,11 @@ public class ReservedBoxTests
     {
         var post = APost.With(media: [APost.APicture(shape: new PictureShape(400, 400))]);
 
-        var waiting = PostLines.Feed(post, new Drawing(61, Now, FakePictures.With()), default);
-        var held = PostLines.Feed(post, new Drawing(61, Now, FakePictures.With().Holding("m1", 800, 200)), default);
+        var waiting = PostLines.Feed(post, new Drawing(61, Now, new FakePictures(), ARaster.Sixel()), default);
+        var held = PostLines.Feed(
+            post,
+            new Drawing(61, Now, new FakePictures().Holding("m1", 800, 200), ARaster.Sixel()),
+            default);
 
         var top = waiting.ToList().FindIndex(line => line.Has(Role.StandIn));
         var carrying = held.ToList().FindIndex(line => line.Insets.Count > 0);
@@ -189,10 +198,13 @@ public class ReservedBoxTests
     {
         var post = APost.With(media: [APost.APicture(shape: Wide, description: "A cartoon sheep")]);
 
-        var waiting = PostLines.Feed(post, new Drawing(61, Now, FakePictures.With(), HideDrawnCaption: true), default);
+        var waiting = PostLines.Feed(
+            post,
+            new Drawing(61, Now, new FakePictures(), ARaster.Sixel(), HideDrawnCaption: true),
+            default);
         var held = PostLines.Feed(
             post,
-            new Drawing(61, Now, FakePictures.With().Holding("m1", 800, 200), HideDrawnCaption: true),
+            new Drawing(61, Now, new FakePictures().Holding("m1", 800, 200), ARaster.Sixel(), HideDrawnCaption: true),
             default);
 
         foreach (var lines in new[] { waiting, held })
@@ -214,8 +226,11 @@ public class ReservedBoxTests
     {
         var post = APost.With(media: [APost.Attached(MediaKind.Video, shape: Wide)]);
 
-        var waiting = PostLines.Feed(post, new Drawing(61, Now, FakePictures.With()), default);
-        var held = PostLines.Feed(post, new Drawing(61, Now, FakePictures.With().Holding("m1", 800, 200)), default);
+        var waiting = PostLines.Feed(post, new Drawing(61, Now, new FakePictures(), ARaster.Sixel()), default);
+        var held = PostLines.Feed(
+            post,
+            new Drawing(61, Now, new FakePictures().Holding("m1", 800, 200), ARaster.Sixel()),
+            default);
 
         Assert.Equal(8, StandIn(waiting).Count);
         Assert.Equal(waiting.Count, held.Count);
@@ -233,14 +248,17 @@ public class ReservedBoxTests
     public void Feed_ReservesNothingForAWarnedPostUntilAskedPastAndThenTheWholeBox()
     {
         var post = APost.With(sensitive: true, media: [APost.APicture(shape: Wide)]);
-        var pictures = FakePictures.With();
+        var pictures = new FakePictures();
 
-        var hidden = PostLines.Feed(post, new Drawing(61, Now, pictures), default);
+        var hidden = PostLines.Feed(post, new Drawing(61, Now, pictures, ARaster.Sixel()), default);
 
         Assert.Empty(StandIn(hidden));
         Assert.Empty(pictures.Asked);
 
-        var revealed = PostLines.Feed(post, new Drawing(61, Now, pictures), new Reading(Revealed: true));
+        var revealed = PostLines.Feed(
+            post,
+            new Drawing(61, Now, pictures, ARaster.Sixel()),
+            new Reading(Revealed: true));
 
         Assert.Equal(8, StandIn(revealed).Count);
     }
@@ -256,10 +274,10 @@ public class ReservedBoxTests
         var link = APost.ALinkPreview(shape: Wide);
         var post = APost.With(linkPreview: link);
 
-        var waiting = PostLines.Feed(post, new Drawing(61, Now, FakePictures.With()), default);
+        var waiting = PostLines.Feed(post, new Drawing(61, Now, new FakePictures(), ARaster.Sixel()), default);
         var held = PostLines.Feed(
             post,
-            new Drawing(61, Now, FakePictures.With().HoldingLinkPreview(link, 800, 200)),
+            new Drawing(61, Now, new FakePictures().HoldingLinkPreview(link, 800, 200), ARaster.Sixel()),
             default);
 
         Assert.Equal(8, StandIn(waiting).Count);
@@ -292,7 +310,7 @@ public class ReservedBoxTests
     {
         var lines = PostLines.Feed(
             APost.With(linkPreview: APost.ALinkPreview(shape: null)),
-            new Drawing(40, Now, FakePictures.With()),
+            new Drawing(40, Now, new FakePictures(), ARaster.Sixel()),
             default);
 
         var shaded = StandIn(lines);
@@ -310,10 +328,10 @@ public class ReservedBoxTests
         var link = APost.ALinkPreview(shape: Wide);
         var post = APost.With(linkPreview: link);
 
-        var waiting = PostLines.Feed(post, new Drawing(61, Now, FakePictures.With()), default);
+        var waiting = PostLines.Feed(post, new Drawing(61, Now, new FakePictures(), ARaster.Sixel()), default);
         var held = PostLines.Feed(
             post,
-            new Drawing(61, Now, FakePictures.With().HoldingLinkPreview(link, 400, 400)),
+            new Drawing(61, Now, new FakePictures().HoldingLinkPreview(link, 400, 400), ARaster.Sixel()),
             default);
 
         var top = waiting.ToList().FindIndex(line => line.Has(Role.StandIn));
@@ -333,15 +351,18 @@ public class ReservedBoxTests
     public void Feed_ReservesNothingForAWarnedPostsLinkPreviewUntilAskedPast()
     {
         var post = APost.With(sensitive: true, linkPreview: APost.ALinkPreview(shape: Wide));
-        var pictures = FakePictures.With();
+        var pictures = new FakePictures();
 
-        var hidden = PostLines.Feed(post, new Drawing(61, Now, pictures), default);
+        var hidden = PostLines.Feed(post, new Drawing(61, Now, pictures, ARaster.Sixel()), default);
 
         Assert.Empty(StandIn(hidden));
         Assert.DoesNotContain(hidden, line => line.Wants is not null);
         Assert.Empty(pictures.Asked);
 
-        var revealed = PostLines.Feed(post, new Drawing(61, Now, pictures), new Reading(Revealed: true));
+        var revealed = PostLines.Feed(
+            post,
+            new Drawing(61, Now, pictures, ARaster.Sixel()),
+            new Reading(Revealed: true));
 
         Assert.Equal(8, StandIn(revealed).Count);
     }
@@ -357,10 +378,10 @@ public class ReservedBoxTests
             account: "maria@fosstodon.org",
             avatarUrl: "https://files.mastodon.social/avatars/original.png");
 
-        var waiting = PostLines.Feed(post, new Drawing(61, Now, FakePictures.With()), default);
+        var waiting = PostLines.Feed(post, new Drawing(61, Now, new FakePictures(), ARaster.Sixel()), default);
         var held = PostLines.Feed(
             post,
-            new Drawing(61, Now, FakePictures.With().HoldingAvatarOf("maria@fosstodon.org")),
+            new Drawing(61, Now, new FakePictures().HoldingAvatarOf("maria@fosstodon.org"), ARaster.Sixel()),
             default);
 
         var shaded = StandIn(waiting);

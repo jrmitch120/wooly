@@ -26,7 +26,7 @@ public class ShellContentClickTests
     [InlineData("picture")]
     public async Task ClickingAnyRowOfAPostPicksIt(string row)
     {
-        var pictures = FakePictures.With().Holding("m1", 800, 600);
+        var pictures = new FakePictures().Holding("m1", 800, 600);
 
         var built = new AShell
         {
@@ -59,7 +59,7 @@ public class ShellContentClickTests
     [Fact]
     public async Task ClickingATallPostLeavesThePageWhereItIs()
     {
-        var pictures = FakePictures.With()
+        var pictures = new FakePictures()
             .Holding("m1", 800, 600)
             .Holding("m2", 800, 600)
             .Holding("m3", 800, 600);
@@ -74,7 +74,7 @@ public class ShellContentClickTests
                     media: [APost.APicture("m1"), APost.APicture("m2"), APost.APicture("m3", "The last sheep")])),
         };
 
-        using var drawn = await DrawnShell.Of(80, 24, Themes.Plain, built, pictures: pictures);
+        using var drawn = await DrawnShell.Of(80, 24, Themes.Plain, built, pictures: pictures, raster: ARaster.Kitty());
 
         var row = RowOf(drawn, "Three sheep");
 

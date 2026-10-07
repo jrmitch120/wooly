@@ -99,7 +99,7 @@ public class FramedRegionTests
     {
         // Twice as tall as it is wide, in pixels, which at ten by twenty to a cell fills its four-by-four box.
         var drawn = new Drawn("m1", "https://files.example/m1.png");
-        var pictures = FakePictures.With().Holding("m1", 40, 80);
+        var pictures = new FakePictures().Holding("m1", 40, 80);
 
         Line[] lines =
         [
@@ -124,7 +124,7 @@ public class FramedRegionTests
     public async Task APictureHalfBelowTheFootDrawsNoCellOnTheFrame()
     {
         var drawn = new Drawn("m1", "https://files.example/m1.png");
-        var pictures = FakePictures.With().Holding("m1", 40, 80);
+        var pictures = new FakePictures().Holding("m1", 40, 80);
 
         Line[] lines =
         [
@@ -172,7 +172,8 @@ public class FramedRegionTests
             theme,
             (_, _) => lines,
             pictures,
-            (width, height) => Panel.Framed("Home", [], width, height, active))
+            (width, height) => Panel.Framed("Home", [], width, height, active),
+            raster: () => Raster.Of(application.Driver, placeholders: false, () => null))
         {
             Width = Width,
             Height = Height,

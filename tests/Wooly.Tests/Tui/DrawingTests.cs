@@ -1,4 +1,6 @@
+using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
+using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 
@@ -35,13 +37,48 @@ public class DrawingTests
     }
 
     /// <summary>
+    ///     A picture is drawn where the drawing's <see cref="Raster" /> says this terminal can draw one, and linked
+    ///     where it says nothing or says this terminal cannot — whatever pixels are already here (#357).
+    /// </summary>
+    [Fact]
+    public void Raster_SaysWhetherAPictureIsDrawnOrLinked()
+    {
+        var post = APost.With(media: [APost.APicture(description: "A cartoon sheep")]);
+        var pictures = new FakePictures().Holding("m1", 400, 300);
+
+        Assert.NotEmpty(Insets(new Drawing(61, Now, pictures, ARaster.Sixel())));
+        Assert.Empty(Insets(new Drawing(61, Now, pictures)));
+        Assert.Empty(Insets(new Drawing(61, Now, pictures, Raster.None)));
+
+        IEnumerable<Inset> Insets(Drawing drawing) =>
+            PostLines.Feed(post, drawing, default).SelectMany(line => line.Insets);
+    }
+
+    /// <summary>
+    ///     The cell a box is shaped by is the Raster's. 61 columns of 10 pixels at 2:1 is 305 pixels tall: 15 rows of
+    ///     20, or 8 of 40.
+    /// </summary>
+    [Fact]
+    public void Raster_ShapesTheBoxByItsCell()
+    {
+        var post = APost.With(media: [APost.APicture(shape: new PictureShape(400, 200))]);
+
+        Assert.Equal(15, Rows(new CellSize(10, 20)));
+        Assert.Equal(8, Rows(new CellSize(10, 40)));
+
+        int Rows(CellSize cell) =>
+            PostLines.Feed(post, new Drawing(61, Now, new FakePictures(), ARaster.Sixel(cell)), default)
+                .Count(line => line.Text.Contains(StandIn.Shade, StringComparison.Ordinal));
+    }
+
+    /// <summary>
     ///     Narrowing is the one thing a drawing does on its way down a screen, and it leaves the other three where
     ///     they were — a row in a gutter still draws its picture and still honours the preference.
     /// </summary>
     [Fact]
     public void In_TakesTheRoomAndLeavesEverythingElseAlone()
     {
-        var drawing = new Drawing(61, Now, FakePictures.With(), HideDrawnCaption: true);
+        var drawing = new Drawing(61, Now, new FakePictures(), ARaster.Sixel(), HideDrawnCaption: true);
 
         var narrowed = drawing.In(59);
 

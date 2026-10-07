@@ -82,7 +82,7 @@ public class WarnedPollTests
     {
         var lines = PostLines.Feed(
             APost.With(sensitive: true, poll: APost.APoll(), media: attached ? [APost.APicture()] : []),
-            new Drawing(61, Now, FakePictures.With()),
+            new Drawing(61, Now, new FakePictures(), ARaster.Sixel()),
             default);
 
         Assert.Contains(lines, line => line.Has(Role.Poll));

@@ -97,7 +97,7 @@ public class ShellFirstRunTests
             Themes.Plain,
             built.Clock,
             () => quits++,
-            FakePictures.DrawingNothing());
+            new FakePictures());
 
         Assert.True(window.NewKeyDownEvent(Key.Q.WithCtrl));
         Assert.Equal(1, quits);
@@ -113,7 +113,7 @@ public class ShellFirstRunTests
         var built = new AShell { Profiles = FakeProfileRegistry.Holding(current: null) };
         var shell = await built.Launched();
 
-        using var window = new ShellWindow(shell, Themes.Plain, built.Clock, () => { }, FakePictures.DrawingNothing())
+        using var window = new ShellWindow(shell, Themes.Plain, built.Clock, () => { }, new FakePictures())
         {
             Width = 80,
             Height = 24,

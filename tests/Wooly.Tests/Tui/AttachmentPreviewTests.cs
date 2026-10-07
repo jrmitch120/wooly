@@ -28,7 +28,7 @@ public class AttachmentPreviewTests
     {
         var lines = PostLines.Feed(
             APost.With(media: [APost.Attached(kind, shape: new PictureShape(400, 200))]),
-            new Drawing(61, Now, FakePictures.With(new CellSize(10, 20)).Holding("m1", 400, 200)),
+            new Drawing(61, Now, new FakePictures().Holding("m1", 400, 200), ARaster.Sixel()),
             default);
 
         var inset = Assert.Single(lines.SelectMany(line => line.Insets));
@@ -50,7 +50,7 @@ public class AttachmentPreviewTests
     {
         var lines = PostLines.Feed(
             APost.With(media: [APost.Attached(MediaKind.Video)]),
-            new Drawing(61, Now, FakePictures.With()),
+            new Drawing(61, Now, new FakePictures(), ARaster.Sixel()),
             default);
 
         var wanted = Assert.Single(lines, line => line.Wants is not null).Wants;
@@ -69,7 +69,7 @@ public class AttachmentPreviewTests
     {
         var lines = PostLines.Feed(
             APost.With(media: [APost.Attached(kind) with { Preview = null }]),
-            new Drawing(61, Now, FakePictures.With()),
+            new Drawing(61, Now, new FakePictures(), ARaster.Sixel()),
             default);
 
         Assert.Empty(lines.SelectMany(line => line.Insets));
@@ -89,7 +89,7 @@ public class AttachmentPreviewTests
     {
         var lines = PostLines.Feed(
             APost.With(media: [APost.Attached(kind, description: "Sheep, at length")]),
-            new Drawing(61, Now, FakePictures.With().Holding("m1", 400, 300)),
+            new Drawing(61, Now, new FakePictures().Holding("m1", 400, 300), ARaster.Sixel()),
             default);
 
         Assert.Empty(lines.SelectMany(line => line.Insets));
@@ -110,7 +110,7 @@ public class AttachmentPreviewTests
     {
         var lines = PostLines.Feed(
             APost.With(media: [APost.Attached(kind, description: "Sheep, at length")]),
-            new Drawing(61, Now, FakePictures.DrawingNothing()),
+            new Drawing(61, Now, new FakePictures()),
             default);
 
         Assert.Empty(lines.SelectMany(line => line.Insets));
@@ -128,8 +128,11 @@ public class AttachmentPreviewTests
     {
         var post = APost.With(media: [APost.Attached(MediaKind.Video, description: "Sheep, at length")]);
 
-        var waiting = PostLines.Feed(post, new Drawing(61, Now, FakePictures.With()), default);
-        var landed = PostLines.Feed(post, new Drawing(61, Now, FakePictures.With().Holding("m1", 400, 300)), default);
+        var waiting = PostLines.Feed(post, new Drawing(61, Now, new FakePictures(), ARaster.Sixel()), default);
+        var landed = PostLines.Feed(
+            post,
+            new Drawing(61, Now, new FakePictures().Holding("m1", 400, 300), ARaster.Sixel()),
+            default);
 
         Assert.NotEmpty(landed.SelectMany(line => line.Insets));
 
@@ -146,7 +149,7 @@ public class AttachmentPreviewTests
     {
         var lines = PostLines.Feed(
             APost.With(media: [APost.Attached(MediaKind.Video, description: "Sheep, at length")]),
-            new Drawing(61, Now, FakePictures.With().Holding("m1", 400, 300), HideDrawnCaption: true),
+            new Drawing(61, Now, new FakePictures().Holding("m1", 400, 300), ARaster.Sixel(), HideDrawnCaption: true),
             default);
 
         Assert.NotEmpty(lines.SelectMany(line => line.Insets));
@@ -166,11 +169,11 @@ public class AttachmentPreviewTests
 
         var waiting = PostLines.Feed(
             described,
-            new Drawing(61, Now, FakePictures.With(), HideDrawnCaption: true),
+            new Drawing(61, Now, new FakePictures(), ARaster.Sixel(), HideDrawnCaption: true),
             default);
         var never = PostLines.Feed(
             described,
-            new Drawing(61, Now, FakePictures.DrawingNothing(), HideDrawnCaption: true),
+            new Drawing(61, Now, new FakePictures(), HideDrawnCaption: true),
             default);
 
         Assert.DoesNotContain(waiting, line => line.Text.Contains("Sheep, at length", StringComparison.Ordinal));
@@ -184,7 +187,7 @@ public class AttachmentPreviewTests
     {
         var lines = PostLines.Feed(
             APost.With(media: [APost.Attached(MediaKind.Video, description: "Sheep, at length")]),
-            new Drawing(61, Now, FakePictures.With().Holding("m1", 400, 300)),
+            new Drawing(61, Now, new FakePictures().Holding("m1", 400, 300), ARaster.Sixel()),
             default);
 
         Assert.NotEmpty(lines.SelectMany(line => line.Insets));
@@ -200,7 +203,7 @@ public class AttachmentPreviewTests
     {
         var lines = PostLines.Feed(
             APost.With(media: [APost.Attached(MediaKind.Video)]),
-            new Drawing(61, Now, FakePictures.With().Holding("m1", 400, 300)),
+            new Drawing(61, Now, new FakePictures().Holding("m1", 400, 300), ARaster.Sixel()),
             default);
 
         var box = lines.ToList().FindIndex(line => line.Insets.Count > 0);
@@ -220,11 +223,14 @@ public class AttachmentPreviewTests
         [
             APost.Attached(MediaKind.Video, description: "Sheep, at length", shape: new PictureShape(400, 400)),
         ]);
-        var pictures = FakePictures.With(new CellSize(10, 20)).Holding("m1", 400, 400);
+        var pictures = new FakePictures().Holding("m1", 400, 400);
 
         var reference = AttachmentReferences.Of(post).Single();
 
-        var lines = PostLines.Whole(post, new Drawing(61, Now, pictures), new Reading(Reference: reference));
+        var lines = PostLines.Whole(
+            post,
+            new Drawing(61, Now, pictures, ARaster.Sixel()),
+            new Reading(Reference: reference));
 
         var inset = Assert.Single(lines.SelectMany(line => line.Insets));
 
@@ -242,7 +248,7 @@ public class AttachmentPreviewTests
     [Fact]
     public void Feed_DrawsThePictureAndTheMotionAndLabelsTheRest()
     {
-        var pictures = FakePictures.With();
+        var pictures = new FakePictures();
         var media = new List<PostMedia>();
 
         var kinds = new[] { MediaKind.Image, MediaKind.Video, MediaKind.Animation, MediaKind.Audio };
@@ -253,7 +259,7 @@ public class AttachmentPreviewTests
             pictures.Holding($"m{at}", 400, 300);
         }
 
-        var lines = PostLines.Feed(APost.With(media: media), new Drawing(61, Now, pictures), default);
+        var lines = PostLines.Feed(APost.With(media: media), new Drawing(61, Now, pictures, ARaster.Sixel()), default);
 
         Assert.Equal(["m0", "m1", "m2"], lines.SelectMany(line => line.Insets).Select(inset => inset.Drawn.Id));
 
