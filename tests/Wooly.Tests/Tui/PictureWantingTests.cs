@@ -5,6 +5,7 @@ using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Theme;
 using Line = Wooly.Tui.Rendering.Line;
+using static Wooly.Tests.Fakes.APage;
 
 namespace Wooly.Tests.Tui;
 
@@ -15,9 +16,6 @@ namespace Wooly.Tests.Tui;
 /// </summary>
 public class PictureWantingTests
 {
-    private const int Width = 40;
-    private const int Height = 10;
-
     private static readonly DateTimeOffset Now = new(2026, 7, 29, 12, 30, 0, TimeSpan.Zero);
 
     /// <summary>
@@ -29,11 +27,10 @@ public class PictureWantingTests
     public void AFrameWantsWhatIsNearestFirstWithWhatIsOnScreenMarked()
     {
         var pictures = new FakePictures();
-        var rows = Enumerable.Range(0, 60).Select(at => Line.Of($"row {at}", Role.Body)).ToArray();
+        var rows = Rows(Box("box", at: 19, columns: 10));
 
         Wanting(rows, 15, "behind");
         Wanting(rows, 18, "box");
-        rows[19] = rows[19] with { Insets = [new Inset(Picture("box"), Column: 0, Columns: 10, Rows: 4)] };
         Wanting(rows, 25, "here");
         Wanting(rows, 33, "ahead");
         Wanting(rows, 36, "here");
@@ -234,8 +231,6 @@ public class PictureWantingTests
     }
 
     private static void Wanting(Line[] rows, int at, string id) => rows[at] = rows[at] with { Wants = Picture(id) };
-
-    private static Drawn Picture(string id) => new(id, $"https://files.mastodon.social/{id}.png");
 
     /// <summary>
     ///     A Placing over fake boxes, its sixels encoded on the spot, wanting of <paramref name="pictures" />.

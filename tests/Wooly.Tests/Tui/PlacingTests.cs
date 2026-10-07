@@ -5,6 +5,7 @@ using Wooly.Tui.Rendering;
 using Wooly.Tui.Theme;
 using Kind = Wooly.Tests.Fakes.FakePictureBox.Kind;
 using Line = Wooly.Tui.Rendering.Line;
+using static Wooly.Tests.Fakes.APage;
 
 namespace Wooly.Tests.Tui;
 
@@ -15,9 +16,6 @@ namespace Wooly.Tests.Tui;
 /// </summary>
 public class PlacingTests
 {
-    private const int Width = 40;
-    private const int Height = 10;
-
     /// <summary>
     ///     On a sixel terminal a box on the page is shown a cut of its picture, framed over the rows reserved for it,
     ///     and made visible — in that order, so that it is never drawn empty or in the wrong place.
@@ -605,24 +603,6 @@ public class PlacingTests
         _ => Raster.None,
     };
 
-    /// <summary>A screen's worth of rows, plenty more below it, and boxes reserved where each says.</summary>
-    private static Line[] Rows(params (int At, Inset Inset)[] boxes)
-    {
-        var rows = Enumerable.Range(0, 60).Select(at => Line.Of($"row {at}", Role.Body)).ToArray();
-
-        foreach (var (at, inset) in boxes)
-        {
-            for (var row = 0; row < inset.Rows; row++)
-            {
-                rows[at + row] = Line.Of(new string('▒', inset.Columns), Role.Media);
-            }
-
-            rows[at] = rows[at] with { Insets = [.. rows[at].Insets, inset] };
-        }
-
-        return rows;
-    }
-
     /// <summary>
     ///     Rows with a box at <paramref name="at" /> drawing the blur that stands in for <paramref name="id" />.
     /// </summary>
@@ -659,11 +639,6 @@ public class PlacingTests
 
     private static FakePictures Holding(FakePictures pictures, IEnumerable<string> ids) =>
         ids.Aggregate(pictures, (held, id) => held.Holding(id, 10, 20));
-
-    private static (int At, Inset Inset) Box(string id, int at, int column = 0, int columns = 4, int rows = 4) =>
-        (at, new Inset(Picture(id), column, columns, rows));
-
-    private static Drawn Picture(string id) => new(id, $"https://files.mastodon.social/{id}.png");
 
     /// <summary>
     ///     A Placing over fake boxes writing into one log, its sixels encoded by <paramref name="encode" /> and those
