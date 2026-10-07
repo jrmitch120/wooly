@@ -39,6 +39,25 @@ public enum ComposeField
     Post,
 }
 
+/// <summary>
+///     What an edit made on a compose screen changed, which is all the shell needs to settle what follows from it
+///     (#364): whether a notice over the draft is spent, and whether the screen is drawn again.
+/// </summary>
+public enum ComposeChange
+{
+    /// <summary>Nothing: the edit found the screen already as it would have left it.</summary>
+    None,
+
+    /// <summary>
+    ///     The typing or the choosing moved, or a list opened or closed — focus, walking the fields, choosing on To —
+    ///     with the post, its warning and its language as they were.
+    /// </summary>
+    Moved,
+
+    /// <summary>The post's text, its warning or its language changed.</summary>
+    Edited,
+}
+
 /// <summary>Who a compose screen's post goes out as, for its From header (#317).</summary>
 /// <param name="Handle">The profile's account, as a byline's handle: <c>@jeff</c>.</param>
 /// <param name="Instance">The instance it is on, which tells two profiles with the same username apart.</param>
@@ -209,6 +228,20 @@ public sealed class ComposeScreen : Screen
     /// <summary>What has been written so far, kept in step with the editor on every edit.</summary>
     public string Text { get; set; }
 
+    /// <summary>The editor changed: what the post says now, learned on every edit.</summary>
+    /// <returns>An edit, or nothing where the editor says back what this already holds.</returns>
+    public ComposeChange Rewrite(string text)
+    {
+        if (Text == text)
+        {
+            return ComposeChange.None;
+        }
+
+        Text = text;
+
+        return ComposeChange.Edited;
+    }
+
     /// <summary>
     ///     What the field holds, letter for letter — pre-filled on a reply from the post being answered and on an edit
     ///     from the post being changed, and from there the author's to keep, edit or clear. It is their post.
@@ -360,22 +393,62 @@ public sealed class ComposeScreen : Screen
     ///     The warning field changed: what it holds now, learned the way the post's text is learned from the editor
     ///     (#320). The field is the author's to type into; what goes out is still this screen's to say.
     /// </summary>
-    public void RewriteWarning(string written) => Warning = written;
+    /// <returns>An edit, or nothing where the field says back what this holds, as it does when filled on opening.</returns>
+    public ComposeChange RewriteWarning(string written)
+    {
+        if (Warning == written)
+        {
+            return ComposeChange.None;
+        }
+
+        Warning = written;
+
+        return ComposeChange.Edited;
+    }
 
     /// <summary>
     ///     Lang's field changed: what it holds now, learned as the warning's is (#340). Whether that is a language is
     ///     asked at send.
     /// </summary>
-    public void RewriteLanguage(string written) => Lang = Lang with { Held = written };
+    /// <returns>An edit, or nothing where the field says back what Lang already holds.</returns>
+    public ComposeChange RewriteLanguage(string written)
+    {
+        if (Lang.Held == written)
+        {
+            return ComposeChange.None;
+        }
+
+        Lang = Lang with { Held = written };
+
+        return ComposeChange.Edited;
+    }
 
     /// <summary>A language picked off Lang's list: the field says it as <see cref="ComposeLang.Spoken" /> writes it.</summary>
-    public void PickLanguage(PostLanguage language) => Lang = Lang with { Held = ComposeLang.Spoken(language) };
+    /// <returns>An edit, or nothing where Lang already held it so.</returns>
+    public ComposeChange PickLanguage(PostLanguage language) => RewriteLanguage(ComposeLang.Spoken(language));
 
     /// <summary>The list of languages under Lang opened or closed, which the status row follows.</summary>
-    public void OfferLanguages(bool open) => OfferingLanguages = open;
+    /// <returns>A move, or nothing where the list was already that way.</returns>
+    public ComposeChange OfferLanguages(bool open)
+    {
+        if (OfferingLanguages == open)
+        {
+            return ComposeChange.None;
+        }
+
+        OfferingLanguages = open;
+
+        return ComposeChange.Moved;
+    }
 
     /// <summary><c>ctrl-w</c>: hands the typing to the warning, or hands it back to the post.</summary>
-    public void WriteTheWarning() => Typing = WritingTheWarning ? ComposeField.Post : ComposeField.Warning;
+    /// <returns>A move, always.</returns>
+    public ComposeChange WriteTheWarning()
+    {
+        Typing = WritingTheWarning ? ComposeField.Post : ComposeField.Warning;
+
+        return ComposeChange.Moved;
+    }
 
     /// <summary>
     ///     <c>↑</c> or <c>↓</c> (<paramref name="by" /> −1 or 1): moves the typing to the field above or below in
@@ -383,23 +456,23 @@ public sealed class ComposeScreen : Screen
     ///     back into the post (ADR-0024, #337).
     /// </summary>
     /// <returns>
-    ///     Whether it moved, which it does not off either end: there is nothing above the top header, and below the post
-    ///     is the post's own business.
+    ///     A move, or nothing off either end: there is nothing above the top header, and below the post is the post's
+    ///     own business.
     /// </returns>
     /// <remarks>
     ///     A field that takes nothing is not walked into: To on an edit, which Mastodon cannot change. Nor is one the
     ///     screen was last drawn without: Lang, where a short terminal gave its row up.
     /// </remarks>
-    public bool Walk(int by)
+    public ComposeChange Walk(int by)
     {
         if (WalkedTo(by) is not { } field)
         {
-            return false;
+            return ComposeChange.None;
         }
 
         Typing = field;
 
-        return true;
+        return ComposeChange.Moved;
     }
 
     /// <summary>
@@ -424,34 +497,37 @@ public sealed class ComposeScreen : Screen
     ///     The typing went into <paramref name="field" /> by a click rather than by this screen's keys, and the screen
     ///     follows it there (#320, #338).
     /// </summary>
-    /// <returns>Whether that moved it, which it does not where it was already there or the field takes nothing.</returns>
-    public bool TypeInto(ComposeField field)
+    /// <returns>A move, or nothing where it was already there or the field takes nothing.</returns>
+    public ComposeChange TypeInto(ComposeField field)
     {
         if (Typing == field || !Takes(field))
         {
-            return false;
+            return ComposeChange.None;
         }
 
         Typing = field;
 
-        return true;
+        return ComposeChange.Moved;
     }
 
     /// <summary>
     ///     <c>←</c> or <c>→</c> (<paramref name="by" /> −1 or 1) on To: the next choice that way which To offers,
     ///     skipping any it does not (ADR-0024, #338).
     /// </summary>
-    /// <returns>Whether the choice moved: never off To, nor off either end of what it offers.</returns>
-    public bool Choose(int by)
+    /// <returns>
+    ///     A move — choosing is moving the choice, as walking is moving the typing (#364) — or nothing off To or off
+    ///     either end of what it offers.
+    /// </returns>
+    public ComposeChange Choose(int by)
     {
         if (Typing != ComposeField.To || !Stepped(by, out var next))
         {
-            return false;
+            return ComposeChange.None;
         }
 
         Visibility = next;
 
-        return true;
+        return ComposeChange.Moved;
     }
 
     /// <summary>
@@ -459,12 +535,12 @@ public sealed class ComposeScreen : Screen
     ///     choice To offers it chooses it, on an arrow it steps, and anywhere on the row it gives To the typing — but a
     ///     value To does not allow ignores it, and so does all of To on an edit (ADR-0024, #338).
     /// </summary>
-    /// <returns>Whether anything changed.</returns>
-    public bool ClickTo(int column, int room)
+    /// <returns>A move where anything changed, as for <see cref="Choose" />, and nothing otherwise.</returns>
+    public ComposeChange ClickTo(int column, int room)
     {
         if (!Takes(ComposeField.To))
         {
-            return false;
+            return ComposeChange.None;
         }
 
         var was = (Visibility, Typing);
@@ -472,7 +548,7 @@ public sealed class ComposeScreen : Screen
         switch (ToPartAt(ToRow(room), column))
         {
             case ToPart.Choice { Visibility: var choice } when !Offers(choice):
-                return false;
+                return ComposeChange.None;
             case ToPart.Choice { Visibility: var choice }:
                 Visibility = choice;
 
@@ -485,7 +561,7 @@ public sealed class ComposeScreen : Screen
 
         Typing = ComposeField.To;
 
-        return (Visibility, Typing) != was;
+        return (Visibility, Typing) != was ? ComposeChange.Moved : ComposeChange.None;
     }
 
     /// <summary>What the run <paramref name="column" /> columns into <paramref name="row" /> stands for, if anything.</summary>

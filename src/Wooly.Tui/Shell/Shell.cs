@@ -1089,6 +1089,41 @@ public sealed class Shell
     }
 
     /// <summary>
+    ///     Makes <paramref name="edit" /> on the compose screen on top — every change to a draft comes in here, from
+    ///     its fields, its lists and its keys — and settles what follows from it by the one rule (#364): an edit spends
+    ///     a notice said over the draft, and anything but no change at all is announced so the screen is drawn again.
+    /// </summary>
+    /// <remarks>
+    ///     A notice is spent by an edit and not by a move (#319). The status row holds a notice or the keymap and never
+    ///     both, and while a post is being written the keys go to its fields rather than to anything that would
+    ///     otherwise take a notice down — so a refusal of the post would stand, hiding every key compose answers to,
+    ///     until <c>esc</c> threw the draft away. Changing the draft is doing what the notice asked; walking the
+    ///     fields, choosing on To or opening a list is not, and leaves the notice to be read.
+    /// </remarks>
+    /// <returns>What the edit changed, or nothing where compose is not on top and no edit was made.</returns>
+    public ComposeChange EditCompose(Func<ComposeScreen, ComposeChange> edit)
+    {
+        if (Screen is not ComposeScreen compose)
+        {
+            return ComposeChange.None;
+        }
+
+        var change = edit(compose);
+
+        if (change == ComposeChange.Edited && Notice is not null)
+        {
+            // Saying nothing announces the change itself.
+            Say(null, isError: false);
+        }
+        else if (change != ComposeChange.None)
+        {
+            Changed?.Invoke();
+        }
+
+        return change;
+    }
+
+    /// <summary>
     ///     The post being written changed in the editor: its text, kept in step with every edit so that whatever reads
     ///     it while it is written — the count, the list of people to mention — sees what has been typed so far.
     /// </summary>
@@ -1198,7 +1233,7 @@ public sealed class Shell
     /// <returns>Whether the typing moved, which it does not off the top header or below the post.</returns>
     public bool WalkField(int by)
     {
-        if (Screen is not ComposeScreen compose || !compose.Walk(by))
+        if (Screen is not ComposeScreen compose || compose.Walk(by) == ComposeChange.None)
         {
             return false;
         }
@@ -1216,7 +1251,7 @@ public sealed class Shell
     /// <returns>Whether the choice moved, which it does not off either end of the row nor anywhere but To.</returns>
     public bool Choose(int by)
     {
-        if (Screen is not ComposeScreen compose || !compose.Choose(by))
+        if (Screen is not ComposeScreen compose || compose.Choose(by) == ComposeChange.None)
         {
             return false;
         }
@@ -1233,7 +1268,7 @@ public sealed class Shell
     /// </summary>
     public void TypeInto(ComposeField field)
     {
-        if (Screen is not ComposeScreen compose || !compose.TypeInto(field))
+        if (Screen is not ComposeScreen compose || compose.TypeInto(field) == ComposeChange.None)
         {
             return;
         }
@@ -1248,7 +1283,7 @@ public sealed class Shell
     /// </summary>
     public void ClickTo(int column, int room)
     {
-        if (Screen is not ComposeScreen compose || !compose.ClickTo(column, room))
+        if (Screen is not ComposeScreen compose || compose.ClickTo(column, room) == ComposeChange.None)
         {
             return;
         }
