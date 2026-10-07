@@ -50,21 +50,10 @@ public class FramedRegionTests
     }
 
     /// <summary>
-    ///     The shell says how wide its content region is: the inside of the panel the posts are drawn in, which is
-    ///     the widest any picture's box can be and so the width a picture is decoded to (ADR-0025) — 58 columns at an
-    ///     80-column terminal, not the 80 of the whole window.
-    /// </summary>
-    [Fact]
-    public async Task TheShellSaysHowWideItsContentRegionIs()
-    {
-        using var drawn = await DrawnShell.Of(80, 24, Themes.Dark);
-
-        Assert.Equal(58, drawn.Window.ContentColumns);
-    }
-
-    /// <summary>
     ///     The content region hands the picture cache the room each frame gives — the frame's Raster and the region's
     ///     58 columns — when it says what the frame wants, so the cache never has to ask the window for either (#359).
+    ///     The columns are the inside of the panel the posts are drawn in, which is the widest any picture's box can be
+    ///     and so the width a picture is decoded to (ADR-0025): not the 80 of the whole window.
     /// </summary>
     [Fact]
     public async Task TheShellHandsThePictureCacheTheRoomOfTheFrame()
