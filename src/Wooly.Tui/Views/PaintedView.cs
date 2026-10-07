@@ -50,7 +50,7 @@ internal sealed class PaintedView : View
     private readonly Func<int, int, IReadOnlyList<Line>> _rows;
     private readonly IPictures? _pictures;
     private readonly Func<int, int, IReadOnlyList<Line>>? _frame;
-    private readonly List<PictureView> _boxes = [];
+    private readonly List<IPictureBox> _boxes = [];
     private readonly Placeholders? _placeholders;
     private readonly SixelPictures _sixels;
     private readonly SynchronizedFrames? _frames;
@@ -104,6 +104,10 @@ internal sealed class PaintedView : View
     ///     How this terminal paints pixels, asked once a frame as the frame is settled (<see cref="Raster" />), or
     ///     <see langword="null" /> for a terminal that draws none.
     /// </param>
+    /// <param name="boxes">
+    ///     What makes a box a picture is drawn through, given this view to add it to: <see cref="PictureView.AddedTo" />
+    ///     unless a test says otherwise (#360).
+    /// </param>
     /// <remarks>
     ///     A frame is laid on a one-cell <c>Padding</c> round the view, so everything measured off
     ///     <see cref="View.Viewport" /> — the rows' width and height, the scroll, a page's worth — is the inside of it,
@@ -117,7 +121,8 @@ internal sealed class PaintedView : View
         Func<int, int, IReadOnlyList<Line>>? frame = null,
         Placeholders? placeholders = null,
         SynchronizedFrames? frames = null,
-        Func<Raster>? raster = null)
+        Func<Raster>? raster = null,
+        Func<View, IPictureBox>? boxes = null)
     {
         _theme = theme;
         _raster = raster ?? (() => Raster.None);
@@ -138,12 +143,11 @@ internal sealed class PaintedView : View
             return;
         }
 
+        boxes ??= PictureView.AddedTo;
+
         for (var at = 0; at < MostBoxes; at++)
         {
-            var box = new PictureView { Visible = false };
-
-            _boxes.Add(box);
-            Add(box);
+            _boxes.Add(boxes(this));
         }
     }
 

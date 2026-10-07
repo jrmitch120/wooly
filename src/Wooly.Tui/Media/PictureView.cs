@@ -30,7 +30,7 @@ namespace Wooly.Tui.Media;
 ///         this is the belt to that braces.
 ///     </para>
 /// </remarks>
-internal sealed class PictureView : ImageView
+internal sealed class PictureView : ImageView, IPictureBox
 {
     /// <summary>
     ///     What the cells under a picture are painted in: blank, with no background at all, which is how the driver
@@ -40,6 +40,19 @@ internal sealed class PictureView : ImageView
     private static readonly Attribute UnderThePicture = new(Color.None, Color.None);
 
     private Sixel? _sixel;
+
+    /// <summary>
+    ///     Makes a box and adds it to <paramref name="holder" />, hidden: the program's way of making the boxes a view
+    ///     draws pictures through (<see cref="IPictureBox" />, #360).
+    /// </summary>
+    public static IPictureBox AddedTo(View holder)
+    {
+        var box = new PictureView { Visible = false };
+
+        holder.Add(box);
+
+        return box;
+    }
 
     public PictureView()
     {

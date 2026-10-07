@@ -102,6 +102,61 @@ public class SixelBoxTests
         Assert.NotEqual(before, drawn.Rows());
     }
 
+    /// <summary>
+    ///     Through the box seam (#360): a sixel frame shows each box a cut of its picture, frames it and makes it
+    ///     visible — and the frame a picture scrolls off the page lets go of its box before any box is shown anything.
+    /// </summary>
+    [Fact]
+    public async Task ASixelFrameReleasesItsBoxesBeforeItPlacesAny()
+    {
+        var log = new List<FakePictureBox.Call>();
+
+        using var drawn = await DrawnShell.Of(
+            80,
+            24,
+            Themes.Plain,
+            new AShell
+            {
+                Timelines = FakeTimelineReader.Holding(
+                    APost.With(id: "110", media: [APost.APicture("m1")]),
+                    APost.With(id: "220", media: [APost.APicture("m2")]),
+                    APost.With(id: "330"),
+                    APost.With(id: "440"),
+                    APost.With(id: "550"),
+                    APost.With(id: "660")),
+            },
+            pictures: new FakePictures().Holding("m1", 800, 400).Holding("m2", 800, 400),
+            drawsPictures: true,
+            boxes: FakePictureBox.Pool(log));
+
+        var first = log.Where(call => call.Picture == "m1").ToList();
+
+        Assert.Equal(
+            [FakePictureBox.Kind.ShownSixel, FakePictureBox.Kind.Framed, FakePictureBox.Kind.Visible],
+            first.Select(call => call.What).Take(3));
+        Assert.True(first[2].Visible);
+
+        List<FakePictureBox.Call> frame = [];
+
+        for (var notch = 0; notch < 100 && !frame.Any(LetsGoOfM1); notch++)
+        {
+            log.Clear();
+            drawn.Wheel(OverContent, 3);
+            frame = [.. log];
+        }
+
+        var released = frame.FindIndex(LetsGoOfM1);
+
+        Assert.True(released >= 0, "m1 was never scrolled off the page");
+        Assert.Contains(frame, call => call is { What: FakePictureBox.Kind.ShownSixel, Picture: "m2" });
+        Assert.True(
+            released < frame.FindIndex(call => call.What is FakePictureBox.Kind.ShownSixel),
+            "a box was shown a picture before m1's box was let go of");
+
+        static bool LetsGoOfM1(FakePictureBox.Call call) =>
+            call is { What: FakePictureBox.Kind.Released, Picture: "m1" };
+    }
+
     private static Task<DrawnShell> Drawn() => DrawnShell.Of(
         80,
         24,
