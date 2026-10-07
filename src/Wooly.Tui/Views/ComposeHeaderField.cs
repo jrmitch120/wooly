@@ -63,6 +63,12 @@ internal abstract class ComposeHeaderField(
     }
 
     /// <summary>
+    ///     First refusal on every key, ahead of everything else here: a question the shell has open on the status row,
+    ///     which the key answers instead of doing anything in the field (#373). A key it takes the field never sees.
+    /// </summary>
+    public Func<Key, bool>? Answering { get; set; }
+
+    /// <summary>
     ///     First refusal on every key, ahead of compose's own — nothing, unless a field has something hung under it whose
     ///     keys come first.
     /// </summary>
@@ -76,7 +82,7 @@ internal abstract class ComposeHeaderField(
 
     protected override bool OnKeyDown(Key key)
     {
-        if (TakesFirst(key))
+        if (Answering?.Invoke(key) == true || TakesFirst(key))
         {
             return true;
         }

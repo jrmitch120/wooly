@@ -345,18 +345,29 @@ public sealed class Shell
 
     /// <summary>
     ///     A rail keypress. The cursor moves at once; the selection — and the fetch — follow when the pressing stops.
+    ///     A touched draft is asked about first, and taken off as the cursor moves rather than left standing until the
+    ///     pressing stops, where more could be written into it only to be thrown away unasked (#373).
     /// </summary>
-    public void Step(int by) => Rail.Step(by);
+    public void Step(int by) =>
+        Leaving(0, by > 0 ? ShellKey.Tab : ShellKey.ShiftTab, () =>
+        {
+            DropDrafts();
+            Rail.Step(by);
+        });
 
     /// <summary>A rail group keypress, <c>`</c> or <c>~</c>, which settles and fetches as <see cref="Step" /> does.</summary>
-    public void StepGroup(int by) => Rail.StepGroup(by);
+    public void StepGroup(int by) =>
+        Leaving(0, by > 0 ? ShellKey.Backtick : ShellKey.Tilde, () =>
+        {
+            DropDrafts();
+            Rail.StepGroup(by);
+        });
 
     /// <summary>
     ///     A click on the <paramref name="at" />th destination on the rail. Another destination is arrived at at once:
     ///     the cursor and the selection go there together, abandoning whatever the tabbing left waiting (#288). The
-    ///     destination already shown is walked back out to instead (<see cref="Unwind" />, #289), unless that would take
-    ///     a draft off the stack (#308). Nothing with nobody
-    ///     to act as, where the keys go nowhere either.
+    ///     destination already shown is walked back out to instead (<see cref="Unwind" />, #289). Either way a touched
+    ///     draft is asked about first (#373). Nothing with nobody to act as, where the keys go nowhere either.
     /// </summary>
     /// <remarks>
     ///     The keys have no equivalent of the walk back: tabbing back onto the destination shown is still a walk that
@@ -369,14 +380,17 @@ public sealed class Shell
             return;
         }
 
-        var shown = Rail.Current == at;
-
-        Rail.GoTo(Rail.Destinations[at].Kind);
-
-        if (shown)
+        Leaving(0, again: null, () =>
         {
-            Unwind(0);
-        }
+            var shown = Rail.Current == at;
+
+            Rail.GoTo(Rail.Destinations[at].Kind);
+
+            if (shown)
+            {
+                Unwind(0);
+            }
+        });
     }
 
     /// <summary>
@@ -403,7 +417,7 @@ public sealed class Shell
             return;
         }
 
-        Unwind(depth);
+        Leaving(depth + 1, again: null, () => Unwind(depth));
     }
 
     /// <summary>
@@ -784,9 +798,12 @@ public sealed class Shell
 
         if (_stack.Count > 1)
         {
-            Leave(_stack.Count - 1);
+            Leaving(_stack.Count - 1, ShellKey.Escape, Popped);
+
+            return;
         }
-        else if (Screen is AddProfileScreen alone)
+
+        if (Screen is AddProfileScreen alone)
         {
             // Standing alone there is nothing under it to go back to, so esc goes back to its first step instead —
             // which is still what gives a waiting sign-in up (#247).
@@ -822,6 +839,11 @@ public sealed class Shell
     ///     Read off the local config there and then, rather than put through <see cref="Enquiry" />: nothing here
     ///     reaches an instance, so there is nothing to wait for, no fetch mark and no answer that could land late.
     ///     Pressed on the screen itself it is where the reader already is, the way <c>?</c> is on the keymap.
+    ///     <para>
+    ///         From compose it is a way out of the draft rather than a screen over it: drafts do not survive a switch
+    ///         (ADR-0020), so the draft is taken off — asked about first where it is touched (#373) — rather than left
+    ///         under a switch that would throw it away without asking.
+    ///     </para>
     /// </remarks>
     public void Profiles()
     {
@@ -830,8 +852,18 @@ public sealed class Shell
             return;
         }
 
-        Push(Listed());
+        Leaving(0, ShellKey.CtrlP, () =>
+        {
+            DropDrafts();
+            Push(Listed());
+        });
     }
+
+    /// <summary>
+    ///     <c>ctrl-q</c>: <paramref name="quit" />, which only a terminal can do — asked about first where a touched draft
+    ///     would go with it (#373).
+    /// </summary>
+    public void Quit(Action quit) => Leaving(0, ShellKey.CtrlQ, quit);
 
     /// <summary>
     ///     <c>a</c> on the profiles screen: adds a profile, from the instance up (#245). Nothing is read or sent until
@@ -1274,6 +1306,13 @@ public sealed class Shell
 
         Confirm(new Confirmation(VotingFor(choices), () => Cast(screen, about, choices), Going: "vote"));
     }
+
+    /// <summary>
+    ///     Answers whatever the shell was waiting to be told again with <paramref name="pressed" />: a yes where it is
+    ///     the key that agrees to it (<see cref="Confirmation.AgreedBy" />), and a no for anything else, a key that means
+    ///     nothing to the shell included (story 43).
+    /// </summary>
+    public Task Answer(ShellKey? pressed) => Answer(agreed: Asking?.AgreedBy(pressed) == true);
 
     /// <summary>Answers whatever the shell was waiting to be told again.</summary>
     public async Task Answer(bool agreed)
@@ -2043,12 +2082,12 @@ public sealed class Shell
     /// </summary>
     /// <remarks>
     ///     Where it is already in front it is nothing at all, the notice included: a click on where a reader already is
-    ///     must leave the status row saying what it said. Nor where the walk would take off a screen holding a draft,
-    ///     which a click is too little to throw away — the same draft a right click leaves standing (#307).
+    ///     must leave the status row saying what it said. A draft it would take off has been asked about already, by
+    ///     whatever walked back (<see cref="Leaving" />, #373).
     /// </remarks>
     private void Unwind(int depth)
     {
-        if (depth < 0 || _stack.Count <= depth + 1 || DropsADraft(depth))
+        if (depth < 0 || _stack.Count <= depth + 1)
         {
             return;
         }
@@ -2062,8 +2101,69 @@ public sealed class Shell
         Changed?.Invoke();
     }
 
-    /// <summary>Whether walking back to the screen <paramref name="depth" /> up the stack would take a draft off it.</summary>
-    private bool DropsADraft(int depth) => _stack.Skip(depth + 1).Any(screen => screen.HoldsADraft);
+    /// <summary>
+    ///     Goes ahead with <paramref name="leave" />, a way out that takes every screen above the first
+    ///     <paramref name="keeping" /> off the stack — or, where a compose screen among those is touched
+    ///     (<see cref="ComposeScreen.Touched" />), asks first, on the confirmation row, and goes ahead only once agreed
+    ///     (#373). Every way out of a compose screen comes through here, so that none of them loses what was written
+    ///     without a word.
+    /// </summary>
+    /// <param name="keeping">How many screens at the bottom of the stack the way out leaves standing.</param>
+    /// <param name="again">
+    ///     The key that took the way out, which pressed again agrees — or <see langword="null" /> for a click, which
+    ///     only <c>y</c> agrees to.
+    /// </param>
+    /// <param name="leave">The way out.</param>
+    private void Leaving(int keeping, ShellKey? again, Action leave)
+    {
+        if (!_stack.Skip(keeping).OfType<ComposeScreen>().Any(compose => compose.Touched))
+        {
+            leave();
+
+            return;
+        }
+
+        Confirm(Confirmation.Discarding(
+            () =>
+            {
+                leave();
+
+                return Task.CompletedTask;
+            },
+            again));
+    }
+
+    /// <summary>Takes the screen on top off, which is what <c>esc</c> does once nothing inside it is left to let go.</summary>
+    private void Popped()
+    {
+        Leave(_stack.Count - 1);
+
+        Notice = null;
+        Changed?.Invoke();
+    }
+
+    /// <summary>
+    ///     Takes every compose screen off the stack and everything above it, for a way out that leaves the stack to
+    ///     something else to settle — a rail landing later, a screen pushed over it — and must not leave a draft
+    ///     standing under that in the meantime. Nothing where there is none.
+    /// </summary>
+    private void DropDrafts()
+    {
+        var at = _stack.FindIndex(screen => screen is ComposeScreen);
+
+        if (at < 1)
+        {
+            return;
+        }
+
+        while (_stack.Count > at)
+        {
+            Leave(_stack.Count - 1);
+        }
+
+        Notice = null;
+        Changed?.Invoke();
+    }
 
     /// <summary>Puts the stack back to one screen, which is what arriving at a destination does.</summary>
     private void Reset(Screen screen)

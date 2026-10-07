@@ -41,8 +41,15 @@ internal sealed class ComposeToField(
         return true;
     }
 
+    /// <summary>
+    ///     First refusal on every key, ahead of everything else here: a question the shell has open on the status row,
+    ///     which the key answers instead of doing anything in the field (#373). A key it takes the field never sees.
+    /// </summary>
+    public Func<Key, bool>? Answering { get; set; }
+
     protected override bool OnKeyDown(Key key) =>
-        !(key == Key.CursorLeft || key == Key.CursorRight || key == Key.CursorUp || key == Key.CursorDown
+        Answering?.Invoke(key) == true
+        || !(key == Key.CursorLeft || key == Key.CursorRight || key == Key.CursorUp || key == Key.CursorDown
           || key == Key.Tab || key == Key.Tab.WithShift || key == Key.Esc || key.IsCtrl || key.IsAlt);
 
     /// <summary>

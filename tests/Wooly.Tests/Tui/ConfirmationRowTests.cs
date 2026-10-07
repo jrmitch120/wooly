@@ -113,6 +113,50 @@ public class ConfirmationRowTests
     }
 
     /// <summary>
+    ///     The question asked before a touched compose is thrown away reads <c>Discard this post? y / n</c> (#373): no
+    ///     warning, and no <c>esc keep</c>, since <c>esc</c> may be the very key that agrees to it.
+    /// </summary>
+    [Theory]
+    [InlineData(ShellKey.Escape)]
+    [InlineData(null)]
+    public void TheDiscardQuestion_IsAnsweredYesOrNo(ShellKey? again)
+    {
+        var row = Row(Confirmation.Discarding(Pressing.Nothing, again), 80);
+
+        Assert.Equal(" Discard this post?  y / n", row.Text);
+        Assert.Equal(
+            [Role.Destructive, Role.Chrome, Role.Key, Role.Chrome, Role.Key],
+            row.Spans.Select(span => span.Role));
+    }
+
+    /// <summary>Narrower than the whole of it, the discard question gives way and its answer is whole, as any does.</summary>
+    [Fact]
+    public void TheDiscardQuestion_GivesWayBeforeItsAnswer()
+    {
+        var row = Row(Confirmation.Discarding(Pressing.Nothing, ShellKey.Escape), 16);
+
+        Assert.Equal(" Discard…  y / n", row.Text);
+    }
+
+    /// <summary>
+    ///     <c>y</c> agrees to every confirmation, and the key that put one agrees to it pressed again; anything else —
+    ///     another key, or a press that is no key of the shell's — keeps.
+    /// </summary>
+    [Fact]
+    public void YOrTheKeyThatAsked_Agrees()
+    {
+        var discarding = Confirmation.Discarding(Pressing.Nothing, ShellKey.Tab);
+        var deleting = Of("delete");
+
+        Assert.True(discarding.AgreedBy(ShellKey.Y));
+        Assert.True(discarding.AgreedBy(ShellKey.Tab));
+        Assert.False(discarding.AgreedBy(ShellKey.ShiftTab));
+        Assert.False(discarding.AgreedBy(null));
+        Assert.True(deleting.AgreedBy(ShellKey.Y));
+        Assert.False(deleting.AgreedBy(ShellKey.Escape));
+    }
+
+    /// <summary>
     ///     The warning is the same sentence on every confirmation, carrying nothing particular to what is asked — so
     ///     it is defaulted, and is <c>post delete</c>'s and <c>notification clear</c>'s own words.
     /// </summary>

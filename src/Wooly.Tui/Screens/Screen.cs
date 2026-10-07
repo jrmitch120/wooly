@@ -240,12 +240,6 @@ public abstract class Screen
     public virtual bool IsTyping => false;
 
     /// <summary>
-    ///     Whether this screen holds a draft that <c>esc</c> throws away. A fact about the screen, so that a right click
-    ///     — <c>esc</c> by pointer, and easily made by accident — can decline to spend one (#307).
-    /// </summary>
-    public virtual bool HoldsADraft => false;
-
-    /// <summary>
     ///     Puts a letter into whatever this screen is taking, where it is taking anything. Said here rather than
     ///     matched on the screen's type where the key arrives, so that a third screen that takes letters is one
     ///     override rather than another arm in two cascades.

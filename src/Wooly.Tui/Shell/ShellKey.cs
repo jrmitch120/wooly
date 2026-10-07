@@ -135,6 +135,12 @@ public enum ShellKey
     X,
 
     /// <summary>
+    ///     <c>y</c>, which agrees to a confirmation (story 43) and means nothing anywhere else — so it reaches the keymap
+    ///     only to be turned down.
+    /// </summary>
+    Y,
+
+    /// <summary>
     ///     <c>B</c>. The four capitals are keys of their own rather than a modifier on the four above, because that is
     ///     what the contract makes them: a capital is how a tie key is told apart from a mark key, so a shell that
     ///     folded the two together would let <c>b</c> block somebody (<c>docs/tui-shell.md</c>).

@@ -167,15 +167,16 @@ public class ShellRightClickTests
     }
 
     /// <summary>
-    ///     With compose in front a right click does nothing anywhere, since <c>esc</c> there throws the draft away: the
-    ///     draft stands, and the editor's own context menu does not open.
+    ///     With compose in front a right click is <c>esc</c> wherever it lands, so over a touched draft it asks before
+    ///     throwing it away (#373): the draft stands, and the editor's own context menu does not open. A second right
+    ///     click agrees, as a second <c>esc</c> does.
     /// </summary>
     [Theory]
     [InlineData("editor")]
     [InlineData("rail")]
     [InlineData("breadcrumb")]
     [InlineData("status")]
-    public async Task WithComposeInFrontARightClickDoesNothing(string over)
+    public async Task WithComposeInFrontARightClickAsksBeforeThrowingTheDraftAway(string over)
     {
         using var drawn = await On("feed");
 
@@ -190,13 +191,20 @@ public class ShellRightClickTests
 
         var (column, row) = Over(drawn, over);
 
-        drawn.RightClick(column, row, times: 3);
+        drawn.RightClick(column, row);
         drawn.Settle();
 
+        Assert.NotNull(drawn.Shell.Asking);
         Assert.Same(compose, drawn.Shell.Screen);
         Assert.Equal("A draft about sheep", editor.Text);
         Assert.False(editor.ContextMenu?.Visible ?? false);
         Assert.Null(drawn.Application.Popovers?.GetActivePopover());
+
+        drawn.RightClick(column, row);
+        drawn.Settle();
+
+        Assert.Null(drawn.Shell.Asking);
+        Assert.IsType<FeedScreen>(drawn.Shell.Screen);
     }
 
     /// <summary>

@@ -67,6 +67,7 @@ internal sealed class DrawnShell : IDisposable
     ///     How the terminal paints pixels each time it is asked, where a test is about an answer that changes between
     ///     frames; <paramref name="raster" /> if not.
     /// </param>
+    /// <param name="quit">What the window does to quit, where a test is about whether it did; nothing if not.</param>
     public static async Task<DrawnShell> Of(
         int width,
         int height,
@@ -81,7 +82,8 @@ internal sealed class DrawnShell : IDisposable
         Action<Action>? encoding = null,
         SynchronizedFrames? frames = null,
         Raster? raster = null,
-        Func<Raster>? answers = null)
+        Func<Raster>? answers = null,
+        Action? quit = null)
     {
         built ??= new AShell();
 
@@ -112,7 +114,7 @@ internal sealed class DrawnShell : IDisposable
             shell,
             theme,
             built.Clock,
-            () => { },
+            quit ?? (() => { }),
             pictures ?? new FakePictures(),
             placeholders: placeholders,
             blurs: new Blurs(),

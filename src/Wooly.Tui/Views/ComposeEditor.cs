@@ -51,6 +51,12 @@ internal sealed class ComposeEditor(
     public Func<Key, bool>? Ahead { get; set; }
 
     /// <summary>
+    ///     First refusal on every key, ahead of everything else here: a question the shell has open on the status row,
+    ///     which the key answers instead of doing anything in the field (#373). A key it takes the field never sees.
+    /// </summary>
+    public Func<Key, bool>? Answering { get; set; }
+
+    /// <summary>
     ///     Every visual role Terminal.Gui asks for, answered from the theme: text in <see cref="Role.Body" /> on the
     ///     page, and a selection — which <see cref="TextView" /> draws in its <c>Active</c> role, as the compose
     ///     prototype found (#313) — in <see cref="Role.SelectedText" />. Nothing is left to Terminal.Gui's own scheme,
@@ -109,7 +115,7 @@ internal sealed class ComposeEditor(
 
     protected override bool OnKeyDown(Key key)
     {
-        if (Ahead?.Invoke(key) == true)
+        if (Answering?.Invoke(key) == true || Ahead?.Invoke(key) == true)
         {
             return true;
         }

@@ -195,24 +195,41 @@ public class ShellCrumbClickTests
     }
 
     /// <summary>
-    ///     And the rail's own click on the destination shown, being the first crumb's, leaves a compose drilled in
-    ///     standing too (#289).
+    ///     And the rail's own click on the destination shown, being the first crumb's, asks before it takes a touched
+    ///     compose drilled in off the stack (#289, #373) — and walks back past an untouched one, as past any screen.
     /// </summary>
-    [Fact]
-    public async Task ARailClickOnTheDestinationShownLeavesADraftStanding()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ARailClickOnTheDestinationShownAsksBeforeATouchedDraft(bool touched)
     {
         using var drawn = await Drilled(author: false);
 
         drawn.Shell.Compose();
         drawn.Redraw();
 
-        var compose = drawn.Shell.Screen;
+        var compose = Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
+
+        if (touched)
+        {
+            compose.Text = drawn.Window.ComposeField<ComposeEditor>().Text = "A draft about sheep";
+            drawn.Redraw();
+        }
 
         drawn.Click(OverRail, Array.FindIndex(drawn.Rail(), row => row.Contains("Home", StringComparison.Ordinal)));
         drawn.Settle();
 
-        Assert.Same(compose, drawn.Shell.Screen);
-        Assert.Equal(3, drawn.Shell.Depth);
+        if (touched)
+        {
+            Assert.NotNull(drawn.Shell.Asking);
+            Assert.Same(compose, drawn.Shell.Screen);
+            Assert.Equal(3, drawn.Shell.Depth);
+        }
+        else
+        {
+            Assert.Null(drawn.Shell.Asking);
+            Assert.Equal(1, drawn.Shell.Depth);
+        }
     }
 
     /// <summary>The fetch mark spinning at the end of the trail is no crumb either.</summary>
@@ -300,11 +317,11 @@ public class ShellCrumbClickTests
     }
 
     /// <summary>
-    ///     With a compose on the stack, a crumb whose walk back would take it off does nothing and the draft stands; a
-    ///     crumb above it — the compose itself, under the keys screen opened over it — still walks back.
+    ///     With a touched compose on the stack, a crumb whose walk back would take it off asks first and the draft stands
+    ///     (#373); a crumb above it — the compose itself, under the keys screen opened over it — still walks back.
     /// </summary>
     [Fact]
-    public async Task ACrumbWalkingBackPastACompositionDoesNothing()
+    public async Task ACrumbWalkingBackPastATouchedCompositionAsksFirst()
     {
         using var drawn = await Drilled(author: false);
 
@@ -328,19 +345,25 @@ public class ShellCrumbClickTests
             drawn.Click(CrumbColumn(drawn, below), Breadcrumb);
             drawn.Settle();
 
+            Assert.NotNull(drawn.Shell.Asking);
             Assert.IsType<HelpScreen>(drawn.Shell.Screen);
             Assert.Equal(4, drawn.Shell.Depth);
+
+            // Kept: any other press is a no.
+            drawn.Press(Key.N);
         }
 
         drawn.Click(CrumbColumn(drawn, 2), Breadcrumb);
         drawn.Settle();
 
+        Assert.Null(drawn.Shell.Asking);
         Assert.Same(compose, drawn.Shell.Screen);
         Assert.Equal("A draft about sheep", editor.Text);
 
         drawn.Click(CrumbColumn(drawn, 0), Breadcrumb);
         drawn.Settle();
 
+        Assert.NotNull(drawn.Shell.Asking);
         Assert.Same(compose, drawn.Shell.Screen);
         Assert.Equal("A draft about sheep", editor.Text);
     }

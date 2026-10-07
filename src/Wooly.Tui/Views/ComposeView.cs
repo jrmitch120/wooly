@@ -121,6 +121,13 @@ internal sealed class ComposeView : View
         _mentions = new MentionList(theme, shell, _editor);
         _editor.Ahead = _mentions.Took;
 
+        // ctrl-p is the frame's here as everywhere (ADR-0020, #373), where TextView would take it for a line up.
+        _editor.KeyBindings.Remove(Key.P.WithCtrl);
+
+        // A question open on the status row takes every key ahead of whichever field has the typing, since the fields
+        // take their keys before the window sees them (#373).
+        _editor.Answering = _to.Answering = _lang.Answering = _warning.Answering = Answered;
+
         _languages = new LanguageList(theme, shell, _lang, this);
 
         Add(_editor, _to, _lang, _warning, _mentions.View, _languages.View);
@@ -170,15 +177,60 @@ internal sealed class ComposeView : View
     }
 
     /// <summary>
-    ///     A mouse event wherever it landed, before the view under the pointer sees it: spent on closing an open list
-    ///     where it is a click outside it (#335), and left alone otherwise.
+    ///     A mouse event wherever it landed, before the view under the pointer sees it: a right click while compose is in
+    ///     front, which is its <c>esc</c> wherever it lands (#373); spent on closing an open list where it is a click
+    ///     outside it (#335); and left alone otherwise.
     /// </summary>
     private void AheadOfTheViews(object? sender, Mouse mouse)
     {
         if (!mouse.Handled)
         {
-            mouse.Handled = _mentions.ClosedBy(mouse) || _languages.ClosedBy(mouse);
+            mouse.Handled = RightClicked(mouse) || _mentions.ClosedBy(mouse) || _languages.ClosedBy(mouse);
         }
+    }
+
+    /// <summary>
+    ///     A right click with compose in front: <c>esc</c>, wherever it lands — over a field, which would otherwise keep
+    ///     it to itself, as anywhere else. It asks before a touched draft is thrown away and, pressed again on that
+    ///     question, agrees, the way <c>esc</c> does (#373). Neither list under the pointer closes or picks for it, and
+    ///     the editor's own context menu never opens.
+    /// </summary>
+    /// <returns>Whether it was one, and spent.</returns>
+    private bool RightClicked(Mouse mouse)
+    {
+        if (_shell.Screen is not ComposeScreen || ShellKeys.Of(mouse) is not { } pressed)
+        {
+            return false;
+        }
+
+        if (!Answered(pressed))
+        {
+            _shell.Back();
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    ///     <paramref name="key" /> as the answer to a question the shell has open, where it has one (<see cref="Answered(ShellKey?)" />).
+    /// </summary>
+    private bool Answered(Key key) => Answered(ShellKeys.Of(key));
+
+    /// <summary>
+    ///     <paramref name="pressed" /> as the answer to a question the shell has open on the status row — <c>y</c> or
+    ///     the key that asked agrees, anything else keeps — where it has one, and nothing where it has none.
+    /// </summary>
+    /// <returns>Whether there was a question, and the press was spent on it.</returns>
+    private bool Answered(ShellKey? pressed)
+    {
+        if (_shell.Asking is null)
+        {
+            return false;
+        }
+
+        _ = _shell.Answer(pressed);
+
+        return true;
     }
 
     /// <summary>

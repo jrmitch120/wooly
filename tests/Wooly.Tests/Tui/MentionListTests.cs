@@ -162,13 +162,21 @@ public class MentionListTests
         Assert.True(List(drawn).Visible);
     }
 
-    /// <summary>With the list closed, <c>esc</c> throws the draft away as it always has.</summary>
+    /// <summary>
+    ///     With the list closed, <c>esc</c> is the way out of the draft as it always has been — asking first over what
+    ///     was written (#373), and throwing it away on the second.
+    /// </summary>
     [Fact]
     public async Task EscWithTheListClosedThrowsTheDraftAway()
     {
         using var drawn = await Composing();
 
         Type(drawn, "hello");
+        drawn.Press(Key.Esc);
+
+        Assert.NotNull(drawn.Shell.Asking);
+        Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
+
         drawn.Press(Key.Esc);
 
         Assert.IsNotType<ComposeScreen>(drawn.Shell.Screen);
