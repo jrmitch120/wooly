@@ -35,7 +35,17 @@ read wherever either surface describes one. That is as far as sharing goes here,
 only describe the same attachment where it is **linked**, and everywhere else the TUI says something else entirely —
 a walked label naming the kind, with no address on the row at all. One sentence shared and one surface saying a
 different thing is not the same as a **Link preview**'s rule written out twice, so it was left alone (#125).
+What an author says an attachment shows is its **description** — the word this project uses in the domain and on
+screen. "Alt text" is the same thing in the community's own phrase, and is fine to say; it is a synonym rather than a
+second idea.
 _Avoid_: media file, image (where the kind has not been settled)
+
+**Pending attachment**:
+An **attachment** that is on the instance but on no post yet: sent up while its post is still being composed, so it has
+an id and is uploading, being processed, ready or refused — and can still be described, moved or taken off before the
+post goes out. The third state between a file on this machine and an attachment read back off a post. One the post is
+never sent with is left for the instance to clear away.
+_Avoid_: upload (that is the act of sending it, not the thing sent)
 
 **Link preview**:
 Server-generated metadata about a URL already sitting inside a post's text — a title, a site name, sometimes an
