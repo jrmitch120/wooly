@@ -19,27 +19,13 @@ namespace Wooly.Tui.Media;
 ///     answer without a socket, and so the one thing this class is about — asked once, held, and announced when it
 ///     lands — is testable on its own.
 /// </param>
-/// <param name="cell">
-///     How big a cell is on this terminal, or <see langword="null" /> where it draws no pictures at all: the cell of
-///     the <see cref="Raster" /> the window worked out for the frame saying what it wants. Asked afresh each frame
-///     rather than settled once, because the terminal answers the questions behind it some frames after the shell is
-///     already on screen.
-/// </param>
 /// <param name="arrived">
 ///     What to do when a picture lands: redraw, so the rows that have been waiting for it fill in. Called off the
 ///     thread the fetch finished on, so whatever is passed here is what has to get back to the UI thread.
 /// </param>
-/// <param name="columns">
-///     How many columns wide the content region is now — the inside of the panel posts are drawn in — or
-///     <see langword="null" /> or nought where nothing says. With the cell, that is the largest box a picture could be
-///     drawn in here, which is the size it is decoded to (ADR-0025). Asked afresh each frame, on the thread saying
-///     what the frame wants, because the window can be made wider.
-/// </param>
 public sealed class Pictures(
     Func<string, CancellationToken, Task<byte[]?>> fetch,
-    Func<CellSize?> cell,
-    Action arrived,
-    Func<int>? columns = null) : IPictures, IDisposable
+    Action arrived) : IPictures, IDisposable
 {
     /// <summary>
     ///     How many bytes of decoded pixels are held, at four bytes a pixel — about two dozen photographs at the size a
@@ -134,14 +120,8 @@ public sealed class Pictures(
     /// <summary>
     ///     Everything the shell needs to fetch and hold pictures, wired to <paramref name="http" />.
     /// </summary>
-    /// <param name="cell">How big a cell is — see the constructor.</param>
     /// <param name="arrived">What to do when one lands — see the constructor.</param>
-    /// <param name="columns">How wide the content region is — see the constructor.</param>
-    public static Pictures Over(
-        HttpClient http,
-        Func<CellSize?> cell,
-        Action arrived,
-        Func<int>? columns = null) => new(
+    public static Pictures Over(HttpClient http, Action arrived) => new(
         async (address, cancellation) =>
         {
             // Headers first, so that a length worth refusing is refused before the body is read rather than after it
@@ -157,9 +137,7 @@ public sealed class Pictures(
 
             return await Read(body, cancellation);
         },
-        cell,
-        arrived,
-        columns);
+        arrived);
 
     /// <inheritdoc />
     public Picture? Of(Drawn drawn)
@@ -191,15 +169,8 @@ public sealed class Pictures(
     ///     keypress. Past the decoded tier's room a picture is still fetched while the encoded tier has room for its
     ///     file, so that by the time it is scrolled to it is a decode away rather than a fetch.
     /// </remarks>
-    public void Want(IReadOnlyList<WantedPicture> frame)
+    public void Want(IReadOnlyList<WantedPicture> frame, Raster raster, int columns)
     {
-        // Asked once a frame, here on the thread that lays out rows, because that is the only thread the window's size
-        // may be asked from — and before the lock rather than under it, because whatever answers is the application's
-        // and may itself be waiting on a thread that is waiting on this lock. Whatever decodes a picture later reads
-        // the room worked out from these.
-        var size = cell();
-        var across = columns?.Invoke();
-
         lock (_gate)
         {
             // What is already waiting its turn, and what this frame sends for that was not: the two that make up the
@@ -217,7 +188,7 @@ public sealed class Pictures(
             {
                 var held = Renewed(taking[at].Drawn);
 
-                held.Room = Room(held.Drawn, size, across);
+                held.Room = Room(held.Drawn, raster.Cell, columns);
             }
 
             var pixelsLeft = DecodedBudget;
@@ -640,9 +611,9 @@ public sealed class Pictures(
     ///     and the pixels are held only to be thrown away by the scale down to the box, at four bytes each.
     /// </summary>
     /// <param name="drawn">The picture.</param>
-    /// <param name="cell">How big a cell is now, as <c>cell</c> answered for this frame.</param>
-    /// <param name="columns">How wide the content region is now, as <c>columns</c> answered for this frame.</param>
-    private static Size Room(Drawn drawn, CellSize? cell, int? columns)
+    /// <param name="cell">How big a cell is in the latest frame's <see cref="Raster" />.</param>
+    /// <param name="columns">How wide the content region is in the latest frame, or nought before it has drawn.</param>
+    private static Size Room(Drawn drawn, CellSize? cell, int columns)
     {
         if (cell is not { Width: > 0, Height: > 0 } size)
         {

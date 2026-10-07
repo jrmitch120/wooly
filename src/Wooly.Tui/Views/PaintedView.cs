@@ -599,7 +599,7 @@ internal sealed class PaintedView : View
 
         var lines = Rows(width, height);
 
-        Want(lines, height);
+        Want(lines, width, height);
         LetGoOfBlurs(lines, height);
         LetGoOfPictures();
 
@@ -646,7 +646,7 @@ internal sealed class PaintedView : View
     ///         top has its row off the page and its lower half still on it.
     ///     </para>
     /// </remarks>
-    private void Want(IReadOnlyList<Line> lines, int height)
+    private void Want(IReadOnlyList<Line> lines, int width, int height)
     {
         if (_pictures is null)
         {
@@ -702,12 +702,16 @@ internal sealed class PaintedView : View
         int Distance((Drawn Drawn, int First, int Last) span) =>
             span.Last < _top ? _top - span.Last : span.First > bottom ? span.First - bottom : 0;
 
+        // With the room the frame gives, read here on the UI thread — the only one a view's size may be read on — so
+        // that the cache decodes to it without ever asking the window (#359).
         _pictures.Want(
-        [
-            .. spans.Values
-                    .OrderBy(Distance)
-                    .Select(span => new WantedPicture(span.Drawn, OnScreen: Distance(span) == 0)),
-        ]);
+            [
+                .. spans.Values
+                        .OrderBy(Distance)
+                        .Select(span => new WantedPicture(span.Drawn, OnScreen: Distance(span) == 0)),
+            ],
+            _raster(),
+            width);
     }
 
     /// <summary>The rows to draw, and where the scroll has got to.</summary>

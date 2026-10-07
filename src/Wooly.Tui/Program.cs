@@ -121,24 +121,16 @@ try
         Redraw,
         work => Task.Run(work));
 
-    // Decoded to the content region's width, the widest a picture's box can be, at the cell of the Raster the window
-    // worked out for the frame (ADR-0025, #357). The window is built after the cache it draws from, so the cache asks
-    // it through this; a frame only asks once the window is drawing, and nought before then decodes to the decoder's
-    // own bounds.
-    ShellWindow? shellWindow = null;
-
-    using var pictures = Pictures.Over(
-        files,
-        () => shellWindow?.Raster.Cell,
-        Redraw,
-        () => shellWindow?.ContentColumns ?? 0);
+    // Handed the frame's room by the content region each time it says what it wants, rather than asking the window
+    // for it, so nothing the cache does calls back into the window (#359).
+    using var pictures = Pictures.Over(files, Redraw);
 
     // Each frame with pictures in it written whole, where the terminal can hold one back until it is (#342).
     var frames = new SynchronizedFrames(sequence => application.Driver?.GetOutput().Write(sequence));
 
     frames.Over(application);
 
-    using var window = shellWindow = new ShellWindow(
+    using var window = new ShellWindow(
         shell,
         theme,
         clock,

@@ -92,19 +92,18 @@ public class PicturesTests
 
                 return Task.FromResult<byte[]?>(APng(4, 4));
             },
-            ADrawingTerminal,
             landed.SetResult);
 
         var media = APost.APicture();
 
-        pictures.Want([Near(Drawn.Attached(media))]);
+        pictures.Want([Near(Drawn.Attached(media))], ADrawingTerminal, Wide);
 
         await landed.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         Assert.NotNull(pictures.Of(Drawn.Attached(media)));
         Assert.NotNull(pictures.Of(Drawn.Attached(media)));
 
-        pictures.Want([Near(Drawn.Attached(media))]);
+        pictures.Want([Near(Drawn.Attached(media))], ADrawingTerminal, Wide);
 
         Assert.Equal(media.Preview, Assert.Single(asked));
     }
@@ -125,10 +124,9 @@ public class PicturesTests
 
                 return Task.FromResult<byte[]?>(null);
             },
-            ADrawingTerminal,
             () => { });
 
-        pictures.Want([Near(Drawn.Attached(APost.APicture() with { Preview = null }))]);
+        pictures.Want([Near(Drawn.Attached(APost.APicture() with { Preview = null }))], ADrawingTerminal, Wide);
 
         Assert.Equal(APost.APicture().Url, Assert.Single(asked));
     }
@@ -149,12 +147,11 @@ public class PicturesTests
 
                 throw new HttpRequestException("Connection refused");
             },
-            ADrawingTerminal,
             () => { });
 
-        pictures.Want([Near(Drawn.Attached(APost.APicture()))]);
-        pictures.Want([Near(Drawn.Attached(APost.APicture()))]);
-        pictures.Want([Near(Drawn.Attached(APost.APicture()))]);
+        pictures.Want([Near(Drawn.Attached(APost.APicture()))], ADrawingTerminal, Wide);
+        pictures.Want([Near(Drawn.Attached(APost.APicture()))], ADrawingTerminal, Wide);
+        pictures.Want([Near(Drawn.Attached(APost.APicture()))], ADrawingTerminal, Wide);
 
         Assert.Null(pictures.Of(Drawn.Attached(APost.APicture())));
         Assert.Equal(1, asks);
@@ -169,7 +166,6 @@ public class PicturesTests
 
         using var pictures = new Pictures(
             (_, _) => Task.FromResult<byte[]?>(APng(4, 4)),
-            ADrawingTerminal,
             () =>
             {
                 if (Interlocked.Increment(ref landed) == 2)
@@ -178,7 +174,7 @@ public class PicturesTests
                 }
             });
 
-        pictures.Want([Near(Drawn.Attached(APost.APicture(id: "m1"))), Near(Drawn.Attached(APost.APicture(id: "m2")))]);
+        pictures.Want([Near(Drawn.Attached(APost.APicture(id: "m1"))), Near(Drawn.Attached(APost.APicture(id: "m2")))], ADrawingTerminal, Wide);
 
         await both.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
@@ -203,7 +199,7 @@ public class PicturesTests
 
         for (var at = 0; at <= fitting; at++)
         {
-            pictures.Want([Near(APicture($"m{at}"))]);
+            pictures.Want([Near(APicture($"m{at}"))], ADrawingTerminal, Wide);
             await landings.Landed(at + 1);
         }
 
@@ -212,7 +208,7 @@ public class PicturesTests
         Assert.Equal(["m0"], pictures.Drain());
         Assert.True(photograph.Length * (fitting + 1L) > Pictures.EncodedBudget);
 
-        pictures.Want([Near(APicture("m0"))]);
+        pictures.Want([Near(APicture("m0"))], ADrawingTerminal, Wide);
         await landings.Landed(fitting + 2);
 
         Assert.Equal(fitting + 2, asked.Count);
@@ -233,13 +229,13 @@ public class PicturesTests
 
         for (var at = 0; at < fitting; at++)
         {
-            pictures.Want([Near(APicture($"m{at}"))]);
+            pictures.Want([Near(APicture($"m{at}"))], ADrawingTerminal, Wide);
             await landings.Landed(at + 1);
         }
 
         // The first fetched, wanted again: it is now the most recently wanted, and the second is the oldest.
-        pictures.Want([Near(APicture("m0"))]);
-        pictures.Want([Near(APicture("new"))]);
+        pictures.Want([Near(APicture("m0"))], ADrawingTerminal, Wide);
+        pictures.Want([Near(APicture("new"))], ADrawingTerminal, Wide);
         await landings.Landed(fitting + 1);
 
         Assert.Equal(["m1"], pictures.Drain());
@@ -258,7 +254,7 @@ public class PicturesTests
         var fitting = (int)(Pictures.DecodedBudget / (1000L * 640 * 4));
         var screenful = Enumerable.Range(0, fitting + 3).Select(at => APicture($"s{at}")).ToList();
 
-        pictures.Want([.. screenful.Select(OnScreen)]);
+        pictures.Want([.. screenful.Select(OnScreen)], ADrawingTerminal, Wide);
         await landings.Landed(fitting + 3);
 
         Assert.Empty(pictures.Drain());
@@ -266,7 +262,7 @@ public class PicturesTests
 
         // The page moves on: the next frame has none of them on screen, so the tier comes back to its budget, letting
         // go of the four of them farthest from where the screen was — three for the screenful, one for what is next.
-        pictures.Want([Near(APicture("next"))]);
+        pictures.Want([Near(APicture("next"))], ADrawingTerminal, Wide);
         await landings.Landed(fitting + 4);
 
         Assert.Equal([$"s{fitting + 2}", $"s{fitting + 1}", $"s{fitting}", $"s{fitting - 1}"], pictures.Drain());
@@ -288,13 +284,13 @@ public class PicturesTests
         var frame = Enumerable.Range(0, fitting + 3).Select(at => Near(APicture($"m{at}"))).ToList();
 
         // Nothing's size is known before it is fetched, so the first frame finds out by decoding the lot.
-        pictures.Want(frame);
+        pictures.Want(frame, ADrawingTerminal, Wide);
         await landings.Landed(fitting + 3);
 
         Assert.Equal(3, pictures.Drain().Count);
 
-        pictures.Want(frame);
-        pictures.Want(frame);
+        pictures.Want(frame, ADrawingTerminal, Wide);
+        pictures.Want(frame, ADrawingTerminal, Wide);
         await Task.Delay(200, TestContext.Current.CancellationToken);
 
         Assert.Equal(fitting + 3, landings.Count);
@@ -312,15 +308,15 @@ public class PicturesTests
         var asked = new List<string>();
         var width = 50;
 
-        using var pictures = APictures(_ => APng(4000, 1000), out var landings, columns: () => width, asked: asked);
+        using var pictures = APictures(_ => APng(4000, 1000), out var landings, asked: asked);
 
-        pictures.Want([OnScreen(APicture("m"))]);
+        pictures.Want([OnScreen(APicture("m"))], ADrawingTerminal, width);
         await landings.Landed(1);
 
         Assert.Equal(500, pictures.Of(APicture("m"))?.Width);
 
         width = 100;
-        pictures.Want([OnScreen(APicture("m"))]);
+        pictures.Want([OnScreen(APicture("m"))], ADrawingTerminal, width);
         await landings.Landed(2);
 
         Assert.Equal(1000, pictures.Of(APicture("m"))?.Width);
@@ -328,7 +324,7 @@ public class PicturesTests
 
         // Narrower again: the sharper pixels are drawn scaled down rather than decoded a third time.
         width = 50;
-        pictures.Want([OnScreen(APicture("m"))]);
+        pictures.Want([OnScreen(APicture("m"))], ADrawingTerminal, width);
         await Task.Delay(100, TestContext.Current.CancellationToken);
 
         Assert.Equal(2, landings.Count);
@@ -345,15 +341,15 @@ public class PicturesTests
     {
         var width = 50;
 
-        using var pictures = APictures(_ => APng(4000, 1000), out var landings, columns: () => width);
+        using var pictures = APictures(_ => APng(4000, 1000), out var landings);
 
-        pictures.Want([OnScreen(APicture("m"))]);
+        pictures.Want([OnScreen(APicture("m"))], ADrawingTerminal, width);
         await landings.Landed(1);
 
         Assert.Empty(pictures.Drain());
 
         width = 100;
-        pictures.Want([OnScreen(APicture("m"))]);
+        pictures.Want([OnScreen(APicture("m"))], ADrawingTerminal, width);
         await landings.Landed(2);
 
         Assert.Equal(["m"], pictures.Drain());
@@ -370,55 +366,21 @@ public class PicturesTests
     {
         var width = 50;
 
-        using var pictures = APictures(_ => APng(4000, 1000), out var landings, columns: () => width);
+        using var pictures = APictures(_ => APng(4000, 1000), out var landings);
 
-        pictures.Want([OnScreen(APicture("m"))]);
+        pictures.Want([OnScreen(APicture("m"))], ADrawingTerminal, width);
         await landings.Landed(1);
 
         width = 100;
-        pictures.Want([OnScreen(APicture("m"))]);
+        pictures.Want([OnScreen(APicture("m"))], ADrawingTerminal, width);
         await landings.Landed(2);
 
         width = 150;
-        pictures.Want([OnScreen(APicture("m"))]);
+        pictures.Want([OnScreen(APicture("m"))], ADrawingTerminal, width);
         await landings.Landed(3);
 
         Assert.Equal(1500, pictures.Of(APicture("m"))?.Width);
         Assert.Equal(["m"], pictures.Drain());
-    }
-
-    /// <summary>
-    ///     The cell and the window's width are asked for outside the cache's lock: whatever answers them is the
-    ///     application's, and may be waiting on a thread that is itself waiting on the cache — a picture landing, or a
-    ///     frame asking for one — which under the lock would be each waiting on the other for good.
-    /// </summary>
-    [Fact]
-    public async Task Pictures_AsksTheWindowItsSizeOutsideItsLock()
-    {
-        Pictures? pictures = null;
-        var waited = true;
-
-        // A window that, to answer, needs another thread to have asked the cache something first.
-        int Columns()
-        {
-            waited &= Task.Run(() => pictures!.Of(APicture("m"))).Wait(TimeSpan.FromSeconds(2));
-
-            return 100;
-        }
-
-        CellSize? Cell()
-        {
-            waited &= Task.Run(() => pictures!.Of(APicture("m"))).Wait(TimeSpan.FromSeconds(2));
-
-            return new CellSize(10, 20);
-        }
-
-        using var made = pictures = APictures(_ => APng(4, 4), out var landings, columns: Columns, cell: Cell);
-
-        pictures.Want([OnScreen(APicture("m"))]);
-        await landings.Landed(1);
-
-        Assert.True(waited);
     }
 
     /// <summary>
@@ -429,9 +391,9 @@ public class PicturesTests
     [Fact]
     public async Task Pictures_HoldsAPictureAtTheLargestBoxThisWindowCouldDraw()
     {
-        using var pictures = APictures(_ => APng(4000, 1000), out var landings, columns: () => 100);
+        using var pictures = APictures(_ => APng(4000, 1000), out var landings);
 
-        pictures.Want([Near(Drawn.Attached(APost.APicture()))]);
+        pictures.Want([Near(Drawn.Attached(APost.APicture()))], ADrawingTerminal, Wide);
 
         await landings.Landed(1);
 
@@ -443,6 +405,21 @@ public class PicturesTests
     }
 
     /// <summary>
+    ///     Before the window has drawn, the content region has no columns to give, so a picture is held at the
+    ///     decoder's own bounds rather than at nothing, as a terminal that has not said how big its cells are would.
+    /// </summary>
+    [Fact]
+    public async Task Pictures_HoldsAPictureAtTheDecodersOwnBoundsBeforeTheWindowHasDrawn()
+    {
+        using var pictures = APictures(_ => APng(4000, 1000), out var landings);
+
+        pictures.Want([OnScreen(APicture("m"))], ADrawingTerminal, 0);
+        await landings.Landed(1);
+
+        Assert.Equal(PictureDecoder.LongestSide, pictures.Of(APicture("m"))?.Width);
+    }
+
+    /// <summary>
     ///     An avatar is never drawn larger than an account screen's header box, eight cells by four, so that is all it
     ///     is held at: an avatar costs kilobytes, not the hundreds an instance's 400-pixel square would decode to.
     /// </summary>
@@ -451,7 +428,7 @@ public class PicturesTests
     {
         using var pictures = APictures(_ => APng(400, 400), out var landings);
 
-        pictures.Want([Near(Drawn.Avatar("alice@example.social", "https://files.example/alice.png"))]);
+        pictures.Want([Near(Drawn.Avatar("alice@example.social", "https://files.example/alice.png"))], ADrawingTerminal, Wide);
 
         await landings.Landed(1);
 
@@ -479,19 +456,19 @@ public class PicturesTests
 
         for (var at = 0; at < fitting; at++)
         {
-            pictures.Want([Near(APicture($"m{at}"))]);
+            pictures.Want([Near(APicture($"m{at}"))], ADrawingTerminal, Wide);
             await landings.Landed(at + 1);
         }
 
         Assert.Empty(pictures.Drain());
 
-        pictures.Want([Near(APicture("over"))]);
+        pictures.Want([Near(APicture("over"))], ADrawingTerminal, Wide);
         await landings.Landed(fitting + 1);
 
         Assert.Equal(["m0"], pictures.Drain());
         Assert.Null(pictures.Of(APicture("m0")));
 
-        pictures.Want([Near(APicture("m0"))]);
+        pictures.Want([Near(APicture("m0"))], ADrawingTerminal, Wide);
         await landings.Landed(fitting + 2);
 
         Assert.NotNull(pictures.Of(APicture("m0")));
@@ -508,12 +485,12 @@ public class PicturesTests
     {
         var fetch = new Gated();
 
-        using var pictures = new Pictures(fetch.Fetch, ADrawingTerminal, () => { });
+        using var pictures = new Pictures(fetch.Fetch, () => { });
 
         var busy = Busy();
 
-        pictures.Want([.. busy, Near(Picture("far"))]);
-        pictures.Want([.. busy, Near(Picture("near")), Near(Picture("far"))]);
+        pictures.Want([.. busy, Near(Picture("far"))], ADrawingTerminal, Wide);
+        pictures.Want([.. busy, Near(Picture("near")), Near(Picture("far"))], ADrawingTerminal, Wide);
 
         Assert.Equal(Pictures.AtATime, fetch.Asked.Count);
 
@@ -535,12 +512,12 @@ public class PicturesTests
     {
         var fetch = new Gated();
 
-        using var pictures = new Pictures(fetch.Fetch, ADrawingTerminal, () => { });
+        using var pictures = new Pictures(fetch.Fetch, () => { });
 
         var busy = Busy();
 
-        pictures.Want([.. busy, Near(Picture("left behind"))]);
-        pictures.Want([.. busy, Near(Picture("ahead"))]);
+        pictures.Want([.. busy, Near(Picture("left behind"))], ADrawingTerminal, Wide);
+        pictures.Want([.. busy, Near(Picture("ahead"))], ADrawingTerminal, Wide);
 
         fetch.Answer("b0");
         await fetch.Until(Pictures.AtATime + 1);
@@ -550,7 +527,7 @@ public class PicturesTests
         fetch.Answer("b3");
         fetch.Answer("ahead");
 
-        pictures.Want([Near(Picture("left behind"))]);
+        pictures.Want([Near(Picture("left behind"))], ADrawingTerminal, Wide);
         await fetch.Until(Pictures.AtATime + 2);
 
         Assert.Equal(["ahead", "left behind"], fetch.Asked.Skip(Pictures.AtATime));
@@ -567,10 +544,10 @@ public class PicturesTests
         var fetch = new Gated();
         var landings = new Landings();
 
-        using var pictures = new Pictures(fetch.Fetch, ADrawingTerminal, landings.Land);
+        using var pictures = new Pictures(fetch.Fetch, landings.Land);
 
-        pictures.Want([Near(Picture("leaving"))]);
-        pictures.Want([Near(Picture("elsewhere"))]);
+        pictures.Want([Near(Picture("leaving"))], ADrawingTerminal, Wide);
+        pictures.Want([Near(Picture("elsewhere"))], ADrawingTerminal, Wide);
 
         fetch.Answer("leaving", APng(4, 4));
         await Task.Delay(200, TestContext.Current.CancellationToken);
@@ -578,7 +555,7 @@ public class PicturesTests
         Assert.Equal(0, landings.Count);
         Assert.Null(pictures.Of(Picture("leaving")));
 
-        pictures.Want([Near(Picture("leaving"))]);
+        pictures.Want([Near(Picture("leaving"))], ADrawingTerminal, Wide);
         await landings.Landed(1);
 
         Assert.NotNull(pictures.Of(Picture("leaving")));
@@ -597,12 +574,12 @@ public class PicturesTests
         var landings = new Landings();
         var width = 50;
 
-        using var pictures = new Pictures(fetch.Fetch, ADrawingTerminal, landings.Land, columns: () => width);
+        using var pictures = new Pictures(fetch.Fetch, landings.Land);
 
         // A real picture with padding after it, so the file is most of the encoded tier on its own.
         var file = (byte[])[.. APng(4000, 1000), .. new byte[Pictures.EncodedBudget - (64 * Pictures.RememberingCost)]];
 
-        pictures.Want([OnScreen(Picture("m"))]);
+        pictures.Want([OnScreen(Picture("m"))], ADrawingTerminal, width);
         fetch.Answer("m", file);
         await landings.Landed(1);
 
@@ -612,7 +589,7 @@ public class PicturesTests
 
         var more = Enumerable.Range(0, 128).Select(at => Near(Picture($"x{at}")));
 
-        pictures.Want([.. Busy(), OnScreen(Picture("m")), .. more]);
+        pictures.Want([.. Busy(), OnScreen(Picture("m")), .. more], ADrawingTerminal, width);
 
         fetch.Answer("b0");
         await landings.Landed(2);
@@ -636,9 +613,9 @@ public class PicturesTests
         var landed = new TaskCompletionSource();
 
         using var http = new HttpClient(network);
-        using var pictures = Pictures.Over(http, ADrawingTerminal, landed.SetResult);
+        using var pictures = Pictures.Over(http, landed.SetResult);
 
-        pictures.Want([Near(Drawn.Attached(APost.APicture()))]);
+        pictures.Want([Near(Drawn.Attached(APost.APicture()))], ADrawingTerminal, Wide);
 
         await landed.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
@@ -656,9 +633,9 @@ public class PicturesTests
         var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Status(HttpStatusCode.NotFound));
 
         using var http = new HttpClient(network);
-        using var pictures = Pictures.Over(http, ADrawingTerminal, () => { });
+        using var pictures = Pictures.Over(http, () => { });
 
-        pictures.Want([Near(Drawn.Attached(APost.APicture()))]);
+        pictures.Want([Near(Drawn.Attached(APost.APicture()))], ADrawingTerminal, Wide);
 
         Assert.Null(pictures.Of(Drawn.Attached(APost.APicture())));
     }
@@ -680,9 +657,9 @@ public class PicturesTests
         });
 
         using var http = new HttpClient(network);
-        using var pictures = Pictures.Over(http, ADrawingTerminal, () => landed = true);
+        using var pictures = Pictures.Over(http, () => landed = true);
 
-        pictures.Want([Near(Drawn.Attached(APost.APicture()))]);
+        pictures.Want([Near(Drawn.Attached(APost.APicture()))], ADrawingTerminal, Wide);
 
         // Nothing announces a refusal, so the wait is for the request to have been made and answered.
         while (network.Requests.Count == 0)
@@ -701,8 +678,6 @@ public class PicturesTests
     private static Pictures APictures(
         Func<string, byte[]?> serve,
         out Landings landings,
-        Func<int>? columns = null,
-        Func<CellSize?>? cell = null,
         List<string>? asked = null)
     {
         var landed = new Landings();
@@ -719,9 +694,7 @@ public class PicturesTests
 
                 return Task.FromResult(serve(address));
             },
-            cell ?? ADrawingTerminal,
-            landed.Land,
-            columns ?? (() => 100));
+            landed.Land);
     }
 
     /// <summary>How many times a cache has said a picture landed, and a way to wait for the next of them.</summary>
@@ -765,8 +738,14 @@ public class PicturesTests
     /// <summary>A picture a frame wants that is on screen in it.</summary>
     private static WantedPicture OnScreen(Drawn drawn) => new(drawn, OnScreen: true);
 
-    /// <summary>A terminal that draws pictures, since none of these tests is about one that does not.</summary>
-    private static CellSize? ADrawingTerminal() => new CellSize(10, 20);
+    /// <summary>
+    ///     How wide a content region most of these tests say the frame has: a hundred columns of ten-pixel cells is a
+    ///     thousand pixels across.
+    /// </summary>
+    private const int Wide = 100;
+
+    /// <summary>A terminal that draws pictures, since most of these tests are not about one that does not.</summary>
+    private static readonly Raster ADrawingTerminal = new(PictureWay.Kitty, new CellSize(10, 20), 0);
 
     private static byte[] APng(int width, int height) => Encoded(width, height, new PngEncoder());
 
