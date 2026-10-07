@@ -371,6 +371,198 @@ public class PlacingTests
         }
     }
 
+    /// <summary>
+    ///     On a Kitty terminal drawing placeholders, a picture on the page is sent once and handed back as a placement:
+    ///     its box, the row of the page it starts on, and the id the terminal holds it under (ADR-0022).
+    /// </summary>
+    [Fact]
+    public void APictureOnThePageIsSentAndHandedBackAsAPlacement()
+    {
+        var frame = new AFrame(new FakePictures().Holding("m1", 40, 80));
+        var rows = Rows(Box("m1", at: 2, column: 3));
+
+        var placed = frame.Place(rows, top: 0, ARaster.Placeholders());
+
+        var sent = Assert.Single(frame.Kitty.Transmitted);
+        var (inset, top, id) = Assert.Single(placed);
+
+        Assert.Equal("m1", inset.Drawn.Id);
+        Assert.Equal(3, inset.Column);
+        Assert.Equal(2, top);
+        Assert.Equal(sent.Id, id);
+        Assert.Equal((4, 4), (sent.Columns, sent.Rows));
+    }
+
+    /// <summary>
+    ///     The point of placeholders: a scroll moves a placement a row with the text, under the same id, and sends the
+    ///     terminal no image data to do it — including a box half off the top, whose lower rows are still placed so the
+    ///     terminal crops the picture rather than it blinking out (ADR-0022).
+    /// </summary>
+    [Fact]
+    public void AScrollMovesThePlacementWithTheRowsAndTransmitsNothing()
+    {
+        var frame = new AFrame(new FakePictures().Holding("m1", 40, 80));
+        var rows = Rows(Box("m1", at: 2));
+
+        var before = Assert.Single(frame.Place(rows, top: 0, ARaster.Placeholders()));
+        var after = Assert.Single(frame.Place(rows, top: 1, ARaster.Placeholders()));
+        var halfOff = Assert.Single(frame.Place(rows, top: 4, ARaster.Placeholders()));
+
+        Assert.Equal(before with { Top = 1 }, after);
+        Assert.Equal(before with { Top = -2 }, halfOff);
+        Assert.Single(frame.Kitty.Transmitted);
+    }
+
+    /// <summary>
+    ///     A picture within a screen below the page is encoded before it is scrolled to, and only sent once it is on
+    ///     the page — so that it comes into view with the text around it rather than a frame or two behind (#292).
+    /// </summary>
+    [Fact]
+    public void APictureJustBelowThePageIsEncodedAheadAndSentOnlyOnceItIsOnThePage()
+    {
+        var encoding = new List<Action>();
+        var frame = new AFrame(new FakePictures().Holding("m1", 40, 80), encoding: encoding.Add);
+        var rows = Rows(Box("m1", at: Height + 5));
+
+        Assert.Empty(frame.Place(rows, top: 0, ARaster.Placeholders()));
+
+        // Encoded already, though nothing is sent while the box is off the page.
+        Assert.Single(encoding)();
+        Assert.Empty(frame.Place(rows, top: 0, ARaster.Placeholders()));
+        Assert.Empty(frame.Kitty.Transmitted);
+
+        // Sent on the very frame its first row comes onto the page, with nothing more to encode.
+        Assert.Equal(Height - 1, Assert.Single(frame.Place(rows, top: 6, ARaster.Placeholders())).Top);
+        Assert.Single(frame.Kitty.Transmitted);
+        Assert.Single(encoding);
+    }
+
+    /// <summary>
+    ///     A picture more than a screen from the page is neither encoded nor sent: it is the cache's to fetch, and
+    ///     nobody's yet to encode.
+    /// </summary>
+    [Fact]
+    public void APictureMoreThanAScreenFromThePageIsNeitherEncodedNorSent()
+    {
+        var encoding = new List<Action>();
+        var frame = new AFrame(new FakePictures().Holding("m1", 40, 80), encoding: encoding.Add);
+
+        Assert.Empty(frame.Place(Rows(Box("m1", at: Height * 2)), top: 0, ARaster.Placeholders()));
+        Assert.Empty(encoding);
+        Assert.Empty(frame.Kitty.Transmitted);
+    }
+
+    /// <summary>
+    ///     A picture the cache lets go of is forgotten by the terminal on the next frame, every size of it, so that the
+    ///     terminal does not hold it for the rest of the run (ADR-0022) — told from the frame, on the UI thread, rather
+    ///     than from wherever the cache let go of it.
+    /// </summary>
+    [Fact]
+    public void APictureTheCacheLetGoOfIsForgottenOnTheNextFrame()
+    {
+        var pictures = new FakePictures().Holding("m1", 40, 80);
+        var frame = new AFrame(pictures);
+        var rows = Rows(Box("m1", at: 2), Box("m1", at: 8, columns: 6));
+
+        frame.Place(rows, top: 0, ARaster.Placeholders());
+
+        var sent = frame.Kitty.Transmitted.Select(sent => sent.Id).ToList();
+
+        Assert.Equal(2, sent.Count);
+        Assert.Empty(frame.Kitty.Forgotten);
+
+        pictures.LettingGo("m1");
+        frame.Place(Rows(), top: 0, ARaster.Placeholders());
+
+        Assert.Equal(sent.Order(), frame.Kitty.Forgotten.Order());
+    }
+
+    /// <summary>
+    ///     Where no placeholders are drawn, what the cache let go of is still drained each frame — there is nothing on
+    ///     the terminal to forget, so it is simply discarded rather than left to pile up.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(BoxWays))]
+    public void WhatTheCacheLetGoOfIsDrainedWhereNoPlaceholdersAreDrawn(PictureWay way)
+    {
+        var pictures = new FakePictures().Holding("m1", 40, 80);
+        var frame = new AFrame(pictures);
+
+        frame.Place(Rows(Box("m1", at: 2)), top: 0, Of(way));
+        pictures.LettingGo("m1");
+        frame.Place(Rows(Box("m1", at: 2)), top: 0, Of(way));
+
+        Assert.Empty(pictures.Drain());
+        Assert.Empty(frame.Kitty.Forgotten);
+    }
+
+    /// <summary>
+    ///     On a Kitty terminal drawing placeholders, a <b>Stand-in</b>'s blur is sent and placed; when the picture
+    ///     lands it is sent in the blur's place, and the terminal is told to forget the blur in that same frame (#349).
+    /// </summary>
+    [Fact]
+    public void ABlurIsSentAndThenForgottenInTheFrameThePictureReplacingItIsSent()
+    {
+        var pictures = new FakePictures();
+        var frame = new AFrame(pictures);
+
+        var placed = frame.Place(Blurred("m1", at: 2), top: 0, ARaster.Placeholders());
+
+        var blur = Assert.Single(frame.Kitty.Transmitted);
+        Assert.Equal(blur.Id, Assert.Single(placed).Id);
+
+        pictures.Holding("m1", 40, 80);
+        placed = frame.Place(Rows(Box("m1", at: 2)), top: 0, ARaster.Placeholders());
+
+        Assert.Equal(2, frame.Kitty.Transmitted.Count);
+        Assert.Equal([blur.Id], frame.Kitty.Forgotten);
+        Assert.Equal(frame.Kitty.Transmitted[1].Id, Assert.Single(placed).Id);
+    }
+
+    /// <summary>
+    ///     A blur is held while it is within a screen of the page, and forgotten once it is scrolled further than that:
+    ///     a blur nobody deletes is a Kitty image the terminal holds for the rest of the run (#349).
+    /// </summary>
+    [Fact]
+    public void ABlurScrolledMoreThanAScreenFromThePageIsForgotten()
+    {
+        var frame = new AFrame(new FakePictures());
+        var rows = Blurred("m1", at: 2);
+
+        frame.Place(rows, top: 0, ARaster.Placeholders());
+
+        var blur = Assert.Single(frame.Kitty.Transmitted);
+
+        // Its foot two rows above the page, and then a whole screen above it.
+        frame.Place(rows, top: 8, ARaster.Placeholders());
+
+        Assert.Empty(frame.Kitty.Forgotten);
+
+        frame.Place(rows, top: 6 + Height, ARaster.Placeholders());
+
+        Assert.Equal([blur.Id], frame.Kitty.Forgotten);
+    }
+
+    /// <summary>
+    ///     A frame with no room — the window shrunk to nothing — lets go of every box, forgets every blur the terminal
+    ///     was holding and places nothing: the page has nothing near it any more, so a blur kept would be held for as
+    ///     long as the window stays that small, and for the rest of the run if it never grows back.
+    /// </summary>
+    [Fact]
+    public void AFrameWithNoRoomForgetsEveryBlurAndPlacesNothing()
+    {
+        var frame = new AFrame(new FakePictures());
+        var rows = Blurred("m1", at: 2);
+
+        frame.Place(rows, top: 0, ARaster.Placeholders());
+
+        var blur = Assert.Single(frame.Kitty.Transmitted);
+
+        Assert.Empty(frame.Place(rows, top: 0, ARaster.Placeholders(), height: 0));
+        Assert.Equal([blur.Id], frame.Kitty.Forgotten);
+        Assert.Single(frame.Kitty.Transmitted);
+    }
+
     public static TheoryData<PictureWay> BoxWays() => [PictureWay.Sixel, PictureWay.Kitty];
 
     public static TheoryData<PictureWay> NoBoxWays() => [PictureWay.Placeholders, PictureWay.None];
@@ -401,6 +593,27 @@ public class PlacingTests
         return rows;
     }
 
+    /// <summary>
+    ///     Rows with a box at <paramref name="at" /> drawing the blur that stands in for <paramref name="id" />.
+    /// </summary>
+    private static Line[] Blurred(string id, int at)
+    {
+        var rows = Rows(Box(id, at: at));
+
+        rows[at] = rows[at] with
+        {
+            Insets =
+            [
+                new Inset(Drawn.Blur(Picture(id)), 0, 4, 4)
+                {
+                    Blur = new Picture(new Terminal.Gui.Drawing.Color[4, 4]),
+                },
+            ],
+        };
+
+        return rows;
+    }
+
     /// <summary>One row of one-cell boxes side by side, one for each of <paramref name="ids" />.</summary>
     private static Line[] Abreast(IReadOnlyList<string> ids)
     {
@@ -424,22 +637,28 @@ public class PlacingTests
 
     /// <summary>
     ///     A Placing over fake boxes writing into one log, its sixels encoded by <paramref name="encode" /> and those
-    ///     encoded ahead of a scroll encoded <paramref name="ahead" /> — both on the spot unless a test says otherwise.
+    ///     encoded ahead of a scroll encoded <paramref name="ahead" />, and a Kitty terminal's placeholders encoded
+    ///     <paramref name="encoding" /> — all on the spot unless a test says otherwise.
     /// </summary>
     private sealed class AFrame
     {
         public AFrame(
             IPictures pictures,
             Action<Action>? ahead = null,
-            Func<Terminal.Gui.Drawing.Color[,], int, string>? encode = null)
+            Func<Terminal.Gui.Drawing.Color[,], int, string>? encode = null,
+            Action<Action>? encoding = null)
         {
             Placing = new Placing(
                 pictures,
                 FakePictureBox.Pool(Log),
-                new SixelPictures(encode ?? ((_, _) => "sixel"), ahead ?? (work => work())));
+                new SixelPictures(encode ?? ((_, _) => "sixel"), ahead ?? (work => work())),
+                new Placeholders(Kitty, encoded: () => { }, elsewhere: encoding ?? (work => work())));
         }
 
         public List<FakePictureBox.Call> Log { get; } = [];
+
+        /// <summary>What a Kitty terminal drawing placeholders was sent and told to forget.</summary>
+        public FakeTerminalImages Kitty { get; } = new();
 
         public Placing Placing { get; }
 
@@ -454,7 +673,11 @@ public class PlacingTests
         public Rectangle? FramedLast(string id) =>
             Log.LastOrDefault(call => call.What is Kind.Framed && call.Picture == id)?.Frame;
 
-        public void Place(IReadOnlyList<Line> rows, int top, Raster raster, int height = Height) =>
+        public IReadOnlyList<(Inset Inset, int Top, int Id)> Place(
+            IReadOnlyList<Line> rows,
+            int top,
+            Raster raster,
+            int height = Height) =>
             Placing.Frame(rows, top, Width, height, raster);
     }
 }

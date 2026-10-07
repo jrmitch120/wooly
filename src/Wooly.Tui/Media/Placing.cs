@@ -4,8 +4,10 @@ using Wooly.Tui.Rendering;
 namespace Wooly.Tui.Media;
 
 /// <summary>
-///     Puts <b>drawn</b> pictures on screen through boxes, a frame at a time: on a sixel terminal, and on a Kitty
-///     terminal that does not draw placeholders (ADR-0016, ADR-0022, ADR-0023). Beneath the view that paints the rows,
+///     Puts <b>drawn</b> pictures on screen, a frame at a time: through boxes on a sixel terminal and on a Kitty
+///     terminal that does not draw placeholders, and as placements for the view to paint as placeholder cells on one
+///     that does — sending each picture, and forgetting what the cache let go of and the Stand-in blurs no longer near
+///     the page (ADR-0016, ADR-0022, ADR-0023, #362). Beneath the view that paints the rows,
 ///     which hands it each frame's rows, where the scroll has got to, the page and the <see cref="Raster" /> — and is
 ///     left to paint text (#355, #361).
 /// </summary>
@@ -51,7 +53,14 @@ internal sealed class Placing
 
     private readonly IPictures _pictures;
     private readonly SixelPictures _sixels;
+    private readonly Placeholders? _placeholders;
     private readonly List<IPictureBox> _boxes = [];
+
+    /// <summary>
+    ///     The Stand-in blurs a Kitty terminal has been handed to hold, by <see cref="Drawn.Id" />, as of the last
+    ///     frame. What <see cref="LetGoOfBlurs" /> tells it to forget once they are no longer near the page.
+    /// </summary>
+    private HashSet<string> _blursHeld = [];
 
     /// <summary>Where the page began when sixel cuts were last encoded ahead, which says which way it is moving.</summary>
     private int _placedAt;
@@ -62,10 +71,15 @@ internal sealed class Placing
     ///     (<see cref="PictureView" />), and a fake in a test. Asked <see cref="MostBoxes" /> times, here.
     /// </param>
     /// <param name="sixels">What encodes a sixel's cuts, laid on the page's backdrop.</param>
-    public Placing(IPictures pictures, Func<IPictureBox> box, SixelPictures sixels)
+    /// <param name="placeholders">
+    ///     What a Kitty terminal holds, for drawing pictures as placeholder cells rather than through a box
+    ///     (ADR-0022), or <see langword="null" /> where there is no such terminal to hold them.
+    /// </param>
+    public Placing(IPictures pictures, Func<IPictureBox> box, SixelPictures sixels, Placeholders? placeholders = null)
     {
         _pictures = pictures;
         _sixels = sixels;
+        _placeholders = placeholders;
 
         for (var at = 0; at < MostBoxes; at++)
         {
@@ -86,14 +100,32 @@ internal sealed class Placing
     ///     left showing from the last size there was over whatever replaces it.
     /// </param>
     /// <param name="raster">How this terminal paints pixels, as the frame was settled under.</param>
-    public void Frame(IReadOnlyList<Line> lines, int top, int width, int height, Raster raster)
+    /// <returns>
+    ///     The pictures to paint as placeholder cells, with the row of the page each starts on and the id the
+    ///     terminal holds it under — none but where the terminal draws placeholders.
+    /// </returns>
+    public IReadOnlyList<(Inset Inset, int Top, int Id)> Frame(
+        IReadOnlyList<Line> lines,
+        int top,
+        int width,
+        int height,
+        Raster raster)
     {
         if (width <= 0 || height <= 0 || raster.Cell is not { } cell)
         {
             ReleaseAll();
+            LetGoOfBlurs([], top, 0, raster);
+            LetGoOfPictures(raster);
+            _placeholders?.Flush();
 
-            return;
+            return [];
         }
+
+        LetGoOfBlurs(lines, top, height, raster);
+        LetGoOfPictures(raster);
+
+        // Whatever the terminal was told to let go of since the last frame, before anything is sent.
+        _placeholders?.Flush();
 
         switch (raster.Way)
         {
@@ -128,13 +160,20 @@ internal sealed class Placing
 
                 break;
 
+            case PictureWay.Placeholders:
+                // Released rather than merely unused, so that nothing drawn through a box before the terminal said it
+                // draws placeholders is left on screen under them.
+                ReleaseAll();
+
+                return _placeholders is null ? [] : Sent(lines, top, height, cell);
+
             default:
-                // Drawn as placeholders, or not at all: released rather than merely unused, so that nothing drawn
-                // through a box before the terminal said it draws placeholders is left on screen under them.
                 ReleaseAll();
 
                 break;
         }
+
+        return [];
     }
 
     /// <summary>
@@ -142,8 +181,7 @@ internal sealed class Placing
     ///     past its bottom, for a box being scrolled past — and with <paramref name="near" />, those within that many
     ///     rows of the page as well.
     /// </summary>
-    internal static List<(Inset Inset, int Top, Picture Picture)> Wanted(
-        IPictures pictures,
+    private List<(Inset Inset, int Top, Picture Picture)> Wanted(
         IReadOnlyList<Line> lines,
         int top,
         int height,
@@ -165,7 +203,7 @@ internal sealed class Placing
                 }
 
                 // A Stand-in's blur carries its own pixels and is never looked up: it is not the cache's to hold (#349).
-                if ((inset.Blur ?? pictures.Of(inset.Drawn)) is { } picture)
+                if ((inset.Blur ?? _pictures.Of(inset.Drawn)) is { } picture)
                 {
                     wanted.Add((inset, from, picture));
                 }
@@ -173,6 +211,94 @@ internal sealed class Placing
         }
 
         return wanted;
+    }
+
+    /// <summary>
+    ///     The pictures on the page that a Kitty terminal holds, sending any that are ready and have not been sent. A
+    ///     picture still being encoded is left out, and its box keeps the rows it reserved until a redraw brings it.
+    /// </summary>
+    /// <remarks>
+    ///     A screen either side of the page is encoded ahead — inside the reach the frame's pictures are wanted over,
+    ///     so the pixels are usually here to encode — so that a picture scrolled to is usually ready rather than
+    ///     encoded the frame it comes into view (ADR-0022).
+    /// </remarks>
+    private List<(Inset Inset, int Top, int Id)> Sent(IReadOnlyList<Line> lines, int top, int height, CellSize cell)
+    {
+        var placed = new List<(Inset, int, int)>();
+
+        foreach (var (inset, at, picture) in Wanted(lines, top, height, near: height))
+        {
+            if (at + inset.Rows <= 0 || at >= height)
+            {
+                _placeholders!.Prepare(inset, picture, cell);
+            }
+            else if (_placeholders!.Ready(inset, picture, cell) is { } id)
+            {
+                placed.Add((inset, at, id));
+            }
+        }
+
+        return placed;
+    }
+
+    /// <summary>
+    ///     Tells a Kitty terminal drawing placeholders to forget every Stand-in blur it was handed that is no longer near
+    ///     the page — replaced by the picture it stood in for, or scrolled away (#349).
+    /// </summary>
+    /// <remarks>
+    ///     A picture is forgotten when the cache lets go of it (ADR-0025), but a blur is never in the cache, so nothing
+    ///     else would ever say so: a blur nobody deletes is an image the terminal holds for the rest of the run, which
+    ///     is the invariant ADR-0022 keeps for pictures. Said before the frame's <see cref="Placeholders.Flush" />, so a
+    ///     blur replaced this frame is gone from the terminal in the frame its picture is sent. One scrolled back to is
+    ///     simply encoded and sent again — it is a few kilobytes. Through a box, the box's own release does this.
+    /// </remarks>
+    private void LetGoOfBlurs(IReadOnlyList<Line> lines, int top, int height, Raster raster)
+    {
+        if (_placeholders is null)
+        {
+            return;
+        }
+
+        // The blurs Sent is about to prepare or place this frame: the same reach, a screen either side of the page.
+        // None where nothing is sent this way, or there is no page to be near — and then every blur held is let go of,
+        // rather than kept for a frame that may never come.
+        HashSet<string> near = raster.Way is PictureWay.Placeholders && height > 0
+            ?
+            [
+                .. Wanted(lines, top, height, near: height)
+                   .Where(wanted => wanted.Inset.Blur is not null)
+                   .Select(wanted => wanted.Inset.Drawn.Id),
+            ]
+            : [];
+
+        foreach (var gone in _blursHeld.Where(id => !near.Contains(id)))
+        {
+            _placeholders.Drop(gone);
+        }
+
+        _blursHeld = near;
+    }
+
+    /// <summary>
+    ///     Drains what the cache has let go of since the last frame and tells a Kitty terminal drawing placeholders to
+    ///     forget each of them, every size it holds (ADR-0022) — here, on the UI thread, before the frame's
+    ///     <see cref="Placeholders.Flush" />, rather than wherever the cache let go of it. One let go of as another
+    ///     landed is drained on the redraw that landing asked for. Anywhere else nothing was sent this way, so the list
+    ///     is drained and discarded.
+    /// </summary>
+    private void LetGoOfPictures(Raster raster)
+    {
+        var letGo = _pictures.Drain();
+
+        if (raster.Way is not PictureWay.Placeholders || _placeholders is null)
+        {
+            return;
+        }
+
+        foreach (var gone in letGo)
+        {
+            _placeholders.Drop(gone);
+        }
     }
 
     private void ReleaseAll() => _boxes.ForEach(box => box.Release());
@@ -188,7 +314,7 @@ internal sealed class Placing
         int height,
         Action<IPictureBox, Inset, int, Picture> show)
     {
-        var wanted = Wanted(_pictures, lines, top, height);
+        var wanted = Wanted(lines, top, height);
 
         // Who draws what, settled for the whole frame before anything moves — see Boxes. Asking box by box is what
         // this used to do, and it could not see that one picture was wanted once and held twice.
@@ -262,7 +388,7 @@ internal sealed class Placing
 
         _placedAt = top;
 
-        foreach (var (inset, at, picture) in Wanted(_pictures, lines, top, height, near: Ahead))
+        foreach (var (inset, at, picture) in Wanted(lines, top, height, near: Ahead))
         {
             var now = OnPage(inset, at, width, height)?.Crop;
 

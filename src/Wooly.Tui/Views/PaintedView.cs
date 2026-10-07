@@ -18,10 +18,11 @@ namespace Wooly.Tui.Views;
 /// <remarks>
 ///     On a Kitty terminal it paints the pictures too, as placeholder cells over the rows a post reserved for each: the
 ///     picture is sent to the terminal once and is part of the rows from then on, so it moves in the same frame as the
-///     text around it (ADR-0022). Anywhere else a picture is drawn over those rows through a box, a
-///     <see cref="PictureView" /> added to this view, which <see cref="Placing" /> puts where the rows say from the
-///     same scroll position the text is drawn at, on every frame, so a picture cannot come adrift from the post it
-///     belongs to (ADR-0016, #361).
+///     text around it (ADR-0022). What is sent, and where each placement starts, is <see cref="Placing" />'s, which
+///     hands the placements back each frame for this to paint (#362). Anywhere else a picture is drawn over those
+///     rows through a box, a <see cref="PictureView" /> added to this view, which <see cref="Placing" /> puts where
+///     the rows say from the same scroll position the text is drawn at, on every frame, so a picture cannot come
+///     adrift from the post it belongs to (ADR-0016, #361).
 /// </remarks>
 internal sealed class PaintedView : View
 {
@@ -30,18 +31,11 @@ internal sealed class PaintedView : View
     private readonly IPictures? _pictures;
     private readonly Func<int, int, IReadOnlyList<Line>>? _frame;
     private readonly Placing? _placing;
-    private readonly Placeholders? _placeholders;
     private readonly SynchronizedFrames? _frames;
     private readonly Func<Raster> _raster;
 
     /// <summary>The pictures drawn as placeholders this frame, with the row each starts on and its image id.</summary>
-    private List<(Inset Inset, int Top, int Id)> _placed = [];
-
-    /// <summary>
-    ///     The Stand-in blurs a Kitty terminal has been handed to hold, by <see cref="Drawn.Id" />, as of the last
-    ///     frame. What <see cref="LetGoOfBlurs" /> tells it to forget once they are no longer near the page.
-    /// </summary>
-    private HashSet<string> _blursHeld = [];
+    private IReadOnlyList<(Inset Inset, int Top, int Id)> _placed = [];
 
     /// <summary>
     ///     Where the page began the last time a frame said what it wants, or <see langword="null" /> before the first
@@ -100,7 +94,6 @@ internal sealed class PaintedView : View
         _rows = rows;
         _pictures = pictures;
         _frame = frame;
-        _placeholders = pictures is null ? null : placeholders;
 
         if (frame is not null)
         {
@@ -110,7 +103,11 @@ internal sealed class PaintedView : View
         // Every box added to this view now, before anything is drawn (Placing.MostBoxes says why).
         _placing = pictures is null
             ? null
-            : new Placing(pictures, () => PictureView.AddedTo(this), new SixelPictures(backdrop: Backdrop));
+            : new Placing(
+                pictures,
+                () => PictureView.AddedTo(this),
+                new SixelPictures(backdrop: Backdrop),
+                placeholders);
     }
 
     /// <summary>
@@ -562,12 +559,8 @@ internal sealed class PaintedView : View
         if (width <= 0 || height <= 0)
         {
             // Nothing can be drawn, so nothing may be left drawn either: a box still showing from the last size this
-            // view had would be a picture over whatever replaces it.
-            _placing?.Frame([], _top, width, height, Raster);
-            _placed = [];
-            LetGoOfBlurs([], 0);
-            LetGoOfPictures();
-            _placeholders?.Flush();
+            // view had would be a picture over whatever replaces it, and a blur held would be held for nothing.
+            _placed = _placing?.Frame([], _top, width, height, Raster) ?? [];
 
             return;
         }
@@ -575,15 +568,9 @@ internal sealed class PaintedView : View
         var lines = Rows(width, height);
 
         Want(lines, width, height);
-        LetGoOfBlurs(lines, height);
-        LetGoOfPictures();
 
-        // Whatever the terminal was told to let go of since the last frame, before anything is sent.
-        _placeholders?.Flush();
-
-        // Every box placed or let go of, by the Raster's way: none of them where pictures are placeholders.
-        _placing?.Frame(lines, _top, width, height, Raster);
-        _placed = _placeholders?.Drawing == true ? Sent(lines, height) : [];
+        // Every box placed or let go of, and every picture sent or forgotten, by the Raster's way (#361, #362).
+        _placed = _placing?.Frame(lines, _top, width, height, Raster) ?? [];
 
         _settled = lines;
     }
@@ -705,100 +692,6 @@ internal sealed class PaintedView : View
             : 0;
 
         return lines;
-    }
-
-    /// <summary>
-    ///     Tells a Kitty terminal drawing placeholders to forget every Stand-in blur it was handed that is no longer near
-    ///     the page — replaced by the picture it stood in for, or scrolled away (#349).
-    /// </summary>
-    /// <remarks>
-    ///     A picture is forgotten when the cache lets go of it (ADR-0025), but a blur is never in the cache, so nothing
-    ///     else would ever say so: a blur nobody deletes is an image the terminal holds for the rest of the run, which
-    ///     is the invariant ADR-0022 keeps for pictures. Said before the frame's <see cref="Placeholders.Flush" />, so a
-    ///     blur replaced this frame is gone from the terminal in the frame its picture is sent. One scrolled back to is
-    ///     simply encoded and sent again — it is a few kilobytes. Through a box, the box's own release does this
-    ///     (<see cref="Placing" />).
-    /// </remarks>
-    private void LetGoOfBlurs(IReadOnlyList<Line> lines, int height)
-    {
-        if (_placeholders is null)
-        {
-            return;
-        }
-
-        // The blurs Sent is about to prepare or place this frame: the same reach, a screen either side of the page.
-        // None where nothing is sent this way, or there is no page to be near — and then every blur held is let go of,
-        // rather than kept for a frame that may never come.
-        HashSet<string> near = _placeholders.Drawing && height > 0
-            ?
-            [
-                .. Placing.Wanted(_pictures!, lines, _top, height, near: height)
-                   .Where(wanted => wanted.Inset.Blur is not null)
-                   .Select(wanted => wanted.Inset.Drawn.Id),
-            ]
-            : [];
-
-        foreach (var gone in _blursHeld.Where(id => !near.Contains(id)))
-        {
-            _placeholders.Drop(gone);
-        }
-
-        _blursHeld = near;
-    }
-
-    /// <summary>
-    ///     Drains what the cache has let go of since the last frame and tells a Kitty terminal drawing placeholders to
-    ///     forget each of them, every size it holds (ADR-0022) — here, on the UI thread, before the frame's
-    ///     <see cref="Placeholders.Flush" />, rather than wherever the cache let go of it. One let go of as another
-    ///     landed is drained on the redraw that landing asked for. Anywhere else nothing was sent this way, so the list
-    ///     is drained and discarded.
-    /// </summary>
-    private void LetGoOfPictures()
-    {
-        var letGo = _pictures?.Drain() ?? [];
-
-        if (_placeholders?.Drawing != true)
-        {
-            return;
-        }
-
-        foreach (var gone in letGo)
-        {
-            _placeholders.Drop(gone);
-        }
-    }
-
-    /// <summary>
-    ///     The pictures on the page that a Kitty terminal holds, sending any that are ready and have not been sent. A
-    ///     picture still being encoded is left out, and its box keeps the rows it reserved until a redraw brings it.
-    /// </summary>
-    /// <remarks>
-    ///     A screen either side of the page is encoded ahead — inside the reach <see cref="Want" /> fetches over, so
-    ///     the pixels are usually here to encode — so that a picture scrolled to is usually ready rather than encoded
-    ///     the frame it comes into view (ADR-0022).
-    /// </remarks>
-    private List<(Inset Inset, int Top, int Id)> Sent(IReadOnlyList<Line> lines, int height)
-    {
-        if (!Drawing.Draws(_pictures, Raster, out var cell))
-        {
-            return [];
-        }
-
-        var placed = new List<(Inset, int, int)>();
-
-        foreach (var (inset, top, picture) in Placing.Wanted(_pictures!, lines, _top, height, near: height))
-        {
-            if (top + inset.Rows <= 0 || top >= height)
-            {
-                _placeholders!.Prepare(inset, picture, cell);
-            }
-            else if (_placeholders!.Ready(inset, picture, cell) is { } id)
-            {
-                placed.Add((inset, top, id));
-            }
-        }
-
-        return placed;
     }
 
     /// <summary>

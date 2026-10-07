@@ -8,8 +8,9 @@ namespace Wooly.Tests.Tui;
 
 /// <summary>
 ///     Pictures on a Kitty terminal, drawn as placeholder cells in the content panel's own rows, read back off the
-///     whole shell drawn headless (#292, ADR-0022). The pixels themselves are a manual smoke test (ADR-0016); what the
-///     cells say and what the terminal is sent are here.
+///     whole shell drawn headless (#292, ADR-0022). Wiring only: what the terminal is sent, prepared and told to forget
+///     is <see cref="Placing" />'s, and tested there (<see cref="PlacingTests" />, #362). The pixels themselves are a
+///     manual smoke test (ADR-0016).
 /// </summary>
 public class KittyPictureTests
 {
@@ -42,34 +43,9 @@ public class KittyPictureTests
     }
 
     /// <summary>
-    ///     The point of it all: a scroll moves the picture with the text, in the same frame, and sends the terminal no
-    ///     image data to do it.
-    /// </summary>
-    [Fact]
-    public async Task AScrollMovesThePictureWithTheTextAndTransmitsNothing()
-    {
-        var terminal = new FakeTerminalImages();
-
-        using var drawn = await Drawn(terminal);
-
-        var before = Boxed(drawn);
-        var caption = Row(drawn, "A cartoon sheep");
-
-        drawn.Wheel(RailLines.Width + 4, 3);
-
-        var after = Boxed(drawn);
-
-        Assert.Equal(1, drawn.Content.Top);
-        Assert.Equal(caption - 1, Row(drawn, "A cartoon sheep"));
-        Assert.Single(terminal.Transmitted);
-
-        // The whole box, a row higher, and nothing else about any cell of it changed.
-        Assert.Equal([.. before.Select(cell => cell with { Row = cell.Row - 1 })], after);
-    }
-
-    /// <summary>
-    ///     A box half off the top of the page still draws its lower rows, numbered as they were, so the terminal
-    ///     crops the picture rather than it blinking out.
+    ///     A box half off the top of the page still has its lower rows painted, numbered as they were, so the terminal
+    ///     crops the picture rather than it blinking out. The painting is the view's; what is sent and placed is
+    ///     <see cref="Placing" />'s (<see cref="PlacingTests" />).
     /// </summary>
     [Fact]
     public async Task ABoxHalfOffTheTopStillDrawsItsLowerRows()
@@ -93,109 +69,6 @@ public class KittyPictureTests
 
         Assert.Equal((sent.Rows - 2) * sent.Columns, cells.Count);
         Assert.Equal(KittyPlaceholder.Of(2, 0), cells.MinBy(cell => (cell.Row, cell.Column))!.Grapheme);
-        Assert.Single(terminal.Transmitted);
-    }
-
-    /// <summary>
-    ///     A picture below the page is encoded before it is scrolled to, and only sent once it is on the page — so that
-    ///     it comes into view with the text around it rather than a frame or two behind (#292).
-    /// </summary>
-    [Fact]
-    public async Task APictureJustBelowThePageIsEncodedAheadAndSentOnlyOnceItIsOnThePage()
-    {
-        var terminal = new FakeTerminalImages();
-        var encoding = new List<Action>();
-
-        using var drawn = await DrawnShell.Of(
-            80,
-            24,
-            Themes.Plain,
-            new AShell
-            {
-                Timelines = FakeTimelineReader.Holding(
-                    APost.With(id: "110"),
-                    APost.With(id: "220"),
-                    APost.With(id: "330"),
-                    APost.With(id: "440"),
-                    APost.With(id: "550", media: [APost.APicture("m1")])),
-            },
-            pictures: new FakePictures().Holding("m1", 800, 200),
-            kittyImages: terminal,
-            drawsPlaceholders: true,
-            encoding: encoding.Add);
-
-        Assert.DoesNotContain(drawn.Rows(), row => row.Contains("A cartoon sheep"));
-
-        // Encoded already, though nothing is sent while the box is off the page.
-        Assert.Single(encoding)();
-        drawn.Redraw();
-
-        Assert.Empty(terminal.Transmitted);
-
-        for (var notch = 0; notch < 100 && Boxed(drawn).Count == 0; notch++)
-        {
-            drawn.Wheel(RailLines.Width + 4, 3);
-        }
-
-        // Sent on the very frame its first row came onto the page, with nothing more to encode.
-        Assert.Single(terminal.Transmitted);
-        Assert.Single(encoding);
-    }
-
-    /// <summary>
-    ///     A picture the cache lets go of is forgotten by the terminal on the next frame, every size of it, so that the
-    ///     terminal does not hold it for the rest of the run (ADR-0022) — told from the frame, on the UI thread, rather
-    ///     than from wherever the cache let go of it.
-    /// </summary>
-    [Fact]
-    public async Task APictureTheCacheLetGoOfIsForgottenOnTheNextFrame()
-    {
-        var terminal = new FakeTerminalImages();
-        var pictures = new FakePictures().Holding("m1", 800, 200);
-
-        using var drawn = await DrawnShell.Of(
-            80,
-            24,
-            Themes.Plain,
-            AShellWithAPicture(),
-            pictures: pictures,
-            kittyImages: terminal,
-            drawsPlaceholders: true);
-
-        var sent = Assert.Single(terminal.Transmitted);
-
-        Assert.Empty(terminal.Forgotten);
-
-        pictures.LettingGo("m1");
-        drawn.Redraw();
-
-        Assert.Equal([sent.Id], terminal.Forgotten);
-    }
-
-    /// <summary>
-    ///     On a terminal not drawing placeholders, what the cache let go of is still drained each frame — there is
-    ///     nothing on the terminal to forget, so it is simply discarded rather than left to pile up.
-    /// </summary>
-    [Fact]
-    public async Task WhatTheCacheLetGoOfIsDrainedWhereNoPlaceholdersAreDrawn()
-    {
-        var terminal = new FakeTerminalImages();
-        var pictures = new FakePictures().Holding("m1", 800, 600);
-
-        using var drawn = await DrawnShell.Of(
-            80,
-            24,
-            Themes.Plain,
-            AShellWithAPicture(),
-            pictures: pictures,
-            drawsPictures: true,
-            kittyImages: terminal);
-
-        pictures.LettingGo("m1");
-        drawn.Redraw();
-
-        Assert.Empty(pictures.Drain());
-        Assert.Empty(terminal.Forgotten);
     }
 
     /// <summary>
