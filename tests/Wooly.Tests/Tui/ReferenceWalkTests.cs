@@ -418,7 +418,7 @@ public class ReferenceWalkTests
 
         var shell = await built.Opened();
 
-        var window = new ShellWindow(shell, Themes.Plain, built.Clock, () => { }, FakePictures.DrawingNothing())
+        var window = new ShellWindow(shell, Themes.Plain, built.Clock, () => { }, new FakePictures())
         {
             Width = 80,
             Height = 20,

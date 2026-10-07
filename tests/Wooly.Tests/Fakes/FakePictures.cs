@@ -5,15 +5,14 @@ using Wooly.Tui.Media;
 namespace Wooly.Tests.Fakes;
 
 /// <summary>
-///     A terminal's answer about pictures, said outright: whether it draws them at all, how big its cells are, and
-///     whose pixels have arrived. Stands in for the real one so a screen can be laid out with no terminal and no
-///     network, which is the whole reason <see cref="IPictures" /> is a port.
+///     Whose pixels have arrived, said outright. Stands in for the real cache so a screen can be laid out with no
+///     network, which is the whole reason <see cref="IPictures" /> is a port. Whether the terminal draws them at all,
+///     and how big its cells are, is the <see cref="Raster" /> on the drawing instead (#357).
 /// </summary>
 internal sealed class FakePictures : IPictures
 {
     private readonly Dictionary<string, Picture> _held = [];
-
-    private FakePictures(CellSize? cell) => Cell = cell;
+    private readonly List<string> _letGo = [];
 
     /// <summary>Every picture looked up, by id, in order.</summary>
     public List<string> Asked { get; } = [];
@@ -27,17 +26,8 @@ internal sealed class FakePictures : IPictures
     /// <summary>Every frame's wants as the view said them: nearest first, with those on screen marked.</summary>
     public List<IReadOnlyList<WantedPicture>> Frames { get; } = [];
 
-    /// <inheritdoc />
-    public CellSize? Cell { get; }
-
-    /// <summary>A terminal that draws nothing: neither sixel nor the Kitty graphics protocol.</summary>
-    public static FakePictures DrawingNothing() => new(cell: null);
-
-    /// <summary>
-    ///     A terminal that draws, with cells <paramref name="cell" /> pixels each — 10×20 being what both protocols
-    ///     fall back to reporting.
-    /// </summary>
-    public static FakePictures With(CellSize? cell = null) => new(cell ?? new CellSize(10, 20));
+    /// <summary>The room each frame gave alongside its wants: its Raster and the content region's columns.</summary>
+    public List<(Raster Raster, int Columns)> Rooms { get; } = [];
 
     /// <summary>Says that the picture for the attachment <paramref name="mediaId" /> has arrived, at the given size in pixels.</summary>
     public FakePictures Holding(string mediaId, int width, int height) => Held(mediaId, width, height);
@@ -83,10 +73,32 @@ internal sealed class FakePictures : IPictures
     }
 
     /// <inheritdoc />
-    public void Want(IReadOnlyList<WantedPicture> frame)
+    public void Want(IReadOnlyList<WantedPicture> frame, Raster raster, int columns)
     {
         Frames.Add(frame);
+        Rooms.Add((raster, columns));
         Sent.AddRange(frame.Select(wanted => wanted.Drawn.Id));
+    }
+
+    /// <inheritdoc />
+    public IReadOnlyList<string> Drain()
+    {
+        string[] letGo = [.. _letGo];
+
+        _letGo.Clear();
+
+        return letGo;
+    }
+
+    /// <summary>
+    ///     Says that the cache has let go of the picture <paramref name="id" /> names, to be handed back by the next
+    ///     <see cref="Drain" /> — what a view should pass on to a Kitty terminal holding a copy.
+    /// </summary>
+    public FakePictures LettingGo(string id)
+    {
+        _letGo.Add(id);
+
+        return this;
     }
 
     private FakePictures Held(string id, int width, int height)

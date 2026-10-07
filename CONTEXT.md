@@ -132,6 +132,17 @@ Distinct from **Drawn**, which is one picture the TUI paints in place: this is t
 drawn under them. Nothing outside a TUI has either — the CLI writes what it writes at whatever width a terminal is.
 _Avoid_: context, render options, layout
 
+**Raster**:
+How this terminal paints pixels, as one value (`Raster`): the way a picture is drawn (Kitty's placeholders, Kitty
+through a box, sixel, or none), how big a cell is, and how many colours a sixel is encoded in. Worked out by the window
+once a frame, in one place that takes the terminal's answers, its name and the measured cell into account every time,
+and carried on the **Drawing** — so the screens deciding between a box and a link, the view placing pictures and the
+picture cache decoding them cannot disagree about what kind of terminal this is (#357). A terminal that cannot draw has
+a Raster whose way is none and no cell, and every picture on it is linked, as it is where a Drawing carries no Raster at
+all. Distinct from the **Drawing**, which is every condition a screen is drawn under and carries this as one of them,
+and from **Drawn**, which is one picture being painted.
+_Avoid_: protocol, graphics mode, capabilities
+
 **Boost**:
 Re-sharing another account's post to your own followers. The API calls this a `reblog`. This project always says "boost" in user-facing language and domain code; `reblog` may still appear as the literal API field name at the wire layer.
 _Avoid_: reblog, repost, retweet

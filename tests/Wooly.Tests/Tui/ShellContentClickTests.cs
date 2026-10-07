@@ -26,7 +26,7 @@ public class ShellContentClickTests
     [InlineData("picture")]
     public async Task ClickingAnyRowOfAPostPicksIt(string row)
     {
-        var pictures = FakePictures.With().Holding("m1", 800, 600);
+        var pictures = new FakePictures().Holding("m1", 800, 600);
 
         var built = new AShell
         {
@@ -59,7 +59,7 @@ public class ShellContentClickTests
     [Fact]
     public async Task ClickingATallPostLeavesThePageWhereItIs()
     {
-        var pictures = FakePictures.With()
+        var pictures = new FakePictures()
             .Holding("m1", 800, 600)
             .Holding("m2", 800, 600)
             .Holding("m3", 800, 600);
@@ -74,7 +74,7 @@ public class ShellContentClickTests
                     media: [APost.APicture("m1"), APost.APicture("m2"), APost.APicture("m3", "The last sheep")])),
         };
 
-        using var drawn = await DrawnShell.Of(80, 24, Themes.Plain, built, pictures: pictures);
+        using var drawn = await DrawnShell.Of(80, 24, Themes.Plain, built, pictures: pictures, raster: ARaster.Kitty());
 
         var row = RowOf(drawn, "Three sheep");
 
@@ -83,6 +83,41 @@ public class ShellContentClickTests
         Assert.Equal("220", drawn.Shell.Screen.Picked?.Id);
         Assert.Equal(0, drawn.Content.Top);
         Assert.Contains("Three sheep", drawn.Rows()[row]);
+    }
+
+    /// <summary>
+    ///     A click between two frames is answered from the rows as the last frame drew them, under the Raster that
+    ///     frame worked out — not under one the terminal has answered since, which would lay a picture's box where the
+    ///     page still shows a link and put the post under the pointer somewhere else (#357).
+    /// </summary>
+    [Fact]
+    public async Task AClickBetweenFramesIsAnsweredFromTheRowsAsDrawn()
+    {
+        var pictures = new FakePictures().Holding("m1", 800, 600);
+
+        var built = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(
+                APost.With(id: "110", content: "One sheep", media: [APost.APicture("m1")]),
+                APost.With(id: "220", content: "Two sheep")),
+        };
+
+        var answered = Raster.None;
+
+        using var drawn = await DrawnShell.Of(
+            80,
+            Tall,
+            Themes.Plain,
+            built,
+            pictures: pictures,
+            answers: () => answered);
+
+        var row = RowOf(drawn, "Two sheep");
+
+        // The terminal answers that it draws pictures after the frame is drawn, and before the next one.
+        answered = ARaster.Kitty();
+
+        Assert.Equal(1, drawn.Content.ItemAt(new Point(OverContent, row)));
     }
 
     /// <summary>

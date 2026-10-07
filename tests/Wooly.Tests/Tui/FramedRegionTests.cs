@@ -50,16 +50,20 @@ public class FramedRegionTests
     }
 
     /// <summary>
-    ///     The shell says how wide its content region is: the inside of the panel the posts are drawn in, which is
-    ///     the widest any picture's box can be and so the width a picture is decoded to (ADR-0025) — 58 columns at an
-    ///     80-column terminal, not the 80 of the whole window.
+    ///     The content region hands the picture cache the room each frame gives — the frame's Raster and the region's
+    ///     58 columns — when it says what the frame wants, so the cache never has to ask the window for either (#359).
+    ///     The columns are the inside of the panel the posts are drawn in, which is the widest any picture's box can be
+    ///     and so the width a picture is decoded to (ADR-0025): not the 80 of the whole window.
     /// </summary>
     [Fact]
-    public async Task TheShellSaysHowWideItsContentRegionIs()
+    public async Task TheShellHandsThePictureCacheTheRoomOfTheFrame()
     {
-        using var drawn = await DrawnShell.Of(80, 24, Themes.Dark);
+        var pictures = new FakePictures();
+        var raster = ARaster.Kitty();
 
-        Assert.Equal(58, drawn.Window.ContentColumns);
+        using var drawn = await DrawnShell.Of(80, 24, Themes.Dark, pictures: pictures, raster: raster);
+
+        Assert.Equal((raster, 58), pictures.Rooms[^1]);
     }
 
     [Theory]
@@ -99,7 +103,7 @@ public class FramedRegionTests
     {
         // Twice as tall as it is wide, in pixels, which at ten by twenty to a cell fills its four-by-four box.
         var drawn = new Drawn("m1", "https://files.example/m1.png");
-        var pictures = FakePictures.With().Holding("m1", 40, 80);
+        var pictures = new FakePictures().Holding("m1", 40, 80);
 
         Line[] lines =
         [
@@ -124,7 +128,7 @@ public class FramedRegionTests
     public async Task APictureHalfBelowTheFootDrawsNoCellOnTheFrame()
     {
         var drawn = new Drawn("m1", "https://files.example/m1.png");
-        var pictures = FakePictures.With().Holding("m1", 40, 80);
+        var pictures = new FakePictures().Holding("m1", 40, 80);
 
         Line[] lines =
         [
@@ -172,7 +176,8 @@ public class FramedRegionTests
             theme,
             (_, _) => lines,
             pictures,
-            (width, height) => Panel.Framed("Home", [], width, height, active))
+            (width, height) => Panel.Framed("Home", [], width, height, active),
+            raster: () => Raster.Of(application.Driver, placeholders: false, () => null))
         {
             Width = Width,
             Height = Height,

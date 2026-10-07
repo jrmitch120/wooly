@@ -121,24 +121,16 @@ try
         Redraw,
         work => Task.Run(work));
 
-    // Decoded to the content region's width, the widest a picture's box can be (ADR-0025). The window is built after
-    // the cache it draws from, so the cache asks it through this; a frame only asks once the window is drawing, and
-    // nought before then decodes to the decoder's own bounds.
-    ShellWindow? shellWindow = null;
-
-    using var pictures = Pictures.Over(
-        files,
-        () => RasterProtocol.CellOf(application.Driver, placeholdersByName, () => windowSize.Cell),
-        Redraw,
-        placeholders.Drop,
-        () => shellWindow?.ContentColumns ?? 0);
+    // Handed the frame's room by the content region each time it says what it wants, rather than asking the window
+    // for it, so nothing the cache does calls back into the window (#359).
+    using var pictures = Pictures.Over(files, Redraw);
 
     // Each frame with pictures in it written whole, where the terminal can hold one back until it is (#342).
     var frames = new SynchronizedFrames(sequence => application.Driver?.GetOutput().Write(sequence));
 
     frames.Over(application);
 
-    using var window = shellWindow = new ShellWindow(
+    using var window = new ShellWindow(
         shell,
         theme,
         clock,
@@ -147,7 +139,12 @@ try
         config.Preferences.HideDrawnCaption,
         placeholders,
         new Blurs(),
-        frames: frames);
+        frames: frames,
+
+        // How this terminal paints pixels, worked out here and nowhere else, once a frame: the terminal answers its
+        // sixel and Kitty questions some frames after the shell is on screen, and a change of font size changes the
+        // cell.
+        raster: () => Raster.Of(application.Driver, placeholdersByName, () => windowSize.Cell));
 
     // A paste arrives as one string rather than as keys, before it is handed to whatever has focus. The shell takes
     // it where one of its own fields is typing, and leaves it to whatever has focus everywhere else — the compose

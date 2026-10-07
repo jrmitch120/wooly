@@ -25,7 +25,7 @@ public class StandInBlurDrawingTests
     public async Task KittyDrawsTheBlurThenForgetsItWhenThePictureReplacesIt()
     {
         var terminal = new FakeTerminalImages();
-        var pictures = FakePictures.With();
+        var pictures = new FakePictures();
 
         using var drawn = await DrawnShell.Of(
             80,
@@ -61,7 +61,7 @@ public class StandInBlurDrawingTests
             24,
             Themes.Plain,
             AShellWithAPictureAndItsBlurhash(followedBy: 30),
-            pictures: FakePictures.With(),
+            pictures: new FakePictures(),
             kittyImages: terminal,
             drawsPlaceholders: true);
 
@@ -90,7 +90,7 @@ public class StandInBlurDrawingTests
             24,
             Themes.Plain,
             AShellWithAPictureAndItsBlurhash(),
-            pictures: FakePictures.With(),
+            pictures: new FakePictures(),
             kittyImages: terminal,
             drawsPlaceholders: true);
 
@@ -112,7 +112,7 @@ public class StandInBlurDrawingTests
     [InlineData(false, true)]
     public async Task ABoxDrawsTheBlurThenLetsGoOfItWhenThePictureReplacesIt(bool sixel, bool kitty)
     {
-        var pictures = FakePictures.With();
+        var pictures = new FakePictures();
 
         using var drawn = await DrawnShell.Of(
             80,
@@ -142,7 +142,7 @@ public class StandInBlurDrawingTests
     [Fact]
     public async Task TheFrameNeverWantsABlurOfThePictureCache()
     {
-        var pictures = FakePictures.With();
+        var pictures = new FakePictures();
 
         using var drawn = await DrawnShell.Of(
             80,

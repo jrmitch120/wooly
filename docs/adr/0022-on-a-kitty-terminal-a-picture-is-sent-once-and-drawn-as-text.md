@@ -100,3 +100,18 @@ the pointer, because a variadic argument goes on the stack there; the plain decl
 
 Out of scope, and left to the later slices of #292: a cheaper sixel path for Windows Terminal and iTerm2, drawing once
 per batch of wheel events, and cheaper frames. tmux passthrough is not attempted.
+
+## Amendment: a picture let go of is forgotten through a drain, on the UI thread (#358)
+
+This ADR said the drop could happen on whatever thread a fetch finished on, with the forget queued for the next frame.
+It no longer happens there at all. `Pictures` is constructed with no callback for what it lets go of: it writes down
+the ids whose pixels it let go of — on a frame's `Want`, or as a picture lands — under its own lock, and hands each back
+once through `IPictures.Drain`. The content view drains it once a frame, before the placeholders flush, and tells the
+placeholders to drop each one; on a terminal not drawing placeholders the list is discarded. A picture let go of as
+another lands is drained on the redraw that landing already asks for, so the terminal's copy is still deleted, a frame
+later at most. Kitty is told anything only from the UI thread, and nothing the cache does reaches into it.
+
+## Amendment: `RasterProtocol.Chosen` is now `Raster` (#357)
+
+The choice of `Placeholders` named above is made in working out a `Raster`, which carries the way, the cell and the
+sixel colours.

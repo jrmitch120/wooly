@@ -42,8 +42,8 @@ public readonly record struct Avatar(Drawn? Wanted, Inset? Box, int Held, int Ga
     ///     moved as it scrolled.
     /// </remarks>
     /// <inheritdoc cref="Of" path="/param" />
-    public static Avatar Byline(string account, string? address, IPictures? pictures) =>
-        Of(account, address, pictures, columns: 4, rows: 2, gap: 1);
+    public static Avatar Byline(string account, string? address, IPictures? pictures, Raster? raster) =>
+        Of(account, address, pictures, raster, columns: 4, rows: 2, gap: 1);
 
     /// <summary>
     ///     What an account screen's header block spends on the same face: twice the byline's box, beside four rows
@@ -51,8 +51,8 @@ public readonly record struct Avatar(Drawn? Wanted, Inset? Box, int Held, int Ga
     ///     (ADR-0019).
     /// </summary>
     /// <inheritdoc cref="Of" path="/param" />
-    public static Avatar Header(string account, string? address, IPictures? pictures) =>
-        Of(account, address, pictures, HeaderColumns, HeaderRows, gap: 2);
+    public static Avatar Header(string account, string? address, IPictures? pictures, Raster? raster) =>
+        Of(account, address, pictures, raster, HeaderColumns, HeaderRows, gap: 2);
 
     /// <summary>
     ///     How wide the header's box is, which is the largest an avatar is ever drawn (<see cref="Drawn.Largest" />).
@@ -74,8 +74,10 @@ public readonly record struct Avatar(Drawn? Wanted, Inset? Box, int Held, int Ga
     /// <param name="account">Whose face it is, as <c>username@instance</c> — what the picture is named by.</param>
     /// <param name="address">Where to fetch it, or <see langword="null" /> where the instance named nowhere.</param>
     /// <param name="pictures">
-    ///     What this terminal can draw and whose pixels have arrived, or <see langword="null" /> for a screen laid out
-    ///     with no terminal in the room.
+    ///     Whose pixels have arrived, or <see langword="null" /> for a screen laid out with no terminal in the room.
+    /// </param>
+    /// <param name="raster">
+    ///     How this terminal paints pixels, or <see langword="null" /> where nobody said — which draws no avatar.
     /// </param>
     /// <param name="columns">How wide the box is.</param>
     /// <param name="rows">How tall it is, which is how many rows stand beside it.</param>
@@ -84,11 +86,12 @@ public readonly record struct Avatar(Drawn? Wanted, Inset? Box, int Held, int Ga
         string account,
         string? address,
         IPictures? pictures,
+        Raster? raster,
         int columns,
         int rows,
         int gap)
     {
-        if (pictures?.Cell is null || address is null)
+        if (!Drawing.Draws(pictures, raster, out _) || address is null)
         {
             return default;
         }

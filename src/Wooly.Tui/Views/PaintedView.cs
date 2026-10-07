@@ -54,6 +54,7 @@ internal sealed class PaintedView : View
     private readonly Placeholders? _placeholders;
     private readonly SixelPictures _sixels;
     private readonly SynchronizedFrames? _frames;
+    private readonly Func<Raster> _raster;
 
     /// <summary>Where the page began the last time pictures were placed, which says which way it is moving.</summary>
     private int _placedAt;
@@ -99,6 +100,10 @@ internal sealed class PaintedView : View
     ///     <see langword="null" /> to draw every picture through a box (ADR-0022).
     /// </param>
     /// <param name="frames">What wraps a frame this view draws in synchronized output, if anything does.</param>
+    /// <param name="raster">
+    ///     How this terminal paints pixels, asked once a frame as the frame is settled (<see cref="Raster" />), or
+    ///     <see langword="null" /> for a terminal that draws none.
+    /// </param>
     /// <remarks>
     ///     A frame is laid on a one-cell <c>Padding</c> round the view, so everything measured off
     ///     <see cref="View.Viewport" /> — the rows' width and height, the scroll, a page's worth — is the inside of it,
@@ -111,9 +116,11 @@ internal sealed class PaintedView : View
         IPictures? pictures = null,
         Func<int, int, IReadOnlyList<Line>>? frame = null,
         Placeholders? placeholders = null,
-        SynchronizedFrames? frames = null)
+        SynchronizedFrames? frames = null,
+        Func<Raster>? raster = null)
     {
         _theme = theme;
+        _raster = raster ?? (() => Raster.None);
         _sixels = new SixelPictures(backdrop: Backdrop);
         _frames = frames;
         _rows = rows;
@@ -151,6 +158,14 @@ internal sealed class PaintedView : View
     ///     right rather than merely frozen where it was left.
     /// </remarks>
     public bool Scrolls { get; set; }
+
+    /// <summary>
+    ///     How this terminal paints pixels as of the last frame settled, or <see cref="Media.Raster.None" /> before the
+    ///     first. Worked out once a frame, before the rows are, and read rather than asked again everywhere else — the
+    ///     rows laid out for a click or a key between frames included — so the rows, the boxes and the picture cache
+    ///     all go by the one answer the page was drawn under (#357). Read on the UI thread.
+    /// </summary>
+    public Raster Raster { get; private set; } = Raster.None;
 
     /// <summary>
     ///     The item <c>j</c> and <c>k</c> should take back — the topmost one on the page — or <see langword="null" />
@@ -573,6 +588,7 @@ internal sealed class PaintedView : View
     private void Settle()
     {
         _settled = null;
+        Raster = _raster();
 
         var width = Viewport.Width;
         var height = Viewport.Height;
@@ -584,6 +600,7 @@ internal sealed class PaintedView : View
             _boxes.ForEach(box => box.Release());
             _placed = [];
             LetGoOfBlurs([], 0);
+            LetGoOfPictures();
             _placeholders?.Flush();
 
             return;
@@ -591,8 +608,9 @@ internal sealed class PaintedView : View
 
         var lines = Rows(width, height);
 
-        Want(lines, height);
+        Want(lines, width, height);
         LetGoOfBlurs(lines, height);
+        LetGoOfPictures();
 
         // Whatever the terminal was told to let go of since the last frame, before anything is sent.
         _placeholders?.Flush();
@@ -637,7 +655,7 @@ internal sealed class PaintedView : View
     ///         top has its row off the page and its lower half still on it.
     ///     </para>
     /// </remarks>
-    private void Want(IReadOnlyList<Line> lines, int height)
+    private void Want(IReadOnlyList<Line> lines, int width, int height)
     {
         if (_pictures is null)
         {
@@ -693,12 +711,16 @@ internal sealed class PaintedView : View
         int Distance((Drawn Drawn, int First, int Last) span) =>
             span.Last < _top ? _top - span.Last : span.First > bottom ? span.First - bottom : 0;
 
+        // With the room the frame gives, read here on the UI thread — the only one a view's size may be read on — so
+        // that the cache decodes to it without ever asking the window (#359).
         _pictures.Want(
-        [
-            .. spans.Values
-                    .OrderBy(Distance)
-                    .Select(span => new WantedPicture(span.Drawn, OnScreen: Distance(span) == 0)),
-        ]);
+            [
+                .. spans.Values
+                        .OrderBy(Distance)
+                        .Select(span => new WantedPicture(span.Drawn, OnScreen: Distance(span) == 0)),
+            ],
+            Raster,
+            width);
     }
 
     /// <summary>The rows to draw, and where the scroll has got to.</summary>
@@ -754,15 +776,14 @@ internal sealed class PaintedView : View
         }
 
         var wanted = Wanted(lines, height);
+        var raster = Raster;
 
-        if (_pictures.Cell is not { } cell)
+        if (raster.Cell is not { } cell)
         {
             _boxes.ForEach(box => box.Release());
 
             return;
         }
-
-        var colours = SixelColours();
 
         // Who draws what, settled for the whole frame before anything moves — see Boxes. Asking box by box is what
         // this used to do, and it could not see that one picture was wanted once and held twice.
@@ -803,7 +824,7 @@ internal sealed class PaintedView : View
             var box = _boxes[which];
 
             // Through Kitty the image view draws the whole box, which it sends once and moves (ADR-0016).
-            if (colours == 0)
+            if (raster.Way is not PictureWay.Sixel)
             {
                 var whole = new Rectangle(inset.Column, top, inset.Columns, inset.Rows);
 
@@ -828,7 +849,7 @@ internal sealed class PaintedView : View
                 continue;
             }
 
-            box.Show(inset.Drawn.Id, _sixels.Of(inset, picture, cell, crop, colours));
+            box.Show(inset.Drawn.Id, _sixels.Of(inset, picture, cell, crop, raster.SixelColours));
 
             if (box.Frame != frame)
             {
@@ -839,9 +860,9 @@ internal sealed class PaintedView : View
             box.Visible = box.CanDraw;
         }
 
-        if (colours > 0)
+        if (raster.Way is PictureWay.Sixel)
         {
-            Prepare(lines, height, cell, colours);
+            Prepare(lines, height, cell, raster.SixelColours);
         }
     }
 
@@ -940,6 +961,28 @@ internal sealed class PaintedView : View
     }
 
     /// <summary>
+    ///     Drains what the cache has let go of since the last frame and tells a Kitty terminal drawing placeholders to
+    ///     forget each of them, every size it holds (ADR-0022) — here, on the UI thread, before the frame's
+    ///     <see cref="Placeholders.Flush" />, rather than wherever the cache let go of it. One let go of as another
+    ///     landed is drained on the redraw that landing asked for. Anywhere else nothing was sent this way, so the list
+    ///     is drained and discarded.
+    /// </summary>
+    private void LetGoOfPictures()
+    {
+        var letGo = _pictures?.Drain() ?? [];
+
+        if (_placeholders?.Drawing != true)
+        {
+            return;
+        }
+
+        foreach (var gone in letGo)
+        {
+            _placeholders.Drop(gone);
+        }
+    }
+
+    /// <summary>
     ///     The pictures on the page that a Kitty terminal holds, sending any that are ready and have not been sent. A
     ///     picture still being encoded is left out, and its box keeps the rows it reserved until a redraw brings it.
     /// </summary>
@@ -950,7 +993,7 @@ internal sealed class PaintedView : View
     /// </remarks>
     private List<(Inset Inset, int Top, int Id)> Sent(IReadOnlyList<Line> lines, int height)
     {
-        if (_pictures?.Cell is not { } cell)
+        if (!Drawing.Draws(_pictures, Raster, out var cell))
         {
             return [];
         }
@@ -990,17 +1033,6 @@ internal sealed class PaintedView : View
 
         return App?.Driver?.DefaultAttribute?.Background is { } terminal && terminal != none ? terminal : null;
     }
-
-    /// <summary>
-    ///     How many colours a sixel is encoded in on this terminal, or none where a box draws through Kitty instead:
-    ///     all 256 sixel allows, or fewer where the terminal says it has fewer. Terminal.Gui's image view stops at 64,
-    ///     at which a photograph's gradients break into patches (ADR-0023).
-    /// </summary>
-    private int SixelColours() =>
-        App?.Driver is { } driver
-        && RasterProtocol.Chosen(driver.SixelSupport, driver.KittyGraphicsSupport) is PictureWay.Sixel
-            ? Math.Min(256, driver.SixelSupport!.MaxPaletteColors)
-            : 0;
 
     /// <summary>
     ///     Which box draws which of the pictures wanted this frame: the box already holding one where there is one,

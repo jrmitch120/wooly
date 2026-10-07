@@ -66,7 +66,7 @@ public sealed class Placeholders(
 
         lock (_gate)
         {
-            // Dropped on another thread since it was looked up, in which case it is no longer anybody's to send.
+            // Dropped since it was looked up, in which case it is no longer anybody's to send.
             if (image.Png is null || image.Dropped)
             {
                 return null;
@@ -98,7 +98,8 @@ public sealed class Placeholders(
 
     /// <summary>
     ///     Says that the picture <paramref name="drawnId" /> names has been let go of, so the terminal can let go of
-    ///     every size of it too. Safe on any thread; the terminal is told at the next <see cref="Flush" />.
+    ///     every size of it too: what the frame drains from the picture cache (ADR-0022), and a blur no longer near the
+    ///     page. On the UI thread; the terminal is told at the next <see cref="Flush" />.
     /// </summary>
     public void Drop(string drawnId)
     {

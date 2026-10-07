@@ -345,3 +345,7 @@ A box's rows follow from the shape the instance reports for a picture (16:9 wher
 picture's own pixels, and the box is there from the first frame with a **Stand-in** in it rather than appearing when
 the pixels land. A picture of another shape is fitted and centred inside it. The bounded number of pictures held is two
 byte budgets ordered by when each was last wanted, and what is on screen is never let go of.
+
+## Amendment: `RasterProtocol.Chosen` is now `Raster` (#357)
+
+The choice of rung named above is made in working out a `Raster`, which carries the way, the cell and the sixel colours.

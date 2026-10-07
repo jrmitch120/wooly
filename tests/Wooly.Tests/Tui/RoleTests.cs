@@ -70,10 +70,10 @@ public partial class RoleTests
         // address roles — are both drawn; an unrevealed warning stands in front of the text instead.
         var revealed = new Reading(Revealed: true);
 
-        Collect(PostLines.Feed(mine, new Drawing(61, Now, FakePictures.With()), revealed));
+        Collect(PostLines.Feed(mine, new Drawing(61, Now, new FakePictures(), ARaster.Sixel()), revealed));
         Collect(PostLines.Feed(
             APost.With(media: [APost.APicture(description: null)]),
-            new Drawing(61, Now, FakePictures.With()),
+            new Drawing(61, Now, new FakePictures(), ARaster.Sixel()),
             default
         ));
         Collect(PostLines.Whole(mine, new Drawing(61, Now), revealed));
@@ -366,12 +366,12 @@ public partial class RoleTests
         // On a terminal that draws, so the mark is the picture's rather than a link's.
         var described = PostLines.Feed(
             APost.With(media: [APost.APicture(description: "A cartoon sheep")]),
-            new Drawing(61, Now, FakePictures.With()),
+            new Drawing(61, Now, new FakePictures(), ARaster.Sixel()),
             default);
 
         var undescribed = PostLines.Feed(
             APost.With(media: [APost.APicture(description: null)]),
-            new Drawing(61, Now, FakePictures.With()),
+            new Drawing(61, Now, new FakePictures(), ARaster.Sixel()),
             default);
 
         var first = described.First(line => line.Text.Contains("▒▒▒▒", StringComparison.Ordinal));

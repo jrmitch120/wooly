@@ -150,9 +150,12 @@ public class LinkPreviewReferenceTests
     [MemberData(nameof(Warned))]
     public void Feed_DrawsNothingAndSendsForNothingWhileTheWarningStands(string? contentWarning, bool sensitive)
     {
-        var pictures = FakePictures.With().HoldingLinkPreview(APost.ALinkPreview(), 400, 300);
+        var pictures = new FakePictures().HoldingLinkPreview(APost.ALinkPreview(), 400, 300);
 
-        var lines = PostLines.Feed(Hiding(contentWarning, sensitive), new Drawing(61, Now, pictures), default);
+        var lines = PostLines.Feed(
+            Hiding(contentWarning, sensitive),
+            new Drawing(61, Now, pictures, ARaster.Sixel()),
+            default);
 
         Assert.Empty(lines.SelectMany(line => line.Insets));
         Assert.DoesNotContain(lines, line => line.Wants is not null);
@@ -167,16 +170,16 @@ public class LinkPreviewReferenceTests
     [Fact]
     public void Feed_ReadsAsAnUnwarnedPostsLinkPreviewOnceTheReaderHasAskedPastTheWarning()
     {
-        var pictures = FakePictures.With().HoldingLinkPreview(APost.ALinkPreview(), 400, 300);
+        var pictures = new FakePictures().HoldingLinkPreview(APost.ALinkPreview(), 400, 300);
 
         var revealed = PostLines.Feed(
             Hiding(contentWarning: null, sensitive: true),
-            new Drawing(61, Now, pictures),
+            new Drawing(61, Now, pictures, ARaster.Sixel()),
             new Reading(Revealed: true));
 
         var plain = PostLines.Feed(
             Hiding(contentWarning: null, sensitive: false),
-            new Drawing(61, Now, pictures),
+            new Drawing(61, Now, pictures, ARaster.Sixel()),
             default);
 
         Assert.Equal(plain.Select(line => line.Text), revealed.Select(line => line.Text));
@@ -197,9 +200,9 @@ public class LinkPreviewReferenceTests
     public void Feed_HidesTheLinkPreviewOfASensitivePostCarryingNothingElse()
     {
         var post = APost.With(sensitive: true, linkPreview: APost.ALinkPreview());
-        var pictures = FakePictures.With().HoldingLinkPreview(APost.ALinkPreview(), 400, 300);
+        var pictures = new FakePictures().HoldingLinkPreview(APost.ALinkPreview(), 400, 300);
 
-        var lines = PostLines.Feed(post, new Drawing(61, Now, pictures), default);
+        var lines = PostLines.Feed(post, new Drawing(61, Now, pictures, ARaster.Sixel()), default);
 
         Assert.DoesNotContain(lines, line => line.Text.Contains("Sheep, at length", StringComparison.Ordinal));
         Assert.Empty(lines.SelectMany(line => line.Insets));
@@ -222,7 +225,7 @@ public class LinkPreviewReferenceTests
 
         var lines = PostLines.Feed(
             post,
-            new Drawing(61, Now, FakePictures.DrawingNothing()),
+            new Drawing(61, Now, new FakePictures()),
             new Reading(Revealed: true));
 
         Assert.Contains(lines, line => line.Text.Contains("⏵ Sheep, at length", StringComparison.Ordinal));
@@ -268,10 +271,10 @@ public class LinkPreviewReferenceTests
     public void Whole_HidesAWarnedPostsLinkPreviewAndShowsItOnceAsked()
     {
         var post = Hiding(contentWarning: null, sensitive: true);
-        var pictures = FakePictures.With().HoldingLinkPreview(APost.ALinkPreview(), 400, 300);
+        var pictures = new FakePictures().HoldingLinkPreview(APost.ALinkPreview(), 400, 300);
 
-        var hidden = PostLines.Whole(post, new Drawing(61, Now, pictures), default);
-        var shown = PostLines.Whole(post, new Drawing(61, Now, pictures), new Reading(Revealed: true));
+        var hidden = PostLines.Whole(post, new Drawing(61, Now, pictures, ARaster.Sixel()), default);
+        var shown = PostLines.Whole(post, new Drawing(61, Now, pictures, ARaster.Sixel()), new Reading(Revealed: true));
 
         Assert.DoesNotContain(hidden, line => line.Text.Contains("Sheep, at length", StringComparison.Ordinal));
         Assert.Empty(hidden.SelectMany(line => line.Insets));

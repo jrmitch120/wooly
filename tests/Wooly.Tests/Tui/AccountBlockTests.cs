@@ -24,8 +24,9 @@ public class AccountBlockTests
         Account account,
         string said = "",
         int width = 61,
-        IPictures? pictures = null) =>
-        AccountLines.Block(account, new Drawing(width, Now, pictures), said);
+        IPictures? pictures = null,
+        Raster? raster = null) =>
+        AccountLines.Block(account, new Drawing(width, Now, pictures, raster ?? ARaster.Sixel()), said);
 
     /// <summary>
     ///     Who they are, on four rows in that order: the name, the handle, how much of a presence they have, and the
@@ -82,7 +83,7 @@ public class AccountBlockTests
     [Fact]
     public void Block_ReclaimsTheAvatarsColumnsWhereNoPictureIsComing()
     {
-        var lines = Block(AnAccount.With(), pictures: FakePictures.DrawingNothing());
+        var lines = Block(AnAccount.With(), pictures: new FakePictures(), raster: Raster.None);
 
         Assert.Equal("Alice", lines[0].Text);
         Assert.DoesNotContain(lines, line => line.Has(Role.Media));
@@ -95,7 +96,7 @@ public class AccountBlockTests
     [Fact]
     public void Block_SetsTheFourRowsBesideTheHeadersOwnEightByFourAvatar()
     {
-        var lines = Block(AnAccount.With(), pictures: FakePictures.With().HoldingAvatarOf("alice@hachyderm.io", 96, 96));
+        var lines = Block(AnAccount.With(), pictures: new FakePictures().HoldingAvatarOf("alice@hachyderm.io", 96, 96));
 
         var inset = Assert.Single(lines[0].Insets);
 
@@ -117,7 +118,7 @@ public class AccountBlockTests
                 isBot: true,
                 isLocked: true),
             "following · follows you · blocked · muted",
-            pictures: FakePictures.With().HoldingAvatarOf("somebody@an-extremely-long-instance-domain.example"));
+            pictures: new FakePictures().HoldingAvatarOf("somebody@an-extremely-long-instance-domain.example"));
 
         Assert.All(lines, line => Assert.True(line.Width <= 61, $"'{line.Text}' is {line.Width} columns"));
     }
@@ -132,7 +133,7 @@ public class AccountBlockTests
         var lines = Block(
             AnAccount.With(isBot: true, isLocked: true),
             "following · follows you",
-            pictures: FakePictures.With().HoldingAvatarOf("alice@hachyderm.io"));
+            pictures: new FakePictures().HoldingAvatarOf("alice@hachyderm.io"));
 
         Assert.EndsWith("following · follows you", lines[3].Text, StringComparison.Ordinal);
         Assert.True(lines[3].Width <= 61);

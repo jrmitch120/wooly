@@ -239,7 +239,7 @@ public class ShellKeyTests
             Themes.Plain,
             built.Clock,
             () => quits++,
-            FakePictures.DrawingNothing());
+            new FakePictures());
 
         Assert.True(window.NewKeyDownEvent(Key.Q.WithCtrl));
         Assert.Equal(1, quits);
@@ -318,7 +318,7 @@ public class ShellKeyTests
             Themes.Plain,
             built.Clock,
             () => { },
-            FakePictures.DrawingNothing());
+            new FakePictures());
 
         shell.Search();
         built.Host.Drain();
@@ -352,7 +352,7 @@ public class ShellKeyTests
             Themes.Plain,
             built.Clock,
             () => { },
-            FakePictures.DrawingNothing());
+            new FakePictures());
 
         shell.Search();
         built.Host.Drain();
@@ -408,7 +408,7 @@ public class ShellKeyTests
             Themes.Plain,
             built.Clock,
             () => quits++,
-            FakePictures.DrawingNothing());
+            new FakePictures());
 
         shell.Search();
         built.Host.Drain();
@@ -436,7 +436,7 @@ public class ShellKeyTests
 
         var shell = await built.Opened();
 
-        var window = new ShellWindow(shell, Themes.Plain, built.Clock, () => { }, FakePictures.DrawingNothing())
+        var window = new ShellWindow(shell, Themes.Plain, built.Clock, () => { }, new FakePictures())
         {
             Width = 80,
             Height = 20,
@@ -468,7 +468,7 @@ public class ShellKeyTests
 
         var shell = await built.Opened();
 
-        var window = new ShellWindow(shell, Themes.Plain, built.Clock, () => { }, FakePictures.DrawingNothing())
+        var window = new ShellWindow(shell, Themes.Plain, built.Clock, () => { }, new FakePictures())
         {
             Width = 80,
             Height = 40,
@@ -515,7 +515,7 @@ public class ShellKeyTests
 
         var shell = await built.Opened();
 
-        var window = new ShellWindow(shell, Themes.Plain, built.Clock, () => { }, FakePictures.DrawingNothing())
+        var window = new ShellWindow(shell, Themes.Plain, built.Clock, () => { }, new FakePictures())
         {
             Width = 80,
             Height = 20,

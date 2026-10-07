@@ -28,8 +28,12 @@ public class PostBylineTests
         APost.With(account: account, author: author, avatarUrl: avatar);
 
     /// <summary>The post's rows as a feed shows them.</summary>
-    private static IReadOnlyList<Line> Feed(Post post, int width = 61, IPictures? pictures = null) =>
-        PostLines.Feed(post, new Drawing(width, Now, pictures), default);
+    private static IReadOnlyList<Line> Feed(
+        Post post,
+        int width = 61,
+        IPictures? pictures = null,
+        Raster? raster = null) =>
+        PostLines.Feed(post, new Drawing(width, Now, pictures, raster ?? ARaster.Sixel()), default);
 
     /// <summary>Which row the first one <paramref name="which" /> picks out is, so a test can say "the row under it".</summary>
     private static int Row(IReadOnlyList<Line> lines, Func<Line, bool> which)
@@ -98,7 +102,7 @@ public class PostBylineTests
     {
         var lines = Feed(
             By(avatar: Avatar),
-            pictures: FakePictures.With().HoldingAvatarOf("maria@fosstodon.org"));
+            pictures: new FakePictures().HoldingAvatarOf("maria@fosstodon.org"));
 
         var box = Assert.Single(lines.SelectMany(line => line.Insets));
 
@@ -124,7 +128,7 @@ public class PostBylineTests
     [Fact]
     public void Feed_ReservesTheAvatarColumnsWhileThePixelsAreStillOnTheirWay()
     {
-        var pictures = FakePictures.With();
+        var pictures = new FakePictures();
         var lines = Feed(By(avatar: Avatar), pictures: pictures);
 
         Assert.Empty(lines.SelectMany(line => line.Insets));
@@ -143,8 +147,8 @@ public class PostBylineTests
     [Fact]
     public void Feed_SpendsNoColumnsOnAnAvatarThatWillNeverBeDrawn()
     {
-        var onATerminalThatDrawsNothing = Feed(By(avatar: Avatar), pictures: FakePictures.DrawingNothing());
-        var whereTheInstanceNamedNone = Feed(By(), pictures: FakePictures.With());
+        var onATerminalThatDrawsNothing = Feed(By(avatar: Avatar), pictures: new FakePictures(), raster: Raster.None);
+        var whereTheInstanceNamedNone = Feed(By(), pictures: new FakePictures());
 
         foreach (var lines in new[] { onATerminalThatDrawsNothing, whereTheInstanceNamedNone })
         {
@@ -169,9 +173,11 @@ public class PostBylineTests
     public void Rows_PutTheGutterToTheLeftOfTheAvatar()
     {
         var posts = new Picked<Post>([By(avatar: Avatar)]);
-        var pictures = FakePictures.With().HoldingAvatarOf("maria@fosstodon.org");
+        var pictures = new FakePictures().HoldingAvatarOf("maria@fosstodon.org");
 
-        var lines = posts.Rows(61, (post, _, room) => PostLines.Feed(post, new Drawing(room, Now, pictures), default));
+        var lines = posts.Rows(
+            61,
+            (post, _, room) => PostLines.Feed(post, new Drawing(room, Now, pictures, ARaster.Sixel()), default));
 
         var box = Assert.Single(lines.SelectMany(line => line.Insets));
         var name = lines.First(line => line.Has(Role.BylineName));
@@ -210,7 +216,7 @@ public class PostBylineTests
                 Content = "Two of them.",
                 Media = [APost.APicture(id: "m1"), APost.APicture(id: "m2", description: "A second one")],
             },
-            pictures: FakePictures.With().Holding("m1", 400, 300).Holding("m2", 400, 300));
+            pictures: new FakePictures().Holding("m1", 400, 300).Holding("m2", 400, 300));
 
         // Every row that opens a part has a blank above it, and no part opens on the row under another part's last.
         foreach (var opens in new[] { "Two of them.", "▒▒▒▒ A cartoon sheep", "▒▒▒▒ A second one", "↺ 3" })
@@ -231,7 +237,7 @@ public class PostBylineTests
     {
         var lines = Feed(
             By() with { Content = string.Empty, Media = [APost.APicture()] },
-            pictures: FakePictures.With().Holding("m1", 400, 300));
+            pictures: new FakePictures().Holding("m1", 400, 300));
 
         // Straight from the handle to the one blank to the caption. The rows under the caption are blank because they
         // are the picture's own, which is a different thing from a doubled separator.
@@ -247,7 +253,7 @@ public class PostBylineTests
     {
         var lines = PostLines.Whole(
             By(avatar: Avatar),
-            new Drawing(61, Now, FakePictures.With().HoldingAvatarOf("maria@fosstodon.org")),
+            new Drawing(61, Now, new FakePictures().HoldingAvatarOf("maria@fosstodon.org"), ARaster.Sixel()),
             default);
 
         var box = Assert.Single(lines.SelectMany(line => line.Insets));
@@ -268,7 +274,7 @@ public class PostBylineTests
     {
         var lines = Feed(
             APost.With(account: "jeff@mastodon.social", boosted: By(avatar: Avatar)),
-            pictures: FakePictures.With().HoldingAvatarOf("maria@fosstodon.org"));
+            pictures: new FakePictures().HoldingAvatarOf("maria@fosstodon.org"));
 
         Assert.Equal("avatar:maria@fosstodon.org", Assert.Single(lines.SelectMany(line => line.Insets)).Drawn.Id);
     }
@@ -437,7 +443,7 @@ public class PostBylineTests
                 author: "Somebody With A Very Long Display Name Indeed",
                 avatar: Avatar),
             width,
-            FakePictures.With().HoldingAvatarOf("somebody@an-extremely-long-instance-domain.example"));
+            new FakePictures().HoldingAvatarOf("somebody@an-extremely-long-instance-domain.example"));
 
         Assert.All(lines, line => Assert.True(line.Width <= width, $"'{line.Text}' is {line.Width} columns"));
         Assert.All(

@@ -48,7 +48,7 @@ public class SynchronizedFramesTests
                     APost.With(id: "220"),
                     APost.With(id: "330")),
             },
-            pictures: FakePictures.With().Holding("m1", 800, 400),
+            pictures: new FakePictures().Holding("m1", 800, 400),
             drawsPictures: true,
             frames: new SynchronizedFrames(written.Add));
 

@@ -87,5 +87,6 @@ public class WarnedMessageTests
 
     /// <summary>The conversations list, with <paramref name="latest" /> as the last thing said in the one on it.</summary>
     private static IReadOnlyList<Line> Listed(Post latest) =>
-        new DirectMessagesScreen([AConversation.With(latest: latest)]).Lines(new Drawing(61, Now, FakePictures.With()));
+        new DirectMessagesScreen([AConversation.With(latest: latest)]).Lines(
+            new Drawing(61, Now, new FakePictures(), ARaster.Sixel()));
 }
