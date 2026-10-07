@@ -86,9 +86,9 @@ public class ShellContentClickTests
     }
 
     /// <summary>
-    ///     A click between two frames is answered from the rows as the last frame drew them, under the Raster that frame
-    ///     worked out — not under one the terminal has answered since, which would lay a picture's box where the page
-    ///     still shows a link and put the post under the pointer somewhere else (#357).
+    ///     A click between two frames is answered from the rows as the last frame drew them, under the Raster that
+    ///     frame worked out — not under one the terminal has answered since, which would lay a picture's box where the
+    ///     page still shows a link and put the post under the pointer somewhere else (#357).
     /// </summary>
     [Fact]
     public async Task AClickBetweenFramesIsAnsweredFromTheRowsAsDrawn()
@@ -104,7 +104,13 @@ public class ShellContentClickTests
 
         var answered = Raster.None;
 
-        using var drawn = await DrawnShell.Of(80, Tall, Themes.Plain, built, pictures: pictures, answers: () => answered);
+        using var drawn = await DrawnShell.Of(
+            80,
+            Tall,
+            Themes.Plain,
+            built,
+            pictures: pictures,
+            answers: () => answered);
 
         var row = RowOf(drawn, "Two sheep");
 
