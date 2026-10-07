@@ -24,7 +24,7 @@ public class ComposeNoticeTests
         var (shell, compose) = await Refused();
         var announced = Announced(shell);
 
-        shell.EditCompose(screen => screen.Rewrite("Shorter"));
+        shell.ChangeCompose(screen => screen.Rewrite("Shorter"));
 
         Assert.Null(shell.Notice);
         Assert.Equal("Shorter", compose.Text);
@@ -41,7 +41,7 @@ public class ComposeNoticeTests
         var (shell, compose) = await Refused(writingTheWarning: true);
         var announced = Announced(shell);
 
-        shell.EditCompose(screen => screen.RewriteWarning("!!!"));
+        shell.ChangeCompose(screen => screen.RewriteWarning("!!!"));
 
         Assert.Null(shell.Notice);
         Assert.Equal(1, announced());
@@ -57,7 +57,7 @@ public class ComposeNoticeTests
         var (shell, compose) = await Refused();
         var announced = Announced(shell);
 
-        shell.EditCompose(screen => screen.RewriteLanguage("fr"));
+        shell.ChangeCompose(screen => screen.RewriteLanguage("fr"));
 
         Assert.Null(shell.Notice);
         Assert.Equal("fr", compose.Lang.Held);
@@ -72,7 +72,7 @@ public class ComposeNoticeTests
         var announced = Announced(shell);
         var french = PostLanguageName.Matching("French")[0];
 
-        shell.EditCompose(screen => screen.PickLanguage(french));
+        shell.ChangeCompose(screen => screen.PickLanguage(french));
 
         Assert.Null(shell.Notice);
         Assert.Equal(ComposeLang.Spoken(french), compose.Lang.Held);
@@ -95,7 +95,7 @@ public class ComposeNoticeTests
         var announced = Announced(shell);
         var refusal = shell.Notice;
 
-        shell.EditCompose(move switch
+        shell.ChangeCompose(move switch
         {
             "walk" => screen => screen.Walk(-1),
             "type into" => screen => screen.TypeInto(ComposeField.Lang),
@@ -117,12 +117,12 @@ public class ComposeNoticeTests
         var (shell, compose) = await Refused();
         var refusal = shell.Notice;
 
-        shell.EditCompose(screen => screen.TypeInto(ComposeField.To));
+        shell.ChangeCompose(screen => screen.TypeInto(ComposeField.To));
 
         var was = compose.Visibility;
         var announced = Announced(shell);
 
-        shell.EditCompose(screen => screen.Choose(1));
+        shell.ChangeCompose(screen => screen.Choose(1));
 
         Assert.NotEqual(was, compose.Visibility);
         Assert.Equal(refusal, shell.Notice);
@@ -137,7 +137,7 @@ public class ComposeNoticeTests
         var announced = Announced(shell);
         var refusal = shell.Notice;
 
-        var change = shell.EditCompose(screen => screen.TypeInto(ComposeField.Post));
+        var change = shell.ChangeCompose(screen => screen.TypeInto(ComposeField.Post));
 
         Assert.Equal(ComposeChange.None, change);
         Assert.Equal(refusal, shell.Notice);
@@ -158,7 +158,7 @@ public class ComposeNoticeTests
         var refusal = shell.Notice;
         var announced = Announced(shell);
 
-        var change = shell.EditCompose(field == "the post"
+        var change = shell.ChangeCompose(field == "the post"
             ? screen => screen.Rewrite("Far too long")
             : screen => screen.PickLanguage(french));
 
@@ -176,7 +176,7 @@ public class ComposeNoticeTests
         var announced = Announced(shell);
         var made = false;
 
-        var change = shell.EditCompose(_ =>
+        var change = shell.ChangeCompose(_ =>
         {
             made = true;
 
@@ -222,13 +222,13 @@ public class ComposeNoticeTests
 
         if (writingTheWarning)
         {
-            shell.EditCompose(screen => screen.WriteTheWarning());
-            shell.EditCompose(screen => screen.RewriteWarning("!!"));
+            shell.ChangeCompose(screen => screen.WriteTheWarning());
+            shell.ChangeCompose(screen => screen.RewriteWarning("!!"));
         }
 
         if (inLanguage is { } language)
         {
-            shell.EditCompose(screen => screen.PickLanguage(language));
+            shell.ChangeCompose(screen => screen.PickLanguage(language));
         }
 
         await shell.Send();

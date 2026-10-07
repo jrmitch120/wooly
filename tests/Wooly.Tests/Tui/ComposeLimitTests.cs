@@ -41,7 +41,7 @@ public class ComposeLimitTests
         var compose = ComposeRows.Open(shell, ComposeFor.Post);
 
         built.Host.Drain();
-        shell.EditCompose(compose => compose.Rewrite("https://example.com"));
+        shell.ChangeCompose(compose => compose.Rewrite("https://example.com"));
 
         Assert.Equal("30 / 1000", Counted(compose));
     }
@@ -60,7 +60,7 @@ public class ComposeLimitTests
         var compose = ComposeRows.Open(shell, ComposeFor.Post);
 
         built.Host.Drain();
-        shell.EditCompose(compose => compose.Rewrite(new string('a', length)));
+        shell.ChangeCompose(compose => compose.Rewrite(new string('a', length)));
 
         Assert.Equal(role, Assert.Single(Count(compose).Spans, span => span.Text.Trim().Length > 0).Role);
     }

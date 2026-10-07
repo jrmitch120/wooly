@@ -12,8 +12,8 @@ namespace Wooly.Tui.Views;
 ///     Compose's fields, in one view laid over the content viewport (#365): the editor, and the warning, To and Lang
 ///     fields, with the list of people to mention hung under the post and the list of languages under Lang (#366). Each
 ///     field sits where the compose screen lays it, shows while compose is on top and opens on what the draft
-///     holds, and where the typing is stays one fact — the screen's — whichever way it moved. Every edit it makes goes
-///     through the shell's one way in (<see cref="Shell.Shell.EditCompose" />).
+///     holds, and where the typing is stays one fact — the screen's — whichever way it moved. Every change it makes goes
+///     through the shell's one way in (<see cref="Shell.Shell.ChangeCompose" />).
 /// </summary>
 /// <remarks>
 ///     The headers, hairlines and count around the fields are the screen's rows, painted by the content panel behind
@@ -63,7 +63,7 @@ internal sealed class ComposeView : View
             () => _ = shell.Send(),
             () => shell.Back(),
             WriteWarning,
-            () => shell.EditCompose(compose => compose.Walk(-1)))
+            () => shell.ChangeCompose(compose => compose.Walk(-1)))
         {
             // Wherever the compose screen says, inside the viewport this view is laid over (#315): its headers and
             // hairlines (#317) are painted behind it, so the screen that paints them is the one that knows how far down
@@ -82,7 +82,7 @@ internal sealed class ComposeView : View
 
         // The screen's text follows the editor on every edit rather than only at ctrl-s, so whatever reads it while a
         // post is being written — a count, a list of people to mention — sees what has been typed so far.
-        _editor.ContentsChanged += (_, _) => _shell.EditCompose(compose => compose.Rewrite(_editor.Text));
+        _editor.ContentsChanged += (_, _) => _shell.ChangeCompose(compose => compose.Rewrite(_editor.Text));
 
         _warning = new ComposeWarningField(
             theme,
@@ -101,12 +101,12 @@ internal sealed class ComposeView : View
         };
 
         // The same for the warning. The count is painted behind, on rows an edit announces as changed.
-        _warning.ValueChanged += (_, _) => _shell.EditCompose(compose => compose.RewriteWarning(_warning.Text));
+        _warning.ValueChanged += (_, _) => _shell.ChangeCompose(compose => compose.RewriteWarning(_warning.Text));
 
         _to = new ComposeToField(
             theme,
             room => (_shell.Screen as ComposeScreen)?.ToSpans(room) ?? [],
-            (column, room) => shell.EditCompose(compose => compose.ClickTo(column, room)))
+            (column, room) => shell.ChangeCompose(compose => compose.ClickTo(column, room)))
         {
             // Wherever the compose screen says, as for the warning: To's value column, under From.
             X = Pos.Func(_ => ToAt().X),
@@ -305,7 +305,7 @@ internal sealed class ComposeView : View
         Viewport.Width > 0 && _shell.Screen is ComposeScreen compose ? at(compose) : Rectangle.Empty;
 
     /// <summary><c>ctrl-w</c> in any of compose's fields: the typing to the warning and back (#123).</summary>
-    private void WriteWarning() => _shell.EditCompose(compose => compose.WriteTheWarning());
+    private void WriteWarning() => _shell.ChangeCompose(compose => compose.WriteTheWarning());
 
     /// <summary>
     ///     One of the fields gained focus — by a click, or by <see cref="Refresh" /> moving it — and the screen is
@@ -315,7 +315,7 @@ internal sealed class ComposeView : View
     {
         if (gained && _editor.Visible)
         {
-            _shell.EditCompose(compose => compose.TypeInto(field));
+            _shell.ChangeCompose(compose => compose.TypeInto(field));
         }
     }
 }

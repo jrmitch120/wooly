@@ -151,7 +151,7 @@ public class ComposeViewTests
         Assert.Equal(ComposeField.Post, compose.Typing);
         Assert.True(view.Editor.HasFocus);
 
-        view.Shell.EditCompose(screen => screen.Walk(-1));
+        view.Shell.ChangeCompose(screen => screen.Walk(-1));
         view.Redraw();
 
         Assert.True(view.Warning.HasFocus);

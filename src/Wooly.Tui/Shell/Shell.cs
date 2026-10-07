@@ -499,13 +499,13 @@ public sealed class Shell
         Verb.Vote => Ran(AskToVote),
         Verb.Refresh => Ran(Refresh),
         Verb.MarkRead => Ran(MarkRead),
-        Verb.WriteWarning => Ran(() => _ = EditCompose(compose => compose.WriteTheWarning())),
+        Verb.WriteWarning => Ran(() => _ = ChangeCompose(compose => compose.WriteTheWarning())),
         // Answered whether or not there was anywhere to go, so that an arrow off either end of the walk or of To stops
         // there rather than falling through to Terminal.Gui, which would carry the focus round to the other end.
-        Verb.PreviousField => Ran(() => _ = EditCompose(compose => compose.Walk(-1))),
-        Verb.NextField => Ran(() => _ = EditCompose(compose => compose.Walk(1))),
-        Verb.PreviousChoice => Ran(() => _ = EditCompose(compose => compose.Choose(-1))),
-        Verb.NextChoice => Ran(() => _ = EditCompose(compose => compose.Choose(1))),
+        Verb.PreviousField => Ran(() => _ = ChangeCompose(compose => compose.Walk(-1))),
+        Verb.NextField => Ran(() => _ = ChangeCompose(compose => compose.Walk(1))),
+        Verb.PreviousChoice => Ran(() => _ = ChangeCompose(compose => compose.Choose(-1))),
+        Verb.NextChoice => Ran(() => _ = ChangeCompose(compose => compose.Choose(1))),
 
         // Nothing, and the terminal's own — which the window has already taken, and which no screen answers either.
         Verb.None => false,
@@ -1086,38 +1086,39 @@ public sealed class Shell
     }
 
     /// <summary>
-    ///     Makes <paramref name="edit" /> on the compose screen on top — every change to a draft comes in here, from
-    ///     its fields, its lists and its keys — and settles what follows from it by the one rule (#364): an edit spends
-    ///     a notice said over the draft, and anything but no change at all is announced so the screen is drawn again.
+    ///     Makes <paramref name="change" /> to the compose screen on top — every change to a draft comes in here, from
+    ///     its fields, its lists and its keys — and settles what follows from it by the one rule (#364): a change that
+    ///     says it <see cref="ComposeChange.Edited" /> spends a notice said over the draft, and anything but no change at
+    ///     all is announced so the screen is drawn again.
     /// </summary>
     /// <remarks>
-    ///     A notice is spent by an edit and not by a move (#319). The status row holds a notice or the keymap and never
-    ///     both, and while a post is being written the keys go to its fields rather than to anything that would
-    ///     otherwise take a notice down — so a refusal of the post would stand, hiding every key compose answers to,
-    ///     until <c>esc</c> threw the draft away. Changing the draft is doing what the notice asked; walking the
-    ///     fields, choosing on To or opening a list is not, and leaves the notice to be read.
+    ///     A notice is spent by an edit of the draft and not by a move (#319). The status row holds a notice or the
+    ///     keymap and never both, and while a post is being written the keys go to its fields rather than to anything
+    ///     that would otherwise take a notice down — so a refusal of the post would stand, hiding every key compose
+    ///     answers to, until <c>esc</c> threw the draft away. Changing the draft is doing what the notice asked; walking
+    ///     the fields, choosing on To or opening a list is not, and leaves the notice to be read.
     /// </remarks>
-    /// <returns>What the edit changed, or nothing where compose is not on top and no edit was made.</returns>
-    public ComposeChange EditCompose(Func<ComposeScreen, ComposeChange> edit)
+    /// <returns>What the change was, or nothing where compose is not on top and no change was made.</returns>
+    public ComposeChange ChangeCompose(Func<ComposeScreen, ComposeChange> change)
     {
         if (Screen is not ComposeScreen compose)
         {
             return ComposeChange.None;
         }
 
-        var change = edit(compose);
+        var made = change(compose);
 
-        if (change == ComposeChange.Edited && Notice is not null)
+        if (made == ComposeChange.Edited && Notice is not null)
         {
             // Saying nothing announces the change itself.
             Say(null, isError: false);
         }
-        else if (change != ComposeChange.None)
+        else if (made != ComposeChange.None)
         {
             Changed?.Invoke();
         }
 
-        return change;
+        return made;
     }
 
     /// <summary>
