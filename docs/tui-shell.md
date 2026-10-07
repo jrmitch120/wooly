@@ -1460,15 +1460,17 @@ reminder, `?` is the reference.** #169, #214 and #215 settled the row; #218, #21
   `shift-tab`, `` ` ``/`~`, a click on the rail or on a crumb behind it, `ctrl-p` and `ctrl-q` all go through one
   check in the shell: where a compose screen the way out would take off differs from what it opened with — its text,
   its warning, To or Lang (`ComposeScreen.Touched`) — the confirmation row asks **`Discard this post? y / n`**, and
-  nothing else happens until it is answered. `y`, or the key that asked pressed again, discards and finishes that way
-  out, once: `esc esc` pops, `tab tab` moves one destination, not two. Anything else keeps the draft and does nothing
-  more — a stray second `tab` cannot finish what the first started. A click is no key to press again, so only `y`
-  agrees to a question a click put. *Touched* is what the screen holds rather than whether a key was pressed: a reply
-  still holding only its mention and the warning it opened on, an unchanged edit, and a letter typed and rubbed out
-  again all leave without asking. The question reads `y / n` rather than `y discard · esc keep` because `esc` may be
-  the very key that agrees, and it carries no warning sentence, the question being the whole of it. While it is open
-  the compose fields hand every key to it, so a letter answers rather than being typed. Sending is not a way out of
-  this kind and asks nothing.
+  nothing else happens until it is answered. Only `y` discards and finishes that way out; the way out's own key
+  pressed again does not, so `esc esc` or `tab tab` never throws a draft away. Anything else keeps the draft and does
+  nothing more — a stray second `tab` cannot finish what the first started. A step along the rail (`tab`,
+  `shift-tab`, `` ` ``/`~`) that takes a draft off, asked or not, arrives at the destination stepped to at once,
+  without the settle (ADR-0014 amended), so the screen under the draft is never shown in between; stepped onto the
+  destination already shown, it walks back out to it as a click on it does. Tabbing on from there settles as ever.
+  *Touched* is what the screen holds rather than whether a key was pressed: a reply still holding only its mention and
+  the warning it opened on, an unchanged edit, and a letter typed and rubbed out again all leave without asking. The
+  question reads `y / n` rather than `y discard · esc keep` because it is put in front of `esc` among other ways out,
+  and it carries no warning sentence, the question being the whole of it. While it is open the compose fields hand
+  every key to it, so a letter answers rather than being typed. Sending is not a way out of this kind and asks nothing.
 - **80 columns is the floor and the degradation ships anyway.** Nothing below 80 earns a design compromise, but a row
   that asks a question must not be able to lose its answer at *any* width, so reserve-the-answer and the sentence
   drop are a guarantee rather than a supported layout.

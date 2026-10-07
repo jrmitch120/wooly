@@ -164,7 +164,7 @@ public class MentionListTests
 
     /// <summary>
     ///     With the list closed, <c>esc</c> is the way out of the draft as it always has been — asking first over what
-    ///     was written (#373), and throwing it away on the second.
+    ///     was written (#373), and throwing it away on a <c>y</c>.
     /// </summary>
     [Fact]
     public async Task EscWithTheListClosedThrowsTheDraftAway()
@@ -177,7 +177,7 @@ public class MentionListTests
         Assert.NotNull(drawn.Shell.Asking);
         Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
 
-        drawn.Press(Key.Esc);
+        drawn.Press(Key.Y);
 
         Assert.IsNotType<ComposeScreen>(drawn.Shell.Screen);
     }

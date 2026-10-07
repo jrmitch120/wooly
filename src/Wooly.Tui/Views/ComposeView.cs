@@ -223,8 +223,8 @@ internal sealed class ComposeView : View
     /// <summary>
     ///     A right click with compose in front: <c>esc</c>, wherever it lands — over a field, which would otherwise keep
     ///     it to itself, as anywhere else. It asks before a touched draft is thrown away and, pressed again on that
-    ///     question, agrees, the way <c>esc</c> does (#373). Neither list under the pointer closes or picks for it, and
-    ///     the editor's own context menu never opens.
+    ///     question, keeps the draft, the way <c>esc</c> does (#373). Neither list under the pointer closes or picks for
+    ///     it, and the editor's own context menu never opens.
     /// </summary>
     /// <returns>Whether it was one, and spent.</returns>
     private bool RightClicked(Mouse mouse)
@@ -248,8 +248,8 @@ internal sealed class ComposeView : View
     private bool Answered(Key key) => Answered(ShellKeys.Of(key));
 
     /// <summary>
-    ///     <paramref name="pressed" /> as the answer to a question the shell has open on the status row — <c>y</c> or
-    ///     the key that asked agrees, anything else keeps — where it has one, and nothing where it has none.
+    ///     <paramref name="pressed" /> as the answer to a question the shell has open on the status row — <c>y</c>
+    ///     agrees, anything else keeps — where it has one, and nothing where it has none.
     /// </summary>
     /// <returns>Whether there was a question, and the press was spent on it.</returns>
     private bool Answered(ShellKey? pressed)

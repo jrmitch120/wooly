@@ -12,7 +12,7 @@ namespace Wooly.Tests.Tui;
 /// <summary>
 ///     A compose screen that differs from how it opened asks before it is thrown away, on every way out of it (#373):
 ///     <c>esc</c>, a right click, <c>tab</c> and <c>shift-tab</c>, a click on the rail, <c>ctrl-p</c> and quitting. The
-///     question is the confirmation row's, <c>y</c> or the same key again goes ahead with the way out it interrupted, and
+///     question is the confirmation row's, <c>y</c> and only <c>y</c> goes ahead with the way out it interrupted, and
 ///     anything else keeps the draft and does nothing more. An untouched one leaves without asking.
 /// </summary>
 /// <remarks>
@@ -60,7 +60,7 @@ public class ComposeDiscardTests
     private static int RailRowOf(DrawnShell drawn, string label) =>
         Array.FindIndex(drawn.Rail(), row => row.Contains(label, StringComparison.Ordinal));
 
-    /// <summary>The ways out, as pressed: each the key that leaves, and the same key again to agree.</summary>
+    /// <summary>The ways out, as pressed.</summary>
     public static TheoryData<string> WaysOut => new("esc", "right-click", "tab", "shift-tab", "rail", "ctrl-p", "ctrl-q");
 
     private static void Leave(DrawnShell drawn, string way)
@@ -207,74 +207,101 @@ public class ComposeDiscardTests
     }
 
     /// <summary>
-    ///     <c>y</c> or the way out taken again throws the draft away and finishes that way out — once: <c>tab tab</c>
-    ///     moves one destination, not two. A click on the rail is no key to press again, so only <c>y</c> agrees to
-    ///     the question it put; a second click is any other press, and keeps.
+    ///     <c>y</c> throws the draft away and finishes the way out it interrupted — once: <c>tab</c> moves one
+    ///     destination, not two. A step of the rail arrives there and then, with no settle to wait out, so the screen
+    ///     under the draft is never what is in front between the answer and the destination.
     /// </summary>
     [Theory]
     [MemberData(nameof(WaysOut))]
-    public async Task YOrTheSameWayAgain_DiscardsAndGoesThatWayOnce(string way)
+    public async Task Y_DiscardsAndGoesThatWayOnce(string way)
     {
-        foreach (var again in way == "rail" ? [false] : new[] { false, true })
+        var quits = 0;
+        using var drawn = await Composing(quit: () => quits++);
+
+        Type(drawn, "sheep");
+        Leave(drawn, way);
+        drawn.Press(Key.Y);
+
+        switch (way)
         {
-            var quits = 0;
-            using var drawn = await Composing(quit: () => quits++);
+            case "tab":
+                Assert.Equal(1, drawn.Shell.Rail.Current);
+                break;
 
-            Type(drawn, "sheep");
-            Leave(drawn, way);
+            case "shift-tab":
+                Assert.Equal(drawn.Shell.Rail.Destinations.Count - 1, drawn.Shell.Rail.Current);
+                break;
+        }
 
-            if (again)
-            {
-                Leave(drawn, way);
-            }
-            else
-            {
-                drawn.Press(Key.Y);
-            }
+        drawn.Built.Host.SettleAll();
+        drawn.Redraw();
 
-            drawn.Built.Host.SettleAll();
-            drawn.Redraw();
+        Assert.Null(drawn.Shell.Asking);
 
-            Assert.Null(drawn.Shell.Asking);
+        switch (way)
+        {
+            case "esc" or "right-click":
+                Assert.IsType<FeedScreen>(drawn.Shell.Screen);
+                Assert.Equal(1, drawn.Shell.Depth);
+                break;
 
-            switch (way)
-            {
-                case "esc" or "right-click":
-                    Assert.IsType<FeedScreen>(drawn.Shell.Screen);
-                    Assert.Equal(1, drawn.Shell.Depth);
-                    break;
+            case "tab":
+                Assert.Equal(1, drawn.Shell.Rail.Current);
+                Assert.Equal(1, drawn.Shell.Depth);
+                break;
 
-                case "tab":
-                    Assert.Equal(1, drawn.Shell.Rail.Current);
-                    Assert.Equal(1, drawn.Shell.Depth);
-                    break;
+            case "shift-tab":
+                Assert.Equal(drawn.Shell.Rail.Destinations.Count - 1, drawn.Shell.Rail.Current);
+                Assert.Equal(1, drawn.Shell.Depth);
+                break;
 
-                case "shift-tab":
-                    Assert.Equal(drawn.Shell.Rail.Destinations.Count - 1, drawn.Shell.Rail.Current);
-                    Assert.Equal(1, drawn.Shell.Depth);
-                    break;
+            case "rail":
+                Assert.Equal(DestinationKind.Notifications, drawn.Shell.Rail.Showing.Kind);
+                Assert.Equal(1, drawn.Shell.Depth);
+                break;
 
-                case "rail":
-                    Assert.Equal(DestinationKind.Notifications, drawn.Shell.Rail.Showing.Kind);
-                    Assert.Equal(1, drawn.Shell.Depth);
-                    break;
+            case "ctrl-p":
+                Assert.IsType<ProfilesScreen>(drawn.Shell.Screen);
+                Assert.Equal(["Home", "Profiles"], drawn.Shell.Crumbs);
+                break;
 
-                case "ctrl-p":
-                    Assert.IsType<ProfilesScreen>(drawn.Shell.Screen);
-                    Assert.Equal(["Home", "Profiles"], drawn.Shell.Crumbs);
-                    break;
+            case "ctrl-q":
+                Assert.Equal(1, quits);
+                break;
+        }
 
-                case "ctrl-q":
-                    Assert.Equal(1, quits);
-                    break;
-            }
-
-            if (way != "ctrl-q")
-            {
-                Assert.DoesNotContain(drawn.Shell.Crumbs, crumb => crumb == "Compose");
-            }
+        if (way != "ctrl-q")
+        {
+            Assert.DoesNotContain(drawn.Shell.Crumbs, crumb => crumb == "Compose");
         }
     }
+
+    /// <summary>
+    ///     The way out taken again does not agree: <c>esc esc</c>, <c>tab tab</c> and the rest keep the draft, the
+    ///     screen and the rail where they were, so a key pressed twice never throws a draft away.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(WaysOut))]
+    public async Task TheSameWayAgain_KeepsTheDraft(string way)
+    {
+        var quits = 0;
+        using var drawn = await Composing(quit: () => quits++);
+        var compose = drawn.Shell.Screen;
+
+        Type(drawn, "sheep");
+        Leave(drawn, way);
+        Leave(drawn, way);
+        drawn.Built.Host.SettleAll();
+        drawn.Redraw();
+
+        Assert.Null(drawn.Shell.Asking);
+        Assert.Same(compose, drawn.Shell.Screen);
+        Assert.Equal(0, drawn.Shell.Rail.Cursor);
+        Assert.Equal(0, drawn.Shell.Rail.Current);
+        Assert.Equal(0, quits);
+        Assert.Equal("sheep", drawn.Window.ComposeField<ComposeEditor>().Text);
+    }
+
 
     /// <summary>
     ///     Any other key keeps the draft and the screen, and does nothing else — not even what it would have done with no
@@ -367,12 +394,15 @@ public class ComposeDiscardTests
         Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
 
         drawn.Press(Key.Esc);
-        drawn.Press(Key.Esc);
+        drawn.Press(Key.Y);
 
         Assert.IsType<FeedScreen>(drawn.Shell.Screen);
     }
 
-    /// <summary>On an untouched compose the other ways out go at once, as they always have.</summary>
+    /// <summary>
+    ///     On an untouched compose the other ways out go at once, as they always have — a step of the rail arriving
+    ///     there and then too, with no settle to wait out, so the screen under the draft is never what is in front.
+    /// </summary>
     [Theory]
     [MemberData(nameof(WaysOut))]
     public async Task OnAnUntouchedCompose_EveryWayOutGoesAtOnce(string way)
@@ -381,6 +411,18 @@ public class ComposeDiscardTests
         using var drawn = await Composing(quit: () => quits++);
 
         Leave(drawn, way);
+
+        switch (way)
+        {
+            case "tab":
+                Assert.Equal(1, drawn.Shell.Rail.Current);
+                break;
+
+            case "shift-tab":
+                Assert.Equal(drawn.Shell.Rail.Destinations.Count - 1, drawn.Shell.Rail.Current);
+                break;
+        }
+
         drawn.Built.Host.SettleAll();
         drawn.Redraw();
 
@@ -394,6 +436,57 @@ public class ComposeDiscardTests
         {
             Assert.DoesNotContain(drawn.Shell.Crumbs, crumb => crumb == "Compose");
         }
+    }
+
+    /// <summary>
+    ///     Only the step that takes the draft off arrives at once: tabbing on from where it arrived settles as ever, the
+    ///     cursor moving ahead of the selection.
+    /// </summary>
+    [Fact]
+    public async Task TabbingOnFromWhereADraftWasLeft_Settles()
+    {
+        using var drawn = await Composing();
+
+        drawn.Press(Key.Tab);
+        drawn.Press(Key.Tab);
+
+        Assert.Equal(2, drawn.Shell.Rail.Cursor);
+        Assert.Equal(1, drawn.Shell.Rail.Current);
+
+        drawn.Built.Host.SettleAll();
+
+        Assert.Equal(2, drawn.Shell.Rail.Current);
+    }
+
+    /// <summary>
+    ///     A step off a draft that lands on the destination already shown — the cursor tabbed away before the reply
+    ///     was opened, and stepped back — walks back out to that destination's own screen, as a click on it does,
+    ///     rather than leaving the post the reply was opened from in front.
+    /// </summary>
+    [Fact]
+    public async Task SteppingOffADraftOntoTheDestinationShown_WalksBackOutToIt()
+    {
+        var post = APost.With(id: "220", account: "ben@hachyderm.io");
+        using var drawn = await DrawnShell.Of(80, Tall, Themes.Plain, new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(post),
+            Engagement = FakePostEngagement.Answered(post),
+        });
+
+        drawn.Press(Key.Enter);
+        drawn.Settle();
+
+        Assert.Equal(2, drawn.Shell.Depth);
+
+        drawn.Shell.Rail.Step(1);
+        ComposeRows.Open(drawn.Shell, ComposeFor.Reply);
+        drawn.Redraw();
+        drawn.Press(Key.Tab.WithShift);
+
+        Assert.Null(drawn.Shell.Asking);
+        Assert.Equal(0, drawn.Shell.Rail.Current);
+        Assert.Equal(1, drawn.Shell.Depth);
+        Assert.IsType<FeedScreen>(drawn.Shell.Screen);
     }
 
     /// <summary>A sent post leaves without asking: sending is not throwing it away.</summary>

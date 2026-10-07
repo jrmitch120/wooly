@@ -281,3 +281,13 @@ has to stand out clearly. The built-ins draw the body's text on Catppuccin's Sur
 `#acb0be` in `light`. A selection has no glyph to carry it, so the no-colour theme draws it reversed: the one role
 whose plain answer is not the plain pair. This passes the standing test above, since a reader about to cut or replace
 text has to see which text that is.
+
+## Amendment: a step that takes a draft off lands at once (#373)
+
+The selection follows the cursor only once the pressing stops, with one exception: a step along the rail that takes
+a compose screen off. The draft has to come off as the cursor moves, or more could be written into it only to be
+thrown away unasked. If the selection then waited for the settle, the screen that stood under the draft would be in
+front for the wait, a place the reader neither asked for nor is going to. So that step closes the settle window there
+and then (`Rail.LandNow`), and the destination stepped to is arrived at at once. Tabbing on from there settles as
+before. The cost is one fetch for a destination a reader tabs straight past on the way off a draft, which is rare and
+cheap beside a flash of the wrong screen.

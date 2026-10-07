@@ -250,7 +250,7 @@ internal sealed class ShellWindow : Window
     protected override bool OnKeyDown(Key key)
     {
         // A confirmation is the only thing on screen worth answering, so nothing else is listened to while one is up
-        // (story 43). Anything that is not the agreeing key — y, or the key that asked, pressed again — is a no.
+        // (story 43). Anything that is not the agreeing key, y, is a no.
         if (_shell.Asking is not null)
         {
             _ = _shell.Answer(ShellKeys.Of(key));
@@ -431,9 +431,9 @@ internal sealed class ShellWindow : Window
     /// <summary>
     ///     A right click, wherever the pointer is: <paramref name="pressed" />, the <c>esc</c> it stands for, through the
     ///     <see cref="Keymap" /> on the screen in front as <see cref="OnKeyDown" /> takes it, open question and all
-    ///     (#307). Pressed again on the question an <c>esc</c> put, it agrees, as <c>esc</c> does (#373); on any other
-    ///     question it is the no anything else is. With compose in front it never gets here: the compose view takes it
-    ///     ahead of the fields under the pointer, which keep their own right clicks to themselves.
+    ///     (#307). On an open question it is the no anything but <c>y</c> is (#373). With compose in front it never gets
+    ///     here: the compose view takes it ahead of the fields under the pointer, which keep their own right clicks to
+    ///     themselves.
     /// </summary>
     /// <returns>Always that it was the shell's, so nothing behind the window answers a right click either.</returns>
     private bool RightClicked(ShellKey pressed)

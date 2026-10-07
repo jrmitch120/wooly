@@ -25,14 +25,10 @@ namespace Wooly.Tui.Shell;
 ///     (<see cref="Screens.ChromeLines.Status" />). Defaulted, because it is the same sentence on every confirmation
 ///     and carries nothing particular to what is being asked. Empty for a question that warns of nothing.
 /// </param>
-/// <param name="Again">
-///     The key whose press put the question, which pressed again agrees as <paramref name="Confirm" /> does — so that
-///     a deliberate <c>esc esc</c> stays two presses (#373) — or <see langword="null" /> where only
-///     <paramref name="Confirm" /> agrees.
-/// </param>
 /// <param name="YesOrNo">
 ///     Whether the status row offers the answer as <c>y / n</c> rather than <c>y delete · esc keep</c>: for a question
-///     whose way out may be <c>esc</c> itself, where <c>esc keep</c> would be a lie (#373).
+///     put in front of a way out, <c>esc</c> among them, which is answered <c>y</c> to go on or anything else to stay
+///     (#373).
 /// </param>
 public sealed record Confirmation(
     string Ask,
@@ -40,7 +36,6 @@ public sealed record Confirmation(
     string Going = "delete",
     string Confirm = "y",
     string Warning = Confirmation.CannotBeUndone,
-    ShellKey? Again = null,
     bool YesOrNo = false)
 {
     /// <summary>
@@ -49,19 +44,17 @@ public sealed record Confirmation(
     public const string CannotBeUndone = "This cannot be undone.";
 
     /// <summary>
-    ///     Asked before a compose screen that differs from how it opened is thrown away, by whichever way out
-    ///     <paramref name="again" /> took (#373): <c>Discard this post? y / n</c>. No warning, since the question is the
-    ///     whole of it.
+    ///     Asked before a compose screen that differs from how it opened is thrown away, by whichever way out (#373):
+    ///     <c>Discard this post? y / n</c>. Only <c>y</c> agrees — not the way out's own key pressed again, so a draft
+    ///     is never lost to a key pressed twice. No warning, since the question is the whole of it.
     /// </summary>
     /// <param name="leave">The way out, finished once the question is agreed to.</param>
-    /// <param name="again">The key that took it, or <see langword="null" /> for a click.</param>
-    public static Confirmation Discarding(Func<Task> leave, ShellKey? again) =>
-        new("Discard this post?", leave, Going: "discard", Warning: string.Empty, Again: again, YesOrNo: true);
+    public static Confirmation Discarding(Func<Task> leave) =>
+        new("Discard this post?", leave, Going: "discard", Warning: string.Empty, YesOrNo: true);
 
     /// <summary>
-    ///     Whether <paramref name="pressed" /> agrees: the key that goes ahead, or the key that put the question pressed
-    ///     again. Anything else — a key with no meaning to the shell among them — is a no.
+    ///     Whether <paramref name="pressed" /> agrees: the key that goes ahead. Anything else — a key with no meaning to
+    ///     the shell among them — is a no.
     /// </summary>
-    public bool AgreedBy(ShellKey? pressed) =>
-        pressed is { } key && ((key == ShellKey.Y && Confirm == "y") || key == Again);
+    public bool AgreedBy(ShellKey? pressed) => pressed == ShellKey.Y && Confirm == "y";
 }

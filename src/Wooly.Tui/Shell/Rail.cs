@@ -163,6 +163,18 @@ public sealed class Rail
     }
 
     /// <summary>
+    ///     Closes the settle window there and then rather than when the pressing stops: the selection catches up with
+    ///     the cursor at once, as <see cref="Land" /> has it. For a step that took a draft off, where the wait would
+    ///     stand the screen under the draft in front of the reader (#373, ADR-0014 amended).
+    /// </summary>
+    public void LandNow()
+    {
+        _settling?.Dispose();
+
+        Land();
+    }
+
+    /// <summary>
     ///     The settle window closing: the selection catches up with the cursor, and that destination — only that one —
     ///     is asked for. A walk that ended where it started asks for nothing, because nothing moved.
     /// </summary>
