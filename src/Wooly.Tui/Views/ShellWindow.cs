@@ -230,8 +230,8 @@ internal sealed class ShellWindow : Window
             ComposeScreen.EmptyPostHint,
             () => _ = shell.Send(),
             () => shell.Back(),
-            shell.WriteWarning,
-            () => shell.WalkField(-1))
+            WriteWarning,
+            () => shell.EditCompose(compose => compose.Walk(-1)))
         {
             // Wherever the compose screen says, inside the content panel's viewport (#315): its headers and hairlines
             // (#317) are painted on _content, which this sits in front of, so the screen that paints them is the one
@@ -252,14 +252,14 @@ internal sealed class ShellWindow : Window
 
         // The screen's text follows the editor on every edit rather than only at ctrl-s, so whatever reads it while a
         // post is being written — a count, a list of people to mention — sees what has been typed so far.
-        _editor.ContentsChanged += (_, _) => _shell.Rewrite(_editor.Text);
+        _editor.ContentsChanged += (_, _) => _shell.EditCompose(compose => compose.Rewrite(_editor.Text));
 
         _warning = new ComposeWarningField(
             theme,
             () => (_shell.Screen as ComposeScreen)?.WarningHint ?? string.Empty,
             () => _ = shell.Send(),
             () => shell.Back(),
-            shell.WriteWarning)
+            WriteWarning)
         {
             // Wherever the compose screen says, as for the editor: its header's value column, on whichever row the
             // headers above it leave it.
@@ -273,14 +273,14 @@ internal sealed class ShellWindow : Window
         // The same for the warning, and the count is painted on the content region, which has to be told.
         _warning.ValueChanged += (_, _) =>
         {
-            _shell.RewriteWarning(_warning.Text);
+            _shell.EditCompose(compose => compose.RewriteWarning(_warning.Text));
             _content.SetNeedsDraw();
         };
 
         _to = new ComposeToField(
             theme,
             room => (_shell.Screen as ComposeScreen)?.ToSpans(room) ?? [],
-            shell.ClickTo)
+            (column, room) => shell.EditCompose(compose => compose.ClickTo(column, room)))
         {
             // Wherever the compose screen says, as for the warning: To's value column, under From.
             X = Pos.Func(content => ViewportOrigin(content).X + ToAt(content).X, _content),
@@ -295,7 +295,7 @@ internal sealed class ShellWindow : Window
             () => (_shell.Screen as ComposeScreen)?.LanguageHint ?? string.Empty,
             () => _ = shell.Send(),
             () => shell.Back(),
-            shell.WriteWarning)
+            WriteWarning)
         {
             // Wherever the compose screen says, as for To: Lang's value column, under To — nowhere where a short
             // terminal has given the row up.
@@ -855,6 +855,9 @@ internal sealed class ShellWindow : Window
             ? compose.LangAt(content.Viewport.Size)
             : Rectangle.Empty;
 
+    /// <summary><c>ctrl-w</c> in any of compose's fields: the typing to the warning and back (#123).</summary>
+    private void WriteWarning() => _shell.EditCompose(compose => compose.WriteTheWarning());
+
     /// <summary>
     ///     One of the fields gained focus — by a click, or by <see cref="Refresh" /> moving it — and the screen is
     ///     brought into step where it says the typing is somewhere else.
@@ -863,7 +866,7 @@ internal sealed class ShellWindow : Window
     {
         if (gained && _editor.Visible)
         {
-            _shell.TypeInto(field);
+            _shell.EditCompose(compose => compose.TypeInto(field));
         }
     }
 

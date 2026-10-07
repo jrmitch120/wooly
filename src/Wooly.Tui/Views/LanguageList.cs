@@ -92,7 +92,7 @@ internal sealed class LanguageList
         }
 
         _list.Offer([], keepingThePick: false);
-        _shell.OfferLanguages(false);
+        _shell.EditCompose(compose => compose.OfferLanguages(false));
     }
 
     /// <summary>First refusal on a mouse event anywhere: a click outside the open list closes it.</summary>
@@ -123,7 +123,7 @@ internal sealed class LanguageList
             return;
         }
 
-        _shell.RewriteLanguage(_field.Text);
+        _shell.EditCompose(compose => compose.RewriteLanguage(_field.Text));
 
         if (_shell.Screen is not ComposeScreen || _field.Text.Trim().Length == 0)
         {
@@ -143,14 +143,14 @@ internal sealed class LanguageList
 
         if (_list.Open != was)
         {
-            _shell.OfferLanguages(_list.Open);
+            _shell.EditCompose(compose => compose.OfferLanguages(_list.Open));
         }
     }
 
     /// <summary>A language picked: written into Lang, and the list closed, with the typing still in Lang.</summary>
     private void Pick(PostLanguage language)
     {
-        _shell.PickLanguage(language);
+        _shell.EditCompose(compose => compose.PickLanguage(language));
 
         if (_shell.Screen is ComposeScreen compose)
         {
