@@ -1,0 +1,21 @@
+<!-- PROTOTYPE (#374), throwaway. Not in Wooly.slnx on purpose. Run with: dotnet run, project src/Wooly.Tui.Prototype.Attachments -->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <NoWarn>$(NoWarn);CS0618</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SixLabors.ImageSharp" />
+    <PackageReference Include="Terminal.Gui" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- For the theme, the Kitty placeholder cells and the terminal's raster: drawn the way the product draws. -->
+    <ProjectReference Include="..\Wooly.Tui\Wooly.Tui.csproj" />
+  </ItemGroup>
+
+</Project>

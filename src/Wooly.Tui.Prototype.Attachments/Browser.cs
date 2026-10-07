@@ -1,0 +1,368 @@
+// PROTOTYPE (#374) — throwaway. The file browser: a screen on the stack, over the real file system.
+
+using System.Drawing;
+using Terminal.Gui.Input;
+using Terminal.Gui.ViewBase;
+using Wooly.Tui.Rendering;
+using Wooly.Tui.Theme;
+
+namespace Wooly.Tui.Prototype.Attachments;
+
+internal sealed class BrowserScreen : Screen
+{
+    private const int ListTop = 4;
+
+    private readonly HashSet<string> _chosen = [];
+
+    private string _folder = Directory.Exists(Proto.Folder) ? Proto.Folder : Environment.CurrentDirectory;
+
+    private string _filter = "";
+
+    private bool _everyFile;
+
+    private List<Entry> _entries = [];
+
+    private int _cursor;
+
+    private int _top;
+
+    private sealed record Entry(string Path, string Name, bool Folder, bool Up, long Bytes, DateTime Changed)
+    {
+        public bool Takeable => !Folder && (Instance.Of(Path) is not null);
+    }
+
+    public BrowserScreen() => Read();
+
+    private static int Room => Instance.Most - Proto.Draft.Items.Count;
+
+    public override string Hints =>
+        $"type to filter · space choose · enter {(_chosen.Count > 0 ? $"attach {_chosen.Count}" : "open / attach")} · ← up a folder · ctrl-a {(_everyFile ? "accepted only" : "every file")} · esc back";
+
+    private int ListHeight => Math.Max(1, Viewport.Height - ListTop - 1);
+
+    private int ListWidth => Viewport.Width >= 90 ? Viewport.Width * 11 / 20 : Viewport.Width;
+
+    private void Read()
+    {
+        var entries = new List<Entry>();
+
+        try
+        {
+            var here = new DirectoryInfo(_folder);
+
+            if (here.Parent is { } parent)
+            {
+                entries.Add(new Entry(parent.FullName, "..", true, true, 0, parent.LastWriteTime));
+            }
+
+            entries.AddRange(here.EnumerateDirectories()
+                .Where(folder => !Hidden(folder))
+                .OrderBy(folder => folder.Name, StringComparer.OrdinalIgnoreCase)
+                .Select(folder => new Entry(folder.FullName, folder.Name, true, false, 0, folder.LastWriteTime)));
+
+            entries.AddRange(here.EnumerateFiles()
+                .Where(file => !Hidden(file) && (_everyFile || Instance.Of(file.FullName) is not null))
+                .OrderBy(file => file.Name, StringComparer.OrdinalIgnoreCase)
+                .Select(file => new Entry(file.FullName, file.Name, false, false, file.Length, file.LastWriteTime)));
+        }
+        catch (Exception failure) when (failure is UnauthorizedAccessException or IOException)
+        {
+            Proto.Say($"can't read {_folder}: {failure.Message}");
+        }
+
+        _entries = entries;
+
+        if (_cursor == 0 && entries.Count > 1 && entries[0].Up) _cursor = 1;
+        Filtered();
+    }
+
+    private static bool Hidden(FileSystemInfo info) =>
+        info.Name.StartsWith('.') || info.Attributes.HasFlag(FileAttributes.Hidden);
+
+    private List<Entry> _shown = [];
+
+    private void Filtered()
+    {
+        _shown = _filter.Length == 0
+            ? _entries
+            : [.. _entries.Where(entry => entry.Up || entry.Name.Contains(_filter, StringComparison.OrdinalIgnoreCase))];
+        _cursor = Math.Clamp(_cursor, 0, Math.Max(0, _shown.Count - 1));
+
+        // Past ".." where there is a filter, so the first match is what enter takes.
+        if (_filter.Length > 0 && _shown.Count > 1 && _shown[0].Up && _cursor == 0) _cursor = 1;
+
+        Scrolled();
+        SetNeedsDraw();
+    }
+
+    private void Scrolled()
+    {
+        if (_cursor < _top) _top = _cursor;
+        if (_cursor >= _top + ListHeight) _top = _cursor - ListHeight + 1;
+        _top = Math.Max(0, _top);
+    }
+
+    private void Open(string folder)
+    {
+        var came = _folder;
+        _folder = folder;
+        _filter = "";
+        _cursor = 0;
+        _top = 0;
+        Read();
+
+        // Going up lands on the folder just left.
+        if (_entries.FindIndex(entry => entry.Path == came) is >= 0 and var at) _cursor = at;
+
+        Scrolled();
+    }
+
+    private void Choose(Entry entry)
+    {
+        if (entry.Folder) return;
+
+        if (_chosen.Remove(entry.Path)) return;
+
+        if (_chosen.Count >= Room)
+        {
+            Proto.Say($"{Instance.Most} is the most a post can carry — {Room} more fit");
+            return;
+        }
+
+        _chosen.Add(entry.Path);
+    }
+
+    private void Take(Entry? entry)
+    {
+        if (entry is { Folder: true })
+        {
+            Open(entry.Path);
+            return;
+        }
+
+        var paths = _chosen.Count > 0 ? _chosen.ToList() : entry is not null ? [entry.Path] : [];
+
+        if (paths.Count == 0) return;
+
+        Proto.Folder = _folder;
+        Proto.Shell.Pop();
+        Proto.Attach(paths, paths.Count == 1 ? $"{Path.GetFileName(paths[0])}" : "files");
+    }
+
+    private Entry? Current => _cursor < _shown.Count ? _shown[_cursor] : null;
+
+    protected override bool OnKeyDown(Key key)
+    {
+        if (Proto.Global(key)) return true;
+
+        if (key == Key.Esc)
+        {
+            if (_filter.Length > 0)
+            {
+                _filter = "";
+                Filtered();
+            }
+            else
+            {
+                Proto.Shell.Pop();
+            }
+        }
+        else if (key == Key.CursorDown) Move(1);
+        else if (key == Key.CursorUp) Move(-1);
+        else if (key == Key.PageDown) Move(ListHeight);
+        else if (key == Key.PageUp) Move(-ListHeight);
+        else if (key == Key.Home) Move(-_shown.Count);
+        else if (key == Key.End) Move(_shown.Count);
+        else if (key == Key.Enter) Take(Current);
+        else if (key == Key.CursorRight && Current is { Folder: true } folder) Open(folder.Path);
+        else if (key == Key.CursorLeft || (key == Key.Backspace && _filter.Length == 0))
+        {
+            if (Directory.GetParent(_folder) is { } parent) Open(parent.FullName);
+        }
+        else if (key == Key.Backspace)
+        {
+            _filter = _filter[..^1];
+            Filtered();
+        }
+        else if (key == Key.Space)
+        {
+            if (Current is { } entry)
+            {
+                Choose(entry);
+                Move(1);
+            }
+        }
+        else if (key == Key.A.WithCtrl)
+        {
+            _everyFile = !_everyFile;
+            Read();
+            Proto.Say(_everyFile ? "showing every file — the instance refuses types it doesn't accept" : "showing the types this instance accepts");
+        }
+        else if (key == Key.V.WithCtrl)
+        {
+            Proto.Say("ctrl-v attaches on the compose screen; here it would paste into the filter");
+        }
+        else if (key.AsRune.Value is var rune and > 31 && !key.IsCtrl && !key.IsAlt && rune != 127)
+        {
+            _filter += char.ConvertFromUtf32(rune);
+            Filtered();
+        }
+        else
+        {
+            return base.OnKeyDown(key);
+        }
+
+        SetNeedsDraw();
+        Proto.Shell.SetNeedsDraw();
+
+        return true;
+    }
+
+    private void Move(int by)
+    {
+        _cursor = Math.Clamp(_cursor + by, 0, Math.Max(0, _shown.Count - 1));
+        Scrolled();
+        SetNeedsDraw();
+    }
+
+    protected override bool OnMouseEvent(Mouse mouse)
+    {
+        if (mouse.Position is not { } at) return base.OnMouseEvent(mouse);
+
+        var flags = mouse.Flags;
+
+        if (flags.HasFlag(MouseFlags.WheeledDown) || flags.HasFlag(MouseFlags.WheeledUp))
+        {
+            if (flags.HasFlag(MouseFlags.WheeledLeft) || flags.HasFlag(MouseFlags.WheeledRight)) return true;
+
+            var by = flags.HasFlag(MouseFlags.WheeledDown) ? 3 : -3;
+            _top = Math.Clamp(_top + by, 0, Math.Max(0, _shown.Count - ListHeight));
+            _cursor = Math.Clamp(_cursor, _top, Math.Max(_top, Math.Min(_shown.Count - 1, _top + ListHeight - 1)));
+            SetNeedsDraw();
+            return true;
+        }
+
+        var row = at.Y - ListTop + _top;
+        var onList = at.Y >= ListTop && at.X < ListWidth && row >= 0 && row < _shown.Count;
+
+        if (flags.HasFlag(MouseFlags.LeftButtonDoubleClicked) && onList)
+        {
+            _cursor = row;
+            var entry = _shown[row];
+
+            if (entry.Folder) Open(entry.Path);
+            else
+            {
+                _chosen.Remove(entry.Path);
+                Take(entry);
+            }
+
+            return true;
+        }
+
+        if (flags.HasFlag(MouseFlags.LeftButtonClicked))
+        {
+            SetFocus();
+
+            if (onList)
+            {
+                _cursor = row;
+
+                // The box, or a click with ctrl or shift: choose. A plain click on a name only moves.
+                if (at.X <= Geometry.Pad + 3 || flags.HasFlag(MouseFlags.Ctrl) || flags.HasFlag(MouseFlags.Shift)) Choose(_shown[row]);
+            }
+            else if (at.Y == Viewport.Height - 1 && _chosen.Count > 0)
+            {
+                Take(null);
+            }
+
+            SetNeedsDraw();
+            return true;
+        }
+
+        return flags.HasFlag(MouseFlags.LeftButtonPressed) || flags.HasFlag(MouseFlags.LeftButtonReleased) || base.OnMouseEvent(mouse);
+    }
+
+    protected override void Paint()
+    {
+        var width = Viewport.Width;
+        var listWidth = ListWidth;
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var shownFolder = _folder.StartsWith(home) ? "~" + _folder[home.Length..] : _folder;
+
+        Spans(Geometry.Pad, 0, ("Compose", Role.Muted), (" › ", Role.Muted), ("Attach", Role.PanelTitle), ("  " + shownFolder, Role.Body));
+
+        var filterEnd = Spans(Geometry.Pad, 1, ("filter ", Role.Muted), (_filter, Role.Body), ("▏", Role.Selection));
+        if (_filter.Length == 0) Put(filterEnd, 1, "type to filter", Role.Muted);
+
+        var showing = _everyFile ? "every file · ctrl-a accepted only" : "pictures, video, sound · ctrl-a every file";
+        Put(width - Geometry.Pad - Glyphs.Columns(showing), 1, showing, Role.Muted);
+
+        Put(Geometry.Pad, 2, new string('─', Math.Max(0, width - Geometry.Pad * 2)), Role.PanelBorder);
+
+        for (var line = 0; line < ListHeight; line++)
+        {
+            var index = _top + line;
+
+            if (index >= _shown.Count) break;
+
+            var entry = _shown[index];
+            var y = ListTop + line;
+            var current = index == _cursor && HasFocus;
+
+            if (current) Put(0, y, "▌", Role.Selection);
+
+            var box = entry.Folder ? "  " : _chosen.Contains(entry.Path) ? "☑ " : "☐ ";
+            var name = entry.Folder && !entry.Up ? entry.Name + "/" : entry.Name;
+            var role = current ? Role.SelectedText : entry.Folder ? Role.Link : entry.Takeable ? Role.Body : Role.Muted;
+
+            Put(Geometry.Pad, y, box, _chosen.Contains(entry.Path) ? Role.Selection : Role.Muted);
+
+            var detail = entry.Folder ? "" : $"{Instance.Of(entry.Path)?.ToString().ToLowerInvariant() ?? "not accepted"}  {Size(entry.Bytes),8}  {entry.Changed:MMM d}";
+            var room = listWidth - Geometry.Pad - 2 - Glyphs.Columns(detail) - 3;
+
+            Put(Geometry.Pad + 2, y, name, role, Math.Max(4, room));
+            Put(listWidth - 1 - Glyphs.Columns(detail), y, detail, Role.Muted);
+        }
+
+        if (_shown.Count == 0 || (_shown.Count == 1 && _shown[0].Up))
+        {
+            Put(Geometry.Pad + 2, ListTop + _shown.Count, _filter.Length > 0 ? $"nothing here matches \"{_filter}\"" : "nothing this instance accepts in here", Role.Muted);
+        }
+
+        if (listWidth < width && Current is { } under)
+        {
+            var preview = new Rectangle(listWidth + 2, ListTop, width - listWidth - 2 - Geometry.Pad, Math.Max(1, ListHeight - 3));
+
+            for (var y = ListTop - 1; y < Viewport.Height - 1; y++) Put(listWidth, y, "│", Role.PanelBorder);
+
+            if (under.Folder)
+            {
+                Put(preview.X, preview.Y, under.Up ? "up a folder" : "a folder · enter or → opens it", Role.Muted);
+            }
+            else if (Instance.Of(under.Path) is not null)
+            {
+                var drawn = Pics.Paint(this, preview, under.Path, Theme);
+                var image = Pics.Loaded(under.Path);
+                var said = image is null ? under.Name : $"{under.Name} · {image.Width}×{image.Height}";
+                Put(preview.X, drawn.Bottom + 1, said, Role.Muted, preview.Width);
+            }
+            else
+            {
+                Put(preview.X, preview.Y, "not a type this instance accepts", Role.Muted);
+            }
+        }
+
+        var footer = _chosen.Count > 0
+            ? $"{_chosen.Count} chosen · {Room - _chosen.Count} more fit · enter (or click here) attaches them"
+            : $"{Room} more fit on this post";
+        Put(Geometry.Pad, Viewport.Height - 1, footer, _chosen.Count > 0 ? Role.Body : Role.Muted);
+    }
+
+    private static string Size(long bytes) => bytes switch
+    {
+        < 1024 => $"{bytes} B",
+        < 1024 * 1024 => $"{bytes / 1024.0:F0} KB",
+        _ => $"{bytes / 1024.0 / 1024.0:F1} MB",
+    };
+}

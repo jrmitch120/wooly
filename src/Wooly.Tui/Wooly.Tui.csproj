@@ -17,6 +17,8 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Wooly.Tests" />
+    <!-- PROTOTYPE (#374) branch only. -->
+    <InternalsVisibleTo Include="Wooly.Tui.Prototype.Attachments" />
   </ItemGroup>
 
 </Project>
