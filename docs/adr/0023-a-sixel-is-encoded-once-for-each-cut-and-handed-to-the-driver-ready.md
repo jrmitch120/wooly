@@ -87,14 +87,14 @@ again as it moves. Measured the same way:
 | Sixel | ~26 ms | 55–105 ms | ~590 KB every notch |
 | Kitty | 18–23 ms | 39–61 ms | 114–209 KB on average: placements, and a picture once as it arrives |
 
-#287 measured 11 MB a notch for Kitty through `ImageView`; Terminal.Gui 2.4.17's image view sends a picture once and
-crops it by placement, so that no longer holds. **In practice this rung is never reached, though.** Terminal.Gui says a
-terminal speaks Kitty only where its environment names kitty or Ghostty (`KittyGraphicsSupportDetector` asks the
-terminal nothing), and those two draw placeholders. WezTerm is never told it speaks Kitty, so it draws sixel, and
-dropping `PreferSixel` changed nothing there. Asking the terminal itself would need Terminal.Gui to read the reply,
-which it does not: the reply would arrive as keys. The order is a rule about protocols, not about any one terminal, and
-it is also the order `ImageView` tries them in, so the picture `PaintedView` encodes for and the one the driver draws
-cannot disagree. Kitty is also drawn in full colour, which sixel cannot be.
+#287 measured 11 MB a notch for Kitty through `ImageView`; Terminal.Gui's image view (2.4.17, and still 2.5.0) sends a
+picture once and crops it by placement, so that no longer holds. **In practice this rung is never reached, though.**
+Terminal.Gui says a terminal speaks Kitty only where its environment names kitty or Ghostty
+(`KittyGraphicsSupportDetector` asks the terminal nothing), and those two draw placeholders. WezTerm is never told it
+speaks Kitty, so it draws sixel, and dropping `PreferSixel` changed nothing there. Asking the terminal itself would need
+Terminal.Gui to read the reply, which it does not: the reply would arrive as keys. The order is a rule about protocols,
+not about any one terminal, and it is also the order `ImageView` tries them in, so the picture `PaintedView` encodes for
+and the one the driver draws cannot disagree. Kitty is also drawn in full colour, which sixel cannot be.
 
 **A sixel is 256 colours, the most it allows, and is quantized before it is encoded.** At 64, the cap Terminal.Gui's
 image view uses, a photograph's smooth gradients broke into patches in WezTerm, with the palette right and too few of
@@ -123,11 +123,11 @@ pictures less smoothly than one drawing placeholders, however its frames are mad
   (microsoft/terminal#8389) that its developers have been experimenting with. So this path, not placeholders, is the
   one Windows readers get.
 - **Synchronized output (DEC mode 2026)** would not make sixel cheaper, but it could stop text landing a moment ahead of
-  its picture. Windows Terminal added it in Preview 1.25 (its release notes), and recent iTerm2 builds report it,
-  though iTerm2 3.4 answers that it is permanently off. Terminal.Gui 2.4.17 never emits it, and has no hook around
-  the write of a frame: `LayoutAndDrawComplete` fires after it, and nothing fires before it. Wrapping frames would mean
-  writing the mode on from inside a view's draw and off from that event. That is fragile enough to want a terminal to
-  try it on, and it is left for a follow-up.
+  its picture. Windows Terminal added it in Preview 1.25 (its release notes), and recent iTerm2 builds report it, though
+  iTerm2 3.4 answers that it is permanently off. Terminal.Gui (2.4.17, and still 2.5.0) never emits it, and has no hook
+  around the write of a frame: `LayoutAndDrawComplete` fires after it, and nothing fires before it. Wrapping frames
+  would mean writing the mode on from inside a view's draw and off from that event. That is fragile enough to want a
+  terminal to try it on, and it is left for a follow-up.
 
 ## Amendment: a frame is written whole, and a picture covers its cells (#342)
 

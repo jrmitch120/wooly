@@ -70,14 +70,14 @@ What the prototype taught, kept as rules:
 so painting it builds a colour, which ADR-0014's scan forbids outside the theme. Like `PictureDecoder`'s pixels it is
 content rather than emphasis, and `Media/KittyPlaceholder.cs` joins the scan's short list of files allowed to.
 
-**The name is read from the environment, at startup.** No terminal is asked whether it draws placeholders, because
-there is no way to ask: the protocol's own query says whether a terminal takes Kitty graphics, not whether it draws
+**The name is read from the environment, at startup.** No terminal is asked whether it draws placeholders, because there
+is no way to ask: the protocol's own query says whether a terminal takes Kitty graphics, not whether it draws
 placeholders. Terminal.Gui does not ask even that. Its `KittyGraphicsSupportDetector` reads `KITTY_WINDOW_ID` and a
-`TERM_PROGRAM` of `kitty` or `ghostty` and nothing else (2.4.17), and then asks the window's size in pixels, which in
-the prototype held the first picture back 5–10 seconds. Ghostty and kitty say who they are (`TERM_PROGRAM` of
-`ghostty`, `TERM` of `xterm-ghostty` or `xterm-kitty`, `KITTY_WINDOW_ID`, `GHOSTTY_RESOURCES_DIR`), and `KnownTerminal`
-reads that before the first frame. A terminal that names itself nowhere — Ghostty over ssh with a plain `TERM`, say —
-draws through a box. The name is never trusted where it would be wrong:
+`TERM_PROGRAM` of `kitty` or `ghostty` and nothing else (2.4.17, and still in 2.5.0), and then asks the window's size in
+pixels, which in the prototype held the first picture back 5–10 seconds. Ghostty and kitty say who they are
+(`TERM_PROGRAM` of `ghostty`, `TERM` of `xterm-ghostty` or `xterm-kitty`, `KITTY_WINDOW_ID`, `GHOSTTY_RESOURCES_DIR`),
+and `KnownTerminal` reads that before the first frame. A terminal that names itself nowhere — Ghostty over ssh with a
+plain `TERM`, say — draws through a box. The name is never trusted where it would be wrong:
 
 - **Not in Windows Terminal or WezTerm.** `WT_SESSION`, `WEZTERM_PANE` and a `TERM_PROGRAM` of `WezTerm` outweigh
   everything else, because a `TERM` carried in from elsewhere would otherwise send them placeholders they print as
