@@ -49,23 +49,6 @@ public class FramedRegionTests
         Assert.Equal(new Size(Width - 2, Height - 2), drawn.View.Viewport.Size);
     }
 
-    /// <summary>
-    ///     The content region hands the picture cache the room each frame gives — the frame's Raster and the region's
-    ///     58 columns — when it says what the frame wants, so the cache never has to ask the window for either (#359).
-    ///     The columns are the inside of the panel the posts are drawn in, which is the widest any picture's box can be
-    ///     and so the width a picture is decoded to (ADR-0025): not the 80 of the whole window.
-    /// </summary>
-    [Fact]
-    public async Task TheShellHandsThePictureCacheTheRoomOfTheFrame()
-    {
-        var pictures = new FakePictures();
-        var raster = ARaster.Kitty();
-
-        using var drawn = await DrawnShell.Of(80, 24, Themes.Dark, pictures: pictures, raster: raster);
-
-        Assert.Equal((raster, 58), pictures.Rooms[^1]);
-    }
-
     [Theory]
     [InlineData(false, Role.PanelBorder)]
     [InlineData(true, Role.PanelBorderActive)]

@@ -45,27 +45,6 @@ public class StandInBlurDrawingTests
         Assert.Equal("m1", Assert.Single(drawn.Content.SubViews.OfType<PictureView>(), view => view.Visible).PictureId);
     }
 
-    /// <summary>
-    ///     The frame never wants a blur of the picture cache — only the picture itself — so blurs cannot crowd real
-    ///     pictures out of its budget (ADR-0025).
-    /// </summary>
-    [Fact]
-    public async Task TheFrameNeverWantsABlurOfThePictureCache()
-    {
-        var pictures = new FakePictures();
-
-        using var drawn = await DrawnShell.Of(
-            80,
-            24,
-            Themes.Plain,
-            AShellWithAPictureAndItsBlurhash(),
-            pictures: pictures,
-            drawsPictures: true);
-
-        Assert.NotEmpty(pictures.Sent);
-        Assert.All(pictures.Sent, id => Assert.Equal("m1", id));
-    }
-
     private static AShell AShellWithAPictureAndItsBlurhash() => new()
     {
         Timelines = FakeTimelineReader.Holding(

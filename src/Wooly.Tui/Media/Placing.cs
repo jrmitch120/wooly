@@ -4,12 +4,12 @@ using Wooly.Tui.Rendering;
 namespace Wooly.Tui.Media;
 
 /// <summary>
-///     Puts <b>drawn</b> pictures on screen, a frame at a time: through boxes on a sixel terminal and on a Kitty
-///     terminal that does not draw placeholders, and as placements for the view to paint as placeholder cells on one
-///     that does — sending each picture, and forgetting what the cache let go of and the Stand-in blurs no longer near
-///     the page (ADR-0016, ADR-0022, ADR-0023, #362). Beneath the view that paints the rows,
-///     which hands it each frame's rows, where the scroll has got to, the page and the <see cref="Raster" /> — and is
-///     left to paint text (#355, #361).
+///     Says which pictures a frame wants of the cache, and puts <b>drawn</b> pictures on screen, a frame at a time
+///     (#363): through boxes on a sixel terminal and on a Kitty terminal that does not draw placeholders, and as
+///     placements for the view to paint as placeholder cells on one that does — sending each picture, and forgetting
+///     what the cache let go of and the Stand-in blurs no longer near the page (ADR-0016, ADR-0022, ADR-0023, #362).
+///     Beneath the view that paints the rows, which hands it each frame's rows, where the scroll has got to, the page
+///     and the <see cref="Raster" /> — and is left to paint text (#355, #361).
 /// </summary>
 /// <remarks>
 ///     The boxes ride the rows: they are placed from the same scroll position the text is drawn at, on every frame, so
@@ -62,6 +62,18 @@ internal sealed class Placing
     /// </summary>
     private HashSet<string> _blursHeld = [];
 
+    /// <summary>
+    ///     Where the page began the last time a frame said what it wants, or <see langword="null" /> before the first
+    ///     frame of the rows it is on — nothing to have moved from yet.
+    /// </summary>
+    private int? _wantedAt;
+
+    /// <summary>
+    ///     Which way the page last moved — down positive, up negative — or nought for a page that has not moved yet.
+    ///     What decides which way <see cref="Want" /> reaches further.
+    /// </summary>
+    private int _travel;
+
     /// <summary>Where the page began when sixel cuts were last encoded ahead, which says which way it is moving.</summary>
     private int _placedAt;
 
@@ -88,6 +100,16 @@ internal sealed class Placing
     }
 
     /// <summary>
+    ///     Says that the rows the next frame hands over are another lot, or the same lot come back to — either way,
+    ///     nothing has been moved through yet, so <see cref="Want" /> reaches two screens either side again.
+    /// </summary>
+    public void Resume()
+    {
+        _wantedAt = null;
+        _travel = 0;
+    }
+
+    /// <summary>
     ///     Puts every picture where <paramref name="lines" /> say it goes, the page beginning on row
     ///     <paramref name="top" /> of them, and lets go of every box that has nothing to draw. Called once a frame,
     ///     before anything is drawn.
@@ -111,6 +133,13 @@ internal sealed class Placing
         int height,
         Raster raster)
     {
+        // Said before a terminal that draws nothing is let off the rest, so the cache is told every frame there is a
+        // page — but not of a frame with no page to be near.
+        if (width > 0 && height > 0)
+        {
+            Want(lines, top, width, height, raster);
+        }
+
         if (width <= 0 || height <= 0 || raster.Cell is not { } cell)
         {
             ReleaseAll();
@@ -174,6 +203,93 @@ internal sealed class Placing
         }
 
         return [];
+    }
+
+    /// <summary>
+    ///     Says which pictures this frame wants: those near enough to the screen to be worth having, nearest first,
+    ///     with those on it marked, and no others.
+    /// </summary>
+    /// <remarks>
+    ///     From the scroll the view hands over — the view is the one place that knows where the scroll has got to,
+    ///     which is why this is said here, beneath it, and not by the post (ADR-0016, #363). An account of nothing but
+    ///     photographs works out rows for every post it holds; sending for a picture from there would fetch and decode
+    ///     the lot to draw the handful that fit, which is how this came to run a machine out of memory.
+    ///     <para>
+    ///         Three screens ahead the way the page last moved and one behind, or two either side of a page that has
+    ///         not moved yet, so that a picture is usually there by the time it is scrolled to and the reader never
+    ///         sees its Stand-in — and one who turns round still finds the screen behind them covered (#352). The way
+    ///         the page last moved rather than the way it moved this frame: a frame drawn with the page standing still
+    ///         is most often a picture landing, and reaching less far on it would abandon the fetches queued for the
+    ///         far screen every time one of the near ones arrived.
+    ///     </para>
+    ///     <para>
+    ///         Said for the whole frame at once, because the cache needs the whole of it: what is on screen is what it
+    ///         must never let go of, and what is nearest is what it should keep longest (ADR-0025). A picture is on
+    ///         screen where the row that wants it is, or where any of its box is — a photograph scrolled half off the
+    ///         top has its row off the page and its lower half still on it.
+    ///     </para>
+    /// </remarks>
+    private void Want(IReadOnlyList<Line> lines, int top, int width, int height, Raster raster)
+    {
+        if (_wantedAt is { } was && top != was)
+        {
+            _travel = Math.Sign(top - was);
+        }
+
+        _wantedAt = top;
+
+        var (above, below) = _travel switch
+        {
+            > 0 => (1, 3),
+            < 0 => (3, 1),
+            _ => (2, 2),
+        };
+
+        var from = top - (height * above);
+        var to = top + height + (height * below);
+
+        // The rows each picture takes, from the row that wants it to the foot of its box. Only a picture some row
+        // wants is said at all, which is what keeps a warned post's pictures from being sent for (ADR-0016).
+        var spans = new Dictionary<string, (Drawn Drawn, int First, int Last)>();
+
+        // Widens the rows a picture is said to take to reach first to last as well, or says them where none were yet.
+        void Widen(Drawn drawn, int first, int last) =>
+            spans[drawn.Id] = spans.TryGetValue(drawn.Id, out var span)
+                ? (drawn, Math.Min(span.First, first), Math.Max(span.Last, last))
+                : (drawn, first, last);
+
+        for (var at = 0; at < lines.Count; at++)
+        {
+            if (lines[at].Wants is { } drawn && at >= from && at < to)
+            {
+                Widen(drawn, at, at);
+            }
+        }
+
+        for (var at = 0; at < lines.Count; at++)
+        {
+            foreach (var inset in lines[at].Insets.Where(inset => spans.ContainsKey(inset.Drawn.Id)))
+            {
+                Widen(inset.Drawn, at, at + inset.Rows - 1);
+            }
+        }
+
+        var bottom = top + height - 1;
+
+        // How many rows lie between a picture and the page: none for one on it.
+        int Distance((Drawn Drawn, int First, int Last) span) =>
+            span.Last < top ? top - span.Last : span.First > bottom ? span.First - bottom : 0;
+
+        // With the room the frame gives, which the view read on the UI thread — the only one a view's size may be read
+        // on — so that the cache decodes to it without ever asking the window (#359).
+        _pictures.Want(
+            [
+                .. spans.Values
+                        .OrderBy(Distance)
+                        .Select(span => new WantedPicture(span.Drawn, OnScreen: Distance(span) == 0)),
+            ],
+            raster,
+            width);
     }
 
     /// <summary>
