@@ -72,10 +72,10 @@ public class ShellComposeLayoutTests
     }
 
     /// <summary>
-    ///     The content panel redrawn on a frame of its own leaves compose's fields drawn over it. Pictures on the page
-    ///     a reply was opened from are let go of while the panel draws compose, which lays the panel out again on the
-    ///     next frame — and the panel, redrawn alone, painted its rows over a mention nothing had changed, leaving it
-    ///     blank on the terminal until a key redrew the editor.
+    ///     The content panel redrawn on a frame of its own leaves compose's fields drawn over it. The pictures on the
+    ///     page a reply was opened from are let go of while the panel draws, which lays the panel out again on the next
+    ///     frame — and the panel, redrawn alone, painted its rows over a mention nothing had changed, leaving it blank on
+    ///     the terminal until a key redrew the editor.
     /// </summary>
     [Fact]
     public async Task APanelRedrawnAloneLeavesComposeDrawnOverIt()
@@ -95,11 +95,13 @@ public class ShellComposeLayoutTests
             pictures: new FakePictures().Holding("m1", 800, 400),
             drawsPictures: true);
 
+        // Two frames as the running client draws them, not forced as Redraw() does: a forced frame redraws compose
+        // along with everything else, and the panel redrawn alone on the second is the whole of what is being pinned.
         drawn.Shell.Reply();
         drawn.Application.LayoutAndDraw(false);
         drawn.Application.LayoutAndDraw(false);
 
-        var editor = Compose(drawn.Window).SubViews.OfType<ComposeEditor>().Single().FrameToScreen();
+        var editor = Editor(drawn.Window).FrameToScreen();
 
         Assert.StartsWith("@ben@hachyderm.io ", drawn.Rows()[editor.Y][editor.X..editor.Right], StringComparison.Ordinal);
     }
@@ -129,4 +131,6 @@ public class ShellComposeLayoutTests
         window.SubViews.OfType<PaintedView>().Single(view => view.Id == ShellWindow.ContentId);
 
     private static ComposeView Compose(View window) => window.SubViews.OfType<ComposeView>().Single();
+
+    private static ComposeEditor Editor(View window) => Compose(window).SubViews.OfType<ComposeEditor>().Single();
 }

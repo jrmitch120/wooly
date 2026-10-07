@@ -73,7 +73,9 @@ space either side of it and no `┤ ├`, clipped from its end where it does not
 (#272). The content panel is the one place a view draws an edge round rows it does not build: `PaintedView` lays the
 same edges on a one-cell ring round its viewport, so the rows, the scroll and every picture are measured from the
 inside, and a picture scrolled half past an edge is clipped at it rather than drawn over it. Compose's editor sits
-inside the same edges. The panel's top edge is drawn a second time by a one-row view laid over it, so a tick of the
+inside the same edges, laid over the panel (#365), and is drawn again on every frame the panel is: Terminal.Gui draws
+the later of two siblings first, and one nothing has changed is not drawn, so a panel redrawn alone would paint its rows
+over the fields. The panel's top edge is drawn a second time by a one-row view laid over it, so a tick of the
 fetch mark redraws that row alone rather than the panel and every picture on it (#217).
 
 Every one of those numbers is **columns a terminal draws in, never characters**. `ドット絵アカウント` is nine characters

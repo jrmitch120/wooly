@@ -272,7 +272,7 @@ internal sealed class ShellWindow : Window
 
     /// <summary>
     ///     Compose's fields drawn again with the content panel whenever the panel is about to be, since they are laid
-    ///     over it and a panel redrawn alone paints its rows over them.
+    ///     over it (#365) and a panel redrawn alone paints its rows over them.
     /// </summary>
     /// <remarks>
     ///     Terminal.Gui draws the later of two siblings first, and a field keeps what is under it only by having drawn
