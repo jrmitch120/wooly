@@ -314,7 +314,7 @@ internal sealed class ComposeView : View
             _lang.Layout();
             _languages.Fill(compose.Lang.Held);
 
-            // An edit has no Media header to walk to or click on.
+            // An edit's Media header is read-only (#381): nothing there to walk to or click on.
             _media.Visible = compose.TakesAttachments;
 
             _editor.SetFocus();

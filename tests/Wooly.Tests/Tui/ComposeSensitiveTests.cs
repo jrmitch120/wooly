@@ -104,7 +104,7 @@ public class ComposeSensitiveTests : IDisposable
         Assert.Equal(ComposeField.Post, compose.Typing);
     }
 
-    /// <summary>An edit has no Media header, so the walk goes from the post straight to Warn.</summary>
+    /// <summary>An edit's Media header is read-only (#381), so the walk goes from the post straight to Warn.</summary>
     [Fact]
     public async Task AnEditWalksPastWhereMediaWouldBe()
     {

@@ -873,7 +873,8 @@ Compose is laid out as a mail client's compose — variant A of the prototype on
 fresh post, a reply and an edit alike:
 
 - **Rows, top to bottom:** a blank; the headers — From, To, Lang, the reply header and its quote, Warn, and Media with
-  a row under it for each pending attachment on a fresh post or a reply (ADR-0024, #338, #340, #375); a hairline; a
+  a row under it for each pending attachment on a fresh post or a reply, or for each the post carries on an edit
+  (ADR-0024, #338, #340, #375, #381); a hairline; a
   blank; the editor; a hairline; the row the count sits on (#319). Two columns of padding either side of all of it.
   The hairlines are `panel-border`.
 - **Headers are a right-aligned label column five wide, two spaces, then the value** — five for `Media`, the widest of
@@ -920,8 +921,8 @@ fresh post, a reply and an edit alike:
 ### What pending attachments settled
 
 A fresh post and a reply attach files under a **Media** header, under Warn, in the layout chosen from the prototype on
-`prototype/374-attachments` (#374, #375). An edit has no Media header yet, and carries the post's own attachments
-through unchanged (ADR-0008).
+`prototype/374-attachments` (#374, #375). An edit carries the post's own attachments through unchanged (ADR-0008), and
+lists them under a read-only Media header of its own (#381).
 
 - **The header says what it holds, then the key that adds to it, all muted**, as Warn does: `Media  none · ctrl-o to
   add`, `2 of 4 · ctrl-o to add` counted against the instance's limit, and `4 of 4` once the post is full.
@@ -963,6 +964,11 @@ through unchanged (ADR-0008).
   `configuration.media_attachments.supported_mime_types`, else Mastodon's own; and `description_limit`, else 1500 — read
   with the post's own limit, on the same answer.
 - **Anything attached touches the draft** (#373), so leaving it asks first.
+- **An edit's Media header only lists** (#381): a row for each attachment the post carries — its kind muted in the
+  name's column, then its description in quotes or `no alt text` — under `Media  2 · kept as they are`, or
+  `Media  none` with no key where it carries nothing. No grip, no `x`, no key or click that adds, removes, reorders or
+  opens anything, and a drop on an edit is text. The rows fold into the header's line on a short terminal,
+  `2 · 1 no alt text · kept as they are`, and with the same headers the editor starts on the same row as on `c`.
 
 ### What mentioning somebody settled
 
