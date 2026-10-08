@@ -36,6 +36,41 @@ public class FileBrowserTests : IDisposable
         Assert.Equal([compose.Crumb, "Attach"], shell.Crumbs.TakeLast(2));
     }
 
+    /// <summary>
+    ///     The status row offers <c>ctrl-o</c> on a compose or a reply wherever the typing is, as it works there — except on
+    ///     the Media header, whose <c>⏎</c> is offered instead for the same thing — and not once the post carries all it
+    ///     can, nor on an edit, which takes no attachments.
+    /// </summary>
+    [Theory]
+    [InlineData(ComposeFor.Post)]
+    [InlineData(ComposeFor.Reply)]
+    public async Task TheStatusRowOffersCtrlOWhereItAdds(ComposeFor purpose)
+    {
+        var (shell, _, compose) = await Composing(purpose, new PostLimits(500, 23) { Attachments = 1 });
+
+        Assert.Contains(compose.Keys, key => key is { Key: "ctrl-o", Does: "add media" });
+
+        shell.Press(ShellKey.Up);
+
+        Assert.Equal(ComposeField.Media, compose.Typing);
+        Assert.DoesNotContain(compose.Keys, key => key.Key == "ctrl-o");
+        Assert.Contains(compose.Keys, key => key is { Key: "⏎", Does: "add media" });
+
+        shell.Press(ShellKey.Down);
+        Assert.True(shell.Paste(_files.WriteFile("cat.png")));
+
+        Assert.DoesNotContain(compose.Keys, key => key.Key == "ctrl-o");
+    }
+
+    /// <summary>An edit offers no <c>ctrl-o</c>: it takes no attachments (#381).</summary>
+    [Fact]
+    public async Task AnEditOffersNoCtrlO()
+    {
+        var (_, _, compose) = await Composing(ComposeFor.Edit);
+
+        Assert.DoesNotContain(compose.Keys, key => key.Key == "ctrl-o");
+    }
+
     /// <summary><c>⏎</c> on the Media header, walked to from the post with <c>↑</c>, opens it too.</summary>
     [Fact]
     public async Task EnterOnTheMediaHeaderOpensTheBrowser()
