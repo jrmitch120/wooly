@@ -69,6 +69,12 @@ internal abstract class ComposeHeaderField(
     public Func<Key, bool>? Answering { get; set; }
 
     /// <summary>
+    ///     <c>ctrl-v</c>, asked first whether the clipboard holds a picture or files to attach (#380): where it says it
+    ///     took the paste, the field's own paste never sees the key.
+    /// </summary>
+    public Func<bool>? FromTheClipboard { get; set; }
+
+    /// <summary>
     ///     First refusal on every key, ahead of compose's own — nothing, unless a field has something hung under it whose
     ///     keys come first.
     /// </summary>
@@ -105,6 +111,11 @@ internal abstract class ComposeHeaderField(
         {
             Warn();
 
+            return true;
+        }
+
+        if (key == Key.V.WithCtrl && FromTheClipboard?.Invoke() == true)
+        {
             return true;
         }
 

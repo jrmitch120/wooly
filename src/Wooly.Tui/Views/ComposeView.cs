@@ -128,6 +128,10 @@ internal sealed class ComposeView : View
         // take their keys before the window sees them (#373).
         _editor.Answering = _to.Answering = _lang.Answering = _warning.Answering = Answered;
 
+        // ctrl-v in any field that takes a paste attaches a picture or copied files from the clipboard, where it holds
+        // either, and is the field's own paste otherwise (#380).
+        _editor.FromTheClipboard = _lang.FromTheClipboard = _warning.FromTheClipboard = _shell.PasteFromTheClipboard;
+
         _languages = new LanguageList(theme, shell, _lang, this);
 
         Add(_editor, _to, _lang, _warning, _mentions.View, _languages.View);
