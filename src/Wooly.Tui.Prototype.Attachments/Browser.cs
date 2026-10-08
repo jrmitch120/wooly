@@ -218,14 +218,18 @@ internal sealed class BrowserScreen : Screen
         else if (key == Key.End) Move(_shown.Count);
         else if (key == Key.Enter) Take(Current);
         else if (key == Key.CursorRight && Current is { Folder: true } folder) Open(folder.Path);
-        else if (key == Key.CursorLeft || (key == Key.Backspace && _filter.Length == 0))
+        else if (key == Key.CursorLeft)
         {
             if (Directory.GetParent(_folder) is { } parent) Open(parent.FullName);
         }
-        else if (key == Key.Backspace)
+        else if (key == Key.Backspace || key == Key.Delete)
         {
-            _filter = _filter[..^1];
-            Filtered();
+            // Only ever the filter: held down to clear it, it stops at empty rather than walking up the folders.
+            if (_filter.Length > 0)
+            {
+                _filter = _filter[..^1];
+                Filtered();
+            }
         }
         else if (key == Key.Space)
         {
