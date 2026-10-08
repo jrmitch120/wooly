@@ -158,6 +158,15 @@ public sealed class ComposeScreen : Screen
     /// <summary>The column a pending attachment's grip sits at, a column in from its selection bar (#375).</summary>
     private const int GripAt = Pad + 3;
 
+    /// <summary>The column a pending attachment's picture starts at, one column of air after its grip (#382).</summary>
+    private const int PictureAt = GripAt + 2;
+
+    /// <summary>
+    ///     The column a pending attachment's name starts at, one column of air after its picture — two past the header's
+    ///     value column, the picture being three wide where the rows were first laid with one (#375, #382).
+    /// </summary>
+    private const int NameAt = PictureAt + AttachmentPicture.Columns + 1;
+
     /// <summary>How wide a pending attachment's name is cut to on a terminal with room for it.</summary>
     private const int MostName = 32;
 
@@ -752,7 +761,7 @@ public sealed class ComposeScreen : Screen
     /// </remarks>
     public override IReadOnlyList<Line> Lines(Drawing drawing)
     {
-        var laid = Laid(drawing.Width, drawing.Height);
+        var laid = Laid(drawing.Width, drawing.Height, drawing);
 
         _drawn =
         [
@@ -1152,7 +1161,7 @@ public sealed class ComposeScreen : Screen
     ///     </para>
     /// </remarks>
     private (IReadOnlyList<Line> Rows, Rectangle Editor, Rectangle Warning, Rectangle To, Rectangle Lang, Rectangle Media)
-        Laid(int width, int? height)
+        Laid(int width, int? height, Drawing? drawing = null)
     {
         var inner = Math.Max(0, width - (Pad * 2));
         var valueWidth = Math.Max(0, inner - LabelWidth - LabelGap);
@@ -1221,7 +1230,7 @@ public sealed class ComposeScreen : Screen
             above.InsertRange(
                 at + 1,
                 [
-                    .. _attachments.Select(attached => new Row(AttachmentRow(attached, width), Keep.Always)),
+                    .. _attachments.Select(attached => new Row(AttachmentRow(attached, width, drawing), Keep.Always)),
                     .. Kept.Select(kept => new Row(KeptRow(kept, valueWidth), Keep.Always)),
                 ]);
         }
@@ -1585,17 +1594,34 @@ public sealed class ComposeScreen : Screen
     ///     attached, or as the walk passes over it.
     /// </summary>
     /// <remarks>
-    ///     The picture's column is held blank until pictures are drawn on it (#382), where it will be, so that it moves
-    ///     nothing when it comes.
+    ///     The picture's column is three wide whatever the terminal, and holds the picture where
+    ///     <paramref name="drawing" /> can draw one (#382) — so that it moves nothing when it comes, and nothing is moved
+    ///     on a terminal that draws none.
     /// </remarks>
-    private Line AttachmentRow(ComposeAttachment attached, int width) =>
-        Line.Of([.. AttachmentRuns(attached, width).Select(run => run.Span)]);
+    private Line AttachmentRow(ComposeAttachment attached, int width, Drawing? drawing)
+    {
+        var picture = AttachmentPicture.Of(attached.Path, PictureAt, drawing?.Pictures, drawing?.Raster);
+
+        return Line.Of([.. AttachmentRuns(attached, width, picture.Held).Select(run => run.Span)]) with
+        {
+            Insets = picture.Box is { } box ? [box] : [],
+            Wants = picture.Wanted,
+        };
+    }
 
     /// <summary>
     ///     A pending attachment's row as <see cref="AttachmentRow" /> draws it, each run with what a click on it means
     ///     (#378): the <c>x</c> takes it off, <c>retry (r)</c> sends it up again, and anywhere else is the row.
     /// </summary>
-    private List<(Span Span, AttachmentPart Part)> AttachmentRuns(ComposeAttachment attached, int width)
+    /// <param name="attached">The attachment the row is for.</param>
+    /// <param name="width">How wide the row is.</param>
+    /// <param name="picture">
+    ///     What the picture's column holds (<see cref="AttachmentPicture" />), or blanks where nobody said.
+    /// </param>
+    private List<(Span Span, AttachmentPart Part)> AttachmentRuns(
+        ComposeAttachment attached,
+        int width,
+        Span? picture = null)
     {
         var (name, kind, status) = RowColumns(width);
         var picked = Typing == ComposeField.Attachment && ReferenceEquals(PickedAttachment, attached);
@@ -1607,7 +1633,9 @@ public sealed class ComposeScreen : Screen
                 ? [(Gap(GripAt - 1), AttachmentPart.Row), (new Span(SelectionBar, Role.Selection), AttachmentPart.Row)]
                 : new[] { (Gap(GripAt), AttachmentPart.Row) },
             (new Span(Grip, Role.Muted), AttachmentPart.Row),
-            (Gap(3), AttachmentPart.Row),
+            (Gap(1), AttachmentPart.Row),
+            (picture ?? Gap(AttachmentPicture.Columns), AttachmentPart.Row),
+            (Gap(1), AttachmentPart.Row),
             (new Span(
                 Glyphs.Padded(TextWrap.Clip(attached.Name, name), name),
                 picked ? Role.SelectedText : Role.Body), AttachmentPart.Row),
@@ -1634,8 +1662,8 @@ public sealed class ComposeScreen : Screen
     /// </summary>
     private static (int Name, bool Kind, int Status) RowColumns(int width)
     {
-        // The grip, the picture and the gaps either side of them come to the header's value column, where names start.
-        var room = width - Pad - (Pad + LabelWidth + LabelGap);
+        // The grip, the picture and the gaps either side of them come to where names start.
+        var room = width - Pad - NameAt;
         var name = MostName;
         var kind = true;
 

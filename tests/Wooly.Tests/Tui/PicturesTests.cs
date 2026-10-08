@@ -632,6 +632,50 @@ public class PicturesTests
         Assert.Equal(APost.APicture().Preview, Assert.Single(network.Requests).RequestUri?.ToString());
     }
 
+    /// <summary>
+    ///     A file being attached is read off the disk it is on rather than sent for, and asks nothing of the network
+    ///     (#382): it is on no instance until it has gone up, and its picture is wanted while it is still going.
+    /// </summary>
+    [Fact]
+    public async Task Over_ReadsAFileBeingAttachedOffTheDisk()
+    {
+        using var folder = new TemporaryDirectory();
+        var path = Path.Combine(folder.Path, "cat.png");
+
+        await File.WriteAllBytesAsync(path, APng(6, 4), TestContext.Current.CancellationToken);
+
+        var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Status(HttpStatusCode.NotFound));
+        var landed = new TaskCompletionSource();
+
+        using var http = new HttpClient(network);
+        using var pictures = Pictures.Over(http, landed.SetResult);
+
+        pictures.Want([Near(Drawn.Attaching(path))], ADrawingTerminal, Wide);
+
+        await landed.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        Assert.Equal(6, pictures.Of(Drawn.Attaching(path))?.Width);
+        Assert.Empty(network.Requests);
+    }
+
+    /// <summary>A file being attached that is gone from the disk is no picture, not an exception.</summary>
+    [Fact]
+    public async Task Over_TakesAFileGoneFromTheDiskAsNoPicture()
+    {
+        using var folder = new TemporaryDirectory();
+        var gone = Drawn.Attaching(Path.Combine(folder.Path, "gone.png"));
+        var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Status(HttpStatusCode.NotFound));
+
+        using var http = new HttpClient(network);
+        using var pictures = Pictures.Over(http, () => { });
+
+        pictures.Want([Near(gone)], ADrawingTerminal, Wide);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
+
+        Assert.Null(pictures.Of(gone));
+        Assert.Empty(network.Requests);
+    }
+
     /// <summary>A file server that answers with anything but a picture is answered with no picture, not an exception.</summary>
     [Fact]
     public void Over_TakesARefusalAsNoPicture()

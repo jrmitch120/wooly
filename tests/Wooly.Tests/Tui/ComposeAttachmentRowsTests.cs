@@ -32,12 +32,12 @@ public class ComposeAttachmentRowsTests : IDisposable
 
         shell.Press(ShellKey.Up);
 
-        Assert.StartsWith("    ▌⠶   two.png", Row(compose, "two.png"), StringComparison.Ordinal);
-        Assert.StartsWith("     ⠶   one.png", Row(compose, "one.png"), StringComparison.Ordinal);
+        Assert.StartsWith("    ▌⠶     two.png", Row(compose, "two.png"), StringComparison.Ordinal);
+        Assert.StartsWith("     ⠶     one.png", Row(compose, "one.png"), StringComparison.Ordinal);
 
         shell.Press(ShellKey.Up);
 
-        Assert.StartsWith("    ▌⠶   one.png", Row(compose, "one.png"), StringComparison.Ordinal);
+        Assert.StartsWith("    ▌⠶     one.png", Row(compose, "one.png"), StringComparison.Ordinal);
 
         shell.Press(ShellKey.Up);
 
@@ -128,7 +128,7 @@ public class ComposeAttachmentRowsTests : IDisposable
         built.Author.Attaching.Single().Refuse(Dropped());
         built.Host.Drain();
 
-        Assert.EndsWith("x  connection lost  (r)", Row(compose, "cat.png"), StringComparison.Ordinal);
+        Assert.EndsWith("x  connection l…  (r)", Row(compose, "cat.png"), StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -148,7 +148,7 @@ public class ComposeAttachmentRowsTests : IDisposable
         shell.Press(key);
 
         Assert.Equal(["one.png", "three.png"], Names(compose));
-        Assert.StartsWith("    ▌⠶   three.png", Row(compose, "three.png"), StringComparison.Ordinal);
+        Assert.StartsWith("    ▌⠶     three.png", Row(compose, "three.png"), StringComparison.Ordinal);
         Assert.Contains("  Media  2 of 4 · ctrl-o to add · □ sensitive", Texts(compose));
 
         await shell.Send();
@@ -212,7 +212,7 @@ public class ComposeAttachmentRowsTests : IDisposable
         shell.Press(ShellKey.CtrlZ);
 
         Assert.Equal(["one.png", "three.png"], Names(compose));
-        Assert.StartsWith("    ▌⠶   three.png", Row(compose, "three.png"), StringComparison.Ordinal);
+        Assert.StartsWith("    ▌⠶     three.png", Row(compose, "three.png"), StringComparison.Ordinal);
         Assert.EndsWith("x  no alt text", Row(compose, "three.png"), StringComparison.Ordinal);
 
         shell.Press(ShellKey.CtrlZ);
@@ -271,7 +271,7 @@ public class ComposeAttachmentRowsTests : IDisposable
         shell.Press(ShellKey.ShiftUp);
 
         Assert.Equal(["three.png", "one.png", "two.png"], Names(compose));
-        Assert.StartsWith("    ▌⠶   three.png", Row(compose, "three.png"), StringComparison.Ordinal);
+        Assert.StartsWith("    ▌⠶     three.png", Row(compose, "three.png"), StringComparison.Ordinal);
 
         shell.Press(ShellKey.ShiftDown);
 
@@ -343,7 +343,7 @@ public class ComposeAttachmentRowsTests : IDisposable
 
         drawn.Press(Key.CursorUp);
 
-        Assert.Contains(drawn.Rows(), row => row.Contains("▌⠶   two.png", StringComparison.Ordinal));
+        Assert.Contains(drawn.Rows(), row => row.Contains("▌⠶     two.png", StringComparison.Ordinal));
 
         drawn.Press(Key.Delete);
 
@@ -368,7 +368,7 @@ public class ComposeAttachmentRowsTests : IDisposable
         Click(drawn, column, row);
 
         Assert.Equal(ComposeField.Attachment, Compose(drawn).Typing);
-        Assert.Contains(drawn.Rows(), text => text.Contains("▌⠶   one.png", StringComparison.Ordinal));
+        Assert.Contains(drawn.Rows(), text => text.Contains("▌⠶     one.png", StringComparison.Ordinal));
         Assert.Equal(["one.png", "two.png"], Names(Compose(drawn)));
     }
 
@@ -422,7 +422,7 @@ public class ComposeAttachmentRowsTests : IDisposable
         drawn.Point(column, row - 2, MouseFlags.LeftButtonClicked);
 
         Assert.Equal(["three.png", "one.png", "two.png"], Names(Compose(drawn)));
-        Assert.Contains(drawn.Rows(), text => text.Contains("▌⠶   three.png", StringComparison.Ordinal));
+        Assert.Contains(drawn.Rows(), text => text.Contains("▌⠶     three.png", StringComparison.Ordinal));
     }
 
     private readonly TemporaryDirectory _files = new();

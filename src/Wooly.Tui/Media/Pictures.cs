@@ -118,12 +118,18 @@ public sealed class Pictures(
     }
 
     /// <summary>
-    ///     Everything the shell needs to fetch and hold pictures, wired to <paramref name="http" />.
+    ///     Everything the shell needs to fetch and hold pictures, wired to <paramref name="http" /> — and to the disk,
+    ///     for a <c>file:</c> address: a file being attached, which is on no instance yet (#382).
     /// </summary>
     /// <param name="arrived">What to do when one lands — see the constructor.</param>
     public static Pictures Over(HttpClient http, Action arrived) => new(
         async (address, cancellation) =>
         {
+            if (Uri.TryCreate(address, UriKind.Absolute, out var uri) && uri.IsFile)
+            {
+                return await ReadFile(uri.LocalPath, cancellation);
+            }
+
             // Headers first, so that a length worth refusing is refused before the body is read rather than after it
             // has already been held in memory.
             using var response = await http.GetAsync(address, HttpCompletionOption.ResponseHeadersRead, cancellation);
@@ -352,6 +358,29 @@ public sealed class Pictures(
         _encoded += RememberingCost;
 
         return held;
+    }
+
+    /// <summary>
+    ///     What the file at <paramref name="path" /> holds, or <see langword="null" /> where it is gone, cannot be read,
+    ///     or holds more than <see cref="MostBytes" /> — the cap a file server is held to, since a photograph straight
+    ///     off a camera decodes to as much memory wherever it came from.
+    /// </summary>
+    private static async Task<byte[]?> ReadFile(string path, CancellationToken cancellation)
+    {
+        try
+        {
+            await using var file = File.OpenRead(path);
+
+            return file.Length > MostBytes ? null : await Read(file, cancellation);
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return null;
+        }
     }
 
     /// <summary>
