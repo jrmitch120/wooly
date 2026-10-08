@@ -268,6 +268,8 @@ internal sealed class AttachArea(AreaMode mode) : Painted
         var x = Geometry.ValueAt;
         var onHeader = focused && Cursor < 0;
 
+        var headerEnd = x;
+
         if (Mode == AreaMode.Summary && items.Count > 0)
         {
             var parts = new List<string> { $"{items.Count} attached" };
@@ -279,21 +281,23 @@ internal sealed class AttachArea(AreaMode mode) : Painted
             var summary = string.Join(" · ", parts) + "  ▸";
             Put(x, 0, summary, onHeader ? Role.SelectedText : Draft.Refused > 0 ? Role.Error : Role.Body);
             _hits.Add((new Rectangle(x, 0, Glyphs.Columns(summary), 1), Hit.Manage, -1));
+            headerEnd = x + Glyphs.Columns(summary);
         }
         else if (items.Count < Instance.Most)
         {
             const string attach = "＋ attach…";
             var end = Spans(x, 0, (attach, onHeader ? Role.SelectedText : Role.Link), ("  ctrl-o", Role.Muted));
             _hits.Add((new Rectangle(x, 0, end - x, 1), Hit.Attach, -1));
+            headerEnd = end;
 
             if (Mode == AreaMode.HeaderOnly && items.Count > 0)
             {
-                Put(end, 0, $"  · {items.Count} below", Role.Muted);
+                headerEnd = Spans(end, 0, ($"  · {items.Count} below", Role.Muted));
             }
         }
         else
         {
-            Put(x, 0, $"{items.Count} of {Instance.Most} attached", onHeader ? Role.SelectedText : Role.Muted);
+            headerEnd = Spans(x, 0, ($"{items.Count} of {Instance.Most} attached", onHeader ? Role.SelectedText : Role.Muted));
         }
 
         if (items.Count > 0)
@@ -301,7 +305,9 @@ internal sealed class AttachArea(AreaMode mode) : Painted
             var (toggle, role) = Draft.Locked ? ("■ sensitive · warning", Role.ContentWarning)
                 : Draft.SensitiveChosen ? ("■ sensitive", Role.Body)
                 : ("□ sensitive", Role.Muted);
-            var at = width - Geometry.Pad - Glyphs.Columns(toggle);
+            // Beside the header rather than across the screen: over the description column where there are rows, and
+            // just past the header's own words where there are not.
+            var at = ListsRows ? Math.Max(Columns().DescribedAt, headerEnd + 3) : headerEnd + 3;
             Put(at, 0, toggle, role);
             _hits.Add((new Rectangle(at, 0, Glyphs.Columns(toggle), 1), Hit.Sensitive, -1));
         }
@@ -339,14 +345,13 @@ internal sealed class AttachArea(AreaMode mode) : Painted
         _hits.Add((new Rectangle(0, top, width, RowHeight), Hit.Row, index));
 
         // Columns, as wide as the widest row needs, so every row lines up with the one above it.
-        var nameWidth = Math.Clamp(items.Max(each => Glyphs.Columns(each.Name)), 8, 28);
-        var nameAt = thumb.Right + 1;
-        var kindAt = nameAt + nameWidth + 2;
-        var sizeAt = kindAt + 9 + 1;
-        var describedAt = sizeAt + 8 + 2;
+        var (nameAt, nameWidth, kindAt, sizeAt, removeAt, describedAt) = Columns();
         var described = item.Description.Trim().Length > 0;
 
-        Put(nameAt, top, Glyphs.Cut(item.Name, nameWidth), current ? Role.SelectedText : Role.Body);
+        var name = Glyphs.Columns(item.Name) > nameWidth ? Glyphs.Cut(item.Name, nameWidth - 1) + "…" : item.Name;
+        Put(nameAt, top, name, current ? Role.SelectedText : Role.Body);
+        Put(removeAt, top, "×", Role.Destructive);
+        _hits.Insert(0, (new Rectangle(removeAt - 1, top, 3, 1), Hit.Remove, index));
         Put(kindAt, top, item.KindWord, Role.Muted);
         Put(sizeAt, top, item.Size.PadLeft(8), Role.Muted);
         // One column for whatever the row has to say: its progress, then its refusal, and once it is ready its
@@ -366,12 +371,8 @@ internal sealed class AttachArea(AreaMode mode) : Painted
                 Put(describedAt, top, described ? $"“{Flat(item.Description)}”" : Proto.Mark, described ? Role.Body : Role.Muted, room);
             }
 
-            Remove(Math.Min(describedAt + Math.Max(room, 0) + 1, width - Geometry.Pad - 2));
-
             return;
         }
-
-        Remove(Math.Min(describedAt + Math.Max(room, 0) + 1, width - Geometry.Pad - 2));
 
         var textAt = nameAt;
         var right = describedAt;
@@ -382,12 +383,21 @@ internal sealed class AttachArea(AreaMode mode) : Painted
             var text = line == RowHeight - 2 && lines.Count > RowHeight - 1 ? Glyphs.Cut(lines[line], Math.Max(0, right - textAt - 1)) + "…" : lines[line];
             Put(textAt, top + 1 + line, text, described ? Role.Body : Role.Muted);
         }
+    }
 
-        void Remove(int at)
-        {
-            Put(at, top, " ×", Role.Destructive);
-            _hits.Insert(0, (new Rectangle(at, top, 2, 1), Hit.Remove, index));
-        }
+    /// <summary>
+    ///     Where each column of a row starts, as wide as the widest row needs so the rows line up: the name, its kind,
+    ///     its size, ×, and then the one column for progress, a refusal or the description.
+    /// </summary>
+    private (int NameAt, int NameWidth, int KindAt, int SizeAt, int RemoveAt, int DescribedAt) Columns()
+    {
+        var nameWidth = Math.Clamp(Draft.Items.Max(each => Glyphs.Columns(each.Name)), 8, 32);
+        var nameAt = Geometry.ValueAt + ThumbColumns + 1;
+        var kindAt = nameAt + nameWidth + 2;
+        var sizeAt = kindAt + 9;
+        var removeAt = sizeAt + 8 + 2;
+
+        return (nameAt, nameWidth, kindAt, sizeAt, removeAt, removeAt + 3);
     }
 
     private static string Flat(string text) => text.ReplaceLineEndings(" ");
