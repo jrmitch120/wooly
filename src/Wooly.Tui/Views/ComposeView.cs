@@ -113,13 +113,23 @@ internal sealed class ComposeView : View
                 WriteWarning),
             (compose, room) => compose.LangAt(room));
 
-        // A click on the toggle at the end of Media's line flips it; anywhere else on the header only takes the typing.
+        // A click on the toggle at the end of Media's line flips it; anywhere else on the header — its words — opens
+        // the file browser (#376).
         _media = Placed(
             new ComposeMediaField(column =>
             {
-                if (_shell.Screen is ComposeScreen compose && compose.OnTheSensitiveToggle(column, Viewport.Size))
+                if (_shell.Screen is not ComposeScreen compose)
+                {
+                    return;
+                }
+
+                if (compose.OnTheSensitiveToggle(column, Viewport.Size))
                 {
                     _shell.ToggleSensitive();
+                }
+                else
+                {
+                    _shell.Browse();
                 }
             }),
             (compose, room) => compose.MediaAt(room));

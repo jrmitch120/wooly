@@ -288,3 +288,15 @@ goes as the warning, and `PostAuthor` marks the post for either.
 **The Media header joins the walk, but only once anything is attached** — between Warn and the post, its words lit
 rather than a selection bar — because the toggle is all there is to do on it so far. `s` there is the one letter the
 keymap gives compose, bound only while the typing is on Media, where no field would take it as a letter.
+
+## Amendment: the file browser is a screen on the stack, and Media is always walked to (map #372, ticket #376)
+
+**Attaching from the disk is a screen pushed over the draft**, by this ADR's rule for anything new: `ctrl-o`, `⏎` on
+the Media header or a click on its words pushes the file browser, and `esc` pops it back to the draft as it was. It is
+as inert as compose: it reads the folder it shows, which is the local machine's rather than an instance's (ADR-0020),
+and says what is chosen; the shell takes the browser off and attaches what was chosen to the compose under it the way
+a drop is attached (ADR-0026). The folder last attached from is the shell's to remember, for the session only.
+
+**Media now joins the walk on every fresh post and reply**, attachments or none, since `⏎` on it opens the browser —
+which the previous amendment's "only once anything is attached" no longer holds to. `↑` from the post's first line
+stops on Media before Warn; an edit, whose header is read-only, still walks straight past it.

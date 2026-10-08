@@ -50,6 +50,7 @@ public class ScreenKeyTests
         "profiles",
         "profiles-empty",
         "add-profile",
+        "browser",
     ];
 
     /// <summary>Every screen that can have a post picked out, with one picked.</summary>
@@ -268,16 +269,20 @@ public class ScreenKeyTests
     /// </summary>
     /// <remarks>
     ///     Read off the screen rather than listed here: a screen that says what it walks is a screen that can be asked
-    ///     whether it is empty, and that is the fact the rule turns on. The three exempt are the ones whose walk always
+    ///     whether it is empty, and that is the fact the rule turns on. The four exempt are the ones whose walk always
     ///     holds something — an account screen has the person themselves at the top of it, a post screen the post it is
-    ///     about, and a conversation exists because somebody said something in it.
+    ///     about, a conversation exists because somebody said something in it, and the file browser always has
+    ///     <c>..</c> to go up by (#376).
     /// </remarks>
     [Fact]
     public void EveryScreenThatWalksAnythingIsAskedTheEmptyRule()
     {
         var asked = CanBeEmpty.Select(screen => Of(screen.Empty).GetType()).ToHashSet();
 
-        var never = new[] { typeof(AccountScreen), typeof(PostScreen), typeof(ConversationScreen) };
+        var never = new[]
+        {
+            typeof(AccountScreen), typeof(PostScreen), typeof(ConversationScreen), typeof(FileBrowserScreen),
+        };
 
         var walks = typeof(Screen).Assembly.GetTypes()
             .Where(type => type.IsSubclassOf(typeof(Screen)) && !type.IsAbstract)
@@ -364,6 +369,9 @@ public class ScreenKeyTests
 
             case "compose":
                 return new ComposeScreen(ComposeFor.Post);
+
+            case "browser":
+                return new FileBrowserScreen(Path.GetTempPath(), PostLimits.Default, room: 4);
 
             case "notice":
                 return new NoticeScreen("rate limit", "The instance asked for a moment.");

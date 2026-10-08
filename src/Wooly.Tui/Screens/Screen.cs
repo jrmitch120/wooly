@@ -211,6 +211,19 @@ public abstract class Screen
     public virtual bool CloseFilterPrompt() => false;
 
     /// <summary>
+    ///     What a click on this screen's rows means where it means more than picking out the thing under it: the key it
+    ///     stands for, carried out on the <paramref name="item" />th thing once that is picked out (#376).
+    /// </summary>
+    /// <remarks>
+    ///     Nothing by default, which leaves the click to pick the thing out, as on every screen. Answered with a verb
+    ///     rather than carried out here, so a click and the key it stands for are one thing done one way.
+    /// </remarks>
+    /// <param name="item">The thing the row is part of (<see cref="Line.Item" />), if any.</param>
+    /// <param name="part">What the run under the pointer stands for (<see cref="Span.Item" />), if anything.</param>
+    /// <param name="chorded">Whether ctrl or shift was held.</param>
+    public virtual Verb Clicked(int? item, int? part, bool chorded) => Verb.None;
+
+    /// <summary>
     ///     The post the reader has picked out, or <see langword="null" /> where this screen has no posts on it. What
     ///     <c>⏎</c>, <c>a</c> and the marks act on.
     /// </summary>

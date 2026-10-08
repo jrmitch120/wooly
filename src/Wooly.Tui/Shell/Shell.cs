@@ -150,12 +150,25 @@ public sealed class Shell
     /// </summary>
     private ComposeScreen? _waitingToSend;
 
+    /// <summary>The folder Wooly was launched from, where the file browser opens the first time (#376).</summary>
+    private readonly string _launchedFrom;
+
+    /// <summary>
+    ///     The folder the author last attached from through the file browser, where it opens from then on — for this
+    ///     session only, saved nowhere (#376).
+    /// </summary>
+    private string? _lastFolder;
+
     /// <param name="opening">
     ///     Who to act as — or, with nobody, what to open onto instead: adding a profile, as the only screen (#247).
     /// </param>
     /// <param name="preferences">
     ///     The config file's preferences: the hashtag the rail keeps a place for, and what compose starts on. None
     ///     where the file sets none.
+    /// </param>
+    /// <param name="launchedFrom">
+    ///     The folder Wooly was launched from, where the file browser first opens (#376): the working folder, where
+    ///     nobody says otherwise.
     /// </param>
     public Shell(
         Opening opening,
@@ -165,8 +178,10 @@ public sealed class Shell
         IWebBrowser browser,
         TimeProvider clock,
         ShellTiming timing,
-        Preferences? preferences = null)
+        Preferences? preferences = null,
+        string? launchedFrom = null)
     {
+        _launchedFrom = launchedFrom ?? Environment.CurrentDirectory;
         _ports = ports;
         _profiles = profiles;
         _host = host;
@@ -551,6 +566,8 @@ public sealed class Shell
         Verb.NextField => Ran(() => _ = ChangeCompose(compose => compose.Walk(1))),
         Verb.PreviousChoice => Ran(() => _ = ChangeCompose(compose => compose.Choose(-1))),
         Verb.NextChoice => Ran(() => _ = ChangeCompose(compose => compose.Choose(1))),
+        Verb.OpenBrowser => Ran(Browse),
+        Verb.AttachChosen => Ran(AttachChosen),
         Verb.ToggleSensitive => Ran(ToggleSensitive),
 
         // Nothing, and the terminal's own — which the window has already taken, and which no screen answers either.
@@ -2079,6 +2096,82 @@ public sealed class Shell
         compose.Limits = _limits.For(Actor.Profile);
 
         Push(compose);
+    }
+
+    /// <summary>
+    ///     A click on the content's rows that means more than picking out the thing under it (<see cref="Screen.Clicked" />,
+    ///     #376): the thing is picked out and the key the click stands for is carried out on it.
+    /// </summary>
+    /// <param name="item">The thing the row clicked is part of, if any.</param>
+    /// <param name="part">What the run clicked stands for, if anything.</param>
+    /// <param name="chorded">Whether ctrl or shift was held.</param>
+    /// <returns>Whether the click meant anything more, and was spent on it; if not it is left to pick.</returns>
+    public bool Click(int? item, int? part, bool chorded)
+    {
+        var verb = Screen.Clicked(item, part, chorded);
+
+        if (verb == Verb.None)
+        {
+            return false;
+        }
+
+        if (item is { } at)
+        {
+            Screen.Pick(at);
+        }
+
+        return Do(verb, answer: null);
+    }
+
+    /// <summary>
+    ///     <c>ctrl-o</c> on a compose or a reply, <c>⏎</c> on its Media header or a click on its words: pushes the file
+    ///     browser over it, in the folder last attached from this session or, the first time, the one Wooly was launched
+    ///     from (#376). Not on an edit, which has nothing to attach to, nor on a post that carries all it can.
+    /// </summary>
+    public void Browse()
+    {
+        if (Screen is not ComposeScreen { TakesAttachments: true } compose)
+        {
+            return;
+        }
+
+        if (compose.AttachmentRoom == 0)
+        {
+            Say($"This post carries all it can — {compose.Attachments.Count} of {compose.Limits.Attachments}.", isError: false);
+
+            return;
+        }
+
+        var folder = _lastFolder is { } last && Directory.Exists(last) ? last : _launchedFrom;
+
+        Push(new FileBrowserScreen(folder, compose.Limits, compose.AttachmentRoom));
+    }
+
+    /// <summary>
+    ///     <c>⏎</c> in the file browser: a folder opens; otherwise the browser goes and what was chosen — or the file
+    ///     under the cursor — is attached to the compose screen under it, exactly as a drop is (#375, #376), and the
+    ///     folder it came from is remembered for the next time.
+    /// </summary>
+    public void AttachChosen()
+    {
+        if (Screen is not FileBrowserScreen browser)
+        {
+            return;
+        }
+
+        var chosen = browser.Take();
+
+        if (chosen.Count == 0 || _stack.Count < 2 || _stack[^2] is not ComposeScreen compose)
+        {
+            Changed?.Invoke();
+
+            return;
+        }
+
+        _lastFolder = browser.Folder;
+
+        Pop();
+        Attach(compose, chosen);
     }
 
     /// <summary>

@@ -104,6 +104,7 @@ A screen is a place in the stack, not a window. Entering one pushes, `esc` pops,
 | Direct messages — conversations, then a thread | A rail destination | #30 |
 | Follow requests | A rail destination | #29 |
 | Compose / reply / edit — a screen on the stack, like any other | `c`, `r` or `e` | #28 |
+| Attach — the file browser, the folders and the files the instance accepts | `ctrl-o` on a compose or a reply, `⏎` on its Media header or a click on its words | #376 |
 | Profiles — every profile on this machine, marked `acting as` and `default` | `ctrl-p` | #240 (ADR-0020) |
 | Add a profile — the instance, a sign-in through the browser or a pasted token, the token checked, a name | `a` on the profiles screen, or launching with nobody to act as | #245, #247 (ADR-0020) |
 | Media inside a post or feed item | Drawn in place | #31 (ADR-0016) |
@@ -161,7 +162,8 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Conversation | `m` mark read, and every key that acts on a post, since each message in it is one |
 | Profiles | `⏎` act as that profile, for this session — not offered on the one already acted as · `D` make it the default, for the CLI and the next launch — not offered on the one already the default · `a` add a profile · `R` sign it in again, replacing its token — offered on every row · `x` remove it, after a confirmation — refused on the one acted as and on the default |
 | Add a profile | `⏎` on to the next step · `t` paste a token instead, while the browser is out or after it failed · `esc` back to the list, calling off a sign-in or a check in flight — or, as the only screen on first run, back to the first step, with `ctrl-q` quit offered (#247) |
-| Compose / reply / edit | `ctrl-s` send or save — waiting first on anything attached still going up, which `esc` calls off (#375) · `esc` throw it away — asking `Discard this post? y / n` first where it differs from how it opened, as every way out of it does (#373) · `ctrl-w` move the typing between the post and the content warning over it — on all three, each carrying a warning field of its own (#123, #139, #140); `⏎` in the warning hands the typing back too (#320) · `↑` on the post's first line moves the typing up into the headers, `↑`/`↓` move it between the headers that take typing, and `↓` off the last returns it to the post, the way a mail client's do (ADR-0024, #337); the walk stops at either end rather than coming round — `↑` on To and `↓` below the post do nothing — and the status row offers only the ways it goes: `↓ field` on To, `↑↓ field` on the headers under it, `↑ field` in the post · on **Media**, which the walk stops on between the warning and the post once anything is attached, `s` flips the sensitive toggle, as a click on it does, unless a warning holds it on (#379); other letters there are nobody's · on **To** `←`/`→` choose the visibility, skipping any it does not allow, and the status row offers `←→ choose` ahead of the walk (#338); letters there are nobody's · on **Lang** a code or a name typed opens the list of languages, as do a click and `⏎`; the walk goes To, Lang, the warning, the post — the order they are drawn in — and steps over Lang where a short terminal has given its row up (#340) · `tab`/`shift-tab` are the frame's here as everywhere, never a walk of compose's fields. While the list of people to mention is open: `↑`/`↓` pick · `tab`/`⏎` insert · `esc` close the list, never the draft (#318). While the list of languages is open: `↑`/`↓` pick · `tab`/`⏎` choose · `esc` close the list, never the draft — and the status row offers those three ahead of the rest (#340) |
+| Compose / reply / edit | `ctrl-s` send or save — waiting first on anything attached still going up, which `esc` calls off (#375) · `esc` throw it away — asking `Discard this post? y / n` first where it differs from how it opened, as every way out of it does (#373) · `ctrl-w` move the typing between the post and the content warning over it — on all three, each carrying a warning field of its own (#123, #139, #140); `⏎` in the warning hands the typing back too (#320) · `↑` on the post's first line moves the typing up into the headers, `↑`/`↓` move it between the headers that take typing, and `↓` off the last returns it to the post, the way a mail client's do (ADR-0024, #337); the walk stops at either end rather than coming round — `↑` on To and `↓` below the post do nothing — and the status row offers only the ways it goes: `↓ field` on To, `↑↓ field` on the headers under it, `↑ field` in the post · `ctrl-o` opens the file browser over a fresh post or a reply, from any field (#376) · on **Media**, which the walk stops on between the warning and the post on a fresh post or a reply, `⏎` opens the file browser, as a click on its words does (#376), and `s` flips the sensitive toggle once anything is attached, as a click on it does, unless a warning holds it on (#379); other letters there are nobody's · on **To** `←`/`→` choose the visibility, skipping any it does not allow, and the status row offers `←→ choose` ahead of the walk (#338); letters there are nobody's · on **Lang** a code or a name typed opens the list of languages, as do a click and `⏎`; the walk goes To, Lang, the warning, Media, the post — the order they are drawn in — and steps over Lang where a short terminal has given its row up (#340) · `tab`/`shift-tab` are the frame's here as everywhere, never a walk of compose's fields. While the list of people to mention is open: `↑`/`↓` pick · `tab`/`⏎` insert · `esc` close the list, never the draft (#318). While the list of languages is open: `↑`/`↓` pick · `tab`/`⏎` choose · `esc` close the list, never the draft — and the status row offers those three ahead of the rest (#340) |
+| Attach | type to filter, fuzzily (#376) · `space` choose the file under the cursor, or let it go, and move on — up to what the post has room for · `⏎` open the folder under the cursor, or attach what is chosen, or the file under the cursor where nothing is · `→` open a folder · `←` up a folder · `↑`/`↓` walk the list · `ctrl-a` every file, and again only the accepted types · `backspace`/`delete` only ever the filter, stopping at empty · `esc` clear the filter, then back to the draft unchanged |
 | Home, local, federated, hashtag, Discover, Notifications, Messages, Requests, Post, Account, Follows | `g` refresh — evicts the destination's cache entry (where one exists) and re-runs the same fetch its own arrival runs |
 
 ### What the four screens settled
@@ -940,8 +942,9 @@ lists them under a read-only Media header of its own (#381).
   while it is off, `■ sensitive` in `content-warning` while it is on, and `■ sensitive (warning)`, the same, while a
   warning is written — a warning puts the whole post behind a click already (ADR-0008), so the toggle is held on and
   locked, and `s` then says `The warning already hides what is attached.` Clearing the warning gives back whatever the
-  author had set, which is kept underneath. Once something is attached the walk stops on the header between Warn and
-  the post, its own words lit in `selected-text` rather than a selection bar, and the status row offers `s sensitive`
+  author had set, which is kept underneath. The walk stops on the header between Warn and the post — on a fresh post
+  or a reply whether or not anything is attached, since `⏎` there opens the file browser (#376) — its own words lit in
+  `selected-text` rather than a selection bar, and once something is attached the status row offers `s sensitive`
   there; `s` on the header or a click on the toggle flips it. What goes out is the author's own setting, as the
   draft's `Sensitive`, and the warning as the warning.
 - **A drop attaches**: a terminal pastes the paths of files dropped onto it, so a paste on a compose screen made
@@ -969,6 +972,39 @@ lists them under a read-only Media header of its own (#381).
   `Media  none` with no key where it carries nothing. No grip, no `x`, no key or click that adds, removes, reorders or
   opens anything, and a drop on an edit is text. The rows fold into the header's line on a short terminal,
   `2 · 1 no alt text · kept as they are`, and with the same headers the editor starts on the same row as on `c`.
+
+### What the file browser settled
+
+`ctrl-o` on a fresh post or a reply, `⏎` on its Media header or a click on the header's words pushes the file browser,
+crumbed `Attach`, in the look the prototype on `prototype/374-attachments` settled (#374, #376). An edit opens none, nor
+does a post already carrying all it can, which says `This post carries all it can — 4 of 4.`
+
+- **It works on the real file system, and opens where the author last attached from** this session — else in the
+  folder Wooly was launched from. Nothing is saved: the next session starts from the launch folder again.
+- **Rows, top to bottom:** the folder, `~` for the home folder and cut from its start where it is long, with
+  `2 chosen · 2 more fit` (or `4 more fit on this post`) against the right; the filter, `filter ss0229▏` or
+  `type to filter`, with what is listed and the key that changes it against the right — `pictures, video, sound ·
+  ctrl-a every file` from the instance's accepted types, or `every file · ctrl-a accepted only` — a click on which does
+  the same as the key; a rule; then `◂ ..`, the folders as `▸ name/` in `link`, and the files, each `☐`, or `☑` once
+  chosen, with its kind, size and date muted against the right. The selection bar `▌` sits against the box column,
+  so it has something beside it on every row. Hidden files and folders — a leading dot, or marked hidden — never show,
+  and every file shown under `ctrl-a` that the instance does not accept is muted.
+- **The filter is fuzzy, fzf's way** (`FuzzyName`): the letters typed must all be in a name, in order, anywhere; letters
+  in a run, or starting a word or a number, score more and skipped letters cost a little, so `ss0229` puts
+  `Screenshot 2024-02-29 at 9.31.03 AM.png` first and loose matches still show lower down. `..` stays on top, folders
+  ahead of files, and the cursor lands on the closest match. Fuzzy so that `space` can always mean choose: a name's
+  spaces never need typing. `backspace` and `delete` only ever edit the filter — held down, they stop at empty rather
+  than walking up the folders — and `esc` clears it before it goes back.
+- **Choosing**: `space`, a click on a box, or a ctrl- or shift-click on a row chooses a file, up to what the post still
+  has room for, and choices outlast a change of filter or of folder. `⏎` attaches what is chosen, in the order chosen,
+  or the file under the cursor where nothing is — as pending attachments, exactly as a drop does (#375) — and the
+  browser goes. On a folder `⏎` opens it, as `→` does; `←` goes up one. A folder opens on its first entry; going up
+  lands on the folder just left.
+- **The mouse**: a click moves the cursor, a double click opens a folder or attaches a file, and the wheel scrolls the
+  page — the arrows walk the list, as `j`/`k` do elsewhere, `j` and `k` being letters here.
+- **`esc` with no filter goes back to the draft unchanged**: nothing attached, nothing asked.
+- **On a terminal 90 wide or more the list keeps to the left** and a pane opens on the right past a `│`, where the
+  picture under the cursor goes, top left, level with the first row (#382). It is empty until then.
 
 ### What mentioning somebody settled
 

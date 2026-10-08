@@ -81,6 +81,21 @@ public static class Keymap
         (ShellKey.Left, ComposeScreen) => Verb.PreviousChoice,
         (ShellKey.Right, ComposeScreen) => Verb.NextChoice,
 
+        // And ctrl-o, which opens the file browser over a compose or a reply wherever the typing is — and ⏎ on the
+        // Media header, which takes no typing of its own and is walked to only to be opened from (#376).
+        (ShellKey.CtrlO, ComposeScreen) => Verb.OpenBrowser,
+        (ShellKey.Enter, ComposeScreen { Typing: ComposeField.Media }) => Verb.OpenBrowser,
+
+        // The file browser takes letters into its filter, so what it answers besides are the named keys (#376): ⏎
+        // attaches or opens, → and ← go into a folder and up one, ctrl-a shows every file, and the arrows walk the
+        // list as j and k do elsewhere — j and k being letters here.
+        (ShellKey.Enter, FileBrowserScreen) => Verb.AttachChosen,
+        (ShellKey.Right, FileBrowserScreen) => Verb.IntoFolder,
+        (ShellKey.Left, FileBrowserScreen) => Verb.UpFolder,
+        (ShellKey.CtrlA, FileBrowserScreen) => Verb.EveryFile,
+        (ShellKey.Down, FileBrowserScreen) => Verb.NextPost,
+        (ShellKey.Up, FileBrowserScreen) => Verb.PreviousPost,
+
         // The four that collide. A picked reference is a level of its own inside the screen, so ⏎ means the reference
         // wherever one is picked — ahead of whatever the screen's own ⏎ would have meant (#85).
         (ShellKey.Enter, _) when screen.Reference is not null => Verb.OpenReference,

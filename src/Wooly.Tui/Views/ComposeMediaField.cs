@@ -11,7 +11,7 @@ namespace Wooly.Tui.Views;
 /// </summary>
 /// <remarks>
 ///     It leaves to the window every key it does not mean to swallow, and so to <c>Keymap</c>: the arrows that walk the
-///     fields, <c>tab</c>, <c>esc</c>, the <c>ctrl</c> chords, and <c>s</c>, the sensitive toggle. Any other letter is
+///     fields, <c>⏎</c>, which opens the file browser there (#376), <c>tab</c>, <c>esc</c>, the <c>ctrl</c> chords, and <c>s</c>, the sensitive toggle. Any other letter is
 ///     nobody's here — read by the keymap it would be a boost or a compose behind a draft.
 /// </remarks>
 internal sealed class ComposeMediaField : View
@@ -35,7 +35,7 @@ internal sealed class ComposeMediaField : View
 
     protected override bool OnKeyDown(Key key) =>
         Answering?.Invoke(key) == true
-        || !(key == Key.CursorLeft || key == Key.CursorRight || key == Key.CursorUp || key == Key.CursorDown
+        || !(key == Key.Enter || key == Key.CursorLeft || key == Key.CursorRight || key == Key.CursorUp || key == Key.CursorDown
           || key == Key.Tab || key == Key.Tab.WithShift || key == Key.Esc || key == Key.S || key.IsCtrl
           || key.IsAlt);
 
