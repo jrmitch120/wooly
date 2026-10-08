@@ -86,6 +86,13 @@ namespace Wooly.Tui.Prototype.Attachments
 
         public static string AttachLabel => AttachLabels[LabelStyle];
 
+        public static int GripStyle { get; set; }
+
+        /// <summary>Candidates for a row's drag handle, F8 cycles them; a blank is "no handle".</summary>
+        public static readonly string[] Grips = ["≡", "∷", "⠶", "⁞", "↕", " "];
+
+        public static string Grip => Grips[GripStyle];
+
         /// <summary>Where the browser opens: the folder last attached from this session, else where Wooly was launched.</summary>
         public static string Folder { get; set; } = Environment.CurrentDirectory;
 
@@ -119,6 +126,14 @@ namespace Wooly.Tui.Prototype.Attachments
             {
                 LabelStyle = (LabelStyle + 1) % AttachLabels.Length;
                 Say($"Attach header label: {AttachLabel}");
+                Shell.Relaid();
+                return true;
+            }
+
+            if (key == Key.F8)
+            {
+                GripStyle = (GripStyle + 1) % Grips.Length;
+                Say($"drag handle: {(Grip == " " ? "none" : Grip)}");
                 Shell.Relaid();
                 return true;
             }
@@ -390,7 +405,7 @@ namespace Wooly.Tui.Prototype.Attachments
             var cell = Pics.Cell;
 
             Put(x, 0,
-                $" F2  · rows {(Proto.TallRows ? "tall" : "compact")} F3 · mark F5 · theme F6 · label {Proto.AttachLabel} F7 │ {Pics.Way} {cell.Width}×{cell.Height}px"
+                $" F2  · rows {(Proto.TallRows ? "tall" : "compact")} F3 · mark F5 · theme F6 · label {Proto.AttachLabel} F7 · grip {(Proto.Grip == " " ? "none" : Proto.Grip)} F8 │ {Pics.Way} {cell.Width}×{cell.Height}px"
                 + $" · sent {Pics.BytesSent / 1024}KB │ {draft.Items.Count}/{Instance.Most} [{states}] sensitive {(draft.Sensitive ? draft.Locked ? "on·locked" : "on" : "off")} │ ctrl-q",
                 Role.Band);
         }

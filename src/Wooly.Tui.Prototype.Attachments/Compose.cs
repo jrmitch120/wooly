@@ -351,7 +351,7 @@ internal sealed class AttachArea(AreaMode mode) : Painted
 
         if (current) Put(Geometry.Pad + 1, top, "▌", Role.Selection); // against the grip: ▌ fills only the left half of its cell, so this reads as one space
 
-        Put(Geometry.Pad + 2, top, "≡", dragged ? Role.Selection : Role.Muted);
+        Put(Geometry.Pad + 2, top, Proto.Grip, dragged ? Role.Selection : Role.Muted);
         Pics.Paint(this, thumb, item.Path, Theme);
 
         _hits.Add((new Rectangle(0, top, width, RowHeight), Hit.Row, index));
