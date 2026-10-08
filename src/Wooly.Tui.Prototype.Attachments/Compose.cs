@@ -203,7 +203,7 @@ internal enum AreaMode { Rows, HeaderOnly, Summary, Manage }
 /// <summary>The Attach header, and in layouts A and C's screen, a row per attachment.</summary>
 internal sealed class AttachArea(AreaMode mode) : Painted
 {
-    private enum Hit { Attach, Sensitive, Row, Remove, Retry, Manage }
+    private enum Hit { Attach, Sensitive, Row, Describe, Remove, Retry, Manage }
 
     private readonly List<(Rectangle Where, Hit Hit, int Index)> _hits = [];
 
@@ -370,7 +370,11 @@ internal sealed class AttachArea(AreaMode mode) : Painted
         {
             if (ready && room > 4)
             {
-                Put(describedAt, top, described ? Quoted(item.Description, room) : Proto.Mark, described ? Role.Body : Role.Muted, room);
+                var said = Glyphs.Cut(described ? Quoted(item.Description, room) : Proto.Mark, room);
+                Put(describedAt, top, said, described ? Role.Body : Role.Muted, room);
+
+                // The words themselves open the description; the rest of the row only selects it.
+                _hits.Insert(0, (new Rectangle(describedAt, top, Glyphs.Columns(said), 1), Hit.Describe, index));
             }
 
             return;
@@ -562,7 +566,18 @@ internal sealed class AttachArea(AreaMode mode) : Painted
             return true;
         }
 
-        if (flags.HasFlag(MouseFlags.LeftButtonClicked) || flags.HasFlag(MouseFlags.LeftButtonDoubleClicked))
+        if (flags.HasFlag(MouseFlags.LeftButtonDoubleClicked))
+        {
+            // Anywhere on a row, as a mail client opens an attachment.
+            if (Pointed(at) is { Hit: Hit.Row or Hit.Describe } row && row.Index < Draft.Items.Count)
+            {
+                Proto.Describe(Draft.Items[row.Index]);
+            }
+
+            return true;
+        }
+
+        if (flags.HasFlag(MouseFlags.LeftButtonClicked))
         {
             return true;
         }
@@ -598,6 +613,9 @@ internal sealed class AttachArea(AreaMode mode) : Painted
                 Draft.Retry(items[index]);
                 break;
             case Hit.Row when index < items.Count:
+                Cursor = index;
+                break;
+            case Hit.Describe when index < items.Count:
                 Proto.Describe(items[index]);
                 break;
         }
