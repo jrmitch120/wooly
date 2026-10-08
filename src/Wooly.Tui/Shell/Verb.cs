@@ -284,4 +284,9 @@ public enum Verb
 
     /// <summary><c>→</c> there, likewise: choose the next one to the right.</summary>
     NextChoice,
+
+    /// <summary>
+    ///     <c>⏎</c> there on a pending attachment's row: open the description editor on it (#377).
+    /// </summary>
+    Describe,
 }

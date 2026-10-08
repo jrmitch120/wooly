@@ -161,7 +161,7 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Conversation | `m` mark read, and every key that acts on a post, since each message in it is one |
 | Profiles | `⏎` act as that profile, for this session — not offered on the one already acted as · `D` make it the default, for the CLI and the next launch — not offered on the one already the default · `a` add a profile · `R` sign it in again, replacing its token — offered on every row · `x` remove it, after a confirmation — refused on the one acted as and on the default |
 | Add a profile | `⏎` on to the next step · `t` paste a token instead, while the browser is out or after it failed · `esc` back to the list, calling off a sign-in or a check in flight — or, as the only screen on first run, back to the first step, with `ctrl-q` quit offered (#247) |
-| Compose / reply / edit | `ctrl-s` send or save — waiting first on anything attached still going up, which `esc` calls off (#375) · `esc` throw it away — asking `Discard this post? y / n` first where it differs from how it opened, as every way out of it does (#373) · `ctrl-w` move the typing between the post and the content warning over it — on all three, each carrying a warning field of its own (#123, #139, #140); `⏎` in the warning hands the typing back too (#320) · `↑` on the post's first line moves the typing up into the headers, `↑`/`↓` move it between the headers that take typing, and `↓` off the last returns it to the post, the way a mail client's do (ADR-0024, #337); the walk stops at either end rather than coming round — `↑` on To and `↓` below the post do nothing — and the status row offers only the ways it goes: `↓ field` on To, `↑↓ field` on the headers under it, `↑ field` in the post · on **To** `←`/`→` choose the visibility, skipping any it does not allow, and the status row offers `←→ choose` ahead of the walk (#338); letters there are nobody's · on **Lang** a code or a name typed opens the list of languages, as do a click and `⏎`; the walk goes To, Lang, the warning, the post — the order they are drawn in — and steps over Lang where a short terminal has given its row up (#340) · `tab`/`shift-tab` are the frame's here as everywhere, never a walk of compose's fields. While the list of people to mention is open: `↑`/`↓` pick · `tab`/`⏎` insert · `esc` close the list, never the draft (#318). While the list of languages is open: `↑`/`↓` pick · `tab`/`⏎` choose · `esc` close the list, never the draft — and the status row offers those three ahead of the rest (#340) |
+| Compose / reply / edit | `ctrl-s` send or save — waiting first on anything attached still going up, which `esc` calls off (#375) · `esc` throw it away — asking `Discard this post? y / n` first where it differs from how it opened, as every way out of it does (#373) · `ctrl-w` move the typing between the post and the content warning over it — on all three, each carrying a warning field of its own (#123, #139, #140); `⏎` in the warning hands the typing back too (#320) · `↑` on the post's first line moves the typing up into the headers, `↑`/`↓` move it between the headers that take typing, and `↓` off the last returns it to the post, the way a mail client's do (ADR-0024, #337); the walk stops at either end rather than coming round — `↑` on To and `↓` below the post do nothing — and the status row offers only the ways it goes: `↓ field` on To, `↑↓ field` on the headers under it, `↑ field` in the post · on **To** `←`/`→` choose the visibility, skipping any it does not allow, and the status row offers `←→ choose` ahead of the walk (#338); letters there are nobody's · on **Lang** a code or a name typed opens the list of languages, as do a click and `⏎`; the walk goes To, Lang, the warning, the post — the order they are drawn in — and steps over Lang where a short terminal has given its row up (#340); with something attached it takes in the Media header and each attachment's row between the warning and the post, and `⏎` on a row opens the description editor, where `esc` and `ctrl-s` are both done (#377) · `tab`/`shift-tab` are the frame's here as everywhere, never a walk of compose's fields. While the list of people to mention is open: `↑`/`↓` pick · `tab`/`⏎` insert · `esc` close the list, never the draft (#318). While the list of languages is open: `↑`/`↓` pick · `tab`/`⏎` choose · `esc` close the list, never the draft — and the status row offers those three ahead of the rest (#340) |
 | Home, local, federated, hashtag, Discover, Notifications, Messages, Requests, Post, Account, Follows | `g` refresh — evicts the destination's cache entry (where one exists) and re-runs the same fetch its own arrival runs |
 
 ### What the four screens settled
@@ -955,6 +955,33 @@ through unchanged (ADR-0008).
   `configuration.media_attachments.supported_mime_types`, else Mastodon's own; and `description_limit`, else 1500 — read
   with the post's own limit, on the same answer.
 - **Anything attached touches the draft** (#373), so leaving it asks first.
+
+### What descriptions settled
+
+Every pending attachment can carry a **description** — "alt text" on screen, the domain's word in code — written in
+the description editor the prototype chose (#374, #377).
+
+- **The rows are walked.** `↑` off the post's first line goes onto the last attachment's row, up the rows to the Media
+  header, and from there into Warn; `↓` walks back. The row walked onto carries `▌` in `selection` right against its
+  grip, and its name in `selected-text`; the header walked onto takes no bar, its own words lit in `selected-text`
+  instead. Rows folded into the header's line are not walked. The status row offers `⏎ describe` on a row.
+- **`⏎` on a row, a click on its description or `no alt text`, or a double click anywhere on it opens the editor**, a
+  screen pushed over the draft (ADR-0015) and crumbed `Describe <name>`. A single click elsewhere on a row only walks
+  onto it, so a slightly-off click pushes nothing.
+- **The editor**: a blank under the panel's edge, `Description (alt text)` muted, a blank, the field, and a counter
+  `n / limit` along the foot — muted, `quota-low` in the last tenth, `error` past the instance's description limit
+  (1500 where it does not say), counted in code points as an instance counts them. On a panel 80 wide or more the
+  field sits in the right half, leaving the top left for the picture (#382). `esc` and `ctrl-s` are both "done" and
+  keep what was typed; there is no cancel. A description can be written at any time, while the file is still going up
+  included.
+- **A ready row says its description in quotes**, cut with `…` inside the closing quote where the status column is too
+  narrow, or the quiet mark `no alt text`. Sending never asks about a missing one.
+- **A description goes to the instance once there is an attachment to put it on, and again whenever it changes**
+  (`IPostAuthor.Describe`): as the editor is left, or as the attachment it was written for comes back ready. One at a
+  time per attachment, the last one written last. `ctrl-s` waits on a description still on its way as it does on an
+  upload, and sends one not yet taken first. A refusal or a dropped connection is said on the status row
+  (`The description of cat.png was refused: …`) and calls a waiting send off; it is sent again on the next `ctrl-s`,
+  never by itself (ADR-0006).
 
 ### What mentioning somebody settled
 

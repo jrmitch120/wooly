@@ -52,7 +52,7 @@ public static class Keymap
 
         // Nothing on compose, whose fields take `?` as a letter before the window sees it (#320): a keymap opened only
         // where no widget has the typing would be one a reader can never reach, over a draft.
-        (ShellKey.Question, ComposeScreen) => Verb.None,
+        (ShellKey.Question, ComposeScreen or DescriptionScreen) => Verb.None,
         (ShellKey.Question, _) => Verb.Help,
         (ShellKey.Slash, _) => Verb.Search,
         (ShellKey.Tab, _) => Verb.NextDestination,
@@ -69,6 +69,14 @@ public static class Keymap
         // screen they mean nothing and are left to whatever else wants them.
         (ShellKey.CtrlS, ComposeScreen) => Verb.Send,
         (ShellKey.CtrlW, ComposeScreen) => Verb.WriteWarning,
+
+        // On the description editor ctrl-s is "done", as esc is: what was typed is kept either way (#377).
+        (ShellKey.CtrlS, DescriptionScreen) => Verb.Back,
+
+        // ⏎ on an attachment's row describes it (#377). Anywhere else on compose it reaches here only from the Media
+        // header, the other fields taking it for themselves, and there it opens nothing behind the draft.
+        (ShellKey.Enter, ComposeScreen { SelectedAttachment: not null }) => Verb.Describe,
+        (ShellKey.Enter, ComposeScreen) => Verb.None,
 
         // And the arrows, which walk compose's fields the way a mail client's do (ADR-0024, #337) — reaching here only
         // where the field the typing is in leaves them: a header always, the post on its first line. Whether there was

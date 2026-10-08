@@ -46,6 +46,26 @@ public interface IPostAuthor
         CancellationToken cancellationToken);
 
     /// <summary>
+    ///     Sets the description of the pending attachment <paramref name="attachmentId" /> names to
+    ///     <paramref name="description" />, or takes it off where that is empty (#377) — what a post naming it will
+    ///     carry, for people who cannot see it.
+    /// </summary>
+    /// <remarks>
+    ///     A step of its own rather than part of <see cref="Attach" />: an author writes a description while the file is
+    ///     still going up, and changes it after, so it is sent once there is an attachment to put it on and again
+    ///     whenever it changes. Never retried here (ADR-0006).
+    /// </remarks>
+    /// <exception cref="Errors.AttachmentRefusedException">
+    ///     The instance would not take the description — longer than it allows, most often — and said why.
+    /// </exception>
+    /// <exception cref="Errors.TransientNetworkException">The instance could not be reached, retries included.</exception>
+    Task Describe(
+        ActiveProfile profile,
+        string attachmentId,
+        string description,
+        CancellationToken cancellationToken);
+
+    /// <summary>
     ///     Publishes <paramref name="draft" /> as <paramref name="profile" />, carrying the pending attachments it names
     ///     by id (<see cref="PostDraft.Attached" />) rather than files by path (ADR-0026, #375).
     /// </summary>

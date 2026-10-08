@@ -266,3 +266,18 @@ header, the hairline under the headers. To, the warning and three rows of editor
 **The screen stays inert.** It holds what is attached and where each has got to, and says what goes out — a draft
 naming the pending attachments by id, asked for only once every one is ready. The shell sends each file up as it is
 attached and feeds its progress back (ADR-0026), and `Shell.Send` waits on them before making the one call.
+
+## Amendment: the description editor is a screen over the draft (map #372, ticket #377)
+
+**Describing an attachment pushes a screen**, as anything new on compose does: `⏎` on an attachment's row, a click on
+its description, or a double click on the row opens the description editor over the draft. It holds no copy: what is
+typed goes straight onto the attachment the compose screen holds, so `esc` and `ctrl-s` are both "done" and there is no
+cancel to keep a copy for.
+
+**Its field is a widget of its own, laid over the content viewport as compose's are.** The window adds a second view
+beside compose's, shown while the description editor is on top; the screen says where the field goes, the view puts it
+there, and every change goes through the shell. The Media header and its rows take the walk and the clicks through a
+transparent view of their own in compose's, the screen painting what shows through.
+
+**The shell sends the description**, as it sends the file (ADR-0026): once the attachment is ready, again whenever it
+changes, and before the post is published — `Shell.Send` waits on a description on its way as on an upload.

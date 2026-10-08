@@ -58,16 +58,38 @@ public sealed class ComposeAttachment(string path, MediaKind kind, long bytes)
     public AttachmentState State { get; internal set; } = new AttachmentState.Sending(0);
 
     /// <summary>
-    ///     What its author says it shows: nothing yet, which its row marks quietly. Written by the description editor
-    ///     (#377).
+    ///     What its author says it shows, as written in the description editor (#377): nothing to begin with, which its
+    ///     row marks quietly.
     /// </summary>
     public string Description { get; internal set; } = string.Empty;
 
-    /// <summary>Whether it has a description, which the quiet mark and the fold's count read.</summary>
-    public bool Described => Description.Trim().Length > 0;
+    /// <summary>
+    ///     The description as it goes to the instance: what was written, without the blank space either side of it
+    ///     that nobody reading it would miss.
+    /// </summary>
+    public string Saying => Description.Trim();
 
-    /// <summary>Whether it is still on its way: going up, or being processed.</summary>
-    public bool Unfinished => State is AttachmentState.Sending or AttachmentState.Processing;
+    /// <summary>
+    ///     The description the instance holds for it, as the shell last heard it took one (#377): none, until one has
+    ///     been sent.
+    /// </summary>
+    public string Told { get; internal set; } = string.Empty;
+
+    /// <summary>Whether it has a description, which the quiet mark and the fold's count read.</summary>
+    public bool Described => Saying.Length > 0;
+
+    /// <summary>
+    ///     Whether it is on the instance with a description other than the one written for it — written while it was
+    ///     going up, or changed since — which the shell sends before any post names it (#377).
+    /// </summary>
+    public bool Untold =>
+        State is AttachmentState.Ready && !string.Equals(Saying, Told, StringComparison.Ordinal);
+
+    /// <summary>
+    ///     Whether it is still on its way: going up, being processed, or ready with its description still to reach the
+    ///     instance (#377) — any of which a send waits on.
+    /// </summary>
+    public bool Unfinished => State is AttachmentState.Sending or AttachmentState.Processing || Untold;
 
     /// <summary>The kind as its row says it: picture, animation, video, sound.</summary>
     public string KindWord => Kind switch

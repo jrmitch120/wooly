@@ -45,6 +45,7 @@ public class ScreenKeyTests
         "requests",
         "requests-empty",
         "compose",
+        "describe",
         "notice",
         "help",
         "profiles",
@@ -365,6 +366,9 @@ public class ScreenKeyTests
             case "compose":
                 return new ComposeScreen(ComposeFor.Post);
 
+            case "describe":
+                return Describing();
+
             case "notice":
                 return new NoticeScreen("rate limit", "The instance asked for a moment.");
 
@@ -425,5 +429,16 @@ public class ScreenKeyTests
         search.Found("maria", results);
 
         return search;
+    }
+
+    /// <summary>The description editor, open on a picture attached to a fresh post (#377).</summary>
+    private static DescriptionScreen Describing()
+    {
+        var compose = new ComposeScreen(ComposeFor.Post);
+        var attachment = new ComposeAttachment("cat.png", Wooly.Core.Posts.MediaKind.Image, 1024);
+
+        compose.Attach([attachment]);
+
+        return new DescriptionScreen(compose, attachment);
     }
 }

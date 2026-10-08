@@ -36,6 +36,12 @@ public enum ComposeField
     /// <summary>The content warning over the post (#123, #320).</summary>
     Warning,
 
+    /// <summary>
+    ///     What is attached: the Media header, or one of the pending attachments' rows under it, which the arrows walk
+    ///     one at a time (#377). Nothing is typed here; a row walked onto is one <c>enter</c> describes.
+    /// </summary>
+    Media,
+
     /// <summary>The post being written.</summary>
     Post,
 }
@@ -57,6 +63,22 @@ public enum ComposeChange
 
     /// <summary>The post's text, its warning or its language changed.</summary>
     Edited,
+}
+
+/// <summary>What a click on the Media header's block landed on (#377), for the shell to carry out what it means.</summary>
+public enum MediaPart
+{
+    /// <summary>Nothing there: below the last row, or on a screen with no Media header.</summary>
+    None,
+
+    /// <summary>The header itself.</summary>
+    Header,
+
+    /// <summary>An attachment's row, anywhere but its description: which picks it out and does no more.</summary>
+    Row,
+
+    /// <summary>A ready row's description, or the quiet mark where it has none: which opens the description editor.</summary>
+    Description,
 }
 
 /// <summary>Who a compose screen's post goes out as, for its From header (#317).</summary>
@@ -194,6 +216,18 @@ public sealed class ComposeScreen : Screen
 
     /// <summary>What is attached, in the order the post will carry it (#375).</summary>
     private readonly List<ComposeAttachment> _attachments = [];
+
+    /// <summary>
+    ///     Which attachment's row the walk is on while <see cref="Typing" /> is on the Media header's block, by its place
+    ///     in <see cref="_attachments" /> — or none, for the header itself (#377).
+    /// </summary>
+    private int? _selected;
+
+    /// <summary>
+    ///     Whether the attachments' rows were last drawn folded into the header's line, on a terminal too short for
+    ///     them (#375) — when the walk has only the header to stop at, as it has only the fields drawn.
+    /// </summary>
+    private bool _folded;
 
     /// <param name="purpose">What this screen was opened to do.</param>
     /// <param name="about">The post being replied to or edited.</param>
@@ -334,7 +368,7 @@ public sealed class ComposeScreen : Screen
     ///     the walk, with no key rule of its own.
     /// </summary>
     private static readonly ComposeField[] Fields =
-        [ComposeField.To, ComposeField.Lang, ComposeField.Warning, ComposeField.Post];
+        [ComposeField.To, ComposeField.Lang, ComposeField.Warning, ComposeField.Media, ComposeField.Post];
 
     /// <summary>
     ///     Which field what is typed is going into. Every field is on screen at once and the typing is in one of them,
@@ -491,6 +525,7 @@ public sealed class ComposeScreen : Screen
             ? [new KeyHint("↑↓", "pick"), new KeyHint("tab", "choose"), new KeyHint("esc", "close")]
             : Array.Empty<KeyHint>(),
         .. Typing == ComposeField.To ? [new KeyHint("←→", "choose")] : Array.Empty<KeyHint>(),
+        .. SelectedAttachment is not null ? [new KeyHint("enter", "describe")] : Array.Empty<KeyHint>(),
         .. Walks switch
         {
             (true, true) => [new KeyHint("↑↓", "field")],
@@ -513,6 +548,7 @@ public sealed class ComposeScreen : Screen
         var laid = Laid(drawing.Width, drawing.Height);
 
         _drawn = laid.Lang == Rectangle.Empty ? [.. Fields.Where(field => field != ComposeField.Lang)] : Fields;
+        _folded = laid.Folded;
 
         return laid.Rows;
     }
@@ -590,15 +626,20 @@ public sealed class ComposeScreen : Screen
     /// <remarks>
     ///     A field that takes nothing is not walked into: To on an edit, which Mastodon cannot change. Nor is one the
     ///     screen was last drawn without: Lang, where a short terminal gave its row up.
+    ///     <para>
+    ///         Media is walked a row at a time (#377): up from the post onto the last attachment's row, up the rows to
+    ///         the header, and from the header up into the warning — and down the same way back. Rows folded into the
+    ///         header's line on a short terminal are not walked, the header standing for them all.
+    ///     </para>
     /// </remarks>
     public ComposeChange Walk(int by)
     {
-        if (WalkedTo(by) is not { } field)
+        if (WalkedTo(by) is not { } stop)
         {
             return ComposeChange.None;
         }
 
-        Typing = field;
+        (Typing, _selected) = stop;
 
         return ComposeChange.Moved;
     }
@@ -609,17 +650,107 @@ public sealed class ComposeScreen : Screen
     /// </summary>
     private (bool Up, bool Down) Walks => (WalkedTo(-1) is not null, WalkedTo(1) is not null);
 
-    /// <summary>The field <see cref="Walk" /> would move the typing to, or null off either end.</summary>
-    private ComposeField? WalkedTo(int by)
+    /// <summary>
+    ///     The field <see cref="Walk" /> would move the typing to, with the attachment's row it would be on there, or
+    ///     null off either end.
+    /// </summary>
+    private (ComposeField Field, int? Row)? WalkedTo(int by)
     {
-        var walked = _drawn.Where(Takes).ToArray();
-        var to = Array.IndexOf(walked, Typing) + by;
+        var stops = _drawn.Where(Takes).SelectMany(Stops).ToArray();
+        var to = Array.IndexOf(stops, (Typing, Typing == ComposeField.Media && !_folded ? _selected : null)) + by;
 
-        return to < 0 || to >= walked.Length ? null : walked[to];
+        return to < 0 || to >= stops.Length ? null : stops[to];
+
+        // Media stops at its header and then at every row drawn under it; every other field once.
+        IEnumerable<(ComposeField, int?)> Stops(ComposeField field) => field == ComposeField.Media && !_folded
+            ? [(field, null), .. Enumerable.Range(0, _attachments.Count).Select(row => (field, (int?)row))]
+            : [(field, null)];
     }
 
-    /// <summary>Whether <paramref name="field" /> can have the typing at all, which To cannot where it allows nothing.</summary>
-    public bool Takes(ComposeField field) => field != ComposeField.To || _choices.Any(Offers);
+    /// <summary>
+    ///     The pending attachment whose row the walk is on, or none — where the typing is anywhere but on a row (#377).
+    ///     What <c>enter</c> opens the description editor on.
+    /// </summary>
+    public ComposeAttachment? SelectedAttachment =>
+        Typing == ComposeField.Media && _selected is { } at && at < _attachments.Count ? _attachments[at] : null;
+
+    /// <summary>
+    ///     A click <paramref name="row" /> rows into the Media header's block — nought being the header, and each row
+    ///     under it an attachment's — <paramref name="column" /> columns across a screen <paramref name="width" /> wide
+    ///     (#377). Anywhere on it the walk goes there, the header or the row; what else the click means is said back
+    ///     for the shell to carry out.
+    /// </summary>
+    /// <returns>What was clicked, or nothing where the block has no such row.</returns>
+    public MediaPart ClickMedia(int row, int column, int width)
+    {
+        if (!TakesAttachments || row < 0 || row > (_folded ? 0 : _attachments.Count))
+        {
+            return MediaPart.None;
+        }
+
+        Typing = ComposeField.Media;
+        _selected = row == 0 ? null : row - 1;
+
+        if (SelectedAttachment is not { } clicked)
+        {
+            return MediaPart.Header;
+        }
+
+        // The description, or the quiet mark where there is none, is what a ready row says in its status column.
+        return clicked.State is AttachmentState.Ready && column >= StatusAt(width) ? MediaPart.Description : MediaPart.Row;
+    }
+
+    /// <summary>
+    ///     What <paramref name="attachment" />'s author says it shows, as the description editor has it now (#377). Only
+    ///     where it is still attached.
+    /// </summary>
+    /// <returns>An edit, or nothing where that is what it said already.</returns>
+    public ComposeChange Describe(ComposeAttachment attachment, string description)
+    {
+        if (!_attachments.Contains(attachment) || attachment.Description == description)
+        {
+            return ComposeChange.None;
+        }
+
+        attachment.Description = description;
+
+        return ComposeChange.Edited;
+    }
+
+    /// <summary>
+    ///     The instance took <paramref name="description" /> for <paramref name="attachment" />, as the shell heard
+    ///     (#377): what it holds from now on, which a send no longer waits to tell it.
+    /// </summary>
+    /// <returns>Whether that changed anything.</returns>
+    public bool Told(ComposeAttachment attachment, string description)
+    {
+        if (!_attachments.Contains(attachment) || attachment.Told == description)
+        {
+            return false;
+        }
+
+        attachment.Told = description;
+
+        return true;
+    }
+
+    /// <summary>
+    ///     Where the Media header and the rows under it go inside the content panel's viewport of
+    ///     <paramref name="viewport" />, the whole width across — what takes the walk and the clicks there (#377).
+    ///     Nowhere on an edit, which has no header.
+    /// </summary>
+    public Rectangle MediaAt(Size viewport) => Laid(viewport.Width, viewport.Height).Media;
+
+    /// <summary>
+    ///     Whether <paramref name="field" /> can have the typing at all, which To cannot where it allows nothing, and
+    ///     Media cannot on an edit, which has no header to add to.
+    /// </summary>
+    public bool Takes(ComposeField field) => field switch
+    {
+        ComposeField.To => _choices.Any(Offers),
+        ComposeField.Media => TakesAttachments && _attachments.Count > 0,
+        _ => true,
+    };
 
     /// <summary>
     ///     The typing went into <paramref name="field" /> by a click rather than by this screen's keys, and the screen
@@ -634,6 +765,7 @@ public sealed class ComposeScreen : Screen
         }
 
         Typing = field;
+        _selected = null;
 
         return ComposeChange.Moved;
     }
@@ -781,9 +913,10 @@ public sealed class ComposeScreen : Screen
     ///         Where nobody says how tall the room is, it is as tall as the rows and the editor's least want.
     ///     </para>
     /// </remarks>
-    private (IReadOnlyList<Line> Rows, Rectangle Editor, Rectangle Warning, Rectangle To, Rectangle Lang) Laid(
-        int width,
-        int? height)
+    private (IReadOnlyList<Line> Rows, Rectangle Editor, Rectangle Warning, Rectangle To, Rectangle Lang, Rectangle Media,
+        bool Folded) Laid(
+            int width,
+            int? height)
     {
         var inner = Math.Max(0, width - (Pad * 2));
         var valueWidth = Math.Max(0, inner - LabelWidth - LabelGap);
@@ -840,21 +973,27 @@ public sealed class ComposeScreen : Screen
         var foot = new List<Row> { new(hairline, Keep.FootHairline), new(Count(width), Keep.CountRow) };
         var room = height ?? (above.Count + _attachments.Count + LeastEditorRows + foot.Count);
 
+        var folded = false;
+
         if (media is not null)
         {
             // A row for each attachment where that still leaves the editor its three, and otherwise one line for all
             // of them on the header's own — before any other row gives way, since what is attached can still be
             // counted on one line and a header given up says nothing at all (#375).
-            var folded = above.Count + _attachments.Count + foot.Count + LeastEditorRows > room;
+            folded = above.Count + _attachments.Count + foot.Count + LeastEditorRows > room;
+
             var at = above.IndexOf(media);
 
-            above[at] = media with { Line = Header(MediaLabel, Role.Muted, MediaValue(valueWidth, folded)) };
+            media = media with { Line = Header(MediaLabel, Role.Muted, MediaValue(valueWidth, folded)) };
+            above[at] = media;
 
             if (!folded)
             {
                 above.InsertRange(
                     at + 1,
-                    _attachments.Select(attached => new Row(AttachmentRow(attached, width), Keep.Always)));
+                    _attachments.Select(attached => new Row(
+                        AttachmentRow(attached, width, SelectedAttachment == attached),
+                        Keep.Always)));
             }
         }
 
@@ -878,12 +1017,18 @@ public sealed class ComposeScreen : Screen
             .. foot.Select(row => row.Line),
         ];
 
+        // The header and the rows under it, the whole width across: what a click on any of them lands on (#377).
+        var mediaRows = media is null || !above.Contains(media) ? Rectangle.Empty
+            : new Rectangle(0, above.IndexOf(media), width, 1 + (folded ? 0 : _attachments.Count));
+
         return (
             rows,
             new Rectangle(Math.Min(Pad, width), top, inner, editor),
             Value(above.IndexOf(warning)),
             Value(above.IndexOf(to)),
-            above.Contains(lang) ? Value(above.IndexOf(lang)) : Rectangle.Empty);
+            above.Contains(lang) ? Value(above.IndexOf(lang)) : Rectangle.Empty,
+            mediaRows,
+            folded);
 
         Rectangle Value(int row) => new(Math.Min(Pad + LabelWidth + LabelGap, width), row, valueWidth, 1);
     }
@@ -1129,7 +1274,10 @@ public sealed class ComposeScreen : Screen
     {
         var count = _attachments.Count;
         var held = count == 0 ? NothingAttached : $"{count} of {Limits.Attachments}";
-        var spans = new List<Span> { new(held, Role.Muted) };
+
+        // Walked onto, the header lights its own words rather than taking a bar, as To lights its choice (#377).
+        var role = Typing == ComposeField.Media && _selected is null ? Role.SelectedText : Role.Muted;
+        var spans = new List<Span> { new(held, role) };
 
         if (folded && _attachments.Count(attached => !attached.Described) is > 0 and var undescribed)
         {
@@ -1157,28 +1305,32 @@ public sealed class ComposeScreen : Screen
     ///     so that nothing on a row moves as it goes up or as more are attached.
     /// </summary>
     /// <remarks>
-    ///     The picture's column is held blank until pictures are drawn on it (#382), and the selection bar's left of
-    ///     the grip until a row can be walked to — each is where it will be, so neither moves anything when it comes.
+    ///     The picture's column is held blank until pictures are drawn on it (#382). <paramref name="selected" />, the
+    ///     row the walk is on carries the selection bar right against its grip and its name in the selection's colour
+    ///     (#377); any other leaves the bar's cell blank, so nothing moves as the walk comes and goes.
     /// </remarks>
-    private static Line AttachmentRow(ComposeAttachment attached, int width)
+    private static Line AttachmentRow(ComposeAttachment attached, int width, bool selected)
     {
         var (name, kind, status) = RowColumns(width);
 
         return Line.Of(
         [
-            Gap(GripAt),
+            Gap(GripAt - 1),
+            selected ? new Span("▌", Role.Selection) : Gap(1),
             new Span(Grip, Role.Muted),
             Gap(1),
             Gap(1),
             Gap(1),
-            new Span(Glyphs.Padded(TextWrap.Clip(attached.Name, name), name), Role.Body),
+            new Span(
+                Glyphs.Padded(TextWrap.Clip(attached.Name, name), name),
+                selected ? Role.SelectedText : Role.Body),
             Gap(2),
             .. kind ? [new Span(Glyphs.Padded(attached.KindWord, KindColumn), Role.Muted)] : Array.Empty<Span>(),
             new Span(attached.Size.PadLeft(SizeColumn), Role.Muted),
             Gap(2),
             new Span("x", Role.Destructive),
             Gap(2),
-            .. Fitted(Status(attached), status),
+            .. Fitted(Status(attached, status), status),
         ]);
     }
 
@@ -1209,17 +1361,30 @@ public sealed class ComposeScreen : Screen
         return (name, kind, Math.Clamp(Status(), 0, MostStatus));
     }
 
+    /// <summary>The column a row's status column starts at on a screen <paramref name="width" /> wide.</summary>
+    private static int StatusAt(int width)
+    {
+        var (name, kind, _) = RowColumns(width);
+
+        return Pad + LabelWidth + LabelGap + name + 2 + (kind ? KindColumn : 0) + SizeColumn + 2 + 1 + 2;
+    }
+
     /// <summary>
     ///     What a row's status column says, one thing at a time (#375): the upload's gauge and how far it has got, that
     ///     the instance is processing it, why it was refused, or — ready — its description in quotes, or the quiet mark
     ///     where it has none. No mark for ready: a row saying nothing else is one that is done.
     /// </summary>
-    private static Span[] Status(ComposeAttachment attached) => attached.State switch
+    /// <remarks>
+    ///     A description too long for the <paramref name="room" /> it has is cut inside its closing quote, so the row
+    ///     still reads as a quotation that goes on (#377).
+    /// </remarks>
+    private static Span[] Status(ComposeAttachment attached, int room) => attached.State switch
     {
         AttachmentState.Sending(var done) => Gauge(done),
         AttachmentState.Processing => [new Span(BeingProcessed, Role.Muted)],
         AttachmentState.Refused(var why) => [new Span(why, Role.Error)],
-        _ when attached.Described => [new Span($"“{attached.Description.ReplaceLineEndings(" ").Trim()}”", Role.Body)],
+        _ when attached.Described =>
+            [new Span($"“{TextWrap.Clip(attached.Saying.ReplaceLineEndings(" "), Math.Max(0, room - 2))}”", Role.Body)],
         _ => [new Span(NoDescription, Role.Muted)],
     };
 
