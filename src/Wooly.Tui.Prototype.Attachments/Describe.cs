@@ -73,7 +73,7 @@ internal sealed class DescribeScreen : Screen
             ? new Rectangle(Geometry.Pad, 3, width / 2 - Geometry.Pad - 1, Viewport.Height - 5)
             : new Rectangle(Geometry.Pad, 3, width - Geometry.Pad * 2, PictureRows);
 
-        Pics.Paint(this, picture, _item.Path, Theme);
+        Pics.Paint(this, picture, _item.Path, Theme, topLeft: true); // level with the label beside it
 
         var labelY = Wide ? 3 : PictureRows + 4;
         var labelX = Wide ? width / 2 + 1 : Geometry.Pad;

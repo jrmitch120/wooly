@@ -148,7 +148,7 @@ internal static class Pics
     }
 
     /// <summary>The largest box of <paramref name="image" />'s shape inside <paramref name="room" />, centred.</summary>
-    public static Rectangle Fit(Image<Rgba32> image, Rectangle room)
+    public static Rectangle Fit(Image<Rgba32> image, Rectangle room, bool topLeft = false)
     {
         var cell = Cell;
         var columns = room.Width;
@@ -163,14 +163,16 @@ internal static class Pics
         columns = Math.Clamp(columns, 1, Math.Min(room.Width, KittyPlaceholder.MostCells));
         rows = Math.Clamp(rows, 1, Math.Min(room.Height, KittyPlaceholder.MostCells));
 
-        return new Rectangle(room.X + (room.Width - columns) / 2, room.Y + (room.Height - rows) / 2, columns, rows);
+        return topLeft
+            ? new Rectangle(room.X, room.Y, columns, rows)
+            : new Rectangle(room.X + (room.Width - columns) / 2, room.Y + (room.Height - rows) / 2, columns, rows);
     }
 
     /// <summary>
     ///     Draws the picture at <paramref name="path" /> into <paramref name="room" /> of <paramref name="view" />, or a
     ///     stand-in saying what it is. Returns where it drew.
     /// </summary>
-    public static Rectangle Paint(Painted view, Rectangle room, string path, ITheme theme)
+    public static Rectangle Paint(Painted view, Rectangle room, string path, ITheme theme, bool topLeft = false)
     {
         if (room.Width <= 0 || room.Height <= 0) return Rectangle.Empty;
 
@@ -189,7 +191,7 @@ internal static class Pics
             return room;
         }
 
-        var fit = Fit(image, room);
+        var fit = Fit(image, room, topLeft);
 
         switch (Raster.Way)
         {

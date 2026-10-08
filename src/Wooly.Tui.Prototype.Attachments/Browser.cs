@@ -443,7 +443,7 @@ internal sealed class BrowserScreen : Screen
             }
             else if (Instance.Of(under.Path) is not null)
             {
-                var drawn = Pics.Paint(this, preview, under.Path, Theme);
+                var drawn = Pics.Paint(this, preview, under.Path, Theme, topLeft: true); // level with the first row
                 var image = Pics.Loaded(under.Path);
                 var said = image is null ? under.Name : $"{under.Name} · {image.Width}×{image.Height}";
                 Put(preview.X, drawn.Bottom + 1, said, Role.Muted, preview.Width);
