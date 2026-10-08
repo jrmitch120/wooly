@@ -340,25 +340,28 @@ internal sealed class AttachArea(AreaMode mode) : Painted
 
         // Columns, as wide as the widest row needs, so every row lines up with the one above it.
         var nameWidth = Math.Clamp(items.Max(each => Glyphs.Columns(each.Name)), 8, 28);
-        var stateWidth = items.Max(each => StateSpans(each).Sum(span => Glyphs.Columns(span.Text)));
         var nameAt = thumb.Right + 1;
         var kindAt = nameAt + nameWidth + 2;
         var sizeAt = kindAt + 9 + 1;
-        var stateAt = sizeAt + 8 + 2;
-        var describedAt = stateAt + stateWidth + 2;
+        var describedAt = sizeAt + 8 + 2;
         var described = item.Description.Trim().Length > 0;
 
         Put(nameAt, top, Glyphs.Cut(item.Name, nameWidth), current ? Role.SelectedText : Role.Body);
         Put(kindAt, top, item.KindWord, Role.Muted);
         Put(sizeAt, top, item.Size.PadLeft(8), Role.Muted);
-        PaintState(stateAt, top, item, index);
+        // One column for whatever the row has to say: its progress, then its refusal, and once it is ready its
+        // description. Always the same width, so nothing to its right moves as an upload goes along.
+        var room = Math.Min(DescriptionColumn, width - Geometry.Pad - 3 - describedAt);
+        var ready = item.State is State.Ready;
+
+        if (!ready)
+        {
+            PaintState(describedAt, top, item, index);
+        }
 
         if (RowHeight == 1)
         {
-            var widest = items.Max(each => each.Description.Trim().Length > 0 ? Glyphs.Columns(Flat(each.Description)) + 2 : Glyphs.Columns(Proto.Mark));
-            var room = Math.Min(Math.Min(widest, DescriptionColumn), width - Geometry.Pad - 3 - describedAt);
-
-            if (room > 4)
+            if (ready && room > 4)
             {
                 Put(describedAt, top, described ? $"“{Flat(item.Description)}”" : Proto.Mark, described ? Role.Body : Role.Muted, room);
             }
@@ -368,7 +371,7 @@ internal sealed class AttachArea(AreaMode mode) : Painted
             return;
         }
 
-        Remove(Math.Min(describedAt, width - Geometry.Pad - 2));
+        Remove(Math.Min(describedAt + Math.Max(room, 0) + 1, width - Geometry.Pad - 2));
 
         var textAt = nameAt;
         var right = describedAt;
@@ -403,11 +406,8 @@ internal sealed class AttachArea(AreaMode mode) : Painted
                 var spin = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"[(int)(DateTime.Now.TimeOfDay.TotalMilliseconds / 100) % 10];
                 return [($"{spin} processing", Role.Loading)];
 
-            case State.Ready:
-                return [("✓", Role.Muted)];
-
-            case State.Refused(var why):
-                return Instance.Of(item.Path) is null
+            case State.Refused(var why, _):
+                return item.State is State.Refused { Retryable: false }
                     ? [($"✗ {why}", Role.Error)]
                     : [($"✗ {why}", Role.Error), ("  ", Role.Body), (Retry, Role.Key)];
         }
@@ -638,7 +638,7 @@ internal sealed class StripArea : Painted
                 {
                     State.Uploading(var done) => ($"{new string('█', (int)(done * 8))}{new string('░', 8 - (int)(done * 8))} {done:P0}", Role.Gauge),
                     State.Processing => ("processing…", Role.Loading),
-                    State.Refused(var why) => ($"✗ {why}", Role.Error),
+                    State.Refused(var why, _) => ($"✗ {why}", Role.Error),
                     _ => item.Description.Trim().Length > 0 ? ($"“{item.Description.ReplaceLineEndings(" ")}”", Role.Body) : (Proto.Mark, Role.Muted),
                 };
                 Put(left, 6, said, role, TileWidth - 2);

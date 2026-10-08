@@ -9,7 +9,7 @@ internal abstract record State
     public sealed record Uploading(double Done) : State;
     public sealed record Processing : State;
     public sealed record Ready : State;
-    public sealed record Refused(string Why) : State;
+    public sealed record Refused(string Why, bool Retryable = true) : State;
 }
 
 internal sealed class Attachment(string path, Kind kind, long bytes)
@@ -100,7 +100,7 @@ internal sealed class Draft
                 // Only reachable through the browser's "every file": the instance says no once it has it.
                 Items.Add(new Attachment(path, Kind.Picture, new FileInfo(path).Length)
                 {
-                    State = new State.Refused("not a type this instance accepts"),
+                    State = new State.Refused("not a type this instance accepts", false),
                 });
                 continue;
             }
@@ -146,7 +146,7 @@ internal sealed class Draft
 
     public void Retry(Attachment item)
     {
-        if (item.State is State.Refused && Instance.Of(item.Path) is not null)
+        if (item.State is State.Refused { Retryable: true })
         {
             item.State = new State.Uploading(0);
             Touch();
@@ -180,7 +180,7 @@ internal sealed class Draft
                     else if (next >= 1)
                     {
                         item.State = TooLarge(item) is { } why
-                            ? new State.Refused(why)
+                            ? new State.Refused(why, false)
                             : item.Kind is Kind.Video or Kind.Sound or Kind.Animation || item.Bytes > 4 * 1024 * 1024
                                 ? new State.Processing()
                                 : new State.Ready();
@@ -212,8 +212,8 @@ internal sealed class Draft
 
     private static string? TooLarge(Attachment item) => item.Kind switch
     {
-        Kind.Picture or Kind.Animation when item.Bytes > 16L * 1024 * 1024 => "too large · pictures may be 16 MB",
-        Kind.Video or Kind.Sound when item.Bytes > 99L * 1024 * 1024 => "too large · video and sound may be 99 MB",
+        Kind.Picture or Kind.Animation when item.Bytes > 16L * 1024 * 1024 => "too large, 16 MB max",
+        Kind.Video or Kind.Sound when item.Bytes > 99L * 1024 * 1024 => "too large, 99 MB max",
         _ => null,
     };
 }

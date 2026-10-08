@@ -64,7 +64,7 @@ internal sealed class DescribeScreen : Screen
                 State.Uploading(var done) => $"uploading {done:P0}",
                 State.Processing => "processing",
                 State.Ready => "ready",
-                State.Refused(var why) => $"refused: {why}",
+                State.Refused(var why, _) => $"refused: {why}",
                 _ => "",
             }, _item.State is State.Refused ? Role.Error : Role.Muted));
         Put(Geometry.Pad, 1, new string('─', Math.Max(0, width - Geometry.Pad * 2)), Role.PanelBorder);

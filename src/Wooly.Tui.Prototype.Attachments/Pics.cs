@@ -228,7 +228,10 @@ internal static class Pics
             view.Put(room.X, room.Y + row, new string('░', room.Width), Role.StandIn);
         }
 
-        view.Put(room.X + Math.Max(0, (room.Width - Glyphs.Columns(word)) / 2), room.Y + room.Height / 2, Glyphs.Cut(word, room.Width), Role.Muted);
+        if (Glyphs.Columns(word) <= room.Width)
+        {
+            view.Put(room.X + (room.Width - Glyphs.Columns(word)) / 2, room.Y + room.Height / 2, word, Role.Muted);
+        }
     }
 
     private static int Transmitted(string path, Image<Rgba32> image, int columns, int rows)
