@@ -11,7 +11,7 @@ namespace Wooly.Tui.Prototype.Attachments;
 internal static class Geometry
 {
     public const int Pad = 2;
-    public const int LabelWidth = 4;
+    public const int LabelWidth = 5; // wide enough for Media
     public const int ValueAt = Pad + LabelWidth + 2;
 
     public static void Label(Painted view, int y, string label, Role role) =>
@@ -304,12 +304,12 @@ internal sealed class AttachArea(AreaMode mode) : Painted
 
         if (items.Count > 0)
         {
-            var (toggle, role) = Draft.Locked ? ("■ sensitive · warning", Role.ContentWarning)
+            var (toggle, role) = Draft.Locked ? ("■ sensitive (warning)", Role.ContentWarning)
                 : Draft.SensitiveChosen ? ("■ sensitive", Role.ContentWarning)
                 : ("□ sensitive", Role.Muted);
-            // Beside the header rather than across the screen: over the description column where there are rows, and
-            // just past the header's own words where there are not.
-            var at = ListsRows ? Math.Max(Columns().DescribedAt, headerEnd + 3) : headerEnd + 3;
+            // Part of the header's own line, after its hint: it belongs to the media, and moves only when the
+            // header's words do.
+            var at = Spans(headerEnd, 0, (" · ", Role.Muted));
             Put(at, 0, toggle, role);
             _hits.Add((new Rectangle(at, 0, Glyphs.Columns(toggle), 1), Hit.Sensitive, -1));
         }
