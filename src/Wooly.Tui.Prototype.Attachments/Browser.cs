@@ -231,6 +231,15 @@ internal sealed class BrowserScreen : Screen
         Proto.Attach(paths, paths.Count == 1 ? $"{Path.GetFileName(paths[0])}" : "files");
     }
 
+    private Rectangle _showingAt;
+
+    private void EveryFile()
+    {
+        _everyFile = !_everyFile;
+        Read();
+        Proto.Say(_everyFile ? "showing every file — the instance refuses types it doesn't accept" : "showing the types this instance accepts");
+    }
+
     private Entry? Current => _cursor < _shown.Count ? _shown[_cursor] : null;
 
     protected override bool OnKeyDown(Key key)
@@ -280,9 +289,7 @@ internal sealed class BrowserScreen : Screen
         }
         else if (key == Key.A.WithCtrl)
         {
-            _everyFile = !_everyFile;
-            Read();
-            Proto.Say(_everyFile ? "showing every file — the instance refuses types it doesn't accept" : "showing the types this instance accepts");
+            EveryFile();
         }
         else if (key == Key.V.WithCtrl)
         {
@@ -350,7 +357,11 @@ internal sealed class BrowserScreen : Screen
         {
             SetFocus();
 
-            if (onList)
+            if (_showingAt.Contains(at))
+            {
+                EveryFile();
+            }
+            else if (onList)
             {
                 _cursor = row;
 
@@ -384,7 +395,9 @@ internal sealed class BrowserScreen : Screen
         if (_filter.Length == 0) Put(filterEnd, 1, "type to filter", Role.Muted);
 
         var showing = _everyFile ? "every file · ctrl-a accepted only" : "pictures, video, sound · ctrl-a every file";
-        Put(width - Geometry.Pad - Glyphs.Columns(showing), 1, showing, Role.Muted);
+        var showingAt = width - Geometry.Pad - Glyphs.Columns(showing);
+        Put(showingAt, 1, showing, Role.Muted);
+        _showingAt = new Rectangle(showingAt, 1, Glyphs.Columns(showing), 1);
 
         Put(Geometry.Pad, 2, new string('─', Math.Max(0, width - Geometry.Pad * 2)), Role.PanelBorder);
 

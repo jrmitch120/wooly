@@ -209,6 +209,8 @@ internal sealed class AttachArea(AreaMode mode) : Painted
 
     private int? _dragFrom;
 
+    private bool _dragMoved;
+
     private int _dragOver;
 
     private Point _pressedAt;
@@ -321,11 +323,6 @@ internal sealed class AttachArea(AreaMode mode) : Painted
             PaintRow(index, items[index], focused && Cursor == index);
         }
 
-        if (_dragFrom is { } from && _dragOver != from)
-        {
-            // Where it will land: a thinner selection bar, a ghost of the one on the row being dragged.
-            for (var row = 0; row < RowHeight; row++) Put(0, RowTop(_dragOver) + row, "▎", Role.Selection);
-        }
     }
 
     /// <summary>The widest a compact row's description column gets, so × stays near what it removes.</summary>
@@ -543,22 +540,31 @@ internal sealed class AttachArea(AreaMode mode) : Painted
 
         if (flags.HasFlag(MouseFlags.PositionReport) && _dragFrom is not null)
         {
-            _dragOver = Math.Clamp(Enumerable.Range(0, Draft.Items.Count).LastOrDefault(index => RowTop(index) <= at.Y), 0, Last);
+            // The row itself moves as the pointer does, the others making way, so where it is is where it lands.
+            var over = Math.Clamp(Enumerable.Range(0, Draft.Items.Count).LastOrDefault(index => RowTop(index) <= at.Y), 0, Last);
+
+            if (_dragFrom is { } now && over != now)
+            {
+                Draft.MoveTo(now, over);
+                _dragFrom = over;
+                Cursor = over;
+                _dragMoved = true;
+            }
+
             SetNeedsDraw();
             return true;
         }
 
         if (flags.HasFlag(MouseFlags.LeftButtonReleased))
         {
-            if (_dragFrom is { } from)
+            if (_dragFrom is not null)
             {
                 _dragFrom = null;
                 App?.Mouse.UngrabMouse();
 
-                if (_dragOver != from)
+                if (_dragMoved)
                 {
-                    Draft.MoveTo(from, _dragOver);
-                    Cursor = _dragOver;
+                    _dragMoved = false;
                     Proto.Say("moved by dragging");
                     SetNeedsDraw();
                     return true;
