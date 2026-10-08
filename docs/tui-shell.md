@@ -1101,16 +1101,23 @@ does a post already carrying all it can, which says `This post carries all it ca
   attachments, exactly as a drop does (#375), and the browser goes. With neither, on a folder, `⏎` opens it, as `→`
   does; `←` goes up one. A folder opens on its first entry; going up
   lands on the folder just left.
+- **Everything above the rule stays pinned**: the folder, the filter and the rule are the top three rows of the panel
+  however far a long folder's list scrolls, and the list scrolls under them (`Screen.Pinned`, which the content region
+  reads). The cursor is never hidden under them: walking with `↑`/`↓` scrolls so its row is in the room below the rule,
+  and one the wheel has scrolled under them is off the page, so the next arrow takes the first row showing below the
+  rule, as it would a row wheeled off the top.
 - **The mouse**: a click moves the cursor, a double click opens a folder or attaches a file, and the wheel scrolls the
-  page — the arrows walk the list (`Verb.NextEntry`, `Verb.PreviousEntry`), as `j`/`k` walk posts elsewhere, `j` and
-  `k` being letters here.
+  list — the arrows walk the list (`Verb.NextEntry`, `Verb.PreviousEntry`), as `j`/`k` walk posts elsewhere, `j` and
+  `k` being letters here. A click lands on the row drawn where it points: on a pinned row it is that row's — `ctrl-a
+  every file` shows every file, the folder row picks nothing — never a list row scrolled under it.
 - **`esc` with no filter goes back to the draft unchanged**: nothing attached, nothing asked.
 - **On a terminal 90 wide or more the list keeps to the left** and a pane opens on the right past a `│`, where the
   picture under the cursor goes (#382): top left, at its own proportions as wide as the pane allows, level with the
-  list's first row on the page, its name and size muted under it. Moving the cursor, or filtering it onto another
-  file, changes it. "On the page" because the list scrolls with the content panel: the browser keeps to the page
-  (`Screen.KeepsToThePage`), is told where it is (`Drawing.Top`), and is laid out again on a frame whose scroll moved,
-  so the picture is on the page with the cursor however far down a long folder it is. The pane runs to the foot of
+  list's first row on the page — the first under the rule — its name and size muted under it. Moving the cursor, or
+  filtering it onto another file, changes it. "On the page" because the list scrolls with the content panel: the
+  browser keeps to the page (`Screen.KeepsToThePage`), is told where it is (`Drawing.Top`, so the level is
+  `Drawing.Top` plus the three pinned rows), and is laid out again on a frame whose scroll moved, so the picture is on
+  the page with the cursor however far down a long folder it is. The pane runs to the foot of
   the page however short the list, so a picture changes no row's height. Nothing is in it for a folder, a file that is
   not a picture the decoder reads, or on a terminal that cannot draw.
 

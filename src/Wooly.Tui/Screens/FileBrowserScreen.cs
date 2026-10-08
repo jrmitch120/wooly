@@ -230,8 +230,18 @@ public sealed class FileBrowserScreen : Screen
     }
 
     /// <inheritdoc />
-    /// <remarks>The preview, which sits level with the page's first row of the list however far it has scrolled (#382).</remarks>
+    /// <remarks>
+    ///     The preview, which sits level with the page's first row of the list — the first under the pinned rows —
+    ///     however far it has scrolled (#382).
+    /// </remarks>
     public override bool KeepsToThePage => true;
+
+    /// <inheritdoc />
+    /// <remarks>
+    ///     The folder, the filter and the rule, so that a long folder scrolls under them and what is typed, where it is
+    ///     and which files are listed are always in sight, a click away.
+    /// </remarks>
+    public override int Pinned => ListTop;
 
     /// <inheritdoc />
     /// <remarks>
@@ -280,7 +290,8 @@ public sealed class FileBrowserScreen : Screen
     private List<Line> Previewed(List<Line> lines, int list, Drawing drawing)
     {
         var page = drawing.Height ?? Inset.FeedRows + 2;
-        var level = Math.Max(ListTop, drawing.Top);
+        // The page's first row of the list is the first under the pinned rows, wherever the page has scrolled to.
+        var level = drawing.Top + ListTop;
         var at = list + 2;
         var across = Math.Max(0, drawing.Width - at - Pad);
 

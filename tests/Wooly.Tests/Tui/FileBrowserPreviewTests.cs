@@ -158,8 +158,9 @@ public class FileBrowserPreviewTests : IDisposable
     }
 
     /// <summary>
-    ///     Scrolled down a long folder, the preview sits level with the first row of the page rather than of the list,
-    ///     so that the picture under the cursor is always on the page with it.
+    ///     Scrolled down a long folder, the preview sits level with the list's first row on the page — the first under the
+    ///     folder, the filter and the rule, which stay pinned over the top of it — rather than of the list, so that the
+    ///     picture under the cursor is always on the page with it.
     /// </summary>
     [Fact]
     public async Task ScrolledDownALongFolderThePreviewSitsAtTheTopOfThePage()
@@ -175,12 +176,13 @@ public class FileBrowserPreviewTests : IDisposable
             Top = 40,
         });
 
-        Assert.Equal(40, lines.ToList().FindIndex(line => line.Wants is not null));
+        Assert.Equal(40 + FirstRow, lines.ToList().FindIndex(line => line.Wants is not null));
     }
 
     /// <summary>
     ///     Wiring: in the window, moved far enough down a long folder that the list has scrolled, the picture under the
-    ///     cursor is still drawn through one of the content panel's boxes, on the page's first row.
+    ///     cursor is still drawn through one of the content panel's boxes, on the page's first row of the list, under the
+    ///     pinned folder, filter and rule.
     /// </summary>
     [Fact]
     public async Task InTheWindowThePictureUnderTheCursorIsDrawnOnThePage()
@@ -212,7 +214,8 @@ public class FileBrowserPreviewTests : IDisposable
         var box = Assert.Single(drawn.Content.SubViews.OfType<PictureView>(), view => view.Visible);
 
         Assert.Equal(Drawn.OnDisk(last).Id, box.PictureId);
-        Assert.Equal(drawn.Content.FrameToScreen().Y + 1, box.FrameToScreen().Y);
+        Assert.Equal(drawn.Content.FrameToScreen().Y + 1 + FirstRow, box.FrameToScreen().Y);
+        Assert.Contains("type to filter", drawn.Rows()[drawn.Content.FrameToScreen().Y + 2], StringComparison.Ordinal);
         Assert.DoesNotContain(drawn.Rows(), row => row.Contains("picture 00", StringComparison.Ordinal));
 
         // A filter that leaves only the one brings the page back to the top on the frame it is typed, and the picture

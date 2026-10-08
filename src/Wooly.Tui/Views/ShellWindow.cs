@@ -208,6 +208,7 @@ internal sealed class ShellWindow : Window
             CanFocus = false,
             Scrolls = true,
             KeepsToThePage = () => shell.Screen.KeepsToThePage,
+            Pinned = () => shell.Screen.Pinned,
         };
 
         // The same top edge again, as a row of its own laid over the panel's, so that a tick of the fetch mark has one

@@ -264,6 +264,22 @@ public abstract class Screen
     public virtual bool KeepsToThePage => false;
 
     /// <summary>
+    ///     How many of this screen's first rows stay at the top of the page however far the rest scrolls — none on every
+    ///     screen but the file browser, whose folder, filter and rule stay over its list.
+    /// </summary>
+    /// <remarks>
+    ///     The content region draws these rows at the top of the page over the rows scrolled under them, scrolls so that
+    ///     the pick is always in the room below them, and answers a click on one of them with the row drawn there. The
+    ///     rows pinned are the screen's first rows wherever the page is, so pinning them moves no row and asks no laying
+    ///     out again; what keeps to the page (<see cref="KeepsToThePage" />) keeps to the room under them.
+    ///     <para>
+    ///         Rows rather than a picture's box: the pinned rows hold no picture, and a picture in a row scrolled under
+    ///         them would be drawn over them, so a screen that pins rows keeps its pictures below them.
+    ///     </para>
+    /// </remarks>
+    public virtual int Pinned => 0;
+
+    /// <summary>
     ///     Puts a letter into whatever this screen is taking, where it is taking anything. Said here rather than
     ///     matched on the screen's type where the key arrives, so that a third screen that takes letters is one
     ///     override rather than another arm in two cascades.
