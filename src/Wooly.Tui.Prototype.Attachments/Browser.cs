@@ -413,7 +413,7 @@ internal sealed class BrowserScreen : Screen
 
             if (current) Put(Geometry.Pad - 1, y, "▌", Role.Selection); // against the box, as on the Media rows
 
-            var box = entry.Folder ? "  " : _chosen.Contains(entry.Path) ? "☑ " : "☐ ";
+            var box = entry.Up ? "◂ " : entry.Folder ? "▸ " : _chosen.Contains(entry.Path) ? "☑ " : "☐ ";
             var name = entry.Folder && !entry.Up ? entry.Name + "/" : entry.Name;
             var role = current ? Role.SelectedText : entry.Folder ? Role.Link : entry.Takeable ? Role.Body : Role.Muted;
 
