@@ -38,9 +38,9 @@ public enum ComposeField
 
     /// <summary>
     ///     What is attached: the Media header, or one of the pending attachments' rows under it, which the arrows walk
-    ///     one at a time. Nothing is typed here, so it is walked to for its keys to have somewhere to land — <c>s</c>
-    ///     for the sensitive toggle at the end of the header's line (#379), and <c>enter</c> on a row to describe it
-    ///     (#377).
+    ///     one at a time. Nothing is typed here, so it is walked to for its keys to have somewhere to land — <c>⏎</c> on
+    ///     the header to open the file browser (#376) and on a row to describe it (#377), and <c>s</c> for the
+    ///     sensitive toggle at the end of the header's line (#379).
     /// </summary>
     Media,
 
@@ -579,7 +579,9 @@ public sealed class ComposeScreen : Screen
             ? [new KeyHint("↑↓", "pick"), new KeyHint("tab", "choose"), new KeyHint("esc", "close")]
             : Array.Empty<KeyHint>(),
         .. Typing == ComposeField.To ? [new KeyHint("←→", "choose")] : Array.Empty<KeyHint>(),
-        .. SelectedAttachment is not null ? [new KeyHint("enter", "describe")] : Array.Empty<KeyHint>(),
+        .. Typing == ComposeField.Media
+            ? [new KeyHint("⏎", SelectedAttachment is null ? "add media" : "describe")]
+            : Array.Empty<KeyHint>(),
         .. Typing == ComposeField.Media && _attachments.Count > 0
             ? [new KeyHint("s", "sensitive")]
             : Array.Empty<KeyHint>(),
@@ -798,14 +800,14 @@ public sealed class ComposeScreen : Screen
 
     /// <summary>
     ///     Whether <paramref name="field" /> can have the typing at all, which To cannot where it allows nothing, nor
-    ///     Media until something is attached (#379): the toggle is all there is to do on it so far, and it shows only
-    ///     then — so the walk from the post still goes straight to Warn on a screen with nothing attached, and on an
-    ///     edit, whose Media header is read-only (#381).
+    ///     Media on an edit, whose Media header is read-only (#381). Media takes it on a fresh post or a reply with
+    ///     nothing attached yet too, since <c>⏎</c> there opens the file browser (#376) — so the walk from the post
+    ///     reaches Media before Warn — as well as <c>s</c> the sensitive toggle once something is (#379).
     /// </summary>
     public bool Takes(ComposeField field) => field switch
     {
         ComposeField.To => _choices.Any(Offers),
-        ComposeField.Media => TakesAttachments && _attachments.Count > 0,
+        ComposeField.Media => TakesAttachments,
         _ => true,
     };
 

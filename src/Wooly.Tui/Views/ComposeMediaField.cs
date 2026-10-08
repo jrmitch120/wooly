@@ -11,7 +11,8 @@ namespace Wooly.Tui.Views;
 /// </summary>
 /// <remarks>
 ///     It leaves to the window every key it does not mean to swallow, and so to <c>Keymap</c>: the arrows that walk the
-///     header and the rows, <c>enter</c>, which describes a row, <c>tab</c>, <c>esc</c>, the <c>ctrl</c> chords, and
+///     header and the rows, <c>enter</c>, which opens the file browser on the header (#376) and describes a row,
+///     <c>tab</c>, <c>esc</c>, the <c>ctrl</c> chords, and
 ///     <c>s</c>, the sensitive toggle. Any other letter is nobody's here — read by the keymap it would be a boost or a
 ///     compose behind a draft.
 /// </remarks>

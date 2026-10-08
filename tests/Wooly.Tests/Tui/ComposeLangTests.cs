@@ -94,6 +94,9 @@ public class ComposeLangTests
         var compose = view.Compose;
 
         view.Press(Key.CursorUp);
+        Assert.Equal(ComposeField.Media, compose.Typing);
+
+        view.Press(Key.CursorUp);
         Assert.Equal(ComposeField.Warning, compose.Typing);
 
         view.Press(Key.CursorUp);
@@ -106,6 +109,7 @@ public class ComposeLangTests
         view.Press(Key.CursorDown);
         Assert.Equal(ComposeField.Lang, compose.Typing);
 
+        view.Press(Key.CursorDown);
         view.Press(Key.CursorDown);
         view.Press(Key.CursorDown);
         Assert.Equal(ComposeField.Post, compose.Typing);
@@ -418,6 +422,8 @@ public class ComposeLangTests
 
     private static void OnLang(ComposedView drawn)
     {
+        // Up from the post through Media (#376) and the warning.
+        drawn.Press(Key.CursorUp);
         drawn.Press(Key.CursorUp);
         drawn.Press(Key.CursorUp);
     }

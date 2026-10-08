@@ -73,10 +73,9 @@ public static class Keymap
         // On the description editor ctrl-s is "done", as esc is: what was typed is kept either way (#377).
         (ShellKey.CtrlS, DescriptionScreen) => Verb.Back,
 
-        // ⏎ on an attachment's row describes it (#377). Anywhere else on compose it reaches here only from the Media
-        // header, the other fields taking it for themselves, and there it opens nothing behind the draft.
+        // ⏎ on an attachment's row describes it (#377), ahead of ⏎ on the Media header above it, which opens the file
+        // browser (below).
         (ShellKey.Enter, ComposeScreen { SelectedAttachment: not null }) => Verb.Describe,
-        (ShellKey.Enter, ComposeScreen) => Verb.None,
 
         // And the arrows, which walk compose's fields the way a mail client's do (ADR-0024, #337) — reaching here only
         // where the field the typing is in leaves them: a header always, the post on its first line. Whether there was
@@ -88,6 +87,21 @@ public static class Keymap
         // them, and anywhere else on the screen that declines them they choose nothing.
         (ShellKey.Left, ComposeScreen) => Verb.PreviousChoice,
         (ShellKey.Right, ComposeScreen) => Verb.NextChoice,
+
+        // And ctrl-o, which opens the file browser over a compose or a reply wherever the typing is — and ⏎ on the
+        // Media header, which takes no typing of its own (#376); ⏎ on a row under it describes the row instead (#377).
+        (ShellKey.CtrlO, ComposeScreen) => Verb.OpenBrowser,
+        (ShellKey.Enter, ComposeScreen { Typing: ComposeField.Media }) => Verb.OpenBrowser,
+
+        // The file browser takes letters into its filter, so what it answers besides are the named keys (#376): ⏎
+        // attaches or opens, → and ← go into a folder and up one, ctrl-a shows every file, and the arrows walk the
+        // list as j and k do elsewhere — j and k being letters here.
+        (ShellKey.Enter, FileBrowserScreen) => Verb.AttachChosen,
+        (ShellKey.Right, FileBrowserScreen) => Verb.IntoFolder,
+        (ShellKey.Left, FileBrowserScreen) => Verb.UpFolder,
+        (ShellKey.CtrlA, FileBrowserScreen) => Verb.EveryFile,
+        (ShellKey.Down, FileBrowserScreen) => Verb.NextPost,
+        (ShellKey.Up, FileBrowserScreen) => Verb.PreviousPost,
 
         // The four that collide. A picked reference is a level of its own inside the screen, so ⏎ means the reference
         // wherever one is picked — ahead of whatever the screen's own ⏎ would have meant (#85).

@@ -125,18 +125,21 @@ public class ComposeDescriptionTests : IDisposable
         Assert.Equal("0 / 1500", rows[^1].Trim());
     }
 
-    /// <summary><c>enter</c> on the Media header opens no description editor: there is nothing there to describe.</summary>
+    /// <summary>
+    ///     <c>enter</c> on the Media header above the rows opens the file browser (#376), not the description editor:
+    ///     there is nothing there to describe.
+    /// </summary>
     [Fact]
     public async Task EnterOnTheHeaderDescribesNothing()
     {
-        var (shell, _, compose) = await Composing();
+        var (shell, _, _) = await Composing();
 
         shell.Paste(_files.WriteFile("cat.png"));
         shell.Press(ShellKey.Up);
         shell.Press(ShellKey.Up);
         shell.Press(ShellKey.Enter);
 
-        Assert.Same(compose, shell.Screen);
+        Assert.IsType<FileBrowserScreen>(shell.Screen);
     }
 
     /// <summary>The editor's counter is out of the instance's own description limit, where it gives one.</summary>

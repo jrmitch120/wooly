@@ -43,6 +43,7 @@ public class CrumbTests
         ("followers", "@maria@fosstodon.org followers"),
         ("profiles", "Profiles"),
         ("add-profile", "Add a profile"),
+        ("browser", "Attach"),
     ];
 
     /// <summary>Those screens, as the theory reads them.</summary>
@@ -186,6 +187,9 @@ public class CrumbTests
 
             case "edit":
                 return new ComposeScreen(ComposeFor.Edit, post);
+
+            case "browser":
+                return new FileBrowserScreen(Path.GetTempPath(), PostLimits.Default, room: 4);
 
             case "account":
                 return new AccountScreen(maria, [post], pinned: []);

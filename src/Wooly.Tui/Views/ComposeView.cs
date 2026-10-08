@@ -116,18 +116,26 @@ internal sealed class ComposeView : View
                 WriteWarning),
             (compose, room) => compose.LangAt(room));
 
-        // A click anywhere on the header or a row walks there, and one on a row's description opens the editor (#377);
-        // one on the toggle at the end of Media's line flips it as well (#379).
+        // A click anywhere on the header or a row walks there, and one on a row's description opens the description
+        // editor (#377). On the header, one on the toggle at the end of its line flips it (#379), and one anywhere else
+        // on it — its words — opens the file browser (#376).
         _media = Placed(
             new ComposeMediaField((row, column, width, twice) =>
             {
                 _shell.ClickMedia(row, column, width, twice);
 
-                if (row == 0
-                    && _shell.Screen is ComposeScreen compose
-                    && compose.OnTheSensitiveToggle(column, Viewport.Size))
+                if (row != 0 || _shell.Screen is not ComposeScreen compose)
+                {
+                    return;
+                }
+
+                if (compose.OnTheSensitiveToggle(column, Viewport.Size))
                 {
                     _shell.ToggleSensitive();
+                }
+                else
+                {
+                    _shell.Browse();
                 }
             }),
             (compose, room) => compose.MediaAt(room));

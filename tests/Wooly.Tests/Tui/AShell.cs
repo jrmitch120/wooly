@@ -128,6 +128,9 @@ internal sealed class AShell
     /// </summary>
     public ShellTiming Timing { get; set; } = ShellTiming.Default;
 
+    /// <summary>The folder Wooly was launched from, where the file browser first opens (#376); the working one if unset.</summary>
+    public string? LaunchedFrom { get; set; }
+
     /// <summary>The shell itself, over whatever the fakes have been set to.</summary>
     public Shell Build() => Over(Opening.As(Profile));
 
@@ -155,7 +158,8 @@ internal sealed class AShell
         Clipboard,
         Clock,
         Timing,
-        Preferences);
+        Preferences,
+        LaunchedFrom);
 
     /// <summary>
     ///     What <paramref name="screen" /> draws at 61 columns, past the one column the gutter takes — which every
@@ -227,7 +231,8 @@ internal sealed class AShell
             Clipboard,
             Clock,
             Timing,
-            Preferences);
+            Preferences,
+            LaunchedFrom);
 
         await shell.Open();
 
