@@ -35,6 +35,7 @@ public class CrumbTests
         ("post", "Post by @ben@hachyderm.io"),
         ("conversation", "With @alice@hachyderm.io"),
         ("compose", "Compose"),
+        ("describe", "Describe cat.png"),
         ("reply", "Reply to @ben@hachyderm.io"),
         ("edit", "Edit"),
         ("account", "@maria@fosstodon.org"),
@@ -172,6 +173,14 @@ public class CrumbTests
 
             case "compose":
                 return new ComposeScreen(ComposeFor.Post);
+
+            case "describe":
+                var compose = new ComposeScreen(ComposeFor.Post);
+                var attachment = new ComposeAttachment("cat.png", Wooly.Core.Posts.MediaKind.Image, 1024);
+
+                compose.Attach([attachment]);
+
+                return new DescriptionScreen(compose, attachment);
 
             case "reply":
                 return new ComposeScreen(ComposeFor.Reply, post);

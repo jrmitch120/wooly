@@ -172,6 +172,9 @@ public sealed class Shell
     /// </summary>
     private ComposeScreen? _waitingToSend;
 
+    /// <summary>The pending attachments whose description is on its way to the instance (#377).</summary>
+    private readonly HashSet<ComposeAttachment> _describing = [];
+
     /// <summary>The folder Wooly was launched from, where the file browser opens the first time (#376).</summary>
     private readonly string _launchedFrom;
 
@@ -598,6 +601,7 @@ public sealed class Shell
         Verb.OpenBrowser => Ran(Browse),
         Verb.AttachChosen => Ran(AttachChosen),
         Verb.ToggleSensitive => Ran(ToggleSensitive),
+        Verb.Describe => Ran(Describe),
 
         // Nothing, and the terminal's own — which the window has already taken, and which no screen answers either.
         Verb.None => false,
@@ -1314,6 +1318,41 @@ public sealed class Shell
     }
 
     /// <summary>
+    ///     Opens the description editor over the compose screen on top, on the attachment whose row the walk is on
+    ///     (#377). Nothing where it is on no row.
+    /// </summary>
+    public void Describe()
+    {
+        if (Screen is ComposeScreen { Typing: ComposeField.Attachment, PickedAttachment: { } attachment } compose)
+        {
+            Push(new DescriptionScreen(compose, attachment));
+        }
+    }
+
+    /// <summary>
+    ///     The description editor's field changed: what the attachment's description says now (#377), settled by the
+    ///     rule every change to a draft is (<see cref="ChangeCompose" />). It goes to the instance as the editor is left.
+    /// </summary>
+    public void WriteDescription(string description)
+    {
+        if (Screen is not DescriptionScreen describing)
+        {
+            return;
+        }
+
+        var made = describing.Rewrite(description);
+
+        if (made == ComposeChange.Edited && Notice is not null)
+        {
+            Say(null, isError: false);
+        }
+        else if (made != ComposeChange.None)
+        {
+            Changed?.Invoke();
+        }
+    }
+
+    /// <summary>
     ///     <c>s</c> on compose's Media header, or a click on its toggle: puts what is attached behind a click or takes it
     ///     back out (#379). While a warning holds it on, the status row says so instead, since a press that changes
     ///     nothing on screen would otherwise read as one the shell missed.
@@ -1552,6 +1591,13 @@ public sealed class Shell
                 isError: true);
 
             return;
+        }
+
+        // A description the instance has not yet taken goes now — one that failed to before is sent again on the
+        // author's ctrl-s, never on its own (ADR-0006) — and the send waits on it as on an upload (#377).
+        foreach (var untold in compose.Attachments.Where(attachment => attachment.Untold))
+        {
+            _ = TellDescription(compose, untold);
         }
 
         if (compose.Attachments.Count(attachment => attachment.Unfinished) is > 0 and var unfinished)
@@ -2333,7 +2379,8 @@ public sealed class Shell
 
     /// <summary>
     ///     A click on <paramref name="attachment" />'s row, on <paramref name="part" /> of it (#378): its <c>x</c> takes
-    ///     it off, its <c>retry (r)</c> sends it up again, and anywhere else picks it.
+    ///     it off, its <c>retry (r)</c> sends it up again, its description opens the description editor (#377), and
+    ///     anywhere else picks it.
     /// </summary>
     public void ClickAttachment(ComposeAttachment attachment, AttachmentPart part)
     {
@@ -2345,6 +2392,12 @@ public sealed class Shell
                 break;
             case AttachmentPart.Retry:
                 Retry(compose => compose.Retry(attachment));
+
+                break;
+            case AttachmentPart.Description:
+                // Picked first, so that the editor's done comes back to the row it was opened from (#377).
+                _ = ChangeCompose(compose => compose.Pick(attachment));
+                Describe();
 
                 break;
             default:
@@ -2416,12 +2469,18 @@ public sealed class Shell
 
         Changed?.Invoke();
 
+        // A description written while it was going up goes now there is an attachment to put it on (#377).
+        if (state is AttachmentState.Ready)
+        {
+            _ = TellDescription(compose, attachment);
+        }
+
         Waited(compose);
     }
 
     /// <summary>
-    ///     The send <paramref name="compose" /> was waiting on, where it no longer has anything unfinished to wait on
-    ///     (ADR-0026, #375).
+    ///     The send <paramref name="compose" /> was waiting on, where it no longer has anything unfinished to wait on —
+    ///     an upload, or a description on its way (ADR-0026, #375, #377).
     /// </summary>
     private void Waited(ComposeScreen compose)
     {
@@ -2436,6 +2495,73 @@ public sealed class Shell
                 _ = Send();
             }
         }
+    }
+
+    /// <summary>
+    ///     Sends <paramref name="attachment" />'s description to the instance, where it is there to put it on and holds
+    ///     another (#377) — then, the instance having taken it, says so on <paramref name="compose" /> and sends it again
+    ///     if it changed meanwhile. One at a time for each attachment, so the last one written is the last one sent.
+    /// </summary>
+    /// <remarks>
+    ///     Not through the enquiry, for the reason an upload is not (<see cref="SendUp" />), and called off with the
+    ///     screen as its upload is. A refusal or a dropped connection is said on the status row and stops a send waiting
+    ///     on it; it is not tried again until the author sends again (ADR-0006).
+    /// </remarks>
+    private async Task TellDescription(ComposeScreen compose, ComposeAttachment attachment)
+    {
+        if (attachment is not { Untold: true, State: AttachmentState.Ready(var pending) }
+            || !_sendingUp.TryGetValue(compose, out var sending)
+            || !_describing.Add(attachment))
+        {
+            return;
+        }
+
+        var profile = Actor.Profile;
+        var token = sending.Token;
+        var description = attachment.Saying;
+
+        try
+        {
+            await _ports.Author.Describe(profile, pending.Id, description, token);
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            Apply(() => _describing.Remove(attachment));
+
+            return;
+        }
+        catch (WoolyException failed)
+        {
+            Apply(() =>
+            {
+                _describing.Remove(attachment);
+
+                if (ReferenceEquals(_waitingToSend, compose))
+                {
+                    _waitingToSend = null;
+                }
+
+                var why = failed is AttachmentRefusedException { Reason: { } reason } ? reason : failed.Message;
+
+                Say($"The description of {attachment.Name} was refused: {why}", isError: true);
+            });
+
+            return;
+        }
+
+        Apply(() =>
+        {
+            _describing.Remove(attachment);
+
+            if (compose.Told(attachment, description))
+            {
+                Changed?.Invoke();
+            }
+
+            _ = TellDescription(compose, attachment);
+
+            Waited(compose);
+        });
     }
 
     /// <summary>Calls off whatever <paramref name="screen" /> is still sending up, as it leaves the stack (#375).</summary>
@@ -2815,6 +2941,13 @@ public sealed class Shell
     {
         _stack[at].Left();
         LetUploadsGo(_stack[at]);
+
+        // A description is done as its editor is left, by whichever way out, and goes to the instance then (#377).
+        if (_stack[at] is DescriptionScreen described)
+        {
+            _ = TellDescription(described.Compose, described.Attachment);
+        }
+
         _stack.RemoveAt(at);
     }
 

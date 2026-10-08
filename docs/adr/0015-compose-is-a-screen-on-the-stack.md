@@ -317,3 +317,18 @@ a drop is attached (ADR-0026). The folder last attached from is the shell's to r
 **Media now joins the walk on every fresh post and reply**, attachments or none, since `⏎` on it opens the browser —
 which the previous amendment's "only once anything is attached" no longer holds to. `↑` from the post's first line
 stops on Media before Warn; an edit, whose header is read-only, still walks straight past it.
+
+## Amendment: the description editor is a screen over the draft (map #372, ticket #377)
+
+**Describing an attachment pushes a screen**, as anything new on compose does: `⏎` on an attachment's row, a click on
+its description, or a double click on the row opens the description editor over the draft. It holds no copy: what is
+typed goes straight onto the attachment the compose screen holds, so `esc` and `ctrl-s` are both "done" and there is no
+cancel to keep a copy for.
+
+**Its field is a widget of its own, laid over the content viewport as compose's are.** The window adds a second view
+beside compose's, shown while the description editor is on top; the screen says where the field goes, the view puts it
+there, and every change goes through the shell. On compose, `⏎` on a row walked to (#378) and a click on a row's
+description are what the view laid over the Media block already takes.
+
+**The shell sends the description**, as it sends the file (ADR-0026): once the attachment is ready, again whenever it
+changes, and before the post is published — `Shell.Send` waits on a description on its way as on an upload.

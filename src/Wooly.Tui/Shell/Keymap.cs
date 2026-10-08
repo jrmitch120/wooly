@@ -52,7 +52,7 @@ public static class Keymap
 
         // Nothing on compose, whose fields take `?` as a letter before the window sees it (#320): a keymap opened only
         // where no widget has the typing would be one a reader can never reach, over a draft.
-        (ShellKey.Question, ComposeScreen) => Verb.None,
+        (ShellKey.Question, ComposeScreen or DescriptionScreen) => Verb.None,
         (ShellKey.Question, _) => Verb.Help,
         (ShellKey.Slash, _) => Verb.Search,
         (ShellKey.Tab, _) => Verb.NextDestination,
@@ -69,6 +69,13 @@ public static class Keymap
         // screen they mean nothing and are left to whatever else wants them.
         (ShellKey.CtrlS, ComposeScreen) => Verb.Send,
         (ShellKey.CtrlW, ComposeScreen) => Verb.WriteWarning,
+
+        // On the description editor ctrl-s is "done", as esc is: what was typed is kept either way (#377).
+        (ShellKey.CtrlS, DescriptionScreen) => Verb.Back,
+
+        // ⏎ on an attachment's row describes it (#377), ahead of ⏎ on the Media header above it, which opens the file
+        // browser (below).
+        (ShellKey.Enter, ComposeScreen { Typing: ComposeField.Attachment }) => Verb.Describe,
 
         // And the arrows, which walk compose's fields the way a mail client's do (ADR-0024, #337) — reaching here only
         // where the field the typing is in leaves them: a header always, the post on its first line. Whether there was
@@ -90,7 +97,7 @@ public static class Keymap
         (ShellKey.ShiftDown, ComposeScreen) => Verb.LaterAttachment,
         (ShellKey.R, ComposeScreen) => Verb.RetryAttachment,
         // And ctrl-o, which opens the file browser over a compose or a reply wherever the typing is — and ⏎ on the
-        // Media header, which takes no typing of its own and is walked to only to be opened from (#376).
+        // Media header, which takes no typing of its own (#376); ⏎ on a row under it describes the row instead (#377).
         (ShellKey.CtrlO, ComposeScreen) => Verb.OpenBrowser,
         (ShellKey.Enter, ComposeScreen { Typing: ComposeField.Media }) => Verb.OpenBrowser,
 

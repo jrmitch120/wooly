@@ -116,7 +116,7 @@ internal sealed class ComposeView : View
             (compose, room) => compose.LangAt(room));
 
         // A click on the toggle at the end of Media's line flips it; anywhere else on the header — its words — opens
-        // the file browser (#376).
+        // the file browser (#376). A click on a row is the field's own (#378, #377).
         _media = Placed(
             new ComposeMediaField(shell, column =>
             {

@@ -37,8 +37,10 @@ public enum ComposeField
     Warning,
 
     /// <summary>
-    ///     The Media header, which types nothing: walked to so that its keys have somewhere to land — <c>⏎</c> to open
-    ///     the file browser (#376), and <c>s</c> for the sensitive toggle at the end of its line (#379).
+    ///     What is attached: the Media header, or one of the pending attachments' rows under it, which the arrows walk
+    ///     one at a time. Nothing is typed here, so it is walked to for its keys to have somewhere to land — <c>⏎</c> on
+    ///     the header to open the file browser (#376) and on a row to describe it (#377), and <c>s</c> for the
+    ///     sensitive toggle at the end of the header's line (#379).
     /// </summary>
     Media,
 
@@ -851,6 +853,11 @@ public sealed class ComposeScreen : Screen
     /// <remarks>
     ///     A field that takes nothing is not walked into: To on an edit, which Mastodon cannot change. Nor is one the
     ///     screen was last drawn without: Lang, where a short terminal gave its row up.
+    ///     <para>
+    ///         Media is walked a row at a time (#377): up from the post onto the last attachment's row, up the rows to
+    ///         the header, and from the header up into the warning — and down the same way back. Rows folded into the
+    ///         header's line on a short terminal are not walked, the header standing for them all.
+    ///     </para>
     /// </remarks>
     public ComposeChange Walk(int by)
     {
@@ -909,6 +916,41 @@ public sealed class ComposeScreen : Screen
             }
         }
     }
+
+    /// <summary>
+    ///     What <paramref name="attachment" />'s author says it shows, as the description editor has it now (#377). Only
+    ///     where it is still attached.
+    /// </summary>
+    /// <returns>An edit, or nothing where that is what it said already.</returns>
+    public ComposeChange Describe(ComposeAttachment attachment, string description)
+    {
+        if (!_attachments.Contains(attachment) || attachment.Description == description)
+        {
+            return ComposeChange.None;
+        }
+
+        attachment.Description = description;
+
+        return ComposeChange.Edited;
+    }
+
+    /// <summary>
+    ///     The instance took <paramref name="description" /> for <paramref name="attachment" />, as the shell heard
+    ///     (#377): what it holds from now on, which a send no longer waits to tell it.
+    /// </summary>
+    /// <returns>Whether that changed anything.</returns>
+    public bool Told(ComposeAttachment attachment, string description)
+    {
+        if (!_attachments.Contains(attachment) || attachment.Told == description)
+        {
+            return false;
+        }
+
+        attachment.Told = description;
+
+        return true;
+    }
+
 
     /// <summary>
     ///     Whether <paramref name="field" /> can have the typing at all, which To cannot where it allows nothing, nor
@@ -1223,7 +1265,8 @@ public sealed class ComposeScreen : Screen
         var attachmentRows = folded ? 0 : _attachments.Count;
         var at = above.IndexOf(media);
 
-        above[at] = media with { Line = Header(MediaLabel, Role.Muted, MediaValue(valueWidth, folded)) };
+        media = media with { Line = Header(MediaLabel, Role.Muted, MediaValue(valueWidth, folded)) };
+        above[at] = media;
 
         if (!folded)
         {
@@ -1254,6 +1297,10 @@ public sealed class ComposeScreen : Screen
             .. Enumerable.Repeat(Line.Blank, editor),
             .. foot.Select(row => row.Line),
         ];
+
+        // The header and the rows under it, the whole width across: what a click on any of them lands on (#377).
+        var mediaRows = !above.Contains(media) ? Rectangle.Empty
+            : new Rectangle(0, above.IndexOf(media), width, 1 + (folded ? 0 : MediaRows));
 
         return (
             rows,
@@ -1519,8 +1566,10 @@ public sealed class ComposeScreen : Screen
             : TakesAttachments ? $"{count} of {Limits.Attachments}"
             : count.ToString(CultureInfo.InvariantCulture);
 
-        // The header takes no selection bar with the typing on it: its own words light up, as To's choice does.
-        var spans = new List<Span> { new(held, Typing == ComposeField.Media ? Role.SelectedText : Role.Muted) };
+        // The header takes no selection bar with the typing on it: its own words light up, as To's choice does — but
+        // not while the walk is on one of the rows under it, which carries the bar instead (#377).
+        var lit = Typing == ComposeField.Media;
+        var spans = new List<Span> { new(held, lit ? Role.SelectedText : Role.Muted) };
         var undescribed = _attachments.Count(attached => !attached.Described)
                           + Kept.Count(kept => string.IsNullOrWhiteSpace(kept.Description));
 
@@ -1688,18 +1737,28 @@ public sealed class ComposeScreen : Screen
     ///     description in quotes, or the quiet mark where it has none. No mark for ready: a row saying nothing else is
     ///     one that is done.
     /// </summary>
+    /// <remarks>
+    ///     A description too long for the room it has is cut inside its closing quote, so the row still reads as a
+    ///     quotation that goes on; and a click on it, or on the quiet mark, opens the description editor (#377).
+    /// </remarks>
     private static IEnumerable<(Span Span, AttachmentPart Part)> Status(ComposeAttachment attached, int room) =>
-        attached.State is AttachmentState.Refused refused
-            ? Failure(refused, room)
-            : Fitted(attached.State switch
-                {
-                    AttachmentState.Sending(var done) => Gauge(done),
-                    AttachmentState.Processing => [new Span(BeingProcessed, Role.Muted)],
-                    _ when attached.Described =>
-                        [new Span($"“{attached.Description.ReplaceLineEndings(" ").Trim()}”", Role.Body)],
-                    _ => [new Span(NoDescription, Role.Muted)],
-                }, room)
-                .Select(span => (span, AttachmentPart.Row));
+        attached.State switch
+        {
+            AttachmentState.Refused refused => Failure(refused, room),
+            AttachmentState.Sending(var done) => Fitted(Gauge(done), room).Select(span => (span, AttachmentPart.Row)),
+            AttachmentState.Processing =>
+                Fitted([new Span(BeingProcessed, Role.Muted)], room).Select(span => (span, AttachmentPart.Row)),
+            _ => Fitted(
+                    [
+                        attached.Described
+                            ? new Span(
+                                $"“{TextWrap.Clip(attached.Saying.ReplaceLineEndings(" "), Math.Max(0, room - 2))}”",
+                                Role.Body)
+                            : new Span(NoDescription, Role.Muted),
+                    ],
+                    room)
+                .Select(span => (span, AttachmentPart.Description)),
+        };
 
     /// <summary>
     ///     A refusal in <paramref name="room" /> columns (#378): why, in the error's colour and with no mark beside the

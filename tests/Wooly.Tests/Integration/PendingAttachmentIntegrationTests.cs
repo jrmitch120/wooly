@@ -57,6 +57,42 @@ public class PendingAttachmentIntegrationTests : IDisposable
     }
 
     /// <summary>
+    ///     A description put on a pending attachment, and then changed, is the one the published post carries (#377).
+    /// </summary>
+    [Fact(Skip = LiveInstance.SkipReason, SkipType = typeof(LiveInstance), SkipUnless = nameof(LiveInstance.Available))]
+    public async Task Describe_ThenPublishAttached_CarriesTheLastDescription()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var author = LiveInstance.NewServices().GetRequiredService<IPostAuthor>();
+        var profile = LiveInstance.Profile;
+
+        var attached = await author.Attach(profile, Picture("dot.png", frames: 1), new Reported(), cancellationToken);
+
+        await author.Describe(profile, attached.Id, "A dot", cancellationToken);
+        await author.Describe(profile, attached.Id, "A single black dot", cancellationToken);
+
+        var published = await author.PublishAttached(
+            profile,
+            new PostDraft
+            {
+                Text = string.Empty,
+                Visibility = PostVisibility.Unlisted,
+                VisibilityChosen = true,
+                Attached = [attached],
+            },
+            cancellationToken);
+
+        try
+        {
+            Assert.Equal("A single black dot", Assert.Single(published.Media).Description);
+        }
+        finally
+        {
+            await author.Delete(profile, published.Id, cancellationToken);
+        }
+    }
+
+    /// <summary>
     ///     An animation is processed after it is up — the instance turns it into a clip — and a post naming it before
     ///     that is refused; once the processing has been waited out, the same post goes out.
     /// </summary>

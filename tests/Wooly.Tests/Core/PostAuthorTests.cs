@@ -960,6 +960,54 @@ public class PostAuthorTests : IDisposable
         Assert.Empty(network.Requests);
     }
 
+    /// <summary>
+    ///     A description goes to the pending attachment it describes, by id, as the instance's own media endpoint takes
+    ///     it (#377).
+    /// </summary>
+    [Fact]
+    public async Task Describe_PutsTheDescriptionOnThePendingAttachment()
+    {
+        var network = Answering(AttachmentJson("m1"));
+
+        await NewAuthor(network).Describe(
+            Profile,
+            "m1",
+            "A dog in a red knitted coat",
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal("https://mastodon.social/api/v1/media/m1", Assert.Single(network.Requests).RequestUri?.ToString());
+        Assert.Equal(HttpMethod.Put, network.Requests[0].Method);
+        Assert.Equal("Bearer", network.Requests[0].Headers.Authorization?.Scheme);
+        Assert.Equal("description=A+dog+in+a+red+knitted+coat", network.Bodies[0]);
+    }
+
+    /// <summary>A description cleared is sent as an empty one, which takes the old one off.</summary>
+    [Fact]
+    public async Task Describe_SendsAClearedDescription()
+    {
+        var network = Answering(AttachmentJson("m1"));
+
+        await NewAuthor(network).Describe(Profile, "m1", string.Empty, TestContext.Current.CancellationToken);
+
+        Assert.Equal("description=", network.Bodies[0]);
+    }
+
+    /// <summary>An instance that will not take a description — too long, most often — says why, in its own words.</summary>
+    [Fact]
+    public async Task Describe_SaysWhyTheInstanceRefusedIt()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Refusal(HttpStatusCode.UnprocessableEntity, "Description is too long"));
+
+        var refusal = await Assert.ThrowsAsync<AttachmentRefusedException>(() => NewAuthor(network).Describe(
+            Profile,
+            "m1",
+            new string('x', 2000),
+            TestContext.Current.CancellationToken));
+
+        Assert.Equal("Description is too long", refusal.Reason);
+    }
+
     /// <summary>Every report an attach made, in order, kept as it was made rather than posted anywhere.</summary>
     private sealed class Reported : IProgress<AttachmentProgress>
     {

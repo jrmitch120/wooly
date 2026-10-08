@@ -110,6 +110,38 @@ public sealed class PostAuthor(
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    ///     By hand rather than through Mastonet, as the upload is, so that a refusal reads as the instance said it and
+    ///     the call can be called off with the screen it was made for.
+    /// </remarks>
+    public async Task Describe(
+        ActiveProfile profile,
+        string attachmentId,
+        string description,
+        CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(
+            HttpMethod.Put,
+            new Uri($"https://{profile.Instance}/api/v1/media/{Uri.EscapeDataString(attachmentId)}"))
+        {
+            Content = new FormUrlEncodedContent([new KeyValuePair<string, string>("description", description)]),
+        };
+
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", profile.AccessToken);
+
+        var http = httpClientFactory.CreateClient(WoolyClient.HttpClientName);
+
+        using var response = await http.SendAsync(request, cancellationToken);
+
+        if (response.StatusCode == HttpStatusCode.UnprocessableEntity)
+        {
+            throw new AttachmentRefusedException(await InstanceError.Reason(response, cancellationToken));
+        }
+
+        response.EnsureSuccessStatusCode();
+    }
+
+    /// <inheritdoc />
     public async Task<Post> PublishAttached(ActiveProfile profile, PostDraft draft, CancellationToken cancellationToken)
     {
         if (draft.Problem is { } problem)

@@ -20,9 +20,10 @@ namespace Wooly.Tui.Views;
 ///     everything a key means it asks <see cref="Keymap" /> — so this file has no idea what a boost is.
 /// </summary>
 /// <remarks>
-///     It names no screen type: everything it knows about screens it knows as <c>Screen</c>. Compose is the one screen
-///     with widgets of its own, and they are <see cref="ComposeView" />'s — where they sit, which has focus and what they
-///     open with — which this window adds once over the content panel's viewport (#365).
+///     It names no screen type: everything it knows about screens it knows as <c>Screen</c>. Compose and the
+///     description editor pushed over it are the screens with widgets of their own, and they are
+///     <see cref="ComposeView" />'s and <see cref="DescriptionView" />'s — where they sit, which has focus and what
+///     they open with — which this window adds once each over the content panel's viewport (#365, #377).
 /// </remarks>
 internal sealed class ShellWindow : Window
 {
@@ -60,6 +61,9 @@ internal sealed class ShellWindow : Window
 
     /// <summary>Compose's fields, laid over the content panel's viewport (#365).</summary>
     private readonly ComposeView _compose;
+
+    /// <summary>The description editor's field, laid over the same viewport (#377).</summary>
+    private readonly DescriptionView _description;
 
     /// <summary>The rail, which <see cref="Railed" /> takes away and puts back.</summary>
     private readonly PaintedView _rail;
@@ -218,6 +222,15 @@ internal sealed class ShellWindow : Window
             Height = Dim.Func(content => content?.Viewport.Height ?? 0, _content),
         };
 
+        // The description editor's field, laid over the same viewport the same way (#377).
+        _description = new DescriptionView(theme, shell)
+        {
+            X = Pos.Func(content => ViewportOrigin(content).X, _content),
+            Y = Pos.Func(content => ViewportOrigin(content).Y, _content),
+            Width = Dim.Func(content => content?.Viewport.Width ?? 0, _content),
+            Height = Dim.Func(content => content?.Viewport.Height ?? 0, _content),
+        };
+
         var status = new PaintedView(theme, (width, _) =>
             [ChromeLines.Status(shell.Keys, shell.Notice, shell.NoticeIsError, shell.Asking, width)])
         {
@@ -228,7 +241,7 @@ internal sealed class ShellWindow : Window
             CanFocus = false,
         };
 
-        Add(rail, _content, title, _compose, status);
+        Add(rail, _content, title, _compose, _description, status);
 
         _showing = shell.Screen;
 
@@ -285,6 +298,11 @@ internal sealed class ShellWindow : Window
         if (_content.NeedsDraw && _compose.Visible)
         {
             _compose.SetNeedsDraw();
+        }
+
+        if (_content.NeedsDraw && _description.Visible)
+        {
+            _description.SetNeedsDraw();
         }
 
         return base.OnDrawingSubViews(context);
@@ -796,7 +814,7 @@ internal sealed class ShellWindow : Window
         // which it does not: a key the editor declines at the end of its own text still reaches this window, and a
         // screen with nothing picked out on it is one Scroll.To never scrolls back. Compose's view settled whether it
         // shows ahead of this, on the same change.
-        _content.Scrolls = !_compose.Visible;
+        _content.Scrolls = !_compose.Visible && !_description.Visible;
 
         SetNeedsDraw();
     }

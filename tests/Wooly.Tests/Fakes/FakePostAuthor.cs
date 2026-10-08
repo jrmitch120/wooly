@@ -68,6 +68,41 @@ internal sealed class FakePostAuthor : IPostAuthor
         return sending.Answer;
     }
 
+    /// <summary>
+    ///     Every description it was asked to put on a pending attachment, in order (#377) — each answered at once unless
+    ///     <see cref="HoldingDescriptions" />, when it waits for the test to <see cref="Describing.Land" /> it.
+    /// </summary>
+    public List<Describing> Descriptions { get; } = [];
+
+    /// <summary>Whether a description waits to be landed by the test rather than being taken at once.</summary>
+    public bool HoldingDescriptions { get; set; }
+
+    /// <summary>What every description is refused with, where the test wants them refused.</summary>
+    public Exception? RefusingDescriptions { get; set; }
+
+    public Task Describe(
+        ActiveProfile profile,
+        string attachmentId,
+        string description,
+        CancellationToken cancellationToken)
+    {
+        var describing = new Describing(profile.Name, attachmentId, description);
+
+        Descriptions.Add(describing);
+        Tokens.Add(profile.AccessToken);
+
+        if (RefusingDescriptions is { } refusal)
+        {
+            describing.Refuse(refusal);
+        }
+        else if (!HoldingDescriptions)
+        {
+            describing.Land();
+        }
+
+        return describing.Answer;
+    }
+
     /// <remarks>Recorded with every other publish, in <see cref="Published" />: what was attached is on the draft.</remarks>
     public Task<Post> PublishAttached(ActiveProfile profile, PostDraft draft, CancellationToken cancellationToken) =>
         Publish(profile, draft, cancellationToken);
@@ -96,6 +131,20 @@ internal sealed class FakePostAuthor : IPostAuthor
     internal sealed record Changed(string Profile, string PostId, PostEdit Edit);
 
     internal sealed record Removed(string Profile, string PostId);
+
+    /// <summary>One description being put on a pending attachment, which the test lands or refuses.</summary>
+    internal sealed record Describing(string Profile, string Id, string Description)
+    {
+        private readonly TaskCompletionSource _answer = new();
+
+        public Task Answer => _answer.Task;
+
+        /// <summary>The instance has taken it.</summary>
+        public void Land() => _answer.TrySetResult();
+
+        /// <summary>The instance would not take it.</summary>
+        public void Refuse(Exception refusal) => _answer.TrySetException(refusal);
+    }
 
     /// <summary>One file being sent up, which the test moves through the states an instance would.</summary>
     /// <param name="Profile">Who it was sent up as.</param>

@@ -13,13 +13,15 @@ namespace Wooly.Tui.Views;
 /// </summary>
 /// <remarks>
 ///     It leaves to the window every key it does not mean to swallow, and so to <c>Keymap</c>: the arrows that walk the
-///     fields and the shifted ones that reorder the rows, <c>⏎</c>, which opens the file browser there (#376),
+///     fields and the shifted ones that reorder the rows, <c>⏎</c>, which opens the file browser on the header (#376) and the description editor on a row (#377),
 ///     <c>tab</c>, <c>esc</c>, the <c>ctrl</c> chords, <c>del</c> and <c>backspace</c>, which take a row off, <c>s</c>,
 ///     the sensitive toggle, and <c>r</c>, which retries a row. Any other letter is nobody's here — read by the keymap
 ///     it would be a boost or a compose behind a draft.
 ///     <para>
 ///         On a row the pointer picks it, takes it off by its <c>x</c>, retries it by its <c>retry (r)</c>, and drags
-///         it to another place, live: the row takes each place the pointer reaches and the others make way (#378).
+///         it to another place, live: the row takes each place the pointer reaches and the others make way (#378). A
+///         click on its description or quiet mark, or a double click anywhere on it, opens the description editor
+///         (#377).
 ///         What a click there lands on is the screen's to say (<see cref="ComposeScreen.AttachmentAt" />), from the same
 ///         runs it draws the rows with.
 ///     </para>
@@ -94,6 +96,10 @@ internal sealed class ComposeMediaField : View
         {
             Clicked(at);
         }
+        else if (flags.HasFlag(MouseFlags.LeftButtonDoubleClicked))
+        {
+            DoubleClicked(at);
+        }
 
         return true;
     }
@@ -166,5 +172,18 @@ internal sealed class ComposeMediaField : View
         }
 
         _clicked(at.X - Frame.X);
+    }
+
+    /// <summary>
+    ///     A double click on a row, anywhere on it, opens the description editor on it, as a click on its description
+    ///     does (#377): a slightly-off single click only picks it.
+    /// </summary>
+    private void DoubleClicked(Point at)
+    {
+        if (_shell.Screen is ComposeScreen compose
+            && compose.AttachmentAt(SuperView!.Viewport.Size, at) is ({ } attachment, _))
+        {
+            _shell.ClickAttachment(attachment, AttachmentPart.Description);
+        }
     }
 }

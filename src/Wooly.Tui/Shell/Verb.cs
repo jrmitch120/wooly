@@ -334,4 +334,9 @@ public enum Verb
     ///     warning holds it there (#379).
     /// </summary>
     ToggleSensitive,
+
+    /// <summary>
+    ///     <c>⏎</c> there on a pending attachment's row: open the description editor on it (#377).
+    /// </summary>
+    Describe,
 }
