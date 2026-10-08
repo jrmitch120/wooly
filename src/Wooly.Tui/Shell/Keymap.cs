@@ -99,6 +99,10 @@ public static class Keymap
         // And ctrl-o, which opens the file browser over a compose or a reply wherever the typing is — and ⏎ on the
         // Media header, which takes no typing of its own (#376); ⏎ on a row under it describes the row instead (#377).
         (ShellKey.CtrlO, ComposeScreen) => Verb.OpenBrowser,
+        // And ctrl-v, which attaches a picture or copied files from the clipboard wherever the typing is (#380) — the
+        // fields asking here before their own paste — and alt-v, the same, since Windows Terminal and the console host
+        // keep ctrl-v as the terminal's own paste and never pass it on (ADR-0015).
+        (ShellKey.CtrlV or ShellKey.AltV, ComposeScreen) => Verb.PasteFromTheClipboard,
         // But ⏎ on a header whose rows a short terminal folded into its line lists them on a screen of their own,
         // which is the only way left to reach them (story 58).
         (ShellKey.Enter, ComposeScreen { Typing: ComposeField.Media, RowsFolded: true }) => Verb.ListAttachments,
@@ -129,7 +133,8 @@ public static class Keymap
 
         // The attachments screen, listing the rows a short terminal folded into the Media header's line (story 58):
         // the keys of a row under the header, on the row picked here — ⏎ describing it rather than opening anything —
-        // ctrl-o adding more, and the arrows walking the rows as they walk the file browser's entries.
+        // ctrl-o adding more, as ctrl-v and alt-v do from the clipboard, and the arrows walking the rows as they walk the
+        // file browser's entries.
         (ShellKey.Enter, AttachmentsScreen) => Verb.Describe,
         (ShellKey.Delete or ShellKey.Backspace, AttachmentsScreen) => Verb.RemoveAttachment,
         (ShellKey.CtrlZ, AttachmentsScreen) => Verb.BringBackAttachment,
@@ -138,6 +143,7 @@ public static class Keymap
         (ShellKey.R, AttachmentsScreen) => Verb.RetryAttachment,
         (ShellKey.S, AttachmentsScreen) => Verb.ToggleSensitive,
         (ShellKey.CtrlO, AttachmentsScreen) => Verb.OpenBrowser,
+        (ShellKey.CtrlV or ShellKey.AltV, AttachmentsScreen) => Verb.PasteFromTheClipboard,
         (ShellKey.Down, AttachmentsScreen) => Verb.NextEntry,
         (ShellKey.Up, AttachmentsScreen) => Verb.PreviousEntry,
 

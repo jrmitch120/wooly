@@ -549,7 +549,8 @@ public sealed class Shell
     ///     toggles a poll answer — because there may be nothing on the picked post for them to act on, and an unused
     ///     key falls back through the window to whatever else wants it: the compose editor's own arrows above all
     ///     (#83, #87). That is settled here rather than in the keymap because the screen is the only thing that knows
-    ///     what is on the post, and asking it in two places is how two places come to disagree.
+    ///     what is on the post, and asking it in two places is how two places come to disagree. So can a paste from the
+    ///     clipboard, which holds nothing to attach as often as not, and leaves the key to the field's own paste.
     /// </returns>
     public bool Do(Verb verb, int? answer) => (_acting is not null || WithNobody(verb)) && verb switch
     {
@@ -599,6 +600,7 @@ public sealed class Shell
         Verb.LaterAttachment => Ran(() => _ = ChangeCompose(compose => compose.Reorder(1))),
         Verb.RetryAttachment => Ran(() => Retry(compose => compose.Retry())),
         Verb.OpenBrowser => Ran(Browse),
+        Verb.PasteFromTheClipboard => PasteFromTheClipboard(),
         Verb.AttachChosen => Ran(AttachChosen),
         Verb.IntoFolder => Ran(() => Browse(browser => browser.FolderPicked)),
         Verb.UpFolder => Ran(() => Browse(browser => browser.Above)),
@@ -1211,13 +1213,14 @@ public sealed class Shell
     }
 
     /// <summary>
-    ///     <c>ctrl-v</c> on a compose screen (#380): a picture on this machine's clipboard is written to a file of its
-    ///     own and attached from there, and copied files are attached, as a drop is (<see cref="Paste" />, ADR-0026).
+    ///     <c>ctrl-v</c> or <c>alt-v</c> on a compose screen, or on the attachments screen over one (#380): a picture on
+    ///     this machine's clipboard is written to a file of its own and attached from there, and copied files are
+    ///     attached, as a drop is (<see cref="Paste" />, ADR-0026).
     /// </summary>
     /// <returns>Whether the paste was taken; one that was not is left to the field's own paste.</returns>
     public bool PasteFromTheClipboard()
     {
-        if (Screen is not ComposeScreen { TakesAttachments: true } compose)
+        if (InFront is not { TakesAttachments: true } compose)
         {
             return false;
         }

@@ -363,3 +363,19 @@ sent is what was changed there. With room for the rows, `⏎` on the header open
 picture column, sent for from the instance's preview through the feed's picture path; the kind in the kind column; and
 the description or the quiet mark in the status column. The name and size columns stay blank — the instance does not
 hand either back — but for the kind, which takes the name's column where a narrow terminal has given its own up.
+
+## Amendment: `alt-v` pastes from the clipboard too, for terminals that keep `ctrl-v` (map #372, review on Windows)
+
+**`alt-v` means what `ctrl-v` means on compose and on the attachments screen**: attach a picture or copied files from
+this machine's clipboard, and otherwise paste text (#380). Windows Terminal and the console host bind `ctrl-v` to the
+terminal's own paste and never pass the key on, so on Windows `ctrl-v` only ever pasted text — and nothing at all when
+the clipboard held only a picture — while a dragged file, which the terminal pastes as a path, attached. On macOS
+`⌘V` is the terminal's paste and `ctrl-v` reaches the program, which is why the prototype never met this. `alt-v` is
+the key Claude Code settled on for the same reason. `ctrl-v` stays, being the key most terminals pass and the one
+authors reach for first; neither is the platform's alone, since which of them reaches Wooly is the terminal's to say,
+and the status row names both.
+
+**Both are the keymap's now** (`Verb.PasteFromTheClipboard`), rather than a check each text field made of its own. The
+fields that take typing ask the keymap first and fall through to their own paste where nothing was attached; To,
+Media and its rows, which take no paste, leave both keys to the window, which asks the same table — so the paste
+reaches the Media header and the attachments screen, where `ctrl-v` used to do nothing.

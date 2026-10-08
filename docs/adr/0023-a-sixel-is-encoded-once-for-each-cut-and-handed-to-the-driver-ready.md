@@ -170,3 +170,31 @@ felt great with rough cuts at 128 and synchronized output together, and a fifth 
 keep for a timer, a redraw on settling, two cuts of every picture and a larger cache; Windows Terminal without them is
 the check still owed. Should sending ever be what a reader feels again, fewer colours
 while moving is where to look, at no fewer than 128.
+
+## Amendment: a sixel the terminal still shows is not sent again (map #372, review on Windows)
+
+"Every step sends every picture again" was true of scrolling, and was also true of every frame that drew a picture's
+box at all, moving or not. `PictureView` handed the driver its sixel marked dirty on every draw, so every frame that
+redrew the content panel sent every picture on it again. Typing into the description editor redraws the panel a letter
+at a time, for its `n / limit` counter, so each letter sent the picture above the field — up to ten rows of it, about
+67 KB in the headless test against 1.6 KB for the letter and the counter. Typing the post sent each row's picture
+under Media the same way. Windows Terminal draws sixel slowly enough that the author felt it as lag.
+
+**A box now sends its sixel only where what the terminal shows of it could have changed.** Terminal.Gui keeps a raster
+image under its id from frame to frame, writes it only while it is dirty, and never writes the blank cells a picture
+claims, so one handed over clean stays on screen as it was. The box sends again where any of these is so:
+
+- the driver no longer holds its image, or holds it not yet written — a resize drops every image, and a box hidden or
+  released withdraws its own;
+- the sixel, the cells or the parts of them it is let draw in have changed — a scroll, another cut, a view over it
+  clipping it;
+- the driver's buffer was cleared since, which it does, as a new array, for a resize, a forced redraw or a change of a
+  top view's layout, after which nothing in the buffer says what the terminal shows — so a resume from suspend, which
+  clears the screen this way, still gets its pictures back;
+- a frame written since wrote anything into a cell the picture is let draw in. Asked once each frame is out
+  (`LayoutAndDrawComplete`), since by the next draw the rows around the picture have been painted over what was there.
+
+The guarantees above stand: a sixel is encoded once for each cut and handed over ready, and a scroll sends each picture
+on the page again, which it must. Kitty through a box was never sent this way and is untouched. This leans further on
+how Terminal.Gui 2.5 treats a clean raster image — kept, its cells left unwritten — so an upgrade of the library is one
+more reason to run the smoke test.

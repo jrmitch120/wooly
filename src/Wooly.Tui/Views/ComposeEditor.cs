@@ -57,10 +57,12 @@ internal sealed class ComposeEditor(
     public Func<Key, bool>? Answering { get; set; }
 
     /// <summary>
-    ///     <c>ctrl-v</c>, asked first whether the clipboard holds a picture or files to attach (#380): where it says it
-    ///     took the paste, the editor's own paste never sees the key.
+    ///     Asked of every key whether it is compose's paste from the clipboard — <c>ctrl-v</c>, or <c>alt-v</c> where
+    ///     the terminal keeps <c>ctrl-v</c> — and if so, whether the clipboard held a picture or files it attached
+    ///     (#380): <see langword="null" /> where the key is no paste, and otherwise the editor's own paste follows
+    ///     only where nothing was attached.
     /// </summary>
-    public Func<bool>? FromTheClipboard { get; set; }
+    public Func<Key, bool?>? FromTheClipboard { get; set; }
 
     /// <summary>
     ///     Every visual role Terminal.Gui asks for, answered from the theme: text in <see cref="Role.Body" /> on the
@@ -147,8 +149,14 @@ internal sealed class ComposeEditor(
             return true;
         }
 
-        if (key == Key.V.WithCtrl && FromTheClipboard?.Invoke() == true)
+        // Pasted by hand rather than left to the key, since alt-v is no paste of TextView's own.
+        if (FromTheClipboard?.Invoke(key) is { } attached)
         {
+            if (!attached)
+            {
+                Paste();
+            }
+
             return true;
         }
 

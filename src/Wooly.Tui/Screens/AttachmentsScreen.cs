@@ -41,7 +41,9 @@ public sealed class AttachmentsScreen(ComposeScreen compose) : Screen
         new("⏎", "describe", NeedsAPick: true),
         .. compose.RowKeys,
         new("s", "sensitive", NeedsAPick: true),
-        .. compose.AttachmentRoom > 0 ? [new KeyHint("ctrl-o", "add media")] : Array.Empty<KeyHint>(),
+        .. compose.AttachmentRoom > 0
+            ? [new KeyHint("ctrl-o", "add media"), ComposeScreen.PasteKeys]
+            : Array.Empty<KeyHint>(),
         new("esc", "back"),
     ];
 
