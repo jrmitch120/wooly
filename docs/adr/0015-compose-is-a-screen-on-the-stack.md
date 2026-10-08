@@ -266,3 +266,13 @@ header, the hairline under the headers. To, the warning and three rows of editor
 **The screen stays inert.** It holds what is attached and where each has got to, and says what goes out — a draft
 naming the pending attachments by id, asked for only once every one is ready. The shell sends each file up as it is
 attached and feeds its progress back (ADR-0026), and `Shell.Send` waits on them before making the one call.
+
+## Amendment: an edit lists what the post carries under Media (map #372, ticket #381)
+
+**An edit has a Media header too, read-only.** It lists the attachments the post already carries, a row each — its
+kind, then its description in quotes or the quiet `no alt text` — under `Media  2 · kept as they are`, or
+`Media  none` where the post carries nothing. There is no key on it and nothing on its rows to remove or reorder by:
+changing an edit's attachments would reopen ADR-0008's carry-through, which is out of scope, and the edit still saves
+the text, warning and language alone. The header is there so that `c` and `e` start the writing in the same place
+again, as the previous amendment promised: with the same headers and as many rows under Media, the editor starts on
+the same row on all three screens. The rows fold into the header's line on a short terminal as a fresh post's do.
