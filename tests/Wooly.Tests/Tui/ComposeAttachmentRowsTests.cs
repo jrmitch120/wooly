@@ -506,6 +506,34 @@ public class ComposeAttachmentRowsTests : IDisposable
         Assert.Contains(drawn.Rows(), text => text.Contains("▌⠶     three.png", StringComparison.Ordinal));
     }
 
+    /// <summary>
+    ///     A click is not a drag, and nor is the pointer moving with no button pressed on the rows since: a row is only
+    ///     ever carried by a press made on it. Some terminals report a pointer moving with no button held in the very
+    ///     words they report one moving with the left button held, so a report of the button held is believed only
+    ///     after a press.
+    /// </summary>
+    [Fact]
+    public async Task OnlyAPressOnARowPicksItUp()
+    {
+        using var drawn = await Drawn("one.png", "two.png", "three.png");
+        var (column, row) = At(drawn, "three.png", "three.png");
+
+        Click(drawn, column, row);
+        drawn.Point(column, row - 1, MouseFlags.LeftButtonPressed | MouseFlags.PositionReport);
+        drawn.Point(column, row - 2, MouseFlags.LeftButtonPressed | MouseFlags.PositionReport);
+        drawn.Point(column, row - 2, MouseFlags.PositionReport);
+
+        Assert.Equal(["one.png", "two.png", "three.png"], Names(Compose(drawn)));
+
+        // A click whose let-go the terminal never reported: the click still puts the row down.
+        (column, row) = At(drawn, "two.png", "two.png");
+        drawn.Point(column, row, MouseFlags.LeftButtonPressed);
+        drawn.Point(column, row, MouseFlags.LeftButtonClicked);
+        drawn.Point(column, row + 1, MouseFlags.LeftButtonPressed | MouseFlags.PositionReport);
+
+        Assert.Equal(["one.png", "two.png", "three.png"], Names(Compose(drawn)));
+    }
+
     private readonly TemporaryDirectory _files = new();
 
     public void Dispose() => _files.Dispose();

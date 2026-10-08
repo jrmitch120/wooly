@@ -215,6 +215,41 @@ public class ComposeAttachmentsScreenTests : IDisposable
         Assert.Equal("one.png", Assert.IsType<DescriptionScreen>(drawn.Shell.Screen).Attachment.Name);
     }
 
+    /// <summary>
+    ///     On the attachments screen as under the Media header: a click is not a drag, and nor is the pointer moving with
+    ///     no press made on a row, however the terminal reports it.
+    /// </summary>
+    [Fact]
+    public async Task InTheWindowOnlyAPressOnARowPicksItUp()
+    {
+        using var drawn = await DrawnShell.Of(80, Short + 3, Themes.Plain, new AShell { LaunchedFrom = _files.Path });
+
+        drawn.Shell.Compose();
+        drawn.Redraw();
+
+        foreach (var name in new[] { "one.png", "two.png", "three.png" })
+        {
+            Assert.True(drawn.Shell.Paste(_files.WriteFile(name)));
+        }
+
+        drawn.Redraw();
+
+        var (column, row) = At(drawn, "Media", "3 of 4");
+
+        drawn.Click(column + 1, row);
+
+        var listed = Assert.IsType<AttachmentsScreen>(drawn.Shell.Screen);
+
+        (column, row) = At(drawn, "three.png", "three.png");
+        drawn.Point(column, row, MouseFlags.LeftButtonPressed);
+        drawn.Point(column, row, MouseFlags.LeftButtonReleased);
+        drawn.Point(column, row, MouseFlags.LeftButtonClicked);
+        drawn.Point(column, row - 1, MouseFlags.LeftButtonPressed | MouseFlags.PositionReport);
+        drawn.Point(column, row - 2, MouseFlags.LeftButtonPressed | MouseFlags.PositionReport);
+
+        Assert.Equal(["one.png", "two.png", "three.png"], Names(listed.Compose));
+    }
+
     /// <summary>A connection that dropped while a file was going up, the one failure a retry can mend.</summary>
     private static TransientNetworkException Dropped() =>
         new(new Uri("https://mastodon.social/api/v2/media"), 3, new HttpRequestException());

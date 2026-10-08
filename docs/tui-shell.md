@@ -1020,6 +1020,9 @@ lists them under a read-only Media header of its own (#381).
 - **The pointer**: a click on a row picks it, a click on its `x` (or a column either side) takes it off, a click on
   `retry (r)` retries it, and dragging a row from anywhere on it moves it live — it takes each place the pointer
   reaches and the others make way, with no landing marker, and the release is not also a click (`ComposeMediaField`).
+  Only a press on a row picks it up, and its release or click puts it down: some terminals report the pointer moving
+  with no button held in the same words as one moving with the left button held, which taken for a drag moved the
+  rows about after a click as the pointer passed over them. The attachments screen's rows drag the same way.
 - **Past the limit**, a drop attaches as many as fit and the status row says `2 left out — 4 is the most a post can
   carry.`, or `Nothing attached — …` onto a full post.
 - **Anything attached touches the draft** (#373), so leaving it asks first.

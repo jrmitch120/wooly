@@ -341,6 +341,9 @@ internal sealed class ShellWindow : Window
 
         if (mouse.Flags.HasFlag(MouseFlags.LeftButtonClicked))
         {
+            // A click puts down whatever its press picked up, its let-go reported or not.
+            _pressedOn = null;
+
             // The click a drag ends in is the drop, already carried out.
             if (_dragged)
             {
@@ -354,7 +357,8 @@ internal sealed class ShellWindow : Window
 
         if (mouse.Flags.HasFlag(MouseFlags.LeftButtonPressed))
         {
-            return Dragging(mouse.ScreenPosition) || base.OnMouseEvent(mouse);
+            return Dragging(mouse.ScreenPosition, mouse.Flags.HasFlag(MouseFlags.PositionReport))
+                   || base.OnMouseEvent(mouse);
         }
 
         if (mouse.Flags.HasFlag(MouseFlags.LeftButtonReleased))
@@ -541,17 +545,21 @@ internal sealed class ShellWindow : Window
         ShellKeys.Of(key) is ShellKey.Space && Keymap.Means(ShellKey.Space, _shell.Screen) != Verb.None;
 
     /// <summary>
-    ///     The left button held down at <paramref name="at" />: the first press notes the row of the content it is on, and
-    ///     each report after it, the button still held, carries that row to the row the pointer has reached, live, where
-    ///     the screen in front has rows to drag — the attachments screen's, as a row under the Media header is dragged
-    ///     (#378, story 58). What a drag means is the shell's to say, as everything is.
+    ///     The left button held down at <paramref name="at" />: a press notes the row of the content it is on, and each
+    ///     report after it of the pointer <paramref name="moving" />, the button still held, carries that row to the row
+    ///     the pointer has reached, live, where the screen in front has rows to drag — the attachments screen's, as a row
+    ///     under the Media header is dragged (#378, story 58). What a drag means is the shell's to say, as everything is.
     /// </summary>
+    /// <remarks>
+    ///     Only a press picks a row up. Some terminals report the pointer moving with no button held in the same words as
+    ///     one moving with the left button held, which taken for a drag moved the rows about after a click.
+    /// </remarks>
     /// <returns>Whether the row moved, and so the report was spent on it.</returns>
-    private bool Dragging(Point at)
+    private bool Dragging(Point at, bool moving)
     {
         var on = _content.FrameToScreen().Contains(at) ? _content.ItemAt(at) : null;
 
-        if (_pressedOn is not { } from)
+        if (!moving)
         {
             _pressedOn = on;
             _dragged = false;
@@ -559,7 +567,7 @@ internal sealed class ShellWindow : Window
             return false;
         }
 
-        if (on is not { } to || to == from || !_shell.DragRow(from, to))
+        if (_pressedOn is not { } from || on is not { } to || to == from || !_shell.DragRow(from, to))
         {
             return false;
         }

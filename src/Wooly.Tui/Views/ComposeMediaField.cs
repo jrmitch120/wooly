@@ -81,7 +81,11 @@ internal sealed class ComposeMediaField : View
         var at = new Point(mouse.ScreenPosition.X - origin.X + Frame.X, mouse.ScreenPosition.Y - origin.Y + Frame.Y);
         var flags = mouse.Flags;
 
-        if (flags.HasFlag(MouseFlags.LeftButtonPressed) && _dragging is null)
+        // A press is the button going down, and the one thing that picks a row up; a report of the button held as the
+        // pointer moves carries one only once a press has. Some terminals report the pointer moving with no button held
+        // in the same words as one moving with the left button held, which taken for a drag moved the rows about after
+        // a click as the pointer merely passed over them.
+        if (flags.HasFlag(MouseFlags.LeftButtonPressed) && !flags.HasFlag(MouseFlags.PositionReport))
         {
             Pressed(at);
         }
@@ -95,10 +99,13 @@ internal sealed class ComposeMediaField : View
         }
         else if (flags.HasFlag(MouseFlags.LeftButtonClicked))
         {
+            // A click puts down whatever its press picked up, its let-go reported or not.
+            Let();
             Clicked(at);
         }
         else if (flags.HasFlag(MouseFlags.LeftButtonDoubleClicked))
         {
+            Let();
             DoubleClicked(at);
         }
 
@@ -108,6 +115,9 @@ internal sealed class ComposeMediaField : View
     /// <summary>A press on a row: it is picked, and held for a drag until the button is let go.</summary>
     private void Pressed(Point at)
     {
+        // Whatever an earlier press picked up is put down first, a press never carrying on a drag.
+        Let();
+
         if (_shell.Screen is not ComposeScreen compose
             || compose.AttachmentAt(SuperView!.Viewport.Size, at) is not ({ } attachment, _))
         {
