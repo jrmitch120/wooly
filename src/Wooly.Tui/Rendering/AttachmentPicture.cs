@@ -1,3 +1,4 @@
+using Wooly.Core.Posts;
 using Wooly.Tui.Media;
 using Wooly.Tui.Theme;
 
@@ -47,16 +48,26 @@ public readonly record struct AttachmentPicture(Span Held, Drawn? Wanted, Inset?
     ///     Whose pixels have arrived, or <see langword="null" /> for a screen laid out with no terminal in the room.
     /// </param>
     /// <param name="raster">How this terminal paints pixels, or <see langword="null" /> where nobody said.</param>
-    public static AttachmentPicture Of(string path, int column, IPictures? pictures, Raster? raster)
+    public static AttachmentPicture Of(string path, int column, IPictures? pictures, Raster? raster) =>
+        Of(Decodes(path) ? Drawn.Attaching(path) : null, column, pictures, raster);
+
+    /// <summary>
+    ///     What the picture column at <paramref name="column" /> holds for <paramref name="kept" />, an attachment the
+    ///     post being edited already carries (#381, review of #372): the instance's preview of it, sent for as the feed's
+    ///     pictures are, where it has one this client can draw.
+    /// </summary>
+    public static AttachmentPicture OfKept(PostMedia kept, int column, IPictures? pictures, Raster? raster) =>
+        Of(kept.IsDrawable ? Drawn.Kept(kept) : null, column, pictures, raster);
+
+    /// <summary>What the picture column holds for <paramref name="wanted" />, or blanks where nothing is.</summary>
+    private static AttachmentPicture Of(Drawn? wanted, int column, IPictures? pictures, Raster? raster)
     {
         var blank = new Span(new string(' ', Columns), Role.Body);
 
-        if (!Drawing.Draws(pictures, raster, out _) || !Decodes(path))
+        if (wanted is null || !Drawing.Draws(pictures, raster, out _))
         {
             return new AttachmentPicture(blank, null, null);
         }
-
-        var wanted = Drawn.Attaching(path);
 
         return pictures.Of(wanted) is null
             ? new AttachmentPicture(StandIn.Row(Columns), wanted, null)

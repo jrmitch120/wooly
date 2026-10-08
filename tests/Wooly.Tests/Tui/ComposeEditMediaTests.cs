@@ -1,6 +1,7 @@
 using Terminal.Gui.Input;
 using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
+using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
@@ -30,7 +31,9 @@ public class ComposeEditMediaTests : IDisposable
 
     /// <summary>
     ///     An edit of a post with attachments lists them under the Media header, which counts them and says they stay:
-    ///     a row each, its kind and its description in quotes, or the quiet mark where it has none.
+    ///     a row each, in a pending attachment's columns — its kind, and its description in quotes or the quiet mark
+    ///     where it has none, in the status column (review of #372). At 80 columns the kind column has given way, and
+    ///     the kind takes the name's, there being no name to show.
     /// </summary>
     [Fact]
     public async Task AnEditListsThePostsAttachmentsWithTheirDescriptions()
@@ -41,11 +44,63 @@ public class ComposeEditMediaTests : IDisposable
             [
                 ComposeRows.NoWarning,
                 "  Media  2 · kept as they are",
-                "         picture    “A cartoon sheep”",
-                "         video      no alt text",
+                "           picture                                        “A cartoon sheep”",
+                "           video                                          no alt text",
                 ComposeRows.Hairline(Width),
             ],
-            Texts(compose).SkipWhile(row => !row.StartsWith("   Warn", StringComparison.Ordinal)).Take(5));
+            Texts(compose).SkipWhile(row => !row.StartsWith("   Warn", StringComparison.Ordinal))
+                          .Take(5)
+                          .Select(row => row.TrimEnd()));
+    }
+
+    /// <summary>
+    ///     On a wide terminal the kind is in the kind column, and the description in the status column, each where a
+    ///     pending attachment's row has them: a row of the one lines up with a row of the other.
+    /// </summary>
+    [Fact]
+    public async Task OnAWideTerminalTheColumnsAreAPendingRowsColumns()
+    {
+        var (_, _, edit) = await Editing(Illustrated);
+        var built = new AShell();
+        var shell = await built.Opened();
+        var fresh = ComposeRows.Open(shell, ComposeFor.Post);
+
+        built.Host.Drain();
+        shell.Paste(_files.WriteFile("cat.png"));
+        built.Author.Attaching.Single().Ready();
+        built.Host.Drain();
+
+        var kept = Texts(edit, width: 120).Single(row => row.Contains("A cartoon sheep", StringComparison.Ordinal));
+        var pending = Texts(fresh, width: 120).Single(row => row.Contains("cat.png", StringComparison.Ordinal));
+
+        Assert.Equal(pending.IndexOf("picture", StringComparison.Ordinal), kept.IndexOf("picture", StringComparison.Ordinal));
+        Assert.Equal(pending.IndexOf("no alt text", StringComparison.Ordinal), kept.IndexOf('“'));
+    }
+
+    /// <summary>
+    ///     On a terminal that draws, an attachment the post carries shows a small picture in the picture column, sent for
+    ///     from the instance's preview of it through the feed's picture path; one with no picture to draw — a sound —
+    ///     wants none, and its column is blank.
+    /// </summary>
+    [Fact]
+    public async Task AKeptPictureIsDrawnFromItsPreview()
+    {
+        var sound = APost.Attached(MediaKind.Audio, "m3", description: "A sheep") with { Preview = null };
+        var (_, _, compose) = await Editing(APost.With(
+            account: "jeff@mastodon.social",
+            media: [APost.APicture("m1", "A cartoon sheep"), sound]));
+        var sheep = Drawn.Kept(APost.APicture("m1", "A cartoon sheep"));
+        var pictures = new FakePictures().Holding(sheep.Id, 40, 30);
+
+        var lines = compose.Lines(new Drawing(Width, AShell.Now, pictures, ARaster.Sixel(), Height: Height));
+        var picture = lines.Single(line => line.Text.Contains("A cartoon sheep", StringComparison.Ordinal));
+        var audio = lines.Single(line => line.Text.Contains("A sheep”", StringComparison.Ordinal));
+
+        Assert.Equal("https://files.mastodon.social/m1/small.png", sheep.Address);
+        Assert.Equal(sheep, picture.Wants);
+        Assert.Equal(new Inset(sheep, 7, 3, 1), Assert.Single(picture.Insets));
+        Assert.Null(audio.Wants);
+        Assert.Empty(audio.Insets);
     }
 
     /// <summary>
@@ -116,7 +171,7 @@ public class ComposeEditMediaTests : IDisposable
         var compose = Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
         var before = drawn.Rows();
         var header = Array.FindIndex(before, row => row.Contains("Media  2", StringComparison.Ordinal));
-        var picture = Array.FindIndex(before, row => row.Contains("A cartoon sheep", StringComparison.Ordinal));
+        var picture = Array.FindIndex(before, row => row.Contains("“A cartoon", StringComparison.Ordinal));
 
         drawn.Click(before[header].IndexOf("Media", StringComparison.Ordinal) + 8, header);
         drawn.Click(before[picture].IndexOf("picture", StringComparison.Ordinal), picture);
@@ -134,8 +189,8 @@ public class ComposeEditMediaTests : IDisposable
         Assert.Empty(compose.Attachments);
         Assert.Empty(built.Author.Attaching);
         Assert.Contains(after, row => row.Contains("Media  2 · kept as they are", StringComparison.Ordinal));
-        Assert.Contains(after, row => row.Contains("picture    “A cartoon sheep”", StringComparison.Ordinal));
-        Assert.Contains(after, row => row.Contains("video      no alt text", StringComparison.Ordinal));
+        Assert.Contains(after, row => row.Contains("“A cartoon", StringComparison.Ordinal));
+        Assert.Contains(after, row => row.Contains("no alt text", StringComparison.Ordinal));
     }
 
     /// <summary>
@@ -175,9 +230,9 @@ public class ComposeEditMediaTests : IDisposable
         return (shell, built, compose);
     }
 
-    private static IReadOnlyList<Line> Lines(ComposeScreen compose, int height = Height) =>
-        compose.Lines(new Drawing(Width, AShell.Now, Height: height));
+    private static IReadOnlyList<Line> Lines(ComposeScreen compose, int height = Height, int width = Width) =>
+        compose.Lines(new Drawing(width, AShell.Now, Height: height));
 
-    private static IReadOnlyList<string> Texts(ComposeScreen compose, int height = Height) =>
-        [.. Lines(compose, height).Select(line => line.Text)];
+    private static IReadOnlyList<string> Texts(ComposeScreen compose, int height = Height, int width = Width) =>
+        [.. Lines(compose, height, width).Select(line => line.Text)];
 }

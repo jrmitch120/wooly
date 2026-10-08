@@ -1306,7 +1306,7 @@ public sealed class ComposeScreen : Screen
                 at + 1,
                 [
                     .. _attachments.Select(attached => new Row(AttachmentRow(attached, width, drawing), Keep.Always)),
-                    .. Kept.Select(kept => new Row(KeptRow(kept, valueWidth), Keep.Always)),
+                    .. Kept.Select(kept => new Row(KeptRow(kept, width, drawing), Keep.Always)),
                 ]);
         }
 
@@ -1646,25 +1646,39 @@ public sealed class ComposeScreen : Screen
         : new Span($"□ {SensitiveWord}", Role.Muted);
 
     /// <summary>
-    ///     A row for an attachment the post being edited already carries, in <paramref name="room" /> columns from the
-    ///     header's value column (#381): its kind, then its description in quotes or the quiet mark. Nothing a pending
-    ///     attachment's row has for changing it — no grip, no <c>x</c> — and no name or size, which the instance does not
-    ///     hand back.
+    ///     A row for an attachment the post being edited already carries, <paramref name="width" /> columns wide (#381),
+    ///     in a pending attachment's columns wherever it has something to put in them (review of #372): its small
+    ///     picture, from the instance's preview of it through the feed's picture path, where
+    ///     <paramref name="drawing" /> can draw one; its kind; and, in the status column, its description in quotes or
+    ///     the quiet mark. Nothing a pending attachment's row has for changing it — no grip, no <c>x</c> — and no name
+    ///     or size, which the instance does not hand back: their columns are blank, but for the kind, which takes the
+    ///     name's where a narrow terminal has given its own column up.
     /// </summary>
-    private static Line KeptRow(PostMedia kept, int room)
+    private static Line KeptRow(PostMedia kept, int width, Drawing? drawing)
     {
+        var (name, kind, room) = RowColumns(width);
+        var picture = AttachmentPicture.OfKept(kept, PictureAt, drawing?.Pictures, drawing?.Raster);
+        var said = ComposeAttachment.KindWordOf(kept.Kind);
         var description = kept.Description?.ReplaceLineEndings(" ").Trim() ?? string.Empty;
         Span[] status = description.Length > 0
-            ? [new Span($"“{description}”", Role.Body)]
+            ? [new Span($"“{TextWrap.Clip(description, Math.Max(0, room - 2))}”", Role.Body)]
             : [new Span(NoDescription, Role.Muted)];
 
         return Line.Of(
         [
-            Gap(Pad + LabelWidth + LabelGap),
-            .. Fitted(
-                [new Span(Glyphs.Padded(ComposeAttachment.KindWordOf(kept.Kind), KindColumn + 2), Role.Muted), .. status],
-                room),
-        ]);
+            Gap(PictureAt),
+            picture.Held,
+            Gap(1),
+            new Span(Glyphs.Padded(kind ? string.Empty : TextWrap.Clip(said, name), name), Role.Muted),
+            Gap(2),
+            .. kind ? [new Span(Glyphs.Padded(said, KindColumn), Role.Muted)] : Array.Empty<Span>(),
+            Gap(SizeColumn + 1 + 3 + 1),
+            .. Fitted(status, room),
+        ]) with
+        {
+            Insets = picture.Box is { } box ? [box] : [],
+            Wants = picture.Wanted,
+        };
     }
 
     /// <summary>
