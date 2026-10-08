@@ -117,6 +117,63 @@ public class ComposeAttachmentRowsTests : IDisposable
     }
 
     /// <summary>
+    ///     Every failure trying again could mend offers <c>retry (r)</c> after its reason, as a dropped connection does:
+    ///     a rate limit, which passes; an instance that failed to answer; and a call the client gave up waiting on
+    ///     (review of #372).
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(Passing))]
+    public async Task EveryFailureARetryCanMendOffersOne(Exception failure, string said)
+    {
+        var (shell, built, compose) = await Composing("cat.png");
+
+        built.Author.Attaching.Single().Refuse(failure);
+        built.Host.Drain();
+
+        Assert.EndsWith($"x  {said}  retry (r)", Row(compose, "cat.png", width: 120), StringComparison.Ordinal);
+
+        shell.Press(ShellKey.Up);
+        shell.Press(ShellKey.R);
+
+        Assert.Equal(2, built.Author.Attaching.Count);
+    }
+
+    /// <summary>The failures a retry can mend, and what the row says of each.</summary>
+    public static TheoryData<Exception, string> Passing => new()
+    {
+        { new RateLimitedException("mastodon.social", resetsAt: null), "rate limited" },
+        { new InstanceFailedException("mastodon.social", System.Net.HttpStatusCode.BadGateway), "instance failed (502)" },
+        { new TaskCanceledException("The request timed out."), "timed out" },
+    };
+
+    /// <summary>
+    ///     A failure nothing here expected — a bare HTTP error, a file that could not be read — still ends the row as
+    ///     refused, saying what it was, rather than leaving it going up forever; and a send waiting on it is not left
+    ///     waiting, but stopped and said, as a refusal stops it (review of #372).
+    /// </summary>
+    [Fact]
+    public async Task AFailureNothingExpectedEndsTheRowAndTheWaitingSend()
+    {
+        var (shell, built, compose) = await Composing("cat.png");
+
+        await shell.Send();
+
+        Assert.StartsWith("Will send once", shell.Notice, StringComparison.Ordinal);
+
+        built.Author.Attaching.Single().Refuse(new IOException("The file could not be read"));
+        built.Host.Drain();
+
+        Assert.EndsWith("x  The file could not be read", Row(compose, "cat.png", width: 120), StringComparison.Ordinal);
+        Assert.Empty(built.Author.Published);
+        Assert.True(shell.NoticeIsError);
+
+        shell.Press(ShellKey.Up);
+        shell.Press(ShellKey.R);
+
+        Assert.Single(built.Author.Attaching);
+    }
+
+    /// <summary>
     ///     At 80 columns there is not room for the reason and <c>retry (r)</c> both: the offer shortens to <c>(r)</c>,
     ///     and a reason too long for what is left is cut.
     /// </summary>

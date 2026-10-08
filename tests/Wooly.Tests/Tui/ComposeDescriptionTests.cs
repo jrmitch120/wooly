@@ -281,6 +281,40 @@ public class ComposeDescriptionTests : IDisposable
     }
 
     /// <summary>
+    ///     A description that failed for a reason nothing here expected — a bare HTTP error — is said as a refusal is, and
+    ///     stops a waiting send rather than leaving it waiting on a description that will never arrive (review of #372).
+    /// </summary>
+    [Fact]
+    public async Task ADescriptionThatFailedAnyWayIsSaidAndStopsTheSend()
+    {
+        var (shell, built, compose) = await Composing();
+
+        built.Author.HoldingDescriptions = true;
+        shell.Paste(_files.WriteFile("cat.png"));
+        built.Author.Attaching.Single().Ready();
+        built.Host.Drain();
+        Describe(shell, "A cat");
+
+        await shell.Send();
+        built.Author.Descriptions.Single().Refuse(new HttpRequestException("Response status code does not indicate success"));
+        built.Host.Drain();
+
+        Assert.Empty(built.Author.Published);
+        Assert.Same(compose, shell.Screen);
+        Assert.True(shell.NoticeIsError);
+        Assert.Equal(
+            "The description of cat.png was refused: Response status code does not indicate success",
+            shell.Notice);
+
+        built.Author.HoldingDescriptions = false;
+
+        await shell.Send();
+        built.Host.Drain();
+
+        Assert.Single(built.Author.Published);
+    }
+
+    /// <summary>
     ///     A row with no description carries the quiet mark, and the post sends with no question about it and no
     ///     description sent.
     /// </summary>

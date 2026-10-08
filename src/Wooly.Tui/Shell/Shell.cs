@@ -161,19 +161,16 @@ public sealed class Shell
     private readonly DefaultsByProfile _defaults;
 
     /// <summary>
-    ///     What calls off the files each compose screen is still sending up (ADR-0026, #375), called when the screen
-    ///     leaves the stack — what was sent already is left for the instance to clear away.
+    ///     The calls each compose screen's pending attachments make to the instance — sent up as attached, and described
+    ///     (ADR-0026, #375, #377) — whose answers this feeds into the screen.
     /// </summary>
-    private readonly Dictionary<ComposeScreen, CancellationTokenSource> _sendingUp = [];
+    private readonly AttachmentCalls _attachments;
 
     /// <summary>
     ///     The compose screen whose <c>ctrl-s</c> is waiting on its attachments to finish before it sends (ADR-0026),
     ///     or none.
     /// </summary>
     private ComposeScreen? _waitingToSend;
-
-    /// <summary>The pending attachments whose description is on its way to the instance (#377).</summary>
-    private readonly HashSet<ComposeAttachment> _describing = [];
 
     /// <summary>The folder Wooly was launched from, where the file browser opens the first time (#376).</summary>
     private readonly string _launchedFrom;
@@ -213,6 +210,10 @@ public sealed class Shell
         _host = host;
         _limits = new LimitsByInstance(ports.Limits, host);
         _limits.Heard += Measured;
+        _attachments = new AttachmentCalls(ports.Author, host);
+        _attachments.Heard += Progressed;
+        _attachments.Told += Told;
+        _attachments.Untold += Untold;
         _defaults = new DefaultsByProfile(ports.Defaults, host);
         _browser = browser;
         _clipboard = clipboard;
@@ -1597,7 +1598,7 @@ public sealed class Shell
         // author's ctrl-s, never on its own (ADR-0006) — and the send waits on it as on an upload (#377).
         foreach (var untold in compose.Attachments.Where(attachment => attachment.Untold))
         {
-            _ = TellDescription(compose, untold);
+            _ = _attachments.Describe(Actor.Profile, compose, untold);
         }
 
         if (compose.Attachments.Count(attachment => attachment.Unfinished) is > 0 and var unfinished)
@@ -2337,7 +2338,7 @@ public sealed class Shell
 
         foreach (var attachment in attached)
         {
-            _ = SendUp(compose, attachment);
+            _ = _attachments.SendUp(Actor.Profile, compose, attachment);
         }
     }
 
@@ -2366,7 +2367,7 @@ public sealed class Shell
 
         Changed?.Invoke();
 
-        _ = SendUp(compose, attachment);
+        _ = _attachments.SendUp(Actor.Profile, compose, attachment);
     }
 
     /// <summary>
@@ -2408,55 +2409,6 @@ public sealed class Shell
     }
 
     /// <summary>
-    ///     Sends <paramref name="attachment" /> up as the profile acted as, feeding where it has got to back into
-    ///     <paramref name="compose" /> on the drawing thread as it hears — the screen holding what it is told and
-    ///     reaching nothing itself (ADR-0015).
-    /// </summary>
-    /// <remarks>
-    ///     Not through the enquiry: an upload goes on while the author writes, and its progress, its processing and any
-    ///     refusal are the row's to say rather than the status row's — nor does it land only while the screen it was
-    ///     sent from is on top, since a screen pushed over the draft does not stop it. Never retried here (ADR-0006): a
-    ///     dropped connection is said on the row, and trying again is the author's. Called off with the screen.
-    /// </remarks>
-    private async Task SendUp(ComposeScreen compose, ComposeAttachment attachment)
-    {
-        var profile = Actor.Profile;
-
-        if (!_sendingUp.TryGetValue(compose, out var sending))
-        {
-            _sendingUp[compose] = sending = new CancellationTokenSource();
-        }
-
-        var token = sending.Token;
-        var progress = new Reporting(this, compose, attachment);
-        AttachmentState landed;
-
-        try
-        {
-            landed = new AttachmentState.Ready(await _ports.Author.Attach(profile, attachment.Path, progress, token));
-        }
-        catch (OperationCanceledException) when (token.IsCancellationRequested)
-        {
-            return;
-        }
-        catch (TransientNetworkException)
-        {
-            // The one failure sending it again could mend, so the one its row offers a retry for (#378).
-            landed = new AttachmentState.Refused("connection lost", Retryable: true);
-        }
-        catch (AttachmentRefusedException refused)
-        {
-            landed = new AttachmentState.Refused(refused.Reason ?? "refused by the instance");
-        }
-        catch (WoolyException failed)
-        {
-            landed = new AttachmentState.Refused(failed.Message);
-        }
-
-        Apply(() => Progressed(compose, attachment, landed));
-    }
-
-    /// <summary>
     ///     Where <paramref name="attachment" /> on <paramref name="compose" /> has got to, heard on the drawing thread —
     ///     and, where that was the last thing a waiting send was waiting on, the send (ADR-0026, #375).
     /// </summary>
@@ -2472,7 +2424,7 @@ public sealed class Shell
         // A description written while it was going up goes now there is an attachment to put it on (#377).
         if (state is AttachmentState.Ready)
         {
-            _ = TellDescription(compose, attachment);
+            _ = _attachments.Describe(Actor.Profile, compose, attachment);
         }
 
         Waited(compose);
@@ -2498,70 +2450,35 @@ public sealed class Shell
     }
 
     /// <summary>
-    ///     Sends <paramref name="attachment" />'s description to the instance, where it is there to put it on and holds
-    ///     another (#377) — then, the instance having taken it, says so on <paramref name="compose" /> and sends it again
-    ///     if it changed meanwhile. One at a time for each attachment, so the last one written is the last one sent.
+    ///     The instance took <paramref name="description" /> for <paramref name="attachment" /> (#377): said so on
+    ///     <paramref name="compose" />, and sent again where it has changed meanwhile — and, where that was the last thing
+    ///     a waiting send was waiting on, the send.
     /// </summary>
-    /// <remarks>
-    ///     Not through the enquiry, for the reason an upload is not (<see cref="SendUp" />), and called off with the
-    ///     screen as its upload is. A refusal or a dropped connection is said on the status row and stops a send waiting
-    ///     on it; it is not tried again until the author sends again (ADR-0006).
-    /// </remarks>
-    private async Task TellDescription(ComposeScreen compose, ComposeAttachment attachment)
+    private void Told(ComposeScreen compose, ComposeAttachment attachment, string description)
     {
-        if (attachment is not { Untold: true, State: AttachmentState.Ready(var pending) }
-            || !_sendingUp.TryGetValue(compose, out var sending)
-            || !_describing.Add(attachment))
+        if (compose.Told(attachment, description))
         {
-            return;
+            Changed?.Invoke();
         }
 
-        var profile = Actor.Profile;
-        var token = sending.Token;
-        var description = attachment.Saying;
+        _ = _attachments.Describe(Actor.Profile, compose, attachment);
 
-        try
+        Waited(compose);
+    }
+
+    /// <summary>
+    ///     A description did not reach the instance, for the reason <paramref name="why" /> says: said on the status row,
+    ///     and a send waiting on it stopped rather than left waiting. It is not sent again until the author sends again
+    ///     (ADR-0006).
+    /// </summary>
+    private void Untold(ComposeScreen compose, ComposeAttachment attachment, string why)
+    {
+        if (ReferenceEquals(_waitingToSend, compose))
         {
-            await _ports.Author.Describe(profile, pending.Id, description, token);
-        }
-        catch (OperationCanceledException) when (token.IsCancellationRequested)
-        {
-            Apply(() => _describing.Remove(attachment));
-
-            return;
-        }
-        catch (WoolyException failed)
-        {
-            Apply(() =>
-            {
-                _describing.Remove(attachment);
-
-                if (ReferenceEquals(_waitingToSend, compose))
-                {
-                    _waitingToSend = null;
-                }
-
-                var why = failed is AttachmentRefusedException { Reason: { } reason } ? reason : failed.Message;
-
-                Say($"The description of {attachment.Name} was refused: {why}", isError: true);
-            });
-
-            return;
+            _waitingToSend = null;
         }
 
-        Apply(() =>
-        {
-            _describing.Remove(attachment);
-
-            if (compose.Told(attachment, description))
-            {
-                Changed?.Invoke();
-            }
-
-            _ = TellDescription(compose, attachment);
-
-            Waited(compose);
-        });
+        Say($"The description of {attachment.Name} was refused: {why}", isError: true);
     }
 
     /// <summary>Calls off whatever <paramref name="screen" /> is still sending up, as it leaves the stack (#375).</summary>
@@ -2577,28 +2494,7 @@ public sealed class Shell
             _waitingToSend = null;
         }
 
-        if (_sendingUp.Remove(compose, out var sending))
-        {
-            sending.Cancel();
-            sending.Dispose();
-        }
-    }
-
-    /// <summary>
-    ///     An upload's progress, handed onto the drawing thread as it is reported from wherever the HTTP stack is
-    ///     (<see cref="IShellHost.OnUiThread" />) — not <see cref="Progress{T}" />, which posts to a synchronisation
-    ///     context a terminal does not have.
-    /// </summary>
-    private sealed class Reporting(Shell shell, ComposeScreen compose, ComposeAttachment attachment)
-        : IProgress<AttachmentProgress>
-    {
-        public void Report(AttachmentProgress value) =>
-            shell.Apply(() => shell.Progressed(
-                compose,
-                attachment,
-                value is AttachmentProgress.Sending(var done)
-                    ? new AttachmentState.Sending(done)
-                    : new AttachmentState.Processing()));
+        _attachments.LetGo(compose);
     }
 
     /// <summary>
@@ -2945,7 +2841,7 @@ public sealed class Shell
         // A description is done as its editor is left, by whichever way out, and goes to the instance then (#377).
         if (_stack[at] is DescriptionScreen described)
         {
-            _ = TellDescription(described.Compose, described.Attachment);
+            _ = _attachments.Describe(Actor.Profile, described.Compose, described.Attachment);
         }
 
         _stack.RemoveAt(at);
