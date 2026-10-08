@@ -43,6 +43,8 @@ internal static class ShellKeys
         [Key.CursorDown.WithShift.KeyCode] = ShellKey.ShiftDown,
         [Key.O.WithCtrl.KeyCode] = ShellKey.CtrlO,
         [Key.A.WithCtrl.KeyCode] = ShellKey.CtrlA,
+        [Key.V.WithCtrl.KeyCode] = ShellKey.CtrlV,
+        [Key.V.WithAlt.KeyCode] = ShellKey.AltV,
     };
 
     /// <summary>

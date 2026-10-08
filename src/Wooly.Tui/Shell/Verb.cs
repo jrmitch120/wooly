@@ -309,6 +309,13 @@ public enum Verb
     OpenBrowser,
 
     /// <summary>
+    ///     <c>ctrl-v</c> or <c>alt-v</c> on a compose or a reply, or on the attachments screen over one: attach a picture
+    ///     or copied files from this machine's clipboard (#380). Unused where the clipboard holds neither, which leaves
+    ///     the press to the field's own paste.
+    /// </summary>
+    PasteFromTheClipboard,
+
+    /// <summary>
     ///     <c>⏎</c> in the file browser: open the folder under the cursor, or attach what is chosen — or, with nothing
     ///     chosen, the file under the cursor — to the compose screen under it (#376).
     /// </summary>

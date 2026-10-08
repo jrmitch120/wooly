@@ -160,9 +160,10 @@ internal sealed class ComposeView : View
         // take their keys before the window sees them (#373).
         _editor.Answering = _to.Answering = _lang.Answering = _warning.Answering = _media.Answering = Answered;
 
-        // ctrl-v in any field that takes a paste attaches a picture or copied files from the clipboard, where it holds
-        // either, and is the field's own paste otherwise (#380).
-        _editor.FromTheClipboard = _lang.FromTheClipboard = _warning.FromTheClipboard = _shell.PasteFromTheClipboard;
+        // ctrl-v or alt-v in any field that takes a paste attaches a picture or copied files from the clipboard, where
+        // it holds either, and is the field's own paste otherwise (#380). The fields that take none, To and Media, leave
+        // both keys to the window, which asks the keymap the same question.
+        _editor.FromTheClipboard = _lang.FromTheClipboard = _warning.FromTheClipboard = FromTheClipboard;
 
         _languages = new LanguageList(theme, shell, _lang, this);
 
@@ -284,6 +285,15 @@ internal sealed class ComposeView : View
     ///     <paramref name="key" /> as the answer to a question the shell has open, where it has one (<see cref="Answered(ShellKey?)" />).
     /// </summary>
     private bool Answered(Key key) => Answered(ShellKeys.Of(key));
+
+    /// <summary>
+    ///     Whether <paramref name="key" /> is compose's paste from the clipboard, as the keymap says, and if so whether
+    ///     it attached anything — <see langword="null" /> where it is no paste at all, so the field takes it as any key.
+    /// </summary>
+    private bool? FromTheClipboard(Key key) =>
+        ShellKeys.Of(key) is { } pressed && Keymap.Means(pressed, _shell.Screen) is Verb.PasteFromTheClipboard
+            ? _shell.Do(Verb.PasteFromTheClipboard, answer: null)
+            : null;
 
     /// <summary>
     ///     <paramref name="pressed" /> as the answer to a question the shell has open on the status row — <c>y</c>

@@ -728,6 +728,7 @@ public sealed class ComposeScreen : Screen
             : Array.Empty<KeyHint>(),
         .. Typing == ComposeField.To ? [new KeyHint("←→", "choose")] : Array.Empty<KeyHint>(),
         .. Typing == ComposeField.Media ? [new KeyHint("⏎", "add media")] : Array.Empty<KeyHint>(),
+        .. Typing == ComposeField.Media && AttachmentRoom > 0 ? [PasteKeys] : Array.Empty<KeyHint>(),
         .. RowKeys,
         .. Typing is (ComposeField.Media or ComposeField.Attachment) && _attachments.Count > 0
             ? [new KeyHint("s", "sensitive")]
@@ -761,6 +762,14 @@ public sealed class ComposeScreen : Screen
             ? [new KeyHint("ctrl-z", "bring back")]
             : Array.Empty<KeyHint>(),
     ];
+
+    /// <summary>
+    ///     The paste from the clipboard (#380), offered where attaching is what the place is for — the Media header, and
+    ///     the attachments screen — by both its keys: <c>ctrl-v</c>, and <c>alt-v</c> for the terminals that keep
+    ///     <c>ctrl-v</c> as their own paste and never pass it on, Windows Terminal among them (ADR-0015). Which of the
+    ///     two reaches Wooly is the terminal's to say, so neither is named alone.
+    /// </summary>
+    internal static KeyHint PasteKeys { get; } = new("ctrl-v/alt-v", "paste");
 
     /// <inheritdoc />
     /// <remarks>
