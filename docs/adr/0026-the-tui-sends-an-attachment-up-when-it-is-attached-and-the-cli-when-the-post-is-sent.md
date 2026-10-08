@@ -36,3 +36,16 @@ end as one draft type or two is the implementation's to settle; that the CLI kee
 
 A publish is still never retried (ADR-0006). Nor is an attachment's upload retried on its own: trying again is the
 author's choice, made on the row that failed.
+
+## Amendment: every upload ends, and what a retry is offered for (map #372, review)
+
+**No pending attachment is left going up.** An upload, the asking after one being processed, and a description each end
+in an answer the compose screen can show: the instance's refusal, in its words; a dropped connection, a rate limit, an
+instance that failed to answer (`InstanceFailedException`, a `5xx`), or a call the client gave up waiting on, which
+reads as a dropped connection does; or, for a failure nothing expected, what it was. Each ends the row refused, or —
+for a description — is said on the status row, and a send waiting on it stops rather than waits for good. Before this,
+a bare HTTP error or the client's own timeout escaped the shell's catch, and the row stayed going up.
+
+**A retry is offered for what one can mend**: a dropped connection, a rate limit, which passes, an instance that failed
+to answer, and a timeout — never a file the instance refused, nor a failure nothing expected. It is still the author's,
+made on the row (ADR-0006): a rate-limited upload is offered a retry, not waited out by itself.

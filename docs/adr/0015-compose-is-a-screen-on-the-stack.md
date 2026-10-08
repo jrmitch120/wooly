@@ -306,13 +306,17 @@ it off or retries it, and dragging a row moves it live, the others making way, w
 
 **The screen stays inert here too.** It moves what is attached and says which one a retry starts over; the shell sends
 that up again, as it sent it the first time (ADR-0026), and never retries by itself (ADR-0006).
+
 ## Amendment: the file browser is a screen on the stack, and Media is always walked to (map #372, ticket #376)
 
 **Attaching from the disk is a screen pushed over the draft**, by this ADR's rule for anything new: `ctrl-o`, `⏎` on
 the Media header or a click on its words pushes the file browser, and `esc` pops it back to the draft as it was. It is
-as inert as compose: it reads the folder it shows, which is the local machine's rather than an instance's (ADR-0020),
-and says what is chosen; the shell takes the browser off and attaches what was chosen to the compose under it the way
-a drop is attached (ADR-0026). The folder last attached from is the shell's to remember, for the session only.
+as inert as compose: it reads nothing. The shell reads each folder off the local machine's disk — the machine's rather
+than an instance's (ADR-0020), so through no port — and hands the screen the listing; the screen filters it, says what
+is chosen and which folder `→`, `←` or `⏎` opens next, and the shell reads that one. The shell takes the browser off
+and attaches what was chosen to the compose under it the way a drop is attached (ADR-0026), reading each file's size
+off the disk as it does. (As first written, this said the browser "reads the folder it shows", which no inert screen
+does; the review of #372 moved the reading into the shell.) The folder last attached from is the shell's to remember, for the session only.
 
 **Media now joins the walk on every fresh post and reply**, attachments or none, since `⏎` on it opens the browser —
 which the previous amendment's "only once anything is attached" no longer holds to. `↑` from the post's first line
@@ -345,3 +349,17 @@ of the page however short the list, and the description editor holds a place abo
 the terminal draws — so a picture landing, or the cursor moving off one, changes no row's height and moves no field.
 Where the terminal draws nothing, nothing is held that was not held before: the browser's pane, from #376, and the
 wide description editor's top left, from #377.
+
+## Amendment: folded rows open a screen of their own, and an edit's rows keep a pending row's columns (map #372, review)
+
+**Folded, the Media header's line opens the attachments screen.** On a terminal too short for a row each, the rows
+fold into the header's line, and nothing could then describe, remove, retry or reorder one. `⏎` on the folded line, or
+a click on it, now pushes a screen by this ADR's rule — crumbed `Media`, listing the header's line unfolded and the
+compose's own rows as the header draws them — which takes every key and click a row takes under the header. It holds
+no copy: like the description editor it works on the compose screen's own attachments, through the shell, so what is
+sent is what was changed there. With room for the rows, `⏎` on the header opens the file browser as before.
+
+**An edit's rows sit in a pending row's columns**, wherever they have something for them: a small picture in the
+picture column, sent for from the instance's preview through the feed's picture path; the kind in the kind column; and
+the description or the quiet mark in the status column. The name and size columns stay blank — the instance does not
+hand either back — but for the kind, which takes the name's column where a narrow terminal has given its own up.
