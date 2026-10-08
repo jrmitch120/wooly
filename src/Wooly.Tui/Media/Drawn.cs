@@ -83,11 +83,12 @@ public sealed record Drawn(string Id, string Address)
     };
 
     /// <summary>
-    ///     The file under the file browser's cursor, drawn in its preview pane (#382): read off the disk as a file
-    ///     being attached is, and named apart from it, since the pane draws it far larger than a row does.
+    ///     A file on this machine drawn large (#382): the one under the file browser's cursor, or the one being
+    ///     described. Read off the disk as a file being attached is, and named apart from it, since it is drawn far
+    ///     larger here than on a row and is held at the size it is drawn.
     /// </summary>
     /// <param name="path">Where the file is on this machine.</param>
-    public static Drawn Browsed(string path) => new($"browsed:{path}", new Uri(path).AbsoluteUri);
+    public static Drawn OnDisk(string path) => new($"on-disk:{path}", new Uri(path).AbsoluteUri);
 
     /// <summary>
     ///     The blur a <b>Stand-in</b> draws of <paramref name="picture" /> while it is on its way (#349).

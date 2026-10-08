@@ -253,6 +253,17 @@ public abstract class Screen
     public virtual bool IsTyping => false;
 
     /// <summary>
+    ///     Whether something on this screen keeps to the page rather than to its rows, and so reads
+    ///     <see cref="Drawing.Top" />: the content region lays it out again whenever the page moves (#382).
+    /// </summary>
+    /// <remarks>
+    ///     Off everywhere but the file browser, whose preview sits level with the page's first row of the list. Asked
+    ///     rather than every screen being laid out twice on a frame that scrolls, since a feed's rows are the dearest
+    ///     thing a frame lays out and nothing on one keeps to the page.
+    /// </remarks>
+    public virtual bool KeepsToThePage => false;
+
+    /// <summary>
     ///     Puts a letter into whatever this screen is taking, where it is taking anything. Said here rather than
     ///     matched on the screen's type where the key arrives, so that a third screen that takes letters is one
     ///     override rather than another arm in two cascades.

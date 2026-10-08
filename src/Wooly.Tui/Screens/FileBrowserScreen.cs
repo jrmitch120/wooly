@@ -33,6 +33,9 @@ public sealed class FileBrowserScreen : Screen
     /// </summary>
     private const int LeastForAPreview = 90;
 
+    /// <summary>The row the list starts on, under the folder, the filter and the rule.</summary>
+    private const int ListTop = 3;
+
     /// <summary>The fewest columns the folder is cut to before how many are chosen gives way to it.</summary>
     private const int LeastFolder = 12;
 
@@ -219,6 +222,10 @@ public sealed class FileBrowserScreen : Screen
     }
 
     /// <inheritdoc />
+    /// <remarks>The preview, which sits level with the page's first row of the list however far it has scrolled (#382).</remarks>
+    public override bool KeepsToThePage => true;
+
+    /// <inheritdoc />
     /// <remarks>
     ///     The folder and how many are chosen; the filter, and which files are listed; a rule; then a row per entry, the
     ///     cursor's marked with the selection bar against its box. On a wide terminal the list keeps to the left and
@@ -237,9 +244,7 @@ public sealed class FileBrowserScreen : Screen
 
         for (var at = 0; at < _walking.Count; at++)
         {
-            var row = Row(_walking.All[at], at, list);
-
-            lines.Add(list < width ? row.Respanned([.. row.Spans, new Span("│", Role.PanelBorder), .. Preview]) : row);
+            lines.Add(Row(_walking.All[at], at, list));
         }
 
         if (_walking.All.All(entry => entry.Up))
@@ -251,14 +256,56 @@ public sealed class FileBrowserScreen : Screen
                     Role.Muted)));
         }
 
-        return lines;
+        return list < width ? Previewed(lines, list, drawing) : lines;
     }
 
     /// <summary>
-    ///     What the preview pane says beside a row of the list: nothing yet. The picture under the cursor goes top left
-    ///     in it, level with the first row, with its name and size under it (#382).
+    ///     <paramref name="lines" /> with the preview pane beside the list, which is <paramref name="list" /> wide: a
+    ///     rule down its left from the list's first row, and the picture under the cursor top left in it, level with
+    ///     the first row of the list on the page, with its name and size under it (#382).
     /// </summary>
-    private static Span[] Preview => [];
+    /// <remarks>
+    ///     The pane runs to the foot of the page however short the list, so that the picture has rows to lie on and
+    ///     the rows are as many whether one is drawn or not; what is in it changes no row's height. Nothing is in it on
+    ///     a terminal that cannot draw, or for a folder or a file that is not a picture this client decodes.
+    /// </remarks>
+    private List<Line> Previewed(List<Line> lines, int list, Drawing drawing)
+    {
+        var page = drawing.Height ?? Inset.FeedRows + 2;
+        var level = Math.Max(ListTop, drawing.Top);
+        var at = list + 2;
+        var across = Math.Max(0, drawing.Width - at - Pad);
+
+        // The picture's place leaves a row of air and one for the caption under it at the foot of the page.
+        var file = Current is { Folder: false } entry ? entry : null;
+        var picture = file is null
+            ? default
+            : FilePicture.Of(file.Path, at, across, Math.Max(1, drawing.Top + page - level - 2), drawing);
+
+        while (lines.Count < drawing.Top + page)
+        {
+            lines.Add(Line.Blank);
+        }
+
+        var caption = picture.Box is { } box ? level + box.Rows + 1 : -1;
+
+        for (var row = ListTop; row < lines.Count; row++)
+        {
+            var line = lines[row];
+            Span[] pane = row == caption
+                ? [Gap(1), new Span(TextWrap.Clip($"{file!.Name} · {Size(file.Bytes)}", across), Role.Muted)]
+                : [];
+
+            lines[row] = line.Respanned([.. line.Spans, Gap(list - line.Width), new Span("│", Role.PanelBorder), .. pane])
+                with
+                {
+                    Insets = row == level && picture.Box is { } inset ? [inset] : line.Insets,
+                    Wants = row == level ? picture.Wanted : line.Wants,
+                };
+        }
+
+        return lines;
+    }
 
     /// <summary>How many are chosen and how many more fit, or how many fit where none are chosen yet.</summary>
     private string Counted => _chosen.Count > 0

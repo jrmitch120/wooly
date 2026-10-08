@@ -111,6 +111,12 @@ internal sealed class PaintedView : View
     public bool Scrolls { get; set; }
 
     /// <summary>
+    ///     Whether the rows depend on where the page is (<see cref="Drawing.Top" />), so that a frame on which the page
+    ///     moves lays them out again under the scroll it came to (#382). Asked once a frame; off where nobody said.
+    /// </summary>
+    public Func<bool> KeepsToThePage { get; init; } = () => false;
+
+    /// <summary>
     ///     How this terminal paints pixels as of the last frame settled, or <see cref="Media.Raster.None" /> before the
     ///     first. Worked out once a frame, before the rows are, and read rather than asked again everywhere else — the
     ///     rows laid out for a click or a key between frames included — so the rows, the boxes and the picture cache
@@ -579,13 +585,17 @@ internal sealed class PaintedView : View
 
         _anchoring = false;
 
+        var was = _top;
+
         _top = Scrolls
             ? _following
                 ? anchoring ? Scroll.ToSection(lines, height, _top) : Scroll.To(lines, height, _top)
                 : Scroll.By(lines, _top, 0)
             : 0;
 
-        return lines;
+        // Laid out again under the page the scroll came to, for a screen with something that keeps to the page. What
+        // keeps to it moves no row and picks nothing, so the scroll worked out from the first laying stands (#382).
+        return _top != was && KeepsToThePage() ? _rows(width, height) : lines;
     }
 
     /// <summary>

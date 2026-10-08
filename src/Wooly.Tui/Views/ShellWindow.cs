@@ -172,9 +172,13 @@ internal sealed class ShellWindow : Window
             theme,
             // Laid out under the Raster the region settled the frame by, read rather than asked again here, so that a
             // click or a key between frames lays the rows out as they were drawn (#357). Never called before the
-            // region is built, which is all the null-forgiving says.
+            // region is built, which is all the null-forgiving says. Told where the page is, for a screen with something
+            // that keeps to it (#382).
             (width, height) => shell.Screen.Lines(
-                new Drawing(width, clock.GetUtcNow(), pictures, _content!.Raster, hideDrawnCaption, height, blurs)),
+                new Drawing(width, clock.GetUtcNow(), pictures, _content!.Raster, hideDrawnCaption, height, blurs)
+                {
+                    Top = _content.Top,
+                }),
             pictures,
             // No rows of the panel's own: the view paints only the frame's edges, round the screen's rows.
             (width, height) => Panel.Framed(
@@ -194,6 +198,7 @@ internal sealed class ShellWindow : Window
             Height = Dim.Fill(1),
             CanFocus = false,
             Scrolls = true,
+            KeepsToThePage = () => shell.Screen.KeepsToThePage,
         };
 
         // The same top edge again, as a row of its own laid over the panel's, so that a tick of the fetch mark has one

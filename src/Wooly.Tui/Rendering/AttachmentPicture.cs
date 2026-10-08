@@ -35,6 +35,9 @@ public readonly record struct AttachmentPicture(Span Held, Drawn? Wanted, Inset?
         ".jpg", ".jpeg", ".png", ".gif", ".webp",
     };
 
+    /// <summary>Whether the file at <paramref name="path" /> is a picture this client decodes, by its extension.</summary>
+    public static bool Decodes(string path) => Decoded.Contains(Path.GetExtension(path));
+
     /// <summary>
     ///     What the picture column at <paramref name="column" /> holds for the file at <paramref name="path" />.
     /// </summary>
@@ -48,7 +51,7 @@ public readonly record struct AttachmentPicture(Span Held, Drawn? Wanted, Inset?
     {
         var blank = new Span(new string(' ', Columns), Role.Body);
 
-        if (!Drawing.Draws(pictures, raster, out _) || !Decoded.Contains(Path.GetExtension(path)))
+        if (!Drawing.Draws(pictures, raster, out _) || !Decodes(path))
         {
             return new AttachmentPicture(blank, null, null);
         }
