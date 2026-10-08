@@ -15,6 +15,9 @@ public abstract record AttachmentProgress
     /// <summary>The file is going up, <paramref name="Done" /> of the way there, from nought to one.</summary>
     public sealed record Sending(double Done) : AttachmentProgress;
 
-    /// <summary>The file is up, and the instance is still processing it — which a post cannot name it until it has done.</summary>
-    public sealed record Processing : AttachmentProgress;
+    /// <summary>
+    ///     The file is up, as <paramref name=Id />, and the instance is still processing it — which a post cannot name
+    ///     it until it has done.
+    /// </summary>
+    public sealed record Processing(string Id) : AttachmentProgress;
 }

@@ -93,7 +93,7 @@ public sealed class PostAuthor(
         // and a post naming it before then is refused, so it is asked again until it has one.
         while (media.Url is null)
         {
-            progress.Report(new AttachmentProgress.Processing());
+            progress.Report(new AttachmentProgress.Processing(media.Id));
 
             await Task.Delay(polling.Every, cancellationToken);
 

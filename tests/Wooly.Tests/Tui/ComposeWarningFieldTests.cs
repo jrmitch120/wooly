@@ -267,7 +267,7 @@ public class ComposeWarningFieldTests
         using var view = await ComposedView.Of(built, opening);
 
         Assert.Equal("spoilers", view.Warning.Text);
-        Assert.Contains(view.Rows(), row => row.Contains("⚠  spoilers", StringComparison.Ordinal));
+        Assert.Contains(view.Rows(), row => row.Contains("Warn  spoilers", StringComparison.Ordinal));
     }
 
     /// <summary>The field sits on the warning header's row, in its value column, wherever the headers put it.</summary>
@@ -278,7 +278,7 @@ public class ComposeWarningFieldTests
         var at = view.Warning.FrameToScreen();
         var row = view.Rows()[at.Y];
 
-        Assert.Equal("⚠  ", row.Substring(at.X - 3, 3));
+        Assert.Equal("Warn  ", row.Substring(at.X - 6, 6));
         Assert.Equal(view.Editor.FrameToScreen().Right, at.Right);
     }
 

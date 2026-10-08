@@ -161,7 +161,7 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Conversation | `m` mark read, and every key that acts on a post, since each message in it is one |
 | Profiles | `⏎` act as that profile, for this session — not offered on the one already acted as · `D` make it the default, for the CLI and the next launch — not offered on the one already the default · `a` add a profile · `R` sign it in again, replacing its token — offered on every row · `x` remove it, after a confirmation — refused on the one acted as and on the default |
 | Add a profile | `⏎` on to the next step · `t` paste a token instead, while the browser is out or after it failed · `esc` back to the list, calling off a sign-in or a check in flight — or, as the only screen on first run, back to the first step, with `ctrl-q` quit offered (#247) |
-| Compose / reply / edit | `ctrl-s` send or save · `esc` throw it away — asking `Discard this post? y / n` first where it differs from how it opened, as every way out of it does (#373) · `ctrl-w` move the typing between the post and the content warning over it — on all three, each carrying a warning field of its own (#123, #139, #140); `⏎` in the warning hands the typing back too (#320) · `↑` on the post's first line moves the typing up into the headers, `↑`/`↓` move it between the headers that take typing, and `↓` off the last returns it to the post, the way a mail client's do (ADR-0024, #337); the walk stops at either end rather than coming round — `↑` on To and `↓` below the post do nothing — and the status row offers only the ways it goes: `↓ field` on To, `↑↓ field` on the headers under it, `↑ field` in the post · on **To** `←`/`→` choose the visibility, skipping any it does not allow, and the status row offers `←→ choose` ahead of the walk (#338); letters there are nobody's · on **Lang** a code or a name typed opens the list of languages, as do a click and `⏎`; the walk goes To, Lang, the warning, the post — the order they are drawn in — and steps over Lang where a short terminal has given its row up (#340) · `tab`/`shift-tab` are the frame's here as everywhere, never a walk of compose's fields. While the list of people to mention is open: `↑`/`↓` pick · `tab`/`⏎` insert · `esc` close the list, never the draft (#318). While the list of languages is open: `↑`/`↓` pick · `tab`/`⏎` choose · `esc` close the list, never the draft — and the status row offers those three ahead of the rest (#340) |
+| Compose / reply / edit | `ctrl-s` send or save — waiting first on anything attached still going up, which `esc` calls off (#375) · `esc` throw it away — asking `Discard this post? y / n` first where it differs from how it opened, as every way out of it does (#373) · `ctrl-w` move the typing between the post and the content warning over it — on all three, each carrying a warning field of its own (#123, #139, #140); `⏎` in the warning hands the typing back too (#320) · `↑` on the post's first line moves the typing up into the headers, `↑`/`↓` move it between the headers that take typing, and `↓` off the last returns it to the post, the way a mail client's do (ADR-0024, #337); the walk stops at either end rather than coming round — `↑` on To and `↓` below the post do nothing — and the status row offers only the ways it goes: `↓ field` on To, `↑↓ field` on the headers under it, `↑ field` in the post · on **To** `←`/`→` choose the visibility, skipping any it does not allow, and the status row offers `←→ choose` ahead of the walk (#338); letters there are nobody's · on **Lang** a code or a name typed opens the list of languages, as do a click and `⏎`; the walk goes To, Lang, the warning, the post — the order they are drawn in — and steps over Lang where a short terminal has given its row up (#340) · `tab`/`shift-tab` are the frame's here as everywhere, never a walk of compose's fields. While the list of people to mention is open: `↑`/`↓` pick · `tab`/`⏎` insert · `esc` close the list, never the draft (#318). While the list of languages is open: `↑`/`↓` pick · `tab`/`⏎` choose · `esc` close the list, never the draft — and the status row offers those three ahead of the rest (#340) |
 | Home, local, federated, hashtag, Discover, Notifications, Messages, Requests, Post, Account, Follows | `g` refresh — evicts the destination's cache entry (where one exists) and re-runs the same fetch its own arrival runs |
 
 ### What the four screens settled
@@ -840,9 +840,10 @@ its author remembered to warn it again by hand — which Mastodon's own clients 
   own before they bubble, so `?` is a letter in it with no rule of the shell's, and the shell carries no letters into a
   compose screen at all. Selected text is drawn in `selected-text`, as in the post.
 - **The row says it is there when it is empty**, muted — `⚠ no content warning` until the headers layout made it
-  `⚠  none · ctrl-w to add`, and `say what it's about` while it is being written (#317, below). A row a reader can type into is a row
-  they have to be able to find, and the status row's `ctrl-w` is the other half of saying so. Written, it takes the
-  same `⚠` and the same `content-warning` role a warned post's own warning is drawn in, so a warning being written
+  `⚠  none · ctrl-w to add`, and `Warn  none · ctrl-w to add` since #375 — and `say what it's about` while it is being
+  written (#317, below). A row a reader can type into is a row they have to be able to find, and the status row's
+  `ctrl-w` is the other half of saying so. Written, it takes the same `content-warning` role a warned post's own
+  warning is drawn in, label and all, so a warning being written
   looks like the warning it will become. The caret is the field's own, the terminal's cursor, since #320 — before
   that a painted `▌` stood for it, the way the search prompt's does.
 - **A blank row stands above it, on every compose alike** (#143). It was ADR-0015's reply block that used to end in
@@ -871,15 +872,18 @@ its author remembered to warn it again by hand — which Mastodon's own clients 
 Compose is laid out as a mail client's compose — variant A of the prototype on `prototype/compose` (#313, #317) — on a
 fresh post, a reply and an edit alike:
 
-- **Rows, top to bottom:** a blank; the headers — From, To, Lang, the reply header and its quote, ⚠ (ADR-0024, #338, #340); a hairline; a blank; the editor; a hairline; the row the count sits
-  on (#319). Two columns of padding either side of all of it. The hairlines are `panel-border`.
-- **Headers are a right-aligned label column four wide, two spaces, then the value.** `From` reads the profile's
+- **Rows, top to bottom:** a blank; the headers — From, To, Lang, the reply header and its quote, Warn, and Media with
+  a row under it for each pending attachment on a fresh post or a reply (ADR-0024, #338, #340, #375); a hairline; a
+  blank; the editor; a hairline; the row the count sits on (#319). Two columns of padding either side of all of it.
+  The hairlines are `panel-border`.
+- **Headers are a right-aligned label column five wide, two spaces, then the value** — five for `Media`, the widest of
+  the words every header is labelled with (#375). `From` reads the profile's
   handle in `byline-handle` and ` · instance` muted — the instance said even with one profile set up, since this is
   the row a reader checks before sending. A reply's header is labelled with the feed's own reply mark rather than a
   word, and worded by `PostReplyName` (`answering @handle`, or `continuing` for a self-reply), with up to three
-  non-blank rows of what is being answered under it behind a `│ ` gutter. The warning's is labelled with the bare
-  `⚠`, lit in `content-warning` while there is a warning or one is being written and muted otherwise, so the reader
-  sees at a glance whether the post is going out behind one.
+  non-blank rows of what is being answered under it behind a `│ ` gutter. The warning's is labelled `Warn` — a word
+  like the rest, where it was the feed's bare `⚠` until #375 — lit in `content-warning` while there is a warning or one
+  is being written and muted otherwise, so the reader sees at a glance whether the post is going out behind one.
 - **To says who the post goes to** (ADR-0024, #338): a row of radio buttons, `● public  ○ unlisted  ○ followers
   ○ direct`, the filled bubble the one chosen. It starts on what would go out — `default_visibility` where the config
   sets one, and on a reply the narrower of that and the post being answered (the post's own where the config sets
@@ -895,8 +899,9 @@ fresh post, a reply and an edit alike:
 - **The screen paints every row and says where the editor goes**, both from one layout, at the content region's
   height (`Drawing.Height`) — so what is painted and where the editor is laid over it cannot disagree. Where nobody
   says the height, it lays out as tall as its rows and the editor's least want.
-- **On a terminal too short for everything, rows give way in a fixed order**: the quote's tail, the blanks, the reply
-  header, the foot, `From` and `Lang`, the hairline under the headers. **To**, the warning header and three rows of editor are
+- **On a terminal too short for everything, rows give way in a fixed order**: the pending attachments' rows first, by
+  folding into the Media header's line (below); then the quote's tail, the blanks, the reply header, the foot, `From`
+  and `Lang`, the Media header, the hairline under the headers. **To**, the warning header and three rows of editor are
   kept whatever the height (#338) — the rule ADR-0015 and #123 already kept, with more dressing in front of it to go first.
 - **The foot counts what has been used of the post's limit** (#319): `n / limit`, right-aligned inside the padding,
   `muted` up to nine tenths of the limit, `quota-low` in the last tenth and `error` past it. It counts the way the
@@ -911,6 +916,45 @@ fresh post, a reply and an edit alike:
   and a switch keeps it. Until it lands, and wherever the instance does not answer, the count is out of Mastodon's 500
   and 23. It is not put through the enquiry, so a failure says nothing and a rate limit counts nothing down over the
   post; it is asked again the next time a post is written.
+
+### What pending attachments settled
+
+A fresh post and a reply attach files under a **Media** header, under Warn, in the layout chosen from the prototype on
+`prototype/374-attachments` (#374, #375). An edit has no Media header yet, and carries the post's own attachments
+through unchanged (ADR-0008).
+
+- **The header says what it holds, then the key that adds to it, all muted**, as Warn does: `Media  none · ctrl-o to
+  add`, `2 of 4 · ctrl-o to add` counted against the instance's limit, and `4 of 4` once the post is full.
+- **A row per pending attachment, under the header**: the grip `⠶` muted, a column held for its picture (#382), its
+  name cut with `…` to 32 columns, its kind (picture, animation, video, sound) muted, its size right-aligned and muted,
+  `x` in `destructive`, and one status column saying one thing at a time — the upload's gauge, `████░░░░  54%`, in
+  `gauge` and `gauge-empty`; `processing`; once ready its description in quotes, or the quiet mark `no alt text`; or
+  why it failed, in `error`. There is no mark for ready. **Nothing moves**: every column comes from the terminal's
+  width alone, never a name's, and the status column is at most 40 wide. Where that would leave the status fewer than
+  16 columns the kind goes first, then the name narrows as far as 12.
+- **On a short terminal the rows fold into the header's line** before any other row gives way, wherever a row each
+  would leave the editor fewer than three: `3 of 4 · 3 no alt text · 1 failed · ctrl-o to add`, the failures in
+  `error`. They unfold when there is room again.
+- **A drop attaches**: a terminal pastes the paths of files dropped onto it, so a paste on a compose screen made
+  entirely of whole paths to existing files of a type the instance accepts — split as a terminal quotes a drop, spaces
+  escaped with a backslash or a path in quotes, `file://` addresses and `~` taken as the paths they stand for — attaches
+  them, as many as the post has room for (`Dropped`). Any other paste, a sentence with a path in it included, is text
+  as it always was.
+- **Each file goes up the moment it is attached** (ADR-0026): the shell sends it through `IPostAuthor.Attach`, as the
+  profile acted as, and feeds where it has got to back into the screen on the drawing thread — the screen holds it and
+  draws it, and reaches nothing itself (ADR-0015). Not through the enquiry: the row says how it is going, the status
+  row says nothing, and it is not stopped by a screen pushed over the draft. A refusal says the instance's own reason
+  on the row, and a dropped connection says `connection lost`; neither is tried again by itself (ADR-0006). A compose
+  screen leaving the stack calls off what it is still sending, and leaves what went up for the instance to clear away.
+- **`ctrl-s` waits rather than refuses.** With anything still going up or being processed it keeps the screen up and
+  says `Will send once 1 attachment finishes — esc to stop.`, and sends once they have; `esc` calls the send off and
+  says the draft is as it was. It never sends without them. With anything refused it does not send, and says so. The
+  post goes out through `IPostAuthor.PublishAttached`, naming the pending attachments by id in the order shown — the
+  route every TUI post now takes, attachments or none — and a post of attachments alone, with no text, sends.
+- **The limits are the instance's** (`IInstanceLimits`): `configuration.statuses.max_media_attachments`, else 4;
+  `configuration.media_attachments.supported_mime_types`, else Mastodon's own; and `description_limit`, else 1500 — read
+  with the post's own limit, on the same answer.
+- **Anything attached touches the draft** (#373), so leaving it asks first.
 
 ### What mentioning somebody settled
 
@@ -1583,7 +1627,8 @@ to:
 - **A paste goes into whichever field is typing**, here and in every other field the shell types into itself (the
   search prompt, the compose warning, the follows filter). A terminal in bracketed-paste mode sends a paste as one
   string rather than as keys, so the shell takes it as text: a line break or a tab stands as a space, and it is never
-  replayed as keys. Where nothing is typing the paste is left to whatever has focus, which on compose is the editor.
+  replayed as keys. Where nothing is typing the paste is left to whatever has focus, which on compose is the editor —
+  but for files dropped onto the terminal, which compose attaches (#375).
 
 ### What switching settled
 

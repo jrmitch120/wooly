@@ -876,7 +876,7 @@ public class PostAuthorTests : IDisposable
         Assert.Equal(new PendingAttachment("m2", MediaKind.Video), attached);
         Assert.Equal(3, network.Requests.Count);
         Assert.Equal("https://mastodon.social/api/v1/media/m2", network.Requests[2].RequestUri?.ToString());
-        Assert.Contains(new AttachmentProgress.Processing(), reported.All);
+        Assert.Contains(new AttachmentProgress.Processing("m2"), reported.All);
     }
 
     /// <summary>An instance that will not take a file says why, in its own words, and nothing is asked after.</summary>

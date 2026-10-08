@@ -138,6 +138,18 @@ public sealed class Shell
     /// </summary>
     private readonly DefaultsByProfile _defaults;
 
+    /// <summary>
+    ///     What calls off the files each compose screen is still sending up (ADR-0026, #375), called when the screen
+    ///     leaves the stack — what was sent already is left for the instance to clear away.
+    /// </summary>
+    private readonly Dictionary<ComposeScreen, CancellationTokenSource> _sendingUp = [];
+
+    /// <summary>
+    ///     The compose screen whose <c>ctrl-s</c> is waiting on its attachments to finish before it sends (ADR-0026),
+    ///     or none.
+    /// </summary>
+    private ComposeScreen? _waitingToSend;
+
     /// <param name="opening">
     ///     Who to act as — or, with nobody, what to open onto instead: adding a profile, as the only screen (#247).
     /// </param>
@@ -795,6 +807,17 @@ public sealed class Shell
             return;
         }
 
+        // A send waiting on its attachments is a level of its own over the draft: esc calls the send off and leaves the
+        // draft as it was, to be changed or sent again (ADR-0026, #375).
+        if (_waitingToSend is not null && ReferenceEquals(_waitingToSend, Screen))
+        {
+            _waitingToSend = null;
+
+            Say("Not sent — the draft is as it was.", isError: false);
+
+            return;
+        }
+
         // A reference pick and an uncast vote are each a level of their own inside the picked post, so esc is up one
         // level of whichever kind is open: the first press lets what is inside go and the next pops the screen
         // (docs/tui-shell.md, #83, #87). Both at once, because both are the same half-finished sentence about the same
@@ -1096,12 +1119,21 @@ public sealed class Shell
     ///         Nothing where the screen is not typing, and not a run of keys either: a paste is text, and replaying it
     ///         as keys would boost, compose and delete by whatever letters it happened to hold. The compose editor and
     ///         its warning field are widgets of their own and take their own pastes, which is what answering no leaves
-    ///         them to.
+    ///         them to — unless the paste is files dropped onto the terminal, which a compose screen attaches
+    ///         (<see cref="Dropped" />, #375).
     ///     </para>
     /// </remarks>
     /// <returns>Whether the paste was taken, which is what settles whether it is left for whatever has focus.</returns>
     public bool Paste(string text)
     {
+        if (Screen is ComposeScreen { TakesAttachments: true } compose
+            && Dropped.Paths(text, compose.Limits) is { } dropped)
+        {
+            Attach(compose, dropped);
+
+            return true;
+        }
+
         if (!Screen.IsTyping)
         {
             return false;
@@ -1383,6 +1415,34 @@ public sealed class Shell
             return;
         }
 
+        // A post never goes out without something its author attached (ADR-0026): not without one the instance refused,
+        // and not before the rest are ready, which it waits for rather than refuses — esc calls the wait off (#375).
+        if (compose.Refused > 0)
+        {
+            Say(
+                compose.Refused == 1
+                    ? "Something attached was refused — take it off to send."
+                    : $"{compose.Refused} attachments were refused — take them off to send.",
+                isError: true);
+
+            return;
+        }
+
+        if (compose.Attachments.Count(attachment => attachment.Unfinished) is > 0 and var unfinished)
+        {
+            _waitingToSend = compose;
+
+            Say(
+                unfinished == 1
+                    ? "Will send once 1 attachment finishes — esc to stop."
+                    : $"Will send once {unfinished} attachments finish — esc to stop.",
+                isError: false);
+
+            return;
+        }
+
+        _waitingToSend = null;
+
         // Taken now rather than read when the call is made, which a rate-limit wait can put after a switch (#243).
         var profile = Actor.Profile;
 
@@ -1408,7 +1468,7 @@ public sealed class Shell
                     : null;
 
                 await _enquiry.Put(
-                    ask => ask.Of(token => _ports.Author.Publish(profile, draft, token)),
+                    ask => ask.Of(token => _ports.Author.PublishAttached(profile, draft, token)),
                     eitherWay: published =>
                     {
                         // A reply written in a conversation goes on the end of it, which the conversation and the
@@ -2004,6 +2064,139 @@ public sealed class Shell
     }
 
     /// <summary>
+    ///     Attaches the files at <paramref name="paths" /> to <paramref name="compose" />, as many as it has room for,
+    ///     and starts each going up to the instance there and then (ADR-0026, #375). Attaching changes the draft, which
+    ///     spends a notice over it as typing does (#364).
+    /// </summary>
+    private void Attach(ComposeScreen compose, IEnumerable<string> paths)
+    {
+        IReadOnlyList<ComposeAttachment> attached = [];
+
+        ChangeCompose(screen =>
+        {
+            attached = screen.Attach(paths.Select(ComposeAttachment.Of));
+
+            return attached.Count > 0 ? ComposeChange.Edited : ComposeChange.None;
+        });
+
+        foreach (var attachment in attached)
+        {
+            _ = SendUp(compose, attachment);
+        }
+    }
+
+    /// <summary>
+    ///     Sends <paramref name="attachment" /> up as the profile acted as, feeding where it has got to back into
+    ///     <paramref name="compose" /> on the drawing thread as it hears — the screen holding what it is told and
+    ///     reaching nothing itself (ADR-0015).
+    /// </summary>
+    /// <remarks>
+    ///     Not through the enquiry: an upload goes on while the author writes, and its progress, its processing and any
+    ///     refusal are the row's to say rather than the status row's — nor does it land only while the screen it was
+    ///     sent from is on top, since a screen pushed over the draft does not stop it. Never retried here (ADR-0006): a
+    ///     dropped connection is said on the row, and trying again is the author's. Called off with the screen.
+    /// </remarks>
+    private async Task SendUp(ComposeScreen compose, ComposeAttachment attachment)
+    {
+        var profile = Actor.Profile;
+
+        if (!_sendingUp.TryGetValue(compose, out var sending))
+        {
+            _sendingUp[compose] = sending = new CancellationTokenSource();
+        }
+
+        var token = sending.Token;
+        var progress = new Reporting(this, compose, attachment);
+        AttachmentState landed;
+
+        try
+        {
+            landed = new AttachmentState.Ready(await _ports.Author.Attach(profile, attachment.Path, progress, token));
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            return;
+        }
+        catch (TransientNetworkException)
+        {
+            landed = new AttachmentState.Refused("connection lost");
+        }
+        catch (AttachmentRefusedException refused)
+        {
+            landed = new AttachmentState.Refused(refused.Reason ?? "refused by the instance");
+        }
+        catch (WoolyException failed)
+        {
+            landed = new AttachmentState.Refused(failed.Message);
+        }
+
+        Apply(() => Progressed(compose, attachment, landed));
+    }
+
+    /// <summary>
+    ///     Where <paramref name="attachment" /> on <paramref name="compose" /> has got to, heard on the drawing thread —
+    ///     and, where that was the last thing a waiting send was waiting on, the send (ADR-0026, #375).
+    /// </summary>
+    private void Progressed(ComposeScreen compose, ComposeAttachment attachment, AttachmentState state)
+    {
+        if (!compose.Progressed(attachment, state))
+        {
+            return;
+        }
+
+        Changed?.Invoke();
+
+        if (ReferenceEquals(_waitingToSend, compose) && !compose.Unfinished)
+        {
+            _waitingToSend = null;
+
+            // Only from the screen it was asked on, as any send is; one that was refused meanwhile is said rather than
+            // sent, by the same rule as a send asked for then.
+            if (ReferenceEquals(Screen, compose))
+            {
+                _ = Send();
+            }
+        }
+    }
+
+    /// <summary>Calls off whatever <paramref name="screen" /> is still sending up, as it leaves the stack (#375).</summary>
+    private void LetUploadsGo(Screen screen)
+    {
+        if (screen is not ComposeScreen compose)
+        {
+            return;
+        }
+
+        if (ReferenceEquals(_waitingToSend, compose))
+        {
+            _waitingToSend = null;
+        }
+
+        if (_sendingUp.Remove(compose, out var sending))
+        {
+            sending.Cancel();
+            sending.Dispose();
+        }
+    }
+
+    /// <summary>
+    ///     An upload's progress, handed onto the drawing thread as it is reported from wherever the HTTP stack is
+    ///     (<see cref="IShellHost.OnUiThread" />) — not <see cref="Progress{T}" />, which posts to a synchronisation
+    ///     context a terminal does not have.
+    /// </summary>
+    private sealed class Reporting(Shell shell, ComposeScreen compose, ComposeAttachment attachment)
+        : IProgress<AttachmentProgress>
+    {
+        public void Report(AttachmentProgress value) =>
+            shell.Apply(() => shell.Progressed(
+                compose,
+                attachment,
+                value is AttachmentProgress.Sending(var done)
+                    ? new AttachmentState.Sending(done)
+                    : new AttachmentState.Processing()));
+    }
+
+    /// <summary>
     ///     An instance said how long it lets a post be, which a compose on that instance still in front is measured
     ///     against from now on.
     /// </summary>
@@ -2184,7 +2377,11 @@ public sealed class Shell
     /// <summary>Puts the stack back to one screen, which is what arriving at a destination does.</summary>
     private void Reset(Screen screen)
     {
-        _stack.ForEach(left => left.Left());
+        _stack.ForEach(left =>
+        {
+            left.Left();
+            LetUploadsGo(left);
+        });
         _stack.Clear();
         _stack.Add(screen);
         Saw(screen);
@@ -2338,6 +2535,7 @@ public sealed class Shell
     private void Leave(int at)
     {
         _stack[at].Left();
+        LetUploadsGo(_stack[at]);
         _stack.RemoveAt(at);
     }
 

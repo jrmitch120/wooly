@@ -125,7 +125,7 @@ internal sealed class FakePostAuthor : IPostAuthor
         public void Progress(double done) => progress.Report(new AttachmentProgress.Sending(done));
 
         /// <summary>It is up, and the instance is processing it.</summary>
-        public void Processing() => progress.Report(new AttachmentProgress.Processing());
+        public void Processing() => progress.Report(new AttachmentProgress.Processing(Id));
 
         /// <summary>The instance has it ready, as <paramref name="kind" />.</summary>
         public void Ready(MediaKind kind = MediaKind.Image) => _answer.TrySetResult(new PendingAttachment(Id, kind));

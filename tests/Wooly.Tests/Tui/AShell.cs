@@ -170,7 +170,7 @@ internal sealed class AShell
     /// </summary>
     public int Requests =>
         Timelines.Reads.Count
-        + Author.Published.Count + Author.Edits.Count + Author.Deletions.Count
+        + Author.Published.Count + Author.Edits.Count + Author.Deletions.Count + Author.Attaching.Count
         + Engagement.Marks.Count + Engagement.Reads.Count + Engagement.ThreadsRead.Count + Engagement.Votes.Count
         + Accounts.Ties.Count + Accounts.Lists.Count + Accounts.Answers.Count + Accounts.Reads.Count
         + Accounts.Familiars.Count + Accounts.Standings.Count

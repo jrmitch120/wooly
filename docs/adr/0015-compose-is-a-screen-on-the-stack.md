@@ -245,3 +245,24 @@ post — To reads `account default` and sends nothing, as compose did before.
 `Typing` to that field, where it used to toggle `ctrl-w`'s state; `ctrl-w` keeps its meaning, a jump into the
 warning and back.
 
+
+## Amendment: Media under Warn, and every header labelled with a word (map #372, ticket #375)
+
+**The headers are From, To, Lang, the reply header and its quote, Warn, then Media**, each labelled with a word
+right-aligned in a column five wide — five for `Media`. `Warn` replaces the feed's `⚠` as the warning row's label on
+all three screens, so the block reads as one. Media and Warn share a format: what the header holds, then the key that
+adds to it, all muted — `Media  none · ctrl-o to add`, then `2 of 4 · ctrl-o to add`, and `4 of 4` once full.
+
+**A fresh post and a reply carry a Media header; an edit does not yet.** Its rows are pending attachments, one each,
+in the layout #374 chose. That costs a fresh post and a reply one row more than an edit until the edit shows its own
+attachments under a read-only Media header of its own (#381), when `c` and `e` start the writing in the same place
+again.
+
+**The rows fold before anything gives way.** Where a row each would leave the editor fewer than three, they fold into
+the Media header's line — `3 of 4 · 3 no alt text · 1 failed · ctrl-o to add` — and unfold when there is room. Only
+then does the give-way order run: the quote's tail, the blanks, the reply header, the foot, From and Lang, the Media
+header, the hairline under the headers. To, the warning and three rows of editor are still kept whatever the height.
+
+**The screen stays inert.** It holds what is attached and where each has got to, and says what goes out — a draft
+naming the pending attachments by id, asked for only once every one is ready. The shell sends each file up as it is
+attached and feeds its progress back (ADR-0026), and `Shell.Send` waits on them before making the one call.

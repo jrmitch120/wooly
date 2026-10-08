@@ -27,7 +27,7 @@ public class ComposeToTests
 
         compose.Text = "hello";
 
-        Assert.Equal("    To  ○ public  ○ unlisted  ● followers  ○ direct", Texts(compose)[2]);
+        Assert.Equal("     To  ○ public  ○ unlisted  ● followers  ○ direct", Texts(compose)[2]);
 
         var draft = Publishing(compose);
 
@@ -43,7 +43,7 @@ public class ComposeToTests
 
         compose.Text = "hello";
 
-        Assert.Equal("    To  ◂ ● account default ▸", Texts(compose)[2]);
+        Assert.Equal("     To  ◂ ● account default ▸", Texts(compose)[2]);
         Assert.Null(compose.Visibility);
         Assert.Null(Publishing(compose).Visibility);
     }
@@ -238,7 +238,7 @@ public class ComposeToTests
 
         Assert.Equal(PostVisibility.Followers, compose.Visibility);
 
-        var to = Assert.Single(compose.Lines(new Drawing(Width, AShell.Now, Height: Height)), line => line.Text.StartsWith("    To", StringComparison.Ordinal));
+        var to = Assert.Single(compose.Lines(new Drawing(Width, AShell.Now, Height: Height)), line => line.Text.StartsWith("     To", StringComparison.Ordinal));
 
         Assert.Equal(Role.Muted, Assert.Single(to.Spans, span => span.Text == "○ public").Role);
         Assert.Equal(Role.Muted, Assert.Single(to.Spans, span => span.Text == "○ unlisted").Role);
@@ -314,9 +314,9 @@ public class ComposeToTests
 
         Assert.Equal(PostVisibility.Unlisted, compose.Visibility);
 
-        var to = Assert.Single(compose.Lines(new Drawing(Width, AShell.Now, Height: Height)), line => line.Text.StartsWith("    To", StringComparison.Ordinal));
+        var to = Assert.Single(compose.Lines(new Drawing(Width, AShell.Now, Height: Height)), line => line.Text.StartsWith("     To", StringComparison.Ordinal));
 
-        Assert.Equal("    To  ○ public  ● unlisted  ○ followers  ○ direct", to.Text);
+        Assert.Equal("     To  ○ public  ● unlisted  ○ followers  ○ direct", to.Text);
         Assert.All(to.Spans.Where(span => span.Text.Trim().Length > 0 && span.Text != "To"), span => Assert.Equal(Role.Muted, span.Role));
 
         view.ClickOn("○ followers");
@@ -347,7 +347,7 @@ public class ComposeToTests
         var compose = await Opening(ComposeFor.Post, PostVisibility.Followers);
         var narrow = compose.Lines(new Drawing(40, AShell.Now, Height: Height));
 
-        Assert.Equal("    To  ◂ ● followers ▸", narrow[2].Text);
+        Assert.Equal("     To  ◂ ● followers ▸", narrow[2].Text);
         Assert.All(narrow[2].Spans.Where(span => span.Text is "◂" or "▸"), span => Assert.Equal(Role.Muted, span.Role));
 
         var room = compose.ToAt(new System.Drawing.Size(40, Height)).Width;
@@ -372,7 +372,7 @@ public class ComposeToTests
         var compose = await Opening(ComposeFor.Post, PostVisibility.Followers);
         var rows = compose.Lines(new Drawing(40, AShell.Now, Height: 5)).Select(line => line.Text).ToList();
 
-        Assert.Equal(["    To  ◂ ● followers ▸", ComposeRows.NoWarning[..rows[1].Length], string.Empty, string.Empty, string.Empty], rows);
+        Assert.Equal(["     To  ◂ ● followers ▸", ComposeRows.NoWarning[..rows[1].Length], string.Empty, string.Empty, string.Empty], rows);
     }
 
     /// <summary>

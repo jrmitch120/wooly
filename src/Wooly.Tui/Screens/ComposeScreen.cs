@@ -1,4 +1,5 @@
 using System.Drawing;
+using System.Globalization;
 using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
 using Wooly.Tui.Rendering;
@@ -100,11 +101,59 @@ public sealed class ComposeScreen : Screen
     /// <summary>What the warning row says while it is empty and is being written in.</summary>
     private const string WarningBeingWritten = "say what it's about";
 
+    /// <summary>The warning header's label: a word, like the other headers', in place of the feed's mark (#375).</summary>
+    private const string WarningLabel = "Warn";
+
+    /// <summary>The label of the header the pending attachments sit under (#375).</summary>
+    private const string MediaLabel = "Media";
+
+    /// <summary>What the Media header says it holds while nothing is attached.</summary>
+    private const string NothingAttached = "none";
+
+    /// <summary>The key that adds to the Media header, which it names after what it holds while there is room.</summary>
+    private const string AttachKey = "ctrl-o to add";
+
+    /// <summary>The quiet mark on a pending attachment with no description (#375, #377).</summary>
+    private const string NoDescription = "no alt text";
+
+    /// <summary>What a pending attachment's row says while the instance processes it.</summary>
+    private const string BeingProcessed = "processing";
+
+    /// <summary>The grip a pending attachment's row is dragged by, muted, ahead of everything else on it.</summary>
+    private const string Grip = "⠶";
+
+    /// <summary>The column a pending attachment's grip sits at, a column in from its selection bar (#375).</summary>
+    private const int GripAt = Pad + 3;
+
+    /// <summary>How wide a pending attachment's name is cut to on a terminal with room for it.</summary>
+    private const int MostName = 32;
+
+    /// <summary>How narrow a name is cut to before anything else gives way.</summary>
+    private const int LeastName = 12;
+
+    /// <summary>The kind column's width, the kind and the gap after it, which goes first on a narrow terminal.</summary>
+    private const int KindColumn = 9;
+
+    /// <summary>The size column's width, right-aligned.</summary>
+    private const int SizeColumn = 8;
+
+    /// <summary>The fewest columns the status column is left with before the kind and then the name give way.</summary>
+    private const int LeastStatus = 16;
+
+    /// <summary>The most the status column is drawn across, so <c>x</c> stays near the row it takes off.</summary>
+    private const int MostStatus = 40;
+
+    /// <summary>How many cells an upload's gauge takes.</summary>
+    private const int GaugeCells = 8;
+
     /// <summary>The columns left blank either side of everything on the screen (#317).</summary>
     private const int Pad = 2;
 
-    /// <summary>How wide the headers' right-aligned label column is: wide enough for <c>From</c>.</summary>
-    private const int LabelWidth = 4;
+    /// <summary>
+    ///     How wide the headers' right-aligned label column is: wide enough for <c>Media</c>, the widest of the words
+    ///     every header is labelled with (#375).
+    /// </summary>
+    private const int LabelWidth = 5;
 
     /// <summary>The columns between a header's label and its value.</summary>
     private const int LabelGap = 2;
@@ -142,6 +191,9 @@ public sealed class ComposeScreen : Screen
     ///     (<see cref="Laid" />), and a field that is not on screen is not one to move the typing into.
     /// </summary>
     private ComposeField[] _drawn = Fields;
+
+    /// <summary>What is attached, in the order the post will carry it (#375).</summary>
+    private readonly List<ComposeAttachment> _attachments = [];
 
     /// <param name="purpose">What this screen was opened to do.</param>
     /// <param name="about">The post being replied to or edited.</param>
@@ -311,20 +363,72 @@ public sealed class ComposeScreen : Screen
     public string LanguageHint => Typing == ComposeField.Lang ? LanguageBeingTyped : NoLanguage;
 
     /// <summary>
-    ///     Whether anything here differs from what the screen opened with — the post, its warning, To or Lang — which is
-    ///     what makes throwing it away worth a question (#373). What it holds rather than whether a key was pressed: a
-    ///     reply still holding only the mention and the warning it opened on is untouched, and so is a letter typed and
-    ///     rubbed out again.
+    ///     Whether anything here differs from what the screen opened with — the post, its warning, To, Lang or what is
+    ///     attached — which is what makes throwing it away worth a question (#373, #375). What it holds rather than
+    ///     whether a key was pressed: a reply still holding only the mention and the warning it opened on is untouched,
+    ///     and so is a letter typed and rubbed out again.
     /// </summary>
     /// <remarks>
     ///     The post is compared line ending for line ending alike, so that an editor writing its lines back its own way
-    ///     does not count as somebody having written something.
+    ///     does not count as somebody having written something. A screen opens with nothing attached, so anything
+    ///     attached is a change.
     /// </remarks>
     public bool Touched =>
         !string.Equals(Text.ReplaceLineEndings(), Opening.ReplaceLineEndings(), StringComparison.Ordinal)
         || !string.Equals(Warning, _startingWarning, StringComparison.Ordinal)
         || Visibility != _startingVisibility
-        || !string.Equals(Lang.Held, _startingLanguage, StringComparison.Ordinal);
+        || !string.Equals(Lang.Held, _startingLanguage, StringComparison.Ordinal)
+        || _attachments.Count > 0;
+
+    /// <summary>
+    ///     Whether this screen takes attachments: a fresh post and a reply do, under their Media header (#375); an edit
+    ///     carries the post's own through unchanged (ADR-0008) and has no header to add to.
+    /// </summary>
+    public bool TakesAttachments => Purpose != ComposeFor.Edit;
+
+    /// <summary>What is attached, in the order the post will carry it, each with where it has got to (#375).</summary>
+    public IReadOnlyList<ComposeAttachment> Attachments => _attachments;
+
+    /// <summary>How many more attachments the post has room for, by the instance's limit.</summary>
+    public int AttachmentRoom => TakesAttachments ? Math.Max(0, Limits.Attachments - _attachments.Count) : 0;
+
+    /// <summary>Whether anything attached is still going up or being processed, which a send waits on (ADR-0026).</summary>
+    public bool Unfinished => _attachments.Any(attachment => attachment.Unfinished);
+
+    /// <summary>How many attachments the instance refused, which a send will not go out with (ADR-0026).</summary>
+    public int Refused => _attachments.Count(attachment => attachment.State is AttachmentState.Refused);
+
+    /// <summary>
+    ///     Attaches <paramref name="files" />, in order, after whatever is attached already — as many as the post has
+    ///     room for (#375). Each starts out going up, which is the shell's to start and to feed back
+    ///     (<see cref="Progressed" />).
+    /// </summary>
+    /// <returns>The ones attached, which are the ones the shell sends up.</returns>
+    public IReadOnlyList<ComposeAttachment> Attach(IEnumerable<ComposeAttachment> files)
+    {
+        var attached = files.Take(AttachmentRoom).ToList();
+
+        _attachments.AddRange(attached);
+
+        return attached;
+    }
+
+    /// <summary>
+    ///     Where <paramref name="attachment" /> has got to, as the shell heard it: its row says so from now on. Nothing
+    ///     where it is no longer attached.
+    /// </summary>
+    /// <returns>Whether that changed anything on the screen.</returns>
+    public bool Progressed(ComposeAttachment attachment, AttachmentState state)
+    {
+        if (!_attachments.Contains(attachment) || attachment.State == state)
+        {
+            return false;
+        }
+
+        attachment.State = state;
+
+        return true;
+    }
 
     /// <inheritdoc />
     /// <remarks>
@@ -352,10 +456,13 @@ public sealed class ComposeScreen : Screen
     /// <summary>
     ///     Whether there is anything here worth sending — which for a reply this client addressed means anything
     ///     beyond the mention it opened with, since a message that is nothing but its recipient's name says nothing.
+    ///     Anything attached is worth sending with no words at all, as Mastodon allows: a picture can be the whole post
+    ///     (#375).
     /// </summary>
     public bool IsEmpty =>
-        string.IsNullOrWhiteSpace(Text)
-        || (Purpose == ComposeFor.Reply && string.Equals(Text.Trim(), Opening.Trim(), StringComparison.Ordinal));
+        _attachments.Count == 0
+        && (string.IsNullOrWhiteSpace(Text)
+            || (Purpose == ComposeFor.Reply && string.Equals(Text.Trim(), Opening.Trim(), StringComparison.Ordinal)));
 
     /// <inheritdoc />
     public override string Crumb => Purpose switch
@@ -659,9 +766,11 @@ public sealed class ComposeScreen : Screen
     ///     and where the editor sits among them (#317, variant A of the prototype).
     /// </summary>
     /// <remarks>
-    ///     A blank; the headers — From, To, Lang, the reply header and its quote on a reply, the warning; a hairline; a
-    ///     blank; the editor; a hairline; the row the count sits on. Two columns of padding either side of all of it.
-    ///     Lang gives way with From, being lower on the screen just before it (#340).
+    ///     A blank; the headers — From, To, Lang, the reply header and its quote on a reply, the warning, and Media with
+    ///     a row for each pending attachment on a screen that takes them (#375); a hairline; a blank; the editor; a
+    ///     hairline; the row the count sits on. Two columns of padding either side of all of it. Lang gives way with
+    ///     From, being lower on the screen just before it (#340). The attachments' rows go before anything else does,
+    ///     by folding into the Media header's line, and the header itself after From.
     ///     <para>
     ///         Never so far down that there is no editor left. ADR-0015 priced the editor's share of a 24-row
     ///         terminal at more than what sits above it, but a terminal can be any size, and an editor that starts
@@ -717,11 +826,37 @@ public sealed class ComposeScreen : Screen
         var warning = new Row(WarningHeader(valueWidth), Keep.Always);
 
         above.Add(warning);
+
+        var media = TakesAttachments ? new Row(Line.Blank, Keep.Media) : null;
+
+        if (media is not null)
+        {
+            above.Add(media);
+        }
+
         above.Add(new Row(hairline, Keep.HeaderHairline));
         above.Add(new Row(Line.Blank, Keep.BlankUnderHairline));
 
         var foot = new List<Row> { new(hairline, Keep.FootHairline), new(Count(width), Keep.CountRow) };
-        var room = height ?? (above.Count + LeastEditorRows + foot.Count);
+        var room = height ?? (above.Count + _attachments.Count + LeastEditorRows + foot.Count);
+
+        if (media is not null)
+        {
+            // A row for each attachment where that still leaves the editor its three, and otherwise one line for all
+            // of them on the header's own — before any other row gives way, since what is attached can still be
+            // counted on one line and a header given up says nothing at all (#375).
+            var folded = above.Count + _attachments.Count + foot.Count + LeastEditorRows > room;
+            var at = above.IndexOf(media);
+
+            above[at] = media with { Line = Header(MediaLabel, Role.Muted, MediaValue(valueWidth, folded)) };
+
+            if (!folded)
+            {
+                above.InsertRange(
+                    at + 1,
+                    _attachments.Select(attached => new Row(AttachmentRow(attached, width), Keep.Always)));
+            }
+        }
 
         // Whatever ranks lowest goes first and, among equals, whichever is lowest on the screen: the quote gives up
         // its tail rather than its start.
@@ -919,6 +1054,10 @@ public sealed class ComposeScreen : Screen
     ///         which leaves it to the account's own default — or, on a reply, to the post being answered.
     ///     </para>
     /// </remarks>
+    /// <remarks>
+    ///     What is attached goes as the pending attachments the instance handed back, in the order shown (#375) — so
+    ///     this is asked only once every one of them is ready, which is what the shell waits for before it sends.
+    /// </remarks>
     private PostDraft Drafted() => new()
     {
         Text = Text,
@@ -927,6 +1066,12 @@ public sealed class ComposeScreen : Screen
         Visibility = Visibility,
         VisibilityChosen = Visibility != _startingVisibility,
         Language = Lang.Resolves(out var code) ? code : null,
+        Attached =
+        [
+            .. _attachments.Select(attachment => attachment.State is AttachmentState.Ready(var pending)
+                ? pending
+                : throw new InvalidOperationException("A draft is sent only once everything attached is ready.")),
+        ],
     };
 
     /// <summary>The change this screen saves to the post it was opened on: its text, and the warning over it.</summary>
@@ -967,12 +1112,158 @@ public sealed class ComposeScreen : Screen
     /// </remarks>
     private Line WarningHeader(int room)
     {
-        var mark = PostLines.WarningMark.Trim();
         var role = WritingTheWarning || Warning.Length > 0 ? Role.ContentWarning : Role.Muted;
 
         return Warning.Length > 0
-            ? Header(mark, role, new Span(TextWrap.Clip(Warning, room), Role.ContentWarning))
-            : Header(mark, role, new Span(TextWrap.Clip(WarningHint, room), Role.Muted));
+            ? Header(WarningLabel, role, new Span(TextWrap.Clip(Warning, room), Role.ContentWarning))
+            : Header(WarningLabel, role, new Span(TextWrap.Clip(WarningHint, room), Role.Muted));
+    }
+
+    /// <summary>
+    ///     The Media header's value in <paramref name="room" /> columns (#375), in the warning header's format and all
+    ///     muted: what it holds — <c>none</c>, or how many of the instance's limit — then the key that adds to it, which
+    ///     goes once the post is full. <paramref name="folded" />, it counts its rows too, on a terminal too short for
+    ///     them: how many have no description and how many were refused, the refusals in the error's colour.
+    /// </summary>
+    private Span[] MediaValue(int room, bool folded)
+    {
+        var count = _attachments.Count;
+        var held = count == 0 ? NothingAttached : $"{count} of {Limits.Attachments}";
+        var spans = new List<Span> { new(held, Role.Muted) };
+
+        if (folded && _attachments.Count(attached => !attached.Described) is > 0 and var undescribed)
+        {
+            spans.Add(new Span($" · {undescribed} {NoDescription}", Role.Muted));
+        }
+
+        if (folded && Refused > 0)
+        {
+            spans.Add(new Span(" · ", Role.Muted));
+            spans.Add(new Span($"{Refused} failed", Role.Error));
+        }
+
+        if (AttachmentRoom > 0)
+        {
+            spans.Add(new Span($" · {AttachKey}", Role.Muted));
+        }
+
+        return Fitted(spans, room);
+    }
+
+    /// <summary>
+    ///     A pending attachment's row, <paramref name="width" /> columns wide (#375): its grip, the column its picture
+    ///     goes in, its name, its kind, its size, the <c>x</c> that takes it off, and one status column saying where it
+    ///     has got to. Every column but the status sits where the terminal's width puts it, never where a name does,
+    ///     so that nothing on a row moves as it goes up or as more are attached.
+    /// </summary>
+    /// <remarks>
+    ///     The picture's column is held blank until pictures are drawn on it (#382), and the selection bar's left of
+    ///     the grip until a row can be walked to — each is where it will be, so neither moves anything when it comes.
+    /// </remarks>
+    private static Line AttachmentRow(ComposeAttachment attached, int width)
+    {
+        var (name, kind, status) = RowColumns(width);
+
+        return Line.Of(
+        [
+            Gap(GripAt),
+            new Span(Grip, Role.Muted),
+            Gap(1),
+            Gap(1),
+            Gap(1),
+            new Span(Glyphs.Padded(TextWrap.Clip(attached.Name, name), name), Role.Body),
+            Gap(2),
+            .. kind ? [new Span(Glyphs.Padded(attached.KindWord, KindColumn), Role.Muted)] : Array.Empty<Span>(),
+            new Span(attached.Size.PadLeft(SizeColumn), Role.Muted),
+            Gap(2),
+            new Span("x", Role.Destructive),
+            Gap(2),
+            .. Fitted(Status(attached), status),
+        ]);
+    }
+
+    /// <summary>
+    ///     How a row's columns share <paramref name="width" />: the name 32 wide, the kind, and whatever is left for the
+    ///     status up to its most. Where that leaves the status fewer than its least, the kind goes first and then the
+    ///     name narrows, as far as its own least (#375).
+    /// </summary>
+    private static (int Name, bool Kind, int Status) RowColumns(int width)
+    {
+        // The grip, the picture and the gaps either side of them come to the header's value column, where names start.
+        var room = width - Pad - (Pad + LabelWidth + LabelGap);
+        var name = MostName;
+        var kind = true;
+
+        int Status() => room - name - 2 - (kind ? KindColumn : 0) - SizeColumn - 2 - 1 - 2;
+
+        if (Status() < LeastStatus)
+        {
+            kind = false;
+        }
+
+        if (Status() < LeastStatus)
+        {
+            name = Math.Max(LeastName, name - (LeastStatus - Status()));
+        }
+
+        return (name, kind, Math.Clamp(Status(), 0, MostStatus));
+    }
+
+    /// <summary>
+    ///     What a row's status column says, one thing at a time (#375): the upload's gauge and how far it has got, that
+    ///     the instance is processing it, why it was refused, or — ready — its description in quotes, or the quiet mark
+    ///     where it has none. No mark for ready: a row saying nothing else is one that is done.
+    /// </summary>
+    private static Span[] Status(ComposeAttachment attached) => attached.State switch
+    {
+        AttachmentState.Sending(var done) => Gauge(done),
+        AttachmentState.Processing => [new Span(BeingProcessed, Role.Muted)],
+        AttachmentState.Refused(var why) => [new Span(why, Role.Error)],
+        _ when attached.Described => [new Span($"“{attached.Description.ReplaceLineEndings(" ").Trim()}”", Role.Body)],
+        _ => [new Span(NoDescription, Role.Muted)],
+    };
+
+    /// <summary>An upload's gauge, <c>████░░░░  54%</c>: eight cells filled as far as it has got, then the share of it.</summary>
+    private static Span[] Gauge(double done)
+    {
+        var share = Math.Clamp(done, 0, 1);
+        var filled = (int)Math.Round(share * GaugeCells);
+
+        return
+        [
+            new Span(new string('█', filled), Role.Gauge),
+            new Span(new string('░', GaugeCells - filled), Role.GaugeEmpty),
+            new Span(string.Create(CultureInfo.InvariantCulture, $" {(int)Math.Round(share * 100),3}%"), Role.Muted),
+        ];
+    }
+
+    /// <summary>
+    ///     <paramref name="spans" /> cut to <paramref name="room" /> columns, the last that does not fit ending in an
+    ///     ellipsis and anything after it left off.
+    /// </summary>
+    private static Span[] Fitted(IEnumerable<Span> spans, int room)
+    {
+        var fitted = new List<Span>();
+
+        foreach (var span in spans)
+        {
+            if (span.Width <= room)
+            {
+                fitted.Add(span);
+                room -= span.Width;
+
+                continue;
+            }
+
+            if (room > 0)
+            {
+                fitted.Add(span with { Text = TextWrap.Clip(span.Text, room) });
+            }
+
+            break;
+        }
+
+        return [.. fitted];
     }
 
     /// <summary>One row of the layout, and how long it holds out on a terminal too short for every row.</summary>
@@ -1002,6 +1293,13 @@ public sealed class ComposeScreen : Screen
         FootHairline,
         CountRow,
         From,
+
+        /// <summary>
+        ///     The Media header, which holds out past From and Lang — a draft's attachments are part of what goes out,
+        ///     and a header saying how many there are is the last word of them left once their rows have folded into it.
+        /// </summary>
+        Media,
+
         HeaderHairline,
         Always,
     }
