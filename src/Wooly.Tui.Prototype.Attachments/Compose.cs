@@ -288,7 +288,7 @@ internal sealed class AttachArea(AreaMode mode) : Painted
             // The warning header's format: a muted hint of what the header holds and the key that adds to it.
             // The warning header's format: what the header holds, then the key that adds to it.
             var held = items.Count == 0 ? "none" : $"{items.Count} of {Instance.Most}";
-            var end = Spans(x, 0, (held, onHeader ? Role.SelectedText : Role.Muted), (" · ", Role.Muted), ("ctrl-o to add", Role.Link));
+            var end = Spans(x, 0, (held, onHeader ? Role.SelectedText : Role.Muted), (" · ", Role.Muted), ("ctrl-o to add", Role.Muted));
             _hits.Add((new Rectangle(x, 0, end - x, 1), Hit.Attach, -1));
             headerEnd = end;
 
