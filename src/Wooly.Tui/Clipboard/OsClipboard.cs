@@ -77,7 +77,8 @@ public sealed class OsClipboard : IClipboard
     /// <summary>
     ///     Windows: Windows PowerShell, which every Windows has, reading the clipboard through Windows Forms — which
     ///     wants a single-threaded apartment, hence <c>-STA</c>. Copied files' paths after <c>F:</c>, else a picture
-    ///     saved as a PNG to the path it is given, and <c>P</c>.
+    ///     saved as a PNG to the path it is given, and <c>P</c>. Each line is written straight to the console's output
+    ///     rather than through PowerShell's own, which may wrap a long path to the width of a console it hasn't got.
     /// </summary>
     private static Clipped Windows() =>
         Through(
@@ -92,11 +93,11 @@ public sealed class OsClipboard : IClipboard
                   Add-Type -AssemblyName System.Windows.Forms
                   Add-Type -AssemblyName System.Drawing
                   if ([System.Windows.Forms.Clipboard]::ContainsFileDropList()) {
-                    foreach ($f in [System.Windows.Forms.Clipboard]::GetFileDropList()) { 'F:' + $f }
+                    foreach ($f in [System.Windows.Forms.Clipboard]::GetFileDropList()) { [Console]::Out.WriteLine('F:' + $f) }
                     exit
                   }
                   $i = [System.Windows.Forms.Clipboard]::GetImage()
-                  if ($i) { $i.Save('{{picture.Replace("'", "''", StringComparison.Ordinal)}}', [System.Drawing.Imaging.ImageFormat]::Png); 'P' }
+                  if ($i) { $i.Save('{{picture.Replace("'", "''", StringComparison.Ordinal)}}', [System.Drawing.Imaging.ImageFormat]::Png); [Console]::Out.WriteLine('P') }
                   """),
             "PowerShell");
 
