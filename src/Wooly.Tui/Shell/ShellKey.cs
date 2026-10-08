@@ -85,11 +85,17 @@ public enum ShellKey
 
     /// <summary><c>shift-↓</c>.</summary>
     ShiftDown,
+
     /// <summary><c>ctrl-o</c>, which opens the file browser from a compose screen (#376).</summary>
     CtrlO,
 
     /// <summary><c>ctrl-a</c>, which shows every file in the file browser (#376).</summary>
     CtrlA,
+
+    /// <summary>
+    ///     <c>space</c>, which is a letter wherever letters are typed but in the file browser, where it chooses (#376).
+    /// </summary>
+    Space,
 
     /// <summary><c>/</c>.</summary>
     Slash,

@@ -415,6 +415,30 @@ public class ComposeAttachmentRowsTests : IDisposable
         Assert.Equal(["two.png", "one.png"], Names(Compose(drawn)));
     }
 
+    /// <summary>
+    ///     In the window, a letter that acts on a post elsewhere does nothing on a row — no compose behind the draft, no
+    ///     row taken off — while the row's own letters, <c>s</c> and <c>r</c>, still reach the keymap (review of #372).
+    /// </summary>
+    [Fact]
+    public async Task InTheWindowARowTakesOnlyItsOwnLetters()
+    {
+        using var drawn = await Drawn("one.png");
+        var compose = Compose(drawn);
+
+        drawn.Press(Key.CursorUp);
+        drawn.Press(Key.C);
+        drawn.Press(Key.X);
+        drawn.Press(Key.B);
+
+        Assert.Same(compose, drawn.Shell.Screen);
+        Assert.Equal(["one.png"], Names(compose));
+        Assert.Equal(string.Empty, compose.Text);
+
+        drawn.Press(Key.S);
+
+        Assert.True(compose.Sensitive);
+    }
+
     /// <summary>A click on a row picks it, with the bar against its grip; the post is as it was.</summary>
     [Fact]
     public async Task AClickOnARowPicksIt()

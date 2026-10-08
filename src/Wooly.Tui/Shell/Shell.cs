@@ -600,6 +600,8 @@ public sealed class Shell
         Verb.RetryAttachment => Ran(() => Retry(compose => compose.Retry())),
         Verb.OpenBrowser => Ran(Browse),
         Verb.AttachChosen => Ran(AttachChosen),
+        Verb.IntoFolder => Ran(() => Browse(browser => browser.FolderPicked)),
+        Verb.UpFolder => Ran(() => Browse(browser => browser.Above)),
         Verb.ToggleSensitive => Ran(ToggleSensitive),
         Verb.Describe => Ran(Describe),
 
@@ -2266,13 +2268,29 @@ public sealed class Shell
 
         var folder = _lastFolder is { } last && Directory.Exists(last) ? last : _launchedFrom;
 
-        Push(new FileBrowserScreen(folder, compose.Limits, compose.AttachmentRoom));
+        Push(new FileBrowserScreen(LocalFiles.Listing(folder), compose.Limits, compose.AttachmentRoom));
     }
 
     /// <summary>
-    ///     <c>⏎</c> in the file browser: a folder opens; otherwise the browser goes and what was chosen — or the file
-    ///     under the cursor — is attached to the compose screen under it, exactly as a drop is (#375, #376), and the
-    ///     folder it came from is remembered for the next time.
+    ///     <c>→</c>, <c>←</c> or <c>⏎</c> in the file browser: the folder <paramref name="going" /> says, read off the disk
+    ///     here and shown there (#376) — the screen reading nothing itself (ADR-0015). Nothing where it says none.
+    /// </summary>
+    private void Browse(Func<FileBrowserScreen, string?> going)
+    {
+        if (Screen is not FileBrowserScreen browser || going(browser) is not { } folder)
+        {
+            return;
+        }
+
+        browser.Show(LocalFiles.Listing(folder));
+        Changed?.Invoke();
+    }
+
+    /// <summary>
+    ///     <c>⏎</c> in the file browser: the browser goes and what was chosen — or, with nothing chosen, the file under the
+    ///     cursor — is attached to the compose screen under it, exactly as a drop is (#375, #376), and the folder it came
+    ///     from is remembered for the next time. With neither, the folder under the cursor opens: what is chosen comes
+    ///     first wherever the cursor is (review of #372).
     /// </summary>
     public void AttachChosen()
     {
@@ -2283,10 +2301,15 @@ public sealed class Shell
 
         var chosen = browser.Take();
 
-        if (chosen.Count == 0 || _stack.Count < 2 || _stack[^2] is not ComposeScreen compose)
+        if (chosen.Count == 0)
         {
-            Changed?.Invoke();
+            Browse(opening => opening.FolderPicked);
 
+            return;
+        }
+
+        if (_stack.Count < 2 || _stack[^2] is not ComposeScreen compose)
+        {
             return;
         }
 
@@ -2308,7 +2331,7 @@ public sealed class Shell
 
         ChangeCompose(screen =>
         {
-            attached = screen.Attach(paths.Select(ComposeAttachment.Of));
+            attached = screen.Attach(paths.Select(path => ComposeAttachment.Of(path, LocalFiles.Size(path))));
 
             return attached.Count > 0 ? ComposeChange.Edited : ComposeChange.None;
         });

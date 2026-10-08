@@ -138,9 +138,10 @@ public sealed class ComposeAttachment(string path, MediaKind kind, long bytes)
     };
 
     /// <summary>
-    ///     An attachment of the file at <paramref name="path" />, its kind read off its name and its size off the disk —
-    ///     what the shell attaches once it has found the file is there.
+    ///     An attachment of the file at <paramref name="path" />, <paramref name="bytes" /> large, its kind read off its
+    ///     name — what the shell attaches once it has found the file is there and read its size off the disk, which a
+    ///     screen never reads (ADR-0015, review of #372).
     /// </summary>
-    public static ComposeAttachment Of(string path) =>
-        new(path, AttachmentTypes.KindOf(AttachmentTypes.Of(path)), new FileInfo(path).Length);
+    public static ComposeAttachment Of(string path, long bytes) =>
+        new(path, AttachmentTypes.KindOf(AttachmentTypes.Of(path)), bytes);
 }

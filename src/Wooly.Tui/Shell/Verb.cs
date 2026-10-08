@@ -9,14 +9,14 @@ namespace Wooly.Tui.Shell;
 ///     are the same key on different screens and one — <see cref="Delete" />, <see cref="Vote" /> — is a question put
 ///     before anything is done.
 ///     <para>
-///         What each becomes is <see cref="Shell.Do" />'s, but for twelve of them, which need a terminal and are
+///         What each becomes is <see cref="Shell.Do" />'s, but for fourteen of them, which need a terminal and are
 ///         <c>ShellWindow</c>'s: <see cref="Quit" />, which ends a run loop the application owns;
 ///         <see cref="ScrollDown" />, <see cref="ScrollUp" />, <see cref="PageDown" /> and <see cref="PageUp" />,
 ///         which walk the page rather than the list; <see cref="NextPost" />, <see cref="PreviousPost" />,
-///         <see cref="FirstPost" />, <see cref="LastPost" />, <see cref="NextSection" /> and
-///         <see cref="PreviousSection" />, which move the pick and the page both; and <see cref="Send" />, which has
-///         to take the editor widget's text before the shell sends it. Which twelve is <see cref="Verbs.NeedsATerminal" />,
-///         the one list the window and the shell both read.
+///         <see cref="FirstPost" />, <see cref="LastPost" />, <see cref="NextSection" />,
+///         <see cref="PreviousSection" />, <see cref="NextEntry" /> and <see cref="PreviousEntry" />, which move the pick
+///         and the page both; and <see cref="Send" />, which has to take the editor widget's text before the shell sends
+///         it. Which fourteen is <see cref="Verbs.NeedsATerminal" />, the one list the window and the shell both read.
 ///     </para>
 /// </remarks>
 public enum Verb
@@ -315,10 +315,19 @@ public enum Verb
     AttachChosen,
 
     /// <summary>
-    ///     A click on a box in the file browser, or a ctrl- or shift-click on a row: choose the file, or let it go
-    ///     (#376). <c>space</c> does the same as it is typed, since the browser takes letters.
+    ///     <c>space</c> in the file browser, a click on a box there, or a ctrl- or shift-click on a row: choose the file
+    ///     under the cursor, or let it go (#376).
     /// </summary>
     Choose,
+
+    /// <summary>
+    ///     <c>↓</c> in the file browser, whose letters are its filter: the cursor to the next entry on its list, as
+    ///     <c>k</c> walks to the next post elsewhere (#376).
+    /// </summary>
+    NextEntry,
+
+    /// <summary><c>↑</c> there, likewise: the cursor to the entry before.</summary>
+    PreviousEntry,
 
     /// <summary><c>→</c> there: open the folder under the cursor.</summary>
     IntoFolder,

@@ -14,11 +14,12 @@ namespace Wooly.Tui.Screens;
 /// </summary>
 /// <remarks>
 ///     A screen like any other on the stack (ADR-0015's rule for anything new), and as inert as the compose screen
-///     under it: it reads the folder it is shown, which is the local machine's rather than an instance's (ADR-0020),
-///     and says what is chosen — attaching it is the shell's, which does it the way a drop does (#375).
+///     under it: it reads nothing. The shell reads each folder off the local machine's disk (ADR-0020) and hands it the
+///     listing (<see cref="Show" />), and it says what is chosen and which folder to open next — attaching what is
+///     chosen is the shell's, which does it the way a drop does (#375), and so is reading the folder (review of #372).
 ///     <para>
-///         It takes letters, all of them, into its filter: so <c>space</c>, which a name never needs typed since the
-///         filter is fuzzy, chooses, and <c>backspace</c> only ever edits the filter — held down, it stops at empty
+///         It takes letters into its filter, all but <c>space</c>, which a name never needs typed since the filter is
+///         fuzzy, and which the keymap makes the choosing; and <c>backspace</c> only ever edits the filter — held down, it stops at empty
 ///         rather than walking up the folders.
 ///     </para>
 /// </remarks>
@@ -67,25 +68,38 @@ public sealed class FileBrowserScreen : Screen
     /// <summary>What is chosen, in the order it was chosen, which is the order it is attached in.</summary>
     private readonly List<string> _chosen = [];
 
+    /// <summary>The folder being shown, as the shell read it.</summary>
+    private FolderListing _listing;
+
     /// <summary>Everything listed in the folder, before the filter: <c>..</c>, the folders, then the files.</summary>
     private List<Entry> _entries = [];
 
     /// <summary>What the filter leaves, with the cursor on one of them.</summary>
     private Picked<Entry> _walking = new([]);
 
-    /// <param name="folder">The folder it opens in.</param>
+    /// <param name="listing">The folder it opens in, as the shell read it.</param>
     /// <param name="limits">What the instance accepts.</param>
     /// <param name="room">How many more the post has room for.</param>
-    public FileBrowserScreen(string folder, PostLimits limits, int room)
+    public FileBrowserScreen(FolderListing listing, PostLimits limits, int room)
     {
         _limits = limits;
         _room = room;
+        _listing = listing;
 
-        Open(folder);
+        Show(listing);
     }
 
     /// <summary>The folder being shown.</summary>
-    public string Folder { get; private set; } = string.Empty;
+    public string Folder => _listing.Path;
+
+    /// <summary>
+    ///     The folder <c>→</c> or <c>⏎</c> opens — the one under the cursor, <c>..</c> included — or none where the cursor
+    ///     is on a file or on nothing.
+    /// </summary>
+    public string? FolderPicked => Current is { Folder: true } folder ? folder.Path : null;
+
+    /// <summary>The folder <c>←</c> goes up to, or none at the very root of the disk.</summary>
+    public string? Above => _listing.Up?.Path;
 
     /// <summary>What has been typed to narrow the list, or empty where nothing narrows it.</summary>
     public string Filter { get; private set; } = string.Empty;
@@ -121,17 +135,9 @@ public sealed class FileBrowserScreen : Screen
     private Entry? Current => _walking.Out;
 
     /// <inheritdoc />
-    /// <remarks>A space chooses the file under the cursor and moves on; anything else narrows the list.</remarks>
+    /// <remarks>Narrows the list. A space never arrives here: the keymap makes it the choosing (#376).</remarks>
     public override void Type(char letter)
     {
-        if (letter == ' ')
-        {
-            Choose();
-            Move(1);
-
-            return;
-        }
-
         Filter += letter;
         Narrowed();
     }
@@ -168,19 +174,9 @@ public sealed class FileBrowserScreen : Screen
 
                 break;
 
-            case Verb.IntoFolder when Current is { Folder: true } folder:
-                Open(folder.Path);
-
-                break;
-
-            case Verb.UpFolder when Directory.GetParent(Folder) is { } parent:
-                Open(parent.FullName);
-
-                break;
-
             case Verb.EveryFile:
                 EveryFile = !EveryFile;
-                Read();
+                Listed();
 
                 break;
 
@@ -206,19 +202,31 @@ public sealed class FileBrowserScreen : Screen
     };
 
     /// <summary>
-    ///     <c>⏎</c>: opens the folder under the cursor and answers nothing; otherwise answers what is to be attached —
-    ///     what is chosen, in the order chosen, or the file under the cursor where nothing is.
+    ///     What <c>⏎</c> attaches: what is chosen, in the order chosen, wherever the cursor is — or, where nothing is,
+    ///     the file under the cursor. Nothing where neither is, the cursor being on a folder, which <c>⏎</c> opens
+    ///     instead (<see cref="FolderPicked" />).
     /// </summary>
-    public IReadOnlyList<string> Take()
+    public IReadOnlyList<string> Take() =>
+        _chosen.Count > 0 ? [.. _chosen] : Current is { Folder: false } file ? [file.Path] : [];
+
+    /// <summary>
+    ///     Shows <paramref name="listing" />, the filter cleared, on its first entry under <c>..</c> — or, going up, on
+    ///     the folder just left. What is chosen stays chosen.
+    /// </summary>
+    public void Show(FolderListing listing)
     {
-        if (Current is { Folder: true } folder)
+        var left = _entries.Count > 0 ? Folder : null;
+
+        _listing = listing;
+        Filter = string.Empty;
+        _walking = new Picked<Entry>([]);
+        Listed();
+
+        // Going up lands on the folder just left; anywhere else, on the first entry, which Narrowed put it on.
+        if (_walking.All.ToList().FindIndex(entry => !entry.Up && entry.Path == left) is >= 0 and var at)
         {
-            Open(folder.Path);
-
-            return [];
+            _walking.Pick(at);
         }
-
-        return _chosen.Count > 0 ? [.. _chosen] : Current is { } file ? [file.Path] : [];
     }
 
     /// <inheritdoc />
@@ -325,7 +333,7 @@ public sealed class FileBrowserScreen : Screen
     {
         var counted = new Span(Counted, Role.Muted);
         var room = width - (Pad * 2) - counted.Width - 2;
-        var folder = Shown(Folder);
+        var folder = _listing.Shown;
 
         if (room < LeastFolder)
         {
@@ -404,67 +412,29 @@ public sealed class FileBrowserScreen : Screen
     }
 
     /// <summary>
-    ///     Shows <paramref name="folder" />, the filter cleared, on its first entry under <c>..</c> — or, going up, on
-    ///     the folder just left. What is chosen stays chosen.
+    ///     Lists the folder again from what the shell read — the files every file or only the accepted ones — keeping the
+    ///     cursor on the entry it was on.
     /// </summary>
-    private void Open(string folder)
-    {
-        var left = Folder;
-
-        Folder = Path.GetFullPath(folder);
-        Filter = string.Empty;
-        Read();
-
-        // Going up lands on the folder just left; anywhere else, on the first entry, which Narrowed put it on.
-        if (_walking.All.ToList().FindIndex(entry => !entry.Up && entry.Path == left) is >= 0 and var at)
-        {
-            _walking.Pick(at);
-        }
-    }
-
-    /// <summary>Lists the folder again, as it is on the disk, keeping the cursor on the entry it was on.</summary>
-    private void Read()
+    private void Listed()
     {
         var on = Current?.Path;
-        var entries = new List<Entry>();
+        IEnumerable<Entry> up = _listing.Up is { } above
+            ? [new Entry(above.Path, "..", Folder: true, Up: true, 0, above.Changed)]
+            : [];
 
-        try
-        {
-            var here = new DirectoryInfo(Folder);
-
-            if (here.Parent is { } parent)
-            {
-                entries.Add(new Entry(parent.FullName, "..", Folder: true, Up: true, 0, parent.LastWriteTime));
-            }
-
-            entries.AddRange(here.EnumerateDirectories()
-                                 .Where(folder => !Hidden(folder))
-                                 .OrderBy(folder => folder.Name, StringComparer.OrdinalIgnoreCase)
-                                 .Select(folder => new Entry(
-                                     folder.FullName,
-                                     folder.Name,
-                                     Folder: true,
-                                     Up: false,
-                                     0,
-                                     folder.LastWriteTime)));
-
-            entries.AddRange(here.EnumerateFiles()
-                                 .Where(file => !Hidden(file) && (EveryFile || _limits.Accepts(file.FullName)))
-                                 .OrderBy(file => file.Name, StringComparer.OrdinalIgnoreCase)
-                                 .Select(file => new Entry(
-                                     file.FullName,
-                                     file.Name,
-                                     Folder: false,
-                                     Up: false,
-                                     file.Length,
-                                     file.LastWriteTime)));
-        }
-        catch (Exception failed) when (failed is UnauthorizedAccessException or IOException)
-        {
-            // A folder that cannot be read lists only the way back up, and says there is nothing here.
-        }
-
-        _entries = entries;
+        _entries =
+        [
+            .. up,
+            .. _listing.Entries
+                       .Where(entry => entry.Folder || EveryFile || _limits.Accepts(entry.Path))
+                       .Select(entry => new Entry(
+                           entry.Path,
+                           entry.Name,
+                           entry.Folder,
+                           Up: false,
+                           entry.Bytes,
+                           entry.Changed)),
+        ];
         Narrowed();
 
         if (on is not null && _walking.All.ToList().FindIndex(entry => entry.Path == on) is >= 0 and var at)
@@ -495,20 +465,6 @@ public sealed class FileBrowserScreen : Screen
 
         _walking = new Picked<Entry>(shown);
         _walking.Pick(_walking.All.Count > 0 && _walking.All[0].Up ? 1 : 0);
-    }
-
-    /// <summary>A file or folder left out of every listing: one named with a leading dot, or marked hidden.</summary>
-    private static bool Hidden(FileSystemInfo info) =>
-        info.Name.StartsWith('.') || info.Attributes.HasFlag(FileAttributes.Hidden);
-
-    /// <summary>A folder as the author would write it, under <c>~</c> where it is in their home.</summary>
-    private static string Shown(string folder)
-    {
-        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-
-        return home.Length > 0 && folder.StartsWith(home, StringComparison.Ordinal)
-            ? $"~{folder[home.Length..]}"
-            : folder;
     }
 
     /// <summary>What kind of attachment a file would make, as a row of the compose screen says it.</summary>

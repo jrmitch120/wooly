@@ -101,15 +101,28 @@ public static class Keymap
         (ShellKey.CtrlO, ComposeScreen) => Verb.OpenBrowser,
         (ShellKey.Enter, ComposeScreen { Typing: ComposeField.Media }) => Verb.OpenBrowser,
 
+        // And s on compose's Media header and its rows, the places on the screen with no field to type it into: the
+        // sensitive toggle at the end of the header's line (#379, #378). Anywhere else on compose a field has taken it
+        // as a letter already.
+        (ShellKey.S, ComposeScreen { Typing: ComposeField.Media or ComposeField.Attachment }) => Verb.ToggleSensitive,
+
+        // And nothing else. Every other key a compose screen leaves — a letter, a digit, a capital — is a letter in the
+        // field that has the typing, or nobody's on the Media header and its rows, which take none: never a boost, a
+        // reply or a compose behind a draft. Said here, so that the rows can ask this table what to leave it rather
+        // than keep a list of their own (review of #372).
+        (_, ComposeScreen) => Verb.None,
+
         // The file browser takes letters into its filter, so what it answers besides are the named keys (#376): ⏎
-        // attaches or opens, → and ← go into a folder and up one, ctrl-a shows every file, and the arrows walk the
-        // list as j and k do elsewhere — j and k being letters here.
+        // attaches or opens, → and ← go into a folder and up one, ctrl-a shows every file, and the arrows walk its
+        // entries as j and k walk posts elsewhere — j and k being letters here. And space, the one letter it does not
+        // type, since its filter is fuzzy and a name's spaces never need typing: it chooses.
         (ShellKey.Enter, FileBrowserScreen) => Verb.AttachChosen,
         (ShellKey.Right, FileBrowserScreen) => Verb.IntoFolder,
         (ShellKey.Left, FileBrowserScreen) => Verb.UpFolder,
         (ShellKey.CtrlA, FileBrowserScreen) => Verb.EveryFile,
-        (ShellKey.Down, FileBrowserScreen) => Verb.NextPost,
-        (ShellKey.Up, FileBrowserScreen) => Verb.PreviousPost,
+        (ShellKey.Down, FileBrowserScreen) => Verb.NextEntry,
+        (ShellKey.Up, FileBrowserScreen) => Verb.PreviousEntry,
+        (ShellKey.Space, FileBrowserScreen) => Verb.Choose,
 
         // The four that collide. A picked reference is a level of its own inside the screen, so ⏎ means the reference
         // wherever one is picked — ahead of whatever the screen's own ⏎ would have meant (#85).
@@ -186,11 +199,6 @@ public static class Keymap
         // And s again on the account screen, where it swaps runs rather than sides: their posts and replies, and back
         // to their posts alone (#229). Still bound only where it does something, and announced where it is.
         (ShellKey.S, AccountScreen) => Verb.SwapPostsAndReplies,
-
-        // And on compose's Media header and its rows, the places on the screen with no field to type it into: the
-        // sensitive toggle at the end of the header's line (#379, #378). Anywhere else on compose a field has taken it
-        // as a letter already.
-        (ShellKey.S, ComposeScreen { Typing: ComposeField.Media or ComposeField.Attachment }) => Verb.ToggleSensitive,
 
         // The add screen's one letter, bound only there and only reached while no field is taking letters — every
         // letter is typed into a field that is (#245).

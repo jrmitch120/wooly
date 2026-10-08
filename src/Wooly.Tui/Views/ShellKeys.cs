@@ -51,6 +51,7 @@ internal static class ShellKeys
     /// </summary>
     private static readonly Dictionary<char, ShellKey> Typed = new()
     {
+        [' '] = ShellKey.Space,
         ['a'] = ShellKey.A,
         ['b'] = ShellKey.B,
         ['c'] = ShellKey.C,

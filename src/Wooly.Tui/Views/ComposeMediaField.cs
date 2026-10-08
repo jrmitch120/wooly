@@ -2,6 +2,7 @@ using System.Drawing;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Wooly.Tui.Screens;
+using Wooly.Tui.Shell;
 
 namespace Wooly.Tui.Views;
 
@@ -12,11 +13,13 @@ namespace Wooly.Tui.Views;
 ///     key or a click on them means is the screen's, asked through the shell.
 /// </summary>
 /// <remarks>
-///     It leaves to the window every key it does not mean to swallow, and so to <c>Keymap</c>: the arrows that walk the
-///     fields and the shifted ones that reorder the rows, <c>⏎</c>, which opens the file browser on the header (#376) and the description editor on a row (#377),
-///     <c>tab</c>, <c>esc</c>, the <c>ctrl</c> chords, <c>del</c> and <c>backspace</c>, which take a row off, <c>s</c>,
-///     the sensitive toggle, and <c>r</c>, which retries a row. Any other letter is nobody's here — read by the keymap
-///     it would be a boost or a compose behind a draft.
+///     It leaves to the window every key <c>Keymap</c> means something by on the compose screen, and the <c>ctrl</c> and
+///     <c>alt</c> chords besides, which are the terminal's where the keymap has no word for them: the arrows that walk
+///     the fields and the shifted ones that reorder the rows, <c>⏎</c>, which opens the file browser on the header
+///     (#376) and the description editor on a row (#377), the frame's keys, <c>del</c> and <c>backspace</c>, which take
+///     a row off, <c>s</c>, the sensitive toggle, and <c>r</c>, which retries a row. It asks the keymap rather than
+///     keeping a list of its own (review of #372), and swallows what the keymap means nothing by on compose: any other
+///     letter, which is nobody's here.
 ///     <para>
 ///         On a row the pointer picks it, takes it off by its <c>x</c>, retries it by its <c>retry (r)</c>, and drags
 ///         it to another place, live: the row takes each place the pointer reaches and the others make way (#378). A
@@ -56,10 +59,8 @@ internal sealed class ComposeMediaField : View
 
     protected override bool OnKeyDown(Key key) =>
         Answering?.Invoke(key) == true
-        || !(key == Key.Enter || key == Key.CursorLeft || key == Key.CursorRight || key == Key.CursorUp || key == Key.CursorDown
-          || key == Key.CursorUp.WithShift || key == Key.CursorDown.WithShift || key == Key.Tab
-          || key == Key.Tab.WithShift || key == Key.Esc || key == Key.Delete || key == Key.Backspace || key == Key.S
-          || key == Key.R || key.IsCtrl || key.IsAlt);
+        || !(key.IsCtrl || key.IsAlt
+             || (ShellKeys.Of(key) is { } pressed && Keymap.Means(pressed, _shell.Screen) != Verb.None));
 
     /// <summary>
     ///     The pointer on the header or the rows: a press on a row picks it and picks it up, the pointer moving with the

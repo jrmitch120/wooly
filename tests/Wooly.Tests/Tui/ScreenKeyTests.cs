@@ -375,7 +375,10 @@ public class ScreenKeyTests
                 return Describing();
 
             case "browser":
-                return new FileBrowserScreen(Path.GetTempPath(), PostLimits.Default, room: 4);
+                return new FileBrowserScreen(
+                    new FolderListing(Path.GetTempPath(), "/tmp", Up: null, []),
+                    PostLimits.Default,
+                    room: 4);
 
             case "notice":
                 return new NoticeScreen("rate limit", "The instance asked for a moment.");

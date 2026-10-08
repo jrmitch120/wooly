@@ -189,7 +189,10 @@ public class CrumbTests
                 return new ComposeScreen(ComposeFor.Edit, post);
 
             case "browser":
-                return new FileBrowserScreen(Path.GetTempPath(), PostLimits.Default, room: 4);
+                return new FileBrowserScreen(
+                    new FolderListing(Path.GetTempPath(), "/tmp", Up: null, []),
+                    PostLimits.Default,
+                    room: 4);
 
             case "account":
                 return new AccountScreen(maria, [post], pinned: []);

@@ -279,8 +279,9 @@ internal sealed class ShellWindow : Window
         // A prompt taking a query takes the letters too, so that searching for "backfeed" is not a boost, an author,
         // a compose and two more besides. Ahead of the keymap rather than inside it: this is the one place a key the
         // contract has settled means something else, and what it means instead is a letter rather than another verb.
-        // Which screens do that is a fact about the screen, not a mode kept here.
-        if (_shell.Screen.IsTyping && Typing(key))
+        // Which screens do that is a fact about the screen, not a mode kept here. All but a space the keymap gives a
+        // meaning on the screen — choosing, in the file browser, whose fuzzy filter never needs one typed (#376).
+        if (_shell.Screen.IsTyping && !Chooses(key) && Typing(key))
         {
             return true;
         }
@@ -353,12 +354,12 @@ internal sealed class ShellWindow : Window
 
         // What the arrow means is still the keymap's to say. Where it is a scroll, the wheel's own step is a row rather
         // than the arrow's three: a trackpad sends many small events, and three rows each read as lurches (#292).
-        // And where the arrow walks a list rather than the page — the file browser's, whose letters are its filter — the
+        // And where the arrow walks the file browser's entries rather than the page — its letters being its filter — the
         // wheel still scrolls the page, as a wheel does over any list (#376).
         return Keymap.Means(pressed, _shell.Screen) switch
         {
-            Verb.ScrollDown or Verb.NextPost => Notch(RowsANotch),
-            Verb.ScrollUp or Verb.PreviousPost => Notch(-RowsANotch),
+            Verb.ScrollDown or Verb.NextEntry => Notch(RowsANotch),
+            Verb.ScrollUp or Verb.PreviousEntry => Notch(-RowsANotch),
             _ => Do(pressed),
         };
     }
@@ -503,6 +504,13 @@ internal sealed class ShellWindow : Window
         return true;
     }
 
+    /// <summary>
+    ///     Whether <paramref name="key" /> is a space the keymap means something by on the screen in front, rather than a
+    ///     letter for whatever it is typing into (#376).
+    /// </summary>
+    private bool Chooses(Key key) =>
+        ShellKeys.Of(key) is ShellKey.Space && Keymap.Means(ShellKey.Space, _shell.Screen) != Verb.None;
+
     /// <summary>Whether ctrl or shift was held through a click.</summary>
     private static bool Chorded(Mouse mouse) =>
         mouse.Flags.HasFlag(MouseFlags.Ctrl) || mouse.Flags.HasFlag(MouseFlags.Shift);
@@ -574,6 +582,17 @@ internal sealed class ShellWindow : Window
                 return true;
 
             case Verb.PreviousPost:
+                Walk(-1);
+
+                return true;
+
+            // The file browser's list is walked as a list of posts is, the cursor taking the page with it (#376).
+            case Verb.NextEntry:
+                Walk(1);
+
+                return true;
+
+            case Verb.PreviousEntry:
                 Walk(-1);
 
                 return true;

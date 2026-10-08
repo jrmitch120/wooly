@@ -220,8 +220,8 @@ public class FileBrowserTests : IDisposable
     }
 
     /// <summary>
-    ///     <c>space</c> chooses — so a name's spaces never need typing — and moves on; choices outlast a change of filter,
-    ///     and <c>⏎</c> attaches them, in the order chosen, as pending attachments sent up at once.
+    ///     <c>space</c> chooses — so a name's spaces never need typing — and again lets go; choices outlast a change of
+    ///     filter, and <c>⏎</c> attaches them, in the order chosen, as pending attachments sent up at once.
     /// </summary>
     [Fact]
     public async Task SpaceChoosesSeveralAndEnterAttachesThemInOrder()
@@ -231,13 +231,16 @@ public class FileBrowserTests : IDisposable
         _files.WriteFile("c.png");
         var (shell, built, compose) = await Browsing(PostLimits.Default);
 
+        Browser(shell).Pick(At(shell, "b.png"));
+        shell.Press(ShellKey.Space);
+        shell.Press(ShellKey.Space);
         Browser(shell).Pick(At(shell, "c.png"));
-        Type(shell, " ");
+        shell.Press(ShellKey.Space);
         Type(shell, "a");
 
         Assert.Equal("a.png", Names(shell)[1]);
 
-        Type(shell, " ");
+        shell.Press(ShellKey.Space);
 
         Assert.Contains("2 chosen · 2 more fit", Rows(shell)[0], StringComparison.Ordinal);
 
@@ -263,8 +266,11 @@ public class FileBrowserTests : IDisposable
         _files.WriteFile("c.png");
 
         shell.Press(ShellKey.CtrlO);
-        Browser(shell).Pick(At(shell, "a.png"));
-        Type(shell, "   ");
+        foreach (var name in new[] { "a.png", "b.png", "c.png" })
+        {
+            Browser(shell).Pick(At(shell, name));
+            shell.Press(ShellKey.Space);
+        }
 
         Assert.Contains("2 chosen · 0 more fit", Rows(shell)[0], StringComparison.Ordinal);
 
@@ -272,6 +278,28 @@ public class FileBrowserTests : IDisposable
 
         Assert.Equal(["first.png", "a.png", "b.png"], compose.Attachments.Select(attachment => attachment.Name));
         Assert.Equal(3, built.Author.Attaching.Count);
+    }
+
+    /// <summary>
+    ///     <c>⏎</c> with files chosen attaches them wherever the cursor is — on <c>..</c> or a folder too, which it would
+    ///     otherwise open: what is chosen comes first, then the file under the cursor, then a folder (review of #372).
+    /// </summary>
+    [Theory]
+    [InlineData("..")]
+    [InlineData("holiday/")]
+    public async Task EnterWithFilesChosenAttachesThemWhereverTheCursorIs(string on)
+    {
+        Folder("holiday");
+        _files.WriteFile("a.png");
+        var (shell, _, compose) = await Browsing(PostLimits.Default);
+
+        Browser(shell).Pick(At(shell, "a.png"));
+        shell.Press(ShellKey.Space);
+        Browser(shell).Pick(At(shell, on));
+        shell.Press(ShellKey.Enter);
+
+        Assert.Same(compose, shell.Screen);
+        Assert.Equal("a.png", Assert.Single(compose.Attachments).Name);
     }
 
     /// <summary><c>⏎</c> with nothing chosen attaches the file under the cursor.</summary>
@@ -352,7 +380,7 @@ public class FileBrowserTests : IDisposable
         compose.Rewrite("A cat");
         shell.Press(ShellKey.CtrlO);
         Browser(shell).Pick(At(shell, "cat.png"));
-        Type(shell, " ");
+        shell.Press(ShellKey.Space);
         Type(shell, "cat");
         shell.Back();
 
@@ -472,6 +500,32 @@ public class FileBrowserTests : IDisposable
         drawn.Click(every + 3, everyRow);
 
         Assert.Contains(drawn.Rows(), text => text.Contains("notes.txt", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    ///     In the window, <c>space</c> chooses the file under the cursor rather than going into the filter, and the arrows
+    ///     walk the list (review of #372).
+    /// </summary>
+    [Fact]
+    public async Task InTheWindowSpaceChoosesAndTheArrowsWalk()
+    {
+        _files.WriteFile("a.png");
+        _files.WriteFile("b.png");
+        using var drawn = await DrawnShell.Of(80, 24, Themes.Plain, Launched());
+
+        drawn.Shell.Compose();
+        drawn.Redraw();
+        drawn.Press(Key.O.WithCtrl);
+        drawn.Press(Key.Space);
+
+        Assert.Contains(drawn.Rows(), row => row.Contains("▌☑ a.png", StringComparison.Ordinal));
+        Assert.Contains(drawn.Rows(), row => row.Contains("type to filter", StringComparison.Ordinal));
+
+        drawn.Press(Key.CursorDown);
+        drawn.Press(Key.Space);
+
+        Assert.Contains(drawn.Rows(), row => row.Contains("▌☑ b.png", StringComparison.Ordinal));
+        Assert.Contains(drawn.Rows(), row => row.Contains("2 chosen", StringComparison.Ordinal));
     }
 
     /// <summary>A double click on a file attaches it; on a folder, opens it.</summary>
