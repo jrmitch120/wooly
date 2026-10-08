@@ -75,7 +75,7 @@ namespace Wooly.Tui.Prototype.Attachments
 
         public static int MarkStyle { get; set; }
 
-        public static readonly string[] Marks = ["○ no description", "no alt text", "○", "· add a description"];
+        public static readonly string[] Marks = ["no alt text", "○ no description", "○", "· add a description"];
 
         public static string Mark => Marks[MarkStyle];
 

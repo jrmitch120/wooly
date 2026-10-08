@@ -95,7 +95,7 @@ internal sealed class BrowserScreen : Screen
                            .Select(entry => (Entry: entry, Score: Fuzzy(entry.Name, _filter)))
                            .Where(match => match.Score is not null)
                            .OrderBy(match => match.Entry.Folder ? 0 : 1)
-                           .ThenBy(match => match.Score)
+                           .ThenByDescending(match => match.Score)
                            .ThenBy(match => match.Entry.Name, StringComparer.OrdinalIgnoreCase)
                            .Select(match => match.Entry),
             ];
@@ -110,30 +110,69 @@ internal sealed class BrowserScreen : Screen
     }
 
     /// <summary>
-    ///     How loosely <paramref name="filter" /> matches <paramref name="name" />, lower being closer: the letters it
-    ///     skipped between the first match and the last, plus where the match began. Null where it does not match.
+    ///     How well <paramref name="filter" /> matches <paramref name="name" />, higher being closer, or null where
+    ///     its letters are not all there in order. Scored the way fzf and VS Code score: each letter found earns a
+    ///     little, a letter right after the one before earns more, a letter that starts a word (or a run of digits)
+    ///     earns more again, and every letter skipped between two matches costs a little. The best placing of the
+    ///     letters is found, not the first.
     /// </summary>
     private static int? Fuzzy(string name, string filter)
     {
-        var at = 0;
-        var start = -1;
-        var gaps = 0;
-        var last = -1;
+        const int Found = 16, Adjacent = 24, WordStart = 12, Gap = 1;
+        const int Never = int.MinValue / 2;
 
-        foreach (var wanted in filter)
+        var n = name.Length;
+        var m = filter.Length;
+
+        if (m == 0) return 0;
+        if (m > n) return null;
+
+        // best[j]: the best score with the letters so far matched and the last of them at name[j].
+        var best = new int[n];
+        var next = new int[n];
+
+        for (var i = 0; i < m; i++)
         {
-            while (at < name.Length && char.ToLowerInvariant(name[at]) != char.ToLowerInvariant(wanted)) at++;
+            var wanted = char.ToLowerInvariant(filter[i]);
+            var carried = Never; // the best of best[k] - Gap·(j - k - 1) over k < j - 1, kept as j moves right
 
-            if (at == name.Length) return null;
+            for (var j = 0; j < n; j++)
+            {
+                next[j] = Never;
 
-            if (start < 0) start = at;
-            else gaps += at - last - 1;
+                if (i > 0 && j > 1) carried = Math.Max(carried - Gap, best[j - 2]);
 
-            last = at++;
+                if (char.ToLowerInvariant(name[j]) != wanted) continue;
+
+                var bonus = Found + (StartsWord(name, j) ? WordStart : 0);
+
+                if (i == 0)
+                {
+                    next[j] = bonus;
+                }
+                else
+                {
+                    var after = j > 0 && best[j - 1] > Never ? best[j - 1] + Adjacent : Never;
+                    var skipped = carried > Never ? carried - Gap : Never;
+                    var before = Math.Max(after, skipped);
+
+                    if (before > Never) next[j] = before + bonus;
+                }
+            }
+
+            (best, next) = (next, best);
         }
 
-        return gaps * 10 + start;
+        var top = best.Max();
+
+        return top > Never ? top : null;
     }
+
+    private static bool StartsWord(string name, int at) =>
+        at == 0
+        || !char.IsLetterOrDigit(name[at - 1])
+        || (char.IsDigit(name[at]) && !char.IsDigit(name[at - 1]))
+        || (char.IsUpper(name[at]) && char.IsLower(name[at - 1]));
 
     private void Scrolled()
     {
