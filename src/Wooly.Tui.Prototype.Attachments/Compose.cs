@@ -244,7 +244,7 @@ internal sealed class AttachArea(AreaMode mode) : Painted
         ? Mode == AreaMode.Summary && Draft.Items.Count > 0
             ? "enter or click: the attachments screen · s sensitive · ↑ warning · ↓ editor"
             : "enter or click: attach… · s sensitive · ↑/↓ walk · ctrl-o attach"
-        : "enter describe · del remove · alt-↑/↓ reorder (or drag) · r retry · s sensitive · ↑/↓ walk";
+        : "enter describe · del remove · shift-↑/↓ reorder (or drag) · r retry · s sensitive · ↑/↓ walk";
 
     protected override void Paint()
     {
@@ -388,12 +388,13 @@ internal sealed class AttachArea(AreaMode mode) : Painted
     }
 
     /// <summary>
-    ///     Where each column of a row starts, as wide as the widest row needs so the rows line up: the name, its kind,
+    ///     Where each column of a row starts, the same for every row so the rows line up: the name, its kind,
     ///     its size, ×, and then the one column for progress, a refusal or the description.
     /// </summary>
     private (int NameAt, int NameWidth, int KindAt, int SizeAt, int RemoveAt, int DescribedAt) Columns()
     {
-        var nameWidth = Math.Clamp(Draft.Items.Max(each => Glyphs.Columns(each.Name)), 8, 32);
+        // Fixed, not the widest name's: attaching a long name moves nothing on the rows already there.
+        const int nameWidth = 32;
         var nameAt = Geometry.ValueAt + ThumbColumns + 1;
         var kindAt = nameAt + nameWidth + 2;
         var sizeAt = kindAt + 9;
@@ -461,9 +462,9 @@ internal sealed class AttachArea(AreaMode mode) : Painted
             if (Cursor < Last) Cursor++;
             else Down?.Invoke();
         }
-        else if ((key == Key.CursorUp.WithAlt || key == Key.CursorDown.WithAlt) && Cursor >= 0)
+        else if ((key == Key.CursorUp.WithShift || key == Key.CursorDown.WithShift) && Cursor >= 0)
         {
-            Cursor = Draft.Move(Cursor, key == Key.CursorUp.WithAlt ? -1 : 1);
+            Cursor = Draft.Move(Cursor, key == Key.CursorUp.WithShift ? -1 : 1);
         }
         else if ((key == Key.Delete || key == Key.Backspace) && Cursor >= 0 && Cursor < items.Count)
         {
@@ -624,7 +625,7 @@ internal sealed class StripArea : Painted
 
     private int Tiles => Draft.Items.Count + (Draft.Items.Count < Instance.Most ? 1 : 0);
 
-    public string Hints => "←/→ walk · enter describe · del remove · alt-←/→ reorder (or drag) · r retry · ↑ editor";
+    public string Hints => "←/→ walk · enter describe · del remove · shift-←/→ reorder (or drag) · r retry · ↑ editor";
 
     private int TileAt(int x) => (x - Geometry.Pad) / TileWidth;
 
@@ -683,8 +684,8 @@ internal sealed class StripArea : Painted
         if (key == Key.CursorLeft) Cursor = Math.Max(0, Cursor - 1);
         else if (key == Key.CursorRight) Cursor = Math.Min(Tiles - 1, Cursor + 1);
         else if (key == Key.CursorUp) Up?.Invoke();
-        else if ((key == Key.CursorLeft.WithAlt || key == Key.CursorRight.WithAlt) && Cursor < items.Count)
-            Cursor = Draft.Move(Cursor, key == Key.CursorLeft.WithAlt ? -1 : 1);
+        else if ((key == Key.CursorLeft.WithShift || key == Key.CursorRight.WithShift) && Cursor < items.Count)
+            Cursor = Draft.Move(Cursor, key == Key.CursorLeft.WithShift ? -1 : 1);
         else if ((key == Key.Delete || key == Key.Backspace) && Cursor < items.Count)
         {
             var gone = items[Cursor];

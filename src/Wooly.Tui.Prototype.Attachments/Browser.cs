@@ -83,16 +83,56 @@ internal sealed class BrowserScreen : Screen
 
     private void Filtered()
     {
+        // Fuzzy, the way fzf matches: the letters typed, in order, anywhere in the name — so "ss0229" finds
+        // "Screenshot 2024-02-29 at 9.31.07 AM.png" and space never has to be typed, leaving it to choose. Closest
+        // matches first, folders still ahead of files.
         _shown = _filter.Length == 0
             ? _entries
-            : [.. _entries.Where(entry => entry.Up || entry.Name.Contains(_filter, StringComparison.OrdinalIgnoreCase))];
-        _cursor = Math.Clamp(_cursor, 0, Math.Max(0, _shown.Count - 1));
+            :
+            [
+                .. _entries.Where(entry => entry.Up),
+                .. _entries.Where(entry => !entry.Up)
+                           .Select(entry => (Entry: entry, Score: Fuzzy(entry.Name, _filter)))
+                           .Where(match => match.Score is not null)
+                           .OrderBy(match => match.Entry.Folder ? 0 : 1)
+                           .ThenBy(match => match.Score)
+                           .ThenBy(match => match.Entry.Name, StringComparer.OrdinalIgnoreCase)
+                           .Select(match => match.Entry),
+            ];
 
-        // Past ".." where there is a filter, so the first match is what enter takes.
-        if (_filter.Length > 0 && _shown.Count > 1 && _shown[0].Up && _cursor == 0) _cursor = 1;
+        // On the closest match whenever the filter changes, so enter takes it.
+        _cursor = _filter.Length > 0
+            ? _shown.FindIndex(entry => !entry.Up) is >= 0 and var first ? first : 0
+            : Math.Clamp(_cursor, 0, Math.Max(0, _shown.Count - 1));
 
         Scrolled();
         SetNeedsDraw();
+    }
+
+    /// <summary>
+    ///     How loosely <paramref name="filter" /> matches <paramref name="name" />, lower being closer: the letters it
+    ///     skipped between the first match and the last, plus where the match began. Null where it does not match.
+    /// </summary>
+    private static int? Fuzzy(string name, string filter)
+    {
+        var at = 0;
+        var start = -1;
+        var gaps = 0;
+        var last = -1;
+
+        foreach (var wanted in filter)
+        {
+            while (at < name.Length && char.ToLowerInvariant(name[at]) != char.ToLowerInvariant(wanted)) at++;
+
+            if (at == name.Length) return null;
+
+            if (start < 0) start = at;
+            else gaps += at - last - 1;
+
+            last = at++;
+        }
+
+        return gaps * 10 + start;
     }
 
     private void Scrolled()

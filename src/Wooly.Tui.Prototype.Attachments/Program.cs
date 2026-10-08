@@ -4,7 +4,7 @@
 //   A  an Attach header (📎) with one row per attachment
 //   B  a strip of drawn thumbnails between the editor and the footer
 //   C  a one-line summary on the header that opens an attachments screen
-// plus the file browser (ctrl-o), the description editor (enter on an attachment), remove (del) and reorder (alt-↑/↓,
+// plus the file browser (ctrl-o), the description editor (enter on an attachment), remove (del) and reorder (shift-↑/↓,
 // or drag with the mouse), the quiet "no description" mark, the sensitive toggle (s, or a click), fake uploads with
 // progress, processing, ready and one refusal (the third file attached drops its connection; retry with r), real
 // Kitty/sixel pictures, real OS-clipboard ctrl-v, and real drag-and-drop of paths onto the terminal.
@@ -82,7 +82,7 @@ namespace Wooly.Tui.Prototype.Attachments
         public static int LabelStyle { get; set; }
 
         /// <summary>The Attach header's label: candidates for the paper clip, F7 cycles them.</summary>
-        public static readonly string[] AttachLabels = ["Att", "Atch", "Attd", "Media", "File", "+", "📎", "▒"];
+        public static readonly string[] AttachLabels = ["File", "Att", "Media", "+", "📎", "▒"];
 
         public static string AttachLabel => AttachLabels[LabelStyle];
 
