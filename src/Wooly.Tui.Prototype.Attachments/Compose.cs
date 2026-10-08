@@ -256,11 +256,11 @@ internal sealed class AttachArea(AreaMode mode) : Painted
 
         if (Mode != AreaMode.Manage)
         {
-            Geometry.Label(this, 0, "📎", items.Count > 0 ? Role.Media : Role.Muted);
+            Geometry.Label(this, 0, Proto.AttachLabel, items.Count > 0 ? Role.Media : Role.Muted);
         }
         else
         {
-            Put(Geometry.Pad, 0, "📎", Role.Media);
+            Put(Geometry.Pad, 0, Proto.AttachLabel, Role.Media);
         }
 
         if (focused && Cursor < 0) Put(0, 0, "▌", Role.Selection);
@@ -368,7 +368,7 @@ internal sealed class AttachArea(AreaMode mode) : Painted
         {
             if (ready && room > 4)
             {
-                Put(describedAt, top, described ? $"“{Flat(item.Description)}”" : Proto.Mark, described ? Role.Body : Role.Muted, room);
+                Put(describedAt, top, described ? Quoted(item.Description, room) : Proto.Mark, described ? Role.Body : Role.Muted, room);
             }
 
             return;
@@ -401,6 +401,14 @@ internal sealed class AttachArea(AreaMode mode) : Painted
     }
 
     private static string Flat(string text) => text.ReplaceLineEndings(" ");
+
+    /// <summary>The description in quotes, cut to <paramref name="room" /> with … inside the closing quote.</summary>
+    private static string Quoted(string description, int room)
+    {
+        var flat = Flat(description).Trim();
+
+        return Glyphs.Columns(flat) + 2 <= room ? $"“{flat}”" : $"“{Glyphs.Cut(flat, room - 3).TrimEnd()}…”";
+    }
 
     private const string Retry = "retry (r)";
 

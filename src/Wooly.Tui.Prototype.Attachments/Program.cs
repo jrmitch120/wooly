@@ -79,6 +79,13 @@ namespace Wooly.Tui.Prototype.Attachments
 
         public static string Mark => Marks[MarkStyle];
 
+        public static int LabelStyle { get; set; }
+
+        /// <summary>The Attach header's label: candidates for the paper clip, F7 cycles them.</summary>
+        public static readonly string[] AttachLabels = ["📎", "▒▒", "▒", "Media", "File", "With", "＋", "⧉"];
+
+        public static string AttachLabel => AttachLabels[LabelStyle];
+
         /// <summary>Where the browser opens: the folder last attached from this session, else where Wooly was launched.</summary>
         public static string Folder { get; set; } = Environment.CurrentDirectory;
 
@@ -104,6 +111,14 @@ namespace Wooly.Tui.Prototype.Attachments
             if (key == Key.F5)
             {
                 MarkStyle = (MarkStyle + 1) % Marks.Length;
+                Shell.Relaid();
+                return true;
+            }
+
+            if (key == Key.F7)
+            {
+                LabelStyle = (LabelStyle + 1) % AttachLabels.Length;
+                Say($"Attach header label: {AttachLabel}");
                 Shell.Relaid();
                 return true;
             }
@@ -375,7 +390,7 @@ namespace Wooly.Tui.Prototype.Attachments
             var cell = Pics.Cell;
 
             Put(x, 0,
-                $" F2  · rows {(Proto.TallRows ? "tall" : "compact")} F3 · mark F5 · theme F6 │ {Pics.Way} {cell.Width}×{cell.Height}px"
+                $" F2  · rows {(Proto.TallRows ? "tall" : "compact")} F3 · mark F5 · theme F6 · label {Proto.AttachLabel} F7 │ {Pics.Way} {cell.Width}×{cell.Height}px"
                 + $" · sent {Pics.BytesSent / 1024}KB │ {draft.Items.Count}/{Instance.Most} [{states}] sensitive {(draft.Sensitive ? draft.Locked ? "on·locked" : "on" : "off")} │ ctrl-q",
                 Role.Band);
         }
