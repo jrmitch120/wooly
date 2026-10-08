@@ -411,7 +411,7 @@ internal sealed class BrowserScreen : Screen
             var y = ListTop + line;
             var current = index == _cursor && HasFocus;
 
-            if (current) Put(0, y, "▌", Role.Selection);
+            if (current) Put(Geometry.Pad - 1, y, "▌", Role.Selection); // against the box, as on the Media rows
 
             var box = entry.Folder ? "  " : _chosen.Contains(entry.Path) ? "☑ " : "☐ ";
             var name = entry.Folder && !entry.Up ? entry.Name + "/" : entry.Name;
