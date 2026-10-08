@@ -228,7 +228,7 @@ internal sealed class ShellWindow : Window
         };
 
         // The description editor's field, laid over the same viewport the same way (#377).
-        _description = new DescriptionView(theme, shell)
+        _description = new DescriptionView(theme, shell, () => _content.Raster)
         {
             X = Pos.Func(content => ViewportOrigin(content).X, _content),
             Y = Pos.Func(content => ViewportOrigin(content).Y, _content),

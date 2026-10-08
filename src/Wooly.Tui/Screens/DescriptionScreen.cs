@@ -1,4 +1,5 @@
 using System.Drawing;
+using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Theme;
 
@@ -37,6 +38,12 @@ public sealed class DescriptionScreen(ComposeScreen compose, ComposeAttachment a
     /// <summary>The fewest rows the field is ever left with: a line being written, and one either side of it.</summary>
     private const int LeastFieldRows = 3;
 
+    /// <summary>
+    ///     The most rows the picture takes above the label on a narrow panel: enough to see what is there, on a screen
+    ///     whose business is the field under it (#382).
+    /// </summary>
+    private const int MostPictureRows = 10;
+
     /// <summary>The compose screen the attachment is on.</summary>
     public ComposeScreen Compose => compose;
 
@@ -59,46 +66,83 @@ public sealed class DescriptionScreen(ComposeScreen compose, ComposeAttachment a
 
     /// <summary>
     ///     Where the field goes inside the content panel's viewport of <paramref name="viewport" />: under its label,
-    ///     beside the picture on a wide panel and across it on a narrow one, down to the row above the counter.
+    ///     beside the picture on a wide panel and across it on a narrow one, down to the row above the counter — the
+    ///     label and the field lower on a narrow panel where <paramref name="raster" /> draws the picture above them.
     /// </summary>
-    public Rectangle FieldAt(Size viewport) => Laid(viewport.Width, viewport.Height).Field;
-
-    /// <summary>
-    ///     Where the picture goes inside the same viewport: top left, beside the field and level with its label, on a
-    ///     wide panel (#374). Held empty until pictures are drawn there (#382), which on a narrow panel will put it above
-    ///     the label instead; nowhere there until then.
-    /// </summary>
-    public Rectangle PictureAt(Size viewport) => Laid(viewport.Width, viewport.Height).Picture;
+    public Rectangle FieldAt(Size viewport, Raster? raster = null) =>
+        Laid(viewport.Width, viewport.Height, raster).Field;
 
     /// <inheritdoc />
     /// <remarks>
     ///     A blank under the panel's edge, the label, a blank, the field's rows — blank, the field being laid over them —
-    ///     and the counter along the foot.
+    ///     and the counter along the foot; on a narrow panel that draws, the picture's place and a blank above the
+    ///     label. The picture itself is top left in its place, once its pixels are here (#382).
     /// </remarks>
-    public override IReadOnlyList<Line> Lines(Drawing drawing) => Laid(drawing.Width, drawing.Height).Rows;
+    public override IReadOnlyList<Line> Lines(Drawing drawing)
+    {
+        var laid = Laid(drawing.Width, drawing.Height, drawing.Raster);
+        var place = laid.Picture;
 
-    /// <summary>The screen laid out at <paramref name="width" /> by <paramref name="height" />.</summary>
-    private (IReadOnlyList<Line> Rows, Rectangle Field, Rectangle Picture) Laid(int width, int? height)
+        if (place.Width < 1 || place.Height < 1)
+        {
+            return laid.Rows;
+        }
+
+        var picture = FilePicture.Of(attachment.Path, place.X, place.Width, place.Height, drawing);
+        var rows = laid.Rows.ToArray();
+
+        rows[place.Y] = rows[place.Y] with
+        {
+            Insets = picture.Box is { } box ? [box] : [],
+            Wants = picture.Wanted,
+        };
+
+        return rows;
+    }
+
+    /// <summary>
+    ///     Whether a picture of what is being described goes on this screen at all, under <paramref name="raster" />: a
+    ///     terminal that draws, and a picture this client decodes. Where not, a narrow panel holds no place for one.
+    /// </summary>
+    private bool Shows(Raster? raster) => raster?.Cell is not null && AttachmentPicture.Decodes(attachment.Path);
+
+    /// <summary>
+    ///     The screen laid out at <paramref name="width" /> by <paramref name="height" />: its rows, where the field
+    ///     goes, and the place the picture goes in — top left, beside the field and level with its label on a wide panel;
+    ///     above the label on a narrow one that shows it (#374, #382), and none on a narrow one that does not.
+    /// </summary>
+    /// <remarks>
+    ///     The place is held from the first frame whether the pixels are here or not, so the label and the field never
+    ///     move when they arrive. On a narrow panel it takes what the field can spare of its least, up to
+    ///     <see cref="MostPictureRows" />, and is not held at all where that would be less than two rows.
+    /// </remarks>
+    private (IReadOnlyList<Line> Rows, Rectangle Field, Rectangle Picture) Laid(int width, int? height, Raster? raster)
     {
         var wide = width >= WideFrom;
         var at = wide ? (width / 2) + 1 : Pad;
         var across = Math.Max(0, width - at - Pad);
         var room = Math.Max(height ?? 0, 3 + LeastFieldRows + 1);
-        var field = room - 3 - 1;
+
+        // Above the label on a narrow panel: the place, then the blank that separates it from the label.
+        var spare = room - 3 - LeastFieldRows - 1 - 1;
+        var above = !wide && Shows(raster) && spare >= 2 ? Math.Min(MostPictureRows, spare) : 0;
+        var top = above > 0 ? above + 1 : 0;
+        var field = room - top - 3 - 1;
 
         IReadOnlyList<Line> rows =
         [
-            Line.Blank,
+            .. Enumerable.Repeat(Line.Blank, top + 1),
             Line.Of(Gap(at), new Span(TextWrap.Clip(Label, across), Role.Muted)),
             Line.Blank,
             .. Enumerable.Repeat(Line.Blank, field),
             Counter(width),
         ];
 
-        return (
-            rows,
-            new Rectangle(Math.Min(at, width), 3, across, field),
-            wide ? new Rectangle(Pad, 1, Math.Max(0, at - 1 - (Pad * 2)), room - 2) : Rectangle.Empty);
+        var picture = wide ? new Rectangle(Pad, 1, Math.Max(0, at - 1 - (Pad * 2)), room - 2)
+            : above > 0 ? new Rectangle(Pad, 1, Math.Max(0, width - (Pad * 2)), above)
+            : Rectangle.Empty;
+
+        return (rows, new Rectangle(Math.Min(at, width), top + 3, across, field), picture);
     }
 
     /// <summary>

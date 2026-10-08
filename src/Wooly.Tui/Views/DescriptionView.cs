@@ -1,5 +1,6 @@
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
+using Wooly.Tui.Media;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
@@ -26,9 +27,16 @@ internal sealed class DescriptionView : View
     /// </summary>
     private readonly ComposeEditor _editor;
 
-    public DescriptionView(ITheme theme, Shell.Shell shell)
+    /// <summary>
+    ///     How the content panel under this paints pixels as of its last frame, which says whether the picture takes a
+    ///     place above the field on a narrow panel (#382).
+    /// </summary>
+    private readonly Func<Raster> _raster;
+
+    public DescriptionView(ITheme theme, Shell.Shell shell, Func<Raster> raster)
     {
         _shell = shell;
+        _raster = raster;
 
         CanFocus = true;
         Visible = false;
@@ -84,7 +92,7 @@ internal sealed class DescriptionView : View
     /// <summary>Where the screen on top lays the field, or nowhere while it is not the description editor.</summary>
     private System.Drawing.Rectangle Laid() =>
         Viewport.Width > 0 && _shell.Screen is DescriptionScreen describing
-            ? describing.FieldAt(Viewport.Size)
+            ? describing.FieldAt(Viewport.Size, _raster())
             : System.Drawing.Rectangle.Empty;
 
     /// <summary>
