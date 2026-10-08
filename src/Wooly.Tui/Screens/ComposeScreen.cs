@@ -720,6 +720,10 @@ public sealed class ComposeScreen : Screen
     ///         walks only off its first line, the caret having it below that. On To the choosing comes ahead of that,
     ///         being what the row is for (#338).
     ///     </para>
+    ///     <para>
+    ///         <c>ctrl-o</c> is offered wherever it adds, a compose or a reply with room left on the post, except on the
+    ///         Media header, whose <c>⏎</c> is offered for the same thing; an edit takes no attachments, so never.
+    ///     </para>
     /// </remarks>
     protected override IReadOnlyList<KeyHint> OwnKeys =>
     [
@@ -742,6 +746,9 @@ public sealed class ComposeScreen : Screen
         },
         new("ctrl-s", Purpose == ComposeFor.Edit ? "save" : "send"),
         new("ctrl-w", WritingTheWarning ? "back to the post" : "content warning"),
+        .. AttachmentRoom > 0 && Typing != ComposeField.Media
+            ? [new KeyHint("ctrl-o", "add media")]
+            : Array.Empty<KeyHint>(),
         new("esc", "throw it away"),
     ];
 
