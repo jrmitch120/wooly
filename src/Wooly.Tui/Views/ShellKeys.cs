@@ -36,6 +36,11 @@ internal static class ShellKeys
         [Key.S.WithCtrl.KeyCode] = ShellKey.CtrlS,
         [Key.W.WithCtrl.KeyCode] = ShellKey.CtrlW,
         [Key.P.WithCtrl.KeyCode] = ShellKey.CtrlP,
+        [Key.Z.WithCtrl.KeyCode] = ShellKey.CtrlZ,
+        [Key.Delete.KeyCode] = ShellKey.Delete,
+        [Key.Backspace.KeyCode] = ShellKey.Backspace,
+        [Key.CursorUp.WithShift.KeyCode] = ShellKey.ShiftUp,
+        [Key.CursorDown.WithShift.KeyCode] = ShellKey.ShiftDown,
     };
 
     /// <summary>

@@ -284,4 +284,22 @@ public enum Verb
 
     /// <summary><c>→</c> there, likewise: choose the next one to the right.</summary>
     NextChoice,
+
+    /// <summary>
+    ///     <c>del</c> or <c>backspace</c> on a compose, where no field takes them — which is on a row under the Media
+    ///     header: take that attachment off the post (#378).
+    /// </summary>
+    RemoveAttachment,
+
+    /// <summary><c>ctrl-z</c> on the Media header or its rows: bring back the attachment last taken off (#378).</summary>
+    BringBackAttachment,
+
+    /// <summary><c>shift-↑</c> on a row under the Media header: that attachment one place earlier on the post (#378).</summary>
+    EarlierAttachment,
+
+    /// <summary><c>shift-↓</c> there, likewise: one place later.</summary>
+    LaterAttachment,
+
+    /// <summary><c>r</c> on a refused row a retry could mend: send that attachment up again (#378).</summary>
+    RetryAttachment,
 }

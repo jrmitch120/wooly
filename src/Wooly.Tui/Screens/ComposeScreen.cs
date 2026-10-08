@@ -36,6 +36,15 @@ public enum ComposeField
     /// <summary>The content warning over the post (#123, #320).</summary>
     Warning,
 
+    /// <summary>
+    ///     The Media header itself, walked to like the others though nothing is typed on it (#378): what is attached is
+    ///     added from here, and its rows are walked to under it.
+    /// </summary>
+    Media,
+
+    /// <summary>One of the rows under the Media header: the pending attachment <see cref="ComposeScreen.PickedAttachment" /> names.</summary>
+    Attachment,
+
     /// <summary>The post being written.</summary>
     Post,
 }
@@ -122,6 +131,18 @@ public sealed class ComposeScreen : Screen
     /// <summary>The grip a pending attachment's row is dragged by, muted, ahead of everything else on it.</summary>
     private const string Grip = "⠶";
 
+    /// <summary>The bar against a picked row's grip, as a picked post's is against its edge (#378).</summary>
+    private const string SelectionBar = "▌";
+
+    /// <summary>What takes a pending attachment off the post, in plain ASCII (#375, #378).</summary>
+    private const string RemoveMark = "x";
+
+    /// <summary>What a refusal a retry could mend offers, the key named in it (#378).</summary>
+    private const string RetryOffer = "retry (r)";
+
+    /// <summary>The offer cut to its key, where the status column has not room for the reason and the word both.</summary>
+    private const string ShortRetryOffer = "(r)";
+
     /// <summary>The column a pending attachment's grip sits at, a column in from its selection bar (#375).</summary>
     private const int GripAt = Pad + 3;
 
@@ -194,6 +215,15 @@ public sealed class ComposeScreen : Screen
 
     /// <summary>What is attached, in the order the post will carry it (#375).</summary>
     private readonly List<ComposeAttachment> _attachments = [];
+
+    /// <summary>
+    ///     Whether the screen was last drawn with a row for each attachment rather than folded into the Media header's
+    ///     line, which settles whether the walk stops on them (#378).
+    /// </summary>
+    private bool _rowsDrawn;
+
+    /// <summary>The attachment last taken off and the place it was taken from, for <c>ctrl-z</c> (#378); one deep.</summary>
+    private (ComposeAttachment Attachment, int At)? _removed;
 
     /// <param name="purpose">What this screen was opened to do.</param>
     /// <param name="about">The post being replied to or edited.</param>
@@ -334,7 +364,7 @@ public sealed class ComposeScreen : Screen
     ///     the walk, with no key rule of its own.
     /// </summary>
     private static readonly ComposeField[] Fields =
-        [ComposeField.To, ComposeField.Lang, ComposeField.Warning, ComposeField.Post];
+        [ComposeField.To, ComposeField.Lang, ComposeField.Warning, ComposeField.Media, ComposeField.Post];
 
     /// <summary>
     ///     Which field what is typed is going into. Every field is on screen at once and the typing is in one of them,
@@ -414,20 +444,152 @@ public sealed class ComposeScreen : Screen
     }
 
     /// <summary>
+    ///     Picks <paramref name="attachment" />'s row, as a click or a press on it does (#378): the typing goes to it, as
+    ///     the walk would have taken it.
+    /// </summary>
+    /// <returns>A move, or nothing where it was already picked or is not attached.</returns>
+    public ComposeChange Pick(ComposeAttachment attachment)
+    {
+        if (!_attachments.Contains(attachment)
+            || (Typing == ComposeField.Attachment && ReferenceEquals(PickedAttachment, attachment)))
+        {
+            return ComposeChange.None;
+        }
+
+        Typing = ComposeField.Attachment;
+        PickedAttachment = attachment;
+
+        return ComposeChange.Moved;
+    }
+
+    /// <summary>
+    ///     <c>del</c> or <c>backspace</c> on a row: takes the picked attachment off the post (#378). The walk stays where
+    ///     it was — on the row that took its place, else the one above, else the header — and what went is remembered,
+    ///     one deep, for <see cref="BringBack" />.
+    /// </summary>
+    /// <returns>An edit, or nothing off the rows.</returns>
+    public ComposeChange Remove() =>
+        Typing == ComposeField.Attachment && PickedAttachment is { } picked ? Remove(picked) : ComposeChange.None;
+
+    /// <summary>A click on <paramref name="attachment" />'s <c>x</c>: takes it off the post, as <see cref="Remove()" /> does.</summary>
+    /// <returns>An edit, or nothing where it is not attached.</returns>
+    public ComposeChange Remove(ComposeAttachment attachment)
+    {
+        var at = _attachments.IndexOf(attachment);
+
+        if (at < 0)
+        {
+            return ComposeChange.None;
+        }
+
+        _attachments.RemoveAt(at);
+        _removed = (attachment, at);
+
+        if (ReferenceEquals(PickedAttachment, attachment))
+        {
+            PickedAttachment = _attachments.Count > 0 ? _attachments[Math.Min(at, _attachments.Count - 1)] : null;
+            Typing = PickedAttachment is null ? ComposeField.Media : ComposeField.Attachment;
+        }
+
+        return ComposeChange.Edited;
+    }
+
+    /// <summary>
+    ///     <c>ctrl-z</c> on the Media header or its rows: the attachment last taken off, back where it was with its
+    ///     description and wherever it had got to, and picked (#378). One deep, and only here — the editor and Warn keep
+    ///     <c>ctrl-z</c> for their own text — and nothing while the post has no room for it.
+    /// </summary>
+    /// <returns>An edit, or nothing where there is nothing to bring back or nowhere to put it.</returns>
+    public ComposeChange BringBack()
+    {
+        if (Typing is not (ComposeField.Media or ComposeField.Attachment)
+            || _removed is not var (attachment, at)
+            || AttachmentRoom == 0)
+        {
+            return ComposeChange.None;
+        }
+
+        _attachments.Insert(Math.Min(at, _attachments.Count), attachment);
+        _removed = null;
+        Typing = ComposeField.Attachment;
+        PickedAttachment = attachment;
+
+        return ComposeChange.Edited;
+    }
+
+    /// <summary>
+    ///     <c>shift-↑</c> or <c>shift-↓</c> on a row (<paramref name="by" /> −1 or 1): the picked attachment one place
+    ///     earlier or later on the post, still picked (#378).
+    /// </summary>
+    /// <returns>An edit, or nothing off the rows or off either end.</returns>
+    public ComposeChange Reorder(int by) =>
+        Typing == ComposeField.Attachment && PickedAttachment is { } picked
+            ? ReorderTo(picked, _attachments.IndexOf(picked) + by)
+            : ComposeChange.None;
+
+    /// <summary>
+    ///     <paramref name="attachment" /> dragged to the <paramref name="place" />th row, the rows between making way
+    ///     (#378) — a place past either end is that end.
+    /// </summary>
+    /// <returns>An edit, or nothing where it is already there or is not attached.</returns>
+    public ComposeChange ReorderTo(ComposeAttachment attachment, int place)
+    {
+        var from = _attachments.IndexOf(attachment);
+        var to = Math.Clamp(place, 0, _attachments.Count - 1);
+
+        if (from < 0 || from == to)
+        {
+            return ComposeChange.None;
+        }
+
+        _attachments.RemoveAt(from);
+        _attachments.Insert(to, attachment);
+
+        return ComposeChange.Edited;
+    }
+
+    /// <summary>
+    ///     <c>r</c> on a row: the picked attachment, where a retry could mend its refusal, to be sent up again (#378).
+    /// </summary>
+    /// <returns>The attachment, going up again from nothing, for the shell to send; or nothing.</returns>
+    public ComposeAttachment? Retry() =>
+        Typing == ComposeField.Attachment && PickedAttachment is { } picked ? Retry(picked) : null;
+
+    /// <summary>
+    ///     A click on <paramref name="attachment" />'s <c>retry (r)</c>: it starts going up again from nothing, where a
+    ///     retry could mend its refusal and nowhere else (ADR-0006: the author's to ask for, never done by itself).
+    /// </summary>
+    /// <returns>The attachment, for the shell to send up; or nothing.</returns>
+    public ComposeAttachment? Retry(ComposeAttachment attachment)
+    {
+        if (!_attachments.Contains(attachment) || attachment.State is not AttachmentState.Refused { Retryable: true })
+        {
+            return null;
+        }
+
+        attachment.State = new AttachmentState.Sending(0);
+
+        return attachment;
+    }
+
+    /// <summary>
     ///     Where <paramref name="attachment" /> has got to, as the shell heard it: its row says so from now on. Nothing
-    ///     where it is no longer attached.
+    ///     where it is no longer attached — kept, but unsaid, on the one <c>ctrl-z</c> could still bring back.
     /// </summary>
     /// <returns>Whether that changed anything on the screen.</returns>
     public bool Progressed(ComposeAttachment attachment, AttachmentState state)
     {
-        if (!_attachments.Contains(attachment) || attachment.State == state)
+        // One taken off but still to be brought back hears on too, so that it comes back as far as it has got (#378).
+        var attached = _attachments.Contains(attachment);
+
+        if ((!attached && !ReferenceEquals(_removed?.Attachment, attachment)) || attachment.State == state)
         {
             return false;
         }
 
         attachment.State = state;
 
-        return true;
+        return attached;
     }
 
     /// <inheritdoc />
@@ -491,6 +653,7 @@ public sealed class ComposeScreen : Screen
             ? [new KeyHint("↑↓", "pick"), new KeyHint("tab", "choose"), new KeyHint("esc", "close")]
             : Array.Empty<KeyHint>(),
         .. Typing == ComposeField.To ? [new KeyHint("←→", "choose")] : Array.Empty<KeyHint>(),
+        .. RowKeys,
         .. Walks switch
         {
             (true, true) => [new KeyHint("↑↓", "field")],
@@ -503,6 +666,24 @@ public sealed class ComposeScreen : Screen
         new("esc", "throw it away"),
     ];
 
+    /// <summary>
+    ///     What a row under the Media header offers while the walk is on it (#378): a retry where one could mend its
+    ///     refusal, moving it and taking it off — and, on the header or a row, bringing back what was last taken off
+    ///     while there is something to and room for it.
+    /// </summary>
+    private KeyHint[] RowKeys =>
+    [
+        .. Typing == ComposeField.Attachment && PickedAttachment is { State: AttachmentState.Refused { Retryable: true } }
+            ? [new KeyHint("r", "retry")]
+            : Array.Empty<KeyHint>(),
+        .. Typing == ComposeField.Attachment
+            ? [new KeyHint("shift-↑↓", "move"), new KeyHint("del", "remove")]
+            : Array.Empty<KeyHint>(),
+        .. Typing is (ComposeField.Media or ComposeField.Attachment) && _removed is not null && AttachmentRoom > 0
+            ? [new KeyHint("ctrl-z", "bring back")]
+            : Array.Empty<KeyHint>(),
+    ];
+
     /// <inheritdoc />
     /// <remarks>
     ///     The whole of the content region, laid out to its height (<see cref="Drawing.Height" />) rather than
@@ -512,7 +693,16 @@ public sealed class ComposeScreen : Screen
     {
         var laid = Laid(drawing.Width, drawing.Height);
 
-        _drawn = laid.Lang == Rectangle.Empty ? [.. Fields.Where(field => field != ComposeField.Lang)] : Fields;
+        _drawn =
+        [
+            .. Fields.Where(field => field switch
+            {
+                ComposeField.Lang => laid.Lang != Rectangle.Empty,
+                ComposeField.Media => laid.Media != Rectangle.Empty,
+                _ => true,
+            }),
+        ];
+        _rowsDrawn = laid.Media.Height > 1;
 
         return laid.Rows;
     }
@@ -574,6 +764,7 @@ public sealed class ComposeScreen : Screen
     public ComposeChange WriteTheWarning()
     {
         Typing = WritingTheWarning ? ComposeField.Post : ComposeField.Warning;
+        PickedAttachment = null;
 
         return ComposeChange.Moved;
     }
@@ -593,12 +784,12 @@ public sealed class ComposeScreen : Screen
     /// </remarks>
     public ComposeChange Walk(int by)
     {
-        if (WalkedTo(by) is not { } field)
+        if (WalkedTo(by) is not { } stop)
         {
             return ComposeChange.None;
         }
 
-        Typing = field;
+        (Typing, PickedAttachment) = stop;
 
         return ComposeChange.Moved;
     }
@@ -609,17 +800,63 @@ public sealed class ComposeScreen : Screen
     /// </summary>
     private (bool Up, bool Down) Walks => (WalkedTo(-1) is not null, WalkedTo(1) is not null);
 
-    /// <summary>The field <see cref="Walk" /> would move the typing to, or null off either end.</summary>
-    private ComposeField? WalkedTo(int by)
+    /// <summary>
+    ///     Where <see cref="Walk" /> would move the typing to, or null off either end: a field, or one of the rows under
+    ///     the Media header (#378).
+    /// </summary>
+    private (ComposeField Field, ComposeAttachment? PickedAttachment)? WalkedTo(int by)
     {
-        var walked = _drawn.Where(Takes).ToArray();
-        var to = Array.IndexOf(walked, Typing) + by;
+        var stops = Stops().ToList();
+        var at = stops.IndexOf((Typing, PickedAttachment));
 
-        return to < 0 || to >= walked.Length ? null : walked[to];
+        // A row no longer drawn — folded away on a terminal grown short — is walked from as the header it folded into.
+        if (at < 0 && Typing == ComposeField.Attachment)
+        {
+            at = stops.IndexOf((ComposeField.Media, null));
+        }
+
+        var to = at + by;
+
+        return to < 0 || to >= stops.Count ? null : stops[to];
     }
 
-    /// <summary>Whether <paramref name="field" /> can have the typing at all, which To cannot where it allows nothing.</summary>
-    public bool Takes(ComposeField field) => field != ComposeField.To || _choices.Any(Offers);
+    /// <summary>
+    ///     Everywhere the walk stops, top to bottom: each field drawn that takes the typing and, under the Media header,
+    ///     each of its rows while they are drawn as rows rather than folded into the header's line (#378).
+    /// </summary>
+    private IEnumerable<(ComposeField Field, ComposeAttachment? PickedAttachment)> Stops()
+    {
+        foreach (var field in _drawn.Where(Takes))
+        {
+            yield return (field, null);
+
+            if (field == ComposeField.Media && _rowsDrawn)
+            {
+                foreach (var attachment in _attachments)
+                {
+                    yield return (ComposeField.Attachment, attachment);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Whether <paramref name="field" /> can have the typing at all: To cannot where it allows nothing, and the Media
+    ///     header and its rows only on a screen that takes attachments, the rows only while there are some.
+    /// </summary>
+    public bool Takes(ComposeField field) => field switch
+    {
+        ComposeField.To => _choices.Any(Offers),
+        ComposeField.Media => TakesAttachments,
+        ComposeField.Attachment => TakesAttachments && _attachments.Count > 0,
+        _ => true,
+    };
+
+    /// <summary>
+    ///     The pending attachment whose row the typing is on, while it is on one (<see cref="ComposeField.Attachment" />),
+    ///     and nothing otherwise (#378).
+    /// </summary>
+    public ComposeAttachment? PickedAttachment { get; private set; }
 
     /// <summary>
     ///     The typing went into <paramref name="field" /> by a click rather than by this screen's keys, and the screen
@@ -628,12 +865,15 @@ public sealed class ComposeScreen : Screen
     /// <returns>A move, or nothing where it was already there or the field takes nothing.</returns>
     public ComposeChange TypeInto(ComposeField field)
     {
-        if (Typing == field || !Takes(field))
+        // The rows are under the header, and a row picked has the Media header's focus as much as the header has.
+        if (Typing == field || !Takes(field) || field == ComposeField.Attachment
+            || (field == ComposeField.Media && Typing == ComposeField.Attachment))
         {
             return ComposeChange.None;
         }
 
         Typing = field;
+        PickedAttachment = null;
 
         return ComposeChange.Moved;
     }
@@ -756,6 +996,42 @@ public sealed class ComposeScreen : Screen
     public Rectangle LangAt(Size viewport) => Laid(viewport.Width, viewport.Height).Lang;
 
     /// <summary>
+    ///     Where the Media header and the rows under it go inside the same viewport, from the left edge across: its line,
+    ///     and one under it for each row drawn — nowhere on a screen without one, or where a short terminal gave it up.
+    /// </summary>
+    public Rectangle MediaAt(Size viewport) => Laid(viewport.Width, viewport.Height).Media;
+
+    /// <summary>
+    ///     The pending attachment whose row is at <paramref name="at" /> in the same viewport, and what a click there
+    ///     means (#378) — nothing on the header's own line, or off the rows.
+    /// </summary>
+    public (ComposeAttachment Attachment, AttachmentPart Part)? AttachmentAt(Size viewport, Point at)
+    {
+        var media = MediaAt(viewport);
+        var row = at.Y - media.Y - 1;
+
+        if (row < 0 || row >= media.Height - 1 || row >= _attachments.Count)
+        {
+            return null;
+        }
+
+        var attached = _attachments[row];
+        var column = at.X;
+
+        foreach (var (span, part) in AttachmentRuns(attached, viewport.Width))
+        {
+            if (column < span.Width)
+            {
+                return (attached, part);
+            }
+
+            column -= span.Width;
+        }
+
+        return (attached, AttachmentPart.Row);
+    }
+
+    /// <summary>
     ///     To's value as it is drawn <paramref name="room" /> columns wide — what the row laid over it paints, so that
     ///     row and the one a test reads off <see cref="Lines" /> are the same spans.
     /// </summary>
@@ -781,9 +1057,8 @@ public sealed class ComposeScreen : Screen
     ///         Where nobody says how tall the room is, it is as tall as the rows and the editor's least want.
     ///     </para>
     /// </remarks>
-    private (IReadOnlyList<Line> Rows, Rectangle Editor, Rectangle Warning, Rectangle To, Rectangle Lang) Laid(
-        int width,
-        int? height)
+    private (IReadOnlyList<Line> Rows, Rectangle Editor, Rectangle Warning, Rectangle To, Rectangle Lang, Rectangle Media)
+        Laid(int width, int? height)
     {
         var inner = Math.Max(0, width - (Pad * 2));
         var valueWidth = Math.Max(0, inner - LabelWidth - LabelGap);
@@ -840,6 +1115,8 @@ public sealed class ComposeScreen : Screen
         var foot = new List<Row> { new(hairline, Keep.FootHairline), new(Count(width), Keep.CountRow) };
         var room = height ?? (above.Count + _attachments.Count + LeastEditorRows + foot.Count);
 
+        var attachmentRows = 0;
+
         if (media is not null)
         {
             // A row for each attachment where that still leaves the editor its three, and otherwise one line for all
@@ -856,6 +1133,8 @@ public sealed class ComposeScreen : Screen
                     at + 1,
                     _attachments.Select(attached => new Row(AttachmentRow(attached, width), Keep.Always)));
             }
+
+            attachmentRows = folded ? 0 : _attachments.Count;
         }
 
         // Whatever ranks lowest goes first and, among equals, whichever is lowest on the screen: the quote gives up
@@ -883,7 +1162,10 @@ public sealed class ComposeScreen : Screen
             new Rectangle(Math.Min(Pad, width), top, inner, editor),
             Value(above.IndexOf(warning)),
             Value(above.IndexOf(to)),
-            above.Contains(lang) ? Value(above.IndexOf(lang)) : Rectangle.Empty);
+            above.Contains(lang) ? Value(above.IndexOf(lang)) : Rectangle.Empty,
+            above.FindIndex(row => row.Keep == Keep.Media) is var header and >= 0
+                ? new Rectangle(0, header, width, 1 + attachmentRows)
+                : Rectangle.Empty);
 
         Rectangle Value(int row) => new(Math.Min(Pad + LabelWidth + LabelGap, width), row, valueWidth, 1);
     }
@@ -1123,63 +1405,84 @@ public sealed class ComposeScreen : Screen
     ///     The Media header's value in <paramref name="room" /> columns (#375), in the warning header's format and all
     ///     muted: what it holds — <c>none</c>, or how many of the instance's limit — then the key that adds to it, which
     ///     goes once the post is full. <paramref name="folded" />, it counts its rows too, on a terminal too short for
-    ///     them: how many have no description and how many were refused, the refusals in the error's colour.
+    ///     them: how many have no description and how many were refused, the refusals in the error's colour. Its words
+    ///     highlight while the walk is on it (#378).
     /// </summary>
     private Span[] MediaValue(int room, bool folded)
     {
+        // Its own words highlight where the walk is on it, as the other headers' values do, rather than a bar (#378).
+        var words = Typing == ComposeField.Media ? Role.SelectedText : Role.Muted;
         var count = _attachments.Count;
         var held = count == 0 ? NothingAttached : $"{count} of {Limits.Attachments}";
-        var spans = new List<Span> { new(held, Role.Muted) };
+        var spans = new List<Span> { new(held, words) };
 
         if (folded && _attachments.Count(attached => !attached.Described) is > 0 and var undescribed)
         {
-            spans.Add(new Span($" · {undescribed} {NoDescription}", Role.Muted));
+            spans.Add(new Span($" · {undescribed} {NoDescription}", words));
         }
 
         if (folded && Refused > 0)
         {
-            spans.Add(new Span(" · ", Role.Muted));
+            spans.Add(new Span(" · ", words));
             spans.Add(new Span($"{Refused} failed", Role.Error));
         }
 
         if (AttachmentRoom > 0)
         {
-            spans.Add(new Span($" · {AttachKey}", Role.Muted));
+            spans.Add(new Span($" · {AttachKey}", words));
         }
 
         return Fitted(spans, room);
     }
 
     /// <summary>
-    ///     A pending attachment's row, <paramref name="width" /> columns wide (#375): its grip, the column its picture
-    ///     goes in, its name, its kind, its size, the <c>x</c> that takes it off, and one status column saying where it
-    ///     has got to. Every column but the status sits where the terminal's width puts it, never where a name does,
-    ///     so that nothing on a row moves as it goes up or as more are attached.
+    ///     A pending attachment's row, <paramref name="width" /> columns wide (#375): the selection bar where the row is
+    ///     picked (#378), its grip, the column its picture goes in, its name, its kind, its size, the <c>x</c> that
+    ///     takes it off, and one status column saying where it has got to. Every column but the status sits where the
+    ///     terminal's width puts it, never where a name does, so that nothing on a row moves as it goes up, as more are
+    ///     attached, or as the walk passes over it.
     /// </summary>
     /// <remarks>
-    ///     The picture's column is held blank until pictures are drawn on it (#382), and the selection bar's left of
-    ///     the grip until a row can be walked to — each is where it will be, so neither moves anything when it comes.
+    ///     The picture's column is held blank until pictures are drawn on it (#382), where it will be, so that it moves
+    ///     nothing when it comes.
     /// </remarks>
-    private static Line AttachmentRow(ComposeAttachment attached, int width)
+    private Line AttachmentRow(ComposeAttachment attached, int width) =>
+        Line.Of([.. AttachmentRuns(attached, width).Select(run => run.Span)]);
+
+    /// <summary>
+    ///     A pending attachment's row as <see cref="AttachmentRow" /> draws it, each run with what a click on it means
+    ///     (#378): the <c>x</c> takes it off, <c>retry (r)</c> sends it up again, and anywhere else is the row.
+    /// </summary>
+    private List<(Span Span, AttachmentPart Part)> AttachmentRuns(ComposeAttachment attached, int width)
     {
         var (name, kind, status) = RowColumns(width);
+        var picked = Typing == ComposeField.Attachment && ReferenceEquals(PickedAttachment, attached);
 
-        return Line.Of(
+        return
         [
-            Gap(GripAt),
-            new Span(Grip, Role.Muted),
-            Gap(1),
-            Gap(1),
-            Gap(1),
-            new Span(Glyphs.Padded(TextWrap.Clip(attached.Name, name), name), Role.Body),
-            Gap(2),
-            .. kind ? [new Span(Glyphs.Padded(attached.KindWord, KindColumn), Role.Muted)] : Array.Empty<Span>(),
-            new Span(attached.Size.PadLeft(SizeColumn), Role.Muted),
-            Gap(2),
-            new Span("x", Role.Destructive),
-            Gap(2),
-            .. Fitted(Status(attached), status),
-        ]);
+            // The bar fills only the left half of its cell, so set right against the grip it reads as one space.
+            .. picked
+                ? [(Gap(GripAt - 1), AttachmentPart.Row), (new Span(SelectionBar, Role.Selection), AttachmentPart.Row)]
+                : new[] { (Gap(GripAt), AttachmentPart.Row) },
+            (new Span(Grip, Role.Muted), AttachmentPart.Row),
+            (Gap(3), AttachmentPart.Row),
+            (new Span(
+                Glyphs.Padded(TextWrap.Clip(attached.Name, name), name),
+                picked ? Role.SelectedText : Role.Body), AttachmentPart.Row),
+            (Gap(2), AttachmentPart.Row),
+            .. kind
+                ? [(new Span(Glyphs.Padded(attached.KindWord, KindColumn), Role.Muted), AttachmentPart.Row)]
+                : Array.Empty<(Span, AttachmentPart)>(),
+            (new Span(attached.Size.PadLeft(SizeColumn), Role.Muted), AttachmentPart.Row),
+            (Gap(1), AttachmentPart.Row),
+
+            // The x's cell and one either side of it, so that a click a column off still takes it off.
+            (Gap(1), AttachmentPart.Remove),
+            (new Span(RemoveMark, Role.Destructive), AttachmentPart.Remove),
+            (Gap(1), AttachmentPart.Remove),
+            (Gap(1), AttachmentPart.Row),
+            .. Status(attached, status),
+        ];
     }
 
     /// <summary>
@@ -1210,18 +1513,47 @@ public sealed class ComposeScreen : Screen
     }
 
     /// <summary>
-    ///     What a row's status column says, one thing at a time (#375): the upload's gauge and how far it has got, that
-    ///     the instance is processing it, why it was refused, or — ready — its description in quotes, or the quiet mark
-    ///     where it has none. No mark for ready: a row saying nothing else is one that is done.
+    ///     What a row's status column says in <paramref name="room" /> columns, one thing at a time (#375): the upload's
+    ///     gauge and how far it has got, that the instance is processing it, why it was refused, or — ready — its
+    ///     description in quotes, or the quiet mark where it has none. No mark for ready: a row saying nothing else is
+    ///     one that is done.
     /// </summary>
-    private static Span[] Status(ComposeAttachment attached) => attached.State switch
+    private static IEnumerable<(Span Span, AttachmentPart Part)> Status(ComposeAttachment attached, int room) =>
+        attached.State is AttachmentState.Refused refused
+            ? Failure(refused, room)
+            : Fitted(attached.State switch
+                {
+                    AttachmentState.Sending(var done) => Gauge(done),
+                    AttachmentState.Processing => [new Span(BeingProcessed, Role.Muted)],
+                    _ when attached.Described =>
+                        [new Span($"“{attached.Description.ReplaceLineEndings(" ").Trim()}”", Role.Body)],
+                    _ => [new Span(NoDescription, Role.Muted)],
+                }, room)
+                .Select(span => (span, AttachmentPart.Row));
+
+    /// <summary>
+    ///     A refusal in <paramref name="room" /> columns (#378): why, in the error's colour and with no mark beside the
+    ///     <c>x</c> to double it, then <c>retry (r)</c> where trying again could mend it — a dropped connection, never a
+    ///     file the instance will not take. Where both do not fit, the offer shortens to <c>(r)</c> and the reason is
+    ///     cut, so that the key is still there to be read.
+    /// </summary>
+    private static IEnumerable<(Span Span, AttachmentPart Part)> Failure(AttachmentState.Refused refused, int room)
     {
-        AttachmentState.Sending(var done) => Gauge(done),
-        AttachmentState.Processing => [new Span(BeingProcessed, Role.Muted)],
-        AttachmentState.Refused(var why) => [new Span(why, Role.Error)],
-        _ when attached.Described => [new Span($"“{attached.Description.ReplaceLineEndings(" ").Trim()}”", Role.Body)],
-        _ => [new Span(NoDescription, Role.Muted)],
-    };
+        if (!refused.Retryable)
+        {
+            return Fitted([new Span(refused.Why, Role.Error)], room).Select(span => (span, AttachmentPart.Row));
+        }
+
+        var offer = Glyphs.Columns(refused.Why) + 2 + Glyphs.Columns(RetryOffer) <= room ? RetryOffer : ShortRetryOffer;
+        var why = Math.Max(0, room - 2 - Glyphs.Columns(offer));
+
+        return
+        [
+            (new Span(TextWrap.Clip(refused.Why, why), Role.Error), AttachmentPart.Row),
+            (Gap(2), AttachmentPart.Row),
+            (new Span(offer, Role.Key), AttachmentPart.Retry),
+        ];
+    }
 
     /// <summary>An upload's gauge, <c>████░░░░  54%</c>: eight cells filled as far as it has got, then the share of it.</summary>
     private static Span[] Gauge(double done)

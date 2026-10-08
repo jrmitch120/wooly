@@ -551,6 +551,11 @@ public sealed class Shell
         Verb.NextField => Ran(() => _ = ChangeCompose(compose => compose.Walk(1))),
         Verb.PreviousChoice => Ran(() => _ = ChangeCompose(compose => compose.Choose(-1))),
         Verb.NextChoice => Ran(() => _ = ChangeCompose(compose => compose.Choose(1))),
+        Verb.RemoveAttachment => Ran(() => RemoveAttachment(compose => compose.Remove())),
+        Verb.BringBackAttachment => Ran(() => _ = ChangeCompose(compose => compose.BringBack())),
+        Verb.EarlierAttachment => Ran(() => _ = ChangeCompose(compose => compose.Reorder(-1))),
+        Verb.LaterAttachment => Ran(() => _ = ChangeCompose(compose => compose.Reorder(1))),
+        Verb.RetryAttachment => Ran(() => Retry(compose => compose.Retry())),
 
         // Nothing, and the terminal's own — which the window has already taken, and which no screen answers either.
         Verb.None => false,
@@ -2066,9 +2071,10 @@ public sealed class Shell
     /// <summary>
     ///     Attaches the files at <paramref name="paths" /> to <paramref name="compose" />, as many as it has room for,
     ///     and starts each going up to the instance there and then (ADR-0026, #375). Attaching changes the draft, which
-    ///     spends a notice over it as typing does (#364).
+    ///     spends a notice over it as typing does (#364) — and where some would not fit, the status row says how many
+    ///     were left out, so that nobody is unsure what is on the post (#378).
     /// </summary>
-    private void Attach(ComposeScreen compose, IEnumerable<string> paths)
+    private void Attach(ComposeScreen compose, IReadOnlyCollection<string> paths)
     {
         IReadOnlyList<ComposeAttachment> attached = [];
 
@@ -2079,9 +2085,75 @@ public sealed class Shell
             return attached.Count > 0 ? ComposeChange.Edited : ComposeChange.None;
         });
 
+        if (paths.Count - attached.Count is > 0 and var left)
+        {
+            var most = $"{compose.Limits.Attachments} is the most a post can carry.";
+
+            Say(attached.Count == 0 ? $"Nothing attached — {most}" : $"{left} left out — {most}", isError: true);
+        }
+
         foreach (var attachment in attached)
         {
             _ = SendUp(compose, attachment);
+        }
+    }
+
+    /// <summary>
+    ///     Takes an attachment off the compose in front, the one <paramref name="removing" /> says (#378) — and where a
+    ///     send was waiting on nothing else, the send: what it waited on is no longer on the post.
+    /// </summary>
+    private void RemoveAttachment(Func<ComposeScreen, ComposeChange> removing)
+    {
+        if (ChangeCompose(removing) != ComposeChange.None && Screen is ComposeScreen compose)
+        {
+            Waited(compose);
+        }
+    }
+
+    /// <summary>
+    ///     Sends up again the attachment <paramref name="retrying" /> starts over on the compose in front, where a retry
+    ///     could mend its refusal (#378) — the author's to ask for, never done by itself (ADR-0006).
+    /// </summary>
+    private void Retry(Func<ComposeScreen, ComposeAttachment?> retrying)
+    {
+        if (Screen is not ComposeScreen compose || retrying(compose) is not { } attachment)
+        {
+            return;
+        }
+
+        Changed?.Invoke();
+
+        _ = SendUp(compose, attachment);
+    }
+
+    /// <summary>
+    ///     A row under the Media header dragged by the pointer to the <paramref name="place" />th row, live, the others
+    ///     making way (#378).
+    /// </summary>
+    /// <returns>Whether it moved, which makes the button's release a drop rather than a click.</returns>
+    public bool DragAttachment(ComposeAttachment attachment, int place) =>
+        ChangeCompose(compose => compose.ReorderTo(attachment, place)) != ComposeChange.None;
+
+    /// <summary>
+    ///     A click on <paramref name="attachment" />'s row, on <paramref name="part" /> of it (#378): its <c>x</c> takes
+    ///     it off, its <c>retry (r)</c> sends it up again, and anywhere else picks it.
+    /// </summary>
+    public void ClickAttachment(ComposeAttachment attachment, AttachmentPart part)
+    {
+        switch (part)
+        {
+            case AttachmentPart.Remove:
+                RemoveAttachment(compose => compose.Remove(attachment));
+
+                break;
+            case AttachmentPart.Retry:
+                Retry(compose => compose.Retry(attachment));
+
+                break;
+            default:
+                _ = ChangeCompose(compose => compose.Pick(attachment));
+
+                break;
         }
     }
 
@@ -2119,7 +2191,8 @@ public sealed class Shell
         }
         catch (TransientNetworkException)
         {
-            landed = new AttachmentState.Refused("connection lost");
+            // The one failure sending it again could mend, so the one its row offers a retry for (#378).
+            landed = new AttachmentState.Refused("connection lost", Retryable: true);
         }
         catch (AttachmentRefusedException refused)
         {
@@ -2146,6 +2219,15 @@ public sealed class Shell
 
         Changed?.Invoke();
 
+        Waited(compose);
+    }
+
+    /// <summary>
+    ///     The send <paramref name="compose" /> was waiting on, where it no longer has anything unfinished to wait on
+    ///     (ADR-0026, #375).
+    /// </summary>
+    private void Waited(ComposeScreen compose)
+    {
         if (ReferenceEquals(_waitingToSend, compose) && !compose.Unfinished)
         {
             _waitingToSend = null;

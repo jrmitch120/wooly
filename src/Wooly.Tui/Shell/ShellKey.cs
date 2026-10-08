@@ -71,6 +71,21 @@ public enum ShellKey
     /// <summary><c>ctrl-p</c>.</summary>
     CtrlP,
 
+    /// <summary><c>ctrl-z</c>.</summary>
+    CtrlZ,
+
+    /// <summary><c>del</c>.</summary>
+    Delete,
+
+    /// <summary><c>backspace</c>.</summary>
+    Backspace,
+
+    /// <summary><c>shift-↑</c>.</summary>
+    ShiftUp,
+
+    /// <summary><c>shift-↓</c>.</summary>
+    ShiftDown,
+
     /// <summary><c>/</c>.</summary>
     Slash,
 

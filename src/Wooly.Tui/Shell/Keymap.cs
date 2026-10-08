@@ -81,6 +81,15 @@ public static class Keymap
         (ShellKey.Left, ComposeScreen) => Verb.PreviousChoice,
         (ShellKey.Right, ComposeScreen) => Verb.NextChoice,
 
+        // And the keys of the rows under the Media header (#378), which reach here only from there: every field that
+        // takes typing keeps del, backspace, ctrl-z and the shifted arrows for its own text, and r is a letter in them.
+        // Not alt-↑/↓ to reorder: macOS Terminal turns Option-arrows into word jumps that never reach the program.
+        (ShellKey.Delete or ShellKey.Backspace, ComposeScreen) => Verb.RemoveAttachment,
+        (ShellKey.CtrlZ, ComposeScreen) => Verb.BringBackAttachment,
+        (ShellKey.ShiftUp, ComposeScreen) => Verb.EarlierAttachment,
+        (ShellKey.ShiftDown, ComposeScreen) => Verb.LaterAttachment,
+        (ShellKey.R, ComposeScreen) => Verb.RetryAttachment,
+
         // The four that collide. A picked reference is a level of its own inside the screen, so ⏎ means the reference
         // wherever one is picked — ahead of whatever the screen's own ⏎ would have meant (#85).
         (ShellKey.Enter, _) when screen.Reference is not null => Verb.OpenReference,

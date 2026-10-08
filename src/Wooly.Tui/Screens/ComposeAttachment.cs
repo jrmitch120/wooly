@@ -24,8 +24,25 @@ public abstract record AttachmentState
     /// <summary>On the instance and ready for a post to name, as <paramref name="Pending" />.</summary>
     public sealed record Ready(PendingAttachment Pending) : AttachmentState;
 
-    /// <summary>The instance would not take it, or it could not be sent, and <paramref name="Why" /> says so.</summary>
-    public sealed record Refused(string Why) : AttachmentState;
+    /// <summary>
+    ///     The instance would not take it, or it could not be sent, and <paramref name="Why" /> says so —
+    ///     <paramref name="Retryable" /> where sending it again could mend that, as for a dropped connection and never
+    ///     for a file too large or of a type the instance refuses (#378).
+    /// </summary>
+    public sealed record Refused(string Why, bool Retryable = false) : AttachmentState;
+}
+
+/// <summary>What a click on a pending attachment's row means, by where on the row it lands (#378).</summary>
+public enum AttachmentPart
+{
+    /// <summary>The row itself, which a click picks.</summary>
+    Row,
+
+    /// <summary>Its <c>x</c>, which takes it off the post.</summary>
+    Remove,
+
+    /// <summary>Its <c>retry (r)</c>, which sends it up again.</summary>
+    Retry,
 }
 
 /// <summary>
