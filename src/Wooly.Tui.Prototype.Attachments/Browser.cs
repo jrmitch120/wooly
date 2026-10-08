@@ -97,6 +97,9 @@ internal sealed class BrowserScreen : Screen
 
     private void Scrolled()
     {
+        // Not before the screen has a height: a list one row tall scrolls ".." out of sight.
+        if (Viewport.Height <= ListTop) return;
+
         if (_cursor < _top) _top = _cursor;
         if (_cursor >= _top + ListHeight) _top = _cursor - ListHeight + 1;
         _top = Math.Max(0, _top);
@@ -112,7 +115,7 @@ internal sealed class BrowserScreen : Screen
         Read();
 
         // Going up lands on the folder just left.
-        if (_entries.FindIndex(entry => entry.Path == came) is >= 0 and var at) _cursor = at;
+        if (_entries.FindIndex(entry => !entry.Up && entry.Path == came) is >= 0 and var at) _cursor = at;
 
         Scrolled();
     }
@@ -285,6 +288,8 @@ internal sealed class BrowserScreen : Screen
 
     protected override void Paint()
     {
+        Scrolled();
+
         var width = Viewport.Width;
         var listWidth = ListWidth;
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
