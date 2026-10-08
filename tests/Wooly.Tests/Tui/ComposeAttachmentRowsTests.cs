@@ -60,8 +60,8 @@ public class ComposeAttachmentRowsTests : IDisposable
     }
 
     /// <summary>
-    ///     A dropped connection offers <c>retry (r)</c> after its reason, and <c>r</c> on its row sends the file up again —
-    ///     which, once it is through, lets the post go.
+    ///     A dropped connection offers <c>retry (r)</c> after its reason, and <c>r</c> on its row sends the file up
+    ///     again — which, once it is through, lets the post go.
     /// </summary>
     [Fact]
     public async Task RetryingADroppedConnectionThatGoesThroughUnblocksTheSend()

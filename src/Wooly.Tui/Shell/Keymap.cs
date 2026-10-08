@@ -167,7 +167,8 @@ public static class Keymap
         (ShellKey.S, AccountScreen) => Verb.SwapPostsAndReplies,
 
         // And on compose's Media header and its rows, the places on the screen with no field to type it into: the
-        // sensitive toggle at the end of the header's line (#379, #378). Anywhere else on compose a field has taken it as a letter already.
+        // sensitive toggle at the end of the header's line (#379, #378). Anywhere else on compose a field has taken it
+        // as a letter already.
         (ShellKey.S, ComposeScreen { Typing: ComposeField.Media or ComposeField.Attachment }) => Verb.ToggleSensitive,
 
         // The add screen's one letter, bound only there and only reached while no field is taking letters — every

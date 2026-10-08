@@ -42,7 +42,10 @@ public enum ComposeField
     /// </summary>
     Media,
 
-    /// <summary>One of the rows under the Media header: the pending attachment <see cref="ComposeScreen.PickedAttachment" /> names.</summary>
+    /// <summary>
+    ///     One of the rows under the Media header (#378): the pending attachment
+    ///     <see cref="ComposeScreen.PickedAttachment" /> names.
+    /// </summary>
     Attachment,
 
     /// <summary>The post being written.</summary>
@@ -149,7 +152,7 @@ public sealed class ComposeScreen : Screen
     /// <summary>What a refusal a retry could mend offers, the key named in it (#378).</summary>
     private const string RetryOffer = "retry (r)";
 
-    /// <summary>The offer cut to its key, where the status column has not room for the reason and the word both.</summary>
+    /// <summary>The offer cut to its key, where the status column has not room for the reason and it both.</summary>
     private const string ShortRetryOffer = "(r)";
 
     /// <summary>The column a pending attachment's grip sits at, a column in from its selection bar (#375).</summary>
@@ -231,7 +234,7 @@ public sealed class ComposeScreen : Screen
     /// </summary>
     private bool _rowsDrawn;
 
-    /// <summary>The attachment last taken off and the place it was taken from, for <c>ctrl-z</c> (#378); one deep.</summary>
+    /// <summary>The attachment last taken off and where it was, for <c>ctrl-z</c> (#378); one deep.</summary>
     private (ComposeAttachment Attachment, int At)? _removed;
 
     /// <summary>
@@ -524,7 +527,9 @@ public sealed class ComposeScreen : Screen
     public ComposeChange Remove() =>
         Typing == ComposeField.Attachment && PickedAttachment is { } picked ? Remove(picked) : ComposeChange.None;
 
-    /// <summary>A click on <paramref name="attachment" />'s <c>x</c>: takes it off the post, as <see cref="Remove()" /> does.</summary>
+    /// <summary>
+    ///     A click on <paramref name="attachment" />'s <c>x</c>: takes it off the post, as <see cref="Remove()" /> does.
+    /// </summary>
     /// <returns>An edit, or nothing where it is not attached.</returns>
     public ComposeChange Remove(ComposeAttachment attachment)
     {

@@ -294,7 +294,7 @@ public enum Verb
     /// <summary><c>ctrl-z</c> on the Media header or its rows: bring back the attachment last taken off (#378).</summary>
     BringBackAttachment,
 
-    /// <summary><c>shift-↑</c> on a row under the Media header: that attachment one place earlier on the post (#378).</summary>
+    /// <summary><c>shift-↑</c> on a row under the Media header: that attachment a place earlier (#378).</summary>
     EarlierAttachment,
 
     /// <summary><c>shift-↓</c> there, likewise: one place later.</summary>

@@ -288,3 +288,21 @@ goes as the warning, and `PostAuthor` marks the post for either.
 **The Media header joins the walk, but only once anything is attached** — between Warn and the post, its words lit
 rather than a selection bar — because the toggle is all there is to do on it so far. `s` there is the one letter the
 keymap gives compose, bound only while the typing is on Media, where no field would take it as a letter.
+
+## Amendment: the rows under Media are walked to and fixed there (map #372, ticket #378)
+
+**The walk goes through the rows as well as the header.** `↑` from the post reaches the bottom row first, then each
+row up to the Media header, then Warn; `↓` walks back. A row walked to carries the selection bar against its grip, set
+in a column of its own so that nothing on the row moves as the walk passes. The rows are walked only while they are
+drawn: folded into the header's line on a short terminal, the walk stops on the header alone.
+
+**On a row, the keys the fields keep for their own text are the row's**, because no field has the typing there: `del`
+or `backspace` takes it off, `ctrl-z` brings back the last one taken off in its place — one deep, and only on the
+Media header and its rows, so that the editor and Warn keep their own undo — `shift-↑`/`shift-↓` move it, and `r` sends
+it up again where a retry could mend its refusal (a dropped connection, never a file the instance refuses). Not
+`alt-↑`/`alt-↓`: macOS Terminal turns Option-arrows into word jumps that never reach the program. `s` toggles sensitive
+from a row as from the header. The pointer does the same: a click picks a row, a click on its `x` or `retry (r)` takes
+it off or retries it, and dragging a row moves it live, the others making way, with no landing marker.
+
+**The screen stays inert here too.** It moves what is attached and says which one a retry starts over; the shell sends
+that up again, as it sent it the first time (ADR-0026), and never retries by itself (ADR-0006).
