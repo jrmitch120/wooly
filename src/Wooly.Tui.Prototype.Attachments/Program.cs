@@ -89,7 +89,7 @@ namespace Wooly.Tui.Prototype.Attachments
         public static int GripStyle { get; set; }
 
         /// <summary>Candidates for a row's drag handle, F8 cycles them; a blank is "no handle".</summary>
-        public static readonly string[] Grips = ["≡", "∷", "⠶", "⁞", "↕", " ", "⋮⋮", "▴▾", "⇕", "∶"];
+        public static readonly string[] Grips = ["⠶", "≡", "∷", "⁞", "↕", " ", "⋮⋮", "▴▾", "⇕", "∶"];
 
         public static string Grip => Grips[GripStyle];
 
