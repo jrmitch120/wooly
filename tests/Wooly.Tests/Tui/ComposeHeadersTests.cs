@@ -26,17 +26,19 @@ public class ComposeHeadersTests
 
     /// <summary>
     ///     A fresh post reads: a blank, From, To, Lang, the warning, Media (#375), a hairline, a blank, the editor's
-    ///     rows, a hairline and the count. An edit reads the same but for Media, having nothing to add to.
+    ///     rows, a hairline and the count. An edit reads the same, but for Media having no key to add to it (#381).
     /// </summary>
     [Theory]
-    [InlineData(ComposeFor.Post, ComposeRows.ToAccountDefault)]
-    [InlineData(ComposeFor.Edit, ComposeRows.ToPublic)]
-    public async Task APostAndAnEditDrawTheFromToAndWarningHeadersBetweenTwoHairlines(ComposeFor opening, string to)
+    [InlineData(ComposeFor.Post, ComposeRows.ToAccountDefault, ComposeRows.NoMedia)]
+    [InlineData(ComposeFor.Edit, ComposeRows.ToPublic, "  Media  none")]
+    public async Task APostAndAnEditDrawTheFromToAndWarningHeadersBetweenTwoHairlines(
+        ComposeFor opening,
+        string to,
+        string media)
     {
         var compose = await Opening(opening, Mine);
         var rows = Texts(compose);
-        string[] media = opening == ComposeFor.Post ? [ComposeRows.NoMedia] : [];
-        var top = 6 + media.Length;
+        const int top = 7;
 
         Assert.Equal(
             [
@@ -45,7 +47,7 @@ public class ComposeHeadersTests
                 to,
                 ComposeRows.NoLanguage,
                 ComposeRows.NoWarning,
-                .. media,
+                media,
                 Rule,
                 string.Empty,
             ],
@@ -199,7 +201,7 @@ public class ComposeHeadersTests
     /// <summary>The editor starts under the headers, two columns in from either side, and runs to the foot's hairline.</summary>
     [Theory]
     [InlineData(ComposeFor.Post, 8)]
-    [InlineData(ComposeFor.Edit, 7)]
+    [InlineData(ComposeFor.Edit, 8)]
     [InlineData(ComposeFor.Reply, 10)]
     public async Task TheEditorStartsBelowTheHeaders(ComposeFor opening, int top)
     {

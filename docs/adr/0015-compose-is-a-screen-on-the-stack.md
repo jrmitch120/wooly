@@ -259,10 +259,32 @@ attachments under a read-only Media header of its own (#381), when `c` and `e` s
 again.
 
 **The rows fold before anything gives way.** Where a row each would leave the editor fewer than three, they fold into
-the Media header's line — `3 of 4 · 3 no alt text · 1 failed · ctrl-o to add` — and unfold when there is room. Only
+the Media header's line — `3 of 4 · 3 no alt text · 1 failed · ctrl-o to add`, and the sensitive toggle (#379) — and unfold when there is room. Only
 then does the give-way order run: the quote's tail, the blanks, the reply header, the foot, From and Lang, the Media
 header, the hairline under the headers. To, the warning and three rows of editor are still kept whatever the height.
 
 **The screen stays inert.** It holds what is attached and where each has got to, and says what goes out — a draft
 naming the pending attachments by id, asked for only once every one is ready. The shell sends each file up as it is
 attached and feeds its progress back (ADR-0026), and `Shell.Send` waits on them before making the one call.
+
+## Amendment: an edit lists what the post carries under Media (map #372, ticket #381)
+
+**An edit has a Media header too, read-only.** It lists the attachments the post already carries, a row each — its
+kind, then its description in quotes or the quiet `no alt text` — under `Media  2 · kept as they are`, or
+`Media  none` where the post carries nothing. There is no key on it and nothing on its rows to remove or reorder by:
+changing an edit's attachments would reopen ADR-0008's carry-through, which is out of scope, and the edit still saves
+the text, warning and language alone. The header is there so that `c` and `e` start the writing in the same place
+again, as the previous amendment promised: with the same headers and as many rows under Media, the editor starts on
+the same row on all three screens. The rows fold into the header's line on a short terminal as a fresh post's do.
+
+## Amendment: a sensitive toggle at the end of Media's line (map #372, ticket #379)
+
+**Once anything is attached, the Media header's line ends with a sensitive toggle**: `□ sensitive` muted, `■ sensitive`
+in the warning's colour, and `■ sensitive (warning)` while a warning is written. A warning marks the post sensitive
+already (ADR-0008), so it holds the toggle on and locked; the author's own setting is kept underneath it and comes back
+when the warning is cleared. The screen sends only the author's own setting, as the draft's `Sensitive`; the warning
+goes as the warning, and `PostAuthor` marks the post for either.
+
+**The Media header joins the walk, but only once anything is attached** — between Warn and the post, its words lit
+rather than a selection bar — because the toggle is all there is to do on it so far. `s` there is the one letter the
+keymap gives compose, bound only while the typing is on Media, where no field would take it as a letter.

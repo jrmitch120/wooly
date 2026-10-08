@@ -36,6 +36,12 @@ public enum ComposeField
     /// <summary>The content warning over the post (#123, #320).</summary>
     Warning,
 
+    /// <summary>
+    ///     The Media header, which types nothing: walked to so that its keys have somewhere to land — <c>s</c> for the
+    ///     sensitive toggle at the end of its line (#379).
+    /// </summary>
+    Media,
+
     /// <summary>The post being written.</summary>
     Post,
 }
@@ -112,6 +118,15 @@ public sealed class ComposeScreen : Screen
 
     /// <summary>The key that adds to the Media header, which it names after what it holds while there is room.</summary>
     private const string AttachKey = "ctrl-o to add";
+
+    /// <summary>The sensitive toggle's word, after its box (#379).</summary>
+    private const string SensitiveWord = "sensitive";
+
+    /// <summary>What the sensitive toggle adds while a warning holds it on (#379).</summary>
+    private const string SensitiveByWarning = " (warning)";
+
+    /// <summary>What an edit's Media header says of the attachments the post carries, which it cannot change.</summary>
+    private const string KeptAsTheyAre = "kept as they are";
 
     /// <summary>The quiet mark on a pending attachment with no description (#375, #377).</summary>
     private const string NoDescription = "no alt text";
@@ -194,6 +209,12 @@ public sealed class ComposeScreen : Screen
 
     /// <summary>What is attached, in the order the post will carry it (#375).</summary>
     private readonly List<ComposeAttachment> _attachments = [];
+
+    /// <summary>
+    ///     Whether the author has put what is attached behind a click (#379) — their own setting, kept while a warning
+    ///     holds the toggle on, so that clearing the warning gives it back as they left it.
+    /// </summary>
+    private bool _sensitive;
 
     /// <param name="purpose">What this screen was opened to do.</param>
     /// <param name="about">The post being replied to or edited.</param>
@@ -334,7 +355,7 @@ public sealed class ComposeScreen : Screen
     ///     the walk, with no key rule of its own.
     /// </summary>
     private static readonly ComposeField[] Fields =
-        [ComposeField.To, ComposeField.Lang, ComposeField.Warning, ComposeField.Post];
+        [ComposeField.To, ComposeField.Lang, ComposeField.Warning, ComposeField.Media, ComposeField.Post];
 
     /// <summary>
     ///     Which field what is typed is going into. Every field is on screen at once and the typing is in one of them,
@@ -382,12 +403,22 @@ public sealed class ComposeScreen : Screen
 
     /// <summary>
     ///     Whether this screen takes attachments: a fresh post and a reply do, under their Media header (#375); an edit
-    ///     carries the post's own through unchanged (ADR-0008) and has no header to add to.
+    ///     carries the post's own through unchanged (ADR-0008), and its header only lists them (#381).
     /// </summary>
     public bool TakesAttachments => Purpose != ComposeFor.Edit;
 
     /// <summary>What is attached, in the order the post will carry it, each with where it has got to (#375).</summary>
     public IReadOnlyList<ComposeAttachment> Attachments => _attachments;
+
+    /// <summary>
+    ///     What the post being edited already carries, which an edit lists under its Media header read-only so that the
+    ///     author can see it stays (#381) — and which the edit leaves as it was, never naming it (ADR-0008). Nothing on
+    ///     a fresh post or a reply.
+    /// </summary>
+    private IReadOnlyList<PostMedia> Kept => Purpose == ComposeFor.Edit && About is { } edited ? edited.Media : [];
+
+    /// <summary>How many rows the Media header has under it: one for each attachment, pending or kept.</summary>
+    private int MediaRows => _attachments.Count + Kept.Count;
 
     /// <summary>How many more attachments the post has room for, by the instance's limit.</summary>
     public int AttachmentRoom => TakesAttachments ? Math.Max(0, Limits.Attachments - _attachments.Count) : 0;
@@ -397,6 +428,33 @@ public sealed class ComposeScreen : Screen
 
     /// <summary>How many attachments the instance refused, which a send will not go out with (ADR-0026).</summary>
     public int Refused => _attachments.Count(attachment => attachment.State is AttachmentState.Refused);
+
+    /// <summary>
+    ///     Whether what is attached goes behind a click (#379): as the author set it, or on whatever they set while the
+    ///     warning has text, since a warning puts the whole post behind one (ADR-0008).
+    /// </summary>
+    public bool Sensitive => _sensitive || SensitiveByAWarning;
+
+    /// <summary>Whether a warning is what holds the sensitive toggle on, which locks it there (#379).</summary>
+    public bool SensitiveByAWarning => ContentWarnings.Written(Warning) is not null;
+
+    /// <summary>
+    ///     <c>s</c> on the Media header, or a click on the toggle (#379): puts what is attached behind a click, or takes
+    ///     it out from behind one. Nothing while nothing is attached, there being no toggle, nor while a warning holds
+    ///     it on.
+    /// </summary>
+    /// <returns>An edit, the toggle being part of what is sent, or nothing where it could not change.</returns>
+    public ComposeChange ToggleSensitive()
+    {
+        if (_attachments.Count == 0 || SensitiveByAWarning)
+        {
+            return ComposeChange.None;
+        }
+
+        _sensitive = !_sensitive;
+
+        return ComposeChange.Edited;
+    }
 
     /// <summary>
     ///     Attaches <paramref name="files" />, in order, after whatever is attached already — as many as the post has
@@ -491,6 +549,9 @@ public sealed class ComposeScreen : Screen
             ? [new KeyHint("↑↓", "pick"), new KeyHint("tab", "choose"), new KeyHint("esc", "close")]
             : Array.Empty<KeyHint>(),
         .. Typing == ComposeField.To ? [new KeyHint("←→", "choose")] : Array.Empty<KeyHint>(),
+        .. Typing == ComposeField.Media && _attachments.Count > 0
+            ? [new KeyHint("s", "sensitive")]
+            : Array.Empty<KeyHint>(),
         .. Walks switch
         {
             (true, true) => [new KeyHint("↑↓", "field")],
@@ -512,7 +573,11 @@ public sealed class ComposeScreen : Screen
     {
         var laid = Laid(drawing.Width, drawing.Height);
 
-        _drawn = laid.Lang == Rectangle.Empty ? [.. Fields.Where(field => field != ComposeField.Lang)] : Fields;
+        _drawn =
+        [
+            .. Fields.Where(field => (field != ComposeField.Lang || laid.Lang != Rectangle.Empty)
+                                     && (field != ComposeField.Media || laid.Media != Rectangle.Empty)),
+        ];
 
         return laid.Rows;
     }
@@ -618,8 +683,18 @@ public sealed class ComposeScreen : Screen
         return to < 0 || to >= walked.Length ? null : walked[to];
     }
 
-    /// <summary>Whether <paramref name="field" /> can have the typing at all, which To cannot where it allows nothing.</summary>
-    public bool Takes(ComposeField field) => field != ComposeField.To || _choices.Any(Offers);
+    /// <summary>
+    ///     Whether <paramref name="field" /> can have the typing at all, which To cannot where it allows nothing, nor
+    ///     Media until something is attached (#379): the toggle is all there is to do on it so far, and it shows only
+    ///     then — so the walk from the post still goes straight to Warn on a screen with nothing attached, and on an
+    ///     edit, whose Media header is read-only (#381).
+    /// </summary>
+    public bool Takes(ComposeField field) => field switch
+    {
+        ComposeField.To => _choices.Any(Offers),
+        ComposeField.Media => TakesAttachments && _attachments.Count > 0,
+        _ => true,
+    };
 
     /// <summary>
     ///     The typing went into <paramref name="field" /> by a click rather than by this screen's keys, and the screen
@@ -756,6 +831,42 @@ public sealed class ComposeScreen : Screen
     public Rectangle LangAt(Size viewport) => Laid(viewport.Width, viewport.Height).Lang;
 
     /// <summary>
+    ///     Where the Media header's value goes inside the same viewport, for the view laid over it that takes its keys
+    ///     and its clicks (#379) — nowhere on an edit, or where a short terminal has given its row up.
+    /// </summary>
+    public Rectangle MediaAt(Size viewport) => Laid(viewport.Width, viewport.Height).Media;
+
+    /// <summary>
+    ///     Whether a click <paramref name="column" /> columns into the Media header's value, laid in
+    ///     <paramref name="viewport" />, lands on the sensitive toggle at the end of it (#379) — read off the very row
+    ///     that is drawn, folded or not.
+    /// </summary>
+    public bool OnTheSensitiveToggle(int column, Size viewport)
+    {
+        var laid = Laid(viewport.Width, viewport.Height);
+
+        if (laid.Media == Rectangle.Empty || _attachments.Count == 0)
+        {
+            return false;
+        }
+
+        var toggle = SensitiveToggle().Text;
+        var at = -laid.Media.X;
+
+        foreach (var span in laid.Rows[laid.Media.Y].Spans)
+        {
+            if (span.Text == toggle)
+            {
+                return column >= at && column < at + span.Width;
+            }
+
+            at += span.Width;
+        }
+
+        return false;
+    }
+
+    /// <summary>
     ///     To's value as it is drawn <paramref name="room" /> columns wide — what the row laid over it paints, so that
     ///     row and the one a test reads off <see cref="Lines" /> are the same spans.
     /// </summary>
@@ -767,10 +878,10 @@ public sealed class ComposeScreen : Screen
     /// </summary>
     /// <remarks>
     ///     A blank; the headers — From, To, Lang, the reply header and its quote on a reply, the warning, and Media with
-    ///     a row for each pending attachment on a screen that takes them (#375); a hairline; a blank; the editor; a
-    ///     hairline; the row the count sits on. Two columns of padding either side of all of it. Lang gives way with
-    ///     From, being lower on the screen just before it (#340). The attachments' rows go before anything else does,
-    ///     by folding into the Media header's line, and the header itself after From.
+    ///     a row for each pending attachment, or on an edit for each the post carries (#375, #381); a hairline; a
+    ///     blank; the editor; a hairline; the row the count sits on. Two columns of padding either side of all of it.
+    ///     Lang gives way with From, being lower on the screen just before it (#340). The attachments' rows go before
+    ///     anything else does, by folding into the Media header's line, and the header itself after From.
     ///     <para>
     ///         Never so far down that there is no editor left. ADR-0015 priced the editor's share of a 24-row
     ///         terminal at more than what sits above it, but a terminal can be any size, and an editor that starts
@@ -781,7 +892,8 @@ public sealed class ComposeScreen : Screen
     ///         Where nobody says how tall the room is, it is as tall as the rows and the editor's least want.
     ///     </para>
     /// </remarks>
-    private (IReadOnlyList<Line> Rows, Rectangle Editor, Rectangle Warning, Rectangle To, Rectangle Lang) Laid(
+    private (IReadOnlyList<Line> Rows, Rectangle Editor, Rectangle Warning, Rectangle To, Rectangle Lang, Rectangle Media)
+        Laid(
         int width,
         int? height)
     {
@@ -827,35 +939,33 @@ public sealed class ComposeScreen : Screen
 
         above.Add(warning);
 
-        var media = TakesAttachments ? new Row(Line.Blank, Keep.Media) : null;
+        // Every compose screen has the header, an edit's listing what the post carries, so that with the same headers
+        // the editor starts on the same row on all three (ADR-0015, #381).
+        var media = new Row(Line.Blank, Keep.Media);
 
-        if (media is not null)
-        {
-            above.Add(media);
-        }
-
+        above.Add(media);
         above.Add(new Row(hairline, Keep.HeaderHairline));
         above.Add(new Row(Line.Blank, Keep.BlankUnderHairline));
 
         var foot = new List<Row> { new(hairline, Keep.FootHairline), new(Count(width), Keep.CountRow) };
-        var room = height ?? (above.Count + _attachments.Count + LeastEditorRows + foot.Count);
+        var room = height ?? (above.Count + MediaRows + LeastEditorRows + foot.Count);
 
-        if (media is not null)
+        // A row for each attachment where that still leaves the editor its three, and otherwise one line for all of
+        // them on the header's own — before any other row gives way, since what is attached can still be counted on
+        // one line and a header given up says nothing at all (#375).
+        var folded = above.Count + MediaRows + foot.Count + LeastEditorRows > room;
+        var at = above.IndexOf(media);
+
+        above[at] = media with { Line = Header(MediaLabel, Role.Muted, MediaValue(valueWidth, folded)) };
+
+        if (!folded)
         {
-            // A row for each attachment where that still leaves the editor its three, and otherwise one line for all
-            // of them on the header's own — before any other row gives way, since what is attached can still be
-            // counted on one line and a header given up says nothing at all (#375).
-            var folded = above.Count + _attachments.Count + foot.Count + LeastEditorRows > room;
-            var at = above.IndexOf(media);
-
-            above[at] = media with { Line = Header(MediaLabel, Role.Muted, MediaValue(valueWidth, folded)) };
-
-            if (!folded)
-            {
-                above.InsertRange(
-                    at + 1,
-                    _attachments.Select(attached => new Row(AttachmentRow(attached, width), Keep.Always)));
-            }
+            above.InsertRange(
+                at + 1,
+                [
+                    .. _attachments.Select(attached => new Row(AttachmentRow(attached, width), Keep.Always)),
+                    .. Kept.Select(kept => new Row(KeptRow(kept, valueWidth), Keep.Always)),
+                ]);
         }
 
         // Whatever ranks lowest goes first and, among equals, whichever is lowest on the screen: the quote gives up
@@ -883,7 +993,10 @@ public sealed class ComposeScreen : Screen
             new Rectangle(Math.Min(Pad, width), top, inner, editor),
             Value(above.IndexOf(warning)),
             Value(above.IndexOf(to)),
-            above.Contains(lang) ? Value(above.IndexOf(lang)) : Rectangle.Empty);
+            above.Contains(lang) ? Value(above.IndexOf(lang)) : Rectangle.Empty,
+            above.FindIndex(row => row.Keep == Keep.Media) is >= 0 and var header
+                ? Value(header)
+                : Rectangle.Empty);
 
         Rectangle Value(int row) => new(Math.Min(Pad + LabelWidth + LabelGap, width), row, valueWidth, 1);
     }
@@ -1057,6 +1170,8 @@ public sealed class ComposeScreen : Screen
     /// <remarks>
     ///     What is attached goes as the pending attachments the instance handed back, in the order shown (#375) — so
     ///     this is asked only once every one of them is ready, which is what the shell waits for before it sends.
+    ///     With them goes the author's own sensitive toggle (#379), and only theirs: the warning that may hold it on goes
+    ///     as the warning, which marks the post sensitive by itself (ADR-0008).
     /// </remarks>
     private PostDraft Drafted() => new()
     {
@@ -1066,6 +1181,7 @@ public sealed class ComposeScreen : Screen
         Visibility = Visibility,
         VisibilityChosen = Visibility != _startingVisibility,
         Language = Lang.Resolves(out var code) ? code : null,
+        Sensitive = _sensitive && _attachments.Count > 0,
         Attached =
         [
             .. _attachments.Select(attachment => attachment.State is AttachmentState.Ready(var pending)
@@ -1124,14 +1240,24 @@ public sealed class ComposeScreen : Screen
     ///     muted: what it holds — <c>none</c>, or how many of the instance's limit — then the key that adds to it, which
     ///     goes once the post is full. <paramref name="folded" />, it counts its rows too, on a terminal too short for
     ///     them: how many have no description and how many were refused, the refusals in the error's colour.
+    ///     <para>
+    ///         An edit's has no key, there being no way to add to it (#381): it says <c>none</c>, or how many the post
+    ///         carries and that they are kept as they are — no limit, since nothing more can be put against it.
+    ///     </para>
     /// </summary>
     private Span[] MediaValue(int room, bool folded)
     {
-        var count = _attachments.Count;
-        var held = count == 0 ? NothingAttached : $"{count} of {Limits.Attachments}";
-        var spans = new List<Span> { new(held, Role.Muted) };
+        var count = MediaRows;
+        var held = count == 0 ? NothingAttached
+            : TakesAttachments ? $"{count} of {Limits.Attachments}"
+            : count.ToString(CultureInfo.InvariantCulture);
 
-        if (folded && _attachments.Count(attached => !attached.Described) is > 0 and var undescribed)
+        // The header takes no selection bar with the typing on it: its own words light up, as To's choice does.
+        var spans = new List<Span> { new(held, Typing == ComposeField.Media ? Role.SelectedText : Role.Muted) };
+        var undescribed = _attachments.Count(attached => !attached.Described)
+                          + Kept.Count(kept => string.IsNullOrWhiteSpace(kept.Description));
+
+        if (folded && undescribed > 0)
         {
             spans.Add(new Span($" · {undescribed} {NoDescription}", Role.Muted));
         }
@@ -1147,7 +1273,50 @@ public sealed class ComposeScreen : Screen
             spans.Add(new Span($" · {AttachKey}", Role.Muted));
         }
 
+        if (Kept.Count > 0)
+        {
+            spans.Add(new Span($" · {KeptAsTheyAre}", Role.Muted));
+        }
+
+        if (_attachments.Count > 0)
+        {
+            spans.Add(new Span(" · ", Role.Muted));
+            spans.Add(SensitiveToggle());
+        }
+
         return Fitted(spans, room);
+    }
+
+    /// <summary>
+    ///     The sensitive toggle at the end of the Media header's line (#379): <c>□ sensitive</c>, muted, while it is off;
+    ///     <c>■ sensitive</c> in the warning's colour while it is on, since it hides what is attached the way a warning
+    ///     hides the post; and <c>■ sensitive (warning)</c>, the same, while a warning holds it on.
+    /// </summary>
+    private Span SensitiveToggle() =>
+        SensitiveByAWarning ? new Span($"■ {SensitiveWord}{SensitiveByWarning}", Role.ContentWarning)
+        : Sensitive ? new Span($"■ {SensitiveWord}", Role.ContentWarning)
+        : new Span($"□ {SensitiveWord}", Role.Muted);
+
+    /// <summary>
+    ///     A row for an attachment the post being edited already carries, in <paramref name="room" /> columns from the
+    ///     header's value column (#381): its kind, then its description in quotes or the quiet mark. Nothing a pending
+    ///     attachment's row has for changing it — no grip, no <c>x</c> — and no name or size, which the instance does not
+    ///     hand back.
+    /// </summary>
+    private static Line KeptRow(PostMedia kept, int room)
+    {
+        var description = kept.Description?.ReplaceLineEndings(" ").Trim() ?? string.Empty;
+        Span[] status = description.Length > 0
+            ? [new Span($"“{description}”", Role.Body)]
+            : [new Span(NoDescription, Role.Muted)];
+
+        return Line.Of(
+        [
+            Gap(Pad + LabelWidth + LabelGap),
+            .. Fitted(
+                [new Span(Glyphs.Padded(ComposeAttachment.KindWordOf(kept.Kind), KindColumn + 2), Role.Muted), .. status],
+                room),
+        ]);
     }
 
     /// <summary>
