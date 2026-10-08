@@ -48,6 +48,9 @@ internal sealed class ComposeScreen : Screen
         _editor = new Editor { X = Geometry.Pad, Width = Dim.Fill(Geometry.Pad), Hint = "What's on your mind?" };
         _strip = new StripArea { X = 0, Width = Dim.Fill(), Height = StripArea.Rows };
 
+        // Fewer than three editor rows with a row per attachment: they fold into the summary line.
+        _attach.Squeezed = () => Viewport.Height > 0
+            && Viewport.Height < Above + 1 + Proto.Draft.Items.Count + 2 + 3 + StripRoom + 2;
         _attach.Height = Dim.Func(_ => _attach.Wanted);
         _editor.Y = Pos.Func(_ => Above + _attach.Wanted + 2);
         _editor.Height = Dim.Func(_ => Math.Max(3, Viewport.Height - (Above + _attach.Wanted + 2) - StripRoom - 2));
@@ -217,6 +220,15 @@ internal sealed class AttachArea(AreaMode mode) : Painted
 
     public AreaMode Mode { get; set; } = mode;
 
+    /// <summary>Whether the screen is too short for a row per attachment; asked by the compose screen.</summary>
+    public Func<bool>? Squeezed { get; set; }
+
+    /// <summary>
+    ///     The mode drawn: a row per attachment folds into the one summary line on a terminal too short for them,
+    ///     and unfolds when there is room again (story 58).
+    /// </summary>
+    private AreaMode Shown => Mode == AreaMode.Rows && Squeezed?.Invoke() == true ? AreaMode.Summary : Mode;
+
     /// <summary>-1 is the header itself; 0… the attachments' rows.</summary>
     public int Cursor { get; set; } = -1;
 
@@ -228,22 +240,22 @@ internal sealed class AttachArea(AreaMode mode) : Painted
 
     private static Draft Draft => Proto.Draft;
 
-    private bool ListsRows => Mode is AreaMode.Rows or AreaMode.Manage;
+    private bool ListsRows => Shown is AreaMode.Rows or AreaMode.Manage;
 
     public int Last => ListsRows ? Draft.Items.Count - 1 : -1;
 
-    private int ThumbRows => Mode == AreaMode.Manage ? 5 : Proto.TallRows ? 3 : 1;
+    private int ThumbRows => Shown == AreaMode.Manage ? 5 : Proto.TallRows ? 3 : 1;
 
     private int ThumbColumns => ThumbRows == 1 ? 3 : ThumbRows * 2 + 2;
 
     private int RowHeight => ThumbRows;
 
-    public int Wanted => 1 + (ListsRows ? Draft.Items.Count * (RowHeight + (Mode == AreaMode.Manage ? 1 : 0)) : 0);
+    public int Wanted => 1 + (ListsRows ? Draft.Items.Count * (RowHeight + (Shown == AreaMode.Manage ? 1 : 0)) : 0);
 
-    private int RowTop(int index) => 1 + index * (RowHeight + (Mode == AreaMode.Manage ? 1 : 0));
+    private int RowTop(int index) => 1 + index * (RowHeight + (Shown == AreaMode.Manage ? 1 : 0));
 
     public string Hints => Cursor < 0
-        ? Mode == AreaMode.Summary && Draft.Items.Count > 0
+        ? Shown == AreaMode.Summary && Draft.Items.Count > 0
             ? "enter or click: the attachments screen · s sensitive · ↑ warning · ↓ editor"
             : "enter or click: attach… · s sensitive · ↑/↓ walk · ctrl-o attach"
         : "enter describe · del remove · ctrl-z undo remove · shift-↑/↓ reorder (or drag) · r retry · s sensitive · ↑/↓ walk";
@@ -251,12 +263,13 @@ internal sealed class AttachArea(AreaMode mode) : Painted
     protected override void Paint()
     {
         _hits.Clear();
+        Cursor = Math.Min(Cursor, Last);
 
         var width = Viewport.Width;
         var focused = HasFocus;
         var items = Draft.Items;
 
-        if (Mode != AreaMode.Manage)
+        if (Shown != AreaMode.Manage)
         {
             Geometry.Label(this, 0, Proto.AttachLabel, Role.Muted);
         }
@@ -270,18 +283,20 @@ internal sealed class AttachArea(AreaMode mode) : Painted
 
         var headerEnd = x;
 
-        if (Mode == AreaMode.Summary && items.Count > 0)
+        if (Shown == AreaMode.Summary && items.Count > 0)
         {
-            var parts = new List<string> { $"{items.Count} attached" };
+            var parts = new List<string> { $"{items.Count} of {Instance.Most}" };
 
-            if (Draft.Undescribed > 0) parts.Add($"{Draft.Undescribed} undescribed");
+            if (Draft.Undescribed > 0) parts.Add($"{Draft.Undescribed} {Proto.Mark}");
             if (Draft.Unfinished > 0) parts.Add($"{Draft.Unfinished} uploading");
-            if (Draft.Refused > 0) parts.Add($"{Draft.Refused} refused");
+            if (Draft.Refused > 0) parts.Add($"{Draft.Refused} failed");
 
-            var summary = string.Join(" · ", parts) + "  ▸";
+            var summary = string.Join(" · ", parts);
             Put(x, 0, summary, onHeader ? Role.SelectedText : Draft.Refused > 0 ? Role.Error : Role.Body);
             _hits.Add((new Rectangle(x, 0, Glyphs.Columns(summary), 1), Hit.Manage, -1));
             headerEnd = x + Glyphs.Columns(summary);
+
+            if (items.Count < Instance.Most) headerEnd = Spans(headerEnd, 0, (" · ctrl-o to add", Role.Muted));
         }
         else if (items.Count < Instance.Most)
         {
@@ -292,7 +307,7 @@ internal sealed class AttachArea(AreaMode mode) : Painted
             _hits.Add((new Rectangle(x, 0, end - x, 1), Hit.Attach, -1));
             headerEnd = end;
 
-            if (Mode == AreaMode.HeaderOnly && items.Count > 0)
+            if (Shown == AreaMode.HeaderOnly && items.Count > 0)
             {
                 headerEnd = Spans(end, 0, ($"  · {items.Count} below", Role.Muted));
             }
@@ -349,16 +364,16 @@ internal sealed class AttachArea(AreaMode mode) : Painted
         Put(nameAt, top, name, current ? Role.SelectedText : Role.Body);
         Put(removeAt, top, "×", Role.Destructive);
         _hits.Insert(0, (new Rectangle(removeAt - 1, top, 3, 1), Hit.Remove, index));
-        Put(kindAt, top, item.KindWord, Role.Muted);
+        if (kindAt >= 0) Put(kindAt, top, item.KindWord, Role.Muted);
         Put(sizeAt, top, item.Size.PadLeft(8), Role.Muted);
         // One column for whatever the row has to say: its progress, then its refusal, and once it is ready its
         // description. Always the same width, so nothing to its right moves as an upload goes along.
-        var room = Math.Min(DescriptionColumn, width - Geometry.Pad - 3 - describedAt);
+        var room = Math.Min(DescriptionColumn, width - Geometry.Pad - describedAt);
         var ready = item.State is State.Ready;
 
         if (!ready)
         {
-            PaintState(describedAt, top, item, index);
+            PaintState(describedAt, top, item, index, room);
         }
 
         if (RowHeight == 1)
@@ -392,14 +407,25 @@ internal sealed class AttachArea(AreaMode mode) : Painted
     /// </summary>
     private (int NameAt, int NameWidth, int KindAt, int SizeAt, int RemoveAt, int DescribedAt) Columns()
     {
-        // Fixed, not the widest name's: attaching a long name moves nothing on the rows already there.
-        const int nameWidth = 32;
+        // From the terminal's width alone, never the names': attaching a long one moves nothing. Where the width is
+        // short the kind column goes first — the picture and the extension say most of it — then the name narrows,
+        // so the description keeps at least LeastDescription columns. KindAt is -1 where the kind is not drawn.
+        const int MostName = 32, LeastName = 12, LeastDescription = 16, Kind = 9;
         var nameAt = Geometry.ValueAt + ThumbColumns + 1;
-        var kindAt = nameAt + nameWidth + 2;
-        var sizeAt = kindAt + 9;
+        var room = Viewport.Width - Geometry.Pad - nameAt;
+        var kind = true;
+        var name = MostName;
+
+        int Description() => room - name - 2 - (kind ? Kind : 0) - 8 - 2 - 1 - 2;
+
+        if (Description() < LeastDescription) kind = false;
+        if (Description() < LeastDescription) name = Math.Max(LeastName, name - (LeastDescription - Description()));
+
+        var kindAt = kind ? nameAt + name + 2 : -1;
+        var sizeAt = nameAt + name + 2 + (kind ? Kind : 0);
         var removeAt = sizeAt + 8 + 2;
 
-        return (nameAt, nameWidth, kindAt, sizeAt, removeAt, removeAt + 3);
+        return (nameAt, name, kindAt, sizeAt, removeAt, removeAt + 3);
     }
 
     private static string Flat(string text) => text.ReplaceLineEndings(" ");
@@ -435,10 +461,24 @@ internal sealed class AttachArea(AreaMode mode) : Painted
         return [];
     }
 
-    private void PaintState(int x, int y, Attachment item, int index)
+    private void PaintState(int x, int y, Attachment item, int index, int room)
     {
-        foreach (var (text, role) in StateSpans(item))
+        var spans = StateSpans(item);
+
+        // Narrow: the retry offer shrinks to its key, and the reason is cut to what is left.
+        if (spans.Sum(span => Glyphs.Columns(span.Text)) > room && spans.Count == 3)
         {
+            spans = [(Glyphs.Cut(spans[0].Text, Math.Max(1, room - 4)), spans[0].Role), (" ", Role.Body), ("(r)", Role.Key)];
+        }
+        else if (spans.Count == 1 && Glyphs.Columns(spans[0].Text) > room)
+        {
+            spans = [(Glyphs.Cut(spans[0].Text, Math.Max(1, room - 1)) + "…", spans[0].Role)];
+        }
+
+        foreach (var (text, role) in spans)
+        {
+            if (text == "(r)") _hits.Insert(0, (new Rectangle(x, y, 3, 1), Hit.Retry, index));
+
             if (text == Retry) _hits.Insert(0, (new Rectangle(x, y, Retry.Length, 1), Hit.Retry, index));
 
             x = Spans(x, y, (text, role));
@@ -475,7 +515,7 @@ internal sealed class AttachArea(AreaMode mode) : Painted
         else if (key == Key.Enter)
         {
             if (Cursor >= 0 && Cursor < items.Count) Proto.Describe(items[Cursor]);
-            else if (Mode == AreaMode.Summary && items.Count > 0) Proto.Shell.Push(new ManageScreen());
+            else if (Shown == AreaMode.Summary && items.Count > 0) Proto.Shell.Push(new ManageScreen());
             else Proto.OpenBrowser();
         }
         else if (key == Key.S)
@@ -498,7 +538,7 @@ internal sealed class AttachArea(AreaMode mode) : Painted
         {
             Warn();
         }
-        else if (key == Key.Esc && Mode == AreaMode.Manage)
+        else if (key == Key.Esc && Shown == AreaMode.Manage)
         {
             Proto.Shell.Pop();
         }
