@@ -362,7 +362,7 @@ internal sealed class AttachArea(AreaMode mode) : Painted
 
         var name = Glyphs.Columns(item.Name) > nameWidth ? Glyphs.Cut(item.Name, nameWidth - 1) + "…" : item.Name;
         Put(nameAt, top, name, current ? Role.SelectedText : Role.Body);
-        Put(removeAt, top, "×", Role.Destructive);
+        Put(removeAt, top, "x", Role.Destructive);
         _hits.Insert(0, (new Rectangle(removeAt - 1, top, 3, 1), Hit.Remove, index));
         if (kindAt >= 0) Put(kindAt, top, item.KindWord, Role.Muted);
         Put(sizeAt, top, item.Size.PadLeft(8), Role.Muted);
@@ -454,8 +454,8 @@ internal sealed class AttachArea(AreaMode mode) : Painted
 
             case State.Refused(var why, _):
                 return item.State is State.Refused { Retryable: false }
-                    ? [($"✗ {why}", Role.Error)]
-                    : [($"✗ {why}", Role.Error), ("  ", Role.Body), (Retry, Role.Key)];
+                    ? [(why, Role.Error)]
+                    : [(why, Role.Error), ("  ", Role.Body), (Retry, Role.Key)];
         }
 
         return [];
@@ -723,13 +723,13 @@ internal sealed class StripArea : Painted
                 var item = items[index];
                 Pics.Paint(this, thumb, item.Path, Theme);
                 Put(left, 5, item.Name, current ? Role.SelectedText : Role.Body, TileWidth - 4);
-                Put(left + TileWidth - 4, 5, " ×", Role.Destructive);
+                Put(left + TileWidth - 4, 5, " x", Role.Destructive);
 
                 var (said, role) = item.State switch
                 {
                     State.Uploading(var done) => ($"{new string('█', (int)(done * 8))}{new string('░', 8 - (int)(done * 8))} {done:P0}", Role.Gauge),
                     State.Processing => ("processing…", Role.Loading),
-                    State.Refused(var why, _) => ($"✗ {why}", Role.Error),
+                    State.Refused(var why, _) => (why, Role.Error),
                     _ => item.Description.Trim().Length > 0 ? ($"“{item.Description.ReplaceLineEndings(" ")}”", Role.Body) : (Proto.Mark, Role.Muted),
                 };
                 Put(left, 6, said, role, TileWidth - 2);
