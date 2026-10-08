@@ -142,7 +142,7 @@ public class ComposeClipboardTests : IDisposable
     [Fact]
     public async Task OnAnEditTheClipboardIsNotRead()
     {
-        var built = new AShell { Timelines = FakeTimelineReader.Holding(APost.With(account: "jeff@mastodon.social")) };
+        var built = new AShell { Pasted = new PastedPictures(_files.Path), Timelines = FakeTimelineReader.Holding(APost.With(account: "jeff@mastodon.social")) };
         var shell = await built.Opened();
 
         ComposeRows.Open(shell, ComposeFor.Edit);
@@ -160,7 +160,7 @@ public class ComposeClipboardTests : IDisposable
     [Fact]
     public async Task CtrlVInAnyFieldAttachesAPicture()
     {
-        var built = new AShell();
+        var built = new AShell { Pasted = new PastedPictures(_files.Path) };
 
         built.Clipboard.Holding = new Clipped.Picture(Png);
 
@@ -200,7 +200,7 @@ public class ComposeClipboardTests : IDisposable
     [Fact]
     public async Task CtrlVWithNoToolPastesTextAndSaysWhy()
     {
-        var built = new AShell();
+        var built = new AShell { Pasted = new PastedPictures(_files.Path) };
         const string why = "Pasting a picture or files needs wl-paste or xclip installed.";
 
         built.Clipboard.Holding = new Clipped.NoTool(why);
@@ -216,11 +216,11 @@ public class ComposeClipboardTests : IDisposable
     }
 
     /// <summary>A shell opened on a compose screen for <paramref name="purpose" />.</summary>
-    private static async Task<(Wooly.Tui.Shell.Shell Shell, AShell Built, ComposeScreen Compose)> Composing(
+    private async Task<(Wooly.Tui.Shell.Shell Shell, AShell Built, ComposeScreen Compose)> Composing(
         ComposeFor purpose = ComposeFor.Post,
         PostLimits? limits = null)
     {
-        var built = new AShell { Limits = FakeInstanceLimits.Setting(limits) };
+        var built = new AShell { Pasted = new PastedPictures(_files.Path), Limits = FakeInstanceLimits.Setting(limits) };
         var shell = await built.Opened();
         var compose = ComposeRows.Open(shell, purpose);
 

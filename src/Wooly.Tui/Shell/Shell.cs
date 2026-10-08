@@ -74,13 +74,10 @@ public sealed class Shell
     private readonly IClipboard _clipboard;
 
     /// <summary>
-    ///     The temporary folder pictures pasted from the clipboard are written to before they are attached (#380), made
-    ///     at the first.
+    ///     Where pictures pasted from the clipboard are written before they are attached (#380) — a temporary folder of
+    ///     the session's, which whoever made this shell takes away as the session ends (review of #372).
     /// </summary>
-    private string? _pastedTo;
-
-    /// <summary>How many pictures have been pasted from the clipboard this session, which names the next (#380).</summary>
-    private int _pasted;
+    private readonly PastedPictures _pasted;
 
     /// <summary>
     ///     Whether the status row has said this machine has nothing to read the clipboard with, which it says once a
@@ -199,6 +196,7 @@ public sealed class Shell
         IShellHost host,
         IWebBrowser browser,
         IClipboard clipboard,
+        PastedPictures pasted,
         TimeProvider clock,
         ShellTiming timing,
         Preferences? preferences = null,
@@ -217,6 +215,7 @@ public sealed class Shell
         _defaults = new DefaultsByProfile(ports.Defaults, host);
         _browser = browser;
         _clipboard = clipboard;
+        _pasted = pasted;
         _clock = clock;
         _timing = timing;
         _hashtag = preferences?.Hashtag;
@@ -1223,7 +1222,7 @@ public sealed class Shell
         switch (_clipboard.Read())
         {
             case Clipped.Picture(var png):
-                Attach(compose, [Pasted(png)]);
+                Attach(compose, [_pasted.Keep(png)]);
 
                 return true;
 
@@ -1253,21 +1252,6 @@ public sealed class Shell
             default:
                 return false;
         }
-    }
-
-    /// <summary>
-    ///     <paramref name="png" /> written to <c>pasted-N.png</c> — counted over the session, so each pasted picture's
-    ///     row says something of its own — in a temporary folder of the session's (#380).
-    /// </summary>
-    private string Pasted(byte[] png)
-    {
-        _pastedTo ??= Directory.CreateTempSubdirectory("wooly-pasted-").FullName;
-
-        var path = Path.Combine(_pastedTo, $"pasted-{++_pasted}.png");
-
-        File.WriteAllBytes(path, png);
-
-        return path;
     }
 
     /// <summary>Takes the last letter back out of it.</summary>

@@ -56,6 +56,10 @@ try
 
     var clock = provider.GetRequiredService<TimeProvider>();
 
+    // Where a picture pasted from the clipboard is written before it goes up, taken away with every picture in it as
+    // the session ends (#380, review of #372).
+    using var pasted = new PastedPictures();
+
     var shell = new Shell(
         opening,
         ports,
@@ -76,6 +80,7 @@ try
         // This machine's clipboard, for the same reason: ctrl-v on a compose screen attaches a picture or copied files
         // from it (#380).
         new OsClipboard(),
+        pasted,
         clock,
         ShellTiming.Default,
         config.Preferences);

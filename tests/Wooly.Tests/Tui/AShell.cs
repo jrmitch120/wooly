@@ -3,6 +3,7 @@ using Wooly.Core.Configuration;
 using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
 using Wooly.Tests.Fakes;
+using Wooly.Tui.Clipboard;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
@@ -74,6 +75,12 @@ internal sealed class AShell
     ///     one of the ports either, for the browser's reason: it is on this machine.
     /// </summary>
     public FakeClipboard Clipboard { get; set; } = new();
+
+    /// <summary>
+    ///     Where a picture pasted from the clipboard is written (#380): the system's temporary folder, unless a test that
+    ///     pastes one says somewhere it cleans up after itself, as it should.
+    /// </summary>
+    public PastedPictures Pasted { get; set; } = new();
 
     /// <summary>
     ///     The profiles set up on this machine, which is the profile every test acts as and nobody else — and it the
@@ -156,6 +163,7 @@ internal sealed class AShell
         Host,
         Browser,
         Clipboard,
+        Pasted,
         Clock,
         Timing,
         Preferences,
@@ -229,6 +237,7 @@ internal sealed class AShell
             Host,
             Browser,
             Clipboard,
+            Pasted,
             Clock,
             Timing,
             Preferences,
