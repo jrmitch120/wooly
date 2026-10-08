@@ -265,8 +265,6 @@ internal sealed class AttachArea(AreaMode mode) : Painted
             Put(Geometry.Pad, 0, Proto.AttachLabel, Role.Media);
         }
 
-        if (focused && Cursor < 0) Put(0, 0, "▌", Role.Selection);
-
         var x = Geometry.ValueAt;
         var onHeader = focused && Cursor < 0;
 
