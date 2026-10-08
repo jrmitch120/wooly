@@ -320,45 +320,58 @@ internal sealed class AttachArea(AreaMode mode) : Painted
         }
     }
 
+    /// <summary>The widest a compact row's description column gets, so × stays near what it removes.</summary>
+    private const int DescriptionColumn = 40;
+
     private void PaintRow(int index, Attachment item, bool current)
     {
         var width = Viewport.Width;
         var top = RowTop(index);
         var thumb = new Rectangle(Geometry.ValueAt, top, ThumbColumns, ThumbRows);
         var dragged = _dragFrom == index;
+        var items = Draft.Items;
 
         if (current) Put(0, top, "▌", Role.Selection);
 
         Put(Geometry.Pad + 2, top, "⠿", dragged ? Role.Selection : Role.Muted);
         Pics.Paint(this, thumb, item.Path, Theme);
 
-        var x = thumb.Right + 1;
-        var right = width - Geometry.Pad - 2;
-        var nameRole = current ? Role.SelectedText : Role.Body;
-
         _hits.Add((new Rectangle(0, top, width, RowHeight), Hit.Row, index));
 
-        x = Spans(x, top, (item.Name, nameRole), ($" · {item.KindWord} · {item.Size}  ", Role.Muted));
-        x = PaintState(x, top, item, index);
-
-        Put(right, top, " ×", Role.Destructive);
-        _hits.Insert(0, (new Rectangle(right, top, 2, 1), Hit.Remove, index));
-
+        // Columns, as wide as the widest row needs, so every row lines up with the one above it.
+        var nameWidth = Math.Clamp(items.Max(each => Glyphs.Columns(each.Name)), 8, 28);
+        var stateWidth = items.Max(each => StateSpans(each).Sum(span => Glyphs.Columns(span.Text)));
+        var nameAt = thumb.Right + 1;
+        var kindAt = nameAt + nameWidth + 2;
+        var sizeAt = kindAt + 9 + 1;
+        var stateAt = sizeAt + 8 + 2;
+        var describedAt = stateAt + stateWidth + 2;
         var described = item.Description.Trim().Length > 0;
+
+        Put(nameAt, top, Glyphs.Cut(item.Name, nameWidth), current ? Role.SelectedText : Role.Body);
+        Put(kindAt, top, item.KindWord, Role.Muted);
+        Put(sizeAt, top, item.Size.PadLeft(8), Role.Muted);
+        PaintState(stateAt, top, item, index);
 
         if (RowHeight == 1)
         {
-            var room = right - x - 2;
+            var widest = items.Max(each => each.Description.Trim().Length > 0 ? Glyphs.Columns(Flat(each.Description)) + 2 : Glyphs.Columns(Proto.Mark));
+            var room = Math.Min(Math.Min(widest, DescriptionColumn), width - Geometry.Pad - 3 - describedAt);
 
             if (room > 4)
             {
-                Put(x + 2, top, described ? $"“{Flat(item.Description)}”" : Proto.Mark, described ? Role.Body : Role.Muted, room);
+                Put(describedAt, top, described ? $"“{Flat(item.Description)}”" : Proto.Mark, described ? Role.Body : Role.Muted, room);
             }
+
+            Remove(Math.Min(describedAt + Math.Max(room, 0) + 1, width - Geometry.Pad - 2));
 
             return;
         }
 
-        var textAt = thumb.Right + 1;
+        Remove(Math.Min(describedAt, width - Geometry.Pad - 2));
+
+        var textAt = nameAt;
+        var right = describedAt;
         var lines = described ? TextWrap.Wrap(item.Description, Math.Max(1, right - textAt)) : [Proto.Mark];
 
         for (var line = 0; line < Math.Min(lines.Count, RowHeight - 1); line++)
@@ -366,38 +379,50 @@ internal sealed class AttachArea(AreaMode mode) : Painted
             var text = line == RowHeight - 2 && lines.Count > RowHeight - 1 ? Glyphs.Cut(lines[line], Math.Max(0, right - textAt - 1)) + "…" : lines[line];
             Put(textAt, top + 1 + line, text, described ? Role.Body : Role.Muted);
         }
+
+        void Remove(int at)
+        {
+            Put(at, top, " ×", Role.Destructive);
+            _hits.Insert(0, (new Rectangle(at, top, 2, 1), Hit.Remove, index));
+        }
     }
 
     private static string Flat(string text) => text.ReplaceLineEndings(" ");
 
-    private int PaintState(int x, int y, Attachment item, int index)
+    private const string Retry = "retry (r)";
+
+    private static List<(string Text, Role Role)> StateSpans(Attachment item)
     {
         switch (item.State)
         {
             case State.Uploading(var done):
                 var filled = (int)Math.Round(done * 8);
-                return Spans(x, y, (new string('█', filled), Role.Gauge), (new string('░', 8 - filled), Role.GaugeEmpty), ($" {done:P0}", Role.Muted));
+                return [(new string('█', filled), Role.Gauge), (new string('░', 8 - filled), Role.GaugeEmpty), ($" {done,4:P0}", Role.Muted)];
 
             case State.Processing:
                 var spin = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"[(int)(DateTime.Now.TimeOfDay.TotalMilliseconds / 100) % 10];
-                return Spans(x, y, ($"{spin} processing", Role.Loading));
+                return [($"{spin} processing", Role.Loading)];
 
             case State.Ready:
-                return Spans(x, y, ("✓", Role.Muted));
+                return [("✓", Role.Muted)];
 
             case State.Refused(var why):
-                var end = Spans(x, y, ($"✗ {why}", Role.Error));
-
-                if (Instance.Of(item.Path) is null) return end;
-
-                var retryAt = end + 2;
-                end = Spans(retryAt, y, ("retry (r)", Role.Key));
-                _hits.Insert(0, (new Rectangle(retryAt, y, 9, 1), Hit.Retry, index));
-
-                return end;
+                return Instance.Of(item.Path) is null
+                    ? [($"✗ {why}", Role.Error)]
+                    : [($"✗ {why}", Role.Error), ("  ", Role.Body), (Retry, Role.Key)];
         }
 
-        return x;
+        return [];
+    }
+
+    private void PaintState(int x, int y, Attachment item, int index)
+    {
+        foreach (var (text, role) in StateSpans(item))
+        {
+            if (text == Retry) _hits.Insert(0, (new Rectangle(x, y, Retry.Length, 1), Hit.Retry, index));
+
+            x = Spans(x, y, (text, role));
+        }
     }
 
     protected override bool OnKeyDown(Key key)

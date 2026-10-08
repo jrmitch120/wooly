@@ -22,9 +22,9 @@ internal sealed class DescribeScreen : Screen
             Text = item.Description,
             Hint = "Describe it for people who can't see it",
             X = Pos.Func(_ => Wide ? Viewport.Width / 2 + 1 : Geometry.Pad),
-            Y = Pos.Func(_ => Wide ? 3 : PictureRows + 4),
+            Y = Pos.Func(_ => Wide ? 5 : PictureRows + 6),
             Width = Dim.Func(_ => Wide ? Viewport.Width - Viewport.Width / 2 - 1 - Geometry.Pad : Viewport.Width - Geometry.Pad * 2),
-            Height = Dim.Func(_ => Math.Max(3, Viewport.Height - (Wide ? 3 : PictureRows + 4) - 2)),
+            Height = Dim.Func(_ => Math.Max(3, Viewport.Height - (Wide ? 5 : PictureRows + 6) - 2)),
         };
         _editor.ContentsChanged += (_, _) =>
         {
@@ -47,7 +47,7 @@ internal sealed class DescribeScreen : Screen
 
     private bool Wide => Viewport.Width >= 110;
 
-    private int PictureRows => Math.Max(4, (Viewport.Height - 4) / 2);
+    private int PictureRows => Math.Max(4, (Viewport.Height - 8) / 2);
 
     public override string Hints => "esc or ctrl-s done (what you typed is kept) · enter makes a new line · the instance gets it as soon as it's sent";
 
@@ -71,11 +71,11 @@ internal sealed class DescribeScreen : Screen
 
         var picture = Wide
             ? new Rectangle(Geometry.Pad, 3, width / 2 - Geometry.Pad - 1, Viewport.Height - 5)
-            : new Rectangle(Geometry.Pad, 2, width - Geometry.Pad * 2, PictureRows);
+            : new Rectangle(Geometry.Pad, 3, width - Geometry.Pad * 2, PictureRows);
 
         Pics.Paint(this, picture, _item.Path, Theme);
 
-        var labelY = Wide ? 2 : PictureRows + 3;
+        var labelY = Wide ? 3 : PictureRows + 4;
         var labelX = Wide ? width / 2 + 1 : Geometry.Pad;
         Put(labelX, labelY, "Description (alt text)", Role.Muted);
 
