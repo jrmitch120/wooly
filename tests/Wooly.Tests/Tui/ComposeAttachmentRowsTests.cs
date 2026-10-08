@@ -149,11 +149,40 @@ public class ComposeAttachmentRowsTests : IDisposable
 
         Assert.Equal(["one.png", "three.png"], Names(compose));
         Assert.StartsWith("    ▌⠶   three.png", Row(compose, "three.png"), StringComparison.Ordinal);
-        Assert.Contains("  Media  2 of 4 · ctrl-o to add", Texts(compose));
+        Assert.Contains("  Media  2 of 4 · ctrl-o to add · □ sensitive", Texts(compose));
 
         await shell.Send();
 
         Assert.Equal(["m1", "m3"], Assert.Single(built.Author.Published).Draft.Attached.Select(attached => attached.Id));
+    }
+
+    /// <summary>
+    ///     Taking off the last thing attached leaves nothing under the Media header to walk to, so the walk goes back to
+    ///     the post.
+    /// </summary>
+    [Fact]
+    public async Task RemovingTheLastOneReturnsTheWalkToThePost()
+    {
+        var (shell, _, compose) = await Composing("one.png");
+
+        shell.Press(ShellKey.Up);
+        shell.Press(ShellKey.Delete);
+
+        Assert.Empty(compose.Attachments);
+        Assert.Equal(ComposeField.Post, compose.Typing);
+    }
+
+    /// <summary><c>s</c> on a row toggles sensitive, as it does on the header over it (#379).</summary>
+    [Fact]
+    public async Task SOnARowTogglesSensitive()
+    {
+        var (shell, _, compose) = await Composing("one.png");
+
+        shell.Press(ShellKey.Up);
+        shell.Press(ShellKey.S);
+
+        Assert.Contains("  Media  1 of 4 · ctrl-o to add · ■ sensitive", Texts(compose));
+        Assert.Equal(ComposeField.Attachment, compose.Typing);
     }
 
     /// <summary>

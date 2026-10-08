@@ -10,6 +10,7 @@ using Wooly.Core.Profiles;
 using Wooly.Core.Relationships;
 using Wooly.Core.Search;
 using Wooly.Core.Timelines;
+using Wooly.Tui.Clipboard;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Theme;
@@ -65,6 +66,27 @@ public sealed class Shell
     ///     not on one (ADR-0014, #85).
     /// </summary>
     private readonly IWebBrowser _browser;
+
+    /// <summary>
+    ///     This machine's clipboard, which <c>ctrl-v</c> on a compose screen attaches a picture or copied files from
+    ///     (#380). Like the browser, not a port: it is not on an instance.
+    /// </summary>
+    private readonly IClipboard _clipboard;
+
+    /// <summary>
+    ///     The temporary folder pictures pasted from the clipboard are written to before they are attached (#380), made
+    ///     at the first.
+    /// </summary>
+    private string? _pastedTo;
+
+    /// <summary>How many pictures have been pasted from the clipboard this session, which names the next (#380).</summary>
+    private int _pasted;
+
+    /// <summary>
+    ///     Whether the status row has said this machine has nothing to read the clipboard with, which it says once a
+    ///     session (#380).
+    /// </summary>
+    private bool _toldNoClipboard;
 
     private readonly IShellHost _host;
     private readonly TimeProvider _clock;
@@ -163,6 +185,7 @@ public sealed class Shell
         ProfilePorts profiles,
         IShellHost host,
         IWebBrowser browser,
+        IClipboard clipboard,
         TimeProvider clock,
         ShellTiming timing,
         Preferences? preferences = null)
@@ -174,6 +197,7 @@ public sealed class Shell
         _limits.Heard += Measured;
         _defaults = new DefaultsByProfile(ports.Defaults, host);
         _browser = browser;
+        _clipboard = clipboard;
         _clock = clock;
         _timing = timing;
         _hashtag = preferences?.Hashtag;
@@ -556,6 +580,7 @@ public sealed class Shell
         Verb.EarlierAttachment => Ran(() => _ = ChangeCompose(compose => compose.Reorder(-1))),
         Verb.LaterAttachment => Ran(() => _ = ChangeCompose(compose => compose.Reorder(1))),
         Verb.RetryAttachment => Ran(() => Retry(compose => compose.Retry())),
+        Verb.ToggleSensitive => Ran(ToggleSensitive),
 
         // Nothing, and the terminal's own — which the window has already taken, and which no screen answers either.
         Verb.None => false,
@@ -1161,6 +1186,68 @@ public sealed class Shell
         return true;
     }
 
+    /// <summary>
+    ///     <c>ctrl-v</c> on a compose screen (#380): a picture on this machine's clipboard is written to a file of its
+    ///     own and attached from there, and copied files are attached, as a drop is (<see cref="Paste" />, ADR-0026).
+    /// </summary>
+    /// <returns>Whether the paste was taken; one that was not is left to the field's own paste.</returns>
+    public bool PasteFromTheClipboard()
+    {
+        if (Screen is not ComposeScreen { TakesAttachments: true } compose)
+        {
+            return false;
+        }
+
+        switch (_clipboard.Read())
+        {
+            case Clipped.Picture(var png):
+                Attach(compose, [Pasted(png)]);
+
+                return true;
+
+            // Subject to what a drop is: the files there that the instance takes, up to what the post has room for.
+            case Clipped.Files(var paths):
+                var accepted = paths.Where(path => File.Exists(path) && compose.Limits.Accepts(path)).ToList();
+
+                if (accepted.Count == 0)
+                {
+                    Say("None of the copied files is a type this instance takes.", isError: true);
+                }
+                else
+                {
+                    Attach(compose, accepted);
+                }
+
+                return true;
+
+            // Said once a session: the author who has no wish to install either is still pasting text every time. Said
+            // once the field has pasted, since the paste is an edit and an edit spends a notice (#364).
+            case Clipped.NoTool(var why) when !_toldNoClipboard:
+                _toldNoClipboard = true;
+                Apply(() => Say(why, isError: false));
+
+                return false;
+
+            default:
+                return false;
+        }
+    }
+
+    /// <summary>
+    ///     <paramref name="png" /> written to <c>pasted-N.png</c> — counted over the session, so each pasted picture's
+    ///     row says something of its own — in a temporary folder of the session's (#380).
+    /// </summary>
+    private string Pasted(byte[] png)
+    {
+        _pastedTo ??= Directory.CreateTempSubdirectory("wooly-pasted-").FullName;
+
+        var path = Path.Combine(_pastedTo, $"pasted-{++_pasted}.png");
+
+        File.WriteAllBytes(path, png);
+
+        return path;
+    }
+
     /// <summary>Takes the last letter back out of it.</summary>
     public void Backspace()
     {
@@ -1207,6 +1294,23 @@ public sealed class Shell
         }
 
         return made;
+    }
+
+    /// <summary>
+    ///     <c>s</c> on compose's Media header, or a click on its toggle: puts what is attached behind a click or takes it
+    ///     back out (#379). While a warning holds it on, the status row says so instead, since a press that changes
+    ///     nothing on screen would otherwise read as one the shell missed.
+    /// </summary>
+    public void ToggleSensitive()
+    {
+        if (Screen is ComposeScreen { SensitiveByAWarning: true, Attachments.Count: > 0 })
+        {
+            Say("The warning already hides what is attached.", isError: false);
+
+            return;
+        }
+
+        _ = ChangeCompose(compose => compose.ToggleSensitive());
     }
 
     /// <summary>

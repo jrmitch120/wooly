@@ -140,11 +140,11 @@ public class ComposeMediaTests : IDisposable
 
         shell.Paste(_files.WriteFile("one.png"));
 
-        Assert.Contains("  Media  1 of 2 · ctrl-o to add", Texts(compose));
+        Assert.Contains("  Media  1 of 2 · ctrl-o to add · □ sensitive", Texts(compose));
 
         shell.Paste(_files.WriteFile("two.png"));
 
-        Assert.Contains("  Media  2 of 2", Texts(compose));
+        Assert.Contains("  Media  2 of 2 · □ sensitive", Texts(compose));
     }
 
     /// <summary>A drop of more files than the post has room for attaches as many as fit, in the order dropped.</summary>
@@ -350,7 +350,7 @@ public class ComposeMediaTests : IDisposable
             new TransientNetworkException(new Uri("https://mastodon.social/api/v2/media"), 3, new HttpRequestException()));
         built.Host.Drain();
 
-        Assert.EndsWith("x  connection lost", Row(compose, "cat.png"), StringComparison.Ordinal);
+        Assert.EndsWith("x  connection lost  (r)", Row(compose, "cat.png"), StringComparison.Ordinal);
     }
 
     /// <summary>Anything attached touches the draft, so leaving it asks first (#373).</summary>
@@ -393,9 +393,9 @@ public class ComposeMediaTests : IDisposable
         var folded = Texts(compose, height: 15);
 
         Assert.Contains(roomy, row => row.Contains("three.png", StringComparison.Ordinal));
-        Assert.Contains("  Media  3 of 4 · ctrl-o to add", roomy);
+        Assert.Contains("  Media  3 of 4 · ctrl-o to add · □ sensitive", roomy);
         Assert.DoesNotContain(folded, row => row.Contains("three.png", StringComparison.Ordinal));
-        Assert.Contains("  Media  3 of 4 · 3 no alt text · 1 failed · ctrl-o to add", folded);
+        Assert.Contains("  Media  3 of 4 · 3 no alt text · 1 failed · ctrl-o to add · □ sensitive", folded);
         Assert.Contains("   From  @jeff · mastodon.social", folded);
         Assert.Equal(3, compose.EditorAt(new System.Drawing.Size(Width, 16)).Height);
         Assert.Equal(5, compose.EditorAt(new System.Drawing.Size(Width, 15)).Height);

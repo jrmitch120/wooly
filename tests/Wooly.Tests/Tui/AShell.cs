@@ -70,6 +70,12 @@ internal sealed class AShell
     public FakeWebBrowser Browser { get; set; } = new();
 
     /// <summary>
+    ///     What <c>ctrl-v</c> on a compose screen reads (#380): text, unless a test puts a picture or files on it. Not
+    ///     one of the ports either, for the browser's reason: it is on this machine.
+    /// </summary>
+    public FakeClipboard Clipboard { get; set; } = new();
+
+    /// <summary>
     ///     The profiles set up on this machine, which is the profile every test acts as and nobody else — and it the
     ///     current one, as a launch without <c>--profile</c> would have it. Not one of the ports either, for the reason
     ///     <c>ProfilePorts</c> gives: this is the local config, not an instance.
@@ -146,6 +152,7 @@ internal sealed class AShell
         new ProfilePorts(Profiles, Paths, Authorizer, Verifier),
         Host,
         Browser,
+        Clipboard,
         Clock,
         Timing,
         Preferences);
@@ -216,6 +223,7 @@ internal sealed class AShell
             new ProfilePorts(registry, paths, Authorizer, Verifier),
             Host,
             Browser,
+            Clipboard,
             Clock,
             Timing,
             Preferences);

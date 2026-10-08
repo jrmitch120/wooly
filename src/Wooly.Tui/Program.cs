@@ -13,6 +13,7 @@ using Wooly.Core.Relationships;
 using Wooly.Core.Search;
 using Wooly.Core.Timelines;
 using Wooly.Tui;
+using Wooly.Tui.Clipboard;
 using Wooly.Tui.Media;
 using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
@@ -71,6 +72,10 @@ try
         // The same browser the sign-in sends somebody to (ADR-0004), and deliberately not one of the ports above:
         // those are what the shell reaches an instance through, and a browser is not on one (#85).
         provider.GetRequiredService<IWebBrowser>(),
+
+        // This machine's clipboard, for the same reason: ctrl-v on a compose screen attaches a picture or copied files
+        // from it (#380).
+        new OsClipboard(),
         clock,
         ShellTiming.Default,
         config.Preferences);

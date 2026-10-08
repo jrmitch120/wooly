@@ -83,8 +83,8 @@ public class ComposeLangTests
     }
 
     /// <summary>
-    ///     <c>↑</c> from the post walks the headers in the order they are drawn — Media, the warning, Lang, To — and
-    ///     <c>↓</c> walks back down through Lang into the post.
+    ///     <c>↑</c> from the post walks the headers in the order they are drawn — the warning, Lang, To — and <c>↓</c>
+    ///     walks back down through Lang into the post.
     /// </summary>
     [Fact]
     public async Task TheArrowsWalkThroughLangInTheOrderItIsDrawn()
@@ -92,9 +92,6 @@ public class ComposeLangTests
         using var view = await ComposedView.Of(
             new AShell { Accounts = FakeAccountRelationships.HoldingNobody(), DefaultLanguage = "fr" });
         var compose = view.Compose;
-
-        view.Press(Key.CursorUp);
-        Assert.Equal(ComposeField.Media, compose.Typing);
 
         view.Press(Key.CursorUp);
         Assert.Equal(ComposeField.Warning, compose.Typing);
@@ -109,7 +106,6 @@ public class ComposeLangTests
         view.Press(Key.CursorDown);
         Assert.Equal(ComposeField.Lang, compose.Typing);
 
-        view.Press(Key.CursorDown);
         view.Press(Key.CursorDown);
         view.Press(Key.CursorDown);
         Assert.Equal(ComposeField.Post, compose.Typing);
@@ -422,7 +418,6 @@ public class ComposeLangTests
 
     private static void OnLang(ComposedView drawn)
     {
-        drawn.Press(Key.CursorUp);
         drawn.Press(Key.CursorUp);
         drawn.Press(Key.CursorUp);
     }

@@ -57,6 +57,12 @@ internal sealed class ComposeEditor(
     public Func<Key, bool>? Answering { get; set; }
 
     /// <summary>
+    ///     <c>ctrl-v</c>, asked first whether the clipboard holds a picture or files to attach (#380): where it says it
+    ///     took the paste, the editor's own paste never sees the key.
+    /// </summary>
+    public Func<bool>? FromTheClipboard { get; set; }
+
+    /// <summary>
     ///     Every visual role Terminal.Gui asks for, answered from the theme: text in <see cref="Role.Body" /> on the
     ///     page, and a selection — which <see cref="TextView" /> draws in its <c>Active</c> role, as the compose
     ///     prototype found (#313) — in <see cref="Role.SelectedText" />. Nothing is left to Terminal.Gui's own scheme,
@@ -138,6 +144,11 @@ internal sealed class ComposeEditor(
         {
             warn();
 
+            return true;
+        }
+
+        if (key == Key.V.WithCtrl && FromTheClipboard?.Invoke() == true)
+        {
             return true;
         }
 

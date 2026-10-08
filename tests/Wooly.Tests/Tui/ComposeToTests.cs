@@ -49,7 +49,7 @@ public class ComposeToTests
     }
 
     /// <summary>
-    ///     The arrows walk up from the post through Media, the warning and Lang into To, and there <c>→</c> and <c>←</c> move the
+    ///     The arrows walk up from the post through the warning and Lang into To, and there <c>→</c> and <c>←</c> move the
     ///     choice — and what is sent is what is shown, as chosen.
     /// </summary>
     [Fact]
@@ -58,7 +58,6 @@ public class ComposeToTests
         using var view = await Drawn(PostVisibility.Unlisted);
         var compose = view.Compose;
 
-        view.Press(Key.CursorUp);
         view.Press(Key.CursorUp);
         view.Press(Key.CursorUp);
         view.Press(Key.CursorUp);
@@ -91,7 +90,6 @@ public class ComposeToTests
         view.Press(Key.CursorUp);
         view.Press(Key.CursorUp);
         view.Press(Key.CursorUp);
-        view.Press(Key.CursorUp);
         view.Press(Key.CursorLeft);
 
         Assert.Equal(PostVisibility.Public, compose.Visibility);
@@ -116,7 +114,6 @@ public class ComposeToTests
         using var view = await Drawn(null);
         var compose = view.Compose;
 
-        view.Press(Key.CursorUp);
         view.Press(Key.CursorUp);
         view.Press(Key.CursorUp);
         view.Press(Key.CursorUp);
@@ -196,7 +193,6 @@ public class ComposeToTests
     {
         using var view = await Drawn(PostVisibility.Public);
 
-        view.Press(Key.CursorUp);
         view.Press(Key.CursorUp);
         view.Press(Key.CursorUp);
         view.Press(Key.CursorUp);
@@ -331,7 +327,6 @@ public class ComposeToTests
         view.Press(Key.CursorUp);
         view.Press(Key.CursorUp);
         view.Press(Key.CursorUp);
-        view.Press(Key.CursorUp);
 
         Assert.Equal(ComposeField.Lang, compose.Typing);
 
@@ -398,7 +393,6 @@ public class ComposeToTests
         view.Press(Key.CursorUp);
         view.Press(Key.CursorUp);
         view.Press(Key.CursorUp);
-        view.Press(Key.CursorUp);
         view.Redraw();
 
         var answered = Enum.GetValues<Role>()
@@ -417,7 +411,6 @@ public class ComposeToTests
     {
         using var view = await Drawn(PostVisibility.Unlisted, theme: Themes.Plain);
 
-        view.Press(Key.CursorUp);
         view.Press(Key.CursorUp);
         view.Press(Key.CursorUp);
         view.Press(Key.CursorUp);
