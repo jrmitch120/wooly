@@ -305,7 +305,7 @@ internal sealed class AttachArea(AreaMode mode) : Painted
         if (items.Count > 0)
         {
             var (toggle, role) = Draft.Locked ? ("■ sensitive · warning", Role.ContentWarning)
-                : Draft.SensitiveChosen ? ("■ sensitive", Role.Body)
+                : Draft.SensitiveChosen ? ("■ sensitive", Role.ContentWarning)
                 : ("□ sensitive", Role.Muted);
             // Beside the header rather than across the screen: over the description column where there are rows, and
             // just past the header's own words where there are not.
