@@ -99,6 +99,9 @@ public static class Keymap
         // And ctrl-o, which opens the file browser over a compose or a reply wherever the typing is — and ⏎ on the
         // Media header, which takes no typing of its own (#376); ⏎ on a row under it describes the row instead (#377).
         (ShellKey.CtrlO, ComposeScreen) => Verb.OpenBrowser,
+        // But ⏎ on a header whose rows a short terminal folded into its line lists them on a screen of their own,
+        // which is the only way left to reach them (story 58).
+        (ShellKey.Enter, ComposeScreen { Typing: ComposeField.Media, RowsFolded: true }) => Verb.ListAttachments,
         (ShellKey.Enter, ComposeScreen { Typing: ComposeField.Media }) => Verb.OpenBrowser,
 
         // And s on compose's Media header and its rows, the places on the screen with no field to type it into: the
@@ -123,6 +126,20 @@ public static class Keymap
         (ShellKey.Down, FileBrowserScreen) => Verb.NextEntry,
         (ShellKey.Up, FileBrowserScreen) => Verb.PreviousEntry,
         (ShellKey.Space, FileBrowserScreen) => Verb.Choose,
+
+        // The attachments screen, listing the rows a short terminal folded into the Media header's line (story 58):
+        // the keys of a row under the header, on the row picked here — ⏎ describing it rather than opening anything —
+        // ctrl-o adding more, and the arrows walking the rows as they walk the file browser's entries.
+        (ShellKey.Enter, AttachmentsScreen) => Verb.Describe,
+        (ShellKey.Delete or ShellKey.Backspace, AttachmentsScreen) => Verb.RemoveAttachment,
+        (ShellKey.CtrlZ, AttachmentsScreen) => Verb.BringBackAttachment,
+        (ShellKey.ShiftUp, AttachmentsScreen) => Verb.EarlierAttachment,
+        (ShellKey.ShiftDown, AttachmentsScreen) => Verb.LaterAttachment,
+        (ShellKey.R, AttachmentsScreen) => Verb.RetryAttachment,
+        (ShellKey.S, AttachmentsScreen) => Verb.ToggleSensitive,
+        (ShellKey.CtrlO, AttachmentsScreen) => Verb.OpenBrowser,
+        (ShellKey.Down, AttachmentsScreen) => Verb.NextEntry,
+        (ShellKey.Up, AttachmentsScreen) => Verb.PreviousEntry,
 
         // The four that collide. A picked reference is a level of its own inside the screen, so ⏎ means the reference
         // wherever one is picked — ahead of whatever the screen's own ⏎ would have meant (#85).

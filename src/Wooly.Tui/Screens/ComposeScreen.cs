@@ -245,6 +245,12 @@ public sealed class ComposeScreen : Screen
     /// </summary>
     private bool _rowsDrawn;
 
+    /// <summary>
+    ///     Whether the screen was last drawn with its rows folded into the Media header's line, on a terminal too short
+    ///     for a row each (story 58).
+    /// </summary>
+    private bool _folded;
+
     /// <summary>The attachment last taken off and where it was, for <c>ctrl-z</c> (#378); one deep.</summary>
     private (ComposeAttachment Attachment, int At)? _removed;
 
@@ -743,7 +749,7 @@ public sealed class ComposeScreen : Screen
     ///     refusal, moving it and taking it off — and, on the header or a row, bringing back what was last taken off
     ///     while there is something to and room for it.
     /// </summary>
-    private KeyHint[] RowKeys =>
+    internal KeyHint[] RowKeys =>
     [
         .. Typing == ComposeField.Attachment && PickedAttachment is { State: AttachmentState.Refused { Retryable: true } }
             ? [new KeyHint("r", "retry")]
@@ -775,6 +781,7 @@ public sealed class ComposeScreen : Screen
             }),
         ];
         _rowsDrawn = laid.Media.Height > 1;
+        _folded = laid.Media.Height == 1 && _attachments.Count > 0;
 
         return laid.Rows;
     }
@@ -915,6 +922,31 @@ public sealed class ComposeScreen : Screen
                 }
             }
         }
+    }
+
+    /// <summary>
+    ///     Whether what is attached was last drawn folded into the Media header's line, on a terminal too short for a
+    ///     row each — where <c>⏎</c> or a click on that line lists the rows on a screen of their own instead of opening
+    ///     the file browser (<see cref="AttachmentsScreen" />, story 58, review of #372).
+    /// </summary>
+    public bool RowsFolded => _folded && _attachments.Count > 0;
+
+    /// <summary>
+    ///     The walk back off the rows onto the Media header they are under — as the attachments screen that listed them
+    ///     goes, leaving nothing picked on a line that draws no rows (story 58).
+    /// </summary>
+    /// <returns>A move, or nothing where the walk was not on a row.</returns>
+    public ComposeChange OffTheRows()
+    {
+        if (Typing != ComposeField.Attachment)
+        {
+            return ComposeChange.None;
+        }
+
+        Typing = ComposeField.Media;
+        PickedAttachment = null;
+
+        return ComposeChange.Moved;
     }
 
     /// <summary>
@@ -1647,16 +1679,51 @@ public sealed class ComposeScreen : Screen
     ///     <paramref name="drawing" /> can draw one (#382) — so that it moves nothing when it comes, and nothing is moved
     ///     on a terminal that draws none.
     /// </remarks>
-    private Line AttachmentRow(ComposeAttachment attached, int width, Drawing? drawing)
+    /// <param name="attached">The attachment the row is for.</param>
+    /// <param name="width">How wide the row is.</param>
+    /// <param name="drawing">What pictures are here, and how this terminal paints them.</param>
+    /// <param name="parted">
+    ///     Whether each run carries what a click on it means (<see cref="Span.Item" />), for a screen whose clicks the
+    ///     window reads off its rows rather than a field of compose's (<see cref="AttachmentsScreen" />).
+    /// </param>
+    private Line AttachmentRow(ComposeAttachment attached, int width, Drawing? drawing, bool parted = false)
     {
         var picture = AttachmentPicture.Of(attached.Path, PictureAt, drawing?.Pictures, drawing?.Raster);
 
-        return Line.Of([.. AttachmentRuns(attached, width, picture.Held).Select(run => run.Span)]) with
+        return Line.Of(
+        [
+            .. AttachmentRuns(attached, width, picture.Held)
+                .Select(run => parted ? run.Span with { Item = (int)run.Part } : run.Span),
+        ]) with
         {
             Insets = picture.Box is { } box ? [box] : [],
             Wants = picture.Wanted,
         };
     }
+
+    /// <summary>
+    ///     The Media header's line <paramref name="width" /> wide, unfolded, as the attachments screen heads its list of
+    ///     the rows with it (story 58): the count, the key that adds and the sensitive toggle, the toggle saying it is
+    ///     one to click (<see cref="AttachmentPart.Sensitive" />).
+    /// </summary>
+    internal Line ListedHeader(int width)
+    {
+        var toggle = SensitiveToggle();
+        var value = MediaValue(Math.Max(0, width - (Pad * 2) - LabelWidth - LabelGap), folded: false);
+
+        return Header(
+            MediaLabel,
+            Role.Muted,
+            [.. value.Select(span => span == toggle ? span with { Item = (int)AttachmentPart.Sensitive } : span)]);
+    }
+
+    /// <summary>
+    ///     <paramref name="attached" />'s row as it is drawn under the header, <paramref name="width" /> wide, for the
+    ///     attachments screen to list (story 58): the same columns, picture and status, each run saying what a click on it
+    ///     means.
+    /// </summary>
+    internal Line ListedRow(ComposeAttachment attached, int width, Drawing drawing) =>
+        AttachmentRow(attached, width, drawing, parted: true);
 
     /// <summary>
     ///     A pending attachment's row as <see cref="AttachmentRow" /> draws it, each run with what a click on it means

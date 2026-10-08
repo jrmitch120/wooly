@@ -321,8 +321,8 @@ public enum Verb
     Choose,
 
     /// <summary>
-    ///     <c>↓</c> in the file browser, whose letters are its filter: the cursor to the next entry on its list, as
-    ///     <c>k</c> walks to the next post elsewhere (#376).
+    ///     <c>↓</c> on a list of entries that are not posts — the file browser's, whose letters are its filter (#376), and
+    ///     the attachments screen's rows (story 58): the cursor to the next, as <c>k</c> walks to the next post elsewhere.
     /// </summary>
     NextEntry,
 
@@ -348,4 +348,10 @@ public enum Verb
     ///     <c>⏎</c> there on a pending attachment's row: open the description editor on it (#377).
     /// </summary>
     Describe,
+
+    /// <summary>
+    ///     <c>⏎</c> on compose's Media header, or a click on its line, where a terminal too short for a row each folded
+    ///     the rows into it: push the attachments screen listing them (story 58).
+    /// </summary>
+    ListAttachments,
 }

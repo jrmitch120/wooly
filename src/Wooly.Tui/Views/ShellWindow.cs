@@ -98,6 +98,15 @@ internal sealed class ShellWindow : Window
     /// </summary>
     private bool _clickDeclinedQuestion;
 
+    /// <summary>
+    ///     The row of the content a press with the left button picked up, held from the press until the button is let go,
+    ///     for a screen whose rows the pointer drags into another order — the attachments screen's (story 58).
+    /// </summary>
+    private int? _pressedOn;
+
+    /// <summary>Whether the row pressed on has moved, which makes the button's release a drop rather than a click.</summary>
+    private bool _dragged;
+
     /// <param name="quit">
     ///     What <c>ctrl-q</c> does. Passed in rather than reached for, because the application is the thing that owns
     ///     the run loop and this window is one of the things running in it.
@@ -332,7 +341,27 @@ internal sealed class ShellWindow : Window
 
         if (mouse.Flags.HasFlag(MouseFlags.LeftButtonClicked))
         {
+            // The click a drag ends in is the drop, already carried out.
+            if (_dragged)
+            {
+                _dragged = false;
+
+                return true;
+            }
+
             return Clicked(mouse.ScreenPosition, Chorded(mouse)) || base.OnMouseEvent(mouse);
+        }
+
+        if (mouse.Flags.HasFlag(MouseFlags.LeftButtonPressed))
+        {
+            return Dragging(mouse.ScreenPosition) || base.OnMouseEvent(mouse);
+        }
+
+        if (mouse.Flags.HasFlag(MouseFlags.LeftButtonReleased))
+        {
+            _pressedOn = null;
+
+            return base.OnMouseEvent(mouse);
         }
 
         if (mouse.Flags.HasFlag(MouseFlags.LeftButtonDoubleClicked))
@@ -510,6 +539,36 @@ internal sealed class ShellWindow : Window
     /// </summary>
     private bool Chooses(Key key) =>
         ShellKeys.Of(key) is ShellKey.Space && Keymap.Means(ShellKey.Space, _shell.Screen) != Verb.None;
+
+    /// <summary>
+    ///     The left button held down at <paramref name="at" />: the first press notes the row of the content it is on, and
+    ///     each report after it, the button still held, carries that row to the row the pointer has reached, live, where
+    ///     the screen in front has rows to drag — the attachments screen's, as a row under the Media header is dragged
+    ///     (#378, story 58). What a drag means is the shell's to say, as everything is.
+    /// </summary>
+    /// <returns>Whether the row moved, and so the report was spent on it.</returns>
+    private bool Dragging(Point at)
+    {
+        var on = _content.FrameToScreen().Contains(at) ? _content.ItemAt(at) : null;
+
+        if (_pressedOn is not { } from)
+        {
+            _pressedOn = on;
+            _dragged = false;
+
+            return false;
+        }
+
+        if (on is not { } to || to == from || !_shell.DragRow(from, to))
+        {
+            return false;
+        }
+
+        _pressedOn = to;
+        _dragged = true;
+
+        return true;
+    }
 
     /// <summary>Whether ctrl or shift was held through a click.</summary>
     private static bool Chorded(Mouse mouse) =>

@@ -48,6 +48,12 @@ public enum AttachmentPart
     ///     A ready row's description, or the quiet mark where it has none, which opens the description editor (#377).
     /// </summary>
     Description,
+
+    /// <summary>
+    ///     The sensitive toggle at the end of the Media header's line, as the attachments screen heads its list with it
+    ///     (#379, story 58).
+    /// </summary>
+    Sensitive,
 }
 
 /// <summary>

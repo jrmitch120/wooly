@@ -52,6 +52,8 @@ public class ScreenKeyTests
         "profiles-empty",
         "add-profile",
         "browser",
+        "media",
+        "media-empty",
     ];
 
     /// <summary>Every screen that can have a post picked out, with one picked.</summary>
@@ -189,6 +191,7 @@ public class ScreenKeyTests
         ("follows-empty", "follows", ["⏎:open"]),
         ("discover-empty", "discover", ["⏎:open", "F:follow", "d:dismiss"]),
         ("profiles-empty", "profiles", ["D:make default", "R:sign in again", "x:remove"]),
+        ("media-empty", "media", ["⏎:describe", "s:sensitive"]),
     ];
 
     /// <inheritdoc cref="CanBeEmpty" />
@@ -374,6 +377,12 @@ public class ScreenKeyTests
             case "describe":
                 return Describing();
 
+            case "media":
+                return Listing(remove: false);
+
+            case "media-empty":
+                return Listing(remove: true);
+
             case "browser":
                 return new FileBrowserScreen(
                     new FolderListing(Path.GetTempPath(), "/tmp", Up: null, []),
@@ -451,5 +460,25 @@ public class ScreenKeyTests
         compose.Attach([attachment]);
 
         return new DescriptionScreen(compose, attachment);
+    }
+
+    /// <summary>
+    ///     The attachments screen over a compose with one thing attached and picked — or, <paramref name="remove" />, with
+    ///     it taken off again, leaving the list empty (story 58).
+    /// </summary>
+    private static AttachmentsScreen Listing(bool remove)
+    {
+        var compose = new ComposeScreen(ComposeFor.Post);
+        var attachment = new ComposeAttachment("cat.png", Wooly.Core.Posts.MediaKind.Image, 1024);
+
+        compose.Attach([attachment]);
+        compose.Pick(attachment);
+
+        if (remove)
+        {
+            compose.Remove();
+        }
+
+        return new AttachmentsScreen(compose);
     }
 }

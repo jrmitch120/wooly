@@ -44,6 +44,7 @@ public class CrumbTests
         ("profiles", "Profiles"),
         ("add-profile", "Add a profile"),
         ("browser", "Attach"),
+        ("media", "Media"),
     ];
 
     /// <summary>Those screens, as the theory reads them.</summary>
@@ -187,6 +188,9 @@ public class CrumbTests
 
             case "edit":
                 return new ComposeScreen(ComposeFor.Edit, post);
+
+            case "media":
+                return new AttachmentsScreen(new ComposeScreen(ComposeFor.Post));
 
             case "browser":
                 return new FileBrowserScreen(

@@ -604,6 +604,7 @@ public sealed class Shell
         Verb.UpFolder => Ran(() => Browse(browser => browser.Above)),
         Verb.ToggleSensitive => Ran(ToggleSensitive),
         Verb.Describe => Ran(Describe),
+        Verb.ListAttachments => Ran(ListAttachments),
 
         // Nothing, and the terminal's own — which the window has already taken, and which no screen answers either.
         Verb.None => false,
@@ -1284,7 +1285,7 @@ public sealed class Shell
     /// <returns>What the change was, or nothing where compose is not on top and no change was made.</returns>
     public ComposeChange ChangeCompose(Func<ComposeScreen, ComposeChange> change)
     {
-        if (Screen is not ComposeScreen compose)
+        if (InFront is not { } compose)
         {
             return ComposeChange.None;
         }
@@ -1305,12 +1306,49 @@ public sealed class Shell
     }
 
     /// <summary>
-    ///     Opens the description editor over the compose screen on top, on the attachment whose row the walk is on
+    ///     The compose screen in front: on top, or under the attachments screen listing its rows on a short terminal,
+    ///     whose keys and clicks change the compose's draft as the same ones on its rows do (story 58, review of #372).
+    /// </summary>
+    private ComposeScreen? InFront => Screen switch
+    {
+        ComposeScreen compose => compose,
+        AttachmentsScreen listing => listing.Compose,
+        _ => null,
+    };
+
+    /// <summary>
+    ///     <c>⏎</c> on compose's Media header, or a click on its line, where a terminal too short for a row each folded
+    ///     the rows into it: pushes the attachments screen listing them, the first picked (story 58).
+    /// </summary>
+    public void ListAttachments()
+    {
+        if (Screen is not ComposeScreen { RowsFolded: true } compose)
+        {
+            return;
+        }
+
+        compose.Pick(compose.Attachments[0]);
+        Push(new AttachmentsScreen(compose));
+    }
+
+    /// <summary>
+    ///     A row on the attachments screen dragged by the pointer from the <paramref name="from" />th place to the
+    ///     <paramref name="to" />th, live, the others making way — as a row under the Media header is (#378, story 58).
+    /// </summary>
+    /// <returns>Whether it moved, which makes the button's release a drop rather than a click.</returns>
+    public bool DragRow(int from, int to) =>
+        Screen is AttachmentsScreen listing
+        && from >= 0
+        && from < listing.Compose.Attachments.Count
+        && DragAttachment(listing.Compose.Attachments[from], to);
+
+    /// <summary>
+    ///     Opens the description editor over the compose screen in front, on the attachment whose row the walk is on
     ///     (#377). Nothing where it is on no row.
     /// </summary>
     public void Describe()
     {
-        if (Screen is ComposeScreen { Typing: ComposeField.Attachment, PickedAttachment: { } attachment } compose)
+        if (InFront is { Typing: ComposeField.Attachment, PickedAttachment: { } attachment } compose)
         {
             Push(new DescriptionScreen(compose, attachment));
         }
@@ -1346,7 +1384,7 @@ public sealed class Shell
     /// </summary>
     public void ToggleSensitive()
     {
-        if (Screen is ComposeScreen { SensitiveByAWarning: true, Attachments.Count: > 0 })
+        if (InFront is { SensitiveByAWarning: true, Attachments.Count: > 0 })
         {
             Say("The warning already hides what is attached.", isError: false);
 
@@ -2254,7 +2292,7 @@ public sealed class Shell
     /// </summary>
     public void Browse()
     {
-        if (Screen is not ComposeScreen { TakesAttachments: true } compose)
+        if (InFront is not { TakesAttachments: true } compose)
         {
             return;
         }
@@ -2308,7 +2346,10 @@ public sealed class Shell
             return;
         }
 
-        if (_stack.Count < 2 || _stack[^2] is not ComposeScreen compose)
+        // The compose it was opened over — directly, or under the attachments screen it was opened from (story 58).
+        if (_stack.Count < 2
+            || _stack[^2] switch { ComposeScreen under => under, AttachmentsScreen listing => listing.Compose, _ => null }
+                is not { } compose)
         {
             return;
         }
@@ -2355,7 +2396,7 @@ public sealed class Shell
     /// </summary>
     private void RemoveAttachment(Func<ComposeScreen, ComposeChange> removing)
     {
-        if (ChangeCompose(removing) != ComposeChange.None && Screen is ComposeScreen compose)
+        if (ChangeCompose(removing) != ComposeChange.None && InFront is { } compose)
         {
             Waited(compose);
         }
@@ -2367,7 +2408,7 @@ public sealed class Shell
     /// </summary>
     private void Retry(Func<ComposeScreen, ComposeAttachment?> retrying)
     {
-        if (Screen is not ComposeScreen compose || retrying(compose) is not { } attachment)
+        if (InFront is not { } compose || retrying(compose) is not { } attachment)
         {
             return;
         }

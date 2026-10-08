@@ -116,7 +116,8 @@ internal sealed class ComposeView : View
             (compose, room) => compose.LangAt(room));
 
         // A click on the toggle at the end of Media's line flips it; anywhere else on the header — its words — opens
-        // the file browser (#376). A click on a row is the field's own (#378, #377).
+        // the file browser (#376), or, where a short terminal folded the rows into the line, lists them on a screen of
+        // their own (story 58). A click on a row is the field's own (#378, #377).
         _media = Placed(
             new ComposeMediaField(shell, column =>
             {
@@ -128,6 +129,10 @@ internal sealed class ComposeView : View
                 if (compose.OnTheSensitiveToggle(column, Viewport.Size))
                 {
                     _shell.ToggleSensitive();
+                }
+                else if (compose.RowsFolded)
+                {
+                    _shell.ListAttachments();
                 }
                 else
                 {
