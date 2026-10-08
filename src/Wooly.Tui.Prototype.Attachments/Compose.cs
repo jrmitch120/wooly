@@ -20,7 +20,7 @@ internal static class Geometry
 
 internal sealed class ComposeScreen : Screen
 {
-    private const int Above = 5; // blank, From, To, Lang, then the attachments, then the warning
+    private const int Above = 5; // blank, From, To, Lang, Warn — then the attachments
 
     private readonly Field _warning;
 
@@ -39,16 +39,16 @@ internal sealed class ComposeScreen : Screen
         _warning = new Field
         {
             X = Geometry.ValueAt,
+            Y = 4,
             Width = Dim.Fill(Geometry.Pad),
             Height = 1,
             Hint = "none · ctrl-w to add",
         };
-        _attach = new AttachArea(AreaMode.Rows) { X = 0, Y = 4, Width = Dim.Fill() };
+        _attach = new AttachArea(AreaMode.Rows) { X = 0, Y = Above, Width = Dim.Fill() };
         _editor = new Editor { X = Geometry.Pad, Width = Dim.Fill(Geometry.Pad), Hint = "What's on your mind?" };
         _strip = new StripArea { X = 0, Width = Dim.Fill(), Height = StripArea.Rows };
 
         _attach.Height = Dim.Func(_ => _attach.Wanted);
-        _warning.Y = Pos.Func(_ => 4 + _attach.Wanted);
         _editor.Y = Pos.Func(_ => Above + _attach.Wanted + 2);
         _editor.Height = Dim.Func(_ => Math.Max(3, Viewport.Height - (Above + _attach.Wanted + 2) - StripRoom - 2));
         _strip.Y = Pos.Func(_ => Viewport.Height - 2 - StripArea.Rows);
@@ -62,13 +62,7 @@ internal sealed class ComposeScreen : Screen
         {
             if (key == Key.CursorDown || key == Key.Enter || key == Key.Tab)
             {
-                _editor.SetFocus();
-                return true;
-            }
-
-            if (key == Key.CursorUp)
-            {
-                Enter(_attach, fromAbove: false);
+                Enter(_attach, fromAbove: true);
                 return true;
             }
 
@@ -79,7 +73,7 @@ internal sealed class ComposeScreen : Screen
         {
             if (key == Key.CursorUp && _editor.CurrentRow == 0)
             {
-                _warning.SetFocus();
+                Enter(_attach, fromAbove: false);
                 return true;
             }
 
@@ -106,7 +100,8 @@ internal sealed class ComposeScreen : Screen
         };
 
         _editor.ContentsChanged += (_, _) => SetNeedsDraw();
-        _attach.Down = () => _warning.SetFocus();
+        _attach.Up = () => _warning.SetFocus();
+        _attach.Down = () => _editor.SetFocus();
         _attach.Warn = () => _warning.SetFocus();
         _strip.Up = () => _editor.SetFocus();
 
@@ -190,7 +185,7 @@ internal sealed class ComposeScreen : Screen
         Spans(Geometry.ValueAt, 2, ("public", Role.Body), ("  unlisted  followers  direct", Role.Muted));
         Geometry.Label(this, 3, "Lang", Role.Muted);
         Spans(Geometry.ValueAt, 3, ("en", Role.Body), (" · English", Role.Muted));
-        Geometry.Label(this, 4 + _attach.Wanted, "⚠", _warning.Text.Length > 0 || _warning.HasFocus ? Role.ContentWarning : Role.Muted);
+        Geometry.Label(this, 4, "Warn", _warning.Text.Length > 0 || _warning.HasFocus ? Role.ContentWarning : Role.Muted);
 
         var under = Above + _attach.Wanted;
         Put(Geometry.Pad, under, hairline, Role.PanelBorder);
