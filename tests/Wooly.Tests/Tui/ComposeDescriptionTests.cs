@@ -96,7 +96,7 @@ public class ComposeDescriptionTests : IDisposable
 
         var header = Lines(compose).Single(line => line.Text.StartsWith("  Media", StringComparison.Ordinal));
 
-        Assert.Equal("  Media  1 of 4 · ctrl-o to add", header.Text);
+        Assert.Equal("  Media  1 of 4 · ctrl-o to add · □ sensitive", header.Text);
         Assert.Equal(Role.SelectedText, Assert.Single(header.Spans, span => span.Text == "1 of 4").Role);
         Assert.DoesNotContain(header.Spans, span => span.Text == "▌");
     }

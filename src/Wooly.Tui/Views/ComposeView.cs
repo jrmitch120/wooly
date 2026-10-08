@@ -37,7 +37,10 @@ internal sealed class ComposeView : View
     /// <summary>What language the post is in, a field laid over Lang's value column (#340).</summary>
     private readonly ComposeLangField _lang;
 
-    /// <summary>The Media header and the attachments' rows, laid over the block they are painted in (#377).</summary>
+    /// <summary>
+    ///     The Media header and the attachments' rows, laid over the block they are painted in to take the walk's typing
+    ///     and the mouse (#379, #377).
+    /// </summary>
     private readonly ComposeMediaField _media;
 
     /// <summary>The people to mention, hung under the @-word being typed in the post (#318).</summary>
@@ -113,15 +116,21 @@ internal sealed class ComposeView : View
                 WriteWarning),
             (compose, room) => compose.LangAt(room));
 
+        // A click anywhere on the header or a row walks there, and one on a row's description opens the editor (#377);
+        // one on the toggle at the end of Media's line flips it as well (#379).
         _media = Placed(
-            new ComposeMediaField((row, column, width, twice) => _shell.ClickMedia(row, column, width, twice))
+            new ComposeMediaField((row, column, width, twice) =>
             {
-                CanFocus = true,
-            },
-            (compose, room) => compose.MediaAt(room));
+                _shell.ClickMedia(row, column, width, twice);
 
-        // The header and the rows are the screen's, painted behind; this only takes the walk and the clicks.
-        _media.ViewportSettings |= ViewportSettingsFlags.Transparent;
+                if (row == 0
+                    && _shell.Screen is ComposeScreen compose
+                    && compose.OnTheSensitiveToggle(column, Viewport.Size))
+                {
+                    _shell.ToggleSensitive();
+                }
+            }),
+            (compose, room) => compose.MediaAt(room));
 
         // A click into any field moves the typing there: where the typing is is one fact, the screen's, and whichever
         // way it moved the screen is told so that the status row, the header's mark and the hint keep up.
@@ -141,6 +150,10 @@ internal sealed class ComposeView : View
         // A question open on the status row takes every key ahead of whichever field has the typing, since the fields
         // take their keys before the window sees them (#373).
         _editor.Answering = _to.Answering = _lang.Answering = _warning.Answering = _media.Answering = Answered;
+
+        // ctrl-v in any field that takes a paste attaches a picture or copied files from the clipboard, where it holds
+        // either, and is the field's own paste otherwise (#380).
+        _editor.FromTheClipboard = _lang.FromTheClipboard = _warning.FromTheClipboard = _shell.PasteFromTheClipboard;
 
         _languages = new LanguageList(theme, shell, _lang, this);
 
@@ -167,11 +180,13 @@ internal sealed class ComposeView : View
     /// <summary>
     ///     The keys no field took that walk the fields or choose on To — <c>↑</c>/<c>↓</c>, <c>←</c>/<c>→</c> — made
     ///     here, as the keymap says they are on compose, rather than left to Terminal.Gui to move the focus with. At
-    ///     either end of the walk the key is spent on nothing (#337).
+    ///     either end of the walk the key is spent on nothing (#337). And <c>s</c>, which the Media header leaves for
+    ///     the sensitive toggle (#379).
     /// </summary>
     protected override bool OnKeyDown(Key key) =>
         ShellKeys.Of(key) is { } pressed
-        && Keymap.Means(pressed, _shell.Screen) is var verb and (Verb.PreviousField or Verb.NextField or Verb.PreviousChoice or Verb.NextChoice)
+        && Keymap.Means(pressed, _shell.Screen) is var verb
+            and (Verb.PreviousField or Verb.NextField or Verb.PreviousChoice or Verb.NextChoice or Verb.ToggleSensitive)
         && _shell.Do(verb, Keymap.Answer(pressed));
 
     protected override void Dispose(bool disposing)
@@ -311,9 +326,8 @@ internal sealed class ComposeView : View
             _lang.Layout();
             _languages.Fill(compose.Lang.Held);
 
-            // On an edit there is no Media header to lay it over, and nothing to walk onto.
-            _media.Visible = true;
-            _media.CanFocus = compose.TakesAttachments;
+            // An edit's Media header is read-only (#381): nothing there to walk to or click on.
+            _media.Visible = compose.TakesAttachments;
 
             _editor.SetFocus();
 

@@ -92,7 +92,13 @@ public sealed class ComposeAttachment(string path, MediaKind kind, long bytes)
     public bool Unfinished => State is AttachmentState.Sending or AttachmentState.Processing || Untold;
 
     /// <summary>The kind as its row says it: picture, animation, video, sound.</summary>
-    public string KindWord => Kind switch
+    public string KindWord => KindWordOf(Kind);
+
+    /// <summary>
+    ///     <paramref name="kind" /> as a row says it — shared with the rows an edit lists the post's own attachments on
+    ///     (#381).
+    /// </summary>
+    internal static string KindWordOf(MediaKind kind) => kind switch
     {
         MediaKind.Image => "picture",
         MediaKind.Animation => "animation",
