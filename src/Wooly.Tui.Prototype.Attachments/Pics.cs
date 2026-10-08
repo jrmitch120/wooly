@@ -205,7 +205,11 @@ internal static class Pics
                 break;
 
             case PictureWay.Kitty or PictureWay.Sixel:
-                view.Slot(fit, Pixels(path, image, fit));
+                var key = $"{path}@{fit.Width}x{fit.Height}";
+                var pixels = Pixels(path, image, fit);
+
+                if (Raster.Way == PictureWay.Sixel) view.Slot(fit, key, Encoded(key, pixels));
+                else view.Slot(fit, key, new Picture(pixels));
                 break;
 
             default:
@@ -255,6 +259,25 @@ internal static class Pics
         return id;
     }
 
+    private static readonly Dictionary<string, Sixel> Sixels = [];
+
+    /// <summary>
+    ///     Sixel the way the product encodes it: quantized to its own palette first (SixelPalette), since Terminal.Gui's
+    ///     encoder left to choose its own palette tinted a photograph red.
+    /// </summary>
+    private static Sixel Encoded(string key, Color[,] pixels)
+    {
+        if (Sixels.TryGetValue(key, out var sixel)) return sixel;
+
+        var colours = Math.Max(16, Raster.SixelColours);
+        var (quantized, palette) = SixelPalette.Quantized(pixels, colours);
+        var encoder = new SixelEncoder();
+        encoder.Quantizer.MaxColors = colours;
+        encoder.Quantizer.PaletteBuildingAlgorithm = palette;
+
+        return Sixels[key] = new Sixel(pixels, encoder.EncodeSixel(quantized));
+    }
+
     private static Color[,] Pixels(string path, Image<Rgba32> image, Rectangle fit)
     {
         var cell = Cell;
@@ -283,7 +306,7 @@ internal abstract class Painted : View
 {
     protected static ITheme Theme => Proto.Theme;
 
-    private readonly List<ImageView> _slots = [];
+    private readonly List<PictureView> _slots = [];
 
     private int _used;
 
@@ -322,21 +345,27 @@ internal abstract class Painted : View
         AddStr(0, y, new string(' ', Viewport.Width));
     }
 
-    /// <summary>The fallback for terminals not known to draw placeholders: an image view positioned over the cells.</summary>
-    public void Slot(Rectangle cells, Color[,] pixels)
+    /// <summary>
+    ///     The fallback for terminals not known to draw placeholders: the product's own picture view positioned over the
+    ///     cells — Kitty through a box, or sixel already encoded.
+    /// </summary>
+    public void Slot(Rectangle cells, string id, object shown)
     {
         if (_used == _slots.Count)
         {
-            var slot = new ImageView { CanFocus = false };
-            slot.MouseBindings.Clear();
+            var slot = new PictureView();
             _slots.Add(slot);
             Add(slot);
         }
 
         var view = _slots[_used++];
 
+        // Never straight from one picture to another (PictureView's own rule).
+        if (view.PictureId is { } held && held != id) view.Release();
+
         if (view.Frame != cells) view.Frame = cells;
-        if (!ReferenceEquals(view.Image, pixels)) view.Image = pixels;
+        if (shown is Sixel sixel) view.Show(id, sixel);
+        else view.Show(id, (Picture)shown);
         view.Visible = true;
     }
 
@@ -351,10 +380,9 @@ internal abstract class Painted : View
 
         Paint();
 
-        foreach (var slot in _slots.Skip(_used).Where(slot => slot.Visible))
+        foreach (var slot in _slots.Skip(_used))
         {
-            slot.Image = null;
-            slot.Visible = false;
+            slot.Release();
         }
 
         return true;
