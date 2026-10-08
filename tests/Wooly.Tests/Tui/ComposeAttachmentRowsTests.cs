@@ -157,11 +157,11 @@ public class ComposeAttachmentRowsTests : IDisposable
     }
 
     /// <summary>
-    ///     Taking off the last thing attached leaves nothing under the Media header to walk to, so the walk goes back to
-    ///     the post.
+    ///     Taking off the last thing attached leaves the walk on the Media header, where <c>ctrl-z</c> still brings it
+    ///     back.
     /// </summary>
     [Fact]
-    public async Task RemovingTheLastOneReturnsTheWalkToThePost()
+    public async Task RemovingTheLastOneLeavesTheWalkOnTheHeader()
     {
         var (shell, _, compose) = await Composing("one.png");
 
@@ -169,7 +169,11 @@ public class ComposeAttachmentRowsTests : IDisposable
         shell.Press(ShellKey.Delete);
 
         Assert.Empty(compose.Attachments);
-        Assert.Equal(ComposeField.Post, compose.Typing);
+        Assert.Equal(ComposeField.Media, compose.Typing);
+
+        shell.Press(ShellKey.CtrlZ);
+
+        Assert.Equal(["one.png"], Names(compose));
     }
 
     /// <summary><c>s</c> on a row toggles sensitive, as it does on the header over it (#379).</summary>

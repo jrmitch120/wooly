@@ -22,6 +22,10 @@ public class ComposeFieldWalkTests
         view.Type("hi");
         view.Press(Key.CursorUp);
 
+        Assert.Equal(ComposeField.Media, compose.Typing);
+
+        view.Press(Key.CursorUp);
+
         Assert.True(compose.WritingTheWarning);
         Assert.True(view.Warning.HasFocus);
 
@@ -69,7 +73,9 @@ public class ComposeFieldWalkTests
         Assert.True(view.Editor.HasFocus);
     }
 
-    /// <summary><c>↓</c> in the warning, the last header, hands the typing back to the post.</summary>
+    /// <summary>
+    ///     <c>↓</c> from the warning hands the typing back to the post, by way of the Media header under it (#376).
+    /// </summary>
     [Fact]
     public async Task DownInTheWarningReturnsTheTypingToThePost()
     {
@@ -77,7 +83,12 @@ public class ComposeFieldWalkTests
         var compose = view.Compose;
 
         view.Press(Key.CursorUp);
+        view.Press(Key.CursorUp);
         view.Type("cw");
+        view.Press(Key.CursorDown);
+
+        Assert.Equal(ComposeField.Media, compose.Typing);
+
         view.Press(Key.CursorDown);
 
         Assert.False(compose.WritingTheWarning);
@@ -90,7 +101,8 @@ public class ComposeFieldWalkTests
     }
 
     /// <summary>
-    ///     The walk goes through the headers in the order they are drawn — To, Lang, the warning, the post (#338, #340) —
+    ///     The walk goes through the headers in the order they are drawn — To, Lang, the warning, Media, the post (#338,
+    ///     #340, #376) —
     ///     and <c>↑</c> on To, the top header, has nowhere further up to go and leaves the typing where it is.
     /// </summary>
     [Fact]
@@ -99,6 +111,8 @@ public class ComposeFieldWalkTests
         using var view = await Composing();
         var compose = view.Compose;
 
+        // Through the Media header, which is walked to so that ⏎ there opens the file browser (#376).
+        view.Press(Key.CursorUp);
         view.Press(Key.CursorUp);
         view.Press(Key.CursorUp);
 
@@ -123,6 +137,10 @@ public class ComposeFieldWalkTests
 
         Assert.True(compose.WritingTheWarning);
         Assert.True(view.Warning.HasFocus);
+
+        view.Press(Key.CursorDown);
+
+        Assert.Equal(ComposeField.Media, compose.Typing);
 
         view.Press(Key.CursorDown);
 
@@ -166,6 +184,7 @@ public class ComposeFieldWalkTests
         var compose = view.Compose;
 
         view.Press(Key.CursorUp);
+        view.Press(Key.CursorUp);
 
         Assert.Contains("Back to the post: ctrl-w", view.Status(), StringComparison.Ordinal);
 
@@ -196,6 +215,7 @@ public class ComposeFieldWalkTests
 
         Assert.Contains("Field: ↑↓", view.Status(), StringComparison.Ordinal);
 
+        view.Press(Key.CursorUp);
         view.Press(Key.CursorUp);
         view.Press(Key.CursorUp);
 
@@ -245,6 +265,7 @@ public class ComposeFieldWalkTests
         view.Press(Key.CursorUp);
         view.Press(Key.CursorUp);
         view.Press(Key.CursorUp);
+        view.Press(Key.CursorUp);
 
         foreach (var _ in Enumerable.Range(0, 6))
         {
@@ -277,6 +298,7 @@ public class ComposeFieldWalkTests
 
         if (fromTheWarning)
         {
+            view.Press(Key.CursorUp);
             view.Press(Key.CursorUp);
         }
 

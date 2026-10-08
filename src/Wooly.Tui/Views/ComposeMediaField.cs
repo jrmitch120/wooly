@@ -13,9 +13,10 @@ namespace Wooly.Tui.Views;
 /// </summary>
 /// <remarks>
 ///     It leaves to the window every key it does not mean to swallow, and so to <c>Keymap</c>: the arrows that walk the
-///     fields and the shifted ones that reorder the rows, <c>tab</c>, <c>esc</c>, the <c>ctrl</c> chords, <c>del</c> and
-///     <c>backspace</c>, which take a row off, <c>s</c>, the sensitive toggle, and <c>r</c>, which retries a row. Any
-///     other letter is nobody's here — read by the keymap it would be a boost or a compose behind a draft.
+///     fields and the shifted ones that reorder the rows, <c>⏎</c>, which opens the file browser there (#376),
+///     <c>tab</c>, <c>esc</c>, the <c>ctrl</c> chords, <c>del</c> and <c>backspace</c>, which take a row off, <c>s</c>,
+///     the sensitive toggle, and <c>r</c>, which retries a row. Any other letter is nobody's here — read by the keymap
+///     it would be a boost or a compose behind a draft.
 ///     <para>
 ///         On a row the pointer picks it, takes it off by its <c>x</c>, retries it by its <c>retry (r)</c>, and drags
 ///         it to another place, live: the row takes each place the pointer reaches and the others make way (#378).
@@ -53,7 +54,7 @@ internal sealed class ComposeMediaField : View
 
     protected override bool OnKeyDown(Key key) =>
         Answering?.Invoke(key) == true
-        || !(key == Key.CursorLeft || key == Key.CursorRight || key == Key.CursorUp || key == Key.CursorDown
+        || !(key == Key.Enter || key == Key.CursorLeft || key == Key.CursorRight || key == Key.CursorUp || key == Key.CursorDown
           || key == Key.CursorUp.WithShift || key == Key.CursorDown.WithShift || key == Key.Tab
           || key == Key.Tab.WithShift || key == Key.Esc || key == Key.Delete || key == Key.Backspace || key == Key.S
           || key == Key.R || key.IsCtrl || key.IsAlt);

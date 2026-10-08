@@ -308,7 +308,7 @@ internal sealed class ShellWindow : Window
 
         if (mouse.Flags.HasFlag(MouseFlags.LeftButtonClicked))
         {
-            return Clicked(mouse.ScreenPosition) || base.OnMouseEvent(mouse);
+            return Clicked(mouse.ScreenPosition, Chorded(mouse)) || base.OnMouseEvent(mouse);
         }
 
         if (mouse.Flags.HasFlag(MouseFlags.LeftButtonDoubleClicked))
@@ -330,10 +330,12 @@ internal sealed class ShellWindow : Window
 
         // What the arrow means is still the keymap's to say. Where it is a scroll, the wheel's own step is a row rather
         // than the arrow's three: a trackpad sends many small events, and three rows each read as lurches (#292).
+        // And where the arrow walks a list rather than the page — the file browser's, whose letters are its filter — the
+        // wheel still scrolls the page, as a wheel does over any list (#376).
         return Keymap.Means(pressed, _shell.Screen) switch
         {
-            Verb.ScrollDown => Notch(RowsANotch),
-            Verb.ScrollUp => Notch(-RowsANotch),
+            Verb.ScrollDown or Verb.NextPost => Notch(RowsANotch),
+            Verb.ScrollUp or Verb.PreviousPost => Notch(-RowsANotch),
             _ => Do(pressed),
         };
     }
@@ -345,8 +347,10 @@ internal sealed class ShellWindow : Window
     ///     among them (<see cref="DoubleClicked" />). Everything else — a title, a heading, the API panel, a separator,
     ///     the fetch mark, a rule, a blank — is part of nothing and ignores it.
     /// </summary>
+    /// <param name="at">Where the click was.</param>
+    /// <param name="chorded">Whether ctrl or shift was held, which on some rows means more than a pick (#376).</param>
     /// <returns>Whether the click was the shell's, which is any click on the window while a question is open.</returns>
-    private bool Clicked(Point at)
+    private bool Clicked(Point at, bool chorded)
     {
         // A click anywhere declines a confirmation or closes a filter prompt, and is not carried out (story 30, 31).
         _clickDeclinedQuestion = _shell.DeclineOpenQuestion();
@@ -370,7 +374,16 @@ internal sealed class ShellWindow : Window
 
         if (_content.FrameToScreen().Contains(at))
         {
-            _ = ClickedContent(at);
+            // A click on a run that stands for a key, or one with ctrl or shift held, means that key on the thing it is
+            // on where the screen says so — a box in the file browser chooses (#376) — and otherwise picks the thing.
+            if (_shell.Click(_content.ItemAt(at), _content.SpanItemAt(at), chorded))
+            {
+                _content.Hold();
+            }
+            else
+            {
+                _ = ClickedContent(at);
+            }
 
             return true;
         }
@@ -466,6 +479,10 @@ internal sealed class ShellWindow : Window
 
         return true;
     }
+
+    /// <summary>Whether ctrl or shift was held through a click.</summary>
+    private static bool Chorded(Mouse mouse) =>
+        mouse.Flags.HasFlag(MouseFlags.Ctrl) || mouse.Flags.HasFlag(MouseFlags.Shift);
 
     /// <summary>One notch of the wheel, which moves the page as the arrows do and by its own step.</summary>
     private bool Notch(int rows)
@@ -692,7 +709,9 @@ internal sealed class ShellWindow : Window
     /// </remarks>
     private bool Typing(Key key)
     {
-        if (key == Key.Backspace)
+        // Delete too, which with no caret in a prompt has nothing after it to take, and in the file browser is held down
+        // to clear the filter as often as backspace is (#376).
+        if (key == Key.Backspace || key == Key.Delete)
         {
             _shell.Backspace();
 

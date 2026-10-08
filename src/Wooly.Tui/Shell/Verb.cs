@@ -304,6 +304,32 @@ public enum Verb
     RetryAttachment,
 
     /// <summary>
+    ///     <c>ctrl-o</c> on a compose or a reply, or <c>⏎</c> on its Media header: push the file browser over it (#376).
+    /// </summary>
+    OpenBrowser,
+
+    /// <summary>
+    ///     <c>⏎</c> in the file browser: open the folder under the cursor, or attach what is chosen — or, with nothing
+    ///     chosen, the file under the cursor — to the compose screen under it (#376).
+    /// </summary>
+    AttachChosen,
+
+    /// <summary>
+    ///     A click on a box in the file browser, or a ctrl- or shift-click on a row: choose the file, or let it go
+    ///     (#376). <c>space</c> does the same as it is typed, since the browser takes letters.
+    /// </summary>
+    Choose,
+
+    /// <summary><c>→</c> there: open the folder under the cursor.</summary>
+    IntoFolder,
+
+    /// <summary><c>←</c> there: go up a folder.</summary>
+    UpFolder,
+
+    /// <summary><c>ctrl-a</c> there: show every file, or only the types the instance accepts again.</summary>
+    EveryFile,
+
+    /// <summary>
     ///     <c>s</c> on compose's Media header: put what is attached behind a click, or take it back out — unless a
     ///     warning holds it there (#379).
     /// </summary>

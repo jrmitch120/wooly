@@ -37,8 +37,8 @@ public enum ComposeField
     Warning,
 
     /// <summary>
-    ///     The Media header, which types nothing: walked to so that its keys have somewhere to land — <c>s</c> for the
-    ///     sensitive toggle at the end of its line (#379).
+    ///     The Media header, which types nothing: walked to so that its keys have somewhere to land — <c>⏎</c> to open
+    ///     the file browser (#376), and <c>s</c> for the sensitive toggle at the end of its line (#379).
     /// </summary>
     Media,
 
@@ -519,9 +519,8 @@ public sealed class ComposeScreen : Screen
 
     /// <summary>
     ///     <c>del</c> or <c>backspace</c> on a row: takes the picked attachment off the post (#378). The walk stays where
-    ///     it was — on the row that took its place, else the one above — and with nothing left attached goes back to
-    ///     the post, the header having nothing on it to walk to (#379); what went is remembered, one deep, for
-    ///     <see cref="BringBack" />.
+    ///     it was — on the row that took its place, else the one above, else the header — and what went is remembered,
+    ///     one deep, for <see cref="BringBack" />.
     /// </summary>
     /// <returns>An edit, or nothing off the rows.</returns>
     public ComposeChange Remove() =>
@@ -546,7 +545,7 @@ public sealed class ComposeScreen : Screen
         if (ReferenceEquals(PickedAttachment, attachment))
         {
             PickedAttachment = _attachments.Count > 0 ? _attachments[Math.Min(at, _attachments.Count - 1)] : null;
-            Typing = PickedAttachment is null ? ComposeField.Post : ComposeField.Attachment;
+            Typing = PickedAttachment is null ? ComposeField.Media : ComposeField.Attachment;
         }
 
         return ComposeChange.Edited;
@@ -711,6 +710,7 @@ public sealed class ComposeScreen : Screen
             ? [new KeyHint("↑↓", "pick"), new KeyHint("tab", "choose"), new KeyHint("esc", "close")]
             : Array.Empty<KeyHint>(),
         .. Typing == ComposeField.To ? [new KeyHint("←→", "choose")] : Array.Empty<KeyHint>(),
+        .. Typing == ComposeField.Media ? [new KeyHint("⏎", "add media")] : Array.Empty<KeyHint>(),
         .. RowKeys,
         .. Typing is (ComposeField.Media or ComposeField.Attachment) && _attachments.Count > 0
             ? [new KeyHint("s", "sensitive")]
@@ -903,14 +903,15 @@ public sealed class ComposeScreen : Screen
 
     /// <summary>
     ///     Whether <paramref name="field" /> can have the typing at all, which To cannot where it allows nothing, nor
-    ///     Media until something is attached (#379): the toggle is all there is to do on it so far, and it shows only
-    ///     then — so the walk from the post still goes straight to Warn on a screen with nothing attached, and on an
-    ///     edit, whose Media header is read-only (#381).
+    ///     Media on an edit, whose Media header is read-only (#381). Media takes it on a fresh post or a reply with
+    ///     nothing attached yet too, since <c>⏎</c> there opens the file browser (#376) — so the walk from the post
+    ///     reaches Media before Warn — as well as <c>s</c> the sensitive toggle once something is (#379).
     /// </summary>
     public bool Takes(ComposeField field) => field switch
     {
         ComposeField.To => _choices.Any(Offers),
-        ComposeField.Media or ComposeField.Attachment => TakesAttachments && _attachments.Count > 0,
+        ComposeField.Media => TakesAttachments,
+        ComposeField.Attachment => TakesAttachments && _attachments.Count > 0,
         _ => true,
     };
 
