@@ -332,3 +332,16 @@ description are what the view laid over the Media block already takes.
 
 **The shell sends the description**, as it sends the file (ADR-0026): once the attachment is ready, again whenever it
 changes, and before the post is published — `Shell.Send` waits on a description on its way as on an upload.
+
+## Amendment: what is attached is drawn, in places held for it (map #372, ticket #382)
+
+**A row's picture is three columns wide, not the one #375 held.** One cell of a photograph is a blot; three by one row
+is what the prototype tried in place (#374), and enough to tell roughly what a picture is. The names start two columns
+further in for it, which leaves an 80-column row's status column 18 wide. The column is held on every terminal, blank
+where nothing will be drawn, so a row reads the same whether a picture arrives or not and wherever it is drawn.
+
+**Every picture on compose's screens has a place held from the first frame.** The file browser's pane runs to the foot
+of the page however short the list, and the description editor holds a place above its label on a narrow panel where
+the terminal draws — so a picture landing, or the cursor moving off one, changes no row's height and moves no field.
+Where the terminal draws nothing, nothing is held that was not held before: the browser's pane, from #376, and the
+wide description editor's top left, from #377.

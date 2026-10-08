@@ -928,13 +928,25 @@ lists them under a read-only Media header of its own (#381).
 
 - **The header says what it holds, then the key that adds to it, all muted**, as Warn does: `Media  none · ctrl-o to
   add`, `2 of 4 · ctrl-o to add` counted against the instance's limit, and `4 of 4` once the post is full.
-- **A row per pending attachment, under the header**: the grip `⠶` muted, a column held for its picture (#382), its
-  name cut with `…` to 32 columns, its kind (picture, animation, video, sound) muted, its size right-aligned and muted,
+- **A row per pending attachment, under the header**: the grip `⠶` muted, its picture three columns wide and one row
+  tall (#382), its name cut with `…` to 32 columns, its kind (picture, animation, video, sound) muted, its size right-aligned and muted,
   `x` in `destructive`, and one status column saying one thing at a time — the upload's gauge, `████░░░░  54%`, in
   `gauge` and `gauge-empty`; `processing`; once ready its description in quotes, or the quiet mark `no alt text`; or
   why it failed, in `error`. There is no mark for ready. **Nothing moves**: every column comes from the terminal's
   width alone, never a name's, and the status column is at most 40 wide. Where that would leave the status fewer than
   16 columns the kind goes first, then the name narrows as far as 12.
+- **The picture on a row is drawn where the terminal draws** — sixel, Kitty through a box, or Kitty's placeholders —
+  through the same path the feed's pictures take (ADR-0022, ADR-0023, ADR-0025): the row says it wants the picture,
+  `Placing` asks the cache for it and places it, and sixel is quantized by `SixelPalette` for a `PictureView`, never by
+  Terminal.Gui's own encoder, which tinted photographs red on WezTerm (#374). The file is read off the disk rather
+  than sent for (`Drawn.Attaching`, a `file:` address `Pictures.Over` reads itself), under the same 8 MB cap a file
+  server is held to, and decoded no larger than the row's box. **Three columns, not the one #375 held**: one cell of a
+  photograph is a blot, and three are what the prototype tried in place and enough to tell roughly what a picture is;
+  seeing it properly is the description editor's. The column is held on every terminal — the `stand-in`'s shade
+  while a picture is on its way, blank where none is coming — so nothing on a row moves when one arrives, and a
+  terminal that draws nothing lays the rows out the same. Only the pictures the decoder reads are sent for (JPEG, PNG,
+  GIF, WebP): a video, a sound or a HEIC photograph keeps its column blank rather than a shade for a picture that never
+  comes.
 - **On a short terminal the rows fold into the header's line** before any other row gives way, wherever a row each
   would leave the editor fewer than three: `3 of 4 · 3 no alt text · 1 failed · ctrl-o to add · □ sensitive`, the
   failures in `error`. They unfold when there is room again.
@@ -1014,7 +1026,12 @@ the description editor the prototype chose (#374, #377).
 - **The editor**: a blank under the panel's edge, `Description (alt text)` muted, a blank, the field, and a counter
   `n / limit` along the foot — muted, `quota-low` in the last tenth, `error` past the instance's description limit
   (1500 where it does not say), counted in code points as an instance counts them. On a panel 80 wide or more the
-  field sits in the right half, leaving the top left for the picture (#382). `esc` and `ctrl-s` are both "done" and
+  field sits in the right half, and the picture being described goes top left, level with the label; on a narrower
+  one it goes above the label, in a place of up to ten rows with a blank under it, taken from what the field can
+  spare of its least three and not held at all where that is less than two rows (#382). Either place is held from
+  the first frame, so the label and the field never move when the pixels land; the picture is set against its top
+  left at its own proportions. Where the terminal cannot draw, or there is no picture to read, nothing is held above
+  the label. `esc` and `ctrl-s` are both "done" and
   keep what was typed; there is no cancel. A description can be written at any time, while the file is still going up
   included.
 - **A ready row says its description in quotes**, cut with `…` inside the closing quote where the status column is too
@@ -1057,7 +1074,13 @@ does a post already carrying all it can, which says `This post carries all it ca
   page — the arrows walk the list, as `j`/`k` do elsewhere, `j` and `k` being letters here.
 - **`esc` with no filter goes back to the draft unchanged**: nothing attached, nothing asked.
 - **On a terminal 90 wide or more the list keeps to the left** and a pane opens on the right past a `│`, where the
-  picture under the cursor goes, top left, level with the first row (#382). It is empty until then.
+  picture under the cursor goes (#382): top left, at its own proportions as wide as the pane allows, level with the
+  list's first row on the page, its name and size muted under it. Moving the cursor, or filtering it onto another
+  file, changes it. "On the page" because the list scrolls with the content panel: the browser keeps to the page
+  (`Screen.KeepsToThePage`), is told where it is (`Drawing.Top`), and is laid out again on a frame whose scroll moved,
+  so the picture is on the page with the cursor however far down a long folder it is. The pane runs to the foot of
+  the page however short the list, so a picture changes no row's height. Nothing is in it for a folder, a file that is
+  not a picture the decoder reads, or on a terminal that cannot draw.
 
 ### What mentioning somebody settled
 

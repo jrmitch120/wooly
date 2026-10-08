@@ -357,3 +357,17 @@ Where this ADR says `PaintedView` keeps the rules for releasing and placing boxe
 begins once a frame, from `OnClearingViewport`, and hands both to `Placing`, which says which pictures the frame wants,
 places or releases every box, and hands back the placeholder cells for the view to paint. Only a picture some row wants
 is said, so a warned post's pictures are still never sent for. The rules themselves stand unchanged.
+
+## Amendment: files on this machine are drawn too, and a screen can keep a picture to the page (map #372, ticket #382)
+
+**What is being attached is drawn by the same path as a post's pictures**: a pending attachment's row, the file
+browser's preview and the description editor want a `Drawn` whose address is a `file:` URI, which `Pictures.Over` reads
+off the disk under the cap a file server is held to, rather than sending for. Nothing about wanting, budgeting or
+placing changes, so sixel still goes through `SixelPalette` and a `PictureView`. Only pictures the decoder reads are
+wanted, so no box or shade is held for a video, a sound or a HEIC photograph.
+
+**A screen may keep something to the page rather than to its rows.** The browser's preview sits level with the first
+row of the list *on the page*, so the view tells the screen where the page starts (`Drawing.Top`) and, for a screen that
+says it keeps to the page (`Screen.KeepsToThePage`), lays the rows out again on a frame whose scroll moved. What keeps to
+the page moves no row and picks nothing, so the scroll worked out from the first laying stands. Every other screen is
+laid out once a frame, as before.
