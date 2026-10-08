@@ -38,7 +38,11 @@ public interface IPostAuthor
     /// <exception cref="Errors.AttachmentRefusedException">
     ///     The instance would not take the file, or could not process it, and said why.
     /// </exception>
-    /// <exception cref="Errors.TransientNetworkException">The instance could not be reached, retries included.</exception>
+    /// <exception cref="Errors.TransientNetworkException">
+    ///     The instance could not be reached, retries included, or the client gave up waiting on it.
+    /// </exception>
+    /// <exception cref="Errors.InstanceFailedException">The instance failed to answer, sending or processing.</exception>
+    /// <exception cref="Errors.RateLimitedException">The profile has spent its quota with the instance.</exception>
     Task<PendingAttachment> Attach(
         ActiveProfile profile,
         string path,
@@ -58,7 +62,11 @@ public interface IPostAuthor
     /// <exception cref="Errors.AttachmentRefusedException">
     ///     The instance would not take the description — longer than it allows, most often — and said why.
     /// </exception>
-    /// <exception cref="Errors.TransientNetworkException">The instance could not be reached, retries included.</exception>
+    /// <exception cref="Errors.TransientNetworkException">
+    ///     The instance could not be reached, retries included, or the client gave up waiting on it.
+    /// </exception>
+    /// <exception cref="Errors.InstanceFailedException">The instance failed to answer.</exception>
+    /// <exception cref="Errors.RateLimitedException">The profile has spent its quota with the instance.</exception>
     Task Describe(
         ActiveProfile profile,
         string attachmentId,

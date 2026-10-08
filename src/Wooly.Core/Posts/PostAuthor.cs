@@ -87,26 +87,31 @@ public sealed class PostAuthor(
             throw new MediaNotFoundException(path);
         }
 
-        var media = await SentUp(profile, path, progress, cancellationToken);
-
-        // An instance answers a file it has not finished with no address for it — 202 to the upload, 206 to the ask —
-        // and a post naming it before then is refused, so it is asked again until it has one.
-        while (media.Url is null)
+        return await Bounded(profile, cancellationToken, async () =>
         {
-            progress.Report(new AttachmentProgress.Processing(media.Id));
+            var media = await SentUp(profile, path, progress, cancellationToken);
 
-            await Task.Delay(polling.Every, cancellationToken);
+            // An instance answers a file it has not finished with no address for it — 202 to the upload, 206 to the
+            // ask — and a post naming it before then is refused, so it is asked again until it has one.
+            while (media.Url is null)
+            {
+                progress.Report(new AttachmentProgress.Processing(media.Id));
 
-            media = await Asked(() => RawMastodonCall.Get<MediaWire>(
-                        httpClientFactory,
-                        profile,
-                        $"api/v1/media/{Uri.EscapeDataString(media.Id)}",
-                        [],
-                        cancellationToken))
-                    ?? throw new AttachmentRefusedException(null);
-        }
+                await Task.Delay(polling.Every, cancellationToken);
 
-        return new PendingAttachment(media.Id, PostWire.ToKind(media.Type));
+                using var asked = await RawMastodonCall.Sent(
+                    httpClientFactory,
+                    profile,
+                    HttpMethod.Get,
+                    $"api/v1/media/{Uri.EscapeDataString(media.Id)}",
+                    content: null,
+                    cancellationToken);
+
+                media = await MediaOf(profile, asked, cancellationToken);
+            }
+
+            return new PendingAttachment(media.Id, PostWire.ToKind(media.Type));
+        });
     }
 
     /// <inheritdoc />
@@ -114,32 +119,25 @@ public sealed class PostAuthor(
     ///     By hand rather than through Mastonet, as the upload is, so that a refusal reads as the instance said it and
     ///     the call can be called off with the screen it was made for.
     /// </remarks>
-    public async Task Describe(
+    public Task Describe(
         ActiveProfile profile,
         string attachmentId,
         string description,
-        CancellationToken cancellationToken)
-    {
-        using var request = new HttpRequestMessage(
-            HttpMethod.Put,
-            new Uri($"https://{profile.Instance}/api/v1/media/{Uri.EscapeDataString(attachmentId)}"))
+        CancellationToken cancellationToken) =>
+        Bounded(profile, cancellationToken, async () =>
         {
-            Content = new FormUrlEncodedContent([new KeyValuePair<string, string>("description", description)]),
-        };
+            using var response = await RawMastodonCall.Sent(
+                httpClientFactory,
+                profile,
+                HttpMethod.Put,
+                $"api/v1/media/{Uri.EscapeDataString(attachmentId)}",
+                new FormUrlEncodedContent([new KeyValuePair<string, string>("description", description)]),
+                cancellationToken);
 
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", profile.AccessToken);
+            await Answered(profile, response, cancellationToken);
 
-        var http = httpClientFactory.CreateClient(WoolyClient.HttpClientName);
-
-        using var response = await http.SendAsync(request, cancellationToken);
-
-        if (response.StatusCode == HttpStatusCode.UnprocessableEntity)
-        {
-            throw new AttachmentRefusedException(await InstanceError.Reason(response, cancellationToken));
-        }
-
-        response.EnsureSuccessStatusCode();
-    }
+            return true;
+        });
 
     /// <inheritdoc />
     public async Task<Post> PublishAttached(ActiveProfile profile, PostDraft draft, CancellationToken cancellationToken)
@@ -219,46 +217,79 @@ public sealed class PostAuthor(
             body.Headers.ContentType = new MediaTypeHeaderValue(type);
         }
 
-        using var form = new MultipartFormDataContent { { body, "file", Path.GetFileName(path) } };
-        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri($"https://{profile.Instance}/api/v2/media"))
-        {
-            Content = form,
-        };
+        using var response = await RawMastodonCall.Sent(
+            httpClientFactory,
+            profile,
+            HttpMethod.Post,
+            "api/v2/media",
+            new MultipartFormDataContent { { body, "file", Path.GetFileName(path) } },
+            cancellationToken);
 
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", profile.AccessToken);
+        return await MediaOf(profile, response, cancellationToken);
+    }
 
-        var http = httpClientFactory.CreateClient(WoolyClient.HttpClientName);
-
-        using var response = await http.SendAsync(request, cancellationToken);
-
-        // Too large, of a type the instance will not take, or one it could not make sense of — the instance's to say,
-        // and the author's to fix, so it is said in the instance's words rather than as a failure of the call.
-        if (response.StatusCode is HttpStatusCode.UnprocessableEntity or HttpStatusCode.RequestEntityTooLarge)
-        {
-            throw new AttachmentRefusedException(await InstanceError.Reason(response, cancellationToken));
-        }
-
-        response.EnsureSuccessStatusCode();
+    /// <summary>What the instance made of a file, out of its answer about it (<see cref="Answered" />).</summary>
+    private static async Task<MediaWire> MediaOf(
+        ActiveProfile profile,
+        HttpResponseMessage response,
+        CancellationToken cancellationToken)
+    {
+        await Answered(profile, response, cancellationToken);
 
         return await response.Content.ReadFromJsonAsync<MediaWire>(cancellationToken)
                ?? throw new AttachmentRefusedException(null);
     }
 
     /// <summary>
-    ///     Asks after a file being processed: an instance that could not process it answers 422, which is the file
-    ///     refused as surely as a refusal of the upload.
+    ///     Nothing, where <paramref name="response" /> is a success; otherwise what it was, as something a compose screen
+    ///     can say on the attachment's row and know whether to offer a retry for (review of #372).
     /// </summary>
-    private static async Task<MediaWire?> Asked(Func<Task<MediaWire?>> ask)
+    /// <exception cref="InstanceFailedException">
+    ///     The instance failed to answer — a <c>5xx</c> — which says nothing of what was sent, and may pass.
+    /// </exception>
+    /// <exception cref="AttachmentRefusedException">
+    ///     Any other refusal: too large, of a type the instance will not take, one it could not process (a <c>422</c>
+    ///     to the ask after it), or one this profile may not touch — the instance's to say, in its own words where it
+    ///     gave any, and the author's to fix.
+    /// </exception>
+    private static async Task Answered(
+        ActiveProfile profile,
+        HttpResponseMessage response,
+        CancellationToken cancellationToken)
+    {
+        if (response.IsSuccessStatusCode)
+        {
+            return;
+        }
+
+        if ((int)response.StatusCode >= 500)
+        {
+            throw new InstanceFailedException(profile.Instance, response.StatusCode);
+        }
+
+        throw new AttachmentRefusedException(await InstanceError.Reason(response, cancellationToken));
+    }
+
+    /// <summary>
+    ///     <paramref name="call" />, with the client giving up waiting on it — its timeout, which cancels a token that is
+    ///     not the caller's — said as what it is to the author: a call that did not reach the instance, as a dropped
+    ///     connection is, rather than a cancellation nobody asked for (review of #372).
+    /// </summary>
+    private static async Task<T> Bounded<T>(
+        ActiveProfile profile,
+        CancellationToken cancellationToken,
+        Func<Task<T>> call)
     {
         try
         {
-            return await ask();
+            return await call();
         }
-        catch (HttpRequestException refused) when (refused.StatusCode == HttpStatusCode.UnprocessableEntity)
+        catch (OperationCanceledException timedOut) when (!cancellationToken.IsCancellationRequested)
         {
-            throw new AttachmentRefusedException(null);
+            throw new TransientNetworkException(new Uri($"https://{profile.Instance}/"), 1, timedOut);
         }
     }
+
 
     /// <inheritdoc />
     public async Task<Post> Edit(ActiveProfile profile, string postId, PostEdit edit, CancellationToken cancellationToken)

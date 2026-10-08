@@ -1008,6 +1008,110 @@ public class PostAuthorTests : IDisposable
         Assert.Equal("Description is too long", refusal.Reason);
     }
 
+    /// <summary>
+    ///     An instance that fails to answer an upload — a 5xx — says so as the instance's failure, which a retry of the
+    ///     author's might mend, rather than as a bare HTTP error nothing above here is ready for (review of #372).
+    /// </summary>
+    [Fact]
+    public async Task Attach_SaysAnInstanceThatFailedToAnswer()
+    {
+        var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Status(HttpStatusCode.BadGateway));
+
+        var failure = await Assert.ThrowsAsync<InstanceFailedException>(() => NewAuthor(network).Attach(
+            Profile,
+            _directory.WriteFile("cat.png"),
+            new Reported(),
+            TestContext.Current.CancellationToken));
+
+        Assert.Equal(HttpStatusCode.BadGateway, failure.Status);
+    }
+
+    /// <summary>Asked after a file being processed, likewise: a 5xx is the instance failing, not a defect here.</summary>
+    [Fact]
+    public async Task Attach_SaysAnInstanceThatFailedWhileProcessing()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            Accepted("""{"id":"m2","type":"video","url":null}"""),
+            ScriptedHttpMessageHandler.Status(HttpStatusCode.ServiceUnavailable));
+
+        await Assert.ThrowsAsync<InstanceFailedException>(() => NewAuthor(network, polling: TimeSpan.Zero).Attach(
+            Profile,
+            _directory.WriteFile("clip.mp4"),
+            new Reported(),
+            TestContext.Current.CancellationToken));
+    }
+
+    /// <summary>
+    ///     Any other refusal of the upload — a 403, a 404 — is the instance not taking the file, which trying again
+    ///     cannot change.
+    /// </summary>
+    [Fact]
+    public async Task Attach_SaysAnyOtherRefusalAsTheFileRefused()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Refusal(HttpStatusCode.Forbidden, "This action is not allowed"));
+
+        var refusal = await Assert.ThrowsAsync<AttachmentRefusedException>(() => NewAuthor(network).Attach(
+            Profile,
+            _directory.WriteFile("cat.png"),
+            new Reported(),
+            TestContext.Current.CancellationToken));
+
+        Assert.Equal("This action is not allowed", refusal.Reason);
+    }
+
+    /// <summary>
+    ///     An upload the client gave up waiting on is one that did not reach the instance, as a dropped connection is —
+    ///     not the caller calling it off, which is a cancellation of the caller's own token.
+    /// </summary>
+    [Fact]
+    public async Task Attach_SaysAnUploadThatTimedOutAsUnreached()
+    {
+        var failure = await Assert.ThrowsAsync<TransientNetworkException>(() => NewAuthor(
+                new Stalling(),
+                timeout: TimeSpan.FromMilliseconds(50))
+            .Attach(Profile, _directory.WriteFile("cat.png"), new Reported(), TestContext.Current.CancellationToken));
+
+        Assert.Contains("mastodon.social", failure.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>A description the instance failed to take, likewise, is the instance's failure.</summary>
+    [Fact]
+    public async Task Describe_SaysAnInstanceThatFailedToAnswer()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Status(HttpStatusCode.InternalServerError));
+
+        await Assert.ThrowsAsync<InstanceFailedException>(() => NewAuthor(network).Describe(
+            Profile,
+            "m1",
+            "A dog",
+            TestContext.Current.CancellationToken));
+    }
+
+    /// <summary>And a description the client gave up waiting on did not reach the instance.</summary>
+    [Fact]
+    public async Task Describe_SaysACallThatTimedOutAsUnreached()
+    {
+        await Assert.ThrowsAsync<TransientNetworkException>(() => NewAuthor(
+                new Stalling(),
+                timeout: TimeSpan.FromMilliseconds(50))
+            .Describe(Profile, "m1", "A dog", TestContext.Current.CancellationToken));
+    }
+
+    /// <summary>A network that never answers, until the call is called off.</summary>
+    private sealed class Stalling : HttpMessageHandler
+    {
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        }
+    }
+
     /// <summary>Every report an attach made, in order, kept as it was made rather than posted anywhere.</summary>
     private sealed class Reported : IProgress<AttachmentProgress>
     {
@@ -1029,11 +1133,16 @@ public class PostAuthorTests : IDisposable
         new(ScriptedHttpMessageHandler.Json(json));
 
     /// <summary>Resolved from the container the app builds, so the wiring is under test alongside the behavior.</summary>
-    private static IPostAuthor NewAuthor(HttpMessageHandler network, TimeSpan? polling = null)
+    private static IPostAuthor NewAuthor(HttpMessageHandler network, TimeSpan? polling = null, TimeSpan? timeout = null)
     {
         var services = new ServiceCollection();
         services.AddWoolyCore();
-        services.AddHttpClient(WoolyClient.HttpClientName).ConfigurePrimaryHttpMessageHandler(() => network);
+        var client = services.AddHttpClient(WoolyClient.HttpClientName).ConfigurePrimaryHttpMessageHandler(() => network);
+
+        if (timeout is { } patience)
+        {
+            client.ConfigureHttpClient(http => http.Timeout = patience);
+        }
 
         if (polling is { } every)
         {

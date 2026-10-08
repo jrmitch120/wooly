@@ -37,9 +37,42 @@ internal static class RawMastodonCall
         IReadOnlyList<KeyValuePair<string, string>> query,
         CancellationToken cancellationToken)
     {
-        using var request = new HttpRequestMessage(
+        using var response = await Sent(
+            httpClientFactory,
+            profile,
             HttpMethod.Get,
-            new Uri($"https://{profile.Instance}/{path}{QueryString(query)}"));
+            $"{path}{QueryString(query)}",
+            content: null,
+            cancellationToken);
+
+        response.EnsureSuccessStatusCode();
+
+        return await response.Content.ReadFromJsonAsync<T>(cancellationToken);
+    }
+
+    /// <summary>
+    ///     Sends <paramref name="content" /> to <paramref name="path" /> on the profile's instance by
+    ///     <paramref name="method" />, and hands back whatever the instance answered — a refusal as much as anything —
+    ///     for the caller to read: the shape every hand-rolled call shares, <see cref="Get{T}" /> and the pending
+    ///     attachment's upload and description among them (#375, #377).
+    /// </summary>
+    /// <param name="path">The endpoint's path below the instance, without a leading slash, and its query if any.</param>
+    /// <param name="content">What the request carries, or <see langword="null" /> for nothing. Disposed with it.</param>
+    /// <returns>The answer, which the caller disposes.</returns>
+    /// <exception cref="Errors.RateLimitedException">The profile has spent its quota with the instance.</exception>
+    /// <exception cref="Errors.TransientNetworkException">The instance could not be reached, retries included.</exception>
+    public static async Task<HttpResponseMessage> Sent(
+        IHttpClientFactory httpClientFactory,
+        ActiveProfile profile,
+        HttpMethod method,
+        string path,
+        HttpContent? content,
+        CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(method, new Uri($"https://{profile.Instance}/{path}"))
+        {
+            Content = content,
+        };
 
         // Said here rather than on the client, because the client is pooled by name across every profile a process
         // touches and a token left on it would outlive the call that brought it.
@@ -47,11 +80,7 @@ internal static class RawMastodonCall
 
         var client = httpClientFactory.CreateClient(WoolyClient.HttpClientName);
 
-        using var response = await client.SendAsync(request, cancellationToken);
-
-        response.EnsureSuccessStatusCode();
-
-        return await response.Content.ReadFromJsonAsync<T>(cancellationToken);
+        return await client.SendAsync(request, cancellationToken);
     }
 
     /// <summary>
