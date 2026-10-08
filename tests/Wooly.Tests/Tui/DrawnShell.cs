@@ -145,6 +145,25 @@ internal sealed class DrawnShell : IDisposable
     }
 
     /// <summary>
+    ///     A key, drawn as the running loop draws one: only what it changed, onto the frame before — not the whole
+    ///     screen over a cleared buffer, as <see cref="Press" /> draws it.
+    /// </summary>
+    public void PressAsTheLoopDraws(Key key)
+    {
+        Window.NewKeyDownEvent(key);
+        DrawAsTheLoopDraws();
+    }
+
+    /// <summary>
+    ///     The loop's next pass with nothing pressed: only what needs drawing drawn — or, where something asked for the
+    ///     screen to be cleared, as Terminal.Gui's layout does once a view is laid anew, the whole of it.
+    /// </summary>
+    public void DrawAsTheLoopDraws() => Application.LayoutAndDraw();
+
+    /// <summary>How many sixels the last frame written to the terminal sent.</summary>
+    public int SixelsSent() => Application.Driver!.GetOutput().GetLastOutput().Split("\u001bP").Length - 1;
+
+    /// <summary>
     ///     A key as the terminal hands it over, through the application rather than straight to the window — so that one
     ///     nothing answers falls through to Terminal.Gui's own navigation, as it would in the running TUI.
     /// </summary>
