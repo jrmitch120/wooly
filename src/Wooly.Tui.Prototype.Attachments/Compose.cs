@@ -334,7 +334,7 @@ internal sealed class AttachArea(AreaMode mode) : Painted
         var dragged = _dragFrom == index;
         var items = Draft.Items;
 
-        if (current) Put(0, top, "▌", Role.Selection);
+        if (current) Put(Geometry.Pad, top, "▌", Role.Selection); // one space short of the grip
 
         Put(Geometry.Pad + 2, top, "⠿", dragged ? Role.Selection : Role.Muted);
         Pics.Paint(this, thumb, item.Path, Theme);
