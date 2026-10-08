@@ -37,6 +37,9 @@ internal sealed class ComposeView : View
     /// <summary>What language the post is in, a field laid over Lang's value column (#340).</summary>
     private readonly ComposeLangField _lang;
 
+    /// <summary>The Media header's value, laid over it to take the walk's typing and the mouse (#379).</summary>
+    private readonly ComposeMediaField _media;
+
     /// <summary>The people to mention, hung under the @-word being typed in the post (#318).</summary>
     private readonly MentionList _mentions;
 
@@ -110,11 +113,23 @@ internal sealed class ComposeView : View
                 WriteWarning),
             (compose, room) => compose.LangAt(room));
 
+        // A click on the toggle at the end of Media's line flips it; anywhere else on the header only takes the typing.
+        _media = Placed(
+            new ComposeMediaField(column =>
+            {
+                if (_shell.Screen is ComposeScreen compose && compose.OnTheSensitiveToggle(column, Viewport.Size))
+                {
+                    _shell.ToggleSensitive();
+                }
+            }),
+            (compose, room) => compose.MediaAt(room));
+
         // A click into any field moves the typing there: where the typing is is one fact, the screen's, and whichever
         // way it moved the screen is told so that the status row, the header's mark and the hint keep up.
         _to.HasFocusChanged += (_, focus) => TypingMoved(focus.NewValue, ComposeField.To);
         _lang.HasFocusChanged += (_, focus) => TypingMoved(focus.NewValue, ComposeField.Lang);
         _warning.HasFocusChanged += (_, focus) => TypingMoved(focus.NewValue, ComposeField.Warning);
+        _media.HasFocusChanged += (_, focus) => TypingMoved(focus.NewValue, ComposeField.Media);
         _editor.HasFocusChanged += (_, focus) => TypingMoved(focus.NewValue, ComposeField.Post);
 
         // The lists hang under the fields they serve, laid in this view after the fields so they draw over them.
@@ -126,11 +141,11 @@ internal sealed class ComposeView : View
 
         // A question open on the status row takes every key ahead of whichever field has the typing, since the fields
         // take their keys before the window sees them (#373).
-        _editor.Answering = _to.Answering = _lang.Answering = _warning.Answering = Answered;
+        _editor.Answering = _to.Answering = _lang.Answering = _warning.Answering = _media.Answering = Answered;
 
         _languages = new LanguageList(theme, shell, _lang, this);
 
-        Add(_editor, _to, _lang, _warning, _mentions.View, _languages.View);
+        Add(_editor, _to, _lang, _warning, _media, _mentions.View, _languages.View);
 
         // A click outside an open list closes it whichever view it lands on — the editor's caret, the content behind
         // this view, the rail — so it is asked about where the terminal's mouse events arrive, ahead of every view
@@ -153,11 +168,13 @@ internal sealed class ComposeView : View
     /// <summary>
     ///     The keys no field took that walk the fields or choose on To — <c>↑</c>/<c>↓</c>, <c>←</c>/<c>→</c> — made
     ///     here, as the keymap says they are on compose, rather than left to Terminal.Gui to move the focus with. At
-    ///     either end of the walk the key is spent on nothing (#337).
+    ///     either end of the walk the key is spent on nothing (#337). And <c>s</c>, which the Media header leaves for
+    ///     the sensitive toggle (#379).
     /// </summary>
     protected override bool OnKeyDown(Key key) =>
         ShellKeys.Of(key) is { } pressed
-        && Keymap.Means(pressed, _shell.Screen) is var verb and (Verb.PreviousField or Verb.NextField or Verb.PreviousChoice or Verb.NextChoice)
+        && Keymap.Means(pressed, _shell.Screen) is var verb
+            and (Verb.PreviousField or Verb.NextField or Verb.PreviousChoice or Verb.NextChoice or Verb.ToggleSensitive)
         && _shell.Do(verb, Keymap.Answer(pressed));
 
     protected override void Dispose(bool disposing)
@@ -218,7 +235,7 @@ internal sealed class ComposeView : View
 
     /// <summary>Whether <paramref name="at" /> is over one of the fields, which take the pointer before the window does.</summary>
     private bool Over(Point at) =>
-        new View[] { _editor, _to, _lang, _warning }.Any(field => field.Visible && field.FrameToScreen().Contains(at));
+        new View[] { _editor, _to, _lang, _warning, _media }.Any(field => field.Visible && field.FrameToScreen().Contains(at));
 
     /// <summary>
     ///     A right click with compose in front: <c>esc</c>, wherever it lands — over a field, which would otherwise keep
@@ -297,6 +314,9 @@ internal sealed class ComposeView : View
             _lang.Layout();
             _languages.Fill(compose.Lang.Held);
 
+            // An edit has no Media header to walk to or click on.
+            _media.Visible = compose.TakesAttachments;
+
             _editor.SetFocus();
 
             // After whatever the screen opened with rather than in front of it: an editor opened on `@maria ` or on
@@ -316,6 +336,7 @@ internal sealed class ComposeView : View
             _warning.Visible = false;
             _to.Visible = false;
             _lang.Visible = false;
+            _media.Visible = false;
             Visible = false;
 
             if (focused)
@@ -333,6 +354,7 @@ internal sealed class ComposeView : View
                 ComposeField.To => _to,
                 ComposeField.Lang => _lang,
                 ComposeField.Warning => _warning,
+                ComposeField.Media => _media,
                 _ => _editor,
             };
 

@@ -36,6 +36,12 @@ public enum ComposeField
     /// <summary>The content warning over the post (#123, #320).</summary>
     Warning,
 
+    /// <summary>
+    ///     The Media header, which types nothing: walked to so that its keys have somewhere to land — <c>s</c> for the
+    ///     sensitive toggle at the end of its line (#379).
+    /// </summary>
+    Media,
+
     /// <summary>The post being written.</summary>
     Post,
 }
@@ -112,6 +118,12 @@ public sealed class ComposeScreen : Screen
 
     /// <summary>The key that adds to the Media header, which it names after what it holds while there is room.</summary>
     private const string AttachKey = "ctrl-o to add";
+
+    /// <summary>The sensitive toggle's word, after its box (#379).</summary>
+    private const string SensitiveWord = "sensitive";
+
+    /// <summary>What the sensitive toggle adds while a warning holds it on (#379).</summary>
+    private const string SensitiveByWarning = " (warning)";
 
     /// <summary>The quiet mark on a pending attachment with no description (#375, #377).</summary>
     private const string NoDescription = "no alt text";
@@ -194,6 +206,12 @@ public sealed class ComposeScreen : Screen
 
     /// <summary>What is attached, in the order the post will carry it (#375).</summary>
     private readonly List<ComposeAttachment> _attachments = [];
+
+    /// <summary>
+    ///     Whether the author has put what is attached behind a click (#379) — their own setting, kept while a warning
+    ///     holds the toggle on, so that clearing the warning gives it back as they left it.
+    /// </summary>
+    private bool _sensitive;
 
     /// <param name="purpose">What this screen was opened to do.</param>
     /// <param name="about">The post being replied to or edited.</param>
@@ -334,7 +352,7 @@ public sealed class ComposeScreen : Screen
     ///     the walk, with no key rule of its own.
     /// </summary>
     private static readonly ComposeField[] Fields =
-        [ComposeField.To, ComposeField.Lang, ComposeField.Warning, ComposeField.Post];
+        [ComposeField.To, ComposeField.Lang, ComposeField.Warning, ComposeField.Media, ComposeField.Post];
 
     /// <summary>
     ///     Which field what is typed is going into. Every field is on screen at once and the typing is in one of them,
@@ -397,6 +415,33 @@ public sealed class ComposeScreen : Screen
 
     /// <summary>How many attachments the instance refused, which a send will not go out with (ADR-0026).</summary>
     public int Refused => _attachments.Count(attachment => attachment.State is AttachmentState.Refused);
+
+    /// <summary>
+    ///     Whether what is attached goes behind a click (#379): as the author set it, or on whatever they set while the
+    ///     warning has text, since a warning puts the whole post behind one (ADR-0008).
+    /// </summary>
+    public bool Sensitive => _sensitive || SensitiveByAWarning;
+
+    /// <summary>Whether a warning is what holds the sensitive toggle on, which locks it there (#379).</summary>
+    public bool SensitiveByAWarning => ContentWarnings.Written(Warning) is not null;
+
+    /// <summary>
+    ///     <c>s</c> on the Media header, or a click on the toggle (#379): puts what is attached behind a click, or takes
+    ///     it out from behind one. Nothing while nothing is attached, there being no toggle, nor while a warning holds
+    ///     it on.
+    /// </summary>
+    /// <returns>An edit, the toggle being part of what is sent, or nothing where it could not change.</returns>
+    public ComposeChange ToggleSensitive()
+    {
+        if (_attachments.Count == 0 || SensitiveByAWarning)
+        {
+            return ComposeChange.None;
+        }
+
+        _sensitive = !_sensitive;
+
+        return ComposeChange.Edited;
+    }
 
     /// <summary>
     ///     Attaches <paramref name="files" />, in order, after whatever is attached already — as many as the post has
@@ -491,6 +536,9 @@ public sealed class ComposeScreen : Screen
             ? [new KeyHint("↑↓", "pick"), new KeyHint("tab", "choose"), new KeyHint("esc", "close")]
             : Array.Empty<KeyHint>(),
         .. Typing == ComposeField.To ? [new KeyHint("←→", "choose")] : Array.Empty<KeyHint>(),
+        .. Typing == ComposeField.Media && _attachments.Count > 0
+            ? [new KeyHint("s", "sensitive")]
+            : Array.Empty<KeyHint>(),
         .. Walks switch
         {
             (true, true) => [new KeyHint("↑↓", "field")],
@@ -512,7 +560,11 @@ public sealed class ComposeScreen : Screen
     {
         var laid = Laid(drawing.Width, drawing.Height);
 
-        _drawn = laid.Lang == Rectangle.Empty ? [.. Fields.Where(field => field != ComposeField.Lang)] : Fields;
+        _drawn =
+        [
+            .. Fields.Where(field => (field != ComposeField.Lang || laid.Lang != Rectangle.Empty)
+                                     && (field != ComposeField.Media || laid.Media != Rectangle.Empty)),
+        ];
 
         return laid.Rows;
     }
@@ -618,8 +670,18 @@ public sealed class ComposeScreen : Screen
         return to < 0 || to >= walked.Length ? null : walked[to];
     }
 
-    /// <summary>Whether <paramref name="field" /> can have the typing at all, which To cannot where it allows nothing.</summary>
-    public bool Takes(ComposeField field) => field != ComposeField.To || _choices.Any(Offers);
+    /// <summary>
+    ///     Whether <paramref name="field" /> can have the typing at all, which To cannot where it allows nothing, nor
+    ///     Media until something is attached (#379): the toggle is all there is to do on it so far, and it shows only
+    ///     then — so the walk from the post still goes straight to Warn on a screen with nothing attached, and on an
+    ///     edit, which has no Media header at all.
+    /// </summary>
+    public bool Takes(ComposeField field) => field switch
+    {
+        ComposeField.To => _choices.Any(Offers),
+        ComposeField.Media => TakesAttachments && _attachments.Count > 0,
+        _ => true,
+    };
 
     /// <summary>
     ///     The typing went into <paramref name="field" /> by a click rather than by this screen's keys, and the screen
@@ -756,6 +818,42 @@ public sealed class ComposeScreen : Screen
     public Rectangle LangAt(Size viewport) => Laid(viewport.Width, viewport.Height).Lang;
 
     /// <summary>
+    ///     Where the Media header's value goes inside the same viewport, for the view laid over it that takes its keys
+    ///     and its clicks (#379) — nowhere on an edit, or where a short terminal has given its row up.
+    /// </summary>
+    public Rectangle MediaAt(Size viewport) => Laid(viewport.Width, viewport.Height).Media;
+
+    /// <summary>
+    ///     Whether a click <paramref name="column" /> columns into the Media header's value, laid in
+    ///     <paramref name="viewport" />, lands on the sensitive toggle at the end of it (#379) — read off the very row
+    ///     that is drawn, folded or not.
+    /// </summary>
+    public bool OnTheSensitiveToggle(int column, Size viewport)
+    {
+        var laid = Laid(viewport.Width, viewport.Height);
+
+        if (laid.Media == Rectangle.Empty || _attachments.Count == 0)
+        {
+            return false;
+        }
+
+        var toggle = SensitiveToggle().Text;
+        var at = -laid.Media.X;
+
+        foreach (var span in laid.Rows[laid.Media.Y].Spans)
+        {
+            if (span.Text == toggle)
+            {
+                return column >= at && column < at + span.Width;
+            }
+
+            at += span.Width;
+        }
+
+        return false;
+    }
+
+    /// <summary>
     ///     To's value as it is drawn <paramref name="room" /> columns wide — what the row laid over it paints, so that
     ///     row and the one a test reads off <see cref="Lines" /> are the same spans.
     /// </summary>
@@ -781,7 +879,8 @@ public sealed class ComposeScreen : Screen
     ///         Where nobody says how tall the room is, it is as tall as the rows and the editor's least want.
     ///     </para>
     /// </remarks>
-    private (IReadOnlyList<Line> Rows, Rectangle Editor, Rectangle Warning, Rectangle To, Rectangle Lang) Laid(
+    private (IReadOnlyList<Line> Rows, Rectangle Editor, Rectangle Warning, Rectangle To, Rectangle Lang, Rectangle Media)
+        Laid(
         int width,
         int? height)
     {
@@ -883,7 +982,10 @@ public sealed class ComposeScreen : Screen
             new Rectangle(Math.Min(Pad, width), top, inner, editor),
             Value(above.IndexOf(warning)),
             Value(above.IndexOf(to)),
-            above.Contains(lang) ? Value(above.IndexOf(lang)) : Rectangle.Empty);
+            above.Contains(lang) ? Value(above.IndexOf(lang)) : Rectangle.Empty,
+            media is not null && above.FindIndex(row => row.Keep == Keep.Media) is >= 0 and var header
+                ? Value(header)
+                : Rectangle.Empty);
 
         Rectangle Value(int row) => new(Math.Min(Pad + LabelWidth + LabelGap, width), row, valueWidth, 1);
     }
@@ -1057,6 +1159,8 @@ public sealed class ComposeScreen : Screen
     /// <remarks>
     ///     What is attached goes as the pending attachments the instance handed back, in the order shown (#375) — so
     ///     this is asked only once every one of them is ready, which is what the shell waits for before it sends.
+    ///     With them goes the author's own sensitive toggle (#379), and only theirs: the warning that may hold it on goes
+    ///     as the warning, which marks the post sensitive by itself (ADR-0008).
     /// </remarks>
     private PostDraft Drafted() => new()
     {
@@ -1066,6 +1170,7 @@ public sealed class ComposeScreen : Screen
         Visibility = Visibility,
         VisibilityChosen = Visibility != _startingVisibility,
         Language = Lang.Resolves(out var code) ? code : null,
+        Sensitive = _sensitive && _attachments.Count > 0,
         Attached =
         [
             .. _attachments.Select(attachment => attachment.State is AttachmentState.Ready(var pending)
@@ -1129,7 +1234,8 @@ public sealed class ComposeScreen : Screen
     {
         var count = _attachments.Count;
         var held = count == 0 ? NothingAttached : $"{count} of {Limits.Attachments}";
-        var spans = new List<Span> { new(held, Role.Muted) };
+        // The header takes no selection bar with the typing on it: its own words light up, as To's choice does.
+        var spans = new List<Span> { new(held, Typing == ComposeField.Media ? Role.SelectedText : Role.Muted) };
 
         if (folded && _attachments.Count(attached => !attached.Described) is > 0 and var undescribed)
         {
@@ -1147,8 +1253,24 @@ public sealed class ComposeScreen : Screen
             spans.Add(new Span($" · {AttachKey}", Role.Muted));
         }
 
+        if (count > 0)
+        {
+            spans.Add(new Span(" · ", Role.Muted));
+            spans.Add(SensitiveToggle());
+        }
+
         return Fitted(spans, room);
     }
+
+    /// <summary>
+    ///     The sensitive toggle at the end of the Media header's line (#379): <c>□ sensitive</c>, muted, while it is off;
+    ///     <c>■ sensitive</c> in the warning's colour while it is on, since it hides what is attached the way a warning
+    ///     hides the post; and <c>■ sensitive (warning)</c>, the same, while a warning holds it on.
+    /// </summary>
+    private Span SensitiveToggle() =>
+        SensitiveByAWarning ? new Span($"■ {SensitiveWord}{SensitiveByWarning}", Role.ContentWarning)
+        : Sensitive ? new Span($"■ {SensitiveWord}", Role.ContentWarning)
+        : new Span($"□ {SensitiveWord}", Role.Muted);
 
     /// <summary>
     ///     A pending attachment's row, <paramref name="width" /> columns wide (#375): its grip, the column its picture

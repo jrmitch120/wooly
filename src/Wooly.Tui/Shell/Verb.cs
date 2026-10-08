@@ -284,4 +284,10 @@ public enum Verb
 
     /// <summary><c>→</c> there, likewise: choose the next one to the right.</summary>
     NextChoice,
+
+    /// <summary>
+    ///     <c>s</c> on compose's Media header: put what is attached behind a click, or take it back out — unless a
+    ///     warning holds it there (#379).
+    /// </summary>
+    ToggleSensitive,
 }

@@ -551,6 +551,7 @@ public sealed class Shell
         Verb.NextField => Ran(() => _ = ChangeCompose(compose => compose.Walk(1))),
         Verb.PreviousChoice => Ran(() => _ = ChangeCompose(compose => compose.Choose(-1))),
         Verb.NextChoice => Ran(() => _ = ChangeCompose(compose => compose.Choose(1))),
+        Verb.ToggleSensitive => Ran(ToggleSensitive),
 
         // Nothing, and the terminal's own — which the window has already taken, and which no screen answers either.
         Verb.None => false,
@@ -1202,6 +1203,23 @@ public sealed class Shell
         }
 
         return made;
+    }
+
+    /// <summary>
+    ///     <c>s</c> on compose's Media header, or a click on its toggle: puts what is attached behind a click or takes it
+    ///     back out (#379). While a warning holds it on, the status row says so instead, since a press that changes
+    ///     nothing on screen would otherwise read as one the shell missed.
+    /// </summary>
+    public void ToggleSensitive()
+    {
+        if (Screen is ComposeScreen { SensitiveByAWarning: true, Attachments.Count: > 0 })
+        {
+            Say("The warning already hides what is attached.", isError: false);
+
+            return;
+        }
+
+        _ = ChangeCompose(compose => compose.ToggleSensitive());
     }
 
     /// <summary>
