@@ -75,7 +75,7 @@ public static class Keymap
 
         // ⏎ on an attachment's row describes it (#377), ahead of ⏎ on the Media header above it, which opens the file
         // browser (below).
-        (ShellKey.Enter, ComposeScreen { SelectedAttachment: not null }) => Verb.Describe,
+        (ShellKey.Enter, ComposeScreen { Typing: ComposeField.Attachment }) => Verb.Describe,
 
         // And the arrows, which walk compose's fields the way a mail client's do (ADR-0024, #337) — reaching here only
         // where the field the typing is in leaves them: a header always, the post on its first line. Whether there was
@@ -88,6 +88,14 @@ public static class Keymap
         (ShellKey.Left, ComposeScreen) => Verb.PreviousChoice,
         (ShellKey.Right, ComposeScreen) => Verb.NextChoice,
 
+        // And the keys of the rows under the Media header (#378), which reach here only from there: every field that
+        // takes typing keeps del, backspace, ctrl-z and the shifted arrows for its own text, and r is a letter in them.
+        // Not alt-↑/↓ to reorder: macOS Terminal turns Option-arrows into word jumps that never reach the program.
+        (ShellKey.Delete or ShellKey.Backspace, ComposeScreen) => Verb.RemoveAttachment,
+        (ShellKey.CtrlZ, ComposeScreen) => Verb.BringBackAttachment,
+        (ShellKey.ShiftUp, ComposeScreen) => Verb.EarlierAttachment,
+        (ShellKey.ShiftDown, ComposeScreen) => Verb.LaterAttachment,
+        (ShellKey.R, ComposeScreen) => Verb.RetryAttachment,
         // And ctrl-o, which opens the file browser over a compose or a reply wherever the typing is — and ⏎ on the
         // Media header, which takes no typing of its own (#376); ⏎ on a row under it describes the row instead (#377).
         (ShellKey.CtrlO, ComposeScreen) => Verb.OpenBrowser,
@@ -179,9 +187,10 @@ public static class Keymap
         // to their posts alone (#229). Still bound only where it does something, and announced where it is.
         (ShellKey.S, AccountScreen) => Verb.SwapPostsAndReplies,
 
-        // And on compose's Media header, the one place on the screen with no field to type it into: the sensitive
-        // toggle at the end of its line (#379). Anywhere else on compose a field has taken it as a letter already.
-        (ShellKey.S, ComposeScreen { Typing: ComposeField.Media }) => Verb.ToggleSensitive,
+        // And on compose's Media header and its rows, the places on the screen with no field to type it into: the
+        // sensitive toggle at the end of the header's line (#379, #378). Anywhere else on compose a field has taken it
+        // as a letter already.
+        (ShellKey.S, ComposeScreen { Typing: ComposeField.Media or ComposeField.Attachment }) => Verb.ToggleSensitive,
 
         // The add screen's one letter, bound only there and only reached while no field is taking letters — every
         // letter is typed into a field that is (#245).

@@ -350,7 +350,7 @@ public class ComposeMediaTests : IDisposable
             new TransientNetworkException(new Uri("https://mastodon.social/api/v2/media"), 3, new HttpRequestException()));
         built.Host.Drain();
 
-        Assert.EndsWith("x  connection lost", Row(compose, "cat.png"), StringComparison.Ordinal);
+        Assert.EndsWith("x  connection lost  (r)", Row(compose, "cat.png"), StringComparison.Ordinal);
     }
 
     /// <summary>Anything attached touches the draft, so leaving it asks first (#373).</summary>

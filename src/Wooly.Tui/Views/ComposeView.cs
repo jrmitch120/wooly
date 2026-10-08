@@ -38,8 +38,7 @@ internal sealed class ComposeView : View
     private readonly ComposeLangField _lang;
 
     /// <summary>
-    ///     The Media header and the attachments' rows, laid over the block they are painted in to take the walk's typing
-    ///     and the mouse (#379, #377).
+    ///     The Media header and the rows under it, laid over them to take the walk's typing and the mouse (#378, #379).
     /// </summary>
     private readonly ComposeMediaField _media;
 
@@ -116,15 +115,12 @@ internal sealed class ComposeView : View
                 WriteWarning),
             (compose, room) => compose.LangAt(room));
 
-        // A click anywhere on the header or a row walks there, and one on a row's description opens the description
-        // editor (#377). On the header, one on the toggle at the end of its line flips it (#379), and one anywhere else
-        // on it — its words — opens the file browser (#376).
+        // A click on the toggle at the end of Media's line flips it; anywhere else on the header — its words — opens
+        // the file browser (#376). A click on a row is the field's own (#378, #377).
         _media = Placed(
-            new ComposeMediaField((row, column, width, twice) =>
+            new ComposeMediaField(shell, column =>
             {
-                _shell.ClickMedia(row, column, width, twice);
-
-                if (row != 0 || _shell.Screen is not ComposeScreen compose)
+                if (_shell.Screen is not ComposeScreen compose)
                 {
                     return;
                 }
@@ -374,7 +370,7 @@ internal sealed class ComposeView : View
                 ComposeField.To => _to,
                 ComposeField.Lang => _lang,
                 ComposeField.Warning => _warning,
-                ComposeField.Media => _media,
+                ComposeField.Media or ComposeField.Attachment => _media,
                 _ => _editor,
             };
 

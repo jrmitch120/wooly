@@ -93,19 +93,12 @@ public class ComposeSensitiveTests : IDisposable
     {
         var (shell, _, compose) = await Attached();
 
-        // Up off the post onto the attachment's row first, then the header above it (#377).
         shell.Press(ShellKey.Up);
         Assert.Equal(ComposeField.Media, compose.Typing);
-        Assert.NotNull(compose.SelectedAttachment);
-
-        shell.Press(ShellKey.Up);
-        Assert.Equal(ComposeField.Media, compose.Typing);
-        Assert.Null(compose.SelectedAttachment);
 
         shell.Press(ShellKey.Up);
         Assert.Equal(ComposeField.Warning, compose.Typing);
 
-        shell.Press(ShellKey.Down);
         shell.Press(ShellKey.Down);
         shell.Press(ShellKey.Down);
         Assert.Equal(ComposeField.Post, compose.Typing);
@@ -250,7 +243,7 @@ public class ComposeSensitiveTests : IDisposable
         built.Author.Attaching.Single().Ready();
         view.Settle();
 
-        // Onto the attachment's row, then the header above it (#377).
+        // Up onto the row, then onto the header over it (#378).
         view.Press(Terminal.Gui.Input.Key.CursorUp);
         view.Press(Terminal.Gui.Input.Key.CursorUp);
         view.Press(Terminal.Gui.Input.Key.S);

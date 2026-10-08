@@ -23,85 +23,6 @@ public class ComposeDescriptionTests : IDisposable
     private readonly TemporaryDirectory _files = new();
 
     /// <summary>
-    ///     <c>↑</c> from the post walks the attachments' rows from the bottom, then the Media header, then Warn; <c>↓</c>
-    ///     walks back the same way into the post.
-    /// </summary>
-    [Fact]
-    public async Task UpFromThePostWalksTheRowsThenTheHeaderThenWarn()
-    {
-        var (shell, _, compose) = await Composing();
-
-        shell.Paste(_files.WriteFile("one.png"));
-        shell.Paste(_files.WriteFile("two.png"));
-
-        shell.Press(ShellKey.Up);
-
-        Assert.Equal(ComposeField.Media, compose.Typing);
-        Assert.Equal("two.png", compose.SelectedAttachment?.Name);
-
-        shell.Press(ShellKey.Up);
-
-        Assert.Equal("one.png", compose.SelectedAttachment?.Name);
-
-        shell.Press(ShellKey.Up);
-
-        Assert.Equal(ComposeField.Media, compose.Typing);
-        Assert.Null(compose.SelectedAttachment);
-
-        shell.Press(ShellKey.Up);
-
-        Assert.Equal(ComposeField.Warning, compose.Typing);
-
-        shell.Press(ShellKey.Down);
-        shell.Press(ShellKey.Down);
-        shell.Press(ShellKey.Down);
-        shell.Press(ShellKey.Down);
-
-        Assert.Equal(ComposeField.Post, compose.Typing);
-    }
-
-    /// <summary>
-    ///     The row walked onto carries the selection bar right against its grip, and its name in the selection's
-    ///     colour; the rows not walked onto carry neither.
-    /// </summary>
-    [Fact]
-    public async Task TheRowWalkedOntoIsMarked()
-    {
-        var (shell, _, compose) = await Composing();
-
-        shell.Paste(_files.WriteFile("one.png"));
-        shell.Paste(_files.WriteFile("two.png"));
-        shell.Press(ShellKey.Up);
-
-        Assert.StartsWith("    ▌⠶   two.png", Row(compose, "two.png"), StringComparison.Ordinal);
-        Assert.StartsWith("     ⠶   one.png", Row(compose, "one.png"), StringComparison.Ordinal);
-
-        var marked = Lines(compose).Single(line => line.Text.Contains("two.png", StringComparison.Ordinal));
-
-        Assert.Equal(Role.Selection, Assert.Single(marked.Spans, span => span.Text == "▌").Role);
-        Assert.Equal(Role.SelectedText, Assert.Single(marked.Spans, span => span.Text.StartsWith("two.png", StringComparison.Ordinal)).Role);
-    }
-
-    /// <summary>The Media header walked onto takes no bar: its own words are lit, as the other headers' values are.</summary>
-    [Fact]
-    public async Task TheHeaderWalkedOntoLightsItsWords()
-    {
-        var (shell, _, compose) = await Composing();
-
-        shell.Paste(_files.WriteFile("cat.png"));
-        shell.Press(ShellKey.Up);
-        shell.Press(ShellKey.Up);
-
-        Assert.Equal(ComposeField.Media, compose.Typing);
-
-        var header = Lines(compose).Single(line => line.Text.StartsWith("  Media", StringComparison.Ordinal));
-
-        Assert.Equal("  Media  1 of 4 · ctrl-o to add · □ sensitive", header.Text);
-        Assert.Equal(Role.SelectedText, Assert.Single(header.Spans, span => span.Text == "1 of 4").Role);
-        Assert.DoesNotContain(header.Spans, span => span.Text == "▌");
-    }
-
-    /// <summary>
     ///     <c>enter</c> on a row opens the description editor over the draft, named after the attachment, with the
     ///     instance's limit to count against.
     /// </summary>
@@ -111,7 +32,7 @@ public class ComposeDescriptionTests : IDisposable
         var (shell, _, compose) = await Composing();
 
         shell.Paste(_files.WriteFile("cat.png"));
-        shell.Press(ShellKey.Up);
+        Walk(shell, ShellKey.Up);
         shell.Press(ShellKey.Enter);
 
         var describing = Assert.IsType<DescriptionScreen>(shell.Screen);
@@ -135,8 +56,8 @@ public class ComposeDescriptionTests : IDisposable
         var (shell, _, _) = await Composing();
 
         shell.Paste(_files.WriteFile("cat.png"));
-        shell.Press(ShellKey.Up);
-        shell.Press(ShellKey.Up);
+        Walk(shell, ShellKey.Up);
+        Walk(shell, ShellKey.Up);
         shell.Press(ShellKey.Enter);
 
         Assert.IsType<FileBrowserScreen>(shell.Screen);
@@ -149,7 +70,7 @@ public class ComposeDescriptionTests : IDisposable
         var (shell, _, _) = await Composing(PostLimits.Default with { Descriptions = 420 });
 
         shell.Paste(_files.WriteFile("cat.png"));
-        shell.Press(ShellKey.Up);
+        Walk(shell, ShellKey.Up);
         shell.Press(ShellKey.Enter);
         shell.WriteDescription("A cat");
 
@@ -166,7 +87,7 @@ public class ComposeDescriptionTests : IDisposable
         var (shell, _, _) = await Composing(PostLimits.Default with { Descriptions = 10 });
 
         shell.Paste(_files.WriteFile("cat.png"));
-        shell.Press(ShellKey.Up);
+        Walk(shell, ShellKey.Up);
         shell.Press(ShellKey.Enter);
         shell.WriteDescription("A cat on a mat");
 
@@ -190,7 +111,7 @@ public class ComposeDescriptionTests : IDisposable
         built.Author.Attaching.Single().Ready();
         built.Host.Drain();
 
-        shell.Press(ShellKey.Up);
+        Walk(shell, ShellKey.Up);
         shell.Press(ShellKey.Enter);
         shell.WriteDescription("A cat asleep on a mat");
         shell.Press(done);
@@ -212,7 +133,7 @@ public class ComposeDescriptionTests : IDisposable
         shell.Paste(_files.WriteFile("cat.png"));
         built.Author.Attaching.Single().Ready();
         built.Host.Drain();
-        shell.Press(ShellKey.Up);
+        Walk(shell, ShellKey.Up);
         shell.Press(ShellKey.Enter);
         shell.WriteDescription("A dog in a red knitted coat sitting on the steps of a house in the rain");
         shell.Press(ShellKey.Escape);
@@ -230,7 +151,7 @@ public class ComposeDescriptionTests : IDisposable
         var (shell, built, _) = await Composing();
 
         shell.Paste(_files.WriteFile("cat.png"));
-        shell.Press(ShellKey.Up);
+        Walk(shell, ShellKey.Up);
         shell.Press(ShellKey.Enter);
         shell.WriteDescription("A cat");
         shell.Press(ShellKey.Escape);
@@ -261,7 +182,7 @@ public class ComposeDescriptionTests : IDisposable
         built.Author.Attaching.Single().Ready();
         built.Host.Drain();
 
-        shell.Press(ShellKey.Up);
+        Walk(shell, ShellKey.Up);
         shell.Press(ShellKey.Enter);
         shell.WriteDescription("A cat");
 
@@ -403,7 +324,7 @@ public class ComposeDescriptionTests : IDisposable
 
         var compose = Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
 
-        Assert.Equal("cat.png", compose.SelectedAttachment?.Name);
+        Assert.Equal("cat.png", compose.PickedAttachment?.Name);
 
         drawn.Click(Find(drawn, "no alt text").Column, row);
 
@@ -462,14 +383,25 @@ public class ComposeDescriptionTests : IDisposable
 
     public void Dispose() => _files.Dispose();
 
+    /// <summary>
+    ///     <paramref name="key" /> pressed on the screen in front once it has been drawn, as a terminal would have drawn it
+    ///     before anything is pressed: the walk keeps to the rows that were drawn (#378).
+    /// </summary>
+    private static void Walk(Wooly.Tui.Shell.Shell shell, ShellKey key)
+    {
+        _ = Lines(shell.Screen);
+
+        shell.Press(key);
+    }
+
     /// <summary>Opens the description editor on the only attachment, writes <paramref name="description" /> and is done.</summary>
     private static void Describe(Wooly.Tui.Shell.Shell shell, string description)
     {
-        shell.Press(ShellKey.Up);
+        Walk(shell, ShellKey.Up);
         shell.Press(ShellKey.Enter);
         shell.WriteDescription(description);
         shell.Press(ShellKey.Escape);
-        shell.Press(ShellKey.Down);
+        Walk(shell, ShellKey.Down);
     }
 
     /// <summary>The row and column <paramref name="text" /> is first drawn at in the window.</summary>

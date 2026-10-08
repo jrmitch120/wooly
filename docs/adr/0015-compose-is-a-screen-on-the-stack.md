@@ -289,6 +289,23 @@ goes as the warning, and `PostAuthor` marks the post for either.
 rather than a selection bar — because the toggle is all there is to do on it so far. `s` there is the one letter the
 keymap gives compose, bound only while the typing is on Media, where no field would take it as a letter.
 
+## Amendment: the rows under Media are walked to and fixed there (map #372, ticket #378)
+
+**The walk goes through the rows as well as the header.** `↑` from the post reaches the bottom row first, then each
+row up to the Media header, then Warn; `↓` walks back. A row walked to carries the selection bar against its grip, set
+in a column of its own so that nothing on the row moves as the walk passes. The rows are walked only while they are
+drawn: folded into the header's line on a short terminal, the walk stops on the header alone.
+
+**On a row, the keys the fields keep for their own text are the row's**, because no field has the typing there: `del`
+or `backspace` takes it off, `ctrl-z` brings back the last one taken off in its place — one deep, and only on the
+Media header and its rows, so that the editor and Warn keep their own undo — `shift-↑`/`shift-↓` move it, and `r` sends
+it up again where a retry could mend its refusal (a dropped connection, never a file the instance refuses). Not
+`alt-↑`/`alt-↓`: macOS Terminal turns Option-arrows into word jumps that never reach the program. `s` toggles sensitive
+from a row as from the header. The pointer does the same: a click picks a row, a click on its `x` or `retry (r)` takes
+it off or retries it, and dragging a row moves it live, the others making way, with no landing marker.
+
+**The screen stays inert here too.** It moves what is attached and says which one a retry starts over; the shell sends
+that up again, as it sent it the first time (ADR-0026), and never retries by itself (ADR-0006).
 ## Amendment: the file browser is a screen on the stack, and Media is always walked to (map #372, ticket #376)
 
 **Attaching from the disk is a screen pushed over the draft**, by this ADR's rule for anything new: `ctrl-o`, `⏎` on
@@ -310,9 +327,8 @@ cancel to keep a copy for.
 
 **Its field is a widget of its own, laid over the content viewport as compose's are.** The window adds a second view
 beside compose's, shown while the description editor is on top; the screen says where the field goes, the view puts it
-there, and every change goes through the shell. The walk goes on past the Media header (#379) through each
-attachment's row, the row walked onto barred as a picked row is; the view laid over the header for the toggle covers
-the rows too and takes their clicks, the screen painting what shows through.
+there, and every change goes through the shell. On compose, `⏎` on a row walked to (#378) and a click on a row's
+description are what the view laid over the Media block already takes.
 
 **The shell sends the description**, as it sends the file (ADR-0026): once the attachment is ready, again whenever it
 changes, and before the post is published — `Shell.Send` waits on a description on its way as on an upload.
