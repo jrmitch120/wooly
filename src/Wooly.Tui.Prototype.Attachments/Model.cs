@@ -114,10 +114,26 @@ internal sealed class Draft
         return leftOut;
     }
 
+    private (Attachment Item, int At)? _removed;
+
     public void Remove(Attachment item)
     {
+        _removed = (item, Items.IndexOf(item));
         Items.Remove(item);
         Touch();
+    }
+
+    /// <summary>Puts the last attachment removed back where it was, description and all; where it went back to.</summary>
+    public int? Restore()
+    {
+        if (_removed is not { } removed || Items.Count >= Instance.Most) return null;
+
+        var at = Math.Min(removed.At, Items.Count);
+        Items.Insert(at, removed.Item);
+        _removed = null;
+        Touch();
+
+        return at;
     }
 
     public int Move(int from, int by)

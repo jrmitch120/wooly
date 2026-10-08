@@ -244,7 +244,7 @@ internal sealed class AttachArea(AreaMode mode) : Painted
         ? Mode == AreaMode.Summary && Draft.Items.Count > 0
             ? "enter or click: the attachments screen · s sensitive · ↑ warning · ↓ editor"
             : "enter or click: attach… · s sensitive · ↑/↓ walk · ctrl-o attach"
-        : "enter describe · del remove · shift-↑/↓ reorder (or drag) · r retry · s sensitive · ↑/↓ walk";
+        : "enter describe · del remove · ctrl-z undo remove · shift-↑/↓ reorder (or drag) · r retry · s sensitive · ↑/↓ walk";
 
     protected override void Paint()
     {
@@ -323,8 +323,8 @@ internal sealed class AttachArea(AreaMode mode) : Painted
 
         if (_dragFrom is { } from && _dragOver != from)
         {
-            var y = _dragOver > from ? RowTop(_dragOver) + RowHeight - 1 : RowTop(_dragOver);
-            Put(Geometry.Pad, y, "▶", Role.Selection);
+            // Where it will land: a thinner selection bar, a ghost of the one on the row being dragged.
+            for (var row = 0; row < RowHeight; row++) Put(0, RowTop(_dragOver) + row, "▎", Role.Selection);
         }
     }
 
@@ -487,6 +487,14 @@ internal sealed class AttachArea(AreaMode mode) : Painted
         {
             if (items.Count > 0) Proto.ToggleSensitive();
         }
+        else if (key == Key.Z.WithCtrl)
+        {
+            if (Draft.Restore() is { } back)
+            {
+                Cursor = back;
+                Proto.Say($"brought back {items[back].Name}");
+            }
+        }
         else if (key == Key.R && Cursor >= 0 && Cursor < items.Count)
         {
             Draft.Retry(items[Cursor]);
@@ -643,7 +651,7 @@ internal sealed class StripArea : Painted
 
     private int Tiles => Draft.Items.Count + (Draft.Items.Count < Instance.Most ? 1 : 0);
 
-    public string Hints => "←/→ walk · enter describe · del remove · shift-←/→ reorder (or drag) · r retry · ↑ editor";
+    public string Hints => "←/→ walk · enter describe · del remove · ctrl-z undo remove · shift-←/→ reorder (or drag) · r retry · ↑ editor";
 
     private int TileAt(int x) => (x - Geometry.Pad) / TileWidth;
 
@@ -716,6 +724,14 @@ internal sealed class StripArea : Painted
         {
             if (Cursor < items.Count) Proto.Describe(items[Cursor]);
             else Proto.OpenBrowser();
+        }
+        else if (key == Key.Z.WithCtrl)
+        {
+            if (Draft.Restore() is { } back)
+            {
+                Cursor = back;
+                Proto.Say($"brought back {items[back].Name}");
+            }
         }
         else if (key == Key.R && Cursor < items.Count) Draft.Retry(items[Cursor]);
         else if (key == Key.S) Proto.ToggleSensitive();
