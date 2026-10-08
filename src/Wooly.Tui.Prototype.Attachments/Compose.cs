@@ -256,7 +256,7 @@ internal sealed class AttachArea(AreaMode mode) : Painted
 
         if (Mode != AreaMode.Manage)
         {
-            Geometry.Label(this, 0, Proto.AttachLabel, items.Count > 0 ? Role.Media : Role.Muted);
+            Geometry.Label(this, 0, Proto.AttachLabel, Role.Link);
         }
         else
         {
@@ -285,8 +285,8 @@ internal sealed class AttachArea(AreaMode mode) : Painted
         }
         else if (items.Count < Instance.Most)
         {
-            const string attach = "＋ attach…";
-            var end = Spans(x, 0, (attach, onHeader ? Role.SelectedText : Role.Link), ("  ctrl-o", Role.Muted));
+            // The warning header's format: a muted hint of what the header holds and the key that adds to it.
+            var end = Spans(x, 0, ("attach", onHeader ? Role.SelectedText : Role.Link), (" · ctrl-o to add", Role.Muted));
             _hits.Add((new Rectangle(x, 0, end - x, 1), Hit.Attach, -1));
             headerEnd = end;
 

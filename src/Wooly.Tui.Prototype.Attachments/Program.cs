@@ -82,7 +82,7 @@ namespace Wooly.Tui.Prototype.Attachments
         public static int LabelStyle { get; set; }
 
         /// <summary>The Attach header's label: candidates for the paper clip, F7 cycles them.</summary>
-        public static readonly string[] AttachLabels = ["📎", "▒▒", "▒", "Media", "File", "With", "＋", "⧉"];
+        public static readonly string[] AttachLabels = ["+", "📎", "▒▒", "▒", "Media", "File", "With", "⧉"];
 
         public static string AttachLabel => AttachLabels[LabelStyle];
 
