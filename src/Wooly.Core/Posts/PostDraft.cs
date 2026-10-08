@@ -52,6 +52,20 @@ public sealed record PostDraft
     /// <summary>Files to attach, in the order they should appear on the post.</summary>
     public IReadOnlyList<MediaAttachment> Media { get; init; } = [];
 
+    /// <summary>
+    ///     Attachments already sent up to the instance (ADR-0026, #375), in the order they should appear on the post —
+    ///     what the TUI's compose screen names, where the CLI names files (<see cref="Media" />). A draft names one or
+    ///     the other: <see cref="IPostAuthor.Publish" /> takes files and <see cref="IPostAuthor.PublishAttached" />
+    ///     takes these.
+    /// </summary>
+    public IReadOnlyList<PendingAttachment> Attached { get; init; } = [];
+
+    /// <summary>
+    ///     Whether what is attached goes behind a click, as the author chose it. A warning puts it there whatever this
+    ///     says (ADR-0008), so this only ever adds to what <see cref="ContentWarning" /> already does.
+    /// </summary>
+    public bool Sensitive { get; init; }
+
     /// <summary>A poll to attach, or <see langword="null" /> for a post that asks nothing.</summary>
     public PollDraft? Poll { get; init; }
 
@@ -67,14 +81,21 @@ public sealed record PostDraft
         {
             // Mastodon takes a post with no text only when it carries media — a picture is the thing being said. It
             // will not take one that is nothing but a poll, so a question still has to be asked in words.
-            if (string.IsNullOrWhiteSpace(Text) && Media.Count == 0)
+            if (string.IsNullOrWhiteSpace(Text) && Media.Count == 0 && Attached.Count == 0)
             {
                 return "A post needs something to say: give it text, or attach a file.";
             }
 
+            // Two routes into publishing, one for each (ADR-0026): a draft naming both would need both, and no front
+            // end composes one.
+            if (Media.Count > 0 && Attached.Count > 0)
+            {
+                return "A post names files to send or attachments already sent, not both.";
+            }
+
             // An instance stores one or the other on a post, and refuses a request carrying both. Answered here rather
             // than left to the refusal, because by then the media has already been uploaded.
-            return Media.Count > 0 && Poll is not null
+            return (Media.Count > 0 || Attached.Count > 0) && Poll is not null
                 ? "A post carries either files or a poll, not both."
                 : null;
         }

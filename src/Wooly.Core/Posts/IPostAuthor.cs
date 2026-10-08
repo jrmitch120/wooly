@@ -24,6 +24,47 @@ public interface IPostAuthor
     Task<Post> Publish(ActiveProfile profile, PostDraft draft, CancellationToken cancellationToken);
 
     /// <summary>
+    ///     Sends the file at <paramref name="path" /> up to <paramref name="profile" />'s instance as a pending
+    ///     attachment, for a post not yet written to name (ADR-0026, #375) — reporting to <paramref name="progress" />
+    ///     how far it has got, and waiting out the instance's processing of it before handing it back.
+    /// </summary>
+    /// <remarks>
+    ///     The TUI's way of attaching, where <see cref="Publish" /> is the CLI's: a compose screen sends each file the
+    ///     moment it is attached, so a refusal arrives while there is still a draft to change. Never retried here; trying
+    ///     again is the author's choice (ADR-0006).
+    /// </remarks>
+    /// <returns>The attachment, ready for a post to name it.</returns>
+    /// <exception cref="Errors.MediaNotFoundException">There is no file at <paramref name="path" />.</exception>
+    /// <exception cref="Errors.AttachmentRefusedException">
+    ///     The instance would not take the file, or could not process it, and said why.
+    /// </exception>
+    /// <exception cref="Errors.TransientNetworkException">The instance could not be reached, retries included.</exception>
+    Task<PendingAttachment> Attach(
+        ActiveProfile profile,
+        string path,
+        IProgress<AttachmentProgress> progress,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    ///     Publishes <paramref name="draft" /> as <paramref name="profile" />, carrying the pending attachments it names
+    ///     by id (<see cref="PostDraft.Attached" />) rather than files by path (ADR-0026, #375).
+    /// </summary>
+    /// <remarks>
+    ///     Everything else as <see cref="Publish" /> does it, a reply's reach included. A post that names no attachment
+    ///     at all is published this way too, which is how the TUI publishes every post.
+    /// </remarks>
+    /// <returns>The post as the instance published it.</returns>
+    /// <exception cref="ArgumentException">
+    ///     The draft is not one an instance would take (<see cref="PostDraft.Problem" />), or names files by path, which
+    ///     are <see cref="Publish" />'s.
+    /// </exception>
+    /// <exception cref="Errors.PostRefusedException">
+    ///     The instance would not take the post — among other things, one naming an attachment it has not finished
+    ///     processing.
+    /// </exception>
+    Task<Post> PublishAttached(ActiveProfile profile, PostDraft draft, CancellationToken cancellationToken);
+
+    /// <summary>
     ///     Changes the post <paramref name="postId" /> names, leaving everything <paramref name="edit" /> does not
     ///     mention as it was.
     /// </summary>

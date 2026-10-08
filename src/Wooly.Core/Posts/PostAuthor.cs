@@ -1,6 +1,12 @@
+using System.Net;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using System.Text.Json.Serialization;
 using Mastonet;
 using Mastonet.Entities;
 using Wooly.Core.Errors;
+using Wooly.Core.Http;
 using Wooly.Core.Profiles;
 
 namespace Wooly.Core.Posts;
@@ -21,10 +27,19 @@ namespace Wooly.Core.Posts;
 ///         edit says otherwise — its content warning are carried into the request. A poll cannot be carried through at
 ///         all, and that is the one thing this refuses to do (see <see cref="UneditablePostException" />).
 ///     </para>
-///     Nothing here retries and nothing here waits: a publish is a write, which ADR-0006 never resends, and a rate limit
-///     is reported rather than slept off.
+///     <para>
+///         The TUI attaches the other way round (ADR-0026): each file goes up on its own as it is attached
+///         (<see cref="Attach" />), and the post names what went up by id (<see cref="PublishAttached" />). That upload
+///         is sent by hand rather than through Mastonet, whose upload says nothing of how far it has got and which has
+///         no call to ask whether the instance has finished processing a file.
+///     </para>
+///     Nothing here retries and nothing here waits but that processing: a publish is a write, which ADR-0006 never
+///     resends, and a rate limit is reported rather than slept off.
 /// </summary>
-public sealed class PostAuthor(IMastodonClientFactory clientFactory) : IPostAuthor
+public sealed class PostAuthor(
+    IMastodonClientFactory clientFactory,
+    IHttpClientFactory httpClientFactory,
+    AttachmentPolling polling) : IPostAuthor
 {
     /// <inheritdoc />
     public async Task<Post> Publish(ActiveProfile profile, PostDraft draft, CancellationToken cancellationToken)
@@ -32,6 +47,11 @@ public sealed class PostAuthor(IMastodonClientFactory clientFactory) : IPostAuth
         if (draft.Problem is { } problem)
         {
             throw new ArgumentException(problem, nameof(draft));
+        }
+
+        if (draft.Attached.Count > 0)
+        {
+            throw new ArgumentException("Attachments already sent are published with PublishAttached.", nameof(draft));
         }
 
         // Before a single byte is uploaded. Finding the fourth path wrong after three files have gone up costs the user
@@ -52,6 +72,80 @@ public sealed class PostAuthor(IMastodonClientFactory clientFactory) : IPostAuth
 
         var attachmentIds = await Upload(client, draft.Media, cancellationToken);
 
+        return await Published(client, profile, draft, reaching, attachmentIds, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<PendingAttachment> Attach(
+        ActiveProfile profile,
+        string path,
+        IProgress<AttachmentProgress> progress,
+        CancellationToken cancellationToken)
+    {
+        if (!File.Exists(path))
+        {
+            throw new MediaNotFoundException(path);
+        }
+
+        var media = await SentUp(profile, path, progress, cancellationToken);
+
+        // An instance answers a file it has not finished with no address for it — 202 to the upload, 206 to the ask —
+        // and a post naming it before then is refused, so it is asked again until it has one.
+        while (media.Url is null)
+        {
+            progress.Report(new AttachmentProgress.Processing());
+
+            await Task.Delay(polling.Every, cancellationToken);
+
+            media = await Asked(() => RawMastodonCall.Get<MediaWire>(
+                        httpClientFactory,
+                        profile,
+                        $"api/v1/media/{Uri.EscapeDataString(media.Id)}",
+                        [],
+                        cancellationToken))
+                    ?? throw new AttachmentRefusedException(null);
+        }
+
+        return new PendingAttachment(media.Id, PostWire.ToKind(media.Type));
+    }
+
+    /// <inheritdoc />
+    public async Task<Post> PublishAttached(ActiveProfile profile, PostDraft draft, CancellationToken cancellationToken)
+    {
+        if (draft.Problem is { } problem)
+        {
+            throw new ArgumentException(problem, nameof(draft));
+        }
+
+        if (draft.Media.Count > 0)
+        {
+            throw new ArgumentException("Files by path are published with Publish.", nameof(draft));
+        }
+
+        var client = clientFactory.CreateClient(profile.Instance, profile.AccessToken);
+        var reaching = await Reaching(client, draft, cancellationToken);
+
+        return await Published(
+            client,
+            profile,
+            draft,
+            reaching,
+            [.. draft.Attached.Select(attached => attached.Id)],
+            cancellationToken);
+    }
+
+    /// <summary>
+    ///     Publishes <paramref name="draft" /> carrying <paramref name="attachmentIds" />, at
+    ///     <paramref name="reaching" /> — the one call both routes into publishing end in.
+    /// </summary>
+    private static async Task<Post> Published(
+        IMastodonClient client,
+        ActiveProfile profile,
+        PostDraft draft,
+        PostVisibility? reaching,
+        IReadOnlyList<string> attachmentIds,
+        CancellationToken cancellationToken)
+    {
         // Mastonet's own calls take no cancellation token, so a Ctrl-C lands between calls rather than during one.
         // Between the last upload and the publish is the last moment stopping means nothing was published.
         cancellationToken.ThrowIfCancellationRequested();
@@ -63,14 +157,75 @@ public sealed class PostAuthor(IMastodonClientFactory clientFactory) : IPostAuth
             attachmentIds,
 
             // A warning nothing knows to honour is not a warning. Mastodon carries the text and the "hide this" flag as
-            // two fields, so the flag is set from the text rather than asked for separately — there is no post this
-            // client composes that wants one without the other.
-            sensitive: draft.ContentWarning is not null,
+            // two fields, so a warning sets the flag whatever else does (ADR-0008); the author's own toggle can only
+            // add to that, for attachments to go behind a click with no warning written.
+            sensitive: draft.Sensitive || draft.ContentWarning is not null,
             spoilerText: draft.ContentWarning,
             language: draft.Language,
             poll: draft.Poll is null ? null : ToWire(draft.Poll));
 
         return PostWire.ToPost(published, profile);
+    }
+
+    /// <summary>
+    ///     Sends the file at <paramref name="path" /> to <c>/api/v2/media</c> by hand, as Mastonet would but saying how
+    ///     far it has got, and reads back what the instance made of it.
+    /// </summary>
+    private async Task<MediaWire> SentUp(
+        ActiveProfile profile,
+        string path,
+        IProgress<AttachmentProgress> progress,
+        CancellationToken cancellationToken)
+    {
+        // Opened here and closed here, as Upload's are: an upload that fails part way through leaves no file held open.
+        await using var file = File.OpenRead(path);
+
+        var body = new ReportingContent(file, done => progress.Report(new AttachmentProgress.Sending(done)));
+
+        if (AttachmentTypes.Of(path) is { } type)
+        {
+            body.Headers.ContentType = new MediaTypeHeaderValue(type);
+        }
+
+        using var form = new MultipartFormDataContent { { body, "file", Path.GetFileName(path) } };
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri($"https://{profile.Instance}/api/v2/media"))
+        {
+            Content = form,
+        };
+
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", profile.AccessToken);
+
+        var http = httpClientFactory.CreateClient(WoolyClient.HttpClientName);
+
+        using var response = await http.SendAsync(request, cancellationToken);
+
+        // Too large, of a type the instance will not take, or one it could not make sense of — the instance's to say,
+        // and the author's to fix, so it is said in the instance's words rather than as a failure of the call.
+        if (response.StatusCode is HttpStatusCode.UnprocessableEntity or HttpStatusCode.RequestEntityTooLarge)
+        {
+            throw new AttachmentRefusedException(await InstanceError.Reason(response, cancellationToken));
+        }
+
+        response.EnsureSuccessStatusCode();
+
+        return await response.Content.ReadFromJsonAsync<MediaWire>(cancellationToken)
+               ?? throw new AttachmentRefusedException(null);
+    }
+
+    /// <summary>
+    ///     Asks after a file being processed: an instance that could not process it answers 422, which is the file
+    ///     refused as surely as a refusal of the upload.
+    /// </summary>
+    private static async Task<MediaWire?> Asked(Func<Task<MediaWire?>> ask)
+    {
+        try
+        {
+            return await ask();
+        }
+        catch (HttpRequestException refused) when (refused.StatusCode == HttpStatusCode.UnprocessableEntity)
+        {
+            throw new AttachmentRefusedException(null);
+        }
     }
 
     /// <inheritdoc />
@@ -206,4 +361,20 @@ public sealed class PostAuthor(IMastodonClientFactory clientFactory) : IPostAuth
         ExpiresIn = poll.OpenFor,
         Multiple = poll.MultipleChoice,
     };
+
+    /// <summary>
+    ///     The little of an instance's answer about an attachment this reads: its id, its kind, and its address, which
+    ///     it has none of until it has finished processing.
+    /// </summary>
+    private sealed record MediaWire
+    {
+        [JsonPropertyName("id")]
+        public required string Id { get; init; }
+
+        [JsonPropertyName("type")]
+        public string? Type { get; init; }
+
+        [JsonPropertyName("url")]
+        public string? Url { get; init; }
+    }
 }

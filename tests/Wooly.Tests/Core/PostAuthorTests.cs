@@ -829,17 +829,168 @@ public class PostAuthorTests : IDisposable
         Assert.IsNotType<PostRefusedException>(refusal);
     }
 
+    /// <summary>
+    ///     A file attached in the TUI goes up on its own (ADR-0026, #375): to <c>v2/media</c>, as the file it is, with
+    ///     what was sent reported on the way and the attachment handed back once the instance has it ready.
+    /// </summary>
+    [Fact]
+    public async Task Attach_SendsTheFileUpAndHandsBackTheAttachment()
+    {
+        var network = Answering("""{"id":"m1","type":"image","url":"https://mastodon.social/media/m1.png"}""");
+        var reported = new Reported();
+
+        var attached = await NewAuthor(network).Attach(
+            Profile,
+            _directory.WriteFile("cat.png"),
+            reported,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(new PendingAttachment("m1", MediaKind.Image), attached);
+        Assert.Equal("https://mastodon.social/api/v2/media", Assert.Single(network.Requests).RequestUri?.ToString());
+        Assert.Equal(HttpMethod.Post, network.Requests[0].Method);
+        Assert.Equal("Bearer", network.Requests[0].Headers.Authorization?.Scheme);
+        Assert.Contains("cat.png", network.Bodies[0]);
+        Assert.Contains("pretend this is a picture", network.Bodies[0]);
+        Assert.Equal(new AttachmentProgress.Sending(1), reported.All[^1]);
+    }
+
+    /// <summary>
+    ///     An instance still processing what it was sent answers with no address for it, and is asked again until it
+    ///     has one — saying the attachment is processing meanwhile, since a post cannot name it until then.
+    /// </summary>
+    [Fact]
+    public async Task Attach_WaitsOutTheInstancesProcessing()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            Accepted("""{"id":"m2","type":"video","url":null}"""),
+            ScriptedHttpMessageHandler.Json("""{"id":"m2","type":"video","url":null}"""),
+            ScriptedHttpMessageHandler.Json("""{"id":"m2","type":"video","url":"https://mastodon.social/media/m2.mp4"}"""));
+        var reported = new Reported();
+
+        var attached = await NewAuthor(network, polling: TimeSpan.Zero).Attach(
+            Profile,
+            _directory.WriteFile("clip.mp4"),
+            reported,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(new PendingAttachment("m2", MediaKind.Video), attached);
+        Assert.Equal(3, network.Requests.Count);
+        Assert.Equal("https://mastodon.social/api/v1/media/m2", network.Requests[2].RequestUri?.ToString());
+        Assert.Contains(new AttachmentProgress.Processing(), reported.All);
+    }
+
+    /// <summary>An instance that will not take a file says why, in its own words, and nothing is asked after.</summary>
+    [Fact]
+    public async Task Attach_SaysWhyTheInstanceRefusedTheFile()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Refusal(HttpStatusCode.UnprocessableEntity, "File is too large"));
+
+        var refusal = await Assert.ThrowsAsync<AttachmentRefusedException>(() => NewAuthor(network).Attach(
+            Profile,
+            _directory.WriteFile("huge.png"),
+            new Reported(),
+            TestContext.Current.CancellationToken));
+
+        Assert.Equal("File is too large", refusal.Reason);
+        Assert.Single(network.Requests);
+    }
+
+    /// <summary>A path with no file behind it sends nothing.</summary>
+    [Fact]
+    public async Task Attach_SendsNothingForAFileThatIsNotThere()
+    {
+        var network = Answering(AttachmentJson("m1"));
+
+        await Assert.ThrowsAsync<MediaNotFoundException>(() => NewAuthor(network).Attach(
+            Profile,
+            Path.Combine(_directory.Path, "gone.png"),
+            new Reported(),
+            TestContext.Current.CancellationToken));
+
+        Assert.Empty(network.Requests);
+    }
+
+    /// <summary>
+    ///     A draft naming pending attachments publishes them by id, in its own order, and uploads nothing — they are on
+    ///     the instance already (ADR-0026, #375).
+    /// </summary>
+    [Fact]
+    public async Task PublishAttached_NamesThePendingAttachmentsByIdInOrder()
+    {
+        var network = Answering(StatusJson("110"));
+
+        await NewAuthor(network).PublishAttached(
+            Profile,
+            Draft(string.Empty) with
+            {
+                Attached = [new PendingAttachment("m2", MediaKind.Video), new PendingAttachment("m1", MediaKind.Image)],
+            },
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal("https://mastodon.social/api/v1/statuses", Assert.Single(network.Requests).RequestUri?.ToString());
+        Assert.Contains("media_ids%5B%5D=m2&media_ids%5B%5D=m1", network.Bodies[0]);
+    }
+
+    /// <summary>The author's own sensitive flag goes out with the post, with no warning to set it.</summary>
+    [Fact]
+    public async Task PublishAttached_SendsTheSensitiveFlag()
+    {
+        var network = Answering(StatusJson("110"));
+
+        await NewAuthor(network).PublishAttached(
+            Profile,
+            Draft("Look") with { Attached = [new PendingAttachment("m1", MediaKind.Image)], Sensitive = true },
+            TestContext.Current.CancellationToken);
+
+        Assert.Contains("sensitive=true", network.Bodies[0], StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>Files by path are the CLI's, through <see cref="IPostAuthor.Publish" />, and a defect to send here.</summary>
+    [Fact]
+    public async Task PublishAttached_RefusesADraftNamingFiles()
+    {
+        var network = Answering(StatusJson("110"));
+
+        await Assert.ThrowsAsync<ArgumentException>(() => NewAuthor(network).PublishAttached(
+            Profile,
+            Draft("A cat") with { Media = [new MediaAttachment { Path = _directory.WriteFile("cat.png") }] },
+            TestContext.Current.CancellationToken));
+
+        Assert.Empty(network.Requests);
+    }
+
+    /// <summary>Every report an attach made, in order, kept as it was made rather than posted anywhere.</summary>
+    private sealed class Reported : IProgress<AttachmentProgress>
+    {
+        public List<AttachmentProgress> All { get; } = [];
+
+        public void Report(AttachmentProgress value) => All.Add(value);
+    }
+
+    /// <summary>A step answering <c>202 Accepted</c>, which is how an instance says it is still processing a file.</summary>
+    private static Func<HttpRequestMessage, HttpResponseMessage> Accepted(string json) =>
+        _ => new HttpResponseMessage(HttpStatusCode.Accepted)
+        {
+            Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json"),
+        };
+
     private static PostDraft Draft(string text) => new() { Text = text };
 
     private static ScriptedHttpMessageHandler Answering(string json) =>
         new(ScriptedHttpMessageHandler.Json(json));
 
     /// <summary>Resolved from the container the app builds, so the wiring is under test alongside the behavior.</summary>
-    private static IPostAuthor NewAuthor(HttpMessageHandler network)
+    private static IPostAuthor NewAuthor(HttpMessageHandler network, TimeSpan? polling = null)
     {
         var services = new ServiceCollection();
         services.AddWoolyCore();
         services.AddHttpClient(WoolyClient.HttpClientName).ConfigurePrimaryHttpMessageHandler(() => network);
+
+        if (polling is { } every)
+        {
+            services.AddSingleton(new AttachmentPolling(every));
+        }
 
         return services.BuildServiceProvider().GetRequiredService<IPostAuthor>();
     }

@@ -198,7 +198,7 @@ internal static class PostWire
     ///     <see cref="MediaKind.Unknown" /> rather than refused, because an instance is free to serve a kind newer than
     ///     this client and a post whose attachment cannot be named still has one.
     /// </summary>
-    private static MediaKind ToKind(string? type) => type switch
+    internal static MediaKind ToKind(string? type) => type switch
     {
         "image" => MediaKind.Image,
         "gifv" => MediaKind.Animation,
