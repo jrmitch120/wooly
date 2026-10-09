@@ -1,5 +1,6 @@
 using System.Drawing;
 using Terminal.Gui.App;
+using Terminal.Gui.Drivers;
 using Terminal.Gui.Input;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Media;
@@ -173,8 +174,16 @@ internal sealed class DrawnShell : IDisposable
         Redraw();
     }
 
-    /// <summary>A left click on the cell at <paramref name="column" />, <paramref name="row" />.</summary>
-    public void Click(int column, int row) => Point(column, row, MouseFlags.LeftButtonClicked);
+    /// <summary>
+    ///     A left click on the cell at <paramref name="column" />, <paramref name="row" />, as Terminal.Gui reports one:
+    ///     the press, the let-go, and the click it makes of them.
+    /// </summary>
+    public void Click(int column, int row, MouseFlags held = MouseFlags.None)
+    {
+        Point(column, row, MouseFlags.LeftButtonPressed | held);
+        Point(column, row, MouseFlags.LeftButtonReleased | held);
+        Point(column, row, MouseFlags.LeftButtonClicked | held);
+    }
 
     /// <summary>
     ///     A double click on the cell, as Terminal.Gui reports one: the first click on its own the moment it is let go,
@@ -183,6 +192,8 @@ internal sealed class DrawnShell : IDisposable
     public void DoubleClick(int column, int row)
     {
         Click(column, row);
+        Point(column, row, MouseFlags.LeftButtonPressed);
+        Point(column, row, MouseFlags.LeftButtonReleased);
         Point(column, row, MouseFlags.LeftButtonDoubleClicked);
     }
 
@@ -228,6 +239,40 @@ internal sealed class DrawnShell : IDisposable
     {
         Application.Mouse.RaiseMouseEvent(new Mouse { ScreenPosition = new Point(column, row), Flags = flags });
         Redraw();
+    }
+
+    /// <summary>
+    ///     What a terminal writes as the mouse is used — SGR reports (<see cref="Sgr" />) — read in as the running TUI
+    ///     reads them, and the loop's next pass run over them (<see cref="Iterate" />): parsed by Terminal.Gui, the clicks
+    ///     it makes of them made, each sent to the view under the pointer, and the screen drawn only where that left
+    ///     something to draw — never redrawn whole, as <see cref="Point" /> redraws it. All of them land in the one pass,
+    ///     as a burst of reports read at once does.
+    /// </summary>
+    public void Reports(params string[] reports)
+    {
+        var input = (InputProcessorImpl<char>)Application.Driver!.GetInputProcessor();
+
+        foreach (var report in reports)
+        {
+            foreach (var character in report)
+            {
+                input.InputQueue.Enqueue(character);
+            }
+        }
+
+        Iterate();
+    }
+
+    /// <summary>
+    ///     One pass of the running TUI's main loop, as Terminal.Gui makes it: what the terminal sent handled, then what
+    ///     needs laying out laid out and what needs drawing drawn, then the timers run.
+    /// </summary>
+    public void Iterate()
+    {
+        Application.RaiseIteration();
+        Application.Driver!.GetInputProcessor().ProcessQueue();
+        Application.LayoutAndDraw();
+        Application.TimedEvents!.RunTimers();
     }
 
     /// <summary>Every row, as the text drawn on it.</summary>

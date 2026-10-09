@@ -254,7 +254,7 @@ public class ShellRightClickTests
 
         var post = drawn.Shell.Screen;
 
-        drawn.Point(OverContent, ContentRowOf(drawn, 1), MouseFlags.LeftButtonClicked | MouseFlags.Ctrl);
+        drawn.Click(OverContent, ContentRowOf(drawn, 1), MouseFlags.Ctrl);
         drawn.Settle();
 
         Assert.Same(post, drawn.Shell.Screen);

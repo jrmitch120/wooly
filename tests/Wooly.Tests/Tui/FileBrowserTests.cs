@@ -526,7 +526,7 @@ public class FileBrowserTests : IDisposable
 
         var (aAt, aRow) = Find(drawn, "a.png");
 
-        drawn.Point(aAt + 1, aRow, MouseFlags.LeftButtonClicked | MouseFlags.Ctrl);
+        drawn.Click(aAt + 1, aRow, MouseFlags.Ctrl);
 
         Assert.Contains("☑ a.png", drawn.Rows()[aRow], StringComparison.Ordinal);
 
