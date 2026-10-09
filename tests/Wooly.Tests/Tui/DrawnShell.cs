@@ -124,6 +124,9 @@ internal sealed class DrawnShell : IDisposable
 
         frames?.Over(application);
 
+        // Laid over the application as the client lays it, before the window's views start asking there.
+        LeftButton.Over(application);
+
         application.Begin(window);
         application.LayoutAndDraw(true);
 

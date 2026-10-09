@@ -1009,8 +1009,9 @@ lists them under a read-only Media header of its own (#381).
   `configuration.media_attachments.supported_mime_types`, else Mastodon's own; and `description_limit`, else 1500 — read
   with the post's own limit, on the same answer.
 - **The rows are walked to, and fixed where they are** (#378). `↑` from the post walks the rows from the bottom, then
-  the header, then Warn, and `↓` walks back; a row walked to carries `▌` in `selection` against its grip and its name
-  in `selected-text`, the bar in a column held for it so that nothing moves. On a row `del` or `backspace` takes it off
+  the header, then Warn, and `↓` walks back; a row walked to carries `▌` in `selection` against its grip and nothing
+  else — its name stays in its usual role, picked or not, since a name lit as well read as a second thing picked —
+  the bar in a column held for it so that nothing moves. On a row `del` or `backspace` takes it off
   the post, the walk staying on the row that took its place, else the one above, else on the header; `ctrl-z`
   brings back the last one taken off, in its place, with its description and as far as its upload had got — one deep,
   only while the walk is on Media or its rows, and not onto a full post; `shift-↑`/`shift-↓` move it a place, the post
@@ -1028,7 +1029,10 @@ lists them under a read-only Media header of its own (#381).
   reaches and the others make way, with no landing marker, and the release is not also a click (`ComposeMediaField`).
   Only a press on a row picks it up, and its release or click puts it down: some terminals report the pointer moving
   with no button held in the same words as one moving with the left button held, which taken for a drag moved the
-  rows about after a click as the pointer passed over them. The attachments screen's rows drag the same way.
+  rows about after a click as the pointer passed over them. Two quick clicks on `x` take two rows off — the second the
+  row that took the first one's place — though Terminal.Gui reports the second as a double click, which anywhere else
+  on a row describes; the same on `retry (r)`. The attachments screen's rows drag the same way, a press there picking
+  the row as it picks it up, and none of them is ever on the band.
 - **Past the limit**, a drop attaches as many as fit and the status row says `2 left out — 4 is the most a post can
   carry.`, or `Nothing attached — …` onto a full post.
 - **Anything attached touches the draft** (#373), so leaving it asks first.
@@ -1106,8 +1110,11 @@ does a post already carrying all it can, which says `This post carries all it ca
   reads). The cursor is never hidden under them: walking with `↑`/`↓` scrolls so its row is in the room below the rule,
   and one the wheel has scrolled under them is off the page, so the next arrow takes the first row showing below the
   rule, as it would a row wheeled off the top.
-- **The mouse**: a click moves the cursor, a double click opens a folder or attaches a file, and the wheel scrolls the
-  list — the arrows walk the list (`Verb.NextEntry`, `Verb.PreviousEntry`), as `j`/`k` walk posts elsewhere, `j` and
+- **The mouse**: a click moves the cursor, a double click opens a folder or attaches a file — on a box it is a second
+  click on the box — and the wheel scrolls the list and nothing else, wherever the pointer is over the panel: the
+  list, the pinned rows or the preview, sideways notches dropped and a trackpad's bursts a row each. It never moves the
+  cursor, chooses, attaches or leaves, whatever the terminal says the pointer did between notches (`LeftButton`, under
+  **Pointer**) — the arrows walk the list (`Verb.NextEntry`, `Verb.PreviousEntry`), as `j`/`k` walk posts elsewhere, `j` and
   `k` being letters here. A click lands on the row drawn where it points: on a pinned row it is that row's — `ctrl-a
   every file` shows every file, the folder row picks nothing — never a list row scrolled under it.
 - **`esc` with no filter goes back to the draft unchanged**: nothing attached, nothing asked.
@@ -1744,6 +1751,10 @@ answer to nothing, so the rows keep no list of keys of their own. The lists of p
 each hung under the field it serves and asked about every click ahead of the views (#366): the window knows nothing of
 compose beyond adding `ComposeView` and saying where the content viewport is.
 
+Every mouse report is put right before any of them reads it, by `LeftButton`, which the client lays over the
+application before the window is shown, so that it is asked ahead of `ComposeView`'s lists and every view (**Pointer**).
+It decides nothing a gesture means; it only says what the left button did.
+
 ### What the profiles screen settled
 
 #240 put the profiles screen on the stack (ADR-0020). What this document now holds it to:
@@ -1942,6 +1953,21 @@ before the pair, so a double click whose first click declined a question or clos
 opens nothing behind it. A click on a crumb is one of these clicks too: it declines or closes the question and walks
 nowhere. A right click is not one of these clicks but `esc`, and answers the question as `esc` does:
 it declines the confirmation too, but takes the filter off rather than leaving what was typed narrowing the list.
+
+**The left button is believed only from a press** (`LeftButton`, review of #372). Terminal.Gui turns on any-motion
+tracking in SGR form, takes the reports as the terminal words them, and makes clicks of them itself: a click as a
+pressed button is let go, and a double click of a second within 500 ms on the same cell. Some terminals — macOS's
+among them, as #378 found — word the pointer merely moving as a drag with the left button held, so Terminal.Gui took
+the button for down and made a click of the next report that said it was not, a wheel notch most of all: the wheel
+over the file browser after the pointer drifted moved the cursor and then attached a file and left, and over a Media
+row clicked whatever was under the pointer. `LeftButton` is laid over the application ahead of every view and puts each
+report right before anyone reads it: the pointer moving with the button "held" is the pointer moving, unless a press
+was reported and neither its let-go nor its click has come since; a click with no press reported since the last one
+is no click; and a double or triple click whose first half was one of those counts only the clicks there were. What
+the gesture then means is unchanged.
+
+A double click on a run that stands for a key of its own — an attachment's `x` or `retry (r)`, a file's box — is a
+click on it and no `⏎`, since Terminal.Gui reports the second of two quick clicks on one cell only as the pair.
 
 Mouse tracking stays on, and nothing turns it off: drag means nothing, and selecting text to copy goes through the
 terminal's modifier bypass (`⌥` in iTerm2, `Fn` in Terminal.app) until selection is a feature of its own. The `?`

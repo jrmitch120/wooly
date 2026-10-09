@@ -1335,6 +1335,21 @@ public sealed class Shell
     }
 
     /// <summary>
+    ///     A press on the <paramref name="row" />th row of the attachments screen, which picks it as a press on a row
+    ///     under the Media header does, so that the row being dragged carries the bar from the moment it is picked up
+    ///     (#378, review of #372). Nothing on any other screen, where a press picks nothing and the click does.
+    /// </summary>
+    public void PickUp(int row)
+    {
+        if (Screen is not AttachmentsScreen listing || row < 0 || row >= listing.Compose.Attachments.Count)
+        {
+            return;
+        }
+
+        _ = ChangeCompose(compose => compose.Pick(listing.Compose.Attachments[row]));
+    }
+
+    /// <summary>
     ///     A row on the attachments screen dragged by the pointer from the <paramref name="from" />th place to the
     ///     <paramref name="to" />th, live, the others making way — as a row under the Media header is (#378, story 58).
     /// </summary>

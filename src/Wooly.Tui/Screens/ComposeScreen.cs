@@ -1782,9 +1782,9 @@ public sealed class ComposeScreen : Screen
             (Gap(1), AttachmentPart.Row),
             (picture ?? Gap(AttachmentPicture.Columns), AttachmentPart.Row),
             (Gap(1), AttachmentPart.Row),
-            (new Span(
-                Glyphs.Padded(TextWrap.Clip(attached.Name, name), name),
-                picked ? Role.SelectedText : Role.Body), AttachmentPart.Row),
+            // In its usual role picked or not: the bar against the grip is the whole of what says a row is picked, and a
+            // name lit as well read as a second thing picked (review of #372).
+            (new Span(Glyphs.Padded(TextWrap.Clip(attached.Name, name), name), Role.Body), AttachmentPart.Row),
             (Gap(2), AttachmentPart.Row),
             .. kind
                 ? [(new Span(Glyphs.Padded(attached.KindWord, KindColumn), Role.Muted), AttachmentPart.Row)]

@@ -379,3 +379,18 @@ and the status row names both.
 fields that take typing ask the keymap first and fall through to their own paste where nothing was attached; To,
 Media and its rows, which take no paste, leave both keys to the window, which asks the same table — so the paste
 reaches the Media header and the attachments screen, where `ctrl-v` used to do nothing.
+
+## Amendment: a picked row is its bar alone, and the pointer is believed only from a press (map #372, review on macOS)
+
+**A row picked under Media, or on the attachments screen, carries the selection bar against its grip and nothing
+else.** Its name had been lit in `selected-text` as well, and on the attachments screen the whole row was on the band;
+read beside the bar, that was a second thing picked. The name keeps its usual role, picked or not, as every other
+column of the row already did. The bar is what the page follows, so nothing scrolls differently.
+
+**What a gesture on the rows means is unchanged; what counts as one is settled.** Terminal.Gui makes the clicks
+itself from the terminal's reports, and on the author's Mac the terminal worded the pointer merely moving as a drag,
+so the next wheel notch became a click on whatever was under the pointer — an `x` among them. The left button is now
+believed only from a press the terminal reported (`LeftButton`, ADR-0005's amendment says how this is tested). And
+two quick clicks on an `x` take two rows off: Terminal.Gui reports the second only as a double click, which
+anywhere else on a row opens the description editor, and on `x` or `retry (r)` is now a click there. A press on a row
+of the attachments screen picks it, as a press under the header does, so the row being dragged carries the bar.

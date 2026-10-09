@@ -371,7 +371,7 @@ internal sealed class ShellWindow : Window
 
         if (mouse.Flags.HasFlag(MouseFlags.LeftButtonDoubleClicked))
         {
-            return DoubleClicked(mouse.ScreenPosition) || base.OnMouseEvent(mouse);
+            return DoubleClicked(mouse.ScreenPosition, Chorded(mouse)) || base.OnMouseEvent(mouse);
         }
 
         if (!_content.FrameToScreen().Contains(mouse.ScreenPosition) || Notched(mouse) is not { } pressed)
@@ -463,14 +463,17 @@ internal sealed class ShellWindow : Window
     ///     A double click at <paramref name="at" />: in the content, a click on the row and then <c>⏎</c>, meaning
     ///     whatever <c>⏎</c> means on the screen in front, nothing included (#291). On a row that is part of nothing it
     ///     is nothing, rather than a <c>⏎</c> on whatever was picked before — and on the breadcrumb it is its first
-    ///     click's walk back and nothing more, never a <c>⏎</c> on the screen that walk landed on (#308).
+    ///     click's walk back and nothing more, never a <c>⏎</c> on the screen that walk landed on (#308). On a run that
+    ///     stands for a key of its own — an attachment's <c>x</c>, a file's box — it is a click on it, and no <c>⏎</c>.
     /// </summary>
     /// <remarks>
     ///     Terminal.Gui reports the pair's first click on its own before the pair, so a pair whose first click was spent
     ///     on an open question is spent with it, and opens nothing behind the question it closed (story 30, 31).
     /// </remarks>
+    /// <param name="at">Where the second click was.</param>
+    /// <param name="chorded">Whether ctrl or shift was held, as for <see cref="Clicked" />.</param>
     /// <returns>Whether the double click was the shell's, as for <see cref="Clicked" />.</returns>
-    private bool DoubleClicked(Point at)
+    private bool DoubleClicked(Point at, bool chorded)
     {
         // Spent once: a later pair must not be swallowed by a question its own first click never saw.
         var declined = _clickDeclinedQuestion;
@@ -489,6 +492,16 @@ internal sealed class ShellWindow : Window
         if (!_content.FrameToScreen().Contains(at))
         {
             return false;
+        }
+
+        // On a run that stands for a key of its own it is a click there and nothing more, as a second click there
+        // would have been had it come slower: Terminal.Gui reports the second of two quick clicks on one cell only as
+        // the pair, so two quick clicks on an attachment's x took one row off and described the next (review of #372).
+        if (_shell.Click(_content.ItemAt(at), _content.SpanItemAt(at), chorded))
+        {
+            _content.Hold();
+
+            return true;
         }
 
         if (ClickedContent(at))
@@ -564,6 +577,12 @@ internal sealed class ShellWindow : Window
         {
             _pressedOn = on;
             _dragged = false;
+
+            // Picked as it is picked up, where the screen drags its rows; a press picks nothing anywhere else.
+            if (on is { } row)
+            {
+                _shell.PickUp(row);
+            }
 
             return false;
         }

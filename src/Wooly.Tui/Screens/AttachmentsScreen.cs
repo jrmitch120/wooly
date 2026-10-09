@@ -50,7 +50,8 @@ public sealed class AttachmentsScreen(ComposeScreen compose) : Screen
     /// <inheritdoc />
     /// <remarks>
     ///     The Media header's line, unfolded; a blank; then a row each, the picked one carrying the selection bar against
-    ///     its grip, as under the header.
+    ///     its grip and nothing else, as under the header — not on the band, which lit its name as a second thing picked
+    ///     (review of #372). The bar is also what the page follows (<see cref="Rendering.Scroll" />).
     /// </remarks>
     public override IReadOnlyList<Line> Lines(Drawing drawing)
     {
@@ -58,12 +59,7 @@ public sealed class AttachmentsScreen(ComposeScreen compose) : Screen
 
         for (var at = 0; at < compose.Attachments.Count; at++)
         {
-            var attached = compose.Attachments[at];
-
-            lines.Add(compose.ListedRow(attached, drawing.Width, drawing).PartOf(at) with
-            {
-                Picked = ReferenceEquals(compose.PickedAttachment, attached),
-            });
+            lines.Add(compose.ListedRow(compose.Attachments[at], drawing.Width, drawing).PartOf(at));
         }
 
         if (compose.Attachments.Count == 0)

@@ -23,8 +23,8 @@ namespace Wooly.Tui.Views;
 ///     <para>
 ///         On a row the pointer picks it, takes it off by its <c>x</c>, retries it by its <c>retry (r)</c>, and drags
 ///         it to another place, live: the row takes each place the pointer reaches and the others make way (#378). A
-///         click on its description or quiet mark, or a double click anywhere on it, opens the description editor
-///         (#377).
+///         click on its description or quiet mark, or a double click anywhere on it but its <c>x</c> and its retry,
+///         opens the description editor (#377).
 ///         What a click there lands on is the screen's to say (<see cref="ComposeScreen.AttachmentAt" />), from the same
 ///         runs it draws the rows with.
 ///     </para>
@@ -186,15 +186,22 @@ internal sealed class ComposeMediaField : View
     }
 
     /// <summary>
-    ///     A double click on a row, anywhere on it, opens the description editor on it, as a click on its description
-    ///     does (#377): a slightly-off single click only picks it.
+    ///     A double click on a row opens the description editor on it, as a click on its description does (#377): a
+    ///     slightly-off single click only picks it. On its <c>x</c> or its <c>retry (r)</c> it is a click there instead.
     /// </summary>
+    /// <remarks>
+    ///     Terminal.Gui reports the second of two quick clicks on one cell only as the pair, so two quick clicks on an
+    ///     <c>x</c> — the second on the row that took the first one's place — were one row taken off and the description
+    ///     editor opened on the next (review of #372).
+    /// </remarks>
     private void DoubleClicked(Point at)
     {
         if (_shell.Screen is ComposeScreen compose
-            && compose.AttachmentAt(SuperView!.Viewport.Size, at) is ({ } attachment, _))
+            && compose.AttachmentAt(SuperView!.Viewport.Size, at) is ({ } attachment, var part))
         {
-            _shell.ClickAttachment(attachment, AttachmentPart.Description);
+            _shell.ClickAttachment(
+                attachment,
+                part is AttachmentPart.Remove or AttachmentPart.Retry ? part : AttachmentPart.Description);
         }
     }
 }
