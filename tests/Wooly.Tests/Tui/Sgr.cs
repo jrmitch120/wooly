@@ -21,6 +21,12 @@ internal static class Sgr
     /// <summary>The pointer moving onto the cell with no button held.</summary>
     public static string Move(int column, int row) => Report(35, column, row, 'M');
 
+    /// <summary>
+    ///     The pointer moving onto the cell with the right button held — or with it only believed held: a terminal that
+    ///     missed a right button's let-go reports every move this way until its window closes, as Ghostty was found to.
+    /// </summary>
+    public static string RightDrag(int column, int row) => Report(34, column, row, 'M');
+
     /// <summary>One notch of the wheel over the cell: down, towards the foot of the page, or up.</summary>
     public static string Wheel(int column, int row, bool down = true) => Report(down ? 65 : 64, column, row, 'M');
 

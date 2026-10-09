@@ -139,9 +139,9 @@ try
 
     frames.Over(application);
 
-    // The left button as the shell takes it, put right in every mouse report before the window's views read one:
-    // some terminals word the pointer merely moving as a drag, and Terminal.Gui made clicks of it (review of #372).
-    LeftButton.Over(application);
+    // The mouse's buttons as the shell takes them, put right in every mouse report before the window's views read one:
+    // a terminal can word the pointer merely moving as a drag, and Terminal.Gui made clicks of it (review of #372).
+    MouseButtons.Over(application);
 
     using var window = new ShellWindow(
         shell,

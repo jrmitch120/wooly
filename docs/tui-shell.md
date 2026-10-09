@@ -1113,7 +1113,7 @@ does a post already carrying all it can, which says `This post carries all it ca
 - **The mouse**: a click moves the cursor, a double click opens a folder or attaches a file — on a box it is a second
   click on the box — and the wheel scrolls the list and nothing else, wherever the pointer is over the panel: the
   list, the pinned rows or the preview, sideways notches dropped and a trackpad's bursts a row each. It never moves the
-  cursor, chooses, attaches or leaves, whatever the terminal says the pointer did between notches (`LeftButton`, under
+  cursor, chooses, attaches or leaves, whatever the terminal says the pointer did between notches (`MouseButtons`, under
   **Pointer**) — the arrows walk the list (`Verb.NextEntry`, `Verb.PreviousEntry`), as `j`/`k` walk posts elsewhere, `j` and
   `k` being letters here. A click lands on the row drawn where it points: on a pinned row it is that row's — `ctrl-a
   every file` shows every file, the folder row picks nothing — never a list row scrolled under it.
@@ -1751,9 +1751,9 @@ answer to nothing, so the rows keep no list of keys of their own. The lists of p
 each hung under the field it serves and asked about every click ahead of the views (#366): the window knows nothing of
 compose beyond adding `ComposeView` and saying where the content viewport is.
 
-Every mouse report is put right before any of them reads it, by `LeftButton`, which the client lays over the
+Every mouse report is put right before any of them reads it, by `MouseButtons`, which the client lays over the
 application before the window is shown, so that it is asked ahead of `ComposeView`'s lists and every view (**Pointer**).
-It decides nothing a gesture means; it only says what the left button did.
+It decides nothing a gesture means; it only says what the buttons did.
 
 ### What the profiles screen settled
 
@@ -1954,17 +1954,20 @@ opens nothing behind it. A click on a crumb is one of these clicks too: it decli
 nowhere. A right click is not one of these clicks but `esc`, and answers the question as `esc` does:
 it declines the confirmation too, but takes the filter off rather than leaving what was typed narrowing the list.
 
-**The left button is believed only from a press** (`LeftButton`, review of #372). Terminal.Gui turns on any-motion
+**A button is believed only from a press** (`MouseButtons`, review of #372). Terminal.Gui turns on any-motion
 tracking in SGR form, takes the reports as the terminal words them, and makes clicks of them itself: a click as a
-pressed button is let go, and a double click of a second within 500 ms on the same cell. Some terminals — macOS's
-among them, as #378 found — word the pointer merely moving as a drag with the left button held, so Terminal.Gui took
-the button for down and made a click of the next report that said it was not, a wheel notch most of all: the wheel
-over the file browser after the pointer drifted moved the cursor and then attached a file and left, and over a Media
-row clicked whatever was under the pointer. `LeftButton` is laid over the application ahead of every view and puts each
-report right before anyone reads it: the pointer moving with the button "held" is the pointer moving, unless a press
-was reported and neither its let-go nor its click has come since; a click with no press reported since the last one
-is no click; and a double or triple click whose first half was one of those counts only the clicks there were. What
-the gesture then means is unchanged.
+pressed button is let go, and a double click of a second within 500 ms on the same cell. A terminal can word the
+pointer merely moving as a drag with a button held. Ghostty does it once it has missed a button's let-go — a right
+click whose let-go a menu or a change of focus took — and keeps doing it until its window closes; macOS's terminal was
+found doing it with the left button (#378). Terminal.Gui took the button for down and made a click of the next report
+that said it was not, a wheel notch or another button's press most of all. With the right button "held", every notch
+and every left click was a right click, which is `esc`: the wheel and a click in empty space backed out of compose and
+the file browser. With the left one, the wheel over the file browser moved the cursor and then attached a file and
+left, and over a Media row clicked whatever was under the pointer. `MouseButtons` is laid over the application ahead
+of every view and puts each report right before anyone reads it, for every button alike: the pointer moving with a
+button "held" is the pointer moving, unless a press of it was reported and neither its let-go nor its click has come
+since; a click with no press reported since the last one is no click; and a double or triple click whose first half
+was one of those counts only the clicks there were. What the gesture then means is unchanged.
 
 A double click on a run that stands for a key of its own — an attachment's `x` or `retry (r)`, a file's box — is a
 click on it and no `⏎`, since Terminal.Gui reports the second of two quick clicks on one cell only as the pair.

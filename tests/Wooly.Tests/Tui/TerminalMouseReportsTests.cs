@@ -13,9 +13,10 @@ namespace Wooly.Tests.Tui;
 ///     does (review of #372).
 /// </summary>
 /// <remarks>
-///     Some terminals report the pointer moving with no button held in the words they report it moving with the left
-///     button held (<see cref="Sgr.Drag" />); macOS's was found to (#378). Terminal.Gui then takes the button for held,
-///     and makes a click of the next report that says it is not — a wheel notch among them.
+///     A terminal can report the pointer moving with no button held in the words it reports it moving with a button
+///     held (<see cref="Sgr.Drag" />, <see cref="Sgr.RightDrag" />): macOS's terminal was found to with the left (#378),
+///     Ghostty with the right once it missed its let-go. Terminal.Gui then takes the button for held, and makes a click
+///     of the next report that says it is not — a wheel notch among them.
 /// </remarks>
 public class TerminalMouseReportsTests : IDisposable
 {
@@ -67,6 +68,54 @@ public class TerminalMouseReportsTests : IDisposable
         // Still on the first file, and nothing chosen: what ⏎ would attach is the file the cursor opened on.
         Assert.Equal(6, drawn.Content.Top);
         Assert.Equal([Path.Combine(_files.Path, "picture 00.png")], browser.Take());
+    }
+
+    /// <summary>
+    ///     A terminal that missed the right button's let-go reports the pointer moving as moving with it held, until its
+    ///     window closes. The wheel or a left click after that is no right click, which would be <c>esc</c>: compose,
+    ///     empty or not, and the file browser stay put, and nothing asks to throw a draft away.
+    /// </summary>
+    [Theory]
+    [InlineData("wheel", false, false)]
+    [InlineData("left click", false, false)]
+    [InlineData("wheel", true, false)]
+    [InlineData("left click", true, false)]
+    [InlineData("wheel", true, true)]
+    public async Task ARightButtonNeverPressedMakesNoRightClick(string then, bool attached, bool browsing)
+    {
+        using var drawn = attached ? await Composing("one.png", "two.png") : await DrawnShell.Of(80, 24, Themes.Plain);
+
+        if (!attached)
+        {
+            drawn.Shell.Compose();
+            drawn.Iterate();
+        }
+
+        if (browsing)
+        {
+            drawn.Window.NewKeyDownEvent(Key.O.WithCtrl);
+            drawn.Iterate();
+        }
+
+        var screen = drawn.Shell.Screen;
+        var (column, row) = (60, 18);
+
+        for (var notch = 0; notch < 3; notch++)
+        {
+            drawn.Reports(Sgr.RightDrag(column, row), Sgr.RightDrag(column + 1, row));
+
+            if (then == "wheel")
+            {
+                drawn.Reports(Sgr.Wheel(column + 1, row));
+            }
+            else
+            {
+                drawn.Reports(Sgr.Press(column + 1, row), Sgr.Release(column + 1, row));
+            }
+
+            Assert.Same(screen, drawn.Shell.Screen);
+            Assert.Null(drawn.Shell.Asking);
+        }
     }
 
     /// <summary>

@@ -389,8 +389,9 @@ column of the row already did. The bar is what the page follows, so nothing scro
 
 **What a gesture on the rows means is unchanged; what counts as one is settled.** Terminal.Gui makes the clicks
 itself from the terminal's reports, and on the author's Mac the terminal worded the pointer merely moving as a drag,
-so the next wheel notch became a click on whatever was under the pointer — an `x` among them. The left button is now
-believed only from a press the terminal reported (`LeftButton`, ADR-0005's amendment says how this is tested). And
+so the next wheel notch became a click on whatever was under the pointer — an `x` among them, or, with the right
+button the one "held", a right click, which is `esc`. Every button is now believed only from a press the terminal
+reported (`MouseButtons`, ADR-0005's amendment says how this is tested). And
 two quick clicks on an `x` take two rows off: Terminal.Gui reports the second only as a double click, which
 anywhere else on a row opens the description editor, and on `x` or `retry (r)` is now a click there. A press on a row
 of the attachments screen picks it, as a press under the header does, so the row being dragged carries the bar.

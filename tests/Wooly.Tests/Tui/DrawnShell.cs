@@ -125,7 +125,7 @@ internal sealed class DrawnShell : IDisposable
         frames?.Over(application);
 
         // Laid over the application as the client lays it, before the window's views start asking there.
-        LeftButton.Over(application);
+        MouseButtons.Over(application);
 
         application.Begin(window);
         application.LayoutAndDraw(true);
@@ -201,13 +201,15 @@ internal sealed class DrawnShell : IDisposable
     }
 
     /// <summary>
-    ///     Right clicks on the cell in quick succession, as Terminal.Gui reports them: one event as each is let go — a
-    ///     click, then a double click, then a triple click for the third and every one after it.
+    ///     Right clicks on the cell in quick succession, as Terminal.Gui reports them: the press, the let-go, and the click
+    ///     it makes of them — a click, then a double click, then a triple click for the third and every one after it.
     /// </summary>
     public void RightClick(int column, int row, int times = 1)
     {
         for (var at = 1; at <= times; at++)
         {
+            Point(column, row, MouseFlags.RightButtonPressed);
+            Point(column, row, MouseFlags.RightButtonReleased);
             Point(column, row, at switch
             {
                 1 => MouseFlags.RightButtonClicked,
