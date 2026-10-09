@@ -79,11 +79,8 @@ adds one — SixLabors.ImageSharp, held at 3.x. It is fully managed, which matte
 single-file executables, where a native image library would mean a second artifact per architecture. Its licence is the
 Six Labors Split License, royalty-free for a project under an OSI-approved licence, which this one (MIT) is. 4.0 is not
 taken because it adds a build-time licence-key check that fails the build until somebody registers for a key, and a
-clone of this repository has to build.
-
-Later (#386), 3.x picked up security advisories that fail the build through NuGet audit, so ImageSharp moved to 4.x
-after all. A clone still builds: without a key, a Debug build warns and carries on, and only a Release build fails. CI
-and the release workflow get the key from a repository secret.
+clone of this repository has to build. (Amended by #386: ImageSharp is on 4.x now, with a licence key for Release
+builds.)
 
 **A photograph's pixels are the one thing in the TUI a theme has no business answering.** ADR-0014's rule is that no
 view constructs a colour: a view names a role and the theme resolves it. A picture is not an exception to that rule so
@@ -391,3 +388,11 @@ What keeps to the page, as above, keeps to the room under the pinned rows: the p
 the pinned rows, the list's first row on the page. Pinned rows hold no picture, and a screen that pins rows keeps its
 pictures below them: `Placing` is not told of the pinned rows, so a sixel box scrolled up under them would be drawn
 over them, and only the Kitty placeholder cells are cropped at their foot.
+
+## Amendment: ImageSharp moves to 4.x, with a licence key for Release builds (#386)
+
+3.x picked up security advisories, and NuGet audit turns them into build errors under `TreatWarningsAsErrors`, so
+ImageSharp moved to 4.x after all. A clone of this repository still builds: without a key, 4.x's licence check only
+warns in a Debug build, and the build and tests carry on. A Release build fails without one, so CI and the release
+workflow pass the key from the `SIXLABORS_LICENSE_KEY` repository secret, and a local Release build finds it in a
+git-ignored `sixlabors.lic` at the repository root (`Directory.Build.props`).

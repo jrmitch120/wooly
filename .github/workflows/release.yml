@@ -51,13 +51,20 @@ jobs:
       # names rather than the one it runs on, so one runner builds all four instead of three runners building one each.
       - name: Publish a self-contained single file
         env:
-          # ImageSharp 4.x fails a Release build without a Six Labors licence key (#386). MSBuild reads an environment
+          # The Six Labors licence key a Release build needs (see Directory.Build.props). MSBuild reads an environment
           # variable as a property of the same name.
           SixLaborsLicenseKey: ${{ secrets.SIXLABORS_LICENSE_KEY }}
           RUNTIME: ${{ matrix.target.runtime }}
           TAG: ${{ github.ref_name }}
         shell: bash
         run: |
+          # A missing secret reads as an empty string, which would surface only as Six Labors' own "no license
+          # found" from inside the build.
+          if [[ -z "$SixLaborsLicenseKey" ]]; then
+            echo "The SIXLABORS_LICENSE_KEY repository secret is not set; a Release build needs it."
+            exit 1
+          fi
+
           # Symbols are dropped rather than shipped: a .pdb left beside the executable would break the single-file
           # promise the next step checks, and there is nowhere yet to publish one to.
           dotnet publish "${{ matrix.product.project }}" \

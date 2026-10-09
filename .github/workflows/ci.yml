@@ -8,6 +8,11 @@ on:
 permissions:
   contents: read
 
+# The Six Labors licence key ImageSharp 4.x looks for at build time (see Directory.Build.props). These builds are Debug,
+# which only warns without it, so a pull request from a fork, which gets no secrets, still runs.
+env:
+  SixLaborsLicenseKey: ${{ secrets.SIXLABORS_LICENSE_KEY }}
+
 jobs:
   # Every unit test in the repository, filtered down to exclude the live-instance suite below — this is the run a
   # contributor waits on, so nothing here talks to a network.
@@ -21,11 +26,7 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
-      # ImageSharp 4.x looks for a Six Labors licence key at build time (#386). A Debug build only warns without one,
-      # so a pull request from a fork, which gets no secrets, still runs.
       - name: Run the fast suite
-        env:
-          SixLaborsLicenseKey: ${{ secrets.SIXLABORS_LICENSE_KEY }}
         run: dotnet test tests/Wooly.Tests/Wooly.Tests.csproj --filter "Category!=Integration"
 
   # Its own stage rather than a step in the job above: a dockerized Mastodon instance takes long enough to boot that
@@ -48,8 +49,6 @@ jobs:
         run: tests/integration/seed.sh >> "$GITHUB_ENV"
 
       - name: Run the integration suite
-        env:
-          SixLaborsLicenseKey: ${{ secrets.SIXLABORS_LICENSE_KEY }}
         run: dotnet test tests/Wooly.Tests/Wooly.Tests.csproj --filter "Category=Integration"
 
       - name: Tear down the instance
