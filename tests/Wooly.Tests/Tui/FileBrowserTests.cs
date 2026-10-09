@@ -242,6 +242,23 @@ public class FileBrowserTests : IDisposable
         Assert.Equal(["..", "Screenshot 2024-04-19 at 9.00.53 AM.png"], Names(shell));
     }
 
+    /// <summary>
+    ///     Folders stay listed ahead of files, but the cursor lands on the closest match wherever it is listed: a folder
+    ///     the letters only loosely match does not take it from a file they spell exactly.
+    /// </summary>
+    [Fact]
+    public async Task TheCursorLandsOnTheClosestMatchPastLooserFolders()
+    {
+        Directory.CreateDirectory(Path.Combine(_files.Path, "comics and toys"));
+        _files.WriteFile("cat.png");
+        var (shell, _, _) = await Browsing(PostLimits.Default);
+
+        Type(shell, "cat");
+
+        Assert.Equal(["..", "comics and toys/", "cat.png"], Names(shell));
+        Assert.Contains(Rows(shell), row => row.StartsWith(" ▌☐ cat.png", StringComparison.Ordinal));
+    }
+
     /// <summary>A filter nothing matches says so, rather than leaving a blank list.</summary>
     [Fact]
     public async Task AFilterNothingMatchesSaysSo()

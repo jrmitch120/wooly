@@ -461,22 +461,32 @@ public sealed class FileBrowserScreen : Screen
     /// </summary>
     private void Narrowed()
     {
-        IReadOnlyList<Entry> shown = Filter.Length == 0
-            ? _entries
-            :
-            [
-            .. _entries.Where(entry => entry.Up),
-            .. _entries.Where(entry => !entry.Up)
-                       .Select(entry => (Entry: entry, Score: FuzzyName.Score(entry.Name, Filter)))
-                       .Where(match => match.Score is not null)
-                       .OrderBy(match => match.Entry.Folder ? 0 : 1)
-                       .ThenByDescending(match => match.Score)
-                       .ThenBy(match => match.Entry.Name, StringComparer.OrdinalIgnoreCase)
-                       .Select(match => match.Entry),
-            ];
+        if (Filter.Length == 0)
+        {
+            _walking = new Picked<Entry>(_entries);
+            _walking.Pick(_walking.All.Count > 0 && _walking.All[0].Up ? 1 : 0);
 
-        _walking = new Picked<Entry>(shown);
-        _walking.Pick(_walking.All.Count > 0 && _walking.All[0].Up ? 1 : 0);
+            return;
+        }
+
+        var up = _entries.Where(entry => entry.Up).ToList();
+        var matches = _entries.Where(entry => !entry.Up)
+                              .Select(entry => (Entry: entry, Score: FuzzyName.Score(entry.Name, Filter)))
+                              .Where(match => match.Score is not null)
+                              .OrderBy(match => match.Entry.Folder ? 0 : 1)
+                              .ThenByDescending(match => match.Score)
+                              .ThenBy(match => match.Entry.Name, StringComparer.OrdinalIgnoreCase)
+                              .ToList();
+
+        _walking = new Picked<Entry>([.. up, .. matches.Select(match => match.Entry)]);
+
+        // The closest wherever it is listed: a folder the letters only loosely match is listed ahead of a file they
+        // spell, and must not take the cursor from it (review of #372). The first listed of those tied.
+        var closest = matches.Count == 0
+            ? -1
+            : matches.FindIndex(match => match.Score == matches.Max(other => other.Score));
+
+        _walking.Pick(up.Count + Math.Max(0, closest));
     }
 
     /// <summary>What kind of attachment a file would make, as a row of the compose screen says it.</summary>
