@@ -9,6 +9,14 @@
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
   </PropertyGroup>
 
+  <!-- ImageSharp 4.x wants a Six Labors licence key before it compiles (#386). CI and the release workflow pass it as
+       the SixLaborsLicenseKey environment variable, from the SIXLABORS_LICENSE_KEY secret. Locally, a sixlabors.lic
+       at the repository root is found from every project; ImageSharp's own search only looks beneath the project
+       being built. The file is ignored by git, because the key is not to be published. -->
+  <PropertyGroup Condition="'$(SixLaborsLicenseKey)' == '' And '$(SixLaborsLicenseFile)' == '' And Exists('$(MSBuildThisFileDirectory)sixlabors.lic')">
+    <SixLaborsLicenseFile>$(MSBuildThisFileDirectory)sixlabors.lic</SixLaborsLicenseFile>
+  </PropertyGroup>
+
   <PropertyGroup>
     <Product>Wooly</Product>
     <!-- What a local build reports. A release overrides it from the tag being built (see docs/releases.md), so this

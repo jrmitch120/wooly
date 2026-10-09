@@ -18,6 +18,10 @@ tar -xzf wooly-cli-macos-arm64.tar.gz
 ./wooly-cli version
 ```
 
+The release build needs a Six Labors licence key, because ImageSharp 4.x fails a Release build without one. The workflow
+reads it from the repository secret `SIXLABORS_LICENSE_KEY`. To build Release locally, put the key in a `sixlabors.lic`
+file at the repository root; git ignores it.
+
 The executables carry the .NET runtime with them, so users do not need to install .NET first. Before the release is
 created, the packaged CLI is unpacked the way a user would and made to report its version, and the version it reports
 has to be the tag being released. The Linux build does this inside a container holding the native libraries a

@@ -3,6 +3,9 @@
 .claude/worktrees/
 .DS_Store
 
+# Six Labors licence key for ImageSharp 4.x (see Directory.Build.props)
+sixlabors.lic
+
 # .NET build output
 bin/
 obj/
