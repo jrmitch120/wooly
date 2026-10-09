@@ -491,14 +491,7 @@ public sealed class FileBrowserScreen : Screen
 
     /// <summary>What kind of attachment a file would make, as a row of the compose screen says it.</summary>
     private static string KindWord(string path) =>
-        AttachmentTypes.KindOf(AttachmentTypes.Of(path)) switch
-        {
-            MediaKind.Image => "picture",
-            MediaKind.Animation => "animation",
-            MediaKind.Video => "video",
-            MediaKind.Audio => "sound",
-            _ => "file",
-        };
+        ComposeAttachment.KindWordOf(AttachmentTypes.KindOf(AttachmentTypes.Of(path)));
 
     /// <summary>How large a file is, as a row of the compose screen says it.</summary>
     private static string Size(long bytes) => bytes switch

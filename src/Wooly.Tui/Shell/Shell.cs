@@ -1312,7 +1312,13 @@ public sealed class Shell
     ///     The compose screen in front: on top, or under the attachments screen listing its rows on a short terminal,
     ///     whose keys and clicks change the compose's draft as the same ones on its rows do (story 58, review of #372).
     /// </summary>
-    private ComposeScreen? InFront => Screen switch
+    private ComposeScreen? InFront => ComposeOf(Screen);
+
+    /// <summary>
+    ///     The compose screen <paramref name="screen" /> is, or whose rows it lists on a short terminal (story 58) — or
+    ///     <see langword="null" /> for any other screen.
+    /// </summary>
+    private static ComposeScreen? ComposeOf(Screen screen) => screen switch
     {
         ComposeScreen compose => compose,
         AttachmentsScreen listing => listing.Compose,
@@ -2361,9 +2367,7 @@ public sealed class Shell
         }
 
         // The compose it was opened over — directly, or under the attachments screen it was opened from (story 58).
-        if (_stack.Count < 2
-            || _stack[^2] switch { ComposeScreen under => under, AttachmentsScreen listing => listing.Compose, _ => null }
-                is not { } compose)
+        if (_stack.Count < 2 || ComposeOf(_stack[^2]) is not { } compose)
         {
             return;
         }
