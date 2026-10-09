@@ -51,6 +51,9 @@ jobs:
       # names rather than the one it runs on, so one runner builds all four instead of three runners building one each.
       - name: Publish a self-contained single file
         env:
+          # ImageSharp 4.x fails a Release build without a Six Labors licence key (#386). MSBuild reads an environment
+          # variable as a property of the same name.
+          SixLaborsLicenseKey: ${{ secrets.SIXLABORS_LICENSE_KEY }}
           RUNTIME: ${{ matrix.target.runtime }}
           TAG: ${{ github.ref_name }}
         shell: bash

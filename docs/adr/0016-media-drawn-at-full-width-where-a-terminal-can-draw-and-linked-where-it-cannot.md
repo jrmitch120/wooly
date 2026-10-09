@@ -81,6 +81,10 @@ Six Labors Split License, royalty-free for a project under an OSI-approved licen
 taken because it adds a build-time licence-key check that fails the build until somebody registers for a key, and a
 clone of this repository has to build.
 
+Later (#386), 3.x picked up security advisories that fail the build through NuGet audit, so ImageSharp moved to 4.x
+after all. A clone still builds: without a key, a Debug build warns and carries on, and only a Release build fails. CI
+and the release workflow get the key from a repository secret.
+
 **A photograph's pixels are the one thing in the TUI a theme has no business answering.** ADR-0014's rule is that no
 view constructs a colour: a view names a role and the theme resolves it. A picture is not an exception to that rule so
 much as outside it — its colours are the content, not an emphasis somebody chose, and there is no sense in which
