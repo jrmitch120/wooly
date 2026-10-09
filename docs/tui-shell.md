@@ -1090,7 +1090,8 @@ does a post already carrying all it can, which says `This post carries all it ca
   ctrl-a every file` from the instance's accepted types, or `every file · ctrl-a accepted only` — a click on which does
   the same as the key; a rule; then `◂ ..`, the folders as `▸ name/` in `link`, and the files, each `☐`, or `☑` once
   chosen, with its kind, size and date muted against the right. The selection bar `▌` sits against the box column,
-  so it has something beside it on every row. Hidden files and folders — a leading dot, or marked hidden — never show,
+  so it has something beside it on every row, and the cursor's row is on the band, its name in its usual role; with
+  the preview pane open the band stops at the list's `│` (`Line.BandsTo`) rather than running on under the pane. Hidden files and folders — a leading dot, or marked hidden — never show,
   and every file shown under `ctrl-a` that the instance does not accept is muted.
 - **The filter is fuzzy, fzf's way** (`FuzzyName`): the letters typed must all be in a name, in order, anywhere; letters
   in a run, or starting a word or a number, score more and skipped letters cost a little, so `ss0229` puts
@@ -1125,8 +1126,9 @@ does a post already carrying all it can, which says `This post carries all it ca
   browser keeps to the page (`Screen.KeepsToThePage`), is told where it is (`Drawing.Top`, so the level is
   `Drawing.Top` plus the three pinned rows), and is laid out again on a frame whose scroll moved, so the picture is on
   the page with the cursor however far down a long folder it is. The pane runs to the foot of
-  the page however short the list, so a picture changes no row's height. Nothing is in it for a folder, a file that is
-  not a picture the decoder reads, or on a terminal that cannot draw.
+  the page however short the list, so a picture changes no row's height. While the picture is on its way a muted
+  `loading preview` holds its place, top left where it will be set, and gives way to it. Nothing is in it for a folder,
+  a file that is not a picture the decoder reads, or on a terminal that cannot draw.
 
 ### What mentioning somebody settled
 

@@ -76,6 +76,13 @@ public sealed record Line
     /// </remarks>
     public bool Picked { get; init; }
 
+    /// <summary>
+    ///     Where the band of a picked row stops, counted in columns from the row's start, or <see langword="null" /> where
+    ///     it runs to the edge of the view: a row that is two things side by side — the file browser's list and its
+    ///     preview pane — picks out only the first.
+    /// </summary>
+    public int? BandsTo { get; init; }
+
     /// <summary>What the row reads as with the roles taken off — what a test asserts against, and what a screenshot shows.</summary>
     public string Text
     {
@@ -139,6 +146,7 @@ public sealed record Line
         return Respanned([.. spans, .. Spans]) with
         {
             Insets = Insets.Count == 0 ? Insets : [.. Insets.Select(inset => inset.ShiftedBy(shift))],
+            BandsTo = BandsTo + shift,
         };
     }
 
@@ -154,5 +162,6 @@ public sealed record Line
         Item = Item,
         Heads = Heads,
         Picked = Picked,
+        BandsTo = BandsTo,
     };
 }

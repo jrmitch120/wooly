@@ -467,7 +467,7 @@ internal sealed class PaintedView : View
             for (var row = Math.Max(0, pinned - top); row < inset.Rows && top + row < height; row++)
             {
                 var at = _top + top + row;
-                var picked = at < lines.Count && lines[at].Picked;
+                var picked = at < lines.Count && lines[at].Picked && inset.Column < (lines[at].BandsTo ?? int.MaxValue);
 
                 // On the band where the post is picked, so a picture with transparency in it shows what the row is on.
                 SetAttribute(KittyPlaceholder.Painted(id, picked ? _theme.Banded(Role.Body) : _theme.For(Role.Body)));
@@ -534,6 +534,7 @@ internal sealed class PaintedView : View
     private void Paint(Line? line, int left, int row, int width)
     {
         var picked = line?.Picked == true;
+        var bandsTo = Math.Min(width, line?.BandsTo ?? width);
         var column = 0;
 
         foreach (var span in line?.Spans ?? [])
@@ -550,7 +551,7 @@ internal sealed class PaintedView : View
 
             // The theme's to answer, not the view's: only a span sitting on the page goes onto the band, and one
             // with a background of its own — a picked reference a theme has given one — keeps it.
-            SetAttribute(picked ? _theme.Banded(span.Role) : _theme.For(span.Role));
+            SetAttribute(picked && column < bandsTo ? _theme.Banded(span.Role) : _theme.For(span.Role));
             AddStr(left + column, row, text);
 
             column += Glyphs.Columns(text);
@@ -560,9 +561,17 @@ internal sealed class PaintedView : View
         // does not leave the tail of the old one behind it — and on the band, for a row of the thing picked out, so
         // that the band runs to the edge of the view rather than stopping where the words do (#269). After the spans
         // rather than under them, so that each cell is painted once (#292).
+        // A row whose band stops short of the edge has the rest cleared on the page.
+        if (picked && column < bandsTo)
+        {
+            SetAttribute(_theme.Banded(Role.Body));
+            AddStr(left + column, row, new string(' ', bandsTo - column));
+            column = bandsTo;
+        }
+
         if (column < width)
         {
-            SetAttribute(picked ? _theme.Banded(Role.Body) : _theme.For(Role.Body));
+            SetAttribute(_theme.For(Role.Body));
             AddStr(left + column, row, new string(' ', width - column));
         }
     }

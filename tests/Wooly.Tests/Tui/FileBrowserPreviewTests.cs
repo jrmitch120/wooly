@@ -96,6 +96,68 @@ public class FileBrowserPreviewTests : IDisposable
     }
 
     /// <summary>
+    ///     While the picture is on its way, a muted "loading preview" holds its place top left in the pane, on the row the
+    ///     picture will be set on; once it is here, the picture takes the place and the words are gone.
+    /// </summary>
+    [Fact]
+    public async Task WhileThePictureIsOnItsWayThePaneSaysSo()
+    {
+        var cat = _files.WriteFile("a-cat.png");
+        _files.WriteFile("b-dog.png");
+        var shell = await Browsing();
+
+        var loading = Lines(shell, new FakePictures(), ARaster.Sixel());
+        var loaded = Lines(shell, new FakePictures().Holding(Drawn.OnDisk(cat).Id, 400, 200), ARaster.Sixel());
+
+        var said = Assert.Single(loading, line => line.Text.Contains("loading preview", StringComparison.Ordinal));
+
+        Assert.Same(loading[FirstRow], said);
+        Assert.Equal(PaneAt, said.Text.IndexOf("loading preview", StringComparison.Ordinal));
+        Assert.Equal(Role.Muted, Assert.Single(said.Spans, span => span.Text == "loading preview").Role);
+        Assert.DoesNotContain(loaded, line => line.Text.Contains("loading preview", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    ///     The cursor's row is picked out by the band alone, its name in its usual role, and the band stops at the list's
+    ///     edge rather than running on under the pane.
+    /// </summary>
+    [Fact]
+    public async Task TheCursorsRowIsBandedOnlyAcrossTheList()
+    {
+        _files.WriteFile("a-cat.png");
+        var shell = await Browsing();
+
+        var row = Lines(shell, new FakePictures(), ARaster.Sixel())[FirstRow + 1];
+
+        Assert.True(row.Picked);
+        Assert.Equal(Role.Body, Assert.Single(row.Spans, span => span.Text.StartsWith("a-cat.png", StringComparison.Ordinal)).Role);
+        Assert.Equal(PaneAt - 2, row.BandsTo);
+        Assert.Equal('│', row.Text[PaneAt - 2]);
+    }
+
+    /// <summary>Wiring: in the window, the band is painted across the list and not across the pane.</summary>
+    [Fact]
+    public async Task InTheWindowTheBandStopsAtTheList()
+    {
+        _files.WriteFile("a-cat.png");
+        var theme = Themes.Dark;
+
+        using var drawn = await DrawnShell.Of(120, 24, theme, new AShell { LaunchedFrom = _files.Path });
+
+        drawn.Shell.Compose();
+        drawn.Redraw();
+        drawn.Press(Key.O.WithCtrl);
+
+        var row = Find(drawn, "a-cat.png");
+        var name = drawn.Rows()[row].IndexOf("a-cat.png", StringComparison.Ordinal);
+        var rule = drawn.Rows()[row].IndexOf('│', name);
+
+        Assert.Equal(theme.Banded(Role.Body), drawn.Cell(row, name));
+        Assert.Equal(theme.Banded(Role.Body), drawn.Cell(row, rule - 1));
+        Assert.Equal(theme.For(Role.Body), drawn.Cell(row, rule + 2));
+    }
+
+    /// <summary>
     ///     A folder, a video, or a terminal that cannot draw: nothing set into the pane and nothing asked for, and the
     ///     list drawn exactly as where a picture is.
     /// </summary>
