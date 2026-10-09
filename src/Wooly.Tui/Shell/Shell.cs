@@ -1647,11 +1647,7 @@ public sealed class Shell
         {
             _waitingToSend = compose;
 
-            Say(
-                unfinished == 1
-                    ? "Will send once 1 attachment finishes — esc to stop."
-                    : $"Will send once {unfinished} attachments finish — esc to stop.",
-                isError: false);
+            SayWaiting(unfinished);
 
             return;
         }
@@ -2500,20 +2496,50 @@ public sealed class Shell
     ///     The send <paramref name="compose" /> was waiting on, where it no longer has anything unfinished to wait on —
     ///     an upload, or a description on its way (ADR-0026, #375, #377).
     /// </summary>
+    /// <remarks>
+    ///     Only from the screen it was asked on, as any send is. Where a screen is open over it — the file browser, a
+    ///     description being edited — the send stays asked for, and goes once compose is back in front
+    ///     (<see cref="BackOn" />): dropped there, it was neither sent nor said (review of #372).
+    /// </remarks>
     private void Waited(ComposeScreen compose)
     {
-        if (ReferenceEquals(_waitingToSend, compose) && !compose.Unfinished)
+        if (ReferenceEquals(_waitingToSend, compose) && !compose.Unfinished && ReferenceEquals(Screen, compose))
         {
             _waitingToSend = null;
 
-            // Only from the screen it was asked on, as any send is; one that was refused meanwhile is said rather than
-            // sent, by the same rule as a send asked for then.
-            if (ReferenceEquals(Screen, compose))
-            {
-                _ = Send();
-            }
+            // One that was refused meanwhile is said rather than sent, by the same rule as a send asked for then.
+            _ = Send();
         }
     }
+
+    /// <summary>
+    ///     Compose back in front with a send still asked for on it: sent, where everything it waited on finished while
+    ///     it was behind another screen, and otherwise said again, since the screen that was open over it took the
+    ///     notice off the status row.
+    /// </summary>
+    private void BackOn()
+    {
+        if (Screen is not ComposeScreen compose || !ReferenceEquals(_waitingToSend, compose))
+        {
+            return;
+        }
+
+        if (compose.Attachments.Count(attachment => attachment.Unfinished) is > 0 and var unfinished)
+        {
+            SayWaiting(unfinished);
+
+            return;
+        }
+
+        Waited(compose);
+    }
+
+    /// <summary>That a send is waiting on <paramref name="unfinished" /> attachments, and how to call it off.</summary>
+    private void SayWaiting(int unfinished) => Say(
+        unfinished == 1
+            ? "Will send once 1 attachment finishes — esc to stop."
+            : $"Will send once {unfinished} attachments finish — esc to stop.",
+        isError: false);
 
     /// <summary>
     ///     The instance took <paramref name="description" /> for <paramref name="attachment" /> (#377): said so on
@@ -2678,6 +2704,8 @@ public sealed class Shell
 
         Notice = null;
         Changed?.Invoke();
+
+        BackOn();
     }
 
     /// <summary>
@@ -2713,6 +2741,8 @@ public sealed class Shell
 
         Notice = null;
         Changed?.Invoke();
+
+        BackOn();
     }
 
     /// <summary>

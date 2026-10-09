@@ -290,6 +290,51 @@ public class ComposeMediaTests : IDisposable
     }
 
     /// <summary>
+    ///     A send waiting on an upload stays asked for while a screen is open over compose — the file browser here. Where
+    ///     the upload finishes meanwhile, coming back to compose sends; where it has not, coming back says again that the
+    ///     post will send, and it sends once the upload finishes. Never dropped without a word (#375).
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task AWaitingSendOutlastsAScreenOpenedOverCompose(bool finishesWhileAway)
+    {
+        var (shell, built, compose) = await Composing();
+
+        shell.Paste(_files.WriteFile("clip.mp4"));
+        compose.Rewrite("Watch this");
+
+        await shell.Send();
+        shell.Press(ShellKey.CtrlO);
+
+        Assert.IsType<FileBrowserScreen>(shell.Screen);
+
+        if (finishesWhileAway)
+        {
+            built.Author.Attaching.Single().Ready(MediaKind.Video);
+            built.Host.Drain();
+
+            Assert.Empty(built.Author.Published);
+        }
+
+        shell.Back();
+        built.Host.Drain();
+
+        if (!finishesWhileAway)
+        {
+            Assert.Same(compose, shell.Screen);
+            Assert.Empty(built.Author.Published);
+            Assert.Equal("Will send once 1 attachment finishes — esc to stop.", shell.Notice);
+
+            built.Author.Attaching.Single().Ready(MediaKind.Video);
+            built.Host.Drain();
+        }
+
+        Assert.Equal("m1", Assert.Single(Assert.Single(built.Author.Published).Draft.Attached).Id);
+        Assert.Equal("Sent.", shell.Notice);
+    }
+
+    /// <summary>
     ///     <c>esc</c> while a send waits calls the send off and leaves the draft as it was, on screen — and nothing goes
     ///     out once the attachment is ready.
     /// </summary>

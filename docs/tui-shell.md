@@ -1002,7 +1002,9 @@ lists them under a read-only Media header of its own (#381).
   went up for the instance to clear away.
 - **`ctrl-s` waits rather than refuses.** With anything still going up or being processed it keeps the screen up and
   says `Will send once 1 attachment finishes — esc to stop.`, and sends once they have; `esc` calls the send off and
-  says the draft is as it was. It never sends without them. With anything refused it does not send, and says so. The
+  says the draft is as it was. A screen opened over compose meanwhile — the file browser, a description — leaves the
+  send asked for: back on compose it sends, where everything finished while it was away, or says again that it will.
+  It never sends without them. With anything refused it does not send, and says so. The
   post goes out through `IPostAuthor.PublishAttached`, naming the pending attachments by id in the order shown — the
   route every TUI post now takes, attachments or none — and a post of attachments alone, with no text, sends.
 - **The limits are the instance's** (`IInstanceLimits`): `configuration.statuses.max_media_attachments`, else 4;
