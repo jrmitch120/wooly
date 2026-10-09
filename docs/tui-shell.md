@@ -1126,9 +1126,8 @@ does a post already carrying all it can, which says `This post carries all it ca
   browser keeps to the page (`Screen.KeepsToThePage`), is told where it is (`Drawing.Top`, so the level is
   `Drawing.Top` plus the three pinned rows), and is laid out again on a frame whose scroll moved, so the picture is on
   the page with the cursor however far down a long folder it is. The pane runs to the foot of
-  the page however short the list, so a picture changes no row's height. While the picture is on its way a muted
-  `loading preview` holds its place, top left where it will be set, and gives way to it. Nothing is in it for a folder,
-  a file that is not a picture the decoder reads, or on a terminal that cannot draw.
+  the page however short the list, so a picture changes no row's height. Nothing is in it for a folder, a file that is
+  not a picture the decoder reads, or on a terminal that cannot draw.
 
 ### What mentioning somebody settled
 

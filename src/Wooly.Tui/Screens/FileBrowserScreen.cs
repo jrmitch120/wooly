@@ -308,17 +308,12 @@ public sealed class FileBrowserScreen : Screen
 
         var caption = picture.Box is { } box ? level + box.Rows + 1 : -1;
 
-        // Sent for and not here yet: said where it will be set, in words that give way to it.
-        var loading = picture.Wanted is not null && picture.Box is null;
-
         for (var row = ListTop; row < lines.Count; row++)
         {
             var line = lines[row];
             Span[] pane = row == caption
                 ? [Gap(1), new Span(TextWrap.Clip($"{file!.Name} · {Size(file.Bytes)}", across), Role.Muted)]
-                : row == level && loading
-                    ? [Gap(1), new Span(TextWrap.Clip("loading preview", across), Role.Muted)]
-                    : [];
+                : [];
 
             lines[row] = line.Respanned([.. line.Spans, Gap(list - line.Width), new Span("│", Role.PanelBorder), .. pane])
                 with

@@ -96,28 +96,6 @@ public class FileBrowserPreviewTests : IDisposable
     }
 
     /// <summary>
-    ///     While the picture is on its way, a muted "loading preview" holds its place top left in the pane, on the row the
-    ///     picture will be set on; once it is here, the picture takes the place and the words are gone.
-    /// </summary>
-    [Fact]
-    public async Task WhileThePictureIsOnItsWayThePaneSaysSo()
-    {
-        var cat = _files.WriteFile("a-cat.png");
-        _files.WriteFile("b-dog.png");
-        var shell = await Browsing();
-
-        var loading = Lines(shell, new FakePictures(), ARaster.Sixel());
-        var loaded = Lines(shell, new FakePictures().Holding(Drawn.OnDisk(cat).Id, 400, 200), ARaster.Sixel());
-
-        var said = Assert.Single(loading, line => line.Text.Contains("loading preview", StringComparison.Ordinal));
-
-        Assert.Same(loading[FirstRow], said);
-        Assert.Equal(PaneAt, said.Text.IndexOf("loading preview", StringComparison.Ordinal));
-        Assert.Equal(Role.Muted, Assert.Single(said.Spans, span => span.Text == "loading preview").Role);
-        Assert.DoesNotContain(loaded, line => line.Text.Contains("loading preview", StringComparison.Ordinal));
-    }
-
-    /// <summary>
     ///     The cursor's row is picked out by the band alone, its name in its usual role, and the band stops at the list's
     ///     edge rather than running on under the pane.
     /// </summary>
