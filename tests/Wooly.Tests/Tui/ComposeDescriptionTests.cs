@@ -415,6 +415,65 @@ public class ComposeDescriptionTests : IDisposable
         Assert.IsType<DescriptionScreen>(drawn.Shell.Screen);
     }
 
+    /// <summary>
+    ///     Done with a description — <c>esc</c>, <c>ctrl-s</c> or a click on the crumb back — goes back to the row it was
+    ///     written for, picked, rather than to the post: so the next row's description is a walk and an <c>enter</c> away.
+    /// </summary>
+    [Theory]
+    [InlineData(ShellKey.Escape)]
+    [InlineData(ShellKey.CtrlS)]
+    public async Task DoneGoesBackToTheRowDescribed(ShellKey done)
+    {
+        var (shell, built, compose) = await Composing();
+
+        shell.Paste(_files.WriteFile("cat.png"));
+        shell.Paste(_files.WriteFile("dog.png"));
+        built.Host.Drain();
+
+        Walk(shell, ShellKey.Up);
+        Walk(shell, ShellKey.Up);
+        shell.Press(ShellKey.Enter);
+        shell.WriteDescription("A cat asleep on a mat");
+        shell.Press(done);
+
+        Assert.Same(compose, shell.Screen);
+        Assert.Equal(ComposeField.Attachment, compose.Typing);
+        Assert.Equal("cat.png", compose.PickedAttachment?.Name);
+    }
+
+    /// <summary>
+    ///     In the window, done with a description leaves the walk on the row described, its bar drawn, and the next
+    ///     <c>↓</c> walks to the row under it rather than starting from the post.
+    /// </summary>
+    [Fact]
+    public async Task InTheWindowDoneGoesBackToTheRowDescribed()
+    {
+        using var drawn = await DrawnShell.Of(100, 30, Themes.Plain, new AShell());
+
+        drawn.Shell.Compose();
+        drawn.Redraw();
+        drawn.Shell.Paste(_files.WriteFile("cat.png"));
+        drawn.Shell.Paste(_files.WriteFile("dog.png"));
+        drawn.Settle();
+
+        drawn.PressThroughTheApplication(Terminal.Gui.Input.Key.CursorUp);
+        drawn.PressThroughTheApplication(Terminal.Gui.Input.Key.CursorUp);
+        drawn.PressThroughTheApplication(Terminal.Gui.Input.Key.Enter);
+
+        Assert.IsType<DescriptionScreen>(drawn.Shell.Screen);
+
+        drawn.PressThroughTheApplication(Terminal.Gui.Input.Key.Esc);
+
+        var compose = Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
+
+        Assert.Contains(drawn.Rows(), text => text.Contains("▌⠶     cat.png", StringComparison.Ordinal));
+        Assert.Equal(ComposeField.Attachment, compose.Typing);
+
+        drawn.PressThroughTheApplication(Terminal.Gui.Input.Key.CursorDown);
+
+        Assert.Equal("dog.png", compose.PickedAttachment?.Name);
+    }
+
     public void Dispose() => _files.Dispose();
 
     /// <summary>

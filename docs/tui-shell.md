@@ -1065,7 +1065,8 @@ the description editor the prototype chose (#374, #377).
   the first frame, so the label and the field never move when the pixels land; the picture is set against its top
   left at its own proportions. Where the terminal cannot draw, or there is no picture to read, nothing is held above
   the label. `esc` and `ctrl-s` are both "done" and
-  keep what was typed; there is no cancel. A description can be written at any time, while the file is still going up
+  keep what was typed; there is no cancel. Done goes back to the row described, still picked, so the next row's
+  description is a walk and a `⏎` away. A description can be written at any time, while the file is still going up
   included.
 - **A ready row says its description in quotes**, cut with `…` inside the closing quote where the status column is too
   narrow, or the quiet mark `no alt text`. Sending never asks about a missing one.

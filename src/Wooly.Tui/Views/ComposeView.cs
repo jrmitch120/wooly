@@ -51,6 +51,12 @@ internal sealed class ComposeView : View
     /// <summary>Where the terminal's mouse events arrive, once the view is running; asked ahead of the views.</summary>
     private IMouse? _mouse;
 
+    /// <summary>
+    ///     Whether the fields are being shown as compose comes on top, while which of them Terminal.Gui focuses says
+    ///     nothing about where the typing is.
+    /// </summary>
+    private bool _showing;
+
     public ComposeView(ITheme theme, Shell.Shell shell)
     {
         _shell = shell;
@@ -322,6 +328,8 @@ internal sealed class ComposeView : View
 
         if (composing is { } compose && !_editor.Visible)
         {
+            // Terminal.Gui hands focus to a field as it is shown, which would tell the screen the typing went there.
+            _showing = true;
             Visible = true;
 
             // Laid out before it is filled: where it goes is read only on a layout pass, this screen's block may be a
@@ -348,7 +356,11 @@ internal sealed class ComposeView : View
             // An edit's Media header is read-only (#381): nothing there to walk to or click on.
             _media.Visible = compose.TakesAttachments;
 
-            _editor.SetFocus();
+            // Where the screen says the typing is, rather than the post: compose comes back from the description
+            // editor with the row described still picked, and focusing the post took the walk off it (review of #372).
+            // A fresh compose is typing into the post anyway.
+            FieldFor(compose.Typing).SetFocus();
+            _showing = false;
 
             // After whatever the screen opened with rather than in front of it: an editor opened on `@maria ` or on
             // a post being edited puts the caret where the reader's next word goes, which is the end of what is
@@ -380,14 +392,7 @@ internal sealed class ComposeView : View
         // up. Every field takes focus at all times, so this only moves it where it is not already.
         if (composing is { Typing: var typing } && _editor.Visible)
         {
-            View field = typing switch
-            {
-                ComposeField.To => _to,
-                ComposeField.Lang => _lang,
-                ComposeField.Warning => _warning,
-                ComposeField.Media or ComposeField.Attachment => _media,
-                _ => _editor,
-            };
+            var field = FieldFor(typing);
 
             if (!field.HasFocus)
             {
@@ -401,6 +406,16 @@ internal sealed class ComposeView : View
 
         SetNeedsDraw();
     }
+
+    /// <summary>The field the typing going into <paramref name="typing" /> is focused on.</summary>
+    private View FieldFor(ComposeField typing) => typing switch
+    {
+        ComposeField.To => _to,
+        ComposeField.Lang => _lang,
+        ComposeField.Warning => _warning,
+        ComposeField.Media or ComposeField.Attachment => _media,
+        _ => _editor,
+    };
 
     /// <summary>
     ///     <paramref name="field" />, hidden until compose comes on top and laid wherever <paramref name="at" /> says
@@ -436,7 +451,7 @@ internal sealed class ComposeView : View
     /// </summary>
     private void TypingMoved(bool gained, ComposeField field)
     {
-        if (gained && _editor.Visible)
+        if (gained && _editor.Visible && !_showing)
         {
             _shell.ChangeCompose(compose => compose.TypeInto(field));
         }
