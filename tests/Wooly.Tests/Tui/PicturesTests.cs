@@ -658,6 +658,66 @@ public class PicturesTests
         Assert.Empty(network.Requests);
     }
 
+    /// <summary>
+    ///     A file of several megabytes being attached is read off the disk without going back to the thread that asked
+    ///     between its pieces. That thread is the UI thread, which gets to a waiting piece only between frames, so a
+    ///     4 MB photograph read in 64 KB pieces took two to three seconds to preview (#382).
+    /// </summary>
+    [Fact]
+    public async Task Over_ReadsALargeFileWithoutGoingBackToTheThreadThatAsked()
+    {
+        using var folder = new TemporaryDirectory();
+        var path = Path.Combine(folder.Path, "photograph.png");
+        var file = ANoisyPng(1400, 1200);
+
+        Assert.True(file.Length > 4_000_000);
+
+        await File.WriteAllBytesAsync(path, file, TestContext.Current.CancellationToken);
+
+        var landed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var asker = new CountingContext();
+
+        using var http = new HttpClient();
+        using var pictures = Pictures.Over(http, landed.SetResult);
+
+        var wanted = Drawn.Attaching(path);
+        var before = SynchronizationContext.Current;
+
+        SynchronizationContext.SetSynchronizationContext(asker);
+
+        try
+        {
+            pictures.Want([OnScreen(wanted)], ADrawingTerminal, Wide);
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(before);
+        }
+
+        await landed.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+
+        Assert.NotNull(pictures.Of(wanted));
+        Assert.InRange(asker.Posted, 0, 4);
+    }
+
+    /// <summary>A thread that asked, counting how often work is handed back to it — run on the pool, so none waits.</summary>
+    private sealed class CountingContext : SynchronizationContext
+    {
+        private int _posted;
+
+        public int Posted => _posted;
+
+        public override void Post(SendOrPostCallback work, object? state)
+        {
+            Interlocked.Increment(ref _posted);
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                SetSynchronizationContext(this);
+                work(state);
+            });
+        }
+    }
+
     /// <summary>A file being attached that is gone from the disk is no picture, not an exception.</summary>
     [Fact]
     public async Task Over_TakesAFileGoneFromTheDiskAsNoPicture()

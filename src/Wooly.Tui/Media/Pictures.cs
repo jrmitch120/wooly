@@ -127,21 +127,23 @@ public sealed class Pictures(
         {
             if (Uri.TryCreate(address, UriKind.Absolute, out var uri) && uri.IsFile)
             {
-                return await ReadFile(uri.LocalPath, cancellation);
+                return await ReadFile(uri.LocalPath, cancellation).ConfigureAwait(false);
             }
 
             // Headers first, so that a length worth refusing is refused before the body is read rather than after it
             // has already been held in memory.
-            using var response = await http.GetAsync(address, HttpCompletionOption.ResponseHeadersRead, cancellation);
+            using var response = await http
+                .GetAsync(address, HttpCompletionOption.ResponseHeadersRead, cancellation)
+                .ConfigureAwait(false);
 
             if (!response.IsSuccessStatusCode || response.Content.Headers.ContentLength > MostBytes)
             {
                 return null;
             }
 
-            await using var body = await response.Content.ReadAsStreamAsync(cancellation);
+            await using var body = await response.Content.ReadAsStreamAsync(cancellation).ConfigureAwait(false);
 
-            return await Read(body, cancellation);
+            return await Read(body, cancellation).ConfigureAwait(false);
         },
         arrived);
 
@@ -371,7 +373,7 @@ public sealed class Pictures(
         {
             await using var file = File.OpenRead(path);
 
-            return file.Length > MostBytes ? null : await Read(file, cancellation);
+            return file.Length > MostBytes ? null : await Read(file, cancellation).ConfigureAwait(false);
         }
         catch (IOException)
         {
@@ -396,7 +398,10 @@ public sealed class Pictures(
 
         while (bytes.Length <= MostBytes)
         {
-            var read = await body.ReadAsync(piece, cancellation);
+            // Carried on wherever the piece was read rather than back on the thread that asked, which is the UI thread:
+            // it gets to a waiting piece only between frames, so a 4 MB photograph read in 64 KB pieces took two to
+            // three seconds to preview (#382).
+            var read = await body.ReadAsync(piece, cancellation).ConfigureAwait(false);
 
             if (read == 0)
             {
