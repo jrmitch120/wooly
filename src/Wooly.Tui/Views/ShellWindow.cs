@@ -20,9 +20,10 @@ namespace Wooly.Tui.Views;
 ///     everything a key means it asks <see cref="Keymap" /> — so this file has no idea what a boost is.
 /// </summary>
 /// <remarks>
-///     It names no screen type: everything it knows about screens it knows as <c>Screen</c>. Compose is the one screen
-///     with widgets of its own, and they are <see cref="ComposeView" />'s — where they sit, which has focus and what they
-///     open with — which this window adds once over the content panel's viewport (#365).
+///     It names no screen type: everything it knows about screens it knows as <c>Screen</c>. Compose and the
+///     description editor pushed over it are the screens with widgets of their own, and they are
+///     <see cref="ComposeView" />'s and <see cref="DescriptionView" />'s — where they sit, which has focus and what
+///     they open with — which this window adds once each over the content panel's viewport (#365, #377).
 /// </remarks>
 internal sealed class ShellWindow : Window
 {
@@ -61,6 +62,9 @@ internal sealed class ShellWindow : Window
     /// <summary>Compose's fields, laid over the content panel's viewport (#365).</summary>
     private readonly ComposeView _compose;
 
+    /// <summary>The description editor's field, laid over the same viewport (#377).</summary>
+    private readonly DescriptionView _description;
+
     /// <summary>The rail, which <see cref="Railed" /> takes away and puts back.</summary>
     private readonly PaintedView _rail;
 
@@ -93,6 +97,15 @@ internal sealed class ShellWindow : Window
     ///     the first half of (#291).
     /// </summary>
     private bool _clickDeclinedQuestion;
+
+    /// <summary>
+    ///     The row of the content a press with the left button picked up, held from the press until the button is let go,
+    ///     for a screen whose rows the pointer drags into another order — the attachments screen's (story 58).
+    /// </summary>
+    private int? _pressedOn;
+
+    /// <summary>Whether the row pressed on has moved, which makes the button's release a drop rather than a click.</summary>
+    private bool _dragged;
 
     /// <param name="quit">
     ///     What <c>ctrl-q</c> does. Passed in rather than reached for, because the application is the thing that owns
@@ -168,9 +181,13 @@ internal sealed class ShellWindow : Window
             theme,
             // Laid out under the Raster the region settled the frame by, read rather than asked again here, so that a
             // click or a key between frames lays the rows out as they were drawn (#357). Never called before the
-            // region is built, which is all the null-forgiving says.
+            // region is built, which is all the null-forgiving says. Told where the page is, for a screen with something
+            // that keeps to it (#382).
             (width, height) => shell.Screen.Lines(
-                new Drawing(width, clock.GetUtcNow(), pictures, _content!.Raster, hideDrawnCaption, height, blurs)),
+                new Drawing(width, clock.GetUtcNow(), pictures, _content!.Raster, hideDrawnCaption, height, blurs)
+                {
+                    Top = _content.Top,
+                }),
             pictures,
             // No rows of the panel's own: the view paints only the frame's edges, round the screen's rows.
             (width, height) => Panel.Framed(
@@ -190,6 +207,8 @@ internal sealed class ShellWindow : Window
             Height = Dim.Fill(1),
             CanFocus = false,
             Scrolls = true,
+            KeepsToThePage = () => shell.Screen.KeepsToThePage,
+            Pinned = () => shell.Screen.Pinned,
         };
 
         // The same top edge again, as a row of its own laid over the panel's, so that a tick of the fetch mark has one
@@ -218,6 +237,15 @@ internal sealed class ShellWindow : Window
             Height = Dim.Func(content => content?.Viewport.Height ?? 0, _content),
         };
 
+        // The description editor's field, laid over the same viewport the same way (#377).
+        _description = new DescriptionView(theme, shell, () => _content.Raster)
+        {
+            X = Pos.Func(content => ViewportOrigin(content).X, _content),
+            Y = Pos.Func(content => ViewportOrigin(content).Y, _content),
+            Width = Dim.Func(content => content?.Viewport.Width ?? 0, _content),
+            Height = Dim.Func(content => content?.Viewport.Height ?? 0, _content),
+        };
+
         var status = new PaintedView(theme, (width, _) =>
             [ChromeLines.Status(shell.Keys, shell.Notice, shell.NoticeIsError, shell.Asking, width)])
         {
@@ -228,7 +256,7 @@ internal sealed class ShellWindow : Window
             CanFocus = false,
         };
 
-        Add(rail, _content, title, _compose, status);
+        Add(rail, _content, title, _compose, _description, status);
 
         _showing = shell.Screen;
 
@@ -261,8 +289,9 @@ internal sealed class ShellWindow : Window
         // A prompt taking a query takes the letters too, so that searching for "backfeed" is not a boost, an author,
         // a compose and two more besides. Ahead of the keymap rather than inside it: this is the one place a key the
         // contract has settled means something else, and what it means instead is a letter rather than another verb.
-        // Which screens do that is a fact about the screen, not a mode kept here.
-        if (_shell.Screen.IsTyping && Typing(key))
+        // Which screens do that is a fact about the screen, not a mode kept here. All but a space the keymap gives a
+        // meaning on the screen — choosing, in the file browser, whose fuzzy filter never needs one typed (#376).
+        if (_shell.Screen.IsTyping && !Chooses(key) && Typing(key))
         {
             return true;
         }
@@ -287,6 +316,11 @@ internal sealed class ShellWindow : Window
             _compose.SetNeedsDraw();
         }
 
+        if (_content.NeedsDraw && _description.Visible)
+        {
+            _description.SetNeedsDraw();
+        }
+
         return base.OnDrawingSubViews(context);
     }
 
@@ -308,12 +342,36 @@ internal sealed class ShellWindow : Window
 
         if (mouse.Flags.HasFlag(MouseFlags.LeftButtonClicked))
         {
-            return Clicked(mouse.ScreenPosition) || base.OnMouseEvent(mouse);
+            // A click puts down whatever its press picked up, its let-go reported or not.
+            _pressedOn = null;
+
+            // The click a drag ends in is the drop, already carried out.
+            if (_dragged)
+            {
+                _dragged = false;
+
+                return true;
+            }
+
+            return Clicked(mouse.ScreenPosition, Chorded(mouse)) || base.OnMouseEvent(mouse);
+        }
+
+        if (mouse.Flags.HasFlag(MouseFlags.LeftButtonPressed))
+        {
+            return Dragging(mouse.ScreenPosition, mouse.Flags.HasFlag(MouseFlags.PositionReport))
+                   || base.OnMouseEvent(mouse);
+        }
+
+        if (mouse.Flags.HasFlag(MouseFlags.LeftButtonReleased))
+        {
+            _pressedOn = null;
+
+            return base.OnMouseEvent(mouse);
         }
 
         if (mouse.Flags.HasFlag(MouseFlags.LeftButtonDoubleClicked))
         {
-            return DoubleClicked(mouse.ScreenPosition) || base.OnMouseEvent(mouse);
+            return DoubleClicked(mouse.ScreenPosition, Chorded(mouse)) || base.OnMouseEvent(mouse);
         }
 
         if (!_content.FrameToScreen().Contains(mouse.ScreenPosition) || Notched(mouse) is not { } pressed)
@@ -330,10 +388,12 @@ internal sealed class ShellWindow : Window
 
         // What the arrow means is still the keymap's to say. Where it is a scroll, the wheel's own step is a row rather
         // than the arrow's three: a trackpad sends many small events, and three rows each read as lurches (#292).
+        // And where the arrow walks the file browser's entries rather than the page — its letters being its filter — the
+        // wheel still scrolls the page, as a wheel does over any list (#376).
         return Keymap.Means(pressed, _shell.Screen) switch
         {
-            Verb.ScrollDown => Notch(RowsANotch),
-            Verb.ScrollUp => Notch(-RowsANotch),
+            Verb.ScrollDown or Verb.NextEntry => Notch(RowsANotch),
+            Verb.ScrollUp or Verb.PreviousEntry => Notch(-RowsANotch),
             _ => Do(pressed),
         };
     }
@@ -345,8 +405,10 @@ internal sealed class ShellWindow : Window
     ///     among them (<see cref="DoubleClicked" />). Everything else — a title, a heading, the API panel, a separator,
     ///     the fetch mark, a rule, a blank — is part of nothing and ignores it.
     /// </summary>
+    /// <param name="at">Where the click was.</param>
+    /// <param name="chorded">Whether ctrl or shift was held, which on some rows means more than a pick (#376).</param>
     /// <returns>Whether the click was the shell's, which is any click on the window while a question is open.</returns>
-    private bool Clicked(Point at)
+    private bool Clicked(Point at, bool chorded)
     {
         // A click anywhere declines a confirmation or closes a filter prompt, and is not carried out (story 30, 31).
         _clickDeclinedQuestion = _shell.DeclineOpenQuestion();
@@ -370,7 +432,16 @@ internal sealed class ShellWindow : Window
 
         if (_content.FrameToScreen().Contains(at))
         {
-            _ = ClickedContent(at);
+            // A click on a run that stands for a key, or one with ctrl or shift held, means that key on the thing it is
+            // on where the screen says so — a box in the file browser chooses (#376) — and otherwise picks the thing.
+            if (_shell.Click(_content.ItemAt(at), _content.SpanItemAt(at), chorded))
+            {
+                _content.Hold();
+            }
+            else
+            {
+                _ = ClickedContent(at);
+            }
 
             return true;
         }
@@ -392,14 +463,17 @@ internal sealed class ShellWindow : Window
     ///     A double click at <paramref name="at" />: in the content, a click on the row and then <c>⏎</c>, meaning
     ///     whatever <c>⏎</c> means on the screen in front, nothing included (#291). On a row that is part of nothing it
     ///     is nothing, rather than a <c>⏎</c> on whatever was picked before — and on the breadcrumb it is its first
-    ///     click's walk back and nothing more, never a <c>⏎</c> on the screen that walk landed on (#308).
+    ///     click's walk back and nothing more, never a <c>⏎</c> on the screen that walk landed on (#308). On a run that
+    ///     stands for a key of its own — an attachment's <c>x</c>, a file's box — it is a click on it, and no <c>⏎</c>.
     /// </summary>
     /// <remarks>
     ///     Terminal.Gui reports the pair's first click on its own before the pair, so a pair whose first click was spent
     ///     on an open question is spent with it, and opens nothing behind the question it closed (story 30, 31).
     /// </remarks>
+    /// <param name="at">Where the second click was.</param>
+    /// <param name="chorded">Whether ctrl or shift was held, as for <see cref="Clicked" />.</param>
     /// <returns>Whether the double click was the shell's, as for <see cref="Clicked" />.</returns>
-    private bool DoubleClicked(Point at)
+    private bool DoubleClicked(Point at, bool chorded)
     {
         // Spent once: a later pair must not be swallowed by a question its own first click never saw.
         var declined = _clickDeclinedQuestion;
@@ -418,6 +492,16 @@ internal sealed class ShellWindow : Window
         if (!_content.FrameToScreen().Contains(at))
         {
             return false;
+        }
+
+        // On a run that stands for a key of its own it is a click there and nothing more, as a second click there
+        // would have been had it come slower: Terminal.Gui reports the second of two quick clicks on one cell only as
+        // the pair, so two quick clicks on an attachment's x took one row off and described the next (review of #372).
+        if (_shell.Click(_content.ItemAt(at), _content.SpanItemAt(at), chorded))
+        {
+            _content.Hold();
+
+            return true;
         }
 
         if (ClickedContent(at))
@@ -466,6 +550,57 @@ internal sealed class ShellWindow : Window
 
         return true;
     }
+
+    /// <summary>
+    ///     Whether <paramref name="key" /> is a space the keymap means something by on the screen in front, rather than a
+    ///     letter for whatever it is typing into (#376).
+    /// </summary>
+    private bool Chooses(Key key) =>
+        ShellKeys.Of(key) is ShellKey.Space && Keymap.Means(ShellKey.Space, _shell.Screen) != Verb.None;
+
+    /// <summary>
+    ///     The left button held down at <paramref name="at" />: a press notes the row of the content it is on, and each
+    ///     report after it of the pointer <paramref name="moving" />, the button still held, carries that row to the row
+    ///     the pointer has reached, live, where the screen in front has rows to drag — the attachments screen's, as a row
+    ///     under the Media header is dragged (#378, story 58). What a drag means is the shell's to say, as everything is.
+    /// </summary>
+    /// <remarks>
+    ///     Only a press picks a row up. Some terminals report the pointer moving with no button held in the same words as
+    ///     one moving with the left button held, which taken for a drag moved the rows about after a click.
+    /// </remarks>
+    /// <returns>Whether the row moved, and so the report was spent on it.</returns>
+    private bool Dragging(Point at, bool moving)
+    {
+        var on = _content.FrameToScreen().Contains(at) ? _content.ItemAt(at) : null;
+
+        if (!moving)
+        {
+            _pressedOn = on;
+            _dragged = false;
+
+            // Picked as it is picked up, where the screen drags its rows; a press picks nothing anywhere else.
+            if (on is { } row)
+            {
+                _shell.PickUp(row);
+            }
+
+            return false;
+        }
+
+        if (_pressedOn is not { } from || on is not { } to || to == from || !_shell.DragRow(from, to))
+        {
+            return false;
+        }
+
+        _pressedOn = to;
+        _dragged = true;
+
+        return true;
+    }
+
+    /// <summary>Whether ctrl or shift was held through a click.</summary>
+    private static bool Chorded(Mouse mouse) =>
+        mouse.Flags.HasFlag(MouseFlags.Ctrl) || mouse.Flags.HasFlag(MouseFlags.Shift);
 
     /// <summary>One notch of the wheel, which moves the page as the arrows do and by its own step.</summary>
     private bool Notch(int rows)
@@ -534,6 +669,17 @@ internal sealed class ShellWindow : Window
                 return true;
 
             case Verb.PreviousPost:
+                Walk(-1);
+
+                return true;
+
+            // The file browser's list is walked as a list of posts is, the cursor taking the page with it (#376).
+            case Verb.NextEntry:
+                Walk(1);
+
+                return true;
+
+            case Verb.PreviousEntry:
                 Walk(-1);
 
                 return true;
@@ -692,7 +838,9 @@ internal sealed class ShellWindow : Window
     /// </remarks>
     private bool Typing(Key key)
     {
-        if (key == Key.Backspace)
+        // Delete too, which with no caret in a prompt has nothing after it to take, and in the file browser is held down
+        // to clear the filter as often as backspace is (#376).
+        if (key == Key.Backspace || key == Key.Delete)
         {
             _shell.Backspace();
 
@@ -777,7 +925,7 @@ internal sealed class ShellWindow : Window
         // which it does not: a key the editor declines at the end of its own text still reaches this window, and a
         // screen with nothing picked out on it is one Scroll.To never scrolls back. Compose's view settled whether it
         // shows ahead of this, on the same change.
-        _content.Scrolls = !_compose.Visible;
+        _content.Scrolls = !_compose.Visible && !_description.Visible;
 
         SetNeedsDraw();
     }

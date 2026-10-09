@@ -13,6 +13,7 @@ using Wooly.Core.Relationships;
 using Wooly.Core.Search;
 using Wooly.Core.Timelines;
 using Wooly.Tui;
+using Wooly.Tui.Clipboard;
 using Wooly.Tui.Media;
 using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
@@ -55,6 +56,10 @@ try
 
     var clock = provider.GetRequiredService<TimeProvider>();
 
+    // Where a picture pasted from the clipboard is written before it goes up, taken away with every picture in it as
+    // the session ends (#380, review of #372).
+    using var pasted = new PastedPictures();
+
     var shell = new Shell(
         opening,
         ports,
@@ -71,6 +76,11 @@ try
         // The same browser the sign-in sends somebody to (ADR-0004), and deliberately not one of the ports above:
         // those are what the shell reaches an instance through, and a browser is not on one (#85).
         provider.GetRequiredService<IWebBrowser>(),
+
+        // This machine's clipboard, for the same reason: ctrl-v on a compose screen attaches a picture or copied files
+        // from it (#380).
+        new OsClipboard(),
+        pasted,
         clock,
         ShellTiming.Default,
         config.Preferences);
@@ -129,6 +139,10 @@ try
 
     frames.Over(application);
 
+    // The mouse's buttons as the shell takes them, put right in every mouse report before the window's views read one:
+    // a terminal can word the pointer merely moving as a drag, and Terminal.Gui made clicks of it (review of #372).
+    MouseButtons.Over(application);
+
     using var window = new ShellWindow(
         shell,
         theme,
@@ -147,7 +161,8 @@ try
 
     // A paste arrives as one string rather than as keys, before it is handed to whatever has focus. The shell takes
     // it where one of its own fields is typing, and leaves it to whatever has focus everywhere else — the compose
-    // editor or its warning field above all, which take their own pastes (#320).
+    // editor or its warning field above all, which take their own pastes (#320) — but for files dropped onto the
+    // terminal, which a compose screen attaches rather than types the paths of (#375).
     application.Paste += (_, pasted) => pasted.Handled = shell.Paste(pasted.Text);
 
     // Started rather than awaited: the first timeline arrives while the shell is already on screen, which is what the

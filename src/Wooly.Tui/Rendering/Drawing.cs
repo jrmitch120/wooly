@@ -70,6 +70,18 @@ public sealed record Drawing(
     int? Height = null,
     Blurs? Blurs = null)
 {
+    /// <summary>
+    ///     Which of the rows the page starts at, as the content region has scrolled them — 0 where nothing has scrolled,
+    ///     or nobody said.
+    /// </summary>
+    /// <remarks>
+    ///     Ignored by every screen but one with something that keeps to the page rather than to its rows: the file
+    ///     browser's preview, which sits level with the page's first row of the list however far the list has scrolled,
+    ///     so that the picture under the cursor is on the page with it (#382, <see cref="Screens.Screen.KeepsToThePage" />).
+    ///     Where the page moves, the region lays such a screen out again under the scroll it has come to.
+    /// </remarks>
+    public int Top { get; init; }
+
     /// <summary>The same drawing in less room, which is what a gutter or an indent leaves the thing inside it.</summary>
     /// <remarks>
     ///     The one thing about a drawing that changes on the way down: a row is stamped in a column the post inside it

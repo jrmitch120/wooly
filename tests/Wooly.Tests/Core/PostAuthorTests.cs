@@ -829,17 +829,325 @@ public class PostAuthorTests : IDisposable
         Assert.IsNotType<PostRefusedException>(refusal);
     }
 
+    /// <summary>
+    ///     A file attached in the TUI goes up on its own (ADR-0026, #375): to <c>v2/media</c>, as the file it is, with
+    ///     what was sent reported on the way and the attachment handed back once the instance has it ready.
+    /// </summary>
+    [Fact]
+    public async Task Attach_SendsTheFileUpAndHandsBackTheAttachment()
+    {
+        var network = Answering("""{"id":"m1","type":"image","url":"https://mastodon.social/media/m1.png"}""");
+        var reported = new Reported();
+
+        var attached = await NewAuthor(network).Attach(
+            Profile,
+            _directory.WriteFile("cat.png"),
+            reported,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(new PendingAttachment("m1", MediaKind.Image), attached);
+        Assert.Equal("https://mastodon.social/api/v2/media", Assert.Single(network.Requests).RequestUri?.ToString());
+        Assert.Equal(HttpMethod.Post, network.Requests[0].Method);
+        Assert.Equal("Bearer", network.Requests[0].Headers.Authorization?.Scheme);
+        Assert.Contains("cat.png", network.Bodies[0]);
+        Assert.Contains("pretend this is a picture", network.Bodies[0]);
+        Assert.Equal(new AttachmentProgress.Sending(1), reported.All[^1]);
+    }
+
+    /// <summary>
+    ///     An instance still processing what it was sent answers with no address for it, and is asked again until it
+    ///     has one — saying the attachment is processing meanwhile, since a post cannot name it until then.
+    /// </summary>
+    [Fact]
+    public async Task Attach_WaitsOutTheInstancesProcessing()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            Accepted("""{"id":"m2","type":"video","url":null}"""),
+            ScriptedHttpMessageHandler.Json("""{"id":"m2","type":"video","url":null}"""),
+            ScriptedHttpMessageHandler.Json("""{"id":"m2","type":"video","url":"https://mastodon.social/media/m2.mp4"}"""));
+        var reported = new Reported();
+
+        var attached = await NewAuthor(network, polling: TimeSpan.Zero).Attach(
+            Profile,
+            _directory.WriteFile("clip.mp4"),
+            reported,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(new PendingAttachment("m2", MediaKind.Video), attached);
+        Assert.Equal(3, network.Requests.Count);
+        Assert.Equal("https://mastodon.social/api/v1/media/m2", network.Requests[2].RequestUri?.ToString());
+        Assert.Contains(new AttachmentProgress.Processing("m2"), reported.All);
+    }
+
+    /// <summary>An instance that will not take a file says why, in its own words, and nothing is asked after.</summary>
+    [Fact]
+    public async Task Attach_SaysWhyTheInstanceRefusedTheFile()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Refusal(HttpStatusCode.UnprocessableEntity, "File is too large"));
+
+        var refusal = await Assert.ThrowsAsync<AttachmentRefusedException>(() => NewAuthor(network).Attach(
+            Profile,
+            _directory.WriteFile("huge.png"),
+            new Reported(),
+            TestContext.Current.CancellationToken));
+
+        Assert.Equal("File is too large", refusal.Reason);
+        Assert.Single(network.Requests);
+    }
+
+    /// <summary>A path with no file behind it sends nothing.</summary>
+    [Fact]
+    public async Task Attach_SendsNothingForAFileThatIsNotThere()
+    {
+        var network = Answering(AttachmentJson("m1"));
+
+        await Assert.ThrowsAsync<MediaNotFoundException>(() => NewAuthor(network).Attach(
+            Profile,
+            Path.Combine(_directory.Path, "gone.png"),
+            new Reported(),
+            TestContext.Current.CancellationToken));
+
+        Assert.Empty(network.Requests);
+    }
+
+    /// <summary>
+    ///     A draft naming pending attachments publishes them by id, in its own order, and uploads nothing — they are on
+    ///     the instance already (ADR-0026, #375).
+    /// </summary>
+    [Fact]
+    public async Task PublishAttached_NamesThePendingAttachmentsByIdInOrder()
+    {
+        var network = Answering(StatusJson("110"));
+
+        await NewAuthor(network).PublishAttached(
+            Profile,
+            Draft(string.Empty) with
+            {
+                Attached = [new PendingAttachment("m2", MediaKind.Video), new PendingAttachment("m1", MediaKind.Image)],
+            },
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal("https://mastodon.social/api/v1/statuses", Assert.Single(network.Requests).RequestUri?.ToString());
+        Assert.Contains("media_ids%5B%5D=m2&media_ids%5B%5D=m1", network.Bodies[0]);
+    }
+
+    /// <summary>The author's own sensitive flag goes out with the post, with no warning to set it.</summary>
+    [Fact]
+    public async Task PublishAttached_SendsTheSensitiveFlag()
+    {
+        var network = Answering(StatusJson("110"));
+
+        await NewAuthor(network).PublishAttached(
+            Profile,
+            Draft("Look") with { Attached = [new PendingAttachment("m1", MediaKind.Image)], Sensitive = true },
+            TestContext.Current.CancellationToken);
+
+        Assert.Contains("sensitive=true", network.Bodies[0], StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>Files by path are the CLI's, through <see cref="IPostAuthor.Publish" />, and a defect to send here.</summary>
+    [Fact]
+    public async Task PublishAttached_RefusesADraftNamingFiles()
+    {
+        var network = Answering(StatusJson("110"));
+
+        await Assert.ThrowsAsync<ArgumentException>(() => NewAuthor(network).PublishAttached(
+            Profile,
+            Draft("A cat") with { Media = [new MediaAttachment { Path = _directory.WriteFile("cat.png") }] },
+            TestContext.Current.CancellationToken));
+
+        Assert.Empty(network.Requests);
+    }
+
+    /// <summary>
+    ///     A description goes to the pending attachment it describes, by id, as the instance's own media endpoint takes
+    ///     it (#377).
+    /// </summary>
+    [Fact]
+    public async Task Describe_PutsTheDescriptionOnThePendingAttachment()
+    {
+        var network = Answering(AttachmentJson("m1"));
+
+        await NewAuthor(network).Describe(
+            Profile,
+            "m1",
+            "A dog in a red knitted coat",
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal("https://mastodon.social/api/v1/media/m1", Assert.Single(network.Requests).RequestUri?.ToString());
+        Assert.Equal(HttpMethod.Put, network.Requests[0].Method);
+        Assert.Equal("Bearer", network.Requests[0].Headers.Authorization?.Scheme);
+        Assert.Equal("description=A+dog+in+a+red+knitted+coat", network.Bodies[0]);
+    }
+
+    /// <summary>A description cleared is sent as an empty one, which takes the old one off.</summary>
+    [Fact]
+    public async Task Describe_SendsAClearedDescription()
+    {
+        var network = Answering(AttachmentJson("m1"));
+
+        await NewAuthor(network).Describe(Profile, "m1", string.Empty, TestContext.Current.CancellationToken);
+
+        Assert.Equal("description=", network.Bodies[0]);
+    }
+
+    /// <summary>An instance that will not take a description — too long, most often — says why, in its own words.</summary>
+    [Fact]
+    public async Task Describe_SaysWhyTheInstanceRefusedIt()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Refusal(HttpStatusCode.UnprocessableEntity, "Description is too long"));
+
+        var refusal = await Assert.ThrowsAsync<AttachmentRefusedException>(() => NewAuthor(network).Describe(
+            Profile,
+            "m1",
+            new string('x', 2000),
+            TestContext.Current.CancellationToken));
+
+        Assert.Equal("Description is too long", refusal.Reason);
+    }
+
+    /// <summary>
+    ///     An instance that fails to answer an upload — a 5xx — says so as the instance's failure, which a retry of the
+    ///     author's might mend, rather than as a bare HTTP error nothing above here is ready for (review of #372).
+    /// </summary>
+    [Fact]
+    public async Task Attach_SaysAnInstanceThatFailedToAnswer()
+    {
+        var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Status(HttpStatusCode.BadGateway));
+
+        var failure = await Assert.ThrowsAsync<InstanceFailedException>(() => NewAuthor(network).Attach(
+            Profile,
+            _directory.WriteFile("cat.png"),
+            new Reported(),
+            TestContext.Current.CancellationToken));
+
+        Assert.Equal(HttpStatusCode.BadGateway, failure.Status);
+    }
+
+    /// <summary>Asked after a file being processed, likewise: a 5xx is the instance failing, not a defect here.</summary>
+    [Fact]
+    public async Task Attach_SaysAnInstanceThatFailedWhileProcessing()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            Accepted("""{"id":"m2","type":"video","url":null}"""),
+            ScriptedHttpMessageHandler.Status(HttpStatusCode.ServiceUnavailable));
+
+        await Assert.ThrowsAsync<InstanceFailedException>(() => NewAuthor(network, polling: TimeSpan.Zero).Attach(
+            Profile,
+            _directory.WriteFile("clip.mp4"),
+            new Reported(),
+            TestContext.Current.CancellationToken));
+    }
+
+    /// <summary>
+    ///     Any other refusal of the upload — a 403, a 404 — is the instance not taking the file, which trying again
+    ///     cannot change.
+    /// </summary>
+    [Fact]
+    public async Task Attach_SaysAnyOtherRefusalAsTheFileRefused()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Refusal(HttpStatusCode.Forbidden, "This action is not allowed"));
+
+        var refusal = await Assert.ThrowsAsync<AttachmentRefusedException>(() => NewAuthor(network).Attach(
+            Profile,
+            _directory.WriteFile("cat.png"),
+            new Reported(),
+            TestContext.Current.CancellationToken));
+
+        Assert.Equal("This action is not allowed", refusal.Reason);
+    }
+
+    /// <summary>
+    ///     An upload the client gave up waiting on is one that did not reach the instance, as a dropped connection is —
+    ///     not the caller calling it off, which is a cancellation of the caller's own token.
+    /// </summary>
+    [Fact]
+    public async Task Attach_SaysAnUploadThatTimedOutAsUnreached()
+    {
+        var failure = await Assert.ThrowsAsync<TransientNetworkException>(() => NewAuthor(
+                new Stalling(),
+                timeout: TimeSpan.FromMilliseconds(50))
+            .Attach(Profile, _directory.WriteFile("cat.png"), new Reported(), TestContext.Current.CancellationToken));
+
+        Assert.Contains("mastodon.social", failure.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>A description the instance failed to take, likewise, is the instance's failure.</summary>
+    [Fact]
+    public async Task Describe_SaysAnInstanceThatFailedToAnswer()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Status(HttpStatusCode.InternalServerError));
+
+        await Assert.ThrowsAsync<InstanceFailedException>(() => NewAuthor(network).Describe(
+            Profile,
+            "m1",
+            "A dog",
+            TestContext.Current.CancellationToken));
+    }
+
+    /// <summary>And a description the client gave up waiting on did not reach the instance.</summary>
+    [Fact]
+    public async Task Describe_SaysACallThatTimedOutAsUnreached()
+    {
+        await Assert.ThrowsAsync<TransientNetworkException>(() => NewAuthor(
+                new Stalling(),
+                timeout: TimeSpan.FromMilliseconds(50))
+            .Describe(Profile, "m1", "A dog", TestContext.Current.CancellationToken));
+    }
+
+    /// <summary>A network that never answers, until the call is called off.</summary>
+    private sealed class Stalling : HttpMessageHandler
+    {
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        }
+    }
+
+    /// <summary>Every report an attach made, in order, kept as it was made rather than posted anywhere.</summary>
+    private sealed class Reported : IProgress<AttachmentProgress>
+    {
+        public List<AttachmentProgress> All { get; } = [];
+
+        public void Report(AttachmentProgress value) => All.Add(value);
+    }
+
+    /// <summary>A step answering <c>202 Accepted</c>, which is how an instance says it is still processing a file.</summary>
+    private static Func<HttpRequestMessage, HttpResponseMessage> Accepted(string json) =>
+        _ => new HttpResponseMessage(HttpStatusCode.Accepted)
+        {
+            Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json"),
+        };
+
     private static PostDraft Draft(string text) => new() { Text = text };
 
     private static ScriptedHttpMessageHandler Answering(string json) =>
         new(ScriptedHttpMessageHandler.Json(json));
 
     /// <summary>Resolved from the container the app builds, so the wiring is under test alongside the behavior.</summary>
-    private static IPostAuthor NewAuthor(HttpMessageHandler network)
+    private static IPostAuthor NewAuthor(HttpMessageHandler network, TimeSpan? polling = null, TimeSpan? timeout = null)
     {
         var services = new ServiceCollection();
         services.AddWoolyCore();
-        services.AddHttpClient(WoolyClient.HttpClientName).ConfigurePrimaryHttpMessageHandler(() => network);
+        var client = services.AddHttpClient(WoolyClient.HttpClientName).ConfigurePrimaryHttpMessageHandler(() => network);
+
+        if (timeout is { } patience)
+        {
+            client.ConfigureHttpClient(http => http.Timeout = patience);
+        }
+
+        if (polling is { } every)
+        {
+            services.AddSingleton(new AttachmentPolling(every));
+        }
 
         return services.BuildServiceProvider().GetRequiredService<IPostAuthor>();
     }

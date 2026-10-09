@@ -3,6 +3,7 @@ using Wooly.Core.Configuration;
 using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
 using Wooly.Tests.Fakes;
+using Wooly.Tui.Clipboard;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
@@ -70,6 +71,18 @@ internal sealed class AShell
     public FakeWebBrowser Browser { get; set; } = new();
 
     /// <summary>
+    ///     What <c>ctrl-v</c> on a compose screen reads (#380): text, unless a test puts a picture or files on it. Not
+    ///     one of the ports either, for the browser's reason: it is on this machine.
+    /// </summary>
+    public FakeClipboard Clipboard { get; set; } = new();
+
+    /// <summary>
+    ///     Where a picture pasted from the clipboard is written (#380): the system's temporary folder, unless a test that
+    ///     pastes one says somewhere it cleans up after itself, as it should.
+    /// </summary>
+    public PastedPictures Pasted { get; set; } = new();
+
+    /// <summary>
     ///     The profiles set up on this machine, which is the profile every test acts as and nobody else — and it the
     ///     current one, as a launch without <c>--profile</c> would have it. Not one of the ports either, for the reason
     ///     <c>ProfilePorts</c> gives: this is the local config, not an instance.
@@ -122,6 +135,9 @@ internal sealed class AShell
     /// </summary>
     public ShellTiming Timing { get; set; } = ShellTiming.Default;
 
+    /// <summary>The folder Wooly was launched from, where the file browser first opens (#376); the working one if unset.</summary>
+    public string? LaunchedFrom { get; set; }
+
     /// <summary>The shell itself, over whatever the fakes have been set to.</summary>
     public Shell Build() => Over(Opening.As(Profile));
 
@@ -146,9 +162,12 @@ internal sealed class AShell
         new ProfilePorts(Profiles, Paths, Authorizer, Verifier),
         Host,
         Browser,
+        Clipboard,
+        Pasted,
         Clock,
         Timing,
-        Preferences);
+        Preferences,
+        LaunchedFrom);
 
     /// <summary>
     ///     What <paramref name="screen" /> draws at 61 columns, past the one column the gutter takes — which every
@@ -170,7 +189,8 @@ internal sealed class AShell
     /// </summary>
     public int Requests =>
         Timelines.Reads.Count
-        + Author.Published.Count + Author.Edits.Count + Author.Deletions.Count
+        + Author.Published.Count + Author.Edits.Count + Author.Deletions.Count + Author.Attaching.Count
+        + Author.Descriptions.Count
         + Engagement.Marks.Count + Engagement.Reads.Count + Engagement.ThreadsRead.Count + Engagement.Votes.Count
         + Accounts.Ties.Count + Accounts.Lists.Count + Accounts.Answers.Count + Accounts.Reads.Count
         + Accounts.Familiars.Count + Accounts.Standings.Count
@@ -216,9 +236,12 @@ internal sealed class AShell
             new ProfilePorts(registry, paths, Authorizer, Verifier),
             Host,
             Browser,
+            Clipboard,
+            Pasted,
             Clock,
             Timing,
-            Preferences);
+            Preferences,
+            LaunchedFrom);
 
         await shell.Open();
 

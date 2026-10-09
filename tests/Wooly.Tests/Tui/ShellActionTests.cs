@@ -295,7 +295,7 @@ public class ShellActionTests
         opened.Reply();
 
         var label = opened.Screen.Lines(new Drawing(61, AShell.Now))[4].Text;
-        Assert.Equal("     ↳  answering @ben@hachyderm.io", label);
+        Assert.Equal("      ↳  answering @ben@hachyderm.io", label);
     }
 
     /// <summary>A reply to the profile's own post says it is being continued, not answered.</summary>
@@ -308,7 +308,7 @@ public class ShellActionTests
         opened.Reply();
 
         var label = opened.Screen.Lines(new Drawing(61, AShell.Now))[4].Text;
-        Assert.Equal("     ↳  continuing", label);
+        Assert.Equal("      ↳  continuing", label);
     }
 
     /// <summary>
@@ -573,7 +573,7 @@ public class ShellActionTests
 
     /// <summary>
     ///     The verbs that need a terminal are the window's, so the shell answers each of them unused rather than handing
-    ///     it to the screen — and there are the twelve <see cref="Verb" /> names, no more and no fewer (#232).
+    ///     it to the screen — and there are the fourteen <see cref="Verb" /> names, no more and no fewer (#232).
     /// </summary>
     [Fact]
     public async Task Do_LeavesEveryVerbThatNeedsATerminalUnused()
@@ -582,7 +582,7 @@ public class ShellActionTests
 
         var windows = Enum.GetValues<Verb>().Where(verb => verb.NeedsATerminal()).ToList();
 
-        Assert.Equal(12, windows.Count);
+        Assert.Equal(14, windows.Count);
         Assert.All(windows, verb => Assert.False(opened.Do(verb, answer: null)));
     }
 }

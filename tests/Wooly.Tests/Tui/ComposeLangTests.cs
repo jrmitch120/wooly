@@ -28,7 +28,7 @@ public class ComposeLangTests
 
         compose.Text = "bonjour";
 
-        Assert.Equal("  Lang  fr  Français", Texts(compose)[3]);
+        Assert.Equal("   Lang  fr  Français", Texts(compose)[3]);
         Assert.Equal("fr", Publishing(compose).Language);
     }
 
@@ -40,7 +40,7 @@ public class ComposeLangTests
 
         compose.Text = "hallo";
 
-        Assert.Equal("  Lang  de  Deutsch", Texts(compose)[3]);
+        Assert.Equal("   Lang  de  Deutsch", Texts(compose)[3]);
         Assert.Equal("de", Publishing(compose).Language);
     }
 
@@ -52,8 +52,8 @@ public class ComposeLangTests
 
         compose.Text = "hello";
 
-        Assert.StartsWith("  Lang  ", Texts(compose)[3], StringComparison.Ordinal);
-        Assert.DoesNotContain("  Lang  ", Texts(compose)[3][8..], StringComparison.Ordinal);
+        Assert.StartsWith("   Lang  ", Texts(compose)[3], StringComparison.Ordinal);
+        Assert.DoesNotContain("   Lang  ", Texts(compose)[3][8..], StringComparison.Ordinal);
         Assert.Null(Publishing(compose).Language);
     }
 
@@ -78,7 +78,7 @@ public class ComposeLangTests
 
         var compose = await Opening(ComposeFor.Edit, preferred: "fr", post: mine);
 
-        Assert.Equal("  Lang  de  Deutsch", Texts(compose)[3]);
+        Assert.Equal("   Lang  de  Deutsch", Texts(compose)[3]);
         Assert.Equal("de", Saving(compose).Language);
     }
 
@@ -94,6 +94,9 @@ public class ComposeLangTests
         var compose = view.Compose;
 
         view.Press(Key.CursorUp);
+        Assert.Equal(ComposeField.Media, compose.Typing);
+
+        view.Press(Key.CursorUp);
         Assert.Equal(ComposeField.Warning, compose.Typing);
 
         view.Press(Key.CursorUp);
@@ -106,6 +109,7 @@ public class ComposeLangTests
         view.Press(Key.CursorDown);
         Assert.Equal(ComposeField.Lang, compose.Typing);
 
+        view.Press(Key.CursorDown);
         view.Press(Key.CursorDown);
         view.Press(Key.CursorDown);
         Assert.Equal(ComposeField.Post, compose.Typing);
@@ -368,12 +372,12 @@ public class ComposeLangTests
 
         Assert.DoesNotContain(rows, row => row.Contains("Lang", StringComparison.Ordinal));
         Assert.DoesNotContain(rows, row => row.Contains("From", StringComparison.Ordinal));
-        Assert.Contains(rows, row => row.StartsWith("    To", StringComparison.Ordinal));
+        Assert.Contains(rows, row => row.StartsWith("     To", StringComparison.Ordinal));
         Assert.Contains(rows, row => row.StartsWith(ComposeRows.NoWarning[..8], StringComparison.Ordinal));
         Assert.True(compose.EditorAt(new System.Drawing.Size(Width, 6)).Height >= 3);
         Assert.Equal(System.Drawing.Rectangle.Empty, compose.LangAt(new System.Drawing.Size(Width, 6)));
 
-        var taller = compose.Lines(new Drawing(Width, AShell.Now, Height: 8)).Select(line => line.Text).ToList();
+        var taller = compose.Lines(new Drawing(Width, AShell.Now, Height: 9)).Select(line => line.Text).ToList();
 
         Assert.Contains(taller, row => row.Contains("Lang  fr  Français", StringComparison.Ordinal));
     }
@@ -389,7 +393,7 @@ public class ComposeLangTests
 
         var compose = await Opening(ComposeFor.Edit, post: mine);
 
-        Assert.Equal("  Lang  xx", Texts(compose)[3]);
+        Assert.Equal("   Lang  xx", Texts(compose)[3]);
         Assert.Null(compose.Lang.Refusal);
         Assert.Equal("xx", Saving(compose).Language);
     }
@@ -418,6 +422,8 @@ public class ComposeLangTests
 
     private static void OnLang(ComposedView drawn)
     {
+        // Up from the post through Media (#376) and the warning.
+        drawn.Press(Key.CursorUp);
         drawn.Press(Key.CursorUp);
         drawn.Press(Key.CursorUp);
     }

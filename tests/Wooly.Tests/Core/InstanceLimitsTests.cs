@@ -65,6 +65,43 @@ public class InstanceLimitsTests
         Assert.Equal(new PostLimits(5000, 23), limits);
     }
 
+    /// <summary>
+    ///     What an instance lets a post carry is read off the same configuration (#375): how many attachments, which
+    ///     types it accepts, and how long a description may be.
+    /// </summary>
+    [Fact]
+    public async Task Read_TakesTheAttachmentLimitsFromTheConfiguration()
+    {
+        var network = Answering(
+            """
+            {"domain":"mastodon.social","configuration":{
+              "statuses":{"max_characters":500,"max_media_attachments":8},
+              "media_attachments":{"supported_mime_types":["image/png","video/mp4"],"description_limit":2000}}}
+            """);
+
+        var limits = await Limits(network).Read(Profile, TestContext.Current.CancellationToken);
+
+        Assert.Equal(8, limits?.Attachments);
+        Assert.Equal(["image/png", "video/mp4"], limits?.MediaTypes);
+        Assert.Equal(2000, limits?.Descriptions);
+    }
+
+    /// <summary>
+    ///     An instance that does not say what a post may carry is taken to allow what Mastodon does: four
+    ///     attachments, Mastodon's own types, and descriptions of 1500.
+    /// </summary>
+    [Fact]
+    public async Task Read_FallsBackToMastodonsAttachmentLimits()
+    {
+        var limits = await Limits(Answering("""{"domain":"quiet.example","configuration":{"statuses":{}}}"""))
+            .Read(Profile, TestContext.Current.CancellationToken);
+
+        Assert.Equal(4, limits?.Attachments);
+        Assert.Equal(1500, limits?.Descriptions);
+        Assert.Contains("image/jpeg", limits?.MediaTypes ?? []);
+        Assert.Contains("video/mp4", limits?.MediaTypes ?? []);
+    }
+
     /// <summary>An instance that says nothing about its limits is taken to have Mastodon's.</summary>
     [Fact]
     public async Task Read_TakesMastodonsDefaultsWhereTheInstanceSaysNothing()

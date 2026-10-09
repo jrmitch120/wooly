@@ -23,7 +23,7 @@ public class ComposeAccountDefaultsTests
 
         compose.Text = "hello";
 
-        Assert.Equal("    To  ○ public  ○ unlisted  ● followers  ○ direct", Texts(compose)[2]);
+        Assert.Equal("     To  ○ public  ○ unlisted  ● followers  ○ direct", Texts(compose)[2]);
 
         var draft = Publishing(compose);
 

@@ -71,6 +71,41 @@ public enum ShellKey
     /// <summary><c>ctrl-p</c>.</summary>
     CtrlP,
 
+    /// <summary><c>ctrl-z</c>.</summary>
+    CtrlZ,
+
+    /// <summary><c>del</c>.</summary>
+    Delete,
+
+    /// <summary><c>backspace</c>.</summary>
+    Backspace,
+
+    /// <summary><c>shift-↑</c>.</summary>
+    ShiftUp,
+
+    /// <summary><c>shift-↓</c>.</summary>
+    ShiftDown,
+
+    /// <summary><c>ctrl-o</c>, which opens the file browser from a compose screen (#376).</summary>
+    CtrlO,
+
+    /// <summary><c>ctrl-a</c>, which shows every file in the file browser (#376).</summary>
+    CtrlA,
+
+    /// <summary><c>ctrl-v</c>, which attaches from the clipboard on a compose screen (#380).</summary>
+    CtrlV,
+
+    /// <summary>
+    ///     <c>alt-v</c>, which is <c>ctrl-v</c> again for the terminals that keep <c>ctrl-v</c> as their own paste —
+    ///     Windows Terminal and the console host — so that it never reaches the program (ADR-0015).
+    /// </summary>
+    AltV,
+
+    /// <summary>
+    ///     <c>space</c>, which is a letter wherever letters are typed but in the file browser, where it chooses (#376).
+    /// </summary>
+    Space,
+
     /// <summary><c>/</c>.</summary>
     Slash,
 

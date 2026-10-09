@@ -44,8 +44,27 @@ _Avoid_: media file, image (where the kind has not been settled)
 An **attachment** that is on the instance but on no post yet: sent up while its post is still being composed, so it has
 an id and is uploading, being processed, ready or refused — and can still be described, moved or taken off before the
 post goes out. The third state between a file on this machine and an attachment read back off a post. One the post is
-never sent with is left for the instance to clear away.
+never sent with is left for the instance to clear away. On screen they are listed under the **Media** header, the
+label Mastodon itself uses — the header's word, not a second name for an attachment — which also carries the author's
+own sensitive toggle: what is attached put behind a click with no warning written, held on while a warning is.
 _Avoid_: upload (that is the act of sending it, not the thing sent)
+
+**File browser**:
+Where an author chooses files on this machine to attach: a screen over the compose screen, listing a folder's folders
+and the files the instance accepts, narrowed by a fuzzy filter, several chosen at once. It remembers the folder last
+attached from for the session only. Distinct from a drop or a paste from the clipboard, which attach without it.
+_Avoid_: file picker, attach screen (its crumb says `Attach`, which is what it is for, not what it is called)
+
+**Description editor**:
+Where an author writes a **pending attachment**'s **description**, beside the picture it describes: a screen over the
+compose screen with no cancel, since what is typed is the attachment's as it is typed.
+_Avoid_: alt text editor
+
+**Attachments screen**:
+The **pending attachment**s of a compose screen listed a row each, on a screen of their own, for a terminal too short
+to draw the rows under the **Media** header — where they fold into the header's one line. It is the same rows, and
+changes the same draft; it holds nothing of its own.
+_Avoid_: media screen
 
 **Link preview**:
 Server-generated metadata about a URL already sitting inside a post's text — a title, a site name, sometimes an

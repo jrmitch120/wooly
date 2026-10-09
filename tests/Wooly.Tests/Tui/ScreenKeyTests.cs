@@ -45,11 +45,15 @@ public class ScreenKeyTests
         "requests",
         "requests-empty",
         "compose",
+        "describe",
         "notice",
         "help",
         "profiles",
         "profiles-empty",
         "add-profile",
+        "browser",
+        "media",
+        "media-empty",
     ];
 
     /// <summary>Every screen that can have a post picked out, with one picked.</summary>
@@ -187,6 +191,7 @@ public class ScreenKeyTests
         ("follows-empty", "follows", ["⏎:open"]),
         ("discover-empty", "discover", ["⏎:open", "F:follow", "d:dismiss"]),
         ("profiles-empty", "profiles", ["D:make default", "R:sign in again", "x:remove"]),
+        ("media-empty", "media", ["⏎:describe", "s:sensitive"]),
     ];
 
     /// <inheritdoc cref="CanBeEmpty" />
@@ -268,16 +273,20 @@ public class ScreenKeyTests
     /// </summary>
     /// <remarks>
     ///     Read off the screen rather than listed here: a screen that says what it walks is a screen that can be asked
-    ///     whether it is empty, and that is the fact the rule turns on. The three exempt are the ones whose walk always
+    ///     whether it is empty, and that is the fact the rule turns on. The four exempt are the ones whose walk always
     ///     holds something — an account screen has the person themselves at the top of it, a post screen the post it is
-    ///     about, and a conversation exists because somebody said something in it.
+    ///     about, a conversation exists because somebody said something in it, and the file browser always has
+    ///     <c>..</c> to go up by (#376).
     /// </remarks>
     [Fact]
     public void EveryScreenThatWalksAnythingIsAskedTheEmptyRule()
     {
         var asked = CanBeEmpty.Select(screen => Of(screen.Empty).GetType()).ToHashSet();
 
-        var never = new[] { typeof(AccountScreen), typeof(PostScreen), typeof(ConversationScreen) };
+        var never = new[]
+        {
+            typeof(AccountScreen), typeof(PostScreen), typeof(ConversationScreen), typeof(FileBrowserScreen),
+        };
 
         var walks = typeof(Screen).Assembly.GetTypes()
             .Where(type => type.IsSubclassOf(typeof(Screen)) && !type.IsAbstract)
@@ -365,6 +374,21 @@ public class ScreenKeyTests
             case "compose":
                 return new ComposeScreen(ComposeFor.Post);
 
+            case "describe":
+                return Describing();
+
+            case "media":
+                return Listing(remove: false);
+
+            case "media-empty":
+                return Listing(remove: true);
+
+            case "browser":
+                return new FileBrowserScreen(
+                    new FolderListing(Path.GetTempPath(), "/tmp", Up: null, []),
+                    PostLimits.Default,
+                    room: 4);
+
             case "notice":
                 return new NoticeScreen("rate limit", "The instance asked for a moment.");
 
@@ -425,5 +449,36 @@ public class ScreenKeyTests
         search.Found("maria", results);
 
         return search;
+    }
+
+    /// <summary>The description editor, open on a picture attached to a fresh post (#377).</summary>
+    private static DescriptionScreen Describing()
+    {
+        var compose = new ComposeScreen(ComposeFor.Post);
+        var attachment = new ComposeAttachment("cat.png", Wooly.Core.Posts.MediaKind.Image, 1024);
+
+        compose.Attach([attachment]);
+
+        return new DescriptionScreen(compose, attachment);
+    }
+
+    /// <summary>
+    ///     The attachments screen over a compose with one thing attached and picked — or, <paramref name="remove" />, with
+    ///     it taken off again, leaving the list empty (story 58).
+    /// </summary>
+    private static AttachmentsScreen Listing(bool remove)
+    {
+        var compose = new ComposeScreen(ComposeFor.Post);
+        var attachment = new ComposeAttachment("cat.png", Wooly.Core.Posts.MediaKind.Image, 1024);
+
+        compose.Attach([attachment]);
+        compose.Pick(attachment);
+
+        if (remove)
+        {
+            compose.Remove();
+        }
+
+        return new AttachmentsScreen(compose);
     }
 }

@@ -57,6 +57,14 @@ internal sealed class ComposeEditor(
     public Func<Key, bool>? Answering { get; set; }
 
     /// <summary>
+    ///     Asked of every key whether it is compose's paste from the clipboard — <c>ctrl-v</c>, or <c>alt-v</c> where
+    ///     the terminal keeps <c>ctrl-v</c> — and if so, whether the clipboard held a picture or files it attached
+    ///     (#380): <see langword="null" /> where the key is no paste, and otherwise the editor's own paste follows
+    ///     only where nothing was attached.
+    /// </summary>
+    public Func<Key, bool?>? FromTheClipboard { get; set; }
+
+    /// <summary>
     ///     Every visual role Terminal.Gui asks for, answered from the theme: text in <see cref="Role.Body" /> on the
     ///     page, and a selection — which <see cref="TextView" /> draws in its <c>Active</c> role, as the compose
     ///     prototype found (#313) — in <see cref="Role.SelectedText" />. Nothing is left to Terminal.Gui's own scheme,
@@ -137,6 +145,17 @@ internal sealed class ComposeEditor(
         if (key == Key.W.WithCtrl)
         {
             warn();
+
+            return true;
+        }
+
+        // Pasted by hand rather than left to the key, since alt-v is no paste of TextView's own.
+        if (FromTheClipboard?.Invoke(key) is { } attached)
+        {
+            if (!attached)
+            {
+                Paste();
+            }
 
             return true;
         }

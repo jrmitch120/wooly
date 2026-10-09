@@ -211,6 +211,19 @@ public abstract class Screen
     public virtual bool CloseFilterPrompt() => false;
 
     /// <summary>
+    ///     What a click on this screen's rows means where it means more than picking out the thing under it: the key it
+    ///     stands for, carried out on the <paramref name="item" />th thing once that is picked out (#376).
+    /// </summary>
+    /// <remarks>
+    ///     Nothing by default, which leaves the click to pick the thing out, as on every screen. Answered with a verb
+    ///     rather than carried out here, so a click and the key it stands for are one thing done one way.
+    /// </remarks>
+    /// <param name="item">The thing the row is part of (<see cref="Line.Item" />), if any.</param>
+    /// <param name="part">What the run under the pointer stands for (<see cref="Span.Item" />), if anything.</param>
+    /// <param name="chorded">Whether ctrl or shift was held.</param>
+    public virtual Verb Clicked(int? item, int? part, bool chorded) => Verb.None;
+
+    /// <summary>
     ///     The post the reader has picked out, or <see langword="null" /> where this screen has no posts on it. What
     ///     <c>⏎</c>, <c>a</c> and the marks act on.
     /// </summary>
@@ -238,6 +251,33 @@ public abstract class Screen
     ///     their own keys before the window sees them.
     /// </remarks>
     public virtual bool IsTyping => false;
+
+    /// <summary>
+    ///     Whether something on this screen keeps to the page rather than to its rows, and so reads
+    ///     <see cref="Drawing.Top" />: the content region lays it out again whenever the page moves (#382).
+    /// </summary>
+    /// <remarks>
+    ///     Off everywhere but the file browser, whose preview sits level with the page's first row of the list. Asked
+    ///     rather than every screen being laid out twice on a frame that scrolls, since a feed's rows are the dearest
+    ///     thing a frame lays out and nothing on one keeps to the page.
+    /// </remarks>
+    public virtual bool KeepsToThePage => false;
+
+    /// <summary>
+    ///     How many of this screen's first rows stay at the top of the page however far the rest scrolls — none on every
+    ///     screen but the file browser, whose folder, filter and rule stay over its list.
+    /// </summary>
+    /// <remarks>
+    ///     The content region draws these rows at the top of the page over the rows scrolled under them, scrolls so that
+    ///     the pick is always in the room below them, and answers a click on one of them with the row drawn there. The
+    ///     rows pinned are the screen's first rows wherever the page is, so pinning them moves no row and asks no laying
+    ///     out again; what keeps to the page (<see cref="KeepsToThePage" />) keeps to the room under them.
+    ///     <para>
+    ///         Rows rather than a picture's box: the pinned rows hold no picture, and a picture in a row scrolled under
+    ///         them would be drawn over them, so a screen that pins rows keeps its pictures below them.
+    ///     </para>
+    /// </remarks>
+    public virtual int Pinned => 0;
 
     /// <summary>
     ///     Puts a letter into whatever this screen is taking, where it is taking anything. Said here rather than

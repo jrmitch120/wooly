@@ -111,6 +111,26 @@ internal sealed class PaintedView : View
     public bool Scrolls { get; set; }
 
     /// <summary>
+    ///     Whether the rows depend on where the page is (<see cref="Drawing.Top" />), so that a frame on which the page
+    ///     moves lays them out again under the scroll it came to (#382). Asked once a frame; off where nobody said.
+    /// </summary>
+    public Func<bool> KeepsToThePage { get; init; } = () => false;
+
+    /// <summary>
+    ///     How many of the rows' first rows stay at the top of the page, drawn there over the rows scrolled under them,
+    ///     however far the rest has scrolled (<see cref="Screens.Screen.Pinned" />). None where nobody said.
+    /// </summary>
+    /// <remarks>
+    ///     Said to the view rather than drawn by the screen at <see cref="Drawing.Top" />, so that the rows keep their
+    ///     places whatever the scroll: a pinned row is the same row of the rows on every frame, and only the view, which
+    ///     knows the scroll, can say which of them is under a cell. Everything here that asks what is on the page — the
+    ///     painting, the scroll that follows the pick, what <c>j</c> reclaims and which row a click lands on — goes by
+    ///     the page as drawn, the pinned rows over its top and the room under them showing what has scrolled. With the
+    ///     page unscrolled the two are the same rows.
+    /// </remarks>
+    public Func<int> Pinned { get; init; } = () => 0;
+
+    /// <summary>
     ///     How this terminal paints pixels as of the last frame settled, or <see cref="Media.Raster.None" /> before the
     ///     first. Worked out once a frame, before the rows are, and read rather than asked again everywhere else — the
     ///     rows laid out for a click or a key between frames included — so the rows, the boxes and the picture cache
@@ -222,7 +242,7 @@ internal sealed class PaintedView : View
         }
 
         var lines = _rows(width, height);
-        var at = _top + screen.Y - inside.Y;
+        var at = Shown(screen.Y - inside.Y, Scrolls ? Pinned() : 0);
 
         return at < lines.Count ? lines[at] : null;
     }
@@ -236,8 +256,18 @@ internal sealed class PaintedView : View
     ///     <c>[</c>/<c>]</c> through <see cref="Along" /> — and taking the rows it is to answer over, because the one
     ///     thing those two must not do is work the rows out twice and reclaim off two different lots.
     /// </remarks>
-    private int? Reclaiming(IReadOnlyList<Line> lines, int height) =>
-        Scroll.Shows(lines, height, _top) ? null : Scroll.Topmost(lines, _top);
+    private int? Reclaiming(IReadOnlyList<Line> lines, int height)
+    {
+        var pinned = Pinned();
+
+        return Scroll.Shows(lines, height, _top, pinned) ? null : Scroll.Topmost(lines, _top, pinned);
+    }
+
+    /// <summary>
+    ///     Which of the rows is drawn on the page's row <paramref name="row" />: one of the <paramref name="pinned" />
+    ///     rows at its top, or below them the row the scroll has brought there.
+    /// </summary>
+    private int Shown(int row, int pinned) => row < pinned ? row : _top + row;
 
     /// <summary>
     ///     Moves the screen by <paramref name="rows" /> and leaves the selection where it is, which is what <c>↓</c>
@@ -399,14 +429,16 @@ internal sealed class PaintedView : View
 
         _settled = null;
 
+        var pinned = Scrolls ? Pinned() : 0;
+
         for (var row = 0; row < height; row++)
         {
-            var at = _top + row;
+            var at = Shown(row, pinned);
 
             Paint(at >= 0 && at < lines.Count ? lines[at] : null, 0, row, width);
         }
 
-        PaintPlaceholders(lines, width, height);
+        PaintPlaceholders(lines, width, height, pinned);
 
         return true;
     }
@@ -416,7 +448,11 @@ internal sealed class PaintedView : View
     ///     reserved — including the lower rows of a box whose top has been scrolled off, which the terminal crops
     ///     (ADR-0022).
     /// </summary>
-    private void PaintPlaceholders(IReadOnlyList<Line> lines, int width, int height)
+    /// <remarks>
+    ///     Never over the <paramref name="pinned" /> rows, which are drawn over what has scrolled under them — a picture
+    ///     there is cropped at their foot as one scrolled off the top is at the page's.
+    /// </remarks>
+    private void PaintPlaceholders(IReadOnlyList<Line> lines, int width, int height, int pinned)
     {
         foreach (var (inset, top, id) in _placed)
         {
@@ -428,10 +464,10 @@ internal sealed class PaintedView : View
                 continue;
             }
 
-            for (var row = Math.Max(0, -top); row < inset.Rows && top + row < height; row++)
+            for (var row = Math.Max(0, pinned - top); row < inset.Rows && top + row < height; row++)
             {
                 var at = _top + top + row;
-                var picked = at < lines.Count && lines[at].Picked;
+                var picked = at < lines.Count && lines[at].Picked && inset.Column < (lines[at].BandsTo ?? int.MaxValue);
 
                 // On the band where the post is picked, so a picture with transparency in it shows what the row is on.
                 SetAttribute(KittyPlaceholder.Painted(id, picked ? _theme.Banded(Role.Body) : _theme.For(Role.Body)));
@@ -498,6 +534,7 @@ internal sealed class PaintedView : View
     private void Paint(Line? line, int left, int row, int width)
     {
         var picked = line?.Picked == true;
+        var bandsTo = Math.Min(width, line?.BandsTo ?? width);
         var column = 0;
 
         foreach (var span in line?.Spans ?? [])
@@ -514,7 +551,7 @@ internal sealed class PaintedView : View
 
             // The theme's to answer, not the view's: only a span sitting on the page goes onto the band, and one
             // with a background of its own — a picked reference a theme has given one — keeps it.
-            SetAttribute(picked ? _theme.Banded(span.Role) : _theme.For(span.Role));
+            SetAttribute(picked && column < bandsTo ? _theme.Banded(span.Role) : _theme.For(span.Role));
             AddStr(left + column, row, text);
 
             column += Glyphs.Columns(text);
@@ -524,9 +561,17 @@ internal sealed class PaintedView : View
         // does not leave the tail of the old one behind it — and on the band, for a row of the thing picked out, so
         // that the band runs to the edge of the view rather than stopping where the words do (#269). After the spans
         // rather than under them, so that each cell is painted once (#292).
+        // A row whose band stops short of the edge has the rest cleared on the page.
+        if (picked && column < bandsTo)
+        {
+            SetAttribute(_theme.Banded(Role.Body));
+            AddStr(left + column, row, new string(' ', bandsTo - column));
+            column = bandsTo;
+        }
+
         if (column < width)
         {
-            SetAttribute(picked ? _theme.Banded(Role.Body) : _theme.For(Role.Body));
+            SetAttribute(_theme.For(Role.Body));
             AddStr(left + column, row, new string(' ', width - column));
         }
     }
@@ -579,13 +624,18 @@ internal sealed class PaintedView : View
 
         _anchoring = false;
 
+        var was = _top;
+        var pinned = Pinned();
+
         _top = Scrolls
             ? _following
-                ? anchoring ? Scroll.ToSection(lines, height, _top) : Scroll.To(lines, height, _top)
+                ? anchoring ? Scroll.ToSection(lines, height, _top, pinned) : Scroll.To(lines, height, _top, pinned)
                 : Scroll.By(lines, _top, 0)
             : 0;
 
-        return lines;
+        // Laid out again under the page the scroll came to, for a screen with something that keeps to the page. What
+        // keeps to it moves no row and picks nothing, so the scroll worked out from the first laying stands (#382).
+        return _top != was && KeepsToThePage() ? _rows(width, height) : lines;
     }
 
     /// <summary>

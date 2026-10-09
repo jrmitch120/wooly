@@ -118,24 +118,32 @@ public sealed class Pictures(
     }
 
     /// <summary>
-    ///     Everything the shell needs to fetch and hold pictures, wired to <paramref name="http" />.
+    ///     Everything the shell needs to fetch and hold pictures, wired to <paramref name="http" /> — and to the disk,
+    ///     for a <c>file:</c> address: a file being attached, which is on no instance yet (#382).
     /// </summary>
     /// <param name="arrived">What to do when one lands — see the constructor.</param>
     public static Pictures Over(HttpClient http, Action arrived) => new(
         async (address, cancellation) =>
         {
+            if (Uri.TryCreate(address, UriKind.Absolute, out var uri) && uri.IsFile)
+            {
+                return await ReadFile(uri.LocalPath, cancellation).ConfigureAwait(false);
+            }
+
             // Headers first, so that a length worth refusing is refused before the body is read rather than after it
             // has already been held in memory.
-            using var response = await http.GetAsync(address, HttpCompletionOption.ResponseHeadersRead, cancellation);
+            using var response = await http
+                .GetAsync(address, HttpCompletionOption.ResponseHeadersRead, cancellation)
+                .ConfigureAwait(false);
 
             if (!response.IsSuccessStatusCode || response.Content.Headers.ContentLength > MostBytes)
             {
                 return null;
             }
 
-            await using var body = await response.Content.ReadAsStreamAsync(cancellation);
+            await using var body = await response.Content.ReadAsStreamAsync(cancellation).ConfigureAwait(false);
 
-            return await Read(body, cancellation);
+            return await Read(body, cancellation).ConfigureAwait(false);
         },
         arrived);
 
@@ -355,6 +363,29 @@ public sealed class Pictures(
     }
 
     /// <summary>
+    ///     What the file at <paramref name="path" /> holds, or <see langword="null" /> where it is gone, cannot be read,
+    ///     or holds more than <see cref="MostBytes" /> — the cap a file server is held to, since a photograph straight
+    ///     off a camera decodes to as much memory wherever it came from.
+    /// </summary>
+    private static async Task<byte[]?> ReadFile(string path, CancellationToken cancellation)
+    {
+        try
+        {
+            await using var file = File.OpenRead(path);
+
+            return file.Length > MostBytes ? null : await Read(file, cancellation).ConfigureAwait(false);
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
     ///     What <paramref name="body" /> holds, or <see langword="null" /> where it holds more than
     ///     <see cref="MostBytes" />. Read in pieces and counted as it goes rather than taken whole, because a server
     ///     that declares no length — or declares one and sends another — would otherwise decide how much of this
@@ -367,7 +398,10 @@ public sealed class Pictures(
 
         while (bytes.Length <= MostBytes)
         {
-            var read = await body.ReadAsync(piece, cancellation);
+            // Carried on wherever the piece was read rather than back on the thread that asked, which is the UI thread:
+            // it gets to a waiting piece only between frames, so a 4 MB photograph read in 64 KB pieces took two to
+            // three seconds to preview (#382).
+            var read = await body.ReadAsync(piece, cancellation).ConfigureAwait(false);
 
             if (read == 0)
             {

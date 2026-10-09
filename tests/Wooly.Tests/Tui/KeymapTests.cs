@@ -282,6 +282,46 @@ public class KeymapTests
         Assert.Equal(Verb.None, Means(key, Feed()));
 
     /// <summary>
+    ///     What the file browser answers besides its letters (#376): <c>space</c> chooses — its one letter that is not
+    ///     the filter's, since a name's spaces never need typing — and the arrows walk its list of entries rather than
+    ///     scrolling a page or walking posts (review of #372).
+    /// </summary>
+    [Theory]
+    [InlineData(" ", Verb.Choose)]
+    [InlineData("↓", Verb.NextEntry)]
+    [InlineData("↑", Verb.PreviousEntry)]
+    [InlineData("→", Verb.IntoFolder)]
+    [InlineData("←", Verb.UpFolder)]
+    [InlineData("⏎", Verb.AttachChosen)]
+    public void TheFileBrowserAnswersToItsOwnKeys(string key, Verb verb) =>
+        Assert.Equal(verb, Means(key, Browser()));
+
+    /// <summary>A space means nothing anywhere else, where it is a letter or nothing.</summary>
+    [Fact]
+    public void ASpaceMeansNothingOffTheFileBrowser()
+    {
+        Assert.Equal(Verb.None, Means(" ", Feed()));
+        Assert.Equal(Verb.None, Means(" ", new SearchScreen()));
+        Assert.Equal(Verb.None, Means(" ", new ComposeScreen(ComposeFor.Post)));
+    }
+
+    /// <summary>
+    ///     A letter that acts on a post elsewhere means nothing on compose, whose fields take it as a letter and whose
+    ///     Media header and rows, which take none, leave it to the keymap (review of #372) — never a boost, a reply or
+    ///     a compose behind a draft.
+    /// </summary>
+    [Theory]
+    [InlineData("b")]
+    [InlineData("c")]
+    [InlineData("f")]
+    [InlineData("k")]
+    [InlineData("x")]
+    [InlineData("1")]
+    [InlineData("F")]
+    public void ALetterActingOnAPostMeansNothingOnCompose(string key) =>
+        Assert.Equal(Verb.None, Means(key, new ComposeScreen(ComposeFor.Post)));
+
+    /// <summary>
     ///     The digits address the answers of the picked post's poll directly: <c>1</c>-<c>9</c> then <c>0</c>, so that
     ///     ten of them are reachable along one row of keys and the tenth is where a person's own counting puts it.
     /// </summary>
@@ -329,6 +369,10 @@ public class KeymapTests
         new(new Destination(DestinationKind.Home, "home"), posts.Length > 0 ? posts : [APost.With()]);
 
     private static NotificationsScreen Notifications() => new([ANotification.With()]);
+
+    /// <summary>A file browser over an empty folder, which is all a key on it needs.</summary>
+    private static FileBrowserScreen Browser() =>
+        new(new FolderListing(Path.GetTempPath(), "/tmp", Up: null, []), PostLimits.Default, room: 4);
 
     /// <summary>A search screen showing what it found, which is the one that has stopped taking letters.</summary>
     private static SearchScreen Searched()

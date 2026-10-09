@@ -10,6 +10,7 @@ using Wooly.Core.Profiles;
 using Wooly.Core.Relationships;
 using Wooly.Core.Search;
 using Wooly.Core.Timelines;
+using Wooly.Tui.Clipboard;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Theme;
@@ -65,6 +66,24 @@ public sealed class Shell
     ///     not on one (ADR-0014, #85).
     /// </summary>
     private readonly IWebBrowser _browser;
+
+    /// <summary>
+    ///     This machine's clipboard, which <c>ctrl-v</c> on a compose screen attaches a picture or copied files from
+    ///     (#380). Like the browser, not a port: it is not on an instance.
+    /// </summary>
+    private readonly IClipboard _clipboard;
+
+    /// <summary>
+    ///     Where pictures pasted from the clipboard are written before they are attached (#380) — a temporary folder of
+    ///     the session's, which whoever made this shell takes away as the session ends (review of #372).
+    /// </summary>
+    private readonly PastedPictures _pasted;
+
+    /// <summary>
+    ///     Whether the status row has said this machine has nothing to read the clipboard with, which it says once a
+    ///     session (#380).
+    /// </summary>
+    private bool _toldNoClipboard;
 
     private readonly IShellHost _host;
     private readonly TimeProvider _clock;
@@ -138,6 +157,27 @@ public sealed class Shell
     /// </summary>
     private readonly DefaultsByProfile _defaults;
 
+    /// <summary>
+    ///     The calls each compose screen's pending attachments make to the instance — sent up as attached, and described
+    ///     (ADR-0026, #375, #377) — whose answers this feeds into the screen.
+    /// </summary>
+    private readonly AttachmentCalls _attachments;
+
+    /// <summary>
+    ///     The compose screen whose <c>ctrl-s</c> is waiting on its attachments to finish before it sends (ADR-0026),
+    ///     or none.
+    /// </summary>
+    private ComposeScreen? _waitingToSend;
+
+    /// <summary>The folder Wooly was launched from, where the file browser opens the first time (#376).</summary>
+    private readonly string _launchedFrom;
+
+    /// <summary>
+    ///     The folder the author last attached from through the file browser, where it opens from then on — for this
+    ///     session only, saved nowhere (#376).
+    /// </summary>
+    private string? _lastFolder;
+
     /// <param name="opening">
     ///     Who to act as — or, with nobody, what to open onto instead: adding a profile, as the only screen (#247).
     /// </param>
@@ -145,23 +185,37 @@ public sealed class Shell
     ///     The config file's preferences: the hashtag the rail keeps a place for, and what compose starts on. None
     ///     where the file sets none.
     /// </param>
+    /// <param name="launchedFrom">
+    ///     The folder Wooly was launched from, where the file browser first opens (#376): the working folder, where
+    ///     nobody says otherwise.
+    /// </param>
     public Shell(
         Opening opening,
         ShellPorts ports,
         ProfilePorts profiles,
         IShellHost host,
         IWebBrowser browser,
+        IClipboard clipboard,
+        PastedPictures pasted,
         TimeProvider clock,
         ShellTiming timing,
-        Preferences? preferences = null)
+        Preferences? preferences = null,
+        string? launchedFrom = null)
     {
+        _launchedFrom = launchedFrom ?? Environment.CurrentDirectory;
         _ports = ports;
         _profiles = profiles;
         _host = host;
         _limits = new LimitsByInstance(ports.Limits, host);
         _limits.Heard += Measured;
+        _attachments = new AttachmentCalls(ports.Author, host);
+        _attachments.Heard += Progressed;
+        _attachments.Told += Told;
+        _attachments.Untold += Untold;
         _defaults = new DefaultsByProfile(ports.Defaults, host);
         _browser = browser;
+        _clipboard = clipboard;
+        _pasted = pasted;
         _clock = clock;
         _timing = timing;
         _hashtag = preferences?.Hashtag;
@@ -495,7 +549,8 @@ public sealed class Shell
     ///     toggles a poll answer — because there may be nothing on the picked post for them to act on, and an unused
     ///     key falls back through the window to whatever else wants it: the compose editor's own arrows above all
     ///     (#83, #87). That is settled here rather than in the keymap because the screen is the only thing that knows
-    ///     what is on the post, and asking it in two places is how two places come to disagree.
+    ///     what is on the post, and asking it in two places is how two places come to disagree. So can a paste from the
+    ///     clipboard, which holds nothing to attach as often as not, and leaves the key to the field's own paste.
     /// </returns>
     public bool Do(Verb verb, int? answer) => (_acting is not null || WithNobody(verb)) && verb switch
     {
@@ -539,6 +594,19 @@ public sealed class Shell
         Verb.NextField => Ran(() => _ = ChangeCompose(compose => compose.Walk(1))),
         Verb.PreviousChoice => Ran(() => _ = ChangeCompose(compose => compose.Choose(-1))),
         Verb.NextChoice => Ran(() => _ = ChangeCompose(compose => compose.Choose(1))),
+        Verb.RemoveAttachment => Ran(() => RemoveAttachment(compose => compose.Remove())),
+        Verb.BringBackAttachment => Ran(() => _ = ChangeCompose(compose => compose.BringBack())),
+        Verb.EarlierAttachment => Ran(() => _ = ChangeCompose(compose => compose.Reorder(-1))),
+        Verb.LaterAttachment => Ran(() => _ = ChangeCompose(compose => compose.Reorder(1))),
+        Verb.RetryAttachment => Ran(() => Retry(compose => compose.Retry())),
+        Verb.OpenBrowser => Ran(Browse),
+        Verb.PasteFromTheClipboard => PasteFromTheClipboard(),
+        Verb.AttachChosen => Ran(AttachChosen),
+        Verb.IntoFolder => Ran(() => Browse(browser => browser.FolderPicked)),
+        Verb.UpFolder => Ran(() => Browse(browser => browser.Above)),
+        Verb.ToggleSensitive => Ran(ToggleSensitive),
+        Verb.Describe => Ran(Describe),
+        Verb.ListAttachments => Ran(ListAttachments),
 
         // Nothing, and the terminal's own — which the window has already taken, and which no screen answers either.
         Verb.None => false,
@@ -791,6 +859,17 @@ public sealed class Shell
             Asking = null;
 
             Changed?.Invoke();
+
+            return;
+        }
+
+        // A send waiting on its attachments is a level of its own over the draft: esc calls the send off and leaves the
+        // draft as it was, to be changed or sent again (ADR-0026, #375).
+        if (_waitingToSend is not null && ReferenceEquals(_waitingToSend, Screen))
+        {
+            _waitingToSend = null;
+
+            Say("Not sent — the draft is as it was.", isError: false);
 
             return;
         }
@@ -1096,12 +1175,21 @@ public sealed class Shell
     ///         Nothing where the screen is not typing, and not a run of keys either: a paste is text, and replaying it
     ///         as keys would boost, compose and delete by whatever letters it happened to hold. The compose editor and
     ///         its warning field are widgets of their own and take their own pastes, which is what answering no leaves
-    ///         them to.
+    ///         them to — unless the paste is files dropped onto the terminal, which a compose screen attaches
+    ///         (<see cref="Dropped" />, #375).
     ///     </para>
     /// </remarks>
     /// <returns>Whether the paste was taken, which is what settles whether it is left for whatever has focus.</returns>
     public bool Paste(string text)
     {
+        if (Screen is ComposeScreen { TakesAttachments: true } compose
+            && Dropped.Paths(text, compose.Limits) is { } dropped)
+        {
+            Attach(compose, dropped);
+
+            return true;
+        }
+
         if (!Screen.IsTyping)
         {
             return false;
@@ -1122,6 +1210,54 @@ public sealed class Shell
         Changed?.Invoke();
 
         return true;
+    }
+
+    /// <summary>
+    ///     <c>ctrl-v</c> or <c>alt-v</c> on a compose screen, or on the attachments screen over one (#380): a picture on
+    ///     this machine's clipboard is written to a file of its own and attached from there, and copied files are
+    ///     attached, as a drop is (<see cref="Paste" />, ADR-0026).
+    /// </summary>
+    /// <returns>Whether the paste was taken; one that was not is left to the field's own paste.</returns>
+    public bool PasteFromTheClipboard()
+    {
+        if (InFront is not { TakesAttachments: true } compose)
+        {
+            return false;
+        }
+
+        switch (_clipboard.Read())
+        {
+            case Clipped.Picture(var png):
+                Attach(compose, [_pasted.Keep(png)]);
+
+                return true;
+
+            // Subject to what a drop is: the files there that the instance takes, up to what the post has room for.
+            case Clipped.Files(var paths):
+                var accepted = paths.Where(path => File.Exists(path) && compose.Limits.Accepts(path)).ToList();
+
+                if (accepted.Count == 0)
+                {
+                    Say("None of the copied files is a type this instance takes.", isError: true);
+                }
+                else
+                {
+                    Attach(compose, accepted);
+                }
+
+                return true;
+
+            // Said once a session: the author who has no wish to install either is still pasting text every time. Said
+            // once the field has pasted, since the paste is an edit and an edit spends a notice (#364).
+            case Clipped.NoTool(var why) when !_toldNoClipboard:
+                _toldNoClipboard = true;
+                Apply(() => Say(why, isError: false));
+
+                return false;
+
+            default:
+                return false;
+        }
     }
 
     /// <summary>Takes the last letter back out of it.</summary>
@@ -1152,7 +1288,7 @@ public sealed class Shell
     /// <returns>What the change was, or nothing where compose is not on top and no change was made.</returns>
     public ComposeChange ChangeCompose(Func<ComposeScreen, ComposeChange> change)
     {
-        if (Screen is not ComposeScreen compose)
+        if (InFront is not { } compose)
         {
             return ComposeChange.None;
         }
@@ -1170,6 +1306,116 @@ public sealed class Shell
         }
 
         return made;
+    }
+
+    /// <summary>
+    ///     The compose screen in front: on top, or under the attachments screen listing its rows on a short terminal,
+    ///     whose keys and clicks change the compose's draft as the same ones on its rows do (story 58, review of #372).
+    /// </summary>
+    private ComposeScreen? InFront => ComposeOf(Screen);
+
+    /// <summary>
+    ///     The compose screen <paramref name="screen" /> is, or whose rows it lists on a short terminal (story 58) — or
+    ///     <see langword="null" /> for any other screen.
+    /// </summary>
+    private static ComposeScreen? ComposeOf(Screen screen) => screen switch
+    {
+        ComposeScreen compose => compose,
+        AttachmentsScreen listing => listing.Compose,
+        _ => null,
+    };
+
+    /// <summary>
+    ///     <c>⏎</c> on compose's Media header, or a click on its line, where a terminal too short for a row each folded
+    ///     the rows into it: pushes the attachments screen listing them, the first picked (story 58).
+    /// </summary>
+    public void ListAttachments()
+    {
+        if (Screen is not ComposeScreen { RowsFolded: true } compose)
+        {
+            return;
+        }
+
+        compose.Pick(compose.Attachments[0]);
+        Push(new AttachmentsScreen(compose));
+    }
+
+    /// <summary>
+    ///     A press on the <paramref name="row" />th row of the attachments screen, which picks it as a press on a row
+    ///     under the Media header does, so that the row being dragged carries the bar from the moment it is picked up
+    ///     (#378, review of #372). Nothing on any other screen, where a press picks nothing and the click does.
+    /// </summary>
+    public void PickUp(int row)
+    {
+        if (Screen is not AttachmentsScreen listing || row < 0 || row >= listing.Compose.Attachments.Count)
+        {
+            return;
+        }
+
+        _ = ChangeCompose(compose => compose.Pick(listing.Compose.Attachments[row]));
+    }
+
+    /// <summary>
+    ///     A row on the attachments screen dragged by the pointer from the <paramref name="from" />th place to the
+    ///     <paramref name="to" />th, live, the others making way — as a row under the Media header is (#378, story 58).
+    /// </summary>
+    /// <returns>Whether it moved, which makes the button's release a drop rather than a click.</returns>
+    public bool DragRow(int from, int to) =>
+        Screen is AttachmentsScreen listing
+        && from >= 0
+        && from < listing.Compose.Attachments.Count
+        && DragAttachment(listing.Compose.Attachments[from], to);
+
+    /// <summary>
+    ///     Opens the description editor over the compose screen in front, on the attachment whose row the walk is on
+    ///     (#377). Nothing where it is on no row.
+    /// </summary>
+    public void Describe()
+    {
+        if (InFront is { Typing: ComposeField.Attachment, PickedAttachment: { } attachment } compose)
+        {
+            Push(new DescriptionScreen(compose, attachment));
+        }
+    }
+
+    /// <summary>
+    ///     The description editor's field changed: what the attachment's description says now (#377), settled by the
+    ///     rule every change to a draft is (<see cref="ChangeCompose" />). It goes to the instance as the editor is left.
+    /// </summary>
+    public void WriteDescription(string description)
+    {
+        if (Screen is not DescriptionScreen describing)
+        {
+            return;
+        }
+
+        var made = describing.Rewrite(description);
+
+        if (made == ComposeChange.Edited && Notice is not null)
+        {
+            Say(null, isError: false);
+        }
+        else if (made != ComposeChange.None)
+        {
+            Changed?.Invoke();
+        }
+    }
+
+    /// <summary>
+    ///     <c>s</c> on compose's Media header, or a click on its toggle: puts what is attached behind a click or takes it
+    ///     back out (#379). While a warning holds it on, the status row says so instead, since a press that changes
+    ///     nothing on screen would otherwise read as one the shell missed.
+    /// </summary>
+    public void ToggleSensitive()
+    {
+        if (InFront is { SensitiveByAWarning: true, Attachments.Count: > 0 })
+        {
+            Say("The warning already hides what is attached.", isError: false);
+
+            return;
+        }
+
+        _ = ChangeCompose(compose => compose.ToggleSensitive());
     }
 
     /// <summary>
@@ -1383,6 +1629,37 @@ public sealed class Shell
             return;
         }
 
+        // A post never goes out without something its author attached (ADR-0026): not without one the instance refused,
+        // and not before the rest are ready, which it waits for rather than refuses — esc calls the wait off (#375).
+        if (compose.Refused > 0)
+        {
+            Say(
+                compose.Refused == 1
+                    ? "Something attached was refused — take it off to send."
+                    : $"{compose.Refused} attachments were refused — take them off to send.",
+                isError: true);
+
+            return;
+        }
+
+        // A description the instance has not yet taken goes now — one that failed to before is sent again on the
+        // author's ctrl-s, never on its own (ADR-0006) — and the send waits on it as on an upload (#377).
+        foreach (var untold in compose.Attachments.Where(attachment => attachment.Untold))
+        {
+            _ = _attachments.Describe(Actor.Profile, compose, untold);
+        }
+
+        if (compose.Attachments.Count(attachment => attachment.Unfinished) is > 0 and var unfinished)
+        {
+            _waitingToSend = compose;
+
+            SayWaiting(unfinished);
+
+            return;
+        }
+
+        _waitingToSend = null;
+
         // Taken now rather than read when the call is made, which a rate-limit wait can put after a switch (#243).
         var profile = Actor.Profile;
 
@@ -1408,7 +1685,7 @@ public sealed class Shell
                     : null;
 
                 await _enquiry.Put(
-                    ask => ask.Of(token => _ports.Author.Publish(profile, draft, token)),
+                    ask => ask.Of(token => _ports.Author.PublishAttached(profile, draft, token)),
                     eitherWay: published =>
                     {
                         // A reply written in a conversation goes on the end of it, which the conversation and the
@@ -2004,6 +2281,319 @@ public sealed class Shell
     }
 
     /// <summary>
+    ///     A click on the content's rows that means more than picking out the thing under it (<see cref="Screen.Clicked" />,
+    ///     #376): the thing is picked out and the key the click stands for is carried out on it.
+    /// </summary>
+    /// <param name="item">The thing the row clicked is part of, if any.</param>
+    /// <param name="part">What the run clicked stands for, if anything.</param>
+    /// <param name="chorded">Whether ctrl or shift was held.</param>
+    /// <returns>Whether the click meant anything more, and was spent on it; if not it is left to pick.</returns>
+    public bool Click(int? item, int? part, bool chorded)
+    {
+        var verb = Screen.Clicked(item, part, chorded);
+
+        if (verb == Verb.None)
+        {
+            return false;
+        }
+
+        if (item is { } at)
+        {
+            Screen.Pick(at);
+        }
+
+        return Do(verb, answer: null);
+    }
+
+    /// <summary>
+    ///     <c>ctrl-o</c> on a compose or a reply, <c>⏎</c> on its Media header or a click on its words: pushes the file
+    ///     browser over it, in the folder last attached from this session or, the first time, the one Wooly was launched
+    ///     from (#376). Not on an edit, which has nothing to attach to, nor on a post that carries all it can.
+    /// </summary>
+    public void Browse()
+    {
+        if (InFront is not { TakesAttachments: true } compose)
+        {
+            return;
+        }
+
+        if (compose.AttachmentRoom == 0)
+        {
+            Say($"This post carries all it can — {compose.Attachments.Count} of {compose.Limits.Attachments}.", isError: false);
+
+            return;
+        }
+
+        var folder = _lastFolder is { } last && Directory.Exists(last) ? last : _launchedFrom;
+
+        Push(new FileBrowserScreen(LocalFiles.Listing(folder), compose.Limits, compose.AttachmentRoom));
+    }
+
+    /// <summary>
+    ///     <c>→</c>, <c>←</c> or <c>⏎</c> in the file browser: the folder <paramref name="going" /> says, read off the disk
+    ///     here and shown there (#376) — the screen reading nothing itself (ADR-0015). Nothing where it says none.
+    /// </summary>
+    private void Browse(Func<FileBrowserScreen, string?> going)
+    {
+        if (Screen is not FileBrowserScreen browser || going(browser) is not { } folder)
+        {
+            return;
+        }
+
+        browser.Show(LocalFiles.Listing(folder));
+        Changed?.Invoke();
+    }
+
+    /// <summary>
+    ///     <c>⏎</c> in the file browser: the browser goes and what was chosen — or, with nothing chosen, the file under the
+    ///     cursor — is attached to the compose screen under it, exactly as a drop is (#375, #376), and the folder it came
+    ///     from is remembered for the next time. With neither, the folder under the cursor opens: what is chosen comes
+    ///     first wherever the cursor is (review of #372).
+    /// </summary>
+    public void AttachChosen()
+    {
+        if (Screen is not FileBrowserScreen browser)
+        {
+            return;
+        }
+
+        var chosen = browser.Take();
+
+        if (chosen.Count == 0)
+        {
+            Browse(opening => opening.FolderPicked);
+
+            return;
+        }
+
+        // The compose it was opened over — directly, or under the attachments screen it was opened from (story 58).
+        if (_stack.Count < 2 || ComposeOf(_stack[^2]) is not { } compose)
+        {
+            return;
+        }
+
+        _lastFolder = browser.Folder;
+
+        Pop();
+        Attach(compose, chosen);
+    }
+
+    /// <summary>
+    ///     Attaches the files at <paramref name="paths" /> to <paramref name="compose" />, as many as it has room for,
+    ///     and starts each going up to the instance there and then (ADR-0026, #375). Attaching changes the draft, which
+    ///     spends a notice over it as typing does (#364) — and where some would not fit, the status row says how many
+    ///     were left out, so that nobody is unsure what is on the post (#378).
+    /// </summary>
+    private void Attach(ComposeScreen compose, IReadOnlyCollection<string> paths)
+    {
+        IReadOnlyList<ComposeAttachment> attached = [];
+
+        ChangeCompose(screen =>
+        {
+            attached = screen.Attach(paths.Select(path => ComposeAttachment.Of(path, LocalFiles.Size(path))));
+
+            return attached.Count > 0 ? ComposeChange.Edited : ComposeChange.None;
+        });
+
+        if (paths.Count - attached.Count is > 0 and var left)
+        {
+            var most = $"{compose.Limits.Attachments} is the most a post can carry.";
+
+            Say(attached.Count == 0 ? $"Nothing attached — {most}" : $"{left} left out — {most}", isError: true);
+        }
+
+        foreach (var attachment in attached)
+        {
+            _ = _attachments.SendUp(Actor.Profile, compose, attachment);
+        }
+    }
+
+    /// <summary>
+    ///     Takes an attachment off the compose in front, the one <paramref name="removing" /> says (#378) — and where a
+    ///     send was waiting on nothing else, the send: what it waited on is no longer on the post.
+    /// </summary>
+    private void RemoveAttachment(Func<ComposeScreen, ComposeChange> removing)
+    {
+        if (ChangeCompose(removing) != ComposeChange.None && InFront is { } compose)
+        {
+            Waited(compose);
+        }
+    }
+
+    /// <summary>
+    ///     Sends up again the attachment <paramref name="retrying" /> starts over on the compose in front, where a retry
+    ///     could mend its refusal (#378) — the author's to ask for, never done by itself (ADR-0006).
+    /// </summary>
+    private void Retry(Func<ComposeScreen, ComposeAttachment?> retrying)
+    {
+        if (InFront is not { } compose || retrying(compose) is not { } attachment)
+        {
+            return;
+        }
+
+        Changed?.Invoke();
+
+        _ = _attachments.SendUp(Actor.Profile, compose, attachment);
+    }
+
+    /// <summary>
+    ///     A row under the Media header dragged by the pointer to the <paramref name="place" />th row, live, the others
+    ///     making way (#378).
+    /// </summary>
+    /// <returns>Whether it moved, which makes the button's release a drop rather than a click.</returns>
+    public bool DragAttachment(ComposeAttachment attachment, int place) =>
+        ChangeCompose(compose => compose.ReorderTo(attachment, place)) != ComposeChange.None;
+
+    /// <summary>
+    ///     A click on <paramref name="attachment" />'s row, on <paramref name="part" /> of it (#378): its <c>x</c> takes
+    ///     it off, its <c>retry (r)</c> sends it up again, its description opens the description editor (#377), and
+    ///     anywhere else picks it.
+    /// </summary>
+    public void ClickAttachment(ComposeAttachment attachment, AttachmentPart part)
+    {
+        switch (part)
+        {
+            case AttachmentPart.Remove:
+                RemoveAttachment(compose => compose.Remove(attachment));
+
+                break;
+            case AttachmentPart.Retry:
+                Retry(compose => compose.Retry(attachment));
+
+                break;
+            case AttachmentPart.Description:
+                // Picked first, so that the editor's done comes back to the row it was opened from (#377).
+                _ = ChangeCompose(compose => compose.Pick(attachment));
+                Describe();
+
+                break;
+            default:
+                _ = ChangeCompose(compose => compose.Pick(attachment));
+
+                break;
+        }
+    }
+
+    /// <summary>
+    ///     Where <paramref name="attachment" /> on <paramref name="compose" /> has got to, heard on the drawing thread —
+    ///     and, where that was the last thing a waiting send was waiting on, the send (ADR-0026, #375).
+    /// </summary>
+    private void Progressed(ComposeScreen compose, ComposeAttachment attachment, AttachmentState state)
+    {
+        if (!compose.Progressed(attachment, state))
+        {
+            return;
+        }
+
+        Changed?.Invoke();
+
+        // A description written while it was going up goes now there is an attachment to put it on (#377).
+        if (state is AttachmentState.Ready)
+        {
+            _ = _attachments.Describe(Actor.Profile, compose, attachment);
+        }
+
+        Waited(compose);
+    }
+
+    /// <summary>
+    ///     The send <paramref name="compose" /> was waiting on, where it no longer has anything unfinished to wait on —
+    ///     an upload, or a description on its way (ADR-0026, #375, #377).
+    /// </summary>
+    /// <remarks>
+    ///     Only from the screen it was asked on, as any send is. Where a screen is open over it — the file browser, a
+    ///     description being edited — the send stays asked for, and goes once compose is back in front
+    ///     (<see cref="BackOn" />): dropped there, it was neither sent nor said (review of #372).
+    /// </remarks>
+    private void Waited(ComposeScreen compose)
+    {
+        if (ReferenceEquals(_waitingToSend, compose) && !compose.Unfinished && ReferenceEquals(Screen, compose))
+        {
+            _waitingToSend = null;
+
+            // One that was refused meanwhile is said rather than sent, by the same rule as a send asked for then.
+            _ = Send();
+        }
+    }
+
+    /// <summary>
+    ///     Compose back in front with a send still asked for on it: sent, where everything it waited on finished while
+    ///     it was behind another screen, and otherwise said again, since the screen that was open over it took the
+    ///     notice off the status row.
+    /// </summary>
+    private void BackOn()
+    {
+        if (Screen is not ComposeScreen compose || !ReferenceEquals(_waitingToSend, compose))
+        {
+            return;
+        }
+
+        if (compose.Attachments.Count(attachment => attachment.Unfinished) is > 0 and var unfinished)
+        {
+            SayWaiting(unfinished);
+
+            return;
+        }
+
+        Waited(compose);
+    }
+
+    /// <summary>That a send is waiting on <paramref name="unfinished" /> attachments, and how to call it off.</summary>
+    private void SayWaiting(int unfinished) => Say(
+        unfinished == 1
+            ? "Will send once 1 attachment finishes — esc to stop."
+            : $"Will send once {unfinished} attachments finish — esc to stop.",
+        isError: false);
+
+    /// <summary>
+    ///     The instance took <paramref name="description" /> for <paramref name="attachment" /> (#377): said so on
+    ///     <paramref name="compose" />, and sent again where it has changed meanwhile — and, where that was the last thing
+    ///     a waiting send was waiting on, the send.
+    /// </summary>
+    private void Told(ComposeScreen compose, ComposeAttachment attachment, string description)
+    {
+        if (compose.Told(attachment, description))
+        {
+            Changed?.Invoke();
+        }
+
+        _ = _attachments.Describe(Actor.Profile, compose, attachment);
+
+        Waited(compose);
+    }
+
+    /// <summary>
+    ///     A description did not reach the instance, for the reason <paramref name="why" /> says: said on the status row,
+    ///     and a send waiting on it stopped rather than left waiting. It is not sent again until the author sends again
+    ///     (ADR-0006).
+    /// </summary>
+    private void Untold(ComposeScreen compose, ComposeAttachment attachment, string why)
+    {
+        if (ReferenceEquals(_waitingToSend, compose))
+        {
+            _waitingToSend = null;
+        }
+
+        Say($"The description of {attachment.Name} was refused: {why}", isError: true);
+    }
+
+    /// <summary>Calls off whatever <paramref name="screen" /> is still sending up, as it leaves the stack (#375).</summary>
+    private void LetUploadsGo(Screen screen)
+    {
+        if (screen is not ComposeScreen compose)
+        {
+            return;
+        }
+
+        if (ReferenceEquals(_waitingToSend, compose))
+        {
+            _waitingToSend = null;
+        }
+
+        _attachments.LetGo(compose);
+    }
+
+    /// <summary>
     ///     An instance said how long it lets a post be, which a compose on that instance still in front is measured
     ///     against from now on.
     /// </summary>
@@ -2118,6 +2708,8 @@ public sealed class Shell
 
         Notice = null;
         Changed?.Invoke();
+
+        BackOn();
     }
 
     /// <summary>
@@ -2153,6 +2745,8 @@ public sealed class Shell
 
         Notice = null;
         Changed?.Invoke();
+
+        BackOn();
     }
 
     /// <summary>
@@ -2184,7 +2778,11 @@ public sealed class Shell
     /// <summary>Puts the stack back to one screen, which is what arriving at a destination does.</summary>
     private void Reset(Screen screen)
     {
-        _stack.ForEach(left => left.Left());
+        _stack.ForEach(left =>
+        {
+            left.Left();
+            LetUploadsGo(left);
+        });
         _stack.Clear();
         _stack.Add(screen);
         Saw(screen);
@@ -2338,6 +2936,14 @@ public sealed class Shell
     private void Leave(int at)
     {
         _stack[at].Left();
+        LetUploadsGo(_stack[at]);
+
+        // A description is done as its editor is left, by whichever way out, and goes to the instance then (#377).
+        if (_stack[at] is DescriptionScreen described)
+        {
+            _ = _attachments.Describe(Actor.Profile, described.Compose, described.Attachment);
+        }
+
         _stack.RemoveAt(at);
     }
 

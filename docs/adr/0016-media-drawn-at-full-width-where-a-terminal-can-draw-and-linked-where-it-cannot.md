@@ -357,3 +357,33 @@ Where this ADR says `PaintedView` keeps the rules for releasing and placing boxe
 begins once a frame, from `OnClearingViewport`, and hands both to `Placing`, which says which pictures the frame wants,
 places or releases every box, and hands back the placeholder cells for the view to paint. Only a picture some row wants
 is said, so a warned post's pictures are still never sent for. The rules themselves stand unchanged.
+
+## Amendment: files on this machine are drawn too, and a screen can keep a picture to the page (map #372, ticket #382)
+
+**What is being attached is drawn by the same path as a post's pictures**: a pending attachment's row, the file
+browser's preview and the description editor want a `Drawn` whose address is a `file:` URI, which `Pictures.Over` reads
+off the disk under the cap a file server is held to, rather than sending for. Nothing about wanting, budgeting or
+placing changes, so sixel still goes through `SixelPalette` and a `PictureView`. Only pictures the decoder reads are
+wanted, so no box or shade is held for a video, a sound or a HEIC photograph.
+
+**A screen may keep something to the page rather than to its rows.** The browser's preview sits level with the first
+row of the list *on the page*, so the view tells the screen where the page starts (`Drawing.Top`) and, for a screen that
+says it keeps to the page (`Screen.KeepsToThePage`), lays the rows out again on a frame whose scroll moved. What keeps to
+the page moves no row and picks nothing, so the scroll worked out from the first laying stands. Every other screen is
+laid out once a frame, as before.
+
+## Amendment: a screen can pin its first rows over what scrolls (map #372, file browser pinning)
+
+**The file browser's folder, filter and rule stay at the top of the page however far its list scrolls**, and the view
+does the pinning rather than the screen: a screen says how many of its first rows are pinned (`Screen.Pinned`, three
+for the browser and none anywhere else), and the content region draws those rows over the top of the page and the rows
+the scroll has brought to the room under them. The rows themselves do not move — a pinned row is the same row of the
+rows on every frame — so nothing about laying out, `Line.Item` or `Span.Item` changes, and a click is answered by the
+view from the row drawn under it, a pinned row's own included. The scroll goes by the page as drawn: following the pick
+keeps it in the room under the pinned rows (`Scroll.To`, `ToSection`), and a pick scrolled under them is off the page,
+so `↓`/`↑` reclaim the first row below them (`Scroll.Shows`, `Topmost`).
+
+What keeps to the page, as above, keeps to the room under the pinned rows: the preview's level is `Drawing.Top` plus
+the pinned rows, the list's first row on the page. Pinned rows hold no picture, and a screen that pins rows keeps its
+pictures below them: `Placing` is not told of the pinned rows, so a sixel box scrolled up under them would be drawn
+over them, and only the Kitty placeholder cells are cropped at their foot.

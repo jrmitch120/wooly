@@ -1,5 +1,6 @@
 using System.Drawing;
 using Terminal.Gui.App;
+using Terminal.Gui.Drivers;
 using Terminal.Gui.Input;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Media;
@@ -123,6 +124,9 @@ internal sealed class DrawnShell : IDisposable
 
         frames?.Over(application);
 
+        // Laid over the application as the client lays it, before the window's views start asking there.
+        MouseButtons.Over(application);
+
         application.Begin(window);
         application.LayoutAndDraw(true);
 
@@ -145,6 +149,25 @@ internal sealed class DrawnShell : IDisposable
     }
 
     /// <summary>
+    ///     A key, drawn as the running loop draws one: only what it changed, onto the frame before — not the whole
+    ///     screen over a cleared buffer, as <see cref="Press" /> draws it.
+    /// </summary>
+    public void PressAsTheLoopDraws(Key key)
+    {
+        Window.NewKeyDownEvent(key);
+        DrawAsTheLoopDraws();
+    }
+
+    /// <summary>
+    ///     The loop's next pass with nothing pressed: only what needs drawing drawn — or, where something asked for the
+    ///     screen to be cleared, as Terminal.Gui's layout does once a view is laid anew, the whole of it.
+    /// </summary>
+    public void DrawAsTheLoopDraws() => Application.LayoutAndDraw();
+
+    /// <summary>How many sixels the last frame written to the terminal sent.</summary>
+    public int SixelsSent() => Application.Driver!.GetOutput().GetLastOutput().Split("\u001bP").Length - 1;
+
+    /// <summary>
     ///     A key as the terminal hands it over, through the application rather than straight to the window — so that one
     ///     nothing answers falls through to Terminal.Gui's own navigation, as it would in the running TUI.
     /// </summary>
@@ -154,8 +177,16 @@ internal sealed class DrawnShell : IDisposable
         Redraw();
     }
 
-    /// <summary>A left click on the cell at <paramref name="column" />, <paramref name="row" />.</summary>
-    public void Click(int column, int row) => Point(column, row, MouseFlags.LeftButtonClicked);
+    /// <summary>
+    ///     A left click on the cell at <paramref name="column" />, <paramref name="row" />, as Terminal.Gui reports one:
+    ///     the press, the let-go, and the click it makes of them.
+    /// </summary>
+    public void Click(int column, int row, MouseFlags held = MouseFlags.None)
+    {
+        Point(column, row, MouseFlags.LeftButtonPressed | held);
+        Point(column, row, MouseFlags.LeftButtonReleased | held);
+        Point(column, row, MouseFlags.LeftButtonClicked | held);
+    }
 
     /// <summary>
     ///     A double click on the cell, as Terminal.Gui reports one: the first click on its own the moment it is let go,
@@ -164,17 +195,21 @@ internal sealed class DrawnShell : IDisposable
     public void DoubleClick(int column, int row)
     {
         Click(column, row);
+        Point(column, row, MouseFlags.LeftButtonPressed);
+        Point(column, row, MouseFlags.LeftButtonReleased);
         Point(column, row, MouseFlags.LeftButtonDoubleClicked);
     }
 
     /// <summary>
-    ///     Right clicks on the cell in quick succession, as Terminal.Gui reports them: one event as each is let go — a
-    ///     click, then a double click, then a triple click for the third and every one after it.
+    ///     Right clicks on the cell in quick succession, as Terminal.Gui reports them: the press, the let-go, and the click
+    ///     it makes of them — a click, then a double click, then a triple click for the third and every one after it.
     /// </summary>
     public void RightClick(int column, int row, int times = 1)
     {
         for (var at = 1; at <= times; at++)
         {
+            Point(column, row, MouseFlags.RightButtonPressed);
+            Point(column, row, MouseFlags.RightButtonReleased);
             Point(column, row, at switch
             {
                 1 => MouseFlags.RightButtonClicked,
@@ -209,6 +244,40 @@ internal sealed class DrawnShell : IDisposable
     {
         Application.Mouse.RaiseMouseEvent(new Mouse { ScreenPosition = new Point(column, row), Flags = flags });
         Redraw();
+    }
+
+    /// <summary>
+    ///     What a terminal writes as the mouse is used — SGR reports (<see cref="Sgr" />) — read in as the running TUI
+    ///     reads them, and the loop's next pass run over them (<see cref="Iterate" />): parsed by Terminal.Gui, the clicks
+    ///     it makes of them made, each sent to the view under the pointer, and the screen drawn only where that left
+    ///     something to draw — never redrawn whole, as <see cref="Point" /> redraws it. All of them land in the one pass,
+    ///     as a burst of reports read at once does.
+    /// </summary>
+    public void Reports(params string[] reports)
+    {
+        var input = (InputProcessorImpl<char>)Application.Driver!.GetInputProcessor();
+
+        foreach (var report in reports)
+        {
+            foreach (var character in report)
+            {
+                input.InputQueue.Enqueue(character);
+            }
+        }
+
+        Iterate();
+    }
+
+    /// <summary>
+    ///     One pass of the running TUI's main loop, as Terminal.Gui makes it: what the terminal sent handled, then what
+    ///     needs laying out laid out and what needs drawing drawn, then the timers run.
+    /// </summary>
+    public void Iterate()
+    {
+        Application.RaiseIteration();
+        Application.Driver!.GetInputProcessor().ProcessQueue();
+        Application.LayoutAndDraw();
+        Application.TimedEvents!.RunTimers();
     }
 
     /// <summary>Every row, as the text drawn on it.</summary>

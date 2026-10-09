@@ -90,3 +90,33 @@ region, a whole window or compose's view (`DrawnShell`, `ComposedView`) — call
 priced: no input injector, no run loop, no terminal, and keys still arrive as `NewKeyDownEvent` on a view. What holds
 is the production half: the shell and its screens reach the terminal only through `IShellHost`, and `IApplication`
 stays on the views' side of it.
+
+## Amendment: the mouse is driven through the terminal's reports (review of #372)
+
+"No input injector, no run loop" above was right for keys and wrong for the mouse. Every mouse test built a
+Terminal.Gui event ready for the view under the pointer — `LeftButtonClicked` straight after `LeftButtonPressed`, say
+— and forced a whole redraw after it, and the suite passed while the author, on a Mac, watched the wheel attach a file
+and leave the file browser. What the tests skipped was everything between the terminal and the view: Terminal.Gui's
+parsing of the SGR report, the clicks it makes of a press and a let-go (and the double click of a second one within
+500 ms on the same cell), and the loop's own decision about what to draw. The bug lived in the second of those:
+the terminal worded the pointer merely moving as a drag, so Terminal.Gui took the button for down and made a click of
+the next wheel notch.
+
+So a test whose promise is about the pointer now sends what a terminal sends. `DrawnShell.Reports` queues SGR reports
+(`Sgr`: `ESC[<b;x;yM` for a press or the pointer moving, `m` for a let-go, with the any-motion and SGR modes
+Terminal.Gui turns on) into the application's input processor, and `DrawnShell.Iterate` runs one pass of the main loop
+as Terminal.Gui makes it — the input handled, then only what needs laying out laid out and what needs drawing drawn,
+then the timers — so the drawn rows a test reads are the ones the terminal would show, with nothing redrawn for it.
+It is a test-only seam over Terminal.Gui's public input queue, not Terminal.Gui's own `InputInjector`, which encodes a
+ready-made event and so cannot send what a terminal really words differently; and it is not a run loop, so a test
+still sees each pass and nothing runs on its own.
+
+The old events-ready `Point` stays for what it was always fit for — a click is a click, wherever it came from — and
+its `Click` and `DoubleClick` now report the press and the let-go first, as Terminal.Gui does. What the line is: a
+test about **which gesture means what** may use `Point`; a test about **what a terminal's reports come to** — a drag,
+a click synthesized, a wheel among motion, what is on screen after one pass — goes through `Reports`. Where a report
+depends on the terminal, the test says which wording it is sending and why (`TerminalMouseReportsTests`).
+
+The same reports were also written once to the real binary in a pseudo-terminal, read back through a terminal
+emulator library, to check that the headless pass agrees with the running loop and its input thread. That was a
+by-hand check, kept nowhere: the suite runs no terminal.

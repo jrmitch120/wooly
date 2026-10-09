@@ -28,7 +28,11 @@ public static class Scroll
     /// <param name="lines">The rows to be drawn.</param>
     /// <param name="height">How many rows there is room for.</param>
     /// <param name="from">Where the scroll is now.</param>
-    public static int To(IReadOnlyList<Line> lines, int height, int from)
+    /// <param name="pinned">
+    ///     How many rows at the top of the page are pinned there, drawn over the rows scrolled under them, so that only
+    ///     the rest of the page shows what has scrolled (<see cref="Screens.Screen.Pinned" />).
+    /// </param>
+    public static int To(IReadOnlyList<Line> lines, int height, int from, int pinned = 0)
     {
         if (height < 1)
         {
@@ -53,6 +57,8 @@ public static class Scroll
             last = at;
         }
 
+        var room = Math.Max(1, height - pinned);
+
         // Nothing picked out — a screen with no posts on it, or one that is all prose. Stay exactly where the arrows
         // left us: with nothing to bring into view, the only wrong answer is moving. Clamped the way they clamp, so
         // that pressing j on a screen with no selection cannot yank a keymap read to its foot back up a page.
@@ -65,12 +71,14 @@ public static class Scroll
         // post you are looking at, and losing that is worse than losing the last of the text. Said outright rather than
         // left to fall out of the arithmetic below, which cannot honour it and settle at the same time — keeping the
         // end of a too-tall post on screen means scrolling down, and keeping its start on screen means scrolling back.
-        if (last - first + 1 >= height)
+        // All of it in the room under the pinned rows, which is the page that shows what has scrolled, and which starts
+        // that many rows further down the rows than the page does.
+        if (last - first + 1 >= room)
         {
-            return Math.Clamp(first, 0, Math.Max(0, lines.Count - 1));
+            return Math.Clamp(first - pinned, 0, Math.Max(0, lines.Count - 1));
         }
 
-        var top = last - height + 1 > from ? last - height + 1 : Math.Min(from, first);
+        var top = last - room + 1 - pinned > from ? last - room + 1 - pinned : Math.Min(from, first - pinned);
 
         return Math.Clamp(top, 0, Math.Max(0, lines.Count - 1));
     }
@@ -95,7 +103,8 @@ public static class Scroll
     /// <param name="lines">The rows to be drawn.</param>
     /// <param name="height">How many rows there is room for.</param>
     /// <param name="from">Where the scroll is now.</param>
-    public static int ToSection(IReadOnlyList<Line> lines, int height, int from)
+    /// <param name="pinned">How many rows at the top of the page are pinned there (<see cref="To" />).</param>
+    public static int ToSection(IReadOnlyList<Line> lines, int height, int from, int pinned = 0)
     {
         if (height < 1)
         {
@@ -104,7 +113,11 @@ public static class Scroll
 
         var heading = Heading(lines);
 
-        return To(lines, height, heading is { } at && (at < from || at >= from + height) ? at : from);
+        return To(
+            lines,
+            height,
+            heading is { } at && (at < from + pinned || at >= from + height) ? at - pinned : from,
+            pinned);
     }
 
     /// <summary>
@@ -134,8 +147,6 @@ public static class Scroll
         return null;
     }
 
-
-
     /// <summary>
     ///     Where <paramref name="rows" /> of scrolling from <paramref name="from" /> lands: what <c>↓</c> and <c>↑</c>
     ///     do, which is move the screen and leave the selection alone.
@@ -160,9 +171,16 @@ public static class Scroll
     ///     Any row of it, so a post whose middle is showing counts: what is being asked is whether the reader can see
     ///     what they picked, and part of a post is enough to have not lost it.
     /// </remarks>
-    public static bool Shows(IReadOnlyList<Line> lines, int height, int from)
+    /// <param name="lines">The rows drawn.</param>
+    /// <param name="height">How many rows there is room for.</param>
+    /// <param name="from">Where the page starts.</param>
+    /// <param name="pinned">
+    ///     How many rows at the top of the page are pinned there (<see cref="To" />): a row scrolled under them is not on
+    ///     the page, since nobody can see it.
+    /// </param>
+    public static bool Shows(IReadOnlyList<Line> lines, int height, int from, int pinned = 0)
     {
-        for (var at = Math.Max(0, from); at < Math.Min(lines.Count, from + height); at++)
+        for (var at = Math.Max(0, from + pinned); at < Math.Min(lines.Count, from + height); at++)
         {
             if (lines[at].Has(Role.Selection))
             {
@@ -187,8 +205,16 @@ public static class Scroll
     ///         back to moving from a selection the reader cannot see — the one thing it must not do.
     ///     </para>
     /// </remarks>
-    public static int? Topmost(IReadOnlyList<Line> lines, int from)
+    /// <param name="lines">The rows drawn.</param>
+    /// <param name="from">Where the page starts.</param>
+    /// <param name="pinned">
+    ///     How many rows at the top of the page are pinned there (<see cref="To" />): the page begins, for this, on the
+    ///     first row below them.
+    /// </param>
+    public static int? Topmost(IReadOnlyList<Line> lines, int from, int pinned = 0)
     {
+        from += pinned;
+
         for (var at = Math.Max(0, from); at < lines.Count; at++)
         {
             if (lines[at].Item is { } item)

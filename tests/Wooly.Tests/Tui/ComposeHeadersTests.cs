@@ -8,7 +8,7 @@ namespace Wooly.Tests.Tui;
 
 /// <summary>
 ///     Compose laid out as a mail client's compose (#317): a short block of right-aligned headers — who the post is
-///     from, what it answers, and the warning under the feed's own <c>⚠</c> — a hairline, the post, and a hairline at
+///     from, what it answers, and the warning under <c>Warn</c> (#375) — a hairline, the post, and a hairline at
 ///     the foot. The same on a fresh post, a reply and an edit, but for the reply header.
 /// </summary>
 public class ComposeHeadersTests
@@ -25,29 +25,34 @@ public class ComposeHeadersTests
     private static readonly Post Mine = APost.With(id: "110", account: "jeff@mastodon.social");
 
     /// <summary>
-    ///     A fresh post and an edit read the same: a blank, From, the warning, a hairline, a blank, the editor's rows, a
-    ///     hairline and the count.
+    ///     A fresh post reads: a blank, From, To, Lang, the warning, Media (#375), a hairline, a blank, the editor's
+    ///     rows, a hairline and the count. An edit reads the same, but for Media having no key to add to it (#381).
     /// </summary>
     [Theory]
-    [InlineData(ComposeFor.Post, ComposeRows.ToAccountDefault)]
-    [InlineData(ComposeFor.Edit, ComposeRows.ToPublic)]
-    public async Task APostAndAnEditDrawTheFromToAndWarningHeadersBetweenTwoHairlines(ComposeFor opening, string to)
+    [InlineData(ComposeFor.Post, ComposeRows.ToAccountDefault, ComposeRows.NoMedia)]
+    [InlineData(ComposeFor.Edit, ComposeRows.ToPublic, "  Media  none")]
+    public async Task APostAndAnEditDrawTheFromToAndWarningHeadersBetweenTwoHairlines(
+        ComposeFor opening,
+        string to,
+        string media)
     {
         var compose = await Opening(opening, Mine);
         var rows = Texts(compose);
+        const int top = 7;
 
         Assert.Equal(
             [
                 string.Empty,
-                "  From  @jeff · mastodon.social",
+                "   From  @jeff · mastodon.social",
                 to,
                 ComposeRows.NoLanguage,
                 ComposeRows.NoWarning,
+                media,
                 Rule,
                 string.Empty,
             ],
-            rows.Take(7));
-        Assert.All(rows.Skip(7).Take(Height - 9), row => Assert.Equal(string.Empty, row));
+            rows.Take(top + 1));
+        Assert.All(rows.Skip(top + 1).Take(Height - top - 3), row => Assert.Equal(string.Empty, row));
         Assert.Equal(Rule, rows[Height - 2]);
         Assert.EndsWith(" / 500", rows[Height - 1], StringComparison.Ordinal);
         Assert.Equal(Height, rows.Count);
@@ -62,16 +67,17 @@ public class ComposeHeadersTests
         Assert.Equal(
             [
                 string.Empty,
-                "  From  @jeff · mastodon.social",
+                "   From  @jeff · mastodon.social",
                 ComposeRows.ToPublic,
                 ComposeRows.NoLanguage,
-                "     ↳  answering @ben@hachyderm.io",
-                "        │ Hello world",
+                "      ↳  answering @ben@hachyderm.io",
+                "         │ Hello world",
                 ComposeRows.NoWarning,
+                ComposeRows.NoMedia,
                 Rule,
                 string.Empty,
             ],
-            Texts(compose).Take(9));
+            Texts(compose).Take(10));
     }
 
     /// <summary>A reply to the profile's own post continues it rather than answering it, as the feed says.</summary>
@@ -80,7 +86,7 @@ public class ComposeHeadersTests
     {
         var compose = await Opening(ComposeFor.Reply, Mine);
 
-        Assert.Equal("     ↳  continuing", Texts(compose)[4]);
+        Assert.Equal("      ↳  continuing", Texts(compose)[4]);
     }
 
     /// <summary>A From too long for its row is cut at the padding, the instance before the handle.</summary>
@@ -90,7 +96,7 @@ public class ComposeHeadersTests
         var compose = await Opening(ComposeFor.Post, Mine);
         var from = compose.Lines(new Drawing(20, AShell.Now, Height: Height))[1];
 
-        Assert.Equal("  From  @jeff · m…", from.Text);
+        Assert.Equal("   From  @jeff · …", from.Text);
     }
 
     /// <summary>The From header: the handle as a byline's, the instance muted after it.</summary>
@@ -122,9 +128,9 @@ public class ComposeHeadersTests
 
         Assert.Equal(
             [
-                "        │ The first thing said.",
-                "        │ The second thing said.",
-                "        │ The third thing said.",
+                "         │ The first thing said.",
+                "         │ The second thing said.",
+                "         │ The third thing said.",
                 ComposeRows.NoWarning,
             ],
             lines.Skip(5).Take(4).Select(line => line.Text));
@@ -145,11 +151,11 @@ public class ComposeHeadersTests
         var lines = Lines(compose);
 
         Assert.All(
-            new[] { lines[5], lines[^2] },
+            new[] { lines[6], lines[^2] },
             line => Assert.Equal(Role.PanelBorder, Assert.Single(line.Spans, span => span.Text.Trim().Length > 0).Role));
     }
 
-    /// <summary>With no warning the mark is dim and the row says how to add one.</summary>
+    /// <summary>With no warning the label is dim and the row says how to add one.</summary>
     [Fact]
     public async Task TheMarkIsDimWithNoWarning()
     {
@@ -157,10 +163,10 @@ public class ComposeHeadersTests
         var warning = Lines(compose)[4];
 
         Assert.DoesNotContain(warning.Spans, span => span.Role == Role.ContentWarning);
-        Assert.Equal(Role.Muted, Assert.Single(warning.Spans, span => span.Text.Contains('⚠')).Role);
+        Assert.Equal(Role.Muted, Assert.Single(warning.Spans, span => span.Text == "Warn").Role);
     }
 
-    /// <summary>With one written, the mark and the warning are both in the warning's role.</summary>
+    /// <summary>With one written, the label and the warning are both in the warning's role.</summary>
     [Fact]
     public async Task TheMarkIsLitWithAWarningWritten()
     {
@@ -170,7 +176,7 @@ public class ComposeHeadersTests
         var warning = Lines(compose)[6];
 
         Assert.Equal(ComposeRows.Warning("spoilers"), warning.Text);
-        Assert.Equal(Role.ContentWarning, Assert.Single(warning.Spans, span => span.Text.Contains('⚠')).Role);
+        Assert.Equal(Role.ContentWarning, Assert.Single(warning.Spans, span => span.Text == "Warn").Role);
         Assert.Equal(Role.ContentWarning, Assert.Single(warning.Spans, span => span.Text == "spoilers").Role);
     }
 
@@ -188,15 +194,15 @@ public class ComposeHeadersTests
         var warning = Lines(compose)[4];
 
         Assert.Equal(ComposeRows.Warning("say what it's about"), warning.Text);
-        Assert.Equal(Role.ContentWarning, Assert.Single(warning.Spans, span => span.Text.Contains('⚠')).Role);
+        Assert.Equal(Role.ContentWarning, Assert.Single(warning.Spans, span => span.Text == "Warn").Role);
         Assert.Equal(Role.Muted, Assert.Single(warning.Spans, span => span.Text == "say what it's about").Role);
     }
 
     /// <summary>The editor starts under the headers, two columns in from either side, and runs to the foot's hairline.</summary>
     [Theory]
-    [InlineData(ComposeFor.Post, 7)]
-    [InlineData(ComposeFor.Edit, 7)]
-    [InlineData(ComposeFor.Reply, 9)]
+    [InlineData(ComposeFor.Post, 8)]
+    [InlineData(ComposeFor.Edit, 8)]
+    [InlineData(ComposeFor.Reply, 10)]
     public async Task TheEditorStartsBelowTheHeaders(ComposeFor opening, int top)
     {
         var compose = await Opening(opening, Mine);
@@ -207,16 +213,17 @@ public class ComposeHeadersTests
     }
 
     /// <summary>
-    ///     On a short terminal the quote gives way first, then the blanks, then the reply header, the foot, From and
-    ///     the hairline — and To, the warning row and three rows of editor are kept however short it gets (#338). Lang
+    ///     On a short terminal the quote gives way first, then the blanks, then the reply header, the foot, From, Media
+    ///     (#375) and the hairline — and To, the warning row and three rows of editor are kept however short it gets (#338). Lang
     ///     gives way with From, being lower on the screen, just before it (#340).
     /// </summary>
     [Theory]
+    [InlineData(15, 10)]
     [InlineData(14, 9)]
     [InlineData(13, 8)]
     [InlineData(12, 7)]
     [InlineData(11, 6)]
-    [InlineData(10, 5)]
+    [InlineData(9, 6)]
     [InlineData(8, 5)]
     [InlineData(7, 4)]
     [InlineData(6, 3)]
@@ -232,10 +239,11 @@ public class ComposeHeadersTests
         Assert.Equal(height, lines.Count);
         Assert.Contains(lines.Take(top), line => line.Text == ComposeRows.ToPublic);
         Assert.Contains(lines.Take(top), line => line.Text == ComposeRows.NoWarning);
-        Assert.Equal(height >= 11, lines.Any(line => line.Text.Contains("↳", StringComparison.Ordinal)));
-        Assert.Equal(height >= 14, lines.Any(line => line.Text.Contains("│ Hello", StringComparison.Ordinal)));
-        Assert.Equal(height >= 8, lines.Any(line => line.Text == ComposeRows.NoLanguage));
-        Assert.Equal(height >= 7, lines.Any(line => line.Text.Contains("From", StringComparison.Ordinal)));
+        Assert.Equal(height >= 12, lines.Any(line => line.Text.Contains("↳", StringComparison.Ordinal)));
+        Assert.Equal(height >= 15, lines.Any(line => line.Text.Contains("│ Hello", StringComparison.Ordinal)));
+        Assert.Equal(height >= 9, lines.Any(line => line.Text == ComposeRows.NoLanguage));
+        Assert.Equal(height >= 8, lines.Any(line => line.Text.Contains("From", StringComparison.Ordinal)));
+        Assert.Equal(height >= 7, lines.Any(line => line.Text == ComposeRows.NoMedia));
     }
 
     /// <summary>

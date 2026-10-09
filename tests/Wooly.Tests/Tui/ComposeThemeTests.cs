@@ -60,7 +60,7 @@ public class ComposeThemeTests
                            .SelectMany(role => new[] { theme.For(role), theme.Banded(role) })
                            .ToHashSet();
 
-        Assert.Contains(view.Rows(), row => row.Contains("⚠  spoilers", StringComparison.Ordinal));
+        Assert.Contains(view.Rows(), row => row.Contains("Warn  spoilers", StringComparison.Ordinal));
         Assert.All(view.Cells(), cell => Assert.Contains(cell, answered));
     }
 

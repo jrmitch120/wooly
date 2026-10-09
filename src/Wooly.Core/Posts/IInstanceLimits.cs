@@ -3,8 +3,8 @@ using Wooly.Core.Profiles;
 namespace Wooly.Core.Posts;
 
 /// <summary>
-///     Asks an instance how long it lets a post be (#319). A port of its own, ADR-0005's narrow kind: the compose
-///     screen's count is the only thing that wants it. Beside <see cref="PostLimits" /> and <see cref="PostLength" />,
+///     Asks an instance how long it lets a post be (#319), and what it lets one carry (#375). A port of its own,
+///     ADR-0005's narrow kind: the compose screen's count and its attachments are the only things that want it. Beside <see cref="PostLimits" /> and <see cref="PostLength" />,
 ///     which are what it is asked for and what it is asked for to do.
 /// </summary>
 public interface IInstanceLimits

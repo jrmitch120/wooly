@@ -69,6 +69,14 @@ internal abstract class ComposeHeaderField(
     public Func<Key, bool>? Answering { get; set; }
 
     /// <summary>
+    ///     Asked of every key whether it is compose's paste from the clipboard — <c>ctrl-v</c>, or <c>alt-v</c> where
+    ///     the terminal keeps <c>ctrl-v</c> — and if so, whether the clipboard held a picture or files it attached
+    ///     (#380): <see langword="null" /> where the key is no paste, and otherwise the field's own paste follows
+    ///     only where nothing was attached.
+    /// </summary>
+    public Func<Key, bool?>? FromTheClipboard { get; set; }
+
+    /// <summary>
     ///     First refusal on every key, ahead of compose's own — nothing, unless a field has something hung under it whose
     ///     keys come first.
     /// </summary>
@@ -104,6 +112,17 @@ internal abstract class ComposeHeaderField(
         if (key == Key.W.WithCtrl)
         {
             Warn();
+
+            return true;
+        }
+
+        // Pasted by hand rather than left to the key, since alt-v is no paste of TextField's own.
+        if (FromTheClipboard?.Invoke(key) is { } attached)
+        {
+            if (!attached)
+            {
+                Paste();
+            }
 
             return true;
         }

@@ -104,6 +104,8 @@ A screen is a place in the stack, not a window. Entering one pushes, `esc` pops,
 | Direct messages — conversations, then a thread | A rail destination | #30 |
 | Follow requests | A rail destination | #29 |
 | Compose / reply / edit — a screen on the stack, like any other | `c`, `r` or `e` | #28 |
+| Attach — the file browser, the folders and the files the instance accepts | `ctrl-o` on a compose or a reply, `⏎` on its Media header or a click on its words | #376 |
+| Media — the attachments screen, a row for each thing attached to a compose or a reply | `⏎` on the Media header, or a click on its line, where a short terminal folded the rows into it | story 58 |
 | Profiles — every profile on this machine, marked `acting as` and `default` | `ctrl-p` | #240 (ADR-0020) |
 | Add a profile — the instance, a sign-in through the browser or a pasted token, the token checked, a name | `a` on the profiles screen, or launching with nobody to act as | #245, #247 (ADR-0020) |
 | Media inside a post or feed item | Drawn in place | #31 (ADR-0016) |
@@ -161,7 +163,9 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Conversation | `m` mark read, and every key that acts on a post, since each message in it is one |
 | Profiles | `⏎` act as that profile, for this session — not offered on the one already acted as · `D` make it the default, for the CLI and the next launch — not offered on the one already the default · `a` add a profile · `R` sign it in again, replacing its token — offered on every row · `x` remove it, after a confirmation — refused on the one acted as and on the default |
 | Add a profile | `⏎` on to the next step · `t` paste a token instead, while the browser is out or after it failed · `esc` back to the list, calling off a sign-in or a check in flight — or, as the only screen on first run, back to the first step, with `ctrl-q` quit offered (#247) |
-| Compose / reply / edit | `ctrl-s` send or save · `esc` throw it away — asking `Discard this post? y / n` first where it differs from how it opened, as every way out of it does (#373) · `ctrl-w` move the typing between the post and the content warning over it — on all three, each carrying a warning field of its own (#123, #139, #140); `⏎` in the warning hands the typing back too (#320) · `↑` on the post's first line moves the typing up into the headers, `↑`/`↓` move it between the headers that take typing, and `↓` off the last returns it to the post, the way a mail client's do (ADR-0024, #337); the walk stops at either end rather than coming round — `↑` on To and `↓` below the post do nothing — and the status row offers only the ways it goes: `↓ field` on To, `↑↓ field` on the headers under it, `↑ field` in the post · on **To** `←`/`→` choose the visibility, skipping any it does not allow, and the status row offers `←→ choose` ahead of the walk (#338); letters there are nobody's · on **Lang** a code or a name typed opens the list of languages, as do a click and `⏎`; the walk goes To, Lang, the warning, the post — the order they are drawn in — and steps over Lang where a short terminal has given its row up (#340) · `tab`/`shift-tab` are the frame's here as everywhere, never a walk of compose's fields. While the list of people to mention is open: `↑`/`↓` pick · `tab`/`⏎` insert · `esc` close the list, never the draft (#318). While the list of languages is open: `↑`/`↓` pick · `tab`/`⏎` choose · `esc` close the list, never the draft — and the status row offers those three ahead of the rest (#340) |
+| Compose / reply / edit | `ctrl-s` send or save — waiting first on anything attached still going up, which `esc` calls off (#375) · `esc` throw it away — asking `Discard this post? y / n` first where it differs from how it opened, as every way out of it does (#373) · `ctrl-w` move the typing between the post and the content warning over it — on all three, each carrying a warning field of its own (#123, #139, #140); `⏎` in the warning hands the typing back too (#320) · `ctrl-v` or `alt-v` attach a picture or copied files from the clipboard on a fresh post or a reply, from any field, Media and its rows included, else paste text as before — `alt-v` because Windows Terminal and the console host keep `ctrl-v` as their own paste (#380, ADR-0015); the status row offers `ctrl-v/alt-v paste` on Media while there is room · `ctrl-o` opens the file browser over a fresh post or a reply, from any field (#376), and the status row offers `ctrl-o add media` wherever it adds — with room left on the post, and not on Media, which offers its `⏎` for the same thing · `↑` on the post's first line moves the typing up into the headers, `↑`/`↓` move it between the headers that take typing, and `↓` off the last returns it to the post, the way a mail client's do (ADR-0024, #337); the walk stops at either end rather than coming round — `↑` on To and `↓` below the post do nothing — and the status row offers only the ways it goes: `↓ field` on To, `↑↓ field` on the headers under it, `↑ field` in the post · on **Media**, which the walk stops on between the warning and the post on a fresh post or a reply, `⏎` opens the file browser, as a click on its words does (#376) — or, where a short terminal folded the rows into its line, the attachments screen listing them (story 58) — and `s` flips the sensitive toggle once anything is attached, as a click on it does, unless a warning holds it on (#379); other letters there are nobody's · the walk goes through Media's **rows** too, `↑` from the post reaching the bottom one first (#378): on a row `del`/`backspace` take it off, `ctrl-z` brings back the last one taken off (one deep, only on Media and its rows), `shift-↑`/`shift-↓` move it, `r` retries it where a retry can help, `s` flips the toggle as on the header, and `⏎` opens the description editor, where `esc` and `ctrl-s` are both done (#377) · on **To** `←`/`→` choose the visibility, skipping any it does not allow, and the status row offers `←→ choose` ahead of the walk (#338); letters there are nobody's · on **Lang** a code or a name typed opens the list of languages, as do a click and `⏎`; the walk goes To, Lang, the warning, Media, the post — the order they are drawn in — and steps over Lang where a short terminal has given its row up (#340) · `tab`/`shift-tab` are the frame's here as everywhere, never a walk of compose's fields. While the list of people to mention is open: `↑`/`↓` pick · `tab`/`⏎` insert · `esc` close the list, never the draft (#318). While the list of languages is open: `↑`/`↓` pick · `tab`/`⏎` choose · `esc` close the list, never the draft — and the status row offers those three ahead of the rest (#340) |
+| Attach | type to filter, fuzzily (#376) · `space` choose the file under the cursor, or let it go — up to what the post has room for · `⏎` attach what is chosen, wherever the cursor is, else the file under the cursor, else open the folder under it · `→` open a folder · `←` up a folder · `↑`/`↓` walk the list · `ctrl-a` every file, and again only the accepted types · `backspace`/`delete` only ever the filter, stopping at empty · `esc` clear the filter, then back to the draft unchanged |
+| Media (the attachments screen) | `↑`/`↓` walk the rows · `⏎` describe the row · `del`/`backspace` take it off · `ctrl-z` bring back the last one taken off · `shift-↑`/`shift-↓` move it · `r` retry it where a retry can help · `s` the sensitive toggle · `ctrl-o` the file browser, attaching onto the compose under it · `ctrl-v`/`alt-v` attach from the clipboard onto it · `esc` back to the draft (story 58) |
 | Home, local, federated, hashtag, Discover, Notifications, Messages, Requests, Post, Account, Follows | `g` refresh — evicts the destination's cache entry (where one exists) and re-runs the same fetch its own arrival runs |
 
 ### What the four screens settled
@@ -840,9 +844,10 @@ its author remembered to warn it again by hand — which Mastodon's own clients 
   own before they bubble, so `?` is a letter in it with no rule of the shell's, and the shell carries no letters into a
   compose screen at all. Selected text is drawn in `selected-text`, as in the post.
 - **The row says it is there when it is empty**, muted — `⚠ no content warning` until the headers layout made it
-  `⚠  none · ctrl-w to add`, and `say what it's about` while it is being written (#317, below). A row a reader can type into is a row
-  they have to be able to find, and the status row's `ctrl-w` is the other half of saying so. Written, it takes the
-  same `⚠` and the same `content-warning` role a warned post's own warning is drawn in, so a warning being written
+  `⚠  none · ctrl-w to add`, and `Warn  none · ctrl-w to add` since #375 — and `say what it's about` while it is being
+  written (#317, below). A row a reader can type into is a row they have to be able to find, and the status row's
+  `ctrl-w` is the other half of saying so. Written, it takes the same `content-warning` role a warned post's own
+  warning is drawn in, label and all, so a warning being written
   looks like the warning it will become. The caret is the field's own, the terminal's cursor, since #320 — before
   that a painted `▌` stood for it, the way the search prompt's does.
 - **A blank row stands above it, on every compose alike** (#143). It was ADR-0015's reply block that used to end in
@@ -871,15 +876,19 @@ its author remembered to warn it again by hand — which Mastodon's own clients 
 Compose is laid out as a mail client's compose — variant A of the prototype on `prototype/compose` (#313, #317) — on a
 fresh post, a reply and an edit alike:
 
-- **Rows, top to bottom:** a blank; the headers — From, To, Lang, the reply header and its quote, ⚠ (ADR-0024, #338, #340); a hairline; a blank; the editor; a hairline; the row the count sits
-  on (#319). Two columns of padding either side of all of it. The hairlines are `panel-border`.
-- **Headers are a right-aligned label column four wide, two spaces, then the value.** `From` reads the profile's
+- **Rows, top to bottom:** a blank; the headers — From, To, Lang, the reply header and its quote, Warn, and Media with
+  a row under it for each pending attachment on a fresh post or a reply, or for each the post carries on an edit
+  (ADR-0024, #338, #340, #375, #381); a hairline; a
+  blank; the editor; a hairline; the row the count sits on (#319). Two columns of padding either side of all of it.
+  The hairlines are `panel-border`.
+- **Headers are a right-aligned label column five wide, two spaces, then the value** — five for `Media`, the widest of
+  the words every header is labelled with (#375). `From` reads the profile's
   handle in `byline-handle` and ` · instance` muted — the instance said even with one profile set up, since this is
   the row a reader checks before sending. A reply's header is labelled with the feed's own reply mark rather than a
   word, and worded by `PostReplyName` (`answering @handle`, or `continuing` for a self-reply), with up to three
-  non-blank rows of what is being answered under it behind a `│ ` gutter. The warning's is labelled with the bare
-  `⚠`, lit in `content-warning` while there is a warning or one is being written and muted otherwise, so the reader
-  sees at a glance whether the post is going out behind one.
+  non-blank rows of what is being answered under it behind a `│ ` gutter. The warning's is labelled `Warn` — a word
+  like the rest, where it was the feed's bare `⚠` until #375 — lit in `content-warning` while there is a warning or one
+  is being written and muted otherwise, so the reader sees at a glance whether the post is going out behind one.
 - **To says who the post goes to** (ADR-0024, #338): a row of radio buttons, `● public  ○ unlisted  ○ followers
   ○ direct`, the filled bubble the one chosen. It starts on what would go out — `default_visibility` where the config
   sets one, and on a reply the narrower of that and the post being answered (the post's own where the config sets
@@ -895,8 +904,9 @@ fresh post, a reply and an edit alike:
 - **The screen paints every row and says where the editor goes**, both from one layout, at the content region's
   height (`Drawing.Height`) — so what is painted and where the editor is laid over it cannot disagree. Where nobody
   says the height, it lays out as tall as its rows and the editor's least want.
-- **On a terminal too short for everything, rows give way in a fixed order**: the quote's tail, the blanks, the reply
-  header, the foot, `From` and `Lang`, the hairline under the headers. **To**, the warning header and three rows of editor are
+- **On a terminal too short for everything, rows give way in a fixed order**: the pending attachments' rows first, by
+  folding into the Media header's line (below); then the quote's tail, the blanks, the reply header, the foot, `From`
+  and `Lang`, the Media header, the hairline under the headers. **To**, the warning header and three rows of editor are
   kept whatever the height (#338) — the rule ADR-0015 and #123 already kept, with more dressing in front of it to go first.
 - **The foot counts what has been used of the post's limit** (#319): `n / limit`, right-aligned inside the padding,
   `muted` up to nine tenths of the limit, `quota-low` in the last tenth and `error` past it. It counts the way the
@@ -911,6 +921,216 @@ fresh post, a reply and an edit alike:
   and a switch keeps it. Until it lands, and wherever the instance does not answer, the count is out of Mastodon's 500
   and 23. It is not put through the enquiry, so a failure says nothing and a rate limit counts nothing down over the
   post; it is asked again the next time a post is written.
+
+### What pending attachments settled
+
+A fresh post and a reply attach files under a **Media** header, under Warn, in the layout chosen from the prototype on
+`prototype/374-attachments` (#374, #375). An edit carries the post's own attachments through unchanged (ADR-0008), and
+lists them under a read-only Media header of its own (#381).
+
+- **The header says what it holds, then the key that adds to it, all muted**, as Warn does: `Media  none · ctrl-o to
+  add`, `2 of 4 · ctrl-o to add` counted against the instance's limit, and `4 of 4` once the post is full.
+- **A row per pending attachment, under the header**: the grip `⠶` muted, its picture three columns wide and one row
+  tall (#382), its name cut with `…` to 32 columns, its kind (picture, animation, video, sound) muted, its size right-aligned and muted,
+  `x` in `destructive`, and one status column saying one thing at a time — the upload's gauge, `████░░░░  54%`, in
+  `gauge` and `gauge-empty`; `processing`; once ready its description in quotes, or the quiet mark `no alt text`; or
+  why it failed, in `error`. There is no mark for ready. **Nothing moves**: every column comes from the terminal's
+  width alone, never a name's, and the status column is at most 40 wide. Where that would leave the status fewer than
+  16 columns the kind goes first, then the name narrows as far as 12.
+- **The picture on a row is drawn where the terminal draws** — sixel, Kitty through a box, or Kitty's placeholders —
+  through the same path the feed's pictures take (ADR-0022, ADR-0023, ADR-0025): the row says it wants the picture,
+  `Placing` asks the cache for it and places it, and sixel is quantized by `SixelPalette` for a `PictureView`, never by
+  Terminal.Gui's own encoder, which tinted photographs red on WezTerm (#374). The file is read off the disk rather
+  than sent for (`Drawn.Attaching`, a `file:` address `Pictures.Over` reads itself), under the same 8 MB cap a file
+  server is held to, and decoded no larger than the row's box. **Three columns, not the one #375 held**: one cell of a
+  photograph is a blot, and three are what the prototype tried in place and enough to tell roughly what a picture is;
+  seeing it properly is the description editor's. The column is held on every terminal — the `stand-in`'s shade
+  while a picture is on its way, blank where none is coming — so nothing on a row moves when one arrives, and a
+  terminal that draws nothing lays the rows out the same. Only the pictures the decoder reads are sent for (JPEG, PNG,
+  GIF, WebP): a video, a sound or a HEIC photograph keeps its column blank rather than a shade for a picture that never
+  comes.
+- **On a short terminal the rows fold into the header's line** before any other row gives way, wherever a row each
+  would leave the editor fewer than three: `3 of 4 · 3 no alt text · 1 failed · ctrl-o to add · □ sensitive`, the
+  failures in `error`. They unfold when there is room again. Folded, `⏎` on the line or a click on it pushes the
+  **attachments screen** (`AttachmentsScreen`, story 58), crumbed `Media`: the header's line unfolded, a blank, and the
+  compose's own rows, drawn as under the header, the first picked. Every key and click a row takes under the header it
+  takes there — `⏎` or a click on the description describes, `del`/`backspace` or a click on `x` takes off, `ctrl-z`
+  brings back, `shift-↑↓` or a drag moves, `r` or a click on `retry (r)` retries, `s` or a click on the toggle flips
+  it — and `ctrl-o` attaches more, all of it changing the compose's own draft through the shell; `↑`/`↓` walk the
+  rows. `esc` goes back to the draft, the walk on the header.
+- **The sensitive toggle ends the header's line**, after a `·`, once anything is attached (#379): `□ sensitive` muted
+  while it is off, `■ sensitive` in `content-warning` while it is on, and `■ sensitive (warning)`, the same, while a
+  warning is written — a warning puts the whole post behind a click already (ADR-0008), so the toggle is held on and
+  locked, and `s` then says `The warning already hides what is attached.` Clearing the warning gives back whatever the
+  author had set, which is kept underneath. The walk stops on the header between Warn and the post — on a fresh post
+  or a reply whether or not anything is attached, since `⏎` there opens the file browser (#376) — its own words lit in
+  `selected-text` rather than a selection bar, and once something is attached the status row offers `s sensitive`
+  there; `s` on the header or a click on the toggle flips it. What goes out is the author's own setting, as the
+  draft's `Sensitive`, and the warning as the warning.
+- **A drop attaches**: a terminal pastes the paths of files dropped onto it, so a paste on a compose screen made
+  entirely of whole paths to existing files of a type the instance accepts — split as a terminal quotes a drop, spaces
+  escaped with a backslash or a path in quotes, `file://` addresses and `~` taken as the paths they stand for — attaches
+  them, as many as the post has room for (`Dropped`). Any other paste, a sentence with a path in it included, is text
+  as it always was.
+- **`ctrl-v` attaches from the clipboard** of the machine Wooly runs on (`IClipboard`, #380), anywhere on a fresh
+  post or a reply — in any field, on the Media header and its rows, which take no paste of their own, and on the
+  attachments screen. **`alt-v` does the same**, because Windows Terminal and the console host bind `ctrl-v` to the
+  terminal's own paste and never pass it on: there `ctrl-v` pastes the clipboard's text, or nothing when it holds only
+  a picture, and `alt-v` is the key that reaches Wooly (ADR-0015). Both are the keymap's (`Verb.PasteFromTheClipboard`);
+  the fields that take typing ask it before their own paste, which either key falls through to. The status row offers
+  `ctrl-v/alt-v paste` on the Media header and on the attachments screen while the post has room. A picture there is written to `pasted-1.png`, `pasted-2.png` and so on — counted over the session,
+  in a temporary folder of the session's (`PastedPictures`), taken away with every picture in it as the session ends —
+  and attached from that file; copied files attach as a drop does, those of a type
+  the instance takes, up to the limit, and where it takes none of them the status row says so. Anything else is the
+  field's own paste, unchanged. The clipboard is read through the operating system, never the terminal, which only
+  ever pastes text: `osascript` and AppKit's pasteboard on macOS, `wl-paste` under Wayland and then `xclip` on Linux,
+  and Windows PowerShell on Windows (`OsClipboard`) — none of it needing Git. On a Linux machine with neither tool the
+  status row says once a session that pasting a picture or files needs one, and text still pastes. `⌘V` is the
+  terminal's and only ever carries text, and over SSH the clipboard read is the far machine's, so a paste there is
+  text: expected, not a fault. On macOS Terminal `alt-v` types `√` unless Option is set to act as Meta, and `ctrl-v`
+  works there anyway. An edit's `ctrl-v` and `alt-v` are text and read no clipboard.
+- **Each file goes up the moment it is attached** (ADR-0026): the shell sends it through `IPostAuthor.Attach`, as the
+  profile acted as, and feeds where it has got to back into the screen on the drawing thread — the screen holds it and
+  draws it, and reaches nothing itself (ADR-0015). The calls are `AttachmentCalls`', the shell's collaborator for
+  them, which hands every answer back as an event. Not through the enquiry: the row says how it is going, the status
+  row says nothing, and it is not stopped by a screen pushed over the draft. **Every upload ends**: a refusal says the
+  instance's own reason on the row; a dropped connection says `connection lost`, a rate limit `rate limited`, an
+  instance that failed to answer `instance failed (502)`, and a call the client gave up waiting on `timed out`; and a
+  failure nothing expected ends the row refused all the same, saying what it was — no row is left going up, and no
+  send left waiting on one. None is tried again by itself (ADR-0006), though the author can retry from the row where
+  a retry can help (below). A compose screen leaving the stack calls off what it is still sending, and leaves what
+  went up for the instance to clear away.
+- **`ctrl-s` waits rather than refuses.** With anything still going up or being processed it keeps the screen up and
+  says `Will send once 1 attachment finishes — esc to stop.`, and sends once they have; `esc` calls the send off and
+  says the draft is as it was. A screen opened over compose meanwhile — the file browser, a description — leaves the
+  send asked for: back on compose it sends, where everything finished while it was away, or says again that it will.
+  It never sends without them. With anything refused it does not send, and says so. The
+  post goes out through `IPostAuthor.PublishAttached`, naming the pending attachments by id in the order shown — the
+  route every TUI post now takes, attachments or none — and a post of attachments alone, with no text, sends.
+- **The limits are the instance's** (`IInstanceLimits`): `configuration.statuses.max_media_attachments`, else 4;
+  `configuration.media_attachments.supported_mime_types`, else Mastodon's own; and `description_limit`, else 1500 — read
+  with the post's own limit, on the same answer.
+- **The rows are walked to, and fixed where they are** (#378). `↑` from the post walks the rows from the bottom, then
+  the header, then Warn, and `↓` walks back; a row walked to carries `▌` in `selection` against its grip and nothing
+  else — its name stays in its usual role, picked or not, since a name lit as well read as a second thing picked —
+  the bar in a column held for it so that nothing moves. On a row `del` or `backspace` takes it off
+  the post, the walk staying on the row that took its place, else the one above, else on the header; `ctrl-z`
+  brings back the last one taken off, in its place, with its description and as far as its upload had got — one deep,
+  only while the walk is on Media or its rows, and not onto a full post; `shift-↑`/`shift-↓` move it a place, the post
+  going out in the order shown. Not `alt-↑`/`alt-↓`, which macOS Terminal turns into word jumps. The status row offers
+  `r retry` where it applies, `shift-↑↓ move`, `del remove` and `ctrl-z bring back`.
+- **A retry is offered only where it can help**: a dropped connection reads `connection lost  retry (r)`, the offer in
+  `key`, and `r` or a click on it sends the file up again from nothing — the author's to ask for, never done by itself
+  (ADR-0006). So do a rate limit, which passes, an instance that failed to answer, and a call the client gave up
+  waiting on. A file the instance refuses — too large, of a type it does not take, or any other refusal — says why
+  and offers nothing, as does a failure nothing expected. Where
+  the reason and the offer do not both fit the status column, the offer shortens to `(r)` and the reason is cut.
+  Anything refused blocks `ctrl-s` until it is taken off or a retry goes through.
+- **The pointer**: a click on a row picks it, a click on its `x` (or a column either side) takes it off, a click on
+  `retry (r)` retries it, and dragging a row from anywhere on it moves it live — it takes each place the pointer
+  reaches and the others make way, with no landing marker, and the release is not also a click (`ComposeMediaField`).
+  Only a press on a row picks it up, and its release or click puts it down: some terminals report the pointer moving
+  with no button held in the same words as one moving with the left button held, which taken for a drag moved the
+  rows about after a click as the pointer passed over them. Two quick clicks on `x` take two rows off — the second the
+  row that took the first one's place — though Terminal.Gui reports the second as a double click, which anywhere else
+  on a row describes; the same on `retry (r)`. The attachments screen's rows drag the same way, a press there picking
+  the row as it picks it up, and none of them is ever on the band.
+- **Past the limit**, a drop attaches as many as fit and the status row says `2 left out — 4 is the most a post can
+  carry.`, or `Nothing attached — …` onto a full post.
+- **Anything attached touches the draft** (#373), so leaving it asks first.
+- **An edit's Media header only lists** (#381): a row for each attachment the post carries, in a pending row's columns
+  wherever it has something for them — its small picture, sent for from the instance's preview through the feed's
+  picture path (`Drawn.Kept`); its kind muted in the kind column, or in the otherwise blank name column where a narrow
+  terminal gave the kind column up; and its description in quotes or `no alt text` in the status column. No name or
+  size, which the instance does not hand back — under `Media  2 · kept as they are`, or
+  `Media  none` with no key where it carries nothing. No grip, no `x`, no key or click that adds, removes, reorders or
+  opens anything, and a drop on an edit is text. The rows fold into the header's line on a short terminal,
+  `2 · 1 no alt text · kept as they are`, and with the same headers the editor starts on the same row as on `c`.
+
+### What descriptions settled
+
+Every pending attachment can carry a **description** — "alt text" on screen, the domain's word in code — written in
+the description editor the prototype chose (#374, #377).
+
+- **On a row walked to (#378) the status row offers `⏎ describe`.**
+- **`⏎` on a row, a click on its description or `no alt text`, or a double click anywhere on it opens the editor**, a
+  screen pushed over the draft (ADR-0015) and crumbed `Describe <name>`. A single click elsewhere on a row only walks
+  onto it, so a slightly-off click pushes nothing.
+- **The editor**: a blank under the panel's edge, `Description (alt text)` muted, a blank, the field, and a counter
+  `n / limit` along the foot — muted, `quota-low` in the last tenth, `error` past the instance's description limit
+  (1500 where it does not say), counted in code points as an instance counts them. On a panel 80 wide or more the
+  field sits in the right half, and the picture being described goes top left, level with the label; on a narrower
+  one it goes above the label, in a place of up to ten rows with a blank under it, taken from what the field can
+  spare of its least three and not held at all where that is less than two rows (#382). Either place is held from
+  the first frame, so the label and the field never move when the pixels land; the picture is set against its top
+  left at its own proportions. Where the terminal cannot draw, or there is no picture to read, nothing is held above
+  the label. `esc` and `ctrl-s` are both "done" and
+  keep what was typed; there is no cancel. Done goes back to the row described, still picked, so the next row's
+  description is a walk and a `⏎` away. A description can be written at any time, while the file is still going up
+  included.
+- **A ready row says its description in quotes**, cut with `…` inside the closing quote where the status column is too
+  narrow, or the quiet mark `no alt text`. Sending never asks about a missing one.
+- **A description goes to the instance once there is an attachment to put it on, and again whenever it changes**
+  (`IPostAuthor.Describe`): as the editor is left, or as the attachment it was written for comes back ready. One at a
+  time per attachment, the last one written last. `ctrl-s` waits on a description still on its way as it does on an
+  upload, and sends one not yet taken first. A refusal, a dropped connection or any other failure is said on the status
+  row (`The description of cat.png was refused: …`) and calls a waiting send off; it is sent again on the next `ctrl-s`,
+  never by itself (ADR-0006).
+
+### What the file browser settled
+
+`ctrl-o` on a fresh post or a reply, `⏎` on its Media header or a click on the header's words pushes the file browser,
+crumbed `Attach`, in the look the prototype on `prototype/374-attachments` settled (#374, #376). An edit opens none, nor
+does a post already carrying all it can, which says `This post carries all it can — 4 of 4.`
+
+- **It works on the real file system, and opens where the author last attached from** this session — else in the
+  folder Wooly was launched from. Nothing is saved: the next session starts from the launch folder again. The shell
+  reads each folder (`LocalFiles`) and hands the screen a `FolderListing`; the screen reads nothing itself, as no
+  screen does (ADR-0015), and says which folder `→`, `←` or `⏎` opens next.
+- **Rows, top to bottom:** the folder, `~` for the home folder and cut from its start where it is long, with
+  `2 chosen · 2 more fit` (or `4 more fit on this post`) against the right; the filter, `filter ss0229▏` or
+  `type to filter`, with what is listed and the key that changes it against the right — `pictures, video, sound ·
+  ctrl-a every file` from the instance's accepted types, or `every file · ctrl-a accepted only` — a click on which does
+  the same as the key; a rule; then `◂ ..`, the folders as `▸ name/` in `link`, and the files, each `☐`, or `☑` once
+  chosen, with its kind, size and date muted against the right. The selection bar `▌` sits against the box column,
+  so it has something beside it on every row, and the cursor's row is on the band, its name in its usual role; with
+  the preview pane open the band stops at the list's `│` (`Line.BandsTo`) rather than running on under the pane. Hidden files and folders — a leading dot, or marked hidden — never show,
+  and every file shown under `ctrl-a` that the instance does not accept is muted.
+- **The filter is fuzzy, fzf's way** (`FuzzyName`): the letters typed must all be in a name, in order, anywhere; letters
+  in a run, or starting a word or a number, score more and skipped letters cost a little, so `ss0229` puts
+  `Screenshot 2024-02-29 at 9.31.03 AM.png` first and loose matches still show lower down. `..` stays on top, folders
+  ahead of files, and the cursor lands on the closest match. Fuzzy so that `space` can always mean choose: a name's
+  spaces never need typing. `backspace` and `delete` only ever edit the filter — held down, they stop at empty rather
+  than walking up the folders — and `esc` clears it before it goes back.
+- **Choosing**: `space`, a click on a box, or a ctrl- or shift-click on a row chooses a file, or lets it go, up to what
+  the post still has room for; choices outlast a change of filter or of folder, and the cursor stays where it is.
+  `space` is the keymap's (`Verb.Choose`), asked by the window ahead of the filter's letters. `⏎` attaches what is
+  chosen, in the order chosen, wherever the cursor is — or, with nothing chosen, the file under the cursor — as pending
+  attachments, exactly as a drop does (#375), and the browser goes. With neither, on a folder, `⏎` opens it, as `→`
+  does; `←` goes up one. A folder opens on its first entry; going up
+  lands on the folder just left.
+- **Everything above the rule stays pinned**: the folder, the filter and the rule are the top three rows of the panel
+  however far a long folder's list scrolls, and the list scrolls under them (`Screen.Pinned`, which the content region
+  reads). The cursor is never hidden under them: walking with `↑`/`↓` scrolls so its row is in the room below the rule,
+  and one the wheel has scrolled under them is off the page, so the next arrow takes the first row showing below the
+  rule, as it would a row wheeled off the top.
+- **The mouse**: a click moves the cursor, a double click opens a folder or attaches a file — on a box it is a second
+  click on the box — and the wheel scrolls the list and nothing else, wherever the pointer is over the panel: the
+  list, the pinned rows or the preview, sideways notches dropped and a trackpad's bursts a row each. It never moves the
+  cursor, chooses, attaches or leaves, whatever the terminal says the pointer did between notches (`MouseButtons`, under
+  **Pointer**) — the arrows walk the list (`Verb.NextEntry`, `Verb.PreviousEntry`), as `j`/`k` walk posts elsewhere, `j` and
+  `k` being letters here. A click lands on the row drawn where it points: on a pinned row it is that row's — `ctrl-a
+  every file` shows every file, the folder row picks nothing — never a list row scrolled under it.
+- **`esc` with no filter goes back to the draft unchanged**: nothing attached, nothing asked.
+- **On a terminal 90 wide or more the list keeps to the left** and a pane opens on the right past a `│`, where the
+  picture under the cursor goes (#382): top left, at its own proportions as wide as the pane allows, level with the
+  list's first row on the page — the first under the rule — its name and size muted under it. Moving the cursor, or
+  filtering it onto another file, changes it. "On the page" because the list scrolls with the content panel: the
+  browser keeps to the page (`Screen.KeepsToThePage`), is told where it is (`Drawing.Top`, so the level is
+  `Drawing.Top` plus the three pinned rows), and is laid out again on a frame whose scroll moved, so the picture is on
+  the page with the cursor however far down a long folder it is. The pane runs to the foot of
+  the page however short the list, so a picture changes no row's height. Nothing is in it for a folder, a file that is
+  not a picture the decoder reads, or on a terminal that cannot draw.
 
 ### What mentioning somebody settled
 
@@ -1521,16 +1741,23 @@ Three things stayed outside it, each deliberately:
   conversation list's `⏎` in `DirectMessagesScreen.cs`; and Discover's `⏎`, `F` and `d` in `DiscoverScreen.cs`. A
   `Confirmation` carries what agreeing to it does, so `D` asks the same way a delete and a vote do.
 - **The verbs that need a terminal.** `ShellWindow` still carries out `ctrl-q`, the four movements that walk the page
-  rather than the list, `j`/`k`, `Home`/`End` and `[`/`]` — which move the pick *and* the page — and `ctrl-s`, which
+  rather than the list, `j`/`k`, `Home`/`End` and `[`/`]` — which move the pick *and* the page — the arrows that walk
+  the entries of the file browser and the attachments screen likewise, and `ctrl-s`, which
   the editor widget takes off the keys before the shell's own path can. Nothing else about a key is the window's: it translates the press
   and hands the verb on.
 
 The window knows nothing of `ComposeScreen`. Compose's geometry and focus — laying the editor and the warning, To and
 Lang fields where the screen says they go (#315), which has the keys, and what each opens with — are `ComposeView`'s, one
 view the window adds once over the content panel's viewport (#365). It also takes the arrows no field took and walks the
-fields with them, as the keymap says they mean on compose. The lists of people to mention and of languages are its too,
+fields with them, as the keymap says they mean on compose. Its Media header and rows take no typing, and leave the window
+every key the keymap means something by on compose, swallowing the rest — the keymap binds every key compose does not
+answer to nothing, so the rows keep no list of keys of their own. The lists of people to mention and of languages are its too,
 each hung under the field it serves and asked about every click ahead of the views (#366): the window knows nothing of
 compose beyond adding `ComposeView` and saying where the content viewport is.
+
+Every mouse report is put right before any of them reads it, by `MouseButtons`, which the client lays over the
+application before the window is shown, so that it is asked ahead of `ComposeView`'s lists and every view (**Pointer**).
+It decides nothing a gesture means; it only says what the buttons did.
 
 ### What the profiles screen settled
 
@@ -1583,7 +1810,8 @@ to:
 - **A paste goes into whichever field is typing**, here and in every other field the shell types into itself (the
   search prompt, the compose warning, the follows filter). A terminal in bracketed-paste mode sends a paste as one
   string rather than as keys, so the shell takes it as text: a line break or a tab stands as a space, and it is never
-  replayed as keys. Where nothing is typing the paste is left to whatever has focus, which on compose is the editor.
+  replayed as keys. Where nothing is typing the paste is left to whatever has focus, which on compose is the editor —
+  but for files dropped onto the terminal, which compose attaches (#375).
 
 ### What switching settled
 
@@ -1729,6 +1957,24 @@ before the pair, so a double click whose first click declined a question or clos
 opens nothing behind it. A click on a crumb is one of these clicks too: it declines or closes the question and walks
 nowhere. A right click is not one of these clicks but `esc`, and answers the question as `esc` does:
 it declines the confirmation too, but takes the filter off rather than leaving what was typed narrowing the list.
+
+**A button is believed only from a press** (`MouseButtons`, review of #372). Terminal.Gui turns on any-motion
+tracking in SGR form, takes the reports as the terminal words them, and makes clicks of them itself: a click as a
+pressed button is let go, and a double click of a second within 500 ms on the same cell. A terminal can word the
+pointer merely moving as a drag with a button held. Ghostty does it once it has missed a button's let-go — a right
+click whose let-go a menu or a change of focus took — and keeps doing it until its window closes; macOS's terminal was
+found doing it with the left button (#378). Terminal.Gui took the button for down and made a click of the next report
+that said it was not, a wheel notch or another button's press most of all. With the right button "held", every notch
+and every left click was a right click, which is `esc`: the wheel and a click in empty space backed out of compose and
+the file browser. With the left one, the wheel over the file browser moved the cursor and then attached a file and
+left, and over a Media row clicked whatever was under the pointer. `MouseButtons` is laid over the application ahead
+of every view and puts each report right before anyone reads it, for every button alike: the pointer moving with a
+button "held" is the pointer moving, unless a press of it was reported and neither its let-go nor its click has come
+since; a click with no press reported since the last one is no click; and a double or triple click whose first half
+was one of those counts only the clicks there were. What the gesture then means is unchanged.
+
+A double click on a run that stands for a key of its own — an attachment's `x` or `retry (r)`, a file's box — is a
+click on it and no `⏎`, since Terminal.Gui reports the second of two quick clicks on one cell only as the pair.
 
 Mouse tracking stays on, and nothing turns it off: drag means nothing, and selecting text to copy goes through the
 terminal's modifier bypass (`⌥` in iTerm2, `Fn` in Terminal.app) until selection is a feature of its own. The `?`

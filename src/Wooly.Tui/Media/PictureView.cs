@@ -1,4 +1,5 @@
 using System.Drawing;
+using Terminal.Gui.App;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.Drivers;
 using Terminal.Gui.Input;
@@ -42,6 +43,18 @@ internal sealed class PictureView : ImageView, IPictureBox
     private Sixel? _sixel;
 
     /// <summary>
+    ///     The driver's cells as this last handed it its sixel — the array itself, which Terminal.Gui makes anew when it
+    ///     clears the buffer (<see cref="OnScreen" />).
+    /// </summary>
+    private Cell[,]? _sentOver;
+
+    /// <summary>Whether a frame written since the sixel was last sent wrote over any of its cells (<see cref="Written" />).</summary>
+    private bool _overdrawn;
+
+    /// <summary>The application whose written frames this asks after, from the first sixel it hands over.</summary>
+    private IApplication? _watching;
+
+    /// <summary>
     ///     Makes a box and adds it to <paramref name="holder" />, hidden: the program's way of making the boxes a view
     ///     draws pictures through (<see cref="IPictureBox" />, #360).
     /// </summary>
@@ -64,6 +77,17 @@ internal sealed class PictureView : ImageView, IPictureBox
         // a wheel over a picture grew it inside its box and never reached the page (#287): the pointer, like the
         // keys, is the screen's underneath, and a picture is only ever a part of the rows it sits on.
         MouseBindings.Clear();
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing && _watching is not null)
+        {
+            _watching.LayoutAndDrawComplete -= Written;
+            _watching = null;
+        }
+
+        base.Dispose(disposing);
     }
 
     /// <inheritdoc />
@@ -133,6 +157,7 @@ internal sealed class PictureView : ImageView, IPictureBox
 
         PictureId = null;
         _sixel = null;
+        _sentOver = null;
         Visible = false;
         Image = null;
     }
@@ -158,6 +183,15 @@ internal sealed class PictureView : ImageView, IPictureBox
             return true;
         }
 
+        var screen = ViewportToScreen();
+        var cells = new Rectangle(screen.X, screen.Y, Viewport.Width, Viewport.Height);
+        var buffer = driver.GetOutputBuffer();
+
+        // The image view's own id, which is the one the driver keeps it under from frame to frame.
+        var id = $"ImageView_{GetHashCode()}";
+
+        var resend = !OnScreen(buffer, id, sixel, cells);
+
         SetAttribute(UnderThePicture);
 
         for (var row = 0; row < Viewport.Height; row++)
@@ -165,21 +199,133 @@ internal sealed class PictureView : ImageView, IPictureBox
             AddStr(0, row, new string(' ', Viewport.Width));
         }
 
-        var screen = ViewportToScreen();
-        var cells = new Rectangle(screen.X, screen.Y, Viewport.Width, Viewport.Height);
-
-        driver.GetOutputBuffer().AddRasterImage(new RasterImageCommand
+        buffer.AddRasterImage(new RasterImageCommand
         {
-            // The image view's own id, which is the one the driver keeps it under from frame to frame.
-            Id = $"ImageView_{GetHashCode()}",
+            Id = id,
             Pixels = sixel.Pixels,
             EncodedSixel = sixel.Encoded,
             DestinationCells = cells,
-            IsDirty = true,
+            IsDirty = resend,
         });
+
+        _sentOver = buffer.Contents;
+        _overdrawn = false;
+
+        if (_watching is null && App is { } app)
+        {
+            _watching = app;
+            app.LayoutAndDrawComplete += Written;
+        }
 
         context?.AddDrawnRectangle(cells);
 
         return true;
     }
+
+    /// <summary>
+    ///     Whether the terminal still shows <paramref name="sixel" /> in <paramref name="cells" />, just as this frame
+    ///     would send it — which is when sending it again is only bytes the terminal must parse and draw. A frame that
+    ///     redraws the rows around a picture and leaves it be, as a letter typed into a description does for the counter
+    ///     under it, is every frame on a compose screen, and on Windows Terminal a sixel a letter lagged the typing
+    ///     (review of #372).
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         Terminal.Gui keeps a raster image from one frame to the next under its id, and writes it only while it
+    ///         is dirty. One that is not leaves its cells unwritten all the same — the cells painted as the picture's are
+    ///         never written over it — so what was sent stays on screen. That is what makes not sending it sound, and
+    ///         only where all of these hold:
+    ///     </para>
+    ///     <list type="bullet">
+    ///         <item>
+    ///             The buffer is the one last sent over. Terminal.Gui clears it, as a new array, on a resize and on a
+    ///             whole redraw; after that nothing in it says what the terminal shows, so the picture goes again.
+    ///         </item>
+    ///         <item>
+    ///             The buffer holds this view's image from before, already written, and it is this sixel in these
+    ///             cells, let draw in the same parts of them. A resize drops every image, and a box hidden or framed
+    ///             to another cut hands a different one.
+    ///         </item>
+    ///         <item>
+    ///             No frame written since wrote over any cell it is let draw in (<see cref="Written" />).
+    ///         </item>
+    ///     </list>
+    /// </remarks>
+    private bool OnScreen(IOutputBuffer buffer, string id, Sixel sixel, Rectangle cells) =>
+        !_overdrawn
+        && buffer.Contents is { } contents
+        && ReferenceEquals(contents, _sentOver)
+        && Held(buffer, id) is { IsDirty: false, AlwaysRender: false } held
+        && ReferenceEquals(held.EncodedSixel, sixel.Encoded)
+        && held.DestinationCells == cells
+        && LetDraw(buffer.Clip, cells).SequenceEqual(LetDraw(held.Clip, cells));
+
+    /// <summary>The image the driver holds under <paramref name="id" />, or <see langword="null" /> where it holds none.</summary>
+    private static RasterImageCommand? Held(IOutputBuffer buffer, string id) =>
+        buffer.GetRasterImages().FirstOrDefault(image => image.Id == id);
+
+    /// <summary>
+    ///     Once a frame is written: whether anything was written over this picture's cells, in this frame or any since it
+    ///     was last sent — a list hung over it, say. Each cell it is let draw in should still hold its blank, which the
+    ///     driver never writes; one holding anything else went to the terminal over the picture, and left a hole the
+    ///     next frame that draws it fills by sending it again (<see cref="OnScreen" />).
+    /// </summary>
+    /// <remarks>
+    ///     Asked once the frame is out rather than as the picture is drawn, since by then the rows around it have been
+    ///     painted again for the frame, over whatever was written there before.
+    /// </remarks>
+    private void Written(object? sender, EventArgs e)
+    {
+        if (_overdrawn
+            || _sixel is null
+            || App?.Driver?.GetOutputBuffer() is not { Contents: { } contents } buffer
+            || Held(buffer, $"ImageView_{GetHashCode()}") is not { } held)
+        {
+            return;
+        }
+
+        foreach (var part in LetDraw(held.Clip, held.DestinationCells))
+        {
+            for (var row = part.Top; row < part.Bottom; row++)
+            {
+                for (var column = part.Left; column < part.Right; column++)
+                {
+                    if (!ThePictures(contents[row, column]))
+                    {
+                        _overdrawn = true;
+
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    ///     The parts of <paramref name="cells" /> inside <paramref name="clip" /> and on the screen — where the driver
+    ///     lets a picture placed there draw.
+    /// </summary>
+    private Rectangle[] LetDraw(Region? clip, Rectangle cells)
+    {
+        var on = Rectangle.Intersect(cells, new Rectangle(Point.Empty, App?.Driver?.Screen.Size ?? cells.Size));
+
+        if (clip is null)
+        {
+            return on.IsEmpty ? [] : [on];
+        }
+
+        var region = clip.Clone();
+
+        region.Intersect(on);
+
+        return [.. region.GetRectangles().Where(part => !part.IsEmpty)];
+    }
+
+    /// <summary>
+    ///     Whether <paramref name="cell" /> is one the driver takes for a picture's and leaves unwritten: blank, with no
+    ///     background at all — as Terminal.Gui decides it, and as <see cref="UnderThePicture" /> paints it.
+    /// </summary>
+    private static bool ThePictures(Cell cell) =>
+        (string.IsNullOrEmpty(cell.Grapheme) || cell.Grapheme == " ")
+        && (cell.Attribute is not { } attribute || attribute.Background.A == 0);
 }

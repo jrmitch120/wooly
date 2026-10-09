@@ -9,19 +9,22 @@ namespace Wooly.Tests.Tui;
 internal static class ComposeRows
 {
     /// <summary>The warning header with nothing written in it and nobody writing.</summary>
-    public const string NoWarning = "     ⚠  none · ctrl-w to add";
+    public const string NoWarning = "   Warn  none · ctrl-w to add";
+
+    /// <summary>The Media header with nothing attached (#375).</summary>
+    public const string NoMedia = "  Media  none · ctrl-o to add";
 
     /// <summary>To on a post going out public, as every post <c>APost</c> builds does (#338).</summary>
-    public const string ToPublic = "    To  ● public  ○ unlisted  ○ followers  ○ direct";
+    public const string ToPublic = "     To  ● public  ○ unlisted  ○ followers  ○ direct";
 
     /// <summary>To on a fresh post with no <c>default_visibility</c>, which sends nothing (#338).</summary>
-    public const string ToAccountDefault = "    To  ◂ ● account default ▸";
+    public const string ToAccountDefault = "     To  ◂ ● account default ▸";
 
     /// <summary>Lang with no language in it, which sends none (#340).</summary>
-    public const string NoLanguage = "  Lang  none · the instance decides";
+    public const string NoLanguage = "   Lang  none · the instance decides";
 
     /// <summary>The warning header holding <paramref name="written" />.</summary>
-    public static string Warning(string written) => $"     ⚠  {written}";
+    public static string Warning(string written) => $"   Warn  {written}";
 
     /// <summary>A hairline across a content region <paramref name="width" /> wide, inside its two columns of padding.</summary>
     public static string Hairline(int width) => $"  {new string('─', width - 4)}";

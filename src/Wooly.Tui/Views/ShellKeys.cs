@@ -17,7 +17,7 @@ namespace Wooly.Tui.Views;
 /// </remarks>
 internal static class ShellKeys
 {
-    /// <summary>The keys that arrive as a code: the frame's, the movements, and the four ctrl pairs.</summary>
+    /// <summary>The keys that arrive as a code: the frame's, the movements, and the ctrl pairs.</summary>
     private static readonly Dictionary<KeyCode, ShellKey> Coded = new()
     {
         [Key.Enter.KeyCode] = ShellKey.Enter,
@@ -36,6 +36,15 @@ internal static class ShellKeys
         [Key.S.WithCtrl.KeyCode] = ShellKey.CtrlS,
         [Key.W.WithCtrl.KeyCode] = ShellKey.CtrlW,
         [Key.P.WithCtrl.KeyCode] = ShellKey.CtrlP,
+        [Key.Z.WithCtrl.KeyCode] = ShellKey.CtrlZ,
+        [Key.Delete.KeyCode] = ShellKey.Delete,
+        [Key.Backspace.KeyCode] = ShellKey.Backspace,
+        [Key.CursorUp.WithShift.KeyCode] = ShellKey.ShiftUp,
+        [Key.CursorDown.WithShift.KeyCode] = ShellKey.ShiftDown,
+        [Key.O.WithCtrl.KeyCode] = ShellKey.CtrlO,
+        [Key.A.WithCtrl.KeyCode] = ShellKey.CtrlA,
+        [Key.V.WithCtrl.KeyCode] = ShellKey.CtrlV,
+        [Key.V.WithAlt.KeyCode] = ShellKey.AltV,
     };
 
     /// <summary>
@@ -44,6 +53,7 @@ internal static class ShellKeys
     /// </summary>
     private static readonly Dictionary<char, ShellKey> Typed = new()
     {
+        [' '] = ShellKey.Space,
         ['a'] = ShellKey.A,
         ['b'] = ShellKey.B,
         ['c'] = ShellKey.C,

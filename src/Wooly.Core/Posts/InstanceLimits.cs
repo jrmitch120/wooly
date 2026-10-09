@@ -51,10 +51,18 @@ public sealed class InstanceLimits(IHttpClientFactory httpClientFactory) : IInst
         }
 
         var statuses = described?.Configuration?.Statuses;
+        var media = described?.Configuration?.MediaAttachments;
 
         return new PostLimits(
             statuses?.MaxCharacters ?? described?.MaxTootChars ?? PostLimits.Default.Characters,
-            statuses?.CharactersReservedPerUrl ?? PostLimits.Default.PerAddress);
+            statuses?.CharactersReservedPerUrl ?? PostLimits.Default.PerAddress)
+        {
+            // What a post may carry (#375), off the same answer. An empty list of types is an instance that did not
+            // say rather than one that accepts nothing, since an instance that took no files would not offer the call.
+            Attachments = statuses?.MaxMediaAttachments ?? PostLimits.Default.Attachments,
+            MediaTypes = media?.SupportedMimeTypes is { Count: > 0 } types ? types : PostLimits.Default.MediaTypes,
+            Descriptions = media?.DescriptionLimit ?? PostLimits.Default.Descriptions,
+        };
 
         Task<InstanceWire?> Described(string path) =>
             RawMastodonCall.Get<InstanceWire>(httpClientFactory, profile, path, [], cancellationToken);
@@ -75,6 +83,19 @@ public sealed class InstanceLimits(IHttpClientFactory httpClientFactory) : IInst
     {
         [JsonPropertyName("statuses")]
         public StatusesWire? Statuses { get; init; }
+
+        [JsonPropertyName("media_attachments")]
+        public MediaAttachmentsWire? MediaAttachments { get; init; }
+    }
+
+    private sealed record MediaAttachmentsWire
+    {
+        [JsonPropertyName("supported_mime_types")]
+        public IReadOnlyList<string>? SupportedMimeTypes { get; init; }
+
+        /// <summary>Mastodon 4.4 and later; older instances leave descriptions to the fallback.</summary>
+        [JsonPropertyName("description_limit")]
+        public int? DescriptionLimit { get; init; }
     }
 
     private sealed record StatusesWire
@@ -84,5 +105,8 @@ public sealed class InstanceLimits(IHttpClientFactory httpClientFactory) : IInst
 
         [JsonPropertyName("characters_reserved_per_url")]
         public int? CharactersReservedPerUrl { get; init; }
+
+        [JsonPropertyName("max_media_attachments")]
+        public int? MaxMediaAttachments { get; init; }
     }
 }

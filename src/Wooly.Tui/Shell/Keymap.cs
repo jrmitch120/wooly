@@ -52,7 +52,7 @@ public static class Keymap
 
         // Nothing on compose, whose fields take `?` as a letter before the window sees it (#320): a keymap opened only
         // where no widget has the typing would be one a reader can never reach, over a draft.
-        (ShellKey.Question, ComposeScreen) => Verb.None,
+        (ShellKey.Question, ComposeScreen or DescriptionScreen) => Verb.None,
         (ShellKey.Question, _) => Verb.Help,
         (ShellKey.Slash, _) => Verb.Search,
         (ShellKey.Tab, _) => Verb.NextDestination,
@@ -70,6 +70,13 @@ public static class Keymap
         (ShellKey.CtrlS, ComposeScreen) => Verb.Send,
         (ShellKey.CtrlW, ComposeScreen) => Verb.WriteWarning,
 
+        // On the description editor ctrl-s is "done", as esc is: what was typed is kept either way (#377).
+        (ShellKey.CtrlS, DescriptionScreen) => Verb.Back,
+
+        // ⏎ on an attachment's row describes it (#377), ahead of ⏎ on the Media header above it, which opens the file
+        // browser (below).
+        (ShellKey.Enter, ComposeScreen { Typing: ComposeField.Attachment }) => Verb.Describe,
+
         // And the arrows, which walk compose's fields the way a mail client's do (ADR-0024, #337) — reaching here only
         // where the field the typing is in leaves them: a header always, the post on its first line. Whether there was
         // a field to walk to is the screen's, as for the reference walk below.
@@ -80,6 +87,48 @@ public static class Keymap
         // them, and anywhere else on the screen that declines them they choose nothing.
         (ShellKey.Left, ComposeScreen) => Verb.PreviousChoice,
         (ShellKey.Right, ComposeScreen) => Verb.NextChoice,
+
+        // And the keys of the rows under the Media header, the same on the attachments screen listing them (RowKey).
+        // ⏎ on the Media header opens the file browser too, as ctrl-o does, since the header takes no typing of its own
+        // (#376); ⏎ on a row under it describes the row instead (#377).
+        (_, ComposeScreen) when RowKey(key) is not Verb.None => RowKey(key),
+        // But ⏎ on a header whose rows a short terminal folded into its line lists them on a screen of their own,
+        // which is the only way left to reach them (story 58).
+        (ShellKey.Enter, ComposeScreen { Typing: ComposeField.Media, RowsFolded: true }) => Verb.ListAttachments,
+        (ShellKey.Enter, ComposeScreen { Typing: ComposeField.Media }) => Verb.OpenBrowser,
+
+        // And s on compose's Media header and its rows, the places on the screen with no field to type it into: the
+        // sensitive toggle at the end of the header's line (#379, #378). Anywhere else on compose a field has taken it
+        // as a letter already.
+        (ShellKey.S, ComposeScreen { Typing: ComposeField.Media or ComposeField.Attachment }) => Verb.ToggleSensitive,
+
+        // And nothing else. Every other key a compose screen leaves — a letter, a digit, a capital — is a letter in the
+        // field that has the typing, or nobody's on the Media header and its rows, which take none: never a boost, a
+        // reply or a compose behind a draft. Said here, so that the rows can ask this table what to leave it rather
+        // than keep a list of their own (review of #372).
+        (_, ComposeScreen) => Verb.None,
+
+        // The file browser takes letters into its filter, so what it answers besides are the named keys (#376): ⏎
+        // attaches or opens, → and ← go into a folder and up one, ctrl-a shows every file, and the arrows walk its
+        // entries as j and k walk posts elsewhere — j and k being letters here. And space, the one letter it does not
+        // type, since its filter is fuzzy and a name's spaces never need typing: it chooses.
+        (ShellKey.Enter, FileBrowserScreen) => Verb.AttachChosen,
+        (ShellKey.Right, FileBrowserScreen) => Verb.IntoFolder,
+        (ShellKey.Left, FileBrowserScreen) => Verb.UpFolder,
+        (ShellKey.CtrlA, FileBrowserScreen) => Verb.EveryFile,
+        (ShellKey.Down, FileBrowserScreen) => Verb.NextEntry,
+        (ShellKey.Up, FileBrowserScreen) => Verb.PreviousEntry,
+        (ShellKey.Space, FileBrowserScreen) => Verb.Choose,
+
+        // The attachments screen, listing the rows a short terminal folded into the Media header's line (story 58):
+        // the keys of a row under the header (RowKey), on the row picked here — ⏎ describing it rather than opening
+        // anything, s the toggle wherever the pick is — and the arrows walking the rows as they walk the file browser's
+        // entries.
+        (ShellKey.Enter, AttachmentsScreen) => Verb.Describe,
+        (ShellKey.S, AttachmentsScreen) => Verb.ToggleSensitive,
+        (_, AttachmentsScreen) when RowKey(key) is not Verb.None => RowKey(key),
+        (ShellKey.Down, AttachmentsScreen) => Verb.NextEntry,
+        (ShellKey.Up, AttachmentsScreen) => Verb.PreviousEntry,
 
         // The four that collide. A picked reference is a level of its own inside the screen, so ⏎ means the reference
         // wherever one is picked — ahead of whatever the screen's own ⏎ would have meant (#85).
@@ -176,6 +225,36 @@ public static class Keymap
         (ShellKey.Six or ShellKey.Seven or ShellKey.Eight or ShellKey.Nine or ShellKey.Zero, _) => Verb.Toggle,
 
         // ctrl-s and ctrl-w off a compose screen, y, and nothing else.
+        _ => Verb.None,
+    };
+
+    /// <summary>
+    ///     What <paramref name="key" /> does on an attachment's row — under compose's Media header and on the attachments
+    ///     screen listing them alike, so that the two cannot come to disagree — or <see cref="Verb.None" /> for a key
+    ///     that is no row's.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         They reach compose's table only from the header and its rows (#378): every field that takes typing keeps
+    ///         del, backspace, ctrl-z and the shifted arrows for its own text, and r is a letter in them. Not alt-↑/↓ to
+    ///         reorder: macOS Terminal turns Option-arrows into word jumps that never reach the program.
+    ///     </para>
+    ///     <para>
+    ///         ctrl-o opens the file browser wherever the typing is (#376), and ctrl-v attaches a picture or copied
+    ///         files from the clipboard (#380) — the fields asking here before their own paste — as alt-v does, since
+    ///         Windows Terminal and the console host keep ctrl-v as the terminal's own paste and never pass it on
+    ///         (ADR-0015).
+    ///     </para>
+    /// </remarks>
+    private static Verb RowKey(ShellKey key) => key switch
+    {
+        ShellKey.Delete or ShellKey.Backspace => Verb.RemoveAttachment,
+        ShellKey.CtrlZ => Verb.BringBackAttachment,
+        ShellKey.ShiftUp => Verb.EarlierAttachment,
+        ShellKey.ShiftDown => Verb.LaterAttachment,
+        ShellKey.R => Verb.RetryAttachment,
+        ShellKey.CtrlO => Verb.OpenBrowser,
+        ShellKey.CtrlV or ShellKey.AltV => Verb.PasteFromTheClipboard,
         _ => Verb.None,
     };
 

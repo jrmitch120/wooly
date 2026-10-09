@@ -67,6 +67,42 @@ public sealed record Drawn(string Id, string Address)
     };
 
     /// <summary>
+    ///     A file being attached to a post, drawn small on its row under the Media header (#382): read off the disk
+    ///     rather than sent for, being on no instance until it has gone up — and wanted from the moment it is attached,
+    ///     not once it has.
+    /// </summary>
+    /// <remarks>
+    ///     Named by its path, so that a file attached, taken off and brought back is the one picture, and decoded no
+    ///     larger than its row's box (<see cref="Largest" />): a camera's photograph, held at the window's width to be
+    ///     drawn three cells wide, would cost the cache a feed's worth of pictures.
+    /// </remarks>
+    /// <param name="path">Where the file is on this machine.</param>
+    public static Drawn Attaching(string path) => new($"attaching:{path}", new Uri(path).AbsoluteUri)
+    {
+        Largest = (Rendering.AttachmentPicture.Columns, 1),
+    };
+
+    /// <summary>
+    ///     An attachment the post being edited already carries, drawn small on its row under the Media header as a file
+    ///     being attached is (#381, review of #372): sent for from the instance's preview, as the feed's are, and named
+    ///     apart from the feed's, since it is held no larger than the row's box (<see cref="Largest" />) where the feed
+    ///     holds it at the window's width.
+    /// </summary>
+    /// <param name="media">The attachment, as the post carries it.</param>
+    public static Drawn Kept(PostMedia media) => new($"kept:{media.Id}", media.Preview ?? media.Url)
+    {
+        Largest = (Rendering.AttachmentPicture.Columns, 1),
+    };
+
+    /// <summary>
+    ///     A file on this machine drawn large (#382): the one under the file browser's cursor, or the one being
+    ///     described. Read off the disk as a file being attached is, and named apart from it, since it is drawn far
+    ///     larger here than on a row and is held at the size it is drawn.
+    /// </summary>
+    /// <param name="path">Where the file is on this machine.</param>
+    public static Drawn OnDisk(string path) => new($"on-disk:{path}", new Uri(path).AbsoluteUri);
+
+    /// <summary>
     ///     The blur a <b>Stand-in</b> draws of <paramref name="picture" /> while it is on its way (#349).
     /// </summary>
     /// <remarks>

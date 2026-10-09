@@ -245,3 +245,153 @@ post — To reads `account default` and sends nothing, as compose did before.
 `Typing` to that field, where it used to toggle `ctrl-w`'s state; `ctrl-w` keeps its meaning, a jump into the
 warning and back.
 
+
+## Amendment: Media under Warn, and every header labelled with a word (map #372, ticket #375)
+
+**The headers are From, To, Lang, the reply header and its quote, Warn, then Media**, each labelled with a word
+right-aligned in a column five wide — five for `Media`. `Warn` replaces the feed's `⚠` as the warning row's label on
+all three screens, so the block reads as one. Media and Warn share a format: what the header holds, then the key that
+adds to it, all muted — `Media  none · ctrl-o to add`, then `2 of 4 · ctrl-o to add`, and `4 of 4` once full.
+
+**A fresh post and a reply carry a Media header; an edit does not yet.** Its rows are pending attachments, one each,
+in the layout #374 chose. That costs a fresh post and a reply one row more than an edit until the edit shows its own
+attachments under a read-only Media header of its own (#381), when `c` and `e` start the writing in the same place
+again.
+
+**The rows fold before anything gives way.** Where a row each would leave the editor fewer than three, they fold into
+the Media header's line — `3 of 4 · 3 no alt text · 1 failed · ctrl-o to add`, and the sensitive toggle (#379) — and unfold when there is room. Only
+then does the give-way order run: the quote's tail, the blanks, the reply header, the foot, From and Lang, the Media
+header, the hairline under the headers. To, the warning and three rows of editor are still kept whatever the height.
+
+**The screen stays inert.** It holds what is attached and where each has got to, and says what goes out — a draft
+naming the pending attachments by id, asked for only once every one is ready. The shell sends each file up as it is
+attached and feeds its progress back (ADR-0026), and `Shell.Send` waits on them before making the one call.
+
+## Amendment: an edit lists what the post carries under Media (map #372, ticket #381)
+
+**An edit has a Media header too, read-only.** It lists the attachments the post already carries, a row each — its
+kind, then its description in quotes or the quiet `no alt text` — under `Media  2 · kept as they are`, or
+`Media  none` where the post carries nothing. There is no key on it and nothing on its rows to remove or reorder by:
+changing an edit's attachments would reopen ADR-0008's carry-through, which is out of scope, and the edit still saves
+the text, warning and language alone. The header is there so that `c` and `e` start the writing in the same place
+again, as the previous amendment promised: with the same headers and as many rows under Media, the editor starts on
+the same row on all three screens. The rows fold into the header's line on a short terminal as a fresh post's do.
+
+## Amendment: a sensitive toggle at the end of Media's line (map #372, ticket #379)
+
+**Once anything is attached, the Media header's line ends with a sensitive toggle**: `□ sensitive` muted, `■ sensitive`
+in the warning's colour, and `■ sensitive (warning)` while a warning is written. A warning marks the post sensitive
+already (ADR-0008), so it holds the toggle on and locked; the author's own setting is kept underneath it and comes back
+when the warning is cleared. The screen sends only the author's own setting, as the draft's `Sensitive`; the warning
+goes as the warning, and `PostAuthor` marks the post for either.
+
+**The Media header joins the walk, but only once anything is attached** — between Warn and the post, its words lit
+rather than a selection bar — because the toggle is all there is to do on it so far. `s` there is the one letter the
+keymap gives compose, bound only while the typing is on Media, where no field would take it as a letter.
+
+## Amendment: the rows under Media are walked to and fixed there (map #372, ticket #378)
+
+**The walk goes through the rows as well as the header.** `↑` from the post reaches the bottom row first, then each
+row up to the Media header, then Warn; `↓` walks back. A row walked to carries the selection bar against its grip, set
+in a column of its own so that nothing on the row moves as the walk passes. The rows are walked only while they are
+drawn: folded into the header's line on a short terminal, the walk stops on the header alone.
+
+**On a row, the keys the fields keep for their own text are the row's**, because no field has the typing there: `del`
+or `backspace` takes it off, `ctrl-z` brings back the last one taken off in its place — one deep, and only on the
+Media header and its rows, so that the editor and Warn keep their own undo — `shift-↑`/`shift-↓` move it, and `r` sends
+it up again where a retry could mend its refusal (a dropped connection, never a file the instance refuses). Not
+`alt-↑`/`alt-↓`: macOS Terminal turns Option-arrows into word jumps that never reach the program. `s` toggles sensitive
+from a row as from the header. The pointer does the same: a click picks a row, a click on its `x` or `retry (r)` takes
+it off or retries it, and dragging a row moves it live, the others making way, with no landing marker.
+
+**The screen stays inert here too.** It moves what is attached and says which one a retry starts over; the shell sends
+that up again, as it sent it the first time (ADR-0026), and never retries by itself (ADR-0006).
+
+## Amendment: the file browser is a screen on the stack, and Media is always walked to (map #372, ticket #376)
+
+**Attaching from the disk is a screen pushed over the draft**, by this ADR's rule for anything new: `ctrl-o`, `⏎` on
+the Media header or a click on its words pushes the file browser, and `esc` pops it back to the draft as it was. It is
+as inert as compose: it reads nothing. The shell reads each folder off the local machine's disk — the machine's rather
+than an instance's (ADR-0020), so through no port — and hands the screen the listing; the screen filters it, says what
+is chosen and which folder `→`, `←` or `⏎` opens next, and the shell reads that one. The shell takes the browser off
+and attaches what was chosen to the compose under it the way a drop is attached (ADR-0026), reading each file's size
+off the disk as it does. (As first written, this said the browser "reads the folder it shows", which no inert screen
+does; the review of #372 moved the reading into the shell.) The folder last attached from is the shell's to remember, for the session only.
+
+**Media now joins the walk on every fresh post and reply**, attachments or none, since `⏎` on it opens the browser —
+which the previous amendment's "only once anything is attached" no longer holds to. `↑` from the post's first line
+stops on Media before Warn; an edit, whose header is read-only, still walks straight past it.
+
+## Amendment: the description editor is a screen over the draft (map #372, ticket #377)
+
+**Describing an attachment pushes a screen**, as anything new on compose does: `⏎` on an attachment's row, a click on
+its description, or a double click on the row opens the description editor over the draft. It holds no copy: what is
+typed goes straight onto the attachment the compose screen holds, so `esc` and `ctrl-s` are both "done" and there is no
+cancel to keep a copy for.
+
+**Its field is a widget of its own, laid over the content viewport as compose's are.** The window adds a second view
+beside compose's, shown while the description editor is on top; the screen says where the field goes, the view puts it
+there, and every change goes through the shell. On compose, `⏎` on a row walked to (#378) and a click on a row's
+description are what the view laid over the Media block already takes.
+
+**The shell sends the description**, as it sends the file (ADR-0026): once the attachment is ready, again whenever it
+changes, and before the post is published — `Shell.Send` waits on a description on its way as on an upload.
+
+## Amendment: what is attached is drawn, in places held for it (map #372, ticket #382)
+
+**A row's picture is three columns wide, not the one #375 held.** One cell of a photograph is a blot; three by one row
+is what the prototype tried in place (#374), and enough to tell roughly what a picture is. The names start two columns
+further in for it, which leaves an 80-column row's status column 18 wide. The column is held on every terminal, blank
+where nothing will be drawn, so a row reads the same whether a picture arrives or not and wherever it is drawn.
+
+**Every picture on compose's screens has a place held from the first frame.** The file browser's pane runs to the foot
+of the page however short the list, and the description editor holds a place above its label on a narrow panel where
+the terminal draws — so a picture landing, or the cursor moving off one, changes no row's height and moves no field.
+Where the terminal draws nothing, nothing is held that was not held before: the browser's pane, from #376, and the
+wide description editor's top left, from #377.
+
+## Amendment: folded rows open a screen of their own, and an edit's rows keep a pending row's columns (map #372, review)
+
+**Folded, the Media header's line opens the attachments screen.** On a terminal too short for a row each, the rows
+fold into the header's line, and nothing could then describe, remove, retry or reorder one. `⏎` on the folded line, or
+a click on it, now pushes a screen by this ADR's rule — crumbed `Media`, listing the header's line unfolded and the
+compose's own rows as the header draws them — which takes every key and click a row takes under the header. It holds
+no copy: like the description editor it works on the compose screen's own attachments, through the shell, so what is
+sent is what was changed there. With room for the rows, `⏎` on the header opens the file browser as before.
+
+**An edit's rows sit in a pending row's columns**, wherever they have something for them: a small picture in the
+picture column, sent for from the instance's preview through the feed's picture path; the kind in the kind column; and
+the description or the quiet mark in the status column. The name and size columns stay blank — the instance does not
+hand either back — but for the kind, which takes the name's column where a narrow terminal has given its own up.
+
+## Amendment: `alt-v` pastes from the clipboard too, for terminals that keep `ctrl-v` (map #372, review on Windows)
+
+**`alt-v` means what `ctrl-v` means on compose and on the attachments screen**: attach a picture or copied files from
+this machine's clipboard, and otherwise paste text (#380). Windows Terminal and the console host bind `ctrl-v` to the
+terminal's own paste and never pass the key on, so on Windows `ctrl-v` only ever pasted text — and nothing at all when
+the clipboard held only a picture — while a dragged file, which the terminal pastes as a path, attached. On macOS
+`⌘V` is the terminal's paste and `ctrl-v` reaches the program, which is why the prototype never met this. `alt-v` is
+the key Claude Code settled on for the same reason. `ctrl-v` stays, being the key most terminals pass and the one
+authors reach for first; neither is the platform's alone, since which of them reaches Wooly is the terminal's to say,
+and the status row names both.
+
+**Both are the keymap's now** (`Verb.PasteFromTheClipboard`), rather than a check each text field made of its own. The
+fields that take typing ask the keymap first and fall through to their own paste where nothing was attached; To,
+Media and its rows, which take no paste, leave both keys to the window, which asks the same table — so the paste
+reaches the Media header and the attachments screen, where `ctrl-v` used to do nothing.
+
+## Amendment: a picked row is its bar alone, and the pointer is believed only from a press (map #372, review on macOS)
+
+**A row picked under Media, or on the attachments screen, carries the selection bar against its grip and nothing
+else.** Its name had been lit in `selected-text` as well, and on the attachments screen the whole row was on the band;
+read beside the bar, that was a second thing picked. The name keeps its usual role, picked or not, as every other
+column of the row already did. The bar is what the page follows, so nothing scrolls differently.
+
+**What a gesture on the rows means is unchanged; what counts as one is settled.** Terminal.Gui makes the clicks
+itself from the terminal's reports, and on the author's Mac the terminal worded the pointer merely moving as a drag,
+so the next wheel notch became a click on whatever was under the pointer — an `x` among them, or, with the right
+button the one "held", a right click, which is `esc`. Every button is now believed only from a press the terminal
+reported (`MouseButtons`, ADR-0005's amendment says how this is tested). And
+two quick clicks on an `x` take two rows off: Terminal.Gui reports the second only as a double click, which
+anywhere else on a row opens the description editor, and on `x` or `retry (r)` is now a click there. A press on a row
+of the attachments screen picks it, as a press under the header does, so the row being dragged carries the bar.

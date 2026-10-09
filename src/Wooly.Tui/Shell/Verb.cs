@@ -9,14 +9,14 @@ namespace Wooly.Tui.Shell;
 ///     are the same key on different screens and one — <see cref="Delete" />, <see cref="Vote" /> — is a question put
 ///     before anything is done.
 ///     <para>
-///         What each becomes is <see cref="Shell.Do" />'s, but for twelve of them, which need a terminal and are
+///         What each becomes is <see cref="Shell.Do" />'s, but for fourteen of them, which need a terminal and are
 ///         <c>ShellWindow</c>'s: <see cref="Quit" />, which ends a run loop the application owns;
 ///         <see cref="ScrollDown" />, <see cref="ScrollUp" />, <see cref="PageDown" /> and <see cref="PageUp" />,
 ///         which walk the page rather than the list; <see cref="NextPost" />, <see cref="PreviousPost" />,
-///         <see cref="FirstPost" />, <see cref="LastPost" />, <see cref="NextSection" /> and
-///         <see cref="PreviousSection" />, which move the pick and the page both; and <see cref="Send" />, which has
-///         to take the editor widget's text before the shell sends it. Which twelve is <see cref="Verbs.NeedsATerminal" />,
-///         the one list the window and the shell both read.
+///         <see cref="FirstPost" />, <see cref="LastPost" />, <see cref="NextSection" />,
+///         <see cref="PreviousSection" />, <see cref="NextEntry" /> and <see cref="PreviousEntry" />, which move the pick
+///         and the page both; and <see cref="Send" />, which has to take the editor widget's text before the shell sends
+///         it. Which fourteen is <see cref="Verbs.NeedsATerminal" />, the one list the window and the shell both read.
 ///     </para>
 /// </remarks>
 public enum Verb
@@ -284,4 +284,81 @@ public enum Verb
 
     /// <summary><c>→</c> there, likewise: choose the next one to the right.</summary>
     NextChoice,
+
+    /// <summary>
+    ///     <c>del</c> or <c>backspace</c> on a compose, where no field takes them — which is on a row under the Media
+    ///     header: take that attachment off the post (#378).
+    /// </summary>
+    RemoveAttachment,
+
+    /// <summary><c>ctrl-z</c> on the Media header or its rows: bring back the attachment last taken off (#378).</summary>
+    BringBackAttachment,
+
+    /// <summary><c>shift-↑</c> on a row under the Media header: that attachment a place earlier (#378).</summary>
+    EarlierAttachment,
+
+    /// <summary><c>shift-↓</c> there, likewise: one place later.</summary>
+    LaterAttachment,
+
+    /// <summary><c>r</c> on a refused row a retry could mend: send that attachment up again (#378).</summary>
+    RetryAttachment,
+
+    /// <summary>
+    ///     <c>ctrl-o</c> on a compose or a reply, or <c>⏎</c> on its Media header: push the file browser over it (#376).
+    /// </summary>
+    OpenBrowser,
+
+    /// <summary>
+    ///     <c>ctrl-v</c> or <c>alt-v</c> on a compose or a reply, or on the attachments screen over one: attach a picture
+    ///     or copied files from this machine's clipboard (#380). Unused where the clipboard holds neither, which leaves
+    ///     the press to the field's own paste.
+    /// </summary>
+    PasteFromTheClipboard,
+
+    /// <summary>
+    ///     <c>⏎</c> in the file browser: open the folder under the cursor, or attach what is chosen — or, with nothing
+    ///     chosen, the file under the cursor — to the compose screen under it (#376).
+    /// </summary>
+    AttachChosen,
+
+    /// <summary>
+    ///     <c>space</c> in the file browser, a click on a box there, or a ctrl- or shift-click on a row: choose the file
+    ///     under the cursor, or let it go (#376).
+    /// </summary>
+    Choose,
+
+    /// <summary>
+    ///     <c>↓</c> on a list of entries that are not posts — the file browser's, whose letters are its filter (#376), and
+    ///     the attachments screen's rows (story 58): the cursor to the next, as <c>k</c> walks to the next post elsewhere.
+    /// </summary>
+    NextEntry,
+
+    /// <summary><c>↑</c> there, likewise: the cursor to the entry before.</summary>
+    PreviousEntry,
+
+    /// <summary><c>→</c> there: open the folder under the cursor.</summary>
+    IntoFolder,
+
+    /// <summary><c>←</c> there: go up a folder.</summary>
+    UpFolder,
+
+    /// <summary><c>ctrl-a</c> there: show every file, or only the types the instance accepts again.</summary>
+    EveryFile,
+
+    /// <summary>
+    ///     <c>s</c> on compose's Media header: put what is attached behind a click, or take it back out — unless a
+    ///     warning holds it there (#379).
+    /// </summary>
+    ToggleSensitive,
+
+    /// <summary>
+    ///     <c>⏎</c> there on a pending attachment's row: open the description editor on it (#377).
+    /// </summary>
+    Describe,
+
+    /// <summary>
+    ///     <c>⏎</c> on compose's Media header, or a click on its line, where a terminal too short for a row each folded
+    ///     the rows into it: push the attachments screen listing them (story 58).
+    /// </summary>
+    ListAttachments,
 }

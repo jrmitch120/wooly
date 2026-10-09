@@ -65,6 +65,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IProfileRegistry, ProfileRegistry>();
         services.AddSingleton<IAccessTokenVerifier, AccessTokenVerifier>();
         services.AddSingleton<ITimelineReader, TimelineReader>();
+        services.AddSingleton(AttachmentPolling.Default);
         services.AddSingleton<IPostAuthor, PostAuthor>();
         services.AddSingleton<IPostEngagement, PostEngagement>();
         services.AddSingleton<INotificationInbox, NotificationInbox>();
