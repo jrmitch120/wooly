@@ -187,6 +187,12 @@ Something an instance tells an account happened to it: somebody mentioned it, fo
 its posts. This project names those four and passes any other kind on under the instance's own word for it (ADR-0010).
 A notification is distinct from the post it is about — it has an id of its own, which is what dismisses it.
 
+**Read marker**:
+How far an account has read its notifications: the id of the newest one it has read, which the instance keeps and
+every client of that account shares. A notification is **unread** when it is newer than the marker — there is no flag
+on the notification itself, and reading is not dismissing: a read notification is still there until dismissed.
+_Avoid_: seen, new (which says when it arrived, not whether it was read)
+
 **Visibility**:
 Who a post reaches, one of four from widest to narrowest: public, unlisted, followers and direct. Fixed when the post
 is published — an edit cannot change it — and a reply is never published wider than the post it answers (ADR-0013).
@@ -401,6 +407,13 @@ and **You**, the profile's own account (ADR-0021). The rail's order is the group
 which is a headed run on a screen: `[`/`]` walk sections, `` ` ``/`~` walk rail groups. "Inbox" here names the group,
 not only the notifications that the code's `INotificationInbox` reads.
 _Avoid_: section, box, panel (a rail group is drawn as a panel, but the content is a panel too)
+
+**Unread count**:
+What an **Inbox** destination's badge says is waiting, in the instance's own terms for each: notifications newer than
+the **Read marker**, conversations the instance flags unread, and follow requests not yet answered — a request has no
+read state, and is waiting until it is accepted or rejected. Never a count this client keeps for itself, so every client
+of the account agrees on it. Nothing waiting is drawn as no badge, never as `0`.
+_Avoid_: total, new
 
 **Crumb**:
 One **screen** on the stack, as the breadcrumb names it; the breadcrumb is the stack read from the bottom up, the first
