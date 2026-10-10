@@ -1,5 +1,6 @@
 using Wooly.Core.Accounts;
 using Wooly.Core.Conversations;
+using Wooly.Core.Notifications;
 using Wooly.Core.Profiles;
 
 namespace Wooly.Tui.Shell;
@@ -39,6 +40,43 @@ internal static class InboxCount
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Not a destination in the Inbox."),
         };
 
+    /// <summary>
+    ///     The Notifications badge on arriving there, which reads them: the read marker is moved to the newest of
+    ///     <paramref name="shown" />, so the badge clears as the reader looks — and on the web too, the marker being the
+    ///     instance's (ADR-0027, #397).
+    /// </summary>
+    /// <param name="shown">The notifications the screen is drawing, newest first.</param>
+    /// <returns>
+    ///     The badge — what is still waiting once the marker has moved: anything that arrived between the list read and
+    ///     this one, newer than everything shown; or, where the move was not made, what was waiting before it, which is
+    ///     still true — and the notifications that were newer than the old marker, to be drawn unread for this visit.
+    /// </returns>
+    public static async Task<Tally> Arrived(
+        ShellPorts ports,
+        ActiveProfile profile,
+        IReadOnlyList<Notification> shown,
+        CancellationToken cancellationToken)
+    {
+        var unread = await ports.Notifications.ReadUnread(profile, Arrival.CountedAtMost, cancellationToken);
+        var waiting = Of(DestinationKind.Notifications, unread.Since.Items.Count);
+        var drawn = shown.Select(notification => notification.Id).ToHashSet(StringComparer.Ordinal);
+        var wasUnread = unread.Since.Items.Select(notification => notification.Id).ToHashSet(StringComparer.Ordinal);
+
+        // Moved only where it moves past something unread on screen — or sets a marker the account never had. Nothing
+        // unread is nothing to ask the instance for, and a marker already past the newest shown would be moved back.
+        var reads = shown.Count > 0
+                    && (!unread.HasMarker || unread.Since.Items.Any(notification => drawn.Contains(notification.Id)));
+
+        if (!reads || !await ports.Notifications.MoveMarker(profile, shown[0].Id, cancellationToken))
+        {
+            return new Tally(waiting, wasUnread);
+        }
+
+        return new Tally(
+            Of(DestinationKind.Notifications, wasUnread.Count(id => !drawn.Contains(id))),
+            wasUnread);
+    }
+
     /// <summary>The Messages badge, off the conversations listed: those the instance flags unread.</summary>
     public static Found.Badge OffList(IReadOnlyList<Conversation> conversations) =>
         Of(DestinationKind.Messages, conversations.Count(conversation => conversation.Unread));
@@ -52,4 +90,17 @@ internal static class InboxCount
     /// </summary>
     private static Found.Badge Of(DestinationKind kind, int unread) =>
         new(kind, unread, Full: unread >= Arrival.CountedAtMost);
+
+    /// <summary>What arriving at an Inbox destination counted: its badge, and which of its rows to draw unread.</summary>
+    /// <param name="Badge">What the rail's badge says.</param>
+    /// <param name="Unread">
+    ///     The ids of the rows to draw unread for this visit, or <see langword="null" /> for none. Only Notifications
+    ///     has any: arriving there moves the read marker past them, so the badge no longer says which were new, and
+    ///     the screen does instead. A conversation carries its own unread flag, and a request waits until answered.
+    /// </param>
+    public sealed record Tally(Found.Badge Badge, IReadOnlySet<string>? Unread = null)
+    {
+        /// <summary>No row drawn unread.</summary>
+        public static IReadOnlySet<string> NoneUnread { get; } = new HashSet<string>(StringComparer.Ordinal);
+    }
 }

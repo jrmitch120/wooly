@@ -1,8 +1,5 @@
 using System.Globalization;
-using System.Net.Http;
-using System.Net.Http.Headers;
 using Microsoft.Extensions.DependencyInjection;
-using Wooly.Core;
 using Wooly.Core.Notifications;
 using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
@@ -12,8 +9,8 @@ namespace Wooly.Tests.Integration;
 /// <summary>
 ///     Runs <see cref="NotificationInbox" />'s read of what is unread against the live instance: what is newer than the
 ///     account's <b>Read marker</b> is unread, and moving the marker past a notification leaves it listed but no longer
-///     unread (ADR-0027, #396). The marker is moved straight through the API here, since this client does not move it
-///     yet.
+///     unread (ADR-0027, #396) — moved by <see cref="NotificationInbox.MoveMarker" /> itself, so the move is under
+///     test against the instance too (#397).
 /// </summary>
 /// <remarks>
 ///     What this cannot cover is an account with no marker at all: Mastodon cannot delete one, so a test account that
@@ -48,14 +45,14 @@ public class NotificationInboxIntegrationTests
 
             // Just below the mention, so that it — and only what came after it — is unread, whatever this account's
             // marker said before.
-            await MoveMarker(services, tester, Below(notification.Id), cancellationToken);
+            Assert.True(await inbox.MoveMarker(tester, Below(notification.Id), cancellationToken));
 
             var unread = await inbox.ReadUnread(tester, 40, cancellationToken);
 
             Assert.True(unread.HasMarker);
             Assert.Contains(unread.Since.Items, waiting => waiting.Id == notification.Id);
 
-            await MoveMarker(services, tester, notification.Id, cancellationToken);
+            Assert.True(await inbox.MoveMarker(tester, notification.Id, cancellationToken));
 
             var read = await inbox.ReadUnread(tester, 40, cancellationToken);
 
@@ -97,27 +94,4 @@ public class NotificationInboxIntegrationTests
     /// <summary>The id just below <paramref name="id" />, which Mastodon's ids, being numbers, always have.</summary>
     private static string Below(string id) =>
         (long.Parse(id, CultureInfo.InvariantCulture) - 1).ToString(CultureInfo.InvariantCulture);
-
-    /// <summary>Sets the account's notifications marker straight through the API.</summary>
-    private static async Task MoveMarker(
-        IServiceProvider services,
-        ActiveProfile profile,
-        string lastReadId,
-        CancellationToken cancellationToken)
-    {
-        using var request = new HttpRequestMessage(HttpMethod.Post, $"https://{profile.Instance}/api/v1/markers")
-        {
-            Content = new FormUrlEncodedContent([
-                new KeyValuePair<string, string>("notifications[last_read_id]", lastReadId),
-            ]),
-        };
-
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", profile.AccessToken);
-
-        var client = services.GetRequiredService<IHttpClientFactory>().CreateClient(WoolyClient.HttpClientName);
-
-        using var response = await client.SendAsync(request, cancellationToken);
-
-        response.EnsureSuccessStatusCode();
-    }
 }
