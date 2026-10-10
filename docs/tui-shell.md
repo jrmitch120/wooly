@@ -219,6 +219,9 @@ not answer them differently:
   their age for that visit. Nothing unread is nothing to move; an account with no marker gets one at the newest. A move
   the instance does not take says nothing and leaves the badge at the count it read. Reading never dismisses: every row
   stays. Messages and Requests read nothing on arrival.
+- **The Inbox badges are polled every 60 seconds** (`ShellTiming.PollEvery`, #398) for the profile acted as, off the
+  shell's clock: all three are read again and set outright from the answers, a count that cannot be read leaves its
+  badge as drawn, and a profile switch lets the old profile's poll go and starts the new one's.
 - **A prompt taking letters takes `/`, `?`, `` ` `` and `~` too**, which is the one exception to the frame keys above.
   A web address and a question are both things somebody is entitled to search for, and a prompt that could not take a
   slash would refuse the query most likely to be pasted into it; code in backticks and a path under `~` are the same

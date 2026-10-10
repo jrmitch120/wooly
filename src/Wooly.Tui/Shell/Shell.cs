@@ -148,6 +148,12 @@ public sealed class Shell
     /// </summary>
     private RateLimitQuota? _quotaBeforeSwitch;
 
+    /// <summary>
+    ///     What reads the Inbox badges again every <see cref="ShellTiming.PollEvery" /> for the profile acted as, from
+    ///     the moment the shell opens onto it until it is let go of (#398). Nothing, with nobody to act as.
+    /// </summary>
+    private InboxPoll? _poll;
+
     /// <summary>How long each instance lets a post be, asked as posts are first written there (#319).</summary>
     private readonly LimitsByInstance _limits;
 
@@ -401,8 +407,34 @@ public sealed class Shell
 
         if (!abandoned.IsCancellationRequested)
         {
+            Poll(abandoned);
+
             await Counts(acting.Profile, abandoned);
         }
+    }
+
+    /// <summary>
+    ///     Starts reading the counts again every <see cref="ShellTiming.PollEvery" />, until a switch abandons
+    ///     <paramref name="abandoned" /> and lets the poll go with everything else the old profile had (#398).
+    /// </summary>
+    /// <remarks>
+    ///     Asked as whoever is acted as when it goes off rather than when it was started, so that a profile signed in
+    ///     again (#248) — the same enquiry, with a new token — is polled with its new token.
+    /// </remarks>
+    private void Poll(CancellationToken abandoned)
+    {
+        _poll?.Dispose();
+        _poll = new InboxPoll(
+            _clock,
+            _timing.PollEvery,
+            _host,
+            () =>
+            {
+                if (!abandoned.IsCancellationRequested && _acting is { } acting)
+                {
+                    _ = Counts(acting.Profile, abandoned);
+                }
+            });
     }
 
     /// <summary>
@@ -1891,6 +1923,8 @@ public sealed class Shell
     private void LetGo()
     {
         _enquiry.Abandon();
+        _poll?.Dispose();
+        _poll = null;
 
         Asking = null;
         _launching = false;
