@@ -415,6 +415,12 @@ read state, and is waiting until it is accepted or rejected. Never a count this 
 of the account agrees on it. Nothing waiting is drawn as no badge, never as `0`.
 _Avoid_: total, new
 
+**Inbox stream**:
+The instance's live connection for a profile, told only as what touches the **Inbox**: a notification arrived, a
+conversation arrived or changed, the connection came up. It says something happened, never how many: what it touches is
+read again, so the **Unread count** stays the instance's (ADR-0027).
+_Avoid_: feed, push, socket
+
 **Crumb**:
 One **screen** on the stack, as the breadcrumb names it; the breadcrumb is the stack read from the bottom up, the first
 crumb always the **destination**'s own screen and the last the one in front. Walking back to a crumb takes off what

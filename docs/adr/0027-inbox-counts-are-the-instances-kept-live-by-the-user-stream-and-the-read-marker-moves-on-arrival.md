@@ -54,6 +54,22 @@ acted as; an event re-reads the counts it touches, a drop reconnects with backof
 60 seconds, and a reconnect re-reads all three. Nothing about the stream is drawn. A badge that rises rings the terminal's
 own bell once, unless the user has turned it off. (#398–#401.)
 
+**The stream is connected around Mastonet's `GetUserStreaming`, and read through it.** `IInboxStream` tells a
+notification with its kind, a conversation, and the connection coming up; a call ends when the connection does, and
+reconnecting is the shell's. Mastonet 3.1.3's websocket streaming says nothing when it has connected — which is what
+stops the poll — cannot be called off while it connects, puts the token in the address, throws on the instance closing
+the connection, and dials past the named `HttpClient`'s handlers. So `InboxStream` connects its own `ClientWebSocket`
+through those handlers with the token in a header, and hands each notification and conversation message to Mastonet's
+`TimelineStreaming` to read, the way the marker is read around Mastonet and the rest kept behind it. The address is
+the one the instance advertises (`configuration.urls.streaming`), or the instance's own. One connection carries two of
+Mastodon's streams: `user` for notifications, and `direct` for conversations, which the user stream does not carry.
+Only those two events are read; the home timeline the user stream also carries is not, so a post that cannot be read
+never drops it.
+
+**What the stream says is gathered before it is re-read.** A direct message arrives as two events — a mention on the
+user stream, a conversation on the direct one — and raises two badges, but it is one arrival and rings once. The shell
+gathers events for two seconds from the first, off its own clock, and re-reads every count they touch as one re-read.
+
 ## Consequences
 
 ADR-0010's "this client only clears" no longer holds for the TUI: it reads the marker, and on arriving at Notifications

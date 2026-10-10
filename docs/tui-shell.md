@@ -219,9 +219,18 @@ not answer them differently:
   their age for that visit. Nothing unread is nothing to move; an account with no marker gets one at the newest. A move
   the instance does not take says nothing and leaves the badge at the count it read. Reading never dismisses: every row
   stays. Messages and Requests read nothing on arrival.
-- **The Inbox badges are polled every 60 seconds** (`ShellTiming.PollEvery`, #398) for the profile acted as, off the
-  shell's clock: all three are read again and set outright from the answers, a count that cannot be read leaves its
-  badge as drawn, and a profile switch lets the old profile's poll go and starts the new one's.
+- **The Inbox badges are polled every 60 seconds while the stream is down** (`ShellTiming.PollEvery`, #398) for the
+  profile acted as, off the shell's clock: all three are read again and set outright from the answers, a count that
+  cannot be read leaves its badge as drawn, and a profile switch lets the old profile's poll go and starts the new one's.
+- **The Inbox is kept live over the user stream** (`IInboxStream`, ADR-0027, #401). The shell opens it for the profile
+  acted as when it opens, polling until it says it is up and not after. What it says is gathered for
+  `ShellTiming.GatherFor` (2s) from the first of it and re-read as one: a notification re-reads Notifications, and
+  Requests too where somebody asked to follow; a conversation re-reads Messages. A direct message comes over it as a
+  mention and a conversation, so gathering is what makes it one re-read, and one bell. A drop, or a stream that will
+  not come up, starts the poll again and tries the stream again after `ReconnectAfter` (2s), doubling each failure up
+  to `ReconnectAtMost` (2 minutes) and back to the shortest once it is up; coming up again re-reads all three for what
+  arrived meanwhile — the first time it comes up reads nothing, the opening counts being fresh. None of it is drawn. A
+  profile switch closes the old stream with everything else the profile had, and nothing it still says is applied.
 - **A rising Inbox badge rings the terminal's bell** (#399): `BEL`, written through the shell's own output, so the
   terminal's settings decide whether it sounds, flashes or bounces — no OS sound and no branch for any one terminal.
   It rings when a read puts a badge above the last count of it for the same profile, once per re-read however many
