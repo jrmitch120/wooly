@@ -179,7 +179,7 @@ public class CrumbTests
                 var compose = new ComposeScreen(ComposeFor.Post);
                 var attachment = new ComposeAttachment("cat.png", Wooly.Core.Posts.MediaKind.Image, 1024);
 
-                compose.Attach([attachment]);
+                compose.Media.Attach([attachment]);
 
                 return new DescriptionScreen(compose, attachment);
 

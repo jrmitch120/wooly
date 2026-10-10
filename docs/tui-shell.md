@@ -953,7 +953,7 @@ lists them under a read-only Media header of its own (#381).
   would leave the editor fewer than three: `3 of 4 · 3 no alt text · 1 failed · ctrl-o to add · □ sensitive`, the
   failures in `error`. They unfold when there is room again. Folded, `⏎` on the line or a click on it pushes the
   **attachments screen** (`AttachmentsScreen`, story 58), crumbed `Media`: the header's line unfolded, a blank, and the
-  compose's own rows, drawn as under the header, the first picked. Every key and click a row takes under the header it
+  compose's own rows (`ComposeMedia`, #387), drawn as under the header, the first picked. Every key and click a row takes under the header it
   takes there — `⏎` or a click on the description describes, `del`/`backspace` or a click on `x` takes off, `ctrl-z`
   brings back, `shift-↑↓` or a drag moves, `r` or a click on `retry (r)` retries, `s` or a click on the toggle flips
   it — and `ctrl-o` attaches more, all of it changing the compose's own draft through the shell; `↑`/`↓` walk the
