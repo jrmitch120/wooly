@@ -1,7 +1,7 @@
 namespace Wooly.Tui.Shell;
 
 /// <summary>
-///     The five lengths of time the shell's behaviour depends on, in one place so that a test can shorten them and
+///     The seven lengths of time the shell's behaviour depends on, in one place so that a test can shorten them and
 ///     a reader can find out what they are without reading for them — and, beside them, the one size it depends on
 ///     (<see cref="FollowsHeldUnder" />), which is not a length of time and is here to be found with them.
 /// </summary>
@@ -28,12 +28,23 @@ namespace Wooly.Tui.Shell;
 ///     How often the Inbox badges are read again for the profile acted as (#398). A minute: often enough that nothing
 ///     waits long to be noticed, seldom enough that three reads a minute are nothing against a budget of 300 every five.
 /// </param>
+/// <param name="ReconnectAfter">
+///     How long after the user stream drops, or will not connect, it is tried again the first time (#401) — twice as
+///     long each time after that, up to <paramref name="ReconnectAtMost" />, and back to this once it has come up. Two
+///     seconds: a blip is over by then, and an instance that is down is not asked again at once.
+/// </param>
+/// <param name="ReconnectAtMost">
+///     The longest the user stream is left before it is tried again (#401). Two minutes: the badges are polled every
+///     minute meanwhile, so nothing waits on it, and an instance that will not stream is asked thirty times an hour.
+/// </param>
 public sealed record ShellTiming(
     TimeSpan Settle,
     TimeSpan CacheFor,
     TimeSpan CountdownStep,
     TimeSpan MarkStep,
-    TimeSpan PollEvery)
+    TimeSpan PollEvery,
+    TimeSpan ReconnectAfter,
+    TimeSpan ReconnectAtMost)
 {
     /// <summary>
     ///     How many people a follow list may have on it and still be held whole rather than browsed a page at a time
@@ -41,9 +52,9 @@ public sealed record ShellTiming(
     ///     the list above it — <c>@Mastodon@mastodon.social</c>'s 877,000 followers — would be some 11,000.
     /// </summary>
     /// <remarks>
-    ///     A count rather than a length of time, and here anyway: it is the sixth thing the shell's behaviour turns
-    ///     on that a reader would otherwise go looking for, and a constant found beside the five it belongs with is
-    ///     worth more than one filed under the right type. Not settable the way the five are — a test shortening a
+    ///     A count rather than a length of time, and here anyway: it is the eighth thing the shell's behaviour turns
+    ///     on that a reader would otherwise go looking for, and a constant found beside the seven it belongs with is
+    ///     worth more than one filed under the right type. Not settable the way the seven are — a test shortening a
     ///     wait is asking for the same behaviour sooner, where a test moving this would be asking for another mode.
     /// </remarks>
     public const int FollowsHeldUnder = 2_000;
@@ -54,5 +65,7 @@ public sealed record ShellTiming(
         CacheFor: TimeSpan.FromMinutes(1),
         CountdownStep: TimeSpan.FromSeconds(1),
         MarkStep: TimeSpan.FromMilliseconds(400),
-        PollEvery: TimeSpan.FromSeconds(60));
+        PollEvery: TimeSpan.FromSeconds(60),
+        ReconnectAfter: TimeSpan.FromSeconds(2),
+        ReconnectAtMost: TimeSpan.FromMinutes(2));
 }

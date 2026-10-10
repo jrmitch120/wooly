@@ -5,6 +5,7 @@ using Wooly.Core.Configuration;
 using Wooly.Core.Conversations;
 using Wooly.Core.Errors;
 using Wooly.Core.Http;
+using Wooly.Core.Inbox;
 using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
 using Wooly.Core.Relationships;
@@ -153,6 +154,12 @@ public sealed class Shell
     ///     the moment the shell opens onto it until it is let go of (#398). Nothing, with nobody to act as.
     /// </summary>
     private InboxPoll? _poll;
+
+    /// <summary>
+    ///     What holds the user stream open for the profile acted as, from the moment the shell opens onto it until it is
+    ///     let go of (#401) — the poll running only while it is down. Nothing, with nobody to act as.
+    /// </summary>
+    private InboxStreaming? _streaming;
 
     /// <summary>How long each instance lets a post be, asked as posts are first written there (#319).</summary>
     private readonly LimitsByInstance _limits;
@@ -407,10 +414,74 @@ public sealed class Shell
 
         if (!abandoned.IsCancellationRequested)
         {
+            // Polled from the start, and until the stream says it is up: one that never comes up is one the badges are
+            // kept current without.
             Poll(abandoned);
+            Stream(abandoned);
 
             await Counts(acting.Profile, abandoned);
         }
+    }
+
+    /// <summary>
+    ///     Holds the user stream open for whoever is acted as, until a switch abandons <paramref name="abandoned" />
+    ///     (#401). While it is up the poll is let go of; each event reads again the counts it touches; a drop starts
+    ///     the poll again until it comes back, when all three are read again for whatever arrived meanwhile. None of
+    ///     it is drawn — a passing blip is no business of the reader's.
+    /// </summary>
+    private void Stream(CancellationToken abandoned)
+    {
+        _streaming?.Dispose();
+        _streaming = new InboxStreaming(
+            _ports.Stream,
+            () => _acting?.Profile,
+            _clock,
+            _timing,
+            _host,
+            abandoned,
+            heard: heard => Heard(heard, abandoned),
+            up: again =>
+            {
+                _poll?.Dispose();
+                _poll = null;
+
+                if (again && _acting is { } acting)
+                {
+                    _ = Counts(acting.Profile, abandoned);
+                }
+            },
+            down: () =>
+            {
+                // Already polling where it never came up; starting again would put the next poll off a minute more.
+                if (_poll is null)
+                {
+                    Poll(abandoned);
+                }
+            });
+    }
+
+    /// <summary>
+    ///     Reads again the counts <paramref name="heard" /> touches, as one re-read: a notification the Notifications
+    ///     count, and the Requests count too where somebody asked to follow; a conversation the Messages count.
+    /// </summary>
+    private void Heard(InboxEvent heard, CancellationToken abandoned)
+    {
+        if (_acting is not { } acting)
+        {
+            return;
+        }
+
+        _ = heard switch
+        {
+            InboxEvent.Notified { Kind.AsksToFollow: true } => Recount(
+                acting.Profile,
+                abandoned,
+                DestinationKind.Notifications,
+                DestinationKind.Requests),
+            InboxEvent.Notified => Recount(acting.Profile, abandoned, DestinationKind.Notifications),
+            InboxEvent.Conversed => Recount(acting.Profile, abandoned, DestinationKind.Messages),
+            _ => Task.CompletedTask,
+        };
     }
 
     /// <summary>
@@ -1925,6 +1996,8 @@ public sealed class Shell
         _enquiry.Abandon();
         _poll?.Dispose();
         _poll = null;
+        _streaming?.Dispose();
+        _streaming = null;
 
         Asking = null;
         _launching = false;
@@ -2167,11 +2240,21 @@ public sealed class Shell
     /// <param name="abandoned">
     ///     Cancelled where the session switches profile, after which none of them is read or drawn (#243).
     /// </param>
-    private async Task Counts(ActiveProfile profile, CancellationToken abandoned)
+    private Task Counts(ActiveProfile profile, CancellationToken abandoned) =>
+        Recount(
+            profile,
+            abandoned,
+            DestinationKind.Notifications,
+            DestinationKind.Messages,
+            DestinationKind.Requests);
+
+    /// <summary>Reads the Inbox badges <paramref name="kinds" /> again, one after another. What a stream event re-reads the counts it touches through (#401).</summary>
+    private async Task Recount(ActiveProfile profile, CancellationToken abandoned, params DestinationKind[] kinds)
     {
-        await Count(profile, DestinationKind.Notifications, abandoned);
-        await Count(profile, DestinationKind.Messages, abandoned);
-        await Count(profile, DestinationKind.Requests, abandoned);
+        foreach (var kind in kinds)
+        {
+            await Count(profile, kind, abandoned);
+        }
     }
 
     /// <summary>

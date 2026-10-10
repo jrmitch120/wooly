@@ -15,6 +15,8 @@ internal sealed class FakeDirectMessages(
     ConversationThread? thread = null,
     Exception? refusal = null) : IDirectMessages
 {
+    private Fetch<Conversation> _fetch = fetch;
+
     /// <summary>The access token every call was made with, in order — where a test proves who it was made as.</summary>
     public List<string> Tokens { get; } = [];
 
@@ -30,6 +32,10 @@ internal sealed class FakeDirectMessages(
     /// <summary>Conversations there to be listed, read to the end of whatever was asked for.</summary>
     public static FakeDirectMessages Holding(params Conversation[] conversations) =>
         new(Fetch<Conversation>.Complete(conversations));
+
+    /// <summary>The conversations there to be listed from here on — a direct message arriving, say (#401).</summary>
+    public void NowHolding(params Conversation[] conversations) =>
+        _fetch = Fetch<Conversation>.Complete(conversations);
 
     /// <summary>An instance whose rate limit stopped the listing with <paramref name="conversations" /> in hand.</summary>
     public static FakeDirectMessages RateLimitedAfter(params Conversation[] conversations) =>
@@ -50,7 +56,7 @@ internal sealed class FakeDirectMessages(
         Listings.Add(new Call(profile.Name, limit));
         Tokens.Add(profile.AccessToken);
 
-        return refusal is null ? Task.FromResult(fetch) : Task.FromException<Fetch<Conversation>>(refusal);
+        return refusal is null ? Task.FromResult(_fetch) : Task.FromException<Fetch<Conversation>>(refusal);
     }
 
     public Task<ConversationThread> Show(

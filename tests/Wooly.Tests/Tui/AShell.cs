@@ -61,6 +61,12 @@ internal sealed class AShell
 
     public FakeInstanceLimits Limits { get; set; }
 
+    /// <summary>
+    ///     The user stream (#401), which never comes up unless a test says so — so a shell keeps polling, as it did
+    ///     before there was a stream.
+    /// </summary>
+    public FakeInboxStream Stream { get; set; } = new();
+
     /// <summary>What each profile's account posts at by default, which compose starts on (#339). Nothing, unless said.</summary>
     public FakeAccountDefaults Defaults { get; set; }
 
@@ -158,7 +164,7 @@ internal sealed class AShell
 
     private Shell Over(Opening opening) => new(
         opening,
-        new ShellPorts(Timelines, Author, Engagement, Accounts, Notifications, Messages, Search, Suggestions, RateLimit, Limits, Defaults),
+        new ShellPorts(Timelines, Author, Engagement, Accounts, Notifications, Messages, Search, Suggestions, RateLimit, Limits, Defaults, Stream),
         new ProfilePorts(Profiles, Paths, Authorizer, Verifier),
         Host,
         Browser,
@@ -233,7 +239,7 @@ internal sealed class AShell
     {
         var shell = new Shell(
             Opening.As(registry.Resolve(null)),
-            new ShellPorts(Timelines, Author, Engagement, Accounts, Notifications, Messages, Search, Suggestions, RateLimit, Limits, Defaults),
+            new ShellPorts(Timelines, Author, Engagement, Accounts, Notifications, Messages, Search, Suggestions, RateLimit, Limits, Defaults, Stream),
             new ProfilePorts(registry, paths, Authorizer, Verifier),
             Host,
             Browser,
