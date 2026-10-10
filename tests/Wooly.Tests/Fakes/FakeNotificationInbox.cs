@@ -49,12 +49,23 @@ internal sealed class FakeNotificationInbox(Fetch<Notification> fetch) : INotifi
     public void NowHolding(params Notification[] notifications) =>
         _fetch = Fetch<Notification>.Complete(notifications);
 
-    public Task<Fetch<Notification>> Read(ActiveProfile profile, int limit, CancellationToken cancellationToken)
+    /// <summary>
+    ///     Where set, what a read of the list waits for before it answers — and only that read, so that a test can hold
+    ///     an arrival in flight while a count is read past it.
+    /// </summary>
+    public TaskCompletionSource? ReadsWaitFor { get; set; }
+
+    public async Task<Fetch<Notification>> Read(ActiveProfile profile, int limit, CancellationToken cancellationToken)
     {
         Reads.Add(new Call(profile.Name, limit));
         Tokens.Add(profile.AccessToken);
 
-        return ByProfile.TryGetValue(profile.Name, out var answer) ? answer() : Task.FromResult(_fetch);
+        if (ReadsWaitFor is { } waiting)
+        {
+            await waiting.Task;
+        }
+
+        return ByProfile.TryGetValue(profile.Name, out var answer) ? await answer() : _fetch;
     }
 
     /// <summary>

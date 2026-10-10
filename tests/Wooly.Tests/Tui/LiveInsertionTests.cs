@@ -77,6 +77,45 @@ public class LiveInsertionTests
     }
 
     /// <summary>
+    ///     A re-read landing while the arrival at Notifications is still reading puts nothing on the screen waiting for
+    ///     it and moves no marker: the arrival is about to draw the list and read the marker itself (story 11).
+    /// </summary>
+    [Fact]
+    public async Task OnNotifications_APollLandingWhileTheArrivalIsReadingLeavesTheArrivalToIt()
+    {
+        var shell = new AShell
+        {
+            Notifications = FakeNotificationInbox.Holding(
+                ANotification.With(id: "102"),
+                ANotification.With(id: "101")),
+        };
+        shell.Notifications.Marker = "102";
+        var opened = await shell.Opened();
+        var arriving = new TaskCompletionSource();
+        shell.Notifications.ReadsWaitFor = arriving;
+
+        opened.Step(ToNotifications);
+        shell.Host.Settle();
+
+        shell.Notifications.NowHolding(
+            ANotification.With(id: "103"),
+            ANotification.With(id: "102"),
+            ANotification.With(id: "101"));
+        Passes(shell, Minute);
+
+        Assert.Empty(Assert.IsType<NotificationsScreen>(opened.Screen).Notifications);
+        Assert.Empty(shell.Notifications.MarkerMoves);
+
+        arriving.SetResult();
+        shell.Host.Settle();
+
+        var screen = Assert.IsType<NotificationsScreen>(opened.Screen);
+        Assert.Equal(["103", "102", "101"], screen.Notifications.Select(notification => notification.Id));
+        Assert.True(screen.IsUnread(screen.Notifications[0]));
+        Assert.Equal("103", Assert.Single(shell.Notifications.MarkerMoves).NotificationId);
+    }
+
+    /// <summary>
     ///     A conversation new to the screen, or one spoken in since, goes to the top — the changed one moved rather
     ///     than drawn twice — with its unread flag as the instance has it.
     /// </summary>

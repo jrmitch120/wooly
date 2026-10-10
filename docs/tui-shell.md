@@ -247,7 +247,9 @@ not answer them differently:
   on (`Shell.Grew` → `PaintedView.Keep`), so the page moves with what went in above it and nothing jumps. Where the
   picked thing is itself what changed — the conversation the reader is on spoken in again — it is brought up to date
   where it stands rather than moved to the top, and the pick stays on it: the row the reader is on never jumps, and it
-  takes its place at the top the next time the list is read (`Picked.Raise`). A screen
+  takes its place at the top the next time the list is read (`Picked.Raise`). Nothing is put on screen while a read is
+  in flight: arriving at the destination draws an empty screen until its list lands, and that arrival draws the list
+  and moves the marker itself, so a re-read landing first only counts. A screen
   underneath, or a destination walked away from, is told nothing; a re-read that raised the count or put anything on
   screen forgets that destination's cached list, so coming back inside the cache window reads it again rather than
   drawing the list from before — and that visit's cleared badge — over what arrived.

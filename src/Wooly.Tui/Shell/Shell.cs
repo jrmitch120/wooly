@@ -2350,6 +2350,13 @@ public sealed class Shell
     ///     reads it again — the held list is from before whatever arrived, and drawing it inside the cache window
     ///     would put that visit's cleared badge back over the count just read. Here rather than at each thing that
     ///     re-reads a count, so that the poll and the stream put what they find on screen the same way.
+    ///     <para>
+    ///         Nothing is put on screen while a read is in flight: arriving at the destination draws a screen with
+    ///         nothing on it until the list lands, and that read — with its own read of the marker — is about to put
+    ///         everything on screen and move the marker itself. A re-read let in first would fill a screen about to be
+    ///         replaced and move the marker for it. Whatever it found and the arrival did not is still unread, and the
+    ///         next re-read finds it (story 11).
+    ///     </para>
     /// </remarks>
     /// <param name="rose">Whether the count read is higher than the badge was.</param>
     private void Arrived(
@@ -2359,7 +2366,7 @@ public sealed class Shell
         bool rose,
         CancellationToken abandoned)
     {
-        var put = Rail.Showing.Kind == kind ? Screen.Arrived(found) : 0;
+        var put = Rail.Showing.Kind == kind && !Fetching ? Screen.Arrived(found) : 0;
 
         if (rose || put > 0)
         {
