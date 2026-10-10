@@ -188,7 +188,7 @@ public class RateLimitHandlerTests
 
     /// <summary>Two people calling one instance each keep their own budget, whichever answered last.</summary>
     [Fact]
-    public async Task SendAsync_KeepsEachCallersBudgetApart()
+    public async Task SendAsync_KeepsEachProfilesBudgetApart()
     {
         var report = new RateLimitReport();
         var network = new ScriptedHttpMessageHandler(

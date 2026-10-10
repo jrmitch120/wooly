@@ -6,15 +6,20 @@ namespace Wooly.Tests.Fakes;
 /// <summary>What each instance last said is left of a caller's budget, without an instance to have said it.</summary>
 /// <remarks>
 ///     Keyed on the instance and the token, as the real one is, so that two accounts on one instance are two budgets —
-///     and on the token as it is, which a fake can afford and the real one does not hold (#257).
+///     and on both exactly as written: the token as it is, which a fake can afford and the real one does not hold, and
+///     the instance without the real one's case-folding, which no test here leans on (#257).
 /// </remarks>
 internal sealed class FakeRateLimitReport : IRateLimitReport
 {
+    private FakeRateLimitReport()
+    {
+    }
+
     private readonly Dictionary<(string Instance, string Token), RateLimitQuota> _said = [];
 
     /// <inheritdoc />
     public RateLimitQuota? For(ActiveProfile profile) =>
-        _said.GetValueOrDefault((profile.Instance.ToLowerInvariant(), profile.AccessToken));
+        _said.GetValueOrDefault((profile.Instance, profile.AccessToken));
 
     /// <summary>
     ///     A response to a call made to <paramref name="instance" /> with <paramref name="token" />, saying
@@ -26,7 +31,7 @@ internal sealed class FakeRateLimitReport : IRateLimitReport
     {
         var quota = new RateLimitQuota(remaining, limit, new DateTimeOffset(2026, 7, 29, 13, 0, 0, TimeSpan.Zero));
 
-        _said[(instance.ToLowerInvariant(), token)] = quota;
+        _said[(instance, token)] = quota;
 
         return quota;
     }

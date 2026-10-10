@@ -11,6 +11,11 @@ namespace Wooly.Core.Http;
 ///         says so on every response, and a client keeping its own tally would drift from it the moment anything else
 ///         signed in as the same account.
 ///     </para>
+///     <para>
+///         Kept for each profile that calls — an instance and the token it was called with — rather than as one last
+///         word, because a response can land after the session has stopped acting as whoever made the call, and its
+///         budget is still theirs (#257).
+///     </para>
 /// </summary>
 public interface IRateLimitReport
 {
