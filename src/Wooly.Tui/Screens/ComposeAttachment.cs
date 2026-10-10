@@ -62,7 +62,7 @@ public enum AttachmentPart
 /// </summary>
 /// <remarks>
 ///     A thing with an identity rather than a value: the shell feeds each upload's progress back to the attachment it
-///     started it for (<see cref="ComposeScreen.Progressed" />), and two drops of the same file are two attachments.
+///     started it for (<see cref="ComposeMedia.Progressed" />), and two drops of the same file are two attachments.
 ///     What a test or the shell reads off it is what was attached and how far it has got; only the screen moves it on.
 /// </remarks>
 /// <param name="path">The file it was attached from.</param>

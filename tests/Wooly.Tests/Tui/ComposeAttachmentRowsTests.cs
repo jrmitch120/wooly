@@ -225,7 +225,7 @@ public class ComposeAttachmentRowsTests : IDisposable
         shell.Press(ShellKey.Up);
         shell.Press(ShellKey.Delete);
 
-        Assert.Empty(compose.Attachments);
+        Assert.Empty(compose.Media.Attachments);
         Assert.Equal(ComposeField.Media, compose.Typing);
 
         shell.Press(ShellKey.CtrlZ);
@@ -385,7 +385,7 @@ public class ComposeAttachmentRowsTests : IDisposable
 
         Assert.True(shell.Paste(_files.WriteFile("f.png")));
 
-        Assert.Equal(3, compose.Attachments.Count);
+        Assert.Equal(3, compose.Media.Attachments.Count);
         Assert.Equal("Nothing attached — 3 is the most a post can carry.", shell.Notice);
     }
 
@@ -629,7 +629,7 @@ public class ComposeAttachmentRowsTests : IDisposable
 
     /// <summary>The names on the rows, top to bottom.</summary>
     private static IEnumerable<string> Names(ComposeScreen compose) =>
-        compose.Attachments.Select(attachment => attachment.Name);
+        compose.Media.Attachments.Select(attachment => attachment.Name);
 
     private static Line Media(ComposeScreen compose) =>
         Lines(compose).Single(line => line.Text.StartsWith("  Media", StringComparison.Ordinal));

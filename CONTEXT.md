@@ -47,6 +47,8 @@ post goes out. The third state between a file on this machine and an attachment 
 never sent with is left for the instance to clear away. On screen they are listed under the **Media** header, the
 label Mastodon itself uses — the header's word, not a second name for an attachment — which also carries the author's
 own sensitive toggle: what is attached put behind a click with no warning written, held on while a warning is.
+What a compose screen's Media header holds — its pending attachments, and on an edit those the post carries
+already — is `ComposeMedia`, named for the header as `ComposeLang` is for Lang (#387).
 _Avoid_: upload (that is the act of sending it, not the thing sent)
 
 **File browser**:

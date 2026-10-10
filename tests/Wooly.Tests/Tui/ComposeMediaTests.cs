@@ -63,7 +63,7 @@ public class ComposeMediaTests : IDisposable
         Assert.True(shell.Paste(cat));
 
         Assert.Equal(cat, Assert.Single(built.Author.Attaching).Path);
-        Assert.Equal("cat.png", Assert.Single(compose.Attachments).Name);
+        Assert.Equal("cat.png", Assert.Single(compose.Media.Attachments).Name);
         Assert.Equal("personal", built.Author.Attaching[0].Profile);
         Assert.Contains("token-personal", built.Tokens);
     }
@@ -156,7 +156,7 @@ public class ComposeMediaTests : IDisposable
 
         Assert.True(shell.Paste(string.Join(' ', paths)));
 
-        Assert.Equal(["a.png", "b.png"], compose.Attachments.Select(attachment => attachment.Name));
+        Assert.Equal(["a.png", "b.png"], compose.Media.Attachments.Select(attachment => attachment.Name));
         Assert.Equal(2, built.Author.Attaching.Count);
     }
 
@@ -174,8 +174,8 @@ public class ComposeMediaTests : IDisposable
 
         Assert.True(shell.Paste($"{spaced.Replace(" ", "\\ ", StringComparison.Ordinal)} '{quoted}' {plain}"));
 
-        Assert.Equal(["a cat.png", "a dog.jpg", "bird.gif"], compose.Attachments.Select(attachment => attachment.Name));
-        Assert.Equal(["picture", "picture", "animation"], compose.Attachments.Select(attachment => attachment.KindWord));
+        Assert.Equal(["a cat.png", "a dog.jpg", "bird.gif"], compose.Media.Attachments.Select(attachment => attachment.Name));
+        Assert.Equal(["picture", "picture", "animation"], compose.Media.Attachments.Select(attachment => attachment.KindWord));
     }
 
     /// <summary>
@@ -196,7 +196,7 @@ public class ComposeMediaTests : IDisposable
         Assert.False(shell.Paste("cat.png"));
         Assert.False(shell.Paste("   "));
 
-        Assert.Empty(compose.Attachments);
+        Assert.Empty(compose.Media.Attachments);
         Assert.Empty(built.Author.Attaching);
     }
 
@@ -359,7 +359,7 @@ public class ComposeMediaTests : IDisposable
         Assert.Empty(built.Author.Published);
         Assert.Same(compose, shell.Screen);
         Assert.Equal("Watch this", compose.Text);
-        Assert.Single(compose.Attachments);
+        Assert.Single(compose.Media.Attachments);
     }
 
     /// <summary>

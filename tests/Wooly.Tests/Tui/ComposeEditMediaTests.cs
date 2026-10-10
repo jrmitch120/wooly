@@ -186,7 +186,7 @@ public class ComposeEditMediaTests : IDisposable
         var after = drawn.Rows();
 
         Assert.Same(compose, drawn.Shell.Screen);
-        Assert.Empty(compose.Attachments);
+        Assert.Empty(compose.Media.Attachments);
         Assert.Empty(built.Author.Attaching);
         Assert.Contains(after, row => row.Contains("Media  2 · kept as they are", StringComparison.Ordinal));
         Assert.Contains(after, row => row.Contains("“A cartoon", StringComparison.Ordinal));

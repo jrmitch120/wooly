@@ -303,7 +303,7 @@ public class FileBrowserTests : IDisposable
         shell.Press(ShellKey.Enter);
 
         Assert.Same(compose, shell.Screen);
-        Assert.Equal(["c.png", "a.png"], compose.Attachments.Select(attachment => attachment.Name));
+        Assert.Equal(["c.png", "a.png"], compose.Media.Attachments.Select(attachment => attachment.Name));
         Assert.Equal(2, built.Author.Attaching.Count);
     }
 
@@ -328,7 +328,7 @@ public class FileBrowserTests : IDisposable
 
         shell.Press(ShellKey.Enter);
 
-        Assert.Equal(["first.png", "a.png", "b.png"], compose.Attachments.Select(attachment => attachment.Name));
+        Assert.Equal(["first.png", "a.png", "b.png"], compose.Media.Attachments.Select(attachment => attachment.Name));
         Assert.Equal(3, built.Author.Attaching.Count);
     }
 
@@ -351,7 +351,7 @@ public class FileBrowserTests : IDisposable
         shell.Press(ShellKey.Enter);
 
         Assert.Same(compose, shell.Screen);
-        Assert.Equal("a.png", Assert.Single(compose.Attachments).Name);
+        Assert.Equal("a.png", Assert.Single(compose.Media.Attachments).Name);
     }
 
     /// <summary><c>⏎</c> with nothing chosen attaches the file under the cursor.</summary>
@@ -365,7 +365,7 @@ public class FileBrowserTests : IDisposable
         Browser(shell).Pick(At(shell, "b.png"));
         shell.Press(ShellKey.Enter);
 
-        Assert.Equal("b.png", Assert.Single(compose.Attachments).Name);
+        Assert.Equal("b.png", Assert.Single(compose.Media.Attachments).Name);
     }
 
     /// <summary>
@@ -443,7 +443,7 @@ public class FileBrowserTests : IDisposable
 
         Assert.Same(compose, shell.Screen);
         Assert.Null(shell.Asking);
-        Assert.Empty(compose.Attachments);
+        Assert.Empty(compose.Media.Attachments);
         Assert.Empty(built.Author.Attaching);
         Assert.Equal("A cat", compose.Text);
     }
@@ -603,7 +603,7 @@ public class FileBrowserTests : IDisposable
 
         var compose = Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
 
-        Assert.Equal("beach.png", Assert.Single(compose.Attachments).Name);
+        Assert.Equal("beach.png", Assert.Single(compose.Media.Attachments).Name);
     }
 
     /// <summary>The wheel scrolls a list longer than the terminal.</summary>
