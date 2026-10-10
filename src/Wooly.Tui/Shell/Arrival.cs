@@ -76,11 +76,20 @@ public sealed class Arrival(
     /// <summary>Raised where an answer was read into the screen already showing rather than into a new one.</summary>
     public event Action? Filled;
 
-    /// <summary>Raised with what a destination's badge says, for the destinations that carry one.</summary>
-    public event Action<DestinationKind, int>? Counts;
+    /// <summary>
+    ///     Raised with what a destination's badge says, for the destinations that carry one: how many, and whether the
+    ///     read that counted them came back full (<see cref="Found.Badge.Full" />).
+    /// </summary>
+    public event Action<DestinationKind, int, bool>? Counts;
 
     /// <summary>Raised with how far a destination's badge moves, for a change made between reads of it.</summary>
     public event Action<DestinationKind, int>? Moves;
+
+    /// <summary>
+    ///     Raised with a destination whose badge a change has made unknown, for it to be read again the way the shell
+    ///     reads it on opening (<see cref="InboxCount" />) — where what changed cannot say how far the count moved.
+    /// </summary>
+    public event Action<DestinationKind>? Recounts;
 
     /// <summary>Raised with a change, for every screen on the stack to hear (<see cref="Screen.Heard" />).</summary>
     public event Action<Change>? Heard;
@@ -257,15 +266,17 @@ public sealed class Arrival(
 
                 break;
 
-            case Change.NotificationsGone(var ids):
+            // Read again rather than moved: whether a dismissed notification was waiting is where it stood against
+            // the read marker, which only the instance knows (ADR-0027).
+            case Change.NotificationsGone:
                 Forget(DestinationKind.Notifications);
-                Moves?.Invoke(DestinationKind.Notifications, -ids.Count);
+                Recounts?.Invoke(DestinationKind.Notifications);
 
                 break;
 
             case Change.AllNotificationsGone:
                 Forget(DestinationKind.Notifications);
-                Counts?.Invoke(DestinationKind.Notifications, 0);
+                Counts?.Invoke(DestinationKind.Notifications, 0, false);
 
                 break;
 
@@ -363,7 +374,7 @@ public sealed class Arrival(
 
         if (found.Counted is { } badge)
         {
-            Counts?.Invoke(badge.Kind, badge.Unread);
+            Counts?.Invoke(badge.Kind, badge.Unread, badge.Full);
         }
 
         return screen;

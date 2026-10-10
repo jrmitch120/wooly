@@ -47,7 +47,13 @@ internal abstract record Found
     public virtual bool HoldsAccount(string accountId) => false;
 
     /// <summary>What a rail badge says, and which destination it is on.</summary>
-    public sealed record Badge(DestinationKind Kind, int Unread);
+    /// <param name="Kind">Which destination.</param>
+    /// <param name="Unread">How many are waiting, as far as the read counted.</param>
+    /// <param name="Full">
+    ///     Whether the read came back full — as many as one read counts up to — so that there may be more past it,
+    ///     and the badge draws as at least <paramref name="Unread" /> (<c>40+</c>) rather than exactly it.
+    /// </param>
+    public sealed record Badge(DestinationKind Kind, int Unread, bool Full = false);
 
     /// <summary>An answer that is a screen and nothing more, which is what most subjects are read into.</summary>
     /// <param name="Build">What the subject builds its screen with, off what came back.</param>

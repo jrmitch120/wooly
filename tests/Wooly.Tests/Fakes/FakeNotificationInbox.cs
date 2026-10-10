@@ -99,6 +99,9 @@ internal sealed class FakeNotificationInbox(Fetch<Notification> fetch) : INotifi
         Dismissals.Add(new Dismissed(profile.Name, notificationId));
         Tokens.Add(profile.AccessToken);
 
+        // Gone from the instance, so a later read — of the list or of what is unread — no longer finds it.
+        _fetch = _fetch with { Items = [.. _fetch.Items.Where(notification => notification.Id != notificationId)] };
+
         return Task.CompletedTask;
     }
 

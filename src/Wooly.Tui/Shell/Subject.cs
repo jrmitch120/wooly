@@ -153,7 +153,10 @@ public abstract record Subject
                     Reads: (ports, profile, token) => ports.Notifications.Read(profile, Arrival.CountedAtMost, token),
                     Becomes: (waiting, notice) => new NotificationsScreen(waiting, notice),
                     WhenEmpty: "Nothing is waiting for you.",
-                    Counting: waiting => waiting.Count,
+                    // Counted apart from the list it is drawn beside: what is unread is what is newer than the read
+                    // marker, which the list does not say (ADR-0027).
+                    Counting: (ports, profile, _, token) =>
+                        InboxCount.Read(ports, profile, DestinationKind.Notifications, token),
                     Carries: notification => notification.Post),
 
                 // The one destination whose read is two calls. Whether you already follow the person asking to follow
@@ -169,7 +172,7 @@ public abstract record Subject
                     },
                     Becomes: (asking, notice) => new FollowRequestsScreen(asking, notice),
                     WhenEmpty: "Nobody is waiting to follow you.",
-                    Counting: asking => asking.Count,
+                    Counting: (_, _, asking, _) => Task.FromResult(InboxCount.OffList(asking)),
                     Carries: _ => null),
 
                 // The one destination that reads a list through a port with no Fetch on it: there is no paging here
@@ -195,7 +198,7 @@ public abstract record Subject
 
                     // The badge counts the conversations with something unread in them, and counts them off the list
                     // it is drawn beside — so the rail cannot say two over a list of one.
-                    Counting: written => written.Count(conversation => conversation.Unread),
+                    Counting: (_, _, written, _) => Task.FromResult(InboxCount.OffList(written)),
                     Carries: conversation => conversation.Latest),
 
                 // Said out loud rather than quietly doing nothing: a destination that reads no list — the profile's
@@ -527,7 +530,8 @@ public abstract record Subject
     /// <param name="Becomes">What the answer is on screen, given what came back and what there is to say about it.</param>
     /// <param name="WhenEmpty">What a reader is told where nothing came back.</param>
     /// <param name="Counting">
-    ///     What this destination's badge counts off the answer, or <see langword="null" /> where it carries no badge —
+    ///     How this destination's badge is counted, given what the list read came back with — off that list, or by a
+    ///     read of its own, as <see cref="InboxCount" /> says — or <see langword="null" /> where it carries no badge,
     ///     which a timeline says here rather than leaving the count out somewhere else.
     /// </param>
     /// <param name="Carries">
@@ -538,7 +542,7 @@ public abstract record Subject
         Func<ShellPorts, ActiveProfile, CancellationToken, Task<Fetch<T>>> Reads,
         Func<IReadOnlyList<T>, string?, Screen> Becomes,
         string WhenEmpty,
-        Func<IReadOnlyList<T>, int>? Counting,
+        Func<ShellPorts, ActiveProfile, IReadOnlyList<T>, CancellationToken, Task<Found.Badge>>? Counting,
         Func<T, Post?> Carries) : Listing
     {
         /// <inheritdoc />
@@ -549,15 +553,46 @@ public abstract record Subject
             Enquiry.Ask ask,
             ShellPorts ports,
             ActiveProfile profile,
-            Entry entry) =>
-            new Listed<T>(this, entry, await ask.Of(token => Reads(ports, profile, token)));
+            Entry entry)
+        {
+            var fetch = await ask.Of(token => Reads(ports, profile, token));
+
+            return new Listed<T>(this, entry, fetch, await Counted(ask, ports, profile, fetch.Items));
+        }
+
+        /// <summary>
+        ///     The badge, read the way <see cref="InboxCount" /> says — or <see langword="null" /> where the destination
+        ///     carries none, or where a count read apart from the list could not be read: the list arrived, and a
+        ///     badge is the least of what is on screen, so the one it already had stands (#396).
+        /// </summary>
+        private async Task<Found.Badge?> Counted(
+            Enquiry.Ask ask,
+            ShellPorts ports,
+            ActiveProfile profile,
+            IReadOnlyList<T> items)
+        {
+            if (Counting is not { } counting)
+            {
+                return null;
+            }
+
+            try
+            {
+                return await ask.Of(token => counting(ports, profile, items, token));
+            }
+            catch (WoolyException)
+            {
+                return null;
+            }
+        }
     }
 
     /// <summary>What one read of a destination came back with.</summary>
     /// <param name="How">What the destination is.</param>
     /// <param name="Entry">The rail's entry for it, whose timeline names what the list is of.</param>
     /// <param name="Fetch">What came back, and whether a rate limit cut it short.</param>
-    private sealed record Listed<T>(Listing<T> How, Entry Entry, Fetch<T> Fetch) : Found
+    /// <param name="Waiting">What the destination's badge says, read alongside it; null where it carries none.</param>
+    private sealed record Listed<T>(Listing<T> How, Entry Entry, Fetch<T> Fetch, Found.Badge? Waiting) : Found
     {
         /// <inheritdoc />
         /// <remarks>
@@ -570,9 +605,12 @@ public abstract record Subject
                 Arrival.Emptiness(Fetch.Items.Count, How.WhenEmpty, Entry.Timeline?.Description, Fetch.StoppedBy));
 
         /// <inheritdoc />
-        /// <remarks>Read off the same answer the screen is, so the rail cannot say four over a list of three.</remarks>
-        public override Found.Badge? Counted =>
-            How.Counting is { } counting ? new Found.Badge(Entry.Kind, counting(Fetch.Items)) : null;
+        /// <remarks>
+        ///     Read with the same read the screen is, and counted the way <see cref="InboxCount" /> counts it when the
+        ///     shell opens — so the rail cannot say four over a list of three, nor say one thing on opening and
+        ///     another on arriving.
+        /// </remarks>
+        public override Found.Badge? Counted => Waiting;
 
         /// <inheritdoc />
         /// <remarks>What was held is an answer that will cost nothing, and nothing will have cut it short.</remarks>

@@ -1771,6 +1771,7 @@ public sealed class Shell
         };
         arrival.Counts += Counted;
         arrival.Moves += Moved;
+        arrival.Recounts += kind => _ = Count(profile, kind, enquiry.Abandoned);
         arrival.Heard += Heard;
 
         var reach = new Reach(
@@ -2134,27 +2135,16 @@ public sealed class Shell
     /// </param>
     private async Task Counts(ActiveProfile profile, CancellationToken abandoned)
     {
-        await Count(
-            DestinationKind.Notifications,
-            abandoned,
-            async token => (await _ports.Notifications.Read(profile, Arrival.CountedAtMost, token)).Items.Count);
-
-        await Count(
-            DestinationKind.Messages,
-            abandoned,
-            async token => (await _ports.Messages.List(profile, Arrival.CountedAtMost, token))
-                .Items.Count(conversation => conversation.Unread));
-
-        await Count(
-            DestinationKind.Requests,
-            abandoned,
-            async token => (await _ports.Accounts.PendingRequests(profile, Arrival.CountedAtMost, token)).Items.Count);
+        await Count(profile, DestinationKind.Notifications, abandoned);
+        await Count(profile, DestinationKind.Messages, abandoned);
+        await Count(profile, DestinationKind.Requests, abandoned);
     }
 
-    private async Task Count(
-        DestinationKind kind,
-        CancellationToken abandoned,
-        Func<CancellationToken, Task<int>> read)
+    /// <summary>
+    ///     Reads one Inbox badge the way <see cref="InboxCount" /> counts it — the same way arriving at the
+    ///     destination counts it, so the two cannot disagree (#396) — and puts it on the rail.
+    /// </summary>
+    private async Task Count(ActiveProfile profile, DestinationKind kind, CancellationToken abandoned)
     {
         if (abandoned.IsCancellationRequested)
         {
@@ -2163,13 +2153,13 @@ public sealed class Shell
 
         try
         {
-            var unread = await read(abandoned);
+            var badge = await InboxCount.Read(_ports, profile, kind, abandoned);
 
             Apply(() =>
             {
                 if (!abandoned.IsCancellationRequested)
                 {
-                    Counted(kind, unread);
+                    Counted(badge.Kind, badge.Unread, badge.Full);
                 }
             });
         }
@@ -2189,11 +2179,22 @@ public sealed class Shell
     ///     the shell, arriving at the destination itself, and clearing something off it — and a badge that disagreed
     ///     with the list under it would be the shell arguing with itself.
     /// </summary>
-    private void Counted(DestinationKind kind, int unread) =>
-        Rail.Update(Badged(kind) with { Unread = unread });
+    /// <param name="full">
+    ///     Whether the read that counted it came back full, so that the badge says at least <paramref name="unread" />.
+    /// </param>
+    private void Counted(DestinationKind kind, int unread, bool full) =>
+        Rail.Update(Badged(kind) with { Unread = unread, Full = full && unread > 0 });
 
-    /// <summary>Moves a count on the rail by <paramref name="by" />, and never below nothing (#234).</summary>
-    private void Moved(DestinationKind kind, int by) => Counted(kind, Math.Max(0, Badged(kind).Unread + by));
+    /// <summary>
+    ///     Moves a count on the rail by <paramref name="by" />, and never below nothing (#234). A full badge stays
+    ///     full: forty or more, less one, is still at least thirty-nine.
+    /// </summary>
+    private void Moved(DestinationKind kind, int by)
+    {
+        var badge = Badged(kind);
+
+        Counted(kind, Math.Max(0, badge.Unread + by), badge.Full);
+    }
 
     /// <summary>The rail's entry for <paramref name="kind" />, badge and all.</summary>
     private Destination Badged(DestinationKind kind) =>

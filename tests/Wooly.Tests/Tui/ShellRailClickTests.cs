@@ -72,7 +72,9 @@ public class ShellRailClickTests
 
         Assert.Equal(IndexOf(drawn, DestinationKind.Notifications), drawn.Shell.Rail.Current);
         Assert.Equal(timelines, drawn.Built.Timelines.Reads.Count);
-        Assert.Equal(requests + 1, drawn.Built.Requests);
+        // Two reads, both of the destination clicked: its list, and what is unread on it — counted apart from the
+        // list, against the read marker (ADR-0027).
+        Assert.Equal(requests + 2, drawn.Built.Requests);
         Assert.IsType<NotificationsScreen>(drawn.Shell.Screen);
     }
 
