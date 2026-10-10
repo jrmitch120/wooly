@@ -35,7 +35,7 @@ public sealed class NotificationsScreen(
     /// </summary>
     private const string UnreadMark = "unread";
 
-    private readonly IReadOnlySet<string> _unread = unread ?? new HashSet<string>(StringComparer.Ordinal);
+    private readonly HashSet<string> _unread = new(unread ?? new HashSet<string>(), StringComparer.Ordinal);
 
     // Named by the notification's own id, which is not the id of the post it is about (CONTEXT.md) — and is what a
     // refresh puts the reader back on (#84).
@@ -123,6 +123,27 @@ public sealed class NotificationsScreen(
         }
 
         return false;
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    ///     The unread ones not already on screen, drawn unread for the rest of this visit — the shell moves the read
+    ///     marker past them as it would have on arriving, so this screen is the only thing left saying they are new.
+    /// </remarks>
+    public override int Arrived(Waiting waiting)
+    {
+        if (waiting is not Waiting.Notifications(var unread))
+        {
+            return 0;
+        }
+
+        var shown = Notifications.Select(notification => notification.Id).ToHashSet(StringComparer.Ordinal);
+        var arriving = unread.Where(notification => !shown.Contains(notification.Id)).ToList();
+
+        _notifications.Raise(arriving, (one, other) => one.Id == other.Id);
+        _unread.UnionWith(arriving.Select(notification => notification.Id));
+
+        return arriving.Count;
     }
 
     /// <summary>What this screen's own keys do: <c>d</c> dismisses the picked notification, and <c>D</c> all of them.</summary>

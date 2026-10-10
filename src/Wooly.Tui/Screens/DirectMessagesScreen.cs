@@ -138,6 +138,31 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    ///     A conversation not on screen, or one whose last post or unread flag the instance now has differently — so a
+    ///     conversation spoken in again moves up rather than being drawn twice — each as the instance has it, its
+    ///     unread flag included.
+    /// </remarks>
+    public override int Arrived(Waiting waiting)
+    {
+        if (waiting is not Waiting.Messages(var listed))
+        {
+            return 0;
+        }
+
+        var held = Conversations.ToDictionary(conversation => conversation.Id, StringComparer.Ordinal);
+        var arriving = listed
+                       .Where(conversation => !held.TryGetValue(conversation.Id, out var was)
+                                              || was.Unread != conversation.Unread
+                                              || was.Latest?.Id != conversation.Latest?.Id)
+                       .ToList();
+
+        _conversations.Raise(arriving, (one, other) => one.Id == other.Id);
+
+        return arriving.Count;
+    }
+
+    /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(Drawing drawing)
     {
         var lines = new List<Line>();

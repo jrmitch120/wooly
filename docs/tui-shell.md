@@ -228,6 +228,15 @@ not answer them differently:
   badges rose (a poll reading all three is one re-read). The first count of each badge after the shell opens or a
   profile switch never rings, whichever read lands first; being on the destination does not stop it; a badge that
   falls or stays never rings. `bell = false` in `[preferences]` turns it off, and the badges still move.
+- **What a re-read finds lands at the top of the Inbox screen in front** (#400). Every re-read of a count — a poll, a
+  stream event — hands what it read to the screen on top of the stack (`Screen.Arrived`), and only while the rail is
+  showing that destination: new notifications go on top drawn `unread`, and the read marker is moved past them so the
+  badge clears again; a conversation new or changed (last post or unread flag) moves to the top as the instance has
+  it; a new request goes on top. The same thing stays picked, and the content region keeps it on the page row it was
+  on (`Shell.Grew` → `PaintedView.Keep`), so the page moves with what went in above it and nothing jumps. A screen
+  underneath, or a destination walked away from, is told nothing; a re-read that raised the count or put anything on
+  screen forgets that destination's cached list, so coming back inside the cache window reads it again rather than
+  drawing the list from before — and that visit's cleared badge — over what arrived.
 - **A prompt taking letters takes `/`, `?`, `` ` `` and `~` too**, which is the one exception to the frame keys above.
   A web address and a question are both things somebody is entitled to search for, and a prompt that could not take a
   slash would refuse the query most likely to be pasted into it; code in backticks and a path under `~` are the same

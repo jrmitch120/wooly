@@ -653,4 +653,11 @@ public abstract class Screen
     ///     stack.
     /// </returns>
     public virtual bool Heard(Change change) => false;
+
+    /// <summary>
+    ///     Puts at the top of this screen whatever of <paramref name="waiting" /> is new to it, keeping the same thing
+    ///     picked out — told only to the screen in front, after a re-read of an Inbox count (#400).
+    /// </summary>
+    /// <returns>How many things were put at the top; none on every screen but the Inbox's three.</returns>
+    public virtual int Arrived(Waiting waiting) => 0;
 }

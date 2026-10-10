@@ -120,6 +120,31 @@ public sealed class Picked<T>(IReadOnlyList<T> things) : IPicked
     public void Add(T thing) => _things.Add(thing);
 
     /// <summary>
+    ///     Puts <paramref name="arriving" /> at the top of the list, in the order given — taking off it first anything
+    ///     <paramref name="same" /> says is one of them, so that a thing changed is moved up rather than drawn twice —
+    ///     and keeps the same thing picked out (#400).
+    /// </summary>
+    /// <remarks>
+    ///     The pick follows the thing rather than staying at its index: something arriving above what the reader is
+    ///     on is no reason for them to be on something else. Where the thing picked is one of those arriving, it is
+    ///     followed to the top, as the newer of the two.
+    /// </remarks>
+    public void Raise(IReadOnlyList<T> arriving, Func<T, T, bool> same)
+    {
+        if (arriving.Count == 0)
+        {
+            return;
+        }
+
+        var picked = Out;
+
+        _things.RemoveAll(thing => arriving.Any(come => same(come, thing)));
+        _things.InsertRange(0, arriving);
+
+        At = picked is null ? 0 : Math.Max(0, _things.FindIndex(thing => same(thing, picked)));
+    }
+
+    /// <summary>
     ///     Walks the list once, putting back whatever <paramref name="changed" /> makes of each thing — which for most
     ///     of them is the thing itself.
     /// </summary>
