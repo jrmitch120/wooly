@@ -1,5 +1,6 @@
 using System.Threading.Channels;
 using Microsoft.Extensions.DependencyInjection;
+using Wooly.Core.Http;
 using Wooly.Core.Inbox;
 using Wooly.Core.Notifications;
 using Wooly.Core.Posts;
@@ -36,16 +37,44 @@ public class InboxStreamIntegrationTests
     [Fact(Skip = LiveInstance.SkipReason, SkipType = typeof(LiveInstance), SkipUnless = nameof(LiveInstance.Available))]
     public async Task ADirectMessage_ReachesTheStreamAsAConversation()
     {
-        var heard = await Heard(
-            new PostDraft
-            {
-                Text = $"@{LiveInstance.Username} wooly integration test {Guid.NewGuid():N}",
-                Visibility = PostVisibility.Direct,
-                VisibilityChosen = true,
-            },
-            said => said is InboxEvent.ConversationChanged);
+        // Mastodon 4.3 on files a private mention from someone the account does not follow under its notification
+        // requests, by default — and a mention filtered so never reaches the conversation, or the stream. The tester
+        // does not follow the voter, so it takes private mentions from anyone for the length of this test.
+        await PrivateMentions("accept");
 
-        Assert.Equal(new InboxEvent.ConversationChanged(), heard);
+        try
+        {
+            var heard = await Heard(
+                new PostDraft
+                {
+                    Text = $"@{LiveInstance.Username} wooly integration test {Guid.NewGuid():N}",
+                    Visibility = PostVisibility.Direct,
+                    VisibilityChosen = true,
+                },
+                said => said is InboxEvent.ConversationChanged);
+
+            Assert.Equal(new InboxEvent.ConversationChanged(), heard);
+        }
+        finally
+        {
+            await PrivateMentions("filter");
+        }
+    }
+
+    /// <summary>Sets what the tester's notification policy does with a private mention from someone it does not follow.</summary>
+    private static async Task PrivateMentions(string policy)
+    {
+        var services = LiveInstance.NewServices();
+
+        using var answer = await RawMastodonCall.Sent(
+            services.GetRequiredService<IHttpClientFactory>(),
+            LiveInstance.Profile,
+            HttpMethod.Patch,
+            "api/v2/notifications/policy",
+            new FormUrlEncodedContent([new KeyValuePair<string, string>("for_private_mentions", policy)]),
+            TestContext.Current.CancellationToken);
+
+        answer.EnsureSuccessStatusCode();
     }
 
     /// <summary>
