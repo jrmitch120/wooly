@@ -143,8 +143,8 @@ public sealed class Shell
     private readonly List<Screen> _stack = [];
 
     /// <summary>
-    ///     The last budget the old profile's instance reported, where the session has switched since — which the rail's
-    ///     foot does not draw, being somebody else's budget, until an instance reports the new one's (#243).
+    ///     The last budget the profile acted as had reported when the session switched to it — from before it was
+    ///     acted as this time, so not drawn until its instance says it again (#257).
     /// </summary>
     private RateLimitQuota? _quotaBeforeSwitch;
 
@@ -304,9 +304,17 @@ public sealed class Shell
     public Confirmation? Asking { get; private set; }
 
     /// <summary>What the instance last said is left of the profile's budget, for the rail's foot (story 54).</summary>
-    /// <remarks>Nothing where the last one said is the old profile's, from before a switch (#243).</remarks>
+    /// <remarks>
+    ///     Only ever the budget of the profile acted as: another's, landing late from a call made before a switch, is
+    ///     theirs (#243, #257). Nothing, too, just after switching to a profile — back to one acted as earlier included
+    ///     — until its instance says what is left now, rather than what was left before the switch.
+    /// </remarks>
     public RateLimitQuota? Quota =>
-        _ports.RateLimit.Latest is { } latest && !ReferenceEquals(latest, _quotaBeforeSwitch) ? latest : null;
+        _acting is { } acting &&
+        _ports.RateLimit.For(acting.Profile) is { } quota &&
+        !ReferenceEquals(quota, _quotaBeforeSwitch)
+            ? quota
+            : null;
 
     /// <summary>
     ///     The instance this session is acting as, for the rail's foot — or <see langword="null" /> with only one profile
@@ -1803,6 +1811,7 @@ public sealed class Shell
         LetGo();
         Begin(next);
         _instance = RailInstance();
+        _quotaBeforeSwitch = _ports.RateLimit.For(next);
 
         Rail.Restart(Destinations(next, _hashtag));
         Reset(new FeedScreen(Rail.Showing, []));
@@ -1876,7 +1885,7 @@ public sealed class Shell
 
     /// <summary>
     ///     Lets go of everything asked as the profile acted as, before <see cref="Begin" /> puts whoever is next in its
-    ///     place: every question in flight called off, a confirmation waiting dismissed, and its quota no longer drawn.
+    ///     place: every question in flight called off, and a confirmation waiting dismissed.
     /// </summary>
     private void LetGo()
     {
@@ -1884,7 +1893,6 @@ public sealed class Shell
 
         Asking = null;
         _launching = false;
-        _quotaBeforeSwitch = _ports.RateLimit.Latest;
     }
 
     /// <summary>

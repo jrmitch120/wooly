@@ -25,7 +25,7 @@ internal sealed class RateLimitHandler(TimeProvider timeProvider, RateLimitRepor
 
         // Every response, not only the refusal. An instance says what is left on all of them, and a client that only
         // looked at the one that said "none" could show a reader nothing until the moment it was too late (story 54).
-        report.Observed(response, resetsAt);
+        report.Observed(request, response, resetsAt);
 
         if (response.StatusCode != HttpStatusCode.TooManyRequests)
         {

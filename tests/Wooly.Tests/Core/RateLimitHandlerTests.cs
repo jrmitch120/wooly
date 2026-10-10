@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using Wooly.Core.Errors;
 using Wooly.Core.Http;
+using Wooly.Core.Profiles;
 using Wooly.Tests.Fakes;
 
 namespace Wooly.Tests.Core;
@@ -10,6 +11,9 @@ namespace Wooly.Tests.Core;
 public class RateLimitHandlerTests
 {
     private static readonly DateTimeOffset Now = new(2026, 7, 29, 12, 0, 0, TimeSpan.Zero);
+
+    /// <summary>Who every call here goes out as, unless a test says otherwise.</summary>
+    private static readonly ActiveProfile Personal = Acting("personal", "mastodon.social", "token-personal");
 
     [Fact]
     public async Task SendAsync_HandsBackAnUnlimitedResponseUntouched()
@@ -95,9 +99,9 @@ public class RateLimitHandlerTests
 
         await Send(network, TestContext.Current.CancellationToken, report);
 
-        Assert.Equal(213, report.Latest?.Remaining);
-        Assert.Equal(300, report.Latest?.Limit);
-        Assert.Equal(new DateTimeOffset(2026, 7, 29, 12, 30, 0, TimeSpan.Zero), report.Latest?.ResetsAt);
+        Assert.Equal(213, report.For(Personal)?.Remaining);
+        Assert.Equal(300, report.For(Personal)?.Limit);
+        Assert.Equal(new DateTimeOffset(2026, 7, 29, 12, 30, 0, TimeSpan.Zero), report.For(Personal)?.ResetsAt);
     }
 
     /// <summary>The refusal is the one response a reader most wants a number off, so it reports one too.</summary>
@@ -114,8 +118,8 @@ public class RateLimitHandlerTests
 
         await Assert.ThrowsAsync<RateLimitedException>(() => Send(network, cancellationToken, report));
 
-        Assert.Equal(0, report.Latest?.Remaining);
-        Assert.Equal(300, report.Latest?.Limit);
+        Assert.Equal(0, report.For(Personal)?.Remaining);
+        Assert.Equal(300, report.For(Personal)?.Limit);
     }
 
     /// <summary>
@@ -134,7 +138,7 @@ public class RateLimitHandlerTests
 
         await Send(network, TestContext.Current.CancellationToken, report);
 
-        Assert.Null(report.Latest);
+        Assert.Null(report.For(Personal));
     }
 
     /// <summary>A budget one call out of date is a budget; a budget overwritten by a response that carried none is not.</summary>
@@ -150,7 +154,69 @@ public class RateLimitHandlerTests
         await Send(network, cancellationToken, report);
         await Send(network, cancellationToken, report);
 
-        Assert.Equal(213, report.Latest?.Remaining);
+        Assert.Equal(213, report.For(Personal)?.Remaining);
+    }
+
+    /// <summary>
+    ///     A budget is the budget of whoever the call went out as, so it is read back for them and for nobody else —
+    ///     not another account on the same instance, nor the same token's name on another instance (#257).
+    /// </summary>
+    [Fact]
+    public async Task SendAsync_TakesDownTheBudgetForWhoeverTheCallWentOutAs()
+    {
+        var report = new RateLimitReport();
+        var network = new ScriptedHttpMessageHandler(Budgeted(remaining: "213", limit: "300"));
+
+        await Send(network, TestContext.Current.CancellationToken, report);
+
+        Assert.Equal(213, report.For(Personal)?.Remaining);
+        Assert.Null(report.For(Acting("alt", "mastodon.social", "token-alt")));
+        Assert.Null(report.For(Acting("work", "hachyderm.io", "token-personal")));
+    }
+
+    /// <summary>The instance's name is read without regard to case, as a host is.</summary>
+    [Fact]
+    public async Task SendAsync_TakesDownTheBudgetForAProfileWhoseInstanceIsWrittenInAnotherCase()
+    {
+        var report = new RateLimitReport();
+        var network = new ScriptedHttpMessageHandler(Budgeted(remaining: "213", limit: "300"));
+
+        await Send(network, TestContext.Current.CancellationToken, report);
+
+        Assert.Equal(213, report.For(Acting("personal", "Mastodon.Social", "token-personal"))?.Remaining);
+    }
+
+    /// <summary>Two people calling one instance each keep their own budget, whichever answered last.</summary>
+    [Fact]
+    public async Task SendAsync_KeepsEachProfilesBudgetApart()
+    {
+        var report = new RateLimitReport();
+        var network = new ScriptedHttpMessageHandler(
+            Budgeted(remaining: "213", limit: "300"),
+            Budgeted(remaining: "17", limit: "300"));
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        await Send(network, cancellationToken, report);
+        await Send(network, cancellationToken, report, bearer: "token-alt");
+
+        Assert.Equal(213, report.For(Personal)?.Remaining);
+        Assert.Equal(17, report.For(Acting("alt", "mastodon.social", "token-alt"))?.Remaining);
+    }
+
+    /// <summary>
+    ///     A call made with no token — registering this client, or trading a code for one — spends nobody's budget a
+    ///     profile could be drawn with, so it is taken down for nobody.
+    /// </summary>
+    [Fact]
+    public async Task SendAsync_TakesDownNoBudgetForACallMadeWithNoToken()
+    {
+        var report = new RateLimitReport();
+        var network = new ScriptedHttpMessageHandler(Budgeted(remaining: "213", limit: "300"));
+
+        await Send(network, TestContext.Current.CancellationToken, report, bearer: null);
+
+        Assert.Null(report.For(Personal));
+        Assert.Null(report.For(Acting("nobody", "mastodon.social", "")));
     }
 
     /// <summary>What a proportion is drawn from, including the instance that says this client cannot divide by it.</summary>
@@ -194,10 +260,20 @@ public class RateLimitHandlerTests
             return response;
         };
 
+    /// <summary>A profile on <paramref name="instance" />, calling with <paramref name="token" />.</summary>
+    private static ActiveProfile Acting(string name, string instance, string token) => new()
+    {
+        Name = name,
+        Instance = instance,
+        Account = null,
+        AccessToken = token,
+    };
+
     private static async Task<HttpResponseMessage> Send(
         HttpMessageHandler network,
         CancellationToken cancellationToken,
-        RateLimitReport? report = null)
+        RateLimitReport? report = null,
+        string? bearer = "token-personal")
     {
         var handler = new RateLimitHandler(new FixedTimeProvider(Now), report ?? new RateLimitReport())
         {
@@ -205,7 +281,13 @@ public class RateLimitHandlerTests
         };
 
         using var client = new HttpClient(handler);
+        using var request = new HttpRequestMessage(HttpMethod.Get, "https://mastodon.social/api/v1/timelines/home");
 
-        return await client.GetAsync("https://mastodon.social/api/v1/timelines/home", cancellationToken);
+        if (bearer is not null)
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearer);
+        }
+
+        return await client.SendAsync(request, cancellationToken);
     }
 }
