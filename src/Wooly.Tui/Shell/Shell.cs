@@ -1182,7 +1182,7 @@ public sealed class Shell
     /// <returns>Whether the paste was taken, which is what settles whether it is left for whatever has focus.</returns>
     public bool Paste(string text)
     {
-        if (Screen is ComposeScreen { TakesAttachments: true } compose
+        if (Screen is ComposeScreen { Media.Takes: true } compose
             && Dropped.Paths(text, compose.Limits) is { } dropped)
         {
             Attach(compose, dropped);
@@ -1220,7 +1220,7 @@ public sealed class Shell
     /// <returns>Whether the paste was taken; one that was not is left to the field's own paste.</returns>
     public bool PasteFromTheClipboard()
     {
-        if (InFront is not { TakesAttachments: true } compose)
+        if (InFront is not { Media.Takes: true } compose)
         {
             return false;
         }
@@ -1631,12 +1631,12 @@ public sealed class Shell
 
         // A post never goes out without something its author attached (ADR-0026): not without one the instance refused,
         // and not before the rest are ready, which it waits for rather than refuses — esc calls the wait off (#375).
-        if (compose.Refused > 0)
+        if (compose.Media.Refused > 0)
         {
             Say(
-                compose.Refused == 1
+                compose.Media.Refused == 1
                     ? "Something attached was refused — take it off to send."
-                    : $"{compose.Refused} attachments were refused — take them off to send.",
+                    : $"{compose.Media.Refused} attachments were refused — take them off to send.",
                 isError: true);
 
             return;
@@ -2312,12 +2312,12 @@ public sealed class Shell
     /// </summary>
     public void Browse()
     {
-        if (InFront is not { TakesAttachments: true } compose)
+        if (InFront is not { Media.Takes: true } compose)
         {
             return;
         }
 
-        if (compose.AttachmentRoom == 0)
+        if (compose.Media.Room == 0)
         {
             Say($"This post carries all it can — {compose.Attachments.Count} of {compose.Limits.Attachments}.", isError: false);
 
@@ -2326,7 +2326,7 @@ public sealed class Shell
 
         var folder = _lastFolder is { } last && Directory.Exists(last) ? last : _launchedFrom;
 
-        Push(new FileBrowserScreen(LocalFiles.Listing(folder), compose.Limits, compose.AttachmentRoom));
+        Push(new FileBrowserScreen(LocalFiles.Listing(folder), compose.Limits, compose.Media.Room));
     }
 
     /// <summary>
@@ -2390,7 +2390,7 @@ public sealed class Shell
 
         ChangeCompose(screen =>
         {
-            attached = screen.Attach(paths.Select(path => ComposeAttachment.Of(path, LocalFiles.Size(path))));
+            attached = screen.Media.Attach(paths.Select(path => ComposeAttachment.Of(path, LocalFiles.Size(path))));
 
             return attached.Count > 0 ? ComposeChange.Edited : ComposeChange.None;
         });
@@ -2442,7 +2442,7 @@ public sealed class Shell
     /// </summary>
     /// <returns>Whether it moved, which makes the button's release a drop rather than a click.</returns>
     public bool DragAttachment(ComposeAttachment attachment, int place) =>
-        ChangeCompose(compose => compose.ReorderTo(attachment, place)) != ComposeChange.None;
+        ChangeCompose(compose => compose.Media.ReorderTo(attachment, place)) != ComposeChange.None;
 
     /// <summary>
     ///     A click on <paramref name="attachment" />'s row, on <paramref name="part" /> of it (#378): its <c>x</c> takes
@@ -2458,7 +2458,7 @@ public sealed class Shell
 
                 break;
             case AttachmentPart.Retry:
-                Retry(compose => compose.Retry(attachment));
+                Retry(compose => compose.Media.Retry(attachment));
 
                 break;
             case AttachmentPart.Description:
@@ -2480,7 +2480,7 @@ public sealed class Shell
     /// </summary>
     private void Progressed(ComposeScreen compose, ComposeAttachment attachment, AttachmentState state)
     {
-        if (!compose.Progressed(attachment, state))
+        if (!compose.Media.Progressed(attachment, state))
         {
             return;
         }
@@ -2507,7 +2507,7 @@ public sealed class Shell
     /// </remarks>
     private void Waited(ComposeScreen compose)
     {
-        if (ReferenceEquals(_waitingToSend, compose) && !compose.Unfinished && ReferenceEquals(Screen, compose))
+        if (ReferenceEquals(_waitingToSend, compose) && !compose.Media.Unfinished && ReferenceEquals(Screen, compose))
         {
             _waitingToSend = null;
 
@@ -2552,7 +2552,7 @@ public sealed class Shell
     /// </summary>
     private void Told(ComposeScreen compose, ComposeAttachment attachment, string description)
     {
-        if (compose.Told(attachment, description))
+        if (compose.Media.Told(attachment, description))
         {
             Changed?.Invoke();
         }

@@ -24,6 +24,9 @@ public sealed class AttachmentsScreen(ComposeScreen compose) : Screen
     /// <summary>The compose screen whose attachments these are.</summary>
     public ComposeScreen Compose => compose;
 
+    /// <summary>What the compose holds under its Media header, which this lists (#387).</summary>
+    private ComposeMedia Media => compose.Media;
+
     /// <inheritdoc />
     /// <remarks>The header's own word, under the compose it lists the rows of.</remarks>
     public override string Crumb => "Media";
@@ -39,9 +42,9 @@ public sealed class AttachmentsScreen(ComposeScreen compose) : Screen
     protected override IReadOnlyList<KeyHint> OwnKeys =>
     [
         new("⏎", "describe", NeedsAPick: true),
-        .. compose.RowKeys,
+        .. Media.Keys(compose.Look),
         new("s", "sensitive", NeedsAPick: true),
-        .. compose.AttachmentRoom > 0
+        .. Media.Room > 0
             ? [new KeyHint("ctrl-o", "add media"), ComposeScreen.PasteKeys]
             : Array.Empty<KeyHint>(),
         new("esc", "back"),
@@ -55,14 +58,14 @@ public sealed class AttachmentsScreen(ComposeScreen compose) : Screen
     /// </remarks>
     public override IReadOnlyList<Line> Lines(Drawing drawing)
     {
-        var lines = new List<Line> { Line.Blank, compose.ListedHeader(drawing.Width), Line.Blank };
+        var lines = new List<Line> { Line.Blank, Media.ListedHeader(drawing.Width, compose.Look), Line.Blank };
 
-        for (var at = 0; at < compose.Attachments.Count; at++)
+        for (var at = 0; at < Media.Attachments.Count; at++)
         {
-            lines.Add(compose.ListedRow(compose.Attachments[at], drawing.Width, drawing).PartOf(at));
+            lines.Add(Media.ListedRow(Media.Attachments[at], drawing.Width, drawing, compose.Look).PartOf(at));
         }
 
-        if (compose.Attachments.Count == 0)
+        if (Media.Attachments.Count == 0)
         {
             lines.Add(Line.Of(
                 new Span(new string(' ', Pad + 2), Role.Body),
@@ -93,9 +96,9 @@ public sealed class AttachmentsScreen(ComposeScreen compose) : Screen
     /// <summary>The rows, walked by the compose's own pick of one, so that its keys act on the row picked here.</summary>
     private sealed class Rows(ComposeScreen compose) : IPicked
     {
-        public int At => compose.PickedAttachment is { } picked ? IndexOf(picked) : 0;
+        public int At => compose.Media.Picked is { } picked ? IndexOf(picked) : 0;
 
-        public int Count => compose.Attachments.Count;
+        public int Count => compose.Media.Attachments.Count;
 
         public void Move(int by) => Pick(At + by);
 
@@ -103,7 +106,7 @@ public sealed class AttachmentsScreen(ComposeScreen compose) : Screen
         {
             if (Count > 0)
             {
-                compose.Pick(compose.Attachments[Math.Clamp(at, 0, Count - 1)]);
+                compose.Pick(compose.Media.Attachments[Math.Clamp(at, 0, Count - 1)]);
             }
         }
 
@@ -111,7 +114,7 @@ public sealed class AttachmentsScreen(ComposeScreen compose) : Screen
         {
             for (var at = 0; at < Count; at++)
             {
-                if (ReferenceEquals(compose.Attachments[at], attachment))
+                if (ReferenceEquals(compose.Media.Attachments[at], attachment))
                 {
                     return at;
                 }

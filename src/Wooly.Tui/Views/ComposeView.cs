@@ -354,7 +354,7 @@ internal sealed class ComposeView : View
             _languages.Fill(compose.Lang.Held);
 
             // An edit's Media header is read-only (#381): nothing there to walk to or click on.
-            _media.Visible = compose.TakesAttachments;
+            _media.Visible = compose.Media.Takes;
 
             // Where the screen says the typing is, rather than the post: compose comes back from the description
             // editor with the row described still picked, and focusing the post took the walk off it (review of #372).

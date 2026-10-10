@@ -62,7 +62,7 @@ public sealed class DescriptionScreen(ComposeScreen compose, ComposeAttachment a
 
     /// <summary>The field changed: what the description says now, which goes straight onto the attachment.</summary>
     /// <returns>An edit, or nothing where the field says back what the attachment already holds.</returns>
-    public ComposeChange Rewrite(string description) => compose.Describe(attachment, description);
+    public ComposeChange Rewrite(string description) => compose.Media.Describe(attachment, description);
 
     /// <summary>
     ///     Where the field goes inside the content panel's viewport of <paramref name="viewport" />: under its label,
