@@ -121,12 +121,16 @@ internal sealed class AShell
     /// <summary>The config file's <c>default_language</c>, as a code, which compose's Lang starts on (#340), or none.</summary>
     public string? DefaultLanguage { get; set; }
 
+    /// <summary>The config file's <c>bell</c>: whether a rising Inbox badge rings the terminal's bell (#399). On, unless said.</summary>
+    public bool Bell { get; set; } = true;
+
     /// <summary>The config file's preferences, as far as these tests set them.</summary>
     private Preferences Preferences => new()
     {
         Hashtag = Hashtag,
         DefaultVisibility = DefaultVisibility,
         DefaultLanguage = DefaultLanguage,
+        Bell = Bell,
     };
 
     /// <summary>

@@ -58,6 +58,67 @@ public class TomlConfigStoreTests : IDisposable
         Assert.Empty(File.ReadAllText(Path.Combine(_directory.Path, "config.toml")));
     }
 
+    /// <summary>#399: the bell is on unless the file says otherwise, with no file and with a file that leaves it out.</summary>
+    [Fact]
+    public void Load_ReadsBellAsOnWhenAbsent()
+    {
+        Assert.True(NewStore().Load().Preferences.Bell);
+
+        WriteConfigFile(
+            """
+            [preferences]
+            hashtag = "dotnet"
+            """);
+
+        Assert.True(NewStore().Load().Preferences.Bell);
+    }
+
+    [Fact]
+    public void Save_ThenLoad_RoundTripsTheBellTurnedOff()
+    {
+        var store = NewStore();
+
+        store.Save(new WoolyConfig { Preferences = new Preferences { Bell = false } });
+
+        Assert.Contains("bell = false", File.ReadAllText(Path.Combine(_directory.Path, "config.toml")));
+        Assert.False(store.Load().Preferences.Bell);
+    }
+
+    /// <summary>On is what an absent key reads as, so it is not written: no new line in a file nothing else touched.</summary>
+    [Fact]
+    public void Save_OmitsTheBellWhenOn()
+    {
+        NewStore().Save(new WoolyConfig { Preferences = new Preferences { Bell = true } });
+
+        Assert.Empty(File.ReadAllText(Path.Combine(_directory.Path, "config.toml")));
+    }
+
+    [Fact]
+    public void Load_ReadsTheBellTurnedOnOutright()
+    {
+        WriteConfigFile(
+            """
+            [preferences]
+            bell = true
+            """);
+
+        Assert.True(NewStore().Load().Preferences.Bell);
+    }
+
+    [Fact]
+    public void Load_RefusesASpellingOfTheBellThatIsNotABoolean()
+    {
+        WriteConfigFile(
+            """
+            [preferences]
+            bell = "off"
+            """);
+
+        var exception = Assert.Throws<ConfigurationException>(() => NewStore().Load());
+
+        Assert.Contains("bell", exception.Message);
+    }
+
     [Fact]
     public void Load_RefusesASpellingOfHideDrawnCaptionThatIsNotABoolean()
     {

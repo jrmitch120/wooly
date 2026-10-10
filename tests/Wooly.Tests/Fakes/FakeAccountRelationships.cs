@@ -12,7 +12,7 @@ namespace Wooly.Tests.Fakes;
 /// </summary>
 internal sealed class FakeAccountRelationships : IAccountRelationships
 {
-    private readonly Fetch<Account> _list;
+    private Fetch<Account> _list;
     private readonly Exception? _refusal;
     private readonly bool _unfinished;
     private Account _subject;
@@ -89,6 +89,9 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
     ///     Answering with a different id is how a test says that somebody moved instances.
     /// </summary>
     public void NowShowing(Account subject) => _subject = subject;
+
+    /// <summary>Who every list holds from here on — a follow request arriving between two reads, say (#399).</summary>
+    public void NowListing(params Account[] listing) => _list = Fetch<Account>.Complete(listing);
 
     /// <summary>An instance whose lists have nobody on them.</summary>
     public static FakeAccountRelationships HoldingNobody() => new(AnAccount.With(), Fetch<Account>.Complete([]));

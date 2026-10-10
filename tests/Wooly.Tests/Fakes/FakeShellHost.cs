@@ -21,6 +21,12 @@ internal sealed class FakeShellHost : IShellHost
     /// <summary>How long every wait ever scheduled was asked to be, in the order they were asked for.</summary>
     public List<TimeSpan> Delays { get; } = [];
 
+    /// <summary>How many times the terminal's bell was written (#399).</summary>
+    public int Bells { get; private set; }
+
+    /// <inheritdoc />
+    public void Ring() => Bells++;
+
     /// <inheritdoc />
     /// <remarks>Queued, because that is what the terminal does — see <see cref="Drain" />.</remarks>
     public void OnUiThread(Action work) => _queued.Add(work);

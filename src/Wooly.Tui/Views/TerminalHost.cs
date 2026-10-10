@@ -29,6 +29,13 @@ internal sealed class TerminalHost(IApplication application) : IShellHost
         return token is null ? Nothing : new Timeout(application, token);
     }
 
+    /// <inheritdoc />
+    /// <remarks>
+    ///     Written the way the frames and Kitty's pictures are: straight to the driver's output, which is the
+    ///     terminal. Nothing where there is no driver yet, before the first frame or after the last.
+    /// </remarks>
+    public void Ring() => application.Driver?.GetOutput().Write("\a");
+
     /// <summary>Nothing to call off, for a wait that was never scheduled.</summary>
     private sealed class NotScheduled : IDisposable
     {

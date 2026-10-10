@@ -154,6 +154,15 @@ public sealed class Shell
     /// </summary>
     private InboxPoll? _poll;
 
+    /// <summary>
+    ///     The Inbox badges read at least once for the profile acted as, since the shell opened onto it: only a badge
+    ///     already counted can rise, which is what keeps the first counts — at launch, and after a switch — quiet (#399).
+    /// </summary>
+    private readonly HashSet<DestinationKind> _countedOnce = [];
+
+    /// <summary>Whether a rising Inbox badge rings the terminal's bell: the config file's <c>bell</c>, on unless said (#399).</summary>
+    private readonly bool _ringing;
+
     /// <summary>How long each instance lets a post be, asked as posts are first written there (#319).</summary>
     private readonly LimitsByInstance _limits;
 
@@ -188,8 +197,8 @@ public sealed class Shell
     ///     Who to act as — or, with nobody, what to open onto instead: adding a profile, as the only screen (#247).
     /// </param>
     /// <param name="preferences">
-    ///     The config file's preferences: the hashtag the rail keeps a place for, and what compose starts on. None
-    ///     where the file sets none.
+    ///     The config file's preferences: the hashtag the rail keeps a place for, what compose starts on, and whether a
+    ///     rising Inbox badge rings the bell. None where the file sets none.
     /// </param>
     /// <param name="launchedFrom">
     ///     The folder Wooly was launched from, where the file browser first opens (#376): the working folder, where
@@ -226,6 +235,7 @@ public sealed class Shell
         _timing = timing;
         _hashtag = preferences?.Hashtag;
         _preferred = new PostDefaults(preferences?.DefaultVisibility, preferences?.DefaultLanguage);
+        _ringing = preferences?.Bell ?? true;
 
         Rail = new Rail(Destinations(opening.Profile, _hashtag), host, timing.Settle);
 
@@ -1801,9 +1811,9 @@ public sealed class Shell
             Saw(Screen);
             Say(null, isError: false);
         };
-        arrival.Counts += Counted;
+        arrival.Counts += (kind, unread, full) => Read(kind, unread, full, new Reread(Ring));
         arrival.Moves += Moved;
-        arrival.Recounts += kind => _ = Count(profile, kind, enquiry.Abandoned);
+        arrival.Recounts += kind => _ = Recount(profile, enquiry.Abandoned, kind);
         arrival.Heard += Heard;
 
         var reach = new Reach(
@@ -1925,6 +1935,7 @@ public sealed class Shell
         _enquiry.Abandon();
         _poll?.Dispose();
         _poll = null;
+        _countedOnce.Clear();
 
         Asking = null;
         _launching = false;
@@ -2167,18 +2178,34 @@ public sealed class Shell
     /// <param name="abandoned">
     ///     Cancelled where the session switches profile, after which none of them is read or drawn (#243).
     /// </param>
-    private async Task Counts(ActiveProfile profile, CancellationToken abandoned)
+    private Task Counts(ActiveProfile profile, CancellationToken abandoned) =>
+        Recount(
+            profile,
+            abandoned,
+            DestinationKind.Notifications,
+            DestinationKind.Messages,
+            DestinationKind.Requests);
+
+    /// <summary>
+    ///     Reads the Inbox badges <paramref name="kinds" /> again as one <see cref="Reread" />, which rings the bell at
+    ///     most once however many of them rose (#399). What a stream event re-reads the counts it touches through (#401).
+    /// </summary>
+    private async Task Recount(ActiveProfile profile, CancellationToken abandoned, params DestinationKind[] kinds)
     {
-        await Count(profile, DestinationKind.Notifications, abandoned);
-        await Count(profile, DestinationKind.Messages, abandoned);
-        await Count(profile, DestinationKind.Requests, abandoned);
+        var reread = new Reread(Ring);
+
+        foreach (var kind in kinds)
+        {
+            await Count(profile, kind, abandoned, reread);
+        }
     }
 
     /// <summary>
     ///     Reads one Inbox badge the way <see cref="InboxCount" /> counts it — the same way arriving at the
-    ///     destination counts it, so the two cannot disagree (#396) — and puts it on the rail.
+    ///     destination counts it, so the two cannot disagree (#396) — and puts it on the rail, as part of
+    ///     <paramref name="reread" />.
     /// </summary>
-    private async Task Count(ActiveProfile profile, DestinationKind kind, CancellationToken abandoned)
+    private async Task Count(ActiveProfile profile, DestinationKind kind, CancellationToken abandoned, Reread reread)
     {
         if (abandoned.IsCancellationRequested)
         {
@@ -2193,7 +2220,7 @@ public sealed class Shell
             {
                 if (!abandoned.IsCancellationRequested)
                 {
-                    Counted(badge.Kind, badge.Unread, badge.Full);
+                    Read(badge.Kind, badge.Unread, badge.Full, reread);
                 }
             });
         }
@@ -2205,6 +2232,34 @@ public sealed class Shell
         {
             // A count that could not be read is drawn as no count. It is the least of what is on screen, and a shell
             // that refused to open because a badge was unavailable would be trading the whole thing for a number.
+        }
+    }
+
+    /// <summary>
+    ///     A count the instance gave, put on the rail as part of <paramref name="reread" /> — which hears of it where it
+    ///     is higher than the last count of the same badge for this profile. The first count of each badge since the
+    ///     profile was opened onto is never higher than anything: it is what there was, not what arrived (#399).
+    /// </summary>
+    /// <remarks>
+    ///     Whatever read it — the open, a poll, arriving at the destination, a stream event — rather than which one,
+    ///     so a poll that happens to land before a slow opening count is the first, and stays quiet.
+    /// </remarks>
+    private void Read(DestinationKind kind, int unread, bool full, Reread reread)
+    {
+        if (!_countedOnce.Add(kind) && unread > Badged(kind).Unread)
+        {
+            reread.Rose();
+        }
+
+        Counted(kind, unread, full);
+    }
+
+    /// <summary>The terminal's bell, where the preference leaves it on (#399).</summary>
+    private void Ring()
+    {
+        if (_ringing)
+        {
+            _host.Ring();
         }
     }
 

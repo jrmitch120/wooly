@@ -217,6 +217,12 @@ not answer them differently:
 - **The Inbox badges are polled every 60 seconds** (`ShellTiming.PollEvery`, #398) for the profile acted as, off the
   shell's clock: all three are read again and set outright from the answers, a count that cannot be read leaves its
   badge as drawn, and a profile switch lets the old profile's poll go and starts the new one's.
+- **A rising Inbox badge rings the terminal's bell** (#399): `BEL`, written through the shell's own output, so the
+  terminal's settings decide whether it sounds, flashes or bounces — no OS sound and no branch for any one terminal.
+  It rings when a read puts a badge above the last count of it for the same profile, once per re-read however many
+  badges rose (a poll reading all three is one re-read). The first count of each badge after the shell opens or a
+  profile switch never rings, whichever read lands first; being on the destination does not stop it; a badge that
+  falls or stays never rings. `bell = false` in `[preferences]` turns it off, and the badges still move.
 - **A prompt taking letters takes `/`, `?`, `` ` `` and `~` too**, which is the one exception to the frame keys above.
   A web address and a question are both things somebody is entitled to search for, and a prompt that could not take a
   slash would refuse the query most likely to be pasted into it; code in backticks and a path under `~` are the same
@@ -2003,10 +2009,14 @@ business but the reader's, so it is a setting in the same TOML file everything e
 [preferences]
 hashtag = "dotnet"
 hide_drawn_caption = true
+bell = false
 ```
 
-`hide_drawn_caption` is the other reader-owned preference in this section (#71) — a picture's caption, `false` (the
-default) shows it always, `true` hides it once a picture is actually drawn, per "What media settled" above.
+`hide_drawn_caption` is another reader-owned preference in this section (#71) — a picture's caption, `false` (the
+default) shows it always, `true` hides it once a picture is actually drawn, per "What media settled" above. `bell` is a
+third (#399): `true` (the default, and what an absent key means) rings the terminal's bell when an Inbox badge rises,
+`false` keeps the badges live without the sound. Like the others it is the same for every profile, and has no key in
+the shell yet.
 
 With none set, the destination is still on the rail — it says no tag has been named and asks the instance for nothing,
 rather than being a rail entry that swallows a keypress.
