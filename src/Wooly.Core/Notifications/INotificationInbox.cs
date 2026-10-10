@@ -28,6 +28,18 @@ public interface INotificationInbox
     /// </returns>
     Task<Fetch<Notification>> Read(ActiveProfile profile, int limit, CancellationToken cancellationToken);
 
+    /// <summary>
+    ///     Reads up to <paramref name="limit" /> of the notifications newer than the account's read marker, newest
+    ///     first — every kind, as <see cref="Read" /> reads them (ADR-0010) — or learns that the account has no marker,
+    ///     and so nothing unread (ADR-0027).
+    /// </summary>
+    /// <param name="profile">The profile to read as.</param>
+    /// <param name="limit">
+    ///     The most that are wanted. A read that comes back with this many is all the caller can say for certain:
+    ///     there may be more past it.
+    /// </param>
+    Task<UnreadNotifications> ReadUnread(ActiveProfile profile, int limit, CancellationToken cancellationToken);
+
     /// <summary>Clears the single notification <paramref name="notificationId" /> names.</summary>
     /// <param name="notificationId">
     ///     The notification's own id, as a read reports it — not the id of the post it is about.

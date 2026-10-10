@@ -57,6 +57,43 @@ internal sealed class FakeNotificationInbox(Fetch<Notification> fetch) : INotifi
         return ByProfile.TryGetValue(profile.Name, out var answer) ? answer() : Task.FromResult(_fetch);
     }
 
+    /// <summary>
+    ///     The account's read marker: the id of the newest notification it has read, or <see langword="null" /> for an
+    ///     account that has never had one. Nothing read by default — <c>"0"</c>, below every id a test hands it — so
+    ///     what the inbox holds is all unread unless a test says otherwise.
+    /// </summary>
+    public string? Marker { get; set; } = "0";
+
+    /// <summary>Every read of what is unread it was asked for, in order.</summary>
+    public List<Call> UnreadReads { get; } = [];
+
+    /// <summary>
+    ///     What it holds above <see cref="Marker" />, up to <paramref name="limit" /> — compared as numbers, the way an
+    ///     instance's ids order. A read cut short by a rate limit is cut short here too.
+    /// </summary>
+    public async Task<UnreadNotifications> ReadUnread(
+        ActiveProfile profile,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        UnreadReads.Add(new Call(profile.Name, limit));
+        Tokens.Add(profile.AccessToken);
+
+        if (Marker is not { } marker)
+        {
+            return UnreadNotifications.NoMarker;
+        }
+
+        var held = ByProfile.TryGetValue(profile.Name, out var answer) ? await answer() : _fetch;
+        var since = held.Items.Where(notification => Newer(notification.Id, marker)).Take(limit).ToList();
+
+        return new UnreadNotifications(
+            marker,
+            held.StoppedBy is { } stoppedBy
+                ? Fetch<Notification>.StoppedShort(since, stoppedBy)
+                : Fetch<Notification>.Complete(since));
+    }
+
     public Task Dismiss(ActiveProfile profile, string notificationId, CancellationToken cancellationToken)
     {
         Dismissals.Add(new Dismissed(profile.Name, notificationId));
@@ -72,6 +109,10 @@ internal sealed class FakeNotificationInbox(Fetch<Notification> fetch) : INotifi
 
         return Task.CompletedTask;
     }
+
+    /// <summary>Whether <paramref name="id" /> is newer than <paramref name="than" />: longer, or later at the same length.</summary>
+    private static bool Newer(string id, string than) =>
+        id.Length != than.Length ? id.Length > than.Length : string.CompareOrdinal(id, than) > 0;
 
     /// <summary>One read: which profile it was made as, and how many notifications it wanted.</summary>
     internal sealed record Call(string Profile, int Limit);
