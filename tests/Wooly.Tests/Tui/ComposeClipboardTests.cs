@@ -187,7 +187,7 @@ public class ComposeClipboardTests : IDisposable
     {
         using var composed = await ComposedView.Of();
 
-        composed.Application.Clipboard!.TrySetClipboardData("hello");
+        Copied(composed, "hello");
         composed.Press(Key.V.WithCtrl);
 
         Assert.Equal("hello", composed.Editor.Text);
@@ -209,7 +209,7 @@ public class ComposeClipboardTests : IDisposable
 
         using var composed = await ComposedView.Of(built);
 
-        composed.Application.Clipboard!.TrySetClipboardData("hello");
+        Copied(composed, "hello");
         composed.Press(Key.V.WithCtrl);
         composed.Settle();
 
@@ -255,7 +255,7 @@ public class ComposeClipboardTests : IDisposable
     {
         using var composed = await ComposedView.Of();
 
-        composed.Application.Clipboard!.TrySetClipboardData("hello");
+        Copied(composed, "hello");
         composed.Press(Key.V.WithAlt);
         composed.Press(Key.W.WithCtrl);
         composed.Press(Key.V.WithAlt);
@@ -365,6 +365,20 @@ public class ComposeClipboardTests : IDisposable
 
         return (shell, built, compose);
     }
+
+    /// <summary>
+    ///     Puts <paramref name="text" /> on the clipboard a field pastes from — or skips, where it cannot be written.
+    /// </summary>
+    /// <remarks>
+    ///     On macOS, Terminal.Gui finds its clipboard by running <c>which pbcopy</c>, which it never does with output
+    ///     redirected, as a test runner's always is: so the write is refused, while a field's paste still reads the
+    ///     real pasteboard — whatever was last copied on the machine. Linux, where CI runs, falls back to an in-memory
+    ///     clipboard that takes the write.
+    /// </remarks>
+    private static void Copied(ComposedView composed, string text) =>
+        Assert.SkipUnless(
+            composed.Application.Clipboard!.TrySetClipboardData(text),
+            "This platform's clipboard cannot be written under a test runner, so a paste would read the real one.");
 
     private static IReadOnlyList<string> Texts(ComposeScreen compose) =>
         [.. compose.Lines(new Drawing(78, AShell.Now, Height: 21)).Select(line => line.Text)];
