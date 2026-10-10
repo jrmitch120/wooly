@@ -242,19 +242,87 @@ public class ShellSwitchTests
     public async Task TheQuota_IsNotCarriedAcross()
     {
         var shell = PersonalAndWork();
-        shell.RateLimit = FakeRateLimitReport.Of(250);
+        shell.RateLimit.Said("mastodon.social", "token-personal", 250);
         var opened = await shell.Opened();
 
-        Assert.NotNull(opened.Quota);
+        Assert.Equal(250, opened.Quota?.Remaining);
 
         SwitchTo(shell, opened, "work");
 
         Assert.Null(opened.Quota);
 
         // And the new profile's own, once an instance has said it.
-        shell.RateLimit.Latest = new RateLimitQuota(299, 300, null);
+        shell.RateLimit.Said("hachyderm.io", "token-work", 299);
 
         Assert.Equal(299, opened.Quota?.Remaining);
+    }
+
+    /// <summary>
+    ///     A call the old profile made before the switch can be answered after it, and its budget is still the old
+    ///     profile's — never drawn as the new one's, however late it lands (#257).
+    /// </summary>
+    [Fact]
+    public async Task TheOldProfilesQuota_LandingAfterTheSwitch_IsNotDrawn()
+    {
+        var shell = PersonalAndWork();
+        shell.RateLimit.Said("mastodon.social", "token-personal", 250);
+        var opened = await shell.Opened();
+
+        SwitchTo(shell, opened, "work");
+        shell.RateLimit.Said("mastodon.social", "token-personal", 249);
+
+        Assert.Null(opened.Quota);
+
+        shell.RateLimit.Said("hachyderm.io", "token-work", 299);
+        shell.RateLimit.Said("mastodon.social", "token-personal", 248);
+
+        Assert.Equal(299, opened.Quota?.Remaining);
+    }
+
+    /// <summary>
+    ///     Back to a profile acted as earlier, the budget it last reported is from before the switch — so nothing is
+    ///     drawn until its instance says it again (#257).
+    /// </summary>
+    [Fact]
+    public async Task SwitchingBack_DrawsNoQuotaUntilTheProfilesInstanceSaysItAgain()
+    {
+        var shell = PersonalAndWork();
+        shell.RateLimit.Said("mastodon.social", "token-personal", 250);
+        var opened = await shell.Opened();
+
+        SwitchTo(shell, opened, "work");
+        shell.RateLimit.Said("hachyderm.io", "token-work", 299);
+        SwitchTo(shell, opened, "personal");
+
+        Assert.Null(opened.Quota);
+
+        shell.RateLimit.Said("mastodon.social", "token-personal", 240);
+
+        Assert.Equal(240, opened.Quota?.Remaining);
+    }
+
+    /// <summary>Two accounts on one instance are two budgets: the instance alone does not say whose it is (#257).</summary>
+    [Fact]
+    public async Task TwoProfilesOnOneInstance_KeepTheirQuotasApart()
+    {
+        var shell = new AShell
+        {
+            Profiles = FakeProfileRegistry.Holding(
+                "personal",
+                FakeProfileRegistry.Profile("personal", "mastodon.social", "jeff@mastodon.social"),
+                FakeProfileRegistry.Profile("alt", "mastodon.social", "jeffalt@mastodon.social")),
+        };
+        shell.RateLimit.Said("mastodon.social", "token-personal", 250);
+        var opened = await shell.Opened();
+
+        SwitchTo(shell, opened, "alt");
+        shell.RateLimit.Said("mastodon.social", "token-personal", 249);
+
+        Assert.Null(opened.Quota);
+
+        shell.RateLimit.Said("mastodon.social", "token-alt", 120);
+
+        Assert.Equal(120, opened.Quota?.Remaining);
     }
 
     /// <summary>Only for this session: the default profile is left where it was.</summary>

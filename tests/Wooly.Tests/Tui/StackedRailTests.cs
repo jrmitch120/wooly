@@ -149,12 +149,12 @@ public class StackedRailTests
                 "personal",
                 FakeProfileRegistry.Profile("personal", "mastodon.social", "jeff@mastodon.social"),
                 FakeProfileRegistry.Profile("work", "hachyderm.io", "jeff@hachyderm.io")),
-            RateLimit = FakeRateLimitReport.Of(250),
         };
+        var personal = built.RateLimit.Said("mastodon.social", "token-personal", 250);
 
         using var drawn = await Draw(80, 24, Themes.Plain, built);
 
-        Assert.Equal(drawn.Shell.Quota, built.RateLimit.Latest);
+        Assert.Same(personal, drawn.Shell.Quota);
         Assert.Contains("%", drawn.Rail()[21], StringComparison.Ordinal);
 
         drawn.Shell.Press(ShellKey.CtrlP);
@@ -167,7 +167,7 @@ public class StackedRailTests
         Assert.Equal(" hachyderm.io", drawn.Rail()[20].Trim('│').TrimEnd());
         Assert.Equal("│                  │", drawn.Rail()[21]);
 
-        built.RateLimit.Latest = new RateLimitQuota(150, 300, null);
+        built.RateLimit.Said("hachyderm.io", "token-work", 150);
         drawn.Redraw();
 
         Assert.Equal("│ ██████░░░░░░  50%│", drawn.Rail()[21]);
