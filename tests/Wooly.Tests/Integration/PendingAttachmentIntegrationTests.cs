@@ -112,7 +112,19 @@ public class PendingAttachmentIntegrationTests : IDisposable
         };
 
         var attaching = author.Attach(profile, Picture("blink.gif", frames: 2), reported, cancellationToken);
-        var processing = await reported.Processing.Task.WaitAsync(TimeSpan.FromSeconds(30), cancellationToken);
+
+        // The attach is watched as well as the report: an upload the instance refuses ends it without ever reporting
+        // processing, and that failure is the one worth seeing, not a wait that runs out.
+        var first = await Task.WhenAny(attaching, reported.Processing.Task)
+            .WaitAsync(TimeSpan.FromSeconds(30), cancellationToken);
+
+        if (first == attaching)
+        {
+            await attaching;
+            Assert.Skip("The instance finished processing before it answered the upload.");
+        }
+
+        var processing = await reported.Processing.Task;
 
         Post? early = null;
 
@@ -154,11 +166,16 @@ public class PendingAttachmentIntegrationTests : IDisposable
     {
         var path = Path.Combine(_files.Path, name);
 
-        using var picture = new Image<Rgba32>(16, 16, new Rgba32(200, 40, 40));
+        // An animation is drawn at 64 pixels a side: the instance turns it into a clip at a bitrate worked out from its
+        // size, and at 16 that comes to under 1 kbit/s, which its encoder refuses, failing the upload (#390). 32 is
+        // the smallest that goes through; 64 leaves room.
+        var side = frames > 1 ? 64 : 16;
+
+        using var picture = new Image<Rgba32>(side, side, new Rgba32(200, 40, 40));
 
         for (var frame = 1; frame < frames; frame++)
         {
-            using var next = new Image<Rgba32>(16, 16, new Rgba32(40, 40, 200));
+            using var next = new Image<Rgba32>(side, side, new Rgba32(40, 40, 200));
 
             picture.Frames.AddFrame(next.Frames.RootFrame);
         }

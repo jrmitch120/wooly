@@ -38,6 +38,8 @@ services:
     restart: unless-stopped
     env_file: mastodon.env
     command: bundle exec puma -C config/puma.rb
+    volumes:
+      - system:/opt/mastodon/public/system
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/health || exit 1"]
       interval: 5s
@@ -56,6 +58,9 @@ services:
     restart: unless-stopped
     env_file: mastodon.env
     command: bundle exec sidekiq
+    # Shares web's uploads: web saves a file, and sidekiq is what processes a video or an animation afterwards (#390).
+    volumes:
+      - system:/opt/mastodon/public/system
     depends_on:
       db:
         condition: service_healthy
@@ -80,3 +85,6 @@ services:
 
 networks:
   internal:
+
+volumes:
+  system:
