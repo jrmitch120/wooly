@@ -29,9 +29,10 @@ namespace Wooly.Tui.Shell;
 ///         put — the question is asked from it — and why nothing here counts arrivals.
 ///     </para>
 ///     <para>
-///         A badge is set outright by every read of its destination, off the list it is drawn beside, and moved by
-///         the changes between reads (<see cref="Apply" />) — so a dismissal landing after the reader has gone
-///         elsewhere is one fewer, rather than a count taken off a list nobody is holding any more.
+///         A badge is set outright by every read of its destination, counted as <see cref="InboxCount" /> says, and
+///         moved — or read again — by the changes between reads (<see cref="Apply" />) — so an answer landing after
+///         the reader has gone elsewhere still reaches the badge, rather than a count taken off a list nobody is
+///         holding any more.
 ///     </para>
 /// </remarks>
 /// <param name="profile">Whose instance is being asked.</param>

@@ -433,9 +433,11 @@ the bottom of the stack, which keeps that screen's page and pick and reads nothi
 the subject under an **enquiry**, draws what the one cache still holds rather than asking, keeps what came back, sets
 a destination's unread count off the list it is drawn beside, and reads the next page of a list browsed a page at a
 time. A subject says what it reads and what that becomes; nothing about the sequence is said twice.
-The badge is set outright by every read of its destination and moved by the **Change**s between reads — a dismissal
-one fewer, a clear none, never below nothing — so one landing after the reader has gone elsewhere moves the count
-rather than being counted off a list nobody is holding (#234). What a change makes stale is the other half of the same
+The badge is set outright by every read of its destination and moved by the **Change**s between reads — an answered
+request one fewer, a clear none, never below nothing, and a dismissed notification read again, since only the instance
+knows whether it stood above the **Read marker** — so one landing after the reader has gone elsewhere moves the count
+rather than being counted off a list nobody is holding (#234, #396). Notifications' badge is the one not counted off
+its list: it is read alongside, against the marker, the same way the shell counts it on opening (ADR-0027). What a change makes stale is the other half of the same
 thing, and is said here too, in one table (`Arrival.Apply`).
 _Avoid_: load, navigate (for this; a screen is opened _from_ a destination, and a destination is arrived at)
 

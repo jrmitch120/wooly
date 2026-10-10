@@ -209,6 +209,11 @@ not answer them differently:
   it is confirmed on the same terms `post delete` is — the same confirmation, saying `clear` rather than `delete`.
 - **A count and the list under it are one fact.** Arriving at a destination sets its badge from the same answer the
   screen is drawn from, and dismissing or answering something moves both.
+- **An Inbox badge is the instance's unread count** (ADR-0027). Notifications counts what is newer than the account's
+  read marker — counted apart from the list, which holds read ones too — and an account with no marker counts nothing;
+  Messages counts the conversations flagged unread and Requests every request, off their lists. The shell's opening
+  counts and arriving at the destination count the same way (`InboxCount`), and a dismissal reads the Notifications
+  count again rather than taking one off it. Nothing waiting draws no badge; a read that came back full draws `40+`.
 - **A prompt taking letters takes `/`, `?`, `` ` `` and `~` too**, which is the one exception to the frame keys above.
   A web address and a question are both things somebody is entitled to search for, and a prompt that could not take a
   slash would refuse the query most likely to be pasted into it; code in backticks and a path under `~` are the same
@@ -539,7 +544,7 @@ cache. Streaming stays out of scope (below); a manual refresh is the in-scope an
   as a screen change on `Changed`, in the right order and on the drawing thread, the same way it hears every other
   screen change.
 - **The badge moves with the count**, from the same answer the screen redraws from — the same rule every other
-  arrival already follows.
+  arrival already follows. Notifications reads its count alongside, against the read marker (ADR-0027).
 - **A refresh goes through `Enquiry` like every other fetch**, discarded unread if the screen it was asked from is no
   longer in front of the reader. No new
   in-flight UI beyond the breadcrumb's existing fetch mark; a second `g` while anything at all is in flight is
