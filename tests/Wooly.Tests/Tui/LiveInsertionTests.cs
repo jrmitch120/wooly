@@ -93,7 +93,6 @@ public class LiveInsertionTests
 
         opened.Step(ToNotifications + 1);
         shell.Host.Settle();
-        opened.Screen.Move(1);
 
         shell.Messages.NowHolding(
             AConversation.With(id: "c3", unread: true),
@@ -104,7 +103,39 @@ public class LiveInsertionTests
         var screen = Assert.IsType<DirectMessagesScreen>(opened.Screen);
         Assert.Equal(["c3", "c1", "c2"], screen.Conversations.Select(conversation => conversation.Id));
         Assert.Equal([true, true, false], screen.Conversations.Select(conversation => conversation.Unread));
+        Assert.Equal("c2", screen.PickedConversation?.Id);
+    }
+
+    /// <summary>
+    ///     The conversation the reader is on changing is no reason for it to jump to the top (story 24): it is
+    ///     brought up to date where it stands, and what is new goes in above it as usual.
+    /// </summary>
+    [Fact]
+    public async Task OnMessages_ThePickedConversationChangingIsUpdatedWhereItStands()
+    {
+        var shell = new AShell
+        {
+            Messages = FakeDirectMessages.Holding(
+                AConversation.With(id: "c2", unread: false),
+                AConversation.With(id: "c1", unread: false)),
+        };
+        var opened = await shell.Opened();
+
+        opened.Step(ToNotifications + 1);
+        shell.Host.Settle();
+        opened.Screen.Move(1);
+
+        shell.Messages.NowHolding(
+            AConversation.With(id: "c3", unread: true),
+            AConversation.With(id: "c1", unread: true),
+            AConversation.With(id: "c2", unread: false));
+        Passes(shell, Minute);
+
+        var screen = Assert.IsType<DirectMessagesScreen>(opened.Screen);
+        Assert.Equal(["c3", "c2", "c1"], screen.Conversations.Select(conversation => conversation.Id));
+        Assert.Equal([true, false, true], screen.Conversations.Select(conversation => conversation.Unread));
         Assert.Equal("c1", screen.PickedConversation?.Id);
+        Assert.Equal(2, screen.At);
     }
 
     [Fact]

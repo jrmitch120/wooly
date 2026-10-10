@@ -126,8 +126,10 @@ public sealed class Picked<T>(IReadOnlyList<T> things) : IPicked
     /// </summary>
     /// <remarks>
     ///     The pick follows the thing rather than staying at its index: something arriving above what the reader is
-    ///     on is no reason for them to be on something else. Where the thing picked is one of those arriving, it is
-    ///     followed to the top, as the newer of the two.
+    ///     on is no reason for them to be on something else. Where the thing picked is itself one of those arriving —
+    ///     a conversation spoken in again while the reader is on it — it is brought up to date where it stands rather
+    ///     than moved to the top: the row the reader is on does not jump out from under them (story 24 of #395), and
+    ///     it goes up with the rest the next time the list is read.
     /// </remarks>
     public void Raise(IReadOnlyList<T> arriving, Func<T, T, bool> same)
     {
@@ -137,9 +139,16 @@ public sealed class Picked<T>(IReadOnlyList<T> things) : IPicked
         }
 
         var picked = Out;
+        var raised = arriving;
 
-        _things.RemoveAll(thing => arriving.Any(come => same(come, thing)));
-        _things.InsertRange(0, arriving);
+        if (picked is not null && arriving.Where(come => same(come, picked)).ToList() is [var pickedAgain, ..])
+        {
+            _things[At] = pickedAgain;
+            raised = [.. arriving.Where(come => !same(come, picked))];
+        }
+
+        _things.RemoveAll(thing => raised.Any(come => same(come, thing)));
+        _things.InsertRange(0, raised);
 
         At = picked is null ? 0 : Math.Max(0, _things.FindIndex(thing => same(thing, picked)));
     }

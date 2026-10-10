@@ -244,7 +244,10 @@ not answer them differently:
   showing that destination: new notifications go on top drawn `unread`, and the read marker is moved past them so the
   badge clears again; a conversation new or changed (last post or unread flag) moves to the top as the instance has
   it; a new request goes on top. The same thing stays picked, and the content region keeps it on the page row it was
-  on (`Shell.Grew` → `PaintedView.Keep`), so the page moves with what went in above it and nothing jumps. A screen
+  on (`Shell.Grew` → `PaintedView.Keep`), so the page moves with what went in above it and nothing jumps. Where the
+  picked thing is itself what changed — the conversation the reader is on spoken in again — it is brought up to date
+  where it stands rather than moved to the top, and the pick stays on it: the row the reader is on never jumps, and it
+  takes its place at the top the next time the list is read (`Picked.Raise`). A screen
   underneath, or a destination walked away from, is told nothing; a re-read that raised the count or put anything on
   screen forgets that destination's cached list, so coming back inside the cache window reads it again rather than
   drawing the list from before — and that visit's cleared badge — over what arrived.
