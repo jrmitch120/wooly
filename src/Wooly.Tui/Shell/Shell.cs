@@ -280,6 +280,13 @@ public sealed class Shell
     /// </summary>
     public event Action? Ticked;
 
+    /// <summary>
+    ///     Raised just before <see cref="Changed" />, where things have been put at the top of the screen in front with
+    ///     the same thing still picked out — so that whatever draws it can keep that thing on the row of the page it was
+    ///     on, and nothing jumps under the reader (#400). Always on the drawing thread.
+    /// </summary>
+    public event Action? Grew;
+
     /// <summary>The rail: the ten destinations, the cursor, and the selection.</summary>
     public Rail Rail { get; }
 
@@ -2305,13 +2312,16 @@ public sealed class Shell
 
         try
         {
-            var badge = await InboxCount.Read(_ports, profile, kind, abandoned);
+            var (badge, found) = await InboxCount.Read(_ports, profile, kind, abandoned);
 
             Apply(() =>
             {
                 if (!abandoned.IsCancellationRequested)
                 {
+                    var rose = badge.Unread > Badged(kind).Unread;
+
                     Read(badge.Kind, badge.Unread, badge.Full, reread);
+                    Arrived(profile, kind, found, rose, abandoned);
                 }
             });
         }
@@ -2323,6 +2333,73 @@ public sealed class Shell
         {
             // A count that could not be read is drawn as no count. It is the least of what is on screen, and a shell
             // that refused to open because a badge was unavailable would be trading the whole thing for a number.
+        }
+    }
+
+    /// <summary>
+    ///     Puts what a re-read of <paramref name="kind" /> found at the top of the screen in front, where that screen
+    ///     is the destination's and anything on it is new (#400) — and, on Notifications, moves the read marker past
+    ///     it, as arriving would have, so the badge stays clear while the reader looks.
+    /// </summary>
+    /// <remarks>
+    ///     The screen in front only: one underneath, or a destination walked away from, is told nothing. What the
+    ///     destination held is forgotten wherever the count rose or something was put on screen, so the next arrival
+    ///     reads it again — the held list is from before whatever arrived, and drawing it inside the cache window
+    ///     would put that visit's cleared badge back over the count just read. Here rather than at each thing that
+    ///     re-reads a count, so that the poll and the stream put what they find on screen the same way.
+    /// </remarks>
+    /// <param name="rose">Whether the count read is higher than the badge was.</param>
+    private void Arrived(
+        ActiveProfile profile,
+        DestinationKind kind,
+        Waiting found,
+        bool rose,
+        CancellationToken abandoned)
+    {
+        var put = Rail.Showing.Kind == kind ? Screen.Arrived(found) : 0;
+
+        if (rose || put > 0)
+        {
+            _acting?.Cache.Forget(new Subject.Destination(kind));
+        }
+
+        if (put == 0)
+        {
+            return;
+        }
+
+        if (Screen is NotificationsScreen { Notifications: [var newest, ..] })
+        {
+            _ = MarkerPast(profile, newest.Id, abandoned);
+        }
+
+        Grew?.Invoke();
+        Changed?.Invoke();
+    }
+
+    /// <summary>
+    ///     Moves the read marker to <paramref name="newest" />, which the reader has in front of them, and clears the
+    ///     badge where the instance took the move — nothing is newer than what is on top of the screen. A move not
+    ///     taken leaves the badge saying what was waiting, which is still true (#397).
+    /// </summary>
+    private async Task MarkerPast(ActiveProfile profile, string newest, CancellationToken abandoned)
+    {
+        try
+        {
+            if (await _ports.Notifications.MoveMarker(profile, newest, abandoned))
+            {
+                Apply(() =>
+                {
+                    if (!abandoned.IsCancellationRequested)
+                    {
+                        Counted(DestinationKind.Notifications, 0, full: false);
+                    }
+                });
+            }
+        }
+        catch (OperationCanceledException) when (abandoned.IsCancellationRequested)
+        {
+            // Called off by a switch, and nobody left to tell.
         }
     }
 

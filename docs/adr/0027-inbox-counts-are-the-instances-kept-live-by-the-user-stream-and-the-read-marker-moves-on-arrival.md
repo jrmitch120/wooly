@@ -54,6 +54,13 @@ acted as; an event re-reads the counts it touches, a drop reconnects with backof
 60 seconds, and a reconnect re-reads all three. Nothing about the stream is drawn. A badge that rises rings the terminal's
 own bell once, unless the user has turned it off. (#398–#401.)
 
+What a re-read finds is put at the top of the destination's screen when that screen is in front, keeping the picked row
+where it is on the page; on Notifications the marker is moved past it, as arriving would have, so the badge stays clear
+while the reader looks and the rows are drawn unread for the visit. It is done where every re-read lands rather than per
+cause, so the poll and the stream cannot come to differ. A re-read that raises a count, or puts anything on screen,
+forgets that destination's cached list: the held copy predates what arrived, and drawing it would put its cleared badge
+back over the count just read. (#400.)
+
 **The stream is connected around Mastonet's `GetUserStreaming`, and read through it.** `IInboxStream` tells a
 notification with its kind, a conversation, and the connection coming up; a call ends when the connection does, and
 reconnecting is the shell's. Mastonet 3.1.3's websocket streaming says nothing when it has connected — which is what

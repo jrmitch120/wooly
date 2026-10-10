@@ -18,27 +18,42 @@ namespace Wooly.Tui.Shell;
 /// </remarks>
 internal static class InboxCount
 {
-    /// <summary>Reads the badge for <paramref name="kind" /> as <paramref name="profile" />.</summary>
+    /// <summary>
+    ///     Reads the badge for <paramref name="kind" /> as <paramref name="profile" />, and what the read found waiting
+    ///     there — for the screen in front to put at its top whatever of it is new (#400).
+    /// </summary>
     /// <exception cref="ArgumentOutOfRangeException">Not one of the Inbox's three.</exception>
-    public static async Task<Found.Badge> Read(
+    public static async Task<Recount> Read(
         ShellPorts ports,
         ActiveProfile profile,
         DestinationKind kind,
-        CancellationToken cancellationToken) =>
-        kind switch
+        CancellationToken cancellationToken)
+    {
+        switch (kind)
         {
             // No marker reads as nothing unread rather than everything: a count this client cannot prove is not one
             // it draws.
-            DestinationKind.Notifications => Of(
-                kind,
-                (await ports.Notifications.ReadUnread(profile, Arrival.CountedAtMost, cancellationToken))
-                .Since.Items.Count),
-            DestinationKind.Messages => OffList(
-                (await ports.Messages.List(profile, Arrival.CountedAtMost, cancellationToken)).Items),
-            DestinationKind.Requests => OffList(
-                (await ports.Accounts.PendingRequests(profile, Arrival.CountedAtMost, cancellationToken)).Items),
-            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Not a destination in the Inbox."),
-        };
+            case DestinationKind.Notifications:
+                var unread = (await ports.Notifications.ReadUnread(profile, Arrival.CountedAtMost, cancellationToken))
+                    .Since.Items;
+
+                return new Recount(Of(kind, unread.Count), new Waiting.Notifications(unread));
+
+            case DestinationKind.Messages:
+                var listed = (await ports.Messages.List(profile, Arrival.CountedAtMost, cancellationToken)).Items;
+
+                return new Recount(OffList(listed), new Waiting.Messages(listed));
+
+            case DestinationKind.Requests:
+                var asking = (await ports.Accounts.PendingRequests(profile, Arrival.CountedAtMost, cancellationToken))
+                    .Items;
+
+                return new Recount(OffList(asking), new Waiting.Requests(asking));
+
+            default:
+                throw new ArgumentOutOfRangeException(nameof(kind), kind, "Not a destination in the Inbox.");
+        }
+    }
 
     /// <summary>
     ///     The Notifications badge on arriving there, which reads them: the read marker is moved to the newest of
@@ -90,6 +105,11 @@ internal static class InboxCount
     /// </summary>
     private static Found.Badge Of(DestinationKind kind, int unread) =>
         new(kind, unread, Full: unread >= Arrival.CountedAtMost);
+
+    /// <summary>What re-reading an Inbox destination's count came back with.</summary>
+    /// <param name="Badge">What the rail's badge says.</param>
+    /// <param name="Found">What is waiting there now, for the screen in front to put at its top what is new.</param>
+    public sealed record Recount(Found.Badge Badge, Waiting Found);
 
     /// <summary>What arriving at an Inbox destination counted: its badge, and which of its rows to draw unread.</summary>
     /// <param name="Badge">What the rail's badge says.</param>
