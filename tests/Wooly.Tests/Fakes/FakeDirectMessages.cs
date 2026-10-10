@@ -33,10 +33,6 @@ internal sealed class FakeDirectMessages(
     public static FakeDirectMessages Holding(params Conversation[] conversations) =>
         new(Fetch<Conversation>.Complete(conversations));
 
-    /// <summary>The conversations there to be listed from here on — a direct message arriving, say (#401).</summary>
-    public void NowHolding(params Conversation[] conversations) =>
-        _fetch = Fetch<Conversation>.Complete(conversations);
-
     /// <summary>An instance whose rate limit stopped the listing with <paramref name="conversations" /> in hand.</summary>
     public static FakeDirectMessages RateLimitedAfter(params Conversation[] conversations) =>
         new(Fetch<Conversation>.StoppedShort(
@@ -50,6 +46,12 @@ internal sealed class FakeDirectMessages(
     /// <summary>An instance that refuses everything with <paramref name="refusal" />, having recorded the attempt.</summary>
     public static FakeDirectMessages Refusing(Exception refusal) =>
         new(Fetch<Conversation>.Complete([]), thread: null, refusal);
+
+    /// <summary>
+    ///     What every listing holds from here on — what arrived while the reader was elsewhere, which a poll is asked to
+    ///     notice (<see cref="FakeNotificationInbox.NowHolding" /> for notifications).
+    /// </summary>
+    public void NowHolding(params Conversation[] conversations) => _fetch = Fetch<Conversation>.Complete(conversations);
 
     public Task<Fetch<Conversation>> List(ActiveProfile profile, int limit, CancellationToken cancellationToken)
     {

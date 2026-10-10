@@ -214,9 +214,20 @@ not answer them differently:
   Messages counts the conversations flagged unread and Requests every request, off their lists. The shell's opening
   counts and arriving at the destination count the same way (`InboxCount`), and a dismissal reads the Notifications
   count again rather than taking one off it. Nothing waiting draws no badge; a read that came back full draws `40+`.
+- **Arriving at Notifications reads them** (ADR-0027, #397). The read marker moves to the newest notification shown, so
+  the badge clears — on the web too — and the rows that were newer than the old marker carry the word `unread` before
+  their age for that visit. Nothing unread is nothing to move; an account with no marker gets one at the newest. A move
+  the instance does not take says nothing and leaves the badge at the count it read. Reading never dismisses: every row
+  stays. Messages and Requests read nothing on arrival.
 - **The Inbox badges are polled every 60 seconds** (`ShellTiming.PollEvery`, #398) for the profile acted as, off the
   shell's clock: all three are read again and set outright from the answers, a count that cannot be read leaves its
   badge as drawn, and a profile switch lets the old profile's poll go and starts the new one's.
+- **A rising Inbox badge rings the terminal's bell** (#399): `BEL`, written through the shell's own output, so the
+  terminal's settings decide whether it sounds, flashes or bounces — no OS sound and no branch for any one terminal.
+  It rings when a read puts a badge above the last count of it for the same profile, once per re-read however many
+  badges rose (a poll reading all three is one re-read). The first count of each badge after the shell opens or a
+  profile switch never rings, whichever read lands first; being on the destination does not stop it; a badge that
+  falls or stays never rings. `bell = false` in `[preferences]` turns it off, and the badges still move.
 - **A prompt taking letters takes `/`, `?`, `` ` `` and `~` too**, which is the one exception to the frame keys above.
   A web address and a question are both things somebody is entitled to search for, and a prompt that could not take a
   slash would refuse the query most likely to be pasted into it; code in backticks and a path under `~` are the same
@@ -547,7 +558,8 @@ cache. Streaming stays out of scope (below); a manual refresh is the in-scope an
   as a screen change on `Changed`, in the right order and on the drawing thread, the same way it hears every other
   screen change.
 - **The badge moves with the count**, from the same answer the screen redraws from — the same rule every other
-  arrival already follows. Notifications reads its count alongside, against the read marker (ADR-0027).
+  arrival already follows. Notifications reads its count alongside, against the read marker, and a refresh reads them
+  as arriving does: the marker moves past what arrived, and what arrived is what is drawn `unread` (ADR-0027, #397).
 - **A refresh goes through `Enquiry` like every other fetch**, discarded unread if the screen it was asked from is no
   longer in front of the reader. No new
   in-flight UI beyond the breadcrumb's existing fetch mark; a second `g` while anything at all is in flight is
@@ -794,7 +806,8 @@ The last two screens, and the one place a screen writes words of its own into wh
   `Picked`: it would have `x` acting on something the screen does not offer.
 - **The unread indicator is the word, not a glyph.** This client's glyphs already say who can see a post — `○ ◌ ● ✉` —
   and a second circle beside `●` is one mark too many to tell apart at a glance. The word takes `rail-unread`, the same
-  role as the badge counting it on the rail.
+  role as the badge counting it on the rail. A notification unread on arrival carries the same word, for the same
+  reason (#397).
 
 ### What a compose's own content warning settled
 
@@ -2003,10 +2016,14 @@ business but the reader's, so it is a setting in the same TOML file everything e
 [preferences]
 hashtag = "dotnet"
 hide_drawn_caption = true
+bell = false
 ```
 
-`hide_drawn_caption` is the other reader-owned preference in this section (#71) — a picture's caption, `false` (the
-default) shows it always, `true` hides it once a picture is actually drawn, per "What media settled" above.
+`hide_drawn_caption` is another reader-owned preference in this section (#71) — a picture's caption, `false` (the
+default) shows it always, `true` hides it once a picture is actually drawn, per "What media settled" above. `bell` is a
+third (#399): `true` (the default, and what an absent key means) rings the terminal's bell when an Inbox badge rises,
+`false` keeps the badges live without the sound. Like the others it is the same for every profile, and has no key in
+the shell yet.
 
 With none set, the destination is still on the rail — it says no tag has been named and asks the instance for nothing,
 rather than being a rail entry that swallows a keypress.
@@ -2041,7 +2058,7 @@ is drawn reversed instead (#316).
 | `selected-text` | Text selected in the compose editor or its warning field (#320), and the value chosen on To while To has the typing (#338) — the body's text on a background of its own, lifted clearly off the page where `band` is barely there (#316) | drawn reversed |
 | `rail` / `rail-current` | Destinations, and the one loaded — in colour its band, label and count together | without colour, one glyph, one column: `▶` where the tabbing has got to, `▷` where it settled if that differs — they coincide at rest, so only `▶` shows. In colour no mark: the band carries it (ADR-0021) |
 | `rail-cursor` | The rail entry the tabbing has got to, while the selection has not yet followed it | `▶` without colour; in colour, its band (ADR-0021) |
-| `rail-unread` | An unread count, and the word on an unread conversation | the number, and the word |
+| `rail-unread` | An unread count, and the word on an unread conversation or a notification unread on arrival | the number, and the word |
 | `quota` / `quota-low` | Rate-limit budget left, and nearly spent; `quota` also the instance above it, with two or more profiles | the number |
 | `gauge` / `gauge-empty` | The API budget's filled and empty cells | `█` and `░`, and the percentage |
 | `chrome` | The frame's furniture: the status row's leading space and ` \| ` separators | position |

@@ -127,12 +127,16 @@ internal sealed class AShell
     /// <summary>The config file's <c>default_language</c>, as a code, which compose's Lang starts on (#340), or none.</summary>
     public string? DefaultLanguage { get; set; }
 
+    /// <summary>The config file's <c>bell</c>: whether a rising Inbox badge rings the terminal's bell (#399). On, unless said.</summary>
+    public bool Bell { get; set; } = true;
+
     /// <summary>The config file's preferences, as far as these tests set them.</summary>
     private Preferences Preferences => new()
     {
         Hashtag = Hashtag,
         DefaultVisibility = DefaultVisibility,
         DefaultLanguage = DefaultLanguage,
+        Bell = Bell,
     };
 
     /// <summary>
@@ -200,7 +204,8 @@ internal sealed class AShell
         + Engagement.Marks.Count + Engagement.Reads.Count + Engagement.ThreadsRead.Count + Engagement.Votes.Count
         + Accounts.Ties.Count + Accounts.Lists.Count + Accounts.Answers.Count + Accounts.Reads.Count
         + Accounts.Familiars.Count + Accounts.Standings.Count
-        + Notifications.Reads.Count + Notifications.UnreadReads.Count + Notifications.Dismissals.Count
+        + Notifications.Reads.Count + Notifications.UnreadReads.Count + Notifications.MarkerMoves.Count
+        + Notifications.Dismissals.Count
         + Notifications.Clearances.Count
         + Messages.Listings.Count + Messages.Shown.Count + Messages.MarkedRead.Count
         + Search.Searches.Count + Search.FollowedSearches.Count

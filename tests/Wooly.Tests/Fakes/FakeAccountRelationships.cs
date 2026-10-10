@@ -90,7 +90,7 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
     /// </summary>
     public void NowShowing(Account subject) => _subject = subject;
 
-    /// <summary>Who every list this instance is asked for holds from here on — somebody asking to follow, say (#401).</summary>
+    /// <summary>Who every list holds from here on — a follow request arriving between two reads, say (#399).</summary>
     public void NowListing(params Account[] listing) => _list = Fetch<Account>.Complete(listing);
 
     /// <summary>An instance whose lists have nobody on them.</summary>

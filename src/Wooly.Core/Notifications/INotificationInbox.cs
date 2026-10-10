@@ -40,6 +40,20 @@ public interface INotificationInbox
     /// </param>
     Task<UnreadNotifications> ReadUnread(ActiveProfile profile, int limit, CancellationToken cancellationToken);
 
+    /// <summary>
+    ///     Moves the account's read marker to <paramref name="notificationId" />, so that it and everything older count
+    ///     as read — for every client of the account, since the marker is the instance's (ADR-0027). Nothing is
+    ///     dismissed: every notification stays where a read finds it.
+    /// </summary>
+    /// <param name="profile">The profile whose marker it is.</param>
+    /// <param name="notificationId">The newest notification read, by its own id.</param>
+    /// <returns>
+    ///     Whether the instance took the move. One it turned down, or never heard because a rate limit or the network
+    ///     stopped it, is <see langword="false" /> rather than a failure: the marker only clears a badge, and a badge
+    ///     left standing is the whole of what went wrong.
+    /// </returns>
+    Task<bool> MoveMarker(ActiveProfile profile, string notificationId, CancellationToken cancellationToken);
+
     /// <summary>Clears the single notification <paramref name="notificationId" /> names.</summary>
     /// <param name="notificationId">
     ///     The notification's own id, as a read reports it — not the id of the post it is about.

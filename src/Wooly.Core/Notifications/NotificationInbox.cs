@@ -1,3 +1,4 @@
+using Wooly.Core.Errors;
 using Wooly.Core.Http;
 using Wooly.Core.Paging;
 using Wooly.Core.Profiles;
@@ -85,6 +86,39 @@ public sealed class NotificationInbox(IMastodonClientFactory clientFactory, IHtt
             cancellationToken);
 
         return new UnreadNotifications(since, fetch);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    ///     Sent raw for the same reason the marker is read raw: Mastonet's <c>SetMarkers</c> reads its answer as the
+    ///     marker it cannot read (<see cref="MarkersWire" />), so the library's call would throw on a move the instance
+    ///     had made. The answer is not read here at all — whether the instance took it is all the port promises.
+    /// </remarks>
+    public async Task<bool> MoveMarker(
+        ActiveProfile profile,
+        string notificationId,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        try
+        {
+            using var response = await RawMastodonCall.Sent(
+                httpClientFactory,
+                profile,
+                HttpMethod.Post,
+                "api/v1/markers",
+                new FormUrlEncodedContent([
+                    new KeyValuePair<string, string>("notifications[last_read_id]", notificationId),
+                ]),
+                cancellationToken);
+
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception unsent) when (unsent is RateLimitedException or TransientNetworkException)
+        {
+            return false;
+        }
     }
 
     /// <inheritdoc />

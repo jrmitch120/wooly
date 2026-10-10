@@ -32,4 +32,10 @@ public sealed record Preferences
     ///     (#71, <c>docs/tui-shell.md</c> "What media settled").
     /// </summary>
     public bool HideDrawnCaption { get; init; }
+
+    /// <summary>
+    ///     Whether the TUI writes the terminal's bell when an Inbox badge rises (#399). <see langword="true" /> (absent)
+    ///     rings it; one setting for every profile, with no key in the TUI to change it yet.
+    /// </summary>
+    public bool Bell { get; init; } = true;
 }

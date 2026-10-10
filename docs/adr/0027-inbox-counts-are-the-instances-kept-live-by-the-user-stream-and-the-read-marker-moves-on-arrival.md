@@ -40,6 +40,15 @@ arrival stay drawn unread for that visit, with a word as conversations already a
 dismissing: a read notification stays listed until it is dismissed. Messages and Requests are unchanged on arrival:
 a conversation stays unread until it is opened or marked, and a request until it is answered. (#397.)
 
+The move is asked for only where it would move past an unread notification on screen, or set a marker the account never
+had: nothing unread is nothing to tell the instance, and a marker already past the newest shown would be moved back.
+After a move the badge counts only what the unread read found that the list did not — what arrived between the two
+reads. A move the instance turns down, or never hears for a rate limit or the network, is reported by the port as not
+made rather than thrown, and the badge keeps the count it read: the marker only clears a badge, so a badge left standing
+is the whole of what went wrong. The move is sent raw for the same reason the marker is read raw — `SetMarkers` reads its
+answer as the marker it cannot read. "That visit" is the screen the arrival drew: a `g` refresh reads again and marks
+what arrived since, and coming back to the held copy inside the cache window marks nothing, since it is another visit.
+
 **The Inbox is kept live over the user stream, with polling as the fallback.** The shell holds one stream for the profile
 acted as; an event re-reads the counts it touches, a drop reconnects with backoff while all three counts are polled every
 60 seconds, and a reconnect re-reads all three. Nothing about the stream is drawn. A badge that rises rings the terminal's

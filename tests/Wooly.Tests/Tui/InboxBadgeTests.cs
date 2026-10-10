@@ -58,11 +58,16 @@ public class InboxBadgeTests
         Assert.False(badge.Full);
     }
 
+    /// <summary>
+    ///     Arriving reads them and clears the badge (#397) — so the count it reads is seen where the instance turns
+    ///     the marker's move down.
+    /// </summary>
     [Fact]
     public async Task Step_CountsTheNotificationsNewerThanTheReadMarkerWhileListingThemAll()
     {
         var shell = new AShell { Notifications = Holding(count: 5, newest: 144) };
         shell.Notifications.Marker = "141";
+        shell.Notifications.TurnsMarkerMovesDown = true;
 
         var opened = await shell.Opened();
 
@@ -95,12 +100,13 @@ public class InboxBadgeTests
 
     /// <summary>
     ///     More unread than one read counts is at least that many, and the badge says so rather than an exact number
-    ///     that would be wrong.
+    ///     that would be wrong. Seen on arriving where the marker's move is turned down, since a move clears it (#397).
     /// </summary>
     [Fact]
     public async Task Badge_IsFullWhereTheUnreadNotificationsFillTheRead()
     {
         var shell = new AShell { Notifications = Holding(count: 45, newest: 144) };
+        shell.Notifications.TurnsMarkerMovesDown = true;
 
         var opened = await shell.Opened();
 
@@ -153,13 +159,15 @@ public class InboxBadgeTests
 
     /// <summary>
     ///     A read notification taken off the list was not waiting, so the badge does not drop for it: the count is
-    ///     the instance's, read again, rather than the badge less one.
+    ///     the instance's, read again, rather than the badge less one. The marker's move is turned down, so that what
+    ///     was unread on arriving is still unread beside the one dismissed (#397).
     /// </summary>
     [Fact]
     public async Task Dismiss_LeavesTheBadgeWhereTheNotificationWasAlreadyRead()
     {
         var shell = new AShell { Notifications = Holding(count: 3, newest: 144) };
         shell.Notifications.Marker = "142";
+        shell.Notifications.TurnsMarkerMovesDown = true;
 
         var opened = await shell.Opened();
 
