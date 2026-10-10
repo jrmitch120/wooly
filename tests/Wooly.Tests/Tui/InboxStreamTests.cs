@@ -25,7 +25,7 @@ public class InboxStreamTests
 
         shell.Notifications.NowHolding(ANotification.With(id: "1"));
         shell.Stream.Notify(NotificationKind.Mention);
-        shell.Host.Drain();
+        Passes(shell, Timing.GatherFor);
 
         Assert.Equal(1, Badge(opened, DestinationKind.Notifications).Unread);
     }
@@ -38,7 +38,7 @@ public class InboxStreamTests
         var (notifications, messages, requests) = Reads(shell);
 
         shell.Stream.Notify(NotificationKind.Mention);
-        shell.Host.Drain();
+        Passes(shell, Timing.GatherFor);
 
         Assert.Equal((notifications + 1, messages, requests), Reads(shell));
     }
@@ -53,7 +53,7 @@ public class InboxStreamTests
 
         shell.Accounts.NowListing(AnAccount.With(address: "asker@mas.to"));
         shell.Stream.Notify(NotificationKind.Reported("follow_request"));
-        shell.Host.Drain();
+        Passes(shell, Timing.GatherFor);
 
         Assert.Equal((notifications + 1, messages, requests + 1), Reads(shell));
         Assert.Equal(1, Badge(opened, DestinationKind.Requests).Unread);
@@ -68,10 +68,63 @@ public class InboxStreamTests
 
         shell.Messages.NowHolding(AConversation.With(id: "c1", unread: true));
         shell.Stream.Converse();
-        shell.Host.Drain();
+        Passes(shell, Timing.GatherFor);
 
         Assert.Equal((notifications, messages + 1, requests), Reads(shell));
         Assert.Equal(1, Badge(opened, DestinationKind.Messages).Unread);
+    }
+
+    /// <summary>
+    ///     A direct message comes over the stream twice — a mention, and a conversation — and raises two badges; it is
+    ///     one arrival, so one sound.
+    /// </summary>
+    [Fact]
+    public async Task ADirectMessage_RaisingTwoBadges_RingsOnce()
+    {
+        var shell = Connected();
+        await shell.Opened();
+
+        shell.Notifications.NowHolding(ANotification.With(id: "1"));
+        shell.Messages.NowHolding(AConversation.With(id: "c1", unread: true));
+        shell.Stream.Notify(NotificationKind.Mention);
+        Passes(shell, TimeSpan.FromMilliseconds(300));
+        shell.Stream.Converse();
+        Passes(shell, Timing.GatherFor);
+
+        Assert.Equal(1, shell.Host.Bells);
+    }
+
+    /// <summary>A follow request raises Notifications and Requests both, and rings once.</summary>
+    [Fact]
+    public async Task AFollowRequest_RaisingTwoBadges_RingsOnce()
+    {
+        var shell = Connected();
+        shell.Accounts = FakeAccountRelationships.HoldingNobody();
+        await shell.Opened();
+
+        shell.Notifications.NowHolding(ANotification.With(id: "1"));
+        shell.Accounts.NowListing(AnAccount.With(address: "asker@mas.to"));
+        shell.Stream.Notify(NotificationKind.Reported("follow_request"));
+        Passes(shell, Timing.GatherFor);
+
+        Assert.Equal(1, shell.Host.Bells);
+    }
+
+    /// <summary>Two arrivals far enough apart to be two things ring twice.</summary>
+    [Fact]
+    public async Task TwoArrivalsApart_RingTwice()
+    {
+        var shell = Connected();
+        await shell.Opened();
+
+        shell.Notifications.NowHolding(ANotification.With(id: "1"));
+        shell.Stream.Notify(NotificationKind.Mention);
+        Passes(shell, Timing.GatherFor);
+        shell.Notifications.NowHolding(ANotification.With(id: "2"), ANotification.With(id: "1"));
+        shell.Stream.Notify(NotificationKind.Mention);
+        Passes(shell, Timing.GatherFor);
+
+        Assert.Equal(2, shell.Host.Bells);
     }
 
     /// <summary>The counts the shell opened with are already fresh: the stream coming up the first time reads none again.</summary>
@@ -327,9 +380,9 @@ public class InboxStreamTests
     {
         shell.Host.Drain();
 
-        for (var passed = TimeSpan.Zero; passed < howLong; passed += TimeSpan.FromSeconds(1))
+        for (var left = howLong; left > TimeSpan.Zero; left -= TimeSpan.FromSeconds(1))
         {
-            shell.Clock.Advance(TimeSpan.FromSeconds(1));
+            shell.Clock.Advance(left < TimeSpan.FromSeconds(1) ? left : TimeSpan.FromSeconds(1));
             shell.Host.Drain();
         }
     }

@@ -21,7 +21,7 @@ internal sealed class InboxStreaming : IDisposable
     private readonly TimeProvider _clock;
     private readonly ShellTiming _timing;
     private readonly IShellHost _host;
-    private readonly Action<InboxEvent> _heard;
+    private readonly Action<IReadOnlyList<InboxEvent>> _heard;
     private readonly Action<bool> _up;
     private readonly Action _down;
     private readonly CancellationTokenSource _closing;
@@ -31,6 +31,12 @@ internal sealed class InboxStreaming : IDisposable
 
     /// <summary>The wait before trying again that is running, or none.</summary>
     private ITimer? _again;
+
+    /// <summary>What has been heard since the gathering began, told together when it ends.</summary>
+    private readonly List<InboxEvent> _gathered = [];
+
+    /// <summary>The gathering running, or none.</summary>
+    private ITimer? _gathering;
 
     /// <summary>How many times it has connected, or tried to.</summary>
     private int _tries;
@@ -44,7 +50,11 @@ internal sealed class InboxStreaming : IDisposable
     /// <param name="timing">How long it waits: <see cref="ShellTiming.ReconnectAfter" />, doubling to <see cref="ShellTiming.ReconnectAtMost" />.</param>
     /// <param name="host">Whose drawing thread what it tells is run on.</param>
     /// <param name="abandoned">Cancelled where the session switches profile, which closes the connection with everything else.</param>
-    /// <param name="heard">Told each event that came over the stream, the connection coming up apart.</param>
+    /// <param name="heard">
+    ///     Told what came over the stream, the connection coming up apart, gathered for
+    ///     <see cref="ShellTiming.GatherFor" /> from the first of it — so that one arrival the instance tells twice, a
+    ///     direct message as a mention and a conversation, is told as one.
+    /// </param>
     /// <param name="up">
     ///     Told the connection came up: <see langword="true" /> where it came up again after the first try — after a
     ///     drop, or after refusing — so that whatever arrived while it was down can be read.
@@ -57,7 +67,7 @@ internal sealed class InboxStreaming : IDisposable
         ShellTiming timing,
         IShellHost host,
         CancellationToken abandoned,
-        Action<InboxEvent> heard,
+        Action<IReadOnlyList<InboxEvent>> heard,
         Action<bool> up,
         Action down)
     {
@@ -80,6 +90,8 @@ internal sealed class InboxStreaming : IDisposable
     {
         _again?.Dispose();
         _again = null;
+        _gathering?.Dispose();
+        _gathering = null;
         _closing.Cancel();
         _closing.Dispose();
     }
@@ -124,7 +136,29 @@ internal sealed class InboxStreaming : IDisposable
             return;
         }
 
-        _heard(heard);
+        _gathered.Add(heard);
+
+        _gathering ??= _clock.CreateTimer(
+            _ => _host.OnUiThread(Gathered),
+            state: null,
+            _timing.GatherFor,
+            Timeout.InfiniteTimeSpan);
+    }
+
+    private void Gathered()
+    {
+        _gathering?.Dispose();
+        _gathering = null;
+
+        if (Closed)
+        {
+            return;
+        }
+
+        var gathered = _gathered.ToList();
+
+        _gathered.Clear();
+        _heard(gathered);
     }
 
     private void Dropped()

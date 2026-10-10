@@ -471,27 +471,45 @@ public sealed class Shell
     }
 
     /// <summary>
-    ///     Reads again the counts <paramref name="heard" /> touches, as one re-read: a notification the Notifications
-    ///     count, and the Requests count too where somebody asked to follow; a conversation the Messages count.
+    ///     Reads again the counts <paramref name="heard" /> touches, as one re-read — so one bell however many of them
+    ///     rose (#399): a notification the Notifications count, and the Requests count too where somebody asked to
+    ///     follow; a conversation the Messages count.
     /// </summary>
-    private void Heard(InboxEvent heard, CancellationToken abandoned)
+    private void Heard(IReadOnlyList<InboxEvent> heard, CancellationToken abandoned)
     {
         if (_acting is not { } acting)
         {
             return;
         }
 
-        _ = heard switch
+        var touched = new HashSet<DestinationKind>();
+
+        foreach (var said in heard)
         {
-            InboxEvent.Notified { Kind.AsksToFollow: true } => Recount(
-                acting.Profile,
-                abandoned,
-                DestinationKind.Notifications,
-                DestinationKind.Requests),
-            InboxEvent.Notified => Recount(acting.Profile, abandoned, DestinationKind.Notifications),
-            InboxEvent.Conversed => Recount(acting.Profile, abandoned, DestinationKind.Messages),
-            _ => Task.CompletedTask,
-        };
+            switch (said)
+            {
+                case InboxEvent.Notified notified:
+                    touched.Add(DestinationKind.Notifications);
+
+                    if (notified.Kind.AsksToFollow)
+                    {
+                        touched.Add(DestinationKind.Requests);
+                    }
+
+                    break;
+                case InboxEvent.Conversed:
+                    touched.Add(DestinationKind.Messages);
+
+                    break;
+            }
+        }
+
+        DestinationKind[] inboxOrder = [DestinationKind.Notifications, DestinationKind.Messages, DestinationKind.Requests];
+
+        if (touched.Count > 0)
+        {
+            _ = Recount(acting.Profile, abandoned, [.. inboxOrder.Where(touched.Contains)]);
+        }
     }
 
     /// <summary>
