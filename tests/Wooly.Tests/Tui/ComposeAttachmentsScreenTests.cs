@@ -135,7 +135,7 @@ public class ComposeAttachmentsScreenTests : IDisposable
         shell.Press(ShellKey.Escape);
 
         Assert.IsType<AttachmentsScreen>(shell.Screen);
-        Assert.Equal("A dog", compose.Attachments[1].Description);
+        Assert.Equal("A dog", compose.Media.Attachments[1].Description);
 
         shell.Press(ShellKey.Escape);
 
@@ -299,7 +299,7 @@ public class ComposeAttachmentsScreenTests : IDisposable
     }
 
     private static IEnumerable<string> Names(ComposeScreen compose) =>
-        compose.Attachments.Select(attachment => attachment.Name);
+        compose.Media.Attachments.Select(attachment => attachment.Name);
 
     /// <summary>The names on the listed rows, top to bottom.</summary>
     private static IEnumerable<string> Names(IReadOnlyList<string> rows) =>

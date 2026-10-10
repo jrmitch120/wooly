@@ -5,6 +5,7 @@ using Wooly.Core.Profiles;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
+using static Wooly.Tui.Screens.ComposeHeaders;
 
 namespace Wooly.Tui.Screens;
 
@@ -46,7 +47,7 @@ public enum ComposeField
 
     /// <summary>
     ///     One of the rows under the Media header (#378): the pending attachment
-    ///     <see cref="ComposeScreen.PickedAttachment" /> names.
+    ///     <see cref="ComposeMedia.Picked" /> names.
     /// </summary>
     Attachment,
 
@@ -117,18 +118,6 @@ public sealed class ComposeScreen : Screen
 
     /// <summary>The warning header's label: a word, like the other headers', in place of the feed's mark (#375).</summary>
     private const string WarningLabel = "Warn";
-
-    /// <summary>The columns left blank either side of everything on the screen (#317).</summary>
-    private const int Pad = 2;
-
-    /// <summary>
-    ///     How wide the headers' right-aligned label column is: wide enough for <c>Media</c>, the widest of the words
-    ///     every header is labelled with (#375).
-    /// </summary>
-    private const int LabelWidth = 5;
-
-    /// <summary>The columns between a header's label and its value.</summary>
-    private const int LabelGap = 2;
 
     /// <summary>What an empty editor says, dimly, where the first letter will go (#316).</summary>
     public const string EmptyPostHint = "What's on your mind?";
@@ -378,9 +367,6 @@ public sealed class ComposeScreen : Screen
     /// </summary>
     public ComposeMedia Media { get; }
 
-    /// <summary>What is attached, in the order the post will carry it, each with where it has got to (#375).</summary>
-    public IReadOnlyList<ComposeAttachment> Attachments => Media.Attachments;
-
     /// <summary>
     ///     Whether what is attached goes behind a click (#379): as the author set it, or on whatever they set while the
     ///     warning has text, since a warning puts the whole post behind one (ADR-0008).
@@ -416,7 +402,7 @@ public sealed class ComposeScreen : Screen
     public ComposeChange Pick(ComposeAttachment attachment)
     {
         if (!Media.Attachments.Contains(attachment)
-            || (Typing == ComposeField.Attachment && ReferenceEquals(PickedAttachment, attachment)))
+            || (Typing == ComposeField.Attachment && ReferenceEquals(Media.Picked, attachment)))
         {
             return ComposeChange.None;
         }
@@ -434,7 +420,7 @@ public sealed class ComposeScreen : Screen
     /// </summary>
     /// <returns>An edit, or nothing off the rows.</returns>
     public ComposeChange Remove() =>
-        Typing == ComposeField.Attachment && PickedAttachment is { } picked ? Remove(picked) : ComposeChange.None;
+        Typing == ComposeField.Attachment && Media.Picked is { } picked ? Remove(picked) : ComposeChange.None;
 
     /// <summary>
     ///     A click on <paramref name="attachment" />'s <c>x</c>: takes it off the post, as <see cref="Remove()" /> does.
@@ -442,7 +428,7 @@ public sealed class ComposeScreen : Screen
     /// <returns>An edit, or nothing where it is not attached.</returns>
     public ComposeChange Remove(ComposeAttachment attachment)
     {
-        var picked = ReferenceEquals(PickedAttachment, attachment);
+        var picked = ReferenceEquals(Media.Picked, attachment);
 
         if (!Media.Remove(attachment))
         {
@@ -451,7 +437,7 @@ public sealed class ComposeScreen : Screen
 
         if (picked)
         {
-            Typing = PickedAttachment is null ? ComposeField.Media : ComposeField.Attachment;
+            Typing = Media.Picked is null ? ComposeField.Media : ComposeField.Attachment;
         }
 
         return ComposeChange.Edited;
@@ -481,7 +467,7 @@ public sealed class ComposeScreen : Screen
     /// </summary>
     /// <returns>An edit, or nothing off the rows or off either end.</returns>
     public ComposeChange Reorder(int by) =>
-        Typing == ComposeField.Attachment && PickedAttachment is { } picked
+        Typing == ComposeField.Attachment && Media.Picked is { } picked
             ? Media.Move(picked, by)
             : ComposeChange.None;
 
@@ -490,7 +476,7 @@ public sealed class ComposeScreen : Screen
     /// </summary>
     /// <returns>The attachment, going up again from nothing, for the shell to send; or nothing.</returns>
     public ComposeAttachment? Retry() =>
-        Typing == ComposeField.Attachment && PickedAttachment is { } picked ? Media.Retry(picked) : null;
+        Typing == ComposeField.Attachment && Media.Picked is { } picked ? Media.Retry(picked) : null;
 
     /// <inheritdoc />
     /// <remarks>
@@ -718,7 +704,7 @@ public sealed class ComposeScreen : Screen
     private (ComposeField Field, ComposeAttachment? PickedAttachment)? WalkedTo(int by)
     {
         var stops = Stops().ToList();
-        var at = stops.IndexOf((Typing, PickedAttachment));
+        var at = stops.IndexOf((Typing, Media.Picked));
 
         // A row no longer drawn — folded away on a terminal grown short — is walked from as the header it folded into.
         if (at < 0 && Typing == ComposeField.Attachment)
@@ -743,7 +729,7 @@ public sealed class ComposeScreen : Screen
 
             if (field == ComposeField.Media && _rowsDrawn)
             {
-                foreach (var attachment in Media.Attachments)
+                foreach (var attachment in Media.Stops)
                 {
                     yield return (ComposeField.Attachment, attachment);
                 }
@@ -789,12 +775,6 @@ public sealed class ComposeScreen : Screen
         ComposeField.Attachment => Media.Takes && Media.Attachments.Count > 0,
         _ => true,
     };
-
-    /// <summary>
-    ///     The pending attachment whose row the typing is on, while it is on one (<see cref="ComposeField.Attachment" />),
-    ///     and nothing otherwise (#378).
-    /// </summary>
-    public ComposeAttachment? PickedAttachment => Media.Picked;
 
     /// <summary>
     ///     The typing went into <paramref name="field" /> by a click rather than by this screen's keys, and the screen
@@ -1053,7 +1033,7 @@ public sealed class ComposeScreen : Screen
         var attachmentRows = folded ? 0 : Media.Attachments.Count;
         var at = above.IndexOf(media);
 
-        media = media with { Line = Media.Header(width, folded, Look) };
+        media = media with { Line = Media.HeaderLine(width, folded, Look) };
         above[at] = media;
 
         if (!folded)
@@ -1093,16 +1073,6 @@ public sealed class ComposeScreen : Screen
 
         Rectangle Value(int row) => new(Math.Min(Pad + LabelWidth + LabelGap, width), row, valueWidth, 1);
     }
-
-    /// <summary>
-    ///     A header: <paramref name="label" /> right-aligned in the label column, in <paramref name="role" />, then
-    ///     <paramref name="value" />.
-    /// </summary>
-    internal static Line Header(string label, Role role, params Span[] value) =>
-        Line.Of([Gap(Pad + LabelWidth - Glyphs.Columns(label)), new Span(label, role), Gap(LabelGap), .. value]);
-
-    /// <summary>How wide a header's value is on a screen <paramref name="width" /> wide: past its label, inside the pad.</summary>
-    internal static int ValueWidth(int width) => Math.Max(0, width - (Pad * 2) - LabelWidth - LabelGap);
 
     /// <summary>
     ///     The From header's value in <paramref name="room" /> columns: the handle as a byline's, then the instance,
@@ -1243,8 +1213,6 @@ public sealed class ComposeScreen : Screen
 
         return Line.Of(Gap(width - Pad - Glyphs.Columns(count)), new Span(count, role));
     }
-
-    private static Span Gap(int columns) => new(new string(' ', Math.Max(0, columns)), Role.Body);
 
     /// <summary>
     ///     The post this screen publishes: what was written, whatever warning is over it, and the post it answers

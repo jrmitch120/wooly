@@ -367,7 +367,7 @@ public class TerminalMouseReportsTests : IDisposable
     }
 
     private static IEnumerable<string> Names(ComposeScreen compose) =>
-        compose.Attachments.Select(attachment => attachment.Name);
+        compose.Media.Attachments.Select(attachment => attachment.Name);
 
     /// <summary>Where <paramref name="text" /> starts on the drawn row with <paramref name="on" /> on it.</summary>
     private static (int Column, int Row) At(DrawnShell drawn, string on, string text)

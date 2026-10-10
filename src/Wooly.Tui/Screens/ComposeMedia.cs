@@ -2,6 +2,7 @@ using System.Globalization;
 using Wooly.Core.Posts;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Theme;
+using static Wooly.Tui.Screens.ComposeHeaders;
 
 namespace Wooly.Tui.Screens;
 
@@ -23,7 +24,9 @@ internal readonly record struct MediaLook(ComposeField Typing, bool Sensitive, b
 /// </summary>
 /// <remarks>
 ///     Where the typing is stays the compose screen's, which walks it through the rows and hands it over in a
-///     <see cref="MediaLook" />; so does the sensitive setting, which a warning is a draft's to hold on.
+///     <see cref="MediaLook" />; so does the sensitive setting, which a warning is a draft's to hold on. So the edits
+///     that move the typing as well — taking off, bringing back, moving the picked row, and the pick itself — are the
+///     compose screen's to make, and internal here; those that leave it where it is are anybody's.
 /// </remarks>
 public sealed class ComposeMedia
 {
@@ -65,9 +68,6 @@ public sealed class ComposeMedia
 
     /// <summary>The offer cut to its key, where the status column has not room for the reason and it both.</summary>
     private const string ShortRetryOffer = "(r)";
-
-    /// <summary>The columns left blank either side, as everywhere on the compose screen (#317).</summary>
-    private const int Pad = 2;
 
     /// <summary>The column a pending attachment's grip sits at, a column in from its selection bar (#375).</summary>
     private const int GripAt = Pad + 3;
@@ -154,6 +154,12 @@ public sealed class ComposeMedia
     ///     the row's keys act on while the typing is on a row (<see cref="ComposeField.Attachment" />).
     /// </summary>
     public ComposeAttachment? Picked { get; internal set; }
+
+    /// <summary>
+    ///     The rows the compose screen's walk stops on under the Media header while they are drawn as rows (#378): each
+    ///     pending attachment, top to bottom — never an edit's kept ones, which nothing on them can change.
+    /// </summary>
+    internal IReadOnlyList<ComposeAttachment> Stops => _attachments;
 
     /// <summary>
     ///     Attaches <paramref name="files" />, in order, after whatever is attached already — as many as the post has
@@ -335,8 +341,8 @@ public sealed class ComposeMedia
     ///     The Media header's line <paramref name="width" /> wide: its value, counting its rows too where they are
     ///     <paramref name="folded" /> into it (<see cref="Value" />).
     /// </summary>
-    internal Line Header(int width, bool folded, MediaLook look) =>
-        ComposeScreen.Header(Label, Role.Muted, Value(ComposeScreen.ValueWidth(width), folded, look));
+    internal Line HeaderLine(int width, bool folded, MediaLook look) =>
+        Header(Label, Role.Muted, Value(ValueWidth(width), folded, look));
 
     /// <summary>
     ///     The Media header's line <paramref name="width" /> wide, unfolded, as the attachments screen heads its list of
@@ -346,9 +352,9 @@ public sealed class ComposeMedia
     internal Line ListedHeader(int width, MediaLook look)
     {
         var toggle = Toggle(look);
-        var value = Value(ComposeScreen.ValueWidth(width), folded: false, look);
+        var value = Value(ValueWidth(width), folded: false, look);
 
-        return ComposeScreen.Header(
+        return Header(
             Label,
             Role.Muted,
             [.. value.Select(span => span == toggle ? span with { Item = (int)AttachmentPart.Sensitive } : span)]);
@@ -737,6 +743,4 @@ public sealed class ComposeMedia
 
         return [.. fitted];
     }
-
-    private static Span Gap(int columns) => new(new string(' ', Math.Max(0, columns)), Role.Body);
 }

@@ -38,7 +38,7 @@ public class ComposeDescriptionTests : IDisposable
         var describing = Assert.IsType<DescriptionScreen>(shell.Screen);
 
         Assert.Equal(["Home", "Compose", "Describe cat.png"], shell.Crumbs);
-        Assert.Same(compose.Attachments[0], describing.Attachment);
+        Assert.Same(compose.Media.Attachments[0], describing.Attachment);
 
         var rows = Texts(describing);
 
@@ -358,7 +358,7 @@ public class ComposeDescriptionTests : IDisposable
 
         var compose = Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
 
-        Assert.Equal("cat.png", compose.PickedAttachment?.Name);
+        Assert.Equal("cat.png", compose.Media.Picked?.Name);
 
         drawn.Click(Find(drawn, "no alt text").Column, row);
 
@@ -438,7 +438,7 @@ public class ComposeDescriptionTests : IDisposable
 
         Assert.Same(compose, shell.Screen);
         Assert.Equal(ComposeField.Attachment, compose.Typing);
-        Assert.Equal("cat.png", compose.PickedAttachment?.Name);
+        Assert.Equal("cat.png", compose.Media.Picked?.Name);
     }
 
     /// <summary>
@@ -471,7 +471,7 @@ public class ComposeDescriptionTests : IDisposable
 
         drawn.PressThroughTheApplication(Terminal.Gui.Input.Key.CursorDown);
 
-        Assert.Equal("dog.png", compose.PickedAttachment?.Name);
+        Assert.Equal("dog.png", compose.Media.Picked?.Name);
     }
 
     public void Dispose() => _files.Dispose();

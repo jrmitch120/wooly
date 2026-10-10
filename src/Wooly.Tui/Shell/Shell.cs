@@ -1336,7 +1336,7 @@ public sealed class Shell
             return;
         }
 
-        compose.Pick(compose.Attachments[0]);
+        compose.Pick(compose.Media.Attachments[0]);
         Push(new AttachmentsScreen(compose));
     }
 
@@ -1347,12 +1347,12 @@ public sealed class Shell
     /// </summary>
     public void PickUp(int row)
     {
-        if (Screen is not AttachmentsScreen listing || row < 0 || row >= listing.Compose.Attachments.Count)
+        if (Screen is not AttachmentsScreen listing || row < 0 || row >= listing.Media.Attachments.Count)
         {
             return;
         }
 
-        _ = ChangeCompose(compose => compose.Pick(listing.Compose.Attachments[row]));
+        _ = ChangeCompose(compose => compose.Pick(listing.Media.Attachments[row]));
     }
 
     /// <summary>
@@ -1363,8 +1363,8 @@ public sealed class Shell
     public bool DragRow(int from, int to) =>
         Screen is AttachmentsScreen listing
         && from >= 0
-        && from < listing.Compose.Attachments.Count
-        && DragAttachment(listing.Compose.Attachments[from], to);
+        && from < listing.Media.Attachments.Count
+        && DragAttachment(listing.Media.Attachments[from], to);
 
     /// <summary>
     ///     Opens the description editor over the compose screen in front, on the attachment whose row the walk is on
@@ -1372,7 +1372,7 @@ public sealed class Shell
     /// </summary>
     public void Describe()
     {
-        if (InFront is { Typing: ComposeField.Attachment, PickedAttachment: { } attachment } compose)
+        if (InFront is { Typing: ComposeField.Attachment, Media.Picked: { } attachment } compose)
         {
             Push(new DescriptionScreen(compose, attachment));
         }
@@ -1408,7 +1408,7 @@ public sealed class Shell
     /// </summary>
     public void ToggleSensitive()
     {
-        if (InFront is { SensitiveByAWarning: true, Attachments.Count: > 0 })
+        if (InFront is { SensitiveByAWarning: true, Media.Attachments.Count: > 0 })
         {
             Say("The warning already hides what is attached.", isError: false);
 
@@ -1644,12 +1644,12 @@ public sealed class Shell
 
         // A description the instance has not yet taken goes now — one that failed to before is sent again on the
         // author's ctrl-s, never on its own (ADR-0006) — and the send waits on it as on an upload (#377).
-        foreach (var untold in compose.Attachments.Where(attachment => attachment.Untold))
+        foreach (var untold in compose.Media.Attachments.Where(attachment => attachment.Untold))
         {
             _ = _attachments.Describe(Actor.Profile, compose, untold);
         }
 
-        if (compose.Attachments.Count(attachment => attachment.Unfinished) is > 0 and var unfinished)
+        if (compose.Media.Attachments.Count(attachment => attachment.Unfinished) is > 0 and var unfinished)
         {
             _waitingToSend = compose;
 
@@ -2319,7 +2319,7 @@ public sealed class Shell
 
         if (compose.Media.Room == 0)
         {
-            Say($"This post carries all it can — {compose.Attachments.Count} of {compose.Limits.Attachments}.", isError: false);
+            Say($"This post carries all it can — {compose.Media.Attachments.Count} of {compose.Limits.Attachments}.", isError: false);
 
             return;
         }
@@ -2528,7 +2528,7 @@ public sealed class Shell
             return;
         }
 
-        if (compose.Attachments.Count(attachment => attachment.Unfinished) is > 0 and var unfinished)
+        if (compose.Media.Attachments.Count(attachment => attachment.Unfinished) is > 0 and var unfinished)
         {
             SayWaiting(unfinished);
 

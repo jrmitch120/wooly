@@ -25,7 +25,7 @@ public sealed class AttachmentsScreen(ComposeScreen compose) : Screen
     public ComposeScreen Compose => compose;
 
     /// <summary>What the compose holds under its Media header, which this lists (#387).</summary>
-    private ComposeMedia Media => compose.Media;
+    public ComposeMedia Media => compose.Media;
 
     /// <inheritdoc />
     /// <remarks>The header's own word, under the compose it lists the rows of.</remarks>
@@ -96,9 +96,11 @@ public sealed class AttachmentsScreen(ComposeScreen compose) : Screen
     /// <summary>The rows, walked by the compose's own pick of one, so that its keys act on the row picked here.</summary>
     private sealed class Rows(ComposeScreen compose) : IPicked
     {
-        public int At => compose.Media.Picked is { } picked ? IndexOf(picked) : 0;
+        private ComposeMedia Media => compose.Media;
 
-        public int Count => compose.Media.Attachments.Count;
+        public int At => Media.Picked is { } picked ? IndexOf(picked) : 0;
+
+        public int Count => Media.Attachments.Count;
 
         public void Move(int by) => Pick(At + by);
 
@@ -106,7 +108,7 @@ public sealed class AttachmentsScreen(ComposeScreen compose) : Screen
         {
             if (Count > 0)
             {
-                compose.Pick(compose.Media.Attachments[Math.Clamp(at, 0, Count - 1)]);
+                compose.Pick(Media.Attachments[Math.Clamp(at, 0, Count - 1)]);
             }
         }
 
@@ -114,7 +116,7 @@ public sealed class AttachmentsScreen(ComposeScreen compose) : Screen
         {
             for (var at = 0; at < Count; at++)
             {
-                if (ReferenceEquals(compose.Media.Attachments[at], attachment))
+                if (ReferenceEquals(Media.Attachments[at], attachment))
                 {
                     return at;
                 }

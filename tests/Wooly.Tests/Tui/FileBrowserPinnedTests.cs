@@ -206,7 +206,7 @@ public class FileBrowserPinnedTests : IDisposable
 
         var compose = Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
 
-        Assert.Equal(["picture 20.png", "picture 15.png"], compose.Attachments.Select(attachment => attachment.Name));
+        Assert.Equal(["picture 20.png", "picture 15.png"], compose.Media.Attachments.Select(attachment => attachment.Name));
     }
 
     /// <summary>Over the folder row, the filter row or the rule, the wheel scrolls the list as it does over the list.</summary>

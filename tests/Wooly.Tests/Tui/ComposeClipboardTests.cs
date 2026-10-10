@@ -41,7 +41,7 @@ public class ComposeClipboardTests : IDisposable
 
         Assert.Equal("pasted-1.png", Path.GetFileName(sent.Path));
         Assert.Equal(Png, File.ReadAllBytes(sent.Path));
-        Assert.Equal("pasted-1.png", Assert.Single(compose.Attachments).Name);
+        Assert.Equal("pasted-1.png", Assert.Single(compose.Media.Attachments).Name);
         Assert.Contains(Texts(compose), row => row.Contains("pasted-1.png", StringComparison.Ordinal));
     }
 
@@ -56,7 +56,7 @@ public class ComposeClipboardTests : IDisposable
         shell.PasteFromTheClipboard();
         shell.PasteFromTheClipboard();
 
-        Assert.Equal(["pasted-1.png", "pasted-2.png"], compose.Attachments.Select(attachment => attachment.Name));
+        Assert.Equal(["pasted-1.png", "pasted-2.png"], compose.Media.Attachments.Select(attachment => attachment.Name));
     }
 
     /// <summary>
@@ -77,7 +77,7 @@ public class ComposeClipboardTests : IDisposable
 
         Assert.True(shell.PasteFromTheClipboard());
 
-        Assert.Equal(["a.png", "b.gif"], compose.Attachments.Select(attachment => attachment.Name));
+        Assert.Equal(["a.png", "b.gif"], compose.Media.Attachments.Select(attachment => attachment.Name));
         Assert.Equal(2, built.Author.Attaching.Count);
     }
 
@@ -94,7 +94,7 @@ public class ComposeClipboardTests : IDisposable
 
         Assert.True(shell.PasteFromTheClipboard());
 
-        Assert.Empty(compose.Attachments);
+        Assert.Empty(compose.Media.Attachments);
         Assert.Equal("None of the copied files is a type this instance takes.", shell.Notice);
         Assert.True(shell.NoticeIsError);
     }
@@ -108,7 +108,7 @@ public class ComposeClipboardTests : IDisposable
         Assert.False(shell.PasteFromTheClipboard());
 
         Assert.Equal(1, built.Clipboard.Reads);
-        Assert.Empty(compose.Attachments);
+        Assert.Empty(compose.Media.Attachments);
         Assert.Null(shell.Notice);
     }
 
@@ -173,7 +173,7 @@ public class ComposeClipboardTests : IDisposable
         composed.Press(Key.W.WithCtrl);
         composed.Press(Key.V.WithCtrl);
 
-        Assert.Equal(["pasted-1.png", "pasted-2.png"], composed.Compose.Attachments.Select(attachment => attachment.Name));
+        Assert.Equal(["pasted-1.png", "pasted-2.png"], composed.Compose.Media.Attachments.Select(attachment => attachment.Name));
         Assert.Equal("Look", composed.Editor.Text);
         Assert.Equal(string.Empty, composed.Warning.Text);
     }
@@ -191,7 +191,7 @@ public class ComposeClipboardTests : IDisposable
         composed.Press(Key.V.WithCtrl);
 
         Assert.Equal("hello", composed.Editor.Text);
-        Assert.Empty(composed.Compose.Attachments);
+        Assert.Empty(composed.Compose.Media.Attachments);
         Assert.Equal(1, composed.Built.Clipboard.Reads);
     }
 
@@ -240,7 +240,7 @@ public class ComposeClipboardTests : IDisposable
 
         Assert.Equal(
             ["pasted-1.png", "pasted-2.png", "pasted-3.png"],
-            composed.Compose.Attachments.Select(attachment => attachment.Name));
+            composed.Compose.Media.Attachments.Select(attachment => attachment.Name));
         Assert.Equal("Look", composed.Editor.Text);
         Assert.Equal(string.Empty, composed.Warning.Text);
         Assert.Equal(string.Empty, composed.Lang.Text);
@@ -262,7 +262,7 @@ public class ComposeClipboardTests : IDisposable
 
         Assert.Equal("hello", composed.Editor.Text);
         Assert.Equal("hello", composed.Warning.Text);
-        Assert.Empty(composed.Compose.Attachments);
+        Assert.Empty(composed.Compose.Media.Attachments);
     }
 
     /// <summary>
@@ -289,7 +289,7 @@ public class ComposeClipboardTests : IDisposable
         drawn.Press(Key.V.WithCtrl);
         drawn.Press(Key.V.WithAlt);
 
-        Assert.Equal(["pasted-1.png", "pasted-2.png"], compose.Attachments.Select(attachment => attachment.Name));
+        Assert.Equal(["pasted-1.png", "pasted-2.png"], compose.Media.Attachments.Select(attachment => attachment.Name));
         Assert.Equal(2, built.Author.Attaching.Count);
     }
 
@@ -323,7 +323,7 @@ public class ComposeClipboardTests : IDisposable
         Assert.IsType<AttachmentsScreen>(drawn.Shell.Screen);
         Assert.Equal(
             ["one.png", "two.png", "three.png", "pasted-1.png"],
-            compose.Attachments.Select(attachment => attachment.Name));
+            compose.Media.Attachments.Select(attachment => attachment.Name));
         Assert.Contains(drawn.Rows(), row => row.Contains("pasted-1.png", StringComparison.Ordinal));
 
         // Room for one more, the post carrying all four it can.
@@ -332,7 +332,7 @@ public class ComposeClipboardTests : IDisposable
 
         Assert.Equal(
             ["two.png", "three.png", "pasted-1.png", "pasted-2.png"],
-            compose.Attachments.Select(attachment => attachment.Name));
+            compose.Media.Attachments.Select(attachment => attachment.Name));
     }
 
     /// <summary>
