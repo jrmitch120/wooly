@@ -22,6 +22,10 @@ namespace Wooly.Core.Inbox;
 ///     and read here, and each message Mastonet would have read is handed to its <see cref="TimelineStreaming" /> to
 ///     read, the same way ADR-0027 reads the marker around Mastonet and keeps the rest behind it.
 ///     <para>
+///         Two streams over one connection: <c>user</c>, for notifications, and <c>direct</c>, for conversations —
+///         which the user stream does not carry, a direct message reaching it only as the mention it also is.
+///     </para>
+///     <para>
 ///         Only what is the Inbox's is handed on: the user stream carries the home timeline too, and a post Mastonet
 ///         could not read is no reason to drop a stream that is only listened to for notifications and conversations.
 ///     </para>
@@ -44,6 +48,14 @@ public sealed class InboxStream(IHttpClientFactory httpClientFactory, IHttpMessa
             disposeHandler: false);
 
         await socket.ConnectAsync(address, invoker, cancellationToken);
+
+        // The user stream carries notifications but not conversations, which Mastodon publishes on the direct stream
+        // alone — so that is subscribed to as well, over the same connection.
+        await socket.SendAsync(
+            """{"type":"subscribe","stream":"direct"}"""u8.ToArray(),
+            WebSocketMessageType.Text,
+            endOfMessage: true,
+            cancellationToken);
 
         heard(new InboxEvent.Connected());
 

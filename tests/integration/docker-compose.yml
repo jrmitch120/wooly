@@ -69,6 +69,28 @@ services:
     networks:
       - internal
 
+  # The user stream the TUI keeps its Inbox live over (#401). Its own image since Mastodon 4.3, and the same version as
+  # web's: the two share the database and Redis, and a streaming server out of step with the web it serves for is a
+  # deployment nobody runs. Caddy routes /api/v1/streaming to it, and web advertises it at Caddy's port
+  # (STREAMING_API_BASE_URL in mastodon.env).
+  streaming:
+    image: ghcr.io/mastodon/mastodon-streaming:v4.6.5
+    restart: unless-stopped
+    env_file: mastodon.env
+    command: node ./streaming/index.js
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s --noproxy localhost localhost:4000/api/v1/streaming/health | grep -q 'OK' || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - internal
+
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
@@ -79,6 +101,8 @@ services:
       - "127.0.0.1:34443:443"
     depends_on:
       web:
+        condition: service_healthy
+      streaming:
         condition: service_healthy
     networks:
       - internal

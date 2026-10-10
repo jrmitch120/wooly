@@ -33,7 +33,7 @@ echo "Preparing the Mastodon schema..." >&2
 compose run --rm web bundle exec rails db:prepare >&2
 
 echo "Starting Mastodon..." >&2
-compose up -d --wait web sidekiq caddy
+compose up -d --wait web sidekiq streaming caddy
 
 # Ensures one account exists and has a token, printing the token on stdout. find_or_create_by keeps the token half
 # idempotent across repeated local runs, which is not free with tootctl alone: it has no equivalent read/create for
