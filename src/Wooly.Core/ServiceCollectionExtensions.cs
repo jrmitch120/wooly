@@ -5,6 +5,7 @@ using Wooly.Core.Conversations;
 using Wooly.Core.Credentials;
 using Wooly.Core.Discovery;
 using Wooly.Core.Http;
+using Wooly.Core.Inbox;
 using Wooly.Core.Notifications;
 using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
@@ -76,6 +77,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IAccountRelationships, AccountRelationships>();
         services.AddSingleton<IFollowSuggestions, FollowSuggestions>();
         services.AddSingleton<IDirectMessages, DirectMessages>();
+        services.AddSingleton<IInboxStream, InboxStream>();
 
         // The two ways a profile is connected to an account (ADR-0004): through the browser, and — for a machine with
         // no browser to open — by pasting a token, which needs nothing registered because the user brings the token.
