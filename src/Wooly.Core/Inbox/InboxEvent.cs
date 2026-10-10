@@ -17,5 +17,5 @@ public abstract record InboxEvent
     public sealed record Notified(NotificationKind Kind) : InboxEvent;
 
     /// <summary>A conversation arrived, or one already there changed — a new direct message, read or not.</summary>
-    public sealed record Conversed : InboxEvent;
+    public sealed record ConversationChanged : InboxEvent;
 }

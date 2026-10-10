@@ -507,7 +507,7 @@ public sealed class Shell
                     }
 
                     break;
-                case InboxEvent.Conversed:
+                case InboxEvent.ConversationChanged:
                     touched.Add(DestinationKind.Messages);
 
                     break;
@@ -1910,7 +1910,7 @@ public sealed class Shell
             Saw(Screen);
             Say(null, isError: false);
         };
-        arrival.Counts += badge => Read(badge, new Reread(Ring));
+        arrival.Counts += badge => Read(badge, new BellOnce(Ring));
         arrival.Moves += Moved;
         arrival.Recounts += kind => _ = Recount(profile, enquiry.Abandoned, kind);
         arrival.Heard += Heard;
@@ -2288,25 +2288,25 @@ public sealed class Shell
             DestinationKind.Requests);
 
     /// <summary>
-    ///     Reads the Inbox badges <paramref name="kinds" /> again as one <see cref="Reread" />, which rings the bell at
+    ///     Reads the Inbox badges <paramref name="kinds" /> again as one <see cref="BellOnce" />, which rings the bell at
     ///     most once however many of them rose (#399). What a stream event re-reads the counts it touches through (#401).
     /// </summary>
     private async Task Recount(ActiveProfile profile, CancellationToken abandoned, params DestinationKind[] kinds)
     {
-        var reread = new Reread(Ring);
+        var bell = new BellOnce(Ring);
 
         foreach (var kind in kinds)
         {
-            await Count(profile, kind, abandoned, reread);
+            await Count(profile, kind, abandoned, bell);
         }
     }
 
     /// <summary>
     ///     Reads one Inbox badge the way <see cref="InboxCount" /> counts it — the same way arriving at the
     ///     destination counts it, so the two cannot disagree (#396) — and puts it on the rail, as part of
-    ///     <paramref name="reread" />.
+    ///     <paramref name="bell" />.
     /// </summary>
-    private async Task Count(ActiveProfile profile, DestinationKind kind, CancellationToken abandoned, Reread reread)
+    private async Task Count(ActiveProfile profile, DestinationKind kind, CancellationToken abandoned, BellOnce bell)
     {
         if (abandoned.IsCancellationRequested)
         {
@@ -2321,9 +2321,9 @@ public sealed class Shell
             {
                 if (!abandoned.IsCancellationRequested)
                 {
-                    var rose = Read(badge, reread);
+                    var rose = Read(badge, bell);
 
-                    Arrived(profile, badge, found, rose, abandoned);
+                    Landed(profile, badge, found, rose, abandoned);
                 }
             });
         }
@@ -2339,9 +2339,9 @@ public sealed class Shell
     }
 
     /// <summary>
-    ///     Puts what a re-read of <paramref name="kind" /> found at the top of the screen in front, where that screen
-    ///     is the destination's and anything on it is new (#400) — and, on Notifications, moves the read marker past
-    ///     it, as arriving would have, so the badge stays clear while the reader looks.
+    ///     Where what a re-read of <paramref name="badge" />'s destination found lands: at the top of the screen in
+    ///     front, where that screen is the destination's and anything on it is new (#400) — and, on Notifications, the
+    ///     read marker is moved past it, as arriving would have, so the badge stays clear while the reader looks.
     /// </summary>
     /// <remarks>
     ///     The screen in front only: one underneath, or a destination walked away from, is told nothing. What the
@@ -2363,14 +2363,14 @@ public sealed class Shell
     ///     least that many — the reader moves it by arriving, or with <c>g</c>, as they would have anyway.
     /// </param>
     /// <param name="rose">Whether the count read is higher than the badge was.</param>
-    private void Arrived(
+    private void Landed(
         ActiveProfile profile,
         Found.Badge badge,
-        Waiting found,
+        InboxList found,
         bool rose,
         CancellationToken abandoned)
     {
-        var put = Rail.Showing.Kind == badge.Kind && !Fetching ? Screen.Arrived(found) : 0;
+        var put = Rail.Showing.Kind == badge.Kind && !Fetching ? Screen.PutOnTop(found) : 0;
 
         if (rose || put > 0)
         {
@@ -2418,7 +2418,7 @@ public sealed class Shell
     }
 
     /// <summary>
-    ///     A count the instance gave, put on the rail as part of <paramref name="reread" /> — which hears of it where it
+    ///     A count the instance gave, put on the rail as part of <paramref name="bell" /> — which hears of it where it
     ///     is higher than the last count of the same badge for this profile. The first count of each badge since the
     ///     profile was opened onto is never higher than anything: it is what there was, not what arrived (#399).
     /// </summary>
@@ -2427,13 +2427,13 @@ public sealed class Shell
     ///     so a poll that happens to land before a slow opening count is the first, and stays quiet.
     /// </remarks>
     /// <returns>Whether it is higher than the badge was, first count or not.</returns>
-    private bool Read(Found.Badge badge, Reread reread)
+    private bool Read(Found.Badge badge, BellOnce bell)
     {
         var rose = badge.Unread > Badged(badge.Kind).Unread;
 
         if (!_countedOnce.Add(badge.Kind) && rose)
         {
-            reread.Rose();
+            bell.Rose();
         }
 
         Counted(badge);

@@ -10,22 +10,22 @@ namespace Wooly.Tui.Shell;
 /// </summary>
 /// <remarks>
 ///     A closed set, one case per destination, told to the screen in front and to nothing else
-///     (<see cref="Screens.Screen.Arrived" />): a screen not in front is told nothing, and its cached list is read again
+///     (<see cref="Screens.Screen.PutOnTop" />): a screen not in front is told nothing, and its cached list is read again
 ///     on the next arrival, as any list is. Every re-read is one of these — the poll's and the stream's alike — so
 ///     anything that re-reads a count puts what it found on screen without saying so itself.
 /// </remarks>
-public abstract record Waiting
+public abstract record InboxList
 {
-    private Waiting()
+    private InboxList()
     {
     }
 
     /// <summary>The notifications newer than the read marker, newest first.</summary>
-    public sealed record Notifications(IReadOnlyList<Notification> Unread) : Waiting;
+    public sealed record Notifications(IReadOnlyList<Notification> Unread) : InboxList;
 
     /// <summary>The conversations, most recently spoken in first, each with its unread flag as the instance has it.</summary>
-    public sealed record Messages(IReadOnlyList<Conversation> Listed) : Waiting;
+    public sealed record Messages(IReadOnlyList<Conversation> Listed) : InboxList;
 
     /// <summary>Whoever is waiting for a follow request to be answered, in the order the instance listed them.</summary>
-    public sealed record Requests(IReadOnlyList<Account> Asking) : Waiting;
+    public sealed record Requests(IReadOnlyList<Account> Asking) : InboxList;
 }

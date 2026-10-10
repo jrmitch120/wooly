@@ -240,15 +240,15 @@ not answer them differently:
   profile switch never rings, whichever read lands first; being on the destination does not stop it; a badge that
   falls or stays never rings. `bell = false` in `[preferences]` turns it off, and the badges still move.
 - **What a re-read finds lands at the top of the Inbox screen in front** (#400). Every re-read of a count — a poll, a
-  stream event — hands what it read to the screen on top of the stack (`Screen.Arrived`), and only while the rail is
+  stream event — hands what it read to the screen on top of the stack (`Screen.PutOnTop`), and only while the rail is
   showing that destination: new notifications go on top drawn `unread`, and the read marker is moved past them so the
   badge clears again — unless the re-read came back full, when the marker is left for the reader's next arrival or `g`
   and the badge stays `40+`, since there may be unread ones past the 40 that no screen has shown; a conversation new or changed (last post or unread flag) moves to the top as the instance has
   it; a new request goes on top. The same thing stays picked, and the content region keeps it on the page row it was
-  on (`Shell.Grew` → `PaintedView.Keep`), so the page moves with what went in above it and nothing jumps. Where the
+  on (`Shell.Grew` → `PaintedView.KeepPickOnItsRow`), so the page moves with what went in above it and nothing jumps. Where the
   picked thing is itself what changed — the conversation the reader is on spoken in again — it is brought up to date
   where it stands rather than moved to the top, and the pick stays on it: the row the reader is on never jumps, and it
-  takes its place at the top the next time the list is read (`Picked.Raise`). Nothing is put on screen while a read is
+  takes its place at the top the next time the list is read (`Picked.PutOnTop`). Nothing is put on screen while a read is
   in flight: arriving at the destination draws an empty screen until its list lands, and that arrival draws the list
   and moves the marker itself, so a re-read landing first only counts. A screen
   underneath, or a destination walked away from, is told nothing; a re-read that raised the count or put anything on

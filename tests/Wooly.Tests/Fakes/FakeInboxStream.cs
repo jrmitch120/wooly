@@ -49,7 +49,7 @@ internal sealed class FakeInboxStream : IInboxStream
     public void Notify(NotificationKind kind) => Latest.Hear(new InboxEvent.Notified(kind));
 
     /// <summary>A conversation arrives or changes on the last connection.</summary>
-    public void Converse() => Latest.Hear(new InboxEvent.Conversed());
+    public void ChangeConversation() => Latest.Hear(new InboxEvent.ConversationChanged());
 
     /// <summary>The last connection drops.</summary>
     public void Drop() => Latest.Drop();

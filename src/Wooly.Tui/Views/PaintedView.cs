@@ -46,7 +46,7 @@ internal sealed class PaintedView : View
     /// <summary>How far down the page the last frame drew the pick's first row, if it drew one at all.</summary>
     private int? _drawnPick;
 
-    /// <summary>Where the next frame is to draw the pick's first row (<see cref="Keep" />).</summary>
+    /// <summary>Where the next frame is to draw the pick's first row (<see cref="KeepPickOnItsRow" />).</summary>
     private int? _keeping;
 
     /// <param name="theme">What answers the roles.</param>
@@ -344,7 +344,7 @@ internal sealed class PaintedView : View
     ///     next frame only: the page moves by however many rows went in above the pick, whether the page was following
     ///     the pick or had been walked away from it with the arrows.
     /// </remarks>
-    public void Keep()
+    public void KeepPickOnItsRow()
     {
         _keeping = _drawnPick;
 

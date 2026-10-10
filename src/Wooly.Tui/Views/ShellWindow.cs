@@ -265,7 +265,7 @@ internal sealed class ShellWindow : Window
         shell.Changed += Refresh;
 
         // Measured off the frame before what was put above the pick, so it has to be said before Changed redraws.
-        shell.Grew += _content.Keep;
+        shell.Grew += _content.KeepPickOnItsRow;
 
         // A tick of the fetch mark redraws the row it is on and nothing else. Changed would redraw the whole window,
         // and the content region re-places every picture on it each frame — two and a half times a second, for as

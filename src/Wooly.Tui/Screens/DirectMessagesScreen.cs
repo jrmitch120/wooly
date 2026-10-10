@@ -143,24 +143,13 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
     ///     conversation spoken in again moves up rather than being drawn twice — each as the instance has it, its
     ///     unread flag included.
     /// </remarks>
-    public override int Arrived(Waiting waiting)
-    {
-        if (waiting is not Waiting.Messages(var listed))
-        {
-            return 0;
-        }
-
-        var held = Conversations.ToDictionary(conversation => conversation.Id, StringComparer.Ordinal);
-        var arriving = listed
-                       .Where(conversation => !held.TryGetValue(conversation.Id, out var was)
-                                              || was.Unread != conversation.Unread
-                                              || was.Latest?.Id != conversation.Latest?.Id)
-                       .ToList();
-
-        _conversations.Raise(arriving, (one, other) => one.Id == other.Id);
-
-        return arriving.Count;
-    }
+    public override int PutOnTop(InboxList found) =>
+        found is InboxList.Messages(var listed)
+            ? _conversations.PutOnTop(
+                listed,
+                conversation => conversation.Id,
+                (was, now) => was.Unread != now.Unread || was.Latest?.Id != now.Latest?.Id).Count
+            : 0;
 
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(Drawing drawing)

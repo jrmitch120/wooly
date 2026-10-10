@@ -26,7 +26,7 @@ internal static class InboxCount
     ///     Where an account with no read marker counts from this session, started by the first read of it.
     /// </param>
     /// <exception cref="ArgumentOutOfRangeException">Not one of the Inbox's three.</exception>
-    public static async Task<Recount> Read(
+    public static async Task<Reading> Read(
         ShellPorts ports,
         ActiveProfile profile,
         DestinationKind kind,
@@ -38,18 +38,18 @@ internal static class InboxCount
             case DestinationKind.Notifications:
                 var unread = await Unread(ports, profile, standIns, cancellationToken);
 
-                return new Recount(Of(kind, unread.Count), new Waiting.Notifications(unread));
+                return new Reading(Of(kind, unread.Count), new InboxList.Notifications(unread));
 
             case DestinationKind.Messages:
                 var listed = (await ports.Messages.List(profile, Arrival.CountedAtMost, cancellationToken)).Items;
 
-                return new Recount(OffList(listed), new Waiting.Messages(listed));
+                return new Reading(OffList(listed), new InboxList.Messages(listed));
 
             case DestinationKind.Requests:
                 var asking = (await ports.Accounts.PendingRequests(profile, Arrival.CountedAtMost, cancellationToken))
                     .Items;
 
-                return new Recount(OffList(asking), new Waiting.Requests(asking));
+                return new Reading(OffList(asking), new InboxList.Requests(asking));
 
             default:
                 throw new ArgumentOutOfRangeException(nameof(kind), kind, "Not a destination in the Inbox.");
@@ -142,7 +142,7 @@ internal static class InboxCount
     /// <summary>What re-reading an Inbox destination's count came back with.</summary>
     /// <param name="Badge">What the rail's badge says.</param>
     /// <param name="Found">What is waiting there now, for the screen in front to put at its top what is new.</param>
-    public sealed record Recount(Found.Badge Badge, Waiting Found);
+    public sealed record Reading(Found.Badge Badge, InboxList Found);
 
     /// <summary>What arriving at an Inbox destination counted: its badge, and which of its rows to draw unread.</summary>
     /// <param name="Badge">What the rail's badge says.</param>

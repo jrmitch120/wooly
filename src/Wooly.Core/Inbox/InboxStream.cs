@@ -70,7 +70,7 @@ public sealed class InboxStream(IHttpClientFactory httpClientFactory, IHttpMessa
     {
         streaming.OnNotification += (_, said) =>
             heard(new InboxEvent.Notified(NotificationWire.ToKind(said.Notification.Type)));
-        streaming.OnConversation += (_, _) => heard(new InboxEvent.Conversed());
+        streaming.OnConversation += (_, _) => heard(new InboxEvent.ConversationChanged());
 
         await streaming.Start();
     }

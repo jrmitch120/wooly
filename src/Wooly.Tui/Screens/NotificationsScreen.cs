@@ -130,20 +130,18 @@ public sealed class NotificationsScreen(
     ///     The unread ones not already on screen, drawn unread for the rest of this visit — the shell moves the read
     ///     marker past them as it would have on arriving, so this screen is the only thing left saying they are new.
     /// </remarks>
-    public override int Arrived(Waiting waiting)
+    public override int PutOnTop(InboxList found)
     {
-        if (waiting is not Waiting.Notifications(var unread))
+        if (found is not InboxList.Notifications(var unread))
         {
             return 0;
         }
 
-        var shown = Notifications.Select(notification => notification.Id).ToHashSet(StringComparer.Ordinal);
-        var arriving = unread.Where(notification => !shown.Contains(notification.Id)).ToList();
+        var put = _notifications.PutOnTop(unread, notification => notification.Id);
 
-        _notifications.Raise(arriving, (one, other) => one.Id == other.Id);
-        _unread.UnionWith(arriving.Select(notification => notification.Id));
+        _unread.UnionWith(put.Select(notification => notification.Id));
 
-        return arriving.Count;
+        return put.Count;
     }
 
     /// <summary>What this screen's own keys do: <c>d</c> dismisses the picked notification, and <c>D</c> all of them.</summary>

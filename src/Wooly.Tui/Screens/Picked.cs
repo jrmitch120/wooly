@@ -120,37 +120,52 @@ public sealed class Picked<T>(IReadOnlyList<T> things) : IPicked
     public void Add(T thing) => _things.Add(thing);
 
     /// <summary>
-    ///     Puts <paramref name="arriving" /> at the top of the list, in the order given — taking off it first anything
-    ///     <paramref name="same" /> says is one of them, so that a thing changed is moved up rather than drawn twice —
-    ///     and keeps the same thing picked out (#400).
+    ///     Puts at the top of the list, in the order given, whatever of <paramref name="found" /> is new to it — not on
+    ///     it yet, or on it but <paramref name="changed" /> since — and keeps the same thing picked out (#400). The
+    ///     one shape every Inbox screen puts a re-read's find on screen in, said once.
     /// </summary>
     /// <remarks>
-    ///     The pick follows the thing rather than staying at its index: something arriving above what the reader is
-    ///     on is no reason for them to be on something else. Where the thing picked is itself one of those arriving —
-    ///     a conversation spoken in again while the reader is on it — it is brought up to date where it stands rather
-    ///     than moved to the top: the row the reader is on does not jump out from under them (story 24 of #395), and
-    ///     it goes up with the rest the next time the list is read.
+    ///     A thing changed is moved up rather than drawn twice. The pick follows the thing rather than staying at its
+    ///     index: something arriving above what the reader is on is no reason for them to be on something else. Where
+    ///     the thing picked is itself one that changed — a conversation spoken in again while the reader is on it — it
+    ///     is brought up to date where it stands rather than moved to the top: the row the reader is on does not jump
+    ///     out from under them (story 24 of #395), and it goes up with the rest the next time the list is read.
     /// </remarks>
-    public void Raise(IReadOnlyList<T> arriving, Func<T, T, bool> same)
+    /// <param name="found">What a re-read found, newest first.</param>
+    /// <param name="id">What tells one thing from another.</param>
+    /// <param name="changed">
+    ///     Whether the thing as found differs from the thing as held, given the two; where not said, nothing held
+    ///     has changed.
+    /// </param>
+    /// <returns>What was new: put on top, or brought up to date where it was picked.</returns>
+    public IReadOnlyList<T> PutOnTop(IReadOnlyList<T> found, Func<T, string> id, Func<T, T, bool>? changed = null)
     {
+        var held = _things.ToDictionary(id, StringComparer.Ordinal);
+        var arriving = found
+                       .Where(thing => !held.TryGetValue(id(thing), out var was) || changed?.Invoke(was, thing) == true)
+                       .ToList();
+
         if (arriving.Count == 0)
         {
-            return;
+            return arriving;
         }
 
-        var picked = Out;
-        var raised = arriving;
+        var picked = Out is { } outNow ? id(outNow) : null;
+        var raised = arriving.Where(thing => id(thing) != picked).ToList();
 
-        if (picked is not null && arriving.Where(come => same(come, picked)).ToList() is [var pickedAgain, ..])
+        if (arriving.FindIndex(thing => id(thing) == picked) is var again and >= 0)
         {
-            _things[At] = pickedAgain;
-            raised = [.. arriving.Where(come => !same(come, picked))];
+            _things[At] = arriving[again];
         }
 
-        _things.RemoveAll(thing => raised.Any(come => same(come, thing)));
+        var raisedIds = raised.Select(id).ToHashSet(StringComparer.Ordinal);
+
+        _things.RemoveAll(thing => raisedIds.Contains(id(thing)));
         _things.InsertRange(0, raised);
 
-        At = picked is null ? 0 : Math.Max(0, _things.FindIndex(thing => same(thing, picked)));
+        At = picked is null ? 0 : Math.Max(0, _things.FindIndex(thing => id(thing) == picked));
+
+        return arriving;
     }
 
     /// <summary>

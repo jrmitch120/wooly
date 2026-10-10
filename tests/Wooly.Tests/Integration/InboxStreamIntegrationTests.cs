@@ -43,9 +43,9 @@ public class InboxStreamIntegrationTests
                 Visibility = PostVisibility.Direct,
                 VisibilityChosen = true,
             },
-            said => said is InboxEvent.Conversed);
+            said => said is InboxEvent.ConversationChanged);
 
-        Assert.Equal(new InboxEvent.Conversed(), heard);
+        Assert.Equal(new InboxEvent.ConversationChanged(), heard);
     }
 
     /// <summary>

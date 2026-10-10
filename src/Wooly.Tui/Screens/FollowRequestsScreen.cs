@@ -104,20 +104,8 @@ public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string?
 
     /// <inheritdoc />
     /// <remarks>Whoever has asked since and is not on screen yet.</remarks>
-    public override int Arrived(Waiting waiting)
-    {
-        if (waiting is not Waiting.Requests(var asking))
-        {
-            return 0;
-        }
-
-        var shown = Waiting.Select(account => account.Id).ToHashSet(StringComparer.Ordinal);
-        var arriving = asking.Where(account => !shown.Contains(account.Id)).ToList();
-
-        _waiting.Raise(arriving, (one, other) => one.Id == other.Id);
-
-        return arriving.Count;
-    }
+    public override int PutOnTop(InboxList found) =>
+        found is InboxList.Requests(var asking) ? _waiting.PutOnTop(asking, account => account.Id).Count : 0;
 
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(Drawing drawing)

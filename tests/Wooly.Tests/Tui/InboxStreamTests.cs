@@ -67,7 +67,7 @@ public class InboxStreamTests
         var (notifications, messages, requests) = Reads(shell);
 
         shell.Messages.NowHolding(AConversation.With(id: "c1", unread: true));
-        shell.Stream.Converse();
+        shell.Stream.ChangeConversation();
         Passes(shell, Timing.GatherFor);
 
         Assert.Equal((notifications, messages + 1, requests), Reads(shell));
@@ -88,7 +88,7 @@ public class InboxStreamTests
         shell.Messages.NowHolding(AConversation.With(id: "c1", unread: true));
         shell.Stream.Notify(NotificationKind.Mention);
         Passes(shell, TimeSpan.FromMilliseconds(300));
-        shell.Stream.Converse();
+        shell.Stream.ChangeConversation();
         Passes(shell, Timing.GatherFor);
 
         Assert.Equal(1, shell.Host.Bells);
@@ -327,7 +327,7 @@ public class InboxStreamTests
         var before = shell.Requests;
 
         old.Hear(new InboxEvent.Notified(NotificationKind.Mention));
-        old.Hear(new InboxEvent.Conversed());
+        old.Hear(new InboxEvent.ConversationChanged());
         old.Connect();
         old.Drop();
         Passes(shell, Minute);

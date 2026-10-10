@@ -33,7 +33,7 @@ public class InboxStreamMappingTests
     {
         var heard = await Relayed(("conversation", ConversationJson));
 
-        Assert.Equal([new InboxEvent.Conversed()], heard);
+        Assert.Equal([new InboxEvent.ConversationChanged()], heard);
     }
 
     /// <summary>A post on the home timeline, a deletion, a filter changing: none of it is the Inbox's.</summary>
@@ -52,7 +52,7 @@ public class InboxStreamMappingTests
             ("notification", NotificationJson("mention")),
             ("conversation", ConversationJson));
 
-        Assert.Equal([new InboxEvent.Notified(NotificationKind.Mention), new InboxEvent.Conversed()], heard);
+        Assert.Equal([new InboxEvent.Notified(NotificationKind.Mention), new InboxEvent.ConversationChanged()], heard);
     }
 
     private static async Task<List<InboxEvent>> Relayed(params (string Event, string Payload)[] said)
