@@ -94,6 +94,28 @@ internal sealed class FakeNotificationInbox(Fetch<Notification> fetch) : INotifi
                 : Fetch<Notification>.Complete(since));
     }
 
+    /// <summary>Every move of the marker it was asked for, in order — whether or not it took it.</summary>
+    public List<Dismissed> MarkerMoves { get; } = [];
+
+    /// <summary>Whether it turns every move of the marker down, as an instance that refused or was not reached would.</summary>
+    public bool TurnsMarkerMovesDown { get; set; }
+
+    /// <summary>Moves <see cref="Marker" /> to <paramref name="notificationId" />, unless it turns moves down.</summary>
+    public Task<bool> MoveMarker(ActiveProfile profile, string notificationId, CancellationToken cancellationToken)
+    {
+        MarkerMoves.Add(new Dismissed(profile.Name, notificationId));
+        Tokens.Add(profile.AccessToken);
+
+        if (TurnsMarkerMovesDown)
+        {
+            return Task.FromResult(false);
+        }
+
+        Marker = notificationId;
+
+        return Task.FromResult(true);
+    }
+
     public Task Dismiss(ActiveProfile profile, string notificationId, CancellationToken cancellationToken)
     {
         Dismissals.Add(new Dismissed(profile.Name, notificationId));
