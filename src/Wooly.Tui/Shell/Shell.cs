@@ -1910,7 +1910,7 @@ public sealed class Shell
             Saw(Screen);
             Say(null, isError: false);
         };
-        arrival.Counts += (kind, unread, full) => Read(kind, unread, full, new Reread(Ring));
+        arrival.Counts += badge => Read(badge, new Reread(Ring));
         arrival.Moves += Moved;
         arrival.Recounts += kind => _ = Recount(profile, enquiry.Abandoned, kind);
         arrival.Heard += Heard;
@@ -2321,10 +2321,9 @@ public sealed class Shell
             {
                 if (!abandoned.IsCancellationRequested)
                 {
-                    var rose = badge.Unread > Badged(kind).Unread;
+                    var rose = Read(badge, reread);
 
-                    Read(badge.Kind, badge.Unread, badge.Full, reread);
-                    Arrived(profile, kind, found, rose, abandoned);
+                    Arrived(profile, badge, found, rose, abandoned);
                 }
             });
         }
@@ -2358,19 +2357,24 @@ public sealed class Shell
     ///         next re-read finds it (story 11).
     ///     </para>
     /// </remarks>
+    /// <param name="badge">
+    ///     What the re-read counted. One that came back full may have more unread past what it read, which are on no
+    ///     screen: the marker is left where it is rather than moved past them unseen, and the badge goes on saying at
+    ///     least that many — the reader moves it by arriving, or with <c>g</c>, as they would have anyway.
+    /// </param>
     /// <param name="rose">Whether the count read is higher than the badge was.</param>
     private void Arrived(
         ActiveProfile profile,
-        DestinationKind kind,
+        Found.Badge badge,
         Waiting found,
         bool rose,
         CancellationToken abandoned)
     {
-        var put = Rail.Showing.Kind == kind && !Fetching ? Screen.Arrived(found) : 0;
+        var put = Rail.Showing.Kind == badge.Kind && !Fetching ? Screen.Arrived(found) : 0;
 
         if (rose || put > 0)
         {
-            _acting?.Cache.Forget(new Subject.Destination(kind));
+            _acting?.Cache.Forget(new Subject.Destination(badge.Kind));
         }
 
         if (put == 0)
@@ -2378,7 +2382,7 @@ public sealed class Shell
             return;
         }
 
-        if (Screen is NotificationsScreen { Notifications: [var newest, ..] })
+        if (!badge.Full && Screen is NotificationsScreen { Notifications: [var newest, ..] })
         {
             _ = MarkerPast(profile, newest.Id, abandoned);
         }
@@ -2402,7 +2406,7 @@ public sealed class Shell
                 {
                     if (!abandoned.IsCancellationRequested)
                     {
-                        Counted(DestinationKind.Notifications, 0, full: false);
+                        Counted(new Found.Badge(DestinationKind.Notifications, 0));
                     }
                 });
             }
@@ -2422,14 +2426,19 @@ public sealed class Shell
     ///     Whatever read it — the open, a poll, arriving at the destination, a stream event — rather than which one,
     ///     so a poll that happens to land before a slow opening count is the first, and stays quiet.
     /// </remarks>
-    private void Read(DestinationKind kind, int unread, bool full, Reread reread)
+    /// <returns>Whether it is higher than the badge was, first count or not.</returns>
+    private bool Read(Found.Badge badge, Reread reread)
     {
-        if (!_countedOnce.Add(kind) && unread > Badged(kind).Unread)
+        var rose = badge.Unread > Badged(badge.Kind).Unread;
+
+        if (!_countedOnce.Add(badge.Kind) && rose)
         {
             reread.Rose();
         }
 
-        Counted(kind, unread, full);
+        Counted(badge);
+
+        return rose;
     }
 
     /// <summary>The terminal's bell, where the preference leaves it on (#399).</summary>
@@ -2446,11 +2455,8 @@ public sealed class Shell
     ///     the shell, arriving at the destination itself, and clearing something off it — and a badge that disagreed
     ///     with the list under it would be the shell arguing with itself.
     /// </summary>
-    /// <param name="full">
-    ///     Whether the read that counted it came back full, so that the badge says at least <paramref name="unread" />.
-    /// </param>
-    private void Counted(DestinationKind kind, int unread, bool full) =>
-        Rail.Update(Badged(kind) with { Unread = unread, Full = full && unread > 0 });
+    private void Counted(Found.Badge badge) =>
+        Rail.Update(Badged(badge.Kind) with { Unread = badge.Unread, Full = badge.Full && badge.Unread > 0 });
 
     /// <summary>
     ///     Moves a count on the rail by <paramref name="by" />, and never below nothing (#234). A full badge stays
@@ -2460,7 +2466,7 @@ public sealed class Shell
     {
         var badge = Badged(kind);
 
-        Counted(kind, Math.Max(0, badge.Unread + by), badge.Full);
+        Counted(new Found.Badge(kind, Math.Max(0, badge.Unread + by), badge.Full));
     }
 
     /// <summary>The rail's entry for <paramref name="kind" />, badge and all.</summary>

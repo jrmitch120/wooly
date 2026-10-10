@@ -81,7 +81,7 @@ public sealed class Arrival(
     ///     Raised with what a destination's badge says, for the destinations that carry one: how many, and whether the
     ///     read that counted them came back full (<see cref="Found.Badge.Full" />).
     /// </summary>
-    public event Action<DestinationKind, int, bool>? Counts;
+    internal event Action<Found.Badge>? Counts;
 
     /// <summary>Raised with how far a destination's badge moves, for a change made between reads of it.</summary>
     public event Action<DestinationKind, int>? Moves;
@@ -277,7 +277,7 @@ public sealed class Arrival(
 
             case Change.AllNotificationsGone:
                 Forget(DestinationKind.Notifications);
-                Counts?.Invoke(DestinationKind.Notifications, 0, false);
+                Counts?.Invoke(new Found.Badge(DestinationKind.Notifications, 0));
 
                 break;
 
@@ -375,7 +375,7 @@ public sealed class Arrival(
 
         if (found.Counted is { } badge)
         {
-            Counts?.Invoke(badge.Kind, badge.Unread, badge.Full);
+            Counts?.Invoke(badge);
         }
 
         return screen;

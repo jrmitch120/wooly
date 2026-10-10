@@ -59,7 +59,12 @@ own bell once, unless the user has turned it off. (#398–#401.)
 
 What a re-read finds is put at the top of the destination's screen when that screen is in front, keeping the picked row
 where it is on the page; on Notifications the marker is moved past it, as arriving would have, so the badge stays clear
-while the reader looks and the rows are drawn unread for the visit. It is done where every re-read lands rather than per
+while the reader looks and the rows are drawn unread for the visit — unless the re-read came back full. A full read
+may have more unread past the 40 it read, which no screen has shown, and moving the marker to the newest would mark them
+read unseen; so what was read goes on top drawn unread, the marker stays, and the badge keeps saying `40+` until the
+reader arrives or refreshes, which moves it as arriving always has. Moving it part way would not help: anything short of
+the oldest unread still skips the ones below. Nor is anything put on screen while a read is in flight — the arrival
+being read is about to draw the list and move the marker itself. It is done where every re-read lands rather than per
 cause, so the poll and the stream cannot come to differ. A re-read that raises a count, or puts anything on screen,
 forgets that destination's cached list: the held copy predates what arrived, and drawing it would put its cleared badge
 back over the count just read. (#400.)

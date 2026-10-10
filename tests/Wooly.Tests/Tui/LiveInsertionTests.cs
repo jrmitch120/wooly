@@ -77,6 +77,34 @@ public class LiveInsertionTests
     }
 
     /// <summary>
+    ///     A re-read that came back full may have more unread past what it read, which are on no screen: the marker is
+    ///     left where it was rather than moved past them unseen, and the badge goes on saying at least that many.
+    /// </summary>
+    [Fact]
+    public async Task OnNotifications_AFullPollPutsWhatItReadOnTopButLeavesTheMarker()
+    {
+        var shell = new AShell { Notifications = FakeNotificationInbox.Holding(ANotification.With(id: "100")) };
+        shell.Notifications.Marker = "100";
+        var opened = await shell.Opened();
+
+        opened.Step(ToNotifications);
+        shell.Host.Settle();
+        var moves = shell.Notifications.MarkerMoves.Count;
+
+        shell.Notifications.NowHolding(
+            [.. Enumerable.Range(0, 45).Select(offset => ANotification.With(id: $"{145 - offset}")),
+                ANotification.With(id: "100")]);
+        Passes(shell, Minute);
+
+        var screen = Assert.IsType<NotificationsScreen>(opened.Screen);
+        Assert.Equal(41, screen.Notifications.Count);
+        Assert.Equal("145", screen.Notifications[0].Id);
+        Assert.Equal(moves, shell.Notifications.MarkerMoves.Count);
+        Assert.Equal("100", shell.Notifications.Marker);
+        Assert.True(Badge(opened, DestinationKind.Notifications).Full);
+    }
+
+    /// <summary>
     ///     A re-read landing while the arrival at Notifications is still reading puts nothing on the screen waiting for
     ///     it and moves no marker: the arrival is about to draw the list and read the marker itself (story 11).
     /// </summary>

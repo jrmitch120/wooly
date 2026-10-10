@@ -242,7 +242,8 @@ not answer them differently:
 - **What a re-read finds lands at the top of the Inbox screen in front** (#400). Every re-read of a count — a poll, a
   stream event — hands what it read to the screen on top of the stack (`Screen.Arrived`), and only while the rail is
   showing that destination: new notifications go on top drawn `unread`, and the read marker is moved past them so the
-  badge clears again; a conversation new or changed (last post or unread flag) moves to the top as the instance has
+  badge clears again — unless the re-read came back full, when the marker is left for the reader's next arrival or `g`
+  and the badge stays `40+`, since there may be unread ones past the 40 that no screen has shown; a conversation new or changed (last post or unread flag) moves to the top as the instance has
   it; a new request goes on top. The same thing stays picked, and the content region keeps it on the page row it was
   on (`Shell.Grew` → `PaintedView.Keep`), so the page moves with what went in above it and nothing jumps. Where the
   picked thing is itself what changed — the conversation the reader is on spoken in again — it is brought up to date
