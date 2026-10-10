@@ -18,6 +18,10 @@ namespace Wooly.Tui.Shell;
 /// </remarks>
 internal static class InboxCount
 {
+    /// <summary>The Inbox's three destinations, in the rail's order — which is the order they are read in, too.</summary>
+    public static IReadOnlyList<DestinationKind> Kinds { get; } =
+        [DestinationKind.Notifications, DestinationKind.Messages, DestinationKind.Requests];
+
     /// <summary>
     ///     Reads the badge for <paramref name="kind" /> as <paramref name="profile" />, and what the read found waiting
     ///     there — for the screen in front to put at its top whatever of it is new (#400).

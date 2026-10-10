@@ -5,7 +5,6 @@ using Wooly.Core.Configuration;
 using Wooly.Core.Conversations;
 using Wooly.Core.Errors;
 using Wooly.Core.Http;
-using Wooly.Core.Inbox;
 using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
 using Wooly.Core.Relationships;
@@ -150,14 +149,8 @@ public sealed class Shell
     private RateLimitQuota? _quotaBeforeSwitch;
 
     /// <summary>
-    ///     What reads the Inbox badges again every <see cref="ShellTiming.PollEvery" /> for the profile acted as, from
-    ///     the moment the shell opens onto it until it is let go of (#398). Nothing, with nobody to act as.
-    /// </summary>
-    private InboxPoll? _poll;
-
-    /// <summary>
-    ///     What holds the user stream open for the profile acted as, from the moment the shell opens onto it until it is
-    ///     let go of (#401) — the poll running only while it is down. Nothing, with nobody to act as.
+    ///     What keeps the Inbox live for the profile acted as — the user stream, and the poll while it is down — from
+    ///     the moment the shell opens onto it until it is let go of (#398, #401). Nothing, with nobody to act as.
     /// </summary>
     private InboxStreaming? _streaming;
 
@@ -434,22 +427,21 @@ public sealed class Shell
 
         if (!abandoned.IsCancellationRequested)
         {
-            // Polled from the start, and until the stream says it is up: one that never comes up is one the badges are
-            // kept current without.
-            Poll(abandoned);
-            Stream(abandoned);
+            KeepLive(abandoned);
 
             await Counts(acting.Profile, abandoned);
         }
     }
 
     /// <summary>
-    ///     Holds the user stream open for whoever is acted as, until a switch abandons <paramref name="abandoned" />
-    ///     (#401). While it is up the poll is let go of; each event reads again the counts it touches; a drop starts
-    ///     the poll again until it comes back, when all three are read again for whatever arrived meanwhile. None of
-    ///     it is drawn — a passing blip is no business of the reader's.
+    ///     Keeps the Inbox live for whoever is acted as, until a switch abandons <paramref name="abandoned" /> and lets
+    ///     it go with everything else the old profile had: the user stream, polling while it is down (#398, #401).
     /// </summary>
-    private void Stream(CancellationToken abandoned)
+    /// <remarks>
+    ///     Read as whoever is acted as when a count is read again rather than when it was started, so that a profile
+    ///     signed in again (#248) — the same enquiry, with a new token — is read with its new token.
+    /// </remarks>
+    private void KeepLive(CancellationToken abandoned)
     {
         _streaming?.Dispose();
         _streaming = new InboxStreaming(
@@ -459,89 +451,11 @@ public sealed class Shell
             _timing,
             _host,
             abandoned,
-            heard: heard => Heard(heard, abandoned),
-            up: again =>
-            {
-                _poll?.Dispose();
-                _poll = null;
-
-                if (again && _acting is { } acting)
-                {
-                    _ = Counts(acting.Profile, abandoned);
-                }
-            },
-            down: () =>
-            {
-                // Already polling where it never came up; starting again would put the next poll off a minute more.
-                if (_poll is null)
-                {
-                    Poll(abandoned);
-                }
-            });
-    }
-
-    /// <summary>
-    ///     Reads again the counts <paramref name="heard" /> touches, as one re-read — so one bell however many of them
-    ///     rose (#399): a notification the Notifications count, and the Requests count too where somebody asked to
-    ///     follow; a conversation the Messages count.
-    /// </summary>
-    private void Heard(IReadOnlyList<InboxEvent> heard, CancellationToken abandoned)
-    {
-        if (_acting is not { } acting)
-        {
-            return;
-        }
-
-        var touched = new HashSet<DestinationKind>();
-
-        foreach (var said in heard)
-        {
-            switch (said)
-            {
-                case InboxEvent.Notified notified:
-                    touched.Add(DestinationKind.Notifications);
-
-                    if (notified.Kind.AsksToFollow)
-                    {
-                        touched.Add(DestinationKind.Requests);
-                    }
-
-                    break;
-                case InboxEvent.ConversationChanged:
-                    touched.Add(DestinationKind.Messages);
-
-                    break;
-            }
-        }
-
-        DestinationKind[] inboxOrder = [DestinationKind.Notifications, DestinationKind.Messages, DestinationKind.Requests];
-
-        if (touched.Count > 0)
-        {
-            _ = Recount(acting.Profile, abandoned, [.. inboxOrder.Where(touched.Contains)]);
-        }
-    }
-
-    /// <summary>
-    ///     Starts reading the counts again every <see cref="ShellTiming.PollEvery" />, until a switch abandons
-    ///     <paramref name="abandoned" /> and lets the poll go with everything else the old profile had (#398).
-    /// </summary>
-    /// <remarks>
-    ///     Asked as whoever is acted as when it goes off rather than when it was started, so that a profile signed in
-    ///     again (#248) — the same enquiry, with a new token — is polled with its new token.
-    /// </remarks>
-    private void Poll(CancellationToken abandoned)
-    {
-        _poll?.Dispose();
-        _poll = new InboxPoll(
-            _clock,
-            _timing.PollEvery,
-            _host,
-            () =>
+            reread: kinds =>
             {
                 if (!abandoned.IsCancellationRequested && _acting is { } acting)
                 {
-                    _ = Counts(acting.Profile, abandoned);
+                    _ = Recount(acting.Profile, abandoned, kinds);
                 }
             });
     }
@@ -1912,7 +1826,7 @@ public sealed class Shell
         };
         arrival.Counts += badge => Read(badge, new BellOnce(Ring));
         arrival.Moves += Moved;
-        arrival.Recounts += kind => _ = Recount(profile, enquiry.Abandoned, kind);
+        arrival.Recounts += kind => _ = Recount(profile, enquiry.Abandoned, [kind]);
         arrival.Heard += Heard;
 
         var reach = new Reach(
@@ -2032,8 +1946,6 @@ public sealed class Shell
     private void LetGo()
     {
         _enquiry.Abandon();
-        _poll?.Dispose();
-        _poll = null;
         _streaming?.Dispose();
         _streaming = null;
         _countedOnce.Clear();
@@ -2280,18 +2192,16 @@ public sealed class Shell
     ///     Cancelled where the session switches profile, after which none of them is read or drawn (#243).
     /// </param>
     private Task Counts(ActiveProfile profile, CancellationToken abandoned) =>
-        Recount(
-            profile,
-            abandoned,
-            DestinationKind.Notifications,
-            DestinationKind.Messages,
-            DestinationKind.Requests);
+        Recount(profile, abandoned, InboxCount.Kinds);
 
     /// <summary>
     ///     Reads the Inbox badges <paramref name="kinds" /> again as one <see cref="BellOnce" />, which rings the bell at
     ///     most once however many of them rose (#399). What a stream event re-reads the counts it touches through (#401).
     /// </summary>
-    private async Task Recount(ActiveProfile profile, CancellationToken abandoned, params DestinationKind[] kinds)
+    private async Task Recount(
+        ActiveProfile profile,
+        CancellationToken abandoned,
+        IReadOnlyList<DestinationKind> kinds)
     {
         var bell = new BellOnce(Ring);
 
