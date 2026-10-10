@@ -94,6 +94,27 @@ internal sealed class FakeNotificationInbox(Fetch<Notification> fetch) : INotifi
                 : Fetch<Notification>.Complete(since));
     }
 
+    /// <summary>
+    ///     What it holds newer than <paramref name="notificationId" />, up to <paramref name="limit" /> — recorded among
+    ///     <see cref="UnreadReads" />, being the same read from an id the caller names.
+    /// </summary>
+    public async Task<Fetch<Notification>> ReadNewer(
+        ActiveProfile profile,
+        string notificationId,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        UnreadReads.Add(new Call(profile.Name, limit));
+        Tokens.Add(profile.AccessToken);
+
+        var held = ByProfile.TryGetValue(profile.Name, out var answer) ? await answer() : _fetch;
+        var newer = held.Items.Where(notification => Newer(notification.Id, notificationId)).Take(limit).ToList();
+
+        return held.StoppedBy is { } stoppedBy
+            ? Fetch<Notification>.StoppedShort(newer, stoppedBy)
+            : Fetch<Notification>.Complete(newer);
+    }
+
     /// <summary>Every move of the marker it was asked for, in order — whether or not it took it.</summary>
     public List<Dismissed> MarkerMoves { get; } = [];
 

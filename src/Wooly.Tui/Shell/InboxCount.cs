@@ -22,20 +22,21 @@ internal static class InboxCount
     ///     Reads the badge for <paramref name="kind" /> as <paramref name="profile" />, and what the read found waiting
     ///     there — for the screen in front to put at its top whatever of it is new (#400).
     /// </summary>
+    /// <param name="standIns">
+    ///     Where an account with no read marker counts from this session, started by the first read of it.
+    /// </param>
     /// <exception cref="ArgumentOutOfRangeException">Not one of the Inbox's three.</exception>
     public static async Task<Recount> Read(
         ShellPorts ports,
         ActiveProfile profile,
         DestinationKind kind,
+        StandInMarkers standIns,
         CancellationToken cancellationToken)
     {
         switch (kind)
         {
-            // No marker reads as nothing unread rather than everything: a count this client cannot prove is not one
-            // it draws.
             case DestinationKind.Notifications:
-                var unread = (await ports.Notifications.ReadUnread(profile, Arrival.CountedAtMost, cancellationToken))
-                    .Since.Items;
+                var unread = await Unread(ports, profile, standIns, cancellationToken);
 
                 return new Recount(Of(kind, unread.Count), new Waiting.Notifications(unread));
 
@@ -53,6 +54,38 @@ internal static class InboxCount
             default:
                 throw new ArgumentOutOfRangeException(nameof(kind), kind, "Not a destination in the Inbox.");
         }
+    }
+
+    /// <summary>
+    ///     The notifications newer than the read marker — or, for an account with none, newer than where this session
+    ///     started counting it (story 8): nothing unread on the first read, which is only where counting starts, and
+    ///     whatever arrived after it on every read since. The account's marker is not touched; the reader has looked
+    ///     at nothing.
+    /// </summary>
+    private static async Task<IReadOnlyList<Notification>> Unread(
+        ShellPorts ports,
+        ActiveProfile profile,
+        StandInMarkers standIns,
+        CancellationToken cancellationToken)
+    {
+        var unread = await ports.Notifications.ReadUnread(profile, Arrival.CountedAtMost, cancellationToken);
+
+        if (unread.HasMarker)
+        {
+            return unread.Since.Items;
+        }
+
+        if (standIns.For(profile) is { } from)
+        {
+            return (await ports.Notifications.ReadNewer(profile, from, Arrival.CountedAtMost, cancellationToken))
+                .Items;
+        }
+
+        var newest = await ports.Notifications.Read(profile, 1, cancellationToken);
+
+        standIns.Start(profile, newest.Items is [var first, ..] ? first.Id : StandInMarkers.BeforeEverything);
+
+        return [];
     }
 
     /// <summary>

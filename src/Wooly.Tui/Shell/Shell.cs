@@ -167,6 +167,9 @@ public sealed class Shell
     /// </summary>
     private readonly HashSet<DestinationKind> _countedOnce = [];
 
+    /// <summary>Where each profile whose account has no read marker counts unread notifications from (story 8).</summary>
+    private readonly StandInMarkers _standIns = new();
+
     /// <summary>Whether a rising Inbox badge rings the terminal's bell: the config file's <c>bell</c>, on unless said (#399).</summary>
     private readonly bool _ringing;
 
@@ -2312,7 +2315,7 @@ public sealed class Shell
 
         try
         {
-            var (badge, found) = await InboxCount.Read(_ports, profile, kind, abandoned);
+            var (badge, found) = await InboxCount.Read(_ports, profile, kind, _standIns, abandoned);
 
             Apply(() =>
             {

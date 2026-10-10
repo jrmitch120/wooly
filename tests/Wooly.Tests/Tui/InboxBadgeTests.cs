@@ -99,6 +99,49 @@ public class InboxBadgeTests
     }
 
     /// <summary>
+    ///     With no marker, what arrives while the shell runs still counts (story 8): the newest notification at the
+    ///     first read is where counting starts, and the instance's marker is left alone — the reader has looked at
+    ///     nothing yet.
+    /// </summary>
+    [Fact]
+    public async Task Badge_CountsWhatArrivesWhileTheShellRunsWhereTheAccountHasNoReadMarker()
+    {
+        var shell = new AShell { Notifications = Holding(count: 5, newest: 144) };
+        shell.Notifications.Marker = null;
+
+        var opened = await shell.Opened();
+
+        shell.Notifications.NowHolding(
+            [ANotification.With(id: "146"), ANotification.With(id: "145"), .. Enumerable.Range(0, 5).Select(offset => ANotification.With(id: $"{144 - offset}"))]);
+        shell.Clock.Advance(shell.Timing.PollEvery);
+        shell.Host.Drain();
+
+        Assert.Equal(2, Badge(opened, DestinationKind.Notifications).Unread);
+        Assert.Null(shell.Notifications.Marker);
+        Assert.Empty(shell.Notifications.MarkerMoves);
+    }
+
+    /// <summary>
+    ///     An account with no notifications at all and no marker counts everything that arrives after the shell
+    ///     opened.
+    /// </summary>
+    [Fact]
+    public async Task Badge_CountsWhatArrivesInAnEmptyInboxWithNoReadMarker()
+    {
+        var shell = new AShell { Notifications = FakeNotificationInbox.Holding() };
+        shell.Notifications.Marker = null;
+
+        var opened = await shell.Opened();
+
+        shell.Notifications.NowHolding(ANotification.With(id: "7"));
+        shell.Clock.Advance(shell.Timing.PollEvery);
+        shell.Host.Drain();
+
+        Assert.Equal(1, Badge(opened, DestinationKind.Notifications).Unread);
+        Assert.Empty(shell.Notifications.MarkerMoves);
+    }
+
+    /// <summary>
     ///     More unread than one read counts is at least that many, and the badge says so rather than an exact number
     ///     that would be wrong. Seen on arriving where the marker's move is turned down, since a move clears it (#397).
     /// </summary>

@@ -16,7 +16,10 @@ rather than guessed.
 
 **No marker means nothing unread.** An account that has never had a marker has nothing this client can prove is unread.
 Counting every notification it has would be the badge that always said 40 again, so it counts nothing until something
-arrives while the shell is running (#401).
+arrives while the shell is running. For that, the first count of such a profile in a session notes the newest
+notification it has — a stand-in for the marker, kept in the session per profile and never sent to the instance — and
+every count after it reads what is newer than that (`INotificationInbox.ReadNewer`). The instance's marker is left
+alone: the reader has looked at nothing. Arriving at Notifications sets a real marker, after which the stand-in is unused.
 
 **Counting stays a capped read since the marker.** `INotificationInbox.ReadUnread` reads the marker, then the
 notifications above it, up to the same 40 a screen asks for, carrying `since_id` onto every page because the instance's

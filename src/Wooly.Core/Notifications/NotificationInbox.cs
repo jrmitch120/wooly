@@ -47,9 +47,7 @@ public sealed class NotificationInbox(IMastodonClientFactory clientFactory, IHtt
 
     /// <inheritdoc />
     /// <remarks>
-    ///     Two questions: where the marker is, then what is above it. The marker carried onto every page as
-    ///     <c>since_id</c>, because the instance's link to the next page names only where that page starts — left to the
-    ///     link, a second page would run on past the marker into what has been read.
+    ///     Two questions: where the marker is, then what is above it (<see cref="ReadNewer" />).
     /// </remarks>
     public async Task<UnreadNotifications> ReadUnread(
         ActiveProfile profile,
@@ -70,22 +68,34 @@ public sealed class NotificationInbox(IMastodonClientFactory clientFactory, IHtt
             return UnreadNotifications.NoMarker;
         }
 
+        return new UnreadNotifications(since, await ReadNewer(profile, since, limit, cancellationToken));
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    ///     The id carried onto every page as <c>since_id</c>, because the instance's link to the next page names only
+    ///     where that page starts — left to the link, a second page would run on past it.
+    /// </remarks>
+    public async Task<Fetch<Notification>> ReadNewer(
+        ActiveProfile profile,
+        string notificationId,
+        int limit,
+        CancellationToken cancellationToken)
+    {
         var client = clientFactory.CreateClient(profile.Instance, profile.AccessToken);
 
-        var fetch = await PagedReading.Collect(
+        return await PagedReading.Collect(
             limit,
             PageSize,
             options =>
             {
-                options.SinceId = since;
+                options.SinceId = notificationId;
 
                 return client.GetNotifications(options);
             },
             notification => NotificationWire.ToNotification(notification, profile),
             notification => notification.Id,
             cancellationToken);
-
-        return new UnreadNotifications(since, fetch);
     }
 
     /// <inheritdoc />

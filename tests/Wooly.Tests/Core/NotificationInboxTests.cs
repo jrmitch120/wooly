@@ -348,6 +348,28 @@ public class NotificationInboxTests
             network.Requests[2].RequestUri?.ToString());
     }
 
+    /// <summary>
+    ///     Reading what is newer than a given notification is the same capped read as reading past the marker, from
+    ///     that id instead — what an account with no marker counts from (story 8) — and the marker is not asked for.
+    /// </summary>
+    [Fact]
+    public async Task ReadNewer_ReadsTheNotificationsNewerThanTheIdItWasNamedOnEveryPage()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            PageResponse(PageOf(count: 30, firstId: 200), nextMaxId: "171"),
+            PageResponse(PageOf(count: 10, firstId: 170)));
+
+        var newer = await NewInbox(network).ReadNewer(Profile, "100", 40, TestContext.Current.CancellationToken);
+
+        Assert.Equal(40, newer.Items.Count);
+        Assert.Equal(
+            "https://mastodon.social/api/v1/notifications?since_id=100&limit=30",
+            network.Requests[0].RequestUri?.ToString());
+        Assert.Equal(
+            "https://mastodon.social/api/v1/notifications?max_id=171&since_id=100&limit=10",
+            network.Requests[1].RequestUri?.ToString());
+    }
+
     /// <summary>A rate limit while reading what is unread is a partial answer, the way it is for any read.</summary>
     [Fact]
     public async Task ReadUnread_ReportsARateLimitPartWayThroughAsAPartialAnswer()

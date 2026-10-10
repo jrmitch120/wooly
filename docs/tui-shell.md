@@ -210,7 +210,9 @@ not answer them differently:
 - **A count and the list under it are one fact.** Arriving at a destination sets its badge from the same answer the
   screen is drawn from, and dismissing or answering something moves both.
 - **An Inbox badge is the instance's unread count** (ADR-0027). Notifications counts what is newer than the account's
-  read marker — counted apart from the list, which holds read ones too — and an account with no marker counts nothing;
+  read marker — counted apart from the list, which holds read ones too. An account with no marker counts nothing at
+  first, and from then on what is newer than the newest it had at that first count (`StandInMarkers`, kept per profile
+  for the session and never sent to the instance), so what arrives while the shell runs still counts;
   Messages counts the conversations flagged unread and Requests every request, off their lists. The shell's opening
   counts and arriving at the destination count the same way (`InboxCount`), and a dismissal reads the Notifications
   count again rather than taking one off it. Nothing waiting draws no badge; a read that came back full draws `40+`.
