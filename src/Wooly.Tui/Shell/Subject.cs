@@ -138,7 +138,7 @@ public abstract record Subject
 
                     // Refreshed, because this is the timeline as a destination arrived at: a tag walked to is the same
                     // screen and is not one, so which it is comes from who built it (#84).
-                    Becomes: (posts, notice) => new FeedScreen(entry, posts, notice, refreshes: true),
+                    Becomes: (posts, notice, _) => new FeedScreen(entry, posts, notice, refreshes: true),
                     WhenEmpty: Arrival.NothingOn(timeline),
 
                     // A timeline carries no badge, which is something this destination says rather than a step its
@@ -151,12 +151,12 @@ public abstract record Subject
             {
                 DestinationKind.Notifications => new Listing<Notification>(
                     Reads: (ports, profile, token) => ports.Notifications.Read(profile, Arrival.CountedAtMost, token),
-                    Becomes: (waiting, notice) => new NotificationsScreen(waiting, notice),
+                    Becomes: (waiting, notice, unread) => new NotificationsScreen(waiting, notice, unread),
                     WhenEmpty: "Nothing is waiting for you.",
                     // Counted apart from the list it is drawn beside: what is unread is what is newer than the read
-                    // marker, which the list does not say (ADR-0027).
-                    Counting: (ports, profile, _, token) =>
-                        InboxCount.Read(ports, profile, DestinationKind.Notifications, token),
+                    // marker, which the list does not say (ADR-0027). Arriving reads them, so the count moves the
+                    // marker too, and hands the screen the rows that were unread for this visit (#397).
+                    Counting: InboxCount.Arrived,
                     Carries: notification => notification.Post),
 
                 // The one destination whose read is two calls. Whether you already follow the person asking to follow
@@ -170,9 +170,10 @@ public abstract record Subject
 
                         return asking with { Items = await ports.StoodOrSilent(profile, asking.Items, token) };
                     },
-                    Becomes: (asking, notice) => new FollowRequestsScreen(asking, notice),
+                    Becomes: (asking, notice, _) => new FollowRequestsScreen(asking, notice),
                     WhenEmpty: "Nobody is waiting to follow you.",
-                    Counting: (_, _, asking, _) => Task.FromResult(InboxCount.OffList(asking)),
+                    Counting: (_, _, asking, _) =>
+                        Task.FromResult(new InboxCount.Tally(InboxCount.OffList(asking))),
                     Carries: _ => null),
 
                 // The one destination that reads a list through a port with no Fetch on it: there is no paging here
@@ -183,7 +184,7 @@ public abstract record Subject
                     Reads: async (ports, profile, token) =>
                         Fetch<Suggestion>.Complete(
                             await ports.Suggestions.Read(profile, Arrival.CountedAtMost, token)),
-                    Becomes: (suggested, notice) => new DiscoverScreen(suggested, notice),
+                    Becomes: (suggested, notice, _) => new DiscoverScreen(suggested, notice),
                     WhenEmpty: "Nobody suggested.",
 
                     // No badge, and said here rather than left out: nothing on this screen is waiting for anybody,
@@ -193,12 +194,13 @@ public abstract record Subject
 
                 DestinationKind.Messages => new Listing<Core.Conversations.Conversation>(
                     Reads: (ports, profile, token) => ports.Messages.List(profile, Arrival.CountedAtMost, token),
-                    Becomes: (written, notice) => new DirectMessagesScreen(written, notice),
+                    Becomes: (written, notice, _) => new DirectMessagesScreen(written, notice),
                     WhenEmpty: "No direct conversations yet.",
 
                     // The badge counts the conversations with something unread in them, and counts them off the list
                     // it is drawn beside — so the rail cannot say two over a list of one.
-                    Counting: (_, _, written, _) => Task.FromResult(InboxCount.OffList(written)),
+                    Counting: (_, _, written, _) =>
+                        Task.FromResult(new InboxCount.Tally(InboxCount.OffList(written))),
                     Carries: conversation => conversation.Latest),
 
                 // Said out loud rather than quietly doing nothing: a destination that reads no list — the profile's
@@ -527,7 +529,10 @@ public abstract record Subject
 
     /// <inheritdoc cref="Listing" />
     /// <param name="Reads">What the instance is asked for.</param>
-    /// <param name="Becomes">What the answer is on screen, given what came back and what there is to say about it.</param>
+    /// <param name="Becomes">
+    ///     What the answer is on screen, given what came back, what there is to say about it, and which of it to draw
+    ///     unread for this visit (<see cref="InboxCount.Tally.Unread" />).
+    /// </param>
     /// <param name="WhenEmpty">What a reader is told where nothing came back.</param>
     /// <param name="Counting">
     ///     How this destination's badge is counted, given what the list read came back with — off that list, or by a
@@ -540,13 +545,13 @@ public abstract record Subject
     /// </param>
     private sealed record Listing<T>(
         Func<ShellPorts, ActiveProfile, CancellationToken, Task<Fetch<T>>> Reads,
-        Func<IReadOnlyList<T>, string?, Screen> Becomes,
+        Func<IReadOnlyList<T>, string?, IReadOnlySet<string>, Screen> Becomes,
         string WhenEmpty,
-        Func<ShellPorts, ActiveProfile, IReadOnlyList<T>, CancellationToken, Task<Found.Badge>>? Counting,
+        Func<ShellPorts, ActiveProfile, IReadOnlyList<T>, CancellationToken, Task<InboxCount.Tally>>? Counting,
         Func<T, Post?> Carries) : Listing
     {
         /// <inheritdoc />
-        public override Screen Empty() => Becomes([], null);
+        public override Screen Empty() => Becomes([], null, InboxCount.Tally.NoneUnread);
 
         /// <inheritdoc />
         public override async Task<Found> Read(
@@ -565,7 +570,7 @@ public abstract record Subject
         ///     carries none, or where a count read apart from the list could not be read: the list arrived, and a
         ///     badge is the least of what is on screen, so the one it already had stands (#396).
         /// </summary>
-        private async Task<Found.Badge?> Counted(
+        private async Task<InboxCount.Tally?> Counted(
             Enquiry.Ask ask,
             ShellPorts ports,
             ActiveProfile profile,
@@ -591,8 +596,11 @@ public abstract record Subject
     /// <param name="How">What the destination is.</param>
     /// <param name="Entry">The rail's entry for it, whose timeline names what the list is of.</param>
     /// <param name="Fetch">What came back, and whether a rate limit cut it short.</param>
-    /// <param name="Waiting">What the destination's badge says, read alongside it; null where it carries none.</param>
-    private sealed record Listed<T>(Listing<T> How, Entry Entry, Fetch<T> Fetch, Found.Badge? Waiting) : Found
+    /// <param name="Waiting">
+    ///     What the destination's badge says, read alongside it, and which rows are unread for this visit; null where
+    ///     it carries none.
+    /// </param>
+    private sealed record Listed<T>(Listing<T> How, Entry Entry, Fetch<T> Fetch, InboxCount.Tally? Waiting) : Found
     {
         /// <inheritdoc />
         /// <remarks>
@@ -602,7 +610,8 @@ public abstract record Subject
         public override Screen Becomes(Screen? standing) =>
             How.Becomes(
                 Fetch.Items,
-                Arrival.Emptiness(Fetch.Items.Count, How.WhenEmpty, Entry.Timeline?.Description, Fetch.StoppedBy));
+                Arrival.Emptiness(Fetch.Items.Count, How.WhenEmpty, Entry.Timeline?.Description, Fetch.StoppedBy),
+                Waiting?.Unread ?? InboxCount.Tally.NoneUnread);
 
         /// <inheritdoc />
         /// <remarks>
@@ -610,11 +619,19 @@ public abstract record Subject
         ///     shell opens — so the rail cannot say four over a list of three, nor say one thing on opening and
         ///     another on arriving.
         /// </remarks>
-        public override Found.Badge? Counted => Waiting;
+        public override Found.Badge? Counted => Waiting?.Badge;
 
         /// <inheritdoc />
-        /// <remarks>What was held is an answer that will cost nothing, and nothing will have cut it short.</remarks>
-        public override Found Held(Screen screen) => this with { Fetch = Fetch<T>.Complete(Fetch.Items) };
+        /// <remarks>
+        ///     What was held is an answer that will cost nothing, and nothing will have cut it short — and coming back
+        ///     to it is another visit, by which time what was unread on this one has been read (#397).
+        /// </remarks>
+        public override Found Held(Screen screen) =>
+            this with
+            {
+                Fetch = Fetch<T>.Complete(Fetch.Items),
+                Waiting = Waiting is { } waiting ? waiting with { Unread = InboxCount.Tally.NoneUnread } : null,
+            };
 
         /// <inheritdoc />
         public override bool HoldsPost(string postId) =>

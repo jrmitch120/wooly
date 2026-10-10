@@ -363,6 +363,40 @@ public class NotificationInboxTests
         Assert.False(unread.Since.IsComplete);
     }
 
+    /// <summary>
+    ///     Moving the marker is the instance's own marker moving, so every client of the account — the web UI among
+    ///     them — counts from it afterwards (ADR-0027).
+    /// </summary>
+    [Fact]
+    public async Task MoveMarker_SetsTheAccountsNotificationsMarkerToTheIdItWasNamed()
+    {
+        var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Json(MarkerJson("34")));
+
+        var moved = await NewInbox(network).MoveMarker(Profile, "34", TestContext.Current.CancellationToken);
+
+        Assert.True(moved);
+        var request = Assert.Single(network.Requests);
+        Assert.Equal(HttpMethod.Post, request.Method);
+        Assert.Equal("https://mastodon.social/api/v1/markers", request.RequestUri?.ToString());
+        Assert.Equal("Bearer token-personal", request.Headers.Authorization?.ToString());
+        Assert.Equal("notifications[last_read_id]=34", Uri.UnescapeDataString(Assert.Single(network.Bodies)));
+    }
+
+    /// <summary>
+    ///     A move the instance turns down is reported as not made rather than thrown: the marker only clears a badge,
+    ///     and a badge left standing is the whole of what went wrong (#397).
+    /// </summary>
+    [Fact]
+    public async Task MoveMarker_ReportsAMoveTheInstanceTurnedDownAsNotMade()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Refusal(HttpStatusCode.Conflict, "Conflict"));
+
+        var moved = await NewInbox(network).MoveMarker(Profile, "34", TestContext.Current.CancellationToken);
+
+        Assert.False(moved);
+    }
+
     [Fact]
     public async Task Dismiss_ClearsTheOneNotificationItWasNamed()
     {

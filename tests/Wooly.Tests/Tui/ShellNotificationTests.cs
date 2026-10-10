@@ -16,8 +16,9 @@ public class ShellNotificationTests
     /// <summary>Where the rail's notifications destination is, counting from Home.</summary>
     private const int ToNotifications = 6;
 
+    /// <summary>Arriving lists what is waiting and reads it, so the rail's badge clears (#397).</summary>
     [Fact]
-    public async Task Step_ListsWhatIsWaitingAndCountsItOnTheRail()
+    public async Task Step_ListsWhatIsWaitingAndReadsIt()
     {
         var shell = new AShell
         {
@@ -36,7 +37,8 @@ public class ShellNotificationTests
         Assert.Equal("Notifications", opened.Breadcrumb);
 
         var destination = opened.Rail.Destinations.First(place => place.Kind == DestinationKind.Notifications);
-        Assert.Equal(2, destination.Unread);
+        Assert.Equal(0, destination.Unread);
+        Assert.Equal("34", Assert.Single(shell.Notifications.MarkerMoves).NotificationId);
     }
 
     /// <summary>
