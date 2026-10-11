@@ -1777,7 +1777,7 @@ public sealed class Shell
     ///     reads in <paramref name="cache" /> — fresh at launch and at a switch, and the same enquiry and cache again
     ///     where the profile acted as has only been signed in again (#248).
     /// </summary>
-    private Acting Acts(ActiveProfile profile, Enquiry enquiry, SubjectCache cache)
+    private Acting Acts(ActiveProfile profile, Enquiry enquiry, SubjectCache cache, ListReads? lists = null)
     {
         // An arrival settles what a subject is on screen and what its badge says, and a change what goes stale;
         // putting any of it there is this shell's own business, since the stack and the rail are its.
@@ -1802,7 +1802,8 @@ public sealed class Shell
         arrival.Rereads += kind => _ = _badges.Reread(profile, enquiry.Abandoned, [kind]);
         arrival.Heard += Heard;
 
-        var lists = new ListReads();
+        // Carried over a sign-in again, whose list reads still in flight end on the arrival they began on (#248).
+        lists ??= new ListReads();
 
         arrival.ListReading += lists.Began;
         arrival.ListRead += kind => Apply(() =>
@@ -1873,7 +1874,7 @@ public sealed class Shell
             return;
         }
 
-        _acting = Acts(renewed, _enquiry, Actor.Cache) with { Marking = Actor.Marking };
+        _acting = Acts(renewed, _enquiry, Actor.Cache, Actor.Lists) with { Marking = Actor.Marking };
     }
 
     /// <summary>
