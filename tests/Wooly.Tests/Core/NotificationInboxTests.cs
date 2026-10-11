@@ -289,6 +289,136 @@ public class NotificationInboxTests
         Assert.DoesNotContain("exclude", Assert.Single(network.Requests).RequestUri?.Query ?? string.Empty);
     }
 
+    /// <summary>
+    ///     What is unread is what is newer than the account's read marker, which the instance keeps for every client of
+    ///     the account — so it is asked for first, and the notifications are read from just above it (CONTEXT.md).
+    /// </summary>
+    [Fact]
+    public async Task ReadUnread_ReadsTheNotificationsNewerThanTheReadMarker()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(MarkerJson("30")),
+            ScriptedHttpMessageHandler.Json(Page(NotificationJson("32"), NotificationJson("31"))));
+
+        var unread = await NewInbox(network).ReadUnread(Profile, 40, TestContext.Current.CancellationToken);
+
+        Assert.Equal("30", unread.Marker);
+        Assert.Equal(["32", "31"], unread.Since.Items.Select(notification => notification.Id));
+        Assert.Equal(
+            "https://mastodon.social/api/v1/markers?timeline[]=notifications",
+            Uri.UnescapeDataString(network.Requests[0].RequestUri?.ToString() ?? string.Empty));
+        Assert.Equal(
+            "https://mastodon.social/api/v1/notifications?since_id=30&limit=30",
+            network.Requests[1].RequestUri?.ToString());
+    }
+
+    /// <summary>
+    ///     An account that has never had a marker has nothing this client can prove is unread — and counting every
+    ///     notification it has would be the badge that always said 40 (#396). So nothing is read past the marker.
+    /// </summary>
+    [Fact]
+    public async Task ReadUnread_ReportsAnAccountWithNoReadMarkerAsHavingNothingUnread()
+    {
+        var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Json("{}"));
+
+        var unread = await NewInbox(network).ReadUnread(Profile, 40, TestContext.Current.CancellationToken);
+
+        Assert.False(unread.HasMarker);
+        Assert.Empty(unread.Since.Items);
+        Assert.Single(network.Requests);
+    }
+
+    /// <summary>
+    ///     More unread than one page is a second call, and that call must still stop at the marker: the instance's
+    ///     link to the next page names only where it starts, so the marker is carried onto it here.
+    /// </summary>
+    [Fact]
+    public async Task ReadUnread_KeepsTheMarkerOnEveryPageItReads()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(MarkerJson("100")),
+            PageResponse(PageOf(count: 30, firstId: 200), nextMaxId: "171"),
+            PageResponse(PageOf(count: 10, firstId: 170)));
+
+        var unread = await NewInbox(network).ReadUnread(Profile, 40, TestContext.Current.CancellationToken);
+
+        Assert.Equal(40, unread.Since.Items.Count);
+        Assert.Equal(
+            "https://mastodon.social/api/v1/notifications?max_id=171&since_id=100&limit=10",
+            network.Requests[2].RequestUri?.ToString());
+    }
+
+    /// <summary>
+    ///     Reading what is newer than a given notification is the same capped read as reading past the marker, from
+    ///     that id instead — what an account with no marker counts from (story 8) — and the marker is not asked for.
+    /// </summary>
+    [Fact]
+    public async Task ReadNewer_ReadsTheNotificationsNewerThanTheIdItWasNamedOnEveryPage()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            PageResponse(PageOf(count: 30, firstId: 200), nextMaxId: "171"),
+            PageResponse(PageOf(count: 10, firstId: 170)));
+
+        var newer = await NewInbox(network).ReadNewer(Profile, "100", 40, TestContext.Current.CancellationToken);
+
+        Assert.Equal(40, newer.Items.Count);
+        Assert.Equal(
+            "https://mastodon.social/api/v1/notifications?since_id=100&limit=30",
+            network.Requests[0].RequestUri?.ToString());
+        Assert.Equal(
+            "https://mastodon.social/api/v1/notifications?max_id=171&since_id=100&limit=10",
+            network.Requests[1].RequestUri?.ToString());
+    }
+
+    /// <summary>A rate limit while reading what is unread is a partial answer, the way it is for any read.</summary>
+    [Fact]
+    public async Task ReadUnread_ReportsARateLimitPartWayThroughAsAPartialAnswer()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(MarkerJson("100")),
+            PageResponse(PageOf(count: 30, firstId: 200), nextMaxId: "171"),
+            ScriptedHttpMessageHandler.Status(HttpStatusCode.TooManyRequests));
+
+        var unread = await NewInbox(network).ReadUnread(Profile, 40, TestContext.Current.CancellationToken);
+
+        Assert.Equal(30, unread.Since.Items.Count);
+        Assert.False(unread.Since.IsComplete);
+    }
+
+    /// <summary>
+    ///     Moving the marker is the instance's own marker moving, so every client of the account — the web UI among
+    ///     them — counts from it afterwards (ADR-0027).
+    /// </summary>
+    [Fact]
+    public async Task MoveMarker_SetsTheAccountsNotificationsMarkerToTheIdItWasNamed()
+    {
+        var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Json(MarkerJson("34")));
+
+        var moved = await NewInbox(network).MoveMarker(Profile, "34", TestContext.Current.CancellationToken);
+
+        Assert.True(moved);
+        var request = Assert.Single(network.Requests);
+        Assert.Equal(HttpMethod.Post, request.Method);
+        Assert.Equal("https://mastodon.social/api/v1/markers", request.RequestUri?.ToString());
+        Assert.Equal("Bearer token-personal", request.Headers.Authorization?.ToString());
+        Assert.Equal("notifications[last_read_id]=34", Uri.UnescapeDataString(Assert.Single(network.Bodies)));
+    }
+
+    /// <summary>
+    ///     A move the instance turns down is reported as not made rather than thrown: the marker only clears a badge,
+    ///     and a badge left standing is the whole of what went wrong (#397).
+    /// </summary>
+    [Fact]
+    public async Task MoveMarker_ReportsAMoveTheInstanceTurnedDownAsNotMade()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Refusal(HttpStatusCode.Conflict, "Conflict"));
+
+        var moved = await NewInbox(network).MoveMarker(Profile, "34", TestContext.Current.CancellationToken);
+
+        Assert.False(moved);
+    }
+
     [Fact]
     public async Task Dismiss_ClearsTheOneNotificationItWasNamed()
     {
@@ -327,6 +457,18 @@ public class NotificationInboxTests
 
         return services.BuildServiceProvider().GetRequiredService<INotificationInbox>();
     }
+
+    /// <summary>What the instance answers about the notifications marker, as Mastodon sends it — the id a string.</summary>
+    private static string MarkerJson(string lastReadId) =>
+        $$"""
+          {
+            "notifications": {
+              "last_read_id": "{{lastReadId}}",
+              "version": 3,
+              "updated_at": "2026-07-29T12:00:00.000Z"
+            }
+          }
+          """;
 
     private static string Page(params string[] notifications) => $"[{string.Join(",", notifications)}]";
 

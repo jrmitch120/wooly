@@ -2,6 +2,7 @@ using Wooly.Core.Accounts;
 using Wooly.Core.Conversations;
 using Wooly.Core.Discovery;
 using Wooly.Core.Http;
+using Wooly.Core.Inbox;
 using Wooly.Core.Notifications;
 using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
@@ -42,6 +43,10 @@ namespace Wooly.Tui.Shell;
 /// <param name="RateLimit">What the instance last said is left of the budget, for the rail's foot.</param>
 /// <param name="Limits">How long the instance lets a post be, for compose's count (#319).</param>
 /// <param name="Defaults">What the account posts at where nothing else says, for what compose starts on (#339).</param>
+/// <param name="Stream">
+///     The user stream, which keeps the Inbox badges live for the profile acted as (ADR-0027, #401). Told only what
+///     touches the Inbox; what to read again on hearing it is the shell's.
+/// </param>
 public sealed record ShellPorts(
     ITimelineReader Timelines,
     IPostAuthor Author,
@@ -53,7 +58,8 @@ public sealed record ShellPorts(
     IFollowSuggestions Suggestions,
     IRateLimitReport RateLimit,
     IInstanceLimits Limits,
-    IAccountDefaults Defaults)
+    IAccountDefaults Defaults,
+    IInboxStream Stream)
 {
     /// <summary>
     ///     Where the profile stands with <paramref name="people" />, or them exactly as they came where the instance

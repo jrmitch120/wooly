@@ -12,7 +12,7 @@ namespace Wooly.Tests.Fakes;
 /// </summary>
 internal sealed class FakeAccountRelationships : IAccountRelationships
 {
-    private readonly Fetch<Account> _list;
+    private Fetch<Account> _list;
     private readonly Exception? _refusal;
     private readonly bool _unfinished;
     private Account _subject;
@@ -55,6 +55,12 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
     public List<Stood> Standings { get; } = [];
 
     /// <summary>
+    ///     Forgets every standing asked for so far — what the shell's opening count of Requests asked for, which reads
+    ///     the list the way arriving at it does (#204) — so a test counts only the asks its own steps made.
+    /// </summary>
+    public void ForgetStandings() => Standings.Clear();
+
+    /// <summary>
     ///     Where the profile stands with everyone a batched ask names — the same standing for all of them, since a
     ///     test asserting a row is about what the row says rather than about who is on it. Set to
     ///     <see langword="null" /> for an instance that never answered, which is the state a list draws silent rows
@@ -89,6 +95,9 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
     ///     Answering with a different id is how a test says that somebody moved instances.
     /// </summary>
     public void NowShowing(Account subject) => _subject = subject;
+
+    /// <summary>Who every list holds from here on — a follow request arriving between two reads, say (#399).</summary>
+    public void NowListing(params Account[] listing) => _list = Fetch<Account>.Complete(listing);
 
     /// <summary>An instance whose lists have nobody on them.</summary>
     public static FakeAccountRelationships HoldingNobody() => new(AnAccount.With(), Fetch<Account>.Complete([]));

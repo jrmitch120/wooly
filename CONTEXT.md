@@ -187,6 +187,19 @@ Something an instance tells an account happened to it: somebody mentioned it, fo
 its posts. This project names those four and passes any other kind on under the instance's own word for it (ADR-0010).
 A notification is distinct from the post it is about — it has an id of its own, which is what dismisses it.
 
+**Read marker**:
+How far an account has read its notifications: the id of the newest one it has read, which the instance keeps and
+every client of that account shares. A notification is **unread** when it is newer than the marker — there is no flag
+on the notification itself, and reading is not dismissing: a read notification is still there until dismissed.
+_Avoid_: seen, new (which says when it arrived, not whether it was read)
+
+**Session marker**:
+Where the TUI counts an account's notifications from when the account has no **Read marker**: the newest notification
+it had when the session first counted it, or the beginning where it had none. Kept in the session per profile and never
+sent to the instance, so it reads nothing on the reader's behalf; unused once the account has a marker of its own
+(ADR-0027).
+_Avoid_: stand-in (a picture's box while it loads), local marker
+
 **Visibility**:
 Who a post reaches, one of four from widest to narrowest: public, unlisted, followers and direct. Fixed when the post
 is published — an edit cannot change it — and a reply is never published wider than the post it answers (ADR-0013).
@@ -402,6 +415,23 @@ which is a headed run on a screen: `[`/`]` walk sections, `` ` ``/`~` walk rail 
 not only the notifications that the code's `INotificationInbox` reads.
 _Avoid_: section, box, panel (a rail group is drawn as a panel, but the content is a panel too)
 
+**Unread count**:
+What an **Inbox** destination's badge says is waiting, in the instance's own terms for each: notifications newer than
+the **Read marker**, conversations the instance flags unread, and follow requests not yet answered — a request has no
+read state, and is waiting until it is accepted or rejected. Counted against the instance, so every client of the
+account agrees on it — with one exception: an account with no **Read marker** has nothing the instance says is unread, so
+its notifications are counted against a **Session marker**, which this client keeps for the session only and never
+sends; there the count is this client's own, and only what arrived while it ran. Nothing waiting is drawn as no badge,
+never as `0`; a count that reaches the 40 one read counts is drawn `40+`, the only shape that says "at least" — so
+answering or marking something under it leaves it `40+` until the instance is read again, never `39+`.
+_Avoid_: total, new
+
+**Inbox stream**:
+The instance's live connection for a profile, told only as what touches the **Inbox**: a notification arrived, a
+conversation arrived or changed, the connection came up. It says something happened, never how many: what it touches is
+read again, so the **Unread count** stays the instance's (ADR-0027).
+_Avoid_: feed, push, socket
+
 **Crumb**:
 One **screen** on the stack, as the breadcrumb names it; the breadcrumb is the stack read from the bottom up, the first
 crumb always the **destination**'s own screen and the last the one in front. Walking back to a crumb takes off what
@@ -420,9 +450,11 @@ the bottom of the stack, which keeps that screen's page and pick and reads nothi
 the subject under an **enquiry**, draws what the one cache still holds rather than asking, keeps what came back, sets
 a destination's unread count off the list it is drawn beside, and reads the next page of a list browsed a page at a
 time. A subject says what it reads and what that becomes; nothing about the sequence is said twice.
-The badge is set outright by every read of its destination and moved by the **Change**s between reads — a dismissal
-one fewer, a clear none, never below nothing — so one landing after the reader has gone elsewhere moves the count
-rather than being counted off a list nobody is holding (#234). What a change makes stale is the other half of the same
+The badge is set outright by every read of its destination and moved by the **Change**s between reads — an answered
+request one fewer, a clear none, never below nothing, and a dismissed notification read again, since only the instance
+knows whether it stood above the **Read marker** — so one landing after the reader has gone elsewhere moves the count
+rather than being counted off a list nobody is holding (#234, #396). Notifications' badge is the one not counted off
+its list: it is read alongside, against the marker, the same way the shell counts it on opening (ADR-0027). What a change makes stale is the other half of the same
 thing, and is said here too, in one table (`Arrival.Apply`).
 _Avoid_: load, navigate (for this; a screen is opened _from_ a destination, and a destination is arrived at)
 

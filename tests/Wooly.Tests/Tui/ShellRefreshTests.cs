@@ -139,9 +139,12 @@ public class ShellRefreshTests
         Assert.True(opened.NoticeIsError);
     }
 
-    /// <summary>The badge moves with the list it is drawn beside, the same as at any other arrival.</summary>
+    /// <summary>
+    ///     A refresh reads what it redraws, the same as arriving does: the marker moves past what arrived, the badge
+    ///     stays clear, and what arrived is drawn unread (#397).
+    /// </summary>
     [Fact]
-    public async Task Refresh_MovesTheBadgeWithTheCountItRedrawsFrom()
+    public async Task Refresh_ReadsWhatItRedraws()
     {
         var shell = new AShell { Notifications = FakeNotificationInbox.Holding(ANotification.With(id: "1")) };
         var opened = await shell.Opened();
@@ -149,9 +152,9 @@ public class ShellRefreshTests
         opened.Step(6);
         shell.Host.Settle();
 
-        Assert.Equal(1, Badge(opened, DestinationKind.Notifications));
+        Assert.Equal(0, Badge(opened, DestinationKind.Notifications));
 
-        shell.Notifications.NowHolding(ANotification.With(id: "1"), ANotification.With(id: "2"));
+        shell.Notifications.NowHolding(ANotification.With(id: "2"), ANotification.With(id: "1"));
 
         await opened.Refresh();
         shell.Host.Drain();
@@ -159,7 +162,9 @@ public class ShellRefreshTests
         var notifications = Assert.IsType<NotificationsScreen>(opened.Screen);
 
         Assert.Equal(2, notifications.Notifications.Count);
-        Assert.Equal(2, Badge(opened, DestinationKind.Notifications));
+        Assert.Equal(["1", "2"], shell.Notifications.MarkerMoves.Select(move => move.NotificationId));
+        Assert.Equal(0, Badge(opened, DestinationKind.Notifications));
+        Assert.Equal(["2"], notifications.Notifications.Where(notifications.IsUnread).Select(waiting => waiting.Id));
     }
 
     /// <summary>Each of the seven destinations that read a list is refreshed by the arrival it already arrives by.</summary>

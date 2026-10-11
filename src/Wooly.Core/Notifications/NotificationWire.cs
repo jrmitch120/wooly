@@ -31,7 +31,7 @@ internal static class NotificationWire
     ///     <c>reblog</c> and <c>favourite</c> reach anything above this layer as a boost and a favorite (CONTEXT.md) —
     ///     and anything else keeps the instance's own word, per <see cref="NotificationKind.Reported" />.
     /// </summary>
-    private static NotificationKind ToKind(string type) => type switch
+    internal static NotificationKind ToKind(string type) => type switch
     {
         "mention" => NotificationKind.Mention,
         "follow" => NotificationKind.Follow,

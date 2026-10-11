@@ -10,14 +10,27 @@ namespace Wooly.Tui.Screens;
 ///     What is waiting for this profile: who mentioned it, followed it, boosted or favorited one of its posts — and
 ///     anything else the instance thought worth saying, under the instance's own word for it (ADR-0010). A rail
 ///     destination, not a modal: it carries the unread count that was already on screen.
+///     <para>
+///         Arriving here reads what is waiting, which moves the read marker past it and clears the badge (ADR-0027) —
+///         so the rows that were unread when the reader arrived are marked here instead, for as long as this visit
+///         lasts (#397). Reading is never dismissing: they stay in the list.
+///     </para>
 /// </summary>
 /// <remarks>
 ///     A notification is not the post it is about (CONTEXT.md), and the difference is load-bearing here: <c>d</c>
 ///     dismisses the notification by its own id and leaves the post exactly where it was, while every other key on the
 ///     row acts on the post — so the two ids are kept apart rather than one standing in for the other.
 /// </remarks>
-public sealed class NotificationsScreen(IReadOnlyList<Notification> notifications, string? notice = null) : Screen
+/// <param name="notifications">What is waiting, newest first.</param>
+/// <param name="notice">What the shell has to say about the inbox as a whole, if anything.</param>
+/// <param name="unread">The ids of the notifications to draw unread for this visit; none where not said.</param>
+public sealed class NotificationsScreen(
+    IReadOnlyList<Notification> notifications,
+    string? notice = null,
+    IReadOnlySet<string>? unread = null) : Screen
 {
+    private readonly HashSet<string> _unread = new(unread ?? new HashSet<string>(), StringComparer.Ordinal);
+
     // Named by the notification's own id, which is not the id of the post it is about (CONTEXT.md) — and is what a
     // refresh puts the reader back on (#84).
     private readonly Picked<Notification> _notifications = new(notifications);
@@ -53,6 +66,12 @@ public sealed class NotificationsScreen(IReadOnlyList<Notification> notification
     ///     a rate limit cut the read short.
     /// </summary>
     public string? Notice { get; } = notice;
+
+    /// <summary>
+    ///     Whether <paramref name="notification" /> was newer than the read marker when the reader arrived, and so is
+    ///     drawn unread for this visit.
+    /// </summary>
+    public bool IsUnread(Notification notification) => _unread.Contains(notification.Id);
 
     /// <summary>The notification picked out, or <see langword="null" /> where nothing is waiting.</summary>
     public Notification? PickedNotification => _notifications.Out;
@@ -98,6 +117,25 @@ public sealed class NotificationsScreen(IReadOnlyList<Notification> notification
         }
 
         return false;
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    ///     The unread ones not already on screen, drawn unread for the rest of this visit — the shell moves the read
+    ///     marker past them as it would have on arriving, so this screen is the only thing left saying they are new.
+    /// </remarks>
+    public override int PutOnTop(InboxList found)
+    {
+        if (found is not InboxList.Notifications(var unread))
+        {
+            return 0;
+        }
+
+        var put = _notifications.TakeIn(unread, notification => notification.Id);
+
+        _unread.UnionWith(put.Select(notification => notification.Id));
+
+        return put.Count;
     }
 
     /// <summary>What this screen's own keys do: <c>d</c> dismisses the picked notification, and <c>D</c> all of them.</summary>
@@ -186,7 +224,7 @@ public sealed class NotificationsScreen(IReadOnlyList<Notification> notification
         // rather than a preference this screen was exempt from (#71).
         IReadOnlyList<Line> Draw(Notification notification, int at, int room)
         {
-            var rows = new List<Line> { Happened(notification, room, drawing.Now) };
+            var rows = new List<Line> { Happened(notification, IsUnread(notification), room, drawing.Now) };
 
             if (notification.Post is { } post)
             {
@@ -203,21 +241,27 @@ public sealed class NotificationsScreen(IReadOnlyList<Notification> notification
     ///     What happened, in one row: who did it, what they did, and how long ago. What they did is asked of the kind
     ///     itself, so that a mention is described here in the same words the CLI's report describes it in — and a kind
     ///     this client has never heard of is drawn under the instance's own word rather than dropped from a list whose
-    ///     whole job is to say what is waiting (ADR-0010).
+    ///     whole job is to say what is waiting (ADR-0010). One that was unread when the reader arrived says so before
+    ///     its age, in <see cref="Role.RailUnread" />, the role of the badge that counted it.
     /// </summary>
-    private static Line Happened(Notification notification, int width, DateTimeOffset now)
+    private static Line Happened(Notification notification, bool unread, int width, DateTimeOffset now)
     {
         var age = Elapsed.Since(notification.ReceivedAt, now);
+
+        // The word, as an unread conversation carries it, and for the same reason (ConversationLines.With) — and so
+        // that it reads with no colour (ADR-0014).
+        var mark = unread ? $"{ConversationLines.UnreadMark} " : string.Empty;
         var did = $" {notification.Kind.Does}";
-        var room = Math.Max(0, width - Glyphs.Columns(age) - Glyphs.Columns(did) - 2);
+        var room = Math.Max(0, width - Glyphs.Columns(age) - Glyphs.Columns(mark) - Glyphs.Columns(did) - 2);
 
         var name = new Span(TextWrap.Clip(notification.Author, room), Role.BylineName);
-        var used = name.Width + Glyphs.Columns(did);
+        var used = name.Width + Glyphs.Columns(did) + Glyphs.Columns(mark);
 
         return Line.Of([
             name,
             new Span(did, Role.Muted),
             new Span(new string(' ', Math.Max(1, width - used - Glyphs.Columns(age))), Role.Muted),
+            .. unread ? [new Span(mark, Role.RailUnread)] : Array.Empty<Span>(),
             new Span(age, Role.Muted),
         ]);
     }

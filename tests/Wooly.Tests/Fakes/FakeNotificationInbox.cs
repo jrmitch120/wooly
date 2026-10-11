@@ -49,20 +49,126 @@ internal sealed class FakeNotificationInbox(Fetch<Notification> fetch) : INotifi
     public void NowHolding(params Notification[] notifications) =>
         _fetch = Fetch<Notification>.Complete(notifications);
 
-    public Task<Fetch<Notification>> Read(ActiveProfile profile, int limit, CancellationToken cancellationToken)
+    /// <summary>
+    ///     Where set, what a read of the list waits for before it answers — and only that read, so that a test can hold
+    ///     an arrival in flight while a count is read past it. It answers with what the inbox held when it was asked,
+    ///     as an instance would: what arrives during the wait is not on it.
+    /// </summary>
+    public TaskCompletionSource? ReadsWaitFor { get; set; }
+
+    public async Task<Fetch<Notification>> Read(ActiveProfile profile, int limit, CancellationToken cancellationToken)
     {
         Reads.Add(new Call(profile.Name, limit));
         Tokens.Add(profile.AccessToken);
 
-        return ByProfile.TryGetValue(profile.Name, out var answer) ? answer() : Task.FromResult(_fetch);
+        var held = _fetch;
+
+        if (ReadsWaitFor is { } waiting)
+        {
+            await waiting.Task;
+        }
+
+        return ByProfile.TryGetValue(profile.Name, out var answer) ? await answer() : held;
     }
 
-    public Task Dismiss(ActiveProfile profile, string notificationId, CancellationToken cancellationToken)
+    /// <summary>
+    ///     The account's read marker: the id of the newest notification it has read, or <see langword="null" /> for an
+    ///     account that has never had one. Nothing read by default — <c>"0"</c>, below every id a test hands it — so
+    ///     what the inbox holds is all unread unless a test says otherwise.
+    /// </summary>
+    public string? Marker { get; set; } = "0";
+
+    /// <summary>Every read of what is unread it was asked for, in order.</summary>
+    public List<Call> UnreadReads { get; } = [];
+
+    /// <summary>
+    ///     What it holds above <see cref="Marker" />, up to <paramref name="limit" /> — compared as numbers, the way an
+    ///     instance's ids order. A read cut short by a rate limit is cut short here too.
+    /// </summary>
+    public async Task<UnreadNotifications> ReadUnread(
+        ActiveProfile profile,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        UnreadReads.Add(new Call(profile.Name, limit));
+        Tokens.Add(profile.AccessToken);
+
+        if (Marker is not { } marker)
+        {
+            return UnreadNotifications.NoMarker;
+        }
+
+        var held = ByProfile.TryGetValue(profile.Name, out var answer) ? await answer() : _fetch;
+        var since = held.Items.Where(notification => Newer(notification.Id, marker)).Take(limit).ToList();
+
+        return new UnreadNotifications(
+            marker,
+            held.StoppedBy is { } stoppedBy
+                ? Fetch<Notification>.StoppedShort(since, stoppedBy)
+                : Fetch<Notification>.Complete(since));
+    }
+
+    /// <summary>
+    ///     What it holds newer than <paramref name="notificationId" />, up to <paramref name="limit" /> — recorded among
+    ///     <see cref="UnreadReads" />, being the same read from an id the caller names.
+    /// </summary>
+    public async Task<Fetch<Notification>> ReadNewer(
+        ActiveProfile profile,
+        string notificationId,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        UnreadReads.Add(new Call(profile.Name, limit));
+        Tokens.Add(profile.AccessToken);
+
+        var held = ByProfile.TryGetValue(profile.Name, out var answer) ? await answer() : _fetch;
+        var newer = held.Items.Where(notification => Newer(notification.Id, notificationId)).Take(limit).ToList();
+
+        return held.StoppedBy is { } stoppedBy
+            ? Fetch<Notification>.StoppedShort(newer, stoppedBy)
+            : Fetch<Notification>.Complete(newer);
+    }
+
+    /// <summary>Every move of the marker it was asked for, in order — whether or not it took it.</summary>
+    public List<Dismissed> MarkerMoves { get; } = [];
+
+    /// <summary>Whether it turns every move of the marker down, as an instance that refused or was not reached would.</summary>
+    public bool TurnsMarkerMovesDown { get; set; }
+
+    /// <summary>Moves <see cref="Marker" /> to <paramref name="notificationId" />, unless it turns moves down.</summary>
+    public Task<bool> MoveMarker(ActiveProfile profile, string notificationId, CancellationToken cancellationToken)
+    {
+        MarkerMoves.Add(new Dismissed(profile.Name, notificationId));
+        Tokens.Add(profile.AccessToken);
+
+        if (TurnsMarkerMovesDown)
+        {
+            return Task.FromResult(false);
+        }
+
+        Marker = notificationId;
+
+        return Task.FromResult(true);
+    }
+
+    /// <summary>
+    ///     Where set, what a dismissal waits for before it answers — so that a test can hold one in flight while a
+    ///     count is read past it.
+    /// </summary>
+    public TaskCompletionSource? DismissalsWaitFor { get; set; }
+
+    public async Task Dismiss(ActiveProfile profile, string notificationId, CancellationToken cancellationToken)
     {
         Dismissals.Add(new Dismissed(profile.Name, notificationId));
         Tokens.Add(profile.AccessToken);
 
-        return Task.CompletedTask;
+        if (DismissalsWaitFor is { } waiting)
+        {
+            await waiting.Task;
+        }
+
+        // Gone from the instance, so a later read — of the list or of what is unread — no longer finds it.
+        _fetch = _fetch with { Items = [.. _fetch.Items.Where(notification => notification.Id != notificationId)] };
     }
 
     public Task Clear(ActiveProfile profile, CancellationToken cancellationToken)
@@ -72,6 +178,10 @@ internal sealed class FakeNotificationInbox(Fetch<Notification> fetch) : INotifi
 
         return Task.CompletedTask;
     }
+
+    /// <summary>Whether <paramref name="id" /> is newer than <paramref name="than" />: longer, or later at the same length.</summary>
+    private static bool Newer(string id, string than) =>
+        id.Length != than.Length ? id.Length > than.Length : string.CompareOrdinal(id, than) > 0;
 
     /// <summary>One read: which profile it was made as, and how many notifications it wanted.</summary>
     internal sealed record Call(string Profile, int Limit);

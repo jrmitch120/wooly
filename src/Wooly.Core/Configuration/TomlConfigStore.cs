@@ -25,6 +25,9 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
     /// <summary>Whether a drawn picture's caption hides once the picture is actually drawn (#71).</summary>
     private const string HideDrawnCaptionKey = "hide_drawn_caption";
 
+    /// <summary>Whether a rising Inbox badge rings the terminal's bell (#399).</summary>
+    private const string BellKey = "bell";
+
     /// <summary>The theme the TUI draws in, and the themes written in this same file (#46).</summary>
     private const string ThemeKey = "theme";
 
@@ -66,7 +69,7 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
 
         // Inserted before the profiles so the writer emits the short, general section above the long, per-profile one.
         if (config.Preferences is { DefaultVisibility: not null } or { DefaultLanguage: not null } or { Hashtag: not null }
-            or { HideDrawnCaption: true })
+            or { HideDrawnCaption: true } or { Bell: false })
         {
             var preferences = new TomlTable();
 
@@ -90,6 +93,13 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
             if (config.Preferences.HideDrawnCaption)
             {
                 preferences[HideDrawnCaptionKey] = true;
+            }
+
+            // Absent rather than written as true, for the same reason the other way round: on is what an absent key
+            // reads back as (#399).
+            if (!config.Preferences.Bell)
+            {
+                preferences[BellKey] = false;
             }
 
             root[PreferencesKey] = preferences;
@@ -277,6 +287,7 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
             DefaultLanguage = ReadLanguage(stored),
             Hashtag = ReadHashtag(stored),
             HideDrawnCaption = ReadBool(stored, HideDrawnCaptionKey),
+            Bell = ReadBool(stored, BellKey, whenAbsent: true),
         };
     }
 
@@ -328,9 +339,9 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
         ? value as string ?? throw new ConfigurationException(paths.ConfigFile, $"'{key}' must be text.")
         : null;
 
-    private bool ReadBool(TomlTable table, string key) => table.TryGetValue(key, out var value)
+    private bool ReadBool(TomlTable table, string key, bool whenAbsent = false) => table.TryGetValue(key, out var value)
         ? value as bool? ?? throw new ConfigurationException(paths.ConfigFile, $"'{key}' must be true or false.")
-        : false;
+        : whenAbsent;
 
     private TomlTable? ReadTable(TomlTable table, string key) => table.TryGetValue(key, out var value)
         ? value as TomlTable ?? throw new ConfigurationException(paths.ConfigFile, $"'{key}' must be a section.")

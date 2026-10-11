@@ -4,8 +4,17 @@
 # certificate to answer a "localhost" ClientHello with and the handshake fails with "no certificate available". The
 # port a test dials (127.0.0.1:34443, mapped in docker-compose.yml) is outside this file's business — Caddy only
 # needs to know what it listens on inside the container.
+#
+# The streaming path goes to the streaming service (#401) and everything else to web, as a real Mastodon's proxy splits
+# them; websockets pass through reverse_proxy as they are.
 localhost:443 {
 	tls internal
 
-	reverse_proxy web:3000
+	handle /api/v1/streaming* {
+		reverse_proxy streaming:4000
+	}
+
+	handle {
+		reverse_proxy web:3000
+	}
 }

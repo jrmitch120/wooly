@@ -235,6 +235,37 @@ public class RailLinesTests
     }
 
     /// <summary>
+    ///     A badge whose read came back full says at least that many, as <c>40+</c>, in its own role, in every mode —
+    ///     and a count of nothing is no badge at all (#396).
+    /// </summary>
+    [Theory]
+    [InlineData(23, true)]
+    [InlineData(23, false)]
+    [InlineData(18, true)]
+    [InlineData(18, false)]
+    public void Of_DrawsAFullCountAsAtLeastThatMany(int height, bool coloured)
+    {
+        var host = new FakeShellHost();
+        var rail = new Rail(
+            [
+                new Destination(DestinationKind.Home, "Home"),
+                new Destination(DestinationKind.Notifications, "Notifications") { Unread = 40, Full = true },
+                new Destination(DestinationKind.Messages, "Direct messages") { Unread = 0 },
+            ],
+            host,
+            TimeSpan.FromMilliseconds(250));
+
+        var drawn = RailLines.Of(rail, Plenty, height, coloured: coloured);
+
+        var notifications = Row(drawn, "Notificat");
+        Assert.EndsWith(" 40+", notifications.Text.TrimEnd('│'), StringComparison.Ordinal);
+        Assert.Contains(notifications.Spans, span => span is { Role: Role.RailUnread, Text: "40+" });
+
+        Assert.DoesNotContain(Row(drawn, "Direct me").Spans, span => span.Role == Role.RailUnread);
+        Assert.DoesNotContain("0", Row(drawn, "Direct me").Text, StringComparison.Ordinal);
+    }
+
+    /// <summary>
     ///     An unread count is parted from its label by a column, in every mode: a label too long for the room is clipped
     ///     to leave it, so it never runs into the number (<c>Notifications4</c>) and the number is never what is cut.
     /// </summary>

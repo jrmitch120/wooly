@@ -28,6 +28,46 @@ public interface INotificationInbox
     /// </returns>
     Task<Fetch<Notification>> Read(ActiveProfile profile, int limit, CancellationToken cancellationToken);
 
+    /// <summary>
+    ///     Reads up to <paramref name="limit" /> of the notifications newer than the account's read marker, newest
+    ///     first — every kind, as <see cref="Read" /> reads them (ADR-0010) — or learns that the account has no marker,
+    ///     and so nothing unread (ADR-0027).
+    /// </summary>
+    /// <param name="profile">The profile to read as.</param>
+    /// <param name="limit">
+    ///     The most that are wanted. A read that comes back with this many is all the caller can say for certain:
+    ///     there may be more past it.
+    /// </param>
+    Task<UnreadNotifications> ReadUnread(ActiveProfile profile, int limit, CancellationToken cancellationToken);
+
+    /// <summary>
+    ///     Reads up to <paramref name="limit" /> of the notifications newer than <paramref name="notificationId" />,
+    ///     newest first, every kind — the read <see cref="ReadUnread" /> makes past the marker, from an id the caller
+    ///     names instead. What an account with no marker counts what arrives from (ADR-0027).
+    /// </summary>
+    /// <param name="profile">The profile to read as.</param>
+    /// <param name="notificationId">The notification to read from, by its own id; it is not among what comes back.</param>
+    /// <param name="limit">The most that are wanted; a read that comes back with this many may have more past it.</param>
+    Task<Fetch<Notification>> ReadNewer(
+        ActiveProfile profile,
+        string notificationId,
+        int limit,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    ///     Moves the account's read marker to <paramref name="notificationId" />, so that it and everything older count
+    ///     as read — for every client of the account, since the marker is the instance's (ADR-0027). Nothing is
+    ///     dismissed: every notification stays where a read finds it.
+    /// </summary>
+    /// <param name="profile">The profile whose marker it is.</param>
+    /// <param name="notificationId">The newest notification read, by its own id.</param>
+    /// <returns>
+    ///     Whether the instance took the move. One it turned down, or never heard because a rate limit or the network
+    ///     stopped it, is <see langword="false" /> rather than a failure: the marker only clears a badge, and a badge
+    ///     left standing is the whole of what went wrong.
+    /// </returns>
+    Task<bool> MoveMarker(ActiveProfile profile, string notificationId, CancellationToken cancellationToken);
+
     /// <summary>Clears the single notification <paramref name="notificationId" /> names.</summary>
     /// <param name="notificationId">
     ///     The notification's own id, as a read reports it — not the id of the post it is about.

@@ -1,3 +1,5 @@
+using Wooly.Core.Errors;
+using Wooly.Core.Http;
 using Wooly.Core.Paging;
 using Wooly.Core.Profiles;
 
@@ -14,7 +16,13 @@ namespace Wooly.Core.Notifications;
 ///     Nothing here retries and nothing here waits. A dismissal the instance answered is never sent again, because
 ///     ADR-0006 resends nothing an instance has already taken, and a rate limit is reported rather than slept off.
 /// </summary>
-public sealed class NotificationInbox(IMastodonClientFactory clientFactory) : INotificationInbox
+/// <remarks>
+///     The read marker is the one thing read around Mastonet rather than through it, by <see cref="RawMastodonCall" />
+///     over the same <see cref="HttpClient" />: Mastonet 3.1.3 has the call but cannot read the answer
+///     (<see cref="MarkersWire" />).
+/// </remarks>
+public sealed class NotificationInbox(IMastodonClientFactory clientFactory, IHttpClientFactory httpClientFactory)
+    : INotificationInbox
 {
     /// <summary>
     ///     The most notifications Mastodon serves in one call. Ten fewer than a timeline's page, which is why the loop
@@ -35,6 +43,92 @@ public sealed class NotificationInbox(IMastodonClientFactory clientFactory) : IN
             notification => NotificationWire.ToNotification(notification, profile),
             notification => notification.Id,
             cancellationToken);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    ///     Two questions: where the marker is, then what is above it (<see cref="ReadNewer" />).
+    /// </remarks>
+    public async Task<UnreadNotifications> ReadUnread(
+        ActiveProfile profile,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var markers = await RawMastodonCall.Get<MarkersWire>(
+            httpClientFactory,
+            profile,
+            "api/v1/markers",
+            [new KeyValuePair<string, string>("timeline[]", "notifications")],
+            cancellationToken);
+
+        if (markers?.Notifications is not { LastReadId: { Length: > 0 } since })
+        {
+            return UnreadNotifications.NoMarker;
+        }
+
+        return new UnreadNotifications(since, await ReadNewer(profile, since, limit, cancellationToken));
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    ///     The id carried onto every page as <c>since_id</c>, because the instance's link to the next page names only
+    ///     where that page starts — left to the link, a second page would run on past it.
+    /// </remarks>
+    public async Task<Fetch<Notification>> ReadNewer(
+        ActiveProfile profile,
+        string notificationId,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        var client = clientFactory.CreateClient(profile.Instance, profile.AccessToken);
+
+        return await PagedReading.Collect(
+            limit,
+            PageSize,
+            options =>
+            {
+                options.SinceId = notificationId;
+
+                return client.GetNotifications(options);
+            },
+            notification => NotificationWire.ToNotification(notification, profile),
+            notification => notification.Id,
+            cancellationToken);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    ///     Sent raw for the same reason the marker is read raw: Mastonet's <c>SetMarkers</c> reads its answer as the
+    ///     marker it cannot read (<see cref="MarkersWire" />), so the library's call would throw on a move the instance
+    ///     had made. The answer is not read here at all — whether the instance took it is all the port promises.
+    /// </remarks>
+    public async Task<bool> MoveMarker(
+        ActiveProfile profile,
+        string notificationId,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        try
+        {
+            using var response = await RawMastodonCall.Sent(
+                httpClientFactory,
+                profile,
+                HttpMethod.Post,
+                "api/v1/markers",
+                new FormUrlEncodedContent([
+                    new KeyValuePair<string, string>("notifications[last_read_id]", notificationId),
+                ]),
+                cancellationToken);
+
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception unsent) when (unsent is RateLimitedException or TransientNetworkException)
+        {
+            return false;
+        }
     }
 
     /// <inheritdoc />

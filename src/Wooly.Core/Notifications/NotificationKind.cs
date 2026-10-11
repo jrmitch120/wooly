@@ -50,6 +50,12 @@ public sealed record NotificationKind
     public static NotificationKind Reported(string reported) => new(reported);
 
     /// <summary>
+    ///     Whether this is somebody asking to follow a locked account — a kind this client does not name, so kept under
+    ///     the instance's <c>follow_request</c>, but one the Requests badge counts as well as Notifications (#401).
+    /// </summary>
+    public bool AsksToFollow => Name == "follow_request";
+
+    /// <summary>
     ///     What the account did, said the way this project says it, for a front end writing a sentence about it —
     ///     <c>Alice mentioned you</c>.
     /// </summary>

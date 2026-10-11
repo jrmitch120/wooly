@@ -653,4 +653,12 @@ public abstract class Screen
     ///     stack.
     /// </returns>
     public virtual bool Heard(Change change) => false;
+
+    /// <summary>
+    ///     Puts at the top of this screen whatever of <paramref name="found" /> is new to it, keeping the same thing
+    ///     picked out — told only to the screen in front, after a re-read of an Inbox count (#400). Not an
+    ///     <b>Arrival</b>: nothing is read, and the screen stays the one it was.
+    /// </summary>
+    /// <returns>How many things were put on screen; none on every screen but the Inbox's three.</returns>
+    public virtual int PutOnTop(InboxList found) => 0;
 }

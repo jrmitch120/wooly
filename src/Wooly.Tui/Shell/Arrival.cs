@@ -29,9 +29,10 @@ namespace Wooly.Tui.Shell;
 ///         put — the question is asked from it — and why nothing here counts arrivals.
 ///     </para>
 ///     <para>
-///         A badge is set outright by every read of its destination, off the list it is drawn beside, and moved by
-///         the changes between reads (<see cref="Apply" />) — so a dismissal landing after the reader has gone
-///         elsewhere is one fewer, rather than a count taken off a list nobody is holding any more.
+///         A badge is set outright by every read of its destination, counted as <see cref="InboxCount" /> says, and
+///         moved — or read again — by the changes between reads (<see cref="Apply" />) — so an answer landing after
+///         the reader has gone elsewhere still reaches the badge, rather than a count taken off a list nobody is
+///         holding any more.
 ///     </para>
 /// </remarks>
 /// <param name="profile">Whose instance is being asked.</param>
@@ -39,12 +40,17 @@ namespace Wooly.Tui.Shell;
 /// <param name="enquiry">What every question is put under.</param>
 /// <param name="cache">What each cached subject last held, which is what makes walking the rail back free.</param>
 /// <param name="showing">Which destination the rail is showing, which a post sent there is on.</param>
+/// <param name="sessionMarkers">
+///     Where an account with no read marker counts its notifications from this session, which arriving at
+///     Notifications counts against (story 8).
+/// </param>
 public sealed class Arrival(
     ActiveProfile profile,
     ShellPorts ports,
     Enquiry enquiry,
     SubjectCache cache,
-    Func<DestinationKind> showing)
+    Func<DestinationKind> showing,
+    SessionMarkers sessionMarkers)
 {
     /// <summary>
     ///     How many posts a screen asks for. A timeline's page, which is the most an instance serves in one call — so
@@ -76,14 +82,35 @@ public sealed class Arrival(
     /// <summary>Raised where an answer was read into the screen already showing rather than into a new one.</summary>
     public event Action? Filled;
 
-    /// <summary>Raised with what a destination's badge says, for the destinations that carry one.</summary>
-    public event Action<DestinationKind, int>? Counts;
+    /// <summary>
+    ///     Raised with what a destination's badge says, for the destinations that carry one: how many, and whether the
+    ///     read that counted them came back full (<see cref="Found.Badge.Full" />).
+    /// </summary>
+    internal event Action<Found.Badge>? Counts;
 
     /// <summary>Raised with how far a destination's badge moves, for a change made between reads of it.</summary>
     public event Action<DestinationKind, int>? Moves;
 
+    /// <summary>
+    ///     Raised with a destination whose badge a change has made unknown, for it to be read again the way the shell
+    ///     reads it on opening (<see cref="InboxCount" />) — where what changed cannot say how far the count moved.
+    /// </summary>
+    public event Action<DestinationKind>? Rereads;
+
     /// <summary>Raised with a change, for every screen on the stack to hear (<see cref="Screen.Heard" />).</summary>
     public event Action<Change>? Heard;
+
+    /// <summary>
+    ///     Raised, on the drawing thread, with a destination whose own list is being read — arrived at or refreshed,
+    ///     and not paged — as the read is put (<see cref="ListReads" />).
+    /// </summary>
+    internal event Action<DestinationKind>? ListReading;
+
+    /// <summary>
+    ///     Raised with that destination once its list read is over, landed or not — from whichever thread the read
+    ///     finished on, after its answer has been handed to the drawing thread.
+    /// </summary>
+    internal event Action<DestinationKind>? ListRead;
 
     /// <summary>
     ///     What a list that came back with little or nothing on it is told. A rate limit that stopped the read part
@@ -163,7 +190,7 @@ public sealed class Arrival(
                 return Bring(own, Move.Arrive, blank);
 
             default:
-                return Bring(new Subject.Destination(destination), Move.Arrive);
+                return Bring(new Subject.Destination(destination, sessionMarkers), Move.Arrive);
         }
     }
 
@@ -257,15 +284,17 @@ public sealed class Arrival(
 
                 break;
 
-            case Change.NotificationsGone(var ids):
+            // Read again rather than moved: whether a dismissed notification was waiting is where it stood against
+            // the read marker, which only the instance knows (ADR-0027).
+            case Change.NotificationsGone:
                 Forget(DestinationKind.Notifications);
-                Moves?.Invoke(DestinationKind.Notifications, -ids.Count);
+                Rereads?.Invoke(DestinationKind.Notifications);
 
                 break;
 
             case Change.AllNotificationsGone:
                 Forget(DestinationKind.Notifications);
-                Counts?.Invoke(DestinationKind.Notifications, 0);
+                Counts?.Invoke(new Found.Badge(DestinationKind.Notifications, 0));
 
                 break;
 
@@ -324,25 +353,44 @@ public sealed class Arrival(
     }
 
     /// <summary>Asks for it, and lands what came back while the screen it was asked from is still in front.</summary>
-    private Task Read(Subject subject, Move move, Screen? standing, Action? beneath = null) =>
-        enquiry.Put(
-            ask => subject.Read(ask, ports, profile, standing),
-            ifStillHere: found =>
+    private async Task Read(Subject subject, Move move, Screen? standing, Action? beneath = null)
+    {
+        DestinationKind? listing = move != Move.Page && subject is Subject.Destination { Kind: var kind } ? kind : null;
+
+        if (listing is { } reading)
+        {
+            ListReading?.Invoke(reading);
+        }
+
+        try
+        {
+            await enquiry.Put(
+                ask => subject.Read(ask, ports, profile, standing),
+                ifStillHere: found =>
+                {
+                    beneath?.Invoke();
+
+                    var screen = Land(subject, move, standing, found);
+
+                    if (subject.Cached && found.Held(screen) is { } held)
+                    {
+                        cache.Keep(subject, held);
+                    }
+
+                    if (found.ReadsOn(screen))
+                    {
+                        _ = Read(subject, Move.Page, screen);
+                    }
+                });
+        }
+        finally
+        {
+            if (listing is { } read)
             {
-                beneath?.Invoke();
-
-                var screen = Land(subject, move, standing, found);
-
-                if (subject.Cached && found.Held(screen) is { } held)
-                {
-                    cache.Keep(subject, held);
-                }
-
-                if (found.ReadsOn(screen))
-                {
-                    _ = Read(subject, Move.Page, screen);
-                }
-            });
+                ListRead?.Invoke(read);
+            }
+        }
+    }
 
     /// <summary>
     ///     What every answer ends with: the screen where the move puts it, and the badge beside it read off the same
@@ -363,7 +411,7 @@ public sealed class Arrival(
 
         if (found.Counted is { } badge)
         {
-            Counts?.Invoke(badge.Kind, badge.Unread);
+            Counts?.Invoke(badge);
         }
 
         return screen;

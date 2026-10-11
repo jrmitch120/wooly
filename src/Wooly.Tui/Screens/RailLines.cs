@@ -251,7 +251,10 @@ public static class RailLines
         var current = at == rail.Current;
         var role = current ? Role.RailCurrent : coloured && at == rail.Cursor ? Role.RailCursor : Role.Rail;
 
-        var unread = destination.Unread > 0 ? destination.Unread.ToString(CultureInfo.CurrentCulture) : string.Empty;
+        // Nothing waiting is no badge rather than a 0, and a read that came back full is at least that many (#396).
+        var unread = destination.Unread > 0
+            ? destination.Unread.ToString(CultureInfo.CurrentCulture) + (destination.Full ? "+" : string.Empty)
+            : string.Empty;
 
         // A column between a label and its count, so that a label clipped to the room ends in its ellipsis and a gap
         // rather than running into the number.

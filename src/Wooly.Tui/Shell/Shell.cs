@@ -148,6 +148,12 @@ public sealed class Shell
     /// </summary>
     private RateLimitQuota? _quotaBeforeSwitch;
 
+    /// <summary>
+    ///     The Inbox's badges, kept live for the profile acted as by the poll and the stream, and the bell rung where
+    ///     one rises (ADR-0027, #398, #399, #401).
+    /// </summary>
+    private readonly InboxBadges _badges;
+
     /// <summary>How long each instance lets a post be, asked as posts are first written there (#319).</summary>
     private readonly LimitsByInstance _limits;
 
@@ -182,8 +188,8 @@ public sealed class Shell
     ///     Who to act as — or, with nobody, what to open onto instead: adding a profile, as the only screen (#247).
     /// </param>
     /// <param name="preferences">
-    ///     The config file's preferences: the hashtag the rail keeps a place for, and what compose starts on. None
-    ///     where the file sets none.
+    ///     The config file's preferences: the hashtag the rail keeps a place for, what compose starts on, and whether a
+    ///     rising Inbox badge rings the bell. None where the file sets none.
     /// </param>
     /// <param name="launchedFrom">
     ///     The folder Wooly was launched from, where the file browser first opens (#376): the working folder, where
@@ -222,6 +228,7 @@ public sealed class Shell
         _preferred = new PostDefaults(preferences?.DefaultVisibility, preferences?.DefaultLanguage);
 
         Rail = new Rail(Destinations(opening.Profile, _hashtag), host, timing.Settle);
+        _badges = new InboxBadges(ports, Rail, host, clock, timing, ringing: preferences?.Bell ?? true, Landed);
 
         Begin(opening.Profile);
 
@@ -256,6 +263,13 @@ public sealed class Shell
     ///     what is redrawn for it is the one row it is on rather than everything <see cref="Changed" /> redraws.
     /// </summary>
     public event Action? Ticked;
+
+    /// <summary>
+    ///     Raised just before <see cref="Changed" />, where things have been put at the top of the screen in front with
+    ///     the same thing still picked out — so that whatever draws it can keep that thing on the row of the page it was
+    ///     on, and nothing jumps under the reader (#400). Always on the drawing thread.
+    /// </summary>
+    public event Action? Grew;
 
     /// <summary>The rail: the ten destinations, the cursor, and the selection.</summary>
     public Rail Rail { get; }
@@ -382,7 +396,10 @@ public sealed class Shell
     /// </summary>
     private Acting Actor => _acting ?? throw new InvalidOperationException("Nobody is being acted as.");
 
-    /// <summary>Opens the shell onto its first destination, and reads the counts the rail carries.</summary>
+    /// <summary>
+    ///     Opens the shell onto its first destination, keeping the Inbox live from the start, and reads the counts the
+    ///     rail carries once that destination has been read.
+    /// </summary>
     /// <remarks>
     ///     The counts are asked as whoever was acted as when this was called, and not at all where a switch has come
     ///     between — the switch opens the shell again for the new profile, counts and all (#243). Nothing with nobody
@@ -397,11 +414,16 @@ public sealed class Shell
 
         var abandoned = _enquiry.Abandoned;
 
+        // Kept live from the moment the session starts rather than once the first destination has been read, which a
+        // slow or hung read would hold back (ADR-0027). Read as whoever is acted as when a count is read again, so a
+        // profile signed in again (#248) is read with its new token.
+        _badges.KeepLive(() => _acting?.Profile, abandoned);
+
         await acting.Arrival.At(Rail.Showing);
 
         if (!abandoned.IsCancellationRequested)
         {
-            await Counts(acting.Profile, abandoned);
+            await _badges.Reread(acting.Profile, abandoned, InboxCount.Kinds);
         }
     }
 
@@ -1755,11 +1777,17 @@ public sealed class Shell
     ///     reads in <paramref name="cache" /> — fresh at launch and at a switch, and the same enquiry and cache again
     ///     where the profile acted as has only been signed in again (#248).
     /// </summary>
-    private Acting Acts(ActiveProfile profile, Enquiry enquiry, SubjectCache cache)
+    private Acting Acts(ActiveProfile profile, Enquiry enquiry, SubjectCache cache, ListReads? lists = null)
     {
         // An arrival settles what a subject is on screen and what its badge says, and a change what goes stale;
         // putting any of it there is this shell's own business, since the stack and the rail are its.
-        var arrival = new Arrival(profile, _ports, enquiry, cache, showing: () => Rail.Showing.Kind);
+        var arrival = new Arrival(
+            profile,
+            _ports,
+            enquiry,
+            cache,
+            showing: () => Rail.Showing.Kind,
+            _badges.SessionMarkers);
 
         arrival.Arrives += Reset;
         arrival.Drills += Push;
@@ -1769,9 +1797,24 @@ public sealed class Shell
             Saw(Screen);
             Say(null, isError: false);
         };
-        arrival.Counts += Counted;
-        arrival.Moves += Moved;
+        arrival.Counts += _badges.Arrived;
+        arrival.Moves += (kind, by) => _badges.Moved(profile, enquiry.Abandoned, kind, by);
+        arrival.Rereads += kind => _ = _badges.Reread(profile, enquiry.Abandoned, [kind]);
         arrival.Heard += Heard;
+
+        // Carried over a sign-in again, whose list reads still in flight end on the arrival they began on (#248).
+        lists ??= new ListReads();
+
+        arrival.ListReading += lists.Began;
+        arrival.ListRead += kind => Apply(() =>
+        {
+            // Read again for what a re-read held back while this list was read found: it may have arrived after the
+            // list was read, and so be on no screen (story 11).
+            if (lists.Ended(kind) && !enquiry.Abandoned.IsCancellationRequested)
+            {
+                _ = _badges.Reread(profile, enquiry.Abandoned, [kind]);
+            }
+        });
 
         var reach = new Reach(
             profile,
@@ -1782,7 +1825,7 @@ public sealed class Shell
             confirm: Confirm,
             changed: () => Changed?.Invoke());
 
-        return new Acting(profile, arrival, reach, cache, new PeopleToMention(profile));
+        return new Acting(profile, arrival, reach, cache, new PeopleToMention(profile)) { Lists = lists };
     }
 
     /// <summary>
@@ -1831,7 +1874,7 @@ public sealed class Shell
             return;
         }
 
-        _acting = Acts(renewed, _enquiry, Actor.Cache) with { Marking = Actor.Marking };
+        _acting = Acts(renewed, _enquiry, Actor.Cache, Actor.Lists) with { Marking = Actor.Marking };
     }
 
     /// <summary>
@@ -1890,6 +1933,7 @@ public sealed class Shell
     private void LetGo()
     {
         _enquiry.Abandon();
+        _badges.LetGo();
 
         Asking = null;
         _launching = false;
@@ -2127,77 +2171,47 @@ public sealed class Shell
             }
         });
 
-    /// <summary>Reads the counts the rail carries, none of which is worth failing the shell over.</summary>
-    /// <param name="profile">Who the counts are read as.</param>
-    /// <param name="abandoned">
-    ///     Cancelled where the session switches profile, after which none of them is read or drawn (#243).
-    /// </param>
-    private async Task Counts(ActiveProfile profile, CancellationToken abandoned)
-    {
-        await Count(
-            DestinationKind.Notifications,
-            abandoned,
-            async token => (await _ports.Notifications.Read(profile, Arrival.CountedAtMost, token)).Items.Count);
-
-        await Count(
-            DestinationKind.Messages,
-            abandoned,
-            async token => (await _ports.Messages.List(profile, Arrival.CountedAtMost, token))
-                .Items.Count(conversation => conversation.Unread));
-
-        await Count(
-            DestinationKind.Requests,
-            abandoned,
-            async token => (await _ports.Accounts.PendingRequests(profile, Arrival.CountedAtMost, token)).Items.Count);
-    }
-
-    private async Task Count(
-        DestinationKind kind,
-        CancellationToken abandoned,
-        Func<CancellationToken, Task<int>> read)
-    {
-        if (abandoned.IsCancellationRequested)
-        {
-            return;
-        }
-
-        try
-        {
-            var unread = await read(abandoned);
-
-            Apply(() =>
-            {
-                if (!abandoned.IsCancellationRequested)
-                {
-                    Counted(kind, unread);
-                }
-            });
-        }
-        catch (OperationCanceledException) when (abandoned.IsCancellationRequested)
-        {
-            // Called off by a switch, and nobody left to tell.
-        }
-        catch (WoolyException)
-        {
-            // A count that could not be read is drawn as no count. It is the least of what is on screen, and a shell
-            // that refused to open because a badge was unavailable would be trading the whole thing for a number.
-        }
-    }
-
     /// <summary>
-    ///     Puts a count on the rail. Said in one place, because the badge is written from three: the read that opens
-    ///     the shell, arriving at the destination itself, and clearing something off it — and a badge that disagreed
-    ///     with the list under it would be the shell arguing with itself.
+    ///     Where what a re-read of <paramref name="badge" />'s destination found lands: at the top of the screen in
+    ///     front, where that screen is the destination's and anything on it is new (#400).
     /// </summary>
-    private void Counted(DestinationKind kind, int unread) =>
-        Rail.Update(Badged(kind) with { Unread = unread });
+    /// <remarks>
+    ///     The screen in front only: one underneath, or a destination walked away from, is told nothing. What the
+    ///     destination held is forgotten wherever the count rose or something was put on screen, so the next arrival
+    ///     reads it again — the held list is from before whatever arrived, and drawing it inside the cache window
+    ///     would put that visit's cleared badge back over the count just read. Here rather than at each thing that
+    ///     re-reads a count, so that the poll and the stream put what they find on screen the same way.
+    ///     <para>
+    ///         Nothing is put on screen while the destination's own list read is in flight: arriving at the
+    ///         destination draws a screen with nothing on it until the list lands, and that read — with its own read of
+    ///         the marker — is about to put everything on screen and move the marker itself. A re-read let in first
+    ///         would fill a screen about to be replaced and move the marker for it. What it found is not lost: the
+    ///         count is read again once that list read is over (<see cref="ListReads" />, story 11). Anything else in
+    ///         flight holds nothing back (stories 20–23).
+    ///     </para>
+    /// </remarks>
+    /// <inheritdoc cref="InboxBadges.Landing" />
+    private string? Landed(Found.Badge badge, InboxList found, bool rose)
+    {
+        var put = Rail.Showing.Kind == badge.Kind && _acting?.Lists.HoldsBack(badge.Kind) == false
+            ? Screen.PutOnTop(found)
+            : 0;
 
-    /// <summary>Moves a count on the rail by <paramref name="by" />, and never below nothing (#234).</summary>
-    private void Moved(DestinationKind kind, int by) => Counted(kind, Math.Max(0, Badged(kind).Unread + by));
+        if (rose || put > 0)
+        {
+            _acting?.Cache.Forget(new Subject.Destination(badge.Kind));
+        }
 
-    /// <summary>The rail's entry for <paramref name="kind" />, badge and all.</summary>
-    private Destination Badged(DestinationKind kind) =>
-        Rail.Destinations.First(destination => destination.Kind == kind);
+        if (put == 0)
+        {
+            return null;
+        }
+
+        Grew?.Invoke();
+        Changed?.Invoke();
+
+        return Screen is NotificationsScreen { Notifications: [var newest, ..] } ? newest.Id : null;
+    }
 
     /// <summary>
     ///     An arm of <see cref="Do" /> that answers at once, as a used key — so that the table there is one shape all
@@ -2992,5 +3006,8 @@ public sealed class Shell
         ///     before the first lands marks nothing twice, and moves the badge once (#234).
         /// </summary>
         public HashSet<string> Marking { get; init; } = new(StringComparer.Ordinal);
+
+        /// <summary>Which destinations' own list reads are in flight, which hold a re-read's find back (story 11).</summary>
+        public ListReads Lists { get; init; } = new();
     }
 }

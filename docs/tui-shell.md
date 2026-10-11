@@ -209,6 +209,67 @@ not answer them differently:
   it is confirmed on the same terms `post delete` is — the same confirmation, saying `clear` rather than `delete`.
 - **A count and the list under it are one fact.** Arriving at a destination sets its badge from the same answer the
   screen is drawn from, and dismissing or answering something moves both.
+- **An Inbox badge is the instance's unread count** (ADR-0027). Notifications counts what is newer than the account's
+  read marker — counted apart from the list, which holds read ones too. An account with no marker counts nothing at
+  first, and from then on what is newer than its **session marker** — the newest it had at that first count, or the
+  beginning where it had none (`SessionMarkers`, kept per profile for the session and never sent to the instance) — so
+  what arrives while the shell runs still counts, and arriving at Notifications draws those `unread`;
+  Messages counts the conversations flagged unread and Requests every request, off their lists. The shell's opening
+  counts and arriving at the destination count the same way (`InboxCount`), and a dismissal reads the Notifications
+  count again rather than taking one off it. Nothing waiting draws no badge; an unread count that reaches the 40 one
+  read counts draws `40+` — 40 or more unread conversations, a full list of requests — and Notifications reads one past
+  the 40 it counts, so exactly 40 draws `40` and only more draws `40+`.
+- **Arriving at Notifications reads them** (ADR-0027, #397). The read marker moves to the newest notification shown, so
+  the badge clears — on the web too — and the rows that were newer than the old marker carry the word `unread` before
+  their age for that visit. Nothing unread is nothing to move; an account with no marker gets one at the newest. A move
+  the instance does not take says nothing and leaves the badge at the count it read. Reading never dismisses: every row
+  stays. Messages and Requests read nothing on arrival.
+- **The Inbox badges are polled every 60 seconds while the stream is down** (`ShellTiming.PollEvery`, #398) for the
+  profile acted as, off the shell's clock: all three are read again and set outright from the answers, a count that
+  cannot be read leaves its badge as drawn, and a profile switch lets the old profile's poll go and starts the new one's.
+- **The Inbox is kept live over the user stream** (`IInboxStream`, ADR-0027, #401). The shell opens it for the profile
+  acted as when it opens — before its first destination has been read, so a slow first read holds nothing back —
+  polling until it says it is up and not after. What it says is gathered for
+  `ShellTiming.GatherFor` (2s) from the first of it and re-read as one: a notification re-reads Notifications, and
+  Requests too where somebody asked to follow; a conversation re-reads Messages. A direct message comes over it as a
+  mention and a conversation, so gathering is what makes it one re-read, and one bell. A drop, or a stream that will
+  not come up, starts the poll again and tries the stream again after `ReconnectAfter` (2s), doubling each failure up
+  to `ReconnectAtMost` (2 minutes), and back to the shortest only once it has shown it works — said something, or
+  stayed up as long as the wait it would be tried again after — so a connection accepted and closed at once (a proxy's,
+  or a restarting streaming service) is backed off rather than tried every 2s for ever; coming up again re-reads all
+  three for what arrived meanwhile — the first time it comes up reads nothing, the opening counts being fresh. None of
+  it is drawn. A profile switch closes the old stream with everything else the profile had, and nothing it still says
+  is applied.
+- **A rising Inbox badge rings the terminal's bell** (#399): `BEL`, written through the shell's own output, so the
+  terminal's settings decide whether it sounds, flashes or bounces — no OS sound and no branch for any one terminal.
+  It rings when a read puts a badge above the last count of it for the same profile, once per re-read however many
+  badges rose (a poll reading all three is one re-read). The first count of each badge after the shell opens or a
+  profile switch never rings, whichever read lands first; being on the destination does not stop it; a badge that
+  falls or stays never rings. A badge at `40+` cannot count higher, so it rises where the newest thing waiting under it
+  changed (`Found.Badge.Newest`). The last count is the instance's (`InboxBadges`), not whatever the rail draws: marking
+  a conversation read or answering a request moves it by one, as the instance would, so the next arrival still rings —
+  but under `40+` it stays `40+` (never `39+`) and the count is read again, quietly, since answering what was newest
+  under it is nothing arriving. Re-reads of one badge may overlap; one asked for before another that has already
+  landed is dropped, so an older count never overwrites a newer one or rings again for the same arrival. `bell = false`
+  in `[preferences]` turns it off, and the badges still move.
+- **What a re-read finds lands at the top of the Inbox screen in front** (#400). Every re-read of a count — a poll, a
+  stream event — hands what it read to the screen on top of the stack (`Screen.PutOnTop`), and only while the rail is
+  showing that destination: new notifications go on top drawn `unread`, and the read marker is moved past them so the
+  badge clears again — but only where the re-read put everything unread on screen: one that found more than the 40 it
+  counts leaves the marker for the reader's next arrival or `g` and the badge at `40+`, since there are unread ones past
+  the 40 that no screen has shown, while exactly 40 all shown moves it; a conversation new or changed (last post or unread flag) moves to the top as the instance has
+  it; a new request goes on top. The same thing stays picked, and the content region keeps it on the page row it was
+  on (`Shell.Grew` → `PaintedView.KeepPickOnItsRow`), so the page moves with what went in above it and nothing jumps. Where the
+  picked thing is itself what changed — the conversation the reader is on spoken in again — it is brought up to date
+  where it stands rather than moved to the top, and the pick stays on it: the row the reader is on never jumps, and it
+  takes its place at the top the next time the list is read (`Picked.TakeIn`). Nothing is put on screen while the
+  destination's own list read — its arrival or refresh — is in flight: arriving draws an empty screen until its list
+  lands, and that arrival draws the list and moves the marker itself, so a re-read landing first only counts, and the
+  count is read again once the list read is over, for whatever arrived after the list was read (`ListReads`). A
+  dismiss, an answered request, a page or a favourite in flight holds nothing back. A screen
+  underneath, or a destination walked away from, is told nothing; a re-read that raised the count or put anything on
+  screen forgets that destination's cached list, so coming back inside the cache window reads it again rather than
+  drawing the list from before — and that visit's cleared badge — over what arrived.
 - **A prompt taking letters takes `/`, `?`, `` ` `` and `~` too**, which is the one exception to the frame keys above.
   A web address and a question are both things somebody is entitled to search for, and a prompt that could not take a
   slash would refuse the query most likely to be pasted into it; code in backticks and a path under `~` are the same
@@ -539,7 +600,8 @@ cache. Streaming stays out of scope (below); a manual refresh is the in-scope an
   as a screen change on `Changed`, in the right order and on the drawing thread, the same way it hears every other
   screen change.
 - **The badge moves with the count**, from the same answer the screen redraws from — the same rule every other
-  arrival already follows.
+  arrival already follows. Notifications reads its count alongside, against the read marker, and a refresh reads them
+  as arriving does: the marker moves past what arrived, and what arrived is what is drawn `unread` (ADR-0027, #397).
 - **A refresh goes through `Enquiry` like every other fetch**, discarded unread if the screen it was asked from is no
   longer in front of the reader. No new
   in-flight UI beyond the breadcrumb's existing fetch mark; a second `g` while anything at all is in flight is
@@ -786,7 +848,8 @@ The last two screens, and the one place a screen writes words of its own into wh
   `Picked`: it would have `x` acting on something the screen does not offer.
 - **The unread indicator is the word, not a glyph.** This client's glyphs already say who can see a post — `○ ◌ ● ✉` —
   and a second circle beside `●` is one mark too many to tell apart at a glance. The word takes `rail-unread`, the same
-  role as the badge counting it on the rail.
+  role as the badge counting it on the rail. A notification unread on arrival carries the same word, for the same
+  reason (#397).
 
 ### What a compose's own content warning settled
 
@@ -1995,10 +2058,14 @@ business but the reader's, so it is a setting in the same TOML file everything e
 [preferences]
 hashtag = "dotnet"
 hide_drawn_caption = true
+bell = false
 ```
 
-`hide_drawn_caption` is the other reader-owned preference in this section (#71) — a picture's caption, `false` (the
-default) shows it always, `true` hides it once a picture is actually drawn, per "What media settled" above.
+`hide_drawn_caption` is another reader-owned preference in this section (#71) — a picture's caption, `false` (the
+default) shows it always, `true` hides it once a picture is actually drawn, per "What media settled" above. `bell` is a
+third (#399): `true` (the default, and what an absent key means) rings the terminal's bell when an Inbox badge rises,
+`false` keeps the badges live without the sound. Like the others it is the same for every profile, and has no key in
+the shell yet.
 
 With none set, the destination is still on the rail — it says no tag has been named and asks the instance for nothing,
 rather than being a rail entry that swallows a keypress.
@@ -2033,7 +2100,7 @@ is drawn reversed instead (#316).
 | `selected-text` | Text selected in the compose editor or its warning field (#320), and the value chosen on To while To has the typing (#338) — the body's text on a background of its own, lifted clearly off the page where `band` is barely there (#316) | drawn reversed |
 | `rail` / `rail-current` | Destinations, and the one loaded — in colour its band, label and count together | without colour, one glyph, one column: `▶` where the tabbing has got to, `▷` where it settled if that differs — they coincide at rest, so only `▶` shows. In colour no mark: the band carries it (ADR-0021) |
 | `rail-cursor` | The rail entry the tabbing has got to, while the selection has not yet followed it | `▶` without colour; in colour, its band (ADR-0021) |
-| `rail-unread` | An unread count, and the word on an unread conversation | the number, and the word |
+| `rail-unread` | An unread count, and the word on an unread conversation or a notification unread on arrival | the number, and the word |
 | `quota` / `quota-low` | Rate-limit budget left, and nearly spent; `quota` also the instance above it, with two or more profiles | the number |
 | `gauge` / `gauge-empty` | The API budget's filled and empty cells | `█` and `░`, and the percentage |
 | `chrome` | The frame's furniture: the status row's leading space and ` \| ` separators | position |

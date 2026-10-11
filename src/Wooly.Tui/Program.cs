@@ -6,6 +6,7 @@ using Wooly.Core.Conversations;
 using Wooly.Core.Discovery;
 using Wooly.Core.Errors;
 using Wooly.Core.Http;
+using Wooly.Core.Inbox;
 using Wooly.Core.Notifications;
 using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
@@ -52,7 +53,8 @@ try
         provider.GetRequiredService<IFollowSuggestions>(),
         provider.GetRequiredService<IRateLimitReport>(),
         provider.GetRequiredService<IInstanceLimits>(),
-        provider.GetRequiredService<IAccountDefaults>());
+        provider.GetRequiredService<IAccountDefaults>(),
+        provider.GetRequiredService<IInboxStream>());
 
     var clock = provider.GetRequiredService<TimeProvider>();
 

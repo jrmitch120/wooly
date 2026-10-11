@@ -47,7 +47,18 @@ internal abstract record Found
     public virtual bool HoldsAccount(string accountId) => false;
 
     /// <summary>What a rail badge says, and which destination it is on.</summary>
-    public sealed record Badge(DestinationKind Kind, int Unread);
+    /// <param name="Kind">Which destination.</param>
+    /// <param name="Unread">How many are waiting, as far as the read counted.</param>
+    /// <param name="Full">
+    ///     Whether there may be more past what was counted, so that the badge draws as at least
+    ///     <paramref name="Unread" /> (<c>40+</c>) rather than exactly it: a read that came back with as many as one
+    ///     read counts up to — or, for notifications, which are read one past that, one that found more.
+    /// </param>
+    /// <param name="Newest">
+    ///     What tells the newest thing waiting apart — or <see langword="null" /> where nothing is, or nobody said. A
+    ///     full badge cannot count higher, so something newer arriving is told by this changing (story 27 of #395).
+    /// </param>
+    public sealed record Badge(DestinationKind Kind, int Unread, bool Full = false, string? Newest = null);
 
     /// <summary>An answer that is a screen and nothing more, which is what most subjects are read into.</summary>
     /// <param name="Build">What the subject builds its screen with, off what came back.</param>

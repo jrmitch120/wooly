@@ -43,6 +43,12 @@ internal sealed class PaintedView : View
     private bool _following = true;
     private bool _anchoring;
 
+    /// <summary>How far down the page the last frame drew the pick's first row, if it drew one at all.</summary>
+    private int? _drawnPick;
+
+    /// <summary>Where the next frame is to draw the pick's first row (<see cref="KeepPickOnItsRow" />).</summary>
+    private int? _keeping;
+
     /// <param name="theme">What answers the roles.</param>
     /// <param name="rows">The rows to draw, given how much room there is.</param>
     /// <param name="pictures">
@@ -326,6 +332,37 @@ internal sealed class PaintedView : View
         _anchoring = true;
 
         SetNeedsDraw();
+    }
+
+    /// <summary>
+    ///     Keeps the thing picked out on the page row it was drawn on in the last frame, through whatever is put above
+    ///     it before the next one — so that something put in at the top of a list moves nothing the reader is looking
+    ///     at (#400).
+    /// </summary>
+    /// <remarks>
+    ///     Measured off the rows the last frame settled, which are the rows from before the change, and spent on the
+    ///     next frame only: the page moves by however many rows went in above the pick, whether the page was following
+    ///     the pick or had been walked away from it with the arrows.
+    /// </remarks>
+    public void KeepPickOnItsRow()
+    {
+        _keeping = _drawnPick;
+
+        SetNeedsDraw();
+    }
+
+    /// <summary>The first row of the thing picked out, or <see langword="null" /> where nothing is.</summary>
+    private static int? FirstPicked(IReadOnlyList<Line> lines)
+    {
+        for (var at = 0; at < lines.Count; at++)
+        {
+            if (lines[at].Has(Role.Selection))
+            {
+                return at;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -625,6 +662,14 @@ internal sealed class PaintedView : View
         _anchoring = false;
 
         var was = _top;
+
+        if (_keeping is { } kept && Scrolls && FirstPicked(lines) is { } picked)
+        {
+            _top = Math.Max(0, picked - kept);
+        }
+
+        _keeping = null;
+
         var pinned = Pinned();
 
         _top = Scrolls
@@ -632,6 +677,8 @@ internal sealed class PaintedView : View
                 ? anchoring ? Scroll.ToSection(lines, height, _top, pinned) : Scroll.To(lines, height, _top, pinned)
                 : Scroll.By(lines, _top, 0)
             : 0;
+
+        _drawnPick = FirstPicked(lines) - _top;
 
         // Laid out again under the page the scroll came to, for a screen with something that keeps to the page. What
         // keeps to it moves no row and picks nothing, so the scroll worked out from the first laying stands (#382).

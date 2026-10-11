@@ -76,6 +76,11 @@ can mark notifications *seen* without clearing them, and this client only clears
 screen that would need the marker, and it can have both: dismissal stays what it is, and "seen" becomes something the
 inbox tracks alongside it.
 
+*Amended by [ADR-0027](0027-inbox-counts-are-the-instances-kept-live-by-the-user-stream-and-the-read-marker-moves-on-arrival.md)
+(#396):* the TUI is that screen. It reads the marker — its Notifications badge counts what is newer than it, and an
+account with no marker counts nothing — and arriving at Notifications moves it, so "this client only clears" now holds
+for the CLI alone. Dismissal is still what it was, and the unread read still excludes no kind.
+
 There is no `--kind` filter. The instance could do that filtering, through the same `excludeTypes` this deliberately does
 not send, and a client-side filter over what came back would silently under-fill `--limit`. Whichever way a later ticket
 goes, it should note that Mastodon's exclusion list only names the kinds Mastonet knows about, so an instance-side filter

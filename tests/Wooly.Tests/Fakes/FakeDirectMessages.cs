@@ -15,6 +15,8 @@ internal sealed class FakeDirectMessages(
     ConversationThread? thread = null,
     Exception? refusal = null) : IDirectMessages
 {
+    private Fetch<Conversation> _fetch = fetch;
+
     /// <summary>The access token every call was made with, in order — where a test proves who it was made as.</summary>
     public List<string> Tokens { get; } = [];
 
@@ -45,12 +47,18 @@ internal sealed class FakeDirectMessages(
     public static FakeDirectMessages Refusing(Exception refusal) =>
         new(Fetch<Conversation>.Complete([]), thread: null, refusal);
 
+    /// <summary>
+    ///     What every listing holds from here on — what arrived while the reader was elsewhere, which a poll is asked to
+    ///     notice (<see cref="FakeNotificationInbox.NowHolding" /> for notifications).
+    /// </summary>
+    public void NowHolding(params Conversation[] conversations) => _fetch = Fetch<Conversation>.Complete(conversations);
+
     public Task<Fetch<Conversation>> List(ActiveProfile profile, int limit, CancellationToken cancellationToken)
     {
         Listings.Add(new Call(profile.Name, limit));
         Tokens.Add(profile.AccessToken);
 
-        return refusal is null ? Task.FromResult(fetch) : Task.FromException<Fetch<Conversation>>(refusal);
+        return refusal is null ? Task.FromResult(_fetch) : Task.FromException<Fetch<Conversation>>(refusal);
     }
 
     public Task<ConversationThread> Show(

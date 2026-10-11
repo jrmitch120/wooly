@@ -17,8 +17,11 @@ public static class ConversationLines
     /// </summary>
     public const string NothingLeft = "Nothing left in this conversation.";
 
-    /// <summary>The mark an unread conversation carries, which is a word rather than a glyph — see <see cref="With" />.</summary>
-    private const string UnreadMark = "unread";
+    /// <summary>
+    ///     The mark an unread conversation carries, which is a word rather than a glyph — see <see cref="With" />. One
+    ///     spelling for it and for a notification unread on arrival, both drawn in <c>rail-unread</c> to read the same.
+    /// </summary>
+    public const string UnreadMark = "unread";
 
     /// <summary>
     ///     Who the conversation is with, as the mentions that would reach them. An instance says who a conversation is

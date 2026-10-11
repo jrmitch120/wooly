@@ -83,6 +83,12 @@ public sealed record Destination(DestinationKind Kind, string Label, Timeline? T
     /// <summary>How many unread things are waiting here, or zero where nothing is or nothing counts them.</summary>
     public int Unread { get; init; }
 
+    /// <summary>
+    ///     Whether the read that counted <see cref="Unread" /> came back full, so that at least that many are waiting
+    ///     and perhaps more — drawn <c>40+</c> rather than as an exact number that may be wrong (#396).
+    /// </summary>
+    public bool Full { get; init; }
+
     /// <summary>The rail group this is drawn in, which follows from what it is and nothing else.</summary>
     public RailGroup Group => Kind switch
     {
