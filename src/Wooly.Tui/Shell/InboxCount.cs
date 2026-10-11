@@ -123,8 +123,10 @@ internal sealed class InboxCount(
             return new Tally(unread.Badge, wasUnread);
         }
 
+        var waiting = unread.Unread.Where(notification => !drawn.Contains(notification.Id)).ToList();
+
         return new Tally(
-            Of(DestinationKind.Notifications, wasUnread.Count(id => !drawn.Contains(id))),
+            Of(DestinationKind.Notifications, waiting.Count, waiting.FirstOrDefault()?.Id),
             wasUnread);
     }
 

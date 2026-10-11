@@ -28,7 +28,10 @@ badge counted, and sets a real marker, after which the session marker is unused.
 notifications above it, carrying `since_id` onto every page because the instance's link to a next page names only where
 it starts. The count is capped at the same 40 a screen asks for, and the read asks for one more, so that exactly 40 is
 known to be all of them; more than that is at least 40 and the badge draws `40+`, which is a property of the badge
-rather than a second number. The other two badges, counted off their lists, draw `40+` for a list that came back full. Mastodon
+rather than a second number. The other two badges are counted off their lists, and draw `40+` where their unread count
+reaches the 40 one read counts: Messages for 40 or more unread conversations — a full page of 40 with 12 unread draws
+`12`, though more unread ones may sit past the page — and Requests for a list that came back full, every request on it
+being one waiting. Mastodon
 4.3's unread-count endpoint was not used: the capped read works on every instance, and the badge never needs a number
 past 40. The read is every kind of notification, nothing excluded, for ADR-0010's reasons.
 

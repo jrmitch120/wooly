@@ -216,8 +216,9 @@ not answer them differently:
   what arrives while the shell runs still counts, and arriving at Notifications draws those `unread`;
   Messages counts the conversations flagged unread and Requests every request, off their lists. The shell's opening
   counts and arriving at the destination count the same way (`InboxCount`), and a dismissal reads the Notifications
-  count again rather than taking one off it. Nothing waiting draws no badge; a read that came back full draws `40+` —
-  Notifications reads one past the 40 it counts, so exactly 40 draws `40` and only more draws `40+`.
+  count again rather than taking one off it. Nothing waiting draws no badge; an unread count that reaches the 40 one
+  read counts draws `40+` — 40 or more unread conversations, a full list of requests — and Notifications reads one past
+  the 40 it counts, so exactly 40 draws `40` and only more draws `40+`.
 - **Arriving at Notifications reads them** (ADR-0027, #397). The read marker moves to the newest notification shown, so
   the badge clears — on the web too — and the rows that were newer than the old marker carry the word `unread` before
   their age for that visit. Nothing unread is nothing to move; an account with no marker gets one at the newest. A move
