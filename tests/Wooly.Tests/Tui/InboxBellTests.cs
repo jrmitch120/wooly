@@ -166,6 +166,36 @@ public class InboxBellTests
         Assert.Equal(1, shell.Host.Bells);
     }
 
+    /// <summary>
+    ///     A badge already at <c>40+</c> cannot count higher, but something newer arriving is still a rise — so it rings,
+    ///     on the destination as anywhere, once per re-read; a re-read finding nothing newer rings nothing (story 27).
+    /// </summary>
+    [Fact]
+    public async Task OnNotificationsWithTheBadgeFull_SomethingNewerArrivingStillRings()
+    {
+        var shell = new AShell { Notifications = FakeNotificationInbox.Holding(ANotification.With(id: "100")) };
+        shell.Notifications.Marker = "100";
+        var opened = await shell.Opened();
+        opened.Step(ToMessages - 1);
+        shell.Host.Settle();
+
+        shell.Notifications.NowHolding([.. Unread(count: 45, newest: 145), ANotification.With(id: "100")]);
+        Passes(shell, Minute);
+
+        Assert.True(Badge(opened, DestinationKind.Notifications).Full);
+        Assert.Equal(1, shell.Host.Bells);
+
+        Passes(shell, Minute);
+
+        Assert.Equal(1, shell.Host.Bells);
+
+        shell.Notifications.NowHolding([.. Unread(count: 46, newest: 146), ANotification.With(id: "100")]);
+        Passes(shell, Minute);
+
+        Assert.True(Badge(opened, DestinationKind.Notifications).Full);
+        Assert.Equal(2, shell.Host.Bells);
+    }
+
     [Fact]
     public async Task WithTheBellTurnedOff_NothingRings_AndTheBadgeStillRises()
     {
@@ -179,6 +209,9 @@ public class InboxBellTests
         Assert.Equal(0, shell.Host.Bells);
         Assert.Equal(2, Badge(opened, DestinationKind.Notifications).Unread);
     }
+
+    private static IEnumerable<Notification> Unread(int count, int newest) =>
+        Enumerable.Range(0, count).Select(offset => ANotification.With(id: $"{newest - offset}"));
 
     /// <summary>One notification newer than the marker.</summary>
     private static AShell OneUnreadNotification()

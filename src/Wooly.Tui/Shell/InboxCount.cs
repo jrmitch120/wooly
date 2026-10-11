@@ -139,19 +139,30 @@ internal static class InboxCount
             wasUnread);
     }
 
-    /// <summary>The Messages badge, off the conversations listed: those the instance flags unread.</summary>
-    public static Found.Badge OffList(IReadOnlyList<Conversation> conversations) =>
-        Of(DestinationKind.Messages, conversations.Count(conversation => conversation.Unread));
+    /// <summary>
+    ///     The Messages badge, off the conversations listed: those the instance flags unread — the newest told apart
+    ///     by its last post, since a conversation spoken in again keeps its own id.
+    /// </summary>
+    public static Found.Badge OffList(IReadOnlyList<Conversation> conversations)
+    {
+        var unread = conversations.Where(conversation => conversation.Unread).ToList();
+
+        return Of(
+            DestinationKind.Messages,
+            unread.Count,
+            unread.FirstOrDefault() is { } newest ? newest.Latest?.Id ?? newest.Id : null);
+    }
 
     /// <summary>The Requests badge, off the requests listed: every one, since a request waits until it is answered.</summary>
-    public static Found.Badge OffList(IReadOnlyList<Account> asking) => Of(DestinationKind.Requests, asking.Count);
+    public static Found.Badge OffList(IReadOnlyList<Account> asking) =>
+        Of(DestinationKind.Requests, asking.Count, asking.FirstOrDefault()?.Id);
 
     /// <summary>
     ///     A badge of <paramref name="unread" />, which is full where it reached what one read counts up to — there
     ///     may be more past it, and the badge says so rather than claiming an exact number it cannot know.
     /// </summary>
-    private static Found.Badge Of(DestinationKind kind, int unread) =>
-        new(kind, unread, Full: unread >= Arrival.CountedAtMost);
+    private static Found.Badge Of(DestinationKind kind, int unread, string? newest = null) =>
+        new(kind, unread, Full: unread >= Arrival.CountedAtMost, Newest: newest);
 
     /// <summary>One read of the notifications unread.</summary>
     /// <param name="Unread">What is unread, newest first, up to what is counted.</param>
@@ -163,7 +174,8 @@ internal static class InboxCount
         ///     The badge: how many, full only where more are unread past them — a read of exactly as many as are
         ///     counted holds them all, and says that many.
         /// </summary>
-        public Found.Badge Badge => new(DestinationKind.Notifications, Unread.Count, Full: More);
+        public Found.Badge Badge =>
+            new(DestinationKind.Notifications, Unread.Count, Full: More, Newest: Unread.FirstOrDefault()?.Id);
 
         /// <summary>What a read of one more than is counted came back with.</summary>
         public static UnreadRead Of(IReadOnlyList<Notification> read, bool hasMarker) =>

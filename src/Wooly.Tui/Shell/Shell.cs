@@ -160,6 +160,12 @@ public sealed class Shell
     /// </summary>
     private readonly HashSet<DestinationKind> _countedOnce = [];
 
+    /// <summary>
+    ///     What the last count of each Inbox badge said was newest (<see cref="Found.Badge.Newest" />) — how a badge
+    ///     already full, which cannot count higher, is told to have risen (story 27 of #395).
+    /// </summary>
+    private readonly Dictionary<DestinationKind, string?> _newest = [];
+
     /// <summary>Where each profile whose account has no read marker counts unread notifications from (story 8).</summary>
     private readonly StandInMarkers _standIns = new();
 
@@ -1962,6 +1968,7 @@ public sealed class Shell
         _streaming?.Dispose();
         _streaming = null;
         _countedOnce.Clear();
+        _newest.Clear();
 
         Asking = null;
         _launching = false;
@@ -2353,10 +2360,22 @@ public sealed class Shell
     ///     Whatever read it — the open, a poll, arriving at the destination, a stream event — rather than which one,
     ///     so a poll that happens to land before a slow opening count is the first, and stays quiet.
     /// </remarks>
+    /// <remarks>
+    ///     A badge already full that comes back full again cannot count higher, so it has risen where what is newest
+    ///     has changed: something arrived above what the last count saw (story 27 of #395).
+    /// </remarks>
     /// <returns>Whether it is higher than the badge was, first count or not.</returns>
     private bool Read(Found.Badge badge, BellOnce bell)
     {
-        var rose = badge.Unread > Badged(badge.Kind).Unread;
+        var was = Badged(badge.Kind);
+        var newer = was.Full
+                    && badge.Full
+                    && badge.Newest is { } newest
+                    && _newest.GetValueOrDefault(badge.Kind) is { } before
+                    && !string.Equals(newest, before, StringComparison.Ordinal);
+        var rose = badge.Unread > was.Unread || newer;
+
+        _newest[badge.Kind] = badge.Newest;
 
         if (!_countedOnce.Add(badge.Kind) && rose)
         {
