@@ -75,9 +75,12 @@ internal sealed class InboxStreaming : IDisposable
     ///     <see cref="ShellTiming.ReconnectAtMost" />, before trying the stream again.
     /// </param>
     /// <param name="host">Whose drawing thread what it says is run on.</param>
-    /// <param name="abandoned">Cancelled where the session switches profile, which closes the connection with everything else.</param>
+    /// <param name="abandoned">
+    ///     Cancelled where the session switches profile, which closes the connection with everything else.
+    /// </param>
     /// <param name="reread">
-    ///     Told which Inbox counts to read again, as one re-read, in the Inbox's own order (<see cref="InboxCount.Kinds" />).
+    ///     Told which Inbox counts to read again, as one re-read, in the Inbox's own order
+    ///     (<see cref="InboxCount.Kinds" />).
     /// </param>
     public InboxStreaming(
         IInboxStream stream,

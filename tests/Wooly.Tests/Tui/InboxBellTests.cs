@@ -345,7 +345,9 @@ public class InboxBellTests
         Assert.Equal(2, Badge(opened, DestinationKind.Notifications).Unread);
     }
 
-    /// <summary><paramref name="count" /> people asking to follow, newest first, from the <paramref name="from" />th.</summary>
+    /// <summary>
+    ///     <paramref name="count" /> people asking to follow, newest first, from the <paramref name="from" />th.
+    /// </summary>
     private static IEnumerable<Wooly.Core.Accounts.Account> Asking(int from, int count) =>
         Enumerable.Range(from, count).Select(n => AnAccount.With(id: $"a{n}", address: $"asker{n}@mas.to"));
 

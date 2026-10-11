@@ -2,8 +2,9 @@ namespace Wooly.Tui.Shell;
 
 /// <summary>
 ///     The things the shell needs from a terminal that it cannot do itself: wait, get back onto the thread that
-///     draws, and ring the bell. Everything else the shell does — which destination is selected, what a run of rail steps fetches,
-///     which role a thing takes — is decided without one, which is what lets it be tested without one (ADR-0005).
+///     draws, and ring the bell. Everything else the shell does — which destination is selected, what a run of rail
+///     steps fetches, which role a thing takes — is decided without one, which is what lets it be tested without one
+///     (ADR-0005).
 /// </summary>
 public interface IShellHost
 {

@@ -189,7 +189,9 @@ internal sealed class InboxCount(
             unread.FirstOrDefault() is { } newest ? newest.Latest?.Id ?? newest.Id : null);
     }
 
-    /// <summary>The Requests badge, off the requests listed: every one, since a request waits until it is answered.</summary>
+    /// <summary>
+    ///     The Requests badge, off the requests listed: every one, since a request waits until it is answered.
+    /// </summary>
     private static Found.Badge OffList(IReadOnlyList<Account> asking) =>
         Of(DestinationKind.Requests, asking.Count, asking.FirstOrDefault()?.Id);
 
