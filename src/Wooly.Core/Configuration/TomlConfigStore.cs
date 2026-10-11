@@ -24,6 +24,8 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
 
     /// <summary>Whether a drawn picture's caption hides once the picture is actually drawn (#71).</summary>
     private const string HideDrawnCaptionKey = "hide_drawn_caption";
+
+    /// <summary>Whether a rising Inbox badge rings the terminal's bell (#399).</summary>
     private const string BellKey = "bell";
 
     /// <summary>The theme the TUI draws in, and the themes written in this same file (#46).</summary>
@@ -285,7 +287,7 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
             DefaultLanguage = ReadLanguage(stored),
             Hashtag = ReadHashtag(stored),
             HideDrawnCaption = ReadBool(stored, HideDrawnCaptionKey),
-            Bell = ReadBool(stored, BellKey, absent: true),
+            Bell = ReadBool(stored, BellKey, whenAbsent: true),
         };
     }
 
@@ -337,9 +339,9 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
         ? value as string ?? throw new ConfigurationException(paths.ConfigFile, $"'{key}' must be text.")
         : null;
 
-    private bool ReadBool(TomlTable table, string key, bool absent = false) => table.TryGetValue(key, out var value)
+    private bool ReadBool(TomlTable table, string key, bool whenAbsent = false) => table.TryGetValue(key, out var value)
         ? value as bool? ?? throw new ConfigurationException(paths.ConfigFile, $"'{key}' must be true or false.")
-        : absent;
+        : whenAbsent;
 
     private TomlTable? ReadTable(TomlTable table, string key) => table.TryGetValue(key, out var value)
         ? value as TomlTable ?? throw new ConfigurationException(paths.ConfigFile, $"'{key}' must be a section.")
