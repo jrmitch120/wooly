@@ -29,12 +29,6 @@ public sealed class NotificationsScreen(
     string? notice = null,
     IReadOnlySet<string>? unread = null) : Screen
 {
-    /// <summary>
-    ///     The mark an unread notification carries: the word, as an unread conversation carries it, and for the same
-    ///     reason (<see cref="ConversationLines.With" />) — and so that it reads with no colour (ADR-0014).
-    /// </summary>
-    private const string UnreadMark = "unread";
-
     private readonly HashSet<string> _unread = new(unread ?? new HashSet<string>(), StringComparer.Ordinal);
 
     // Named by the notification's own id, which is not the id of the post it is about (CONTEXT.md) — and is what a
@@ -253,7 +247,10 @@ public sealed class NotificationsScreen(
     private static Line Happened(Notification notification, bool unread, int width, DateTimeOffset now)
     {
         var age = Elapsed.Since(notification.ReceivedAt, now);
-        var mark = unread ? $"{UnreadMark} " : string.Empty;
+
+        // The word, as an unread conversation carries it, and for the same reason (ConversationLines.With) — and so
+        // that it reads with no colour (ADR-0014).
+        var mark = unread ? $"{ConversationLines.UnreadMark} " : string.Empty;
         var did = $" {notification.Kind.Does}";
         var room = Math.Max(0, width - Glyphs.Columns(age) - Glyphs.Columns(mark) - Glyphs.Columns(did) - 2);
 
