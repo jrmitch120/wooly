@@ -193,6 +193,13 @@ every client of that account shares. A notification is **unread** when it is new
 on the notification itself, and reading is not dismissing: a read notification is still there until dismissed.
 _Avoid_: seen, new (which says when it arrived, not whether it was read)
 
+**Session marker**:
+Where the TUI counts an account's notifications from when the account has no **Read marker**: the newest notification
+it had when the session first counted it, or the beginning where it had none. Kept in the session per profile and never
+sent to the instance, so it reads nothing on the reader's behalf; unused once the account has a marker of its own
+(ADR-0027).
+_Avoid_: stand-in (a picture's box while it loads), local marker
+
 **Visibility**:
 Who a post reaches, one of four from widest to narrowest: public, unlisted, followers and direct. Fixed when the post
 is published — an edit cannot change it — and a reply is never published wider than the post it answers (ADR-0013).
@@ -411,8 +418,11 @@ _Avoid_: section, box, panel (a rail group is drawn as a panel, but the content 
 **Unread count**:
 What an **Inbox** destination's badge says is waiting, in the instance's own terms for each: notifications newer than
 the **Read marker**, conversations the instance flags unread, and follow requests not yet answered — a request has no
-read state, and is waiting until it is accepted or rejected. Never a count this client keeps for itself, so every client
-of the account agrees on it. Nothing waiting is drawn as no badge, never as `0`.
+read state, and is waiting until it is accepted or rejected. Counted against the instance, so every client of the
+account agrees on it — with one exception: an account with no **Read marker** has nothing the instance says is unread, so
+its notifications are counted against a **Session marker**, which this client keeps for the session only and never
+sends; there the count is this client's own, and only what arrived while it ran. Nothing waiting is drawn as no badge,
+never as `0`.
 _Avoid_: total, new
 
 **Inbox stream**:
