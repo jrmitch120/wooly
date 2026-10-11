@@ -422,7 +422,8 @@ read state, and is waiting until it is accepted or rejected. Counted against the
 account agrees on it — with one exception: an account with no **Read marker** has nothing the instance says is unread, so
 its notifications are counted against a **Session marker**, which this client keeps for the session only and never
 sends; there the count is this client's own, and only what arrived while it ran. Nothing waiting is drawn as no badge,
-never as `0`.
+never as `0`; a count that reaches the 40 one read counts is drawn `40+`, the only shape that says "at least" — so
+answering or marking something under it leaves it `40+` until the instance is read again, never `39+`.
 _Avoid_: total, new
 
 **Inbox stream**:
