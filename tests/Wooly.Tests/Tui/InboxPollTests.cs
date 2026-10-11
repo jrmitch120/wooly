@@ -1,6 +1,7 @@
 using Wooly.Core.Errors;
 using Wooly.Core.Notifications;
 using Wooly.Core.Paging;
+using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
@@ -28,6 +29,30 @@ public class InboxPollTests
         Assert.Equal(notifications + 1, shell.Notifications.UnreadReads.Count);
         Assert.Equal(messages + 1, shell.Messages.Listings.Count);
         Assert.Equal(requests + 1, shell.Accounts.Lists.Count);
+    }
+
+    /// <summary>
+    ///     The Inbox is kept live from the moment the session starts, not from when the first destination has been
+    ///     read: a first read that never answers holds back neither the stream nor the poll.
+    /// </summary>
+    [Fact]
+    public async Task AFirstDestinationThatNeverAnswers_HoldsNothingBack()
+    {
+        var shell = new AShell
+        {
+            Timelines = FakeTimelineReader.Awaiting(_ => new TaskCompletionSource<Fetch<Post>>().Task),
+            Notifications = FakeNotificationInbox.Holding(ANotification.With(id: "101")),
+        };
+        shell.Notifications.Marker = "100";
+        var opened = shell.Build();
+        _ = opened.Open();
+        shell.Host.Drain();
+
+        Assert.Single(shell.Stream.Listens);
+
+        Passes(shell, Minute);
+
+        Assert.Equal(1, opened.Rail.Destinations.Single(place => place.Kind == DestinationKind.Notifications).Unread);
     }
 
     [Fact]

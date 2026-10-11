@@ -396,7 +396,10 @@ public sealed class Shell
     /// </summary>
     private Acting Actor => _acting ?? throw new InvalidOperationException("Nobody is being acted as.");
 
-    /// <summary>Opens the shell onto its first destination, and reads the counts the rail carries.</summary>
+    /// <summary>
+    ///     Opens the shell onto its first destination, keeping the Inbox live from the start, and reads the counts the
+    ///     rail carries once that destination has been read.
+    /// </summary>
     /// <remarks>
     ///     The counts are asked as whoever was acted as when this was called, and not at all where a switch has come
     ///     between — the switch opens the shell again for the new profile, counts and all (#243). Nothing with nobody
@@ -411,14 +414,15 @@ public sealed class Shell
 
         var abandoned = _enquiry.Abandoned;
 
+        // Kept live from the moment the session starts rather than once the first destination has been read, which a
+        // slow or hung read would hold back (ADR-0027). Read as whoever is acted as when a count is read again, so a
+        // profile signed in again (#248) is read with its new token.
+        _badges.KeepLive(() => _acting?.Profile, abandoned);
+
         await acting.Arrival.At(Rail.Showing);
 
         if (!abandoned.IsCancellationRequested)
         {
-            // Read as whoever is acted as when a count is read again, so a profile signed in again (#248) is read
-            // with its new token.
-            _badges.KeepLive(() => _acting?.Profile, abandoned);
-
             await _badges.Reread(acting.Profile, abandoned, InboxCount.Kinds);
         }
     }

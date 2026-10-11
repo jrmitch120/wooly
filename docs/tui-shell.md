@@ -227,7 +227,8 @@ not answer them differently:
   profile acted as, off the shell's clock: all three are read again and set outright from the answers, a count that
   cannot be read leaves its badge as drawn, and a profile switch lets the old profile's poll go and starts the new one's.
 - **The Inbox is kept live over the user stream** (`IInboxStream`, ADR-0027, #401). The shell opens it for the profile
-  acted as when it opens, polling until it says it is up and not after. What it says is gathered for
+  acted as when it opens — before its first destination has been read, so a slow first read holds nothing back —
+  polling until it says it is up and not after. What it says is gathered for
   `ShellTiming.GatherFor` (2s) from the first of it and re-read as one: a notification re-reads Notifications, and
   Requests too where somebody asked to follow; a conversation re-reads Messages. A direct message comes over it as a
   mention and a conversation, so gathering is what makes it one re-read, and one bell. A drop, or a stream that will
