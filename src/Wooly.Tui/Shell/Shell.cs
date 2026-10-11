@@ -2248,7 +2248,7 @@ public sealed class Shell
 
         try
         {
-            var (badge, found) = await InboxCount.Read(_ports, profile, kind, _sessionMarkers, abandoned);
+            var (badge, found) = await new InboxCount(_ports, profile, _sessionMarkers, abandoned).Read(kind);
 
             Apply(() =>
             {

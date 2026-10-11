@@ -123,7 +123,7 @@ public abstract record Subject
             ShellPorts ports,
             ActiveProfile profile,
             Screen? standing) =>
-            Table().Read(ask, ports, profile, Entry);
+            Table().Read(ask, ports, profile, Entry, token => new InboxCount(ports, profile, SessionMarkers, token));
 
         /// <inheritdoc />
         /// <remarks>
@@ -171,8 +171,7 @@ public abstract record Subject
                     // Counted apart from the list it is drawn beside: what is unread is what is newer than the read
                     // marker, which the list does not say (ADR-0027). Arriving reads them, so the count moves the
                     // marker too, and hands the screen the rows that were unread for this visit (#397).
-                    Counting: (ports, profile, shown, token) =>
-                        InboxCount.Arrived(ports, profile, shown, SessionMarkers, token),
+                    Counting: (count, shown) => count.Arrived(shown),
                     Carries: notification => notification.Post),
 
                 // The one destination whose read is two calls: the requests, and where the profile stands with each
@@ -182,8 +181,7 @@ public abstract record Subject
                     Reads: InboxCount.Requests,
                     Becomes: (asking, notice, _) => new FollowRequestsScreen(asking, notice),
                     WhenEmpty: "Nobody is waiting to follow you.",
-                    Counting: (_, _, asking, _) =>
-                        Task.FromResult(new InboxCount.Tally(InboxCount.OffList(asking))),
+                    Counting: (count, asking) => count.Arrived(asking),
                     Carries: _ => null),
 
                 // The one destination that reads a list through a port with no Fetch on it: there is no paging here
@@ -209,8 +207,7 @@ public abstract record Subject
 
                     // The badge counts the conversations with something unread in them, and counts them off the list
                     // it is drawn beside — so the rail cannot say two over a list of one.
-                    Counting: (_, _, written, _) =>
-                        Task.FromResult(new InboxCount.Tally(InboxCount.OffList(written))),
+                    Counting: (count, written) => count.Arrived(written),
                     Carries: conversation => conversation.Latest),
 
                 // Said out loud rather than quietly doing nothing: a destination that reads no list — the profile's
@@ -534,7 +531,13 @@ public abstract record Subject
         public abstract Screen Empty();
 
         /// <summary>Reads it.</summary>
-        public abstract Task<Found> Read(Enquiry.Ask ask, ShellPorts ports, ActiveProfile profile, Entry entry);
+        /// <param name="counting">Its badge's count, under whichever token the enquiry puts that count with.</param>
+        public abstract Task<Found> Read(
+            Enquiry.Ask ask,
+            ShellPorts ports,
+            ActiveProfile profile,
+            Entry entry,
+            Func<CancellationToken, InboxCount> counting);
     }
 
     /// <inheritdoc cref="Listing" />
@@ -557,7 +560,7 @@ public abstract record Subject
         Func<ShellPorts, ActiveProfile, CancellationToken, Task<Fetch<T>>> Reads,
         Func<IReadOnlyList<T>, string?, IReadOnlySet<string>, Screen> Becomes,
         string WhenEmpty,
-        Func<ShellPorts, ActiveProfile, IReadOnlyList<T>, CancellationToken, Task<InboxCount.Tally>>? Counting,
+        Func<InboxCount, IReadOnlyList<T>, Task<InboxCount.Tally>>? Counting,
         Func<T, Post?> Carries) : Listing
     {
         /// <inheritdoc />
@@ -568,11 +571,12 @@ public abstract record Subject
             Enquiry.Ask ask,
             ShellPorts ports,
             ActiveProfile profile,
-            Entry entry)
+            Entry entry,
+            Func<CancellationToken, InboxCount> counting)
         {
             var fetch = await ask.Of(token => Reads(ports, profile, token));
 
-            return new Listed<T>(this, entry, fetch, await Counted(ask, ports, profile, fetch.Items));
+            return new Listed<T>(this, entry, fetch, await Counted(ask, counting, fetch.Items));
         }
 
         /// <summary>
@@ -582,8 +586,7 @@ public abstract record Subject
         /// </summary>
         private async Task<InboxCount.Tally?> Counted(
             Enquiry.Ask ask,
-            ShellPorts ports,
-            ActiveProfile profile,
+            Func<CancellationToken, InboxCount> count,
             IReadOnlyList<T> items)
         {
             if (Counting is not { } counting)
@@ -593,7 +596,7 @@ public abstract record Subject
 
             try
             {
-                return await ask.Of(token => counting(ports, profile, items, token));
+                return await ask.Of(token => counting(count(token), items));
             }
             catch (WoolyException)
             {

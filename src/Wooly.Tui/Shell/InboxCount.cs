@@ -8,40 +8,47 @@ namespace Wooly.Tui.Shell;
 
 /// <summary>
 ///     How each <b>Inbox</b> destination's badge is counted: its <b>Unread count</b>, in the instance's own terms for
-///     each (CONTEXT.md, ADR-0027). Said once, here, because a badge is read from two places — the counts read when the
-///     shell opens, and arriving at the destination itself — and the two must not come to disagree (#396).
+///     each (CONTEXT.md, ADR-0027). Said once, here, because a badge is read from two places — a re-read of the counts,
+///     and arriving at the destination itself — and the two must not come to disagree (#396).
 /// </summary>
 /// <remarks>
 ///     Two of the three are counted off the very list their screen draws, so arriving there costs nothing more than
-///     the list; <see cref="OffList" /> is that count, and <see cref="Read" /> reads the list and counts it the same
-///     way. Notifications is the one counted apart from its list: what is unread is what is newer than the read
-///     marker, which the list read does not say, so it is its own read — the same one on opening and on arriving.
+///     the list; <see cref="Read" /> reads that list the same way (<see cref="Conversations" />,
+///     <see cref="Requests" />) and counts it the same way. Notifications is the one counted apart from its list: what
+///     is unread is what is newer than the read marker, which the list read does not say, so it is its own read — the
+///     same one on a re-read and on arriving.
+///     <para>
+///         One of these is one count: through which ports, as whom, from which session markers and under which token
+///         — the four things every read here needs, said once rather than handed down through each call.
+///     </para>
 /// </remarks>
-internal static class InboxCount
+/// <param name="ports">What the count is read through.</param>
+/// <param name="profile">Who it is read as.</param>
+/// <param name="sessionMarkers">
+///     Where an account with no read marker counts from this session, started by the first read of it (story 8).
+/// </param>
+/// <param name="cancellationToken">What calls the read off.</param>
+internal sealed class InboxCount(
+    ShellPorts ports,
+    ActiveProfile profile,
+    SessionMarkers sessionMarkers,
+    CancellationToken cancellationToken)
 {
     /// <summary>The Inbox's three destinations, in the rail's order — which is the order they are read in, too.</summary>
     public static IReadOnlyList<DestinationKind> Kinds { get; } =
         [DestinationKind.Notifications, DestinationKind.Messages, DestinationKind.Requests];
 
     /// <summary>
-    ///     Reads the badge for <paramref name="kind" /> as <paramref name="profile" />, and what the read found waiting
-    ///     there — for the screen in front to put at its top whatever of it is new (#400).
+    ///     Reads the badge for <paramref name="kind" />, and what the read found waiting there — for the screen in
+    ///     front to put at its top whatever of it is new (#400).
     /// </summary>
-    /// <param name="sessionMarkers">
-    ///     Where an account with no read marker counts from this session, started by the first read of it.
-    /// </param>
     /// <exception cref="ArgumentOutOfRangeException">Not one of the Inbox's three.</exception>
-    public static async Task<Waiting> Read(
-        ShellPorts ports,
-        ActiveProfile profile,
-        DestinationKind kind,
-        SessionMarkers sessionMarkers,
-        CancellationToken cancellationToken)
+    public async Task<Waiting> Read(DestinationKind kind)
     {
         switch (kind)
         {
             case DestinationKind.Notifications:
-                var unread = await Unread(ports, profile, sessionMarkers, cancellationToken);
+                var unread = await Unread();
 
                 return new Waiting(unread.Badge, new InboxList.Notifications(unread.Unread));
 
@@ -87,6 +94,47 @@ internal static class InboxCount
     }
 
     /// <summary>
+    ///     The Notifications badge on arriving there, which reads them: the read marker is moved to the newest of
+    ///     <paramref name="shown" />, so the badge clears as the reader looks — and on the web too, the marker being the
+    ///     instance's (ADR-0027, #397).
+    /// </summary>
+    /// <remarks>
+    ///     Counted from the session marker where the account has no read marker — so arriving draws unread the same
+    ///     notifications the badge counted (stories 8 and 11).
+    /// </remarks>
+    /// <param name="shown">The notifications the screen is drawing, newest first.</param>
+    /// <returns>
+    ///     The badge — what is still waiting once the marker has moved: anything that arrived between the list read and
+    ///     this one, newer than everything shown; or, where the move was not made, what was waiting before it, which is
+    ///     still true — and the notifications that were newer than the old marker, to be drawn unread for this visit.
+    /// </returns>
+    public async Task<Tally> Arrived(IReadOnlyList<Notification> shown)
+    {
+        var unread = await Unread();
+        var drawn = shown.Select(notification => notification.Id).ToHashSet(StringComparer.Ordinal);
+        var wasUnread = unread.Unread.Select(notification => notification.Id).ToHashSet(StringComparer.Ordinal);
+
+        // Moved only where it moves past something unread on screen — or sets a marker the account never had. Nothing
+        // unread is nothing to ask the instance for, and a marker already past the newest shown would be moved back.
+        var reads = shown.Count > 0 && (!unread.HasMarker || wasUnread.Overlaps(drawn));
+
+        if (!reads || !await ports.Notifications.MoveMarker(profile, shown[0].Id, cancellationToken))
+        {
+            return new Tally(unread.Badge, wasUnread);
+        }
+
+        return new Tally(
+            Of(DestinationKind.Notifications, wasUnread.Count(id => !drawn.Contains(id))),
+            wasUnread);
+    }
+
+    /// <summary>The Messages badge on arriving there: counted off the list arrived with, which is all it costs.</summary>
+    public Task<Tally> Arrived(IReadOnlyList<Conversation> listed) => Task.FromResult(new Tally(OffList(listed)));
+
+    /// <summary>The Requests badge on arriving there: counted off the list arrived with, which is all it costs.</summary>
+    public Task<Tally> Arrived(IReadOnlyList<Account> asking) => Task.FromResult(new Tally(OffList(asking)));
+
+    /// <summary>
     ///     The notifications newer than the read marker — or, for an account with none, newer than its session marker,
     ///     where this session started counting it (story 8): nothing unread on the first read, which only sets it, and
     ///     whatever arrived after it on every read since. The account's marker is not touched; the reader has looked
@@ -96,11 +144,7 @@ internal static class InboxCount
     ///     One more is asked for than is counted, so that a read of exactly as many as are counted is known to hold
     ///     everything unread — which is what lets a re-read put all of it on screen and move the marker past it.
     /// </remarks>
-    private static async Task<UnreadRead> Unread(
-        ShellPorts ports,
-        ActiveProfile profile,
-        SessionMarkers sessionMarkers,
-        CancellationToken cancellationToken)
+    private async Task<UnreadRead> Unread()
     {
         const int past = Arrival.CountedAtMost + 1;
 
@@ -130,50 +174,10 @@ internal static class InboxCount
     }
 
     /// <summary>
-    ///     The Notifications badge on arriving there, which reads them: the read marker is moved to the newest of
-    ///     <paramref name="shown" />, so the badge clears as the reader looks — and on the web too, the marker being the
-    ///     instance's (ADR-0027, #397).
-    /// </summary>
-    /// <param name="shown">The notifications the screen is drawing, newest first.</param>
-    /// <param name="sessionMarkers">
-    ///     Where an account with no read marker counts from this session — so arriving draws unread the same
-    ///     notifications the badge counted (stories 8 and 11).
-    /// </param>
-    /// <returns>
-    ///     The badge — what is still waiting once the marker has moved: anything that arrived between the list read and
-    ///     this one, newer than everything shown; or, where the move was not made, what was waiting before it, which is
-    ///     still true — and the notifications that were newer than the old marker, to be drawn unread for this visit.
-    /// </returns>
-    public static async Task<Tally> Arrived(
-        ShellPorts ports,
-        ActiveProfile profile,
-        IReadOnlyList<Notification> shown,
-        SessionMarkers sessionMarkers,
-        CancellationToken cancellationToken)
-    {
-        var unread = await Unread(ports, profile, sessionMarkers, cancellationToken);
-        var drawn = shown.Select(notification => notification.Id).ToHashSet(StringComparer.Ordinal);
-        var wasUnread = unread.Unread.Select(notification => notification.Id).ToHashSet(StringComparer.Ordinal);
-
-        // Moved only where it moves past something unread on screen — or sets a marker the account never had. Nothing
-        // unread is nothing to ask the instance for, and a marker already past the newest shown would be moved back.
-        var reads = shown.Count > 0 && (!unread.HasMarker || wasUnread.Overlaps(drawn));
-
-        if (!reads || !await ports.Notifications.MoveMarker(profile, shown[0].Id, cancellationToken))
-        {
-            return new Tally(unread.Badge, wasUnread);
-        }
-
-        return new Tally(
-            Of(DestinationKind.Notifications, wasUnread.Count(id => !drawn.Contains(id))),
-            wasUnread);
-    }
-
-    /// <summary>
     ///     The Messages badge, off the conversations listed: those the instance flags unread — the newest told apart
     ///     by its last post, since a conversation spoken in again keeps its own id.
     /// </summary>
-    public static Found.Badge OffList(IReadOnlyList<Conversation> conversations)
+    private static Found.Badge OffList(IReadOnlyList<Conversation> conversations)
     {
         var unread = conversations.Where(conversation => conversation.Unread).ToList();
 
@@ -184,7 +188,7 @@ internal static class InboxCount
     }
 
     /// <summary>The Requests badge, off the requests listed: every one, since a request waits until it is answered.</summary>
-    public static Found.Badge OffList(IReadOnlyList<Account> asking) =>
+    private static Found.Badge OffList(IReadOnlyList<Account> asking) =>
         Of(DestinationKind.Requests, asking.Count, asking.FirstOrDefault()?.Id);
 
     /// <summary>
