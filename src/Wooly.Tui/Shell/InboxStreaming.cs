@@ -11,7 +11,10 @@ namespace Wooly.Tui.Shell;
 /// <remarks>
 ///     <para>
 ///         The stream is connected at once, and where the connection drops or will not come up it is tried again after
-///         a wait that doubles each time it fails and starts over once it has come up. The poll runs from the start
+///         a wait that doubles each time it fails. The wait starts over only once the stream has shown it works: by
+///         saying something, or by staying up at least as long as the wait it would be tried again after — one that is
+///         accepted and closed at once is backed off as a refusal is, rather than tried every few seconds for ever with
+///         all three counts read each time. The poll runs from the start
 ///         until the stream says it is up — one that never comes up is one the badges are kept current without — and
 ///         starts again when it drops. Coming up again after the first try reads all three counts again for whatever
 ///         arrived while it was down; the first time it comes up reads nothing, the opening counts being fresh.
@@ -41,6 +44,9 @@ internal sealed class InboxStreaming : IDisposable
 
     /// <summary>How long the next wait before trying again is.</summary>
     private TimeSpan _wait;
+
+    /// <summary>When the connection last came up, while it is up; otherwise none.</summary>
+    private DateTimeOffset? _upSince;
 
     /// <summary>The wait before trying again that is running, or none.</summary>
     private ITimer? _again;
@@ -159,7 +165,9 @@ internal sealed class InboxStreaming : IDisposable
 
         if (heard is InboxEvent.Connected)
         {
-            _wait = _timing.ReconnectAfter;
+            // Not the backoff started over yet: a connection that is accepted and closed at once would be tried again
+            // every few seconds for ever. That waits for it to stay up, or to say something (Dropped).
+            _upSince = _clock.GetUtcNow();
             _poll?.Dispose();
             _poll = null;
 
@@ -171,6 +179,8 @@ internal sealed class InboxStreaming : IDisposable
             return;
         }
 
+        // Something heard is a stream that works.
+        _wait = _timing.ReconnectAfter;
         _gathered.Add(heard);
 
         _gathering ??= _clock.CreateTimer(
@@ -221,6 +231,14 @@ internal sealed class InboxStreaming : IDisposable
 
         Poll();
 
+        // A connection that stayed up at least as long as the wait it would now be tried again after was a working
+        // one, and starts the waiting over; one that dropped sooner is backed off as a refusal is.
+        if (_upSince is { } up && _clock.GetUtcNow() - up >= _wait)
+        {
+            _wait = _timing.ReconnectAfter;
+        }
+
+        _upSince = null;
         _again?.Dispose();
         _again = _clock.CreateTimer(
             _ => _host.OnUiThread(() => _ = Connect()),

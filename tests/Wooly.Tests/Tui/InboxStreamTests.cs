@@ -265,9 +265,55 @@ public class InboxStreamTests
         Assert.Equal(tries + 1, Tries(shell));
     }
 
-    /// <summary>A connection that came up starts the waiting over: the next drop is tried again after the shortest wait.</summary>
+    /// <summary>
+    ///     A connection that came up and stayed up — as long as the wait it would be tried again after — starts the
+    ///     waiting over: the next drop is tried again after the shortest wait.
+    /// </summary>
     [Fact]
-    public async Task ComingUp_StartsTheBackoffOver()
+    public async Task StayingUp_StartsTheBackoffOver()
+    {
+        var shell = new AShell { Stream = new FakeInboxStream { Refuses = true } };
+        await shell.Opened();
+        Passes(shell, TimeSpan.FromMinutes(10));
+
+        shell.Stream.Refuses = false;
+        shell.Stream.ConnectsAtOnce = true;
+        Passes(shell, Timing.ReconnectAtMost * 2);
+        var tries = Tries(shell);
+
+        shell.Stream.Drop();
+        Passes(shell, Timing.ReconnectAfter);
+
+        Assert.Equal(tries + 1, Tries(shell));
+    }
+
+    /// <summary>
+    ///     Coming up and dropping straight away is not a stream that works — a proxy that closes it at once, a streaming
+    ///     service restarting — so it is backed off as a refusal is, rather than tried again every two seconds for ever
+    ///     with three counts read each time.
+    /// </summary>
+    [Fact]
+    public async Task AStreamThatDropsAsSoonAsItComesUp_IsStillBackedOff()
+    {
+        var shell = new AShell { Stream = new FakeInboxStream { ConnectsAtOnce = true, DropsOnceUp = true } };
+        await shell.Opened();
+
+        int[] tries =
+        [
+            Tries(shell),
+            After(shell, TimeSpan.FromSeconds(2)),
+            After(shell, TimeSpan.FromSeconds(3)),
+            After(shell, TimeSpan.FromSeconds(1)), // Four seconds on from the second.
+            After(shell, TimeSpan.FromSeconds(7)),
+            After(shell, TimeSpan.FromSeconds(1)), // Eight on from the third.
+        ];
+
+        Assert.Equal([1, 2, 2, 3, 3, 4], tries);
+    }
+
+    /// <summary>Something heard over it is a stream that works: the next drop is tried again after the shortest wait.</summary>
+    [Fact]
+    public async Task SomethingHeard_StartsTheBackoffOver()
     {
         var shell = new AShell { Stream = new FakeInboxStream { Refuses = true } };
         await shell.Opened();
@@ -278,6 +324,7 @@ public class InboxStreamTests
         Passes(shell, Timing.ReconnectAtMost);
         var tries = Tries(shell);
 
+        shell.Stream.Notify(NotificationKind.Mention);
         shell.Stream.Drop();
         Passes(shell, Timing.ReconnectAfter);
 

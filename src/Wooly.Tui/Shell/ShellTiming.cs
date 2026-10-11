@@ -30,8 +30,9 @@ namespace Wooly.Tui.Shell;
 /// </param>
 /// <param name="ReconnectAfter">
 ///     How long after the user stream drops, or will not connect, it is tried again the first time (#401) — twice as
-///     long each time after that, up to <paramref name="ReconnectAtMost" />, and back to this once it has come up. Two
-///     seconds: a blip is over by then, and an instance that is down is not asked again at once.
+///     long each time after that, up to <paramref name="ReconnectAtMost" />, and back to this once it has shown it
+///     works: said something, or stayed up as long as the wait it would be tried again after. Two seconds: a blip is
+///     over by then, and an instance that is down is not asked again at once.
 /// </param>
 /// <param name="ReconnectAtMost">
 ///     The longest the user stream is left before it is tried again (#401). Two minutes: the badges are polled every

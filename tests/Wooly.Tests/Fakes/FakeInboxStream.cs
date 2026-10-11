@@ -21,6 +21,12 @@ internal sealed class FakeInboxStream : IInboxStream
     /// <summary>Whether a connection asked for fails at once, as an instance that will not stream does.</summary>
     public bool Refuses { get; set; }
 
+    /// <summary>
+    ///     Whether a connection that comes up at once drops straight after, as one through a proxy that closes it at once
+    ///     does, or a streaming service that is restarting.
+    /// </summary>
+    public bool DropsOnceUp { get; set; }
+
     /// <summary>The last connection asked for.</summary>
     public Listening Latest => Listens[^1];
 
@@ -37,6 +43,11 @@ internal sealed class FakeInboxStream : IInboxStream
         else if (ConnectsAtOnce)
         {
             listening.Connect();
+
+            if (DropsOnceUp)
+            {
+                listening.Drop();
+            }
         }
 
         return listening.Ended;

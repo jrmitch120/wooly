@@ -232,9 +232,12 @@ not answer them differently:
   Requests too where somebody asked to follow; a conversation re-reads Messages. A direct message comes over it as a
   mention and a conversation, so gathering is what makes it one re-read, and one bell. A drop, or a stream that will
   not come up, starts the poll again and tries the stream again after `ReconnectAfter` (2s), doubling each failure up
-  to `ReconnectAtMost` (2 minutes) and back to the shortest once it is up; coming up again re-reads all three for what
-  arrived meanwhile — the first time it comes up reads nothing, the opening counts being fresh. None of it is drawn. A
-  profile switch closes the old stream with everything else the profile had, and nothing it still says is applied.
+  to `ReconnectAtMost` (2 minutes), and back to the shortest only once it has shown it works — said something, or
+  stayed up as long as the wait it would be tried again after — so a connection accepted and closed at once (a proxy's,
+  or a restarting streaming service) is backed off rather than tried every 2s for ever; coming up again re-reads all
+  three for what arrived meanwhile — the first time it comes up reads nothing, the opening counts being fresh. None of
+  it is drawn. A profile switch closes the old stream with everything else the profile had, and nothing it still says
+  is applied.
 - **A rising Inbox badge rings the terminal's bell** (#399): `BEL`, written through the shell's own output, so the
   terminal's settings decide whether it sounds, flashes or bounces — no OS sound and no branch for any one terminal.
   It rings when a read puts a badge above the last count of it for the same profile, once per re-read however many
