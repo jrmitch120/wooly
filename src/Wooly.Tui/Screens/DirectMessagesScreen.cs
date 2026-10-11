@@ -145,7 +145,7 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
     /// </remarks>
     public override int PutOnTop(InboxList found) =>
         found is InboxList.Messages(var listed)
-            ? _conversations.PutOnTop(
+            ? _conversations.TakeIn(
                 listed,
                 conversation => conversation.Id,
                 (was, now) => was.Unread != now.Unread || was.Latest?.Id != now.Latest?.Id).Count

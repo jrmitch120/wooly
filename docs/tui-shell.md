@@ -211,11 +211,13 @@ not answer them differently:
   screen is drawn from, and dismissing or answering something moves both.
 - **An Inbox badge is the instance's unread count** (ADR-0027). Notifications counts what is newer than the account's
   read marker — counted apart from the list, which holds read ones too. An account with no marker counts nothing at
-  first, and from then on what is newer than the newest it had at that first count (`StandInMarkers`, kept per profile
-  for the session and never sent to the instance), so what arrives while the shell runs still counts;
+  first, and from then on what is newer than its **session marker** — the newest it had at that first count, or the
+  beginning where it had none (`SessionMarkers`, kept per profile for the session and never sent to the instance) — so
+  what arrives while the shell runs still counts, and arriving at Notifications draws those `unread`;
   Messages counts the conversations flagged unread and Requests every request, off their lists. The shell's opening
   counts and arriving at the destination count the same way (`InboxCount`), and a dismissal reads the Notifications
-  count again rather than taking one off it. Nothing waiting draws no badge; a read that came back full draws `40+`.
+  count again rather than taking one off it. Nothing waiting draws no badge; a read that came back full draws `40+` —
+  Notifications reads one past the 40 it counts, so exactly 40 draws `40` and only more draws `40+`.
 - **Arriving at Notifications reads them** (ADR-0027, #397). The read marker moves to the newest notification shown, so
   the badge clears — on the web too — and the rows that were newer than the old marker carry the word `unread` before
   their age for that visit. Nothing unread is nothing to move; an account with no marker gets one at the newest. A move
@@ -238,19 +240,23 @@ not answer them differently:
   It rings when a read puts a badge above the last count of it for the same profile, once per re-read however many
   badges rose (a poll reading all three is one re-read). The first count of each badge after the shell opens or a
   profile switch never rings, whichever read lands first; being on the destination does not stop it; a badge that
-  falls or stays never rings. `bell = false` in `[preferences]` turns it off, and the badges still move.
+  falls or stays never rings. A badge at `40+` cannot count higher, so it rises where the newest thing waiting under it
+  changed (`Found.Badge.Newest`). `bell = false` in `[preferences]` turns it off, and the badges still move.
 - **What a re-read finds lands at the top of the Inbox screen in front** (#400). Every re-read of a count — a poll, a
   stream event — hands what it read to the screen on top of the stack (`Screen.PutOnTop`), and only while the rail is
   showing that destination: new notifications go on top drawn `unread`, and the read marker is moved past them so the
-  badge clears again — unless the re-read came back full, when the marker is left for the reader's next arrival or `g`
-  and the badge stays `40+`, since there may be unread ones past the 40 that no screen has shown; a conversation new or changed (last post or unread flag) moves to the top as the instance has
+  badge clears again — but only where the re-read put everything unread on screen: one that found more than the 40 it
+  counts leaves the marker for the reader's next arrival or `g` and the badge at `40+`, since there are unread ones past
+  the 40 that no screen has shown, while exactly 40 all shown moves it; a conversation new or changed (last post or unread flag) moves to the top as the instance has
   it; a new request goes on top. The same thing stays picked, and the content region keeps it on the page row it was
   on (`Shell.Grew` → `PaintedView.KeepPickOnItsRow`), so the page moves with what went in above it and nothing jumps. Where the
   picked thing is itself what changed — the conversation the reader is on spoken in again — it is brought up to date
   where it stands rather than moved to the top, and the pick stays on it: the row the reader is on never jumps, and it
-  takes its place at the top the next time the list is read (`Picked.PutOnTop`). Nothing is put on screen while a read is
-  in flight: arriving at the destination draws an empty screen until its list lands, and that arrival draws the list
-  and moves the marker itself, so a re-read landing first only counts. A screen
+  takes its place at the top the next time the list is read (`Picked.TakeIn`). Nothing is put on screen while the
+  destination's own list read — its arrival or refresh — is in flight: arriving draws an empty screen until its list
+  lands, and that arrival draws the list and moves the marker itself, so a re-read landing first only counts, and the
+  count is read again once the list read is over, for whatever arrived after the list was read (`ListReads`). A
+  dismiss, an answered request, a page or a favourite in flight holds nothing back. A screen
   underneath, or a destination walked away from, is told nothing; a re-read that raised the count or put anything on
   screen forgets that destination's cached list, so coming back inside the cache window reads it again rather than
   drawing the list from before — and that visit's cleared badge — over what arrived.

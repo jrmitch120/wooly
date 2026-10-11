@@ -336,7 +336,7 @@ internal sealed class PaintedView : View
 
     /// <summary>
     ///     Keeps the thing picked out on the page row it was drawn on in the last frame, through whatever is put above
-    ///     it before the next one — so that something arriving at the top of a list moves nothing the reader is looking
+    ///     it before the next one — so that something put in at the top of a list moves nothing the reader is looking
     ///     at (#400).
     /// </summary>
     /// <remarks>

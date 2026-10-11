@@ -40,7 +40,7 @@ namespace Wooly.Tui.Shell;
 /// <param name="enquiry">What every question is put under.</param>
 /// <param name="cache">What each cached subject last held, which is what makes walking the rail back free.</param>
 /// <param name="showing">Which destination the rail is showing, which a post sent there is on.</param>
-/// <param name="standIns">
+/// <param name="sessionMarkers">
 ///     Where an account with no read marker counts its notifications from this session, which arriving at
 ///     Notifications counts against (story 8).
 /// </param>
@@ -50,7 +50,7 @@ public sealed class Arrival(
     Enquiry enquiry,
     SubjectCache cache,
     Func<DestinationKind> showing,
-    StandInMarkers standIns)
+    SessionMarkers sessionMarkers)
 {
     /// <summary>
     ///     How many posts a screen asks for. A timeline's page, which is the most an instance serves in one call — so
@@ -95,7 +95,7 @@ public sealed class Arrival(
     ///     Raised with a destination whose badge a change has made unknown, for it to be read again the way the shell
     ///     reads it on opening (<see cref="InboxCount" />) — where what changed cannot say how far the count moved.
     /// </summary>
-    public event Action<DestinationKind>? Recounts;
+    public event Action<DestinationKind>? Rereads;
 
     /// <summary>Raised with a change, for every screen on the stack to hear (<see cref="Screen.Heard" />).</summary>
     public event Action<Change>? Heard;
@@ -190,7 +190,7 @@ public sealed class Arrival(
                 return Bring(own, Move.Arrive, blank);
 
             default:
-                return Bring(new Subject.Destination(destination, standIns), Move.Arrive);
+                return Bring(new Subject.Destination(destination, sessionMarkers), Move.Arrive);
         }
     }
 
@@ -288,7 +288,7 @@ public sealed class Arrival(
             // the read marker, which only the instance knows (ADR-0027).
             case Change.NotificationsGone:
                 Forget(DestinationKind.Notifications);
-                Recounts?.Invoke(DestinationKind.Notifications);
+                Rereads?.Invoke(DestinationKind.Notifications);
 
                 break;
 

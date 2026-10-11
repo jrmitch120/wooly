@@ -137,7 +137,7 @@ public sealed class NotificationsScreen(
             return 0;
         }
 
-        var put = _notifications.PutOnTop(unread, notification => notification.Id);
+        var put = _notifications.TakeIn(unread, notification => notification.Id);
 
         _unread.UnionWith(put.Select(notification => notification.Id));
 

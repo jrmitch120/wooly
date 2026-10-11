@@ -105,7 +105,7 @@ public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string?
     /// <inheritdoc />
     /// <remarks>Whoever has asked since and is not on screen yet.</remarks>
     public override int PutOnTop(InboxList found) =>
-        found is InboxList.Requests(var asking) ? _waiting.PutOnTop(asking, account => account.Id).Count : 0;
+        found is InboxList.Requests(var asking) ? _waiting.TakeIn(asking, account => account.Id).Count : 0;
 
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(Drawing drawing)

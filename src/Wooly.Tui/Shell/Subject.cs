@@ -79,22 +79,22 @@ public abstract record Subject
     {
         private readonly Entry? _entry;
 
-        private readonly StandInMarkers? _standIns;
+        private readonly SessionMarkers? _sessionMarkers;
 
         /// <summary>The destination <paramref name="kind" /> names, which is enough to forget what it held.</summary>
         public Destination(DestinationKind kind) => Kind = kind;
 
         /// <summary>The rail's own entry, which is what is read and drawn.</summary>
         /// <param name="entry">The rail's own entry.</param>
-        /// <param name="standIns">
+        /// <param name="sessionMarkers">
         ///     Where an account with no read marker counts its notifications from this session, which arriving at
         ///     Notifications counts against as the badge did (story 8).
         /// </param>
-        public Destination(Entry entry, StandInMarkers standIns)
+        public Destination(Entry entry, SessionMarkers sessionMarkers)
             : this(entry.Kind)
         {
             _entry = entry;
-            _standIns = standIns;
+            _sessionMarkers = sessionMarkers;
         }
 
         /// <summary>Which of the rail's ten it is.</summary>
@@ -107,8 +107,8 @@ public abstract record Subject
         private Entry Entry => _entry ?? throw new InvalidOperationException(
             $"The {Kind} destination is read from the rail's own entry, which this subject was not given.");
 
-        /// <summary>The session's stand-in markers, which only a subject the rail arrived at carries.</summary>
-        private StandInMarkers StandIns => _standIns ?? throw new InvalidOperationException(
+        /// <summary>The session markers, which only a subject the rail arrived at carries.</summary>
+        private SessionMarkers SessionMarkers => _sessionMarkers ?? throw new InvalidOperationException(
             $"The {Kind} destination is counted with the session's markers, which this subject was not given.");
 
         /// <inheritdoc />
@@ -172,7 +172,7 @@ public abstract record Subject
                     // marker, which the list does not say (ADR-0027). Arriving reads them, so the count moves the
                     // marker too, and hands the screen the rows that were unread for this visit (#397).
                     Counting: (ports, profile, shown, token) =>
-                        InboxCount.Arrived(ports, profile, shown, StandIns, token),
+                        InboxCount.Arrived(ports, profile, shown, SessionMarkers, token),
                     Carries: notification => notification.Post),
 
                 // The one destination whose read is two calls. Whether you already follow the person asking to follow

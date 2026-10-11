@@ -16,15 +16,19 @@ rather than guessed.
 
 **No marker means nothing unread.** An account that has never had a marker has nothing this client can prove is unread.
 Counting every notification it has would be the badge that always said 40 again, so it counts nothing until something
-arrives while the shell is running. For that, the first count of such a profile in a session notes the newest
-notification it has — a stand-in for the marker, kept in the session per profile and never sent to the instance — and
-every count after it reads what is newer than that (`INotificationInbox.ReadNewer`). The instance's marker is left
-alone: the reader has looked at nothing. Arriving at Notifications sets a real marker, after which the stand-in is unused.
+arrives while the shell is running. For that, the first count of such a profile in a session sets a **Session marker**
+at the newest notification it has — or at the beginning, where it has none, so that everything after counts — kept in
+the session per profile and never sent to the instance (`SessionMarkers`); every count after it reads what is newer
+than that (`INotificationInbox.ReadNewer`, or the plain read from the beginning). This is the one count the client
+keeps for itself, and it says only what arrived while it ran. The instance's marker is left alone: the reader has
+looked at nothing. Arriving at Notifications counts against the session marker as the badge did, drawing unread what the
+badge counted, and sets a real marker, after which the session marker is unused.
 
 **Counting stays a capped read since the marker.** `INotificationInbox.ReadUnread` reads the marker, then the
-notifications above it, up to the same 40 a screen asks for, carrying `since_id` onto every page because the instance's
-link to a next page names only where it starts. A read that comes back full is at least that many and the badge draws
-`40+`, which is a property of the badge rather than a second number; the same holds for the other two badges. Mastodon
+notifications above it, carrying `since_id` onto every page because the instance's link to a next page names only where
+it starts. The count is capped at the same 40 a screen asks for, and the read asks for one more, so that exactly 40 is
+known to be all of them; more than that is at least 40 and the badge draws `40+`, which is a property of the badge
+rather than a second number. The other two badges, counted off their lists, draw `40+` for a list that came back full. Mastodon
 4.3's unread-count endpoint was not used: the capped read works on every instance, and the badge never needs a number
 past 40. The read is every kind of notification, nothing excluded, for ADR-0010's reasons.
 
@@ -55,17 +59,20 @@ what arrived since, and coming back to the held copy inside the cache window mar
 **The Inbox is kept live over the user stream, with polling as the fallback.** The shell holds one stream for the profile
 acted as; an event re-reads the counts it touches, a drop reconnects with backoff while all three counts are polled every
 60 seconds, and a reconnect re-reads all three. Nothing about the stream is drawn. A badge that rises rings the terminal's
-own bell once, unless the user has turned it off. (#398–#401.)
+own bell once, unless the user has turned it off. A badge at `40+` cannot count higher, so it has risen where the newest
+thing waiting under it has changed. (#398–#401.)
 
 What a re-read finds is put at the top of the destination's screen when that screen is in front, keeping the picked row
 where it is on the page; on Notifications the marker is moved past it, as arriving would have, so the badge stays clear
-while the reader looks and the rows are drawn unread for the visit — unless the re-read came back full. A full read
-may have more unread past the 40 it read, which no screen has shown, and moving the marker to the newest would mark them
-read unseen; so what was read goes on top drawn unread, the marker stays, and the badge keeps saying `40+` until the
-reader arrives or refreshes, which moves it as arriving always has. Moving it part way would not help: anything short of
-the oldest unread still skips the ones below. Nor is anything put on screen while a read is in flight — the arrival
-being read is about to draw the list and move the marker itself. It is done where every re-read lands rather than per
-cause, so the poll and the stream cannot come to differ. A re-read that raises a count, or puts anything on screen,
+while the reader looks and the rows are drawn unread for the visit — but only where everything unread was put on
+screen. A re-read that found more unread than the 40 it counts has some past them that no screen has shown, and moving
+the marker to the newest would mark them read unseen; so what was read goes on top drawn unread, the marker stays, and
+the badge keeps saying `40+` until the reader arrives or refreshes, which moves it as arriving always has. Moving it
+part way would not help: anything short of the oldest unread still skips the ones below. Exactly 40, all shown, moves
+it. Nor is anything put on screen while the destination's own list read — an arrival or a refresh — is in flight: it is
+about to draw the list and move the marker itself. Nothing else in flight holds a re-read back, and what one held back
+found is not lost: the count is read again once that list read is over. It is done where every re-read lands rather
+than per cause, so the poll and the stream cannot come to differ. A re-read that raises a count, or puts anything on screen,
 forgets that destination's cached list: the held copy predates what arrived, and drawing it would put its cleared badge
 back over the count just read. (#400.)
 
