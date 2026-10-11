@@ -106,7 +106,9 @@ public class LiveInsertionTests
 
     /// <summary>
     ///     A re-read landing while the arrival at Notifications is still reading puts nothing on the screen waiting for
-    ///     it and moves no marker: the arrival is about to draw the list and read the marker itself (story 11).
+    ///     it and moves no marker: the arrival is about to draw the list and read the marker itself (story 11). What it
+    ///     found is not lost for that — the arrival's list was read before it came, so it is put on top once the list
+    ///     is drawn.
     /// </summary>
     [Fact]
     public async Task OnNotifications_APollLandingWhileTheArrivalIsReadingLeavesTheArrivalToIt()
@@ -141,6 +143,43 @@ public class LiveInsertionTests
         Assert.Equal(["103", "102", "101"], screen.Notifications.Select(notification => notification.Id));
         Assert.True(screen.IsUnread(screen.Notifications[0]));
         Assert.Equal("103", Assert.Single(shell.Notifications.MarkerMoves).NotificationId);
+    }
+
+    /// <summary>
+    ///     Only the destination's own list read holds a re-read back: one landing while something else is in flight —
+    ///     a dismiss here — is put on screen as ever (stories 20–23).
+    /// </summary>
+    [Fact]
+    public async Task OnNotifications_APollLandingWhileADismissIsInFlightPutsWhatItFoundOnTop()
+    {
+        var shell = new AShell
+        {
+            Notifications = FakeNotificationInbox.Holding(
+                ANotification.With(id: "102"),
+                ANotification.With(id: "101")),
+        };
+        shell.Notifications.Marker = "102";
+        var opened = await shell.Opened();
+
+        opened.Step(ToNotifications);
+        shell.Host.Settle();
+
+        shell.Notifications.DismissalsWaitFor = new TaskCompletionSource();
+        opened.Move(1);
+        opened.Press(ShellKey.D);
+        shell.Host.Drain();
+        Assert.True(opened.Fetching);
+
+        shell.Notifications.NowHolding(
+            ANotification.With(id: "103"),
+            ANotification.With(id: "102"),
+            ANotification.With(id: "101"));
+        Passes(shell, Minute);
+
+        var screen = Assert.IsType<NotificationsScreen>(opened.Screen);
+        Assert.Equal("103", screen.Notifications[0].Id);
+        Assert.True(screen.IsUnread(screen.Notifications[0]));
+        Assert.Equal("103", shell.Notifications.MarkerMoves[^1].NotificationId);
     }
 
     /// <summary>

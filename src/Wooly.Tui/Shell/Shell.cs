@@ -1829,6 +1829,19 @@ public sealed class Shell
         arrival.Recounts += kind => _ = Recount(profile, enquiry.Abandoned, [kind]);
         arrival.Heard += Heard;
 
+        var lists = new ListReads();
+
+        arrival.ListReading += lists.Began;
+        arrival.ListRead += kind => Apply(() =>
+        {
+            // Read again for what a re-read held back while this list was read found: it may have arrived after the
+            // list was read, and so be on no screen (story 11).
+            if (lists.Ended(kind) && !enquiry.Abandoned.IsCancellationRequested)
+            {
+                _ = Recount(profile, enquiry.Abandoned, [kind]);
+            }
+        });
+
         var reach = new Reach(
             profile,
             _ports,
@@ -1838,7 +1851,7 @@ public sealed class Shell
             confirm: Confirm,
             changed: () => Changed?.Invoke());
 
-        return new Acting(profile, arrival, reach, cache, new PeopleToMention(profile));
+        return new Acting(profile, arrival, reach, cache, new PeopleToMention(profile)) { Lists = lists };
     }
 
     /// <summary>
@@ -2260,11 +2273,12 @@ public sealed class Shell
     ///     would put that visit's cleared badge back over the count just read. Here rather than at each thing that
     ///     re-reads a count, so that the poll and the stream put what they find on screen the same way.
     ///     <para>
-    ///         Nothing is put on screen while a read is in flight: arriving at the destination draws a screen with
-    ///         nothing on it until the list lands, and that read — with its own read of the marker — is about to put
-    ///         everything on screen and move the marker itself. A re-read let in first would fill a screen about to be
-    ///         replaced and move the marker for it. Whatever it found and the arrival did not is still unread, and the
-    ///         next re-read finds it (story 11).
+    ///         Nothing is put on screen while the destination's own list read is in flight: arriving at the
+    ///         destination draws a screen with nothing on it until the list lands, and that read — with its own read of
+    ///         the marker — is about to put everything on screen and move the marker itself. A re-read let in first
+    ///         would fill a screen about to be replaced and move the marker for it. What it found is not lost: the
+    ///         count is read again once that list read is over (<see cref="ListReads" />, story 11). Anything else in
+    ///         flight holds nothing back (stories 20–23).
     ///     </para>
     /// </remarks>
     /// <param name="badge">
@@ -2280,7 +2294,9 @@ public sealed class Shell
         bool rose,
         CancellationToken abandoned)
     {
-        var put = Rail.Showing.Kind == badge.Kind && !Fetching ? Screen.PutOnTop(found) : 0;
+        var put = Rail.Showing.Kind == badge.Kind && _acting?.Lists.HoldsBack(badge.Kind) == false
+            ? Screen.PutOnTop(found)
+            : 0;
 
         if (rose || put > 0)
         {
@@ -3176,5 +3192,8 @@ public sealed class Shell
         ///     before the first lands marks nothing twice, and moves the badge once (#234).
         /// </summary>
         public HashSet<string> Marking { get; init; } = new(StringComparer.Ordinal);
+
+        /// <summary>Which destinations' own list reads are in flight, which hold a re-read's find back (story 11).</summary>
+        public ListReads Lists { get; init; } = new();
     }
 }

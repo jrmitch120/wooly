@@ -51,7 +51,8 @@ internal sealed class FakeNotificationInbox(Fetch<Notification> fetch) : INotifi
 
     /// <summary>
     ///     Where set, what a read of the list waits for before it answers — and only that read, so that a test can hold
-    ///     an arrival in flight while a count is read past it.
+    ///     an arrival in flight while a count is read past it. It answers with what the inbox held when it was asked,
+    ///     as an instance would: what arrives during the wait is not on it.
     /// </summary>
     public TaskCompletionSource? ReadsWaitFor { get; set; }
 
@@ -60,12 +61,14 @@ internal sealed class FakeNotificationInbox(Fetch<Notification> fetch) : INotifi
         Reads.Add(new Call(profile.Name, limit));
         Tokens.Add(profile.AccessToken);
 
+        var held = _fetch;
+
         if (ReadsWaitFor is { } waiting)
         {
             await waiting.Task;
         }
 
-        return ByProfile.TryGetValue(profile.Name, out var answer) ? await answer() : _fetch;
+        return ByProfile.TryGetValue(profile.Name, out var answer) ? await answer() : held;
     }
 
     /// <summary>
@@ -148,15 +151,24 @@ internal sealed class FakeNotificationInbox(Fetch<Notification> fetch) : INotifi
         return Task.FromResult(true);
     }
 
-    public Task Dismiss(ActiveProfile profile, string notificationId, CancellationToken cancellationToken)
+    /// <summary>
+    ///     Where set, what a dismissal waits for before it answers — so that a test can hold one in flight while a
+    ///     count is read past it.
+    /// </summary>
+    public TaskCompletionSource? DismissalsWaitFor { get; set; }
+
+    public async Task Dismiss(ActiveProfile profile, string notificationId, CancellationToken cancellationToken)
     {
         Dismissals.Add(new Dismissed(profile.Name, notificationId));
         Tokens.Add(profile.AccessToken);
 
+        if (DismissalsWaitFor is { } waiting)
+        {
+            await waiting.Task;
+        }
+
         // Gone from the instance, so a later read — of the list or of what is unread — no longer finds it.
         _fetch = _fetch with { Items = [.. _fetch.Items.Where(notification => notification.Id != notificationId)] };
-
-        return Task.CompletedTask;
     }
 
     public Task Clear(ActiveProfile profile, CancellationToken cancellationToken)

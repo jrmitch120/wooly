@@ -101,6 +101,18 @@ public sealed class Arrival(
     public event Action<Change>? Heard;
 
     /// <summary>
+    ///     Raised, on the drawing thread, with a destination whose own list is being read — arrived at or refreshed,
+    ///     and not paged — as the read is put (<see cref="ListReads" />).
+    /// </summary>
+    internal event Action<DestinationKind>? ListReading;
+
+    /// <summary>
+    ///     Raised with that destination once its list read is over, landed or not — from whichever thread the read
+    ///     finished on, after its answer has been handed to the drawing thread.
+    /// </summary>
+    internal event Action<DestinationKind>? ListRead;
+
+    /// <summary>
     ///     What a list that came back with little or nothing on it is told. A rate limit that stopped the read part
     ///     way through is said out loud rather than drawn as an empty list, which is the whole reason a fetch reports
     ///     what stopped it (ADR-0007): a reader told "nothing is waiting" would believe it.
@@ -341,25 +353,44 @@ public sealed class Arrival(
     }
 
     /// <summary>Asks for it, and lands what came back while the screen it was asked from is still in front.</summary>
-    private Task Read(Subject subject, Move move, Screen? standing, Action? beneath = null) =>
-        enquiry.Put(
-            ask => subject.Read(ask, ports, profile, standing),
-            ifStillHere: found =>
+    private async Task Read(Subject subject, Move move, Screen? standing, Action? beneath = null)
+    {
+        DestinationKind? listing = move != Move.Page && subject is Subject.Destination { Kind: var kind } ? kind : null;
+
+        if (listing is { } reading)
+        {
+            ListReading?.Invoke(reading);
+        }
+
+        try
+        {
+            await enquiry.Put(
+                ask => subject.Read(ask, ports, profile, standing),
+                ifStillHere: found =>
+                {
+                    beneath?.Invoke();
+
+                    var screen = Land(subject, move, standing, found);
+
+                    if (subject.Cached && found.Held(screen) is { } held)
+                    {
+                        cache.Keep(subject, held);
+                    }
+
+                    if (found.ReadsOn(screen))
+                    {
+                        _ = Read(subject, Move.Page, screen);
+                    }
+                });
+        }
+        finally
+        {
+            if (listing is { } read)
             {
-                beneath?.Invoke();
-
-                var screen = Land(subject, move, standing, found);
-
-                if (subject.Cached && found.Held(screen) is { } held)
-                {
-                    cache.Keep(subject, held);
-                }
-
-                if (found.ReadsOn(screen))
-                {
-                    _ = Read(subject, Move.Page, screen);
-                }
-            });
+                ListRead?.Invoke(read);
+            }
+        }
+    }
 
     /// <summary>
     ///     What every answer ends with: the screen where the move puts it, and the badge beside it read off the same
