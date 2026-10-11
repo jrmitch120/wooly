@@ -1,6 +1,7 @@
 using Wooly.Core.Accounts;
 using Wooly.Core.Conversations;
 using Wooly.Core.Notifications;
+using Wooly.Core.Paging;
 using Wooly.Core.Profiles;
 
 namespace Wooly.Tui.Shell;
@@ -45,19 +46,44 @@ internal static class InboxCount
                 return new Waiting(unread.Badge, new InboxList.Notifications(unread.Unread));
 
             case DestinationKind.Messages:
-                var listed = (await ports.Messages.List(profile, Arrival.CountedAtMost, cancellationToken)).Items;
+                var listed = (await Conversations(ports, profile, cancellationToken)).Items;
 
                 return new Waiting(OffList(listed), new InboxList.Messages(listed));
 
             case DestinationKind.Requests:
-                var asking = (await ports.Accounts.PendingRequests(profile, Arrival.CountedAtMost, cancellationToken))
-                    .Items;
+                var asking = (await Requests(ports, profile, cancellationToken)).Items;
 
                 return new Waiting(OffList(asking), new InboxList.Requests(asking));
 
             default:
                 throw new ArgumentOutOfRangeException(nameof(kind), kind, "Not a destination in the Inbox.");
         }
+    }
+
+    /// <summary>
+    ///     The Messages list: the conversations, most recently spoken in first, as many as are counted. The one read
+    ///     arriving at Messages and a re-read of its count both make, so that the two cannot come to read it apart.
+    /// </summary>
+    public static Task<Fetch<Conversation>> Conversations(
+        ShellPorts ports,
+        ActiveProfile profile,
+        CancellationToken cancellationToken) =>
+        ports.Messages.List(profile, Arrival.CountedAtMost, cancellationToken);
+
+    /// <summary>
+    ///     The Requests list: whoever is waiting for an answer, each with where the profile stands with them. Whether
+    ///     you already follow the person asking may be the most useful thing on the row, and the requests endpoint
+    ///     sends no standing — so it is asked for as part of the one read arriving at Requests and a re-read of its
+    ///     count both make, and a request put on top live is drawn the same as one arrived at (#204).
+    /// </summary>
+    public static async Task<Fetch<Account>> Requests(
+        ShellPorts ports,
+        ActiveProfile profile,
+        CancellationToken cancellationToken)
+    {
+        var asking = await ports.Accounts.PendingRequests(profile, Arrival.CountedAtMost, cancellationToken);
+
+        return asking with { Items = await ports.StoodOrSilent(profile, asking.Items, cancellationToken) };
     }
 
     /// <summary>

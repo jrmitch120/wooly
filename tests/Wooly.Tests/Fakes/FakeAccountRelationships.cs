@@ -55,6 +55,12 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
     public List<Stood> Standings { get; } = [];
 
     /// <summary>
+    ///     Forgets every standing asked for so far — what the shell's opening count of Requests asked for, which reads
+    ///     the list the way arriving at it does (#204) — so a test counts only the asks its own steps made.
+    /// </summary>
+    public void ForgetStandings() => Standings.Clear();
+
+    /// <summary>
     ///     Where the profile stands with everyone a batched ask names — the same standing for all of them, since a
     ///     test asserting a row is about what the row says rather than about who is on it. Set to
     ///     <see langword="null" /> for an instance that never answered, which is the state a list draws silent rows

@@ -392,6 +392,7 @@ public class ShellDiscoverTests
         };
 
         var opened = await fakes.Opened();
+        fakes.Accounts.ForgetStandings();
 
         opened.Rail.GoTo(DestinationKind.Discover);
         fakes.Host.Drain();

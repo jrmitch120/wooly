@@ -637,6 +637,7 @@ public class ShellSearchTests
         shell.Accounts.Stands = AnAccount.Standing(followedBy: true);
 
         var opened = await shell.Opened();
+        shell.Accounts.ForgetStandings();
 
         await Found(shell, opened, "maria");
 
@@ -663,6 +664,7 @@ public class ShellSearchTests
         };
 
         var opened = await shell.Opened();
+        shell.Accounts.ForgetStandings();
 
         await Found(shell, opened, "cats");
 

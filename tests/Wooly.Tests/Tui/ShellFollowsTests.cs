@@ -427,6 +427,7 @@ public class ShellFollowsTests
         configure?.Invoke(fakes.Accounts);
 
         var opened = await OnTheAccountScreen(fakes);
+        fakes.Accounts.ForgetStandings();
 
         opened.Press(ShellKey.W);
         fakes.Host.Drain();

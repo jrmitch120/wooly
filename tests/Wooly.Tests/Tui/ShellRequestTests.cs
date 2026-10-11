@@ -252,6 +252,7 @@ public class ShellRequestTests
         shell.Accounts.Stands = AnAccount.Standing(following: true);
 
         var opened = await shell.Opened();
+        shell.Accounts.ForgetStandings();
 
         opened.Step(ToRequests);
         shell.Host.Settle();
@@ -292,6 +293,7 @@ public class ShellRequestTests
         };
 
         var opened = await shell.Opened();
+        shell.Accounts.ForgetStandings();
 
         opened.Step(ToRequests);
         shell.Host.Settle();
@@ -353,5 +355,4 @@ public class ShellRequestTests
         Assert.Contains("Joined Jan 2020 · following", rows);
         Assert.Contains("Joined Jan 2020", rows);
     }
-
 }

@@ -298,6 +298,33 @@ public class LiveInsertionTests
     }
 
     /// <summary>
+    ///     A request put on top is read the way arriving reads one — with whether the reader already follows the person
+    ///     asking, which may be the most useful thing on the row (#204).
+    /// </summary>
+    [Fact]
+    public async Task OnRequests_ARequestAPollPutsAtTheTopSaysWhetherYouFollowThePersonAsking()
+    {
+        var shell = new AShell
+        {
+            Accounts = FakeAccountRelationships.Holding(subject: null, AnAccount.With(id: "a1", address: "one@mas.to")),
+        };
+        shell.Accounts.Stands = AnAccount.Standing(following: true);
+        var opened = await shell.Opened();
+
+        opened.Step(ToNotifications + 2);
+        shell.Host.Settle();
+
+        shell.Accounts.NowListing(
+            AnAccount.With(id: "a2", address: "two@mas.to"),
+            AnAccount.With(id: "a1", address: "one@mas.to"));
+        Passes(shell, Minute);
+
+        var screen = Assert.IsType<FollowRequestsScreen>(opened.Screen);
+        Assert.Equal("a2", screen.Waiting[0].Id);
+        Assert.True(screen.Waiting[0].Standing?.Following);
+    }
+
+    /// <summary>
     ///     A screen that is not in front is told nothing: the poll only counts, and the marker stays where arriving
     ///     put it.
     /// </summary>

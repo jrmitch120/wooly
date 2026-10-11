@@ -175,17 +175,11 @@ public abstract record Subject
                         InboxCount.Arrived(ports, profile, shown, SessionMarkers, token),
                     Carries: notification => notification.Post),
 
-                // The one destination whose read is two calls. Whether you already follow the person asking to follow
-                // you may be the most useful thing on the row, and the requests endpoint sends no standing — so it is
-                // asked for here, inside this destination's own read, which is what makes a refresh re-ask for free
-                // (#204).
+                // The one destination whose read is two calls: the requests, and where the profile stands with each
+                // person asking — inside this destination's own read, which is what makes a refresh re-ask for free,
+                // and the same read a re-read of its count makes (#204).
                 DestinationKind.Requests => new Listing<Person>(
-                    Reads: async (ports, profile, token) =>
-                    {
-                        var asking = await ports.Accounts.PendingRequests(profile, Arrival.CountedAtMost, token);
-
-                        return asking with { Items = await ports.StoodOrSilent(profile, asking.Items, token) };
-                    },
+                    Reads: InboxCount.Requests,
                     Becomes: (asking, notice, _) => new FollowRequestsScreen(asking, notice),
                     WhenEmpty: "Nobody is waiting to follow you.",
                     Counting: (_, _, asking, _) =>
@@ -209,7 +203,7 @@ public abstract record Subject
                     Carries: _ => null),
 
                 DestinationKind.Messages => new Listing<Core.Conversations.Conversation>(
-                    Reads: (ports, profile, token) => ports.Messages.List(profile, Arrival.CountedAtMost, token),
+                    Reads: InboxCount.Conversations,
                     Becomes: (written, notice, _) => new DirectMessagesScreen(written, notice),
                     WhenEmpty: "No direct conversations yet.",
 
