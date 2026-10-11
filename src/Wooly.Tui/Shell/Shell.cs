@@ -149,28 +149,10 @@ public sealed class Shell
     private RateLimitQuota? _quotaBeforeSwitch;
 
     /// <summary>
-    ///     What keeps the Inbox live for the profile acted as — the user stream, and the poll while it is down — from
-    ///     the moment the shell opens onto it until it is let go of (#398, #401). Nothing, with nobody to act as.
+    ///     The Inbox's badges, kept live for the profile acted as by the poll and the stream, and the bell rung where
+    ///     one rises (ADR-0027, #398, #399, #401).
     /// </summary>
-    private InboxStreaming? _streaming;
-
-    /// <summary>
-    ///     The Inbox badges read at least once for the profile acted as, since the shell opened onto it: only a badge
-    ///     already counted can rise, which is what keeps the first counts — at launch, and after a switch — quiet (#399).
-    /// </summary>
-    private readonly HashSet<DestinationKind> _countedOnce = [];
-
-    /// <summary>
-    ///     What the last count of each Inbox badge said was newest (<see cref="Found.Badge.Newest" />) — how a badge
-    ///     already full, which cannot count higher, is told to have risen (story 27 of #395).
-    /// </summary>
-    private readonly Dictionary<DestinationKind, string?> _newest = [];
-
-    /// <summary>Where each profile whose account has no read marker counts unread notifications from (story 8).</summary>
-    private readonly SessionMarkers _sessionMarkers = new();
-
-    /// <summary>Whether a rising Inbox badge rings the terminal's bell: the config file's <c>bell</c>, on unless said (#399).</summary>
-    private readonly bool _ringing;
+    private readonly InboxBadges _badges;
 
     /// <summary>How long each instance lets a post be, asked as posts are first written there (#319).</summary>
     private readonly LimitsByInstance _limits;
@@ -244,9 +226,9 @@ public sealed class Shell
         _timing = timing;
         _hashtag = preferences?.Hashtag;
         _preferred = new PostDefaults(preferences?.DefaultVisibility, preferences?.DefaultLanguage);
-        _ringing = preferences?.Bell ?? true;
 
         Rail = new Rail(Destinations(opening.Profile, _hashtag), host, timing.Settle);
+        _badges = new InboxBadges(ports, Rail, host, clock, timing, ringing: preferences?.Bell ?? true, Landed);
 
         Begin(opening.Profile);
 
@@ -433,38 +415,12 @@ public sealed class Shell
 
         if (!abandoned.IsCancellationRequested)
         {
-            KeepLive(abandoned);
+            // Read as whoever is acted as when a count is read again, so a profile signed in again (#248) is read
+            // with its new token.
+            _badges.KeepLive(() => _acting?.Profile, abandoned);
 
-            await Counts(acting.Profile, abandoned);
+            await _badges.Reread(acting.Profile, abandoned, InboxCount.Kinds);
         }
-    }
-
-    /// <summary>
-    ///     Keeps the Inbox live for whoever is acted as, until a switch abandons <paramref name="abandoned" /> and lets
-    ///     it go with everything else the old profile had: the user stream, polling while it is down (#398, #401).
-    /// </summary>
-    /// <remarks>
-    ///     Read as whoever is acted as when a count is read again rather than when it was started, so that a profile
-    ///     signed in again (#248) — the same enquiry, with a new token — is read with its new token.
-    /// </remarks>
-    private void KeepLive(CancellationToken abandoned)
-    {
-        _streaming?.Dispose();
-        _streaming = new InboxStreaming(
-            _ports.Stream,
-            () => _acting?.Profile,
-            _clock,
-            _timing,
-            _host,
-            abandoned,
-            reread: kinds =>
-            {
-                // Never told once the switch has abandoned it: the streaming is let go of with the profile.
-                if (_acting is { } acting)
-                {
-                    _ = Reread(acting.Profile, abandoned, kinds);
-                }
-            });
     }
 
     /// <summary>
@@ -1821,7 +1777,13 @@ public sealed class Shell
     {
         // An arrival settles what a subject is on screen and what its badge says, and a change what goes stale;
         // putting any of it there is this shell's own business, since the stack and the rail are its.
-        var arrival = new Arrival(profile, _ports, enquiry, cache, showing: () => Rail.Showing.Kind, _sessionMarkers);
+        var arrival = new Arrival(
+            profile,
+            _ports,
+            enquiry,
+            cache,
+            showing: () => Rail.Showing.Kind,
+            _badges.SessionMarkers);
 
         arrival.Arrives += Reset;
         arrival.Drills += Push;
@@ -1831,9 +1793,9 @@ public sealed class Shell
             Saw(Screen);
             Say(null, isError: false);
         };
-        arrival.Counts += badge => Read(badge, new BellOnce(Ring));
-        arrival.Moves += Moved;
-        arrival.Rereads += kind => _ = Reread(profile, enquiry.Abandoned, [kind]);
+        arrival.Counts += _badges.Arrived;
+        arrival.Moves += _badges.Moved;
+        arrival.Rereads += kind => _ = _badges.Reread(profile, enquiry.Abandoned, [kind]);
         arrival.Heard += Heard;
 
         var lists = new ListReads();
@@ -1845,7 +1807,7 @@ public sealed class Shell
             // list was read, and so be on no screen (story 11).
             if (lists.Ended(kind) && !enquiry.Abandoned.IsCancellationRequested)
             {
-                _ = Reread(profile, enquiry.Abandoned, [kind]);
+                _ = _badges.Reread(profile, enquiry.Abandoned, [kind]);
             }
         });
 
@@ -1966,10 +1928,7 @@ public sealed class Shell
     private void LetGo()
     {
         _enquiry.Abandon();
-        _streaming?.Dispose();
-        _streaming = null;
-        _countedOnce.Clear();
-        _newest.Clear();
+        _badges.LetGo();
 
         Asking = null;
         _launching = false;
@@ -2207,74 +2166,9 @@ public sealed class Shell
             }
         });
 
-    /// <summary>Reads the counts the rail carries, none of which is worth failing the shell over.</summary>
-    /// <param name="profile">Who the counts are read as.</param>
-    /// <param name="abandoned">
-    ///     Cancelled where the session switches profile, after which none of them is read or drawn (#243).
-    /// </param>
-    private Task Counts(ActiveProfile profile, CancellationToken abandoned) =>
-        Reread(profile, abandoned, InboxCount.Kinds);
-
-    /// <summary>
-    ///     Reads the Inbox badges <paramref name="kinds" /> again as one re-read: every badge it reads tells the same
-    ///     <see cref="BellOnce" /> where it rose, so the bell rings at most once however many did (#399). What the
-    ///     opening counts, the poll, a stream event and a change that leaves a count unknown all read through (#398,
-    ///     #401).
-    /// </summary>
-    private async Task Reread(
-        ActiveProfile profile,
-        CancellationToken abandoned,
-        IReadOnlyList<DestinationKind> kinds)
-    {
-        var once = new BellOnce(Ring);
-
-        foreach (var kind in kinds)
-        {
-            await Count(profile, kind, abandoned, once);
-        }
-    }
-
-    /// <summary>
-    ///     Reads one Inbox badge the way <see cref="InboxCount" /> counts it — the same way arriving at the
-    ///     destination counts it, so the two cannot disagree (#396) — and puts it on the rail.
-    /// </summary>
-    /// <param name="once">The bell of the re-read this count is part of, told where the badge rose.</param>
-    private async Task Count(ActiveProfile profile, DestinationKind kind, CancellationToken abandoned, BellOnce once)
-    {
-        if (abandoned.IsCancellationRequested)
-        {
-            return;
-        }
-
-        try
-        {
-            var (badge, found) = await new InboxCount(_ports, profile, _sessionMarkers, abandoned).Read(kind);
-
-            Apply(() =>
-            {
-                if (!abandoned.IsCancellationRequested)
-                {
-                    var rose = Read(badge, once);
-
-                    Landed(profile, badge, found, rose, abandoned);
-                }
-            });
-        }
-        catch (OperationCanceledException) when (abandoned.IsCancellationRequested)
-        {
-            // Called off by a switch, and nobody left to tell.
-        }
-        catch (WoolyException)
-        {
-            // A count that could not be read is drawn as no count. It is the least of what is on screen, and a shell
-            // that refused to open because a badge was unavailable would be trading the whole thing for a number.
-        }
-    }
-
     /// <summary>
     ///     Where what a re-read of <paramref name="badge" />'s destination found lands: at the top of the screen in
-    ///     front, where that screen is the destination's and anything on it is new (#400) — and, on Notifications, the
-    ///     read marker is moved past it, as arriving would have, so the badge stays clear while the reader looks.
+    ///     front, where that screen is the destination's and anything on it is new (#400).
     /// </summary>
     /// <remarks>
     ///     The screen in front only: one underneath, or a destination walked away from, is told nothing. What the
@@ -2291,19 +2185,8 @@ public sealed class Shell
     ///         flight holds nothing back (stories 20–23).
     ///     </para>
     /// </remarks>
-    /// <param name="badge">
-    ///     What the re-read counted. One that came back full has more unread past what it read, which are on no
-    ///     screen: the marker is left where it is rather than moved past them unseen, and the badge goes on saying at
-    ///     least that many — the reader moves it by arriving, or with <c>g</c>, as they would have anyway. One that
-    ///     read exactly as many as are counted, and nothing past them, put everything unread on screen, and moves it.
-    /// </param>
-    /// <param name="rose">Whether the count read is higher than the badge was.</param>
-    private void Landed(
-        ActiveProfile profile,
-        Found.Badge badge,
-        InboxList found,
-        bool rose,
-        CancellationToken abandoned)
+    /// <inheritdoc cref="InboxBadges.Landing" />
+    private string? Landed(Found.Badge badge, InboxList found, bool rose)
     {
         var put = Rail.Showing.Kind == badge.Kind && _acting?.Lists.HoldsBack(badge.Kind) == false
             ? Screen.PutOnTop(found)
@@ -2316,113 +2199,14 @@ public sealed class Shell
 
         if (put == 0)
         {
-            return;
-        }
-
-        if (!badge.Full && Screen is NotificationsScreen { Notifications: [var newest, ..] })
-        {
-            _ = MarkerPast(profile, newest.Id, abandoned);
+            return null;
         }
 
         Grew?.Invoke();
         Changed?.Invoke();
+
+        return Screen is NotificationsScreen { Notifications: [var newest, ..] } ? newest.Id : null;
     }
-
-    /// <summary>
-    ///     Moves the read marker to <paramref name="newest" />, which the reader has in front of them, and clears the
-    ///     badge where the instance took the move — nothing is newer than what is on top of the screen. A move not
-    ///     taken leaves the badge saying what was waiting, which is still true (#397).
-    /// </summary>
-    private async Task MarkerPast(ActiveProfile profile, string newest, CancellationToken abandoned)
-    {
-        try
-        {
-            if (await _ports.Notifications.MoveMarker(profile, newest, abandoned))
-            {
-                Apply(() =>
-                {
-                    if (!abandoned.IsCancellationRequested)
-                    {
-                        Counted(new Found.Badge(DestinationKind.Notifications, 0));
-                    }
-                });
-            }
-        }
-        catch (OperationCanceledException) when (abandoned.IsCancellationRequested)
-        {
-            // Called off by a switch, and nobody left to tell.
-        }
-    }
-
-    /// <summary>
-    ///     A count the instance gave, put on the rail — and <paramref name="once" /> told where it is higher than the
-    ///     last count of the same badge for this profile. The first count of each badge since the profile was opened
-    ///     onto is never higher than anything: it is what there was, not what arrived (#399).
-    /// </summary>
-    /// <remarks>
-    ///     Whatever read it — the open, a poll, arriving at the destination, a stream event — rather than which one,
-    ///     so a poll that happens to land before a slow opening count is the first, and stays quiet.
-    ///     <para>
-    ///         A badge already full that comes back full again cannot count higher, so it has risen where what is
-    ///         newest has changed: something arrived above what the last count saw (story 27 of #395).
-    ///     </para>
-    /// </remarks>
-    /// <param name="badge">The count.</param>
-    /// <param name="once">The bell of the re-read the count is part of.</param>
-    /// <returns>Whether it is higher than the badge was, first count or not.</returns>
-    private bool Read(Found.Badge badge, BellOnce once)
-    {
-        var was = Badged(badge.Kind);
-        var newer = was.Full
-                    && badge.Full
-                    && badge.Newest is { } newest
-                    && _newest.GetValueOrDefault(badge.Kind) is { } before
-                    && !string.Equals(newest, before, StringComparison.Ordinal);
-        var rose = badge.Unread > was.Unread || newer;
-
-        _newest[badge.Kind] = badge.Newest;
-
-        if (!_countedOnce.Add(badge.Kind) && rose)
-        {
-            once.Rose();
-        }
-
-        Counted(badge);
-
-        return rose;
-    }
-
-    /// <summary>The terminal's bell, where the preference leaves it on (#399).</summary>
-    private void Ring()
-    {
-        if (_ringing)
-        {
-            _host.Ring();
-        }
-    }
-
-    /// <summary>
-    ///     Puts a count on the rail. Said in one place, because the badge is written from three: the read that opens
-    ///     the shell, arriving at the destination itself, and clearing something off it — and a badge that disagreed
-    ///     with the list under it would be the shell arguing with itself.
-    /// </summary>
-    private void Counted(Found.Badge badge) =>
-        Rail.Update(Badged(badge.Kind) with { Unread = badge.Unread, Full = badge.Full && badge.Unread > 0 });
-
-    /// <summary>
-    ///     Moves a count on the rail by <paramref name="by" />, and never below nothing (#234). A full badge stays
-    ///     full: forty or more, less one, is still at least thirty-nine.
-    /// </summary>
-    private void Moved(DestinationKind kind, int by)
-    {
-        var badge = Badged(kind);
-
-        Counted(new Found.Badge(kind, Math.Max(0, badge.Unread + by), badge.Full));
-    }
-
-    /// <summary>The rail's entry for <paramref name="kind" />, badge and all.</summary>
-    private Destination Badged(DestinationKind kind) =>
-        Rail.Destinations.First(destination => destination.Kind == kind);
 
     /// <summary>
     ///     An arm of <see cref="Do" /> that answers at once, as a used key — so that the table there is one shape all
