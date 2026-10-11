@@ -241,7 +241,10 @@ not answer them differently:
   badges rose (a poll reading all three is one re-read). The first count of each badge after the shell opens or a
   profile switch never rings, whichever read lands first; being on the destination does not stop it; a badge that
   falls or stays never rings. A badge at `40+` cannot count higher, so it rises where the newest thing waiting under it
-  changed (`Found.Badge.Newest`). `bell = false` in `[preferences]` turns it off, and the badges still move.
+  changed (`Found.Badge.Newest`). The last count is the instance's (`InboxBadges`), not whatever the rail draws: marking
+  a conversation read or answering a request moves it by one, as the instance would, so the next arrival still rings —
+  but under `40+` it stays `40+` (never `39+`) and the count is read again, quietly, since answering what was newest
+  under it is nothing arriving. `bell = false` in `[preferences]` turns it off, and the badges still move.
 - **What a re-read finds lands at the top of the Inbox screen in front** (#400). Every re-read of a count — a poll, a
   stream event — hands what it read to the screen on top of the stack (`Screen.PutOnTop`), and only while the rail is
   showing that destination: new notifications go on top drawn `unread`, and the read marker is moved past them so the

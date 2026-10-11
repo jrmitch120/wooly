@@ -60,7 +60,12 @@ what arrived since, and coming back to the held copy inside the cache window mar
 acted as; an event re-reads the counts it touches, a drop reconnects with backoff while all three counts are polled every
 60 seconds, and a reconnect re-reads all three. Nothing about the stream is drawn. A badge that rises rings the terminal's
 own bell once, unless the user has turned it off. A badge at `40+` cannot count higher, so it has risen where the newest
-thing waiting under it has changed. (#398–#401.)
+thing waiting under it has changed. Rising is against the last count the instance gave, not whatever the rail draws: a
+change made here that moves a badge by a known amount — a conversation marked read, a request answered — moves that
+count with it, since the instance would now say the same, but under `40+` there is no known amount. `40+` is the only
+badge shape that says "at least", so a badge there stays `40+` and its count is read again, and that re-read cannot ring:
+what was newest may be what was just answered, and the next one moving up past the forty is nothing arriving.
+(#398–#401.)
 
 What a re-read finds is put at the top of the destination's screen when that screen is in front, keeping the picked row
 where it is on the page; on Notifications the marker is moved past it, as arriving would have, so the badge stays clear

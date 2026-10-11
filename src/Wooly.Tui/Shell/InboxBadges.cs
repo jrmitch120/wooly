@@ -34,16 +34,13 @@ internal sealed class InboxBadges
     private InboxStreaming? _streaming;
 
     /// <summary>
-    ///     The Inbox badges read at least once for the profile acted as, since the shell opened onto it: only a badge
-    ///     already counted can rise, which is what keeps the first counts — at launch, and after a switch — quiet (#399).
+    ///     The last count of each Inbox badge for the profile acted as, since the shell opened onto it — what the next
+    ///     count is told to have risen against (#399). The instance's, as it last said, or as it would say now after a
+    ///     change made here that moved the badge by a known amount; never the rail's guess under <c>40+</c>. Only a
+    ///     badge already counted can rise, which is what keeps the first counts — at launch, and after a switch —
+    ///     quiet.
     /// </summary>
-    private readonly HashSet<DestinationKind> _countedOnce = [];
-
-    /// <summary>
-    ///     What the last count of each Inbox badge said was newest (<see cref="Found.Badge.Newest" />) — how a badge
-    ///     already full, which cannot count higher, is told to have risen (story 27 of #395).
-    /// </summary>
-    private readonly Dictionary<DestinationKind, string?> _newest = [];
+    private readonly Dictionary<DestinationKind, Found.Badge> _last = [];
 
     /// <param name="ports">What a count is read through.</param>
     /// <param name="rail">Where the badges are drawn.</param>
@@ -126,8 +123,7 @@ internal sealed class InboxBadges
     {
         _streaming?.Dispose();
         _streaming = null;
-        _countedOnce.Clear();
-        _newest.Clear();
+        _last.Clear();
     }
 
     /// <summary>
@@ -158,14 +154,41 @@ internal sealed class InboxBadges
     public void Arrived(Found.Badge badge) => Take(badge, new BellOnce(Ring));
 
     /// <summary>
-    ///     Moves a count on the rail by <paramref name="by" />, and never below nothing (#234). A full badge stays
-    ///     full: forty or more, less one, is still at least thirty-nine.
+    ///     Moves a count on the rail by <paramref name="by" />, for a change made here — and never below nothing
+    ///     (#234). The count moved is what the instance would now say, so the next count rises against it.
     /// </summary>
-    public void Moved(DestinationKind kind, int by)
+    /// <remarks>
+    ///     Not under <c>40+</c>, the only badge shape that says "at least": forty or more, less one, is no number the
+    ///     badge can draw — <c>39+</c> is not a shape it has. It goes on saying <c>40+</c>, and the count is read again
+    ///     for what it is now. Nothing newer has been seen under it, so that re-read cannot ring: what was newest may
+    ///     well be what was just answered, and the one past the forty moving up into its place is nothing arriving.
+    /// </remarks>
+    /// <param name="profile">Who a count read again is read as.</param>
+    /// <param name="abandoned">Cancelled where the session switches profile.</param>
+    /// <param name="kind">Which badge.</param>
+    /// <param name="by">How far.</param>
+    public void Moved(ActiveProfile profile, CancellationToken abandoned, DestinationKind kind, int by)
     {
-        var badge = Badged(kind);
+        if (Badged(kind).Full)
+        {
+            if (_last.TryGetValue(kind, out var last))
+            {
+                _last[kind] = last with { Newest = null };
+            }
 
-        Counted(new Found.Badge(kind, Math.Max(0, badge.Unread + by), badge.Full));
+            _ = Reread(profile, abandoned, [kind]);
+
+            return;
+        }
+
+        var moved = new Found.Badge(kind, Math.Max(0, Badged(kind).Unread + by));
+
+        if (_last.ContainsKey(kind))
+        {
+            _last[kind] = moved;
+        }
+
+        Counted(moved);
     }
 
     /// <summary>
@@ -228,7 +251,11 @@ internal sealed class InboxBadges
                 {
                     if (!abandoned.IsCancellationRequested)
                     {
-                        Counted(new Found.Badge(DestinationKind.Notifications, 0));
+                        // The instance's count now, the move taken: the next notification to arrive rises from it.
+                        var none = new Found.Badge(DestinationKind.Notifications, 0);
+
+                        _last[DestinationKind.Notifications] = none;
+                        Counted(none);
                     }
                 });
             }
@@ -241,8 +268,9 @@ internal sealed class InboxBadges
 
     /// <summary>
     ///     Takes a count the instance gave: puts it on the rail, and tells <paramref name="once" /> where it is higher
-    ///     than the last count of the same badge for this profile. The first count of each badge since the profile was
-    ///     opened onto is never higher than anything: it is what there was, not what arrived (#399).
+    ///     than the last count of the same badge for this profile (<see cref="_last" />) — not the rail's, which a
+    ///     change made here may have moved. The first count of each badge since the profile was opened onto is never
+    ///     higher than anything: it is what there was, not what arrived (#399).
     /// </summary>
     /// <remarks>
     ///     Whatever read it — the open, a poll, arriving at the destination, a stream event — rather than which one,
@@ -254,20 +282,24 @@ internal sealed class InboxBadges
     /// </remarks>
     /// <param name="badge">The count.</param>
     /// <param name="once">The bell of the re-read the count is part of.</param>
-    /// <returns>Whether it is higher than the badge was, first count or not.</returns>
+    /// <returns>
+    ///     Whether it is higher than the badge was — against the rail, for a first count — which makes what the
+    ///     destination held out of date.
+    /// </returns>
     private bool Take(Found.Badge badge, BellOnce once)
     {
-        var was = Badged(badge.Kind);
+        var counted = _last.TryGetValue(badge.Kind, out var last);
+        var was = last ?? new Found.Badge(badge.Kind, Badged(badge.Kind).Unread);
         var newer = was.Full
                     && badge.Full
                     && badge.Newest is { } newest
-                    && _newest.GetValueOrDefault(badge.Kind) is { } before
+                    && was.Newest is { } before
                     && !string.Equals(newest, before, StringComparison.Ordinal);
         var rose = badge.Unread > was.Unread || newer;
 
-        _newest[badge.Kind] = badge.Newest;
+        _last[badge.Kind] = badge;
 
-        if (!_countedOnce.Add(badge.Kind) && rose)
+        if (counted && rose)
         {
             once.Rose();
         }
