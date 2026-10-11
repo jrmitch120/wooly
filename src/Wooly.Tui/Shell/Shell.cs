@@ -1814,7 +1814,7 @@ public sealed class Shell
     {
         // An arrival settles what a subject is on screen and what its badge says, and a change what goes stale;
         // putting any of it there is this shell's own business, since the stack and the rail are its.
-        var arrival = new Arrival(profile, _ports, enquiry, cache, showing: () => Rail.Showing.Kind);
+        var arrival = new Arrival(profile, _ports, enquiry, cache, showing: () => Rail.Showing.Kind, _standIns);
 
         arrival.Arrives += Reset;
         arrival.Drills += Push;

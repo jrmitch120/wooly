@@ -129,6 +129,33 @@ public class ReadMarkerArrivalTests
     }
 
     /// <summary>
+    ///     With no marker, what the badge counted against the session marker is what arriving draws unread — the
+    ///     same notifications, so the badge and the screen agree (stories 8 and 11).
+    /// </summary>
+    [Fact]
+    public async Task Arriving_WithNoMarkerDrawsUnreadWhatTheSessionMarkerCounted()
+    {
+        var shell = new AShell { Notifications = Holding(count: 5, newest: 144) };
+        shell.Notifications.Marker = null;
+
+        var opened = await shell.Opened();
+
+        shell.Notifications.NowHolding(
+            [ANotification.With(id: "146"), ANotification.With(id: "145"), .. Ids(count: 5, newest: 144)]);
+        shell.Clock.Advance(shell.Timing.PollEvery);
+        shell.Host.Drain();
+
+        Assert.Equal(2, Badge(opened).Unread);
+
+        opened.Step(ToNotifications);
+        shell.Host.Settle();
+
+        Assert.Equal(["146", "145"], Unread(opened));
+        Assert.Equal("146", Assert.Single(shell.Notifications.MarkerMoves).NotificationId);
+        Assert.Equal(0, Badge(opened).Unread);
+    }
+
+    /// <summary>
     ///     A move the instance did not take costs the reader nothing they can see: the list is drawn, nothing is said,
     ///     and the badge says what was waiting, which is still true.
     /// </summary>

@@ -40,7 +40,7 @@ internal static class InboxCount
         switch (kind)
         {
             case DestinationKind.Notifications:
-                var unread = await Unread(ports, profile, standIns, cancellationToken);
+                var (unread, _) = await Unread(ports, profile, standIns, cancellationToken);
 
                 return new Reading(Of(kind, unread.Count), new InboxList.Notifications(unread));
 
@@ -66,7 +66,8 @@ internal static class InboxCount
     ///     whatever arrived after it on every read since. The account's marker is not touched; the reader has looked
     ///     at nothing.
     /// </summary>
-    private static async Task<IReadOnlyList<Notification>> Unread(
+    /// <returns>What is unread, and whether the account has a marker of its own.</returns>
+    private static async Task<(IReadOnlyList<Notification> Unread, bool HasMarker)> Unread(
         ShellPorts ports,
         ActiveProfile profile,
         StandInMarkers standIns,
@@ -76,20 +77,20 @@ internal static class InboxCount
 
         if (unread.HasMarker)
         {
-            return unread.Since.Items;
+            return (unread.Since.Items, true);
         }
 
         if (standIns.For(profile) is { } from)
         {
-            return (await ports.Notifications.ReadNewer(profile, from, Arrival.CountedAtMost, cancellationToken))
-                .Items;
+            return ((await ports.Notifications.ReadNewer(profile, from, Arrival.CountedAtMost, cancellationToken))
+                .Items, false);
         }
 
         var newest = await ports.Notifications.Read(profile, 1, cancellationToken);
 
         standIns.Start(profile, newest.Items is [var first, ..] ? first.Id : StandInMarkers.BeforeEverything);
 
-        return [];
+        return ([], false);
     }
 
     /// <summary>
@@ -98,6 +99,10 @@ internal static class InboxCount
     ///     instance's (ADR-0027, #397).
     /// </summary>
     /// <param name="shown">The notifications the screen is drawing, newest first.</param>
+    /// <param name="standIns">
+    ///     Where an account with no read marker counts from this session — so arriving draws unread the same
+    ///     notifications the badge counted (stories 8 and 11).
+    /// </param>
     /// <returns>
     ///     The badge — what is still waiting once the marker has moved: anything that arrived between the list read and
     ///     this one, newer than everything shown; or, where the move was not made, what was waiting before it, which is
@@ -107,17 +112,17 @@ internal static class InboxCount
         ShellPorts ports,
         ActiveProfile profile,
         IReadOnlyList<Notification> shown,
+        StandInMarkers standIns,
         CancellationToken cancellationToken)
     {
-        var unread = await ports.Notifications.ReadUnread(profile, Arrival.CountedAtMost, cancellationToken);
-        var waiting = Of(DestinationKind.Notifications, unread.Since.Items.Count);
+        var (unread, hasMarker) = await Unread(ports, profile, standIns, cancellationToken);
+        var waiting = Of(DestinationKind.Notifications, unread.Count);
         var drawn = shown.Select(notification => notification.Id).ToHashSet(StringComparer.Ordinal);
-        var wasUnread = unread.Since.Items.Select(notification => notification.Id).ToHashSet(StringComparer.Ordinal);
+        var wasUnread = unread.Select(notification => notification.Id).ToHashSet(StringComparer.Ordinal);
 
         // Moved only where it moves past something unread on screen — or sets a marker the account never had. Nothing
         // unread is nothing to ask the instance for, and a marker already past the newest shown would be moved back.
-        var reads = shown.Count > 0
-                    && (!unread.HasMarker || unread.Since.Items.Any(notification => drawn.Contains(notification.Id)));
+        var reads = shown.Count > 0 && (!hasMarker || wasUnread.Overlaps(drawn));
 
         if (!reads || !await ports.Notifications.MoveMarker(profile, shown[0].Id, cancellationToken))
         {

@@ -40,12 +40,17 @@ namespace Wooly.Tui.Shell;
 /// <param name="enquiry">What every question is put under.</param>
 /// <param name="cache">What each cached subject last held, which is what makes walking the rail back free.</param>
 /// <param name="showing">Which destination the rail is showing, which a post sent there is on.</param>
+/// <param name="standIns">
+///     Where an account with no read marker counts its notifications from this session, which arriving at
+///     Notifications counts against (story 8).
+/// </param>
 public sealed class Arrival(
     ActiveProfile profile,
     ShellPorts ports,
     Enquiry enquiry,
     SubjectCache cache,
-    Func<DestinationKind> showing)
+    Func<DestinationKind> showing,
+    StandInMarkers standIns)
 {
     /// <summary>
     ///     How many posts a screen asks for. A timeline's page, which is the most an instance serves in one call — so
@@ -173,7 +178,7 @@ public sealed class Arrival(
                 return Bring(own, Move.Arrive, blank);
 
             default:
-                return Bring(new Subject.Destination(destination), Move.Arrive);
+                return Bring(new Subject.Destination(destination, standIns), Move.Arrive);
         }
     }
 

@@ -14,7 +14,7 @@ namespace Wooly.Tui.Shell;
 ///     back counts from where that profile started rather than starting again. Set once; the account getting a marker
 ///     of its own — arriving at Notifications sets one — makes it unused.
 /// </remarks>
-internal sealed class StandInMarkers
+public sealed class StandInMarkers
 {
     /// <summary>What an account with no notifications at all counts from: below every id an instance hands out.</summary>
     public const string BeforeEverything = "0";
