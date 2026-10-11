@@ -51,7 +51,8 @@ internal sealed class InboxBadges
     /// <summary>
     ///     The place in line of the newest count of each badge to have landed. A re-read asked for before it is out of
     ///     date by the time it lands — the poll, a stream gathering, a list read and a change can each have one of the
-    ///     same badge in flight — and is dropped rather than putting an older count back (story 27 of #395).
+    ///     same badge in flight — and is dropped rather than putting an older count back for the next re-read to rise
+    ///     from and ring for again (#399, #401).
     /// </summary>
     private readonly Dictionary<DestinationKind, long> _newestLanded = [];
 
