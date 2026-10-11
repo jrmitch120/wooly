@@ -295,6 +295,42 @@ public class InboxBellTests
         Assert.Equal(2, shell.Host.Bells);
     }
 
+    /// <summary>
+    ///     Re-reads of one badge can be in flight at once — a slow poll and the next. One asked before another that has
+    ///     already landed is out of date when it lands: it is dropped, rather than putting the older count back on the
+    ///     rail for the next re-read to rise from and ring for the same arrival again.
+    /// </summary>
+    [Fact]
+    public async Task AReReadLandingAfterANewerOne_IsDropped_AndTheArrivalRingsOnce()
+    {
+        var shell = OneUnreadNotification();
+        var opened = await shell.Opened();
+
+        var slow = new TaskCompletionSource<Fetch<Notification>>();
+        var answers = new Queue<Task<Fetch<Notification>>>([
+            slow.Task,
+            Task.FromResult(Fetch<Notification>.Complete(
+                [ANotification.With(id: "102"), ANotification.With(id: "101")])),
+        ]);
+        shell.Notifications.ByProfile["personal"] = () => answers.Count > 0
+            ? answers.Dequeue()
+            : Task.FromResult(Fetch<Notification>.Complete(
+                [ANotification.With(id: "102"), ANotification.With(id: "101")]));
+
+        Passes(shell, Minute);
+        Passes(shell, Minute);
+        Assert.Equal(2, Badge(opened, DestinationKind.Notifications).Unread);
+
+        slow.SetResult(Fetch<Notification>.Complete([ANotification.With(id: "101")]));
+        shell.Host.Drain();
+
+        Assert.Equal(2, Badge(opened, DestinationKind.Notifications).Unread);
+
+        Passes(shell, Minute);
+
+        Assert.Equal(1, shell.Host.Bells);
+    }
+
     [Fact]
     public async Task WithTheBellTurnedOff_NothingRings_AndTheBadgeStillRises()
     {

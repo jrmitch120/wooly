@@ -25,7 +25,7 @@ internal sealed class InboxBadges
     /// <summary>Whether a rising badge rings the terminal's bell: the config file's <c>bell</c> (#399).</summary>
     private readonly bool _ringing;
 
-    private readonly Landing _landed;
+    private readonly Landing _landing;
 
     /// <summary>
     ///     What keeps the Inbox live for the profile acted as — the user stream, and the poll while it is down — from
@@ -41,6 +41,19 @@ internal sealed class InboxBadges
     ///     quiet.
     /// </summary>
     private readonly Dictionary<DestinationKind, Found.Badge> _last = [];
+
+    /// <summary>
+    ///     How many counts have been asked for or set, across every badge — each count's place in line, taken as it is
+    ///     asked for. Taken off whichever thread a re-read is on, so only ever moved atomically.
+    /// </summary>
+    private long _asked;
+
+    /// <summary>
+    ///     The place in line of the newest count of each badge to have landed. A re-read asked for before it is out of
+    ///     date by the time it lands — the poll, a stream gathering, a list read and a change can each have one of the
+    ///     same badge in flight — and is dropped rather than putting an older count back (story 27 of #395).
+    /// </summary>
+    private readonly Dictionary<DestinationKind, long> _newestLanded = [];
 
     /// <param name="ports">What a count is read through.</param>
     /// <param name="rail">Where the badges are drawn.</param>
@@ -67,7 +80,7 @@ internal sealed class InboxBadges
         _clock = clock;
         _timing = timing;
         _ringing = ringing;
-        _landed = landed;
+        _landing = landed;
     }
 
     /// <summary>
@@ -124,6 +137,7 @@ internal sealed class InboxBadges
         _streaming?.Dispose();
         _streaming = null;
         _last.Clear();
+        _newestLanded.Clear();
     }
 
     /// <summary>
@@ -150,8 +164,15 @@ internal sealed class InboxBadges
         }
     }
 
-    /// <summary>A count arriving at the destination read, put on the rail — and the bell rung where it rose.</summary>
-    public void Arrived(Found.Badge badge) => Take(badge, new BellOnce(Ring));
+    /// <summary>
+    ///     A count arriving at the destination read, put on the rail — and the bell rung where it rose. Newer than any
+    ///     re-read still in flight, which its list and count were read after or alongside.
+    /// </summary>
+    public void Arrived(Found.Badge badge)
+    {
+        Lands(badge.Kind, Ask());
+        Take(badge, new BellOnce(Ring));
+    }
 
     /// <summary>
     ///     Moves a count on the rail by <paramref name="by" />, for a change made here — and never below nothing
@@ -183,6 +204,9 @@ internal sealed class InboxBadges
 
         var moved = new Found.Badge(kind, Math.Max(0, Badged(kind).Unread + by));
 
+        // Newer than a re-read still in flight, which may have been read before the change was made.
+        Lands(kind, Ask());
+
         if (_last.ContainsKey(kind))
         {
             _last[kind] = moved;
@@ -203,13 +227,15 @@ internal sealed class InboxBadges
             return;
         }
 
+        var place = Ask();
+
         try
         {
             var (badge, found) = await new InboxCount(_ports, profile, SessionMarkers, abandoned).Read(kind);
 
             _host.OnUiThread(() =>
             {
-                if (abandoned.IsCancellationRequested)
+                if (abandoned.IsCancellationRequested || !Lands(kind, place))
                 {
                     return;
                 }
@@ -219,7 +245,7 @@ internal sealed class InboxBadges
                 // One that came back full has more unread past what it read, which are on no screen: the marker is
                 // left where it is rather than moved past them unseen, and the badge goes on saying at least that
                 // many. One that read exactly as many as are counted put everything unread on screen, and moves it.
-                if (_landed(badge, found, rose) is { } newest && !badge.Full)
+                if (_landing(badge, found, rose) is { } newest && !badge.Full)
                 {
                     _ = MarkerPast(profile, newest, abandoned);
                 }
@@ -254,6 +280,7 @@ internal sealed class InboxBadges
                         // The instance's count now, the move taken: the next notification to arrive rises from it.
                         var none = new Found.Badge(DestinationKind.Notifications, 0);
 
+                        Lands(DestinationKind.Notifications, Ask());
                         _last[DestinationKind.Notifications] = none;
                         Counted(none);
                     }
@@ -307,6 +334,26 @@ internal sealed class InboxBadges
         Counted(badge);
 
         return rose;
+    }
+
+    /// <summary>A place in line for a count about to be asked for, or set (<see cref="_asked" />).</summary>
+    private long Ask() => Interlocked.Increment(ref _asked);
+
+    /// <summary>
+    ///     Lands a count of <paramref name="kind" /> asked for at <paramref name="place" />, unless one asked for after it
+    ///     has landed already — which makes it out of date.
+    /// </summary>
+    /// <returns>Whether it landed.</returns>
+    private bool Lands(DestinationKind kind, long place)
+    {
+        if (_newestLanded.GetValueOrDefault(kind) > place)
+        {
+            return false;
+        }
+
+        _newestLanded[kind] = place;
+
+        return true;
     }
 
     /// <summary>The terminal's bell, where the preference leaves it on (#399).</summary>

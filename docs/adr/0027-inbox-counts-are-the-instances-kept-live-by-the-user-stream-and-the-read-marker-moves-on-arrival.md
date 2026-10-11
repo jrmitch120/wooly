@@ -65,7 +65,9 @@ change made here that moves a badge by a known amount — a conversation marked 
 count with it, since the instance would now say the same, but under `40+` there is no known amount. `40+` is the only
 badge shape that says "at least", so a badge there stays `40+` and its count is read again, and that re-read cannot ring:
 what was newest may be what was just answered, and the next one moving up past the forty is nothing arriving.
-(#398–#401.)
+Re-reads of one badge can be in flight together — a slow poll and the next, a stream gathering, a list read; each
+takes its place in line as it is asked for, and one landing after a later-asked one has landed is dropped, so an older
+count never overwrites a newer one nor gives the next re-read something to ring for twice. (#398–#401.)
 
 What a re-read finds is put at the top of the destination's screen when that screen is in front, keeping the picked row
 where it is on the page; on Notifications the marker is moved past it, as arriving would have, so the badge stays clear
