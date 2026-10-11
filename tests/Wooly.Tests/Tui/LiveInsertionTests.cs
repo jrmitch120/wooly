@@ -105,6 +105,32 @@ public class LiveInsertionTests
     }
 
     /// <summary>
+    ///     A re-read that read everything unread — as many as it counts up to, and no more past them — put all of it
+    ///     on screen, so the marker moves past it and the badge clears, as for any re-read that is not full.
+    /// </summary>
+    [Fact]
+    public async Task OnNotifications_APollReadingExactlyAsManyAsItCountsMovesTheMarkerPastThemAll()
+    {
+        var shell = new AShell { Notifications = FakeNotificationInbox.Holding(ANotification.With(id: "100")) };
+        shell.Notifications.Marker = "100";
+        var opened = await shell.Opened();
+
+        opened.Step(ToNotifications);
+        shell.Host.Settle();
+
+        shell.Notifications.NowHolding(
+            [.. Enumerable.Range(0, 40).Select(offset => ANotification.With(id: $"{140 - offset}")),
+                ANotification.With(id: "100")]);
+        Passes(shell, Minute);
+
+        var screen = Assert.IsType<NotificationsScreen>(opened.Screen);
+        Assert.Equal(41, screen.Notifications.Count);
+        Assert.Equal("140", shell.Notifications.Marker);
+        Assert.Equal(0, Badge(opened, DestinationKind.Notifications).Unread);
+        Assert.False(Badge(opened, DestinationKind.Notifications).Full);
+    }
+
+    /// <summary>
     ///     A re-read landing while the arrival at Notifications is still reading puts nothing on the screen waiting for
     ///     it and moves no marker: the arrival is about to draw the list and read the marker itself (story 11). What it
     ///     found is not lost for that — the arrival's list was read before it came, so it is put on top once the list

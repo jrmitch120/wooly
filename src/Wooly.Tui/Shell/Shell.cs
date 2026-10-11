@@ -2282,9 +2282,10 @@ public sealed class Shell
     ///     </para>
     /// </remarks>
     /// <param name="badge">
-    ///     What the re-read counted. One that came back full may have more unread past what it read, which are on no
+    ///     What the re-read counted. One that came back full has more unread past what it read, which are on no
     ///     screen: the marker is left where it is rather than moved past them unseen, and the badge goes on saying at
-    ///     least that many — the reader moves it by arriving, or with <c>g</c>, as they would have anyway.
+    ///     least that many — the reader moves it by arriving, or with <c>g</c>, as they would have anyway. One that
+    ///     read exactly as many as are counted, and nothing past them, put everything unread on screen, and moves it.
     /// </param>
     /// <param name="rose">Whether the count read is higher than the badge was.</param>
     private void Landed(
