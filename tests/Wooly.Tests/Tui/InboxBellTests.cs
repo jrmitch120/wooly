@@ -223,6 +223,35 @@ public class InboxBellTests
     }
 
     /// <summary>
+    ///     The price of the test above, paid on purpose (ADR-0027): the re-read an answer under <c>40+</c> asks for
+    ///     cannot tell a request that arrived while it was in flight from the next one past the forty moving up, so it
+    ///     rings for neither. The window closes as that re-read lands — what it found newest is what the next count
+    ///     rises against, and something arriving after it rings.
+    /// </summary>
+    [Fact]
+    public async Task ARequestArrivingAsAnAnswerUnderAFullBadgeIsReadAgain_RingsNothing_ButTheNextRings()
+    {
+        var shell = new AShell
+        {
+            Accounts = FakeAccountRelationships.Holding(subject: null, [.. Asking(from: 0, count: 40)]),
+        };
+        var opened = await shell.Opened();
+        opened.Step(ToRequests);
+        shell.Host.Settle();
+
+        shell.Accounts.NowListing([.. Asking(from: -1, count: 1), .. Asking(from: 1, count: 39)]);
+        opened.Press(ShellKey.A);
+        shell.Host.Drain();
+
+        Assert.Equal(0, shell.Host.Bells);
+
+        shell.Accounts.NowListing([.. Asking(from: -2, count: 2), .. Asking(from: 1, count: 38)]);
+        Passes(shell, Minute);
+
+        Assert.Equal(1, shell.Host.Bells);
+    }
+
+    /// <summary>
     ///     <c>40+</c> is the only badge shape that says "at least": one answered under it leaves it saying <c>40+</c>
     ///     rather than <c>39+</c>, until the instance says otherwise.
     /// </summary>
