@@ -15,9 +15,6 @@ internal sealed class AccountEditSettings : ProfileScopedSettings
     /// <summary>What reads the bio from stdin rather than the command line.</summary>
     public const string FromStandardInput = "-";
 
-    /// <summary>How many custom fields Mastodon keeps.</summary>
-    private const int MostFields = 4;
-
     [CommandOption("--display-name <NAME>")]
     [Description("The name to be shown as.")]
     public string? DisplayName { get; init; }
@@ -89,9 +86,9 @@ internal sealed class AccountEditSettings : ProfileScopedSettings
             return ValidationResult.Error("--clear-fields removes every field, so it cannot be given with --field.");
         }
 
-        if (Fields.Length > MostFields)
+        if (Fields.Length > PublicProfileField.MastodonKeeps)
         {
-            return ValidationResult.Error($"An account has at most {MostFields} custom fields, and {Fields.Length} were given.");
+            return ValidationResult.Error($"An account has at most {PublicProfileField.MastodonKeeps} custom fields, and {Fields.Length} were given.");
         }
 
         return Fields.FirstOrDefault(field => field.IndexOf('=') < 1) is { } malformed

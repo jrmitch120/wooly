@@ -190,6 +190,21 @@ public class PublicProfileEditorTests
         Assert.All(Sent(network), sent => Assert.Equal("", sent.Value));
     }
 
+    /// <summary>A fork that keeps more than four rows has them all sent, rather than the fifth cut off.</summary>
+    [Fact]
+    public async Task Save_SendsEveryFieldWhereThereAreMoreThanFour()
+    {
+        var network = Answering(Credentials);
+
+        await Editor(network).Save(
+            Profile,
+            new PublicProfileChange { Fields = [.. Enumerable.Range(1, 5).Select(n => new PublicProfileField($"L{n}", $"V{n}"))] },
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(("fields_attributes[4][name]", "L5"), Sent(network)[8]);
+        Assert.Equal(10, Sent(network).Count);
+    }
+
     [Fact]
     public async Task Save_AnswersTheAccountAsTheInstanceNowHasIt()
     {

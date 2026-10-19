@@ -22,9 +22,6 @@ namespace Wooly.Core.Accounts;
 /// </summary>
 public sealed class PublicProfileEditor(IHttpClientFactory httpClientFactory) : IPublicProfileEditor
 {
-    /// <summary>How many custom fields Mastodon keeps, all of which a save that touches any of them sends.</summary>
-    private const int FieldCount = 4;
-
     /// <inheritdoc />
     public async Task<PublicProfile> Read(ActiveProfile profile, CancellationToken cancellationToken)
     {
@@ -111,8 +108,9 @@ public sealed class PublicProfileEditor(IHttpClientFactory httpClientFactory) : 
         if (change.Fields is { } fields)
         {
             // Every row, the unwanted ones blank: Mastodon keeps exactly the rows a save names with a label, so a
-            // blank is how one is dropped — and with none named at all, how they are all dropped.
-            for (var row = 0; row < FieldCount; row++)
+            // blank is how one is dropped — and with none named at all, how they are all dropped. More than four only
+            // where a fork's account has more, which are sent rather than cut off.
+            for (var row = 0; row < Math.Max(PublicProfileField.MastodonKeeps, fields.Count); row++)
             {
                 var field = row < fields.Count ? fields[row] : new PublicProfileField("", "");
 
