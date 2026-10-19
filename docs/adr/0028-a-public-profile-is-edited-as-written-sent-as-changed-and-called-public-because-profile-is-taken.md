@@ -40,8 +40,8 @@ changed on the web since the form opened. The exception is Mastodon's own: `fiel
 fields at once, so touching any one of them resends all four. On the CLI, any `--field` replaces all four, and
 `--clear-fields` empties them.
 
-Limits are the instance's to enforce. Mastodon's own limits (30 characters for a display name, 500 for a bio, and the
-image sizes) differ on forks, and an instance does not report them. Nothing is refused before sending. A rejection
+Limits are the instance's to enforce. Mastodon's own limits (a display name's 30 characters, raised to 40 in 4.6, 500 for
+a bio, and the image sizes) move between versions and differ on forks, and an instance does not report them. Nothing is refused before sending. A rejection
 comes back as the instance's own words, the form stays open with every edit intact, and the CLI prints it to stderr with
 ADR-0006's exit codes.
 
