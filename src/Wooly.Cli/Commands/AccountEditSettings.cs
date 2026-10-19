@@ -47,18 +47,14 @@ internal sealed class AccountEditSettings : ProfileScopedSettings
     [Description("Write the account as JSON, for another program to read.")]
     public bool Json { get; init; }
 
-    /// <summary>Whether the bio is to be read from stdin rather than taken as typed.</summary>
-    public bool BioFromStandardInput => Bio == FromStandardInput;
-
-    /// <summary>
-    ///     What these settings ask to change, with the bio as <paramref name="bio" /> where it was typed as
-    ///     <see cref="FromStandardInput" />.
-    /// </summary>
-    /// <param name="bio">What stdin said, or <see langword="null" /> where the bio was not to be read from it.</param>
-    public PublicProfileChange ToChange(string? bio) => new()
+    /// <summary>What these settings ask to change.</summary>
+    /// <param name="piped">
+    ///     Reads the bio from stdin, called only where it was typed as <see cref="FromStandardInput" />.
+    /// </param>
+    public PublicProfileChange ToChange(Func<string> piped) => new()
     {
         DisplayName = DisplayName,
-        Bio = BioFromStandardInput ? bio : Bio,
+        Bio = Bio == FromStandardInput ? piped() : Bio,
         Fields = ClearFields ? [] : Fields.Length > 0 ? [.. Fields.Select(ToField)] : null,
         IsLocked = Locked,
         IsBot = Bot,
@@ -74,13 +70,6 @@ internal sealed class AccountEditSettings : ProfileScopedSettings
             return shared;
         }
 
-        if (DisplayName is null && Bio is null && Locked is null && Bot is null && Discoverable is null
-            && Fields.Length == 0 && !ClearFields)
-        {
-            return ValidationResult.Error(
-                "Say what to change: --display-name, --bio, --locked, --bot, --discoverable, --field or --clear-fields.");
-        }
-
         if (ClearFields && Fields.Length > 0)
         {
             return ValidationResult.Error("--clear-fields removes every field, so it cannot be given with --field.");
@@ -91,8 +80,16 @@ internal sealed class AccountEditSettings : ProfileScopedSettings
             return ValidationResult.Error($"An account has at most {PublicProfileField.MastodonKeeps} custom fields, and {Fields.Length} were given.");
         }
 
-        return Fields.FirstOrDefault(field => field.IndexOf('=') < 1) is { } malformed
-            ? ValidationResult.Error($"'{malformed}' is not a field: write it as 'Name=Value'.")
+        if (Fields.FirstOrDefault(field => field.IndexOf('=') < 1) is { } malformed)
+        {
+            return ValidationResult.Error($"'{malformed}' is not a field: write it as 'Name=Value'.");
+        }
+
+        // Last, once every --field is known to divide. Stdin is not read to find out: a bio to be piped in is a bio
+        // asked for, whatever arrives.
+        return ToChange(piped: () => FromStandardInput).IsEmpty
+            ? ValidationResult.Error(
+                "Say what to change: --display-name, --bio, --locked, --bot, --discoverable, --field or --clear-fields.")
             : ValidationResult.Success();
     }
 

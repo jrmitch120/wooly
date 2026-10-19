@@ -30,7 +30,7 @@ internal sealed class AccountEditCommand(
         var profile = profiles.Resolve(settings.Profile);
 
         // Before anything is asked of the instance: a pipe that cannot be read is no reason to have spent a call.
-        var wanted = settings.ToChange(settings.BioFromStandardInput ? PipedBio() : null);
+        var wanted = settings.ToChange(PipedBio);
 
         var read = await editor.Read(profile, cancellationToken);
         var change = wanted.Against(read);

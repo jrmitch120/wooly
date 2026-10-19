@@ -122,10 +122,7 @@ public sealed class PublicProfileEditor(IHttpClientFactory httpClientFactory) : 
 
     private static string Said(bool value) => value ? "true" : "false";
 
-    /// <summary>
-    ///     The body of <paramref name="response" /> where it is a success; otherwise what it was, as something a front
-    ///     end can say.
-    /// </summary>
+    /// <summary>The body of <paramref name="response" />, where it is a success (<see cref="InstanceError.EnsureAnswered" />).</summary>
     /// <exception cref="InstanceFailedException">The instance failed to answer — a <c>5xx</c>.</exception>
     /// <exception cref="PublicProfileRefusedException">Any other refusal, by way of <paramref name="refused" />.</exception>
     private static async Task<string> Answered(
@@ -134,15 +131,7 @@ public sealed class PublicProfileEditor(IHttpClientFactory httpClientFactory) : 
         Func<string?, PublicProfileRefusedException> refused,
         CancellationToken cancellationToken)
     {
-        if ((int)response.StatusCode >= 500)
-        {
-            throw new InstanceFailedException(profile.Instance, response.StatusCode);
-        }
-
-        if (!response.IsSuccessStatusCode)
-        {
-            throw refused(await InstanceError.Reason(response, cancellationToken));
-        }
+        await InstanceError.EnsureAnswered(profile, response, refused, cancellationToken);
 
         return await response.Content.ReadAsStringAsync(cancellationToken);
     }
