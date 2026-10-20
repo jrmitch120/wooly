@@ -38,6 +38,7 @@ public class CrumbTests
         ("describe", "Describe cat.png"),
         ("reply", "Reply to @ben@hachyderm.io"),
         ("edit", "Edit"),
+        ("public-profile", "Edit public profile"),
         ("account", "@maria@fosstodon.org"),
         ("following", "@maria@fosstodon.org following"),
         ("followers", "@maria@fosstodon.org followers"),
@@ -174,6 +175,9 @@ public class CrumbTests
 
             case "compose":
                 return new ComposeScreen(ComposeFor.Post);
+
+            case "public-profile":
+                return new PublicProfileScreen(APublicProfile.With());
 
             case "describe":
                 var compose = new ComposeScreen(ComposeFor.Post);

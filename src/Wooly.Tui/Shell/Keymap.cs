@@ -52,7 +52,7 @@ public static class Keymap
 
         // Nothing on compose, whose fields take `?` as a letter before the window sees it (#320): a keymap opened only
         // where no widget has the typing would be one a reader can never reach, over a draft.
-        (ShellKey.Question, ComposeScreen or DescriptionScreen) => Verb.None,
+        (ShellKey.Question, ComposeScreen or DescriptionScreen or PublicProfileScreen) => Verb.None,
         (ShellKey.Question, _) => Verb.Help,
         (ShellKey.Slash, _) => Verb.Search,
         (ShellKey.Tab, _) => Verb.NextDestination,
@@ -108,6 +108,14 @@ public static class Keymap
         // than keep a list of their own (review of #372).
         (_, ComposeScreen) => Verb.None,
 
+        // The edit public profile form walks its fields the way compose does, and takes a letter as a letter in the field
+        // that has the typing — or as nobody's on a toggle, which is flipped by space or ⏎ alone (#406).
+        (ShellKey.CtrlS, PublicProfileScreen) => Verb.SavePublicProfile,
+        (ShellKey.Space or ShellKey.Enter, PublicProfileScreen { Typing.IsAToggle: true }) => Verb.FlipToggle,
+        (ShellKey.Up, PublicProfileScreen) => Verb.PreviousField,
+        (ShellKey.Down, PublicProfileScreen) => Verb.NextField,
+        (_, PublicProfileScreen) => Verb.None,
+
         // The file browser takes letters into its filter, so what it answers besides are the named keys (#376): ⏎
         // attaches or opens, → and ← go into a folder and up one, ctrl-a shows every file, and the arrows walk its
         // entries as j and k walk posts elsewhere — j and k being letters here. And space, the one letter it does not
@@ -134,6 +142,7 @@ public static class Keymap
         // wherever one is picked — ahead of whatever the screen's own ⏎ would have meant (#85).
         (ShellKey.Enter, _) when screen.Reference is not null => Verb.OpenReference,
         (ShellKey.Enter, AddProfileScreen) => Verb.Continue,
+        (ShellKey.Enter, AccountScreen { OnTheEditRow: true }) => Verb.EditPublicProfile,
         (ShellKey.Enter, ProfilesScreen) => Verb.ActAs,
         (ShellKey.Enter, SearchScreen search) => search.IsTyping ? Verb.Find : Verb.OpenResult,
         (ShellKey.Enter, FollowRequestsScreen) => Verb.OpenAsker,
@@ -218,6 +227,10 @@ public static class Keymap
         (ShellKey.CapitalB, _) => Verb.Block,
         (ShellKey.CapitalD, ProfilesScreen) => Verb.MakeDefault,
         (ShellKey.CapitalD, _) => Verb.ClearAll,
+
+        // E only on the own account, since nobody else's public profile can be changed from here: anywhere else it is
+        // nobody's, as p, e and d are on somebody else's post (#406).
+        (ShellKey.CapitalE, AccountScreen { Mine: true }) => Verb.EditPublicProfile,
         (ShellKey.CapitalR, ProfilesScreen) => Verb.SignInAgain,
 
         // Every digit means the same thing; which answer it addresses is Answer's, below.

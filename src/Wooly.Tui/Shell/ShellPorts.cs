@@ -47,6 +47,11 @@ namespace Wooly.Tui.Shell;
 ///     The user stream, which keeps the Inbox badges live for the profile acted as (ADR-0027, #401). Told only what
 ///     touches the Inbox; what to read again on hearing it is the shell's.
 /// </param>
+/// <param name="PublicProfile">
+///     The own account's public profile, read as written and saved as changed, for the form <c>E</c> opens on
+///     <b>You</b> (ADR-0028, #406). A port of its own rather than a call on <see cref="Accounts" />, being the one
+///     account a reader changes rather than ties to.
+/// </param>
 public sealed record ShellPorts(
     ITimelineReader Timelines,
     IPostAuthor Author,
@@ -59,7 +64,8 @@ public sealed record ShellPorts(
     IRateLimitReport RateLimit,
     IInstanceLimits Limits,
     IAccountDefaults Defaults,
-    IInboxStream Stream)
+    IInboxStream Stream,
+    IPublicProfileEditor PublicProfile)
 {
     /// <summary>
     ///     Where the profile stands with <paramref name="people" />, or them exactly as they came where the instance

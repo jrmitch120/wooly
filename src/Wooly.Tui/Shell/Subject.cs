@@ -324,7 +324,8 @@ public abstract record Subject
                 [.. posts.Items.Where(post => !pinnedIds.Contains(post.Id))],
                 pins,
                 familiar,
-                WithReplies);
+                WithReplies,
+                profile.SignsInAs(account.Address));
         }
     }
 

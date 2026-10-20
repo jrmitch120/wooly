@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Terminal.Gui.App;
 using Wooly.Core;
+using Wooly.Core.Accounts;
 using Wooly.Core.Configuration;
 using Wooly.Core.Conversations;
 using Wooly.Core.Discovery;
@@ -54,7 +55,8 @@ try
         provider.GetRequiredService<IRateLimitReport>(),
         provider.GetRequiredService<IInstanceLimits>(),
         provider.GetRequiredService<IAccountDefaults>(),
-        provider.GetRequiredService<IInboxStream>());
+        provider.GetRequiredService<IInboxStream>(),
+        provider.GetRequiredService<IPublicProfileEditor>());
 
     var clock = provider.GetRequiredService<TimeProvider>();
 

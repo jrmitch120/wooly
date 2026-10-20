@@ -10,4 +10,9 @@ internal static class ComposeFields
     public static T ComposeField<T>(this View window)
         where T : View =>
         window.SubViews.OfType<ComposeView>().Single().SubViews.OfType<T>().Single();
+
+    /// <summary>The first <typeparamref name="T" /> among the edit public profile form's fields in <paramref name="window" /> (#406).</summary>
+    public static T ProfileField<T>(this View window)
+        where T : View =>
+        window.SubViews.OfType<PublicProfileView>().Single().SubViews.OfType<T>().First();
 }

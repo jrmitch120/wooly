@@ -104,6 +104,7 @@ A screen is a place in the stack, not a window. Entering one pushes, `esc` pops,
 | Direct messages — conversations, then a thread | A rail destination | #30 |
 | Follow requests | A rail destination | #29 |
 | Compose / reply / edit — a screen on the stack, like any other | `c`, `r` or `e` | #28 |
+| Edit public profile — the own account's display name, bio, four custom fields and the locked, bot and discoverable toggles, read as written | `E` on **You**, or `⏎` on or a click on its "Edit public profile" row under the header block — on the own account only | #406 (ADR-0028) |
 | Attach — the file browser, the folders and the files the instance accepts | `ctrl-o` on a compose or a reply, `⏎` on its Media header or a click on its words | #376 |
 | Media — the attachments screen, a row for each thing attached to a compose or a reply | `⏎` on the Media header, or a click on its line, where a short terminal folded the rows into it | story 58 |
 | Profiles — every profile on this machine, marked `acting as` and `default` | `ctrl-p` | #240 (ADR-0020) |
@@ -153,7 +154,8 @@ Screen-local, and deliberately colliding with the above because they are never o
 
 | Screen | Keys |
 |---|---|
-| Account | `F` follow/unfollow · `M` mute/unmute · `B` block/unblock — capitals, so a lower-case mark key can never fire a tie by accident · `w` follows, which is everyone they follow with `s` a keypress from everyone who follows them · `s` posts and replies, or back to posts alone, in place · `[`/`]` section, on an account carrying a pinned run |
+| Account | `F` follow/unfollow · `M` mute/unmute · `B` block/unblock — capitals, so a lower-case mark key can never fire a tie by accident · `w` follows, which is everyone they follow with `s` a keypress from everyone who follows them · `s` posts and replies, or back to posts alone, in place · `[`/`]` section, on an account carrying a pinned run · `E` edit public profile, on the own account only — **You**, or yours reached any other way — and off the status row and answered nowhere else, as `p`/`e`/`d` are on somebody else's post; it reads the public profile as written first, and a read that fails opens nothing and says why (#406) · on the own account the walk goes header, then the "Edit public profile · E" row, then the posts, and `⏎` on that row opens the form as `E` does |
+| Edit public profile | `↑`/`↓` walk the fields top to bottom — display name, bio, each custom field's label then its value, Locked, Bot, Discoverable — stopping at either end rather than coming round; in the bio `↑` walks only off its first line and `↓` only off its last, the caret having them between, and `⏎` in a one-line field walks on to the next · `space` or `⏎` flips the toggle walked to · `ctrl-s` save, sending only what differs from what was read (ADR-0028): the custom fields as a set, an emptied row left out, which removes its field; with nothing changed it sends nothing and says so · `esc` leave — asking `Discard these changes? y / n` first where anything differs from how it opened, as every way out does, and only `y` goes (#373) · `tab`/`shift-tab` are the frame's, never a walk of the form's fields. A save takes the form off and reads the account under it again, saying "Public profile saved."; a refusal keeps the form and every edit in it, with the instance's own words on the status row until an edit spends them (#406) |
 | Follows — following or followers | `f` filter, on a list under the threshold · `s` swap to the other side, in place · `⏎` open that account |
 | Search results | `[`/`]` section, where two or more kinds found something |
 | Discover | `F` follow/unfollow · `d` dismiss, one-way · `[`/`]` section |
@@ -1996,6 +1998,10 @@ panel the pointer is over. What the gesture then does is a move the keys already
 | Wheel sideways | Anywhere | Nothing. A trackpad drifting sideways sends these between vertical notches, and Terminal.Gui's left and right carry up's and down's bits, so they are asked about first and dropped |
 | Wheel, click | The compose editor | Terminal.Gui's own handling: the wheel scrolls the draft and a click places the caret. Nothing of the shell's |
 | Click | A value of compose's **To** | Chooses it and gives To the typing, so `←`/`→` carry on from there; a click on either arrow of the narrow form steps, and anywhere else on the row gives To the typing. A value To does not allow, and the whole row on an edit, ignores it. The wheel over the row does nothing (ADR-0024, #338) |
+| Click | A field of the edit public profile form | Gives it the typing, the caret where the click was, so the walk carries on from there (#406) |
+| Click | A toggle of the edit public profile form | Flips it and takes the walk there, as `space` on it does (#406) |
+| Click | The "Edit public profile" row under the own account's header block | Opens the form, as `⏎` on the row does; a double click is that click and nothing more (#406) |
+| Right click | Anywhere, with the edit public profile form in front | `esc`, wherever it lands, a field included: over a touched form it asks `Discard these changes? y / n` (#406) |
 | Click | A person in the open list of people to mention | `tab` on them: their `@user` goes in place of the word and the list closes (#335) |
 | Wheel down / up | The open list of people to mention | Moves the pick a person at a time, stopping at either end, scrolling the list where it holds more people than it shows (#335) |
 | Click | Anywhere outside the open list of people to mention | Closes it, as `esc` does, and nothing more: the caret stays, the draft is as it was, and what is under the pointer is not clicked (#335) |

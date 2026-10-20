@@ -26,10 +26,20 @@ namespace Wooly.Tui.Screens;
 /// </remarks>
 /// <param name="account">The account being shown, as the instance last answered about them.</param>
 /// <param name="posts">The posts of theirs that were read, which this walks after the header.</param>
-public sealed class HeaderAndPosts(Account account, PostList posts) : IPicked
+/// <param name="editable">
+///     Whether the header block ends on the "edit public profile" row, walked to after the header and before the posts —
+///     on the own account alone (#406).
+/// </param>
+public sealed class HeaderAndPosts(Account account, PostList posts, bool editable = false) : IPicked
 {
+    /// <summary>Where the "edit public profile" row is in the walk, on the own account: straight after the header.</summary>
+    private const int EditRow = 1;
+
     /// <inheritdoc />
-    /// <remarks>Nought is the header block, and one up are the posts in the order they are drawn.</remarks>
+    /// <remarks>
+    ///     Nought is the header block, one the "edit public profile" row where there is one, and the posts after that in
+    ///     the order they are drawn.
+    /// </remarks>
     public int At { get; private set; }
 
     /// <inheritdoc />
@@ -37,19 +47,29 @@ public sealed class HeaderAndPosts(Account account, PostList posts) : IPicked
     ///     The posts and the header block, which is why an account screen is never empty: there is always somebody to
     ///     be looking at, whether or not they have posted anything (#195).
     /// </remarks>
-    public int Count => posts.Count + 1;
+    public int Count => posts.Count + FirstPost;
 
     /// <summary>Whether what is picked out is the header block rather than one of the posts.</summary>
     public bool OnHeader => At == 0;
+
+    /// <summary>Whether what is picked out is the "edit public profile" row (#406).</summary>
+    public bool OnTheEditRow => editable && At == EditRow;
+
+    /// <summary>Whether the thing a row is part of (<see cref="Line.Item" />) is the "edit public profile" row.</summary>
+    public bool IsTheEditRow(int? item) => editable && item == EditRow;
 
     /// <summary>The account being shown, which is what the header block draws.</summary>
     public Account Account { get; private set; } = account;
 
     /// <summary>
     ///     The post picked out, or <see langword="null" /> while the header is — which is what leaves <c>b</c>,
-    ///     <c>f</c>, <c>d</c> and <c>r</c> with nothing to act on there, the way a follow notification already does.
+    ///     <c>f</c>, <c>d</c> and <c>r</c> with nothing to act on there, the way a follow notification already does. The
+    ///     "edit public profile" row is the same: nothing a post key could act on.
     /// </summary>
-    public Post? Picked => OnHeader ? null : posts.Out;
+    public Post? Picked => At < FirstPost ? null : posts.Out;
+
+    /// <summary>Where the first post is in the walk: after the header, and after the "edit public profile" row where there is one.</summary>
+    private int FirstPost => editable ? EditRow + 1 : 1;
 
     /// <inheritdoc />
     /// <remarks>
@@ -63,9 +83,9 @@ public sealed class HeaderAndPosts(Account account, PostList posts) : IPicked
     {
         At = Math.Clamp(at, 0, Count - 1);
 
-        if (!OnHeader)
+        if (At >= FirstPost)
         {
-            posts.Pick(At - 1);
+            posts.Pick(At - FirstPost);
         }
     }
 
@@ -100,6 +120,15 @@ public sealed class HeaderAndPosts(Account account, PostList posts) : IPicked
         Stamped.Rows(draw(Account, 0, Stamped.Room(width)), 0, OnHeader);
 
     /// <summary>
+    ///     The "edit public profile" row and the blank under it, behind the gutter and numbered as the walk's second
+    ///     thing — or nothing, on anybody's account but the own one (#406).
+    /// </summary>
+    /// <param name="draw">How the row draws, in the room its gutter leaves it.</param>
+    /// <param name="width">How wide the content region is.</param>
+    public IReadOnlyList<Line> EditRows(Func<int, IReadOnlyList<Line>> draw, int width) =>
+        editable ? Stamped.Rows(draw(Stamped.Room(width)), EditRow, OnTheEditRow) : [];
+
+    /// <summary>
     ///     One run of the posts as rows, numbered after the header and picked out only while the header is not.
     /// </summary>
     /// <remarks>
@@ -110,5 +139,5 @@ public sealed class HeaderAndPosts(Account account, PostList posts) : IPicked
     /// <param name="from">Which post the run begins at, counted from the first on the list rather than the header.</param>
     /// <param name="howMany">How many posts are in it.</param>
     public IReadOnlyList<Line> PostRows(Drawing drawing, int from, int howMany) =>
-        posts.Run(drawing, new Ordinals(From: 1, Picked: At), from, howMany);
+        posts.Run(drawing, new Ordinals(From: FirstPost, Picked: At), from, howMany);
 }

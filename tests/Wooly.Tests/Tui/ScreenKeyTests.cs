@@ -45,6 +45,7 @@ public class ScreenKeyTests
         "requests",
         "requests-empty",
         "compose",
+        "public-profile",
         "describe",
         "notice",
         "help",
@@ -373,6 +374,9 @@ public class ScreenKeyTests
 
             case "compose":
                 return new ComposeScreen(ComposeFor.Post);
+
+            case "public-profile":
+                return new PublicProfileScreen(APublicProfile.With());
 
             case "describe":
                 return Describing();

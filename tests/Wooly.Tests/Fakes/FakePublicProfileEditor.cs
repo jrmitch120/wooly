@@ -12,12 +12,14 @@ internal sealed class FakePublicProfileEditor : IPublicProfileEditor
     private readonly PublicProfile _read;
     private readonly Account _saved;
     private readonly Exception? _refusal;
+    private readonly Exception? _readRefusal;
 
-    private FakePublicProfileEditor(PublicProfile read, Account saved, Exception? refusal)
+    private FakePublicProfileEditor(PublicProfile read, Account saved, Exception? refusal, Exception? readRefusal = null)
     {
         _read = read;
         _saved = saved;
         _refusal = refusal;
+        _readRefusal = readRefusal;
     }
 
     /// <summary>The profile every read asked as, by name, in order.</summary>
@@ -25,6 +27,9 @@ internal sealed class FakePublicProfileEditor : IPublicProfileEditor
 
     /// <summary>Every change a save sent, in order — where a test proves only what changed was sent.</summary>
     public List<PublicProfileChange> Saves { get; } = [];
+
+    /// <summary>The access token every read and save went out with, in order (#243).</summary>
+    public List<string> Tokens { get; } = [];
 
     /// <summary>A public profile read as <paramref name="read" />, whose saves answer <paramref name="saved" />.</summary>
     public static FakePublicProfileEditor Holding(PublicProfile? read = null, Account? saved = null)
@@ -42,16 +47,26 @@ internal sealed class FakePublicProfileEditor : IPublicProfileEditor
         return new FakePublicProfileEditor(read, read.Account, refusal);
     }
 
+    /// <summary>A public profile that cannot even be read: every read is turned down with <paramref name="refusal" />.</summary>
+    public static FakePublicProfileEditor Unreadable(Exception refusal)
+    {
+        var read = APublicProfile.With();
+
+        return new FakePublicProfileEditor(read, read.Account, refusal: null, readRefusal: refusal);
+    }
+
     public Task<PublicProfile> Read(ActiveProfile profile, CancellationToken cancellationToken)
     {
         Reads.Add(profile.Name);
+        Tokens.Add(profile.AccessToken);
 
-        return Task.FromResult(_read);
+        return _readRefusal is null ? Task.FromResult(_read) : Task.FromException<PublicProfile>(_readRefusal);
     }
 
     public Task<Account> Save(ActiveProfile profile, PublicProfileChange change, CancellationToken cancellationToken)
     {
         Saves.Add(change);
+        Tokens.Add(profile.AccessToken);
 
         return _refusal is null ? Task.FromResult(_saved) : Task.FromException<Account>(_refusal);
     }

@@ -185,6 +185,12 @@ public enum ShellKey
     /// <inheritdoc cref="CapitalB" />
     CapitalD,
 
+    /// <summary>
+    ///     <c>E</c>, the form that edits the own account's public profile, on <b>You</b> (#406). A capital as the tie
+    ///     keys are, so that <c>e</c> — editing a post — can never open it.
+    /// </summary>
+    CapitalE,
+
     /// <inheritdoc cref="CapitalB" />
     CapitalF,
 

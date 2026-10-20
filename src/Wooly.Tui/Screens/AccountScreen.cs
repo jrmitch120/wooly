@@ -51,19 +51,25 @@ public sealed class AccountScreen : Screen
     ///     Whether <paramref name="posts" /> is their <b>Posts and replies</b> rather than their posts alone. Off
     ///     unless the reader pressed <c>s</c> for it: the screen opens on posts alone, for ADR-0019's reasons (#229).
     /// </param>
+    /// <param name="mine">
+    ///     Whether this is the account the profile signs in as — the <b>Own account</b>, whose public profile is the only
+    ///     one that can be edited from here (#406). Off unless the shell, which has the profile in hand, says so.
+    /// </param>
     public AccountScreen(
         Account account,
         IReadOnlyList<Post> posts,
         IReadOnlyList<Post>? pinned,
         IReadOnlyList<Account>? familiar = null,
-        bool withReplies = false)
+        bool withReplies = false,
+        bool mine = false)
     {
         Familiar = familiar;
         WithReplies = withReplies;
+        Mine = mine;
         Asked = pinned is not null;
         _pins = [.. (pinned ?? []).Select(post => post.Id)];
         _posts = new PostList(this, [.. pinned ?? [], .. posts]);
-        _walking = new HeaderAndPosts(account, _posts);
+        _walking = new HeaderAndPosts(account, _posts, editable: mine);
     }
 
     /// <inheritdoc />
@@ -85,7 +91,9 @@ public sealed class AccountScreen : Screen
         PostKeys.Around(
             new KeyHint("j/k", "post"),
             [
+                .. OnTheEditRow ? [new KeyHint("⏎", EditingThePublicProfile.Does)] : Array.Empty<KeyHint>(),
                 .. Jumping,
+                .. Mine ? [EditingThePublicProfile] : Array.Empty<KeyHint>(),
                 new KeyHint("F", Says(Follows, "unfollow", "follow")),
                 new KeyHint("M", Says(Account.Standing?.Muting, "unmute", "mute")),
                 new KeyHint("B", Says(Account.Standing?.Blocking, "unblock", "block")),
@@ -94,6 +102,13 @@ public sealed class AccountScreen : Screen
                 Refreshing,
             ],
             new KeyHint("esc", "back"));
+
+    /// <summary>
+    ///     <c>E</c>, offered only on the own account and ahead of the ties, since it is the one thing on this screen that
+    ///     is the reader's alone to do (#406). In ADR-0028's words, which say "public profile" and never a bare
+    ///     "profile", the word the local entry has.
+    /// </summary>
+    private static KeyHint EditingThePublicProfile { get; } = new("E", "edit public profile");
 
     /// <inheritdoc />
     public override bool Refreshes => true;
@@ -140,6 +155,26 @@ public sealed class AccountScreen : Screen
     ///     <c>s</c> swaps and <c>g</c> re-asks (#229).
     /// </summary>
     public bool WithReplies { get; }
+
+    /// <summary>
+    ///     Whether this is the profile's own account, which is what <c>E</c> and the "edit public profile" row are
+    ///     offered on and nowhere else (#406).
+    /// </summary>
+    public bool Mine { get; }
+
+    /// <summary>
+    ///     Whether the walk is on the own account's "edit public profile" row, under the header block, where <c>⏎</c>
+    ///     opens the form (#406).
+    /// </summary>
+    public bool OnTheEditRow => _walking.OnTheEditRow;
+
+    /// <inheritdoc />
+    /// <remarks>
+    ///     A click on the "edit public profile" row opens the form, as <c>⏎</c> on it does — the one row of this screen
+    ///     that is a button rather than a thing to pick out (#406).
+    /// </remarks>
+    public override Verb Clicked(int? item, int? part, bool chorded) =>
+        _walking.IsTheEditRow(item) ? Verb.EditPublicProfile : Verb.None;
 
     /// <inheritdoc />
     /// <remarks>
@@ -243,6 +278,14 @@ public sealed class AccountScreen : Screen
             (account, at, room) => AccountLines.Header(account, Familiar, drawing.In(room), ReferenceOn(at)),
             width));
 
+        // A section of its own under the block, bringing its blank above it as each of the block's does — the blank
+        // part of nothing, so that a click on it opens nothing.
+        if (_walking.EditRows(EditRow, width) is [_, ..] editing)
+        {
+            lines.Add(Line.Blank);
+            lines.AddRange(editing);
+        }
+
         if (!Asked)
         {
             // Where the section would be, and one row rather than a heading over nothing: a heading says how many are
@@ -302,6 +345,20 @@ public sealed class AccountScreen : Screen
     /// </remarks>
     private IReadOnlyList<KeyHint> Jumping =>
         Pins > 0 && _posts.Count > Pins ? [new KeyHint("[/]", "section")] : [];
+
+    /// <summary>
+    ///     The own account's "edit public profile" row, in <paramref name="room" /> columns: the words, then the key that
+    ///     does the same from anywhere on the screen, muted (#406).
+    /// </summary>
+    private static IReadOnlyList<Line> EditRow(int room)
+    {
+        var words = TextWrap.Clip("Edit public profile", room);
+
+        return
+        [
+            Line.Of(new Span(words, Role.Body), new Span(TextWrap.Clip(" · E", room - Glyphs.Columns(words)), Role.Muted)),
+        ];
+    }
 
     /// <summary>One of this screen's headings, marked as one so that <c>[</c> and <c>]</c> know the run it stands over.</summary>
     private static Line Heading(string heading, int width) =>
