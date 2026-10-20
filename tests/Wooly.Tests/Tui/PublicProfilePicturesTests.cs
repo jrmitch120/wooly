@@ -255,6 +255,69 @@ public class PublicProfilePicturesTests : IDisposable
     }
 
     /// <summary>
+    ///     A new avatar saved is the one <b>You</b> draws once it reads again — never the old picture still held from
+    ///     before the save, which is the same account's under the same handle (review of #403).
+    /// </summary>
+    [Fact]
+    public async Task ASavedAvatar_IsDrawnOnYouInPlaceOfTheOneHeldBefore()
+    {
+        var cat = _files.WriteFile("cat.png");
+        var renewed = Me with { AvatarUrl = "https://files.example/cat.png" };
+        var built = Built();
+        built.PublicProfile = FakePublicProfileEditor.Holding(APublicProfile.With(account: Me), saved: renewed);
+        built.LaunchedFrom = _files.Path;
+        var shell = await built.Opened();
+
+        shell.Rail.GoTo(DestinationKind.Profile);
+        built.Host.Settle();
+
+        var held = Wanted(Assert.IsType<AccountScreen>(shell.Screen), new FakePictures(), Me.AvatarUrl!);
+
+        shell.Press(ShellKey.CapitalE);
+        built.Host.Drain();
+
+        var form = Assert.IsType<PublicProfileScreen>(shell.Screen);
+
+        WalkTo(shell, form, PublicProfilePart.Avatar);
+        shell.ChangePublicProfile(editing => editing.Pick(cat));
+        built.Accounts.NowShowing(renewed);
+        shell.Press(ShellKey.CtrlS);
+        built.Host.Settle();
+
+        var you = Assert.IsType<AccountScreen>(shell.Screen);
+        var pictures = new FakePictures().Holding(held.Id, 96, 96);
+        var drawn = Wanted(you, pictures, renewed.AvatarUrl!);
+
+        Assert.NotEqual(held.Id, drawn.Id);
+        Assert.DoesNotContain(
+            you.Lines(new Drawing(61, AShell.Now, pictures, ARaster.Sixel(), Height: 24)).SelectMany(line => line.Insets),
+            inset => inset.Drawn == held);
+    }
+
+    /// <summary>
+    ///     A header the instance has changed is the one the form draws when it is opened again, not the one held from
+    ///     the last time it was open (review of #403).
+    /// </summary>
+    [Fact]
+    public async Task AChangedHeader_IsDrawnWhenTheFormIsOpenedAgain()
+    {
+        var built = Built();
+        var (shell, _, form) = await Editing(built);
+        var held = Row(Lines(form, new FakePictures()), "Header").Wants!;
+
+        shell.Press(ShellKey.Escape);
+        built.PublicProfile.NowReading(APublicProfile.With(account: Me) with { HeaderUrl = "https://files.example/hills.png" });
+        shell.Press(ShellKey.CapitalE);
+        built.Host.Drain();
+
+        var reopened = Assert.IsType<PublicProfileScreen>(shell.Screen);
+        var lines = Lines(reopened, new FakePictures().Holding(held.Id, 1500, 500));
+
+        Assert.Equal("https://files.example/hills.png", Row(lines, "Header").Wants?.Address);
+        Assert.Empty(Row(lines, "Header").Insets);
+    }
+
+    /// <summary>
     ///     A file chosen is drawn in place of the current picture, read off the disk as the browser's preview is, with its
     ///     name beside the box where the word "current" was — the rows no taller, and the name where the word stood.
     /// </summary>
@@ -416,6 +479,12 @@ public class PublicProfilePicturesTests : IDisposable
     /// <summary>The form laid out at 61 columns on a sixel terminal, with <paramref name="pictures" />' pixels here.</summary>
     private static IReadOnlyList<Line> Lines(PublicProfileScreen form, FakePictures pictures) =>
         form.Lines(new Drawing(61, AShell.Now, pictures, ARaster.Sixel(), Height: 24));
+
+    /// <summary>The picture <paramref name="you" /> wants for the avatar at <paramref name="address" />, on a sixel terminal.</summary>
+    private static Drawn Wanted(AccountScreen you, FakePictures pictures, string address) =>
+        you.Lines(new Drawing(61, AShell.Now, pictures, ARaster.Sixel(), Height: 24))
+           .Select(line => line.Wants)
+           .First(wants => wants?.Address == address)!;
 
     /// <summary>The first row of the picture <paramref name="label" /> names.</summary>
     private static Line Row(IReadOnlyList<Line> lines, string label) =>

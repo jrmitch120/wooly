@@ -9,7 +9,7 @@ namespace Wooly.Tests.Fakes;
 /// </summary>
 internal sealed class FakePublicProfileEditor : IPublicProfileEditor
 {
-    private readonly PublicProfile _read;
+    private PublicProfile _read;
     private readonly Account _saved;
     private readonly Exception? _refusal;
     private readonly Exception? _readRefusal;
@@ -54,6 +54,9 @@ internal sealed class FakePublicProfileEditor : IPublicProfileEditor
 
         return new FakePublicProfileEditor(read, read.Account, refusal: null, readRefusal: refusal);
     }
+
+    /// <summary>What every read finds from here on — the public profile changed on the web, say.</summary>
+    public void NowReading(PublicProfile read) => _read = read;
 
     public Task<PublicProfile> Read(ActiveProfile profile, CancellationToken cancellationToken)
     {
