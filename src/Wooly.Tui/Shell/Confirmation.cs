@@ -49,8 +49,12 @@ public sealed record Confirmation(
     ///     is never lost to a key pressed twice. No warning, since the question is the whole of it.
     /// </summary>
     /// <param name="leave">The way out, finished once the question is agreed to.</param>
-    public static Confirmation Discarding(Func<Task> leave) =>
-        new("Discard this post?", leave, Going: "discard", Warning: string.Empty, YesOrNo: true);
+    /// <param name="ask">
+    ///     What is asked, which names what would be lost: a post, or the edit public profile form's
+    ///     <c>Discard these changes?</c> (#406).
+    /// </param>
+    public static Confirmation Discarding(Func<Task> leave, string ask = "Discard this post?") =>
+        new(ask, leave, Going: "discard", Warning: string.Empty, YesOrNo: true);
 
     /// <summary>
     ///     Whether <paramref name="pressed" /> agrees: the key that goes ahead. Anything else — a key with no meaning to

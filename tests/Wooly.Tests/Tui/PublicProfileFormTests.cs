@@ -348,6 +348,55 @@ public class PublicProfileFormTests
         Assert.Null(shell.Notice);
     }
 
+    /// <summary>An untouched form leaves on <c>esc</c> without asking — a toggle flipped and flipped back included.</summary>
+    [Fact]
+    public async Task Esc_OnAnUntouchedForm_LeavesWithoutAsking()
+    {
+        var (shell, form) = await Editing(Built());
+
+        WalkTo(shell, form, PublicProfilePart.Bot);
+        shell.Press(ShellKey.Space);
+        shell.Press(ShellKey.Space);
+
+        shell.Press(ShellKey.Escape);
+
+        Assert.Null(shell.Asking);
+        Assert.IsType<AccountScreen>(shell.Screen);
+    }
+
+    /// <summary>
+    ///     A touched form asks <c>Discard these changes? y / n</c> before any way out — <c>esc</c>, or <c>tab</c> along
+    ///     the rail — and declining keeps the form with every edit, where <c>y</c> goes.
+    /// </summary>
+    [Theory]
+    [InlineData(ShellKey.Escape)]
+    [InlineData(ShellKey.Tab)]
+    [InlineData(ShellKey.CtrlP)]
+    public async Task ATouchedForm_AsksBeforeEveryWayOut(ShellKey way)
+    {
+        var built = Built();
+        var (shell, form) = await Editing(built);
+
+        shell.ChangePublicProfile(editing => editing.RewriteDisplayName("Jeff M"));
+
+        shell.Press(way);
+
+        Assert.Equal("Discard these changes?", shell.Asking?.Ask);
+        Assert.True(shell.Asking?.YesOrNo);
+
+        // n is no key of the shell's, and is a no as anything but y is.
+        await shell.Answer(pressed: null);
+
+        Assert.Same(form, shell.Screen);
+        Assert.Equal("Jeff M", form.DisplayName);
+
+        shell.Press(way);
+        await shell.Answer(ShellKey.Y);
+        built.Host.Settle();
+
+        Assert.DoesNotContain(form.Crumb, shell.Crumbs);
+    }
+
     /// <summary><b>You</b> offers <c>E</c> on its status row, worded as ADR-0028 words the form.</summary>
     [Fact]
     public async Task You_OffersCapitalE()

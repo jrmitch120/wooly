@@ -19,7 +19,7 @@ namespace Wooly.Tui.Screens;
 ///         terminal behind it, and says where each goes from the one layout that paints the rows.
 ///     </para>
 /// </remarks>
-public sealed class PublicProfileScreen : Screen
+public sealed class PublicProfileScreen : Screen, IDraft
 {
     /// <summary>The columns left blank either side of everything on the screen, as on compose (#317).</summary>
     private const int Pad = 2;
@@ -201,6 +201,9 @@ public sealed class PublicProfileScreen : Screen
     ///     again, or a toggle flipped and flipped back, leaves it untouched.
     /// </summary>
     public bool Touched => !Outgoing.IsEmpty;
+
+    /// <inheritdoc />
+    public string Discarding => "Discard these changes?";
 
     /// <summary>The display name's field changed: what it holds now.</summary>
     /// <returns>An edit, or nothing where the field says back what the form holds, as it does when filled on opening.</returns>

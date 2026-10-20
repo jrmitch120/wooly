@@ -94,7 +94,7 @@ public sealed record ComposeFrom(string Handle, string Instance)
 ///     The text itself lives here rather than in the editor widget, so that what is being written is a fact about the
 ///     shell — something a test can set and read — rather than something only a terminal knows.
 /// </remarks>
-public sealed class ComposeScreen : Screen
+public sealed class ComposeScreen : Screen, IDraft
 {
     /// <summary>What To says while it is the account's own default on the instance, which this screen cannot see.</summary>
     private const string AccountDefault = "account default";
@@ -360,6 +360,9 @@ public sealed class ComposeScreen : Screen
         || Visibility != _startingVisibility
         || !string.Equals(Lang.Held, _startingLanguage, StringComparison.Ordinal)
         || Media.Attachments.Count > 0;
+
+    /// <inheritdoc />
+    public string Discarding => "Discard this post?";
 
     /// <summary>
     ///     What is attached, and on an edit what the post already carries, under the Media header (#375, #381): the

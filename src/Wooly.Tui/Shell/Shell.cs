@@ -2853,28 +2853,30 @@ public sealed class Shell
 
     /// <summary>
     ///     Goes ahead with <paramref name="leave" />, a way out that takes every screen above the first
-    ///     <paramref name="keeping" /> off the stack — or, where a compose screen among those is touched
-    ///     (<see cref="ComposeScreen.Touched" />), asks first, on the confirmation row, and goes ahead only once agreed
-    ///     (#373). Every way out of a compose screen comes through here, so that none of them loses what was written
-    ///     without a word.
+    ///     <paramref name="keeping" /> off the stack — or, where a draft among those is touched
+    ///     (<see cref="IDraft.Touched" />), asks first, on the confirmation row, and goes ahead only once agreed
+    ///     (#373). Every way out of a compose screen or the edit public profile form comes through here, so that none of
+    ///     them loses what was written without a word (#406).
     /// </summary>
     /// <param name="keeping">How many screens at the bottom of the stack the way out leaves standing.</param>
     /// <param name="leave">The way out.</param>
     private void Leaving(int keeping, Action leave)
     {
-        if (!_stack.Skip(keeping).OfType<ComposeScreen>().Any(compose => compose.Touched))
+        if (_stack.Skip(keeping).OfType<IDraft>().FirstOrDefault(draft => draft.Touched) is not { } touched)
         {
             leave();
 
             return;
         }
 
-        Confirm(Confirmation.Discarding(() =>
-        {
-            leave();
+        Confirm(Confirmation.Discarding(
+            () =>
+            {
+                leave();
 
-            return Task.CompletedTask;
-        }));
+                return Task.CompletedTask;
+            },
+            touched.Discarding));
     }
 
     /// <summary>Takes the screen on top off, which is what <c>esc</c> does once nothing inside it is left to let go.</summary>
@@ -2889,14 +2891,15 @@ public sealed class Shell
     }
 
     /// <summary>
-    ///     Takes every compose screen off the stack and everything above it, for a way out that leaves the stack to
-    ///     something else to settle — a destination arrived at, a screen pushed over it — and must not leave a draft
-    ///     standing under that in the meantime. Nothing where there is none.
+    ///     Takes every draft off the stack — a compose screen, the edit public profile form (<see cref="IDraft" />) — and
+    ///     everything above it, for a way out that leaves the stack to something else to settle — a destination arrived
+    ///     at, a screen pushed over it — and must not leave a draft standing under that in the meantime. Nothing where
+    ///     there is none.
     /// </summary>
     /// <returns>Whether there was a draft to take off.</returns>
     private bool DropDrafts()
     {
-        var at = _stack.FindIndex(screen => screen is ComposeScreen);
+        var at = _stack.FindIndex(screen => screen is IDraft);
 
         if (at < 1)
         {
