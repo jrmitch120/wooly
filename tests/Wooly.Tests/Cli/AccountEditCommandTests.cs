@@ -185,6 +185,87 @@ public class AccountEditCommandTests : IDisposable
         Assert.Empty(_editor.Saves);
     }
 
+    [Theory]
+    [InlineData("--avatar")]
+    [InlineData("--header")]
+    public void Edit_SendsAPictureAlone(string option)
+    {
+        AddProfile();
+        var picture = _directory.WriteFile("picture.png");
+
+        var run = Run(["account", "edit", option, picture]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Equal(
+            option == "--avatar" ? new PublicProfileChange { Avatar = picture } : new PublicProfileChange { Header = picture },
+            Assert.Single(_editor.Saves));
+    }
+
+    /// <summary>Pictures go up in the same save as everything else (ADR-0028), never one save each.</summary>
+    [Fact]
+    public void Edit_SendsBothPicturesWithEverythingElseInOneSave()
+    {
+        AddProfile();
+        var avatar = _directory.WriteFile("me.png");
+        var header = _directory.WriteFile("hills.jpg");
+
+        Run(["account", "edit", "--avatar", avatar, "--header", header, "--display-name", "Jeff M", "--bot", "true"]);
+
+        Assert.Equal(
+            new PublicProfileChange { DisplayName = "Jeff M", IsBot = true, Avatar = avatar, Header = header },
+            Assert.Single(_editor.Saves));
+    }
+
+    /// <summary>A path with nothing at it is the command line's mistake, said before anything is read or sent.</summary>
+    [Theory]
+    [InlineData("--avatar")]
+    [InlineData("--header")]
+    public void Edit_ReportsAPictureThatIsNotThereAsAUsageErrorAndSendsNothing(string option)
+    {
+        AddProfile();
+        var missing = Path.Combine(_directory.Path, "gone.png");
+
+        var run = Run(["account", "edit", "--display-name", "Jeff M", option, missing]);
+
+        Assert.Equal((int)ExitCode.UsageError, run.ExitCode);
+        Assert.Contains(missing, run.ErrorOutput);
+        Assert.Contains(option, run.ErrorOutput);
+        Assert.Empty(_editor.Reads);
+        Assert.Empty(_editor.Saves);
+    }
+
+    /// <summary>A picture gone between the check and the save is the same mistake, and says so the same way.</summary>
+    [Fact]
+    public void Edit_ReportsAPictureGoneByTheSaveAsAUsageError()
+    {
+        AddProfile();
+        var picture = _directory.WriteFile("me.png");
+        _editor = FakePublicProfileEditor.Refusing(new PictureNotFoundException(picture));
+
+        var run = Run(["account", "edit", "--avatar", picture]);
+
+        Assert.Equal((int)ExitCode.UsageError, run.ExitCode);
+        Assert.Contains(picture, run.ErrorOutput);
+    }
+
+    /// <summary>
+    ///     No size or type is refused here (ADR-0028): the instance judges a picture, and its words are what is said,
+    ///     as a general error rather than the user's typing.
+    /// </summary>
+    [Fact]
+    public void Edit_ReportsARefusedPictureInTheInstancesOwnWords()
+    {
+        AddProfile();
+        _editor = FakePublicProfileEditor.Refusing(
+            PublicProfileRefusedException.Saving("Validation failed: Avatar file size must be less than 2 MB"));
+
+        var run = Run(["account", "edit", "--avatar", _directory.WriteFile("huge.png")]);
+
+        Assert.Equal((int)ExitCode.Error, run.ExitCode);
+        Assert.Contains("Avatar file size must be less than 2 MB", run.ErrorOutput);
+        Assert.Empty(run.Output.Trim());
+    }
+
     /// <summary>Only what differs from what was read is sent, so a script can say everything and change one thing.</summary>
     [Fact]
     public void Edit_SendsOnlyWhatDiffersFromWhatWasRead()

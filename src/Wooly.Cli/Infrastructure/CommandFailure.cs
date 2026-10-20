@@ -69,9 +69,10 @@ internal static class CommandFailure
         // belongs here too, and so do a file that is not where --media said and a post that cannot be edited: each is a
         // value on the command line that is wrong, not a client that could not do its job. A reply asked to go out
         // wider than the post it answers is the same kind of thing — a --visibility that cannot have what it said — and
-        // so is removing the default profile, which names the one profile that cannot be removed.
+        // so is removing the default profile, which names the one profile that cannot be removed. A picture gone between
+        // account edit checking for it and sending it is --media's case again.
         UnknownProfileException or UnknownAccountException or UnknownConversationException or MediaNotFoundException
-            or UneditablePostException or WiderReplyException or DefaultProfileRemovalException
+            or PictureNotFoundException or UneditablePostException or WiderReplyException or DefaultProfileRemovalException
             or UsageException or CommandParseException or CommandRuntimeException => ExitCode.UsageError,
 
         _ => ExitCode.Error,

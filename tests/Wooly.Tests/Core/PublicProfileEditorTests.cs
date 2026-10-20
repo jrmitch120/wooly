@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using Microsoft.Extensions.DependencyInjection;
 using Wooly.Core;
 using Wooly.Core.Accounts;
@@ -15,8 +16,10 @@ namespace Wooly.Tests.Core;
 ///     adapter's tests at the <see cref="HttpMessageHandler" /> seam: that the read takes <c>source</c> rather than the
 ///     HTML, and that a save sends only what changed, are only observable here (#404, ADR-0028).
 /// </summary>
-public class PublicProfileEditorTests
+public class PublicProfileEditorTests : IDisposable
 {
+    private readonly TemporaryDirectory _directory = new();
+
     private static readonly ActiveProfile Profile = new()
     {
         Name = "personal",
@@ -54,6 +57,8 @@ public class PublicProfileEditorTests
           }
         }
         """;
+
+    public void Dispose() => _directory.Dispose();
 
     /// <summary>The bio and fields as written, never as flattened, and the rest off the account itself.</summary>
     [Fact]
@@ -205,6 +210,103 @@ public class PublicProfileEditorTests
         Assert.Equal(10, Sent(network).Count);
     }
 
+    /// <summary>
+    ///     A picture has no endpoint of its own to go up ahead of time, so it goes in the save itself (ADR-0028): one
+    ///     multipart request carrying the file, as the file it is, beside whatever else changed.
+    /// </summary>
+    [Fact]
+    public async Task Save_SendsAnAvatarInTheSameRequestAsEverythingElse()
+    {
+        var network = Answering(Credentials);
+
+        await Editor(network).Save(
+            Profile,
+            new PublicProfileChange { DisplayName = "Jeff M", Avatar = _directory.WriteFile("me.png") },
+            TestContext.Current.CancellationToken);
+
+        var request = Assert.Single(network.Requests);
+        Assert.Equal(HttpMethod.Patch, request.Method);
+        Assert.Equal("https://mastodon.social/api/v1/accounts/update_credentials", request.RequestUri?.ToString());
+        Assert.Equal("multipart/form-data", request.Content?.Headers.ContentType?.MediaType);
+        Assert.Equal(
+            [("display_name", null, "text/plain"), ("avatar", "me.png", "image/png")],
+            Parts(network));
+        Assert.Contains("pretend this is a picture", network.Bodies[0]);
+    }
+
+    [Fact]
+    public async Task Save_SendsAHeaderAndAnAvatarTogether()
+    {
+        var network = Answering(Credentials);
+
+        await Editor(network).Save(
+            Profile,
+            new PublicProfileChange
+            {
+                Avatar = _directory.WriteFile("me.jpg", "the avatar"),
+                Header = _directory.WriteFile("hills.webp", "the header"),
+            },
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(
+            [("avatar", "me.jpg", "image/jpeg"), ("header", "hills.webp", "image/webp")],
+            Parts(network));
+        Assert.Contains("the avatar", network.Bodies[0]);
+        Assert.Contains("the header", network.Bodies[0]);
+    }
+
+    /// <summary>
+    ///     No type is refused before sending (ADR-0028): a file of a type this client cannot name still goes, for the
+    ///     instance to judge.
+    /// </summary>
+    [Fact]
+    public async Task Save_SendsAPictureOfATypeItCannotNameForTheInstanceToJudge()
+    {
+        var network = Answering(Credentials);
+
+        await Editor(network).Save(
+            Profile,
+            new PublicProfileChange { Header = _directory.WriteFile("hills.tiff") },
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal([("header", "hills.tiff", null)], Parts(network));
+    }
+
+    /// <summary>A path with no file behind it is said before anything is sent, rather than failing part way.</summary>
+    [Fact]
+    public async Task Save_SendsNothingForAPictureThatIsNotThere()
+    {
+        var network = Answering(Credentials);
+        var missing = System.IO.Path.Combine(_directory.Path, "gone.png");
+
+        var refused = await Assert.ThrowsAsync<PictureNotFoundException>(() =>
+            Editor(network).Save(
+                Profile,
+                new PublicProfileChange { DisplayName = "Jeff M", Avatar = missing },
+                TestContext.Current.CancellationToken));
+
+        Assert.Equal(missing, refused.Path);
+        Assert.Empty(network.Requests);
+    }
+
+    /// <summary>A picture refused — too large, or not a picture at all — is the instance's to word, as any refusal is.</summary>
+    [Fact]
+    public async Task Save_SaysARefusedPictureInTheInstancesOwnWords()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Refusal(
+                HttpStatusCode.UnprocessableEntity,
+                "Validation failed: Avatar file size must be less than 2 MB"));
+
+        var refused = await Assert.ThrowsAsync<PublicProfileRefusedException>(() =>
+            Editor(network).Save(
+                Profile,
+                new PublicProfileChange { Avatar = _directory.WriteFile("huge.png") },
+                TestContext.Current.CancellationToken));
+
+        Assert.Equal("Validation failed: Avatar file size must be less than 2 MB", refused.Reason);
+    }
+
     [Fact]
     public async Task Save_AnswersTheAccountAsTheInstanceNowHasIt()
     {
@@ -257,6 +359,34 @@ public class PublicProfileEditorTests
                .ToList();
 
     private static string Decoded(string encoded) => Uri.UnescapeDataString(encoded.Replace('+', ' '));
+
+    /// <summary>
+    ///     Each part the one multipart request carried, by its name, the file name it went as, and its type, in order.
+    ///     Read off the body as sent, since the parts themselves are disposed with the request.
+    /// </summary>
+    private static List<(string? Name, string? FileName, string? Type)> Parts(ScriptedHttpMessageHandler network)
+    {
+        var boundary = Assert.Single(network.Requests).Content?.Headers.ContentType?.Parameters
+                              .Single(parameter => parameter.Name == "boundary").Value?.Trim('"');
+
+        return network.Bodies.Single()
+                      .Split($"--{boundary}")
+                      .Select(part => part.Split("\r\n\r\n")[0].Split("\r\n", StringSplitOptions.RemoveEmptyEntries))
+                      .Where(headers => headers.Any(header => header.StartsWith("Content-Disposition:")))
+                      .Select(headers =>
+                      {
+                          var disposition = ContentDispositionHeaderValue.Parse(Header(headers, "Content-Disposition")!);
+
+                          return (
+                              disposition.Name?.Trim('"'),
+                              disposition.FileName?.Trim('"'),
+                              Header(headers, "Content-Type") is { } type ? MediaTypeHeaderValue.Parse(type).MediaType : null);
+                      })
+                      .ToList();
+
+        static string? Header(string[] headers, string name) =>
+            headers.FirstOrDefault(header => header.StartsWith($"{name}:"))?[(name.Length + 1)..].Trim();
+    }
 
     private static IPublicProfileEditor Editor(HttpMessageHandler network)
     {
