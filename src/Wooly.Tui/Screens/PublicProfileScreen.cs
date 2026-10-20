@@ -143,12 +143,16 @@ public sealed class PublicProfileScreen : Screen, IDraft
 
     /// <inheritdoc />
     /// <remarks>
-    ///     <c>space</c> first on a toggle, being what the row is for; then the walk, offered only the ways it goes, as
-    ///     compose's is (#337): it stops at either end rather than coming round.
+    ///     <c>space</c> first on a toggle, and <c>⏎</c> and the paste on a picture, being what the row is for; then the
+    ///     walk, offered only the ways it goes, as compose's is (#337): it stops at either end rather than coming round.
+    ///     The paste names both keys, since which of them reaches Wooly is the terminal's to say (#380).
     /// </remarks>
     protected override IReadOnlyList<KeyHint> OwnKeys =>
     [
         .. Typing.IsAToggle ? [new KeyHint("space", "flip")] : Array.Empty<KeyHint>(),
+        .. Typing.IsAPicture
+            ? [new KeyHint("⏎", "choose file"), new KeyHint("ctrl-v/alt-v", "paste")]
+            : Array.Empty<KeyHint>(),
         Stops.IndexOf(Typing) switch
         {
             0 => new KeyHint("↓", "field"),
