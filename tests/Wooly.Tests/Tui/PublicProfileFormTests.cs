@@ -67,8 +67,9 @@ public class PublicProfileFormTests
     }
 
     /// <summary>
-    ///     The form reads at 61 columns, top to bottom: the display name, the bio as written, four custom-field rows,
-    ///     and the three toggles — each toggle's state carried by its box, so it reads with no colour.
+    ///     The form reads at 61 columns, top to bottom: the display name, the bio as written, the avatar and the header,
+    ///     four custom-field rows, and the three toggles — each toggle's state carried by its box, so it reads with no
+    ///     colour, and each picture saying it is the current one where no picture can be drawn (#407).
     /// </summary>
     [Fact]
     public async Task TheForm_ReadsTopToBottomAt61Columns()
@@ -90,6 +91,8 @@ public class PublicProfileFormTests
             [
                 "   Name  Jeff",
                 "    Bio  Writes Wooly.",
+                " Avatar  current",
+                " Header  current",
                 " Fields  Site              https://wooly.example",
                 "         label             value",
                 "         label             value",
@@ -102,8 +105,8 @@ public class PublicProfileFormTests
     }
 
     /// <summary>
-    ///     <c>↓</c> walks the form top to bottom — the display name, the bio, each custom field's label then its value,
-    ///     the three toggles — and stops at the bottom rather than coming round; <c>↑</c> walks back and stops at the top.
+    ///     <c>↓</c> walks the form top to bottom — the display name, the bio, the avatar and the header, each custom
+    ///     field's label then its value, the three toggles — and stops at the bottom rather than coming round; <c>↑</c> walks back and stops at the top.
     /// </summary>
     [Fact]
     public async Task TheArrows_WalkTheFormWithoutWrapping()
@@ -111,7 +114,7 @@ public class PublicProfileFormTests
         var (shell, form) = await Editing(Built());
         var walked = new List<PublicProfileStop> { form.Typing };
 
-        for (var press = 0; press < 14; press++)
+        for (var press = 0; press < 16; press++)
         {
             shell.Press(ShellKey.Down);
             walked.Add(form.Typing);
@@ -120,6 +123,7 @@ public class PublicProfileFormTests
         Assert.Equal(
             [
                 new(PublicProfilePart.DisplayName), new(PublicProfilePart.Bio),
+                new(PublicProfilePart.Avatar), new(PublicProfilePart.Header),
                 new(PublicProfilePart.Label, 0), new(PublicProfilePart.Value, 0),
                 new(PublicProfilePart.Label, 1), new(PublicProfilePart.Value, 1),
                 new(PublicProfilePart.Label, 2), new(PublicProfilePart.Value, 2),

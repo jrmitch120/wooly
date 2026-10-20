@@ -1,5 +1,6 @@
 using System.Drawing;
 using Wooly.Core.Accounts;
+using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Theme;
 
@@ -38,6 +39,30 @@ public sealed class PublicProfileScreen : Screen, IDraft
 
     /// <summary>How many rows the bio's editor takes where nobody says how tall the room is.</summary>
     private const int BioRowsUnmeasured = 4;
+
+    /// <summary>
+    ///     How many rows the avatar and the header each take on a terminal that draws pictures (#407): enough to see what
+    ///     it is, and few enough that the bio keeps its rows on a short terminal. One where nothing is drawn.
+    /// </summary>
+    internal const int PictureRows = 2;
+
+    /// <summary>How wide the avatar's box is: about square, beside two rows of cells twice as tall as they are wide.</summary>
+    private const int AvatarColumns = 4;
+
+    /// <summary>
+    ///     How wide the header's box is: three times the avatar's, the shape Mastodon crops a header to. The words beside
+    ///     both pictures start after it, so that they line up and a picture arriving moves neither.
+    /// </summary>
+    internal const int HeaderColumns = 12;
+
+    /// <summary>What a picture row says where nothing has been chosen and the instance has a picture.</summary>
+    public const string CurrentPicture = "current";
+
+    /// <summary>What a picture row says where nothing has been chosen and the instance has no picture.</summary>
+    public const string NoPicture = "none";
+
+    /// <summary>What a picture row says after the name of the file chosen for it: that nothing has gone up yet.</summary>
+    public const string SentOnSave = " · sent on save";
 
     /// <summary>What a field says, dimly, while it holds nothing — the label half and the value half.</summary>
     public const string LabelHint = "label";
@@ -85,6 +110,15 @@ public sealed class PublicProfileScreen : Screen, IDraft
     /// <summary>The bio as written, as it stands in the form.</summary>
     public string Bio { get; private set; }
 
+    /// <summary>
+    ///     The file chosen or pasted to be the avatar, or <see langword="null" /> to leave the avatar as it is. Sent only
+    ///     when the form is saved, there being nowhere to send a profile picture ahead of the save (ADR-0028).
+    /// </summary>
+    public string? Avatar { get; private set; }
+
+    /// <summary>The file chosen or pasted to be the header, or <see langword="null" /> to leave it. Sent as <see cref="Avatar" /> is.</summary>
+    public string? Header { get; private set; }
+
     /// <summary>How many custom-field rows the form has: four, or more where the account already has more.</summary>
     public int FieldRows => _labels.Length;
 
@@ -127,12 +161,14 @@ public sealed class PublicProfileScreen : Screen, IDraft
 
     /// <summary>
     ///     Every place the arrows walk to, top to bottom, which is the order they are drawn in: the display name, the
-    ///     bio, each custom field's label and then its value, and the three toggles.
+    ///     bio, the avatar and the header, each custom field's label and then its value, and the three toggles.
     /// </summary>
     private List<PublicProfileStop> Stops =>
     [
         new(PublicProfilePart.DisplayName),
         new(PublicProfilePart.Bio),
+        new(PublicProfilePart.Avatar),
+        new(PublicProfilePart.Header),
         .. Enumerable.Range(0, FieldRows).SelectMany(row => new PublicProfileStop[]
         {
             new(PublicProfilePart.Label, row), new(PublicProfilePart.Value, row),
@@ -172,7 +208,8 @@ public sealed class PublicProfileScreen : Screen, IDraft
     /// <summary>
     ///     What <c>ctrl-s</c> sends: whatever differs from what was read, and nothing else (ADR-0028) — so nothing left
     ///     alone here can overwrite something changed on the web while the form was open. The custom fields go as the
-    ///     rows that hold anything, in order, an emptied row being left out of them, which is what removes its field.
+    ///     rows that hold anything, in order, an emptied row being left out of them, which is what removes its field. A
+    ///     picture goes only where a file was chosen for it, and goes in this save (ADR-0028).
     /// </summary>
     /// <remarks>
     ///     The bio is compared line ending for line ending alike, as compose compares a post (#373), so that an editor
@@ -193,6 +230,8 @@ public sealed class PublicProfileScreen : Screen, IDraft
         IsLocked = IsLocked,
         IsBot = IsBot,
         IsDiscoverable = IsDiscoverable,
+        Avatar = Avatar,
+        Header = Header,
     }.Against(_read);
 
     /// <summary>
@@ -257,6 +296,32 @@ public sealed class PublicProfileScreen : Screen, IDraft
         return ComposeChange.Edited;
     }
 
+    /// <summary>
+    ///     The file at <paramref name="path" />, chosen in the file browser or pasted, as the picture the walk is on — the
+    ///     avatar or the header — to be drawn in place of the current one and sent when the form is saved (#407).
+    /// </summary>
+    /// <returns>An edit, or nothing where the walk is on no picture or the file is the one already chosen.</returns>
+    public ComposeChange Pick(string path)
+    {
+        switch (Typing.Part)
+        {
+            case PublicProfilePart.Avatar when Avatar != path:
+                Avatar = path;
+
+                break;
+
+            case PublicProfilePart.Header when Header != path:
+                Header = path;
+
+                break;
+
+            default:
+                return ComposeChange.None;
+        }
+
+        return ComposeChange.Edited;
+    }
+
     private static ComposeChange Rewrite(string holding, string written, Action rewrite)
     {
         if (string.Equals(holding, written, StringComparison.Ordinal))
@@ -276,29 +341,39 @@ public sealed class PublicProfileScreen : Screen, IDraft
     public string ValueOf(int row) => _values[row];
 
     /// <summary>
-    ///     Where the field or toggle at <paramref name="stop" /> goes inside a content viewport of
-    ///     <paramref name="viewport" /> — nowhere, for a row a short viewport has no room for.
+    ///     Where the field, picture or toggle at <paramref name="stop" /> goes inside a content viewport of
+    ///     <paramref name="viewport" /> on a terminal that paints as <paramref name="raster" /> says — nowhere, for a row
+    ///     a short viewport has no room for.
     /// </summary>
-    public Rectangle At(PublicProfileStop stop, Size viewport) =>
-        Laid(viewport.Width, viewport.Height).Places.GetValueOrDefault(stop);
+    /// <remarks>Under the raster the rows were laid out by, which says how tall a picture's row is.</remarks>
+    public Rectangle At(PublicProfileStop stop, Size viewport, Raster? raster = null) =>
+        Laid(viewport.Width, viewport.Height, raster, pictures: null).Places.GetValueOrDefault(stop);
 
     /// <inheritdoc />
     /// <remarks>
-    ///     A blank under the panel's edge, the display name, the bio's rows, a blank, the custom-field rows, a blank and
-    ///     the three toggles — each field's rows holding what it holds, or its hint, for the widget laid over them.
+    ///     A blank under the panel's edge, the display name, the bio's rows, a blank, the avatar's and the header's rows,
+    ///     a blank, the custom-field rows, a blank and the three toggles — each field's rows holding what it holds, or its
+    ///     hint, for the widget laid over them.
     /// </remarks>
-    public override IReadOnlyList<Line> Lines(Drawing drawing) => Laid(drawing.Width, drawing.Height).Rows;
+    public override IReadOnlyList<Line> Lines(Drawing drawing) =>
+        Laid(drawing.Width, drawing.Height, drawing.Raster, drawing.Pictures).Rows;
 
     /// <summary>
-    ///     The form laid out <paramref name="width" /> wide in a room <paramref name="height" /> tall: its rows, and
-    ///     where each field and toggle goes on them.
+    ///     The form laid out <paramref name="width" /> wide in a room <paramref name="height" /> tall, on a terminal
+    ///     that paints as <paramref name="raster" /> says with <paramref name="pictures" />' pixels: its rows, and where
+    ///     each field, picture and toggle goes on them.
     /// </summary>
     /// <remarks>
     ///     Every column is worked out from the width and none from what is written, so nothing moves as it is typed:
     ///     a custom field's label takes a third of the value column and its value the rest. The bio takes what height
-    ///     the room spares, between three rows and eight, or four where nobody says how tall the room is.
+    ///     the room spares, between three rows and eight, or four where nobody says how tall the room is. How tall a
+    ///     picture's row is depends on the terminal and on nothing chosen, so choosing one moves nothing either.
     /// </remarks>
-    private (IReadOnlyList<Line> Rows, Dictionary<PublicProfileStop, Rectangle> Places) Laid(int width, int? height)
+    private (IReadOnlyList<Line> Rows, Dictionary<PublicProfileStop, Rectangle> Places) Laid(
+        int width,
+        int? height,
+        Raster? raster,
+        IPictures? pictures)
     {
         var at = Math.Min(Pad + LabelWidth + Gap, width);
         var room = Math.Max(0, width - at - Pad);
@@ -306,8 +381,10 @@ public sealed class PublicProfileScreen : Screen, IDraft
         var valueAt = Math.Min(at + labelRoom + Gap, width);
         var valueRoom = Math.Max(0, room - labelRoom - Gap);
 
+        var pictureRows = raster?.Cell is not null ? PictureRows : 1;
+
         var toggles = new[] { PublicProfilePart.Locked, PublicProfilePart.Bot, PublicProfilePart.Discoverable };
-        var others = 1 + 1 + 1 + FieldRows + 1 + toggles.Length;
+        var others = 1 + 1 + 1 + (pictureRows * 2) + 1 + FieldRows + 1 + toggles.Length;
         var bioRows = height is { } tall ? Math.Clamp(tall - others, LeastBioRows, MostBioRows) : BioRowsUnmeasured;
 
         var rows = new List<Line>();
@@ -330,6 +407,14 @@ public sealed class PublicProfileScreen : Screen, IDraft
             var said = line < bio.Length ? bio[line] : new Span("", Role.Body);
 
             rows.Add(Stamp(PublicProfilePart.Bio, line == 0 ? Header("Bio", said) : Under(said)));
+        }
+
+        rows.Add(Line.Blank);
+
+        foreach (var picture in new[] { PublicProfilePart.Avatar, PublicProfilePart.Header })
+        {
+            Place(new PublicProfileStop(picture), new Rectangle(at, rows.Count, room, pictureRows));
+            rows.AddRange(Pictured(picture, at, width, pictureRows, raster, pictures).Select(line => Stamp(picture, line)));
         }
 
         rows.Add(Line.Blank);
@@ -378,6 +463,105 @@ public sealed class PublicProfileScreen : Screen, IDraft
     }
 
     /// <summary>
+    ///     The <paramref name="pictureRows" /> rows of the avatar's or the header's row, its label right-aligned as every
+    ///     other's: on a terminal that draws, the picture in a box of its own at <paramref name="at" /> — the one chosen,
+    ///     or else the current one, the Stand-in's shade holding the box until the pixels are here — and then the file
+    ///     chosen for it, or that it is the current one or there is none. Where nothing is drawn, the words alone.
+    /// </summary>
+    /// <remarks>
+    ///     Through the picture path everything else drawn takes (ADR-0016, ADR-0022): the current avatar is the one
+    ///     <b>You</b>'s header block has already sent for, and a file chosen is the one the file browser previewed.
+    /// </remarks>
+    private IEnumerable<Line> Pictured(
+        PublicProfilePart picture,
+        int at,
+        int width,
+        int pictureRows,
+        Raster? raster,
+        IPictures? pictures)
+    {
+        var (label, columns, chosen, current) = picture == PublicProfilePart.Avatar
+            ? ("Avatar", AvatarColumns, Avatar, _read.AvatarUrl)
+            : ("Header", HeaderColumns, Header, _read.HeaderUrl);
+
+        var cell = raster?.Cell;
+        var named = cell is null ? at : Math.Min(at + HeaderColumns + Gap, width);
+        var room = Math.Max(0, width - named - Pad);
+
+        Span[] said;
+
+        if (chosen is null)
+        {
+            said = [new Span(TextWrap.Clip(current is null ? NoPicture : CurrentPicture, room), Role.Muted)];
+        }
+        else
+        {
+            var name = new Span(TextWrap.Clip(Path.GetFileName(chosen), room), Role.Body);
+
+            said = [name, new Span(TextWrap.Clip(SentOnSave, room - name.Width), Role.Muted)];
+        }
+
+        if (cell is not { } drawnAt)
+        {
+            yield return Labelled(label, at, said);
+
+            yield break;
+        }
+
+        var wanted = Wanted(picture);
+        var pixels = wanted is not null && pictures is not null ? pictures.Of(wanted) : null;
+        var held = wanted is null ? Blank(columns)
+            : pixels is null ? StandIn.Row(columns)
+            : new Span(new string(' ', columns), Role.Media);
+        var fitted = wanted is not null && pixels is not null
+            ? new Inset(wanted, at, columns, pictureRows).Fit(pixels, drawnAt)
+            : default;
+
+        for (var row = 0; row < pictureRows; row++)
+        {
+            var line = row == 0
+                ? Labelled(label, at, [held, Blank(named - at - columns), .. said])
+                : Line.Of(Blank(at), held);
+
+            yield return line with
+            {
+                Wants = row == 0 ? wanted : null,
+                Insets = fitted.Inset is { } box && row == fitted.Row ? [box] : [],
+            };
+        }
+    }
+
+    /// <summary>
+    ///     The picture <paramref name="picture" />'s row draws: the file chosen for it where it is one this client
+    ///     decodes, or the instance's current one — none where a file was chosen that cannot be drawn, or there is no
+    ///     current one.
+    /// </summary>
+    private Drawn? Wanted(PublicProfilePart picture)
+    {
+        var (chosen, current) = picture == PublicProfilePart.Avatar
+            ? (Avatar, _read.AvatarUrl)
+            : (Header, _read.HeaderUrl);
+
+        if (chosen is not null)
+        {
+            return AttachmentPicture.Decodes(chosen) ? Drawn.OnDisk(chosen) : null;
+        }
+
+        if (current is null)
+        {
+            return null;
+        }
+
+        return picture == PublicProfilePart.Avatar
+            ? Drawn.Avatar(_read.Account.Address, current)
+            : Drawn.ProfileHeader(_read.Account.Address, current);
+    }
+
+    /// <summary>A row of the form: <paramref name="label" /> right-aligned before <paramref name="value" /> at <paramref name="at" />.</summary>
+    private static Line Labelled(string label, int at, Span[] value) =>
+        Line.Of([Blank(at - Gap - Glyphs.Columns(label)), new Span(label, Role.Muted), Blank(Gap), .. value]);
+
+    /// <summary>
     ///     <paramref name="line" /> with the selection bar in its first column where the walk is on
     ///     <paramref name="part" /> — the mark that says where the walk is with no colour, which a toggle has no caret
     ///     to say.
@@ -386,7 +570,7 @@ public sealed class PublicProfileScreen : Screen, IDraft
 
     private static Line Stamp(bool onIt, Line line) =>
         onIt && line.Spans.Count > 0 && line.Spans[0] is { Text.Length: > 0 } first
-            ? Line.Of([new Span("▌", Role.Selection), first with { Text = first.Text[1..] }, .. line.Spans.Skip(1)])
+            ? line.Respanned([new Span("▌", Role.Selection), first with { Text = first.Text[1..] }, .. line.Spans.Skip(1)])
             : line;
 
     /// <summary>What a field holds, clipped to its room — or its hint, dimly, where it holds nothing.</summary>

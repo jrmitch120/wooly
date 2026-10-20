@@ -90,8 +90,8 @@ public class PublicProfileViewTests
     }
 
     /// <summary>
-    ///     <c>↓</c> walks the typing from the display name into the bio, through it and on into the custom fields, where
-    ///     what is typed goes into the field walked to.
+    ///     <c>↓</c> walks the typing from the display name into the bio, through it, over the avatar and the header and on
+    ///     into the custom fields, where what is typed goes into the field walked to.
     /// </summary>
     [Fact]
     public async Task TheArrows_WalkTheTypingFromFieldToField()
@@ -104,6 +104,14 @@ public class PublicProfileViewTests
         Assert.True(drawn.Window.ProfileField<ComposeEditor>().HasFocus);
 
         drawn.Press(Key.CursorDown);
+
+        Assert.Equal(new PublicProfileStop(PublicProfilePart.Avatar), Form(drawn).Typing);
+
+        drawn.Press(Key.CursorDown);
+
+        Assert.Equal(new PublicProfileStop(PublicProfilePart.Header), Form(drawn).Typing);
+
+        drawn.Press(Key.CursorDown);
         Type(drawn, "Home");
         drawn.Press(Key.CursorDown);
         Type(drawn, "Kansas");
@@ -111,9 +119,10 @@ public class PublicProfileViewTests
         Assert.Equal("Home", Form(drawn).LabelOf(0));
         Assert.Equal("Kansas", Form(drawn).ValueOf(0));
 
-        drawn.Press(Key.CursorUp);
-        drawn.Press(Key.CursorUp);
-        drawn.Press(Key.CursorUp);
+        for (var press = 0; press < 5; press++)
+        {
+            drawn.Press(Key.CursorUp);
+        }
 
         Assert.Equal(new PublicProfileStop(PublicProfilePart.DisplayName), Form(drawn).Typing);
     }
