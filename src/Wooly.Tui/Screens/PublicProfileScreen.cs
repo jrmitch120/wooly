@@ -82,6 +82,12 @@ public sealed class PublicProfileScreen : Screen, IDraft
 
     private readonly string[] _values;
 
+    /// <summary>
+    ///     How many of the form's rows are above a room too short for all of them: moved only as far as keeps the field
+    ///     the walk is on in the room, so that walking within what is shown moves nothing.
+    /// </summary>
+    private int _scrolled;
+
     /// <param name="read">The public profile as written, read fresh as the form was opened.</param>
     public PublicProfileScreen(PublicProfile read)
     {
@@ -371,7 +377,8 @@ public sealed class PublicProfileScreen : Screen, IDraft
     ///     Every column is worked out from the width and none from what is written, so nothing moves as it is typed:
     ///     a custom field's label takes a third of the value column and its value the rest. The bio takes what height
     ///     the room spares, between three rows and eight, or four where nobody says how tall the room is. How tall a
-    ///     picture's row is depends on the terminal and on nothing chosen, so choosing one moves nothing either.
+    ///     picture's row is depends on the terminal and on nothing chosen, so choosing one moves nothing either. A room
+    ///     too short for every row is given those around the field the walk is on (<see cref="InTheRoom" />).
     /// </remarks>
     private (IReadOnlyList<Line> Rows, Dictionary<PublicProfileStop, Rectangle> Places) Laid(
         int width,
@@ -456,7 +463,7 @@ public sealed class PublicProfileScreen : Screen, IDraft
             rows.Add(Stamp(toggle, Under(new Span(named, Role.Body), new Span(explained, Role.Muted))));
         }
 
-        return (rows, places);
+        return InTheRoom(rows, places, height);
 
         void Place(PublicProfileStop stop, Rectangle place) => places[stop] = place;
 
@@ -464,6 +471,54 @@ public sealed class PublicProfileScreen : Screen, IDraft
             Line.Of([Blank(Pad + LabelWidth - Glyphs.Columns(label)), new Span(label, Role.Muted), Blank(Gap), .. value]);
 
         Line Under(params Span[] value) => Line.Of([Blank(at), .. value]);
+    }
+
+    /// <summary>
+    ///     The rows of a form taller than the room <paramref name="height" /> leaves, cut to those that fit around the
+    ///     field the walk is on, and where each field goes among them — nowhere, for one moved out of the room. The form
+    ///     moves only when the walk leaves what is shown, and only as far as brings it back, so that the field walked to
+    ///     is always on screen and nothing moves while it already was (review of #403). Every row, where it fits.
+    /// </summary>
+    private (IReadOnlyList<Line> Rows, Dictionary<PublicProfileStop, Rectangle> Places) InTheRoom(
+        List<Line> rows,
+        Dictionary<PublicProfileStop, Rectangle> places,
+        int? height)
+    {
+        if (height is not { } room || rows.Count <= room)
+        {
+            _scrolled = 0;
+
+            return (rows, places);
+        }
+
+        var walked = places.GetValueOrDefault(Typing);
+        var top = Math.Clamp(_scrolled, 0, rows.Count - room);
+
+        if (walked.Top < top)
+        {
+            top = walked.Top;
+        }
+        else if (walked.Bottom > top + room)
+        {
+            top = Math.Min(walked.Top, walked.Bottom - room);
+        }
+
+        _scrolled = top;
+
+        var shown = new Dictionary<PublicProfileStop, Rectangle>();
+
+        foreach (var (stop, place) in places)
+        {
+            var kept = Rectangle.Intersect(place, new Rectangle(place.X, top, place.Width, room));
+
+            if (kept.Height > 0)
+            {
+                kept.Offset(0, -top);
+                shown[stop] = kept;
+            }
+        }
+
+        return ([.. rows.Skip(top).Take(room)], shown);
     }
 
     /// <summary>

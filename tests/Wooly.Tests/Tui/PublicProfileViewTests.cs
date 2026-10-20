@@ -21,7 +21,7 @@ public class PublicProfileViewTests
     private static readonly Account Me = AnAccount.With(address: "jeff@mastodon.social", author: "Jeff", id: "7");
 
     /// <summary>The shell on a terminal with no colour, the form opened with <c>E</c> on <b>You</b>.</summary>
-    private static async Task<DrawnShell> Editing(PublicProfile? read = null)
+    private static async Task<DrawnShell> Editing(PublicProfile? read = null, int tall = Tall)
     {
         var built = new AShell
         {
@@ -29,7 +29,7 @@ public class PublicProfileViewTests
             PublicProfile = FakePublicProfileEditor.Holding(read ?? APublicProfile.With(displayName: "Jeff", account: Me)),
         };
 
-        var drawn = await DrawnShell.Of(Wide, Tall, Themes.Plain, built);
+        var drawn = await DrawnShell.Of(Wide, tall, Themes.Plain, built);
 
         drawn.Shell.Rail.GoTo(DestinationKind.Profile);
         drawn.Settle();
@@ -148,6 +148,45 @@ public class PublicProfileViewTests
         drawn.Press(Key.Space);
 
         Assert.False(Form(drawn).IsLocked);
+    }
+
+    /// <summary>
+    ///     On a terminal too short for the whole form, the field the walk is on is always on screen: walked down to the
+    ///     last toggle it is there to be seen and flipped, and walked back up the display name is there again (review of
+    ///     #403).
+    /// </summary>
+    [Fact]
+    public async Task OnAShortTerminal_TheWalkedFieldIsAlwaysOnScreen()
+    {
+        using var drawn = await Editing(APublicProfile.With(isDiscoverable: false, account: Me), tall: 14);
+
+        while (Form(drawn).Typing.Part != PublicProfilePart.Discoverable)
+        {
+            drawn.Press(Key.CursorDown);
+        }
+
+        drawn.Redraw();
+
+        Assert.Contains(drawn.Rows(), row => row.Contains("▌         □ Discoverable", StringComparison.Ordinal));
+
+        drawn.Press(Key.Space);
+        drawn.Redraw();
+
+        Assert.True(Form(drawn).IsDiscoverable);
+        Assert.Contains(drawn.Rows(), row => row.Contains("▌         ■ Discoverable", StringComparison.Ordinal));
+
+        while (Form(drawn).Typing.Part != PublicProfilePart.DisplayName)
+        {
+            drawn.Press(Key.CursorUp);
+        }
+
+        drawn.Redraw();
+
+        Assert.Contains(drawn.Rows(), row => row.Contains("▌   Name  Jeff", StringComparison.Ordinal));
+
+        drawn.Press(new Key('!'));
+
+        Assert.Equal("Jeff!", Form(drawn).DisplayName);
     }
 
     /// <summary><c>ctrl-s</c> from inside a field saves what was typed there.</summary>

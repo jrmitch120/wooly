@@ -1,6 +1,8 @@
 using Wooly.Core.Accounts;
 using Wooly.Core.Errors;
 using Wooly.Tests.Fakes;
+using Wooly.Tui.Media;
+using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
 
@@ -102,6 +104,47 @@ public class PublicProfileFormTests
                 "         ■ Discoverable · in the directory and suggestions",
             ],
             drawn);
+    }
+
+    /// <summary>
+    ///     In a room too short for the whole form, the rows drawn are never more than the room, and whichever field the
+    ///     walk is on is among them, where the form says it goes — the bio keeping its rows, and the form moving only as
+    ///     far as the walk needs it to (review of #403).
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task InAShortRoom_TheWalkedFieldIsAlwaysDrawn(bool pictures)
+    {
+        var (shell, form) = await Editing(Built());
+        var drawing = new Drawing(61, AShell.Now, new FakePictures(), pictures ? ARaster.Sixel() : Raster.None, Height: 10);
+        var room = new System.Drawing.Size(61, 10);
+
+        void InView()
+        {
+            var lines = form.Lines(drawing);
+            var at = form.At(form.Typing, room, drawing.Raster);
+
+            Assert.True(lines.Count <= 10, $"{lines.Count} rows in a room of 10");
+            Assert.False(at.IsEmpty, $"{form.Typing} is nowhere");
+            Assert.InRange(at.Top, 0, 9);
+            Assert.InRange(at.Bottom, 1, 10);
+            Assert.StartsWith("▌", lines[at.Top].Text, StringComparison.Ordinal);
+        }
+
+        InView();
+
+        while (form.Typing.Part != PublicProfilePart.Discoverable)
+        {
+            shell.Press(ShellKey.Down);
+            InView();
+        }
+
+        while (form.Typing.Part != PublicProfilePart.DisplayName)
+        {
+            shell.Press(ShellKey.Up);
+            InView();
+        }
     }
 
     /// <summary>
