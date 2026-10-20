@@ -637,6 +637,7 @@ public sealed class Shell
         Verb.ToggleSensitive => Ran(ToggleSensitive),
         Verb.Describe => Ran(Describe),
         Verb.ListAttachments => Ran(ListAttachments),
+        Verb.EditPublicProfile => Ran(EditPublicProfile),
 
         // Nothing, and the terminal's own — which the window has already taken, and which no screen answers either.
         Verb.None => false,
@@ -1535,6 +1536,26 @@ public sealed class Shell
 
     /// <summary>Opens an editor on one of the profile's own posts.</summary>
     public void Edit() => Compose(ComposeFor.Edit);
+
+    /// <summary>
+    ///     Reads the own account's public profile as written and puts the form that edits it up over the account it
+    ///     was asked from (#406). Read fresh every time, and never prefilled from the account on screen, whose bio is the
+    ///     flattened one (ADR-0028); a read that fails opens nothing, and the status row says why.
+    /// </summary>
+    public async Task EditPublicProfile()
+    {
+        if (Screen is not AccountScreen { Mine: true })
+        {
+            return;
+        }
+
+        // Taken now rather than read when the call is made, which a rate-limit wait can put after a switch (#243).
+        var profile = Actor.Profile;
+
+        await _enquiry.Put(
+            ask => ask.Of(token => _ports.PublicProfile.Read(profile, token)),
+            ifStillHere: read => Push(new PublicProfileScreen(read)));
+    }
 
     /// <summary>
     ///     Asks before taking a post down. The one thing here whose effect running something else does not undo, so

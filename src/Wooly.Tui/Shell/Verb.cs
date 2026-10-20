@@ -361,4 +361,10 @@ public enum Verb
     ///     the rows into it: push the attachments screen listing them (story 58).
     /// </summary>
     ListAttachments,
+
+    /// <summary>
+    ///     <c>E</c> on the own account's screen, or <c>⏎</c> or a click on its "edit public profile" row: read the public
+    ///     profile as written and put the form that edits it up over the account (#406, ADR-0028).
+    /// </summary>
+    EditPublicProfile,
 }

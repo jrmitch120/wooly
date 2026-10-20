@@ -218,6 +218,10 @@ public static class Keymap
         (ShellKey.CapitalB, _) => Verb.Block,
         (ShellKey.CapitalD, ProfilesScreen) => Verb.MakeDefault,
         (ShellKey.CapitalD, _) => Verb.ClearAll,
+
+        // E only on the own account, since nobody else's public profile can be changed from here: anywhere else it is
+        // nobody's, as p, e and d are on somebody else's post (#406).
+        (ShellKey.CapitalE, AccountScreen { Mine: true }) => Verb.EditPublicProfile,
         (ShellKey.CapitalR, ProfilesScreen) => Verb.SignInAgain,
 
         // Every digit means the same thing; which answer it addresses is Answer's, below.

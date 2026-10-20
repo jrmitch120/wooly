@@ -51,15 +51,21 @@ public sealed class AccountScreen : Screen
     ///     Whether <paramref name="posts" /> is their <b>Posts and replies</b> rather than their posts alone. Off
     ///     unless the reader pressed <c>s</c> for it: the screen opens on posts alone, for ADR-0019's reasons (#229).
     /// </param>
+    /// <param name="mine">
+    ///     Whether this is the account the profile signs in as — the <b>Own account</b>, whose public profile is the only
+    ///     one that can be edited from here (#406). Off unless the shell, which has the profile in hand, says so.
+    /// </param>
     public AccountScreen(
         Account account,
         IReadOnlyList<Post> posts,
         IReadOnlyList<Post>? pinned,
         IReadOnlyList<Account>? familiar = null,
-        bool withReplies = false)
+        bool withReplies = false,
+        bool mine = false)
     {
         Familiar = familiar;
         WithReplies = withReplies;
+        Mine = mine;
         Asked = pinned is not null;
         _pins = [.. (pinned ?? []).Select(post => post.Id)];
         _posts = new PostList(this, [.. pinned ?? [], .. posts]);
@@ -86,6 +92,7 @@ public sealed class AccountScreen : Screen
             new KeyHint("j/k", "post"),
             [
                 .. Jumping,
+                .. Mine ? [EditingThePublicProfile] : Array.Empty<KeyHint>(),
                 new KeyHint("F", Says(Follows, "unfollow", "follow")),
                 new KeyHint("M", Says(Account.Standing?.Muting, "unmute", "mute")),
                 new KeyHint("B", Says(Account.Standing?.Blocking, "unblock", "block")),
@@ -94,6 +101,13 @@ public sealed class AccountScreen : Screen
                 Refreshing,
             ],
             new KeyHint("esc", "back"));
+
+    /// <summary>
+    ///     <c>E</c>, offered only on the own account and ahead of the ties, since it is the one thing on this screen that
+    ///     is the reader's alone to do (#406). In ADR-0028's words, which say "public profile" and never a bare
+    ///     "profile", the word the local entry has.
+    /// </summary>
+    private static KeyHint EditingThePublicProfile { get; } = new("E", "edit public profile");
 
     /// <inheritdoc />
     public override bool Refreshes => true;
@@ -140,6 +154,12 @@ public sealed class AccountScreen : Screen
     ///     <c>s</c> swaps and <c>g</c> re-asks (#229).
     /// </summary>
     public bool WithReplies { get; }
+
+    /// <summary>
+    ///     Whether this is the profile's own account, which is what <c>E</c> and the "edit public profile" row are
+    ///     offered on and nowhere else (#406).
+    /// </summary>
+    public bool Mine { get; }
 
     /// <inheritdoc />
     /// <remarks>
