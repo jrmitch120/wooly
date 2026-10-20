@@ -142,6 +142,7 @@ public static class Keymap
         // wherever one is picked — ahead of whatever the screen's own ⏎ would have meant (#85).
         (ShellKey.Enter, _) when screen.Reference is not null => Verb.OpenReference,
         (ShellKey.Enter, AddProfileScreen) => Verb.Continue,
+        (ShellKey.Enter, AccountScreen { OnTheEditRow: true }) => Verb.EditPublicProfile,
         (ShellKey.Enter, ProfilesScreen) => Verb.ActAs,
         (ShellKey.Enter, SearchScreen search) => search.IsTyping ? Verb.Find : Verb.OpenResult,
         (ShellKey.Enter, FollowRequestsScreen) => Verb.OpenAsker,
