@@ -33,6 +33,20 @@ public class PublicProfileChangeTests
         Assert.Equal(wanted, new PublicProfileChange { Fields = wanted }.Against(read).Fields);
     }
 
+    /// <summary>
+    ///     A picture read is an address and a picture asked for is a file, and nothing says whether they are the same
+    ///     picture — so one asked for is always sent, and a change carrying only that is not empty.
+    /// </summary>
+    [Fact]
+    public void Against_KeepsEveryPictureAskedFor()
+    {
+        var change = new PublicProfileChange { Avatar = "me.png", Header = "hills.png", IsBot = false }
+            .Against(APublicProfile.With(isBot: false));
+
+        Assert.Equal(new PublicProfileChange { Avatar = "me.png", Header = "hills.png" }, change);
+        Assert.False(change.IsEmpty);
+    }
+
     [Fact]
     public void IsEmpty_WhereEverythingAskedForIsAlreadySo()
     {
