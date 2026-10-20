@@ -5,7 +5,8 @@ namespace Wooly.Tui.Views;
 
 /// <summary>
 ///     One of the edit public profile form's three toggles (#406), laid over its row to take the walk and the mouse. It
-///     draws nothing — the box and the words are the form's row, showing through — and a click on it flips it.
+///     draws nothing — the box and the words are the form's row, showing through — and a click on it flips it. The
+///     avatar's and the header's rows are laid over by one too, a click on either opening the file browser for it (#407).
 /// </summary>
 /// <remarks>
 ///     It leaves <c>space</c> and <c>⏎</c> to the form's view and so to the keymap, which flips the toggle for either,

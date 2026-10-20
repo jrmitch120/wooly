@@ -2,6 +2,7 @@ using System.Drawing;
 using Terminal.Gui.App;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
+using Wooly.Tui.Media;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
@@ -11,7 +12,7 @@ namespace Wooly.Tui.Views;
 /// <summary>
 ///     The edit public profile form's fields (#406), in one view laid over the content viewport as compose's are
 ///     (<see cref="ComposeView" />): the display name, the bio in the editor a post is written in, each custom field's
-///     label and value, and the three toggles. Each sits where the form lays it, shows while the form is on top and
+///     label and value, the avatar and the header (#407), and the three toggles. Each sits where the form lays it, shows while the form is on top and
 ///     opens on what the form holds, and where the typing is stays one fact — the form's — whichever way it moved.
 ///     Every change goes through the shell's one way in (<see cref="Shell.Shell.ChangePublicProfile" />).
 /// </summary>
@@ -31,6 +32,10 @@ internal sealed class PublicProfileView : View
     private readonly List<PublicProfileTextField> _labels = [];
     private readonly List<PublicProfileTextField> _values = [];
     private readonly Dictionary<PublicProfilePart, PublicProfileToggle> _toggles = [];
+    private readonly Dictionary<PublicProfilePart, PublicProfileToggle> _pictures = [];
+
+    /// <summary>How this terminal paints pixels, which says how tall the avatar's and the header's rows are.</summary>
+    private readonly Func<Raster?> _raster;
 
     /// <summary>The people to mention, hung under the @-word being typed in the bio, as under compose's post (#408).</summary>
     private readonly MentionList _mentions;
@@ -44,10 +49,11 @@ internal sealed class PublicProfileView : View
     /// <summary>Where the terminal's mouse events arrive, once the view is running; asked ahead of the views.</summary>
     private IMouse? _mouse;
 
-    public PublicProfileView(ITheme theme, Shell.Shell shell)
+    public PublicProfileView(ITheme theme, Shell.Shell shell, Func<Raster?>? raster = null)
     {
         _theme = theme;
         _shell = shell;
+        _raster = raster ?? (() => null);
 
         CanFocus = true;
         Visible = false;
@@ -92,9 +98,22 @@ internal sealed class PublicProfileView : View
             _toggles[part] = toggle;
         }
 
+        // The avatar and the header take no typing either: a click on one, or ⏎, opens the file browser for it (#407).
+        foreach (var part in new[] { PublicProfilePart.Avatar, PublicProfilePart.Header })
+        {
+            var stop = new PublicProfileStop(part);
+            var picture = Placed(new PublicProfileToggle(() => Choose(stop)), stop);
+
+            picture.Answering = Answered;
+            picture.HasFocusChanged += (_, focus) => TypingMoved(focus.NewValue, stop);
+
+            _pictures[part] = picture;
+        }
+
         _bio.HasFocusChanged += (_, focus) => TypingMoved(focus.NewValue, new PublicProfileStop(PublicProfilePart.Bio));
 
         Add(_name, _bio);
+        Add([.. _pictures.Values]);
         Add([.. _toggles.Values]);
         Add(_mentions.View);
 
@@ -118,12 +137,13 @@ internal sealed class PublicProfileView : View
     /// <summary>
     ///     The keys no field took that mean something on the form, made here as the keymap says they do rather than
     ///     left to Terminal.Gui: <c>↑</c>/<c>↓</c>, which walk the fields and stop at either end, <c>space</c> and
-    ///     <c>⏎</c> on a toggle, and <c>ctrl-s</c>.
+    ///     <c>⏎</c> on a toggle, <c>⏎</c> and the paste on a picture (#407), and <c>ctrl-s</c>.
     /// </summary>
     protected override bool OnKeyDown(Key key) =>
         ShellKeys.Of(key) is { } pressed
         && Keymap.Means(pressed, _shell.Screen) is var verb
-            and (Verb.PreviousField or Verb.NextField or Verb.FlipToggle or Verb.SavePublicProfile)
+            and (Verb.PreviousField or Verb.NextField or Verb.FlipToggle or Verb.SavePublicProfile
+                or Verb.OpenBrowser or Verb.PasteFromTheClipboard)
         && _shell.Do(verb, Keymap.Answer(pressed));
 
     protected override void Dispose(bool disposing)
@@ -145,7 +165,8 @@ internal sealed class PublicProfileView : View
     /// <summary>Every field and toggle, in the order the arrows walk them.</summary>
     private IEnumerable<View> Fields =>
     [
-        _name, _bio, .. _labels.Zip(_values).SelectMany(row => new View[] { row.First, row.Second }), .. _toggles.Values,
+        _name, _bio, .. _pictures.Values, .. _labels.Zip(_values).SelectMany(row => new View[] { row.First, row.Second }),
+        .. _toggles.Values,
     ];
 
     /// <summary>
@@ -282,7 +303,7 @@ internal sealed class PublicProfileView : View
         // nothing it was sized to while no form was up wraps its text to no width (as compose's does, #365).
         _name.Visible = _bio.Visible = true;
 
-        foreach (var toggle in _toggles.Values)
+        foreach (var toggle in _toggles.Values.Concat(_pictures.Values))
         {
             toggle.Visible = true;
         }
@@ -354,6 +375,7 @@ internal sealed class PublicProfileView : View
         PublicProfilePart.Bio => _bio,
         PublicProfilePart.Label => _labels[stop.Row],
         PublicProfilePart.Value => _values[stop.Row],
+        PublicProfilePart.Avatar or PublicProfilePart.Header => _pictures[stop.Part],
         _ => _toggles[stop.Part],
     };
 
@@ -379,7 +401,9 @@ internal sealed class PublicProfileView : View
         where T : View
     {
         Rectangle Laid() =>
-            Viewport.Width > 0 && _shell.Screen is PublicProfileScreen form ? form.At(stop, Viewport.Size) : Rectangle.Empty;
+            Viewport.Width > 0 && _shell.Screen is PublicProfileScreen form
+                ? form.At(stop, Viewport.Size, _raster())
+                : Rectangle.Empty;
 
         field.X = Pos.Func(_ => Laid().X);
         field.Y = Pos.Func(_ => Laid().Y);
@@ -407,6 +431,13 @@ internal sealed class PublicProfileView : View
     {
         _ = _shell.ChangePublicProfile(form => form.TypeInto(stop));
         _ = _shell.ChangePublicProfile(form => form.Flip(stop.Part));
+    }
+
+    /// <summary>A click on the avatar or the header at <paramref name="stop" />: the walk there, and the file browser for it.</summary>
+    private void Choose(PublicProfileStop stop)
+    {
+        _ = _shell.ChangePublicProfile(form => form.TypeInto(stop));
+        _shell.Browse();
     }
 
     /// <summary><c>ctrl-s</c> in any of the form's fields.</summary>

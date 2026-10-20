@@ -1,6 +1,9 @@
 namespace Wooly.Tui.Screens;
 
-/// <summary>What one place on the edit public profile form is: a field typed into, or a toggle flipped (#406).</summary>
+/// <summary>
+///     What one place on the edit public profile form is: a field typed into, a picture chosen (#407), or a toggle
+///     flipped (#406).
+/// </summary>
 public enum PublicProfilePart
 {
     /// <summary>The name the account is shown as.</summary>
@@ -8,6 +11,12 @@ public enum PublicProfilePart
 
     /// <summary>The bio, as written: several lines, in the editor a post is written in.</summary>
     Bio,
+
+    /// <summary>The avatar: a picture, chosen from a file or pasted rather than typed (#407).</summary>
+    Avatar,
+
+    /// <summary>The header: a picture, chosen as the avatar is.</summary>
+    Header,
 
     /// <summary>A custom field's label, the left half of its row.</summary>
     Label,
@@ -35,4 +44,7 @@ public readonly record struct PublicProfileStop(PublicProfilePart Part, int Row 
 {
     /// <summary>Whether it is one of the three toggles, which are flipped rather than typed into.</summary>
     public bool IsAToggle => Part is PublicProfilePart.Locked or PublicProfilePart.Bot or PublicProfilePart.Discoverable;
+
+    /// <summary>Whether it is the avatar or the header, which are chosen from a file or pasted rather than typed (#407).</summary>
+    public bool IsAPicture => Part is PublicProfilePart.Avatar or PublicProfilePart.Header;
 }

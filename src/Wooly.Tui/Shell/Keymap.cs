@@ -112,6 +112,11 @@ public static class Keymap
         // that has the typing — or as nobody's on a toggle, which is flipped by space or ⏎ alone (#406).
         (ShellKey.CtrlS, PublicProfileScreen) => Verb.SavePublicProfile,
         (ShellKey.Space or ShellKey.Enter, PublicProfileScreen { Typing.IsAToggle: true }) => Verb.FlipToggle,
+
+        // And on the avatar and the header, which take no typing: ⏎ opens the file browser for one picture, as it does
+        // on compose's Media header, and ctrl-v or alt-v pastes one from the clipboard (#407).
+        (ShellKey.Enter, PublicProfileScreen { Typing.IsAPicture: true }) => Verb.OpenBrowser,
+        (ShellKey.CtrlV or ShellKey.AltV, PublicProfileScreen { Typing.IsAPicture: true }) => Verb.PasteFromTheClipboard,
         (ShellKey.Up, PublicProfileScreen) => Verb.PreviousField,
         (ShellKey.Down, PublicProfileScreen) => Verb.NextField,
         (_, PublicProfileScreen) => Verb.None,

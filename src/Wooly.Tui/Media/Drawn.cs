@@ -67,6 +67,17 @@ public sealed record Drawn(string Id, string Address)
     };
 
     /// <summary>
+    ///     An account's header, as the edit public profile form draws it (#407): named by the handle, as
+    ///     <see cref="Avatar" /> is, and held no larger than the form's box.
+    /// </summary>
+    /// <param name="account">Whose header it is, as <c>username@instance</c>.</param>
+    /// <param name="address">Where to fetch it.</param>
+    public static Drawn ProfileHeader(string account, string address) => new($"header:{account}", address)
+    {
+        Largest = (Screens.PublicProfileScreen.HeaderColumns, Screens.PublicProfileScreen.PictureRows),
+    };
+
+    /// <summary>
     ///     A file being attached to a post, drawn small on its row under the Media header (#382): read off the disk
     ///     rather than sent for, being on no instance until it has gone up — and wanted from the moment it is attached,
     ///     not once it has.

@@ -251,7 +251,7 @@ internal sealed class ShellWindow : Window
         };
 
         // The edit public profile form's fields, over the same viewport the same way (#406).
-        _publicProfile = new PublicProfileView(theme, shell)
+        _publicProfile = new PublicProfileView(theme, shell, () => _content.Raster)
         {
             X = Pos.Func(content => ViewportOrigin(content).X, _content),
             Y = Pos.Func(content => ViewportOrigin(content).Y, _content),
