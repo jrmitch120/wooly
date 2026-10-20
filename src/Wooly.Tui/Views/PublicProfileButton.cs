@@ -4,23 +4,23 @@ using Terminal.Gui.ViewBase;
 namespace Wooly.Tui.Views;
 
 /// <summary>
-///     One of the edit public profile form's three toggles (#406), laid over its row to take the walk and the mouse. It
-///     draws nothing — the box and the words are the form's row, showing through — and a click on it flips it. The
-///     avatar's and the header's rows are laid over by one too, a click on either opening the file browser for it (#407).
+///     A row of the edit public profile form that takes no typing, laid over it to take the walk and the mouse: one of
+///     the three toggles (#406), which a click flips, or the avatar's or the header's, which a click opens the file
+///     browser for (#407). It draws nothing — the box, the picture and the words are the form's row, showing through.
 /// </summary>
 /// <remarks>
-///     It leaves <c>space</c> and <c>⏎</c> to the form's view and so to the keymap, which flips the toggle for either,
-///     and the arrows, <c>tab</c>, <c>esc</c> and the <c>ctrl</c> chords to whoever wants them. Any other letter is
-///     nobody's here — read by the keymap it would be a key of the screen under the form.
+///     It leaves <c>space</c> and <c>⏎</c> to the form's view and so to the keymap, which says what either means on the
+///     row, and the arrows, <c>tab</c>, <c>esc</c> and the <c>ctrl</c> and <c>alt</c> chords to whoever wants them. Any
+///     other letter is nobody's here — read by the keymap it would be a key of the screen under the form.
 /// </remarks>
-/// <param name="flip">A click on it: it the other way, and the walk on it.</param>
-internal sealed class PublicProfileToggle : View
+/// <param name="pressed">A click on it: what the row does, and the walk on it.</param>
+internal sealed class PublicProfileButton : View
 {
-    private readonly Action _flip;
+    private readonly Action _pressed;
 
-    public PublicProfileToggle(Action flip)
+    public PublicProfileButton(Action pressed)
     {
-        _flip = flip;
+        _pressed = pressed;
 
         CanFocus = true;
 
@@ -41,14 +41,14 @@ internal sealed class PublicProfileToggle : View
           || key == Key.Tab || key == Key.Tab.WithShift || key == Key.Esc || key.IsCtrl || key.IsAlt);
 
     /// <summary>
-    ///     A click flips it. Everything else the pointer does here is nothing: a right click, which the form's view has
+    ///     A click presses it. Everything else the pointer does here is nothing: a right click, which the form's view has
     ///     already taken for <c>esc</c>, and the wheel, which bubbling to the window would read as the arrows.
     /// </summary>
     protected override bool OnMouseEvent(Mouse mouse)
     {
         if (ShellKeys.Of(mouse) is null && mouse.Flags.HasFlag(MouseFlags.LeftButtonClicked))
         {
-            _flip();
+            _pressed();
         }
 
         return true;

@@ -67,6 +67,12 @@ public sealed class PublicProfileScreen : Screen, IDraft
 
     private readonly string[] _values;
 
+    /// <summary>Which way each toggle is, as it stands in the form.</summary>
+    private readonly Dictionary<PublicProfilePart, bool> _toggled;
+
+    /// <summary>The file chosen or pasted for each picture, where one has been.</summary>
+    private readonly Dictionary<PublicProfilePart, string> _picked = [];
+
     /// <summary>
     ///     How many of the form's rows are above a room too short for all of them: moved only as far as keeps the field
     ///     the walk is on in the room, so that walking within what is shown moves nothing.
@@ -87,9 +93,12 @@ public sealed class PublicProfileScreen : Screen, IDraft
 
         DisplayName = read.DisplayName;
         Bio = read.Bio;
-        IsLocked = read.IsLocked;
-        IsBot = read.IsBot;
-        IsDiscoverable = read.IsDiscoverable;
+        _toggled = new Dictionary<PublicProfilePart, bool>
+        {
+            [PublicProfilePart.Locked] = read.IsLocked,
+            [PublicProfilePart.Bot] = read.IsBot,
+            [PublicProfilePart.Discoverable] = read.IsDiscoverable,
+        };
     }
 
     /// <summary>The public profile as it was read, which is what everything here is compared against.</summary>
@@ -105,22 +114,22 @@ public sealed class PublicProfileScreen : Screen, IDraft
     ///     The file chosen or pasted to be the avatar, or <see langword="null" /> to leave the avatar as it is. Sent only
     ///     when the form is saved, there being nowhere to send a profile picture ahead of the save (ADR-0028).
     /// </summary>
-    public string? Avatar { get; private set; }
+    public string? Avatar => _picked.GetValueOrDefault(PublicProfilePart.Avatar);
 
     /// <summary>The file chosen or pasted to be the header, or <see langword="null" /> to leave it. Sent as <see cref="Avatar" /> is.</summary>
-    public string? Header { get; private set; }
+    public string? Header => _picked.GetValueOrDefault(PublicProfilePart.Header);
 
     /// <summary>How many custom-field rows the form has: four, or more where the account already has more.</summary>
     public int FieldRows => _labels.Length;
 
     /// <summary>Whether followers are to be approved by hand.</summary>
-    public bool IsLocked { get; private set; }
+    public bool IsLocked => _toggled[PublicProfilePart.Locked];
 
     /// <summary>Whether the account is to say it posts automatically.</summary>
-    public bool IsBot { get; private set; }
+    public bool IsBot => _toggled[PublicProfilePart.Bot];
 
     /// <summary>Whether the account is to be suggested and listed in the directory.</summary>
-    public bool IsDiscoverable { get; private set; }
+    public bool IsDiscoverable => _toggled[PublicProfilePart.Discoverable];
 
     /// <summary>Where the typing is, or which toggle the walk is on: the display name, as the form opens.</summary>
     public PublicProfileStop Typing { get; private set; } = new(PublicProfilePart.DisplayName);
@@ -162,15 +171,12 @@ public sealed class PublicProfileScreen : Screen, IDraft
     [
         new(PublicProfilePart.DisplayName),
         new(PublicProfilePart.Bio),
-        new(PublicProfilePart.Avatar),
-        new(PublicProfilePart.Header),
+        .. PublicProfilePicture.Both.Select(picture => new PublicProfileStop(picture.Part)),
         .. Enumerable.Range(0, FieldRows).SelectMany(row => new PublicProfileStop[]
         {
             new(PublicProfilePart.Label, row), new(PublicProfilePart.Value, row),
         }),
-        new(PublicProfilePart.Locked),
-        new(PublicProfilePart.Bot),
-        new(PublicProfilePart.Discoverable),
+        .. PublicProfileToggle.All.Select(toggle => new PublicProfileStop(toggle.Part)),
     ];
 
     /// <summary>
@@ -267,26 +273,12 @@ public sealed class PublicProfileScreen : Screen, IDraft
     /// <returns>An edit, or nothing where <paramref name="toggle" /> is no toggle.</returns>
     public ComposeChange Flip(PublicProfilePart toggle)
     {
-        switch (toggle)
+        if (!_toggled.TryGetValue(toggle, out var on))
         {
-            case PublicProfilePart.Locked:
-                IsLocked = !IsLocked;
-
-                break;
-
-            case PublicProfilePart.Bot:
-                IsBot = !IsBot;
-
-                break;
-
-            case PublicProfilePart.Discoverable:
-                IsDiscoverable = !IsDiscoverable;
-
-                break;
-
-            default:
-                return ComposeChange.None;
+            return ComposeChange.None;
         }
+
+        _toggled[toggle] = !on;
 
         return ComposeChange.Edited;
     }
@@ -298,21 +290,12 @@ public sealed class PublicProfileScreen : Screen, IDraft
     /// <returns>An edit, or nothing where the walk is on no picture or the file is the one already chosen.</returns>
     public ComposeChange Pick(string path)
     {
-        switch (Typing.Part)
+        if (PublicProfilePicture.Of(Typing.Part) is not { } picture || PickedFor(picture) == path)
         {
-            case PublicProfilePart.Avatar when Avatar != path:
-                Avatar = path;
-
-                break;
-
-            case PublicProfilePart.Header when Header != path:
-                Header = path;
-
-                break;
-
-            default:
-                return ComposeChange.None;
+            return ComposeChange.None;
         }
+
+        _picked[picture.Part] = path;
 
         return ComposeChange.Edited;
     }
@@ -379,8 +362,8 @@ public sealed class PublicProfileScreen : Screen, IDraft
 
         var pictureRows = raster?.Cell is not null ? PublicProfilePictures.Rows : 1;
 
-        var toggles = new[] { PublicProfilePart.Locked, PublicProfilePart.Bot, PublicProfilePart.Discoverable };
-        var others = 1 + 1 + 1 + (pictureRows * 2) + 1 + FieldRows + 1 + toggles.Length;
+        var others = 1 + 1 + 1 + (pictureRows * PublicProfilePicture.Both.Count) + 1 + FieldRows + 1
+            + PublicProfileToggle.All.Count;
         var bioRows = height is { } tall ? Math.Clamp(tall - others, LeastBioRows, MostBioRows) : BioRowsUnmeasured;
 
         var rows = new List<Line>();
@@ -389,7 +372,7 @@ public sealed class PublicProfileScreen : Screen, IDraft
         rows.Add(Line.Blank);
 
         Place(new PublicProfileStop(PublicProfilePart.DisplayName), new Rectangle(at, rows.Count, room, 1));
-        rows.Add(Stamp(PublicProfilePart.DisplayName, Header("Name", Written(DisplayName, NameHint, room))));
+        rows.Add(Stamp(PublicProfilePart.DisplayName, Labelled("Name", at, [Written(DisplayName, NameHint, room)])));
 
         Place(new PublicProfileStop(PublicProfilePart.Bio), new Rectangle(at, rows.Count, room, bioRows));
 
@@ -402,15 +385,16 @@ public sealed class PublicProfileScreen : Screen, IDraft
         {
             var said = line < bio.Length ? bio[line] : new Span("", Role.Body);
 
-            rows.Add(Stamp(PublicProfilePart.Bio, line == 0 ? Header("Bio", said) : Under(said)));
+            rows.Add(Stamp(PublicProfilePart.Bio, line == 0 ? Labelled("Bio", at, [said]) : Under(said)));
         }
 
         rows.Add(Line.Blank);
 
-        foreach (var picture in new[] { PublicProfilePart.Avatar, PublicProfilePart.Header })
+        foreach (var picture in PublicProfilePicture.Both)
         {
-            Place(new PublicProfileStop(picture), new Rectangle(at, rows.Count, room, pictureRows));
-            rows.AddRange(Pictured(picture, at, width, pictureRows, raster, pictures).Select(line => Stamp(picture, line)));
+            Place(new PublicProfileStop(picture.Part), new Rectangle(at, rows.Count, room, pictureRows));
+            rows.AddRange(
+                Pictured(picture, at, width, pictureRows, raster, pictures).Select(line => Stamp(picture.Part, line)));
         }
 
         rows.Add(Line.Blank);
@@ -425,35 +409,25 @@ public sealed class PublicProfileScreen : Screen, IDraft
             var pair = new[] { label, Blank(labelRoom - label.Width + Gap), value };
             var onIt = Typing is { Part: PublicProfilePart.Label or PublicProfilePart.Value } typing && typing.Row == row;
 
-            rows.Add(Stamp(onIt, row == 0 ? Header("Fields", pair) : Under(pair)));
+            rows.Add(Stamp(onIt, row == 0 ? Labelled("Fields", at, pair) : Under(pair)));
         }
 
         rows.Add(Line.Blank);
 
-        foreach (var toggle in toggles)
+        foreach (var toggle in PublicProfileToggle.All)
         {
-            var (name, says, on) = toggle switch
-            {
-                PublicProfilePart.Locked => ("Locked", "approve followers by hand", IsLocked),
-                PublicProfilePart.Bot => ("Bot", "posts automatically", IsBot),
-                _ => ("Discoverable", "in the directory and suggestions", IsDiscoverable),
-            };
+            Place(new PublicProfileStop(toggle.Part), new Rectangle(at, rows.Count, room, 1));
 
-            Place(new PublicProfileStop(toggle), new Rectangle(at, rows.Count, room, 1));
+            var box = _toggled[toggle.Part] ? "■ " : "□ ";
+            var named = TextWrap.Clip(box + toggle.Name, room);
+            var explained = TextWrap.Clip($" · {toggle.Says}", room - Glyphs.Columns(named));
 
-            var box = on ? "■ " : "□ ";
-            var named = TextWrap.Clip(box + name, room);
-            var explained = TextWrap.Clip($" · {says}", room - Glyphs.Columns(named));
-
-            rows.Add(Stamp(toggle, Under(new Span(named, Role.Body), new Span(explained, Role.Muted))));
+            rows.Add(Stamp(toggle.Part, Under(new Span(named, Role.Body), new Span(explained, Role.Muted))));
         }
 
         return InTheRoom(rows, places, height);
 
         void Place(PublicProfileStop stop, Rectangle place) => places[stop] = place;
-
-        Line Header(string label, params Span[] value) =>
-            Line.Of([Blank(Pad + LabelWidth - Glyphs.Columns(label)), new Span(label, Role.Muted), Blank(Gap), .. value]);
 
         Line Under(params Span[] value) => Line.Of([Blank(at), .. value]);
     }
@@ -517,16 +491,14 @@ public sealed class PublicProfileScreen : Screen, IDraft
     ///     <b>You</b>'s header block has already sent for, and a file chosen is the one the file browser previewed.
     /// </remarks>
     private IEnumerable<Line> Pictured(
-        PublicProfilePart picture,
+        PublicProfilePicture picture,
         int at,
         int width,
         int pictureRows,
         Raster? raster,
         IPictures? pictures)
     {
-        var (label, columns, chosen, current) = picture == PublicProfilePart.Avatar
-            ? ("Avatar", PublicProfilePictures.AvatarColumns, Avatar, _read.AvatarUrl)
-            : ("Header", PublicProfilePictures.HeaderColumns, Header, _read.HeaderUrl);
+        var (label, columns, chosen) = (picture.Label, picture.Columns, PickedFor(picture));
 
         var cell = raster?.Cell;
         var named = cell is null ? at : Math.Min(at + PublicProfilePictures.HeaderColumns + Gap, width);
@@ -536,7 +508,7 @@ public sealed class PublicProfileScreen : Screen, IDraft
 
         if (chosen is null)
         {
-            said = [new Span(TextWrap.Clip(current is null ? NoPicture : CurrentPicture, room), Role.Muted)];
+            said = [new Span(TextWrap.Clip(Current(picture) is null ? NoPicture : CurrentPicture, room), Role.Muted)];
         }
         else
         {
@@ -580,26 +552,24 @@ public sealed class PublicProfileScreen : Screen, IDraft
     ///     decodes, or the instance's current one — none where a file was chosen that cannot be drawn, or there is no
     ///     current one.
     /// </summary>
-    private Drawn? Wanted(PublicProfilePart picture)
+    private Drawn? Wanted(PublicProfilePicture picture) =>
+        PickedFor(picture) is { } chosen
+            ? AttachmentPicture.Decodes(chosen) ? Drawn.OnDisk(chosen) : null
+            : Current(picture);
+
+    /// <summary>The file chosen or pasted for <paramref name="picture" />, or <see langword="null" /> where none has been.</summary>
+    private string? PickedFor(PublicProfilePicture picture) => _picked.GetValueOrDefault(picture.Part);
+
+    /// <summary>
+    ///     The picture the instance has for <paramref name="picture" /> now, through the picture path everything else
+    ///     drawn takes, or <see langword="null" /> where it has none.
+    /// </summary>
+    private Drawn? Current(PublicProfilePicture picture) => picture.Part switch
     {
-        var (chosen, current) = picture == PublicProfilePart.Avatar
-            ? (Avatar, _read.AvatarUrl)
-            : (Header, _read.HeaderUrl);
-
-        if (chosen is not null)
-        {
-            return AttachmentPicture.Decodes(chosen) ? Drawn.OnDisk(chosen) : null;
-        }
-
-        if (current is null)
-        {
-            return null;
-        }
-
-        return picture == PublicProfilePart.Avatar
-            ? Drawn.Avatar(_read.Account.Address, current)
-            : Drawn.HeaderPicture(_read.Account.Address, current);
-    }
+        PublicProfilePart.Avatar when _read.AvatarUrl is { } avatar => Drawn.Avatar(_read.Account.Address, avatar),
+        PublicProfilePart.Header when _read.HeaderUrl is { } header => Drawn.HeaderPicture(_read.Account.Address, header),
+        _ => null,
+    };
 
     /// <summary>A row of the form: <paramref name="label" /> right-aligned before <paramref name="value" /> at <paramref name="at" />.</summary>
     private static Line Labelled(string label, int at, Span[] value) =>

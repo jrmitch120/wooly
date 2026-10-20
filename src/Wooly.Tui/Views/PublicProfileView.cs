@@ -31,8 +31,9 @@ internal sealed class PublicProfileView : View
     private readonly ComposeEditor _bio;
     private readonly List<PublicProfileTextField> _labels = [];
     private readonly List<PublicProfileTextField> _values = [];
-    private readonly Dictionary<PublicProfilePart, PublicProfileToggle> _toggles = [];
-    private readonly Dictionary<PublicProfilePart, PublicProfileToggle> _pictures = [];
+
+    /// <summary>The rows that take no typing — the avatar and the header, and the three toggles — by which they are.</summary>
+    private readonly Dictionary<PublicProfilePart, PublicProfileButton> _buttons = [];
 
     /// <summary>How this terminal paints pixels, which says how tall the avatar's and the header's rows are.</summary>
     private readonly Func<Raster?> _raster;
@@ -87,34 +88,29 @@ internal sealed class PublicProfileView : View
         _mentions = new MentionList(theme, shell, _bio, () => _shell.Screen is PublicProfileScreen);
         _bio.Ahead = _mentions.Took;
 
-        foreach (var part in new[] { PublicProfilePart.Locked, PublicProfilePart.Bot, PublicProfilePart.Discoverable })
+        // The rows that take no typing: the avatar and the header, a click on either opening the file browser for it
+        // (#407), and the toggles, a click on one flipping it.
+        IEnumerable<(PublicProfilePart Part, Action<PublicProfileStop> Pressed)> buttons =
+        [
+            .. PublicProfilePicture.Both.Select(picture => (picture.Part, (Action<PublicProfileStop>)Choose)),
+            .. PublicProfileToggle.All.Select(toggle => (toggle.Part, (Action<PublicProfileStop>)Flip)),
+        ];
+
+        foreach (var (part, pressed) in buttons)
         {
             var stop = new PublicProfileStop(part);
-            var toggle = Placed(new PublicProfileToggle(() => Flip(stop)), stop);
+            var button = Placed(new PublicProfileButton(() => pressed(stop)), stop);
 
-            toggle.Answering = Answered;
-            toggle.HasFocusChanged += (_, focus) => TypingMoved(focus.NewValue, stop);
+            button.Answering = Answered;
+            button.HasFocusChanged += (_, focus) => TypingMoved(focus.NewValue, stop);
 
-            _toggles[part] = toggle;
-        }
-
-        // The avatar and the header take no typing either: a click on one, or ⏎, opens the file browser for it (#407).
-        foreach (var part in new[] { PublicProfilePart.Avatar, PublicProfilePart.Header })
-        {
-            var stop = new PublicProfileStop(part);
-            var picture = Placed(new PublicProfileToggle(() => Choose(stop)), stop);
-
-            picture.Answering = Answered;
-            picture.HasFocusChanged += (_, focus) => TypingMoved(focus.NewValue, stop);
-
-            _pictures[part] = picture;
+            _buttons[part] = button;
         }
 
         _bio.HasFocusChanged += (_, focus) => TypingMoved(focus.NewValue, new PublicProfileStop(PublicProfilePart.Bio));
 
         Add(_name, _bio);
-        Add([.. _pictures.Values]);
-        Add([.. _toggles.Values]);
+        Add([.. _buttons.Values]);
         Add(_mentions.View);
 
         // A right click over a field is esc, which the fields would otherwise keep to themselves, so it is asked about
@@ -165,8 +161,9 @@ internal sealed class PublicProfileView : View
     /// <summary>Every field and toggle, in the order the arrows walk them.</summary>
     private IEnumerable<View> Fields =>
     [
-        _name, _bio, .. _pictures.Values, .. _labels.Zip(_values).SelectMany(row => new View[] { row.First, row.Second }),
-        .. _toggles.Values,
+        _name, _bio, .. PublicProfilePicture.Both.Select(picture => _buttons[picture.Part]),
+        .. _labels.Zip(_values).SelectMany(row => new View[] { row.First, row.Second }),
+        .. PublicProfileToggle.All.Select(toggle => _buttons[toggle.Part]),
     ];
 
     /// <summary>
@@ -303,9 +300,9 @@ internal sealed class PublicProfileView : View
         // nothing it was sized to while no form was up wraps its text to no width (as compose's does, #365).
         _name.Visible = _bio.Visible = true;
 
-        foreach (var toggle in _toggles.Values.Concat(_pictures.Values))
+        foreach (var button in _buttons.Values)
         {
-            toggle.Visible = true;
+            button.Visible = true;
         }
 
         for (var row = 0; row < _labels.Count; row++)
@@ -375,8 +372,7 @@ internal sealed class PublicProfileView : View
         PublicProfilePart.Bio => _bio,
         PublicProfilePart.Label => _labels[stop.Row],
         PublicProfilePart.Value => _values[stop.Row],
-        PublicProfilePart.Avatar or PublicProfilePart.Header => _pictures[stop.Part],
-        _ => _toggles[stop.Part],
+        _ => _buttons[stop.Part],
     };
 
     /// <summary>A one-line field at <paramref name="stop" />, hinting <paramref name="hint" /> while it is empty.</summary>

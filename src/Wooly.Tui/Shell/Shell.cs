@@ -2505,10 +2505,8 @@ public sealed class Shell
     {
         var folder = _lastFolder is { } last && Directory.Exists(last) ? last : _launchedFrom;
 
-        if (Screen is PublicProfileScreen { Typing: { IsAPicture: true } typing })
+        if (Screen is PublicProfileScreen form && PublicProfilePicture.Of(form.Typing.Part) is { } picture)
         {
-            var picture = typing.Part == PublicProfilePart.Avatar ? "avatar" : "header";
-
             Push(FileBrowserScreen.ForAPicture(LocalFiles.Listing(folder), picture));
 
             return;
