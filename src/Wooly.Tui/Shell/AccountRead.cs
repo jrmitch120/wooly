@@ -23,19 +23,19 @@ namespace Wooly.Tui.Shell;
 ///     Who the reader knows in common, or <see langword="null" /> where the instance never answered.
 /// </param>
 /// <param name="WithReplies">Whether <paramref name="Posts" /> was read with their replies in.</param>
-/// <param name="Mine">Whether they are the account the profile reading them signs in as (#406).</param>
+/// <param name="IsOwnAccount">Whether they are the <b>Own account</b>: the one the profile reading them signs in as (#406).</param>
 internal sealed record AccountRead(
     Account Account,
     IReadOnlyList<Post> Posts,
     IReadOnlyList<Post>? Pinned,
     IReadOnlyList<Account>? Familiar,
     bool WithReplies,
-    bool Mine) : Found
+    bool IsOwnAccount) : Found
 {
     /// <inheritdoc />
     /// <remarks>
     ///     Said once, so that the run a screen says it shows is the run it was read with.
     /// </remarks>
     public override Screen Becomes(Screen? standing) =>
-        new AccountScreen(Account, Posts, Pinned, Familiar, WithReplies, Mine);
+        new AccountScreen(Account, Posts, Pinned, Familiar, WithReplies, IsOwnAccount);
 }

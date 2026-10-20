@@ -31,8 +31,9 @@ internal sealed class PublicProfileView : View
     private readonly ComposeEditor _bio;
     private readonly List<PublicProfileTextField> _labels = [];
     private readonly List<PublicProfileTextField> _values = [];
-    private readonly Dictionary<PublicProfilePart, PublicProfileToggle> _toggles = [];
-    private readonly Dictionary<PublicProfilePart, PublicProfileToggle> _pictures = [];
+
+    /// <summary>The rows that take no typing — the avatar and the header, and the three toggles — by which they are.</summary>
+    private readonly Dictionary<PublicProfilePart, PublicProfileButton> _buttons = [];
 
     /// <summary>How this terminal paints pixels, which says how tall the avatar's and the header's rows are.</summary>
     private readonly Func<Raster?> _raster;
@@ -46,6 +47,9 @@ internal sealed class PublicProfileView : View
     /// <summary>Whether the fields are being filled as the form comes on top, while focus moving says nothing.</summary>
     private bool _filling;
 
+    /// <summary>What the fields do with an open question and with the mouse, as every draft's do (#373).</summary>
+    private readonly DraftFields _draft;
+
     /// <summary>Where the terminal's mouse events arrive, once the view is running; asked ahead of the views.</summary>
     private IMouse? _mouse;
 
@@ -54,6 +58,10 @@ internal sealed class PublicProfileView : View
         _theme = theme;
         _shell = shell;
         _raster = raster ?? (() => null);
+        _draft = new DraftFields(
+            shell,
+            () => _shell.Screen is PublicProfileScreen,
+            at => Visible && Fields.Any(field => field.Visible && field.FrameToScreen().Contains(at)));
 
         CanFocus = true;
         Visible = false;
@@ -81,40 +89,35 @@ internal sealed class PublicProfileView : View
 
         // ctrl-p is the frame's here as everywhere (ADR-0020), where TextView would take it for a line up.
         _bio.KeyBindings.Remove(Key.P.WithCtrl);
-        _bio.Answering = Answered;
+        _bio.Answering = _draft.Answered;
         _bio.ContentsChanged += (_, _) => Change(form => form.RewriteBio(_bio.Text));
 
         _mentions = new MentionList(theme, shell, _bio, () => _shell.Screen is PublicProfileScreen);
         _bio.Ahead = _mentions.Took;
 
-        foreach (var part in new[] { PublicProfilePart.Locked, PublicProfilePart.Bot, PublicProfilePart.Discoverable })
+        // The rows that take no typing: the avatar and the header, a click on either opening the file browser for it
+        // (#407), and the toggles, a click on one flipping it.
+        IEnumerable<(PublicProfilePart Part, Action<PublicProfileStop> Pressed)> buttons =
+        [
+            .. PublicProfilePicture.Both.Select(picture => (picture.Part, (Action<PublicProfileStop>)Choose)),
+            .. PublicProfileToggle.All.Select(toggle => (toggle.Part, (Action<PublicProfileStop>)Flip)),
+        ];
+
+        foreach (var (part, pressed) in buttons)
         {
             var stop = new PublicProfileStop(part);
-            var toggle = Placed(new PublicProfileToggle(() => Flip(stop)), stop);
+            var button = Placed(new PublicProfileButton(() => pressed(stop)), stop);
 
-            toggle.Answering = Answered;
-            toggle.HasFocusChanged += (_, focus) => TypingMoved(focus.NewValue, stop);
+            button.Answering = _draft.Answered;
+            button.HasFocusChanged += (_, focus) => TypingMoved(focus.NewValue, stop);
 
-            _toggles[part] = toggle;
-        }
-
-        // The avatar and the header take no typing either: a click on one, or ⏎, opens the file browser for it (#407).
-        foreach (var part in new[] { PublicProfilePart.Avatar, PublicProfilePart.Header })
-        {
-            var stop = new PublicProfileStop(part);
-            var picture = Placed(new PublicProfileToggle(() => Choose(stop)), stop);
-
-            picture.Answering = Answered;
-            picture.HasFocusChanged += (_, focus) => TypingMoved(focus.NewValue, stop);
-
-            _pictures[part] = picture;
+            _buttons[part] = button;
         }
 
         _bio.HasFocusChanged += (_, focus) => TypingMoved(focus.NewValue, new PublicProfileStop(PublicProfilePart.Bio));
 
         Add(_name, _bio);
-        Add([.. _pictures.Values]);
-        Add([.. _toggles.Values]);
+        Add([.. _buttons.Values]);
         Add(_mentions.View);
 
         // A right click over a field is esc, which the fields would otherwise keep to themselves, so it is asked about
@@ -142,8 +145,8 @@ internal sealed class PublicProfileView : View
     protected override bool OnKeyDown(Key key) =>
         ShellKeys.Of(key) is { } pressed
         && Keymap.Means(pressed, _shell.Screen) is var verb
-            and (Verb.PreviousField or Verb.NextField or Verb.FlipToggle or Verb.SavePublicProfile
-                or Verb.OpenBrowser or Verb.PasteFromTheClipboard)
+            and (Verb.PreviousPublicProfileField or Verb.NextPublicProfileField or Verb.FlipToggle
+                or Verb.SavePublicProfile or Verb.ChoosePicture or Verb.PastePicture)
         && _shell.Do(verb, Keymap.Answer(pressed));
 
     protected override void Dispose(bool disposing)
@@ -165,8 +168,9 @@ internal sealed class PublicProfileView : View
     /// <summary>Every field and toggle, in the order the arrows walk them.</summary>
     private IEnumerable<View> Fields =>
     [
-        _name, _bio, .. _pictures.Values, .. _labels.Zip(_values).SelectMany(row => new View[] { row.First, row.Second }),
-        .. _toggles.Values,
+        _name, _bio, .. PublicProfilePicture.Both.Select(picture => _buttons[picture.Part]),
+        .. _labels.Zip(_values).SelectMany(row => new View[] { row.First, row.Second }),
+        .. PublicProfileToggle.All.Select(toggle => _buttons[toggle.Part]),
     ];
 
     /// <summary>
@@ -179,68 +183,8 @@ internal sealed class PublicProfileView : View
     {
         if (!mouse.Handled)
         {
-            mouse.Handled = RightClicked(mouse) || Withheld(mouse) || _mentions.ClosedBy(mouse);
+            mouse.Handled = _draft.Spent(mouse) || _mentions.ClosedBy(mouse);
         }
-    }
-
-    /// <summary>
-    ///     A right click with the form in front: <c>esc</c>, wherever it lands, asking before a touched form is thrown
-    ///     away and, pressed again on that question, keeping it — the way <c>esc</c> does.
-    /// </summary>
-    private bool RightClicked(Mouse mouse)
-    {
-        if (_shell.Screen is not PublicProfileScreen || ShellKeys.Of(mouse) is not { } pressed)
-        {
-            return false;
-        }
-
-        if (!Answered(pressed))
-        {
-            _shell.Back();
-        }
-
-        return true;
-    }
-
-    /// <summary>
-    ///     A button or the wheel over one of the fields while a question is open on the status row: kept from the field,
-    ///     and a click or a notch declines it, as anywhere else in the shell (#373).
-    /// </summary>
-    private bool Withheld(Mouse mouse)
-    {
-        if (_shell.Asking is null || !Visible
-            || !Fields.Any(field => field.Visible && field.FrameToScreen().Contains(mouse.ScreenPosition)))
-        {
-            return false;
-        }
-
-        if (mouse.Flags.HasFlag(MouseFlags.LeftButtonClicked)
-            || mouse.Flags.HasFlag(MouseFlags.WheeledDown)
-            || mouse.Flags.HasFlag(MouseFlags.WheeledUp))
-        {
-            _ = _shell.Answer(pressed: null);
-        }
-
-        return mouse.Flags != MouseFlags.None && mouse.Flags != MouseFlags.PositionReport;
-    }
-
-    /// <summary><paramref name="key" /> as the answer to a question the shell has open, where it has one.</summary>
-    private bool Answered(Key key) => Answered(ShellKeys.Of(key));
-
-    /// <summary>
-    ///     <paramref name="pressed" /> as the answer to a question the shell has open on the status row — <c>y</c>
-    ///     agrees, anything else keeps — where it has one, and nothing where it has none.
-    /// </summary>
-    private bool Answered(ShellKey? pressed)
-    {
-        if (_shell.Asking is null)
-        {
-            return false;
-        }
-
-        _ = _shell.Answer(pressed);
-
-        return true;
     }
 
     /// <summary>
@@ -303,9 +247,9 @@ internal sealed class PublicProfileView : View
         // nothing it was sized to while no form was up wraps its text to no width (as compose's does, #365).
         _name.Visible = _bio.Visible = true;
 
-        foreach (var toggle in _toggles.Values.Concat(_pictures.Values))
+        foreach (var button in _buttons.Values)
         {
-            toggle.Visible = true;
+            button.Visible = true;
         }
 
         for (var row = 0; row < _labels.Count; row++)
@@ -375,8 +319,7 @@ internal sealed class PublicProfileView : View
         PublicProfilePart.Bio => _bio,
         PublicProfilePart.Label => _labels[stop.Row],
         PublicProfilePart.Value => _values[stop.Row],
-        PublicProfilePart.Avatar or PublicProfilePart.Header => _pictures[stop.Part],
-        _ => _toggles[stop.Part],
+        _ => _buttons[stop.Part],
     };
 
     /// <summary>A one-line field at <paramref name="stop" />, hinting <paramref name="hint" /> while it is empty.</summary>
@@ -384,7 +327,7 @@ internal sealed class PublicProfileView : View
     {
         var field = Placed(new PublicProfileTextField(_theme, hint, Save, Back, () => Walk(1)), stop);
 
-        field.Answering = Answered;
+        field.Answering = _draft.Answered;
         field.HasFocusChanged += (_, focus) => TypingMoved(focus.NewValue, stop);
 
         // ctrl-p is the frame's here as everywhere (ADR-0020).
@@ -437,7 +380,7 @@ internal sealed class PublicProfileView : View
     private void Choose(PublicProfileStop stop)
     {
         _ = _shell.ChangePublicProfile(form => form.TypeInto(stop));
-        _shell.Browse();
+        _shell.ChoosePicture();
     }
 
     /// <summary><c>ctrl-s</c> in any of the form's fields.</summary>

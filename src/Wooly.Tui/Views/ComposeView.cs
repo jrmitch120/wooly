@@ -48,6 +48,9 @@ internal sealed class ComposeView : View
     /// <summary>The languages, hung under Lang (#340).</summary>
     private readonly LanguageList _languages;
 
+    /// <summary>What the fields do with an open question and with the mouse, as every draft's do (#373).</summary>
+    private readonly DraftFields _draft;
+
     /// <summary>Where the terminal's mouse events arrive, once the view is running; asked ahead of the views.</summary>
     private IMouse? _mouse;
 
@@ -60,6 +63,7 @@ internal sealed class ComposeView : View
     public ComposeView(ITheme theme, Shell.Shell shell)
     {
         _shell = shell;
+        _draft = new DraftFields(shell, () => _shell.Screen is ComposeScreen, at => Visible && Over(at));
 
         CanFocus = true;
         Visible = false;
@@ -164,7 +168,7 @@ internal sealed class ComposeView : View
 
         // A question open on the status row takes every key ahead of whichever field has the typing, since the fields
         // take their keys before the window sees them (#373).
-        _editor.Answering = _to.Answering = _lang.Answering = _warning.Answering = _media.Answering = Answered;
+        _editor.Answering = _to.Answering = _lang.Answering = _warning.Answering = _media.Answering = _draft.Answered;
 
         // ctrl-v or alt-v in any field that takes a paste attaches a picture or copied files from the clipboard, where
         // it holds either, and is the field's own paste otherwise (#380). The fields that take none, To and Media, leave
@@ -224,73 +228,22 @@ internal sealed class ComposeView : View
     /// <summary>
     ///     A mouse event wherever it landed, before the view under the pointer sees it: a right click while compose is in
     ///     front, which is its <c>esc</c> wherever it lands (#373); any other press over a field while a question is
-    ///     open, which the question takes (<see cref="Withheld" />); spent on closing an open list where it is a click
+    ///     open, which the question takes (<see cref="DraftFields.Spent" />); spent on closing an open list where it is a click
     ///     outside it (#335); and left alone otherwise.
     /// </summary>
     private void AheadOfTheViews(object? sender, Mouse mouse)
     {
         if (!mouse.Handled)
         {
-            mouse.Handled = RightClicked(mouse)
-                            || Withheld(mouse)
+            mouse.Handled = _draft.Spent(mouse)
                             || _mentions.ClosedBy(mouse)
                             || _languages.ClosedBy(mouse);
         }
     }
 
-    /// <summary>
-    ///     A button or the wheel over one of compose's fields while a question is open on the status row: kept from the
-    ///     field, so no caret moves and no draft scrolls behind the question, and a click or a notch declines it, as
-    ///     they do anywhere else in the shell (open questions win, #373). Elsewhere the window declines it itself.
-    /// </summary>
-    /// <returns>Whether the event was over a field and spent.</returns>
-    private bool Withheld(Mouse mouse)
-    {
-        if (_shell.Asking is null || !Visible || !Over(mouse.ScreenPosition))
-        {
-            return false;
-        }
-
-        if (mouse.Flags.HasFlag(MouseFlags.LeftButtonClicked)
-            || mouse.Flags.HasFlag(MouseFlags.WheeledDown)
-            || mouse.Flags.HasFlag(MouseFlags.WheeledUp))
-        {
-            _ = _shell.Answer(pressed: null);
-        }
-
-        return mouse.Flags != MouseFlags.None && mouse.Flags != MouseFlags.PositionReport;
-    }
-
     /// <summary>Whether <paramref name="at" /> is over one of the fields, which take the pointer before the window does.</summary>
     private bool Over(Point at) =>
         new View[] { _editor, _to, _lang, _warning, _media }.Any(field => field.Visible && field.FrameToScreen().Contains(at));
-
-    /// <summary>
-    ///     A right click with compose in front: <c>esc</c>, wherever it lands — over a field, which would otherwise keep
-    ///     it to itself, as anywhere else. It asks before a touched draft is thrown away and, pressed again on that
-    ///     question, keeps the draft, the way <c>esc</c> does (#373). Neither list under the pointer closes or picks for
-    ///     it, and the editor's own context menu never opens.
-    /// </summary>
-    /// <returns>Whether it was one, and spent.</returns>
-    private bool RightClicked(Mouse mouse)
-    {
-        if (_shell.Screen is not ComposeScreen || ShellKeys.Of(mouse) is not { } pressed)
-        {
-            return false;
-        }
-
-        if (!Answered(pressed))
-        {
-            _shell.Back();
-        }
-
-        return true;
-    }
-
-    /// <summary>
-    ///     <paramref name="key" /> as the answer to a question the shell has open, where it has one (<see cref="Answered(ShellKey?)" />).
-    /// </summary>
-    private bool Answered(Key key) => Answered(ShellKeys.Of(key));
 
     /// <summary>
     ///     Whether <paramref name="key" /> is compose's paste from the clipboard, as the keymap says, and if so whether
@@ -300,23 +253,6 @@ internal sealed class ComposeView : View
         ShellKeys.Of(key) is { } pressed && Keymap.Means(pressed, _shell.Screen) is Verb.PasteFromTheClipboard
             ? _shell.Do(Verb.PasteFromTheClipboard, answer: null)
             : null;
-
-    /// <summary>
-    ///     <paramref name="pressed" /> as the answer to a question the shell has open on the status row — <c>y</c>
-    ///     agrees, anything else keeps — where it has one, and nothing where it has none.
-    /// </summary>
-    /// <returns>Whether there was a question, and the press was spent on it.</returns>
-    private bool Answered(ShellKey? pressed)
-    {
-        if (_shell.Asking is null)
-        {
-            return false;
-        }
-
-        _ = _shell.Answer(pressed);
-
-        return true;
-    }
 
     /// <summary>
     ///     Shows the fields as compose comes on top, filled from the draft, and takes them away as it goes. Which of the

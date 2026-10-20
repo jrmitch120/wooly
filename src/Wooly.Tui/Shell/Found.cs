@@ -46,6 +46,13 @@ internal abstract record Found
     /// <summary>Whether anybody in this answer is the account <paramref name="accountId" /> names.</summary>
     public virtual bool HoldsAccount(string accountId) => false;
 
+    /// <summary>
+    ///     Whether anything in this answer is a post <paramref name="account" /> wrote or boosted — whose byline says
+    ///     their display name and draws their avatar, which a public profile saved makes stale (#406).
+    /// </summary>
+    /// <param name="account">Whose, as <c>username@instance</c>.</param>
+    public virtual bool HoldsPostsBy(string account) => false;
+
     /// <summary>What a rail badge says, and which destination it is on.</summary>
     /// <param name="Kind">Which destination.</param>
     /// <param name="Unread">How many are waiting, as far as the read counted.</param>

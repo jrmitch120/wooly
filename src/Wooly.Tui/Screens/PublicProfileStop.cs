@@ -1,3 +1,5 @@
+using Wooly.Tui.Rendering;
+
 namespace Wooly.Tui.Screens;
 
 /// <summary>
@@ -43,8 +45,53 @@ public enum PublicProfilePart
 public readonly record struct PublicProfileStop(PublicProfilePart Part, int Row = 0)
 {
     /// <summary>Whether it is one of the three toggles, which are flipped rather than typed into.</summary>
-    public bool IsAToggle => Part is PublicProfilePart.Locked or PublicProfilePart.Bot or PublicProfilePart.Discoverable;
+    public bool IsAToggle => PublicProfileToggle.Of(Part) is not null;
 
     /// <summary>Whether it is the avatar or the header, which are chosen from a file or pasted rather than typed (#407).</summary>
-    public bool IsAPicture => Part is PublicProfilePart.Avatar or PublicProfilePart.Header;
+    public bool IsAPicture => PublicProfilePicture.Of(Part) is not null;
+}
+
+/// <summary>
+///     One of the edit public profile form's two pictures (#407): which place on the form it is, the word its row is
+///     labelled with, and how wide its box is on a terminal that draws.
+/// </summary>
+/// <param name="Part">Which place on the form.</param>
+/// <param name="Label">What its row is labelled, and in lower case what the file browser opened for it is crumbed with.</param>
+/// <param name="Columns">How wide its box is.</param>
+public sealed record PublicProfilePicture(PublicProfilePart Part, string Label, int Columns)
+{
+    /// <summary>The avatar.</summary>
+    public static PublicProfilePicture Avatar { get; } =
+        new(PublicProfilePart.Avatar, "Avatar", PublicProfilePictures.AvatarColumns);
+
+    /// <summary>The header.</summary>
+    public static PublicProfilePicture Header { get; } =
+        new(PublicProfilePart.Header, "Header", PublicProfilePictures.HeaderColumns);
+
+    /// <summary>Both, in the order the form draws and walks them.</summary>
+    public static IReadOnlyList<PublicProfilePicture> Both { get; } = [Avatar, Header];
+
+    /// <summary>The picture <paramref name="part" /> is, or <see langword="null" /> where it is none.</summary>
+    public static PublicProfilePicture? Of(PublicProfilePart part) => Both.FirstOrDefault(picture => picture.Part == part);
+}
+
+/// <summary>
+///     One of the edit public profile form's three toggles (#406): which place on the form it is, its name, and what
+///     it says it does beside its box.
+/// </summary>
+/// <param name="Part">Which place on the form.</param>
+/// <param name="Name">What it is called beside its box.</param>
+/// <param name="Says">What it does, said dimly after its name.</param>
+public sealed record PublicProfileToggle(PublicProfilePart Part, string Name, string Says)
+{
+    /// <summary>All three, in the order the form draws and walks them.</summary>
+    public static IReadOnlyList<PublicProfileToggle> All { get; } =
+    [
+        new(PublicProfilePart.Locked, "Locked", "approve followers by hand"),
+        new(PublicProfilePart.Bot, "Bot", "posts automatically"),
+        new(PublicProfilePart.Discoverable, "Discoverable", "in the directory and suggestions"),
+    ];
+
+    /// <summary>The toggle <paramref name="part" /> is, or <see langword="null" /> where it is none.</summary>
+    public static PublicProfileToggle? Of(PublicProfilePart part) => All.FirstOrDefault(toggle => toggle.Part == part);
 }

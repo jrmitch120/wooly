@@ -48,33 +48,33 @@ public sealed record Drawn(string Id, string Address)
     ///     at whoever is about to draw it (ADR-0018).
     /// </summary>
     /// <remarks>
-    ///     Named by the link's own address rather than by the picture's, for the reason <see cref="Avatar" /> is named
-    ///     by the handle: the same article shared by two accounts is one picture, however each instance spells the
-    ///     proxy it serves the pixels through.
+    ///     Named by the link's own address rather than by the picture's: the same article shared by two accounts is one
+    ///     picture, however each instance spells the proxy it serves the pixels through.
     /// </remarks>
     public static Drawn? LinkPreview(LinkPreview link) =>
         link.Image is { } image ? new Drawn($"link:{link.Url}", image) : null;
 
     /// <summary>
-    ///     An account's avatar, named by the handle rather than by the address, so that the same author's avatar is
-    ///     fetched once for a whole feed of their posts however many times the instance spells the URL.
+    ///     An account's avatar, named by the handle and the address together: the same author's avatar is one picture,
+    ///     fetched once, for a whole feed of their posts — and a new one, which the instance serves from a new address,
+    ///     is a new picture rather than the old one still held under the same handle (review of #403).
     /// </summary>
     /// <param name="account">Whose avatar it is, as <c>username@instance</c>.</param>
     /// <param name="address">Where to fetch it.</param>
-    public static Drawn Avatar(string account, string address) => new($"avatar:{account}", address)
+    public static Drawn Avatar(string account, string address) => new($"avatar:{account} {address}", address)
     {
         Largest = (Rendering.Avatar.HeaderColumns, Rendering.Avatar.HeaderRows),
     };
 
     /// <summary>
-    ///     An account's header, as the edit public profile form draws it (#407): named by the handle, as
-    ///     <see cref="Avatar" /> is, and held no larger than the form's box.
+    ///     An account's header, as the edit public profile form draws it (#407): named by the handle and the address,
+    ///     as <see cref="Avatar" /> is, and held no larger than the form's box.
     /// </summary>
     /// <param name="account">Whose header it is, as <c>username@instance</c>.</param>
     /// <param name="address">Where to fetch it.</param>
-    public static Drawn ProfileHeader(string account, string address) => new($"header:{account}", address)
+    public static Drawn HeaderPicture(string account, string address) => new($"header:{account} {address}", address)
     {
-        Largest = (Screens.PublicProfileScreen.HeaderColumns, Screens.PublicProfileScreen.PictureRows),
+        Largest = (Rendering.PublicProfilePictures.HeaderColumns, Rendering.PublicProfilePictures.Rows),
     };
 
     /// <summary>

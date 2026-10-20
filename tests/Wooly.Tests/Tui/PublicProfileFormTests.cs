@@ -1,6 +1,8 @@
 using Wooly.Core.Accounts;
 using Wooly.Core.Errors;
 using Wooly.Tests.Fakes;
+using Wooly.Tui.Media;
+using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
 
@@ -102,6 +104,47 @@ public class PublicProfileFormTests
                 "         ■ Discoverable · in the directory and suggestions",
             ],
             drawn);
+    }
+
+    /// <summary>
+    ///     In a room too short for the whole form, the rows drawn are never more than the room, and whichever field the
+    ///     walk is on is among them, where the form says it goes — the bio keeping its rows, and the form moving only as
+    ///     far as the walk needs it to (review of #403).
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task InAShortRoom_TheWalkedFieldIsAlwaysDrawn(bool pictures)
+    {
+        var (shell, form) = await Editing(Built());
+        var drawing = new Drawing(61, AShell.Now, new FakePictures(), pictures ? ARaster.Sixel() : Raster.None, Height: 10);
+        var room = new System.Drawing.Size(61, 10);
+
+        void InView()
+        {
+            var lines = form.Lines(drawing);
+            var at = form.At(form.Typing, room, drawing.Raster);
+
+            Assert.True(lines.Count <= 10, $"{lines.Count} rows in a room of 10");
+            Assert.False(at.IsEmpty, $"{form.Typing} is nowhere");
+            Assert.InRange(at.Top, 0, 9);
+            Assert.InRange(at.Bottom, 1, 10);
+            Assert.StartsWith("▌", lines[at.Top].Text, StringComparison.Ordinal);
+        }
+
+        InView();
+
+        while (form.Typing.Part != PublicProfilePart.Discoverable)
+        {
+            shell.Press(ShellKey.Down);
+            InView();
+        }
+
+        while (form.Typing.Part != PublicProfilePart.DisplayName)
+        {
+            shell.Press(ShellKey.Up);
+            InView();
+        }
     }
 
     /// <summary>
@@ -317,6 +360,67 @@ public class PublicProfileFormTests
         built.Host.Drain();
 
         Assert.Equal(asked + 1, built.Accounts.Lists.Count(list => list.Side is not null));
+    }
+
+    /// <summary>
+    ///     A timeline held a moment ago with one of the own account's posts on it is read again after a save, rather
+    ///     than handed back with the post's byline saying the public profile as it was (review of #403).
+    /// </summary>
+    [Fact]
+    public async Task ASave_ForgetsACachedTimelineCarryingTheOwnAccountsPost()
+    {
+        var built = Built();
+        built.Timelines = FakeTimelineReader.Holding(APost.With(id: "220", account: Me.Address, author: "Jeff"));
+        var (shell, _) = await Editing(built);
+
+        shell.ChangePublicProfile(editing => editing.RewriteDisplayName("Jeff M"));
+        shell.Press(ShellKey.CtrlS);
+        built.Host.Drain();
+
+        var asked = built.Timelines.Reads.Count(read => read.Timeline == Wooly.Core.Timelines.Timeline.Home);
+
+        shell.Rail.GoTo(DestinationKind.Home);
+        built.Host.Settle();
+
+        Assert.Equal(asked + 1, built.Timelines.Reads.Count(read => read.Timeline == Wooly.Core.Timelines.Timeline.Home));
+    }
+
+    /// <summary>
+    ///     The own account somewhere further down the stack — <b>You</b>, under a follow list it was reached again from
+    ///     — shows the public profile as saved when it is come back to, whichever copy of it the form was opened from
+    ///     (review of #403).
+    /// </summary>
+    [Fact]
+    public async Task ASave_ReachesTheOwnAccountFurtherDownTheStack()
+    {
+        var renamed = Me with { Author = "Jeff M" };
+        var built = new AShell
+        {
+            Accounts = FakeAccountRelationships.Holding(Me, Me),
+            PublicProfile = FakePublicProfileEditor.Holding(APublicProfile.With(account: Me), saved: renamed),
+        };
+        var shell = await OnYou(built);
+
+        shell.Press(ShellKey.W);
+        built.Host.Drain();
+        shell.Press(ShellKey.Enter);
+        built.Host.Drain();
+        Assert.Equal(3, shell.Depth);
+
+        shell.Press(ShellKey.CapitalE);
+        built.Host.Drain();
+        shell.ChangePublicProfile(editing => editing.RewriteDisplayName("Jeff M"));
+        built.Accounts.NowShowing(renamed);
+        shell.Press(ShellKey.CtrlS);
+        built.Host.Settle();
+
+        shell.Back();
+        shell.Back();
+
+        var you = Assert.IsType<AccountScreen>(shell.Screen);
+
+        Assert.Equal(1, shell.Depth);
+        Assert.Equal("Jeff M", you.Account.Author);
     }
 
     /// <summary>

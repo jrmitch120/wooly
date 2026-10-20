@@ -51,7 +51,7 @@ public sealed class AccountScreen : Screen
     ///     Whether <paramref name="posts" /> is their <b>Posts and replies</b> rather than their posts alone. Off
     ///     unless the reader pressed <c>s</c> for it: the screen opens on posts alone, for ADR-0019's reasons (#229).
     /// </param>
-    /// <param name="mine">
+    /// <param name="isOwnAccount">
     ///     Whether this is the account the profile signs in as — the <b>Own account</b>, whose public profile is the only
     ///     one that can be edited from here (#406). Off unless the shell, which has the profile in hand, says so.
     /// </param>
@@ -61,15 +61,15 @@ public sealed class AccountScreen : Screen
         IReadOnlyList<Post>? pinned,
         IReadOnlyList<Account>? familiar = null,
         bool withReplies = false,
-        bool mine = false)
+        bool isOwnAccount = false)
     {
         Familiar = familiar;
         WithReplies = withReplies;
-        Mine = mine;
+        IsOwnAccount = isOwnAccount;
         Asked = pinned is not null;
         _pins = [.. (pinned ?? []).Select(post => post.Id)];
         _posts = new PostList(this, [.. pinned ?? [], .. posts]);
-        _walking = new HeaderAndPosts(account, _posts, editable: mine);
+        _walking = new HeaderAndPosts(account, _posts, editable: isOwnAccount);
     }
 
     /// <inheritdoc />
@@ -93,7 +93,7 @@ public sealed class AccountScreen : Screen
             [
                 .. OnTheEditRow ? [new KeyHint("⏎", EditingThePublicProfile.Does)] : Array.Empty<KeyHint>(),
                 .. Jumping,
-                .. Mine ? [EditingThePublicProfile] : Array.Empty<KeyHint>(),
+                .. IsOwnAccount ? [EditingThePublicProfile] : Array.Empty<KeyHint>(),
                 new KeyHint("F", Says(Follows, "unfollow", "follow")),
                 new KeyHint("M", Says(Account.Standing?.Muting, "unmute", "mute")),
                 new KeyHint("B", Says(Account.Standing?.Blocking, "unblock", "block")),
@@ -157,10 +157,10 @@ public sealed class AccountScreen : Screen
     public bool WithReplies { get; }
 
     /// <summary>
-    ///     Whether this is the profile's own account, which is what <c>E</c> and the "edit public profile" row are
-    ///     offered on and nowhere else (#406).
+    ///     Whether this is the <b>Own account</b>, which is what <c>E</c> and the "edit public profile" row are offered
+    ///     on and nowhere else (#406).
     /// </summary>
-    public bool Mine { get; }
+    public bool IsOwnAccount { get; }
 
     /// <summary>
     ///     Whether the walk is on the own account's "edit public profile" row, under the header block, where <c>⏎</c>
@@ -244,6 +244,13 @@ public sealed class AccountScreen : Screen
         {
             case Change.Tied(var account) when account.Id == Account.Id:
                 _walking.Stands(account);
+
+                break;
+
+            // The own account's public profile saved, wherever this copy of it is on the stack: the header block says it
+            // as the instance now has it, whichever copy the form was opened from (#406).
+            case Change.PublicProfileSaved(var saved) when saved.Id == Account.Id:
+                _walking.Stands(saved);
 
                 break;
 

@@ -66,10 +66,10 @@ public sealed class FileBrowserScreen : Screen
     private readonly int _room;
 
     /// <summary>
-    ///     What the one picture is chosen to be — <c>avatar</c> or <c>header</c> — where the browser was opened from the
-    ///     edit public profile form (#407), or <see langword="null" /> where it attaches to a post.
+    ///     The public profile's picture the one file is chosen to be, where the browser was opened from the edit public
+    ///     profile form (#407), or <see langword="null" /> where it attaches to a post.
     /// </summary>
-    private readonly string? _picture;
+    private readonly PublicProfilePicture? _picture;
 
     /// <summary>What is chosen, in the order it was chosen, which is the order it is attached in.</summary>
     private readonly List<string> _chosen = [];
@@ -91,7 +91,7 @@ public sealed class FileBrowserScreen : Screen
     {
     }
 
-    private FileBrowserScreen(FolderListing listing, PostLimits limits, int room, string? picture)
+    private FileBrowserScreen(FolderListing listing, PostLimits limits, int room, PublicProfilePicture? picture)
     {
         _limits = limits;
         _room = room;
@@ -106,8 +106,8 @@ public sealed class FileBrowserScreen : Screen
     ///     every file, and only one of them may be chosen — a picture being all either row takes.
     /// </summary>
     /// <param name="listing">The folder it opens in, as the shell read it.</param>
-    /// <param name="picture">What the picture is to be, in the words its crumb says it in: <c>avatar</c> or <c>header</c>.</param>
-    public static FileBrowserScreen ForAPicture(FolderListing listing, string picture) =>
+    /// <param name="picture">Which of the public profile's pictures the file chosen is to be.</param>
+    public static FileBrowserScreen ForAPicture(FolderListing listing, PublicProfilePicture picture) =>
         new(listing, Pictures, room: 1, picture);
 
     /// <summary>
@@ -119,6 +119,12 @@ public sealed class FileBrowserScreen : Screen
         Attachments = 1,
         MediaTypes = [.. AttachmentTypes.Mastodon.Where(type => type.StartsWith("image/", StringComparison.Ordinal))],
     };
+
+    /// <summary>
+    ///     The public profile's picture the file chosen here is to be, or <see langword="null" /> where it attaches to a
+    ///     post (#407).
+    /// </summary>
+    public PublicProfilePicture? Picture => _picture;
 
     /// <summary>The folder being shown.</summary>
     public string Folder => _listing.Path;
@@ -139,7 +145,7 @@ public sealed class FileBrowserScreen : Screen
     public bool EveryFile { get; private set; }
 
     /// <inheritdoc />
-    public override string Crumb => _picture is null ? "Attach" : $"Choose {_picture}";
+    public override string Crumb => _picture is null ? "Attach" : $"Choose {_picture.Label.ToLowerInvariant()}";
 
     /// <inheritdoc />
     /// <remarks>Always: every letter is the filter's, and space is the choosing.</remarks>
@@ -364,7 +370,7 @@ public sealed class FileBrowserScreen : Screen
         ( > 0, null) => $"{_chosen.Count} chosen · {_room - _chosen.Count} more fit",
         (_, null) => $"{_room} more fit on this post",
         ( > 0, _) => "chosen",
-        _ => $"one picture, for your {_picture}",
+        (_, { } picture) => $"one picture, for your {picture.Label.ToLowerInvariant()}",
     };
 
     /// <summary>The filter as typed, with a caret, or what typing does where nothing has been.</summary>

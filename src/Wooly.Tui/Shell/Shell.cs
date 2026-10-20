@@ -620,8 +620,8 @@ public sealed class Shell
         Verb.WriteWarning => Ran(() => _ = ChangeCompose(compose => compose.WriteTheWarning())),
         // Answered whether or not there was anywhere to go, so that an arrow off either end of the walk or of To stops
         // there rather than falling through to Terminal.Gui, which would carry the focus round to the other end.
-        Verb.PreviousField => Ran(() => WalkFields(-1)),
-        Verb.NextField => Ran(() => WalkFields(1)),
+        Verb.PreviousField => Ran(() => _ = ChangeCompose(compose => compose.Walk(-1))),
+        Verb.NextField => Ran(() => _ = ChangeCompose(compose => compose.Walk(1))),
         Verb.PreviousChoice => Ran(() => _ = ChangeCompose(compose => compose.Choose(-1))),
         Verb.NextChoice => Ran(() => _ = ChangeCompose(compose => compose.Choose(1))),
         Verb.RemoveAttachment => Ran(() => RemoveAttachment(compose => compose.Remove())),
@@ -640,6 +640,11 @@ public sealed class Shell
         Verb.EditPublicProfile => Ran(EditPublicProfile),
         Verb.FlipToggle => Ran(() => _ = ChangePublicProfile(form => form.Flip())),
         Verb.SavePublicProfile => Ran(SavePublicProfile),
+        Verb.PreviousPublicProfileField => Ran(() => _ = ChangePublicProfile(form => form.Walk(-1))),
+        Verb.NextPublicProfileField => Ran(() => _ = ChangePublicProfile(form => form.Walk(1))),
+        Verb.ChoosePicture => Ran(ChoosePicture),
+        Verb.PastePicture => Ran(PastePicture),
+        Verb.UsePicture => Ran(UsePicture),
 
         // Nothing, and the terminal's own — which the window has already taken, and which no screen answers either.
         Verb.None => false,
@@ -1248,19 +1253,11 @@ public sealed class Shell
     /// <summary>
     ///     <c>ctrl-v</c> or <c>alt-v</c> on a compose screen, or on the attachments screen over one (#380): a picture on
     ///     this machine's clipboard is written to a file of its own and attached from there, and copied files are
-    ///     attached, as a drop is (<see cref="Paste" />, ADR-0026). On the edit public profile form's avatar or header,
-    ///     the picture pasted is that picture (<see cref="PastePicture" />, #407).
+    ///     attached, as a drop is (<see cref="Paste" />, ADR-0026).
     /// </summary>
     /// <returns>Whether the paste was taken; one that was not is left to the field's own paste.</returns>
     public bool PasteFromTheClipboard()
     {
-        if (Screen is PublicProfileScreen { Typing.IsAPicture: true })
-        {
-            PastePicture();
-
-            return true;
-        }
-
         if (InFront is not { Media.Takes: true } compose)
         {
             return false;
@@ -1310,8 +1307,13 @@ public sealed class Shell
     ///     There is no text to paste on either row, so whatever else the clipboard holds is said on the status row, every
     ///     time, rather than left to a field's own paste as on compose.
     /// </remarks>
-    private void PastePicture()
+    public void PastePicture()
     {
+        if (Screen is not PublicProfileScreen { Typing.IsAPicture: true })
+        {
+            return;
+        }
+
         switch (_clipboard.Read())
         {
             case Clipped.Picture(var png):
@@ -1372,13 +1374,28 @@ public sealed class Shell
     /// <returns>What the change was, or nothing where compose is not on top and no change was made.</returns>
     public ComposeChange ChangeCompose(Func<ComposeScreen, ComposeChange> change)
     {
-        if (InFront is not { } compose)
-        {
-            return ComposeChange.None;
-        }
+        return InFront is { } compose ? Settled(change(compose)) : ComposeChange.None;
+    }
 
-        var made = change(compose);
+    /// <summary>
+    ///     Makes <paramref name="change" /> to the edit public profile form on top — every change to it comes in here,
+    ///     from its fields and its keys — by the rule <see cref="ChangeCompose" /> keeps for a draft (#364): an edit
+    ///     spends a notice said over the form, a refusal among them, and anything but no change at all is announced.
+    /// </summary>
+    /// <returns>What the change was, or nothing where the form is not on top and no change was made.</returns>
+    public ComposeChange ChangePublicProfile(Func<PublicProfileScreen, ComposeChange> change)
+    {
+        return Screen is PublicProfileScreen form ? Settled(change(form)) : ComposeChange.None;
+    }
 
+    /// <summary>
+    ///     What follows from <paramref name="made" />, a change to a draft, by the one rule both kinds of draft keep
+    ///     (#364): an edit spends a notice said over it, and anything but no change at all is announced so the screen is
+    ///     drawn again.
+    /// </summary>
+    /// <returns><paramref name="made" />.</returns>
+    private ComposeChange Settled(ComposeChange made)
+    {
         if (made == ComposeChange.Edited && Notice is not null)
         {
             // Saying nothing announces the change itself.
@@ -1390,45 +1407,6 @@ public sealed class Shell
         }
 
         return made;
-    }
-
-    /// <summary>
-    ///     Makes <paramref name="change" /> to the edit public profile form on top — every change to it comes in here,
-    ///     from its fields and its keys — by the rule <see cref="ChangeCompose" /> keeps for a draft (#364): an edit
-    ///     spends a notice said over the form, a refusal among them, and anything but no change at all is announced.
-    /// </summary>
-    /// <returns>What the change was, or nothing where the form is not on top and no change was made.</returns>
-    public ComposeChange ChangePublicProfile(Func<PublicProfileScreen, ComposeChange> change)
-    {
-        if (Screen is not PublicProfileScreen form)
-        {
-            return ComposeChange.None;
-        }
-
-        var made = change(form);
-
-        if (made == ComposeChange.Edited && Notice is not null)
-        {
-            Say(null, isError: false);
-        }
-        else if (made != ComposeChange.None)
-        {
-            Changed?.Invoke();
-        }
-
-        return made;
-    }
-
-    /// <summary>
-    ///     <c>↑</c> or <c>↓</c> where they walk fields: compose's headers (#337), or the edit public profile form's
-    ///     fields (#406), whichever is on top.
-    /// </summary>
-    private void WalkFields(int by)
-    {
-        if (ChangePublicProfile(form => form.Walk(by)) == ComposeChange.None)
-        {
-            _ = ChangeCompose(compose => compose.Walk(by));
-        }
     }
 
     /// <summary>
@@ -1636,7 +1614,7 @@ public sealed class Shell
     /// </summary>
     public async Task EditPublicProfile()
     {
-        if (Screen is not AccountScreen { Mine: true })
+        if (Screen is not AccountScreen { IsOwnAccount: true })
         {
             return;
         }
@@ -1697,7 +1675,7 @@ public sealed class Shell
                 // The account the form was opened over, read again rather than patched with what the save answered:
                 // its posts carry the display name too, and an account screen is one reading (#84, #229). Said again
                 // once it lands, since a fresh copy takes down what was said over the old one.
-                if (Screen is AccountScreen { Mine: true, Subject: { } account })
+                if (Screen is AccountScreen { IsOwnAccount: true, Subject: { } account })
                 {
                     _ = Actor.Arrival.Again(account, landed: () => Say(Saved, isError: false));
                 }
@@ -2498,22 +2476,10 @@ public sealed class Shell
     /// <summary>
     ///     <c>ctrl-o</c> on a compose or a reply, <c>⏎</c> on its Media header or a click on its words: pushes the file
     ///     browser over it, in the folder last attached from this session or, the first time, the one Wooly was launched
-    ///     from (#376). Not on an edit, which has nothing to attach to, nor on a post that carries all it can. And
-    ///     <c>⏎</c> or a click on the edit public profile form's avatar or header, where it opens for one picture (#407).
+    ///     from (#376). Not on an edit, which has nothing to attach to, nor on a post that carries all it can.
     /// </summary>
     public void Browse()
     {
-        var folder = _lastFolder is { } last && Directory.Exists(last) ? last : _launchedFrom;
-
-        if (Screen is PublicProfileScreen { Typing: { IsAPicture: true } typing })
-        {
-            var picture = typing.Part == PublicProfilePart.Avatar ? "avatar" : "header";
-
-            Push(FileBrowserScreen.ForAPicture(LocalFiles.Listing(folder), picture));
-
-            return;
-        }
-
         if (InFront is not { Media.Takes: true } compose)
         {
             return;
@@ -2526,8 +2492,26 @@ public sealed class Shell
             return;
         }
 
-        Push(new FileBrowserScreen(LocalFiles.Listing(folder), compose.Limits, compose.Media.Room));
+        Push(new FileBrowserScreen(LocalFiles.Listing(BrowsingFrom), compose.Limits, compose.Media.Room));
     }
+
+    /// <summary>
+    ///     <c>⏎</c> or a click on the edit public profile form's avatar or header (#407): pushes the file browser over it
+    ///     for that one picture, in the folder <see cref="Browse" /> would open in.
+    /// </summary>
+    public void ChoosePicture()
+    {
+        if (Screen is PublicProfileScreen form && PublicProfilePicture.Of(form.Typing.Part) is { } picture)
+        {
+            Push(FileBrowserScreen.ForAPicture(LocalFiles.Listing(BrowsingFrom), picture));
+        }
+    }
+
+    /// <summary>
+    ///     Where the file browser opens: the folder last attached or chosen from this session or, the first time, the one
+    ///     Wooly was launched from (#376).
+    /// </summary>
+    private string BrowsingFrom => _lastFolder is { } last && Directory.Exists(last) ? last : _launchedFrom;
 
     /// <summary>
     ///     <c>→</c>, <c>←</c> or <c>⏎</c> in the file browser: the folder <paramref name="going" /> says, read off the disk
@@ -2548,8 +2532,7 @@ public sealed class Shell
     ///     <c>⏎</c> in the file browser: the browser goes and what was chosen — or, with nothing chosen, the file under the
     ///     cursor — is attached to the compose screen under it, exactly as a drop is (#375, #376), and the folder it came
     ///     from is remembered for the next time. With neither, the folder under the cursor opens: what is chosen comes
-    ///     first wherever the cursor is (review of #372). Opened from the edit public profile form, what was chosen is
-    ///     the picture its walk is on instead, sent when the form is saved and not before (#407, ADR-0028).
+    ///     first wherever the cursor is (review of #372).
     /// </summary>
     public void AttachChosen()
     {
@@ -2567,16 +2550,6 @@ public sealed class Shell
             return;
         }
 
-        if (_stack.Count >= 2 && _stack[^2] is PublicProfileScreen)
-        {
-            _lastFolder = browser.Folder;
-
-            Pop();
-            _ = ChangePublicProfile(form => form.Pick(chosen[0]));
-
-            return;
-        }
-
         // The compose it was opened over — directly, or under the attachments screen it was opened from (story 58).
         if (_stack.Count < 2 || ComposeOf(_stack[^2]) is not { } compose)
         {
@@ -2587,6 +2560,34 @@ public sealed class Shell
 
         Pop();
         Attach(compose, chosen);
+    }
+
+    /// <summary>
+    ///     <c>⏎</c> in the file browser opened for one of the edit public profile form's pictures (#407): the browser
+    ///     goes and the file chosen — or, with none chosen, the one under the cursor — is the picture the form's walk is
+    ///     on, sent when the form is saved and not before (ADR-0028). With neither, the folder under the cursor opens,
+    ///     as <see cref="AttachChosen" /> does.
+    /// </summary>
+    public void UsePicture()
+    {
+        if (Screen is not FileBrowserScreen { Picture: not null } browser)
+        {
+            return;
+        }
+
+        var chosen = browser.Take();
+
+        if (chosen.Count == 0)
+        {
+            Browse(opening => opening.FolderPicked);
+
+            return;
+        }
+
+        _lastFolder = browser.Folder;
+
+        Pop();
+        _ = ChangePublicProfile(form => form.Pick(chosen[0]));
     }
 
     /// <summary>

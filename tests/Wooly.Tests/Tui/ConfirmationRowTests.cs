@@ -119,7 +119,7 @@ public class ConfirmationRowTests
     [Fact]
     public void TheDiscardQuestion_IsAnsweredYesOrNo()
     {
-        var row = Row(Confirmation.Discarding(Pressing.Nothing), 80);
+        var row = Row(Confirmation.Discarding(Pressing.Nothing, "Discard this post?"), 80);
 
         Assert.Equal(" Discard this post?  y / n", row.Text);
         Assert.Equal(
@@ -131,7 +131,7 @@ public class ConfirmationRowTests
     [Fact]
     public void TheDiscardQuestion_GivesWayBeforeItsAnswer()
     {
-        var row = Row(Confirmation.Discarding(Pressing.Nothing), 16);
+        var row = Row(Confirmation.Discarding(Pressing.Nothing, "Discard this post?"), 16);
 
         Assert.Equal(" Discard…  y / n", row.Text);
     }
@@ -143,7 +143,7 @@ public class ConfirmationRowTests
     [Fact]
     public void OnlyY_Agrees()
     {
-        var discarding = Confirmation.Discarding(Pressing.Nothing);
+        var discarding = Confirmation.Discarding(Pressing.Nothing, "Discard this post?");
         var deleting = Of("delete");
 
         Assert.True(discarding.AgreedBy(ShellKey.Y));

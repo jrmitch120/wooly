@@ -321,9 +321,10 @@ public sealed class Arrival(
 
                 break;
 
-            // Wherever the own account is held — a follow list it is on — it is held as it was before the save (#406).
+            // Wherever the own account is held — a follow list it is on, a list carrying a post it wrote or boosted, whose
+            // byline says its name and draws its avatar — it is held as it was before the save (#406).
             case Change.PublicProfileSaved(var account):
-                cache.Forget(held => held.HoldsAccount(account.Id));
+                cache.Forget(held => held.HoldsAccount(account.Id) || held.HoldsPostsBy(account.Address));
 
                 break;
         }
