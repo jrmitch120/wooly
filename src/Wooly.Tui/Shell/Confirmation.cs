@@ -44,16 +44,15 @@ public sealed record Confirmation(
     public const string CannotBeUndone = "This cannot be undone.";
 
     /// <summary>
-    ///     Asked before a compose screen that differs from how it opened is thrown away, by whichever way out (#373):
-    ///     <c>Discard this post? y / n</c>. Only <c>y</c> agrees — not the way out's own key pressed again, so a draft
-    ///     is never lost to a key pressed twice. No warning, since the question is the whole of it.
+    ///     Asked before a draft that differs from how it opened is thrown away, by whichever way out (#373, #406):
+    ///     <c>Discard this post? y / n</c> on compose. Only <c>y</c> agrees — not the way out's own key pressed again, so
+    ///     a draft is never lost to a key pressed twice. No warning, since the question is the whole of it.
     /// </summary>
     /// <param name="leave">The way out, finished once the question is agreed to.</param>
     /// <param name="ask">
-    ///     What is asked, which names what would be lost: a post, or the edit public profile form's
-    ///     <c>Discard these changes?</c> (#406).
+    ///     What is asked, which names what would be lost — the draft's own question (<see cref="Screens.IDraft.Discarding" />).
     /// </param>
-    public static Confirmation Discarding(Func<Task> leave, string ask = "Discard this post?") =>
+    public static Confirmation Discarding(Func<Task> leave, string ask) =>
         new(ask, leave, Going: "discard", Warning: string.Empty, YesOrNo: true);
 
     /// <summary>
