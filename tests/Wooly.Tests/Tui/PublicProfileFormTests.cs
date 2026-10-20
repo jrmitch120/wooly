@@ -320,6 +320,67 @@ public class PublicProfileFormTests
     }
 
     /// <summary>
+    ///     A timeline held a moment ago with one of the own account's posts on it is read again after a save, rather
+    ///     than handed back with the post's byline saying the public profile as it was (review of #403).
+    /// </summary>
+    [Fact]
+    public async Task ASave_ForgetsACachedTimelineCarryingTheOwnAccountsPost()
+    {
+        var built = Built();
+        built.Timelines = FakeTimelineReader.Holding(APost.With(id: "220", account: Me.Address, author: "Jeff"));
+        var (shell, _) = await Editing(built);
+
+        shell.ChangePublicProfile(editing => editing.RewriteDisplayName("Jeff M"));
+        shell.Press(ShellKey.CtrlS);
+        built.Host.Drain();
+
+        var asked = built.Timelines.Reads.Count(read => read.Timeline == Wooly.Core.Timelines.Timeline.Home);
+
+        shell.Rail.GoTo(DestinationKind.Home);
+        built.Host.Settle();
+
+        Assert.Equal(asked + 1, built.Timelines.Reads.Count(read => read.Timeline == Wooly.Core.Timelines.Timeline.Home));
+    }
+
+    /// <summary>
+    ///     The own account somewhere further down the stack — <b>You</b>, under a follow list it was reached again from
+    ///     — shows the public profile as saved when it is come back to, whichever copy of it the form was opened from
+    ///     (review of #403).
+    /// </summary>
+    [Fact]
+    public async Task ASave_ReachesTheOwnAccountFurtherDownTheStack()
+    {
+        var renamed = Me with { Author = "Jeff M" };
+        var built = new AShell
+        {
+            Accounts = FakeAccountRelationships.Holding(Me, Me),
+            PublicProfile = FakePublicProfileEditor.Holding(APublicProfile.With(account: Me), saved: renamed),
+        };
+        var shell = await OnYou(built);
+
+        shell.Press(ShellKey.W);
+        built.Host.Drain();
+        shell.Press(ShellKey.Enter);
+        built.Host.Drain();
+        Assert.Equal(3, shell.Depth);
+
+        shell.Press(ShellKey.CapitalE);
+        built.Host.Drain();
+        shell.ChangePublicProfile(editing => editing.RewriteDisplayName("Jeff M"));
+        built.Accounts.NowShowing(renamed);
+        shell.Press(ShellKey.CtrlS);
+        built.Host.Settle();
+
+        shell.Back();
+        shell.Back();
+
+        var you = Assert.IsType<AccountScreen>(shell.Screen);
+
+        Assert.Equal(1, shell.Depth);
+        Assert.Equal("Jeff M", you.Account.Author);
+    }
+
+    /// <summary>
     ///     A save the instance refuses keeps the form open with every edit in it, and the status row says why in the
     ///     instance's own words — until an edit, which is doing what it asked, takes the notice down.
     /// </summary>

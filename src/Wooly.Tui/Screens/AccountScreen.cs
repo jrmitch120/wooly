@@ -247,6 +247,13 @@ public sealed class AccountScreen : Screen
 
                 break;
 
+            // The own account's public profile saved, wherever this copy of it is on the stack: the header block says it
+            // as the instance now has it, whichever copy the form was opened from (#406).
+            case Change.PublicProfileSaved(var saved) when saved.Id == Account.Id:
+                _walking.Stands(saved);
+
+                break;
+
             case Change.PostChanged(var post):
                 _posts.Replace(post);
 
