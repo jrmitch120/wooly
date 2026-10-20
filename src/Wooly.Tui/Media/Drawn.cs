@@ -72,9 +72,9 @@ public sealed record Drawn(string Id, string Address)
     /// </summary>
     /// <param name="account">Whose header it is, as <c>username@instance</c>.</param>
     /// <param name="address">Where to fetch it.</param>
-    public static Drawn ProfileHeader(string account, string address) => new($"header:{account} {address}", address)
+    public static Drawn HeaderPicture(string account, string address) => new($"header:{account} {address}", address)
     {
-        Largest = (Screens.PublicProfileScreen.HeaderColumns, Screens.PublicProfileScreen.PictureRows),
+        Largest = (Rendering.PublicProfilePictures.HeaderColumns, Rendering.PublicProfilePictures.Rows),
     };
 
     /// <summary>

@@ -40,21 +40,6 @@ public sealed class PublicProfileScreen : Screen, IDraft
     /// <summary>How many rows the bio's editor takes where nobody says how tall the room is.</summary>
     private const int BioRowsUnmeasured = 4;
 
-    /// <summary>
-    ///     How many rows the avatar and the header each take on a terminal that draws pictures (#407): enough to see what
-    ///     it is, and few enough that the bio keeps its rows on a short terminal. One where nothing is drawn.
-    /// </summary>
-    internal const int PictureRows = 2;
-
-    /// <summary>How wide the avatar's box is: about square, beside two rows of cells twice as tall as they are wide.</summary>
-    private const int AvatarColumns = 4;
-
-    /// <summary>
-    ///     How wide the header's box is: three times the avatar's, the shape Mastodon crops a header to. The words beside
-    ///     both pictures start after it, so that they line up and a picture arriving moves neither.
-    /// </summary>
-    internal const int HeaderColumns = 12;
-
     /// <summary>What a picture row says where nothing has been chosen and the instance has a picture.</summary>
     public const string CurrentPicture = "current";
 
@@ -392,7 +377,7 @@ public sealed class PublicProfileScreen : Screen, IDraft
         var valueAt = Math.Min(at + labelRoom + Gap, width);
         var valueRoom = Math.Max(0, room - labelRoom - Gap);
 
-        var pictureRows = raster?.Cell is not null ? PictureRows : 1;
+        var pictureRows = raster?.Cell is not null ? PublicProfilePictures.Rows : 1;
 
         var toggles = new[] { PublicProfilePart.Locked, PublicProfilePart.Bot, PublicProfilePart.Discoverable };
         var others = 1 + 1 + 1 + (pictureRows * 2) + 1 + FieldRows + 1 + toggles.Length;
@@ -540,11 +525,11 @@ public sealed class PublicProfileScreen : Screen, IDraft
         IPictures? pictures)
     {
         var (label, columns, chosen, current) = picture == PublicProfilePart.Avatar
-            ? ("Avatar", AvatarColumns, Avatar, _read.AvatarUrl)
-            : ("Header", HeaderColumns, Header, _read.HeaderUrl);
+            ? ("Avatar", PublicProfilePictures.AvatarColumns, Avatar, _read.AvatarUrl)
+            : ("Header", PublicProfilePictures.HeaderColumns, Header, _read.HeaderUrl);
 
         var cell = raster?.Cell;
-        var named = cell is null ? at : Math.Min(at + HeaderColumns + Gap, width);
+        var named = cell is null ? at : Math.Min(at + PublicProfilePictures.HeaderColumns + Gap, width);
         var room = Math.Max(0, width - named - Pad);
 
         Span[] said;
@@ -613,7 +598,7 @@ public sealed class PublicProfileScreen : Screen, IDraft
 
         return picture == PublicProfilePart.Avatar
             ? Drawn.Avatar(_read.Account.Address, current)
-            : Drawn.ProfileHeader(_read.Account.Address, current);
+            : Drawn.HeaderPicture(_read.Account.Address, current);
     }
 
     /// <summary>A row of the form: <paramref name="label" /> right-aligned before <paramref name="value" /> at <paramref name="at" />.</summary>

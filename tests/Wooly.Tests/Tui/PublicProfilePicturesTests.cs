@@ -238,7 +238,7 @@ public class PublicProfilePicturesTests : IDisposable
     {
         var (_, _, form) = await Editing();
         var avatar = Drawn.Avatar("jeff@mastodon.social", "https://files.example/avatar.png");
-        var header = Drawn.ProfileHeader("jeff@mastodon.social", "https://files.example/header.png");
+        var header = Drawn.HeaderPicture("jeff@mastodon.social", "https://files.example/header.png");
 
         var coming = Lines(form, new FakePictures());
 
