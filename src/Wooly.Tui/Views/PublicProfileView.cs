@@ -138,8 +138,8 @@ internal sealed class PublicProfileView : View
     protected override bool OnKeyDown(Key key) =>
         ShellKeys.Of(key) is { } pressed
         && Keymap.Means(pressed, _shell.Screen) is var verb
-            and (Verb.PreviousField or Verb.NextField or Verb.FlipToggle or Verb.SavePublicProfile
-                or Verb.OpenBrowser or Verb.PasteFromTheClipboard)
+            and (Verb.PreviousPublicProfileField or Verb.NextPublicProfileField or Verb.FlipToggle
+                or Verb.SavePublicProfile or Verb.ChoosePicture or Verb.PastePicture)
         && _shell.Do(verb, Keymap.Answer(pressed));
 
     protected override void Dispose(bool disposing)
@@ -433,7 +433,7 @@ internal sealed class PublicProfileView : View
     private void Choose(PublicProfileStop stop)
     {
         _ = _shell.ChangePublicProfile(form => form.TypeInto(stop));
-        _shell.Browse();
+        _shell.ChoosePicture();
     }
 
     /// <summary><c>ctrl-s</c> in any of the form's fields.</summary>

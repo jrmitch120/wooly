@@ -115,16 +115,18 @@ public static class Keymap
 
         // And on the avatar and the header, which take no typing: ⏎ opens the file browser for one picture, as it does
         // on compose's Media header, and ctrl-v or alt-v pastes one from the clipboard (#407).
-        (ShellKey.Enter, PublicProfileScreen { Typing.IsAPicture: true }) => Verb.OpenBrowser,
-        (ShellKey.CtrlV or ShellKey.AltV, PublicProfileScreen { Typing.IsAPicture: true }) => Verb.PasteFromTheClipboard,
-        (ShellKey.Up, PublicProfileScreen) => Verb.PreviousField,
-        (ShellKey.Down, PublicProfileScreen) => Verb.NextField,
+        (ShellKey.Enter, PublicProfileScreen { Typing.IsAPicture: true }) => Verb.ChoosePicture,
+        (ShellKey.CtrlV or ShellKey.AltV, PublicProfileScreen { Typing.IsAPicture: true }) => Verb.PastePicture,
+        (ShellKey.Up, PublicProfileScreen) => Verb.PreviousPublicProfileField,
+        (ShellKey.Down, PublicProfileScreen) => Verb.NextPublicProfileField,
         (_, PublicProfileScreen) => Verb.None,
 
         // The file browser takes letters into its filter, so what it answers besides are the named keys (#376): ⏎
         // attaches or opens, → and ← go into a folder and up one, ctrl-a shows every file, and the arrows walk its
         // entries as j and k walk posts elsewhere — j and k being letters here. And space, the one letter it does not
         // type, since its filter is fuzzy and a name's spaces never need typing: it chooses.
+        // Opened for one of the public profile's pictures, ⏎ takes the file back to the form as that picture (#407).
+        (ShellKey.Enter, FileBrowserScreen { Picture: not null }) => Verb.UsePicture,
         (ShellKey.Enter, FileBrowserScreen) => Verb.AttachChosen,
         (ShellKey.Right, FileBrowserScreen) => Verb.IntoFolder,
         (ShellKey.Left, FileBrowserScreen) => Verb.UpFolder,
