@@ -44,6 +44,7 @@ public static class WoolyCommandApp
         var services = new ServiceCollection();
         services.AddWoolyCore();
         services.AddSingleton(console);
+        services.AddSingleton(_ => new StandardInput(Console.In));
         configureServices?.Invoke(services);
 
         var app = new CommandApp(new TypeRegistrar(services));
@@ -132,6 +133,9 @@ public static class WoolyCommandApp
 
                 account.AddCommand<AccountShowCommand>("show")
                        .WithDescription("Show who an account is, and where you stand with them.");
+
+                account.AddCommand<AccountEditCommand>("edit")
+                       .WithDescription("Edit your public profile.");
 
                 account.AddCommand<AccountFollowCommand>("follow")
                        .WithDescription("Follow an account, so its posts reach your home timeline.");

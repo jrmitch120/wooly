@@ -227,6 +227,20 @@ _Avoid_: server (when referring to a Mastodon instance)
 **Account**:
 A user's identity on a specific instance, addressed as `username@instance` when referenced from outside its home instance. Distinct from a local CLI **profile** (below).
 
+**Own account**:
+The **Account** a **profile** points at: the one read on the **You** destination, and the only one whose **Public
+profile** this client can change.
+_Avoid_: my profile, me
+
+**Public profile**:
+What an account shows everyone about itself: its display name, **Bio**, avatar, header and **Custom field**s, and
+whether it is locked, a bot, and discoverable. Mastodon calls changing it "Edit profile"; here it is qualified as
+public because the bare word is the local **Profile**, and only an **Own account**'s can be edited. What is edited is
+what the account wrote rather than the **Bio** as read, since the bio as read has been flattened and saving it back
+would write the flattening in.
+_Avoid_: profile (when meaning this rather than the local entry), account settings, preferences (which are a reader's
+posting defaults, a different thing)
+
 **Named account**:
 How a caller names the account it means: the **address** always, and the instance's own id for it where whoever is
 asking has already paid the call to learn one (`NamedAccount`). One value rather than an address and an id side by
@@ -237,7 +251,7 @@ well the caller thinks it knows the answer.
 _Avoid_: ref, handle (which is a spelling of an **address**, and carries no id), lookup (which is the act, not the thing)
 
 **Bio**:
-What an account wrote about itself on its own profile (`Account.Bio`), flattened to plain text off the wire's `note`
+What an account wrote about itself on its own **public profile** (`Account.Bio`), flattened to plain text off the wire's `note`
 by the same flattener a **post**'s own text goes through — one rather than two, because a bio is exactly the HTML
 subset a post's content is, and the module doing the flattening was never about posts but about the HTML an instance
 serves. Empty is empty and never "not asked", which is what tells it apart from a **Standing**: Mastodon sends a bio on
@@ -321,7 +335,7 @@ _Avoid_: follower list (for the pair of them), contacts, friends
 
 **Familiar followers**:
 The accounts the profile follows that also follow the account being read — the people a reader already knows, which is
-what makes a stranger's profile worth reading and is Mastodon's own name for them. They are **Account**s and nothing
+what makes a stranger's public profile worth reading and is Mastodon's own name for them. They are **Account**s and nothing
 more: one account's worth of familiar followers is a list of them, so there is no record here to hold what a list
 already says. Read by naming an id rather than an address, being asked from a screen that has just read the account
 and holds one.
@@ -351,7 +365,7 @@ _Avoid_: recommendation, who to follow (which is a heading on a screen, not the 
 
 **Pinned**:
 Two things one word, and both are Mastodon's own. On a **post** it is one of `Post.Marks` — a post its author has
-fastened to the top of their own profile, put there and taken away with `p`, and reported by an instance only on the
+fastened to the top of their own public profile, put there and taken away with `p`, and reported by an instance only on the
 reader's *own* posts: it reads false on everybody else's, whether they have pinned it or not. The other is a **run of
 posts** of its own, read by naming the account rather than by marking rows already in hand — which is the only shape
 available, precisely because the mark cannot be trusted on somebody else's post. Both surfaces read that run: it is a

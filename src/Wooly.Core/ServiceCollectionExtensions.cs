@@ -1,5 +1,6 @@
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
+using Wooly.Core.Accounts;
 using Wooly.Core.Configuration;
 using Wooly.Core.Conversations;
 using Wooly.Core.Credentials;
@@ -75,6 +76,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IInstanceLimits, InstanceLimits>();
         services.AddSingleton<IAccountDefaults, AccountDefaults>();
         services.AddSingleton<IAccountRelationships, AccountRelationships>();
+        services.AddSingleton<IPublicProfileEditor, PublicProfileEditor>();
         services.AddSingleton<IFollowSuggestions, FollowSuggestions>();
         services.AddSingleton<IDirectMessages, DirectMessages>();
         services.AddSingleton<IInboxStream, InboxStream>();

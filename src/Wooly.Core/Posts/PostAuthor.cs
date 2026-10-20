@@ -252,23 +252,15 @@ public sealed class PostAuthor(
     ///     to the ask after it), or one this profile may not touch — the instance's to say, in its own words where it
     ///     gave any, and the author's to fix.
     /// </exception>
-    private static async Task Answered(
+    private static Task Answered(
         ActiveProfile profile,
         HttpResponseMessage response,
-        CancellationToken cancellationToken)
-    {
-        if (response.IsSuccessStatusCode)
-        {
-            return;
-        }
-
-        if ((int)response.StatusCode >= 500)
-        {
-            throw new InstanceFailedException(profile.Instance, response.StatusCode);
-        }
-
-        throw new AttachmentRefusedException(await InstanceError.Reason(response, cancellationToken));
-    }
+        CancellationToken cancellationToken) =>
+        InstanceError.EnsureAnswered(
+            profile,
+            response,
+            reason => new AttachmentRefusedException(reason),
+            cancellationToken);
 
     /// <summary>
     ///     <paramref name="call" />, with the client giving up waiting on it — its timeout, which cancels a token that is
