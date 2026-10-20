@@ -1374,24 +1374,7 @@ public sealed class Shell
     /// <returns>What the change was, or nothing where compose is not on top and no change was made.</returns>
     public ComposeChange ChangeCompose(Func<ComposeScreen, ComposeChange> change)
     {
-        if (InFront is not { } compose)
-        {
-            return ComposeChange.None;
-        }
-
-        var made = change(compose);
-
-        if (made == ComposeChange.Edited && Notice is not null)
-        {
-            // Saying nothing announces the change itself.
-            Say(null, isError: false);
-        }
-        else if (made != ComposeChange.None)
-        {
-            Changed?.Invoke();
-        }
-
-        return made;
+        return InFront is { } compose ? Settled(change(compose)) : ComposeChange.None;
     }
 
     /// <summary>
@@ -1402,15 +1385,20 @@ public sealed class Shell
     /// <returns>What the change was, or nothing where the form is not on top and no change was made.</returns>
     public ComposeChange ChangePublicProfile(Func<PublicProfileScreen, ComposeChange> change)
     {
-        if (Screen is not PublicProfileScreen form)
-        {
-            return ComposeChange.None;
-        }
+        return Screen is PublicProfileScreen form ? Settled(change(form)) : ComposeChange.None;
+    }
 
-        var made = change(form);
-
+    /// <summary>
+    ///     What follows from <paramref name="made" />, a change to a draft, by the one rule both kinds of draft keep
+    ///     (#364): an edit spends a notice said over it, and anything but no change at all is announced so the screen is
+    ///     drawn again.
+    /// </summary>
+    /// <returns><paramref name="made" />.</returns>
+    private ComposeChange Settled(ComposeChange made)
+    {
         if (made == ComposeChange.Edited && Notice is not null)
         {
+            // Saying nothing announces the change itself.
             Say(null, isError: false);
         }
         else if (made != ComposeChange.None)

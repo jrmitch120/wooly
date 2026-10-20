@@ -47,6 +47,9 @@ internal sealed class PublicProfileView : View
     /// <summary>Whether the fields are being filled as the form comes on top, while focus moving says nothing.</summary>
     private bool _filling;
 
+    /// <summary>What the fields do with an open question and with the mouse, as every draft's do (#373).</summary>
+    private readonly DraftFields _draft;
+
     /// <summary>Where the terminal's mouse events arrive, once the view is running; asked ahead of the views.</summary>
     private IMouse? _mouse;
 
@@ -55,6 +58,10 @@ internal sealed class PublicProfileView : View
         _theme = theme;
         _shell = shell;
         _raster = raster ?? (() => null);
+        _draft = new DraftFields(
+            shell,
+            () => _shell.Screen is PublicProfileScreen,
+            at => Visible && Fields.Any(field => field.Visible && field.FrameToScreen().Contains(at)));
 
         CanFocus = true;
         Visible = false;
@@ -82,7 +89,7 @@ internal sealed class PublicProfileView : View
 
         // ctrl-p is the frame's here as everywhere (ADR-0020), where TextView would take it for a line up.
         _bio.KeyBindings.Remove(Key.P.WithCtrl);
-        _bio.Answering = Answered;
+        _bio.Answering = _draft.Answered;
         _bio.ContentsChanged += (_, _) => Change(form => form.RewriteBio(_bio.Text));
 
         _mentions = new MentionList(theme, shell, _bio, () => _shell.Screen is PublicProfileScreen);
@@ -101,7 +108,7 @@ internal sealed class PublicProfileView : View
             var stop = new PublicProfileStop(part);
             var button = Placed(new PublicProfileButton(() => pressed(stop)), stop);
 
-            button.Answering = Answered;
+            button.Answering = _draft.Answered;
             button.HasFocusChanged += (_, focus) => TypingMoved(focus.NewValue, stop);
 
             _buttons[part] = button;
@@ -176,68 +183,8 @@ internal sealed class PublicProfileView : View
     {
         if (!mouse.Handled)
         {
-            mouse.Handled = RightClicked(mouse) || Withheld(mouse) || _mentions.ClosedBy(mouse);
+            mouse.Handled = _draft.Spent(mouse) || _mentions.ClosedBy(mouse);
         }
-    }
-
-    /// <summary>
-    ///     A right click with the form in front: <c>esc</c>, wherever it lands, asking before a touched form is thrown
-    ///     away and, pressed again on that question, keeping it — the way <c>esc</c> does.
-    /// </summary>
-    private bool RightClicked(Mouse mouse)
-    {
-        if (_shell.Screen is not PublicProfileScreen || ShellKeys.Of(mouse) is not { } pressed)
-        {
-            return false;
-        }
-
-        if (!Answered(pressed))
-        {
-            _shell.Back();
-        }
-
-        return true;
-    }
-
-    /// <summary>
-    ///     A button or the wheel over one of the fields while a question is open on the status row: kept from the field,
-    ///     and a click or a notch declines it, as anywhere else in the shell (#373).
-    /// </summary>
-    private bool Withheld(Mouse mouse)
-    {
-        if (_shell.Asking is null || !Visible
-            || !Fields.Any(field => field.Visible && field.FrameToScreen().Contains(mouse.ScreenPosition)))
-        {
-            return false;
-        }
-
-        if (mouse.Flags.HasFlag(MouseFlags.LeftButtonClicked)
-            || mouse.Flags.HasFlag(MouseFlags.WheeledDown)
-            || mouse.Flags.HasFlag(MouseFlags.WheeledUp))
-        {
-            _ = _shell.Answer(pressed: null);
-        }
-
-        return mouse.Flags != MouseFlags.None && mouse.Flags != MouseFlags.PositionReport;
-    }
-
-    /// <summary><paramref name="key" /> as the answer to a question the shell has open, where it has one.</summary>
-    private bool Answered(Key key) => Answered(ShellKeys.Of(key));
-
-    /// <summary>
-    ///     <paramref name="pressed" /> as the answer to a question the shell has open on the status row — <c>y</c>
-    ///     agrees, anything else keeps — where it has one, and nothing where it has none.
-    /// </summary>
-    private bool Answered(ShellKey? pressed)
-    {
-        if (_shell.Asking is null)
-        {
-            return false;
-        }
-
-        _ = _shell.Answer(pressed);
-
-        return true;
     }
 
     /// <summary>
@@ -380,7 +327,7 @@ internal sealed class PublicProfileView : View
     {
         var field = Placed(new PublicProfileTextField(_theme, hint, Save, Back, () => Walk(1)), stop);
 
-        field.Answering = Answered;
+        field.Answering = _draft.Answered;
         field.HasFocusChanged += (_, focus) => TypingMoved(focus.NewValue, stop);
 
         // ctrl-p is the frame's here as everywhere (ADR-0020).
