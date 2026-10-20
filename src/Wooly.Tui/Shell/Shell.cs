@@ -620,8 +620,8 @@ public sealed class Shell
         Verb.WriteWarning => Ran(() => _ = ChangeCompose(compose => compose.WriteTheWarning())),
         // Answered whether or not there was anywhere to go, so that an arrow off either end of the walk or of To stops
         // there rather than falling through to Terminal.Gui, which would carry the focus round to the other end.
-        Verb.PreviousField => Ran(() => _ = ChangeCompose(compose => compose.Walk(-1))),
-        Verb.NextField => Ran(() => _ = ChangeCompose(compose => compose.Walk(1))),
+        Verb.PreviousField => Ran(() => WalkFields(-1)),
+        Verb.NextField => Ran(() => WalkFields(1)),
         Verb.PreviousChoice => Ran(() => _ = ChangeCompose(compose => compose.Choose(-1))),
         Verb.NextChoice => Ran(() => _ = ChangeCompose(compose => compose.Choose(1))),
         Verb.RemoveAttachment => Ran(() => RemoveAttachment(compose => compose.Remove())),
@@ -638,6 +638,8 @@ public sealed class Shell
         Verb.Describe => Ran(Describe),
         Verb.ListAttachments => Ran(ListAttachments),
         Verb.EditPublicProfile => Ran(EditPublicProfile),
+        Verb.FlipToggle => Ran(() => _ = ChangePublicProfile(form => form.Flip())),
+        Verb.SavePublicProfile => Ran(SavePublicProfile),
 
         // Nothing, and the terminal's own — which the window has already taken, and which no screen answers either.
         Verb.None => false,
@@ -1340,6 +1342,45 @@ public sealed class Shell
     }
 
     /// <summary>
+    ///     Makes <paramref name="change" /> to the edit public profile form on top — every change to it comes in here,
+    ///     from its fields and its keys — by the rule <see cref="ChangeCompose" /> keeps for a draft (#364): an edit
+    ///     spends a notice said over the form, a refusal among them, and anything but no change at all is announced.
+    /// </summary>
+    /// <returns>What the change was, or nothing where the form is not on top and no change was made.</returns>
+    public ComposeChange ChangePublicProfile(Func<PublicProfileScreen, ComposeChange> change)
+    {
+        if (Screen is not PublicProfileScreen form)
+        {
+            return ComposeChange.None;
+        }
+
+        var made = change(form);
+
+        if (made == ComposeChange.Edited && Notice is not null)
+        {
+            Say(null, isError: false);
+        }
+        else if (made != ComposeChange.None)
+        {
+            Changed?.Invoke();
+        }
+
+        return made;
+    }
+
+    /// <summary>
+    ///     <c>↑</c> or <c>↓</c> where they walk fields: compose's headers (#337), or the edit public profile form's
+    ///     fields (#406), whichever is on top.
+    /// </summary>
+    private void WalkFields(int by)
+    {
+        if (ChangePublicProfile(form => form.Walk(by)) == ComposeChange.None)
+        {
+            _ = ChangeCompose(compose => compose.Walk(by));
+        }
+    }
+
+    /// <summary>
     ///     The compose screen in front: on top, or under the attachments screen listing its rows on a short terminal,
     ///     whose keys and clicks change the compose's draft as the same ones on its rows do (story 58, review of #372).
     /// </summary>
@@ -1555,6 +1596,61 @@ public sealed class Shell
         await _enquiry.Put(
             ask => ask.Of(token => _ports.PublicProfile.Read(profile, token)),
             ifStillHere: read => Push(new PublicProfileScreen(read)));
+    }
+
+    /// <summary>
+    ///     <c>ctrl-s</c> on the edit public profile form: sends what the form says changed and nothing else
+    ///     (<see cref="PublicProfileScreen.Outgoing" />, ADR-0028), then takes the form off, says so, and reports the
+    ///     public profile saved so that whatever shows the account reads it again.
+    /// </summary>
+    /// <remarks>
+    ///     Nothing is refused before it is sent: the limits are the instance's (ADR-0028). A refusal leaves the form as
+    ///     it is, every edit in it, and the status row says why in the instance's words — the enquiry's, as every
+    ///     failure is — until an edit spends it (<see cref="ChangePublicProfile" />).
+    /// </remarks>
+    public async Task SavePublicProfile()
+    {
+        if (Screen is not PublicProfileScreen form)
+        {
+            return;
+        }
+
+        var change = form.Outgoing;
+
+        if (change.IsEmpty)
+        {
+            Say("Nothing has changed to save.", isError: false);
+
+            return;
+        }
+
+        // Taken now rather than read when the call is made, which a rate-limit wait can put after a switch (#243).
+        var profile = Actor.Profile;
+
+        const string Saved = "Public profile saved.";
+
+        await _enquiry.Put(
+            ask => ask.Of(token => _ports.PublicProfile.Save(profile, change, token)),
+            eitherWay: saved =>
+            {
+                // Off the stack only where it is still on top: a form thrown away while the save was on its way has
+                // gone already, and what is on top now is somewhere else the reader went.
+                if (ReferenceEquals(Screen, form))
+                {
+                    Leave(_stack.Count - 1);
+                }
+
+                Tell(new Change.PublicProfileSaved(saved));
+                Say(Saved, isError: false);
+
+                // The account the form was opened over, read again rather than patched with what the save answered:
+                // its posts carry the display name too, and an account screen is one reading (#84, #229). Said again
+                // once it lands, since a fresh copy takes down what was said over the old one.
+                if (Screen is AccountScreen { Mine: true, Subject: { } account })
+                {
+                    _ = Actor.Arrival.Again(account, landed: () => Say(Saved, isError: false));
+                }
+            });
     }
 
     /// <summary>

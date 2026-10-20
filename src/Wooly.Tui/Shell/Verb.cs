@@ -367,4 +367,13 @@ public enum Verb
     ///     profile as written and put the form that edits it up over the account (#406, ADR-0028).
     /// </summary>
     EditPublicProfile,
+
+    /// <summary>
+    ///     <c>space</c> or <c>⏎</c> on one of the form's three toggles — locked, bot, discoverable — or a click on it:
+    ///     flip it (#406).
+    /// </summary>
+    FlipToggle,
+
+    /// <summary><c>ctrl-s</c> on the form: send what changed, and only that (#406, ADR-0028).</summary>
+    SavePublicProfile,
 }
