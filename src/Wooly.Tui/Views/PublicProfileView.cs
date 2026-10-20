@@ -37,6 +37,9 @@ internal sealed class PublicProfileView : View
     /// <summary>How this terminal paints pixels, which says how tall the avatar's and the header's rows are.</summary>
     private readonly Func<Raster?> _raster;
 
+    /// <summary>The people to mention, hung under the @-word being typed in the bio, as under compose's post (#408).</summary>
+    private readonly MentionList _mentions;
+
     /// <summary>The form the fields were last filled from, or none while no form is on top.</summary>
     private PublicProfileScreen? _showing;
 
@@ -81,6 +84,9 @@ internal sealed class PublicProfileView : View
         _bio.Answering = Answered;
         _bio.ContentsChanged += (_, _) => Change(form => form.RewriteBio(_bio.Text));
 
+        _mentions = new MentionList(theme, shell, _bio, () => _shell.Screen is PublicProfileScreen);
+        _bio.Ahead = _mentions.Took;
+
         foreach (var part in new[] { PublicProfilePart.Locked, PublicProfilePart.Bot, PublicProfilePart.Discoverable })
         {
             var stop = new PublicProfileStop(part);
@@ -109,6 +115,7 @@ internal sealed class PublicProfileView : View
         Add(_name, _bio);
         Add([.. _pictures.Values]);
         Add([.. _toggles.Values]);
+        Add(_mentions.View);
 
         // A right click over a field is esc, which the fields would otherwise keep to themselves, so it is asked about
         // where the terminal's mouse events arrive, ahead of every view under the pointer — as compose's are (#373).
@@ -165,13 +172,14 @@ internal sealed class PublicProfileView : View
     /// <summary>
     ///     A mouse event wherever it landed, before the view under the pointer sees it: a right click while the form is
     ///     in front, which is its <c>esc</c> wherever it lands; any other press over a field while a question is open,
-    ///     which the question takes; and left alone otherwise.
+    ///     which the question takes; spent on closing the list of people to mention where it is a click outside it, as
+    ///     on compose (#335); and left alone otherwise.
     /// </summary>
     private void AheadOfTheViews(object? sender, Mouse mouse)
     {
         if (!mouse.Handled)
         {
-            mouse.Handled = RightClicked(mouse) || Withheld(mouse);
+            mouse.Handled = RightClicked(mouse) || Withheld(mouse) || _mentions.ClosedBy(mouse);
         }
     }
 
@@ -270,6 +278,10 @@ internal sealed class PublicProfileView : View
         {
             Focus(typing);
         }
+
+        // After the bio has been shown or hidden, and on every change of the shell's — a profile switch, or more people
+        // arriving — since either can change what the word being typed matches.
+        _mentions.Follow();
 
         SetNeedsDraw();
     }

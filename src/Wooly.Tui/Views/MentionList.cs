@@ -8,9 +8,10 @@ using Wooly.Tui.Theme;
 namespace Wooly.Tui.Views;
 
 /// <summary>
-///     The list of people to mention, hung under the @-word being typed in the compose editor (#318): what it matches,
-///     which one is picked, where it sits, and the keys it takes while it is open. Closed, it takes nothing and the
-///     editor's keys are what they always were.
+///     The list of people to mention, hung under the @-word being typed in an editor (#318): what it matches, which
+///     one is picked, where it sits, and the keys it takes while it is open. Closed, it takes nothing and the editor's
+///     keys are what they always were. Compose's post has one, and so does the edit public profile form's bio (#408):
+///     each view plugs its own into its editor's <see cref="ComposeEditor.Ahead" />.
 /// </summary>
 /// <remarks>
 ///     The word is read from the text as written rather than as wrapped, off the editor's unwrapped caret; where the
@@ -18,11 +19,14 @@ namespace Wooly.Tui.Views;
 /// </remarks>
 internal sealed class MentionList
 {
-    /// <summary>The list's <c>Id</c> among compose's views.</summary>
+    /// <summary>The list's <c>Id</c> among the views of whichever view lays it beside its editor.</summary>
     internal const string Id = "mentions";
 
     private readonly Shell.Shell _shell;
     private readonly ComposeEditor _editor;
+
+    /// <summary>Whether the screen in front offers people to mention in the editor at all, as it stands.</summary>
+    private readonly Func<bool> _offered;
 
     /// <summary>Who matches the word being typed, best first, as a list to pick from; nobody while it is closed.</summary>
     private readonly PickList<Mentionable> _list;
@@ -39,11 +43,16 @@ internal sealed class MentionList
     /// <summary>The word <c>esc</c> closed the list on, by line and start, which keeps it closed until the caret leaves it.</summary>
     private (int Line, int Start)? _dismissed;
 
-    /// <param name="editor">The post's editor, which this list is laid beside in the same view and hangs under.</param>
-    public MentionList(ITheme theme, Shell.Shell shell, ComposeEditor editor)
+    /// <param name="editor">The editor this list is laid beside in the same view and hangs under.</param>
+    /// <param name="offered">
+    ///     Whether the screen in front offers people to mention in <paramref name="editor" />, as it stands: compose
+    ///     while the typing is in the post rather than its warning, or the edit public profile form.
+    /// </param>
+    public MentionList(ITheme theme, Shell.Shell shell, ComposeEditor editor, Func<bool> offered)
     {
         _shell = shell;
         _editor = editor;
+        _offered = offered;
 
         _list = new PickList<Mentionable>(
             theme,
@@ -53,7 +62,7 @@ internal sealed class MentionList
             Insert,
             Dismiss);
 
-        // Laid beside the editor in compose's view, so where the editor puts its caret is where in that view it goes.
+        // Laid beside the editor in the same view, so where the editor puts its caret is where in that view it goes.
         View.X = Pos.Func(_ => At().X);
         View.Y = Pos.Func(_ => At().Y);
         View.Width = Dim.Func(_ => Size().Width);
@@ -67,7 +76,7 @@ internal sealed class MentionList
         };
     }
 
-    /// <summary>The list as drawn, which compose's view lays over the editor.</summary>
+    /// <summary>The list as drawn, which the view holding the editor lays over it.</summary>
     public PaintedView View => _list.View;
 
     /// <summary>
@@ -81,7 +90,7 @@ internal sealed class MentionList
 
         _open = null;
 
-        if (_editor.Visible && _shell.Screen is ComposeScreen { WritingTheWarning: false } && Caret() is var (line, column, text))
+        if (_editor.Visible && _offered() && Caret() is var (line, column, text))
         {
             if (MentionWord.At(text, column) is not { } word)
             {

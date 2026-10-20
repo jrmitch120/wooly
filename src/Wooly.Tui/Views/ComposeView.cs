@@ -156,7 +156,7 @@ internal sealed class ComposeView : View
         _editor.HasFocusChanged += (_, focus) => TypingMoved(focus.NewValue, ComposeField.Post);
 
         // The lists hang under the fields they serve, laid in this view after the fields so they draw over them.
-        _mentions = new MentionList(theme, shell, _editor);
+        _mentions = new MentionList(theme, shell, _editor, () => _shell.Screen is ComposeScreen { WritingTheWarning: false });
         _editor.Ahead = _mentions.Took;
 
         // ctrl-p is the frame's here as everywhere (ADR-0020, #373), where TextView would take it for a line up.
