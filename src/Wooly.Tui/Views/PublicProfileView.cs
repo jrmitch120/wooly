@@ -278,9 +278,6 @@ internal sealed class PublicProfileView : View
             AddRow(_labels.Count);
         }
 
-        // The list hangs under the bio, over the rows below it, so it is laid after every field to draw over them.
-        MoveSubViewToEnd(_mentions.View);
-
         // Laid out before they are filled: where each goes is read only on a layout pass, and an editor still at the
         // nothing it was sized to while no form was up wraps its text to no width (as compose's does, #365).
         _name.Visible = _bio.Visible = true;
