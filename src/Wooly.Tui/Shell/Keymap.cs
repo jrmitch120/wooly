@@ -235,7 +235,7 @@ public static class Keymap
 
         // E only on the own account, since nobody else's public profile can be changed from here: anywhere else it is
         // nobody's, as p, e and d are on somebody else's post (#406).
-        (ShellKey.CapitalE, AccountScreen { Mine: true }) => Verb.EditPublicProfile,
+        (ShellKey.CapitalE, AccountScreen { IsOwnAccount: true }) => Verb.EditPublicProfile,
         (ShellKey.CapitalR, ProfilesScreen) => Verb.SignInAgain,
 
         // Every digit means the same thing; which answer it addresses is Answer's, below.

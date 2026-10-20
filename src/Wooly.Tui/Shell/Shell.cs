@@ -1636,7 +1636,7 @@ public sealed class Shell
     /// </summary>
     public async Task EditPublicProfile()
     {
-        if (Screen is not AccountScreen { Mine: true })
+        if (Screen is not AccountScreen { IsOwnAccount: true })
         {
             return;
         }
@@ -1697,7 +1697,7 @@ public sealed class Shell
                 // The account the form was opened over, read again rather than patched with what the save answered:
                 // its posts carry the display name too, and an account screen is one reading (#84, #229). Said again
                 // once it lands, since a fresh copy takes down what was said over the old one.
-                if (Screen is AccountScreen { Mine: true, Subject: { } account })
+                if (Screen is AccountScreen { IsOwnAccount: true, Subject: { } account })
                 {
                     _ = Actor.Arrival.Again(account, landed: () => Say(Saved, isError: false));
                 }
