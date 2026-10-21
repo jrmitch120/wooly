@@ -79,9 +79,8 @@ internal sealed class DraftFields(Shell.Shell shell, Func<bool> inFront, Func<Po
             return false;
         }
 
-        if (mouse.Flags.HasFlag(MouseFlags.LeftButtonClicked)
-            || mouse.Flags.HasFlag(MouseFlags.WheeledDown)
-            || mouse.Flags.HasFlag(MouseFlags.WheeledUp))
+        // A notch as the window reads one, so that a sideways one — which carries a vertical one's bit — is no answer.
+        if (mouse.Flags.HasFlag(MouseFlags.LeftButtonClicked) || ShellWindow.Notched(mouse) is not null)
         {
             _ = shell.Answer(pressed: null);
         }

@@ -645,7 +645,7 @@ internal sealed class ShellWindow : Window
     ///         wrong way for a moment every few rows.
     ///     </para>
     /// </remarks>
-    private static ShellKey? Notched(Mouse mouse) =>
+    internal static ShellKey? Notched(Mouse mouse) =>
         mouse.Flags.HasFlag(MouseFlags.WheeledLeft) || mouse.Flags.HasFlag(MouseFlags.WheeledRight) ? null
         : mouse.Flags.HasFlag(MouseFlags.WheeledDown) ? ShellKey.Down
         : mouse.Flags.HasFlag(MouseFlags.WheeledUp) ? ShellKey.Up

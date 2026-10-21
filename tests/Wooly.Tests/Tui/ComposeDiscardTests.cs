@@ -375,6 +375,30 @@ public class ComposeDiscardTests
         Assert.Equal(caret, editor.CurrentColumn);
     }
 
+    /// <summary>
+    ///     A sideways notch over the draft while the question is open is no answer: it is no press at all, as it is
+    ///     nothing anywhere else in the shell — though Terminal.Gui gives it a vertical notch's bit — so the question
+    ///     stays open, and the editor does not scroll.
+    /// </summary>
+    [Fact]
+    public async Task ASidewaysNotchOverTheDraft_LeavesTheQuestionOpen()
+    {
+        using var drawn = await Composing();
+        var editor = drawn.Window.ComposeField<ComposeEditor>();
+        var at = editor.FrameToScreen();
+
+        Type(drawn, "sheep");
+        drawn.Press(Key.Esc);
+
+        drawn.WheelSideways(at.X, at.Y);
+        drawn.WheelSideways(at.X, at.Y, right: false);
+        drawn.Settle();
+
+        Assert.NotNull(drawn.Shell.Asking);
+        Assert.Equal("sheep", editor.Text);
+        Assert.Equal(0, editor.Viewport.X);
+    }
+
     /// <summary>The question asked from the warning field is answered there too, and the field takes no letter of it.</summary>
     [Fact]
     public async Task FromTheWarningField_TheQuestionIsAnsweredAndNothingIsTyped()
