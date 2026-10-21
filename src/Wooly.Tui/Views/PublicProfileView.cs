@@ -141,13 +141,19 @@ internal sealed class PublicProfileView : View
     ///     The keys no field took that mean something on the form, made here as the keymap says they do rather than
     ///     left to Terminal.Gui: <c>↑</c>/<c>↓</c>, which walk the fields and stop at either end, <c>space</c> and
     ///     <c>⏎</c> on a toggle, <c>⏎</c> and the paste on a picture (#407), and <c>ctrl-s</c>.
+    ///     <para>
+    ///         And <c>←</c>/<c>→</c> left over — on a picture, a toggle, or a field's caret at the end of what is written —
+    ///         taken and spent on nothing: let through, they reach Terminal.Gui's own arrow navigation, which moved the
+    ///         focus to whichever field came next in its order, the avatar's <c>←</c> landing in the bio.
+    ///     </para>
     /// </summary>
     protected override bool OnKeyDown(Key key) =>
-        ShellKeys.Of(key) is { } pressed
-        && Keymap.Means(pressed, _shell.Screen) is var verb
-            and (Verb.PreviousPublicProfileField or Verb.NextPublicProfileField or Verb.FlipToggle
-                or Verb.SavePublicProfile or Verb.ChoosePicture or Verb.PastePicture)
-        && _shell.Do(verb, Keymap.Answer(pressed));
+        key == Key.CursorLeft || key == Key.CursorRight
+        || (ShellKeys.Of(key) is { } pressed
+            && Keymap.Means(pressed, _shell.Screen) is var verb
+                and (Verb.PreviousPublicProfileField or Verb.NextPublicProfileField or Verb.FlipToggle
+                    or Verb.SavePublicProfile or Verb.ChoosePicture or Verb.PastePicture)
+            && _shell.Do(verb, Keymap.Answer(pressed)));
 
     protected override void Dispose(bool disposing)
     {

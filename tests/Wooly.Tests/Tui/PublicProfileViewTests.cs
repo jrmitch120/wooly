@@ -1,6 +1,7 @@
 using Terminal.Gui.Input;
 using Wooly.Core.Accounts;
 using Wooly.Tests.Fakes;
+using Wooly.Tui.Media;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
@@ -21,7 +22,7 @@ public class PublicProfileViewTests
     private static readonly Account Me = AnAccount.With(address: "jeff@mastodon.social", author: "Jeff", id: "7");
 
     /// <summary>The shell on a terminal with no colour, the form opened with <c>E</c> on <b>You</b>.</summary>
-    private static async Task<DrawnShell> Editing(PublicProfile? read = null, int tall = Tall)
+    private static async Task<DrawnShell> Editing(PublicProfile? read = null, int tall = Tall, Raster? raster = null)
     {
         var built = new AShell
         {
@@ -29,7 +30,7 @@ public class PublicProfileViewTests
             PublicProfile = FakePublicProfileEditor.Holding(read ?? APublicProfile.With(displayName: "Jeff", account: Me)),
         };
 
-        var drawn = await DrawnShell.Of(Wide, tall, Themes.Plain, built);
+        var drawn = await DrawnShell.Of(Wide, tall, Themes.Plain, built, raster: raster);
 
         drawn.Shell.Rail.GoTo(DestinationKind.Profile);
         drawn.Settle();
@@ -131,6 +132,44 @@ public class PublicProfileViewTests
         }
 
         Assert.Equal(new PublicProfileStop(PublicProfilePart.DisplayName), Form(drawn).Typing);
+    }
+
+    /// <summary>
+    ///     <c>←</c> and <c>→</c> never walk: on a picture or a toggle they are nobody's, and in a field they move the
+    ///     caret and stop at either end of what is written rather than carrying the walk off to another field.
+    /// </summary>
+    [Fact]
+    public async Task LeftAndRight_StayOnTheFieldWalkedTo()
+    {
+        using var drawn = await Editing(APublicProfile.With(bio: "One line.", fields: [], account: Me), raster: ARaster.Sixel());
+        var walked = new List<PublicProfileStop>();
+
+        do
+        {
+            var on = Form(drawn).Typing;
+            var focused = drawn.Window.MostFocused;
+            walked.Add(on);
+
+            for (var press = 0; press < 3; press++)
+            {
+                drawn.PressThroughTheApplication(Key.CursorLeft);
+                Assert.Equal(on, Form(drawn).Typing);
+                Assert.Same(focused, drawn.Window.MostFocused);
+            }
+
+            for (var press = 0; press < 30; press++)
+            {
+                drawn.PressThroughTheApplication(Key.CursorRight);
+                Assert.Equal(on, Form(drawn).Typing);
+                Assert.Same(focused, drawn.Window.MostFocused);
+            }
+
+            drawn.PressThroughTheApplication(Key.CursorDown);
+        }
+        while (Form(drawn).Typing != walked[^1]);
+
+        Assert.Contains(new PublicProfileStop(PublicProfilePart.Avatar), walked);
+        Assert.Contains(new PublicProfileStop(PublicProfilePart.Locked), walked);
     }
 
     /// <summary>A click on a toggle flips it and takes the walk there, and its box says so with no colour.</summary>
