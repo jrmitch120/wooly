@@ -184,7 +184,13 @@ internal sealed class ComposeEditor(
 
     /// <summary>
     ///     A right click is the shell's <c>esc</c>, which on a draft means nothing (#307) — so it is taken here, before
-    ///     the editor opens its own context menu on it, and does nothing.
+    ///     the editor opens its own context menu on it, and does nothing. A sideways notch is taken and does nothing
+    ///     too: the text wraps to the editor's width, so there is nothing off either side, yet <see cref="TextView" />
+    ///     scrolled a column a notch regardless and a trackpad drifting sideways carried the text off the field.
     /// </summary>
-    protected override bool OnMouseEvent(Mouse mouse) => ShellKeys.Of(mouse) is not null || base.OnMouseEvent(mouse);
+    protected override bool OnMouseEvent(Mouse mouse) =>
+        ShellKeys.Of(mouse) is not null
+        || mouse.Flags.HasFlag(MouseFlags.WheeledLeft)
+        || mouse.Flags.HasFlag(MouseFlags.WheeledRight)
+        || base.OnMouseEvent(mouse);
 }
