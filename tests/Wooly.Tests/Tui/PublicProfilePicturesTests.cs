@@ -255,6 +255,24 @@ public class PublicProfilePicturesTests : IDisposable
     }
 
     /// <summary>
+    ///     A header narrower than its box is drawn at the box's left edge, under the avatar, rather than centred in it:
+    ///     the two pictures start in one column whatever their shapes.
+    /// </summary>
+    [Fact]
+    public async Task OnATerminalThatDraws_ANarrowHeaderLinesUpWithTheAvatar()
+    {
+        var (_, _, form) = await Editing();
+        var avatar = Drawn.Avatar("jeff@mastodon.social", "https://files.example/avatar.png");
+        var header = Drawn.HeaderPicture("jeff@mastodon.social", "https://files.example/header.png");
+
+        var here = Lines(form, new FakePictures().Holding(avatar.Id, 96, 96).Holding(header.Id, 500, 500));
+
+        Assert.Equal(
+            Assert.Single(Row(here, "Avatar").Insets).Column,
+            Assert.Single(here, line => line.Insets.Any(inset => inset.Drawn == header)).Insets[0].Column);
+    }
+
+    /// <summary>
     ///     On a terminal that draws, a blank row parts the avatar's box from the header's, so the two pictures do not
     ///     run into each other.
     /// </summary>

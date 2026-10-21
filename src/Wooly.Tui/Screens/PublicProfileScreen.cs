@@ -568,7 +568,7 @@ public sealed class PublicProfileScreen : Screen, IDraft
             : pixels is null ? StandIn.Row(columns)
             : new Span(new string(' ', columns), Role.Media);
         var fitted = wanted is not null && pixels is not null
-            ? new Inset(wanted, at, columns, pictureRows).Fit(pixels, drawnAt)
+            ? new Inset(wanted, at, columns, pictureRows).Fit(pixels, drawnAt, atTheLeft: true)
             : default;
 
         for (var row = 0; row < pictureRows; row++)
