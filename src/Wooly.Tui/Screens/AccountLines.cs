@@ -71,11 +71,16 @@ public static class AccountLines
     ///     is every screen drawing an account that is not this one, and this one until <c>←</c> or <c>→</c> is pressed
     ///     (#179).
     /// </param>
+    /// <param name="isOwnAccount">
+    ///     Whether this is the <b>Own account</b>, which has no standing with itself to say: no ties, nobody in common,
+    ///     and no note — the section is left off rather than drawn saying nothing.
+    /// </param>
     public static IReadOnlyList<Line> Header(
         Account account,
         IReadOnlyList<Account>? familiar,
         Drawing drawing,
-        Reference? picked = null)
+        Reference? picked = null,
+        bool isOwnAccount = false)
     {
         var width = drawing.Width;
 
@@ -86,11 +91,14 @@ public static class AccountLines
         Section(lines, Bio(account, width, picked));
         Section(lines, account.Fields.SelectMany((_, which) => Field(account, which, width, picked)));
 
-        Section(lines, [
-            Standing(account, width),
-            .. InCommon(familiar, width),
-            .. Note(account.Standing?.Note, width),
-        ]);
+        if (!isOwnAccount)
+        {
+            Section(lines, [
+                Standing(account, width),
+                .. InCommon(familiar, width),
+                .. Note(account.Standing?.Note, width),
+            ]);
+        }
 
         return lines;
     }

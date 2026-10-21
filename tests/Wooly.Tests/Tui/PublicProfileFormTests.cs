@@ -557,6 +557,31 @@ public class PublicProfileFormTests
     }
 
     /// <summary>
+    ///     <b>You</b> has no ties to offer: an account cannot follow, mute or block itself, so <c>F</c>, <c>M</c> and
+    ///     <c>B</c> are neither on the status row nor anybody's there, and the header block says nothing of where it
+    ///     stands with itself.
+    /// </summary>
+    [Fact]
+    public async Task You_OffersNoTiesAndSaysNoStanding()
+    {
+        var built = Built();
+        built.Accounts.InCommon = [AnAccount.With(address: "ben@hachyderm.io")];
+        var shell = await OnYou(built);
+
+        Assert.DoesNotContain(shell.Keys, key => key.Key is "F" or "M" or "B");
+        Assert.DoesNotContain(AShell.Drawn(shell.Screen), row => row.Contains("No ties", StringComparison.Ordinal)
+            || row.Contains("Standing not asked", StringComparison.Ordinal)
+            || row.Contains("Followed by", StringComparison.Ordinal));
+
+        shell.Press(ShellKey.CapitalF);
+        shell.Press(ShellKey.CapitalM);
+        shell.Press(ShellKey.CapitalB);
+        built.Host.Drain();
+
+        Assert.Empty(built.Accounts.Ties);
+    }
+
+    /// <summary>
     ///     <b>You</b> draws no row for editing the public profile: <c>E</c> on the status row is the way to the form, and
     ///     the walk goes from the header block straight to the first post, as it does on anybody's account.
     /// </summary>

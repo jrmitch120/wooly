@@ -228,6 +228,8 @@ public static class Keymap
         // The capitals, which are keys of their own for exactly this reason: a lower-case mark key can never fire a
         // tie or empty an inbox by accident (docs/tui-shell.md). D on the profiles screen, where there is no inbox to
         // empty, makes a profile the default instead (#244). R is the profiles screen's alone, since r is reply (#248).
+        // Nobody's on the own account, which cannot follow, mute or block itself.
+        (ShellKey.CapitalF or ShellKey.CapitalM or ShellKey.CapitalB, AccountScreen { IsOwnAccount: true }) => Verb.None,
         (ShellKey.CapitalF, _) => Verb.Follow,
         (ShellKey.CapitalM, _) => Verb.Mute,
         (ShellKey.CapitalB, _) => Verb.Block,

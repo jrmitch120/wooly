@@ -92,10 +92,7 @@ public sealed class AccountScreen : Screen
             new KeyHint("j/k", "post"),
             [
                 .. Jumping,
-                .. IsOwnAccount ? [EditingThePublicProfile] : Array.Empty<KeyHint>(),
-                new KeyHint("F", Says(Follows, "unfollow", "follow")),
-                new KeyHint("M", Says(Account.Standing?.Muting, "unmute", "mute")),
-                new KeyHint("B", Says(Account.Standing?.Blocking, "unblock", "block")),
+                .. IsOwnAccount ? [EditingThePublicProfile] : Ties,
                 new KeyHint("w", "follows"),
                 new KeyHint("s", WithReplies ? "posts" : "posts and replies"),
                 Refreshing,
@@ -103,9 +100,19 @@ public sealed class AccountScreen : Screen
             new KeyHint("esc", "back"));
 
     /// <summary>
-    ///     <c>E</c>, offered only on the own account and ahead of the ties, since it is the one thing on this screen that
-    ///     is the reader's alone to do (#406). In ADR-0028's words, which say "public profile" and never a bare
-    ///     "profile", the word the local entry has.
+    ///     The three tie keys, offered on anybody's account but the own one, which cannot follow, mute or block itself.
+    /// </summary>
+    private KeyHint[] Ties =>
+    [
+        new("F", Says(Follows, "unfollow", "follow")),
+        new("M", Says(Account.Standing?.Muting, "unmute", "mute")),
+        new("B", Says(Account.Standing?.Blocking, "unblock", "block")),
+    ];
+
+    /// <summary>
+    ///     <c>E</c>, offered only on the own account and in place of the ties, which an account cannot have with itself
+    ///     (#406). In ADR-0028's words, which say "public profile" and never a bare "profile", the word the local entry
+    ///     has.
     /// </summary>
     private static KeyHint EditingThePublicProfile { get; } = new("E", "edit public profile");
 
@@ -266,7 +273,7 @@ public sealed class AccountScreen : Screen
         var pinned = Pins;
 
         var lines = new List<Line>(_walking.HeaderRows(
-            (account, at, room) => AccountLines.Header(account, Familiar, drawing.In(room), ReferenceOn(at)),
+            (account, at, room) => AccountLines.Header(account, Familiar, drawing.In(room), ReferenceOn(at), IsOwnAccount),
             width));
 
         if (!Asked)
