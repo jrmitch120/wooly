@@ -371,7 +371,8 @@ public sealed class PublicProfileScreen : Screen, IDraft
         var pictureRows = raster?.Cell is not null ? PublicProfilePictures.Rows : 1;
         var inner = Math.Max(0, width - (Pad * 2));
 
-        var others = 1 + 1 + 1 + (pictureRows * PublicProfilePicture.Both.Count) + 1 + FieldRows + 1
+        var pictureGap = raster?.Cell is not null ? 1 : 0;
+        var others = 1 + 1 + 1 + (pictureRows * PublicProfilePicture.Both.Count) + pictureGap + 1 + FieldRows + 1
             + PublicProfileToggle.All.Count + 1 + 1 + 1 + 1;
         var bioRows = height is { } tall ? Math.Max(tall - others, LeastBioRows) : BioRowsUnmeasured;
 
@@ -387,6 +388,12 @@ public sealed class PublicProfileScreen : Screen, IDraft
 
         foreach (var picture in PublicProfilePicture.Both)
         {
+            // Drawn pictures are a row apart, so the avatar's box does not run into the header's.
+            if (picture != PublicProfilePicture.Both[0] && pictureGap > 0)
+            {
+                rows.Add(Line.Blank);
+            }
+
             Place(new PublicProfileStop(picture.Part), new Rectangle(at, rows.Count, room, pictureRows));
             rows.AddRange(Pictured(picture, at, width, pictureRows, raster, pictures));
         }

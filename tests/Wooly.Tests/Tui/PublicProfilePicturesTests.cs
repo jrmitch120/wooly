@@ -255,6 +255,22 @@ public class PublicProfilePicturesTests : IDisposable
     }
 
     /// <summary>
+    ///     On a terminal that draws, a blank row parts the avatar's box from the header's, so the two pictures do not
+    ///     run into each other.
+    /// </summary>
+    [Fact]
+    public async Task OnATerminalThatDraws_ABlankRowPartsTheAvatarFromTheHeader()
+    {
+        var (_, _, form) = await Editing();
+
+        var lines = Lines(form, new FakePictures());
+        var header = lines.ToList().IndexOf(Row(lines, "Header"));
+
+        Assert.Equal(string.Empty, lines[header - 1].Text.Trim());
+        Assert.NotEqual(string.Empty, lines[header - 2].Text.Trim());
+    }
+
+    /// <summary>
     ///     A new avatar saved is the one <b>You</b> draws once it reads again — never the old picture still held from
     ///     before the save, which is the same account's under the same handle (review of #403).
     /// </summary>
