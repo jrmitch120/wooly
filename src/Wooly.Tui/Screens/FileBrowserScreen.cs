@@ -65,6 +65,12 @@ public sealed class FileBrowserScreen : Screen
     /// <summary>How many more the post has room for, which is as many as may be chosen.</summary>
     private readonly int _room;
 
+    /// <summary>
+    ///     The public profile's picture the one file is chosen to be, where the browser was opened from the edit public
+    ///     profile form (#407), or <see langword="null" /> where it attaches to a post.
+    /// </summary>
+    private readonly PublicProfilePicture? _picture;
+
     /// <summary>What is chosen, in the order it was chosen, which is the order it is attached in.</summary>
     private readonly List<string> _chosen = [];
 
@@ -81,13 +87,44 @@ public sealed class FileBrowserScreen : Screen
     /// <param name="limits">What the instance accepts.</param>
     /// <param name="room">How many more the post has room for.</param>
     public FileBrowserScreen(FolderListing listing, PostLimits limits, int room)
+        : this(listing, limits, room, picture: null)
+    {
+    }
+
+    private FileBrowserScreen(FolderListing listing, PostLimits limits, int room, PublicProfilePicture? picture)
     {
         _limits = limits;
         _room = room;
+        _picture = picture;
         _listing = listing;
 
         Show(listing);
     }
+
+    /// <summary>
+    ///     The browser opened from the edit public profile form's avatar or header (#407): it lists only pictures, never
+    ///     every file, and only one of them may be chosen — a picture being all either row takes.
+    /// </summary>
+    /// <param name="listing">The folder it opens in, as the shell read it.</param>
+    /// <param name="picture">Which of the public profile's pictures the file chosen is to be.</param>
+    public static FileBrowserScreen ForAPicture(FolderListing listing, PublicProfilePicture picture) =>
+        new(listing, Pictures, room: 1, picture);
+
+    /// <summary>
+    ///     What a public profile's picture may be (#407): one of the pictures Mastodon takes, and only one — what the
+    ///     browser opened for one lists, and what a paste of copied files takes.
+    /// </summary>
+    public static PostLimits Pictures { get; } = PostLimits.Default with
+    {
+        Attachments = 1,
+        MediaTypes = [.. AttachmentTypes.Mastodon.Where(type => type.StartsWith("image/", StringComparison.Ordinal))],
+    };
+
+    /// <summary>
+    ///     The public profile's picture the file chosen here is to be, or <see langword="null" /> where it attaches to a
+    ///     post (#407).
+    /// </summary>
+    public PublicProfilePicture? Picture => _picture;
 
     /// <summary>The folder being shown.</summary>
     public string Folder => _listing.Path;
@@ -108,7 +145,7 @@ public sealed class FileBrowserScreen : Screen
     public bool EveryFile { get; private set; }
 
     /// <inheritdoc />
-    public override string Crumb => "Attach";
+    public override string Crumb => _picture is null ? "Attach" : $"Choose {_picture.Label.ToLowerInvariant()}";
 
     /// <inheritdoc />
     /// <remarks>Always: every letter is the filter's, and space is the choosing.</remarks>
@@ -120,14 +157,14 @@ public sealed class FileBrowserScreen : Screen
     /// <inheritdoc />
     /// <remarks>
     ///     None of them needs a pick (#195): the list always holds <c>..</c> to stand on, but at the very root of the
-    ///     disk.
+    ///     disk. Choosing a picture, <c>⏎</c> uses it rather than attaching it, and there is no every file to show (#407).
     /// </remarks>
     protected override IReadOnlyList<KeyHint> OwnKeys =>
     [
         new("space", "choose"),
-        new("⏎", "attach"),
+        new("⏎", _picture is null ? "attach" : "use"),
         new("←→", "folder"),
-        new("ctrl-a", EveryFile ? "accepted only" : "every file"),
+        .. _picture is null ? [new KeyHint("ctrl-a", EveryFile ? "accepted only" : "every file")] : Array.Empty<KeyHint>(),
         new("esc", Filter.Length > 0 ? "clear" : "back"),
     ];
 
@@ -174,7 +211,7 @@ public sealed class FileBrowserScreen : Screen
 
                 break;
 
-            case Verb.EveryFile:
+            case Verb.EveryFile when _picture is null:
                 EveryFile = !EveryFile;
                 Listed();
 
@@ -328,9 +365,13 @@ public sealed class FileBrowserScreen : Screen
     }
 
     /// <summary>How many are chosen and how many more fit, or how many fit where none are chosen yet.</summary>
-    private string Counted => _chosen.Count > 0
-        ? $"{_chosen.Count} chosen · {_room - _chosen.Count} more fit"
-        : $"{_room} more fit on this post";
+    private string Counted => (_chosen.Count, _picture) switch
+    {
+        ( > 0, null) => $"{_chosen.Count} chosen · {_room - _chosen.Count} more fit",
+        (_, null) => $"{_room} more fit on this post",
+        ( > 0, _) => "chosen",
+        (_, { } picture) => $"one picture, for your {picture.Label.ToLowerInvariant()}",
+    };
 
     /// <summary>The filter as typed, with a caret, or what typing does where nothing has been.</summary>
     private Span[] FilterSpans() => Filter.Length > 0
@@ -375,6 +416,12 @@ public sealed class FileBrowserScreen : Screen
             .Where(said => said.Kinds.Any(kinds.Contains))
             .Select(said => said.Word);
         var listed = EveryFile ? "every file" : string.Join(", ", words);
+
+        // A picture is all there is to choose from the public profile form, so there is no every file to show.
+        if (_picture is not null)
+        {
+            return new Span(listed, Role.Muted);
+        }
 
         return new Span(shortly ? key : $"{listed} · {key}", Role.Muted) { Item = (int)Part.EveryFile };
     }

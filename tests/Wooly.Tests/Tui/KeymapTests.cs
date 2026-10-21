@@ -296,6 +296,44 @@ public class KeymapTests
     public void TheFileBrowserAnswersToItsOwnKeys(string key, Verb verb) =>
         Assert.Equal(verb, Means(key, Browser()));
 
+    /// <summary>
+    ///     What the edit public profile form answers to: the arrows walk its own fields rather than compose's, and on
+    ///     the avatar or the header <c>⏎</c> chooses a picture and <c>ctrl-v</c>/<c>alt-v</c> paste one — each a verb
+    ///     of its own, so that nothing past here asks which screen it is on (review of #403).
+    /// </summary>
+    [Theory]
+    [InlineData(PublicProfilePart.DisplayName, "↑", Verb.PreviousPublicProfileField)]
+    [InlineData(PublicProfilePart.DisplayName, "↓", Verb.NextPublicProfileField)]
+    [InlineData(PublicProfilePart.DisplayName, "ctrl-s", Verb.SavePublicProfile)]
+    [InlineData(PublicProfilePart.Bot, " ", Verb.FlipToggle)]
+    [InlineData(PublicProfilePart.Bot, "⏎", Verb.FlipToggle)]
+    [InlineData(PublicProfilePart.Avatar, "⏎", Verb.ChoosePicture)]
+    [InlineData(PublicProfilePart.Header, "ctrl-v", Verb.PastePicture)]
+    [InlineData(PublicProfilePart.Header, "alt-v", Verb.PastePicture)]
+    [InlineData(PublicProfilePart.DisplayName, "ctrl-v", Verb.None)]
+    public void TheEditPublicProfileFormAnswersToItsOwnKeys(PublicProfilePart walkedTo, string key, Verb verb)
+    {
+        var form = new PublicProfileScreen(APublicProfile.With());
+
+        form.TypeInto(new PublicProfileStop(walkedTo));
+
+        Assert.Equal(verb, Means(key, form));
+    }
+
+    /// <summary>
+    ///     <c>⏎</c> in the file browser opened for a picture uses the picture rather than attaching it to a post (#407,
+    ///     review of #403).
+    /// </summary>
+    [Fact]
+    public void EnterInTheFileBrowserForAPicture_UsesIt() =>
+        Assert.Equal(
+            Verb.UsePicture,
+            Means(
+                "⏎",
+                FileBrowserScreen.ForAPicture(
+                    new FolderListing(Path.GetTempPath(), "/tmp", Up: null, []),
+                    PublicProfilePicture.Avatar)));
+
     /// <summary>A space means nothing anywhere else, where it is a letter or nothing.</summary>
     [Fact]
     public void ASpaceMeansNothingOffTheFileBrowser()
@@ -420,6 +458,8 @@ public class KeymapTests
         "ctrl-q" => Key.Q.WithCtrl,
         "ctrl-s" => Key.S.WithCtrl,
         "ctrl-w" => Key.W.WithCtrl,
+        "ctrl-v" => Key.V.WithCtrl,
+        "alt-v" => Key.V.WithAlt,
         "↑" => Key.CursorUp,
         "↓" => Key.CursorDown,
         "←" => Key.CursorLeft,

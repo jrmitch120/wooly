@@ -219,11 +219,17 @@ public sealed class Arrival(
     ///     about the drawing thread, and it is said there — by the event that puts it up — rather than carried back
     ///     across the await to a caller that would read it too early.
     /// </remarks>
-    public Task Again(Subject subject)
+    /// <param name="subject">What is read again.</param>
+    /// <param name="landed">
+    ///     What is done once the fresh copy is up, on the drawing thread — which is how something said about why it was
+    ///     read again outlasts the fresh copy taking down whatever was said over the old one (#406). Never done where
+    ///     it never lands.
+    /// </param>
+    public Task Again(Subject subject, Action? landed = null)
     {
         cache.Forget(subject);
 
-        return Bring(subject, Move.Refresh);
+        return Bring(subject, Move.Refresh, landed: landed);
     }
 
     /// <summary>
@@ -314,6 +320,13 @@ public sealed class Arrival(
                 Moves?.Invoke(DestinationKind.Messages, -1);
 
                 break;
+
+            // Wherever the own account is held — a follow list it is on, a list carrying a post it wrote or boosted, whose
+            // byline says its name and draws its avatar — it is held as it was before the save (#406).
+            case Change.PublicProfileSaved(var account):
+                cache.Forget(held => held.HoldsAccount(account.Id) || held.HoldsPostsBy(account.Address));
+
+                break;
         }
 
         Heard?.Invoke(change);
@@ -330,7 +343,13 @@ public sealed class Arrival(
     /// <param name="move">How, which settles where it goes.</param>
     /// <param name="blank">What stands for it where the subject has no placeholder of its own and one is owed.</param>
     /// <param name="beneath">What is done to the screen showing as the first screen for the subject goes up.</param>
-    private Task Bring(Subject subject, Move move, Screen? blank = null, Action? beneath = null)
+    /// <param name="landed">What is done once what was read is up (<see cref="Again" />).</param>
+    private Task Bring(
+        Subject subject,
+        Move move,
+        Screen? blank = null,
+        Action? beneath = null,
+        Action? landed = null)
     {
         var standing = subject.Placeholder(move, profile) ?? blank;
 
@@ -345,15 +364,21 @@ public sealed class Arrival(
         {
             beneath?.Invoke();
             Land(subject, move, standing, held);
+            landed?.Invoke();
 
             return Task.CompletedTask;
         }
 
-        return Read(subject, move, standing, beneath);
+        return Read(subject, move, standing, beneath, landed);
     }
 
     /// <summary>Asks for it, and lands what came back while the screen it was asked from is still in front.</summary>
-    private async Task Read(Subject subject, Move move, Screen? standing, Action? beneath = null)
+    private async Task Read(
+        Subject subject,
+        Move move,
+        Screen? standing,
+        Action? beneath = null,
+        Action? landed = null)
     {
         DestinationKind? listing = move != Move.Page && subject is Subject.Destination { Kind: var kind } ? kind : null;
 
@@ -376,6 +401,8 @@ public sealed class Arrival(
                     {
                         cache.Keep(subject, held);
                     }
+
+                    landed?.Invoke();
 
                     if (found.ReadsOn(screen))
                     {

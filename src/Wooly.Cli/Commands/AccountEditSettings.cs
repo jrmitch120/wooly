@@ -23,6 +23,14 @@ internal sealed class AccountEditSettings : ProfileScopedSettings
     [Description("What you say about yourself. --bio=- reads it from stdin; --bio \"\" removes it.")]
     public string? Bio { get; init; }
 
+    [CommandOption("--avatar <FILE>")]
+    [Description("A picture to show as your avatar. The instance says which sizes and types it takes.")]
+    public string? Avatar { get; init; }
+
+    [CommandOption("--header <FILE>")]
+    [Description("A picture to show across the top of your public profile. The instance says which it takes.")]
+    public string? Header { get; init; }
+
     [CommandOption("--locked <BOOL>")]
     [Description("true to approve followers by hand, false to let anyone follow.")]
     public bool? Locked { get; init; }
@@ -59,6 +67,8 @@ internal sealed class AccountEditSettings : ProfileScopedSettings
         IsLocked = Locked,
         IsBot = Bot,
         IsDiscoverable = Discoverable,
+        Avatar = Avatar,
+        Header = Header,
     };
 
     public override ValidationResult Validate()
@@ -85,13 +95,25 @@ internal sealed class AccountEditSettings : ProfileScopedSettings
             return ValidationResult.Error($"'{malformed}' is not a field: write it as 'Name=Value'.");
         }
 
+        // Here rather than left to the save, which would find it only after the public profile had been read. Nothing
+        // else about a picture is judged: its size and type are the instance's to refuse (ADR-0028).
+        if ((Missing("--avatar", Avatar) ?? Missing("--header", Header)) is { } missing)
+        {
+            return ValidationResult.Error(missing);
+        }
+
         // Last, once every --field is known to divide. Stdin is not read to find out: a bio to be piped in is a bio
         // asked for, whatever arrives.
         return ToChange(piped: () => FromStandardInput).IsEmpty
             ? ValidationResult.Error(
-                "Say what to change: --display-name, --bio, --locked, --bot, --discoverable, --field or --clear-fields.")
+                "Say what to change: --display-name, --bio, --avatar, --header, --locked, --bot, --discoverable, " +
+                "--field or --clear-fields.")
             : ValidationResult.Success();
     }
+
+    /// <summary>What is wrong with the picture <paramref name="option" /> names, or nothing where it is there to send.</summary>
+    private static string? Missing(string option, string? picture) =>
+        picture is null || File.Exists(picture) ? null : $"There is no file at '{picture}' for {option}.";
 
     /// <summary>One <c>--field</c>, divided at its first <c>=</c>, since a value may be an address carrying its own.</summary>
     private static PublicProfileField ToField(string field)

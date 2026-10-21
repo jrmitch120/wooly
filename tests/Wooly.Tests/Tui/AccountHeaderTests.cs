@@ -317,7 +317,7 @@ public class AccountHeaderTests
         Assert.Equal(8, inset.Columns);
         Assert.Equal(4, inset.Rows);
         Assert.Equal(0, inset.Column);
-        Assert.Equal("avatar:alice@hachyderm.io", lines[0].Wants?.Id);
+        Assert.Equal(Drawn.Avatar("alice@hachyderm.io", "https://hachyderm.io/avatars/alice.png"), lines[0].Wants);
 
         Assert.All(lines.Take(4), line => Assert.StartsWith("          ", line.Text));
         Assert.All(lines.Skip(1).Take(3), line => Assert.Empty(line.Insets));
@@ -333,7 +333,7 @@ public class AccountHeaderTests
         var lines = Header(Bare(), pictures: new FakePictures());
 
         Assert.Empty(lines[0].Insets);
-        Assert.Equal("avatar:alice@hachyderm.io", lines[0].Wants?.Id);
+        Assert.Equal(Drawn.Avatar("alice@hachyderm.io", "https://hachyderm.io/avatars/alice.png"), lines[0].Wants);
         Assert.StartsWith("░░░░░░░░  Alice", lines[0].Text);
     }
 

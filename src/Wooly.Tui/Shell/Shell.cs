@@ -637,6 +637,14 @@ public sealed class Shell
         Verb.ToggleSensitive => Ran(ToggleSensitive),
         Verb.Describe => Ran(Describe),
         Verb.ListAttachments => Ran(ListAttachments),
+        Verb.EditPublicProfile => Ran(EditPublicProfile),
+        Verb.FlipToggle => Ran(() => _ = ChangePublicProfile(form => form.Flip())),
+        Verb.SavePublicProfile => Ran(SavePublicProfile),
+        Verb.PreviousPublicProfileField => Ran(() => _ = ChangePublicProfile(form => form.Walk(-1))),
+        Verb.NextPublicProfileField => Ran(() => _ = ChangePublicProfile(form => form.Walk(1))),
+        Verb.ChoosePicture => Ran(ChoosePicture),
+        Verb.PastePicture => Ran(PastePicture),
+        Verb.UsePicture => Ran(UsePicture),
 
         // Nothing, and the terminal's own — which the window has already taken, and which no screen answers either.
         Verb.None => false,
@@ -1290,6 +1298,54 @@ public sealed class Shell
         }
     }
 
+    /// <summary>
+    ///     <c>ctrl-v</c> or <c>alt-v</c> on the edit public profile form's avatar or header (#407): a picture on the
+    ///     clipboard is written to a file of its own and taken as that picture, and of copied files the first that is a
+    ///     picture is. Sent with the rest of the form when it is saved, and not before (ADR-0028).
+    /// </summary>
+    /// <remarks>
+    ///     There is no text to paste on either row, so whatever else the clipboard holds is said on the status row, every
+    ///     time, rather than left to a field's own paste as on compose.
+    /// </remarks>
+    public void PastePicture()
+    {
+        if (Screen is not PublicProfileScreen { Typing.IsAPicture: true })
+        {
+            return;
+        }
+
+        switch (_clipboard.Read())
+        {
+            case Clipped.Picture(var png):
+                var pasted = _pasted.Keep(png);
+
+                _ = ChangePublicProfile(form => form.Pick(pasted));
+
+                break;
+
+            case Clipped.Files(var paths)
+                when paths.FirstOrDefault(path => File.Exists(path) && FileBrowserScreen.Pictures.Accepts(path)) is { } picture:
+                _ = ChangePublicProfile(form => form.Pick(picture));
+
+                break;
+
+            case Clipped.Files:
+                Say("None of the copied files is a picture.", isError: true);
+
+                break;
+
+            case Clipped.NoTool(var why):
+                Say(why, isError: false);
+
+                break;
+
+            default:
+                Say("There is no picture on the clipboard.", isError: false);
+
+                break;
+        }
+    }
+
     /// <summary>Takes the last letter back out of it.</summary>
     public void Backspace()
     {
@@ -1318,13 +1374,28 @@ public sealed class Shell
     /// <returns>What the change was, or nothing where compose is not on top and no change was made.</returns>
     public ComposeChange ChangeCompose(Func<ComposeScreen, ComposeChange> change)
     {
-        if (InFront is not { } compose)
-        {
-            return ComposeChange.None;
-        }
+        return InFront is { } compose ? Settled(change(compose)) : ComposeChange.None;
+    }
 
-        var made = change(compose);
+    /// <summary>
+    ///     Makes <paramref name="change" /> to the edit public profile form on top — every change to it comes in here,
+    ///     from its fields and its keys — by the rule <see cref="ChangeCompose" /> keeps for a draft (#364): an edit
+    ///     spends a notice said over the form, a refusal among them, and anything but no change at all is announced.
+    /// </summary>
+    /// <returns>What the change was, or nothing where the form is not on top and no change was made.</returns>
+    public ComposeChange ChangePublicProfile(Func<PublicProfileScreen, ComposeChange> change)
+    {
+        return Screen is PublicProfileScreen form ? Settled(change(form)) : ComposeChange.None;
+    }
 
+    /// <summary>
+    ///     What follows from <paramref name="made" />, a change to a draft, by the one rule both kinds of draft keep
+    ///     (#364): an edit spends a notice said over it, and anything but no change at all is announced so the screen is
+    ///     drawn again.
+    /// </summary>
+    /// <returns><paramref name="made" />.</returns>
+    private ComposeChange Settled(ComposeChange made)
+    {
         if (made == ComposeChange.Edited && Notice is not null)
         {
             // Saying nothing announces the change itself.
@@ -1535,6 +1606,81 @@ public sealed class Shell
 
     /// <summary>Opens an editor on one of the profile's own posts.</summary>
     public void Edit() => Compose(ComposeFor.Edit);
+
+    /// <summary>
+    ///     Reads the own account's public profile as written and puts the form that edits it up over the account it
+    ///     was asked from (#406). Read fresh every time, and never prefilled from the account on screen, whose bio is the
+    ///     flattened one (ADR-0028); a read that fails opens nothing, and the status row says why.
+    /// </summary>
+    public async Task EditPublicProfile()
+    {
+        if (Screen is not AccountScreen { IsOwnAccount: true })
+        {
+            return;
+        }
+
+        // Taken now rather than read when the call is made, which a rate-limit wait can put after a switch (#243).
+        var profile = Actor.Profile;
+
+        await _enquiry.Put(
+            ask => ask.Of(token => _ports.PublicProfile.Read(profile, token)),
+            ifStillHere: read => Push(new PublicProfileScreen(read) { Limits = _limits.For(profile) }));
+    }
+
+    /// <summary>
+    ///     <c>ctrl-s</c> on the edit public profile form: sends what the form says changed and nothing else
+    ///     (<see cref="PublicProfileScreen.Outgoing" />, ADR-0028), then takes the form off, says so, and reports the
+    ///     public profile saved so that whatever shows the account reads it again.
+    /// </summary>
+    /// <remarks>
+    ///     Nothing is refused before it is sent: the limits are the instance's (ADR-0028). A refusal leaves the form as
+    ///     it is, every edit in it, and the status row says why in the instance's words — the enquiry's, as every
+    ///     failure is — until an edit spends it (<see cref="ChangePublicProfile" />).
+    /// </remarks>
+    public async Task SavePublicProfile()
+    {
+        if (Screen is not PublicProfileScreen form)
+        {
+            return;
+        }
+
+        var change = form.Outgoing;
+
+        if (change.IsEmpty)
+        {
+            Say("Nothing has changed to save.", isError: false);
+
+            return;
+        }
+
+        // Taken now rather than read when the call is made, which a rate-limit wait can put after a switch (#243).
+        var profile = Actor.Profile;
+
+        const string Saved = "Public profile saved.";
+
+        await _enquiry.Put(
+            ask => ask.Of(token => _ports.PublicProfile.Save(profile, change, token)),
+            eitherWay: saved =>
+            {
+                // Off the stack only where it is still on top: a form thrown away while the save was on its way has
+                // gone already, and what is on top now is somewhere else the reader went.
+                if (ReferenceEquals(Screen, form))
+                {
+                    Leave(_stack.Count - 1);
+                }
+
+                Tell(new Change.PublicProfileSaved(saved));
+                Say(Saved, isError: false);
+
+                // The account the form was opened over, read again rather than patched with what the save answered:
+                // its posts carry the display name too, and an account screen is one reading (#84, #229). Said again
+                // once it lands, since a fresh copy takes down what was said over the old one.
+                if (Screen is AccountScreen { IsOwnAccount: true, Subject: { } account })
+                {
+                    _ = Actor.Arrival.Again(account, landed: () => Say(Saved, isError: false));
+                }
+            });
+    }
 
     /// <summary>
     ///     Asks before taking a post down. The one thing here whose effect running something else does not undo, so
@@ -2346,10 +2492,26 @@ public sealed class Shell
             return;
         }
 
-        var folder = _lastFolder is { } last && Directory.Exists(last) ? last : _launchedFrom;
-
-        Push(new FileBrowserScreen(LocalFiles.Listing(folder), compose.Limits, compose.Media.Room));
+        Push(new FileBrowserScreen(LocalFiles.Listing(BrowsingFrom), compose.Limits, compose.Media.Room));
     }
+
+    /// <summary>
+    ///     <c>⏎</c> or a click on the edit public profile form's avatar or header (#407): pushes the file browser over it
+    ///     for that one picture, in the folder <see cref="Browse" /> would open in.
+    /// </summary>
+    public void ChoosePicture()
+    {
+        if (Screen is PublicProfileScreen form && PublicProfilePicture.Of(form.Typing.Part) is { } picture)
+        {
+            Push(FileBrowserScreen.ForAPicture(LocalFiles.Listing(BrowsingFrom), picture));
+        }
+    }
+
+    /// <summary>
+    ///     Where the file browser opens: the folder last attached or chosen from this session or, the first time, the one
+    ///     Wooly was launched from (#376).
+    /// </summary>
+    private string BrowsingFrom => _lastFolder is { } last && Directory.Exists(last) ? last : _launchedFrom;
 
     /// <summary>
     ///     <c>→</c>, <c>←</c> or <c>⏎</c> in the file browser: the folder <paramref name="going" /> says, read off the disk
@@ -2398,6 +2560,34 @@ public sealed class Shell
 
         Pop();
         Attach(compose, chosen);
+    }
+
+    /// <summary>
+    ///     <c>⏎</c> in the file browser opened for one of the edit public profile form's pictures (#407): the browser
+    ///     goes and the file chosen — or, with none chosen, the one under the cursor — is the picture the form's walk is
+    ///     on, sent when the form is saved and not before (ADR-0028). With neither, the folder under the cursor opens,
+    ///     as <see cref="AttachChosen" /> does.
+    /// </summary>
+    public void UsePicture()
+    {
+        if (Screen is not FileBrowserScreen { Picture: not null } browser)
+        {
+            return;
+        }
+
+        var chosen = browser.Take();
+
+        if (chosen.Count == 0)
+        {
+            Browse(opening => opening.FolderPicked);
+
+            return;
+        }
+
+        _lastFolder = browser.Folder;
+
+        Pop();
+        _ = ChangePublicProfile(form => form.Pick(chosen[0]));
     }
 
     /// <summary>
@@ -2617,15 +2807,25 @@ public sealed class Shell
 
     /// <summary>
     ///     An instance said how long it lets a post be, which a compose on that instance still in front is measured
-    ///     against from now on.
+    ///     against from now on — and how long it lets a bio be, which the edit public profile form's count is.
     /// </summary>
     private void Measured(string instance, PostLimits limits)
     {
-        if (Screen is ComposeScreen compose
-            && string.Equals(_acting?.Profile.Instance, instance, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(_acting?.Profile.Instance, instance, StringComparison.OrdinalIgnoreCase))
         {
-            compose.Limits = limits;
-            Changed?.Invoke();
+            return;
+        }
+
+        switch (Screen)
+        {
+            case ComposeScreen compose:
+                compose.Limits = limits;
+                Changed?.Invoke();
+                break;
+            case PublicProfileScreen form:
+                form.Limits = limits;
+                Changed?.Invoke();
+                break;
         }
     }
 
@@ -2736,28 +2936,30 @@ public sealed class Shell
 
     /// <summary>
     ///     Goes ahead with <paramref name="leave" />, a way out that takes every screen above the first
-    ///     <paramref name="keeping" /> off the stack — or, where a compose screen among those is touched
-    ///     (<see cref="ComposeScreen.Touched" />), asks first, on the confirmation row, and goes ahead only once agreed
-    ///     (#373). Every way out of a compose screen comes through here, so that none of them loses what was written
-    ///     without a word.
+    ///     <paramref name="keeping" /> off the stack — or, where a draft among those is touched
+    ///     (<see cref="IDraft.Touched" />), asks first, on the confirmation row, and goes ahead only once agreed
+    ///     (#373). Every way out of a compose screen or the edit public profile form comes through here, so that none of
+    ///     them loses what was written without a word (#406).
     /// </summary>
     /// <param name="keeping">How many screens at the bottom of the stack the way out leaves standing.</param>
     /// <param name="leave">The way out.</param>
     private void Leaving(int keeping, Action leave)
     {
-        if (!_stack.Skip(keeping).OfType<ComposeScreen>().Any(compose => compose.Touched))
+        if (_stack.Skip(keeping).OfType<IDraft>().FirstOrDefault(draft => draft.Touched) is not { } touched)
         {
             leave();
 
             return;
         }
 
-        Confirm(Confirmation.Discarding(() =>
-        {
-            leave();
+        Confirm(Confirmation.Discarding(
+            () =>
+            {
+                leave();
 
-            return Task.CompletedTask;
-        }));
+                return Task.CompletedTask;
+            },
+            touched.Discarding));
     }
 
     /// <summary>Takes the screen on top off, which is what <c>esc</c> does once nothing inside it is left to let go.</summary>
@@ -2772,14 +2974,15 @@ public sealed class Shell
     }
 
     /// <summary>
-    ///     Takes every compose screen off the stack and everything above it, for a way out that leaves the stack to
-    ///     something else to settle — a destination arrived at, a screen pushed over it — and must not leave a draft
-    ///     standing under that in the meantime. Nothing where there is none.
+    ///     Takes every draft off the stack — a compose screen, the edit public profile form (<see cref="IDraft" />) — and
+    ///     everything above it, for a way out that leaves the stack to something else to settle — a destination arrived
+    ///     at, a screen pushed over it — and must not leave a draft standing under that in the meantime. Nothing where
+    ///     there is none.
     /// </summary>
     /// <returns>Whether there was a draft to take off.</returns>
     private bool DropDrafts()
     {
-        var at = _stack.FindIndex(screen => screen is ComposeScreen);
+        var at = _stack.FindIndex(screen => screen is IDraft);
 
         if (at < 1)
         {

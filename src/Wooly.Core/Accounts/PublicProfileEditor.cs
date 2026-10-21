@@ -1,9 +1,11 @@
 using System.Globalization;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Wooly.Core.Errors;
 using Wooly.Core.Http;
+using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
 using WireAccount = Mastonet.Entities.Account;
 
@@ -17,7 +19,7 @@ namespace Wooly.Core.Accounts;
 ///         <c>source</c> fields to read the bio as written from, and its <c>UpdateCredentials</c> cannot send
 ///         <c>bot</c> — and a save split into Mastonet's call and a second one of this client's own for that one flag
 ///         could be half taken, the name saved and the flag refused. One call is all or nothing, and says a refusal
-///         in the instance's own words. The pictures, which go in the same request (ADR-0028), will join it there.
+///         in the instance's own words. The pictures go in the same request (ADR-0028, #405), which is then multipart.
 ///     </para>
 /// </summary>
 public sealed class PublicProfileEditor(IHttpClientFactory httpClientFactory) : IPublicProfileEditor
@@ -64,17 +66,87 @@ public sealed class PublicProfileEditor(IHttpClientFactory httpClientFactory) : 
         PublicProfileChange change,
         CancellationToken cancellationToken)
     {
+        // Before anything is sent: a picture found missing once the request is under way would cost a save half made.
+        foreach (var (_, path) in Pictures(change))
+        {
+            if (!File.Exists(path))
+            {
+                throw new PictureNotFoundException(path);
+            }
+        }
+
         using var response = await RawMastodonCall.Sent(
             httpClientFactory,
             profile,
             HttpMethod.Patch,
             "api/v1/accounts/update_credentials",
-            new FormUrlEncodedContent(Sent(change)),
+            Content(change),
             cancellationToken);
 
         var body = await Answered(profile, response, PublicProfileRefusedException.Saving, cancellationToken);
 
         return AccountWire.ToAccount(Account(body), profile.Instance);
+    }
+
+    /// <summary>
+    ///     <paramref name="change" /> as the request carries it: the small form every save without a picture has always
+    ///     gone as, and multipart where a picture has to go beside the rest. Each file is opened here and closed with the
+    ///     request, so a save that fails part way leaves no file held open behind it.
+    /// </summary>
+    private static HttpContent Content(PublicProfileChange change)
+    {
+        var pictures = Pictures(change).ToList();
+
+        if (pictures.Count == 0)
+        {
+            return new FormUrlEncodedContent(Sent(change));
+        }
+
+        var content = new MultipartFormDataContent();
+
+        try
+        {
+            foreach (var (name, value) in Sent(change))
+            {
+                content.Add(new StringContent(value), name);
+            }
+
+            foreach (var (name, path) in pictures)
+            {
+                var file = new StreamContent(File.OpenRead(path));
+
+                // Typed by the file's own name where this knows it, and otherwise left for the instance to make out:
+                // which types it takes is its to say (ADR-0028).
+                if (AttachmentTypes.Of(path) is { } type)
+                {
+                    file.Headers.ContentType = new MediaTypeHeaderValue(type);
+                }
+
+                content.Add(file, name, Path.GetFileName(path));
+            }
+
+            return content;
+        }
+        catch
+        {
+            content.Dispose();
+
+            throw;
+        }
+    }
+
+    /// <summary>The pictures <paramref name="change" /> sends, by the name the endpoint takes each under, and its file.</summary>
+    private static IEnumerable<(string Name, string Path)> Pictures(PublicProfileChange change)
+    {
+        if (change.Avatar is { } avatar)
+        {
+            yield return ("avatar", avatar);
+        }
+
+        if (change.Header is { } header)
+        {
+            yield return ("header", header);
+        }
     }
 
     /// <summary>What <paramref name="change" /> names, as the form fields the endpoint takes, and nothing it leaves.</summary>

@@ -94,7 +94,7 @@ public sealed record ComposeFrom(string Handle, string Instance)
 ///     The text itself lives here rather than in the editor widget, so that what is being written is a fact about the
 ///     shell — something a test can set and read — rather than something only a terminal knows.
 /// </remarks>
-public sealed class ComposeScreen : Screen
+public sealed class ComposeScreen : Screen, IDraft
 {
     /// <summary>What To says while it is the account's own default on the instance, which this screen cannot see.</summary>
     private const string AccountDefault = "account default";
@@ -360,6 +360,9 @@ public sealed class ComposeScreen : Screen
         || Visibility != _startingVisibility
         || !string.Equals(Lang.Held, _startingLanguage, StringComparison.Ordinal)
         || Media.Attachments.Count > 0;
+
+    /// <inheritdoc />
+    public string Discarding => "Discard this post?";
 
     /// <summary>
     ///     What is attached, and on an edit what the post already carries, under the Media header (#375, #381): the
@@ -975,7 +978,7 @@ public sealed class ComposeScreen : Screen
     {
         var inner = Math.Max(0, width - (Pad * 2));
         var valueWidth = ValueWidth(width);
-        var hairline = Line.Of(Gap(Pad), new Span(new string('─', inner), Role.PanelBorder));
+        var hairline = ComposeHeaders.Hairline(width);
 
         var to = new Row(Header("To", Role.Muted, [.. ToSpans(valueWidth)]), Keep.Always);
         var lang = new Row(Header("Lang", Role.Muted, LangValue(valueWidth)), Keep.From);
@@ -1194,25 +1197,8 @@ public sealed class ComposeScreen : Screen
         _ => true,
     };
 
-    /// <summary>
-    ///     The count at the foot, right-aligned inside the padding: how much of the post's limit has been used, as the
-    ///     instance will count it (#319) — muted while there is room, in the quota's low colour within the last tenth,
-    ///     and an error's past the limit, so that a reader notices before the instance refuses the post.
-    /// </summary>
-    private Line Count(int width)
-    {
-        var used = PostLength.Of(Text, Warning, Limits);
-        var count = $"{used} / {Limits.Characters}";
-
-        // The most the count can reach and stay muted: past it is the last tenth of the limit.
-        var nearlyFull = Limits.Characters * 9 / 10;
-
-        var role = used > Limits.Characters ? Role.Error
-            : used > nearlyFull ? Role.QuotaLow
-            : Role.Muted;
-
-        return Line.Of(Gap(width - Pad - Glyphs.Columns(count)), new Span(count, role));
-    }
+    /// <summary>The count at the foot: how much of the post's limit has been used, as the instance will count it (#319).</summary>
+    private Line Count(int width) => ComposeHeaders.Count(PostLength.Of(Text, Warning, Limits), Limits.Characters, width);
 
     /// <summary>
     ///     The post this screen publishes: what was written, whatever warning is over it, and the post it answers

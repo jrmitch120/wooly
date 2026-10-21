@@ -89,18 +89,26 @@ public sealed record Inset(Drawn Drawn, int Column, int Columns, int Rows)
     ///     a shape reported wrongly, or the 16:9 guessed where none was, costs a strip of space rather than a jump
     ///     (ADR-0025).
     /// </summary>
+    /// <param name="picture">The pixels to fit.</param>
+    /// <param name="cell">How many pixels one cell is.</param>
+    /// <param name="atTheLeft">
+    ///     Whether the picture goes at the box's left edge rather than centred across it — where boxes stacked one over
+    ///     another are to start in one column, as the edit public profile form's avatar and header do.
+    /// </param>
     /// <returns>
-    ///     The picture's own inset, at <see cref="Column" /> plus how far in it is centred, and how many rows down the
+    ///     The picture's own inset, at <see cref="Column" /> plus how far in it is set, and how many rows down the
     ///     box its top is.
     /// </returns>
-    public (Inset Inset, int Row) Fit(Picture picture, CellSize cell)
+    public (Inset Inset, int Row) Fit(Picture picture, CellSize cell, bool atTheLeft = false)
     {
         if (Sized(Drawn, picture.Width, picture.Height, cell, Columns, Rows) is not { } fitted)
         {
             return (this, 0);
         }
 
-        return (fitted with { Column = Column + ((Columns - fitted.Columns) / 2) }, (Rows - fitted.Rows) / 2);
+        var inFrom = atTheLeft ? 0 : (Columns - fitted.Columns) / 2;
+
+        return (fitted with { Column = Column + inFrom }, (Rows - fitted.Rows) / 2);
     }
 
     /// <summary>

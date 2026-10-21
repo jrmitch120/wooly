@@ -20,6 +20,7 @@ public interface IPublicProfileEditor
     ///     caller holding a whole edited public profile narrows it first, with <see cref="PublicProfileChange.Against" />.
     /// </summary>
     /// <returns>The account as the instance now has it.</returns>
+    /// <exception cref="Errors.PictureNotFoundException">A picture named has no file at it. Nothing was sent.</exception>
     /// <exception cref="Errors.PublicProfileRefusedException">
     ///     The instance turned the change down — longer than it allows, most often — in its own words where it gave any.
     /// </exception>

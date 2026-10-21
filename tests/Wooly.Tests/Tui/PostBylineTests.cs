@@ -109,7 +109,7 @@ public class PostBylineTests
         Assert.Equal(4, box.Columns);
         Assert.Equal(2, box.Rows);
         Assert.Equal(0, box.Column);
-        Assert.Equal("avatar:maria@fosstodon.org", box.Drawn.Id);
+        Assert.Equal(Drawn.Avatar("maria@fosstodon.org", Avatar), box.Drawn);
 
         var name = lines.First(line => line.Has(Role.BylineName));
         var handle = lines.First(line => line.Has(Role.BylineHandle));
@@ -136,7 +136,7 @@ public class PostBylineTests
         var name = lines.First(line => line.Has(Role.BylineName));
 
         Assert.StartsWith("░░░░ ", name.Text, StringComparison.Ordinal);
-        Assert.Equal("avatar:maria@fosstodon.org", name.Wants?.Id);
+        Assert.Equal(Drawn.Avatar("maria@fosstodon.org", Avatar), name.Wants);
     }
 
     /// <summary>
@@ -276,7 +276,7 @@ public class PostBylineTests
             APost.With(account: "jeff@mastodon.social", boosted: By(avatar: Avatar)),
             pictures: new FakePictures().HoldingAvatarOf("maria@fosstodon.org"));
 
-        Assert.Equal("avatar:maria@fosstodon.org", Assert.Single(lines.SelectMany(line => line.Insets)).Drawn.Id);
+        Assert.Equal(Drawn.Avatar("maria@fosstodon.org", Avatar), Assert.Single(lines.SelectMany(line => line.Insets)).Drawn);
     }
 
     /// <summary>

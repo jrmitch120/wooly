@@ -324,7 +324,8 @@ public abstract record Subject
                 [.. posts.Items.Where(post => !pinnedIds.Contains(post.Id))],
                 pins,
                 familiar,
-                WithReplies);
+                WithReplies,
+                profile.SignsInAs(account.Address));
         }
     }
 
@@ -649,5 +650,11 @@ public abstract record Subject
         /// <inheritdoc />
         public override bool HoldsPost(string postId) =>
             Fetch.Items.Any(item => How.Carries(item) is { } post && PostChange.Names(post, postId));
+
+        /// <inheritdoc />
+        public override bool HoldsPostsBy(string account) =>
+            Fetch.Items.Any(item => How.Carries(item) is { } post
+                && new[] { post, post.Boosted }.Any(
+                    by => string.Equals(by?.Account, account, StringComparison.OrdinalIgnoreCase)));
     }
 }

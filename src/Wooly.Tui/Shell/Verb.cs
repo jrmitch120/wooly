@@ -361,4 +361,45 @@ public enum Verb
     ///     the rows into it: push the attachments screen listing them (story 58).
     /// </summary>
     ListAttachments,
+
+    /// <summary>
+    ///     <c>E</c> on the own account's screen, or <c>⏎</c> or a click on its "edit public profile" row: read the public
+    ///     profile as written and put the form that edits it up over the account (#406, ADR-0028).
+    /// </summary>
+    EditPublicProfile,
+
+    /// <summary>
+    ///     <c>space</c> or <c>⏎</c> on one of the form's three toggles — locked, bot, discoverable — or a click on it:
+    ///     flip it (#406).
+    /// </summary>
+    FlipToggle,
+
+    /// <summary><c>ctrl-s</c> on the form: send what changed, and only that (#406, ADR-0028).</summary>
+    SavePublicProfile,
+
+    /// <summary>
+    ///     <c>↑</c> on the form, where the field the typing is in leaves it: move the walk to the place above, stopping at
+    ///     the top (#406).
+    /// </summary>
+    PreviousPublicProfileField,
+
+    /// <summary><c>↓</c> there, likewise: move the walk to the place below, stopping at the bottom (#406).</summary>
+    NextPublicProfileField,
+
+    /// <summary>
+    ///     <c>⏎</c> or a click on the form's avatar or header: push the file browser over it, for that one picture (#407).
+    /// </summary>
+    ChoosePicture,
+
+    /// <summary>
+    ///     <c>ctrl-v</c> or <c>alt-v</c> on the form's avatar or header: take a picture on the clipboard, or the first
+    ///     copied file that is one, as that picture (#407).
+    /// </summary>
+    PastePicture,
+
+    /// <summary>
+    ///     <c>⏎</c> in the file browser opened for one of the form's pictures: open the folder under the cursor, or take
+    ///     the file chosen — or the one under the cursor — back to the form as that picture (#407).
+    /// </summary>
+    UsePicture,
 }

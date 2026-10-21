@@ -14,6 +14,9 @@ internal sealed class FakePictures : IPictures
     private readonly Dictionary<string, Picture> _held = [];
     private readonly List<string> _letGo = [];
 
+    /// <summary>Whose avatars have arrived, wherever the instance serves them from.</summary>
+    private readonly Dictionary<string, Picture> _avatars = [];
+
     /// <summary>Every picture looked up, by id, in order.</summary>
     public List<string> Asked { get; } = [];
 
@@ -39,9 +42,16 @@ internal sealed class FakePictures : IPictures
     public FakePictures HoldingLinkPreview(LinkPreview link, int width, int height) =>
         Drawn.LinkPreview(link) is { } drawn ? Held(drawn.Id, width, height) : this;
 
-    /// <summary>Says that <paramref name="account" />'s avatar has arrived, at the given size in pixels.</summary>
-    public FakePictures HoldingAvatarOf(string account, int width = 96, int height = 96) =>
-        Held(Drawn.Avatar(account, "https://files.mastodon.social/avatars/original.png").Id, width, height);
+    /// <summary>
+    ///     Says that <paramref name="account" />'s avatar has arrived, at the given size in pixels — whichever address it
+    ///     was sent for at, so that a test about the layout need not spell the fixture's.
+    /// </summary>
+    public FakePictures HoldingAvatarOf(string account, int width = 96, int height = 96)
+    {
+        _avatars[account] = new Picture(new Color[width, height]);
+
+        return this;
+    }
 
     /// <summary>
     ///     Says that the picture for the attachment <paramref name="mediaId" /> has arrived as a busy photograph —
@@ -69,7 +79,8 @@ internal sealed class FakePictures : IPictures
     {
         Asked.Add(drawn.Id);
 
-        return _held.GetValueOrDefault(drawn.Id);
+        return _held.GetValueOrDefault(drawn.Id)
+            ?? _avatars.FirstOrDefault(avatar => Drawn.Avatar(avatar.Key, drawn.Address) == drawn).Value;
     }
 
     /// <inheritdoc />

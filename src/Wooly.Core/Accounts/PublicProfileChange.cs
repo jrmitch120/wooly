@@ -27,14 +27,24 @@ public sealed record PublicProfileChange
     /// <summary>Whether to be suggested and listed in the directory, or <see langword="null" /> to leave it.</summary>
     public bool? IsDiscoverable { get; init; }
 
+    /// <summary>
+    ///     The file to show as the avatar, or <see langword="null" /> to leave it. Sent in the save itself, since
+    ///     Mastodon has nowhere to send a picture ahead of one (ADR-0028).
+    /// </summary>
+    public string? Avatar { get; init; }
+
+    /// <summary>The file to show as the header, or <see langword="null" /> to leave it. Sent as <see cref="Avatar" /> is.</summary>
+    public string? Header { get; init; }
+
     /// <summary>Whether this asks for nothing at all.</summary>
     public bool IsEmpty => this == new PublicProfileChange();
 
     /// <summary>
     ///     This change with whatever <paramref name="read" /> already says left out: what asking for a value the
-    ///     public profile already has would send is nothing.
+    ///     public profile already has would send is nothing. A picture is kept whatever was read, because a read says
+    ///     where the picture is and a change says which file to send, and nothing tells the two apart as the same.
     /// </summary>
-    public PublicProfileChange Against(PublicProfile read) => new()
+    public PublicProfileChange Against(PublicProfile read) => this with
     {
         DisplayName = DisplayName == read.DisplayName ? null : DisplayName,
         Bio = Bio == read.Bio ? null : Bio,

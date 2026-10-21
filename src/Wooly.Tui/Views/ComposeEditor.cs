@@ -36,13 +36,18 @@ namespace Wooly.Tui.Views;
 ///     <c>↑</c> on the post's first line: what moves the typing up into the headers (ADR-0024, #337). Taken off here
 ///     because the editor would otherwise spend the press putting the caret at the start of the line.
 /// </param>
+/// <param name="down">
+///     <c>↓</c> on the last line, where there is a field below to move the typing down into — the edit public profile
+///     form's bio (#406) — and nothing where there is none, as on compose, whose post is the bottom of its walk.
+/// </param>
 internal sealed class ComposeEditor(
     ITheme theme,
     string placeholder,
     Action send,
     Action cancel,
     Action warn,
-    Action up) : TextView
+    Action up,
+    Action? down = null) : TextView
 {
     /// <summary>
     ///     First refusal on every key, ahead of the editor's own — the list of people to mention, while it is open
@@ -167,12 +172,25 @@ internal sealed class ComposeEditor(
             return true;
         }
 
+        if (down is not null && key == Key.CursorDown && CurrentRow >= Lines - 1)
+        {
+            down();
+
+            return true;
+        }
+
         return base.OnKeyDown(key);
     }
 
     /// <summary>
     ///     A right click is the shell's <c>esc</c>, which on a draft means nothing (#307) — so it is taken here, before
-    ///     the editor opens its own context menu on it, and does nothing.
+    ///     the editor opens its own context menu on it, and does nothing. A sideways notch is taken and does nothing
+    ///     too: the text wraps to the editor's width, so there is nothing off either side, yet <see cref="TextView" />
+    ///     scrolled a column a notch regardless and a trackpad drifting sideways carried the text off the field.
     /// </summary>
-    protected override bool OnMouseEvent(Mouse mouse) => ShellKeys.Of(mouse) is not null || base.OnMouseEvent(mouse);
+    protected override bool OnMouseEvent(Mouse mouse) =>
+        ShellKeys.Of(mouse) is not null
+        || mouse.Flags.HasFlag(MouseFlags.WheeledLeft)
+        || mouse.Flags.HasFlag(MouseFlags.WheeledRight)
+        || base.OnMouseEvent(mouse);
 }

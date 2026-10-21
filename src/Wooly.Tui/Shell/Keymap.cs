@@ -52,7 +52,7 @@ public static class Keymap
 
         // Nothing on compose, whose fields take `?` as a letter before the window sees it (#320): a keymap opened only
         // where no widget has the typing would be one a reader can never reach, over a draft.
-        (ShellKey.Question, ComposeScreen or DescriptionScreen) => Verb.None,
+        (ShellKey.Question, ComposeScreen or DescriptionScreen or PublicProfileScreen) => Verb.None,
         (ShellKey.Question, _) => Verb.Help,
         (ShellKey.Slash, _) => Verb.Search,
         (ShellKey.Tab, _) => Verb.NextDestination,
@@ -108,10 +108,25 @@ public static class Keymap
         // than keep a list of their own (review of #372).
         (_, ComposeScreen) => Verb.None,
 
+        // The edit public profile form walks its fields the way compose does, and takes a letter as a letter in the field
+        // that has the typing — or as nobody's on a toggle, which is flipped by space or ⏎ alone (#406).
+        (ShellKey.CtrlS, PublicProfileScreen) => Verb.SavePublicProfile,
+        (ShellKey.Space or ShellKey.Enter, PublicProfileScreen { Typing.IsAToggle: true }) => Verb.FlipToggle,
+
+        // And on the avatar and the header, which take no typing: ⏎ opens the file browser for one picture, as it does
+        // on compose's Media header, and ctrl-v or alt-v pastes one from the clipboard (#407).
+        (ShellKey.Enter, PublicProfileScreen { Typing.IsAPicture: true }) => Verb.ChoosePicture,
+        (ShellKey.CtrlV or ShellKey.AltV, PublicProfileScreen { Typing.IsAPicture: true }) => Verb.PastePicture,
+        (ShellKey.Up, PublicProfileScreen) => Verb.PreviousPublicProfileField,
+        (ShellKey.Down, PublicProfileScreen) => Verb.NextPublicProfileField,
+        (_, PublicProfileScreen) => Verb.None,
+
         // The file browser takes letters into its filter, so what it answers besides are the named keys (#376): ⏎
         // attaches or opens, → and ← go into a folder and up one, ctrl-a shows every file, and the arrows walk its
         // entries as j and k walk posts elsewhere — j and k being letters here. And space, the one letter it does not
         // type, since its filter is fuzzy and a name's spaces never need typing: it chooses.
+        // Opened for one of the public profile's pictures, ⏎ takes the file back to the form as that picture (#407).
+        (ShellKey.Enter, FileBrowserScreen { Picture: not null }) => Verb.UsePicture,
         (ShellKey.Enter, FileBrowserScreen) => Verb.AttachChosen,
         (ShellKey.Right, FileBrowserScreen) => Verb.IntoFolder,
         (ShellKey.Left, FileBrowserScreen) => Verb.UpFolder,
@@ -213,11 +228,17 @@ public static class Keymap
         // The capitals, which are keys of their own for exactly this reason: a lower-case mark key can never fire a
         // tie or empty an inbox by accident (docs/tui-shell.md). D on the profiles screen, where there is no inbox to
         // empty, makes a profile the default instead (#244). R is the profiles screen's alone, since r is reply (#248).
+        // Nobody's on the own account, which cannot follow, mute or block itself.
+        (ShellKey.CapitalF or ShellKey.CapitalM or ShellKey.CapitalB, AccountScreen { IsOwnAccount: true }) => Verb.None,
         (ShellKey.CapitalF, _) => Verb.Follow,
         (ShellKey.CapitalM, _) => Verb.Mute,
         (ShellKey.CapitalB, _) => Verb.Block,
         (ShellKey.CapitalD, ProfilesScreen) => Verb.MakeDefault,
         (ShellKey.CapitalD, _) => Verb.ClearAll,
+
+        // E only on the own account, since nobody else's public profile can be changed from here: anywhere else it is
+        // nobody's, as p, e and d are on somebody else's post (#406).
+        (ShellKey.CapitalE, AccountScreen { IsOwnAccount: true }) => Verb.EditPublicProfile,
         (ShellKey.CapitalR, ProfilesScreen) => Verb.SignInAgain,
 
         // Every digit means the same thing; which answer it addresses is Answer's, below.

@@ -51,15 +51,21 @@ public sealed class AccountScreen : Screen
     ///     Whether <paramref name="posts" /> is their <b>Posts and replies</b> rather than their posts alone. Off
     ///     unless the reader pressed <c>s</c> for it: the screen opens on posts alone, for ADR-0019's reasons (#229).
     /// </param>
+    /// <param name="isOwnAccount">
+    ///     Whether this is the account the profile signs in as — the <b>Own account</b>, whose public profile is the only
+    ///     one that can be edited from here (#406). Off unless the shell, which has the profile in hand, says so.
+    /// </param>
     public AccountScreen(
         Account account,
         IReadOnlyList<Post> posts,
         IReadOnlyList<Post>? pinned,
         IReadOnlyList<Account>? familiar = null,
-        bool withReplies = false)
+        bool withReplies = false,
+        bool isOwnAccount = false)
     {
         Familiar = familiar;
         WithReplies = withReplies;
+        IsOwnAccount = isOwnAccount;
         Asked = pinned is not null;
         _pins = [.. (pinned ?? []).Select(post => post.Id)];
         _posts = new PostList(this, [.. pinned ?? [], .. posts]);
@@ -86,14 +92,29 @@ public sealed class AccountScreen : Screen
             new KeyHint("j/k", "post"),
             [
                 .. Jumping,
-                new KeyHint("F", Says(Follows, "unfollow", "follow")),
-                new KeyHint("M", Says(Account.Standing?.Muting, "unmute", "mute")),
-                new KeyHint("B", Says(Account.Standing?.Blocking, "unblock", "block")),
+                .. IsOwnAccount ? [EditingThePublicProfile] : Ties,
                 new KeyHint("w", "follows"),
                 new KeyHint("s", WithReplies ? "posts" : "posts and replies"),
                 Refreshing,
             ],
             new KeyHint("esc", "back"));
+
+    /// <summary>
+    ///     The three tie keys, offered on anybody's account but the own one, which cannot follow, mute or block itself.
+    /// </summary>
+    private KeyHint[] Ties =>
+    [
+        new("F", Says(Follows, "unfollow", "follow")),
+        new("M", Says(Account.Standing?.Muting, "unmute", "mute")),
+        new("B", Says(Account.Standing?.Blocking, "unblock", "block")),
+    ];
+
+    /// <summary>
+    ///     <c>E</c>, offered only on the own account and in place of the ties, which an account cannot have with itself
+    ///     (#406). In ADR-0028's words, which say "public profile" and never a bare "profile", the word the local entry
+    ///     has.
+    /// </summary>
+    private static KeyHint EditingThePublicProfile { get; } = new("E", "edit public profile");
 
     /// <inheritdoc />
     public override bool Refreshes => true;
@@ -140,6 +161,11 @@ public sealed class AccountScreen : Screen
     ///     <c>s</c> swaps and <c>g</c> re-asks (#229).
     /// </summary>
     public bool WithReplies { get; }
+
+    /// <summary>
+    ///     Whether this is the <b>Own account</b>, which is what <c>E</c> is offered on and nowhere else (#406).
+    /// </summary>
+    public bool IsOwnAccount { get; }
 
     /// <inheritdoc />
     /// <remarks>
@@ -212,6 +238,13 @@ public sealed class AccountScreen : Screen
 
                 break;
 
+            // The own account's public profile saved, wherever this copy of it is on the stack: the header block says it
+            // as the instance now has it, whichever copy the form was opened from (#406).
+            case Change.PublicProfileSaved(var saved) when saved.Id == Account.Id:
+                _walking.Stands(saved);
+
+                break;
+
             case Change.PostChanged(var post):
                 _posts.Replace(post);
 
@@ -240,7 +273,7 @@ public sealed class AccountScreen : Screen
         var pinned = Pins;
 
         var lines = new List<Line>(_walking.HeaderRows(
-            (account, at, room) => AccountLines.Header(account, Familiar, drawing.In(room), ReferenceOn(at)),
+            (account, at, room) => AccountLines.Header(account, Familiar, drawing.In(room), ReferenceOn(at), IsOwnAccount),
             width));
 
         if (!Asked)

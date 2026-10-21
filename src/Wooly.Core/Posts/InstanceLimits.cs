@@ -62,6 +62,7 @@ public sealed class InstanceLimits(IHttpClientFactory httpClientFactory) : IInst
             Attachments = statuses?.MaxMediaAttachments ?? PostLimits.Default.Attachments,
             MediaTypes = media?.SupportedMimeTypes is { Count: > 0 } types ? types : PostLimits.Default.MediaTypes,
             Descriptions = media?.DescriptionLimit ?? PostLimits.Default.Descriptions,
+            Bio = described?.Configuration?.Accounts?.MaxNoteLength ?? PostLimits.Default.Bio,
         };
 
         Task<InstanceWire?> Described(string path) =>
@@ -86,6 +87,16 @@ public sealed class InstanceLimits(IHttpClientFactory httpClientFactory) : IInst
 
         [JsonPropertyName("media_attachments")]
         public MediaAttachmentsWire? MediaAttachments { get; init; }
+
+        [JsonPropertyName("accounts")]
+        public AccountsWire? Accounts { get; init; }
+    }
+
+    private sealed record AccountsWire
+    {
+        /// <summary>Mastodon 4.4 and later; older instances leave a bio's limit to the fallback.</summary>
+        [JsonPropertyName("max_note_length")]
+        public int? MaxNoteLength { get; init; }
     }
 
     private sealed record MediaAttachmentsWire

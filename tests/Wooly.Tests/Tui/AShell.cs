@@ -71,6 +71,12 @@ internal sealed class AShell
     public FakeAccountDefaults Defaults { get; set; }
 
     /// <summary>
+    ///     The own account's public profile as written, which the form <c>E</c> opens on <b>You</b> reads and saves
+    ///     (#406). The one <see cref="APublicProfile" /> builds, unless said.
+    /// </summary>
+    public FakePublicProfileEditor PublicProfile { get; set; } = FakePublicProfileEditor.Holding();
+
+    /// <summary>
     ///     Where an address goes, which is the one thing the shell does that leaves the terminal (#85). Not one of the
     ///     ports, for the reason <c>ShellPorts</c> gives: a browser is not on an instance.
     /// </summary>
@@ -168,7 +174,7 @@ internal sealed class AShell
 
     private Shell Over(Opening opening) => new(
         opening,
-        new ShellPorts(Timelines, Author, Engagement, Accounts, Notifications, Messages, Search, Suggestions, RateLimit, Limits, Defaults, Stream),
+        new ShellPorts(Timelines, Author, Engagement, Accounts, Notifications, Messages, Search, Suggestions, RateLimit, Limits, Defaults, Stream, PublicProfile),
         new ProfilePorts(Profiles, Paths, Authorizer, Verifier),
         Host,
         Browser,
@@ -210,7 +216,8 @@ internal sealed class AShell
         + Messages.Listings.Count + Messages.Shown.Count + Messages.MarkedRead.Count
         + Search.Searches.Count + Search.FollowedSearches.Count
         + Suggestions.Reads.Count + Suggestions.Dismissals.Count
-        + Limits.Reads.Count + Defaults.Reads.Count;
+        + Limits.Reads.Count + Defaults.Reads.Count
+        + PublicProfile.Reads.Count + PublicProfile.Saves.Count;
 
     /// <summary>
     ///     The access token every request to every port that reaches an instance went out with, all told — where a test
@@ -220,7 +227,7 @@ internal sealed class AShell
     [
         .. Timelines.Tokens, .. Author.Tokens, .. Engagement.Tokens, .. Accounts.Tokens, .. Notifications.Tokens,
         .. Messages.Tokens, .. Search.Tokens, .. Suggestions.Tokens,
-        .. Limits.Tokens, .. Defaults.Tokens,
+        .. Limits.Tokens, .. Defaults.Tokens, .. PublicProfile.Tokens,
     ];
 
     /// <summary>A shell that has already opened onto its first destination.</summary>
@@ -244,7 +251,7 @@ internal sealed class AShell
     {
         var shell = new Shell(
             Opening.As(registry.Resolve(null)),
-            new ShellPorts(Timelines, Author, Engagement, Accounts, Notifications, Messages, Search, Suggestions, RateLimit, Limits, Defaults, Stream),
+            new ShellPorts(Timelines, Author, Engagement, Accounts, Notifications, Messages, Search, Suggestions, RateLimit, Limits, Defaults, Stream, PublicProfile),
             new ProfilePorts(registry, paths, Authorizer, Verifier),
             Host,
             Browser,
