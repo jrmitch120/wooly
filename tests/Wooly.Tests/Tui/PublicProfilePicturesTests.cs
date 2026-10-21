@@ -251,7 +251,7 @@ public class PublicProfilePicturesTests : IDisposable
 
         Assert.Equal(avatar, Assert.Single(Row(here, "Avatar").Insets).Drawn);
         Assert.Equal(header, Assert.Single(Row(here, "Header").Insets).Drawn);
-        Assert.Contains("current", Row(here, "Avatar").Text, StringComparison.Ordinal);
+        Assert.Contains("change…", Row(here, "Avatar").Text, StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -335,7 +335,7 @@ public class PublicProfilePicturesTests : IDisposable
 
     /// <summary>
     ///     A file chosen is drawn in place of the current picture, read off the disk as the browser's preview is, with its
-    ///     name beside the box where the word "current" was — the rows no taller, and the name where the word stood.
+    ///     name beside the box where the word "change…" was — the rows no taller, and the name where the word stood.
     /// </summary>
     [Fact]
     public async Task OnATerminalThatDraws_AFileChosenIsDrawnInPlace()
@@ -354,7 +354,7 @@ public class PublicProfilePicturesTests : IDisposable
         Assert.Equal(Drawn.OnDisk(cat), row.Wants);
         Assert.Equal(Drawn.OnDisk(cat), Assert.Single(row.Insets).Drawn);
         Assert.Equal(
-            Row(before, "Avatar").Text.IndexOf("current", StringComparison.Ordinal),
+            Row(before, "Avatar").Text.IndexOf("change…", StringComparison.Ordinal),
             row.Text.IndexOf("cat.png", StringComparison.Ordinal));
     }
 
@@ -375,7 +375,7 @@ public class PublicProfilePicturesTests : IDisposable
 
         Assert.All(lines, line => Assert.Null(line.Wants));
         Assert.Contains(lines, line => line.Text.EndsWith(" Avatar  cat.png · sent on save", StringComparison.Ordinal));
-        Assert.Contains(lines, line => line.Text == "  Header  none");
+        Assert.Contains(lines, line => line.Text == "  Header  none · choose…");
     }
 
     /// <summary>
@@ -388,8 +388,8 @@ public class PublicProfilePicturesTests : IDisposable
         _files.WriteFile("cat.png");
         using var drawn = await DrawnEditing();
 
-        Assert.Contains(drawn.Rows(), row => row.Contains("  Avatar  current ", StringComparison.Ordinal));
-        Assert.Contains(drawn.Rows(), row => row.Contains("  Header  current ", StringComparison.Ordinal));
+        Assert.Contains(drawn.Rows(), row => row.Contains("  Avatar  change… ", StringComparison.Ordinal));
+        Assert.Contains(drawn.Rows(), row => row.Contains("  Header  change… ", StringComparison.Ordinal));
 
         drawn.Press(Key.CursorDown);
 
@@ -414,11 +414,11 @@ public class PublicProfilePicturesTests : IDisposable
     {
         using var drawn = await DrawnEditing();
         var rows = drawn.Rows();
-        var row = Array.FindIndex(rows, text => text.Contains("Header  current", StringComparison.Ordinal));
+        var row = Array.FindIndex(rows, text => text.Contains("Header  change…", StringComparison.Ordinal));
 
         Assert.True(row >= 0, string.Join('\n', rows));
 
-        drawn.Click(rows[row].IndexOf("current", StringComparison.Ordinal), row);
+        drawn.Click(rows[row].IndexOf("change…", StringComparison.Ordinal), row);
 
         Assert.Equal("Choose header", Assert.IsType<FileBrowserScreen>(drawn.Shell.Screen).Crumb);
     }

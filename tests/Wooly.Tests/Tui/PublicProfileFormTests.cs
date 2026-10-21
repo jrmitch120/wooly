@@ -73,7 +73,7 @@ public class PublicProfileFormTests
     /// <summary>
     ///     The form reads at 61 columns, top to bottom: the display name, the avatar and the header, four custom-field
     ///     rows, and the three toggles — each toggle's state carried by its box, so it reads with no colour, and each
-    ///     picture saying it is the current one where no picture can be drawn (#407) — then the bio as written between
+    ///     picture saying what <c>⏎</c> does to it where no picture can be drawn (#407) — then the bio as written between
     ///     two hairlines, as compose's post is, and its count under them against the instance's limit.
     /// </summary>
     [Fact]
@@ -95,8 +95,8 @@ public class PublicProfileFormTests
         Assert.Equal(
             [
                 "   Name  Jeff",
-                " Avatar  current",
-                " Header  current",
+                " Avatar  change…",
+                " Header  change…",
                 " Fields  Site              https://wooly.example",
                 "         label             value",
                 "         label             value",
@@ -143,7 +143,7 @@ public class PublicProfileFormTests
 
         WalkTo(shell, form, PublicProfilePart.Avatar);
 
-        Assert.Contains(Row(form, "Avatar").Spans, span => span is { Text: "current", Role: Role.SelectedText });
+        Assert.Contains(Row(form, "Avatar").Spans, span => span is { Text: "change…", Role: Role.SelectedText });
         Assert.DoesNotContain(Row(form, "Header").Spans, span => span.Role == Role.SelectedText);
 
         WalkTo(shell, form, PublicProfilePart.Bot);

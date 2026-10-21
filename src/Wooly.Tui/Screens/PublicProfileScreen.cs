@@ -39,11 +39,17 @@ public sealed class PublicProfileScreen : Screen, IDraft
     /// <summary>How many rows the bio's editor takes where nobody says how tall the room is.</summary>
     private const int BioRowsUnmeasured = 4;
 
-    /// <summary>What a picture row says where nothing has been chosen and the instance has a picture.</summary>
-    public const string CurrentPicture = "current";
+    /// <summary>
+    ///     What a picture row says where nothing has been chosen and the instance has a picture: what <c>⏎</c> on it
+    ///     does, the picture beside it saying what is there.
+    /// </summary>
+    public const string ChangePicture = "change…";
 
-    /// <summary>What a picture row says where nothing has been chosen and the instance has no picture.</summary>
-    public const string NoPicture = "none";
+    /// <summary>What a picture row says, before <see cref="ChoosePicture" />, where the instance has no picture.</summary>
+    public const string NoPicture = "none · ";
+
+    /// <summary>What <c>⏎</c> on a picture row with no picture does.</summary>
+    public const string ChoosePicture = "choose…";
 
     /// <summary>What a picture row says after the name of the file chosen for it: that nothing has gone up yet.</summary>
     public const string SentOnSave = " · sent on save";
@@ -504,7 +510,7 @@ public sealed class PublicProfileScreen : Screen, IDraft
     ///     The <paramref name="pictureRows" /> rows of the avatar's or the header's row, its label right-aligned as every
     ///     other's: on a terminal that draws, the picture in a box of its own at <paramref name="at" /> — the one chosen,
     ///     or else the current one, the Stand-in's shade holding the box until the pixels are here — and then the file
-    ///     chosen for it, or that it is the current one or there is none. Where nothing is drawn, the words alone.
+    ///     chosen for it, or else what <c>⏎</c> on it does: change the picture, or choose one where there is none. Where nothing is drawn, the words alone.
     /// </summary>
     /// <remarks>
     ///     Through the picture path everything else drawn takes (ADR-0016, ADR-0022): the current avatar is the one
@@ -528,9 +534,19 @@ public sealed class PublicProfileScreen : Screen, IDraft
 
         if (chosen is null)
         {
-            var current = Current(picture) is null ? NoPicture : CurrentPicture;
+            // Only the action is lit where the walk is on the row: "none · " is a fact about the row, not the key.
+            Span Action(string does, int left) => new(TextWrap.Clip(does, left), Lit(picture.Part, Role.Muted));
 
-            said = [new Span(TextWrap.Clip(current, room), Lit(picture.Part, Role.Muted))];
+            if (Current(picture) is null)
+            {
+                var none = new Span(TextWrap.Clip(NoPicture, room), Role.Muted);
+
+                said = [none, Action(ChoosePicture, room - none.Width)];
+            }
+            else
+            {
+                said = [Action(ChangePicture, room)];
+            }
         }
         else
         {
