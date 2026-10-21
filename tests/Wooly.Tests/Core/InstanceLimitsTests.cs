@@ -102,6 +102,31 @@ public class InstanceLimitsTests
         Assert.Contains("video/mp4", limits?.MediaTypes ?? []);
     }
 
+    /// <summary>
+    ///     How long a public profile's bio may be is read off the same configuration's accounts (Mastodon 4.4), for the
+    ///     edit public profile form's count.
+    /// </summary>
+    [Fact]
+    public async Task Read_TakesTheBioLimitFromTheAccounts()
+    {
+        var network = Answering(
+            """{"domain":"mastodon.social","configuration":{"statuses":{},"accounts":{"max_note_length":1000}}}""");
+
+        var limits = await Limits(network).Read(Profile, TestContext.Current.CancellationToken);
+
+        Assert.Equal(1000, limits?.Bio);
+    }
+
+    /// <summary>An instance that does not say how long a bio may be is taken to allow Mastodon's 500.</summary>
+    [Fact]
+    public async Task Read_FallsBackToMastodonsBioLimit()
+    {
+        var limits = await Limits(Answering("""{"domain":"quiet.example","configuration":{"statuses":{}}}"""))
+            .Read(Profile, TestContext.Current.CancellationToken);
+
+        Assert.Equal(500, limits?.Bio);
+    }
+
     /// <summary>An instance that says nothing about its limits is taken to have Mastodon's.</summary>
     [Fact]
     public async Task Read_TakesMastodonsDefaultsWhereTheInstanceSaysNothing()

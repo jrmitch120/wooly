@@ -25,6 +25,12 @@ public sealed record PostLimits(int Characters, int PerAddress)
     public int Descriptions { get; init; } = 1500;
 
     /// <summary>
+    ///     The longest a public profile's bio may be, counted as a post is: 500, on an instance that does not say. For
+    ///     the edit public profile form's count only — the instance has the last word on a save (ADR-0028).
+    /// </summary>
+    public int Bio { get; init; } = 500;
+
+    /// <summary>
     ///     Whether the instance accepts the file at <paramref name="path" /> by its type — as its name says it, which is
     ///     all a terminal knows of a file before it is sent; the instance has the last word once it has it.
     /// </summary>
@@ -39,8 +45,9 @@ public sealed record PostLimits(int Characters, int PerAddress)
         && PerAddress == other.PerAddress
         && Attachments == other.Attachments
         && Descriptions == other.Descriptions
+        && Bio == other.Bio
         && MediaTypes.SequenceEqual(other.MediaTypes);
 
     /// <inheritdoc />
-    public override int GetHashCode() => HashCode.Combine(Characters, PerAddress, Attachments, Descriptions);
+    public override int GetHashCode() => HashCode.Combine(Characters, PerAddress, Attachments, Descriptions, Bio);
 }
