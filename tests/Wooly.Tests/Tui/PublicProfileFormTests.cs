@@ -1,10 +1,12 @@
 using Wooly.Core.Accounts;
 using Wooly.Core.Errors;
+using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
+using Wooly.Tui.Theme;
 
 namespace Wooly.Tests.Tui;
 
@@ -69,9 +71,10 @@ public class PublicProfileFormTests
     }
 
     /// <summary>
-    ///     The form reads at 61 columns, top to bottom: the display name, the bio as written, the avatar and the header,
-    ///     four custom-field rows, and the three toggles — each toggle's state carried by its box, so it reads with no
-    ///     colour, and each picture saying it is the current one where no picture can be drawn (#407).
+    ///     The form reads at 61 columns, top to bottom: the display name, the avatar and the header, four custom-field
+    ///     rows, and the three toggles — each toggle's state carried by its box, so it reads with no colour, and each
+    ///     picture saying it is the current one where no picture can be drawn (#407) — then the bio as written between
+    ///     two hairlines, as compose's post is, and its count under them against the instance's limit.
     /// </summary>
     [Fact]
     public async Task TheForm_ReadsTopToBottomAt61Columns()
@@ -92,7 +95,6 @@ public class PublicProfileFormTests
         Assert.Equal(
             [
                 "   Name  Jeff",
-                "    Bio  Writes Wooly.",
                 " Avatar  current",
                 " Header  current",
                 " Fields  Site              https://wooly.example",
@@ -102,9 +104,57 @@ public class PublicProfileFormTests
                 "         □ Locked · approve followers by hand",
                 "         ■ Bot · posts automatically",
                 "         ■ Discoverable · in the directory and suggestions",
+                " " + new string('─', 57),
+                " Writes Wooly.",
+                " " + new string('─', 57),
+                new string(' ', 50) + "13 / 500",
             ],
             drawn);
     }
+
+    /// <summary>
+    ///     The bio's count is out of the instance's own limit on a bio once the instance has said it, and is counted as
+    ///     a post is — an address as what the instance says one counts.
+    /// </summary>
+    [Fact]
+    public async Task TheBiosCount_IsOutOfTheInstancesOwnLimit()
+    {
+        var built = Built(APublicProfile.With(bio: "See https://wooly.example/a/very/long/address/indeed", account: Me));
+
+        built.Limits = FakeInstanceLimits.Setting(new PostLimits(500, 23) { Bio = 1000 });
+
+        var (_, form) = await Editing(built);
+
+        built.Host.Drain();
+
+        Assert.Equal("27 / 1000", AShell.Drawn(form)[^1].Trim());
+    }
+
+    /// <summary>
+    ///     Nothing is marked with a bar: a field the walk is in says so with its caret, as compose's do, and a picture or
+    ///     a toggle — which have no caret — with its value lit as compose's Media and To are.
+    /// </summary>
+    [Fact]
+    public async Task TheWalkedRow_IsLitRatherThanBarred()
+    {
+        var (shell, form) = await Editing(Built());
+
+        Assert.DoesNotContain(form.Lines(new Drawing(61, AShell.Now)), line => line.Text.Contains('▌'));
+
+        WalkTo(shell, form, PublicProfilePart.Avatar);
+
+        Assert.Contains(Row(form, "Avatar").Spans, span => span is { Text: "current", Role: Role.SelectedText });
+        Assert.DoesNotContain(Row(form, "Header").Spans, span => span.Role == Role.SelectedText);
+
+        WalkTo(shell, form, PublicProfilePart.Bot);
+
+        Assert.Contains(Row(form, "Bot").Spans, span => span is { Text: "□ Bot", Role: Role.SelectedText });
+        Assert.DoesNotContain(Row(form, "Locked").Spans, span => span.Role == Role.SelectedText);
+        Assert.DoesNotContain(form.Lines(new Drawing(61, AShell.Now)), line => line.Text.Contains('▌'));
+    }
+
+    private static Line Row(PublicProfileScreen form, string holding) =>
+        form.Lines(new Drawing(61, AShell.Now)).First(line => line.Text.Contains(holding, StringComparison.Ordinal));
 
     /// <summary>
     ///     In a room too short for the whole form, the rows drawn are never more than the room, and whichever field the
@@ -129,12 +179,12 @@ public class PublicProfileFormTests
             Assert.False(at.IsEmpty, $"{form.Typing} is nowhere");
             Assert.InRange(at.Top, 0, 9);
             Assert.InRange(at.Bottom, 1, 10);
-            Assert.StartsWith("▌", lines[at.Top].Text, StringComparison.Ordinal);
+            Assert.DoesNotContain("▌", lines[at.Top].Text, StringComparison.Ordinal);
         }
 
         InView();
 
-        while (form.Typing.Part != PublicProfilePart.Discoverable)
+        while (form.Typing.Part != PublicProfilePart.Bio)
         {
             shell.Press(ShellKey.Down);
             InView();
@@ -148,8 +198,9 @@ public class PublicProfileFormTests
     }
 
     /// <summary>
-    ///     <c>↓</c> walks the form top to bottom — the display name, the bio, the avatar and the header, each custom
-    ///     field's label then its value, the three toggles — and stops at the bottom rather than coming round; <c>↑</c> walks back and stops at the top.
+    ///     <c>↓</c> walks the form top to bottom — the display name, the avatar and the header, each custom field's
+    ///     label then its value, the three toggles, and the bio at the foot, as compose's post is — and stops at the
+    ///     bottom rather than coming round; <c>↑</c> walks back and stops at the top.
     /// </summary>
     [Fact]
     public async Task TheArrows_WalkTheFormWithoutWrapping()
@@ -165,14 +216,14 @@ public class PublicProfileFormTests
 
         Assert.Equal(
             [
-                new(PublicProfilePart.DisplayName), new(PublicProfilePart.Bio),
+                new(PublicProfilePart.DisplayName),
                 new(PublicProfilePart.Avatar), new(PublicProfilePart.Header),
                 new(PublicProfilePart.Label, 0), new(PublicProfilePart.Value, 0),
                 new(PublicProfilePart.Label, 1), new(PublicProfilePart.Value, 1),
                 new(PublicProfilePart.Label, 2), new(PublicProfilePart.Value, 2),
                 new(PublicProfilePart.Label, 3), new(PublicProfilePart.Value, 3),
                 new(PublicProfilePart.Locked), new(PublicProfilePart.Bot), new(PublicProfilePart.Discoverable),
-                new(PublicProfilePart.Discoverable), new(PublicProfilePart.Discoverable),
+                new(PublicProfilePart.Bio), new(PublicProfilePart.Bio), new(PublicProfilePart.Bio),
             ],
             walked);
 
@@ -199,7 +250,7 @@ public class PublicProfileFormTests
 
         Assert.Contains(shell.Keys, key => key is { Key: "↑↓", Does: "field" });
 
-        while (form.Typing.Part != PublicProfilePart.Discoverable)
+        while (form.Typing.Part != PublicProfilePart.Bio)
         {
             shell.Press(ShellKey.Down);
         }

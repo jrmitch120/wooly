@@ -1,5 +1,6 @@
 using System.Drawing;
 using Wooly.Core.Accounts;
+using Wooly.Core.Posts;
 using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Theme;
@@ -14,8 +15,9 @@ namespace Wooly.Tui.Screens;
 ///     As inert as compose (ADR-0015): it holds what is being written and says what a save would send, and reaches no
 ///     port. The shell reads the public profile before it opens and sends what it says on <c>ctrl-s</c>.
 ///     <para>
-///         Laid out as compose's headers are — a word right-aligned in a column of its own, then the value — so the two
-///         screens that take writing read alike. The fields themselves are widgets laid over the rows kept for them
+///         Laid out as compose is, so the two screens that take writing read alike: the short fields as its headers
+///         are — a word right-aligned in a column of its own, then the value — and the bio as its post is, at the foot
+///         between two hairlines with its count under them. The fields themselves are widgets laid over the rows kept for them
 ///         (the view's); the screen paints what each holds under it, so the form reads the same to a test with no
 ///         terminal behind it, and says where each goes from the one layout that paints the rows.
 ///     </para>
@@ -33,9 +35,6 @@ public sealed class PublicProfileScreen : Screen, IDraft
 
     /// <summary>The fewest rows the bio's editor is ever left with: a line being written, and one either side of it.</summary>
     private const int LeastBioRows = 3;
-
-    /// <summary>The most rows the bio's editor is given, however tall the terminal: what is under it matters too.</summary>
-    private const int MostBioRows = 8;
 
     /// <summary>How many rows the bio's editor takes where nobody says how tall the room is.</summary>
     private const int BioRowsUnmeasured = 4;
@@ -58,8 +57,8 @@ public sealed class PublicProfileScreen : Screen, IDraft
     /// <summary>What an empty display name says, dimly: the instance shows the username in its place.</summary>
     public const string NameHint = "none · your username is shown";
 
-    /// <summary>What an empty bio says, dimly.</summary>
-    public const string BioHint = "none · say something about yourself";
+    /// <summary>What an empty bio says, dimly, where it would start — as compose's empty post does.</summary>
+    public const string BioHint = "Say something about yourself";
 
     private readonly PublicProfile _read;
 
@@ -131,6 +130,12 @@ public sealed class PublicProfileScreen : Screen, IDraft
     /// <summary>Whether the account is to be suggested and listed in the directory.</summary>
     public bool IsDiscoverable => _toggled[PublicProfilePart.Discoverable];
 
+    /// <summary>
+    ///     What the instance lets a bio be, for the count under it, as compose's post is measured (#319): Mastodon's own
+    ///     until the instance has said. Only counted against — the instance has the last word on a save (ADR-0028).
+    /// </summary>
+    public PostLimits Limits { get; set; } = PostLimits.Default;
+
     /// <summary>Where the typing is, or which toggle the walk is on: the display name, as the form opens.</summary>
     public PublicProfileStop Typing { get; private set; } = new(PublicProfilePart.DisplayName);
 
@@ -165,18 +170,19 @@ public sealed class PublicProfileScreen : Screen, IDraft
 
     /// <summary>
     ///     Every place the arrows walk to, top to bottom, which is the order they are drawn in: the display name, the
-    ///     bio, the avatar and the header, each custom field's label and then its value, and the three toggles.
+    ///     avatar and the header, each custom field's label and then its value, the three toggles, and the bio at the
+    ///     foot.
     /// </summary>
     private List<PublicProfileStop> Stops =>
     [
         new(PublicProfilePart.DisplayName),
-        new(PublicProfilePart.Bio),
         .. PublicProfilePicture.Both.Select(picture => new PublicProfileStop(picture.Part)),
         .. Enumerable.Range(0, FieldRows).SelectMany(row => new PublicProfileStop[]
         {
             new(PublicProfilePart.Label, row), new(PublicProfilePart.Value, row),
         }),
         .. PublicProfileToggle.All.Select(toggle => new PublicProfileStop(toggle.Part)),
+        new(PublicProfilePart.Bio),
     ];
 
     /// <summary>
@@ -329,9 +335,10 @@ public sealed class PublicProfileScreen : Screen, IDraft
 
     /// <inheritdoc />
     /// <remarks>
-    ///     A blank under the panel's edge, the display name, the bio's rows, a blank, the avatar's and the header's rows,
-    ///     a blank, the custom-field rows, a blank and the three toggles — each field's rows holding what it holds, or its
-    ///     hint, for the widget laid over them.
+    ///     A blank under the panel's edge, the display name, a blank, the avatar's and the header's rows, a blank, the
+    ///     custom-field rows, a blank and the three toggles; then a hairline, a blank, the bio's rows, a hairline and the
+    ///     bio's count, as compose's post is laid — each field's rows holding what it holds, or its hint, for the widget
+    ///     laid over them.
     /// </remarks>
     public override IReadOnlyList<Line> Lines(Drawing drawing) =>
         Laid(drawing.Width, drawing.Height, drawing.Raster, drawing.Pictures).Rows;
@@ -344,7 +351,8 @@ public sealed class PublicProfileScreen : Screen, IDraft
     /// <remarks>
     ///     Every column is worked out from the width and none from what is written, so nothing moves as it is typed:
     ///     a custom field's label takes a third of the value column and its value the rest. The bio takes what height
-    ///     the room spares, between three rows and eight, or four where nobody says how tall the room is. How tall a
+    ///     the room spares and three rows at the least, as compose's post does, or four where nobody says how tall the
+    ///     room is; it is as wide as compose's post, from pad to pad. How tall a
     ///     picture's row is depends on the terminal and on nothing chosen, so choosing one moves nothing either. A room
     ///     too short for every row is given those around the field the walk is on (<see cref="InTheRoom" />).
     /// </remarks>
@@ -361,10 +369,11 @@ public sealed class PublicProfileScreen : Screen, IDraft
         var valueRoom = Math.Max(0, room - labelRoom - Gap);
 
         var pictureRows = raster?.Cell is not null ? PublicProfilePictures.Rows : 1;
+        var inner = Math.Max(0, width - (Pad * 2));
 
         var others = 1 + 1 + 1 + (pictureRows * PublicProfilePicture.Both.Count) + 1 + FieldRows + 1
-            + PublicProfileToggle.All.Count;
-        var bioRows = height is { } tall ? Math.Clamp(tall - others, LeastBioRows, MostBioRows) : BioRowsUnmeasured;
+            + PublicProfileToggle.All.Count + 1 + 1 + 1 + 1;
+        var bioRows = height is { } tall ? Math.Max(tall - others, LeastBioRows) : BioRowsUnmeasured;
 
         var rows = new List<Line>();
         var places = new Dictionary<PublicProfileStop, Rectangle>();
@@ -372,29 +381,14 @@ public sealed class PublicProfileScreen : Screen, IDraft
         rows.Add(Line.Blank);
 
         Place(new PublicProfileStop(PublicProfilePart.DisplayName), new Rectangle(at, rows.Count, room, 1));
-        rows.Add(Stamp(PublicProfilePart.DisplayName, Labelled("Name", at, [Written(DisplayName, NameHint, room)])));
-
-        Place(new PublicProfileStop(PublicProfilePart.Bio), new Rectangle(at, rows.Count, room, bioRows));
-
-        Span[] bio = Bio.Length == 0
-            ? [Written(Bio, BioHint, room)]
-            : TextWrap.Wrap(Bio.ReplaceLineEndings("\n"), Math.Max(1, room)).Select(line => new Span(line, Role.Body))
-                      .ToArray();
-
-        for (var line = 0; line < bioRows; line++)
-        {
-            var said = line < bio.Length ? bio[line] : new Span("", Role.Body);
-
-            rows.Add(Stamp(PublicProfilePart.Bio, line == 0 ? Labelled("Bio", at, [said]) : Under(said)));
-        }
+        rows.Add(Labelled("Name", at, [Written(DisplayName, NameHint, room)]));
 
         rows.Add(Line.Blank);
 
         foreach (var picture in PublicProfilePicture.Both)
         {
             Place(new PublicProfileStop(picture.Part), new Rectangle(at, rows.Count, room, pictureRows));
-            rows.AddRange(
-                Pictured(picture, at, width, pictureRows, raster, pictures).Select(line => Stamp(picture.Part, line)));
+            rows.AddRange(Pictured(picture, at, width, pictureRows, raster, pictures));
         }
 
         rows.Add(Line.Blank);
@@ -406,10 +400,9 @@ public sealed class PublicProfileScreen : Screen, IDraft
 
             var label = Written(_labels[row], LabelHint, labelRoom);
             var value = Written(_values[row], ValueHint, valueRoom);
-            var pair = new[] { label, Blank(labelRoom - label.Width + Gap), value };
-            var onIt = Typing is { Part: PublicProfilePart.Label or PublicProfilePart.Value } typing && typing.Row == row;
+            Span[] pair = [label, Blank(labelRoom - label.Width + Gap), value];
 
-            rows.Add(Stamp(onIt, row == 0 ? Labelled("Fields", at, pair) : Under(pair)));
+            rows.Add(row == 0 ? Labelled("Fields", at, pair) : Under(pair));
         }
 
         rows.Add(Line.Blank);
@@ -422,8 +415,28 @@ public sealed class PublicProfileScreen : Screen, IDraft
             var named = TextWrap.Clip(box + toggle.Name, room);
             var explained = TextWrap.Clip($" · {toggle.Says}", room - Glyphs.Columns(named));
 
-            rows.Add(Stamp(toggle.Part, Under(new Span(named, Role.Body), new Span(explained, Role.Muted))));
+            rows.Add(Under(new Span(named, Lit(toggle.Part, Role.Body)), new Span(explained, Role.Muted)));
         }
+
+        rows.Add(ComposeHeaders.Hairline(width));
+        rows.Add(Line.Blank);
+
+        var bioAt = Math.Min(Pad, width);
+
+        Place(new PublicProfileStop(PublicProfilePart.Bio), new Rectangle(bioAt, rows.Count, inner, bioRows));
+
+        Span[] bio = Bio.Length == 0
+            ? [Written(Bio, BioHint, inner)]
+            : TextWrap.Wrap(Bio.ReplaceLineEndings("\n"), Math.Max(1, inner)).Select(line => new Span(line, Role.Body))
+                      .ToArray();
+
+        for (var line = 0; line < bioRows; line++)
+        {
+            rows.Add(Line.Of(Blank(bioAt), line < bio.Length ? bio[line] : new Span("", Role.Body)));
+        }
+
+        rows.Add(ComposeHeaders.Hairline(width));
+        rows.Add(ComposeHeaders.Count(PostLength.Of(Bio, warning: null, Limits with { Characters = Limits.Bio }), Limits.Bio, width));
 
         return InTheRoom(rows, places, height);
 
@@ -508,11 +521,13 @@ public sealed class PublicProfileScreen : Screen, IDraft
 
         if (chosen is null)
         {
-            said = [new Span(TextWrap.Clip(Current(picture) is null ? NoPicture : CurrentPicture, room), Role.Muted)];
+            var current = Current(picture) is null ? NoPicture : CurrentPicture;
+
+            said = [new Span(TextWrap.Clip(current, room), Lit(picture.Part, Role.Muted))];
         }
         else
         {
-            var name = new Span(TextWrap.Clip(Path.GetFileName(chosen), room), Role.Body);
+            var name = new Span(TextWrap.Clip(Path.GetFileName(chosen), room), Lit(picture.Part, Role.Body));
 
             said = [name, new Span(TextWrap.Clip(SentOnSave, room - name.Width), Role.Muted)];
         }
@@ -576,16 +591,10 @@ public sealed class PublicProfileScreen : Screen, IDraft
         Line.Of([Blank(at - Gap - Glyphs.Columns(label)), new Span(label, Role.Muted), Blank(Gap), .. value]);
 
     /// <summary>
-    ///     <paramref name="line" /> with the selection bar in its first column where the walk is on
-    ///     <paramref name="part" /> — the mark that says where the walk is with no colour, which a toggle has no caret
-    ///     to say.
+    ///     <paramref name="role" />, or lit where the walk is on <paramref name="part" />: how a picture or a toggle —
+    ///     which have no caret to say the walk is on them — says so, as compose's Media and To light their value.
     /// </summary>
-    private Line Stamp(PublicProfilePart part, Line line) => Stamp(Typing.Part == part, line);
-
-    private static Line Stamp(bool onIt, Line line) =>
-        onIt && line.Spans.Count > 0 && line.Spans[0] is { Text.Length: > 0 } first
-            ? line.Respanned([new Span("▌", Role.Selection), first with { Text = first.Text[1..] }, .. line.Spans.Skip(1)])
-            : line;
+    private Role Lit(PublicProfilePart part, Role role) => Typing.Part == part ? Role.SelectedText : role;
 
     /// <summary>What a field holds, clipped to its room — or its hint, dimly, where it holds nothing.</summary>
     private static Span Written(string text, string hint, int room) =>

@@ -53,7 +53,8 @@ public class PublicProfileViewTests
 
     /// <summary>
     ///     With no colour at all, the form still says what each row is and which way each toggle is, and the fields laid
-    ///     over the rows show what was read — the walk's place carried by the bar in the first column.
+    ///     over the rows show what was read — the bio at the foot between hairlines, as compose's post is, with its count
+    ///     under it; and no bar anywhere, the caret saying where the typing is.
     /// </summary>
     [Fact]
     public async Task TheForm_ReadsWithNoColour()
@@ -67,8 +68,11 @@ public class PublicProfileViewTests
 
         var rows = drawn.Rows();
 
-        Assert.Contains(rows, row => row.Contains("│▌   Name  Jeff ", StringComparison.Ordinal));
-        Assert.Contains(rows, row => row.Contains("     Bio  Writes Wooly. ", StringComparison.Ordinal));
+        Assert.Contains(rows, row => row.Contains("│    Name  Jeff ", StringComparison.Ordinal));
+        Assert.Contains(rows, row => row.Contains("│  Writes Wooly. ", StringComparison.Ordinal));
+        Assert.Contains(rows, row => row.Contains("│  ────", StringComparison.Ordinal));
+        Assert.Contains(rows, row => row.Contains("13 / 500  │", StringComparison.Ordinal));
+        Assert.DoesNotContain(rows, row => row.Contains('▌'));
         Assert.Contains(rows, row => row.Contains("  Fields  Site ", StringComparison.Ordinal) && row.Contains("https://wooly.example", StringComparison.Ordinal));
         Assert.Contains(rows, row => row.Contains("□ Locked · approve followers by hand", StringComparison.Ordinal));
         Assert.Contains(rows, row => row.Contains("■ Bot · posts automatically", StringComparison.Ordinal));
@@ -90,18 +94,13 @@ public class PublicProfileViewTests
     }
 
     /// <summary>
-    ///     <c>↓</c> walks the typing from the display name into the bio, through it, over the avatar and the header and on
-    ///     into the custom fields, where what is typed goes into the field walked to.
+    ///     <c>↓</c> walks the typing from the display name over the avatar and the header and on into the custom fields,
+    ///     where what is typed goes into the field walked to, and past the toggles into the bio at the foot.
     /// </summary>
     [Fact]
     public async Task TheArrows_WalkTheTypingFromFieldToField()
     {
         using var drawn = await Editing(APublicProfile.With(bio: "One line.", fields: [], account: Me));
-
-        drawn.Press(Key.CursorDown);
-
-        Assert.Equal(new PublicProfileStop(PublicProfilePart.Bio), Form(drawn).Typing);
-        Assert.True(drawn.Window.ProfileField<ComposeEditor>().HasFocus);
 
         drawn.Press(Key.CursorDown);
 
@@ -119,7 +118,14 @@ public class PublicProfileViewTests
         Assert.Equal("Home", Form(drawn).LabelOf(0));
         Assert.Equal("Kansas", Form(drawn).ValueOf(0));
 
-        for (var press = 0; press < 5; press++)
+        while (Form(drawn).Typing.Part != PublicProfilePart.Bio)
+        {
+            drawn.Press(Key.CursorDown);
+        }
+
+        Assert.True(drawn.Window.ProfileField<ComposeEditor>().HasFocus);
+
+        for (var press = 0; press < 20; press++)
         {
             drawn.Press(Key.CursorUp);
         }
@@ -152,8 +158,8 @@ public class PublicProfileViewTests
 
     /// <summary>
     ///     On a terminal too short for the whole form, the field the walk is on is always on screen: walked down to the
-    ///     last toggle it is there to be seen and flipped, and walked back up the display name is there again (review of
-    ///     #403).
+    ///     last toggle it is there to be seen, lit, and flipped, the bio below it is there to be typed in, and walked
+    ///     back up the display name is there again (review of #403).
     /// </summary>
     [Fact]
     public async Task OnAShortTerminal_TheWalkedFieldIsAlwaysOnScreen()
@@ -167,13 +173,20 @@ public class PublicProfileViewTests
 
         drawn.Redraw();
 
-        Assert.Contains(drawn.Rows(), row => row.Contains("▌         □ Discoverable", StringComparison.Ordinal));
+        Assert.Contains(drawn.Rows(), row => row.Contains("          □ Discoverable", StringComparison.Ordinal));
 
         drawn.Press(Key.Space);
         drawn.Redraw();
 
         Assert.True(Form(drawn).IsDiscoverable);
-        Assert.Contains(drawn.Rows(), row => row.Contains("▌         ■ Discoverable", StringComparison.Ordinal));
+        Assert.Contains(drawn.Rows(), row => row.Contains("          ■ Discoverable", StringComparison.Ordinal));
+
+        drawn.Press(Key.CursorDown);
+        drawn.Press(new Key('?'));
+        drawn.Redraw();
+
+        Assert.Equal("?Writes Wooly.", Form(drawn).Bio);
+        Assert.Contains(drawn.Rows(), row => row.Contains("│  ?Writes Wooly.", StringComparison.Ordinal));
 
         while (Form(drawn).Typing.Part != PublicProfilePart.DisplayName)
         {
@@ -182,7 +195,7 @@ public class PublicProfileViewTests
 
         drawn.Redraw();
 
-        Assert.Contains(drawn.Rows(), row => row.Contains("▌   Name  Jeff", StringComparison.Ordinal));
+        Assert.Contains(drawn.Rows(), row => row.Contains("│    Name  Jeff", StringComparison.Ordinal));
 
         drawn.Press(new Key('!'));
 

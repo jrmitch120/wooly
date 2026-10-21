@@ -26,7 +26,7 @@ public class PublicProfileMentionTests
     {
         var drawn = await Opened(bio);
 
-        drawn.Press(Key.CursorDown);
+        WalkToTheBio(drawn);
 
         Assert.Equal(new PublicProfileStop(PublicProfilePart.Bio), Form(drawn).Typing);
 
@@ -54,6 +54,15 @@ public class PublicProfileMentionTests
         drawn.Settle();
 
         return drawn;
+    }
+
+    /// <summary>The typing walked down the form into the bio at its foot.</summary>
+    private static void WalkToTheBio(DrawnShell drawn)
+    {
+        while (Form(drawn).Typing.Part != PublicProfilePart.Bio)
+        {
+            drawn.Press(Key.CursorDown);
+        }
     }
 
     private static PublicProfileScreen Form(DrawnShell drawn) => Assert.IsType<PublicProfileScreen>(drawn.Shell.Screen);
@@ -190,7 +199,7 @@ public class PublicProfileMentionTests
         Assert.Equal(new PublicProfileStop(PublicProfilePart.DisplayName), Form(drawn).Typing);
         Assert.False(List(drawn).Visible);
 
-        drawn.Press(Key.CursorDown);
+        WalkToTheBio(drawn);
 
         Assert.True(List(drawn).Visible);
     }
@@ -217,7 +226,7 @@ public class PublicProfileMentionTests
         Assert.Equal(new PublicProfileStop(PublicProfilePart.DisplayName), Form(drawn).Typing);
         Assert.False(List(drawn).Visible);
 
-        drawn.Press(Key.CursorDown);
+        WalkToTheBio(drawn);
 
         Assert.True(List(drawn).Visible);
     }

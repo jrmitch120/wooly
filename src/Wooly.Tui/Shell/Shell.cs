@@ -1624,7 +1624,7 @@ public sealed class Shell
 
         await _enquiry.Put(
             ask => ask.Of(token => _ports.PublicProfile.Read(profile, token)),
-            ifStillHere: read => Push(new PublicProfileScreen(read)));
+            ifStillHere: read => Push(new PublicProfileScreen(read) { Limits = _limits.For(profile) }));
     }
 
     /// <summary>
@@ -2807,15 +2807,25 @@ public sealed class Shell
 
     /// <summary>
     ///     An instance said how long it lets a post be, which a compose on that instance still in front is measured
-    ///     against from now on.
+    ///     against from now on — and how long it lets a bio be, which the edit public profile form's count is.
     /// </summary>
     private void Measured(string instance, PostLimits limits)
     {
-        if (Screen is ComposeScreen compose
-            && string.Equals(_acting?.Profile.Instance, instance, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(_acting?.Profile.Instance, instance, StringComparison.OrdinalIgnoreCase))
         {
-            compose.Limits = limits;
-            Changed?.Invoke();
+            return;
+        }
+
+        switch (Screen)
+        {
+            case ComposeScreen compose:
+                compose.Limits = limits;
+                Changed?.Invoke();
+                break;
+            case PublicProfileScreen form:
+                form.Limits = limits;
+                Changed?.Invoke();
+                break;
         }
     }
 

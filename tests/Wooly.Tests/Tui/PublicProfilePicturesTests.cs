@@ -376,7 +376,6 @@ public class PublicProfilePicturesTests : IDisposable
         Assert.Contains(drawn.Rows(), row => row.Contains("  Header  current ", StringComparison.Ordinal));
 
         drawn.Press(Key.CursorDown);
-        drawn.Press(Key.CursorDown);
 
         var form = Assert.IsType<PublicProfileScreen>(drawn.Shell.Screen);
 
@@ -417,7 +416,6 @@ public class PublicProfilePicturesTests : IDisposable
 
         drawn.Built.Clipboard.Holding = new Clipped.Picture(Png);
 
-        drawn.Press(Key.CursorDown);
         drawn.Press(Key.CursorDown);
         drawn.Press(Key.V.WithCtrl);
         drawn.Press(Key.CursorDown);
