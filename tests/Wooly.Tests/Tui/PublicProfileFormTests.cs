@@ -198,9 +198,9 @@ public class PublicProfileFormTests
     }
 
     /// <summary>
-    ///     <c>↓</c> walks the form top to bottom — the display name, the avatar and the header, each custom field's
-    ///     label then its value, the three toggles, and the bio at the foot, as compose's post is — and stops at the
-    ///     bottom rather than coming round; <c>↑</c> walks back and stops at the top.
+    ///     <c>↓</c> walks the form top to bottom — the display name, the avatar and the header, down the custom fields'
+    ///     labels, the three toggles, and the bio at the foot, as compose's post is — and stops at the bottom rather
+    ///     than coming round; <c>↑</c> walks back and stops at the top.
     /// </summary>
     [Fact]
     public async Task TheArrows_WalkTheFormWithoutWrapping()
@@ -208,7 +208,7 @@ public class PublicProfileFormTests
         var (shell, form) = await Editing(Built());
         var walked = new List<PublicProfileStop> { form.Typing };
 
-        for (var press = 0; press < 16; press++)
+        for (var press = 0; press < 12; press++)
         {
             shell.Press(ShellKey.Down);
             walked.Add(form.Typing);
@@ -218,10 +218,8 @@ public class PublicProfileFormTests
             [
                 new(PublicProfilePart.DisplayName),
                 new(PublicProfilePart.Avatar), new(PublicProfilePart.Header),
-                new(PublicProfilePart.Label, 0), new(PublicProfilePart.Value, 0),
-                new(PublicProfilePart.Label, 1), new(PublicProfilePart.Value, 1),
-                new(PublicProfilePart.Label, 2), new(PublicProfilePart.Value, 2),
-                new(PublicProfilePart.Label, 3), new(PublicProfilePart.Value, 3),
+                new(PublicProfilePart.Label, 0), new(PublicProfilePart.Label, 1),
+                new(PublicProfilePart.Label, 2), new(PublicProfilePart.Label, 3),
                 new(PublicProfilePart.Locked), new(PublicProfilePart.Bot), new(PublicProfilePart.Discoverable),
                 new(PublicProfilePart.Bio), new(PublicProfilePart.Bio), new(PublicProfilePart.Bio),
             ],
@@ -233,6 +231,48 @@ public class PublicProfileFormTests
         }
 
         Assert.Equal(new PublicProfileStop(PublicProfilePart.DisplayName), form.Typing);
+    }
+
+    /// <summary>
+    ///     A custom field's label and value sit side by side, so <c>→</c> and <c>←</c> cross between them and <c>↑</c>
+    ///     and <c>↓</c> keep to the column: down the values from a value, and out of the rows to the pictures above and
+    ///     the toggles below. <c>→</c> goes nowhere from a value, nor <c>←</c> from a label.
+    /// </summary>
+    [Fact]
+    public async Task ACustomFieldsLabelAndValue_AreCrossedSideways()
+    {
+        var (shell, form) = await Editing(Built());
+
+        WalkTo(shell, form, PublicProfilePart.Label);
+
+        Assert.Equal(ComposeChange.None, shell.ChangePublicProfile(editing => editing.Across(-1)));
+        _ = shell.ChangePublicProfile(editing => editing.Across(1));
+        Assert.Equal(new PublicProfileStop(PublicProfilePart.Value, 0), form.Typing);
+        Assert.Equal(ComposeChange.None, shell.ChangePublicProfile(editing => editing.Across(1)));
+
+        shell.Press(ShellKey.Down);
+        shell.Press(ShellKey.Down);
+        Assert.Equal(new PublicProfileStop(PublicProfilePart.Value, 2), form.Typing);
+
+        _ = shell.ChangePublicProfile(editing => editing.Across(-1));
+        Assert.Equal(new PublicProfileStop(PublicProfilePart.Label, 2), form.Typing);
+        _ = shell.ChangePublicProfile(editing => editing.Across(1));
+
+        shell.Press(ShellKey.Down);
+        shell.Press(ShellKey.Down);
+        Assert.Equal(new PublicProfileStop(PublicProfilePart.Locked), form.Typing);
+
+        shell.Press(ShellKey.Up);
+        Assert.Equal(new PublicProfileStop(PublicProfilePart.Label, 3), form.Typing);
+
+        _ = shell.ChangePublicProfile(editing => editing.Across(1));
+        shell.Press(ShellKey.Up);
+        shell.Press(ShellKey.Up);
+        Assert.Equal(new PublicProfileStop(PublicProfilePart.Value, 1), form.Typing);
+
+        shell.Press(ShellKey.Up);
+        shell.Press(ShellKey.Up);
+        Assert.Equal(new PublicProfileStop(PublicProfilePart.Header), form.Typing);
     }
 
     /// <summary>

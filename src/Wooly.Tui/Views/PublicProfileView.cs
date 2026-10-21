@@ -331,7 +331,16 @@ internal sealed class PublicProfileView : View
     /// <summary>A one-line field at <paramref name="stop" />, hinting <paramref name="hint" /> while it is empty.</summary>
     private PublicProfileTextField Field(string hint, PublicProfileStop stop)
     {
-        var field = Placed(new PublicProfileTextField(_theme, hint, Save, Back, () => Walk(1)), stop);
+        var field = Placed(
+            new PublicProfileTextField(
+                _theme,
+                hint,
+                Save,
+                Back,
+                WalkOn,
+                stop.Part == PublicProfilePart.Value ? () => Across(-1) : null,
+                stop.Part == PublicProfilePart.Label ? () => Across(1) : null),
+            stop);
 
         field.Answering = _draft.Answered;
         field.HasFocusChanged += (_, focus) => TypingMoved(focus.NewValue, stop);
@@ -372,8 +381,28 @@ internal sealed class PublicProfileView : View
         }
     }
 
-    /// <summary>The typing on by <paramref name="by" />: <c>↑</c> off the bio's first line, <c>↓</c> off its last, or <c>⏎</c>.</summary>
+    /// <summary>The typing on by <paramref name="by" />: <c>↑</c> off the bio's first line, or <c>↓</c> off its last.</summary>
     private void Walk(int by) => _ = _shell.ChangePublicProfile(form => form.Walk(by));
+
+    /// <summary><c>⏎</c> in a one-line field: the typing on to the next field in the order the form is read.</summary>
+    private void WalkOn() => _ = _shell.ChangePublicProfile(form => form.WalkOn());
+
+    /// <summary>
+    ///     The typing across a custom field's row, <paramref name="by" /> <c>→</c> from its label or <c>←</c> from its
+    ///     value — the caret put at the edge it came in by, so that the arrow back goes straight back.
+    /// </summary>
+    private void Across(int by)
+    {
+        if (_shell.ChangePublicProfile(form => form.Across(by)) != ComposeChange.Moved || by < 0)
+        {
+            return;
+        }
+
+        if (MostFocused is PublicProfileTextField value)
+        {
+            value.InsertionPoint = 0;
+        }
+    }
 
     /// <summary>A click on the toggle at <paramref name="stop" />: the walk there, and it flipped.</summary>
     private void Flip(PublicProfileStop stop)

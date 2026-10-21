@@ -175,9 +175,9 @@ public sealed class PublicProfileScreen : Screen, IDraft
     ];
 
     /// <summary>
-    ///     Every place the arrows walk to, top to bottom, which is the order they are drawn in: the display name, the
-    ///     avatar and the header, each custom field's label and then its value, the three toggles, and the bio at the
-    ///     foot.
+    ///     Every place the typing goes, in the order the form is read, which is the order <c>⏎</c> walks: the display
+    ///     name, the avatar and the header, each custom field's label and then its value, the three toggles, and the bio
+    ///     at the foot. The arrows walk it a column at a time (<see cref="Walk" />, <see cref="Across" />).
     /// </summary>
     private List<PublicProfileStop> Stops =>
     [
@@ -193,16 +193,50 @@ public sealed class PublicProfileScreen : Screen, IDraft
 
     /// <summary>
     ///     <c>↓</c> or <c>↑</c>: the typing on to the next place down or up, stopping at either end rather than coming
-    ///     round (#337's rule for compose).
+    ///     round (#337's rule for compose). A custom field's label and value sit side by side, so the walk keeps to the
+    ///     column it is in down the rows — and leaves them for the pictures above or the toggles below, coming back in
+    ///     on the labels.
     /// </summary>
     /// <returns>A move, or nothing at either end.</returns>
     public ComposeChange Walk(int by)
     {
-        var stops = Stops;
-        var to = Math.Clamp(stops.IndexOf(Typing) + by, 0, stops.Count - 1);
+        if (Typing.Part is PublicProfilePart.Label or PublicProfilePart.Value
+            && Typing.Row + by is var row and >= 0
+            && row < FieldRows)
+        {
+            return TypeInto(Typing with { Row = row });
+        }
 
-        return TypeInto(stops[to]);
+        var rows = Stops.Where(stop => stop.Part != PublicProfilePart.Value).ToList();
+        var from = rows.IndexOf(Typing with { Part = Typing.Part == PublicProfilePart.Value ? PublicProfilePart.Label : Typing.Part });
+        var to = Math.Clamp(from + by, 0, rows.Count - 1);
+
+        return TypeInto(rows[to]);
     }
+
+    /// <summary>
+    ///     <c>⏎</c> in a one-line field: the typing on to the next place in the order the form is read — from a custom
+    ///     field's label to its value, and from the value to the next row's label.
+    /// </summary>
+    /// <returns>A move, or nothing at the end.</returns>
+    public ComposeChange WalkOn()
+    {
+        var stops = Stops;
+
+        return TypeInto(stops[Math.Min(stops.IndexOf(Typing) + 1, stops.Count - 1)]);
+    }
+
+    /// <summary>
+    ///     <c>→</c> off the end of a custom field's label, or <c>←</c> off the start of its value: the typing across
+    ///     to the other half of the row. Nothing anywhere else, there being nothing beside it.
+    /// </summary>
+    /// <returns>A move, or nothing where there is nothing that way.</returns>
+    public ComposeChange Across(int by) => (Typing.Part, by) switch
+    {
+        (PublicProfilePart.Label, > 0) => TypeInto(Typing with { Part = PublicProfilePart.Value }),
+        (PublicProfilePart.Value, < 0) => TypeInto(Typing with { Part = PublicProfilePart.Label }),
+        _ => ComposeChange.None,
+    };
 
     /// <summary>The typing into <paramref name="stop" />, by a click or the walk.</summary>
     /// <returns>A move, or nothing where the typing was there already.</returns>

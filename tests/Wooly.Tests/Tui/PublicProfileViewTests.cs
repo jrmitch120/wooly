@@ -113,11 +113,35 @@ public class PublicProfileViewTests
 
         drawn.Press(Key.CursorDown);
         Type(drawn, "Home");
-        drawn.Press(Key.CursorDown);
+        drawn.Press(Key.CursorRight);
         Type(drawn, "Kansas");
 
         Assert.Equal("Home", Form(drawn).LabelOf(0));
         Assert.Equal("Kansas", Form(drawn).ValueOf(0));
+
+        // ← moves the caret through the value, and off its start crosses back to the label, the caret at its end.
+        for (var press = 0; press < "Kansas".Length; press++)
+        {
+            drawn.PressThroughTheApplication(Key.CursorLeft);
+            Assert.Equal(new PublicProfileStop(PublicProfilePart.Value, 0), Form(drawn).Typing);
+        }
+
+        drawn.PressThroughTheApplication(Key.CursorLeft);
+        Assert.Equal(new PublicProfileStop(PublicProfilePart.Label, 0), Form(drawn).Typing);
+        Type(drawn, "town");
+        Assert.Equal("Hometown", Form(drawn).LabelOf(0));
+
+        // → off the label's end crosses to the value with the caret at its start, so ← goes straight back.
+        drawn.PressThroughTheApplication(Key.CursorRight);
+        Type(drawn, "W ");
+        Assert.Equal("W Kansas", Form(drawn).ValueOf(0));
+        drawn.PressThroughTheApplication(Key.Home);
+        drawn.PressThroughTheApplication(Key.CursorLeft);
+        Assert.Equal(new PublicProfileStop(PublicProfilePart.Label, 0), Form(drawn).Typing);
+
+        // ⏎ walks on in the order the form is read: the label to its value.
+        drawn.PressThroughTheApplication(Key.Enter);
+        Assert.Equal(new PublicProfileStop(PublicProfilePart.Value, 0), Form(drawn).Typing);
 
         while (Form(drawn).Typing.Part != PublicProfilePart.Bio)
         {
@@ -135,8 +159,10 @@ public class PublicProfileViewTests
     }
 
     /// <summary>
-    ///     <c>←</c> and <c>→</c> never walk: on a picture or a toggle they are nobody's, and in a field they move the
-    ///     caret and stop at either end of what is written rather than carrying the walk off to another field.
+    ///     <c>←</c> and <c>→</c> never walk up or down: on a picture or a toggle they are nobody's, and in the display
+    ///     name or the bio they move the caret and stop at either end of what is written rather than carrying the walk
+    ///     off to another field. A custom field's label and value, which they do cross between, are
+    ///     <see cref="TheArrows_WalkTheTypingFromFieldToField" />'s.
     /// </summary>
     [Fact]
     public async Task LeftAndRight_StayOnTheFieldWalkedTo()
@@ -149,6 +175,13 @@ public class PublicProfileViewTests
             var on = Form(drawn).Typing;
             var focused = drawn.Window.MostFocused;
             walked.Add(on);
+
+            if (on.Part is PublicProfilePart.Label or PublicProfilePart.Value)
+            {
+                drawn.PressThroughTheApplication(Key.CursorDown);
+
+                continue;
+            }
 
             for (var press = 0; press < 3; press++)
             {
