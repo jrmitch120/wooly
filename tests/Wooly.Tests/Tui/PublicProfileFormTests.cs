@@ -557,57 +557,22 @@ public class PublicProfileFormTests
     }
 
     /// <summary>
-    ///     <b>You</b>'s header block ends on an "edit public profile" row, walked to with <c>k</c> as the next thing after
-    ///     the header, which <c>⏎</c> opens the form from — so the form can be found without already knowing <c>E</c>.
+    ///     <b>You</b> draws no row for editing the public profile: <c>E</c> on the status row is the way to the form, and
+    ///     the walk goes from the header block straight to the first post, as it does on anybody's account.
     /// </summary>
     [Fact]
-    public async Task TheEditRow_IsWalkedToAndOpensTheFormOnEnter()
+    public async Task You_OffersEOnTheStatusRowAndNoRowForIt()
     {
         var built = Built();
         var shell = await OnYou(built);
         var you = Assert.IsType<AccountScreen>(shell.Screen);
 
-        Assert.Contains(AShell.Drawn(you), row => row.Contains("Edit public profile · E", StringComparison.Ordinal));
+        Assert.DoesNotContain(AShell.Drawn(you), row => row.Contains("Edit public profile", StringComparison.Ordinal));
+        Assert.Contains(shell.Keys, key => key is { Key: "E", Does: "edit public profile" });
 
         shell.Move(1);
 
-        Assert.True(you.OnTheEditRow);
-        Assert.Contains(shell.Keys, key => key is { Key: "⏎", Does: "edit public profile" });
-
-        shell.Press(ShellKey.Enter);
-        built.Host.Drain();
-
-        Assert.IsType<PublicProfileScreen>(shell.Screen);
-    }
-
-    /// <summary>A click on the "edit public profile" row opens the form, as <c>⏎</c> on it does.</summary>
-    [Fact]
-    public async Task AClickOnTheEditRow_OpensTheForm()
-    {
-        var built = Built();
-        var shell = await OnYou(built);
-        var row = AShell.Drawn(shell.Screen).ToList().FindIndex(drawn => drawn.Contains("Edit public profile", StringComparison.Ordinal));
-        var line = shell.Screen.Lines(new Wooly.Tui.Rendering.Drawing(61, AShell.Now))[row];
-
-        Assert.True(shell.Click(line.Item, part: null, chorded: false));
-        built.Host.Drain();
-
-        Assert.IsType<PublicProfileScreen>(shell.Screen);
-    }
-
-    /// <summary>Somebody else's header block has no such row, and walks straight from the header to their first post.</summary>
-    [Fact]
-    public async Task SomebodyElsesAccount_HasNoEditRow()
-    {
-        var built = new AShell { Accounts = FakeAccountRelationships.Holding(AnAccount.With(address: "ben@hachyderm.io")) };
-        var shell = await OnYou(built);
-        var theirs = Assert.IsType<AccountScreen>(shell.Screen);
-
-        Assert.DoesNotContain(AShell.Drawn(theirs), row => row.Contains("Edit public profile", StringComparison.Ordinal));
-
-        shell.Move(1);
-
-        Assert.NotNull(theirs.Picked);
+        Assert.NotNull(you.Picked);
     }
 
     /// <summary><b>You</b> offers <c>E</c> on its status row, worded as ADR-0028 words the form.</summary>

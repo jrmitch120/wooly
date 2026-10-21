@@ -69,7 +69,7 @@ public sealed class AccountScreen : Screen
         Asked = pinned is not null;
         _pins = [.. (pinned ?? []).Select(post => post.Id)];
         _posts = new PostList(this, [.. pinned ?? [], .. posts]);
-        _walking = new HeaderAndPosts(account, _posts, editable: isOwnAccount);
+        _walking = new HeaderAndPosts(account, _posts);
     }
 
     /// <inheritdoc />
@@ -91,7 +91,6 @@ public sealed class AccountScreen : Screen
         PostKeys.Around(
             new KeyHint("j/k", "post"),
             [
-                .. OnTheEditRow ? [new KeyHint("⏎", EditingThePublicProfile.Does)] : Array.Empty<KeyHint>(),
                 .. Jumping,
                 .. IsOwnAccount ? [EditingThePublicProfile] : Array.Empty<KeyHint>(),
                 new KeyHint("F", Says(Follows, "unfollow", "follow")),
@@ -157,24 +156,9 @@ public sealed class AccountScreen : Screen
     public bool WithReplies { get; }
 
     /// <summary>
-    ///     Whether this is the <b>Own account</b>, which is what <c>E</c> and the "edit public profile" row are offered
-    ///     on and nowhere else (#406).
+    ///     Whether this is the <b>Own account</b>, which is what <c>E</c> is offered on and nowhere else (#406).
     /// </summary>
     public bool IsOwnAccount { get; }
-
-    /// <summary>
-    ///     Whether the walk is on the own account's "edit public profile" row, under the header block, where <c>⏎</c>
-    ///     opens the form (#406).
-    /// </summary>
-    public bool OnTheEditRow => _walking.OnTheEditRow;
-
-    /// <inheritdoc />
-    /// <remarks>
-    ///     A click on the "edit public profile" row opens the form, as <c>⏎</c> on it does — the one row of this screen
-    ///     that is a button rather than a thing to pick out (#406).
-    /// </remarks>
-    public override Verb Clicked(int? item, int? part, bool chorded) =>
-        _walking.IsTheEditRow(item) ? Verb.EditPublicProfile : Verb.None;
 
     /// <inheritdoc />
     /// <remarks>
@@ -285,14 +269,6 @@ public sealed class AccountScreen : Screen
             (account, at, room) => AccountLines.Header(account, Familiar, drawing.In(room), ReferenceOn(at)),
             width));
 
-        // A section of its own under the block, bringing its blank above it as each of the block's does — the blank
-        // part of nothing, so that a click on it opens nothing.
-        if (_walking.EditRows(EditRow, width) is [_, ..] editing)
-        {
-            lines.Add(Line.Blank);
-            lines.AddRange(editing);
-        }
-
         if (!Asked)
         {
             // Where the section would be, and one row rather than a heading over nothing: a heading says how many are
@@ -352,20 +328,6 @@ public sealed class AccountScreen : Screen
     /// </remarks>
     private IReadOnlyList<KeyHint> Jumping =>
         Pins > 0 && _posts.Count > Pins ? [new KeyHint("[/]", "section")] : [];
-
-    /// <summary>
-    ///     The own account's "edit public profile" row, in <paramref name="room" /> columns: the words, then the key that
-    ///     does the same from anywhere on the screen, muted (#406).
-    /// </summary>
-    private static IReadOnlyList<Line> EditRow(int room)
-    {
-        var words = TextWrap.Clip("Edit public profile", room);
-
-        return
-        [
-            Line.Of(new Span(words, Role.Body), new Span(TextWrap.Clip(" · E", room - Glyphs.Columns(words)), Role.Muted)),
-        ];
-    }
 
     /// <summary>One of this screen's headings, marked as one so that <c>[</c> and <c>]</c> know the run it stands over.</summary>
     private static Line Heading(string heading, int width) =>
