@@ -1,3 +1,4 @@
+using Wooly.Core.Errors;
 using Terminal.Gui.Input;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
@@ -112,6 +113,64 @@ public class DraftResetTests : IDisposable
         Assert.IsType<SearchScreen>(shell.Screen);
         Assert.Equal(1, shell.Depth);
         Assert.Equal(DestinationKind.Search, shell.Rail.Showing.Kind);
+    }
+
+    /// <summary>
+    ///     Switching profile while an upload and a description are on their way throws the draft away, and what was
+    ///     already on its way back for it lands on nothing: the draft that has gone is left as it was, and the switched
+    ///     session says nothing of it (#425).
+    /// </summary>
+    [Fact]
+    public async Task ReportsLandingAfterAProfileSwitch_ChangeNothingAndSayNothing()
+    {
+        var built = new AShell
+        {
+            LaunchedFrom = _files.Path,
+            Profiles = FakeProfileRegistry.Holding(
+                "personal",
+                FakeProfileRegistry.Profile("personal", "mastodon.social", "jeff@mastodon.social"),
+                FakeProfileRegistry.Profile("work", "hachyderm.io", "jeff@hachyderm.io")),
+        };
+
+        built.Author.HoldingDescriptions = true;
+
+        using var drawn = await DrawnShell.Of(80, 24, Themes.Plain, built);
+
+        drawn.Shell.Press(ShellKey.C);
+
+        var compose = Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
+
+        Assert.True(drawn.Shell.Paste(_files.WriteFile("one.png")));
+        built.Author.Attaching[0].Ready();
+        drawn.Settle();
+
+        drawn.Press(Key.CursorUp);
+        drawn.Press(Key.Enter);
+
+        Assert.IsType<DescriptionScreen>(drawn.Shell.Screen);
+
+        drawn.Shell.Drafting.Write("A cat");
+        drawn.Press(Key.Esc);
+        drawn.Settle();
+
+        Assert.Same(compose, drawn.Shell.Screen);
+        Assert.Single(built.Author.Descriptions);
+
+        Assert.True(drawn.Shell.Paste(_files.WriteFile("two.png")));
+        built.Author.Attaching[1].Ready();
+
+        drawn.Press(Key.P.WithCtrl);
+        drawn.Press(Key.Y);
+        Assert.IsType<ProfilesScreen>(drawn.Shell.Screen).Pick("work");
+        drawn.Press(Key.Enter);
+        built.Author.Descriptions[0].Refuse(new AttachmentRefusedException("Description is too long"));
+        drawn.Settle();
+
+        Assert.IsType<FeedScreen>(drawn.Shell.Screen);
+        Assert.Contains(drawn.Rail(), row => row.Contains("hachyderm.io", StringComparison.Ordinal));
+        Assert.True(compose.Media.Attachments[0].Untold);
+        Assert.IsType<AttachmentState.Sending>(compose.Media.Attachments[1].State);
+        Assert.DoesNotContain(drawn.Rows(), row => row.Contains("refused", StringComparison.Ordinal));
     }
 
     /// <summary>A drawn compose with three files attached, their rows folded, and the attachments screen listing them.</summary>

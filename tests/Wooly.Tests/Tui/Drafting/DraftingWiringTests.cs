@@ -217,6 +217,35 @@ public class DraftingWiringTests : IDisposable
         Assert.Empty(drawn.Built.Author.Published);
     }
 
+    /// <summary>
+    ///     A post sent, its compose left and something else opened before the instance answers: the answer lands without
+    ///     taking off what the reader went on to, and says it was sent (#423).
+    /// </summary>
+    [Fact]
+    public async Task ASendLandingAfterItsComposeHasLeftLeavesWhatTheReaderOpenedInFront()
+    {
+        using var drawn = await DrawnShell.Of(80, 24, Themes.Plain);
+        drawn.Built.Author.HoldingPublishes = true;
+        drawn.Press(new Key('c'));
+        drawn.Press(new Key('h'));
+        drawn.Press(new Key('i'));
+        drawn.Press(Key.S.WithCtrl);
+
+        drawn.Press(Key.Esc);
+        drawn.Press(Key.Y);
+        drawn.Press(Key.P.WithCtrl);
+        drawn.Redraw();
+        var opened = drawn.Rows()[0];
+
+        drawn.Built.Author.HeldPublishes.Single().Land();
+        drawn.Settle();
+        drawn.Redraw();
+
+        Assert.IsType<ProfilesScreen>(drawn.Shell.Screen);
+        Assert.Equal(opened, drawn.Rows()[0]);
+        Assert.Equal("Sent.", drawn.Shell.Notice);
+    }
+
     public void Dispose() => _files.Dispose();
 
     /// <summary>A drawn shell with a compose open, cat.png dropped on it and still going up.</summary>

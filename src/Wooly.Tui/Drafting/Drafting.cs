@@ -444,9 +444,11 @@ public sealed class Drafting
                 break;
         }
 
-        // What both arms do to get back to where the reader was: the screen on top off the stack, before the change is
-        // heard by what is left on it.
-        void Popped() => _stack.TakeOff(_stack.Top);
+        // What both arms do to get back to where the reader was: the compose that was sent off the stack, with whatever
+        // has been put over it meanwhile, before the change is heard by what is left on it — named rather than read off
+        // the top, so an answer that lands after something else is in front takes off only what it was about, and
+        // nothing where the compose has already gone (#423).
+        void Popped() => _stack.TakeOff(compose);
     }
 
     /// <summary>
@@ -713,9 +715,13 @@ public sealed class Drafting
     ///     Where <paramref name="attachment" /> on <paramref name="compose" /> has got to, heard on the drawing thread —
     ///     and, where that was the last thing a waiting send was waiting on, the send (ADR-0026, #375).
     /// </summary>
+    /// <remarks>
+    ///     A report for a compose no longer on the stack is ignored: one already on its way as the compose left still
+    ///     lands, and the draft it was for has gone (#425).
+    /// </remarks>
     private void Progressed(ComposeScreen compose, ComposeAttachment attachment, AttachmentState state)
     {
-        if (!compose.Media.Progressed(attachment, state))
+        if (Gone(compose) || !compose.Media.Progressed(attachment, state))
         {
             return;
         }
@@ -751,6 +757,12 @@ public sealed class Drafting
         }
     }
 
+    /// <summary>
+    ///     Whether <paramref name="compose" /> is no longer on the stack — taken off, its uploads let go — so that a report
+    ///     still landing for it changes nothing, says nothing and redraws nothing (#425).
+    /// </summary>
+    private bool Gone(ComposeScreen compose) => !_stack.Screens.Any(screen => ReferenceEquals(screen, compose));
+
     /// <summary>That a send is waiting on <paramref name="unfinished" /> attachments, and how to call it off.</summary>
     private void SayWaiting(int unfinished) => Reach.Say(
         unfinished == 1
@@ -765,6 +777,11 @@ public sealed class Drafting
     /// </summary>
     private void Told(ComposeScreen compose, ComposeAttachment attachment, string description)
     {
+        if (Gone(compose))
+        {
+            return;
+        }
+
         if (compose.Media.Told(attachment, description))
         {
             Reach.Changed();
@@ -782,6 +799,11 @@ public sealed class Drafting
     /// </summary>
     private void Untold(ComposeScreen compose, ComposeAttachment attachment, string why)
     {
+        if (Gone(compose))
+        {
+            return;
+        }
+
         if (ReferenceEquals(_waitingToSend, compose))
         {
             _waitingToSend = null;
