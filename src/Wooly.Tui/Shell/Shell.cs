@@ -306,6 +306,12 @@ public sealed class Shell
     public int SpinnerFrame => _enquiry.SpinnerFrame;
 
     /// <summary>
+    ///     How much of the terminal's width the shell takes (<c>GLOSSARY.md</c>), for this session: all of it until
+    ///     <c>-</c> narrows it (#414). Worked into columns by the window, which is the one that knows the terminal's width.
+    /// </summary>
+    public ShellWidth ShellWidth { get; private set; } = ShellWidth.Full;
+
+    /// <summary>
     ///     Something the shell has to say out loud that is not a screen: a refusal, or the countdown on a rate limit
     ///     being waited out.
     /// </summary>
@@ -1000,6 +1006,16 @@ public sealed class Shell
     ///     would go with it (#373).
     /// </summary>
     public void Quit(Action quit) => Leaving(0, quit);
+
+    /// <summary>
+    ///     <c>-</c>: the <see cref="ShellWidth" /> one step narrower, on a terminal <paramref name="terminal" /> columns
+    ///     wide — only the window knows how wide that is, so it carries the verb out and asks this (#414). Refused, and
+    ///     left as it was, at the narrowest step or where the next would take the shell under 80 columns here.
+    /// </summary>
+    public void Narrow(int terminal) => Stepped(ShellWidth.Narrower(terminal), refused: "Narrowest");
+
+    /// <summary><c>+</c> or <c>=</c>: the <see cref="ShellWidth" /> one step wider, refused at the whole terminal (#414).</summary>
+    public void Widen() => Stepped(ShellWidth.Wider(), refused: "Full width");
 
     /// <summary>
     ///     <c>a</c> on the profiles screen: adds a profile, from the instance up (#245). Nothing is read or sent until
@@ -3170,6 +3186,23 @@ public sealed class Shell
         }
 
         _stack.RemoveAt(at);
+    }
+
+    /// <summary>
+    ///     Takes the shell to <paramref name="width" />, saying so on the status row — or, where there was no step to take,
+    ///     leaves it as it was and says <paramref name="refused" />, so that a press that does nothing still answers.
+    /// </summary>
+    private void Stepped(ShellWidth? width, string refused)
+    {
+        if (width is null)
+        {
+            Say(refused, isError: false);
+
+            return;
+        }
+
+        ShellWidth = width;
+        Say($"Width {width.Percent}%", isError: false);
     }
 
     private void Say(string? notice, bool isError)

@@ -9,14 +9,15 @@ namespace Wooly.Tui.Shell;
 ///     are the same key on different screens and one — <see cref="Delete" />, <see cref="Vote" /> — is a question put
 ///     before anything is done.
 ///     <para>
-///         What each becomes is <see cref="Shell.Do" />'s, but for fourteen of them, which need a terminal and are
+///         What each becomes is <see cref="Shell.Do" />'s, but for sixteen of them, which need a terminal and are
 ///         <c>ShellWindow</c>'s: <see cref="Quit" />, which ends a run loop the application owns;
 ///         <see cref="ScrollDown" />, <see cref="ScrollUp" />, <see cref="PageDown" /> and <see cref="PageUp" />,
 ///         which walk the page rather than the list; <see cref="NextPost" />, <see cref="PreviousPost" />,
 ///         <see cref="FirstPost" />, <see cref="LastPost" />, <see cref="NextSection" />,
 ///         <see cref="PreviousSection" />, <see cref="NextEntry" /> and <see cref="PreviousEntry" />, which move the pick
-///         and the page both; and <see cref="Send" />, which has to take the editor widget's text before the shell sends
-///         it. Which fourteen is <see cref="Verbs.NeedsATerminal" />, the one list the window and the shell both read.
+///         and the page both; <see cref="Send" />, which has to take the editor widget's text before the shell sends
+///         it; and <see cref="Narrower" /> and <see cref="Wider" />, whose steps are refused by how wide the terminal
+///         is. Which sixteen is <see cref="Verbs.NeedsATerminal" />, the one list the window and the shell both read.
 ///     </para>
 /// </remarks>
 public enum Verb
