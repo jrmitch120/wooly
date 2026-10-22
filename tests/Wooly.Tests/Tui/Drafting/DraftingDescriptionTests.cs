@@ -223,6 +223,73 @@ public class DraftingDescriptionTests : IDisposable
         Assert.Empty(drafting.Fakes.Author.Descriptions);
     }
 
+    /// <summary>
+    ///     A description the instance took after its compose left the stack is ignored: the draft that has gone is left
+    ///     as it was, nothing is said and nothing is redrawn (#425).
+    /// </summary>
+    [Fact]
+    public void ADescriptionToldForAComposeThatHasLeftIsIgnored()
+    {
+        var (drafting, compose) = Ready(holdingDescriptions: true);
+
+        Describe(drafting, compose, "A cat");
+        drafting.Stack.TakeOff(compose);
+        drafting.Notice = "untouched";
+
+        var changes = drafting.Changes;
+
+        drafting.Fakes.Author.Descriptions.Single().Land();
+        drafting.Fakes.Host.Drain();
+
+        Assert.True(compose.Media.Attachments.Single().Untold);
+        Assert.Equal(changes, drafting.Changes);
+        Assert.Equal("untouched", drafting.Notice);
+    }
+
+    /// <summary>
+    ///     A description the instance refused after its compose left the stack is not said: there is no draft left to
+    ///     say it of (#425).
+    /// </summary>
+    [Fact]
+    public void ADescriptionRefusedForAComposeThatHasLeftIsNotSaid()
+    {
+        var (drafting, compose) = Ready(holdingDescriptions: true);
+
+        Describe(drafting, compose, "A cat");
+        drafting.Stack.TakeOff(compose);
+        drafting.Notice = "untouched";
+
+        var changes = drafting.Changes;
+
+        drafting.Fakes.Author.Descriptions.Single().Refuse(new AttachmentRefusedException("Description is too long"));
+        drafting.Fakes.Host.Drain();
+
+        Assert.Equal(changes, drafting.Changes);
+        Assert.Equal("untouched", drafting.Notice);
+        Assert.False(drafting.NoticeIsError);
+    }
+
+    /// <summary>
+    ///     A description told or refused for a compose still on the stack under the description editor lands as ever
+    ///     (#425).
+    /// </summary>
+    [Fact]
+    public void ADescriptionForAComposeUnderTheEditorStillLands()
+    {
+        var (drafting, compose) = Ready(holdingDescriptions: true);
+
+        Describe(drafting, compose, "A cat");
+        OntoTheRow(compose);
+        drafting.Press(ShellKey.Enter);
+
+        Assert.IsType<DescriptionScreen>(drafting.Stack.Top);
+
+        drafting.Fakes.Author.Descriptions.Single().Land();
+        drafting.Fakes.Host.Drain();
+
+        Assert.False(compose.Media.Attachments.Single().Untold);
+    }
+
     public void Dispose() => _files.Dispose();
 
     /// <summary>
