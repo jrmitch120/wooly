@@ -975,19 +975,22 @@ public sealed class Shell
     /// <summary>
     ///     Goes to search, which is a frame key rather than a screen's (<c>docs/tui-shell.md</c>): it means the same
     ///     thing everywhere, and from the search destination itself it means a fresh prompt rather than nothing —
-    ///     otherwise the one place the key is most likely to be pressed is the one place it does nothing.
+    ///     otherwise the one place the key is most likely to be pressed is the one place it does nothing. Either way
+    ///     it puts the stack back to one screen, so a touched draft anywhere on it is asked about first, as the rail's
+    ///     ways out ask (#373, #426).
     /// </summary>
-    public void Search()
-    {
-        if (Rail.Showing.Kind == DestinationKind.Search)
+    public void Search() =>
+        Leaving(0, () =>
         {
-            Reset(new SearchScreen());
+            if (Rail.Showing.Kind == DestinationKind.Search)
+            {
+                Reset(new SearchScreen());
 
-            return;
-        }
+                return;
+            }
 
-        Rail.GoTo(DestinationKind.Search);
-    }
+            Rail.GoTo(DestinationKind.Search);
+        });
 
     /// <summary>
     ///     Opens the profiles screen: every profile on this machine, marked with which one this session is acting as
