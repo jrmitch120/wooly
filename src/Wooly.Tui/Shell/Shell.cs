@@ -134,6 +134,12 @@ public sealed class Shell
     private readonly ProfilePorts _profiles;
 
     /// <summary>
+    ///     Where each step of the <see cref="ShellWidth" /> is saved, for the next launch to open at (#415). Not one of
+    ///     <see cref="ShellPorts" /> either, for the profiles' reason: it reaches the local config.
+    /// </summary>
+    private readonly IShellWidthStore _shellWidths;
+
+    /// <summary>
     ///     The instance the rail's foot names, read when the shell is built and again when a profile is added: the
     ///     profiles on this machine are the local config's, and asking it on every redraw would read a file to draw one
     ///     row.
@@ -188,8 +194,8 @@ public sealed class Shell
     ///     Who to act as — or, with nobody, what to open onto instead: adding a profile, as the only screen (#247).
     /// </param>
     /// <param name="preferences">
-    ///     The config file's preferences: the hashtag the rail keeps a place for, what compose starts on, and whether a
-    ///     rising Inbox badge rings the bell. None where the file sets none.
+    ///     The config file's preferences: the hashtag the rail keeps a place for, what compose starts on, whether a
+    ///     rising Inbox badge rings the bell, and the shell width the launch opens at. None where the file sets none.
     /// </param>
     /// <param name="launchedFrom">
     ///     The folder Wooly was launched from, where the file browser first opens (#376): the working folder, where
@@ -199,6 +205,7 @@ public sealed class Shell
         Opening opening,
         ShellPorts ports,
         ProfilePorts profiles,
+        IShellWidthStore shellWidths,
         IShellHost host,
         IWebBrowser browser,
         IClipboard clipboard,
@@ -211,6 +218,7 @@ public sealed class Shell
         _launchedFrom = launchedFrom ?? Environment.CurrentDirectory;
         _ports = ports;
         _profiles = profiles;
+        _shellWidths = shellWidths;
         _host = host;
         _limits = new LimitsByInstance(ports.Limits, host);
         _limits.Heard += Measured;
@@ -226,6 +234,7 @@ public sealed class Shell
         _timing = timing;
         _hashtag = preferences?.Hashtag;
         _preferred = new PostDefaults(preferences?.DefaultVisibility, preferences?.DefaultLanguage);
+        ShellWidth = preferences is null ? ShellWidth.Full : ShellWidth.Of(preferences.ShellWidth);
 
         Rail = new Rail(Destinations(opening.Profile, _hashtag), host, timing.Settle);
         _badges = new InboxBadges(ports, Rail, host, clock, timing, ringing: preferences?.Bell ?? true, Landed);
@@ -306,10 +315,12 @@ public sealed class Shell
     public int SpinnerFrame => _enquiry.SpinnerFrame;
 
     /// <summary>
-    ///     How much of the terminal's width the shell takes (<c>GLOSSARY.md</c>), for this session: all of it until
-    ///     <c>-</c> narrows it (#414). Worked into columns by the window, which is the one that knows the terminal's width.
+    ///     How much of the terminal's width the shell takes (<c>GLOSSARY.md</c>): what the config file saved, or all of it,
+    ///     until <c>-</c> or <c>+</c> steps it (#414, #415). Worked into columns by the window, which is the one that
+    ///     knows the terminal's width — so a saved width the 80-column floor overrides on a narrow terminal stands here
+    ///     as saved, for a wider one to honour.
     /// </summary>
-    public ShellWidth ShellWidth { get; private set; } = ShellWidth.Full;
+    public ShellWidth ShellWidth { get; private set; }
 
     /// <summary>
     ///     Something the shell has to say out loud that is not a screen: a refusal, or the countdown on a rate limit
@@ -3202,6 +3213,21 @@ public sealed class Shell
         }
 
         ShellWidth = width;
+
+        // Saved straight away, so the next launch opens where this one was left (#415). A step pressed is a choice
+        // asked for (ADR-0020), and a refused one, above, is none — so what is saved is always a width that was seen.
+        // One that cannot be saved still holds for this session, since it was seen; the status row says why, as D does.
+        try
+        {
+            _shellWidths.Save(width);
+        }
+        catch (WoolyException failure)
+        {
+            Say(failure.Message, isError: true);
+
+            return;
+        }
+
         Say($"Width {width.Percent}%", isError: false);
     }
 
