@@ -110,6 +110,34 @@ public class ShellWidthTests
     }
 
     /// <summary>
+    ///     A resized terminal keeps the share and re-centres the shell in it — floored at 80 columns on one too narrow for
+    ///     the share, and the whole of one 80 wide or less — without the share itself changing: back on a wide terminal,
+    ///     it is what it was.
+    /// </summary>
+    [Theory]
+    [InlineData(300, 45, 210)]
+    [InlineData(100, 10, 80)]
+    [InlineData(80, 0, 80)]
+    [InlineData(70, 0, 70)]
+    public async Task AResizedTerminalKeepsTheShareAndReCentresTheShell(int terminal, int left, int columns)
+    {
+        using var drawn = await DrawnShell.Of(200, 24, Midnight());
+
+        drawn.Press(new Key('-'));
+        drawn.Press(new Key('-'));
+        drawn.Press(new Key('-'));
+
+        drawn.Resize(terminal, 24);
+
+        Assert.Equal((left, columns), Shell(drawn));
+        AssertMargins(drawn, left, terminal - left - columns);
+
+        drawn.Resize(200, 24);
+
+        Assert.Equal((30, 140), Shell(drawn));
+    }
+
+    /// <summary>
     ///     The margins are the terminal's: blank, at its default attribute, under a theme with a page of its own — no
     ///     role, so no theme entry, painted them. An odd column left over falls on the right, so the left edge moves only
     ///     when the width does.

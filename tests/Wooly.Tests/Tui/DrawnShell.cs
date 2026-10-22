@@ -135,6 +135,16 @@ internal sealed class DrawnShell : IDisposable
 
     public void Redraw() => Application.LayoutAndDraw(true);
 
+    /// <summary>
+    ///     The terminal resized to <paramref name="width" />×<paramref name="height" />, and drawn as the running loop
+    ///     draws the pass after it.
+    /// </summary>
+    public void Resize(int width, int height)
+    {
+        Application.Driver!.SetScreenSize(width, height);
+        DrawAsTheLoopDraws();
+    }
+
     /// <summary>Whatever was asked of the instance answered, and drawn.</summary>
     public void Settle()
     {
