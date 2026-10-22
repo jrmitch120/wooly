@@ -1,4 +1,5 @@
 using Terminal.Gui.Input;
+using Wooly.Tests.Fakes;
 using static Wooly.Tests.Tui.ShellWidthTests;
 
 namespace Wooly.Tests.Tui;
@@ -54,6 +55,25 @@ public class RememberedShellWidthTests
 
         // 70% of 200 is 140, which leaves 60 to share: 30 either side.
         Assert.Equal((30, 140), Shell(drawn));
+    }
+
+    /// <summary>
+    ///     The first-run screen too: with nobody to act as, a launch opens on adding a profile with the rail hidden, and
+    ///     draws it centred at the saved width, the add screen's panel taking all of the shell — and saves nothing, as
+    ///     opening at a width is not a step.
+    /// </summary>
+    [Fact]
+    public async Task AFirstRunLaunchOpensAtTheSavedWidth()
+    {
+        var built = new AShell { ShellWidth = 70, Profiles = FakeProfileRegistry.Holding(current: null) };
+        using var drawn = await DrawnShell.Of(200, 24, Midnight(), built, launch: true);
+
+        Assert.False(drawn.Shell.ShowsRail);
+        Assert.Equal((30, 140), Shell(drawn));
+        Assert.StartsWith("╭ Add a profile ─", drawn.Rows()[0][30..], StringComparison.Ordinal);
+        Assert.Equal(new string(' ', 30), drawn.Rows()[0][..30]);
+        Assert.Equal(new string(' ', 30), drawn.Rows()[0][170..]);
+        Assert.Empty(built.ShellWidths.Saved);
     }
 
     /// <summary>
