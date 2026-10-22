@@ -84,10 +84,18 @@ public sealed class PublicProfileScreen : Screen, IDraft
     /// </summary>
     private int _scrolled;
 
+    /// <summary>The instance the public profile is on, or none where nobody said.</summary>
+    private readonly string? _on;
+
     /// <param name="read">The public profile as written, read fresh as the form was opened.</param>
-    public PublicProfileScreen(PublicProfile read)
+    /// <param name="on">
+    ///     The instance the public profile is on, and so whose limit on a bio it is measured against (#422) — or none,
+    ///     where nobody said.
+    /// </param>
+    public PublicProfileScreen(PublicProfile read, string? on = null)
     {
         _read = read;
+        _on = on;
 
         // Four rows at the least, which is what Mastodon keeps, and as many as a fork's account already has where it
         // keeps more — so that a save never drops a field nobody could see to keep (#404's review).
@@ -105,6 +113,14 @@ public sealed class PublicProfileScreen : Screen, IDraft
             [PublicProfilePart.Discoverable] = read.IsDiscoverable,
         };
     }
+
+    /// <summary>
+    ///     Whether this public profile is on <paramref name="instance" />, which is whose limit on a bio it is measured
+    ///     against (#422), as a compose's post is (<see cref="ComposeScreen.GoesOutOn" />). Never, where it was opened
+    ///     without saying which instance it is on.
+    /// </summary>
+    public bool GoesOutOn(string instance) =>
+        _on is { } on && string.Equals(on, instance, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>The public profile as it was read, which is what everything here is compared against.</summary>
     public PublicProfile Read => _read;

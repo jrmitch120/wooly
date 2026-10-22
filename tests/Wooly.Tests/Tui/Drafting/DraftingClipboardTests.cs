@@ -140,6 +140,65 @@ public class DraftingClipboardTests : IDisposable
     }
 
     /// <summary>
+    ///     The edit public profile form's picture paste shares compose's clipboard and what it was told about it: a
+    ///     missing tool said over a compose is not said again over the form's avatar, nor one said there over a compose
+    ///     opened afterwards — once a session, whichever draft it was pasted into (#422).
+    /// </summary>
+    [Fact]
+    public void AMissingToolIsSaidOnceASessionAcrossBothDrafts()
+    {
+        var drafting = Composing();
+        const string why = "Pasting a picture or files needs wl-paste or xclip installed.";
+
+        drafting.Fakes.Clipboard.Holding = new Clipped.NoTool(why);
+
+        drafting.Press(ShellKey.CtrlV);
+        drafting.Fakes.Host.Drain();
+        Assert.Equal(why, drafting.Notice);
+
+        drafting.Stack.TakeOff(drafting.Composing);
+        OnTheAvatar(drafting);
+
+        drafting.Press(ShellKey.CtrlV);
+        drafting.Fakes.Host.Drain();
+        Assert.Null(drafting.Notice);
+    }
+
+    /// <summary>And the other way about: said first over the form's avatar, it is not said again over a compose.</summary>
+    [Fact]
+    public void AMissingToolSaidOverTheFormIsNotSaidAgainOverACompose()
+    {
+        var drafting = new ADrafting().Build();
+        const string why = "Pasting a picture or files needs wl-paste or xclip installed.";
+
+        drafting.Fakes.Clipboard.Holding = new Clipped.NoTool(why);
+
+        var form = OnTheAvatar(drafting);
+
+        drafting.Press(ShellKey.CtrlV);
+        drafting.Fakes.Host.Drain();
+        Assert.Equal(why, drafting.Notice);
+
+        drafting.Stack.TakeOff(form);
+        drafting.Press(ShellKey.C);
+
+        Assert.Equal(Drafted.Declined, drafting.Press(ShellKey.CtrlV));
+        drafting.Fakes.Host.Drain();
+        Assert.Null(drafting.Notice);
+    }
+
+    /// <summary>The edit public profile form pushed over what is showing, its walk on the avatar.</summary>
+    private static PublicProfileScreen OnTheAvatar(ADrafting drafting)
+    {
+        var form = new PublicProfileScreen(APublicProfile.With());
+
+        drafting.Stack.Push(form);
+        form.TypeInto(new PublicProfileStop(PublicProfilePart.Avatar));
+
+        return form;
+    }
+
+    /// <summary>
     ///     The missing tool is said once the field has pasted — after the press, on the drawing thread — since the paste
     ///     is an edit and an edit spends a notice (#364).
     /// </summary>
