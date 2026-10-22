@@ -2,6 +2,7 @@ using Terminal.Gui.Input;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Theme;
+using static Wooly.Tests.Tui.ContentClicks;
 
 namespace Wooly.Tests.Tui;
 
@@ -27,6 +28,9 @@ public class NarrowedShellMouseTests
 
     /// <summary>A column inside the narrowed shell's rail, clear of its left edge and its mark column.</summary>
     private const int OverRail = Left + RailLines.Width / 2;
+
+    /// <summary>A column inside the narrowed shell's content panel, clear of its left edge and the pick's gutter.</summary>
+    private const int OverContent = Left + ContentClicks.OverContent;
 
     /// <summary>
     ///     A notch over either margin moves the page as a notch over the content panel does, a row at a time, either way.
@@ -128,6 +132,84 @@ public class NarrowedShellMouseTests
         Assert.Equal(drawn.Shell.Rail.Current, drawn.Shell.Rail.Cursor);
     }
 
+    /// <summary>A click on a row of a post in the narrowed shell's content panel picks that post.</summary>
+    [Fact]
+    public async Task AClickOnAPostPicksIt()
+    {
+        using var drawn = await Narrowed(Two());
+
+        drawn.Click(OverContent, RowOf(drawn, "Two sheep"));
+
+        Assert.Equal("220", drawn.Shell.Screen.Picked?.Id);
+    }
+
+    /// <summary>A double click on a post opens it, as a click on it and then <c>⏎</c> do in the narrowed shell.</summary>
+    [Fact]
+    public async Task ADoubleClickOnAPostIsAClickAndThenEnter()
+    {
+        using var keyed = await Narrowed(Two());
+        using var doubled = await Narrowed(Two());
+
+        keyed.Press(Key.K);
+        keyed.Press(Key.Enter);
+        keyed.Settle();
+
+        doubled.DoubleClick(OverContent, RowOf(doubled, "Two sheep"));
+        doubled.Settle();
+
+        Assert.IsType<PostScreen>(doubled.Shell.Screen);
+        Assert.Equal(keyed.Rows(), doubled.Rows());
+    }
+
+    /// <summary>A right click inside the narrowed shell is <c>esc</c>: a post opened off Home goes back to Home.</summary>
+    [Theory]
+    [InlineData(OverRail)]
+    [InlineData(OverContent)]
+    public async Task ARightClickInsideTheShellIsEsc(int column)
+    {
+        using var keyed = await Narrowed(Two());
+        using var clicked = await Narrowed(Two());
+
+        foreach (var drawn in new[] { keyed, clicked })
+        {
+            drawn.Press(Key.Enter);
+            drawn.Settle();
+
+            Assert.IsType<PostScreen>(drawn.Shell.Screen);
+        }
+
+        keyed.Press(Key.Esc);
+        keyed.Settle();
+
+        clicked.RightClick(column, Inside);
+        clicked.Settle();
+
+        Assert.IsType<FeedScreen>(clicked.Shell.Screen);
+        Assert.Equal(keyed.Rows(), clicked.Rows());
+    }
+
+    /// <summary>A click on the first crumb of the narrowed shell's breadcrumb walks back to it.</summary>
+    [Fact]
+    public async Task AClickOnACrumbWalksBackToIt()
+    {
+        using var drawn = await Narrowed(Two());
+
+        drawn.Press(Key.Enter);
+        drawn.Settle();
+
+        Assert.Equal(2, drawn.Shell.Depth);
+
+        var crumb = drawn.Rows()[0].IndexOf(drawn.Shell.Crumbs[0], Left + RailLines.Width, StringComparison.Ordinal);
+
+        Assert.True(crumb >= 0, drawn.Rows()[0]);
+
+        drawn.Click(crumb + 1, 0);
+        drawn.Settle();
+
+        Assert.Equal(1, drawn.Shell.Depth);
+        Assert.IsType<FeedScreen>(drawn.Shell.Screen);
+    }
+
     /// <summary>The shell on a 200-column terminal, narrowed a step to 180 columns from the eleventh.</summary>
     private static async Task<DrawnShell> Narrowed(AShell? built = null, int height = 30)
     {
@@ -150,6 +232,14 @@ public class NarrowedShellMouseTests
 
         return row;
     }
+
+    /// <summary>Two posts on Home, the second reading "Two sheep".</summary>
+    private static AShell Two() => new()
+    {
+        Timelines = FakeTimelineReader.Holding(
+            APost.With(id: "110"),
+            APost.With(id: "220", content: "Two sheep")),
+    };
 
     /// <summary>Four posts on Home, by people other than the reader.</summary>
     private static AShell Four() => new()
