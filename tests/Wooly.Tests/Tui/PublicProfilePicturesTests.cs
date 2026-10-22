@@ -198,7 +198,7 @@ public class PublicProfilePicturesTests : IDisposable
         built.Clipboard.Holding = new Clipped.Picture(Png);
 
         Assert.False(shell.Press(ShellKey.CtrlV));
-        Assert.False(shell.PasteFromTheClipboard());
+        Assert.False(shell.Do(Verb.PasteFromTheClipboard, answer: null));
         Assert.Equal(0, built.Clipboard.Reads);
         Assert.Null(form.Avatar);
         Assert.Null(form.Header);

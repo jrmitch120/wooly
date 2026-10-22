@@ -2,6 +2,7 @@ using Wooly.Core.Accounts;
 using Wooly.Core.Conversations;
 using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
+using Wooly.Tui.Clipboard;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
 
@@ -27,6 +28,25 @@ public sealed class Drafting
 {
     private readonly IStack _stack;
     private readonly Func<Reach?> _reach;
+    private readonly IShellHost _host;
+
+    /// <summary>
+    ///     This machine's clipboard, which <c>ctrl-v</c> on a compose screen attaches a picture or copied files from
+    ///     (#380). Not a port: it is not on an instance.
+    /// </summary>
+    private readonly IClipboard _clipboard;
+
+    /// <summary>
+    ///     Where pictures pasted from the clipboard are written before they are attached (#380) — a temporary folder of
+    ///     the session's, which whoever made it takes away as the session ends (review of #372).
+    /// </summary>
+    private readonly PastedPictures _pasted;
+
+    /// <summary>
+    ///     Whether the status row has said this machine has nothing to read the clipboard with, which it says once a
+    ///     session (#380).
+    /// </summary>
+    private bool _toldNoClipboard;
 
     /// <summary>
     ///     What the config file says a post goes out at — <c>default_visibility</c> and <c>default_language</c>, either
@@ -66,11 +86,23 @@ public sealed class Drafting
     ///     through.
     /// </param>
     /// <param name="host">The drawing thread, which their answers are handed back on.</param>
+    /// <param name="clipboard">This machine's clipboard, which a paste attaches a picture or copied files from.</param>
+    /// <param name="pasted">Where a picture pasted from the clipboard is written before it is attached.</param>
     /// <param name="preferred">What the config file says a post goes out at.</param>
-    public Drafting(IStack stack, Func<Reach?> reach, ShellPorts ports, IShellHost host, PostDefaults preferred)
+    public Drafting(
+        IStack stack,
+        Func<Reach?> reach,
+        ShellPorts ports,
+        IShellHost host,
+        IClipboard clipboard,
+        PastedPictures pasted,
+        PostDefaults preferred)
     {
         _stack = stack;
         _reach = reach;
+        _host = host;
+        _clipboard = clipboard;
+        _pasted = pasted;
         _preferred = preferred;
         _limits = new LimitsByInstance(ports.Limits, host);
         _limits.Heard += Measured;
@@ -112,6 +144,7 @@ public sealed class Drafting
         Verb.Describe => Ran(Describe),
         Verb.RemoveAttachment => Ran(() => RemoveAttachment(compose => on is null ? compose.Remove() : compose.Remove(on))),
         Verb.RetryAttachment => Ran(() => Retry(compose => on is null ? compose.Retry() : compose.Media.Retry(on))),
+        Verb.PasteFromTheClipboard => PasteFromTheClipboard() ? Drafted.Used : Drafted.Declined,
         _ => Drafted.NotMine,
     };
 
@@ -163,6 +196,54 @@ public sealed class Drafting
         Attach(compose, dropped);
 
         return true;
+    }
+
+    /// <summary>
+    ///     <c>ctrl-v</c> or <c>alt-v</c> on a compose screen, or on the attachments screen over one (#380): a picture on
+    ///     this machine's clipboard is written to a file of its own and attached from there, and copied files are
+    ///     attached, as a drop is (<see cref="Paste" />, ADR-0026).
+    /// </summary>
+    /// <returns>Whether the paste was taken; one that was not is declined, and left to the field's own paste.</returns>
+    private bool PasteFromTheClipboard()
+    {
+        if (InFront is not { Media.Takes: true } compose)
+        {
+            return false;
+        }
+
+        switch (_clipboard.Read())
+        {
+            case Clipped.Picture(var png):
+                Attach(compose, [_pasted.Keep(png)]);
+
+                return true;
+
+            // Subject to what a drop is: the files there that the instance takes, up to what the post has room for.
+            case Clipped.Files(var paths):
+                var accepted = paths.Where(path => File.Exists(path) && compose.Limits.Accepts(path)).ToList();
+
+                if (accepted.Count == 0)
+                {
+                    Reach.Say("None of the copied files is a type this instance takes.", isError: true);
+                }
+                else
+                {
+                    Attach(compose, accepted);
+                }
+
+                return true;
+
+            // Said once a session: the author who has no wish to install either is still pasting text every time. Said
+            // once the field has pasted, since the paste is an edit and an edit spends a notice (#364).
+            case Clipped.NoTool(var why) when !_toldNoClipboard:
+                _toldNoClipboard = true;
+                _host.OnUiThread(() => Reach.Say(why, isError: false));
+
+                return false;
+
+            default:
+                return false;
+        }
     }
 
     /// <summary>

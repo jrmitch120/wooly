@@ -69,22 +69,17 @@ public sealed class Shell
     private readonly IWebBrowser _browser;
 
     /// <summary>
-    ///     This machine's clipboard, which <c>ctrl-v</c> on a compose screen attaches a picture or copied files from
-    ///     (#380). Like the browser, not a port: it is not on an instance.
+    ///     This machine's clipboard, which <c>ctrl-v</c> on the edit public profile form's pictures takes one from (#407)
+    ///     — drafting's own reads it for a compose (#421), and the form's paste joins it there (#422). Like the browser,
+    ///     not a port: it is not on an instance.
     /// </summary>
     private readonly IClipboard _clipboard;
 
     /// <summary>
-    ///     Where pictures pasted from the clipboard are written before they are attached (#380) — a temporary folder of
+    ///     Where pictures pasted from the clipboard are written before they are used (#380, #407) — a temporary folder of
     ///     the session's, which whoever made this shell takes away as the session ends (review of #372).
     /// </summary>
     private readonly PastedPictures _pasted;
-
-    /// <summary>
-    ///     Whether the status row has said this machine has nothing to read the clipboard with, which it says once a
-    ///     session (#380).
-    /// </summary>
-    private bool _toldNoClipboard;
 
     private readonly IShellHost _host;
     private readonly TimeProvider _clock;
@@ -217,6 +212,8 @@ public sealed class Shell
             () => _acting?.Reach,
             ports,
             host,
+            clipboard,
+            pasted,
             new PostDefaults(preferences?.DefaultVisibility, preferences?.DefaultLanguage));
         ShellWidth = preferences is null ? ShellWidth.Full : ShellWidth.Of(preferences.ShellWidth);
 
@@ -643,7 +640,6 @@ public sealed class Shell
         Verb.EarlierAttachment => Ran(() => _ = ChangeCompose(compose => compose.Reorder(-1))),
         Verb.LaterAttachment => Ran(() => _ = ChangeCompose(compose => compose.Reorder(1))),
         Verb.OpenBrowser => Ran(Browse),
-        Verb.PasteFromTheClipboard => PasteFromTheClipboard(),
         Verb.AttachChosen => Ran(AttachChosen),
         Verb.IntoFolder => Ran(() => Browse(browser => browser.FolderPicked)),
         Verb.UpFolder => Ran(() => Browse(browser => browser.Above)),
@@ -1266,54 +1262,6 @@ public sealed class Shell
         Changed?.Invoke();
 
         return true;
-    }
-
-    /// <summary>
-    ///     <c>ctrl-v</c> or <c>alt-v</c> on a compose screen, or on the attachments screen over one (#380): a picture on
-    ///     this machine's clipboard is written to a file of its own and attached from there, and copied files are
-    ///     attached, as a drop is (<see cref="Paste" />, ADR-0026).
-    /// </summary>
-    /// <returns>Whether the paste was taken; one that was not is left to the field's own paste.</returns>
-    public bool PasteFromTheClipboard()
-    {
-        if (InFront is not { Media.Takes: true } compose)
-        {
-            return false;
-        }
-
-        switch (_clipboard.Read())
-        {
-            case Clipped.Picture(var png):
-                _drafting.Attach(compose, [_pasted.Keep(png)]);
-
-                return true;
-
-            // Subject to what a drop is: the files there that the instance takes, up to what the post has room for.
-            case Clipped.Files(var paths):
-                var accepted = paths.Where(path => File.Exists(path) && compose.Limits.Accepts(path)).ToList();
-
-                if (accepted.Count == 0)
-                {
-                    Say("None of the copied files is a type this instance takes.", isError: true);
-                }
-                else
-                {
-                    _drafting.Attach(compose, accepted);
-                }
-
-                return true;
-
-            // Said once a session: the author who has no wish to install either is still pasting text every time. Said
-            // once the field has pasted, since the paste is an edit and an edit spends a notice (#364).
-            case Clipped.NoTool(var why) when !_toldNoClipboard:
-                _toldNoClipboard = true;
-                Apply(() => Say(why, isError: false));
-
-                return false;
-
-            default:
-                return false;
-        }
     }
 
     /// <summary>

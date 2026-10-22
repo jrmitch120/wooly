@@ -7,10 +7,11 @@ using Wooly.Tui.Theme;
 namespace Wooly.Tests.Tui;
 
 /// <summary>
-///     How the drawn shell is wired to drafting (ADR-0029, #427, #420): every verb is asked of drafting first through one
-///     arm of the shell's verb route, the window carries <c>ctrl-s</c> to it, and drafting is told of every screen as it
-///     comes off the stack, by every way off, and of the screen uncovered where <c>esc</c> or a walk back leaves one in
-///     front — which it shows by letting a compose's uploads go, and by saying a waiting send again.
+///     How the drawn shell is wired to drafting (ADR-0029, #427, #420, #421): every verb is asked of drafting first
+///     through one arm of the shell's verb route, one it declines left unused, the window carries <c>ctrl-s</c> to it,
+///     and drafting is told of every screen as it comes off the stack, by every way off, and of the screen uncovered
+///     where <c>esc</c> or a walk back leaves one in front — which it shows by letting a compose's uploads go, and by
+///     saying a waiting send again.
 /// </summary>
 public class DraftingWiringTests : IDisposable
 {
@@ -26,6 +27,22 @@ public class DraftingWiringTests : IDisposable
 
         Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
         Assert.Contains("Compose", drawn.Rows()[0], StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    ///     A draft verb drafting declines — a clipboard paste that took nothing — leaves the press unused, so that the
+    ///     window lets the field it was pressed in paste for itself.
+    /// </summary>
+    [Fact]
+    public async Task ADraftVerbDraftingDeclinesLeavesThePressUnused()
+    {
+        using var drawn = await DrawnShell.Of(80, 24, Themes.Plain);
+        drawn.Press(new Key('c'));
+
+        Assert.False(drawn.Shell.Do(Verb.PasteFromTheClipboard, answer: null));
+
+        Assert.Equal(1, drawn.Built.Clipboard.Reads);
+        Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
     }
 
     [Fact]

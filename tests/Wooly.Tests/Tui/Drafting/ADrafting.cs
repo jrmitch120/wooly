@@ -51,7 +51,14 @@ internal sealed class ADrafting
     public ADrafting Build()
     {
         Stack = new ListStack(Bottom ?? Home(APost.With()), () => Say(null, isError: false));
-        Drafting = new Wooly.Tui.Drafting.Drafting(Stack, () => _reach!, Fakes.Ports, Fakes.Host, Fakes.Preferred);
+        Drafting = new Wooly.Tui.Drafting.Drafting(
+            Stack,
+            () => _reach!,
+            Fakes.Ports,
+            Fakes.Host,
+            Fakes.Clipboard,
+            Fakes.Pasted,
+            Fakes.Preferred);
         Stack.Hooked = Drafting;
 
         ActAs(Fakes.Profile);
