@@ -47,6 +47,69 @@ public class NarrowedShellMouseTests
         Assert.Equal(from + (down ? 1 : -1), drawn.Content.Top);
     }
 
+    /// <summary>
+    ///     A click, a double click, a right click or a drag in either margin does nothing: an open confirmation, which a
+    ///     click anywhere in the shell declines and a right click anywhere answers, is still open, and nothing drawn has
+    ///     changed.
+    /// </summary>
+    [Theory]
+    [InlineData("click", LeftMargin)]
+    [InlineData("click", RightMargin)]
+    [InlineData("double click", LeftMargin)]
+    [InlineData("double click", RightMargin)]
+    [InlineData("right click", LeftMargin)]
+    [InlineData("right click", RightMargin)]
+    [InlineData("drag", LeftMargin)]
+    [InlineData("drag", RightMargin)]
+    public async Task AButtonInAMarginDoesNothing(string gesture, int column)
+    {
+        var answers = Enumerable.Range(1, 3).Select(at => APost.AnAnswer($"Answer {at}", at)).ToList();
+
+        using var drawn = await Narrowed(
+            new AShell
+            {
+                Timelines = FakeTimelineReader.Holding(
+                    APost.With(id: "110", poll: APost.APoll(options: answers)),
+                    APost.With(id: "220", content: "Two sheep")),
+            });
+
+        drawn.Press(new Key('2'));
+        drawn.Press(Key.V);
+
+        var asking = drawn.Shell.Asking;
+        var rows = drawn.Rows();
+
+        Assert.NotNull(asking);
+
+        switch (gesture)
+        {
+            case "click":
+                drawn.Click(column, Inside);
+                break;
+
+            case "double click":
+                drawn.DoubleClick(column, Inside);
+                break;
+
+            case "right click":
+                drawn.RightClick(column, Inside);
+                break;
+
+            case "drag":
+                drawn.Point(column, Inside, MouseFlags.LeftButtonPressed);
+                drawn.Point(column, Inside + 1, MouseFlags.LeftButtonPressed | MouseFlags.PositionReport);
+                drawn.Point(column, Inside + 1, MouseFlags.LeftButtonReleased);
+                drawn.Point(column, Inside + 1, MouseFlags.LeftButtonClicked);
+                break;
+        }
+
+        drawn.Settle();
+
+        Assert.Same(asking, drawn.Shell.Asking);
+        Assert.Equal(rows, drawn.Rows());
+        Assert.Empty(drawn.Built.Engagement.Votes);
+    }
+
     /// <summary>The shell on a 200-column terminal, narrowed a step to 180 columns from the eleventh.</summary>
     private static async Task<DrawnShell> Narrowed(AShell? built = null, int height = 30)
     {
