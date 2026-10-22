@@ -52,7 +52,7 @@ public static class Keymap
 
         // Nothing on compose, whose fields take `?` as a letter before the window sees it (#320): a keymap opened only
         // where no widget has the typing would be one a reader can never reach, over a draft.
-        (ShellKey.Question, ComposeScreen or DescriptionScreen or PublicProfileScreen) => Verb.None,
+        (ShellKey.Question, _) when HasWidgetsOfItsOwn(screen) => Verb.None,
         (ShellKey.Question, _) => Verb.Help,
         (ShellKey.Slash, _) => Verb.Search,
         (ShellKey.Tab, _) => Verb.NextDestination,
@@ -67,8 +67,7 @@ public static class Keymap
         // The Shell width (#414): - narrower, and + or = wider, so that widening needs no shift. Nothing on compose, the
         // description editor or the public profile form, for the reason ? is nothing there: their fields take them as
         // letters, and where the typing is in none — Media, a picture, a toggle — a key from under a draft is no-one's.
-        (ShellKey.Minus or ShellKey.Plus or ShellKey.EqualsSign, ComposeScreen or DescriptionScreen or PublicProfileScreen)
-            => Verb.None,
+        (ShellKey.Minus or ShellKey.Plus or ShellKey.EqualsSign, _) when HasWidgetsOfItsOwn(screen) => Verb.None,
         (ShellKey.Minus, _) => Verb.Narrower,
         (ShellKey.Plus or ShellKey.EqualsSign, _) => Verb.Wider,
 
@@ -256,6 +255,14 @@ public static class Keymap
         // ctrl-s and ctrl-w off a compose screen, y, and nothing else.
         _ => Verb.None,
     };
+
+    /// <summary>
+    ///     Whether <paramref name="screen" /> is one with widgets of its own — compose, the description editor pushed
+    ///     over it, or the edit public profile form — whose fields take <c>?</c>, <c>-</c>, <c>+</c> and <c>=</c> as
+    ///     letters before the window sees them, so that those keys mean nothing there (#320, #414).
+    /// </summary>
+    private static bool HasWidgetsOfItsOwn(Screen screen) =>
+        screen is ComposeScreen or DescriptionScreen or PublicProfileScreen;
 
     /// <summary>
     ///     What <paramref name="key" /> does on an attachment's row — under compose's Media header and on the attachments
