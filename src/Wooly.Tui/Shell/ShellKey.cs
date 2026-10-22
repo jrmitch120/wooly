@@ -118,6 +118,15 @@ public enum ShellKey
     /// <summary><c>]</c>.</summary>
     RightBracket,
 
+    /// <summary><c>-</c>.</summary>
+    Minus,
+
+    /// <summary><c>+</c>.</summary>
+    Plus,
+
+    /// <summary><c>=</c>, which is <c>+</c> without the shift on most keyboards.</summary>
+    EqualsSign,
+
     /// <summary><c>a</c>.</summary>
     A,
 

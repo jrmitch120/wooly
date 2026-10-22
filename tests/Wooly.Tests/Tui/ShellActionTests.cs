@@ -573,7 +573,7 @@ public class ShellActionTests
 
     /// <summary>
     ///     The verbs that need a terminal are the window's, so the shell answers each of them unused rather than handing
-    ///     it to the screen — and there are the fourteen <see cref="Verb" /> names, no more and no fewer (#232).
+    ///     it to the screen — and there are the sixteen <see cref="Verb" /> names, no more and no fewer (#232, #414).
     /// </summary>
     [Fact]
     public async Task Do_LeavesEveryVerbThatNeedsATerminalUnused()
@@ -582,7 +582,7 @@ public class ShellActionTests
 
         var windows = Enum.GetValues<Verb>().Where(verb => verb.NeedsATerminal()).ToList();
 
-        Assert.Equal(14, windows.Count);
+        Assert.Equal(16, windows.Count);
         Assert.All(windows, verb => Assert.False(opened.Do(verb, answer: null)));
     }
 }

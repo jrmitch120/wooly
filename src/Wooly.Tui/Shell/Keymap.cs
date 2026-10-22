@@ -64,6 +64,14 @@ public static class Keymap
         // typed. On compose too, where it is a way out of the draft and asks first like every other (ADR-0020, #373).
         (ShellKey.CtrlP, _) => Verb.Profiles,
 
+        // The Shell width (#414): - narrower, and + or = wider, so that widening needs no shift. Nothing on compose, the
+        // description editor or the public profile form, for the reason ? is nothing there: their fields take them as
+        // letters, and where the typing is in none — Media, a picture, a toggle — a key from under a draft is no-one's.
+        (ShellKey.Minus or ShellKey.Plus or ShellKey.EqualsSign, ComposeScreen or DescriptionScreen or PublicProfileScreen)
+            => Verb.None,
+        (ShellKey.Minus, _) => Verb.Narrower,
+        (ShellKey.Plus or ShellKey.EqualsSign, _) => Verb.Wider,
+
         // Screen-local, and the reason this pair is here rather than on the editor widget alone: the editor gives up
         // focus while the warning is taking letters, and from there neither key would reach it (#123). Off a compose
         // screen they mean nothing and are left to whatever else wants them.

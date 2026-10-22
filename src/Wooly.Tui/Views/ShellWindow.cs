@@ -58,6 +58,13 @@ internal sealed class ShellWindow : Window
     /// </remarks>
     internal const string ContentId = "content";
 
+    /// <summary>
+    ///     The terminal's own foreground and background, which Terminal.Gui writes as <c>CSI 39m</c> and <c>CSI 49m</c>:
+    ///     what a cell outside the shell is left at (#414).
+    /// </summary>
+    private static readonly Terminal.Gui.Drawing.Attribute TheTerminalsOwn =
+        new(Terminal.Gui.Drawing.Color.None, Terminal.Gui.Drawing.Color.None);
+
     private readonly PaintedView _content;
 
     /// <summary>Compose's fields, laid over the content panel's viewport (#365).</summary>
@@ -155,6 +162,16 @@ internal sealed class ShellWindow : Window
         // No border and no title of Terminal.Gui's: the panels are this client's own, drawn in roles (ADR-0021), and a
         // box around the outside would cost two rows and two columns and say nothing.
         BorderStyle = Terminal.Gui.Drawing.LineStyle.None;
+
+        // The Shell width (#414): the window is the shell, so it takes the columns the shell's share of the terminal
+        // works out to, centred, and the terminal's full height. Worked out on every layout, so a resized terminal
+        // re-centres it at the same share; and everything inside is laid out against the window, so the rail, the
+        // content panel, the rows every screen is drawn at and every picture's room follow without being told. The
+        // columns either side are cells this window never draws — the terminal's own, under no role.
+        X = Pos.Func(_ => shell.ShellWidth.Left(TerminalColumns));
+        Width = Dim.Func(_ => shell.ShellWidth.Columns(TerminalColumns));
+        Height = Dim.Fill();
+        Initialized += (_, _) => LeftToTheTerminal(App);
 
         // The cells no region covers, which are the window's own. There are none now that the panels meet the rail and
         // the status row edge to edge, but every region clears itself in the theme's page before it draws, so a cell
@@ -750,6 +767,19 @@ internal sealed class ShellWindow : Window
 
                 return true;
 
+            // The Shell width's steps, which turn on how wide the terminal is (#414).
+            case Verb.Narrower:
+                _shell.Narrow(TerminalColumns);
+                Resized();
+
+                return true;
+
+            case Verb.Wider:
+                _shell.Widen();
+                Resized();
+
+                return true;
+
             default:
                 throw new UnreachableException($"{verb} needs a terminal and the window has no arm for it.");
         }
@@ -877,6 +907,46 @@ internal sealed class ShellWindow : Window
 
         return true;
     }
+
+    /// <summary>
+    ///     The window laid out again at the shell's new columns, over a cleared screen: what it drew where the margins now
+    ///     are is the terminal's again. Terminal.Gui clears the screen for a moved or resized top view only on the pass
+    ///     after the one that laid it out, which would put a frame on the terminal with the old shell still beside the new.
+    /// </summary>
+    private void Resized()
+    {
+        SetNeedsLayout();
+
+        if (App is { } application)
+        {
+            application.ClearScreenNextIteration = true;
+        }
+    }
+
+    /// <summary>
+    ///     Leaves every cell no view draws — the margins either side of a narrowed shell — at the terminal's own colours
+    ///     (#414). Terminal.Gui clears a screen to a white on black of its own, which written out is a black margin on
+    ///     any terminal whose background is not; so each clear is put back to the terminal's own, under no
+    ///     <see cref="Role" /> and in no theme, before anything draws over it.
+    /// </summary>
+    private static void LeftToTheTerminal(IApplication? application)
+    {
+        if (application?.Driver is not { } driver)
+        {
+            return;
+        }
+
+        driver.ClearedContents += (_, _) =>
+        {
+            var was = driver.SetAttribute(TheTerminalsOwn);
+
+            driver.FillRect(driver.Screen);
+            driver.SetAttribute(was);
+        };
+    }
+
+    /// <summary>How wide the terminal is, which the shell's columns are a share of.</summary>
+    private int TerminalColumns => App?.Screen.Width ?? 0;
 
     /// <summary>
     ///     Where the content panel's viewport sits in this window: inside the panel's edge, wherever the rail has left
