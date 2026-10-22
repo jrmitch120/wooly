@@ -105,7 +105,9 @@ rail's 20, the 58 columns at 80 — is the shell's, which is the terminal's at 1
   terminal, and says `Narrowest`; wider is refused only at 100, and says `Full width`. A step taken says `Width 90%`
   and is saved straight away, through the shell's one narrow port for it (`IShellWidthStore`); a refused one saves
   nothing, so what is saved is always a width that was seen. A share written by hand between the steps, such as 73, is
-  drawn as written, and a step takes it back onto them: 70 narrower, 80 wider.
+  drawn as written, and a step takes it back onto them: 70 narrower, 80 wider. Each of the three is said for two
+  seconds (`ShellTiming.WidthSaidFor`) and then let go of, the status row going back to its keys; why a step could not
+  be saved is a failure, and stays until something else is said.
 - **The margins** are cells the window never draws, left at the terminal's default attribute: no **Role**, so no theme
   entry, under any theme or `NO_COLOR`. They are the terminal's, outside the shell (ADR-0014, ADR-0021). Terminal.Gui
   clears a screen to a white on black of its own, which written out would be a black margin, so the window puts every
@@ -168,7 +170,7 @@ workable only because the status row always shows the current screen's keys. Wha
 | `` ` `` / `~` | Moves the cursor to the first destination of the next or previous **rail group**, wrapping. Settles and loads as `tab` does (ADR-0021). |
 | `/` | Search. Goes to the search destination; what it opens onto is #29's. |
 | `ctrl-p` | The profiles screen, pushed onto the stack. On compose it takes the draft off first and opens the screen in its place, asking first where the draft is touched (ADR-0020, #373); it is not listed there. |
-| `-` / `+` or `=` | The **Shell width** one step narrower, or one wider: `=` is `+` without the shift. Typed as letters wherever letters are typed, as `/` and `?` are, and nothing on compose, the description editor or the public profile form. Said on the status row (`Width 90%`, or `Narrowest` / `Full width` where there is no step to take); listed on the `?` screen and on no status row (#414). See **Shell width**, above. |
+| `-` / `+` or `=` | The **Shell width** one step narrower, or one wider: `=` is `+` without the shift. Typed as letters wherever letters are typed, as `/` and `?` are, and nothing on compose, the description editor or the public profile form. Said on the status row for two seconds (`Width 90%`, or `Narrowest` / `Full width` where there is no step to take); listed on the `?` screen and on no status row (#414). See **Shell width**, above. |
 
 Feed and post:
 

@@ -154,6 +154,9 @@ public sealed class Shell
     /// </summary>
     private RateLimitQuota? _quotaBeforeSwitch;
 
+    /// <summary>The wait after which a notice said for a moment is let go of, while one is (#413).</summary>
+    private IDisposable? _sayingForAMoment;
+
     /// <summary>
     ///     The Inbox's badges, kept live for the profile acted as by the poll and the stream, and the bell rung where
     ///     one rises (ADR-0027, #398, #399, #401).
@@ -3208,7 +3211,7 @@ public sealed class Shell
     {
         if (width is null)
         {
-            Say(refused, isError: false);
+            SayForAMoment(refused);
 
             return;
         }
@@ -3230,11 +3233,26 @@ public sealed class Shell
             return;
         }
 
-        Say($"Width {width.Percent}%", isError: false);
+        SayForAMoment($"Width {width.Percent}%");
+    }
+
+    /// <summary>
+    ///     Says <paramref name="notice" /> and lets go of it once <see cref="ShellTiming.WidthSaidFor" /> has passed — a
+    ///     remark about a key just pressed, which is worth nothing once the reader has seen what the key did. Anything
+    ///     said in the meantime stands: saying calls the wait off.
+    /// </summary>
+    private void SayForAMoment(string notice)
+    {
+        Say(notice, isError: false);
+
+        _sayingForAMoment = _host.After(_timing.WidthSaidFor, () => Say(null, isError: false));
     }
 
     private void Say(string? notice, bool isError)
     {
+        _sayingForAMoment?.Dispose();
+        _sayingForAMoment = null;
+
         Notice = notice;
         NoticeIsError = isError;
 

@@ -137,4 +137,25 @@ public class RememberedShellWidthTests
         Assert.Contains("'bell' must be true or false.", drawn.Shell.Notice, StringComparison.Ordinal);
         Assert.True(drawn.Shell.NoticeIsError);
     }
+
+    /// <summary>
+    ///     Why a step could not be saved is a failure, and stays until something else is said — not cleared by the wait
+    ///     an earlier step's width was said for.
+    /// </summary>
+    [Fact]
+    public async Task WhyAStepCouldNotBeSaved_OutlastsTheWaitAnEarlierWidthWasSaidFor()
+    {
+        var built = new AShell();
+        using var drawn = await DrawnShell.Of(200, 24, Midnight(), built);
+
+        drawn.Press(new Key('-'));
+        built.ShellWidths.Unreadable = "'bell' must be true or false.";
+        drawn.Press(new Key('-'));
+
+        built.Host.SettleAll();
+        drawn.Redraw();
+
+        Assert.Contains("'bell' must be true or false.", drawn.Shell.Notice, StringComparison.Ordinal);
+        Assert.True(drawn.Shell.NoticeIsError);
+    }
 }
