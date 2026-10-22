@@ -1,19 +1,16 @@
 using Wooly.Core.Accounts;
-using Wooly.Core.Errors;
 using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
-using Wooly.Tui.Media;
-using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
-using Wooly.Tui.Theme;
 
 namespace Wooly.Tests.Tui;
 
 /// <summary>
-///     The "edit public profile" form (#406, ADR-0028): opened from <b>You</b> with <c>E</c>, read as written under an
-///     enquiry, and saved as changed. Through the shell over a fake public profile, so what is asserted is what was
-///     drawn and what the port was asked to send.
+///     The "edit public profile" form (#406, ADR-0028) where it meets the shell: <b>You</b> offering <c>E</c>, the status
+///     row's keys over the form, what a save makes stale and reads again, and the question asked before a touched form
+///     is thrown away. Everything the form does itself is drafting's, and tested there
+///     (<see cref="DraftingPublicProfileFormTests" />, #422).
 /// </summary>
 public class PublicProfileFormTests
 {
@@ -57,224 +54,6 @@ public class PublicProfileFormTests
         }
     }
 
-    /// <summary><c>E</c> on <b>You</b> reads the public profile as written, then puts the form up over it.</summary>
-    [Fact]
-    public async Task CapitalE_OnYou_ReadsThePublicProfileAndOpensTheForm()
-    {
-        var built = Built();
-
-        var (shell, _) = await Editing(built);
-
-        Assert.Equal(["personal"], built.PublicProfile.Reads);
-        Assert.Equal("Edit public profile", shell.Screen.Crumb);
-        Assert.Equal(2, shell.Depth);
-    }
-
-    /// <summary>
-    ///     The form reads at 61 columns, top to bottom: the display name, the avatar and the header, four custom-field
-    ///     rows, and the three toggles — each toggle's state carried by its box, so it reads with no colour, and each
-    ///     picture saying what <c>⏎</c> does to it where no picture can be drawn (#407) — then the bio as written between
-    ///     two hairlines, as compose's post is, and its count under them against the instance's limit.
-    /// </summary>
-    [Fact]
-    public async Task TheForm_ReadsTopToBottomAt61Columns()
-    {
-        var read = APublicProfile.With(
-            displayName: "Jeff",
-            bio: "Writes Wooly.",
-            fields: [new PublicProfileField("Site", "https://wooly.example")],
-            isLocked: false,
-            isBot: true,
-            isDiscoverable: true,
-            account: Me);
-
-        var (_, form) = await Editing(Built(read));
-
-        var drawn = AShell.Drawn(form).Select(row => row.TrimEnd()).Where(row => row.Length > 0).ToList();
-
-        Assert.Equal(
-            [
-                "   Name  Jeff",
-                " Avatar  change…",
-                " Header  change…",
-                " Fields  Site              https://wooly.example",
-                "         label             value",
-                "         label             value",
-                "         label             value",
-                "         □ Locked · approve followers by hand",
-                "         ■ Bot · posts automatically",
-                "         ■ Discoverable · in the directory and suggestions",
-                " " + new string('─', 57),
-                " Writes Wooly.",
-                " " + new string('─', 57),
-                new string(' ', 50) + "13 / 500",
-            ],
-            drawn);
-    }
-
-    /// <summary>
-    ///     The bio's count is out of the instance's own limit on a bio once the instance has said it, and is counted as
-    ///     a post is — an address as what the instance says one counts.
-    /// </summary>
-    [Fact]
-    public async Task TheBiosCount_IsOutOfTheInstancesOwnLimit()
-    {
-        var built = Built(APublicProfile.With(bio: "See https://wooly.example/a/very/long/address/indeed", account: Me));
-
-        built.Limits = FakeInstanceLimits.Setting(new PostLimits(500, 23) { Bio = 1000 });
-
-        var (_, form) = await Editing(built);
-
-        built.Host.Drain();
-
-        Assert.Equal("27 / 1000", AShell.Drawn(form)[^1].Trim());
-    }
-
-    /// <summary>
-    ///     Nothing is marked with a bar: a field the walk is in says so with its caret, as compose's do, and a picture or
-    ///     a toggle — which have no caret — with its value lit as compose's Media and To are.
-    /// </summary>
-    [Fact]
-    public async Task TheWalkedRow_IsLitRatherThanBarred()
-    {
-        var (shell, form) = await Editing(Built());
-
-        Assert.DoesNotContain(form.Lines(new Drawing(61, AShell.Now)), line => line.Text.Contains('▌'));
-
-        WalkTo(shell, form, PublicProfilePart.Avatar);
-
-        Assert.Contains(Row(form, "Avatar").Spans, span => span is { Text: "change…", Role: Role.SelectedText });
-        Assert.DoesNotContain(Row(form, "Header").Spans, span => span.Role == Role.SelectedText);
-
-        WalkTo(shell, form, PublicProfilePart.Bot);
-
-        Assert.Contains(Row(form, "Bot").Spans, span => span is { Text: "□ Bot", Role: Role.SelectedText });
-        Assert.DoesNotContain(Row(form, "Locked").Spans, span => span.Role == Role.SelectedText);
-        Assert.DoesNotContain(form.Lines(new Drawing(61, AShell.Now)), line => line.Text.Contains('▌'));
-    }
-
-    private static Line Row(PublicProfileScreen form, string holding) =>
-        form.Lines(new Drawing(61, AShell.Now)).First(line => line.Text.Contains(holding, StringComparison.Ordinal));
-
-    /// <summary>
-    ///     In a room too short for the whole form, the rows drawn are never more than the room, and whichever field the
-    ///     walk is on is among them, where the form says it goes — the bio keeping its rows, and the form moving only as
-    ///     far as the walk needs it to (review of #403).
-    /// </summary>
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task InAShortRoom_TheWalkedFieldIsAlwaysDrawn(bool pictures)
-    {
-        var (shell, form) = await Editing(Built());
-        var drawing = new Drawing(61, AShell.Now, new FakePictures(), pictures ? ARaster.Sixel() : Raster.None, Height: 10);
-        var room = new System.Drawing.Size(61, 10);
-
-        void InView()
-        {
-            var lines = form.Lines(drawing);
-            var at = form.At(form.Typing, room, drawing.Raster);
-
-            Assert.True(lines.Count <= 10, $"{lines.Count} rows in a room of 10");
-            Assert.False(at.IsEmpty, $"{form.Typing} is nowhere");
-            Assert.InRange(at.Top, 0, 9);
-            Assert.InRange(at.Bottom, 1, 10);
-            Assert.DoesNotContain("▌", lines[at.Top].Text, StringComparison.Ordinal);
-        }
-
-        InView();
-
-        while (form.Typing.Part != PublicProfilePart.Bio)
-        {
-            shell.Press(ShellKey.Down);
-            InView();
-        }
-
-        while (form.Typing.Part != PublicProfilePart.DisplayName)
-        {
-            shell.Press(ShellKey.Up);
-            InView();
-        }
-    }
-
-    /// <summary>
-    ///     <c>↓</c> walks the form top to bottom — the display name, the avatar and the header, down the custom fields'
-    ///     labels, the three toggles, and the bio at the foot, as compose's post is — and stops at the bottom rather
-    ///     than coming round; <c>↑</c> walks back and stops at the top.
-    /// </summary>
-    [Fact]
-    public async Task TheArrows_WalkTheFormWithoutWrapping()
-    {
-        var (shell, form) = await Editing(Built());
-        var walked = new List<PublicProfileStop> { form.Typing };
-
-        for (var press = 0; press < 12; press++)
-        {
-            shell.Press(ShellKey.Down);
-            walked.Add(form.Typing);
-        }
-
-        Assert.Equal(
-            [
-                new(PublicProfilePart.DisplayName),
-                new(PublicProfilePart.Avatar), new(PublicProfilePart.Header),
-                new(PublicProfilePart.Label, 0), new(PublicProfilePart.Label, 1),
-                new(PublicProfilePart.Label, 2), new(PublicProfilePart.Label, 3),
-                new(PublicProfilePart.Locked), new(PublicProfilePart.Bot), new(PublicProfilePart.Discoverable),
-                new(PublicProfilePart.Bio), new(PublicProfilePart.Bio), new(PublicProfilePart.Bio),
-            ],
-            walked);
-
-        for (var press = 0; press < 20; press++)
-        {
-            shell.Press(ShellKey.Up);
-        }
-
-        Assert.Equal(new PublicProfileStop(PublicProfilePart.DisplayName), form.Typing);
-    }
-
-    /// <summary>
-    ///     A custom field's label and value sit side by side, so <c>→</c> and <c>←</c> cross between them and <c>↑</c>
-    ///     and <c>↓</c> keep to the column: down the values from a value, and out of the rows to the pictures above and
-    ///     the toggles below. <c>→</c> goes nowhere from a value, nor <c>←</c> from a label.
-    /// </summary>
-    [Fact]
-    public async Task ACustomFieldsLabelAndValue_AreCrossedSideways()
-    {
-        var (shell, form) = await Editing(Built());
-
-        WalkTo(shell, form, PublicProfilePart.Label);
-
-        Assert.Equal(DraftChange.None, shell.Drafting.Edit<PublicProfileScreen>(editing => editing.Across(-1)));
-        _ = shell.Drafting.Edit<PublicProfileScreen>(editing => editing.Across(1));
-        Assert.Equal(new PublicProfileStop(PublicProfilePart.Value, 0), form.Typing);
-        Assert.Equal(DraftChange.None, shell.Drafting.Edit<PublicProfileScreen>(editing => editing.Across(1)));
-
-        shell.Press(ShellKey.Down);
-        shell.Press(ShellKey.Down);
-        Assert.Equal(new PublicProfileStop(PublicProfilePart.Value, 2), form.Typing);
-
-        _ = shell.Drafting.Edit<PublicProfileScreen>(editing => editing.Across(-1));
-        Assert.Equal(new PublicProfileStop(PublicProfilePart.Label, 2), form.Typing);
-        _ = shell.Drafting.Edit<PublicProfileScreen>(editing => editing.Across(1));
-
-        shell.Press(ShellKey.Down);
-        shell.Press(ShellKey.Down);
-        Assert.Equal(new PublicProfileStop(PublicProfilePart.Locked), form.Typing);
-
-        shell.Press(ShellKey.Up);
-        Assert.Equal(new PublicProfileStop(PublicProfilePart.Label, 3), form.Typing);
-
-        _ = shell.Drafting.Edit<PublicProfileScreen>(editing => editing.Across(1));
-        shell.Press(ShellKey.Up);
-        shell.Press(ShellKey.Up);
-        Assert.Equal(new PublicProfileStop(PublicProfilePart.Value, 1), form.Typing);
-
-        shell.Press(ShellKey.Up);
-        shell.Press(ShellKey.Up);
-        Assert.Equal(new PublicProfileStop(PublicProfilePart.Header), form.Typing);
-    }
-
     /// <summary>
     ///     The status row offers the walk only the ways it goes, as compose's does: <c>↓</c> at the top, <c>↑</c> at
     ///     the bottom, both between.
@@ -296,90 +75,6 @@ public class PublicProfileFormTests
         }
 
         Assert.Contains(shell.Keys, key => key is { Key: "↑", Does: "field" });
-    }
-
-    /// <summary>A toggle walked to flips with <c>space</c> and again with <c>⏎</c>, and its box says which way it is.</summary>
-    [Fact]
-    public async Task SpaceAndEnter_FlipTheToggleWalkedTo()
-    {
-        var (shell, form) = await Editing(Built(APublicProfile.With(isBot: false, account: Me)));
-
-        WalkTo(shell, form, PublicProfilePart.Bot);
-
-        Assert.True(shell.Press(ShellKey.Space));
-        Assert.True(form.IsBot);
-        Assert.Contains(AShell.Drawn(form), row => row.Contains("■ Bot", StringComparison.Ordinal));
-
-        Assert.True(shell.Press(ShellKey.Enter));
-        Assert.False(form.IsBot);
-        Assert.Contains(AShell.Drawn(form), row => row.Contains("□ Bot", StringComparison.Ordinal));
-    }
-
-    /// <summary>
-    ///     <c>ctrl-s</c> sends only what changed: a display name typed and a toggle flipped, and nothing about the bio,
-    ///     the custom fields or the toggles left alone.
-    /// </summary>
-    [Fact]
-    public async Task CtrlS_SendsOnlyWhatChanged()
-    {
-        var built = Built(APublicProfile.With(displayName: "Jeff", isBot: false, account: Me));
-        var (shell, form) = await Editing(built);
-
-        shell.Drafting.Edit<PublicProfileScreen>(editing => editing.RewriteDisplayName("Jeff M"));
-        WalkTo(shell, form, PublicProfilePart.Bot);
-        shell.Press(ShellKey.Space);
-
-        shell.Press(ShellKey.CtrlS);
-        built.Host.Drain();
-
-        Assert.Equal([new PublicProfileChange { DisplayName = "Jeff M", IsBot = true }], built.PublicProfile.Saves);
-    }
-
-    /// <summary>
-    ///     A custom field changed sends every row the form holds as the account's fields, since Mastodon replaces them
-    ///     as a set — and a row emptied is left out of them, which is what removes it.
-    /// </summary>
-    [Fact]
-    public async Task ACustomFieldChanged_SendsThemAllAndAnEmptiedRowRemovesItsField()
-    {
-        var read = APublicProfile.With(
-            fields: [new PublicProfileField("Site", "https://wooly.example"), new PublicProfileField("Pronouns", "he/him")],
-            account: Me);
-        var built = Built(read);
-        var (shell, _) = await Editing(built);
-
-        shell.Drafting.Edit<PublicProfileScreen>(editing => editing.RewriteLabel(0, ""));
-        shell.Drafting.Edit<PublicProfileScreen>(editing => editing.RewriteValue(0, ""));
-        shell.Drafting.Edit<PublicProfileScreen>(editing => editing.RewriteLabel(2, "Home"));
-        shell.Drafting.Edit<PublicProfileScreen>(editing => editing.RewriteValue(2, "Kansas"));
-
-        shell.Press(ShellKey.CtrlS);
-        built.Host.Drain();
-
-        var sent = Assert.Single(built.PublicProfile.Saves);
-
-        Assert.Equal([new PublicProfileField("Pronouns", "he/him"), new PublicProfileField("Home", "Kansas")], sent.Fields);
-        Assert.Equal(new PublicProfileChange { Fields = sent.Fields }, sent);
-    }
-
-    /// <summary>
-    ///     A bio is compared line ending for line ending alike, so an editor writing its lines back its own way sends
-    ///     nothing — and a save with nothing changed sends nothing, and says so.
-    /// </summary>
-    [Fact]
-    public async Task NothingChanged_SendsNothingAndSaysSo()
-    {
-        var built = Built(APublicProfile.With(bio: "One\r\nTwo", account: Me));
-        var (shell, form) = await Editing(built);
-
-        shell.Drafting.Edit<PublicProfileScreen>(editing => editing.RewriteBio("One\nTwo"));
-
-        shell.Press(ShellKey.CtrlS);
-        built.Host.Drain();
-
-        Assert.Empty(built.PublicProfile.Saves);
-        Assert.Same(form, shell.Screen);
-        Assert.Equal("Nothing has changed to save.", shell.Notice);
     }
 
     /// <summary>
@@ -514,39 +209,6 @@ public class PublicProfileFormTests
         Assert.Equal("Jeff M", you.Account.Author);
     }
 
-    /// <summary>
-    ///     A save the instance refuses keeps the form open with every edit in it, and the status row says why in the
-    ///     instance's own words — until an edit, which is doing what it asked, takes the notice down.
-    /// </summary>
-    [Fact]
-    public async Task ARefusedSave_KeepsEveryEditAndSaysWhy()
-    {
-        var built = Built();
-        built.PublicProfile = FakePublicProfileEditor.Refusing(
-            PublicProfileRefusedException.Saving("Display name is too long (maximum is 30 characters)"),
-            APublicProfile.With(account: Me));
-        var (shell, form) = await Editing(built);
-
-        shell.Drafting.Edit<PublicProfileScreen>(editing => editing.RewriteDisplayName("Jeff the very long display name indeed"));
-        WalkTo(shell, form, PublicProfilePart.Locked);
-        shell.Press(ShellKey.Space);
-
-        shell.Press(ShellKey.CtrlS);
-        built.Host.Drain();
-
-        Assert.Same(form, shell.Screen);
-        Assert.Equal("Jeff the very long display name indeed", form.DisplayName);
-        Assert.True(form.IsLocked);
-        Assert.Equal(
-            "The instance would not take that change to your public profile: Display name is too long (maximum is 30 characters)",
-            shell.Notice);
-        Assert.True(shell.NoticeIsError);
-
-        shell.Drafting.Edit<PublicProfileScreen>(editing => editing.RewriteDisplayName("Jeff"));
-
-        Assert.Null(shell.Notice);
-    }
-
     /// <summary>An untouched form leaves on <c>esc</c> without asking — a toggle flipped and flipped back included.</summary>
     [Fact]
     public async Task Esc_OnAnUntouchedForm_LeavesWithoutAsking()
@@ -666,21 +328,5 @@ public class PublicProfileFormTests
 
         Assert.Empty(built.PublicProfile.Reads);
         Assert.IsType<AccountScreen>(shell.Screen);
-    }
-
-    /// <summary>A read that fails opens no form, and the status row says why in the instance's words.</summary>
-    [Fact]
-    public async Task AFailedRead_OpensNothingAndSaysWhy()
-    {
-        var built = Built();
-        built.PublicProfile = FakePublicProfileEditor.Unreadable(PublicProfileRefusedException.Reading("Not today"));
-        var shell = await OnYou(built);
-
-        shell.Press(ShellKey.CapitalE);
-        built.Host.Drain();
-
-        Assert.IsType<AccountScreen>(shell.Screen);
-        Assert.Equal("The instance would not show your public profile: Not today", shell.Notice);
-        Assert.True(shell.NoticeIsError);
     }
 }
