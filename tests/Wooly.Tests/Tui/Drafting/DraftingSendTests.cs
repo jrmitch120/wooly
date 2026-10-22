@@ -156,6 +156,65 @@ public class DraftingSendTests
         Assert.Null(drafting.Notice);
     }
 
+    /// <summary>
+    ///     A send's answer takes off the compose it sent, with whatever was put over it while the instance was answering
+    ///     — never only the screen that happens to be on top when it lands (#423).
+    /// </summary>
+    [Fact]
+    public async Task ASendTakesOffTheComposeItSentNotWhateverIsOnTop()
+    {
+        var drafting = Over(Somebody);
+
+        drafting.Fakes.Author.HoldingPublishes = true;
+        drafting.Press(ShellKey.C);
+
+        var compose = drafting.Composing;
+
+        compose.Text = "Sent from under something";
+
+        var sending = drafting.Drafting.Send();
+
+        drafting.Stack.Push(ADrafting.Home());
+
+        drafting.Fakes.Author.HeldPublishes.Single().Land();
+        await sending;
+        drafting.Fakes.Host.Drain();
+
+        Assert.DoesNotContain(compose, drafting.Stack.Screens);
+        Assert.Same(drafting.Stack.Screens[0], drafting.Stack.Top);
+        Assert.Equal("Sent.", drafting.Notice);
+    }
+
+    /// <summary>
+    ///     A send whose compose has already left takes nothing off when it lands: what the reader went on to is left in
+    ///     front of them (#423).
+    /// </summary>
+    [Fact]
+    public async Task ASendWhoseComposeHasLeftTakesNothingOff()
+    {
+        var drafting = Over(Somebody);
+
+        drafting.Fakes.Author.HoldingPublishes = true;
+        drafting.Press(ShellKey.C);
+
+        var compose = drafting.Composing;
+
+        compose.Text = "Sent and left";
+
+        var sending = drafting.Drafting.Send();
+        var elsewhere = ADrafting.Home();
+
+        drafting.Stack.TakeOff(compose);
+        drafting.Stack.Push(elsewhere);
+
+        drafting.Fakes.Author.HeldPublishes.Single().Land();
+        await sending;
+        drafting.Fakes.Host.Drain();
+
+        Assert.Same(elsewhere, drafting.Stack.Top);
+        Assert.Equal(2, drafting.Stack.Screens.Count);
+    }
+
     /// <summary>Drafting over Home holding <paramref name="post" />, picked.</summary>
     private static ADrafting Over(Post post) => new ADrafting { Bottom = ADrafting.Home(post) }.Build();
 }
