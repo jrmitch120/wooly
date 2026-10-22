@@ -3214,9 +3214,10 @@ public sealed class Shell
 
         ShellWidth = width;
 
-        // Saved straight away, so the next launch opens where this one was left (#415). A step pressed is a choice
-        // asked for (ADR-0020), and a refused one, above, is none — so what is saved is always a width that was seen.
-        // One that cannot be saved still holds for this session, since it was seen; the status row says why, as D does.
+        // Saved straight away, so the next launch opens where this one was left (#415). A choice is saved only when
+        // asked (ADR-0020), and a width key pressed counts as asking (#413, which extends that rule to these keys); a
+        // refused step, above, asks for nothing, so what is saved is always a width that was seen. One that cannot be
+        // saved still holds for this session, since it was seen; the status row says why, as D does.
         try
         {
             _shellWidths.Save(width);
