@@ -1,6 +1,11 @@
 using Terminal.Gui.Input;
+using Wooly.Core.Accounts;
 using Wooly.Core.Configuration;
+using Wooly.Tests.Fakes;
+using Wooly.Tui.Screens;
+using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
+using Wooly.Tui.Views;
 using Attribute = Terminal.Gui.Drawing.Attribute;
 
 namespace Wooly.Tests.Tui;
@@ -12,6 +17,18 @@ namespace Wooly.Tests.Tui;
 /// </summary>
 public class ShellWidthTests
 {
+    /// <summary>What is typed on a screen taking typing: each of the three keys, between letters.</summary>
+    private const string Typed = "a-b+c=d";
+
+    /// <summary>
+    ///     The first column inside the content panel of a shell narrowed to 180 columns on a 200-column terminal: the
+    ///     margin's 10, the rail's 20, and the panel's left edge.
+    /// </summary>
+    private const int InsideTheContent = 10 + RailLines.Width + 1;
+
+    /// <summary>The panel's right edge in that shell, the shell's last column.</summary>
+    private const int ContentsRightEdge = 189;
+
     [Fact]
     public async Task MinusNarrowsTheShellAStepCentredInTheTerminal()
     {
@@ -138,6 +155,83 @@ public class ShellWidthTests
     }
 
     /// <summary>
+    ///     On a screen taking typing the three keys are typed, as <c>?</c> and <c>/</c> are: a search for
+    ///     <c>c++</c> or <c>a=b</c> is a search, never a narrower shell.
+    /// </summary>
+    [Fact]
+    public async Task SearchTakesTheKeysAsLetters()
+    {
+        using var drawn = await Narrowed();
+
+        drawn.Press(new Key('/'));
+        drawn.Settle();
+        Type(drawn, Typed);
+
+        Assert.Equal(Typed, Assert.IsType<SearchScreen>(drawn.Shell.Screen).Query);
+        Assert.Equal((10, 180), Shell(drawn));
+    }
+
+    /// <summary>
+    ///     And on compose, whose post takes them as it takes every other letter — and which sits inside the narrowed
+    ///     shell's content panel, as it sits inside the panel at full width.
+    /// </summary>
+    [Fact]
+    public async Task ComposeTakesTheKeysAsLettersInsideTheNarrowedShell()
+    {
+        using var drawn = await Narrowed();
+
+        ComposeRows.Open(drawn.Shell, ComposeFor.Post);
+        drawn.Redraw();
+        Type(drawn, Typed);
+
+        AssertTypedInsideTheContentPanel(drawn);
+    }
+
+    /// <summary>And on the description editor pushed over it, inside the same panel.</summary>
+    [Fact]
+    public async Task TheDescriptionEditorTakesTheKeysAsLettersInsideTheNarrowedShell()
+    {
+        using var files = new TemporaryDirectory();
+        using var drawn = await Narrowed();
+
+        drawn.Shell.Compose();
+        drawn.Shell.Paste(files.WriteFile("cat.png"));
+        drawn.Settle();
+        drawn.Press(Key.CursorUp);
+        drawn.Press(Key.Enter);
+
+        Assert.IsType<DescriptionScreen>(drawn.Shell.Screen);
+
+        Type(drawn, Typed);
+
+        AssertTypedInsideTheContentPanel(drawn);
+    }
+
+    /// <summary>And on the public profile form, whose display name is the field it opens on, inside the same panel.</summary>
+    [Fact]
+    public async Task ThePublicProfileFormTakesTheKeysAsLettersInsideTheNarrowedShell()
+    {
+        var me = AnAccount.With(address: "jeff@mastodon.social", author: "Jeff", id: "7");
+
+        using var drawn = await Narrowed(new AShell
+        {
+            Accounts = FakeAccountRelationships.Holding(me),
+            PublicProfile = FakePublicProfileEditor.Holding(APublicProfile.With(displayName: string.Empty, account: me)),
+        });
+
+        drawn.Shell.Rail.GoTo(DestinationKind.Profile);
+        drawn.Settle();
+        drawn.Press(new Key('E'));
+        drawn.Settle();
+
+        Assert.IsType<PublicProfileScreen>(drawn.Shell.Screen);
+
+        Type(drawn, Typed);
+
+        AssertTypedInsideTheContentPanel(drawn);
+    }
+
+    /// <summary>
     ///     The margins are the terminal's: blank, at its default attribute, under a theme with a page of its own — no
     ///     role, so no theme entry, painted them. An odd column left over falls on the right, so the left edge moves only
     ///     when the width does.
@@ -167,6 +261,41 @@ public class ShellWidthTests
 
         Assert.Equal((10, 180), Shell(drawn));
         AssertMargins(drawn, left: 10, right: 10);
+    }
+
+    /// <summary>The shell on a 200-column terminal, narrowed a step to 180 columns from the eleventh.</summary>
+    private static async Task<DrawnShell> Narrowed(AShell? built = null)
+    {
+        var drawn = await DrawnShell.Of(200, 30, Midnight(), built);
+
+        drawn.Press(new Key('-'));
+
+        Assert.Equal((10, 180), Shell(drawn));
+
+        return drawn;
+    }
+
+    /// <summary>
+    ///     <see cref="Typed" /> is drawn whole, all three keys typed rather than acted on, inside the narrowed shell's
+    ///     content panel — and the shell is the width it was.
+    /// </summary>
+    private static void AssertTypedInsideTheContentPanel(DrawnShell drawn)
+    {
+        var rows = drawn.Rows();
+        var row = Array.FindIndex(rows, text => text.Contains(Typed, StringComparison.Ordinal));
+
+        Assert.True(row >= 0, string.Join('\n', rows));
+        Assert.InRange(rows[row].IndexOf(Typed, StringComparison.Ordinal), InsideTheContent, ContentsRightEdge - Typed.Length);
+        Assert.Equal('│', rows[row][ContentsRightEdge]);
+        Assert.Equal((10, 180), Shell(drawn));
+    }
+
+    private static void Type(DrawnShell drawn, string text)
+    {
+        foreach (var letter in text)
+        {
+            drawn.Press(new Key(letter));
+        }
     }
 
     /// <summary>
