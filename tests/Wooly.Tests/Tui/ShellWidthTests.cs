@@ -236,6 +236,41 @@ public class ShellWidthTests
     }
 
     /// <summary>
+    ///     And a filter: on the people someone follows, with the filter prompt open, the three keys are what the filter
+    ///     reads, never a step of the shell.
+    /// </summary>
+    [Fact]
+    public async Task AFilterTakesTheKeysAsLetters()
+    {
+        var built = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(APost.With(id: "110", account: "ben@hachyderm.io")),
+            Accounts = FakeAccountRelationships.Holding(
+                AnAccount.With(address: "ben@hachyderm.io"),
+                AnAccount.With(id: "1", address: "ann@hachyderm.io", author: "Ann")),
+        };
+        using var drawn = await Narrowed(built);
+
+        await drawn.Shell.OpenAuthor();
+        built.Host.Drain();
+        drawn.Press(Key.W);
+        built.Host.Drain();
+        drawn.Press(Key.F);
+
+        var follows = Assert.IsType<FollowsScreen>(drawn.Shell.Screen);
+
+        Assert.True(follows.IsTyping);
+
+        Type(drawn, Typed);
+
+        Assert.Equal(Typed, follows.Filter);
+        Assert.Equal((10, 180), Shell(drawn));
+
+        // Only the step that narrowed it to begin with.
+        Assert.Equal([90], built.ShellWidths.Saved);
+    }
+
+    /// <summary>
     ///     And on compose, whose post takes them as it takes every other letter — and which sits inside the narrowed
     ///     shell's content panel, as it sits inside the panel at full width.
     /// </summary>
