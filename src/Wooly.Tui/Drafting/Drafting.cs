@@ -526,6 +526,11 @@ public sealed class Drafting
     /// </summary>
     private void Told(ComposeScreen compose, ComposeAttachment attachment, string description)
     {
+        if (Gone(compose))
+        {
+            return;
+        }
+
         if (compose.Media.Told(attachment, description))
         {
             Reach.Changed();
@@ -543,6 +548,11 @@ public sealed class Drafting
     /// </summary>
     private void Untold(ComposeScreen compose, ComposeAttachment attachment, string why)
     {
+        if (Gone(compose))
+        {
+            return;
+        }
+
         if (ReferenceEquals(_waitingToSend, compose))
         {
             _waitingToSend = null;
