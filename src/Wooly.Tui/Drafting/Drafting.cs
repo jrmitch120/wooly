@@ -245,7 +245,7 @@ public sealed class Drafting
             return false;
         }
 
-        switch (_clipboard.Read())
+        switch (ReadTheClipboard())
         {
             case Clipped.Picture(var png):
                 Attach(compose, [_pasted.Keep(png)]);
@@ -267,17 +267,31 @@ public sealed class Drafting
 
                 return true;
 
-            // Said once a session: the author who has no wish to install either is still pasting text every time. Said
-            // once the field has pasted, since the paste is an edit and an edit spends a notice (#364).
-            case Clipped.NoTool(var why) when !_toldNoClipboard:
-                _toldNoClipboard = true;
-                _host.OnUiThread(() => Reach.Say(why, isError: false));
-
-                return false;
-
             default:
                 return false;
         }
+    }
+
+    /// <summary>
+    ///     What this machine's clipboard holds, read for a paste into either draft — a compose (#380) or the edit public
+    ///     profile form's pictures (#407) — with nothing to read it with said once a session, whichever draft it was
+    ///     pasted into (#422): the author who has no wish to install either is still pasting text every time.
+    /// </summary>
+    /// <remarks>
+    ///     Said on the drawing thread once the press is done, since on compose the field's own paste follows and is an
+    ///     edit, and an edit spends a notice (#364).
+    /// </remarks>
+    private Clipped ReadTheClipboard()
+    {
+        var clipped = _clipboard.Read();
+
+        if (clipped is Clipped.NoTool(var why) && !_toldNoClipboard)
+        {
+            _toldNoClipboard = true;
+            _host.OnUiThread(() => Reach.Say(why, isError: false));
+        }
+
+        return clipped;
     }
 
     /// <summary>
@@ -975,8 +989,9 @@ public sealed class Drafting
     ///     picture is. Sent with the rest of the form when it is saved, and not before (ADR-0028).
     /// </summary>
     /// <remarks>
-    ///     There is no text to paste on either row, so whatever else the clipboard holds is said on the status row, every
-    ///     time, rather than left to a field's own paste as on compose.
+    ///     There is no text to paste on either row, so whatever else the clipboard holds is said on the status row rather
+    ///     than left to a field's own paste as on compose — every time, but for nothing to read the clipboard with, which
+    ///     is said once a session whichever draft it was pasted into (<see cref="ReadTheClipboard" />, #422).
     /// </remarks>
     private void PastePicture()
     {
@@ -985,7 +1000,7 @@ public sealed class Drafting
             return;
         }
 
-        switch (_clipboard.Read())
+        switch (ReadTheClipboard())
         {
             case Clipped.Picture(var png):
                 var pasted = _pasted.Keep(png);
@@ -1005,9 +1020,8 @@ public sealed class Drafting
 
                 break;
 
-            case Clipped.NoTool(var why):
-                Reach.Say(why, isError: false);
-
+            // Said, where it is said at all, as the clipboard was read: once a session, as on compose (#422).
+            case Clipped.NoTool:
                 break;
 
             default:
