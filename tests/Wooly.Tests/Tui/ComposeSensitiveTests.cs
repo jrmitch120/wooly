@@ -53,7 +53,7 @@ public class ComposeSensitiveTests : IDisposable
         Assert.Equal("  Media  1 of 4 · ctrl-o to add · ■ sensitive", on.Text);
         Assert.Equal(Role.ContentWarning, Assert.Single(on.Spans, span => span.Text == "■ sensitive").Role);
 
-        await shell.Send();
+        await shell.Drafting.Send();
 
         Assert.True(Assert.Single(built.Author.Published).Draft.Sensitive);
     }
@@ -70,7 +70,7 @@ public class ComposeSensitiveTests : IDisposable
 
         Assert.EndsWith("□ sensitive", MediaRow(compose).Text, StringComparison.Ordinal);
 
-        await shell.Send();
+        await shell.Drafting.Send();
 
         Assert.False(Assert.Single(built.Author.Published).Draft.Sensitive);
     }
@@ -163,7 +163,7 @@ public class ComposeSensitiveTests : IDisposable
 
         Assert.EndsWith(chosen ? "■ sensitive" : "□ sensitive", MediaRow(compose).Text, StringComparison.Ordinal);
 
-        await shell.Send();
+        await shell.Drafting.Send();
 
         Assert.Equal(chosen, Assert.Single(built.Author.Published).Draft.Sensitive);
     }
@@ -176,7 +176,7 @@ public class ComposeSensitiveTests : IDisposable
 
         compose.RewriteWarning("spoilers");
 
-        await shell.Send();
+        await shell.Drafting.Send();
 
         Assert.Equal("spoilers", Assert.Single(built.Author.Published).Draft.ContentWarning);
     }
@@ -224,7 +224,7 @@ public class ComposeSensitiveTests : IDisposable
 
         Assert.Contains(view.Rows(), row => row.TrimEnd().EndsWith("· ■ sensitive", StringComparison.Ordinal));
 
-        await view.Shell.Send();
+        await view.Shell.Drafting.Send();
 
         Assert.True(Assert.Single(built.Author.Published).Draft.Sensitive);
     }

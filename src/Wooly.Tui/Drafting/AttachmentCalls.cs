@@ -2,13 +2,14 @@ using Wooly.Core.Errors;
 using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
 using Wooly.Tui.Screens;
+using Wooly.Tui.Shell;
 
-namespace Wooly.Tui.Shell;
+namespace Wooly.Tui.Drafting;
 
 /// <summary>
 ///     The calls a compose screen's pending attachments make to the instance (ADR-0026): each file sent up as it is
 ///     attached (#375), and each description sent once there is an attachment to put it on (#377) — every answer handed
-///     back on the drawing thread, for the shell to feed into the screen, which holds what it is told and reaches nothing
+///     back on the drawing thread, for drafting to feed into the screen, which holds what it is told and reaches nothing
 ///     itself (ADR-0015).
 /// </summary>
 /// <remarks>

@@ -225,7 +225,7 @@ public class ShellActionTests
 
         compose.Text = "Hello from the rail";
 
-        await opened.Send();
+        await opened.Drafting.Send();
         shell.Host.Drain();
 
         var published = Assert.Single(shell.Author.Published);
@@ -256,7 +256,7 @@ public class ShellActionTests
 
         compose.Text = "Far too long";
 
-        await opened.Send();
+        await opened.Drafting.Send();
         shell.Host.Drain();
 
         Assert.Contains("character limit of 500 exceeded", opened.Notice);
@@ -277,7 +277,7 @@ public class ShellActionTests
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
         compose.Text = "Answering you";
 
-        await opened.Send();
+        await opened.Drafting.Send();
 
         Assert.Equal("220", Assert.Single(shell.Author.Published).Draft.InReplyTo);
     }
@@ -294,7 +294,7 @@ public class ShellActionTests
 
         opened.Press(ShellKey.R);
 
-        await opened.Send();
+        await opened.Drafting.Send();
         shell.Host.Drain();
 
         Assert.Empty(shell.Author.Published);
@@ -315,7 +315,7 @@ public class ShellActionTests
 
         compose.Text = "Hello world, fixed";
 
-        await opened.Send();
+        await opened.Drafting.Send();
 
         var edited = Assert.Single(shell.Author.Edits);
         Assert.Equal("110", edited.PostId);
@@ -331,7 +331,7 @@ public class ShellActionTests
 
         opened.Press(ShellKey.C);
 
-        await opened.Send();
+        await opened.Drafting.Send();
 
         Assert.Empty(shell.Author.Published);
         Assert.IsType<ComposeScreen>(opened.Screen);

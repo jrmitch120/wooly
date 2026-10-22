@@ -373,7 +373,7 @@ internal sealed class ComposeView : View
     }
 
     /// <summary><c>ctrl-s</c> in any of compose's fields.</summary>
-    private void Send() => _ = _shell.Send();
+    private void Send() => _ = _shell.Drafting.Send();
 
     /// <summary><c>esc</c> in any of compose's fields.</summary>
     private void Back() => _shell.Back();

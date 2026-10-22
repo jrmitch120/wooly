@@ -201,7 +201,7 @@ public class ComposeNoticeTests
         drawn.Redraw();
         drawn.Window.NewKeyDownEvent(new Key('a'));
 
-        await drawn.Shell.Send();
+        await drawn.Shell.Drafting.Send();
         drawn.Settle();
 
         Assert.Contains(TooLong, drawn.Rows()[^1]);
@@ -232,7 +232,7 @@ public class ComposeNoticeTests
             shell.ChangeCompose(screen => screen.PickLanguage(language));
         }
 
-        await shell.Send();
+        await shell.Drafting.Send();
         built.Host.Drain();
 
         Assert.Contains(TooLong, shell.Notice);

@@ -230,7 +230,7 @@ public class ComposeMediaTests : IDisposable
         built.Author.Attaching[0].Ready();
         built.Host.Drain();
 
-        await shell.Send();
+        await shell.Drafting.Send();
         built.Host.Drain();
 
         var draft = Assert.Single(built.Author.Published).Draft;
@@ -250,7 +250,7 @@ public class ComposeMediaTests : IDisposable
         built.Author.Attaching.Single().Ready();
         built.Host.Drain();
 
-        await shell.Send();
+        await shell.Drafting.Send();
 
         var draft = Assert.Single(built.Author.Published).Draft;
 
@@ -270,7 +270,7 @@ public class ComposeMediaTests : IDisposable
         shell.Paste(_files.WriteFile("clip.mp4"));
         compose.Rewrite("Watch this");
 
-        await shell.Send();
+        await shell.Drafting.Send();
 
         Assert.Same(compose, shell.Screen);
         Assert.Empty(built.Author.Published);
@@ -304,7 +304,7 @@ public class ComposeMediaTests : IDisposable
         shell.Paste(_files.WriteFile("clip.mp4"));
         compose.Rewrite("Watch this");
 
-        await shell.Send();
+        await shell.Drafting.Send();
         shell.Press(ShellKey.CtrlO);
 
         Assert.IsType<FileBrowserScreen>(shell.Screen);
@@ -346,7 +346,7 @@ public class ComposeMediaTests : IDisposable
         shell.Paste(_files.WriteFile("clip.mp4"));
         compose.Rewrite("Watch this");
 
-        await shell.Send();
+        await shell.Drafting.Send();
         shell.Back();
 
         Assert.Same(compose, shell.Screen);
@@ -377,7 +377,7 @@ public class ComposeMediaTests : IDisposable
 
         Assert.EndsWith("x  File is too large", Row(compose, "huge.png"), StringComparison.Ordinal);
 
-        await shell.Send();
+        await shell.Drafting.Send();
 
         Assert.Empty(built.Author.Published);
         Assert.Same(compose, shell.Screen);

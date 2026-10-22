@@ -72,7 +72,7 @@ public class ComposeDescriptionTests : IDisposable
         shell.Paste(_files.WriteFile("cat.png"));
         Walk(shell, ShellKey.Up);
         shell.Press(ShellKey.Enter);
-        shell.WriteDescription("A cat");
+        shell.Drafting.Write("A cat");
 
         Assert.Equal("5 / 420", Texts(shell.Screen)[^1].Trim());
     }
@@ -89,7 +89,7 @@ public class ComposeDescriptionTests : IDisposable
         shell.Paste(_files.WriteFile("cat.png"));
         Walk(shell, ShellKey.Up);
         shell.Press(ShellKey.Enter);
-        shell.WriteDescription("A cat on a mat");
+        shell.Drafting.Write("A cat on a mat");
 
         var counter = Lines(shell.Screen)[^1];
 
@@ -113,7 +113,7 @@ public class ComposeDescriptionTests : IDisposable
 
         Walk(shell, ShellKey.Up);
         shell.Press(ShellKey.Enter);
-        shell.WriteDescription("A cat asleep on a mat");
+        shell.Drafting.Write("A cat asleep on a mat");
         shell.Press(done);
 
         Assert.Same(compose, shell.Screen);
@@ -135,7 +135,7 @@ public class ComposeDescriptionTests : IDisposable
         built.Host.Drain();
         Walk(shell, ShellKey.Up);
         shell.Press(ShellKey.Enter);
-        shell.WriteDescription("A dog in a red knitted coat sitting on the steps of a house in the rain");
+        shell.Drafting.Write("A dog in a red knitted coat sitting on the steps of a house in the rain");
         shell.Press(ShellKey.Escape);
 
         Assert.EndsWith("x  “A dog in a red knitted coat sitting o…”", Row(compose, "cat.png", width: 120), StringComparison.Ordinal);
@@ -153,7 +153,7 @@ public class ComposeDescriptionTests : IDisposable
         shell.Paste(_files.WriteFile("cat.png"));
         Walk(shell, ShellKey.Up);
         shell.Press(ShellKey.Enter);
-        shell.WriteDescription("A cat");
+        shell.Drafting.Write("A cat");
         shell.Press(ShellKey.Escape);
         built.Host.Drain();
 
@@ -166,7 +166,7 @@ public class ComposeDescriptionTests : IDisposable
 
         Assert.Equal(("personal", "m1", "A cat"), (described.Profile, described.Id, described.Description));
 
-        await shell.Send();
+        await shell.Drafting.Send();
         built.Host.Drain();
 
         Assert.Equal("m1", Assert.Single(Assert.Single(built.Author.Published).Draft.Attached).Id);
@@ -184,7 +184,7 @@ public class ComposeDescriptionTests : IDisposable
 
         Walk(shell, ShellKey.Up);
         shell.Press(ShellKey.Enter);
-        shell.WriteDescription("A cat");
+        shell.Drafting.Write("A cat");
 
         Assert.Empty(built.Author.Descriptions);
 
@@ -211,7 +211,7 @@ public class ComposeDescriptionTests : IDisposable
         Describe(shell, "A cat");
         Describe(shell, "A grey cat");
 
-        await shell.Send();
+        await shell.Drafting.Send();
         built.Host.Drain();
 
         Assert.Equal(["A cat", "A grey cat"], built.Author.Descriptions.Select(described => described.Description));
@@ -233,7 +233,7 @@ public class ComposeDescriptionTests : IDisposable
         built.Host.Drain();
         Describe(shell, "A cat");
 
-        await shell.Send();
+        await shell.Drafting.Send();
         built.Host.Drain();
 
         Assert.Same(compose, shell.Screen);
@@ -262,7 +262,7 @@ public class ComposeDescriptionTests : IDisposable
         built.Host.Drain();
         Describe(shell, "A cat");
 
-        await shell.Send();
+        await shell.Drafting.Send();
         built.Author.Descriptions.Single().Refuse(new AttachmentRefusedException("Description is too long"));
         built.Host.Drain();
 
@@ -273,7 +273,7 @@ public class ComposeDescriptionTests : IDisposable
 
         built.Author.HoldingDescriptions = false;
 
-        await shell.Send();
+        await shell.Drafting.Send();
         built.Host.Drain();
 
         Assert.Equal(2, built.Author.Descriptions.Count);
@@ -295,7 +295,7 @@ public class ComposeDescriptionTests : IDisposable
         built.Host.Drain();
         Describe(shell, "A cat");
 
-        await shell.Send();
+        await shell.Drafting.Send();
         built.Author.Descriptions.Single().Refuse(new HttpRequestException("Response status code does not indicate success"));
         built.Host.Drain();
 
@@ -308,7 +308,7 @@ public class ComposeDescriptionTests : IDisposable
 
         built.Author.HoldingDescriptions = false;
 
-        await shell.Send();
+        await shell.Drafting.Send();
         built.Host.Drain();
 
         Assert.Single(built.Author.Published);
@@ -329,7 +329,7 @@ public class ComposeDescriptionTests : IDisposable
 
         Assert.EndsWith("x  no alt text", Row(compose, "cat.png"), StringComparison.Ordinal);
 
-        await shell.Send();
+        await shell.Drafting.Send();
         built.Host.Drain();
 
         Assert.Null(shell.Asking);
@@ -433,7 +433,7 @@ public class ComposeDescriptionTests : IDisposable
         Walk(shell, ShellKey.Up);
         Walk(shell, ShellKey.Up);
         shell.Press(ShellKey.Enter);
-        shell.WriteDescription("A cat asleep on a mat");
+        shell.Drafting.Write("A cat asleep on a mat");
         shell.Press(done);
 
         Assert.Same(compose, shell.Screen);
@@ -492,7 +492,7 @@ public class ComposeDescriptionTests : IDisposable
     {
         Walk(shell, ShellKey.Up);
         shell.Press(ShellKey.Enter);
-        shell.WriteDescription(description);
+        shell.Drafting.Write(description);
         shell.Press(ShellKey.Escape);
         Walk(shell, ShellKey.Down);
     }

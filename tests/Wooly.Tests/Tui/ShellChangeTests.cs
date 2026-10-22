@@ -84,7 +84,7 @@ public class ShellChangeTests
         opened.Press(ShellKey.C);
         ((ComposeScreen)opened.Screen).Text += "Hello";
 
-        await opened.Send();
+        await opened.Drafting.Send();
         shell.Host.Drain();
 
         var reads = shell.Timelines.Reads.Count;

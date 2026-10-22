@@ -131,7 +131,7 @@ public class ComposeAttachmentsScreenTests : IDisposable
 
         Assert.Equal("two.png", describing.Attachment.Name);
 
-        shell.WriteDescription("A dog");
+        shell.Drafting.Write("A dog");
         shell.Press(ShellKey.Escape);
 
         Assert.IsType<AttachmentsScreen>(shell.Screen);

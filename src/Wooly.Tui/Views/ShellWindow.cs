@@ -781,7 +781,7 @@ internal sealed class ShellWindow : Window
                 return true;
 
             case Verb.Send:
-                _ = _shell.Send();
+                _ = _shell.Drafting.Send();
 
                 return true;
 
