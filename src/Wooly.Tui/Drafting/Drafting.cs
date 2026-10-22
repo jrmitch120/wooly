@@ -95,17 +95,22 @@ public sealed class Drafting
     ///     <paramref name="screen" /> is about to come off the stack, by whichever way out: called for each screen
     ///     before it is off, so that what it is about is still on the stack beneath it.
     /// </summary>
-    public void Left(Screen screen)
-    {
-    }
+    public void Left(Screen screen) => Leaving?.Invoke(screen);
 
     /// <summary>
     ///     The stack has settled with a screen uncovered, its notice cleared — by <c>esc</c>, or by walking back down
     ///     it.
     /// </summary>
-    public void Uncovered()
-    {
-    }
+    public void Uncovered() => Uncovering?.Invoke();
+
+    /// <summary>
+    ///     Raised as <see cref="Left" /> is told, so that whatever takes screens off a stack can be held to telling it
+    ///     on every way off (#427). Nothing in a session listens.
+    /// </summary>
+    internal event Action<Screen>? Leaving;
+
+    /// <summary>Raised as <see cref="Uncovered" /> is told, for the reason <see cref="Leaving" /> is.</summary>
+    internal event Action? Uncovering;
 
     /// <summary>An arm of <see cref="Do" /> that answers at once, as a used key.</summary>
     private static Drafted Ran(Action verb)
