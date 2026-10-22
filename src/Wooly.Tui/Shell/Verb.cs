@@ -81,6 +81,18 @@ public enum Verb
     /// </summary>
     Profiles,
 
+    /// <summary>
+    ///     <c>-</c>: the **Shell width** one step narrower, down to half the terminal and never under the 80 columns the
+    ///     shell is laid out for (#414). The window's, since only it knows how wide the terminal is.
+    /// </summary>
+    Narrower,
+
+    /// <summary>
+    ///     <c>+</c> or <c>=</c>: the **Shell width** one step wider, up to the whole terminal (#414). The window's, beside
+    ///     <see cref="Narrower" />.
+    /// </summary>
+    Wider,
+
     /// <summary><c>a</c> on the profiles screen: add a profile, from the instance up (#245).</summary>
     AddProfile,
 
