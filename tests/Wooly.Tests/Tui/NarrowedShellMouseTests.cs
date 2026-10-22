@@ -56,6 +56,25 @@ public class NarrowedShellMouseTests
     }
 
     /// <summary>
+    ///     And as the running TUI reads a terminal's reports: the notch over a margin is drawn on the loop's next pass, the
+    ///     page moved on the terminal as it is by a notch over the content panel.
+    /// </summary>
+    [Fact]
+    public async Task AWheelOverAMarginIsDrawnAsTheLoopDraws()
+    {
+        using var overMargin = await Narrowed(Four());
+        using var overContent = await Narrowed(Four());
+
+        var before = overMargin.Rows();
+
+        overMargin.Reports(Sgr.Wheel(LeftMargin, Inside));
+        overContent.Reports(Sgr.Wheel(OverContent, Inside));
+
+        Assert.NotEqual(before, overMargin.Rows());
+        Assert.Equal(overContent.Rows(), overMargin.Rows());
+    }
+
+    /// <summary>
     ///     A click, a double click, a right click or a drag in either margin does nothing: an open confirmation, which a
     ///     click anywhere in the shell declines and a right click anywhere answers, is still open, and nothing drawn has
     ///     changed.
