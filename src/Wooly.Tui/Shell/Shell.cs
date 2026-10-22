@@ -572,10 +572,11 @@ public sealed class Shell
     }
 
     /// <summary>
-    ///     Carries out what a key meant, once <see cref="Keymap" /> has said what that is. The frame's verbs and the
-    ///     ones that act on the picked post of any screen are public here in their own right, so this is a table of
-    ///     one-line arms rather than anywhere a decision is made; every other verb is screen-local, and the screen
-    ///     carries it out itself (<see cref="Screen.Answer" />, #232).
+    ///     Carries out what a key meant, once <see cref="Keymap" /> has said what that is. Every verb is asked of
+    ///     drafting first, and a draft's is drafting's to carry out (ADR-0029): which verbs those are is said there and
+    ///     nowhere else. The frame's verbs and the ones that act on the picked post of any screen are public here in
+    ///     their own right, so this is a table of one-line arms rather than anywhere a decision is made; every other verb
+    ///     is screen-local, and the screen carries it out itself (<see cref="Screen.Answer" />, #232).
     /// </summary>
     /// <remarks>
     ///     Which screen the reader is on has already been accounted for: the collisions the contract allows —
