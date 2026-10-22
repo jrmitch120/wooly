@@ -24,6 +24,91 @@ public class ShellWidthTests
         Assert.Contains("Width 90%", drawn.Rows()[^1], StringComparison.Ordinal);
     }
 
+    /// <summary><c>+</c> and <c>=</c> each widen a step back, saying where they landed.</summary>
+    [Theory]
+    [InlineData('+')]
+    [InlineData('=')]
+    public async Task PlusAndEqualsWidenTheShellAStep(char wider)
+    {
+        using var drawn = await DrawnShell.Of(200, 24, Midnight());
+
+        drawn.Press(new Key('-'));
+        drawn.Press(new Key('-'));
+        drawn.Press(new Key(wider));
+
+        Assert.Equal((10, 180), Shell(drawn));
+        Assert.Contains("Width 90%", drawn.Rows()[^1], StringComparison.Ordinal);
+
+        drawn.Press(new Key(wider));
+
+        Assert.Equal((0, 200), Shell(drawn));
+        Assert.Contains("Width 100%", drawn.Rows()[^1], StringComparison.Ordinal);
+    }
+
+    /// <summary>At the whole terminal there is no wider, and <c>+</c> says so rather than doing nothing silently.</summary>
+    [Fact]
+    public async Task PlusAtTheWholeTerminalSaysFullWidth()
+    {
+        using var drawn = await DrawnShell.Of(200, 24, Midnight());
+
+        drawn.Press(new Key('+'));
+
+        Assert.Equal((0, 200), Shell(drawn));
+        Assert.Contains("Full width", drawn.Rows()[^1], StringComparison.Ordinal);
+    }
+
+    /// <summary>Half the terminal is the narrowest step, and <c>-</c> there says so and leaves it.</summary>
+    [Fact]
+    public async Task MinusAtHalfTheTerminalSaysNarrowest()
+    {
+        using var drawn = await DrawnShell.Of(200, 24, Midnight());
+
+        foreach (var percent in new[] { 90, 80, 70, 60, 50 })
+        {
+            drawn.Press(new Key('-'));
+
+            Assert.Contains($"Width {percent}%", drawn.Rows()[^1], StringComparison.Ordinal);
+        }
+
+        drawn.Press(new Key('-'));
+
+        Assert.Equal((50, 100), Shell(drawn));
+        Assert.Contains("Narrowest", drawn.Rows()[^1], StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    ///     Nor is the shell ever narrowed under the 80 columns it is laid out for: on a 120-column terminal 70% is 84
+    ///     columns and 60% would be 72, so <c>-</c> stops at 70% and says so.
+    /// </summary>
+    [Fact]
+    public async Task MinusThatWouldGoUnderEightyColumnsSaysNarrowest()
+    {
+        using var drawn = await DrawnShell.Of(120, 24, Midnight());
+
+        drawn.Press(new Key('-'));
+        drawn.Press(new Key('-'));
+        drawn.Press(new Key('-'));
+
+        Assert.Equal((18, 84), Shell(drawn));
+
+        drawn.Press(new Key('-'));
+
+        Assert.Equal((18, 84), Shell(drawn));
+        Assert.Contains("Narrowest", drawn.Rows()[^1], StringComparison.Ordinal);
+    }
+
+    /// <summary>On a terminal 80 columns wide there is no room for less, so the shell is the whole of it.</summary>
+    [Fact]
+    public async Task OnAnEightyColumnTerminalMinusSaysNarrowest()
+    {
+        using var drawn = await DrawnShell.Of(80, 24, Midnight());
+
+        drawn.Press(new Key('-'));
+
+        Assert.Equal((0, 80), Shell(drawn));
+        Assert.Contains("Narrowest", drawn.Rows()[^1], StringComparison.Ordinal);
+    }
+
     /// <summary>
     ///     The margins are the terminal's: blank, at its default attribute, under a theme with a page of its own — no
     ///     role, so no theme entry, painted them. An odd column left over falls on the right, so the left edge moves only
