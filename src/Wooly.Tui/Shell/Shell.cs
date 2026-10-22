@@ -1394,7 +1394,7 @@ public sealed class Shell
     /// <summary>
     ///     Makes <paramref name="change" /> to the compose screen on top — every change to a draft comes in here, from
     ///     its fields, its lists and its keys — and settles what follows from it by the one rule (#364): a change that
-    ///     says it <see cref="ComposeChange.Edited" /> spends a notice said over the draft, and anything but no change at
+    ///     says it <see cref="DraftChange.Edited" /> spends a notice said over the draft, and anything but no change at
     ///     all is announced so the screen is drawn again.
     /// </summary>
     /// <remarks>
@@ -1405,9 +1405,9 @@ public sealed class Shell
     ///     the fields, choosing on To or opening a list is not, and leaves the notice to be read.
     /// </remarks>
     /// <returns>What the change was, or nothing where compose is not on top and no change was made.</returns>
-    public ComposeChange ChangeCompose(Func<ComposeScreen, ComposeChange> change)
+    public DraftChange ChangeCompose(Func<ComposeScreen, DraftChange> change)
     {
-        return InFront is { } compose ? Settled(change(compose)) : ComposeChange.None;
+        return InFront is { } compose ? Settled(change(compose)) : DraftChange.None;
     }
 
     /// <summary>
@@ -1416,9 +1416,9 @@ public sealed class Shell
     ///     spends a notice said over the form, a refusal among them, and anything but no change at all is announced.
     /// </summary>
     /// <returns>What the change was, or nothing where the form is not on top and no change was made.</returns>
-    public ComposeChange ChangePublicProfile(Func<PublicProfileScreen, ComposeChange> change)
+    public DraftChange ChangePublicProfile(Func<PublicProfileScreen, DraftChange> change)
     {
-        return Screen is PublicProfileScreen form ? Settled(change(form)) : ComposeChange.None;
+        return Screen is PublicProfileScreen form ? Settled(change(form)) : DraftChange.None;
     }
 
     /// <summary>
@@ -1427,14 +1427,14 @@ public sealed class Shell
     ///     drawn again.
     /// </summary>
     /// <returns><paramref name="made" />.</returns>
-    private ComposeChange Settled(ComposeChange made)
+    private DraftChange Settled(DraftChange made)
     {
-        if (made == ComposeChange.Edited && Notice is not null)
+        if (made == DraftChange.Edited && Notice is not null)
         {
             // Saying nothing announces the change itself.
             Say(null, isError: false);
         }
-        else if (made != ComposeChange.None)
+        else if (made != DraftChange.None)
         {
             Changed?.Invoke();
         }
@@ -1525,11 +1525,11 @@ public sealed class Shell
 
         var made = describing.Rewrite(description);
 
-        if (made == ComposeChange.Edited && Notice is not null)
+        if (made == DraftChange.Edited && Notice is not null)
         {
             Say(null, isError: false);
         }
-        else if (made != ComposeChange.None)
+        else if (made != DraftChange.None)
         {
             Changed?.Invoke();
         }
@@ -2637,7 +2637,7 @@ public sealed class Shell
         {
             attached = screen.Media.Attach(paths.Select(path => ComposeAttachment.Of(path, LocalFiles.Size(path))));
 
-            return attached.Count > 0 ? ComposeChange.Edited : ComposeChange.None;
+            return attached.Count > 0 ? DraftChange.Edited : DraftChange.None;
         });
 
         if (paths.Count - attached.Count is > 0 and var left)
@@ -2657,9 +2657,9 @@ public sealed class Shell
     ///     Takes an attachment off the compose in front, the one <paramref name="removing" /> says (#378) — and where a
     ///     send was waiting on nothing else, the send: what it waited on is no longer on the post.
     /// </summary>
-    private void RemoveAttachment(Func<ComposeScreen, ComposeChange> removing)
+    private void RemoveAttachment(Func<ComposeScreen, DraftChange> removing)
     {
-        if (ChangeCompose(removing) != ComposeChange.None && InFront is { } compose)
+        if (ChangeCompose(removing) != DraftChange.None && InFront is { } compose)
         {
             Waited(compose);
         }
@@ -2687,7 +2687,7 @@ public sealed class Shell
     /// </summary>
     /// <returns>Whether it moved, which makes the button's release a drop rather than a click.</returns>
     public bool DragAttachment(ComposeAttachment attachment, int place) =>
-        ChangeCompose(compose => compose.Media.ReorderTo(attachment, place)) != ComposeChange.None;
+        ChangeCompose(compose => compose.Media.ReorderTo(attachment, place)) != DraftChange.None;
 
     /// <summary>
     ///     A click on <paramref name="attachment" />'s row, on <paramref name="part" /> of it (#378): its <c>x</c> takes

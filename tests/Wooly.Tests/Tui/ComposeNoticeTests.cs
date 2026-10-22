@@ -139,7 +139,7 @@ public class ComposeNoticeTests
 
         var change = shell.ChangeCompose(screen => screen.TypeInto(ComposeField.Post));
 
-        Assert.Equal(ComposeChange.None, change);
+        Assert.Equal(DraftChange.None, change);
         Assert.Equal(refusal, shell.Notice);
         Assert.Equal(0, announced());
     }
@@ -163,7 +163,7 @@ public class ComposeNoticeTests
             : screen => screen.PickLanguage(french));
 
         Assert.NotNull(refusal);
-        Assert.Equal(ComposeChange.None, change);
+        Assert.Equal(DraftChange.None, change);
         Assert.Equal(refusal, shell.Notice);
         Assert.Equal(0, announced());
     }
@@ -180,11 +180,11 @@ public class ComposeNoticeTests
         {
             made = true;
 
-            return ComposeChange.Edited;
+            return DraftChange.Edited;
         });
 
         Assert.False(made);
-        Assert.Equal(ComposeChange.None, change);
+        Assert.Equal(DraftChange.None, change);
         Assert.Equal(0, announced());
     }
 
