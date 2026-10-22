@@ -55,4 +55,48 @@ public class RememberedShellWidthTests
         // 70% of 200 is 140, which leaves 60 to share: 30 either side.
         Assert.Equal((30, 140), Shell(drawn));
     }
+
+    /// <summary>
+    ///     A width written by hand between the steps is drawn as written, and <c>-</c> and <c>+</c> bring it back onto
+    ///     them: 73 narrows to 70 and widens to 80.
+    /// </summary>
+    [Theory]
+    [InlineData('-', 70, 30, 140)]
+    [InlineData('+', 80, 20, 160)]
+    public async Task AnInBetweenWidthIsDrawnAsWritten_AndAStepTakesItBackOntoTheSteps(
+        char key,
+        int percent,
+        int left,
+        int columns)
+    {
+        var built = new AShell { ShellWidth = 73 };
+        using var drawn = await DrawnShell.Of(200, 24, Midnight(), built);
+
+        // 73% of 200 is 146, which leaves 54 to share: 27 either side.
+        Assert.Equal((27, 146), Shell(drawn));
+
+        drawn.Press(new Key(key));
+
+        Assert.Equal((left, columns), Shell(drawn));
+        Assert.Contains($"Width {percent}%", drawn.Rows()[^1], StringComparison.Ordinal);
+        Assert.Equal([percent], built.ShellWidths.Saved);
+    }
+
+    /// <summary>
+    ///     Half of a 100-column terminal is under the 80 columns the shell is laid out for, so it is drawn at 80 — but
+    ///     the saved half is left as it is, and is what a wider terminal draws.
+    /// </summary>
+    [Fact]
+    public async Task ASavedWidthTheFloorOverridesIsLeftAsSaved()
+    {
+        var built = new AShell { ShellWidth = 50 };
+        using var drawn = await DrawnShell.Of(100, 24, Midnight(), built);
+
+        Assert.Equal((10, 80), Shell(drawn));
+
+        drawn.Resize(200, 24);
+
+        Assert.Equal((50, 100), Shell(drawn));
+        Assert.Empty(built.ShellWidths.Saved);
+    }
 }
