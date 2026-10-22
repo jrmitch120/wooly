@@ -48,6 +48,15 @@ public sealed class Drafting
     /// </summary>
     private bool _toldNoClipboard;
 
+    /// <summary>The folder Wooly was launched from, where the file browser opens the first time (#376).</summary>
+    private readonly string _launchedFrom;
+
+    /// <summary>
+    ///     The folder the author last attached from through the file browser, where it opens from then on — for this
+    ///     session only, saved nowhere (#376).
+    /// </summary>
+    private string? _lastFolder;
+
     /// <summary>
     ///     What the config file says a post goes out at — <c>default_visibility</c> and <c>default_language</c>, either
     ///     unknown where it says nothing — which a compose screen's To and Lang start on ahead of the account's own
@@ -89,6 +98,7 @@ public sealed class Drafting
     /// <param name="clipboard">This machine's clipboard, which a paste attaches a picture or copied files from.</param>
     /// <param name="pasted">Where a picture pasted from the clipboard is written before it is attached.</param>
     /// <param name="preferred">What the config file says a post goes out at.</param>
+    /// <param name="launchedFrom">The folder Wooly was launched from, where the file browser first opens.</param>
     public Drafting(
         IStack stack,
         Func<Reach?> reach,
@@ -96,8 +106,10 @@ public sealed class Drafting
         IShellHost host,
         IClipboard clipboard,
         PastedPictures pasted,
-        PostDefaults preferred)
+        PostDefaults preferred,
+        string launchedFrom)
     {
+        _launchedFrom = launchedFrom;
         _stack = stack;
         _reach = reach;
         _host = host;
@@ -145,6 +157,10 @@ public sealed class Drafting
         Verb.RemoveAttachment => Ran(() => RemoveAttachment(compose => on is null ? compose.Remove() : compose.Remove(on))),
         Verb.RetryAttachment => Ran(() => Retry(compose => on is null ? compose.Retry() : compose.Media.Retry(on))),
         Verb.PasteFromTheClipboard => PasteFromTheClipboard() ? Drafted.Used : Drafted.Declined,
+        Verb.OpenBrowser => Ran(Browse),
+        Verb.AttachChosen => Ran(AttachChosen),
+        Verb.IntoFolder => Ran(() => Browse(browser => browser.FolderPicked)),
+        Verb.UpFolder => Ran(() => Browse(browser => browser.Above)),
         _ => Drafted.NotMine,
     };
 
@@ -252,8 +268,7 @@ public sealed class Drafting
     ///     spends a notice over it as typing does (#364) — and where some would not fit, the status row says how many
     ///     were left out, so that nobody is unsure what is on the post (#378).
     /// </summary>
-    /// <remarks>For the shell's clipboard paste and file browser, until those are drafting's too (#421).</remarks>
-    internal void Attach(ComposeScreen compose, IReadOnlyCollection<string> paths)
+    private void Attach(ComposeScreen compose, IReadOnlyCollection<string> paths)
     {
         IReadOnlyList<ComposeAttachment> attached = [];
 
@@ -275,6 +290,35 @@ public sealed class Drafting
         {
             _ = _attachments.SendUp(Reach.Profile, compose, attachment);
         }
+    }
+
+    /// <summary>
+    ///     Where the file browser opens: the folder last attached or chosen from this session or, the first time, the one
+    ///     Wooly was launched from (#376).
+    /// </summary>
+    /// <remarks>Read by the shell's edit public profile form too, until the form is drafting's (#422).</remarks>
+    internal string BrowsingFrom => _lastFolder is { } last && Directory.Exists(last) ? last : _launchedFrom;
+
+    /// <summary>
+    ///     What was chosen in <paramref name="browser" /> — or, with nothing chosen, the file under the cursor — with the
+    ///     folder it came from remembered for the next time. With neither, nothing: the folder under the cursor opens
+    ///     instead, since what is chosen comes first wherever the cursor is (review of #372).
+    /// </summary>
+    /// <remarks>Taken by the shell's edit public profile form too, until the form is drafting's (#422).</remarks>
+    internal IReadOnlyList<string> Took(FileBrowserScreen browser)
+    {
+        var chosen = browser.Take();
+
+        if (chosen.Count == 0)
+        {
+            Browse(opening => opening.FolderPicked);
+
+            return chosen;
+        }
+
+        _lastFolder = browser.Folder;
+
+        return chosen;
     }
 
     /// <summary>
@@ -500,6 +544,77 @@ public sealed class Drafting
         AttachmentsScreen listing => listing.Compose,
         _ => null,
     };
+
+    /// <summary>
+    ///     <c>ctrl-o</c> on a compose or a reply, <c>⏎</c> on its Media header or a click on its words: pushes the file
+    ///     browser over it, in the folder last attached from this session or, the first time, the one Wooly was launched
+    ///     from (#376). Not on an edit, which has nothing to attach to, nor on a post that carries all it can.
+    /// </summary>
+    private void Browse()
+    {
+        if (InFront is not { Media.Takes: true } compose)
+        {
+            return;
+        }
+
+        if (compose.Media.Room == 0)
+        {
+            Reach.Say(
+                $"This post carries all it can — {compose.Media.Attachments.Count} of {compose.Limits.Attachments}.",
+                isError: false);
+
+            return;
+        }
+
+        _stack.Push(new FileBrowserScreen(LocalFiles.Listing(BrowsingFrom), compose.Limits, compose.Media.Room));
+    }
+
+    /// <summary>
+    ///     <c>→</c>, <c>←</c> or <c>⏎</c> in the file browser: the folder <paramref name="going" /> says, read off the disk
+    ///     here and shown there (#376) — the screen reading nothing itself (ADR-0015). Nothing where it says none.
+    /// </summary>
+    private void Browse(Func<FileBrowserScreen, string?> going)
+    {
+        if (_stack.Top is not FileBrowserScreen browser || going(browser) is not { } folder)
+        {
+            return;
+        }
+
+        browser.Show(LocalFiles.Listing(folder));
+        Reach.Changed();
+    }
+
+    /// <summary>
+    ///     <c>⏎</c> in the file browser: the browser goes and what was chosen — or, with nothing chosen, the file under the
+    ///     cursor — is attached to the compose screen under it, exactly as a drop is (#375, #376), and the folder it came
+    ///     from is remembered for the next time. With neither, the folder under the cursor opens: what is chosen comes
+    ///     first wherever the cursor is (review of #372).
+    /// </summary>
+    private void AttachChosen()
+    {
+        if (_stack.Top is not FileBrowserScreen browser)
+        {
+            return;
+        }
+
+        // The compose it was opened over — directly, or under the attachments screen it was opened from (story 58).
+        var under = _stack.Screens is [.., var beneath, _]
+            ? beneath switch
+            {
+                ComposeScreen compose => compose,
+                AttachmentsScreen listing => listing.Compose,
+                _ => null,
+            }
+            : null;
+
+        if (Took(browser) is not { Count: > 0 } chosen || under is null)
+        {
+            return;
+        }
+
+        _stack.TakeOff(browser);
+        Attach(under, chosen);
+    }
 
     /// <summary>
     ///     Opens the description editor over the compose screen in front, on the attachment whose row the walk is on

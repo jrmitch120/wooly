@@ -161,15 +161,6 @@ public sealed class Shell
     /// </summary>
     private readonly Tui.Drafting.Drafting _drafting;
 
-    /// <summary>The folder Wooly was launched from, where the file browser opens the first time (#376).</summary>
-    private readonly string _launchedFrom;
-
-    /// <summary>
-    ///     The folder the author last attached from through the file browser, where it opens from then on — for this
-    ///     session only, saved nowhere (#376).
-    /// </summary>
-    private string? _lastFolder;
-
     /// <param name="opening">
     ///     Who to act as — or, with nobody, what to open onto instead: adding a profile, as the only screen (#247).
     /// </param>
@@ -195,7 +186,6 @@ public sealed class Shell
         Preferences? preferences = null,
         string? launchedFrom = null)
     {
-        _launchedFrom = launchedFrom ?? Environment.CurrentDirectory;
         _ports = ports;
         _profiles = profiles;
         _shellWidths = shellWidths;
@@ -214,7 +204,8 @@ public sealed class Shell
             host,
             clipboard,
             pasted,
-            new PostDefaults(preferences?.DefaultVisibility, preferences?.DefaultLanguage));
+            new PostDefaults(preferences?.DefaultVisibility, preferences?.DefaultLanguage),
+            launchedFrom ?? Environment.CurrentDirectory);
         ShellWidth = preferences is null ? ShellWidth.Full : ShellWidth.Of(preferences.ShellWidth);
 
         Rail = new Rail(Destinations(opening.Profile, _hashtag), host, timing.Settle);
@@ -639,10 +630,6 @@ public sealed class Shell
         Verb.BringBackAttachment => Ran(() => _ = ChangeCompose(compose => compose.BringBack())),
         Verb.EarlierAttachment => Ran(() => _ = ChangeCompose(compose => compose.Reorder(-1))),
         Verb.LaterAttachment => Ran(() => _ = ChangeCompose(compose => compose.Reorder(1))),
-        Verb.OpenBrowser => Ran(Browse),
-        Verb.AttachChosen => Ran(AttachChosen),
-        Verb.IntoFolder => Ran(() => Browse(browser => browser.FolderPicked)),
-        Verb.UpFolder => Ran(() => Browse(browser => browser.Above)),
         Verb.ToggleSensitive => Ran(ToggleSensitive),
         Verb.ListAttachments => Ran(ListAttachments),
         Verb.EditPublicProfile => Ran(EditPublicProfile),
@@ -2221,117 +2208,30 @@ public sealed class Shell
     }
 
     /// <summary>
-    ///     <c>ctrl-o</c> on a compose or a reply, <c>⏎</c> on its Media header or a click on its words: pushes the file
-    ///     browser over it, in the folder last attached from this session or, the first time, the one Wooly was launched
-    ///     from (#376). Not on an edit, which has nothing to attach to, nor on a post that carries all it can.
-    /// </summary>
-    public void Browse()
-    {
-        if (InFront is not { Media.Takes: true } compose)
-        {
-            return;
-        }
-
-        if (compose.Media.Room == 0)
-        {
-            Say($"This post carries all it can — {compose.Media.Attachments.Count} of {compose.Limits.Attachments}.", isError: false);
-
-            return;
-        }
-
-        Push(new FileBrowserScreen(LocalFiles.Listing(BrowsingFrom), compose.Limits, compose.Media.Room));
-    }
-
-    /// <summary>
     ///     <c>⏎</c> or a click on the edit public profile form's avatar or header (#407): pushes the file browser over it
-    ///     for that one picture, in the folder <see cref="Browse" /> would open in.
+    ///     for that one picture, in the folder the file browser opens in for a compose (#376).
     /// </summary>
     public void ChoosePicture()
     {
         if (Screen is PublicProfileScreen form && PublicProfilePicture.Of(form.Typing.Part) is { } picture)
         {
-            Push(FileBrowserScreen.ForAPicture(LocalFiles.Listing(BrowsingFrom), picture));
+            Push(FileBrowserScreen.ForAPicture(LocalFiles.Listing(_drafting.BrowsingFrom), picture));
         }
-    }
-
-    /// <summary>
-    ///     Where the file browser opens: the folder last attached or chosen from this session or, the first time, the one
-    ///     Wooly was launched from (#376).
-    /// </summary>
-    private string BrowsingFrom => _lastFolder is { } last && Directory.Exists(last) ? last : _launchedFrom;
-
-    /// <summary>
-    ///     <c>→</c>, <c>←</c> or <c>⏎</c> in the file browser: the folder <paramref name="going" /> says, read off the disk
-    ///     here and shown there (#376) — the screen reading nothing itself (ADR-0015). Nothing where it says none.
-    /// </summary>
-    private void Browse(Func<FileBrowserScreen, string?> going)
-    {
-        if (Screen is not FileBrowserScreen browser || going(browser) is not { } folder)
-        {
-            return;
-        }
-
-        browser.Show(LocalFiles.Listing(folder));
-        Changed?.Invoke();
-    }
-
-    /// <summary>
-    ///     <c>⏎</c> in the file browser: the browser goes and what was chosen — or, with nothing chosen, the file under the
-    ///     cursor — is attached to the compose screen under it, exactly as a drop is (#375, #376), and the folder it came
-    ///     from is remembered for the next time. With neither, the folder under the cursor opens: what is chosen comes
-    ///     first wherever the cursor is (review of #372).
-    /// </summary>
-    public void AttachChosen()
-    {
-        if (Screen is not FileBrowserScreen browser)
-        {
-            return;
-        }
-
-        var chosen = browser.Take();
-
-        if (chosen.Count == 0)
-        {
-            Browse(opening => opening.FolderPicked);
-
-            return;
-        }
-
-        // The compose it was opened over — directly, or under the attachments screen it was opened from (story 58).
-        if (_stack.Count < 2 || ComposeOf(_stack[^2]) is not { } compose)
-        {
-            return;
-        }
-
-        _lastFolder = browser.Folder;
-
-        Pop();
-        _drafting.Attach(compose, chosen);
     }
 
     /// <summary>
     ///     <c>⏎</c> in the file browser opened for one of the edit public profile form's pictures (#407): the browser
     ///     goes and the file chosen — or, with none chosen, the one under the cursor — is the picture the form's walk is
     ///     on, sent when the form is saved and not before (ADR-0028). With neither, the folder under the cursor opens,
-    ///     as <see cref="AttachChosen" /> does.
+    ///     as it does for a compose.
     /// </summary>
     public void UsePicture()
     {
-        if (Screen is not FileBrowserScreen { Picture: not null } browser)
+        if (Screen is not FileBrowserScreen { Picture: not null } browser
+            || _drafting.Took(browser) is not { Count: > 0 } chosen)
         {
             return;
         }
-
-        var chosen = browser.Take();
-
-        if (chosen.Count == 0)
-        {
-            Browse(opening => opening.FolderPicked);
-
-            return;
-        }
-
-        _lastFolder = browser.Folder;
 
         Pop();
         _ = ChangePublicProfile(form => form.Pick(chosen[0]));

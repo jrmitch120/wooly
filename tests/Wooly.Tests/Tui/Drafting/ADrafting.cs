@@ -41,6 +41,9 @@ internal sealed class ADrafting
     /// <summary>How many times drafting has said something on screen has changed.</summary>
     public int Changes { get; private set; }
 
+    /// <summary>What a screen can reach as whoever is acted as now, for a test to answer a screen's own verb with.</summary>
+    public Reach Reach => _reach!;
+
     /// <summary>Who is acted as: the shell builder's profile, until <see cref="ActAs" /> says otherwise.</summary>
     public ActiveProfile Profile { get; private set; } = null!;
 
@@ -58,7 +61,8 @@ internal sealed class ADrafting
             Fakes.Host,
             Fakes.Clipboard,
             Fakes.Pasted,
-            Fakes.Preferred);
+            Fakes.Preferred,
+            Fakes.LaunchedFrom ?? Environment.CurrentDirectory);
         Stack.Hooked = Drafting;
 
         ActAs(Fakes.Profile);

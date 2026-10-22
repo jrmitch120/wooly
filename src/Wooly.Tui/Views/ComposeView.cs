@@ -146,7 +146,7 @@ internal sealed class ComposeView : View
                 }
                 else
                 {
-                    _shell.Browse();
+                    _ = _shell.Drafting.Do(Verb.OpenBrowser);
                 }
             }),
             (compose, room) => compose.MediaAt(room));
