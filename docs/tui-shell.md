@@ -1791,10 +1791,11 @@ reminder, `?` is the reference.** #169, #214 and #215 settled the row; #218, #21
   on the status row — but a confirmation is the only status row that ends in `<key> <word> · esc <word>`, and a
   notice never shows keys. No leading glyph and no band.
 - **A touched compose asks before it is thrown away, on every way out (#373).** `esc`, a right click, `tab`,
-  `shift-tab`, `` ` ``/`~`, a click on the rail or on a crumb behind it, `ctrl-p` and `ctrl-q` all go through one
-  check in the shell: where a compose screen the way out would take off differs from what it opened with — its text,
-  its warning, To or Lang (`ComposeScreen.Touched`) — the confirmation row asks **`Discard this post? y / n`**, and
-  nothing else happens until it is answered. Only `y` discards and finishes that way out; the way out's own key
+  `shift-tab`, `` ` ``/`~`, a click on the rail or on a crumb behind it, `/` from a screen over the draft — the
+  attachments screen, or help over it (#426) — `ctrl-p` and `ctrl-q` all go through one check in the shell: where a
+  compose screen the way out would take off differs from what it opened with — its text, its warning, To or Lang
+  (`ComposeScreen.Touched`) — the confirmation row asks **`Discard this post? y / n`**, and nothing else happens
+  until it is answered. Only `y` discards and finishes that way out; the way out's own key
   pressed again does not, so `esc esc` or `tab tab` never throws a draft away. Anything else keeps the draft and does
   nothing more — a stray second `tab` cannot finish what the first started. A step along the rail (`tab`,
   `shift-tab`, `` ` ``/`~`) that takes a draft off, asked or not, arrives at the destination stepped to at once,
