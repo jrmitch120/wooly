@@ -1,7 +1,7 @@
 namespace Wooly.Tui.Shell;
 
 /// <summary>
-///     The eight lengths of time the shell's behaviour depends on, in one place so that a test can shorten them and
+///     The nine lengths of time the shell's behaviour depends on, in one place so that a test can shorten them and
 ///     a reader can find out what they are without reading for them — and, beside them, the one size it depends on
 ///     (<see cref="FollowsHeldUnder" />), which is not a length of time and is here to be found with them.
 /// </summary>
@@ -44,6 +44,11 @@ namespace Wooly.Tui.Shell;
 ///     and one arrival is one bell. Two seconds: long enough for the instance to have sent both, short enough that a
 ///     badge still rises within moments.
 /// </param>
+/// <param name="WidthSaidFor">
+///     How long the status row says what a width key did — the width it landed on, or that there was no step to take —
+///     before it goes back to its keys (#413). Two seconds: long enough to read a word and a number, short enough that
+///     the remark is gone by the time the reader is looking at what the width did to the screen.
+/// </param>
 public sealed record ShellTiming(
     TimeSpan Settle,
     TimeSpan CacheFor,
@@ -52,7 +57,8 @@ public sealed record ShellTiming(
     TimeSpan PollEvery,
     TimeSpan ReconnectAfter,
     TimeSpan ReconnectAtMost,
-    TimeSpan GatherFor)
+    TimeSpan GatherFor,
+    TimeSpan WidthSaidFor)
 {
     /// <summary>
     ///     How many people a follow list may have on it and still be held whole rather than browsed a page at a time
@@ -60,9 +66,9 @@ public sealed record ShellTiming(
     ///     the list above it — <c>@Mastodon@mastodon.social</c>'s 877,000 followers — would be some 11,000.
     /// </summary>
     /// <remarks>
-    ///     A count rather than a length of time, and here anyway: it is the ninth thing the shell's behaviour turns
-    ///     on that a reader would otherwise go looking for, and a constant found beside the eight it belongs with is
-    ///     worth more than one filed under the right type. Not settable the way the eight are — a test shortening a
+    ///     A count rather than a length of time, and here anyway: it is the tenth thing the shell's behaviour turns
+    ///     on that a reader would otherwise go looking for, and a constant found beside the nine it belongs with is
+    ///     worth more than one filed under the right type. Not settable the way the nine are — a test shortening a
     ///     wait is asking for the same behaviour sooner, where a test moving this would be asking for another mode.
     /// </remarks>
     public const int FollowsHeldUnder = 2_000;
@@ -76,5 +82,6 @@ public sealed record ShellTiming(
         PollEvery: TimeSpan.FromSeconds(60),
         ReconnectAfter: TimeSpan.FromSeconds(2),
         ReconnectAtMost: TimeSpan.FromMinutes(2),
-        GatherFor: TimeSpan.FromSeconds(2));
+        GatherFor: TimeSpan.FromSeconds(2),
+        WidthSaidFor: TimeSpan.FromSeconds(2));
 }

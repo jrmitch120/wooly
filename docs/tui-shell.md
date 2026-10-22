@@ -41,7 +41,7 @@ the dividing, so there is no breadcrumb row, no blank row under it and no gutter
 |---|---|---|
 | Rail | 20 columns including its frames, full height less the status row | Four **rail groups**, in colour the selected entry on `rail-current` and, while tabbing, the cursor's entry on `rail-cursor`; without colour `▶`/`▷` (ADR-0021), each its own titled panel, the group holding the cursor framed in `panel-border-active`, on the press rather than once the selection follows; each destination with its unread count; at the foot an `API` panel holding, with two or more profiles, the instance acted as (ADR-0020), then the budget as a gauge. On a terminal too short to frame every group the rail steps down (below) |
 | Content | the rest of the width, full height less the status row | A panel titled with the breadcrumb (below), holding exactly one screen. Its rows start on row 1 |
-| Status | 1 row, full width | The current screen's keys as `Does: key \| Does: key`, as many as fit and `…+N` for the rest; or a notice; or a confirmation; the quota again when the rail is hidden |
+| Status | 1 row, the shell's full width | The current screen's keys as `Does: key \| Does: key`, as many as fit and `…+N` for the rest; or a notice; or a confirmation; the quota again when the rail is hidden |
 
 The content panel's title is the stack: the crumbs walked through in `muted`, the one stood on in `panel-title`, eliding
 from the left so it always ends where you are, and the fetch mark, a star spinner, a space after it while a fetch
@@ -87,6 +87,47 @@ answers for the whole shell, `Glyphs.Columns`, off Terminal.Gui's own reading of
 `string.Length`. Cuts land between graphemes, never inside one — half of a ZWJ sequence, or a base parted from its
 combining mark, is something nobody wrote.
 
+## Shell width
+
+The shell is drawn in a share of the terminal's width: all of it, or less, in steps of ten down to half (`GLOSSARY.md`,
+#413). `-` narrows it a step and `+` or `=` widens it a step (**Keys**, below), and each step taken is saved as
+`shell_width` for the next launch to open at (#414, #415; "Starting it", below). Every width this document gives — the
+rail's 20, the 58 columns at 80 — is the shell's, which is the terminal's at 100%.
+
+- **The columns** are worked out from the terminal's `T` and the share `p` on every layout:
+  `min(T, max(80, ⌊T × p / 100⌋))`, and the shell's first column is `⌊(T − columns) / 2⌋`, so it is centred and the
+  spare column of an odd remainder falls on the right: the left edge moves only when the width does. A resized terminal
+  keeps the share and re-centres. The height is always the terminal's whole height.
+- **Never under 80 columns**, the width the shell is laid out for: on a terminal 80 wide or less the shell is all of it.
+  A saved share the floor overrides on a narrow terminal is left as saved, for a wider one to draw.
+- **The steps.** Narrower is the largest multiple of ten below the share and at least 50; wider is the smallest above it
+  and at most 100. Narrower is refused where there is none, or where it would take the shell under 80 columns on this
+  terminal, and says `Narrowest`; wider is refused only at 100, and says `Full width`. A step taken says `Width 90%`
+  and is saved straight away, through the shell's one narrow port for it (`IShellWidthStore`); a refused one saves
+  nothing, so what is saved is always a width that was seen. A share written by hand between the steps, such as 73, is
+  drawn as written, and a step takes it back onto them: 70 narrower, 80 wider. Each of the three is said for two
+  seconds (`ShellTiming.WidthSaidFor`) and then let go of, the status row going back to its keys; why a step could not
+  be saved is a failure, and stays until something else is said.
+- **The margins** are cells the window never draws, left at the terminal's default attribute: no **Role**, so no theme
+  entry, under any theme or `NO_COLOR`. They are the terminal's, outside the shell (ADR-0014, ADR-0021). Terminal.Gui
+  clears a screen to a white on black of its own, which written out would be a black margin, so the window puts every
+  clear back to the terminal's own colours (`CSI 39m`, `CSI 49m`) before anything draws. A step clears the screen as it
+  lays the window out again, so nothing of the wider shell is left in them.
+- **Everything inside follows for free**: the root window (`ShellWindow`) is the shell, given an `X` and a `Width` from
+  the share, and the rail, the content panel, its title row, the status row and the overlays laid over the panel's
+  viewport — compose, the description editor, the public profile form — are all laid out against it. The rail-hidden
+  first-run shell is centred the same way. "Nothing jumps" reads the shell's width where it read the terminal's.
+- **The mouse inside the shell** lands where it would at full width: every hit test works out screen positions from the
+  view tree, so the offset carries through. **In the margins** the window takes every mouse event before any view is
+  asked (`ShellWindow.InTheMargins`, #416): a button there does nothing, and a wheel notch there is the content panel's
+  notch. A view holding the mouse — one being dragged in — keeps its events wherever the pointer goes, so its let-go
+  still reaches it (**Pointer**, below).
+- **Pictures follow too** (#417): a sixel box, Kitty's placeholder cells and a Kitty box are all placed from the view
+  tree, and what the terminal is let draw a picture in is cut to its view, not to the whole screen, so each lands inside
+  the narrowed content panel. A step clears the screen, so every picture is sent or placed again at the new panel's
+  width and place in the frame the step lands. Only the box narrows: the cell is still measured as the whole terminal's
+  pixels over its whole cells.
+
 ## Screens, and who owns them
 
 A screen is a place in the stack, not a window. Entering one pushes, `esc` pops, and the breadcrumb is the stack.
@@ -129,6 +170,7 @@ workable only because the status row always shows the current screen's keys. Wha
 | `` ` `` / `~` | Moves the cursor to the first destination of the next or previous **rail group**, wrapping. Settles and loads as `tab` does (ADR-0021). |
 | `/` | Search. Goes to the search destination; what it opens onto is #29's. |
 | `ctrl-p` | The profiles screen, pushed onto the stack. On compose it takes the draft off first and opens the screen in its place, asking first where the draft is touched (ADR-0020, #373); it is not listed there. |
+| `-` / `+` or `=` | The **Shell width** one step narrower, or one wider: `=` is `+` without the shift. Typed as letters wherever letters are typed, as `/` and `?` are, and nothing on compose, the description editor or the public profile form. Said on the status row for two seconds (`Width 90%`, or `Narrowest` / `Full width` where there is no step to take); listed on the `?` screen and on no status row (#414). See **Shell width**, above. |
 
 Feed and post:
 
@@ -2002,6 +2044,8 @@ panel the pointer is over. What the gesture then does is a move the keys already
 |---|---|---|
 | Wheel down / up | The content panel | The page moves one row per notch, the finest step a terminal has, so a trackpad's stream of small events glides rather than lurching three rows at a time (#292). Three notches are as far as one `↓` / `↑`, and it clamps at the same ends. **Picked** stays where it is, so after wheeling it off the page `j`/`k` reclaim the topmost thing on the page, as after the arrows. On help and notices too, which are content like any other screen. A notch is that arrow through the **Keymap**, with a row for its step, so with a confirmation open it declines it and scrolls nothing, as `↓` does (#287) |
 | Wheel | The rail | Nothing: not the cursor, not the selection, not the rail's scroll and not the page beside it |
+| Wheel down / up | Either margin of a narrowed shell | The content panel's wheel, exactly: so a reader need not aim for the panel to scroll (**Shell width**, #416) |
+| Click, double click, right click, drag | Either margin of a narrowed shell | Nothing, not even declining an open question: the margins are the terminal's, outside the shell (#416) |
 | Wheel sideways | Anywhere | Nothing. A trackpad drifting sideways sends these between vertical notches, and Terminal.Gui's left and right carry up's and down's bits, so they are asked about first and dropped |
 | Wheel, click | The compose editor | Terminal.Gui's own handling: the wheel scrolls the draft and a click places the caret. Nothing of the shell's |
 | Click | A value of compose's **To** | Chooses it and gives To the typing, so `←`/`→` carry on from there; a click on either arrow of the narrow form steps, and anywhere else on the row gives To the typing. A value To does not allow, and the whole row on an edit, ignores it. The wheel over the row does nothing (ADR-0024, #338) |
@@ -2072,6 +2116,7 @@ business but the reader's, so it is a setting in the same TOML file everything e
 hashtag = "dotnet"
 hide_drawn_caption = true
 bell = false
+shell_width = 70
 ```
 
 `hide_drawn_caption` is another reader-owned preference in this section (#71) — a picture's caption, `false` (the
@@ -2079,6 +2124,12 @@ default) shows it always, `true` hides it once a picture is actually drawn, per 
 third (#399): `true` (the default, and what an absent key means) rings the terminal's bell when an Inbox badge rises,
 `false` keeps the badges live without the sound. Like the others it is the same for every profile, and has no key in
 the shell yet.
+
+`shell_width` is a fourth (#415): the **Shell width** a launch opens at, a whole number from 50 to 100 (above, "Shell
+width"). One written out of range is clamped to the nearer end rather than refused; 100 is what an absent key means, so
+it is never written, and widening back to it takes the line away. Unlike the others it has keys, `-` and `+`/`=`, and
+each step they take saves it — which rewrites the whole file, as `D` on the profiles screen does, so comments written in
+it by hand do not survive.
 
 With none set, the destination is still on the rail — it says no tag has been named and asks the instance for nothing,
 rather than being a rail entry that swallows a keypress.

@@ -60,6 +60,35 @@ public class KeymapTests
         Assert.Equal(Verb.None, Means("?", new ComposeScreen(ComposeFor.Reply)));
 
     /// <summary>
+    ///     The <b>Shell width</b> keys (#414): <c>-</c> narrower, and <c>+</c> or <c>=</c> wider, so that widening
+    ///     needs no shift. Frame keys, so the same on every screen that is not typing.
+    /// </summary>
+    [Theory]
+    [InlineData("-", Verb.Narrower)]
+    [InlineData("+", Verb.Wider)]
+    [InlineData("=", Verb.Wider)]
+    public void TheShellWidthKeysMeanTheSameThingOnEveryScreen(string key, Verb verb)
+    {
+        Assert.Equal(verb, Means(key, Feed()));
+        Assert.Equal(verb, Means(key, Searched()));
+        Assert.Equal(verb, Means(key, Notifications()));
+        Assert.Equal(verb, Means(key, Follows()));
+        Assert.Equal(verb, Means(key, new HelpScreen(Feed())));
+    }
+
+    /// <summary>
+    ///     And nothing on compose, the description editor or the public profile form, whose fields take them as letters
+    ///     before the window sees them — as they take <c>?</c> — so that a header with no typing of its own, Media or a
+    ///     toggle, never narrows the shell from under a draft.
+    /// </summary>
+    [Theory]
+    [InlineData("-")]
+    [InlineData("+")]
+    [InlineData("=")]
+    public void TheShellWidthKeysAreNobodysOnCompose(string key) =>
+        Assert.Equal(Verb.None, Means(key, new ComposeScreen(ComposeFor.Post)));
+
+    /// <summary>
     ///     What a post answers to. <c>k</c> being the next post and <c>j</c> the one before it is the opposite way
     ///     round from vim, which is exactly the kind of thing that gets quietly reversed.
     /// </summary>

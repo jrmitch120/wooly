@@ -23,6 +23,8 @@ public sealed class HelpScreen(Screen about) : Screen
         new("tab / shift-tab", "move the rail's cursor; it settles onto a destination"),
         new("` / ~", "move it to the next or previous rail group's first destination"),
         new("ctrl-p", "profiles: who this session is acting as"),
+        // Listed here and on no status row: set and forgotten, they would take room on every screen (#414).
+        new("- / + or =", "narrow or widen the shell by 10%"),
         // The pointer: it adds no keys of its own, only another way to ask for these (#286). Two lines, the second under
         // the first with no key of its own, since one no longer fits beside the key column at 80 columns (#308).
         new("mouse", "wheel scrolls the content; a click arrives on the rail and picks a row; a double click is ⏎; right click back"),

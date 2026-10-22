@@ -4,7 +4,7 @@ namespace Wooly.Tui.Shell;
 public static class Verbs
 {
     /// <summary>
-    ///     Whether <paramref name="verb" /> is one of the fourteen that need a terminal, and so are <c>ShellWindow</c>'s
+    ///     Whether <paramref name="verb" /> is one of the sixteen that need a terminal, and so are <c>ShellWindow</c>'s
     ///     to carry out rather than the shell's or a screen's (<see cref="Verb" />).
     /// </summary>
     /// <remarks>
@@ -18,5 +18,6 @@ public static class Verbs
         or Verb.NextPost or Verb.PreviousPost or Verb.FirstPost or Verb.LastPost
         or Verb.NextEntry or Verb.PreviousEntry
         or Verb.NextSection or Verb.PreviousSection
-        or Verb.ScrollDown or Verb.ScrollUp or Verb.PageDown or Verb.PageUp;
+        or Verb.ScrollDown or Verb.ScrollUp or Verb.PageDown or Verb.PageUp
+        or Verb.Narrower or Verb.Wider;
 }

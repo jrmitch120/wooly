@@ -28,6 +28,9 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
     /// <summary>Whether a rising Inbox badge rings the terminal's bell (#399).</summary>
     private const string BellKey = "bell";
 
+    /// <summary>How much of the terminal's width the TUI's shell takes, as a percentage (#413).</summary>
+    private const string ShellWidthKey = "shell_width";
+
     /// <summary>The theme the TUI draws in, and the themes written in this same file (#46).</summary>
     private const string ThemeKey = "theme";
 
@@ -69,7 +72,7 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
 
         // Inserted before the profiles so the writer emits the short, general section above the long, per-profile one.
         if (config.Preferences is { DefaultVisibility: not null } or { DefaultLanguage: not null } or { Hashtag: not null }
-            or { HideDrawnCaption: true } or { Bell: false })
+            or { HideDrawnCaption: true } or { Bell: false } or { ShellWidth: not Preferences.FullShellWidth })
         {
             var preferences = new TomlTable();
 
@@ -100,6 +103,13 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
             if (!config.Preferences.Bell)
             {
                 preferences[BellKey] = false;
+            }
+
+            // Absent rather than written as 100, the whole terminal an absent key reads back as — so widening back to it
+            // takes the line away again (#415).
+            if (config.Preferences.ShellWidth != Preferences.FullShellWidth)
+            {
+                preferences[ShellWidthKey] = (long)config.Preferences.ShellWidth;
             }
 
             root[PreferencesKey] = preferences;
@@ -288,6 +298,7 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
             Hashtag = ReadHashtag(stored),
             HideDrawnCaption = ReadBool(stored, HideDrawnCaptionKey),
             Bell = ReadBool(stored, BellKey, whenAbsent: true),
+            ShellWidth = ReadShellWidth(stored),
         };
     }
 
@@ -342,6 +353,16 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
     private bool ReadBool(TomlTable table, string key, bool whenAbsent = false) => table.TryGetValue(key, out var value)
         ? value as bool? ?? throw new ConfigurationException(paths.ConfigFile, $"'{key}' must be true or false.")
         : whenAbsent;
+
+    /// <summary>
+    ///     The shell width as written, an in-between value such as 73 included, but brought into range rather than
+    ///     refused: a typo there is not worth the TUI refusing to start over (#415).
+    /// </summary>
+    private int ReadShellWidth(TomlTable preferences) => preferences.TryGetValue(ShellWidthKey, out var value)
+        ? value as long? is { } percent
+            ? (int)Math.Clamp(percent, Preferences.NarrowestShellWidth, Preferences.FullShellWidth)
+            : throw new ConfigurationException(paths.ConfigFile, $"'{ShellWidthKey}' must be a whole number.")
+        : Preferences.FullShellWidth;
 
     private TomlTable? ReadTable(TomlTable table, string key) => table.TryGetValue(key, out var value)
         ? value as TomlTable ?? throw new ConfigurationException(paths.ConfigFile, $"'{key}' must be a section.")

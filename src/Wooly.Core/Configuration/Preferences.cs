@@ -38,4 +38,17 @@ public sealed record Preferences
     ///     rings it; one setting for every profile, with no key in the TUI to change it yet.
     /// </summary>
     public bool Bell { get; init; } = true;
+
+    /// <summary>The narrowest <see cref="ShellWidth" /> there is: half the terminal.</summary>
+    public const int NarrowestShellWidth = 50;
+
+    /// <summary>The widest <see cref="ShellWidth" />: all of the terminal, which is what an absent key means.</summary>
+    public const int FullShellWidth = 100;
+
+    /// <summary>
+    ///     The TUI's <b>Shell width</b> (#413): how much of the terminal's width the shell takes, as a whole-number
+    ///     percentage from <see cref="NarrowestShellWidth" /> to <see cref="FullShellWidth" />, which the config file's
+    ///     reader holds it to. <see cref="FullShellWidth" /> (absent) is all of it; one setting for every profile.
+    /// </summary>
+    public int ShellWidth { get; init; } = FullShellWidth;
 }
