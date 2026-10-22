@@ -24,14 +24,14 @@ public sealed record ShellWidth
     private ShellWidth(int percent) => Percent = percent;
 
     /// <summary>
-    ///     The whole terminal, <see cref="Preferences.FullShellWidth" />: the widest there is, and what a reader who has
-    ///     never changed it has.
+    ///     The whole terminal, <see cref="Preferences.FullShellWidth" />: the widest there is, and what a reader who
+    ///     has never changed it has.
     /// </summary>
     public static ShellWidth Full { get; } = new(Preferences.FullShellWidth);
 
     /// <summary>
     ///     The share of the terminal's width, from <see cref="Preferences.NarrowestShellWidth" /> to
-    ///     <see cref="Preferences.FullShellWidth" />: the range <see cref="Preferences" /> holds, so that it is held once.
+    ///     <see cref="Preferences.FullShellWidth" />: the range <see cref="Preferences" /> holds, held there once.
     /// </summary>
     public int Percent { get; }
 
@@ -48,15 +48,17 @@ public sealed record ShellWidth
     }
 
     /// <summary>
-    ///     One step narrower, on a terminal <paramref name="terminal" /> columns wide: the largest multiple of ten below
-    ///     this that is at least <see cref="Preferences.NarrowestShellWidth" /> — or <see langword="null" /> where there
-    ///     is none, or where it would take the shell under <see cref="Floor" /> columns on this terminal.
+    ///     One step narrower, on a terminal <paramref name="terminalColumns" /> columns wide: the largest multiple of
+    ///     ten below this that is at least <see cref="Preferences.NarrowestShellWidth" /> — or <see langword="null" />
+    ///     where there is none, or where it would take the shell under <see cref="Floor" /> columns on this terminal.
     /// </summary>
-    public ShellWidth? Narrower(int terminal)
+    public ShellWidth? Narrower(int terminalColumns)
     {
         var step = (Percent - 1) / Step * Step;
 
-        return step >= Preferences.NarrowestShellWidth && Share(terminal, step) >= Floor ? new ShellWidth(step) : null;
+        return step >= Preferences.NarrowestShellWidth && Share(terminalColumns, step) >= Floor
+            ? new ShellWidth(step)
+            : null;
     }
 
     /// <summary>
@@ -72,16 +74,17 @@ public sealed record ShellWidth
     }
 
     /// <summary>
-    ///     How many columns the shell takes on a terminal <paramref name="terminal" /> columns wide: its share, rounded
-    ///     down, but never under <see cref="Floor" /> nor over the terminal.
+    ///     How many columns the shell takes on a terminal <paramref name="terminalColumns" /> columns wide: its share,
+    ///     rounded down, but never under <see cref="Floor" /> nor over the terminal.
     /// </summary>
-    public int Columns(int terminal) => Math.Min(terminal, Math.Max(Floor, Share(terminal, Percent)));
+    public int Columns(int terminalColumns) =>
+        Math.Min(terminalColumns, Math.Max(Floor, Share(terminalColumns, Percent)));
 
     /// <summary>
     ///     The first of those columns, centring the shell — the spare column of an odd remainder falling on the right, so
     ///     that the left edge moves only when the width does.
     /// </summary>
-    public int Left(int terminal) => (terminal - Columns(terminal)) / 2;
+    public int Left(int terminalColumns) => (terminalColumns - Columns(terminalColumns)) / 2;
 
-    private static int Share(int terminal, int percent) => terminal * percent / 100;
+    private static int Share(int terminalColumns, int percent) => terminalColumns * percent / 100;
 }
