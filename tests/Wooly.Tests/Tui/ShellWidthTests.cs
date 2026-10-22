@@ -155,6 +155,30 @@ public class ShellWidthTests
     }
 
     /// <summary>
+    ///     With the rail hidden — signing a profile whose token is missing in again, the add screen alone on a launch — the
+    ///     shell narrows and centres the same way, the add screen's panel taking all of it.
+    /// </summary>
+    [Fact]
+    public async Task TheRailHiddenShellIsCentredTheSameWay()
+    {
+        var registry = FakeProfileRegistry.Holding(
+            "work",
+            FakeProfileRegistry.Profile("work", "mastodon.social", "jeff@mastodon.social"));
+        registry.Tokenless.Add("work");
+
+        using var drawn = await DrawnShell.Of(200, 24, Midnight(), new AShell { Profiles = registry }, launch: true);
+
+        Assert.False(drawn.Shell.ShowsRail);
+
+        drawn.Press(new Key('-'));
+
+        Assert.Equal((10, 180), Shell(drawn));
+        Assert.StartsWith("╭ Sign in again ─", drawn.Rows()[0][10..], StringComparison.Ordinal);
+        Assert.Contains("Width 90%", drawn.Rows()[^1], StringComparison.Ordinal);
+        AssertMargins(drawn, left: 10, right: 10);
+    }
+
+    /// <summary>
     ///     On a screen taking typing the three keys are typed, as <c>?</c> and <c>/</c> are: a search for
     ///     <c>c++</c> or <c>a=b</c> is a search, never a narrower shell.
     /// </summary>
