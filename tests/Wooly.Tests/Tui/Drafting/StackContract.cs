@@ -1,3 +1,4 @@
+using Wooly.Tests.Fakes;
 using Wooly.Tui.Drafting;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
@@ -8,8 +9,15 @@ namespace Wooly.Tests.Tui;
 ///     The facts every stack drafting reaches holds to (ADR-0029, #427): run against the shell's own and the list the
 ///     tests use, so the one in the tests cannot come to differ from the one in a session.
 /// </summary>
-public abstract class StackContract
+/// <remarks>
+///     What drafting is told as screens leave and are uncovered is asserted on what it does with being told (#420): a
+///     compose taken off lets its uploads go, and a compose uncovered with a send waiting on it says so again — after
+///     the notice is cleared, or the clearing would take it straight back off.
+/// </remarks>
+public abstract class StackContract : IDisposable
 {
+    private readonly TemporaryDirectory _files = new();
+
     [Fact]
     public async Task PushingClearsTheNotice()
     {
@@ -42,32 +50,40 @@ public abstract class StackContract
     }
 
     [Fact]
-    public async Task EachScreenIsToldAsLeavingBeforeItIsOffAndTheUncoveredAfter()
+    public async Task EveryComposeTakenOffIsToldAsLeavingAndLetsItsUploadsGo()
     {
         var rig = await Built();
         var bottom = rig.Stack.Top;
-        var first = Screen("First");
-        var second = Screen("Second");
-        var told = new List<string>();
 
-        rig.Stack.Push(first);
-        rig.Stack.Push(second);
-        rig.SaySomething();
+        var under = Composing(rig, "under.png");
+        _ = Composing(rig, "over.png");
 
-        rig.Drafting.Leaving += screen =>
-            told.Add($"{screen.Crumb} leaving, on the stack: {rig.Stack.Screens.Contains(screen)}");
-        rig.Drafting.Uncovering += () =>
-            told.Add($"{rig.Stack.Top.Crumb} uncovered, notice: {rig.Notice() ?? "none"}");
+        rig.Stack.Push(Screen("Over both"));
+        rig.Stack.TakeOff(under);
 
-        rig.Stack.TakeOff(first);
+        Assert.Equal([bottom], rig.Stack.Screens);
+        Assert.Equal(2, rig.Fakes.Author.Attaching.Count);
+        Assert.All(rig.Fakes.Author.Attaching, sending => Assert.True(sending.CalledOff));
+    }
 
-        Assert.Equal(
-            [
-                "Second leaving, on the stack: True",
-                "First leaving, on the stack: True",
-                $"{bottom.Crumb} uncovered, notice: none",
-            ],
-            told);
+    [Fact]
+    public async Task TheScreenUncoveredIsToldAfterTheNoticeIsCleared()
+    {
+        var rig = await Built();
+        var compose = Composing(rig, "clip.mp4");
+        var over = Screen("Over");
+
+        compose.Rewrite("Watch this");
+        await rig.Drafting.Send();
+        rig.Stack.Push(over);
+
+        Assert.Null(rig.Notice());
+
+        rig.Stack.TakeOff(over);
+
+        Assert.Same(compose, rig.Stack.Top);
+        Assert.Equal("Will send once 1 attachment finishes — esc to stop.", rig.Notice());
+        Assert.False(rig.Fakes.Author.Attaching.Single().CalledOff);
     }
 
     [Fact]
@@ -75,23 +91,36 @@ public abstract class StackContract
     {
         var rig = await Built();
         var gone = Screen("Gone");
-        var told = 0;
 
         rig.Stack.Push(gone);
         rig.Stack.TakeOff(gone);
-        rig.Stack.Push(Screen("Standing"));
-        rig.SaySomething();
 
-        rig.Drafting.Leaving += _ => told++;
-        rig.Drafting.Uncovering += () => told++;
+        var compose = Composing(rig, "cat.png");
+
+        rig.SaySomething();
 
         rig.Stack.TakeOff(gone);
 
-        Assert.Equal("Standing", rig.Stack.Top.Crumb);
+        Assert.Same(compose, rig.Stack.Top);
         Assert.Equal(2, rig.Stack.Screens.Count);
         Assert.NotNull(rig.Notice());
-        Assert.Equal(0, told);
+        Assert.False(rig.Fakes.Author.Attaching.Single().CalledOff);
     }
+
+    [Fact]
+    public async Task TheBottomScreenIsNeverTakenOff()
+    {
+        var rig = await Built();
+        var bottom = rig.Stack.Top;
+
+        rig.SaySomething();
+        rig.Stack.TakeOff(bottom);
+
+        Assert.Equal([bottom], rig.Stack.Screens);
+        Assert.NotNull(rig.Notice());
+    }
+
+    public void Dispose() => _files.Dispose();
 
     /// <summary>A stack holding one screen at the bottom, with the drafting it tells and a status row to read.</summary>
     private protected abstract Task<Rig> Built();
@@ -99,10 +128,26 @@ public abstract class StackContract
     /// <summary>A screen that is about nothing, called <paramref name="crumb" />.</summary>
     private static FeedScreen Screen(string crumb) => new(new Destination(DestinationKind.Hashtag, crumb), []);
 
-    /// <summary>The stack under test, the drafting it tells, what the status row says and a way to make it say something.</summary>
+    /// <summary>A compose opened through drafting, with <paramref name="file" /> dropped on it and going up.</summary>
+    private ComposeScreen Composing(Rig rig, string file)
+    {
+        Assert.Equal(Drafted.Used, rig.Drafting.Do(Verb.Compose));
+
+        var compose = Assert.IsType<ComposeScreen>(rig.Stack.Top);
+
+        Assert.True(rig.Drafting.Paste(_files.WriteFile(file)));
+
+        return compose;
+    }
+
+    /// <summary>
+    ///     The stack under test, the drafting it tells, the fakes drafting reaches the instance through, what the status
+    ///     row says and a way to make it say something.
+    /// </summary>
     private protected sealed record Rig(
         IStack Stack,
         Wooly.Tui.Drafting.Drafting Drafting,
+        AShell Fakes,
         Func<string?> Notice,
         Action SaySomething);
 }
@@ -117,6 +162,7 @@ public class ListStackContractTests : StackContract
         return Task.FromResult(new Rig(
             built.Stack,
             built.Drafting,
+            built.Fakes,
             () => built.Notice,
             () => built.Notice = "Something said."));
     }
@@ -127,9 +173,10 @@ public class ShellStackContractTests : StackContract
 {
     private protected override async Task<Rig> Built()
     {
-        var shell = await new AShell().Opened();
+        var fakes = new AShell();
+        var shell = await fakes.Opened();
 
         // Already at the whole terminal, which + refuses on the status row, whatever is in front.
-        return new Rig(shell.Stack, shell.Drafting, () => shell.Notice, shell.Widen);
+        return new Rig(shell.Stack, shell.Drafting, fakes, () => shell.Notice, shell.Widen);
     }
 }

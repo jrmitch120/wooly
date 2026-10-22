@@ -73,7 +73,7 @@ public class ComposeAttachmentRowsTests : IDisposable
 
         Assert.EndsWith("x  connection lost  retry (r)", Row(compose, "cat.png", width: 120), StringComparison.Ordinal);
 
-        await shell.Send();
+        await shell.Drafting.Send();
 
         Assert.Empty(built.Author.Published);
 
@@ -86,7 +86,7 @@ public class ComposeAttachmentRowsTests : IDisposable
 
         built.Author.Attaching[1].Ready();
         built.Host.Drain();
-        await shell.Send();
+        await shell.Drafting.Send();
 
         Assert.Equal("m2", Assert.Single(Assert.Single(built.Author.Published).Draft.Attached).Id);
     }
@@ -110,7 +110,7 @@ public class ComposeAttachmentRowsTests : IDisposable
 
         Assert.Single(built.Author.Attaching);
 
-        await shell.Send();
+        await shell.Drafting.Send();
 
         Assert.Empty(built.Author.Published);
         Assert.True(shell.NoticeIsError);
@@ -156,7 +156,7 @@ public class ComposeAttachmentRowsTests : IDisposable
     {
         var (shell, built, compose) = await Composing("cat.png");
 
-        await shell.Send();
+        await shell.Drafting.Send();
 
         Assert.StartsWith("Will send once", shell.Notice, StringComparison.Ordinal);
 
@@ -208,7 +208,7 @@ public class ComposeAttachmentRowsTests : IDisposable
         Assert.StartsWith("    ▌⠶     three.png", Row(compose, "three.png"), StringComparison.Ordinal);
         Assert.Contains("  Media  2 of 4 · ctrl-o to add · □ sensitive", Texts(compose));
 
-        await shell.Send();
+        await shell.Drafting.Send();
 
         Assert.Equal(["m1", "m3"], Assert.Single(built.Author.Published).Draft.Attached.Select(attached => attached.Id));
     }
@@ -334,7 +334,7 @@ public class ComposeAttachmentRowsTests : IDisposable
 
         Assert.Equal(["one.png", "three.png", "two.png"], Names(compose));
 
-        await shell.Send();
+        await shell.Drafting.Send();
 
         Assert.Equal(
             ["m1", "m3", "m2"],

@@ -116,3 +116,14 @@ internal sealed class ADrafting
         NoticeIsError = isError;
     }
 }
+
+/// <summary>What the description editor's view does with what is typed into it, for tests with no view in the room.</summary>
+internal static class Writing
+{
+    /// <summary>
+    ///     <paramref name="description" /> written into the description editor in front, as its view writes it: through
+    ///     drafting.
+    /// </summary>
+    public static DraftChange Write(this Wooly.Tui.Drafting.Drafting drafting, string description) =>
+        drafting.Edit<DescriptionScreen>(describing => describing.Rewrite(description));
+}

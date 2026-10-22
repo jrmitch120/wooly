@@ -1,7 +1,7 @@
 using System.Text;
 using Wooly.Core.Posts;
 
-namespace Wooly.Tui.Shell;
+namespace Wooly.Tui.Drafting;
 
 /// <summary>
 ///     A paste read as files dropped onto the terminal (#375). A terminal has no drop of its own to tell a program

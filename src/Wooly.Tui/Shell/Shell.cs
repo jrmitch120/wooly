@@ -166,18 +166,6 @@ public sealed class Shell
     /// </summary>
     private readonly Tui.Drafting.Drafting _drafting;
 
-    /// <summary>
-    ///     The calls each compose screen's pending attachments make to the instance — sent up as attached, and described
-    ///     (ADR-0026, #375, #377) — whose answers this feeds into the screen.
-    /// </summary>
-    private readonly AttachmentCalls _attachments;
-
-    /// <summary>
-    ///     The compose screen whose <c>ctrl-s</c> is waiting on its attachments to finish before it sends (ADR-0026),
-    ///     or none.
-    /// </summary>
-    private ComposeScreen? _waitingToSend;
-
     /// <summary>The folder Wooly was launched from, where the file browser opens the first time (#376).</summary>
     private readonly string _launchedFrom;
 
@@ -217,10 +205,6 @@ public sealed class Shell
         _profiles = profiles;
         _shellWidths = shellWidths;
         _host = host;
-        _attachments = new AttachmentCalls(ports.Author, host);
-        _attachments.Heard += Progressed;
-        _attachments.Told += Told;
-        _attachments.Untold += Untold;
         _browser = browser;
         _clipboard = clipboard;
         _pasted = pasted;
@@ -289,7 +273,9 @@ public sealed class Shell
     /// <summary>The stack as drafting reaches it, which the tests hold to the same facts as theirs.</summary>
     internal IStack Stack { get; }
 
-    /// <summary>Drafting, which the tests hold the shell to telling of every screen that leaves or is uncovered.</summary>
+    /// <summary>
+    ///     Drafting, which the window carries <c>ctrl-s</c> to and the description editor writes through (ADR-0029).
+    /// </summary>
     internal Tui.Drafting.Drafting Drafting => _drafting;
 
     /// <summary>How deep the drill is, where one is a destination with nothing opened from it.</summary>
@@ -653,18 +639,15 @@ public sealed class Shell
         Verb.NextField => Ran(() => _ = ChangeCompose(compose => compose.Walk(1))),
         Verb.PreviousChoice => Ran(() => _ = ChangeCompose(compose => compose.Choose(-1))),
         Verb.NextChoice => Ran(() => _ = ChangeCompose(compose => compose.Choose(1))),
-        Verb.RemoveAttachment => Ran(() => RemoveAttachment(compose => compose.Remove())),
         Verb.BringBackAttachment => Ran(() => _ = ChangeCompose(compose => compose.BringBack())),
         Verb.EarlierAttachment => Ran(() => _ = ChangeCompose(compose => compose.Reorder(-1))),
         Verb.LaterAttachment => Ran(() => _ = ChangeCompose(compose => compose.Reorder(1))),
-        Verb.RetryAttachment => Ran(() => Retry(compose => compose.Retry())),
         Verb.OpenBrowser => Ran(Browse),
         Verb.PasteFromTheClipboard => PasteFromTheClipboard(),
         Verb.AttachChosen => Ran(AttachChosen),
         Verb.IntoFolder => Ran(() => Browse(browser => browser.FolderPicked)),
         Verb.UpFolder => Ran(() => Browse(browser => browser.Above)),
         Verb.ToggleSensitive => Ran(ToggleSensitive),
-        Verb.Describe => Ran(Describe),
         Verb.ListAttachments => Ran(ListAttachments),
         Verb.EditPublicProfile => Ran(EditPublicProfile),
         Verb.FlipToggle => Ran(() => _ = ChangePublicProfile(form => form.Flip())),
@@ -930,14 +913,10 @@ public sealed class Shell
             return;
         }
 
-        // A send waiting on its attachments is a level of its own over the draft: esc calls the send off and leaves the
-        // draft as it was, to be changed or sent again (ADR-0026, #375).
-        if (_waitingToSend is not null && ReferenceEquals(_waitingToSend, Screen))
+        // A send waiting on its attachments is a level of its own over the draft, which drafting calls off (ADR-0026,
+        // #375).
+        if (_drafting.Do(Verb.Back) is Drafted.Used)
         {
-            _waitingToSend = null;
-
-            Say("Not sent — the draft is as it was.", isError: false);
-
             return;
         }
 
@@ -1262,11 +1241,8 @@ public sealed class Shell
     /// <returns>Whether the paste was taken, which is what settles whether it is left for whatever has focus.</returns>
     public bool Paste(string text)
     {
-        if (Screen is ComposeScreen { Media.Takes: true } compose
-            && Dropped.Paths(text, compose.Limits) is { } dropped)
+        if (_drafting.Paste(text))
         {
-            Attach(compose, dropped);
-
             return true;
         }
 
@@ -1308,7 +1284,7 @@ public sealed class Shell
         switch (_clipboard.Read())
         {
             case Clipped.Picture(var png):
-                Attach(compose, [_pasted.Keep(png)]);
+                _drafting.Attach(compose, [_pasted.Keep(png)]);
 
                 return true;
 
@@ -1322,7 +1298,7 @@ public sealed class Shell
                 }
                 else
                 {
-                    Attach(compose, accepted);
+                    _drafting.Attach(compose, accepted);
                 }
 
                 return true;
@@ -1508,41 +1484,6 @@ public sealed class Shell
         && from >= 0
         && from < listing.Media.Attachments.Count
         && DragAttachment(listing.Media.Attachments[from], to);
-
-    /// <summary>
-    ///     Opens the description editor over the compose screen in front, on the attachment whose row the walk is on
-    ///     (#377). Nothing where it is on no row.
-    /// </summary>
-    public void Describe()
-    {
-        if (InFront is { Typing: ComposeField.Attachment, Media.Picked: { } attachment } compose)
-        {
-            Push(new DescriptionScreen(compose, attachment));
-        }
-    }
-
-    /// <summary>
-    ///     The description editor's field changed: what the attachment's description says now (#377), settled by the
-    ///     rule every change to a draft is (<see cref="ChangeCompose" />). It goes to the instance as the editor is left.
-    /// </summary>
-    public void WriteDescription(string description)
-    {
-        if (Screen is not DescriptionScreen describing)
-        {
-            return;
-        }
-
-        var made = describing.Rewrite(description);
-
-        if (made == DraftChange.Edited && Notice is not null)
-        {
-            Say(null, isError: false);
-        }
-        else if (made != DraftChange.None)
-        {
-            Changed?.Invoke();
-        }
-    }
 
     /// <summary>
     ///     <c>s</c> on compose's Media header, or a click on its toggle: puts what is attached behind a click or takes it
@@ -1801,115 +1742,6 @@ public sealed class Shell
         {
             await confirmed.Agreed();
         }
-    }
-
-    /// <summary>Publishes, replies with, or saves whatever the compose screen is holding.</summary>
-    /// <remarks>
-    ///     <em>Whatever it is holding</em> is the screen's own answer (<see cref="ComposeScreen.Outgoing" />, #146),
-    ///     down to which of the two things the warning field means. What is left here is the part that needs a port
-    ///     and a stack: the call, the pop, and what the reader is told — and the two arms below are the two writes a
-    ///     post author has rather than two ways of putting a post together.
-    ///     <para>
-    ///         Each arm says the whole of what its own landing means, notice included, rather than matching once here
-    ///         and asking <see cref="ComposeScreen.Purpose" /> the same question again afterwards. The one thing left
-    ///         that reads the purpose is a different question: a reply written inside a conversation is put at the end
-    ///         of it, which is about where the reader is standing rather than about what went out.
-    ///     </para>
-    /// </remarks>
-    public async Task Send()
-    {
-        if (Screen is not ComposeScreen compose)
-        {
-            return;
-        }
-
-        if (compose.IsEmpty)
-        {
-            Say("There is nothing written to send.", isError: true);
-
-            return;
-        }
-
-        // A Lang holding something that is not a language is a typo, and a typo is not published as one (#340).
-        if (compose.Lang.Refusal is { } refusal)
-        {
-            Say(refusal, isError: true);
-
-            return;
-        }
-
-        // A post never goes out without something its author attached (ADR-0026): not without one the instance refused,
-        // and not before the rest are ready, which it waits for rather than refuses — esc calls the wait off (#375).
-        if (compose.Media.Refused > 0)
-        {
-            Say(
-                compose.Media.Refused == 1
-                    ? "Something attached was refused — take it off to send."
-                    : $"{compose.Media.Refused} attachments were refused — take them off to send.",
-                isError: true);
-
-            return;
-        }
-
-        // A description the instance has not yet taken goes now — one that failed to before is sent again on the
-        // author's ctrl-s, never on its own (ADR-0006) — and the send waits on it as on an upload (#377).
-        foreach (var untold in compose.Media.Attachments.Where(attachment => attachment.Untold))
-        {
-            _ = _attachments.Describe(Actor.Profile, compose, untold);
-        }
-
-        if (compose.Media.Attachments.Count(attachment => attachment.Unfinished) is > 0 and var unfinished)
-        {
-            _waitingToSend = compose;
-
-            SayWaiting(unfinished);
-
-            return;
-        }
-
-        _waitingToSend = null;
-
-        // Taken now rather than read when the call is made, which a rate-limit wait can put after a switch (#243).
-        var profile = Actor.Profile;
-
-        switch (compose.Outgoing)
-        {
-            case Outgoing.Saving(var postId, var edit):
-                await _enquiry.Put(
-                    ask => ask.Of(token => _ports.Author.Edit(profile, postId, edit, token)),
-                    eitherWay: saved =>
-                    {
-                        Popped();
-                        Tell(new Change.PostChanged(saved));
-                        Say("Saved.", isError: false);
-                    });
-
-                break;
-
-            case Outgoing.Publishing(var draft):
-                // A reply written inside a conversation carries which one, taken now from the screen it was written
-                // over rather than read back when it lands — by then the reader may be anywhere.
-                var within = compose.Purpose == ComposeFor.Reply && _stack is [.., ConversationScreen conversation, _]
-                    ? conversation.Conversation.Id
-                    : null;
-
-                await _enquiry.Put(
-                    ask => ask.Of(token => _ports.Author.PublishAttached(profile, draft, token)),
-                    eitherWay: published =>
-                    {
-                        // A reply written in a conversation goes on the end of it, which the conversation and the
-                        // list it was opened from each hear for themselves.
-                        Popped();
-                        Tell(new Change.PostSent(published, within));
-                        Say("Sent.", isError: false);
-                    });
-
-                break;
-        }
-
-        // What both arms do to get back to where the reader was: the compose screen off the stack, before the change
-        // is heard by what is left on it.
-        void Popped() => Leave(_stack.Count - 1);
     }
 
     /// <summary>
@@ -2526,7 +2358,7 @@ public sealed class Shell
         _lastFolder = browser.Folder;
 
         Pop();
-        Attach(compose, chosen);
+        _drafting.Attach(compose, chosen);
     }
 
     /// <summary>
@@ -2558,64 +2390,6 @@ public sealed class Shell
     }
 
     /// <summary>
-    ///     Attaches the files at <paramref name="paths" /> to <paramref name="compose" />, as many as it has room for,
-    ///     and starts each going up to the instance there and then (ADR-0026, #375). Attaching changes the draft, which
-    ///     spends a notice over it as typing does (#364) — and where some would not fit, the status row says how many
-    ///     were left out, so that nobody is unsure what is on the post (#378).
-    /// </summary>
-    private void Attach(ComposeScreen compose, IReadOnlyCollection<string> paths)
-    {
-        IReadOnlyList<ComposeAttachment> attached = [];
-
-        ChangeCompose(screen =>
-        {
-            attached = screen.Media.Attach(paths.Select(path => ComposeAttachment.Of(path, LocalFiles.Size(path))));
-
-            return attached.Count > 0 ? DraftChange.Edited : DraftChange.None;
-        });
-
-        if (paths.Count - attached.Count is > 0 and var left)
-        {
-            var most = $"{compose.Limits.Attachments} is the most a post can carry.";
-
-            Say(attached.Count == 0 ? $"Nothing attached — {most}" : $"{left} left out — {most}", isError: true);
-        }
-
-        foreach (var attachment in attached)
-        {
-            _ = _attachments.SendUp(Actor.Profile, compose, attachment);
-        }
-    }
-
-    /// <summary>
-    ///     Takes an attachment off the compose in front, the one <paramref name="removing" /> says (#378) — and where a
-    ///     send was waiting on nothing else, the send: what it waited on is no longer on the post.
-    /// </summary>
-    private void RemoveAttachment(Func<ComposeScreen, DraftChange> removing)
-    {
-        if (ChangeCompose(removing) != DraftChange.None && InFront is { } compose)
-        {
-            Waited(compose);
-        }
-    }
-
-    /// <summary>
-    ///     Sends up again the attachment <paramref name="retrying" /> starts over on the compose in front, where a retry
-    ///     could mend its refusal (#378) — the author's to ask for, never done by itself (ADR-0006).
-    /// </summary>
-    private void Retry(Func<ComposeScreen, ComposeAttachment?> retrying)
-    {
-        if (InFront is not { } compose || retrying(compose) is not { } attachment)
-        {
-            return;
-        }
-
-        Changed?.Invoke();
-
-        _ = _attachments.SendUp(Actor.Profile, compose, attachment);
-    }
-
-    /// <summary>
     ///     A row under the Media header dragged by the pointer to the <paramref name="place" />th row, live, the others
     ///     making way (#378).
     /// </summary>
@@ -2633,17 +2407,17 @@ public sealed class Shell
         switch (part)
         {
             case AttachmentPart.Remove:
-                RemoveAttachment(compose => compose.Remove(attachment));
+                _ = _drafting.Do(Verb.RemoveAttachment, attachment);
 
                 break;
             case AttachmentPart.Retry:
-                Retry(compose => compose.Media.Retry(attachment));
+                _ = _drafting.Do(Verb.RetryAttachment, attachment);
 
                 break;
             case AttachmentPart.Description:
                 // Picked first, so that the editor's done comes back to the row it was opened from (#377).
                 _ = ChangeCompose(compose => compose.Pick(attachment));
-                Describe();
+                _ = _drafting.Do(Verb.Describe);
 
                 break;
             default:
@@ -2651,125 +2425,6 @@ public sealed class Shell
 
                 break;
         }
-    }
-
-    /// <summary>
-    ///     Where <paramref name="attachment" /> on <paramref name="compose" /> has got to, heard on the drawing thread —
-    ///     and, where that was the last thing a waiting send was waiting on, the send (ADR-0026, #375).
-    /// </summary>
-    private void Progressed(ComposeScreen compose, ComposeAttachment attachment, AttachmentState state)
-    {
-        if (!compose.Media.Progressed(attachment, state))
-        {
-            return;
-        }
-
-        Changed?.Invoke();
-
-        // A description written while it was going up goes now there is an attachment to put it on (#377).
-        if (state is AttachmentState.Ready)
-        {
-            _ = _attachments.Describe(Actor.Profile, compose, attachment);
-        }
-
-        Waited(compose);
-    }
-
-    /// <summary>
-    ///     The send <paramref name="compose" /> was waiting on, where it no longer has anything unfinished to wait on —
-    ///     an upload, or a description on its way (ADR-0026, #375, #377).
-    /// </summary>
-    /// <remarks>
-    ///     Only from the screen it was asked on, as any send is. Where a screen is open over it — the file browser, a
-    ///     description being edited — the send stays asked for, and goes once compose is back in front
-    ///     (<see cref="BackOn" />): dropped there, it was neither sent nor said (review of #372).
-    /// </remarks>
-    private void Waited(ComposeScreen compose)
-    {
-        if (ReferenceEquals(_waitingToSend, compose) && !compose.Media.Unfinished && ReferenceEquals(Screen, compose))
-        {
-            _waitingToSend = null;
-
-            // One that was refused meanwhile is said rather than sent, by the same rule as a send asked for then.
-            _ = Send();
-        }
-    }
-
-    /// <summary>
-    ///     Compose back in front with a send still asked for on it: sent, where everything it waited on finished while
-    ///     it was behind another screen, and otherwise said again, since the screen that was open over it took the
-    ///     notice off the status row.
-    /// </summary>
-    private void BackOn()
-    {
-        if (Screen is not ComposeScreen compose || !ReferenceEquals(_waitingToSend, compose))
-        {
-            return;
-        }
-
-        if (compose.Media.Attachments.Count(attachment => attachment.Unfinished) is > 0 and var unfinished)
-        {
-            SayWaiting(unfinished);
-
-            return;
-        }
-
-        Waited(compose);
-    }
-
-    /// <summary>That a send is waiting on <paramref name="unfinished" /> attachments, and how to call it off.</summary>
-    private void SayWaiting(int unfinished) => Say(
-        unfinished == 1
-            ? "Will send once 1 attachment finishes — esc to stop."
-            : $"Will send once {unfinished} attachments finish — esc to stop.",
-        isError: false);
-
-    /// <summary>
-    ///     The instance took <paramref name="description" /> for <paramref name="attachment" /> (#377): said so on
-    ///     <paramref name="compose" />, and sent again where it has changed meanwhile — and, where that was the last thing
-    ///     a waiting send was waiting on, the send.
-    /// </summary>
-    private void Told(ComposeScreen compose, ComposeAttachment attachment, string description)
-    {
-        if (compose.Media.Told(attachment, description))
-        {
-            Changed?.Invoke();
-        }
-
-        _ = _attachments.Describe(Actor.Profile, compose, attachment);
-
-        Waited(compose);
-    }
-
-    /// <summary>
-    ///     A description did not reach the instance, for the reason <paramref name="why" /> says: said on the status row,
-    ///     and a send waiting on it stopped rather than left waiting. It is not sent again until the author sends again
-    ///     (ADR-0006).
-    /// </summary>
-    private void Untold(ComposeScreen compose, ComposeAttachment attachment, string why)
-    {
-        if (ReferenceEquals(_waitingToSend, compose))
-        {
-            _waitingToSend = null;
-        }
-
-        Say($"The description of {attachment.Name} was refused: {why}", isError: true);
-    }
-
-    /// <summary>Calls off whatever <paramref name="screen" /> is still sending up, as it leaves the stack (#375).</summary>
-    private void LetUploadsGo(Screen screen)
-    {
-        if (screen is not ComposeScreen compose)
-        {
-            return;
-        }
-
-        if (ReferenceEquals(_waitingToSend, compose))
-        {
-            _waitingToSend = null;
-        }
-
-        _attachments.LetGo(compose);
     }
 
     /// <summary>
@@ -2862,8 +2517,6 @@ public sealed class Shell
 
         ClearNotice();
 
-        BackOn();
-
         _drafting.Uncovered();
     }
 
@@ -2900,7 +2553,6 @@ public sealed class Shell
         {
             _drafting.Left(left);
             left.Left();
-            LetUploadsGo(left);
         });
         _stack.Clear();
         _stack.Add(screen);
@@ -3053,14 +2705,6 @@ public sealed class Shell
     {
         _drafting.Left(_stack[at]);
         _stack[at].Left();
-        LetUploadsGo(_stack[at]);
-
-        // A description is done as its editor is left, by whichever way out, and goes to the instance then (#377).
-        if (_stack[at] is DescriptionScreen described)
-        {
-            _ = _attachments.Describe(Actor.Profile, described.Compose, described.Attachment);
-        }
-
         _stack.RemoveAt(at);
     }
 

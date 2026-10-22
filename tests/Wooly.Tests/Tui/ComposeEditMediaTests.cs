@@ -203,7 +203,7 @@ public class ComposeEditMediaTests : IDisposable
         var (shell, built, compose) = await Editing(Illustrated);
 
         compose.Rewrite("Hello again");
-        await shell.Send();
+        await shell.Drafting.Send();
         built.Host.Drain();
 
         var changed = Assert.Single(built.Author.Edits);

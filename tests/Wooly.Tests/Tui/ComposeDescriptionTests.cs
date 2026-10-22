@@ -1,4 +1,3 @@
-using Wooly.Core.Errors;
 using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Rendering;
@@ -9,9 +8,9 @@ using Wooly.Tui.Theme;
 namespace Wooly.Tests.Tui;
 
 /// <summary>
-///     Descriptions on pending attachments (#377): walking onto an attachment's row, the description editor it opens,
-///     and the description going up to the instance — once the attachment is there to put it on, and again whenever it
-///     changes — before the post that names it is published.
+///     Descriptions on pending attachments (#377) in the shell: walking onto an attachment's row, the description editor
+///     it opens as drawn, and <c>esc</c> and <c>ctrl-s</c> being done with it. What goes to the instance, and when, is
+///     drafting's (<see cref="DraftingDescriptionTests" />).
 /// </summary>
 public class ComposeDescriptionTests : IDisposable
 {
@@ -72,7 +71,7 @@ public class ComposeDescriptionTests : IDisposable
         shell.Paste(_files.WriteFile("cat.png"));
         Walk(shell, ShellKey.Up);
         shell.Press(ShellKey.Enter);
-        shell.WriteDescription("A cat");
+        shell.Drafting.Write("A cat");
 
         Assert.Equal("5 / 420", Texts(shell.Screen)[^1].Trim());
     }
@@ -89,7 +88,7 @@ public class ComposeDescriptionTests : IDisposable
         shell.Paste(_files.WriteFile("cat.png"));
         Walk(shell, ShellKey.Up);
         shell.Press(ShellKey.Enter);
-        shell.WriteDescription("A cat on a mat");
+        shell.Drafting.Write("A cat on a mat");
 
         var counter = Lines(shell.Screen)[^1];
 
@@ -113,7 +112,7 @@ public class ComposeDescriptionTests : IDisposable
 
         Walk(shell, ShellKey.Up);
         shell.Press(ShellKey.Enter);
-        shell.WriteDescription("A cat asleep on a mat");
+        shell.Drafting.Write("A cat asleep on a mat");
         shell.Press(done);
 
         Assert.Same(compose, shell.Screen);
@@ -135,206 +134,10 @@ public class ComposeDescriptionTests : IDisposable
         built.Host.Drain();
         Walk(shell, ShellKey.Up);
         shell.Press(ShellKey.Enter);
-        shell.WriteDescription("A dog in a red knitted coat sitting on the steps of a house in the rain");
+        shell.Drafting.Write("A dog in a red knitted coat sitting on the steps of a house in the rain");
         shell.Press(ShellKey.Escape);
 
         Assert.EndsWith("x  “A dog in a red knitted coat sitting o…”", Row(compose, "cat.png", width: 120), StringComparison.Ordinal);
-    }
-
-    /// <summary>
-    ///     A description written while the file is still going up waits for the attachment to be there, then goes to
-    ///     the instance — and the post published names an attachment that carries it.
-    /// </summary>
-    [Fact]
-    public async Task ADescriptionWrittenDuringTheUploadGoesUpOnceItIsReady()
-    {
-        var (shell, built, _) = await Composing();
-
-        shell.Paste(_files.WriteFile("cat.png"));
-        Walk(shell, ShellKey.Up);
-        shell.Press(ShellKey.Enter);
-        shell.WriteDescription("A cat");
-        shell.Press(ShellKey.Escape);
-        built.Host.Drain();
-
-        Assert.Empty(built.Author.Descriptions);
-
-        built.Author.Attaching.Single().Ready();
-        built.Host.Drain();
-
-        var described = Assert.Single(built.Author.Descriptions);
-
-        Assert.Equal(("personal", "m1", "A cat"), (described.Profile, described.Id, described.Description));
-
-        await shell.Send();
-        built.Host.Drain();
-
-        Assert.Equal("m1", Assert.Single(Assert.Single(built.Author.Published).Draft.Attached).Id);
-    }
-
-    /// <summary>A description written once the attachment is ready goes up as the editor is left.</summary>
-    [Fact]
-    public async Task ADescriptionWrittenOnceReadyGoesUpWhenTheEditorIsLeft()
-    {
-        var (shell, built, _) = await Composing();
-
-        shell.Paste(_files.WriteFile("cat.png"));
-        built.Author.Attaching.Single().Ready();
-        built.Host.Drain();
-
-        Walk(shell, ShellKey.Up);
-        shell.Press(ShellKey.Enter);
-        shell.WriteDescription("A cat");
-
-        Assert.Empty(built.Author.Descriptions);
-
-        shell.Press(ShellKey.Escape);
-        built.Host.Drain();
-
-        Assert.Equal("A cat", Assert.Single(built.Author.Descriptions).Description);
-    }
-
-    /// <summary>
-    ///     A description changed after it went up goes up again, before the post is published — and one left as it was
-    ///     is not sent twice.
-    /// </summary>
-    [Fact]
-    public async Task AChangedDescriptionIsSentAgainBeforeThePost()
-    {
-        var (shell, built, _) = await Composing();
-
-        shell.Paste(_files.WriteFile("cat.png"));
-        built.Author.Attaching.Single().Ready();
-        built.Host.Drain();
-
-        Describe(shell, "A cat");
-        Describe(shell, "A cat");
-        Describe(shell, "A grey cat");
-
-        await shell.Send();
-        built.Host.Drain();
-
-        Assert.Equal(["A cat", "A grey cat"], built.Author.Descriptions.Select(described => described.Description));
-        Assert.Single(built.Author.Published);
-    }
-
-    /// <summary>
-    ///     <c>ctrl-s</c> while a description is still on its way waits for it, as it waits for an upload, and then
-    ///     sends.
-    /// </summary>
-    [Fact]
-    public async Task SendingWaitsForADescriptionOnItsWay()
-    {
-        var (shell, built, compose) = await Composing();
-
-        built.Author.HoldingDescriptions = true;
-        shell.Paste(_files.WriteFile("cat.png"));
-        built.Author.Attaching.Single().Ready();
-        built.Host.Drain();
-        Describe(shell, "A cat");
-
-        await shell.Send();
-        built.Host.Drain();
-
-        Assert.Same(compose, shell.Screen);
-        Assert.Empty(built.Author.Published);
-        Assert.Equal("Will send once 1 attachment finishes — esc to stop.", shell.Notice);
-
-        built.Author.Descriptions.Single().Land();
-        built.Host.Drain();
-
-        Assert.Single(built.Author.Published);
-        Assert.Equal("Sent.", shell.Notice);
-    }
-
-    /// <summary>
-    ///     A description the instance refused is said on the status row, and stops a waiting send rather than letting
-    ///     the post go out without it; the next <c>ctrl-s</c> sends it again.
-    /// </summary>
-    [Fact]
-    public async Task ARefusedDescriptionIsSaidAndStopsTheSend()
-    {
-        var (shell, built, compose) = await Composing();
-
-        built.Author.HoldingDescriptions = true;
-        shell.Paste(_files.WriteFile("cat.png"));
-        built.Author.Attaching.Single().Ready();
-        built.Host.Drain();
-        Describe(shell, "A cat");
-
-        await shell.Send();
-        built.Author.Descriptions.Single().Refuse(new AttachmentRefusedException("Description is too long"));
-        built.Host.Drain();
-
-        Assert.Empty(built.Author.Published);
-        Assert.Same(compose, shell.Screen);
-        Assert.True(shell.NoticeIsError);
-        Assert.Equal("The description of cat.png was refused: Description is too long", shell.Notice);
-
-        built.Author.HoldingDescriptions = false;
-
-        await shell.Send();
-        built.Host.Drain();
-
-        Assert.Equal(2, built.Author.Descriptions.Count);
-        Assert.Single(built.Author.Published);
-    }
-
-    /// <summary>
-    ///     A description that failed for a reason nothing here expected — a bare HTTP error — is said as a refusal is, and
-    ///     stops a waiting send rather than leaving it waiting on a description that will never arrive (review of #372).
-    /// </summary>
-    [Fact]
-    public async Task ADescriptionThatFailedAnyWayIsSaidAndStopsTheSend()
-    {
-        var (shell, built, compose) = await Composing();
-
-        built.Author.HoldingDescriptions = true;
-        shell.Paste(_files.WriteFile("cat.png"));
-        built.Author.Attaching.Single().Ready();
-        built.Host.Drain();
-        Describe(shell, "A cat");
-
-        await shell.Send();
-        built.Author.Descriptions.Single().Refuse(new HttpRequestException("Response status code does not indicate success"));
-        built.Host.Drain();
-
-        Assert.Empty(built.Author.Published);
-        Assert.Same(compose, shell.Screen);
-        Assert.True(shell.NoticeIsError);
-        Assert.Equal(
-            "The description of cat.png was refused: Response status code does not indicate success",
-            shell.Notice);
-
-        built.Author.HoldingDescriptions = false;
-
-        await shell.Send();
-        built.Host.Drain();
-
-        Assert.Single(built.Author.Published);
-    }
-
-    /// <summary>
-    ///     A row with no description carries the quiet mark, and the post sends with no question about it and no
-    ///     description sent.
-    /// </summary>
-    [Fact]
-    public async Task SendingWithoutDescriptionsAsksNothing()
-    {
-        var (shell, built, compose) = await Composing();
-
-        shell.Paste(_files.WriteFile("cat.png"));
-        built.Author.Attaching.Single().Ready();
-        built.Host.Drain();
-
-        Assert.EndsWith("x  no alt text", Row(compose, "cat.png"), StringComparison.Ordinal);
-
-        await shell.Send();
-        built.Host.Drain();
-
-        Assert.Null(shell.Asking);
-        Assert.Single(built.Author.Published);
-        Assert.Empty(built.Author.Descriptions);
     }
 
     /// <summary>
@@ -433,7 +236,7 @@ public class ComposeDescriptionTests : IDisposable
         Walk(shell, ShellKey.Up);
         Walk(shell, ShellKey.Up);
         shell.Press(ShellKey.Enter);
-        shell.WriteDescription("A cat asleep on a mat");
+        shell.Drafting.Write("A cat asleep on a mat");
         shell.Press(done);
 
         Assert.Same(compose, shell.Screen);
@@ -485,16 +288,6 @@ public class ComposeDescriptionTests : IDisposable
         _ = Lines(shell.Screen);
 
         shell.Press(key);
-    }
-
-    /// <summary>Opens the description editor on the only attachment, writes <paramref name="description" /> and is done.</summary>
-    private static void Describe(Wooly.Tui.Shell.Shell shell, string description)
-    {
-        Walk(shell, ShellKey.Up);
-        shell.Press(ShellKey.Enter);
-        shell.WriteDescription(description);
-        shell.Press(ShellKey.Escape);
-        Walk(shell, ShellKey.Down);
     }
 
     /// <summary>The row and column <paramref name="text" /> is first drawn at in the window.</summary>

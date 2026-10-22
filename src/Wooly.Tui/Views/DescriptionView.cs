@@ -10,8 +10,8 @@ namespace Wooly.Tui.Views;
 /// <summary>
 ///     The description editor's field (#377), in one view laid over the content viewport as compose's are
 ///     (<see cref="ComposeView" />): shown while a <see cref="DescriptionScreen" /> is on top, opened on what the
-///     attachment's description says, and laid wherever the screen puts it. Every change goes through the shell
-///     (<see cref="Shell.Shell.WriteDescription" />).
+///     attachment's description says, and laid wherever the screen puts it. Every change goes through drafting
+///     (<see cref="Drafting.Drafting.Edit{T}" />).
 /// </summary>
 /// <remarks>
 ///     The label, the counter and the picture's place are the screen's rows, painted by the content panel behind this
@@ -70,7 +70,8 @@ internal sealed class DescriptionView : View
             return true;
         };
 
-        _editor.ContentsChanged += (_, _) => _shell.WriteDescription(_editor.Text);
+        _editor.ContentsChanged += (_, _) =>
+            _ = _shell.Drafting.Edit<DescriptionScreen>(describing => describing.Rewrite(_editor.Text));
 
         Add(_editor);
 

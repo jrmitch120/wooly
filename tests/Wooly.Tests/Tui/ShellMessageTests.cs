@@ -415,7 +415,7 @@ public class ShellMessageTests
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
         compose.Text += "All week";
 
-        await opened.Send();
+        await opened.Drafting.Send();
         shell.Host.Drain();
 
         var draft = Assert.Single(shell.Author.Published).Draft;
@@ -443,7 +443,7 @@ public class ShellMessageTests
         shell.Host.Drain();
         opened.Press(ShellKey.R);
 
-        await opened.Send();
+        await opened.Drafting.Send();
         shell.Host.Drain();
 
         Assert.Empty(shell.Author.Published);
@@ -477,7 +477,7 @@ public class ShellMessageTests
 
         ((ComposeScreen)opened.Screen).Text += "All week";
 
-        await opened.Send();
+        await opened.Drafting.Send();
         shell.Host.Drain();
 
         var screen = Assert.IsType<ConversationScreen>(opened.Screen);
@@ -530,7 +530,7 @@ public class ShellMessageTests
         opened.Press(ShellKey.R);
         ((ComposeScreen)opened.Screen).Text += "All week";
 
-        await opened.Send();
+        await opened.Drafting.Send();
         shell.Host.Drain();
 
         var screen = Assert.IsType<ConversationScreen>(opened.Screen);
