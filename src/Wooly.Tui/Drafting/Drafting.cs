@@ -192,27 +192,35 @@ public sealed class Drafting
     }
 
     /// <summary>
-    ///     An instance said how long it lets a post be, which a compose on that instance still in front is measured
-    ///     against from now on — and how long it lets a bio be, which the edit public profile form's count is.
+    ///     An instance said how long it lets a post be, which every compose on the stack going out on that instance is
+    ///     measured against from now on, whatever covers it (#424) — and how long it lets a bio be, which the edit public
+    ///     profile form's count is. One redraw, however many it reached.
     /// </summary>
     private void Measured(string instance, PostLimits limits)
     {
-        if (_reach() is not { } reach
-            || !string.Equals(reach.Profile.Instance, instance, StringComparison.OrdinalIgnoreCase))
+        if (_reach() is not { } reach)
         {
             return;
         }
 
-        switch (_stack.Top)
+        var reached = false;
+
+        foreach (var compose in _stack.Screens.OfType<ComposeScreen>().Where(compose => compose.GoesOutOn(instance)))
         {
-            case ComposeScreen compose:
-                compose.Limits = limits;
-                reach.Changed();
-                break;
-            case PublicProfileScreen form:
-                form.Limits = limits;
-                reach.Changed();
-                break;
+            compose.Limits = limits;
+            reached = true;
+        }
+
+        if (_stack.Top is PublicProfileScreen form
+            && string.Equals(reach.Profile.Instance, instance, StringComparison.OrdinalIgnoreCase))
+        {
+            form.Limits = limits;
+            reached = true;
+        }
+
+        if (reached)
+        {
+            reach.Changed();
         }
     }
 
