@@ -205,7 +205,7 @@ public class ShellCrumbClickTests
     {
         using var drawn = await Drilled(author: false);
 
-        drawn.Shell.Compose();
+        drawn.Shell.Press(ShellKey.C);
         drawn.Redraw();
 
         var compose = Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
@@ -325,7 +325,7 @@ public class ShellCrumbClickTests
     {
         using var drawn = await Drilled(author: false);
 
-        drawn.Shell.Compose();
+        drawn.Shell.Press(ShellKey.C);
         drawn.Redraw();
 
         var compose = Assert.IsType<ComposeScreen>(drawn.Shell.Screen);

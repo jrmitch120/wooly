@@ -1,6 +1,7 @@
 using Terminal.Gui.Input;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
+using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 using Wooly.Tui.Views;
 using static Wooly.Tests.Tui.ContentClicks;
@@ -239,7 +240,7 @@ public class NarrowedShellMouseTests
     {
         using var drawn = await Narrowed();
 
-        drawn.Shell.Compose();
+        drawn.Shell.Press(ShellKey.C);
         drawn.Redraw();
 
         var compose = drawn.Window.SubViews.OfType<ComposeView>().Single().FrameToScreen();
@@ -254,7 +255,7 @@ public class NarrowedShellMouseTests
     {
         using var drawn = await Narrowed(new AShell { Accounts = FakeAccountRelationships.HoldingNobody() });
 
-        drawn.Shell.Compose();
+        drawn.Shell.Press(ShellKey.C);
         drawn.Redraw();
 
         var lang = drawn.Window.SubViews.OfType<ComposeView>().Single().SubViews.OfType<ComposeLangField>().Single();
@@ -278,7 +279,7 @@ public class NarrowedShellMouseTests
         using var files = new TemporaryDirectory();
         using var drawn = await Narrowed();
 
-        drawn.Shell.Compose();
+        drawn.Shell.Press(ShellKey.C);
         drawn.Redraw();
 
         foreach (var name in new[] { "one.png", "two.png", "three.png" })
@@ -318,7 +319,7 @@ public class NarrowedShellMouseTests
         using var files = new TemporaryDirectory();
         using var drawn = await Narrowed();
 
-        drawn.Shell.Compose();
+        drawn.Shell.Press(ShellKey.C);
         drawn.Redraw();
 
         foreach (var name in new[] { "one.png", "two.png", "three.png" })

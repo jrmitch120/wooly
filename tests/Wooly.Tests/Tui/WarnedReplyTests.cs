@@ -89,7 +89,7 @@ public class WarnedReplyTests
         var shell = new AShell { Timelines = FakeTimelineReader.Holding(flagged) };
         var opened = await shell.Opened();
 
-        opened.Reply();
+        opened.Press(ShellKey.R);
 
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
         Assert.Equal(string.Empty, compose.Warning);
@@ -110,7 +110,7 @@ public class WarnedReplyTests
         var shell = new AShell { Timelines = FakeTimelineReader.Holding(Warned) };
         var opened = await shell.Opened();
 
-        opened.Compose();
+        opened.Press(ShellKey.C);
 
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
 
@@ -132,7 +132,7 @@ public class WarnedReplyTests
         var shell = new AShell();
         var opened = await shell.Opened();
 
-        opened.Compose();
+        opened.Press(ShellKey.C);
         Writing(opened, "spoilers");
 
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
@@ -154,7 +154,7 @@ public class WarnedReplyTests
         var shell = new AShell { Timelines = FakeTimelineReader.Holding(Warned) };
         var opened = await shell.Opened();
 
-        opened.Reply();
+        opened.Press(ShellKey.R);
 
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
         compose.Text += "Answering you";
@@ -178,7 +178,7 @@ public class WarnedReplyTests
         var shell = new AShell { Timelines = FakeTimelineReader.Holding(Warned) };
         var opened = await shell.Opened();
 
-        opened.Reply();
+        opened.Press(ShellKey.R);
 
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
         compose.Text += "Answering you";
@@ -198,7 +198,7 @@ public class WarnedReplyTests
         var shell = new AShell { Timelines = FakeTimelineReader.Holding(Warned) };
         var opened = await shell.Opened();
 
-        opened.Reply();
+        opened.Press(ShellKey.R);
 
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
         compose.Text += "Answering you";
@@ -242,7 +242,7 @@ public class WarnedReplyTests
         var shell = new AShell { Timelines = FakeTimelineReader.Holding(Mine) };
         var opened = await shell.Opened();
 
-        opened.Edit();
+        opened.Press(ShellKey.E);
 
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
         compose.Text = "Hello world, fixed";
@@ -266,7 +266,7 @@ public class WarnedReplyTests
         var shell = new AShell { Timelines = FakeTimelineReader.Holding(Mine) };
         var opened = await shell.Opened();
 
-        opened.Edit();
+        opened.Press(ShellKey.E);
         Writing(opened, cleared);
 
         var saved = Saving(Assert.IsType<ComposeScreen>(opened.Screen)).Edit;
@@ -282,7 +282,7 @@ public class WarnedReplyTests
         var shell = new AShell { Timelines = FakeTimelineReader.Holding(MinePlain) };
         var opened = await shell.Opened();
 
-        opened.Edit();
+        opened.Press(ShellKey.E);
         Writing(opened, "spoilers");
 
         var saved = Saving(Assert.IsType<ComposeScreen>(opened.Screen)).Edit;
@@ -300,7 +300,7 @@ public class WarnedReplyTests
         var shell = new AShell { Timelines = FakeTimelineReader.Holding(Mine) };
         var opened = await shell.Opened();
 
-        opened.Edit();
+        opened.Press(ShellKey.E);
         Writing(opened, " spoilers, of a sort ");
 
         var saved = Saving(Assert.IsType<ComposeScreen>(opened.Screen)).Edit;
@@ -347,7 +347,7 @@ public class WarnedReplyTests
         var shell = new AShell { Timelines = FakeTimelineReader.Holding(Plain) };
         var opened = await shell.Opened();
 
-        opened.Reply();
+        opened.Press(ShellKey.R);
 
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
         Assert.False(compose.WritingTheWarning);
@@ -377,7 +377,7 @@ public class WarnedReplyTests
         var shell = new AShell { Timelines = FakeTimelineReader.Holding(Warned) };
         var opened = await shell.Opened();
 
-        opened.Reply();
+        opened.Press(ShellKey.R);
         opened.ChangeCompose(compose => compose.WriteTheWarning());
 
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
@@ -403,7 +403,7 @@ public class WarnedReplyTests
         var shell = new AShell { Timelines = FakeTimelineReader.Holding(Warned) };
         var opened = await shell.Opened();
 
-        opened.Reply();
+        opened.Press(ShellKey.R);
 
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
 
@@ -423,7 +423,7 @@ public class WarnedReplyTests
         var shell = new AShell { Timelines = FakeTimelineReader.Holding(Mine) };
         var opened = await shell.Opened();
 
-        opened.Edit();
+        opened.Press(ShellKey.E);
         opened.ChangeCompose(compose => compose.WriteTheWarning());
 
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
@@ -438,7 +438,7 @@ public class WarnedReplyTests
         var shell = new AShell { Timelines = FakeTimelineReader.Holding(post) };
         var opened = await shell.Opened();
 
-        opened.Reply();
+        opened.Press(ShellKey.R);
 
         return Assert.IsType<ComposeScreen>(opened.Screen);
     }
@@ -449,7 +449,7 @@ public class WarnedReplyTests
         var shell = new AShell { Timelines = FakeTimelineReader.Holding(post) };
         var opened = await shell.Opened();
 
-        opened.Edit();
+        opened.Press(ShellKey.E);
 
         return Assert.IsType<ComposeScreen>(opened.Screen);
     }

@@ -279,7 +279,7 @@ public class ShellKeyTests
 
             Assert.NotNull(shell.Screen.Reference);
 
-            shell.Reply();
+            shell.Press(ShellKey.R);
             window.Layout();
 
             // A reply opens on the handle it is answering, with the caret after it — so there is somewhere to the
@@ -379,7 +379,7 @@ public class ShellKeyTests
 
         using (window)
         {
-            shell.Compose();
+            shell.Press(ShellKey.C);
             window.Layout();
 
             var was = shell.Rail.Cursor;

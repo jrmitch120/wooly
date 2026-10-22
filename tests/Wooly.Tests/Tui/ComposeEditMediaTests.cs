@@ -165,7 +165,7 @@ public class ComposeEditMediaTests : IDisposable
 
         using var drawn = await DrawnShell.Of(80, 24, Themes.Plain, built);
 
-        drawn.Shell.Edit();
+        drawn.Shell.Press(ShellKey.E);
         drawn.Redraw();
 
         var compose = Assert.IsType<ComposeScreen>(drawn.Shell.Screen);

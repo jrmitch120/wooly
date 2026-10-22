@@ -1,4 +1,5 @@
 using Wooly.Tui.Screens;
+using Wooly.Tui.Shell;
 
 namespace Wooly.Tests.Tui;
 
@@ -35,15 +36,15 @@ internal static class ComposeRows
         switch (purpose)
         {
             case ComposeFor.Post:
-                shell.Compose();
+                shell.Press(ShellKey.C);
 
                 break;
             case ComposeFor.Reply:
-                shell.Reply();
+                shell.Press(ShellKey.R);
 
                 break;
             default:
-                shell.Edit();
+                shell.Press(ShellKey.E);
 
                 break;
         }

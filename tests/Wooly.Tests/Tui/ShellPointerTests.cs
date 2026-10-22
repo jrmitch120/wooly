@@ -307,7 +307,7 @@ public class ShellPointerTests
     {
         using var drawn = await Four();
 
-        drawn.Shell.Compose();
+        drawn.Shell.Press(ShellKey.C);
         drawn.Redraw();
 
         var editor = drawn.Window.ComposeField<ComposeEditor>();

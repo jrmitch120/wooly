@@ -180,7 +180,7 @@ public class ShellRightClickTests
     {
         using var drawn = await On("feed");
 
-        drawn.Shell.Compose();
+        drawn.Shell.Press(ShellKey.C);
         drawn.Redraw();
 
         var compose = drawn.Shell.Screen;

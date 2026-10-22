@@ -470,7 +470,7 @@ public class FileBrowserTests : IDisposable
     {
         using var drawn = await DrawnShell.Of(80, 24, Themes.Plain, Launched());
 
-        drawn.Shell.Compose();
+        drawn.Shell.Press(ShellKey.C);
         drawn.Redraw();
         drawn.Press(Key.O.WithCtrl);
 
@@ -484,7 +484,7 @@ public class FileBrowserTests : IDisposable
     {
         using var drawn = await DrawnShell.Of(80, 24, Themes.Plain, Launched());
 
-        drawn.Shell.Compose();
+        drawn.Shell.Press(ShellKey.C);
         drawn.Redraw();
 
         var (column, row) = Find(drawn, "none · ctrl-o to add", after: "Media");
@@ -502,7 +502,7 @@ public class FileBrowserTests : IDisposable
     {
         using var drawn = await DrawnShell.Of(80, 24, Themes.Plain, Launched());
 
-        drawn.Shell.Compose();
+        drawn.Shell.Press(ShellKey.C);
         drawn.Redraw();
         drawn.Press(Key.H);
         drawn.Press(Key.I);
@@ -527,7 +527,7 @@ public class FileBrowserTests : IDisposable
         _files.WriteFile("notes.txt");
         using var drawn = await DrawnShell.Of(80, 24, Themes.Plain, Launched());
 
-        drawn.Shell.Compose();
+        drawn.Shell.Press(ShellKey.C);
         drawn.Redraw();
         drawn.Press(Key.O.WithCtrl);
 
@@ -565,7 +565,7 @@ public class FileBrowserTests : IDisposable
         _files.WriteFile("b.png");
         using var drawn = await DrawnShell.Of(80, 24, Themes.Plain, Launched());
 
-        drawn.Shell.Compose();
+        drawn.Shell.Press(ShellKey.C);
         drawn.Redraw();
         drawn.Press(Key.O.WithCtrl);
         drawn.Press(Key.Space);
@@ -588,7 +588,7 @@ public class FileBrowserTests : IDisposable
         File.WriteAllText(Path.Combine(holiday, "beach.png"), "sand");
         using var drawn = await DrawnShell.Of(80, 24, Themes.Plain, Launched());
 
-        drawn.Shell.Compose();
+        drawn.Shell.Press(ShellKey.C);
         drawn.Redraw();
         drawn.Press(Key.O.WithCtrl);
 
@@ -617,7 +617,7 @@ public class FileBrowserTests : IDisposable
 
         using var drawn = await DrawnShell.Of(80, 24, Themes.Plain, Launched());
 
-        drawn.Shell.Compose();
+        drawn.Shell.Press(ShellKey.C);
         drawn.Redraw();
         drawn.Press(Key.O.WithCtrl);
 

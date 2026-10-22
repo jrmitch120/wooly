@@ -346,7 +346,7 @@ public class ComposeDescriptionTests : IDisposable
     {
         using var drawn = await DrawnShell.Of(100, 30, Themes.Plain, new AShell());
 
-        drawn.Shell.Compose();
+        drawn.Shell.Press(ShellKey.C);
         drawn.Redraw();
         drawn.Shell.Paste(_files.WriteFile("cat.png"));
         drawn.Built.Author.Attaching.Single().Ready();
@@ -383,7 +383,7 @@ public class ComposeDescriptionTests : IDisposable
     {
         using var drawn = await DrawnShell.Of(100, 30, Themes.Plain, new AShell());
 
-        drawn.Shell.Compose();
+        drawn.Shell.Press(ShellKey.C);
         drawn.Redraw();
         drawn.Shell.Paste(_files.WriteFile("cat.png"));
         drawn.Settle();
@@ -401,7 +401,7 @@ public class ComposeDescriptionTests : IDisposable
     {
         using var drawn = await DrawnShell.Of(100, 30, Themes.Plain, new AShell());
 
-        drawn.Shell.Compose();
+        drawn.Shell.Press(ShellKey.C);
         drawn.Redraw();
         drawn.Shell.Paste(_files.WriteFile("cat.png"));
         drawn.Settle();
@@ -450,7 +450,7 @@ public class ComposeDescriptionTests : IDisposable
     {
         using var drawn = await DrawnShell.Of(100, 30, Themes.Plain, new AShell());
 
-        drawn.Shell.Compose();
+        drawn.Shell.Press(ShellKey.C);
         drawn.Redraw();
         drawn.Shell.Paste(_files.WriteFile("cat.png"));
         drawn.Shell.Paste(_files.WriteFile("dog.png"));

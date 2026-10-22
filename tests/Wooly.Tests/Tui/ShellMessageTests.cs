@@ -410,7 +410,7 @@ public class ShellMessageTests
 
         opened.Press(ShellKey.Enter);
         shell.Host.Drain();
-        opened.Reply();
+        opened.Press(ShellKey.R);
 
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
         compose.Text += "All week";
@@ -448,7 +448,7 @@ public class ShellMessageTests
 
         opened.Press(ShellKey.Enter);
         shell.Host.Drain();
-        opened.Reply();
+        opened.Press(ShellKey.R);
 
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
 
@@ -477,7 +477,7 @@ public class ShellMessageTests
 
         opened.Press(ShellKey.Enter);
         shell.Host.Drain();
-        opened.Reply();
+        opened.Press(ShellKey.R);
 
         await opened.Send();
         shell.Host.Drain();
@@ -509,7 +509,7 @@ public class ShellMessageTests
 
         opened.Press(ShellKey.Enter);
         shell.Host.Drain();
-        opened.Reply();
+        opened.Press(ShellKey.R);
 
         ((ComposeScreen)opened.Screen).Text += "All week";
 
@@ -563,7 +563,7 @@ public class ShellMessageTests
 
         Assert.Equal("110", opened.Screen.Picked?.Id);
 
-        opened.Reply();
+        opened.Press(ShellKey.R);
         ((ComposeScreen)opened.Screen).Text += "All week";
 
         await opened.Send();
@@ -596,7 +596,7 @@ public class ShellMessageTests
         var shell = new AShell { Timelines = FakeTimelineReader.Holding(message) };
         var opened = await shell.Opened();
 
-        opened.Reply();
+        opened.Press(ShellKey.R);
 
         Assert.Equal(
             "@alice@hachyderm.io @ben@hachyderm.io @maria@example.social ",
@@ -619,7 +619,7 @@ public class ShellMessageTests
         var shell = new AShell { Timelines = FakeTimelineReader.Holding(message) };
         var opened = await shell.Opened();
 
-        opened.Reply();
+        opened.Press(ShellKey.R);
 
         Assert.Equal("@alice@hachyderm.io @ben@hachyderm.io ", Assert.IsType<ComposeScreen>(opened.Screen).Text);
     }
@@ -640,7 +640,7 @@ public class ShellMessageTests
         var shell = new AShell { Timelines = FakeTimelineReader.Holding(message) };
         var opened = await shell.Opened();
 
-        opened.Reply();
+        opened.Press(ShellKey.R);
 
         Assert.Equal("@alice@hachyderm.io ", Assert.IsType<ComposeScreen>(opened.Screen).Text);
     }
@@ -661,7 +661,7 @@ public class ShellMessageTests
         var shell = new AShell { Timelines = FakeTimelineReader.Holding(message) };
         var opened = await shell.Opened();
 
-        opened.Reply();
+        opened.Press(ShellKey.R);
 
         Assert.Equal("@alice@hachyderm.io @ben@hachyderm.io ", Assert.IsType<ComposeScreen>(opened.Screen).Text);
     }

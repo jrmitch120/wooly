@@ -316,7 +316,7 @@ public class ShellWidthTests
         using var files = new TemporaryDirectory();
         using var drawn = await Narrowed();
 
-        drawn.Shell.Compose();
+        drawn.Shell.Press(ShellKey.C);
         drawn.Shell.Paste(files.WriteFile("cat.png"));
         drawn.Settle();
         drawn.Press(Key.CursorUp);

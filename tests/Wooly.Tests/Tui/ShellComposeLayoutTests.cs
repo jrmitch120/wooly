@@ -2,6 +2,7 @@ using System.Drawing;
 using Terminal.Gui.ViewBase;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
+using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 using Wooly.Tui.Views;
 
@@ -55,7 +56,7 @@ public class ShellComposeLayoutTests
             Assert.False(Compose(window).Visible);
             Assert.True(content.Scrolls);
 
-            shell.Reply();
+            shell.Press(ShellKey.R);
             window.Layout();
 
             Assert.True(Compose(window).Visible);
@@ -97,7 +98,7 @@ public class ShellComposeLayoutTests
 
         // Two frames as the running client draws them, not forced as Redraw() does: a forced frame redraws compose
         // along with everything else, and the panel redrawn alone on the second is the whole of what is being pinned.
-        drawn.Shell.Reply();
+        drawn.Shell.Press(ShellKey.R);
         drawn.Application.LayoutAndDraw(false);
         drawn.Application.LayoutAndDraw(false);
 

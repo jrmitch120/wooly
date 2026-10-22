@@ -3,6 +3,7 @@ using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
+using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 using Key = Terminal.Gui.Input.Key;
 
@@ -196,7 +197,7 @@ public class ComposeNoticeTests
 
         using var drawn = await DrawnShell.Of(80, 24, Themes.Dark, built);
 
-        drawn.Shell.Compose();
+        drawn.Shell.Press(ShellKey.C);
         drawn.Redraw();
         drawn.Window.NewKeyDownEvent(new Key('a'));
 

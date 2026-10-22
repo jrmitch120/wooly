@@ -218,7 +218,7 @@ public class ShellActionTests
         var shell = new AShell();
         var opened = await shell.Opened();
 
-        opened.Compose();
+        opened.Press(ShellKey.C);
 
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
         Assert.Equal(ComposeFor.Post, compose.Purpose);
@@ -250,7 +250,7 @@ public class ShellActionTests
         };
         var opened = await shell.Opened();
 
-        opened.Compose();
+        opened.Press(ShellKey.C);
 
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
 
@@ -272,7 +272,7 @@ public class ShellActionTests
         var shell = new AShell { Timelines = FakeTimelineReader.Holding(Somebody) };
         var opened = await shell.Opened();
 
-        opened.Reply();
+        opened.Press(ShellKey.R);
 
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
         compose.Text = "Answering you";
@@ -292,7 +292,7 @@ public class ShellActionTests
         var shell = new AShell { Timelines = FakeTimelineReader.Holding(Somebody) };
         var opened = await shell.Opened();
 
-        opened.Reply();
+        opened.Press(ShellKey.R);
 
         var label = opened.Screen.Lines(new Drawing(61, AShell.Now))[4].Text;
         Assert.Equal("      ↳  answering @ben@hachyderm.io", label);
@@ -305,7 +305,7 @@ public class ShellActionTests
         var shell = new AShell { Timelines = FakeTimelineReader.Holding(Mine) };
         var opened = await shell.Opened();
 
-        opened.Reply();
+        opened.Press(ShellKey.R);
 
         var label = opened.Screen.Lines(new Drawing(61, AShell.Now))[4].Text;
         Assert.Equal("      ↳  continuing", label);
@@ -327,7 +327,7 @@ public class ShellActionTests
         var shell = new AShell { Timelines = FakeTimelineReader.Holding(post) };
         var opened = await shell.Opened();
 
-        opened.Reply();
+        opened.Press(ShellKey.R);
 
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
 
@@ -359,7 +359,7 @@ public class ShellActionTests
         var shell = new AShell { Timelines = FakeTimelineReader.Holding(post) };
         var opened = await shell.Opened();
 
-        opened.Reply();
+        opened.Press(ShellKey.R);
 
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
 
@@ -381,7 +381,7 @@ public class ShellActionTests
         var shell = new AShell { Timelines = FakeTimelineReader.Holding(post) };
         var opened = await shell.Opened();
 
-        opened.Reply();
+        opened.Press(ShellKey.R);
 
         Assert.Equal("@ben@hachyderm.io @maria@example.social ", Assert.IsType<ComposeScreen>(opened.Screen).Text);
     }
@@ -402,7 +402,7 @@ public class ShellActionTests
         var shell = new AShell { Timelines = FakeTimelineReader.Holding(post) };
         var opened = await shell.Opened();
 
-        opened.Reply();
+        opened.Press(ShellKey.R);
 
         Assert.Equal("@ben@hachyderm.io @maria@example.social ", Assert.IsType<ComposeScreen>(opened.Screen).Text);
     }
@@ -414,7 +414,7 @@ public class ShellActionTests
         var shell = new AShell { Timelines = FakeTimelineReader.Holding(Mine) };
         var opened = await shell.Opened();
 
-        opened.Reply();
+        opened.Press(ShellKey.R);
 
         Assert.Equal(string.Empty, Assert.IsType<ComposeScreen>(opened.Screen).Text);
     }
@@ -435,7 +435,7 @@ public class ShellActionTests
         var shell = new AShell { Timelines = FakeTimelineReader.Holding(post) };
         var opened = await shell.Opened();
 
-        opened.Reply();
+        opened.Press(ShellKey.R);
 
         Assert.Equal("@ben@hachyderm.io @maria@example.social ", Assert.IsType<ComposeScreen>(opened.Screen).Text);
     }
@@ -450,7 +450,7 @@ public class ShellActionTests
         var shell = new AShell { Timelines = FakeTimelineReader.Holding(Somebody) };
         var opened = await shell.Opened();
 
-        opened.Reply();
+        opened.Press(ShellKey.R);
 
         await opened.Send();
         shell.Host.Drain();
@@ -466,7 +466,7 @@ public class ShellActionTests
         var shell = new AShell { Timelines = FakeTimelineReader.Holding(Somebody) };
         var opened = await shell.Opened();
 
-        opened.Compose();
+        opened.Press(ShellKey.C);
 
         Assert.Equal(string.Empty, Assert.IsType<ComposeScreen>(opened.Screen).Text);
     }
@@ -478,7 +478,7 @@ public class ShellActionTests
         var shell = new AShell { Timelines = FakeTimelineReader.Holding(Mine) };
         var opened = await shell.Opened();
 
-        opened.Edit();
+        opened.Press(ShellKey.E);
 
         var compose = Assert.IsType<ComposeScreen>(opened.Screen);
         Assert.Equal("Hello world", compose.Text);
@@ -498,7 +498,7 @@ public class ShellActionTests
         var shell = new AShell { Timelines = FakeTimelineReader.Holding(Somebody) };
         var opened = await shell.Opened();
 
-        opened.Edit();
+        opened.Press(ShellKey.E);
 
         Assert.IsType<FeedScreen>(opened.Screen);
         Assert.Contains("your own posts", opened.Notice);
@@ -511,7 +511,7 @@ public class ShellActionTests
         var shell = new AShell();
         var opened = await shell.Opened();
 
-        opened.Compose();
+        opened.Press(ShellKey.C);
 
         await opened.Send();
 
