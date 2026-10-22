@@ -13,7 +13,9 @@ namespace Wooly.Tui.Drafting;
 ///     screen to post, reply or edit, with the defaults it starts on and the limits it is measured against; attaching
 ///     what is pasted, dropped or chosen in the file browser, sending it up and describing it; every change to a draft
 ///     and to its attachments' rows; and sending, at once or once what it waits on is done. One for the session, beside
-///     the shell, rather than one per draft: what it remembers outlives any one draft.
+///     the shell, rather than one per draft: what it remembers outlives any one draft. The edit public profile form is
+///     the other draft, and everything it does but ask before it is thrown away is here too: opening it, walking and
+///     flipping it, choosing or pasting its pictures, and saving it (#422).
 /// </summary>
 /// <remarks>
 ///     It reaches the shell through two things and no more: the stack (<see cref="IStack" />), and the
