@@ -2,6 +2,7 @@ using Wooly.Core.Accounts;
 using Wooly.Core.Conversations;
 using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
+using Wooly.Tui.Clipboard;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
 
@@ -9,15 +10,17 @@ namespace Wooly.Tui.Drafting;
 
 /// <summary>
 ///     What the session does for the **draft**s it has open, beyond holding what is written (ADR-0029): opening a compose
-///     screen to post, reply or edit, with the defaults it starts on and the limits it is measured against; sending up
-///     what is attached and describing it; and sending, at once or once what it waits on is done. One for the session,
-///     beside the shell, rather than one per draft: what it remembers outlives any one draft.
+///     screen to post, reply or edit, with the defaults it starts on and the limits it is measured against; attaching
+///     what is pasted, dropped or chosen in the file browser, sending it up and describing it; every change to a draft
+///     and to its attachments' rows; and sending, at once or once what it waits on is done. One for the session, beside
+///     the shell, rather than one per draft: what it remembers outlives any one draft.
 /// </summary>
 /// <remarks>
 ///     It reaches the shell through two things and no more: the stack (<see cref="IStack" />), and the
 ///     <see cref="Reach" /> a screen gets for a verb of its own — read afresh on every call, so a switch of profile needs
-///     no rewiring. A draft verb comes in through <see cref="Do" />, and the shell tells it when a screen leaves
-///     (<see cref="Left" />) and when one is uncovered (<see cref="Uncovered" />).
+///     no rewiring. A draft verb comes in through <see cref="Do" />, a view's change to a draft through
+///     <see cref="Edit{T}" />, and the shell tells it when a screen leaves (<see cref="Left" />) and when one is
+///     uncovered (<see cref="Uncovered" />).
 ///     <para>
 ///         Everything here runs on the drawing thread: what an instance answers is brought back onto it through the
 ///         shell host, as it always was.
@@ -27,6 +30,34 @@ public sealed class Drafting
 {
     private readonly IStack _stack;
     private readonly Func<Reach?> _reach;
+    private readonly IShellHost _host;
+
+    /// <summary>
+    ///     This machine's clipboard, which <c>ctrl-v</c> on a compose screen attaches a picture or copied files from
+    ///     (#380). Not a port: it is not on an instance.
+    /// </summary>
+    private readonly IClipboard _clipboard;
+
+    /// <summary>
+    ///     Where pictures pasted from the clipboard are written before they are attached (#380) — a temporary folder of
+    ///     the session's, which whoever made it takes away as the session ends (review of #372).
+    /// </summary>
+    private readonly PastedPictures _pasted;
+
+    /// <summary>
+    ///     Whether the status row has said this machine has nothing to read the clipboard with, which it says once a
+    ///     session (#380).
+    /// </summary>
+    private bool _toldNoClipboard;
+
+    /// <summary>The folder Wooly was launched from, where the file browser opens the first time (#376).</summary>
+    private readonly string _launchedFrom;
+
+    /// <summary>
+    ///     The folder the author last attached from through the file browser, where it opens from then on — for this
+    ///     session only, saved nowhere (#376).
+    /// </summary>
+    private string? _lastFolder;
 
     /// <summary>
     ///     What the config file says a post goes out at — <c>default_visibility</c> and <c>default_language</c>, either
@@ -66,11 +97,26 @@ public sealed class Drafting
     ///     through.
     /// </param>
     /// <param name="host">The drawing thread, which their answers are handed back on.</param>
+    /// <param name="clipboard">This machine's clipboard, which a paste attaches a picture or copied files from.</param>
+    /// <param name="pasted">Where a picture pasted from the clipboard is written before it is attached.</param>
     /// <param name="preferred">What the config file says a post goes out at.</param>
-    public Drafting(IStack stack, Func<Reach?> reach, ShellPorts ports, IShellHost host, PostDefaults preferred)
+    /// <param name="launchedFrom">The folder Wooly was launched from, where the file browser first opens.</param>
+    public Drafting(
+        IStack stack,
+        Func<Reach?> reach,
+        ShellPorts ports,
+        IShellHost host,
+        IClipboard clipboard,
+        PastedPictures pasted,
+        PostDefaults preferred,
+        string launchedFrom)
     {
+        _launchedFrom = launchedFrom;
         _stack = stack;
         _reach = reach;
+        _host = host;
+        _clipboard = clipboard;
+        _pasted = pasted;
         _preferred = preferred;
         _limits = new LimitsByInstance(ports.Limits, host);
         _limits.Heard += Measured;
@@ -95,8 +141,8 @@ public sealed class Drafting
     /// </summary>
     /// <param name="verb">What was pressed or clicked.</param>
     /// <param name="on">
-    ///     The attachment a click acted on, where it was one — taken off or sent up again — rather than the one the walk
-    ///     is on.
+    ///     The attachment a click acted on, where it was one — taken off, sent up again or described — rather than the one
+    ///     the walk is on: a click on a row's part is the verb that part stands for, with the row's attachment (#378).
     /// </param>
     /// <returns>
     ///     <see cref="Drafted.NotMine" /> for any verb that is not a draft's, which the shell carries on with;
@@ -109,9 +155,27 @@ public sealed class Drafting
         Verb.Reply => Ran(() => Compose(ComposeFor.Reply)),
         Verb.Edit => Ran(() => Compose(ComposeFor.Edit)),
         Verb.Back => CallOff(),
-        Verb.Describe => Ran(Describe),
+        Verb.Describe => Ran(() => Describe(on)),
         Verb.RemoveAttachment => Ran(() => RemoveAttachment(compose => on is null ? compose.Remove() : compose.Remove(on))),
         Verb.RetryAttachment => Ran(() => Retry(compose => on is null ? compose.Retry() : compose.Media.Retry(on))),
+        Verb.PasteFromTheClipboard => PasteFromTheClipboard() ? Drafted.Used : Drafted.Declined,
+        Verb.WriteWarning => Ran(() => Edit<ComposeScreen>(compose => compose.WriteTheWarning())),
+
+        // Answered whether or not there was anywhere to go, so that an arrow off either end of the walk or of To stops
+        // there rather than falling through to Terminal.Gui, which would carry the focus round to the other end.
+        Verb.PreviousField => Ran(() => Edit<ComposeScreen>(compose => compose.Walk(-1))),
+        Verb.NextField => Ran(() => Edit<ComposeScreen>(compose => compose.Walk(1))),
+        Verb.PreviousChoice => Ran(() => Edit<ComposeScreen>(compose => compose.Choose(-1))),
+        Verb.NextChoice => Ran(() => Edit<ComposeScreen>(compose => compose.Choose(1))),
+        Verb.BringBackAttachment => Ran(() => Edit<ComposeScreen>(compose => compose.BringBack())),
+        Verb.EarlierAttachment => Ran(() => Edit<ComposeScreen>(compose => compose.Reorder(-1))),
+        Verb.LaterAttachment => Ran(() => Edit<ComposeScreen>(compose => compose.Reorder(1))),
+        Verb.ToggleSensitive => Ran(ToggleSensitive),
+        Verb.ListAttachments => Ran(ListAttachments),
+        Verb.OpenBrowser => Ran(Browse),
+        Verb.AttachChosen => Ran(AttachChosen),
+        Verb.IntoFolder => Ran(() => Browse(browser => browser.FolderPicked)),
+        Verb.UpFolder => Ran(() => Browse(browser => browser.Above)),
         _ => Drafted.NotMine,
     };
 
@@ -166,13 +230,60 @@ public sealed class Drafting
     }
 
     /// <summary>
+    ///     <c>ctrl-v</c> or <c>alt-v</c> on a compose screen, or on the attachments screen over one (#380): a picture on
+    ///     this machine's clipboard is written to a file of its own and attached from there, and copied files are
+    ///     attached, as a drop is (<see cref="Paste" />, ADR-0026).
+    /// </summary>
+    /// <returns>Whether the paste was taken; one that was not is declined, and left to the field's own paste.</returns>
+    private bool PasteFromTheClipboard()
+    {
+        if (InFront is not { Media.Takes: true } compose)
+        {
+            return false;
+        }
+
+        switch (_clipboard.Read())
+        {
+            case Clipped.Picture(var png):
+                Attach(compose, [_pasted.Keep(png)]);
+
+                return true;
+
+            // Subject to what a drop is: the files there that the instance takes, up to what the post has room for.
+            case Clipped.Files(var paths):
+                var accepted = paths.Where(path => File.Exists(path) && compose.Limits.Accepts(path)).ToList();
+
+                if (accepted.Count == 0)
+                {
+                    Reach.Say("None of the copied files is a type this instance takes.", isError: true);
+                }
+                else
+                {
+                    Attach(compose, accepted);
+                }
+
+                return true;
+
+            // Said once a session: the author who has no wish to install either is still pasting text every time. Said
+            // once the field has pasted, since the paste is an edit and an edit spends a notice (#364).
+            case Clipped.NoTool(var why) when !_toldNoClipboard:
+                _toldNoClipboard = true;
+                _host.OnUiThread(() => Reach.Say(why, isError: false));
+
+                return false;
+
+            default:
+                return false;
+        }
+    }
+
+    /// <summary>
     ///     Attaches the files at <paramref name="paths" /> to <paramref name="compose" />, as many as it has room for,
     ///     and starts each going up to the instance there and then (ADR-0026, #375). Attaching changes the draft, which
     ///     spends a notice over it as typing does (#364) — and where some would not fit, the status row says how many
     ///     were left out, so that nobody is unsure what is on the post (#378).
     /// </summary>
-    /// <remarks>For the shell's clipboard paste and file browser, until those are drafting's too (#421).</remarks>
-    internal void Attach(ComposeScreen compose, IReadOnlyCollection<string> paths)
+    private void Attach(ComposeScreen compose, IReadOnlyCollection<string> paths)
     {
         IReadOnlyList<ComposeAttachment> attached = [];
 
@@ -194,6 +305,35 @@ public sealed class Drafting
         {
             _ = _attachments.SendUp(Reach.Profile, compose, attachment);
         }
+    }
+
+    /// <summary>
+    ///     Where the file browser opens: the folder last attached or chosen from this session or, the first time, the one
+    ///     Wooly was launched from (#376).
+    /// </summary>
+    /// <remarks>Read by the shell's edit public profile form too, until the form is drafting's (#422).</remarks>
+    internal string BrowsingFrom => _lastFolder is { } last && Directory.Exists(last) ? last : _launchedFrom;
+
+    /// <summary>
+    ///     What was chosen in <paramref name="browser" /> — or, with nothing chosen, the file under the cursor — with the
+    ///     folder it came from remembered for the next time. With neither, nothing: the folder under the cursor opens
+    ///     instead, since what is chosen comes first wherever the cursor is (review of #372).
+    /// </summary>
+    /// <remarks>Taken by the shell's edit public profile form too, until the form is drafting's (#422).</remarks>
+    internal IReadOnlyList<string> Took(FileBrowserScreen browser)
+    {
+        var chosen = browser.Take();
+
+        if (chosen.Count == 0)
+        {
+            Browse(opening => opening.FolderPicked);
+
+            return chosen;
+        }
+
+        _lastFolder = browser.Folder;
+
+        return chosen;
     }
 
     /// <summary>
@@ -423,15 +563,124 @@ public sealed class Drafting
     };
 
     /// <summary>
-    ///     Opens the description editor over the compose screen in front, on the attachment whose row the walk is on
-    ///     (#377). Nothing where it is on no row.
+    ///     <c>ctrl-o</c> on a compose or a reply, <c>⏎</c> on its Media header or a click on its words: pushes the file
+    ///     browser over it, in the folder last attached from this session or, the first time, the one Wooly was launched
+    ///     from (#376). Not on an edit, which has nothing to attach to, nor on a post that carries all it can.
     /// </summary>
-    private void Describe()
+    private void Browse()
     {
+        if (InFront is not { Media.Takes: true } compose)
+        {
+            return;
+        }
+
+        if (compose.Media.Room == 0)
+        {
+            Reach.Say(
+                $"This post carries all it can — {compose.Media.Attachments.Count} of {compose.Limits.Attachments}.",
+                isError: false);
+
+            return;
+        }
+
+        _stack.Push(new FileBrowserScreen(LocalFiles.Listing(BrowsingFrom), compose.Limits, compose.Media.Room));
+    }
+
+    /// <summary>
+    ///     <c>→</c>, <c>←</c> or <c>⏎</c> in the file browser: the folder <paramref name="going" /> says, read off the disk
+    ///     here and shown there (#376) — the screen reading nothing itself (ADR-0015). Nothing where it says none.
+    /// </summary>
+    private void Browse(Func<FileBrowserScreen, string?> going)
+    {
+        if (_stack.Top is not FileBrowserScreen browser || going(browser) is not { } folder)
+        {
+            return;
+        }
+
+        browser.Show(LocalFiles.Listing(folder));
+        Reach.Changed();
+    }
+
+    /// <summary>
+    ///     <c>⏎</c> in the file browser: the browser goes and what was chosen — or, with nothing chosen, the file under the
+    ///     cursor — is attached to the compose screen under it, exactly as a drop is (#375, #376), and the folder it came
+    ///     from is remembered for the next time. With neither, the folder under the cursor opens: what is chosen comes
+    ///     first wherever the cursor is (review of #372).
+    /// </summary>
+    private void AttachChosen()
+    {
+        if (_stack.Top is not FileBrowserScreen browser)
+        {
+            return;
+        }
+
+        // The compose it was opened over — directly, or under the attachments screen it was opened from (story 58).
+        var under = _stack.Screens is [.., var beneath, _]
+            ? beneath switch
+            {
+                ComposeScreen compose => compose,
+                AttachmentsScreen listing => listing.Compose,
+                _ => null,
+            }
+            : null;
+
+        if (Took(browser) is not { Count: > 0 } chosen || under is null)
+        {
+            return;
+        }
+
+        _stack.TakeOff(browser);
+        Attach(under, chosen);
+    }
+
+    /// <summary>
+    ///     Opens the description editor over the compose screen in front, on the attachment whose row the walk is on
+    ///     (#377) — or on <paramref name="on" />, a row clicked, which is picked first so that the editor's done comes back
+    ///     to the row it was opened from. Nothing where it is on no row.
+    /// </summary>
+    private void Describe(ComposeAttachment? on)
+    {
+        if (on is not null)
+        {
+            _ = Edit<ComposeScreen>(compose => compose.Pick(on));
+        }
+
         if (InFront is { Typing: ComposeField.Attachment, Media.Picked: { } attachment } compose)
         {
             _stack.Push(new DescriptionScreen(compose, attachment));
         }
+    }
+
+    /// <summary>
+    ///     <c>s</c> on compose's Media header, or a click on its toggle: puts what is attached behind a click or takes it
+    ///     back out (#379). While a warning holds it on, the status row says so instead, since a press that changes
+    ///     nothing on screen would otherwise read as one the shell missed.
+    /// </summary>
+    private void ToggleSensitive()
+    {
+        if (InFront is { SensitiveByAWarning: true, Media.Attachments.Count: > 0 })
+        {
+            Reach.Say("The warning already hides what is attached.", isError: false);
+
+            return;
+        }
+
+        _ = Edit<ComposeScreen>(compose => compose.ToggleSensitive());
+    }
+
+    /// <summary>
+    ///     <c>⏎</c> on compose's Media header, or a click on its line, where a terminal too short for a row each folded
+    ///     the rows into it: pushes the attachments screen listing them, the first picked (story 58).
+    /// </summary>
+    private void ListAttachments()
+    {
+        if (_stack.Top is not ComposeScreen { RowsFolded: true } compose)
+        {
+            return;
+        }
+
+        compose.Pick(compose.Media.Attachments[0]);
+        _stack.Push(new AttachmentsScreen(compose));
     }
 
     /// <summary>

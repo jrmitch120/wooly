@@ -19,6 +19,9 @@ internal sealed class LanguageList
     internal const string Id = "languages";
 
     private readonly Shell.Shell _shell;
+
+    /// <summary>What every change the list makes to the draft goes through.</summary>
+    private readonly Drafting.Drafting _drafting;
     private readonly ComposeLangField _field;
     private readonly View _over;
     private readonly PickList<PostLanguage> _list;
@@ -30,9 +33,10 @@ internal sealed class LanguageList
     /// <param name="over">
     ///     The view Lang is laid in, over the content viewport: this list is laid beside Lang in it, and kept inside it.
     /// </param>
-    public LanguageList(ITheme theme, Shell.Shell shell, ComposeLangField field, View over)
+    public LanguageList(ITheme theme, Shell.Shell shell, Drafting.Drafting drafting, ComposeLangField field, View over)
     {
         _shell = shell;
+        _drafting = drafting;
         _field = field;
         _over = over;
 
@@ -93,7 +97,7 @@ internal sealed class LanguageList
         }
 
         _list.Offer([], keepingThePick: false);
-        _shell.ChangeCompose(compose => compose.OfferLanguages(false));
+        _drafting.Edit<ComposeScreen>(compose => compose.OfferLanguages(false));
     }
 
     /// <summary>First refusal on a mouse event anywhere: a click outside the open list closes it.</summary>
@@ -124,7 +128,7 @@ internal sealed class LanguageList
             return;
         }
 
-        _shell.ChangeCompose(compose => compose.RewriteLanguage(_field.Text));
+        _drafting.Edit<ComposeScreen>(compose => compose.RewriteLanguage(_field.Text));
 
         if (_shell.Screen is not ComposeScreen || _field.Text.Trim().Length == 0)
         {
@@ -144,14 +148,14 @@ internal sealed class LanguageList
 
         if (_list.Open != was)
         {
-            _shell.ChangeCompose(compose => compose.OfferLanguages(_list.Open));
+            _drafting.Edit<ComposeScreen>(compose => compose.OfferLanguages(_list.Open));
         }
     }
 
     /// <summary>A language picked: written into Lang, and the list closed, with the typing still in Lang.</summary>
     private void Pick(PostLanguage language)
     {
-        _shell.ChangeCompose(compose => compose.PickLanguage(language));
+        _drafting.Edit<ComposeScreen>(compose => compose.PickLanguage(language));
 
         if (_shell.Screen is ComposeScreen compose)
         {

@@ -41,6 +41,12 @@ internal sealed class ADrafting
     /// <summary>How many times drafting has said something on screen has changed.</summary>
     public int Changes { get; private set; }
 
+    /// <summary>How many times the status row has been told what to say — nothing among it.</summary>
+    public int Said { get; private set; }
+
+    /// <summary>What a screen can reach as whoever is acted as now, for a test to answer a screen's own verb with.</summary>
+    public Reach Reach => _reach!;
+
     /// <summary>Who is acted as: the shell builder's profile, until <see cref="ActAs" /> says otherwise.</summary>
     public ActiveProfile Profile { get; private set; } = null!;
 
@@ -51,7 +57,15 @@ internal sealed class ADrafting
     public ADrafting Build()
     {
         Stack = new ListStack(Bottom ?? Home(APost.With()), () => Say(null, isError: false));
-        Drafting = new Wooly.Tui.Drafting.Drafting(Stack, () => _reach!, Fakes.Ports, Fakes.Host, Fakes.Preferred);
+        Drafting = new Wooly.Tui.Drafting.Drafting(
+            Stack,
+            () => _reach!,
+            Fakes.Ports,
+            Fakes.Host,
+            Fakes.Clipboard,
+            Fakes.Pasted,
+            Fakes.Preferred,
+            Fakes.LaunchedFrom ?? Environment.CurrentDirectory);
         Stack.Hooked = Drafting;
 
         ActAs(Fakes.Profile);
@@ -112,6 +126,7 @@ internal sealed class ADrafting
 
     private void Say(string? notice, bool isError)
     {
+        Said++;
         Notice = notice;
         NoticeIsError = isError;
     }

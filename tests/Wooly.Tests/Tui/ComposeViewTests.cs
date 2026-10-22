@@ -78,7 +78,7 @@ public class ComposeViewTests
 
         ComposeRows.Open(shell, ComposeFor.Reply);
 
-        using var view = new ComposeView(Wooly.Tui.Theme.Themes.Dark, shell) { Width = 58, Height = 21 };
+        using var view = new ComposeView(Wooly.Tui.Theme.Themes.Dark, shell, shell.Drafting) { Width = 58, Height = 21 };
 
         Assert.True(view.Visible);
         Assert.Equal("spoilers", view.SubViews.OfType<ComposeWarningField>().Single().Text);
@@ -151,8 +151,8 @@ public class ComposeViewTests
         Assert.Equal(ComposeField.Post, compose.Typing);
         Assert.True(view.Editor.HasFocus);
 
-        view.Shell.ChangeCompose(screen => screen.Walk(-1));
-        view.Shell.ChangeCompose(screen => screen.Walk(-1));
+        view.Shell.Drafting.Edit<ComposeScreen>(screen => screen.Walk(-1));
+        view.Shell.Drafting.Edit<ComposeScreen>(screen => screen.Walk(-1));
         view.Redraw();
 
         Assert.True(view.Warning.HasFocus);

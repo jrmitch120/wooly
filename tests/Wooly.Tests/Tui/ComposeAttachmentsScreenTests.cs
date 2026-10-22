@@ -9,9 +9,9 @@ using Wooly.Tui.Theme;
 namespace Wooly.Tests.Tui;
 
 /// <summary>
-///     The attachments screen (story 58): on a terminal too short for a row each, the rows fold into the Media header's
-///     line, and <c>⏎</c> or a click on that line pushes a screen listing them — with the keys and the mouse their rows
-///     take under the header, so that nothing attached is out of reach on a short terminal (review of #372).
+///     The attachments screen (story 58) in the shell: describing from it and leaving it, and a click on the folded
+///     Media line pushing it, with the mouse its rows take under the header. What its keys do to the draft is drafting's
+///     (<see cref="DraftingAttachmentsScreenTests" />).
 /// </summary>
 public class ComposeAttachmentsScreenTests : IDisposable
 {
@@ -27,92 +27,6 @@ public class ComposeAttachmentsScreenTests : IDisposable
     private readonly TemporaryDirectory _files = new();
 
     public void Dispose() => _files.Dispose();
-
-    /// <summary>
-    ///     <c>⏎</c> on the folded header pushes the attachments screen, crumbed under the compose, listing the header's
-    ///     line unfolded and a row each — the same rows the header draws when there is room, the first one picked.
-    /// </summary>
-    [Fact]
-    public async Task EnterOnTheFoldedHeaderListsTheRows()
-    {
-        var (shell, _, compose) = await Folded("one.png", "two.png", "three.png");
-
-        shell.Press(ShellKey.Enter);
-
-        var listed = Assert.IsType<AttachmentsScreen>(shell.Screen);
-        var rows = Texts(listed);
-
-        Assert.Equal([compose.Crumb, "Media"], shell.Crumbs.TakeLast(2));
-        Assert.Contains("  Media  3 of 4 · ctrl-o to add · □ sensitive", rows);
-        Assert.StartsWith("    ▌⠶     one.png", Row(rows, "one.png"), StringComparison.Ordinal);
-        Assert.StartsWith("     ⠶     two.png", Row(rows, "two.png"), StringComparison.Ordinal);
-        Assert.Equal(
-            Row(Texts(compose, Roomy), "three.png").TrimEnd(),
-            Row(rows, "three.png").TrimEnd());
-    }
-
-    /// <summary>With room for the rows, <c>⏎</c> on the header still opens the file browser.</summary>
-    [Fact]
-    public async Task EnterOnTheUnfoldedHeaderStillBrowses()
-    {
-        var (shell, _, compose) = await Composing("one.png");
-
-        _ = Texts(compose, Roomy);
-        shell.Press(ShellKey.Up);
-        shell.Press(ShellKey.Up);
-        shell.Press(ShellKey.Enter);
-
-        Assert.IsType<FileBrowserScreen>(shell.Screen);
-    }
-
-    /// <summary>
-    ///     The row keys work there as under the header: the arrows walk, <c>del</c> takes one off and <c>ctrl-z</c>
-    ///     brings it back, <c>shift-↓</c> moves it later, and <c>s</c> toggles sensitive — each on the compose's own
-    ///     draft, which is what is sent.
-    /// </summary>
-    [Fact]
-    public async Task TheRowKeysWorkThere()
-    {
-        var (shell, _, compose) = await Folded("one.png", "two.png", "three.png");
-
-        shell.Press(ShellKey.Enter);
-        shell.Move(1);
-
-        Assert.StartsWith("    ▌⠶     two.png", Row(Texts(shell.Screen), "two.png"), StringComparison.Ordinal);
-
-        shell.Press(ShellKey.Delete);
-
-        Assert.Equal(["one.png", "three.png"], Names(compose));
-
-        shell.Press(ShellKey.CtrlZ);
-
-        Assert.Equal(["one.png", "two.png", "three.png"], Names(compose));
-
-        shell.Press(ShellKey.ShiftDown);
-
-        Assert.Equal(["one.png", "three.png", "two.png"], Names(compose));
-        Assert.Equal(["one.png", "three.png", "two.png"], Names(Texts(shell.Screen)));
-
-        shell.Press(ShellKey.S);
-
-        Assert.True(compose.Sensitive);
-        Assert.Contains("  Media  3 of 4 · ctrl-o to add · ■ sensitive", Texts(shell.Screen));
-    }
-
-    /// <summary><c>r</c> there sends a dropped connection up again.</summary>
-    [Fact]
-    public async Task RRetriesThere()
-    {
-        var (shell, built, _) = await Folded("one.png", "two.png", "three.png");
-
-        built.Author.Attaching[0].Refuse(Dropped());
-        built.Host.Drain();
-        shell.Press(ShellKey.Enter);
-        shell.Press(ShellKey.R);
-
-        Assert.Equal(4, built.Author.Attaching.Count);
-        Assert.Equal(built.Author.Attaching[0].Path, built.Author.Attaching[3].Path);
-    }
 
     /// <summary>
     ///     <c>⏎</c> there opens the description editor on the row picked, and its done comes back to the list; esc off
@@ -141,29 +55,6 @@ public class ComposeAttachmentsScreenTests : IDisposable
 
         Assert.Same(compose, shell.Screen);
         Assert.Equal(ComposeField.Media, compose.Typing);
-    }
-
-    /// <summary>
-    ///     <c>ctrl-o</c> there opens the file browser, and what it attaches lands on the compose under the list, listed
-    ///     there as it comes back.
-    /// </summary>
-    [Fact]
-    public async Task CtrlOAttachesMoreFromThere()
-    {
-        var (shell, _, compose) = await Folded("one.png", "two.png", "three.png");
-
-        _files.WriteFile("four.png");
-        shell.Press(ShellKey.Enter);
-        shell.Press(ShellKey.CtrlO);
-
-        var browser = Assert.IsType<FileBrowserScreen>(shell.Screen);
-
-        browser.Pick(1);
-        shell.Press(ShellKey.Enter);
-
-        Assert.IsType<AttachmentsScreen>(shell.Screen);
-        Assert.Equal(["one.png", "two.png", "three.png", "four.png"], Names(compose));
-        Assert.Contains(Texts(shell.Screen), row => row.Contains("four.png", StringComparison.Ordinal));
     }
 
     /// <summary>
@@ -250,10 +141,6 @@ public class ComposeAttachmentsScreenTests : IDisposable
         Assert.Equal(["one.png", "two.png", "three.png"], Names(listed.Compose));
     }
 
-    /// <summary>A connection that dropped while a file was going up, the one failure a retry can mend.</summary>
-    private static TransientNetworkException Dropped() =>
-        new(new Uri("https://mastodon.social/api/v2/media"), 3, new HttpRequestException());
-
     /// <summary>
     ///     A compose with <paramref name="names" /> dropped onto it, drawn short enough that their rows fold, and the walk
     ///     on the Media header the rows folded into.
@@ -300,14 +187,6 @@ public class ComposeAttachmentsScreenTests : IDisposable
 
     private static IEnumerable<string> Names(ComposeScreen compose) =>
         compose.Media.Attachments.Select(attachment => attachment.Name);
-
-    /// <summary>The names on the listed rows, top to bottom.</summary>
-    private static IEnumerable<string> Names(IReadOnlyList<string> rows) =>
-        rows.Where(row => row.Contains('⠶', StringComparison.Ordinal))
-            .Select(row => row.Split(' ', StringSplitOptions.RemoveEmptyEntries)[1]);
-
-    private static string Row(IReadOnlyList<string> rows, string name) =>
-        rows.Single(row => row.Contains(name, StringComparison.Ordinal));
 
     private static IReadOnlyList<string> Texts(Screen screen, int height = Roomy) =>
         [.. screen.Lines(new Drawing(Width, AShell.Now, Height: height)).Select(line => line.Text)];

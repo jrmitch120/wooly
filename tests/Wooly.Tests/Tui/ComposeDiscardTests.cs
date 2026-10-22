@@ -159,13 +159,13 @@ public class ComposeDiscardTests
                 break;
 
             case "visibility":
-                drawn.Shell.ChangeCompose(screen => screen.TypeInto(ComposeField.To));
+                drawn.Shell.Drafting.Edit<ComposeScreen>(screen => screen.TypeInto(ComposeField.To));
                 drawn.Redraw();
                 drawn.Press(Key.CursorRight);
                 break;
 
             case "language":
-                drawn.Shell.ChangeCompose(screen => screen.TypeInto(ComposeField.Lang));
+                drawn.Shell.Drafting.Edit<ComposeScreen>(screen => screen.TypeInto(ComposeField.Lang));
                 drawn.Redraw();
                 Type(drawn, "fr");
                 break;
@@ -174,7 +174,7 @@ public class ComposeDiscardTests
         Assert.True(compose.Touched, field);
 
         // Back to the post, so that esc is a way out rather than the close of a list a field opened.
-        drawn.Shell.ChangeCompose(screen => screen.TypeInto(ComposeField.Post));
+        drawn.Shell.Drafting.Edit<ComposeScreen>(screen => screen.TypeInto(ComposeField.Post));
         drawn.Redraw();
         drawn.Press(Key.Esc);
 

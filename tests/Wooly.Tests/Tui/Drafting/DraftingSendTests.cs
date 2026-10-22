@@ -128,6 +128,33 @@ public class DraftingSendTests
         Assert.Equal("Saved.", drafting.Notice);
     }
 
+    /// <summary>
+    ///     Saving an edit of a post with attachments sends the change it always did — the text and the warning, nothing
+    ///     about attachments — so the post's own carry through as ADR-0008 has them, and nothing is sent up or published
+    ///     afresh.
+    /// </summary>
+    [Fact]
+    public async Task SavingAnEditCarriesItsAttachmentsThroughUnchanged()
+    {
+        var drafting = Over(APost.With(
+            id: "110",
+            account: "jeff@mastodon.social",
+            media: [APost.APicture("m1", "A cartoon sheep"), APost.Attached(MediaKind.Video, "m2", description: null)]));
+
+        drafting.Press(ShellKey.E);
+        drafting.Composing.Rewrite("Hello again");
+
+        await drafting.Drafting.Send();
+        drafting.Fakes.Host.Drain();
+
+        var changed = Assert.Single(drafting.Fakes.Author.Edits);
+
+        Assert.Equal("110", changed.PostId);
+        Assert.Equal("Hello again", changed.Edit.Text);
+        Assert.Empty(drafting.Fakes.Author.Attaching);
+        Assert.Empty(drafting.Fakes.Author.Published);
+    }
+
     /// <summary>Nothing written is nothing to send, and saying so beats an instance refusing an empty post.</summary>
     [Fact]
     public async Task SendingRefusesAnEmptyPost()

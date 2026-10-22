@@ -69,22 +69,17 @@ public sealed class Shell
     private readonly IWebBrowser _browser;
 
     /// <summary>
-    ///     This machine's clipboard, which <c>ctrl-v</c> on a compose screen attaches a picture or copied files from
-    ///     (#380). Like the browser, not a port: it is not on an instance.
+    ///     This machine's clipboard, which <c>ctrl-v</c> on the edit public profile form's pictures takes one from (#407)
+    ///     — drafting's own reads it for a compose (#421), and the form's paste joins it there (#422). Like the browser,
+    ///     not a port: it is not on an instance.
     /// </summary>
     private readonly IClipboard _clipboard;
 
     /// <summary>
-    ///     Where pictures pasted from the clipboard are written before they are attached (#380) — a temporary folder of
+    ///     Where pictures pasted from the clipboard are written before they are used (#380, #407) — a temporary folder of
     ///     the session's, which whoever made this shell takes away as the session ends (review of #372).
     /// </summary>
     private readonly PastedPictures _pasted;
-
-    /// <summary>
-    ///     Whether the status row has said this machine has nothing to read the clipboard with, which it says once a
-    ///     session (#380).
-    /// </summary>
-    private bool _toldNoClipboard;
 
     private readonly IShellHost _host;
     private readonly TimeProvider _clock;
@@ -166,15 +161,6 @@ public sealed class Shell
     /// </summary>
     private readonly Tui.Drafting.Drafting _drafting;
 
-    /// <summary>The folder Wooly was launched from, where the file browser opens the first time (#376).</summary>
-    private readonly string _launchedFrom;
-
-    /// <summary>
-    ///     The folder the author last attached from through the file browser, where it opens from then on — for this
-    ///     session only, saved nowhere (#376).
-    /// </summary>
-    private string? _lastFolder;
-
     /// <param name="opening">
     ///     Who to act as — or, with nobody, what to open onto instead: adding a profile, as the only screen (#247).
     /// </param>
@@ -200,7 +186,6 @@ public sealed class Shell
         Preferences? preferences = null,
         string? launchedFrom = null)
     {
-        _launchedFrom = launchedFrom ?? Environment.CurrentDirectory;
         _ports = ports;
         _profiles = profiles;
         _shellWidths = shellWidths;
@@ -217,7 +202,10 @@ public sealed class Shell
             () => _acting?.Reach,
             ports,
             host,
-            new PostDefaults(preferences?.DefaultVisibility, preferences?.DefaultLanguage));
+            clipboard,
+            pasted,
+            new PostDefaults(preferences?.DefaultVisibility, preferences?.DefaultLanguage),
+            launchedFrom ?? Environment.CurrentDirectory);
         ShellWidth = preferences is null ? ShellWidth.Full : ShellWidth.Of(preferences.ShellWidth);
 
         Rail = new Rail(Destinations(opening.Profile, _hashtag), host, timing.Settle);
@@ -632,23 +620,6 @@ public sealed class Shell
         Verb.Vote => Ran(AskToVote),
         Verb.Refresh => Ran(Refresh),
         Verb.MarkRead => Ran(MarkRead),
-        Verb.WriteWarning => Ran(() => _ = ChangeCompose(compose => compose.WriteTheWarning())),
-        // Answered whether or not there was anywhere to go, so that an arrow off either end of the walk or of To stops
-        // there rather than falling through to Terminal.Gui, which would carry the focus round to the other end.
-        Verb.PreviousField => Ran(() => _ = ChangeCompose(compose => compose.Walk(-1))),
-        Verb.NextField => Ran(() => _ = ChangeCompose(compose => compose.Walk(1))),
-        Verb.PreviousChoice => Ran(() => _ = ChangeCompose(compose => compose.Choose(-1))),
-        Verb.NextChoice => Ran(() => _ = ChangeCompose(compose => compose.Choose(1))),
-        Verb.BringBackAttachment => Ran(() => _ = ChangeCompose(compose => compose.BringBack())),
-        Verb.EarlierAttachment => Ran(() => _ = ChangeCompose(compose => compose.Reorder(-1))),
-        Verb.LaterAttachment => Ran(() => _ = ChangeCompose(compose => compose.Reorder(1))),
-        Verb.OpenBrowser => Ran(Browse),
-        Verb.PasteFromTheClipboard => PasteFromTheClipboard(),
-        Verb.AttachChosen => Ran(AttachChosen),
-        Verb.IntoFolder => Ran(() => Browse(browser => browser.FolderPicked)),
-        Verb.UpFolder => Ran(() => Browse(browser => browser.Above)),
-        Verb.ToggleSensitive => Ran(ToggleSensitive),
-        Verb.ListAttachments => Ran(ListAttachments),
         Verb.EditPublicProfile => Ran(EditPublicProfile),
         Verb.FlipToggle => Ran(() => _ = ChangePublicProfile(form => form.Flip())),
         Verb.SavePublicProfile => Ran(SavePublicProfile),
@@ -1269,54 +1240,6 @@ public sealed class Shell
     }
 
     /// <summary>
-    ///     <c>ctrl-v</c> or <c>alt-v</c> on a compose screen, or on the attachments screen over one (#380): a picture on
-    ///     this machine's clipboard is written to a file of its own and attached from there, and copied files are
-    ///     attached, as a drop is (<see cref="Paste" />, ADR-0026).
-    /// </summary>
-    /// <returns>Whether the paste was taken; one that was not is left to the field's own paste.</returns>
-    public bool PasteFromTheClipboard()
-    {
-        if (InFront is not { Media.Takes: true } compose)
-        {
-            return false;
-        }
-
-        switch (_clipboard.Read())
-        {
-            case Clipped.Picture(var png):
-                _drafting.Attach(compose, [_pasted.Keep(png)]);
-
-                return true;
-
-            // Subject to what a drop is: the files there that the instance takes, up to what the post has room for.
-            case Clipped.Files(var paths):
-                var accepted = paths.Where(path => File.Exists(path) && compose.Limits.Accepts(path)).ToList();
-
-                if (accepted.Count == 0)
-                {
-                    Say("None of the copied files is a type this instance takes.", isError: true);
-                }
-                else
-                {
-                    _drafting.Attach(compose, accepted);
-                }
-
-                return true;
-
-            // Said once a session: the author who has no wish to install either is still pasting text every time. Said
-            // once the field has pasted, since the paste is an edit and an edit spends a notice (#364).
-            case Clipped.NoTool(var why) when !_toldNoClipboard:
-                _toldNoClipboard = true;
-                Apply(() => Say(why, isError: false));
-
-                return false;
-
-            default:
-                return false;
-        }
-    }
-
-    /// <summary>
     ///     <c>ctrl-v</c> or <c>alt-v</c> on the edit public profile form's avatar or header (#407): a picture on the
     ///     clipboard is written to a file of its own and taken as that picture, and of copied files the first that is a
     ///     picture is. Sent with the rest of the form when it is saved, and not before (ADR-0028).
@@ -1377,130 +1300,13 @@ public sealed class Shell
     }
 
     /// <summary>
-    ///     Makes <paramref name="change" /> to the compose screen on top — every change to a draft comes in here, from
-    ///     its fields, its lists and its keys — and settles what follows from it by the one rule (#364): a change that
-    ///     says it <see cref="DraftChange.Edited" /> spends a notice said over the draft, and anything but no change at
-    ///     all is announced so the screen is drawn again.
-    /// </summary>
-    /// <remarks>
-    ///     A notice is spent by an edit of the draft and not by a move (#319). The status row holds a notice or the
-    ///     keymap and never both, and while a post is being written the keys go to its fields rather than to anything
-    ///     that would otherwise take a notice down — so a refusal of the post would stand, hiding every key compose
-    ///     answers to, until <c>esc</c> threw the draft away. Changing the draft is doing what the notice asked; walking
-    ///     the fields, choosing on To or opening a list is not, and leaves the notice to be read.
-    /// </remarks>
-    /// <returns>What the change was, or nothing where compose is not on top and no change was made.</returns>
-    public DraftChange ChangeCompose(Func<ComposeScreen, DraftChange> change)
-    {
-        return InFront is { } compose ? Settled(change(compose)) : DraftChange.None;
-    }
-
-    /// <summary>
     ///     Makes <paramref name="change" /> to the edit public profile form on top — every change to it comes in here,
-    ///     from its fields and its keys — by the rule <see cref="ChangeCompose" /> keeps for a draft (#364): an edit
-    ///     spends a notice said over the form, a refusal among them, and anything but no change at all is announced.
+    ///     from its fields and its keys — through drafting's one way in for a draft (<see cref="Drafting.Edit{T}" />,
+    ///     #364), until the form is drafting's own (#422).
     /// </summary>
     /// <returns>What the change was, or nothing where the form is not on top and no change was made.</returns>
-    public DraftChange ChangePublicProfile(Func<PublicProfileScreen, DraftChange> change)
-    {
-        return Screen is PublicProfileScreen form ? Settled(change(form)) : DraftChange.None;
-    }
-
-    /// <summary>
-    ///     What follows from <paramref name="made" />, a change to a draft, by the one rule both kinds of draft keep
-    ///     (#364): an edit spends a notice said over it, and anything but no change at all is announced so the screen is
-    ///     drawn again.
-    /// </summary>
-    /// <returns><paramref name="made" />.</returns>
-    private DraftChange Settled(DraftChange made)
-    {
-        if (made == DraftChange.Edited && Notice is not null)
-        {
-            // Saying nothing announces the change itself.
-            Say(null, isError: false);
-        }
-        else if (made != DraftChange.None)
-        {
-            Changed?.Invoke();
-        }
-
-        return made;
-    }
-
-    /// <summary>
-    ///     The compose screen in front: on top, or under the attachments screen listing its rows on a short terminal,
-    ///     whose keys and clicks change the compose's draft as the same ones on its rows do (story 58, review of #372).
-    /// </summary>
-    private ComposeScreen? InFront => ComposeOf(Screen);
-
-    /// <summary>
-    ///     The compose screen <paramref name="screen" /> is, or whose rows it lists on a short terminal (story 58) — or
-    ///     <see langword="null" /> for any other screen.
-    /// </summary>
-    private static ComposeScreen? ComposeOf(Screen screen) => screen switch
-    {
-        ComposeScreen compose => compose,
-        AttachmentsScreen listing => listing.Compose,
-        _ => null,
-    };
-
-    /// <summary>
-    ///     <c>⏎</c> on compose's Media header, or a click on its line, where a terminal too short for a row each folded
-    ///     the rows into it: pushes the attachments screen listing them, the first picked (story 58).
-    /// </summary>
-    public void ListAttachments()
-    {
-        if (Screen is not ComposeScreen { RowsFolded: true } compose)
-        {
-            return;
-        }
-
-        compose.Pick(compose.Media.Attachments[0]);
-        Push(new AttachmentsScreen(compose));
-    }
-
-    /// <summary>
-    ///     A press on the <paramref name="row" />th row of the attachments screen, which picks it as a press on a row
-    ///     under the Media header does, so that the row being dragged carries the bar from the moment it is picked up
-    ///     (#378, review of #372). Nothing on any other screen, where a press picks nothing and the click does.
-    /// </summary>
-    public void PickUp(int row)
-    {
-        if (Screen is not AttachmentsScreen listing || row < 0 || row >= listing.Media.Attachments.Count)
-        {
-            return;
-        }
-
-        _ = ChangeCompose(compose => compose.Pick(listing.Media.Attachments[row]));
-    }
-
-    /// <summary>
-    ///     A row on the attachments screen dragged by the pointer from the <paramref name="from" />th place to the
-    ///     <paramref name="to" />th, live, the others making way — as a row under the Media header is (#378, story 58).
-    /// </summary>
-    /// <returns>Whether it moved, which makes the button's release a drop rather than a click.</returns>
-    public bool DragRow(int from, int to) =>
-        Screen is AttachmentsScreen listing
-        && from >= 0
-        && from < listing.Media.Attachments.Count
-        && DragAttachment(listing.Media.Attachments[from], to);
-
-    /// <summary>
-    ///     <c>s</c> on compose's Media header, or a click on its toggle: puts what is attached behind a click or takes it
-    ///     back out (#379). While a warning holds it on, the status row says so instead, since a press that changes
-    ///     nothing on screen would otherwise read as one the shell missed.
-    /// </summary>
-    public void ToggleSensitive()
-    {
-        if (InFront is { SensitiveByAWarning: true, Media.Attachments.Count: > 0 })
-        {
-            Say("The warning already hides what is attached.", isError: false);
-
-            return;
-        }
-
-        _ = ChangeCompose(compose => compose.ToggleSensitive());
-    }
+    public DraftChange ChangePublicProfile(Func<PublicProfileScreen, DraftChange> change) =>
+        _drafting.Edit(change);
 
     /// <summary>
     ///     Takes the unread mark off the conversation being read, or the one picked out on the list — the conversation
@@ -2273,158 +2079,33 @@ public sealed class Shell
     }
 
     /// <summary>
-    ///     <c>ctrl-o</c> on a compose or a reply, <c>⏎</c> on its Media header or a click on its words: pushes the file
-    ///     browser over it, in the folder last attached from this session or, the first time, the one Wooly was launched
-    ///     from (#376). Not on an edit, which has nothing to attach to, nor on a post that carries all it can.
-    /// </summary>
-    public void Browse()
-    {
-        if (InFront is not { Media.Takes: true } compose)
-        {
-            return;
-        }
-
-        if (compose.Media.Room == 0)
-        {
-            Say($"This post carries all it can — {compose.Media.Attachments.Count} of {compose.Limits.Attachments}.", isError: false);
-
-            return;
-        }
-
-        Push(new FileBrowserScreen(LocalFiles.Listing(BrowsingFrom), compose.Limits, compose.Media.Room));
-    }
-
-    /// <summary>
     ///     <c>⏎</c> or a click on the edit public profile form's avatar or header (#407): pushes the file browser over it
-    ///     for that one picture, in the folder <see cref="Browse" /> would open in.
+    ///     for that one picture, in the folder the file browser opens in for a compose (#376).
     /// </summary>
     public void ChoosePicture()
     {
         if (Screen is PublicProfileScreen form && PublicProfilePicture.Of(form.Typing.Part) is { } picture)
         {
-            Push(FileBrowserScreen.ForAPicture(LocalFiles.Listing(BrowsingFrom), picture));
+            Push(FileBrowserScreen.ForAPicture(LocalFiles.Listing(_drafting.BrowsingFrom), picture));
         }
-    }
-
-    /// <summary>
-    ///     Where the file browser opens: the folder last attached or chosen from this session or, the first time, the one
-    ///     Wooly was launched from (#376).
-    /// </summary>
-    private string BrowsingFrom => _lastFolder is { } last && Directory.Exists(last) ? last : _launchedFrom;
-
-    /// <summary>
-    ///     <c>→</c>, <c>←</c> or <c>⏎</c> in the file browser: the folder <paramref name="going" /> says, read off the disk
-    ///     here and shown there (#376) — the screen reading nothing itself (ADR-0015). Nothing where it says none.
-    /// </summary>
-    private void Browse(Func<FileBrowserScreen, string?> going)
-    {
-        if (Screen is not FileBrowserScreen browser || going(browser) is not { } folder)
-        {
-            return;
-        }
-
-        browser.Show(LocalFiles.Listing(folder));
-        Changed?.Invoke();
-    }
-
-    /// <summary>
-    ///     <c>⏎</c> in the file browser: the browser goes and what was chosen — or, with nothing chosen, the file under the
-    ///     cursor — is attached to the compose screen under it, exactly as a drop is (#375, #376), and the folder it came
-    ///     from is remembered for the next time. With neither, the folder under the cursor opens: what is chosen comes
-    ///     first wherever the cursor is (review of #372).
-    /// </summary>
-    public void AttachChosen()
-    {
-        if (Screen is not FileBrowserScreen browser)
-        {
-            return;
-        }
-
-        var chosen = browser.Take();
-
-        if (chosen.Count == 0)
-        {
-            Browse(opening => opening.FolderPicked);
-
-            return;
-        }
-
-        // The compose it was opened over — directly, or under the attachments screen it was opened from (story 58).
-        if (_stack.Count < 2 || ComposeOf(_stack[^2]) is not { } compose)
-        {
-            return;
-        }
-
-        _lastFolder = browser.Folder;
-
-        Pop();
-        _drafting.Attach(compose, chosen);
     }
 
     /// <summary>
     ///     <c>⏎</c> in the file browser opened for one of the edit public profile form's pictures (#407): the browser
     ///     goes and the file chosen — or, with none chosen, the one under the cursor — is the picture the form's walk is
     ///     on, sent when the form is saved and not before (ADR-0028). With neither, the folder under the cursor opens,
-    ///     as <see cref="AttachChosen" /> does.
+    ///     as it does for a compose.
     /// </summary>
     public void UsePicture()
     {
-        if (Screen is not FileBrowserScreen { Picture: not null } browser)
+        if (Screen is not FileBrowserScreen { Picture: not null } browser
+            || _drafting.Took(browser) is not { Count: > 0 } chosen)
         {
             return;
         }
-
-        var chosen = browser.Take();
-
-        if (chosen.Count == 0)
-        {
-            Browse(opening => opening.FolderPicked);
-
-            return;
-        }
-
-        _lastFolder = browser.Folder;
 
         Pop();
         _ = ChangePublicProfile(form => form.Pick(chosen[0]));
-    }
-
-    /// <summary>
-    ///     A row under the Media header dragged by the pointer to the <paramref name="place" />th row, live, the others
-    ///     making way (#378).
-    /// </summary>
-    /// <returns>Whether it moved, which makes the button's release a drop rather than a click.</returns>
-    public bool DragAttachment(ComposeAttachment attachment, int place) =>
-        ChangeCompose(compose => compose.Media.ReorderTo(attachment, place)) != DraftChange.None;
-
-    /// <summary>
-    ///     A click on <paramref name="attachment" />'s row, on <paramref name="part" /> of it (#378): its <c>x</c> takes
-    ///     it off, its <c>retry (r)</c> sends it up again, its description opens the description editor (#377), and
-    ///     anywhere else picks it.
-    /// </summary>
-    public void ClickAttachment(ComposeAttachment attachment, AttachmentPart part)
-    {
-        switch (part)
-        {
-            case AttachmentPart.Remove:
-                _ = _drafting.Do(Verb.RemoveAttachment, attachment);
-
-                break;
-            case AttachmentPart.Retry:
-                _ = _drafting.Do(Verb.RetryAttachment, attachment);
-
-                break;
-            case AttachmentPart.Description:
-                // Picked first, so that the editor's done comes back to the row it was opened from (#377).
-                _ = ChangeCompose(compose => compose.Pick(attachment));
-                _ = _drafting.Do(Verb.Describe);
-
-                break;
-            default:
-                _ = ChangeCompose(compose => compose.Pick(attachment));
-
-                break;
-        }
     }
 
     /// <summary>
