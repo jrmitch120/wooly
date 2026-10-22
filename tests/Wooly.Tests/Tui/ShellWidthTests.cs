@@ -12,9 +12,9 @@ using Color = Terminal.Gui.Drawing.Color;
 namespace Wooly.Tests.Tui;
 
 /// <summary>
-///     The **Shell width** (#414): <c>-</c> narrows the shell a step, <c>+</c> and <c>=</c> widen it, and the shell is
-///     drawn centred at that share of the terminal, never under 80 columns, with the terminal's own cells either side.
-///     Pressed and read back off a headless terminal, since the promise is about where the cells land.
+///     The <b>Shell width</b> (#414): <c>-</c> narrows the shell a step, <c>+</c> and <c>=</c> widen it, and the shell
+///     is drawn centred at that share of the terminal, never under 80 columns, with the terminal's own cells either
+///     side. Pressed and read back off a headless terminal, since the promise is about where the cells land.
 /// </summary>
 public class ShellWidthTests
 {

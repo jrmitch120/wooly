@@ -3,9 +3,9 @@ using Wooly.Core.Configuration;
 namespace Wooly.Tui.Shell;
 
 /// <summary>
-///     The **Shell width** (<c>GLOSSARY.md</c>): how much of the terminal's width the shell takes, as a whole-number
-///     percentage — all of it, or less in steps of ten down to half — and so which columns it is drawn in on a terminal of
-///     a given width (#413, #414).
+///     The <b>Shell width</b> (<c>GLOSSARY.md</c>): how much of the terminal's width the shell takes, as a whole-number
+///     percentage — all of it, or less in steps of ten down to half — and so which columns it is drawn in on a terminal
+///     of a given width (#413, #414).
 /// </summary>
 /// <remarks>
 ///     A share rather than a count of columns, so that it holds when the terminal is resized; the columns are worked out

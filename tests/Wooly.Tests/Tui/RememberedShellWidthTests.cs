@@ -4,9 +4,9 @@ using static Wooly.Tests.Tui.ShellWidthTests;
 namespace Wooly.Tests.Tui;
 
 /// <summary>
-///     The **Shell width** remembered (#415): each step that lands saves it, a refused one saves nothing, and a launch
-///     opens at what was saved — written by hand or not. Pressed and read back off a headless terminal, with what was
-///     saved read off the port the shell saves it through.
+///     The <b>Shell width</b> remembered (#415): each step that lands saves it, a refused one saves nothing, and a
+///     launch opens at what was saved — written by hand or not. Pressed and read back off a headless terminal, with
+///     what was saved read off the port the shell saves it through.
 /// </summary>
 public class RememberedShellWidthTests
 {

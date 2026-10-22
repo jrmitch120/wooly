@@ -60,8 +60,8 @@ public class KeymapTests
         Assert.Equal(Verb.None, Means("?", new ComposeScreen(ComposeFor.Reply)));
 
     /// <summary>
-    ///     The **Shell width** keys (#414): <c>-</c> narrower, and <c>+</c> or <c>=</c> wider, so that widening needs no
-    ///     shift. Frame keys, so the same on every screen that is not typing.
+    ///     The <b>Shell width</b> keys (#414): <c>-</c> narrower, and <c>+</c> or <c>=</c> wider, so that widening
+    ///     needs no shift. Frame keys, so the same on every screen that is not typing.
     /// </summary>
     [Theory]
     [InlineData("-", Verb.Narrower)]
