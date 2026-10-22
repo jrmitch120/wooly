@@ -133,6 +133,70 @@ public class TomlConfigStoreTests : IDisposable
         Assert.Contains("hide_drawn_caption", exception.Message);
     }
 
+    /// <summary>#415: a shell width written by hand is honoured as written, an in-between one included.</summary>
+    [Fact]
+    public void Load_ReadsAShellWidthWrittenByHand()
+    {
+        WriteConfigFile(
+            """
+            [preferences]
+            shell_width = 73
+            """);
+
+        Assert.Equal(73, NewStore().Load().Preferences.ShellWidth);
+    }
+
+    /// <summary>All of the terminal is what an absent key means, with no file and with a file that leaves it out.</summary>
+    [Fact]
+    public void Load_ReadsTheShellWidthAsFullWhenAbsent()
+    {
+        Assert.Equal(100, NewStore().Load().Preferences.ShellWidth);
+
+        WriteConfigFile(
+            """
+            [preferences]
+            hashtag = "dotnet"
+            """);
+
+        Assert.Equal(100, NewStore().Load().Preferences.ShellWidth);
+    }
+
+    /// <summary>Out of range is clamped rather than refused, so a typo doesn't stop the TUI starting.</summary>
+    [Theory]
+    [InlineData(49, 50)]
+    [InlineData(0, 50)]
+    [InlineData(-20, 50)]
+    [InlineData(101, 100)]
+    [InlineData(500, 100)]
+    [InlineData(9_999_999_999, 100)]
+    public void Load_ClampsTheShellWidthToHalfOrMore_AndAllOrLess(long written, int read)
+    {
+        WriteConfigFile(
+            $"""
+             [preferences]
+             shell_width = {written}
+             """);
+
+        Assert.Equal(read, NewStore().Load().Preferences.ShellWidth);
+    }
+
+    [Theory]
+    [InlineData("\"80\"")]
+    [InlineData("72.5")]
+    [InlineData("true")]
+    public void Load_RefusesAShellWidthThatIsNotAWholeNumber(string written)
+    {
+        WriteConfigFile(
+            $"""
+             [preferences]
+             shell_width = {written}
+             """);
+
+        var exception = Assert.Throws<ConfigurationException>(() => NewStore().Load());
+
+        Assert.Contains("shell_width", exception.Message);
+    }
+
     [Fact]
     public void Save_ThenLoad_RoundTripsProfilesCurrentProfileAndPreferences()
     {
