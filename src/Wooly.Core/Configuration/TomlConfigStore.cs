@@ -31,12 +31,6 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
     /// <summary>How much of the terminal's width the TUI's shell takes, as a percentage (#413).</summary>
     private const string ShellWidthKey = "shell_width";
 
-    /// <summary>The narrowest shell width there is, half the terminal: the TUI's own <c>ShellWidth.Narrowest</c>.</summary>
-    private const int NarrowestShellWidth = 50;
-
-    /// <summary>The widest, all of it, and what an absent key means: the TUI's own <c>ShellWidth.Widest</c>.</summary>
-    private const int FullShellWidth = 100;
-
     /// <summary>The theme the TUI draws in, and the themes written in this same file (#46).</summary>
     private const string ThemeKey = "theme";
 
@@ -78,7 +72,7 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
 
         // Inserted before the profiles so the writer emits the short, general section above the long, per-profile one.
         if (config.Preferences is { DefaultVisibility: not null } or { DefaultLanguage: not null } or { Hashtag: not null }
-            or { HideDrawnCaption: true } or { Bell: false } or { ShellWidth: not FullShellWidth })
+            or { HideDrawnCaption: true } or { Bell: false } or { ShellWidth: not Preferences.FullShellWidth })
         {
             var preferences = new TomlTable();
 
@@ -113,7 +107,7 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
 
             // Absent rather than written as 100, the whole terminal an absent key reads back as — so widening back to it
             // takes the line away again (#415).
-            if (config.Preferences.ShellWidth != FullShellWidth)
+            if (config.Preferences.ShellWidth != Preferences.FullShellWidth)
             {
                 preferences[ShellWidthKey] = (long)config.Preferences.ShellWidth;
             }
@@ -366,9 +360,9 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
     /// </summary>
     private int ReadShellWidth(TomlTable preferences) => preferences.TryGetValue(ShellWidthKey, out var value)
         ? value as long? is { } percent
-            ? (int)Math.Clamp(percent, NarrowestShellWidth, FullShellWidth)
+            ? (int)Math.Clamp(percent, Preferences.NarrowestShellWidth, Preferences.FullShellWidth)
             : throw new ConfigurationException(paths.ConfigFile, $"'{ShellWidthKey}' must be a whole number.")
-        : FullShellWidth;
+        : Preferences.FullShellWidth;
 
     private TomlTable? ReadTable(TomlTable table, string key) => table.TryGetValue(key, out var value)
         ? value as TomlTable ?? throw new ConfigurationException(paths.ConfigFile, $"'{key}' must be a section.")

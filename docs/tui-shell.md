@@ -90,14 +90,14 @@ combining mark, is something nobody wrote.
 ## Shell width
 
 The shell is drawn in a share of the terminal's width: all of it, or less, in steps of ten down to half (`GLOSSARY.md`,
-#413). `-` narrows it a step and `+` or `=` widens it a step (**Keys**, below), and each step taken is saved as `shell_width`
-for the next launch to open at (#414, #415; "Starting it", below). Every width
-this document gives — the rail's 20, the 58 columns at 80 — is the shell's, which is the terminal's at 100%.
+#413). `-` narrows it a step and `+` or `=` widens it a step (**Keys**, below), and each step taken is saved as
+`shell_width` for the next launch to open at (#414, #415; "Starting it", below). Every width this document gives — the
+rail's 20, the 58 columns at 80 — is the shell's, which is the terminal's at 100%.
 
 - **The columns** are worked out from the terminal's `T` and the share `p` on every layout:
-  `min(T, max(80, ⌊T × p / 100⌋))`, and the shell's first column is `⌊(T − columns) / 2⌋`, so it is centred and the spare
-  column of an odd remainder falls on the right: the left edge moves only when the width does. A resized terminal keeps the share and re-centres. The
-  height is always the terminal's whole height.
+  `min(T, max(80, ⌊T × p / 100⌋))`, and the shell's first column is `⌊(T − columns) / 2⌋`, so it is centred and the
+  spare column of an odd remainder falls on the right: the left edge moves only when the width does. A resized terminal
+  keeps the share and re-centres. The height is always the terminal's whole height.
 - **Never under 80 columns**, the width the shell is laid out for: on a terminal 80 wide or less the shell is all of it.
   A saved share the floor overrides on a narrow terminal is left as saved, for a wider one to draw.
 - **The steps.** Narrower is the largest multiple of ten below the share and at least 50; wider is the smallest above it

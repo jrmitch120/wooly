@@ -1019,11 +1019,12 @@ public sealed class Shell
     public void Quit(Action quit) => Leaving(0, quit);
 
     /// <summary>
-    ///     <c>-</c>: the <see cref="ShellWidth" /> one step narrower, on a terminal <paramref name="terminal" /> columns
-    ///     wide — only the window knows how wide that is, so it carries the verb out and asks this (#414). Refused, and
-    ///     left as it was, at the narrowest step or where the next would take the shell under 80 columns here.
+    ///     <c>-</c>: the <see cref="ShellWidth" /> one step narrower, on a terminal <paramref name="terminalColumns" />
+    ///     columns wide — only the window knows how wide that is, so it carries the verb out and asks this (#414).
+    ///     Refused, and left as it was, at the narrowest step or where the next would take the shell under 80 columns
+    ///     here.
     /// </summary>
-    public void Narrow(int terminal) => Stepped(ShellWidth.Narrower(terminal), refused: "Narrowest");
+    public void Narrow(int terminalColumns) => Stepped(ShellWidth.Narrower(terminalColumns), refused: "Narrowest");
 
     /// <summary><c>+</c> or <c>=</c>: the <see cref="ShellWidth" /> one step wider, refused at the whole terminal (#414).</summary>
     public void Widen() => Stepped(ShellWidth.Wider(), refused: "Full width");
@@ -3214,9 +3215,10 @@ public sealed class Shell
 
         ShellWidth = width;
 
-        // Saved straight away, so the next launch opens where this one was left (#415). A step pressed is a choice
-        // asked for (ADR-0020), and a refused one, above, is none — so what is saved is always a width that was seen.
-        // One that cannot be saved still holds for this session, since it was seen; the status row says why, as D does.
+        // Saved straight away, so the next launch opens where this one was left (#415). A choice is saved only when
+        // asked (ADR-0020), and a width key pressed counts as asking (#413, which extends that rule to these keys); a
+        // refused step, above, asks for nothing, so what is saved is always a width that was seen. One that cannot be
+        // saved still holds for this session, since it was seen; the status row says why, as D does.
         try
         {
             _shellWidths.Save(width);

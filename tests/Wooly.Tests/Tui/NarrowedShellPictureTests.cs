@@ -11,9 +11,10 @@ namespace Wooly.Tests.Tui;
 
 /// <summary>
 ///     Pictures in a narrowed shell (#417): a sixel, Kitty's placeholder cells and Kitty drawn through a box all land
-///     inside the content panel of a shell narrowed and centred by its **Shell width**, never in the margin and never
-///     over a frame — and are drawn again to fit once the width changes. Read back off the whole shell drawn headless,
-///     as the picture tests at full width are (<see cref="KittyPictureTests" />, <see cref="PictureResendTests" />).
+///     inside the content panel of a shell narrowed and centred by its <b>Shell width</b>, never in the margin and
+///     never over a frame — and are drawn again to fit once the width changes. Read back off the whole shell drawn
+///     headless, as the picture tests at full width are (<see cref="KittyPictureTests" />,
+///     <see cref="PictureResendTests" />).
 /// </summary>
 public class NarrowedShellPictureTests
 {

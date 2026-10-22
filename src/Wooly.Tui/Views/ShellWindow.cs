@@ -788,13 +788,13 @@ internal sealed class ShellWindow : Window
             // The Shell width's steps, which turn on how wide the terminal is (#414).
             case Verb.Narrower:
                 _shell.Narrow(TerminalColumns);
-                Resized();
+                LaidOutAtTheNewWidth();
 
                 return true;
 
             case Verb.Wider:
                 _shell.Widen();
-                Resized();
+                LaidOutAtTheNewWidth();
 
                 return true;
 
@@ -927,11 +927,12 @@ internal sealed class ShellWindow : Window
     }
 
     /// <summary>
-    ///     The window laid out again at the shell's new columns, over a cleared screen: what it drew where the margins now
-    ///     are is the terminal's again. Terminal.Gui clears the screen for a moved or resized top view only on the pass
-    ///     after the one that laid it out, which would put a frame on the terminal with the old shell still beside the new.
+    ///     After a shell width step: the window laid out again at the shell's new columns, over a cleared screen, so that
+    ///     what it drew where the margins now are is the terminal's again. Terminal.Gui clears the screen for a moved or
+    ///     resized top view only on the pass after the one that laid it out, which would put a frame on the terminal with
+    ///     the old shell still beside the new.
     /// </summary>
-    private void Resized()
+    private void LaidOutAtTheNewWidth()
     {
         SetNeedsLayout();
 
