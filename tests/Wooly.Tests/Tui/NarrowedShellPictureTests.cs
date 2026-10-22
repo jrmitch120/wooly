@@ -203,6 +203,63 @@ public class NarrowedShellPictureTests
         Assert.Contains("\u001b_G", frame, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    ///     An overlay that follows the content panel keeps its picture inside the narrowed panel too: the description
+    ///     editor, opened on a picture dropped onto a fresh post.
+    /// </summary>
+    [Fact]
+    public async Task TheDescriptionEditorsSixelFallsInsideTheNarrowedContentPanel()
+    {
+        using var files = new TemporaryDirectory();
+        var cat = files.WriteFile("cat.png");
+
+        using var drawn = await DrawnShell.Of(
+            200,
+            30,
+            Themes.Plain,
+            pictures: new FakePictures().HoldingPhotograph(Drawn.OnDisk(cat).Id, 600, 400),
+            drawsPictures: true);
+
+        drawn.Press(new Key('-'));
+        drawn.Shell.Compose();
+        drawn.Shell.Paste(cat);
+        drawn.Settle();
+        drawn.Press(Key.CursorUp);
+        drawn.Press(Key.Enter);
+
+        Assert.IsType<DescriptionScreen>(drawn.Shell.Screen);
+
+        var cells = BoxCells(drawn);
+
+        Assert.NotEmpty(cells);
+        Assert.All(cells, cell => Assert.InRange(cell.X, FirstInside, LastInside));
+    }
+
+    /// <summary>
+    ///     Narrowing the shell narrows the box, not the cell: a picture is sent in the cell as measured — the whole
+    ///     terminal's pixels over its whole cells — whatever share of the terminal the shell takes.
+    /// </summary>
+    [Fact]
+    public async Task ANarrowedShellSendsAPictureInTheCellAsMeasured()
+    {
+        var terminal = new FakeTerminalImages();
+
+        using var drawn = await Narrowed(
+            kittyImages: terminal,
+            drawsPlaceholders: true,
+            raster: new Raster(PictureWay.Placeholders, new CellSize(16, 34), 0));
+
+        var sent = terminal.Transmitted[^1];
+
+        Assert.Equal(157, sent.Columns);
+        Assert.Equal((157 * 16, sent.Rows * 34), PngSize(sent.Png));
+    }
+
+    /// <summary>A PNG's width and height in pixels, off its header.</summary>
+    private static (int Width, int Height) PngSize(byte[] png) =>
+        (System.Buffers.Binary.BinaryPrimitives.ReadInt32BigEndian(png.AsSpan(16)),
+            System.Buffers.Binary.BinaryPrimitives.ReadInt32BigEndian(png.AsSpan(20)));
+
     /// <summary>The first and last column <paramref name="cells" /> take.</summary>
     private static (int First, int Last) Across(IEnumerable<PlaceholderCell> cells) =>
         Across([.. cells.Select(cell => new Point(cell.Column, cell.Row))]);
