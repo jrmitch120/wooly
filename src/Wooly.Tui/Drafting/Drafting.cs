@@ -142,15 +142,14 @@ public sealed class Drafting
     /// </param>
     /// <returns>
     ///     <see cref="Drafted.NotMine" /> for any verb that is not a draft's, which the shell carries on with;
-    ///     otherwise whether it was used or declined. <c>esc</c> is drafting's only while a send is waiting on the
-    ///     compose in front, which it calls off; otherwise it is the shell's.
+    ///     otherwise whether it was used or declined. <c>esc</c> is not among them: it reaches drafting directly
+    ///     (<see cref="Back" />), and only once the shell has no question open.
     /// </returns>
     public Drafted Do(Verb verb, ComposeAttachment? on = null) => verb switch
     {
         Verb.Compose => Ran(() => Compose(ComposeFor.Post)),
         Verb.Reply => Ran(() => Compose(ComposeFor.Reply)),
         Verb.Edit => Ran(() => Compose(ComposeFor.Edit)),
-        Verb.Back => CallOff(),
         Verb.Describe => Ran(() => Describe(on)),
         Verb.RemoveAttachment => Ran(() => RemoveAttachment(compose => on is null ? compose.Remove() : compose.Remove(on))),
         Verb.RetryAttachment => Ran(() => Retry(compose => on is null ? compose.Retry() : compose.Media.Retry(on))),
@@ -504,21 +503,23 @@ public sealed class Drafting
     }
 
     /// <summary>
-    ///     <c>esc</c> while a send is waiting on the compose in front, which is a level of its own over the draft: the
-    ///     send is called off and the draft left as it was, to be changed or sent again (ADR-0026, #375).
+    ///     <c>esc</c>, once the shell has no question open to answer with it: while a send is waiting on the compose in
+    ///     front, which is a level of its own over the draft, the send is called off and the draft left as it was, to be
+    ///     changed or sent again (ADR-0026, #375).
     /// </summary>
-    private Drafted CallOff()
+    /// <returns>Whether there was a send to call off; where there was not, <c>esc</c> is the shell's.</returns>
+    public bool Back()
     {
         if (_waitingToSend is null || !ReferenceEquals(_waitingToSend, _stack.Top))
         {
-            return Drafted.NotMine;
+            return false;
         }
 
         _waitingToSend = null;
 
         Reach.Say("Not sent — the draft is as it was.", isError: false);
 
-        return Drafted.Used;
+        return true;
     }
 
     /// <summary>

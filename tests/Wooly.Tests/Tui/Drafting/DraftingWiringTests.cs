@@ -218,6 +218,33 @@ public class DraftingWiringTests : IDisposable
     }
 
     /// <summary>
+    ///     <c>esc</c> with a question open over a compose whose send is waiting answers the question, no, and nothing
+    ///     more: the shell's question comes before drafting's call-off, so the send still waits and goes once the upload
+    ///     finishes.
+    /// </summary>
+    [Fact]
+    public async Task EscWithAQuestionOpenOverAWaitingSendAnswersTheQuestionAndTheSendStillWaits()
+    {
+        using var drawn = await Attached();
+        var compose = Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
+        compose.Rewrite("Watch this");
+        drawn.Press(Key.S.WithCtrl);
+        drawn.Shell.Arrive(1);
+        Assert.NotNull(drawn.Shell.Asking);
+
+        Assert.True(drawn.Shell.Do(Verb.Back, answer: null));
+
+        Assert.Null(drawn.Shell.Asking);
+        Assert.Same(compose, drawn.Shell.Screen);
+        Assert.NotEqual("Not sent — the draft is as it was.", drawn.Shell.Notice);
+
+        drawn.Built.Author.Attaching.Single().Ready();
+        drawn.Settle();
+
+        Assert.Equal("Watch this", Assert.Single(drawn.Built.Author.Published).Draft.Text);
+    }
+
+    /// <summary>
     ///     A post sent, its compose left and something else opened before the instance answers: the answer lands without
     ///     taking off what the reader went on to, and says it was sent (#423).
     /// </summary>
