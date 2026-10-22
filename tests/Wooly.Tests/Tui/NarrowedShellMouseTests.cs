@@ -2,6 +2,7 @@ using Terminal.Gui.Input;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Theme;
+using Wooly.Tui.Views;
 using static Wooly.Tests.Tui.ContentClicks;
 
 namespace Wooly.Tests.Tui;
@@ -208,6 +209,81 @@ public class NarrowedShellMouseTests
 
         Assert.Equal(1, drawn.Shell.Depth);
         Assert.IsType<FeedScreen>(drawn.Shell.Screen);
+    }
+
+    /// <summary>
+    ///     Compose's view sits over the narrowed content panel's viewport — inside the panel's edge after the margin and
+    ///     the rail, and as wide as the panel's inside — so its fields are under the pointer where they are drawn.
+    /// </summary>
+    [Fact]
+    public async Task ComposeSitsOverTheNarrowedContentPanel()
+    {
+        using var drawn = await Narrowed();
+
+        drawn.Shell.Compose();
+        drawn.Redraw();
+
+        var compose = drawn.Window.SubViews.OfType<ComposeView>().Single().FrameToScreen();
+
+        // The margin's 10, the rail's 20 and the panel's edge; and 180 less the rail and the panel's two edges.
+        Assert.Equal((31, 1, 158), (compose.X, compose.Y, compose.Width));
+    }
+
+    /// <summary>A click on a compose field in the narrowed shell moves the typing to it.</summary>
+    [Fact]
+    public async Task AClickOnAComposeFieldMovesTheTypingThere()
+    {
+        using var drawn = await Narrowed(new AShell { Accounts = FakeAccountRelationships.HoldingNobody() });
+
+        drawn.Shell.Compose();
+        drawn.Redraw();
+
+        var lang = drawn.Window.SubViews.OfType<ComposeView>().Single().SubViews.OfType<ComposeLangField>().Single();
+        var at = lang.FrameToScreen();
+
+        Assert.InRange(at.X, 31, 188);
+
+        drawn.Click(at.X, at.Y);
+
+        Assert.Equal(ComposeField.Lang, Assert.IsType<ComposeScreen>(drawn.Shell.Screen).Typing);
+        Assert.True(lang.HasFocus);
+    }
+
+    /// <summary>
+    ///     Dragging an attachment's row by the pointer in the narrowed shell moves it live, and it stays where it is let
+    ///     go, as at full width.
+    /// </summary>
+    [Fact]
+    public async Task DraggingAnAttachmentsRowReordersIt()
+    {
+        using var files = new TemporaryDirectory();
+        using var drawn = await Narrowed();
+
+        drawn.Shell.Compose();
+        drawn.Redraw();
+
+        foreach (var name in new[] { "one.png", "two.png", "three.png" })
+        {
+            Assert.True(drawn.Shell.Paste(files.WriteFile(name)));
+        }
+
+        drawn.Redraw();
+
+        var rows = drawn.Rows();
+        var row = Array.FindIndex(rows, line => line.Contains("three.png", StringComparison.Ordinal));
+        var column = rows[row].IndexOf("three.png", StringComparison.Ordinal);
+
+        Assert.InRange(column, 31, 188);
+
+        drawn.Point(column, row, MouseFlags.LeftButtonPressed);
+        drawn.Point(column, row - 1, MouseFlags.LeftButtonPressed | MouseFlags.PositionReport);
+        drawn.Point(column, row - 2, MouseFlags.LeftButtonPressed | MouseFlags.PositionReport);
+        drawn.Point(column, row - 2, MouseFlags.LeftButtonReleased);
+        drawn.Point(column, row - 2, MouseFlags.LeftButtonClicked);
+
+        var compose = Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
+
+        Assert.Equal(["three.png", "one.png", "two.png"], compose.Media.Attachments.Select(attachment => attachment.Name));
     }
 
     /// <summary>The shell on a 200-column terminal, narrowed a step to 180 columns from the eleventh.</summary>
