@@ -325,8 +325,6 @@ public sealed class Drafting
     /// </remarks>
     public void Left(Screen screen)
     {
-        Leaving?.Invoke(screen);
-
         switch (screen)
         {
             case ComposeScreen compose:
@@ -357,8 +355,6 @@ public sealed class Drafting
     /// </remarks>
     public void Uncovered()
     {
-        Uncovering?.Invoke();
-
         if (_stack.Top is not ComposeScreen compose || !ReferenceEquals(_waitingToSend, compose))
         {
             return;
@@ -373,15 +369,6 @@ public sealed class Drafting
 
         Waited(compose);
     }
-
-    /// <summary>
-    ///     Raised as <see cref="Left" /> is told, so that whatever takes screens off a stack can be held to telling it
-    ///     on every way off (#427). Nothing in a session listens.
-    /// </summary>
-    internal event Action<Screen>? Leaving;
-
-    /// <summary>Raised as <see cref="Uncovered" /> is told, for the reason <see cref="Leaving" /> is.</summary>
-    internal event Action? Uncovering;
 
     /// <summary>
     ///     <c>esc</c> while a send is waiting on the compose in front, which is a level of its own over the draft: the
