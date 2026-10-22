@@ -12,11 +12,16 @@ internal sealed class FakeInstanceLimits : IInstanceLimits
 {
     private readonly PostLimits? _limits;
     private readonly WoolyException? _refusal;
+    private readonly IReadOnlyDictionary<string, PostLimits>? _each;
 
-    private FakeInstanceLimits(PostLimits? limits, WoolyException? refusal = null)
+    private FakeInstanceLimits(
+        PostLimits? limits,
+        WoolyException? refusal = null,
+        IReadOnlyDictionary<string, PostLimits>? each = null)
     {
         _limits = limits;
         _refusal = refusal;
+        _each = each;
     }
 
     /// <summary>The access token every call was made with, in order — where a test proves who it was made as.</summary>
@@ -27,6 +32,13 @@ internal sealed class FakeInstanceLimits : IInstanceLimits
 
     /// <summary>An instance setting <paramref name="limits" />, or Mastodon's own where none are said.</summary>
     public static FakeInstanceLimits Setting(PostLimits? limits = null) => new(limits ?? PostLimits.Default);
+
+    /// <summary>
+    ///     Instances each setting their own limits, keyed by domain: where a test proves one instance's limits never
+    ///     reach a draft on another. An instance not among them does not answer.
+    /// </summary>
+    public static FakeInstanceLimits Each(IReadOnlyDictionary<string, PostLimits> limits) =>
+        new(null, each: limits);
 
     /// <summary>An instance that did not answer — refused, rate-limited, unreachable — having recorded the attempt.</summary>
     public static FakeInstanceLimits Unanswering() => new(null);
@@ -42,6 +54,11 @@ internal sealed class FakeInstanceLimits : IInstanceLimits
         Reads.Add(profile.Instance);
         Tokens.Add(profile.AccessToken);
 
-        return _refusal is null ? Task.FromResult(_limits) : Task.FromException<PostLimits?>(_refusal);
+        if (_refusal is not null)
+        {
+            return Task.FromException<PostLimits?>(_refusal);
+        }
+
+        return Task.FromResult(_each is null ? _limits : _each.GetValueOrDefault(profile.Instance));
     }
 }

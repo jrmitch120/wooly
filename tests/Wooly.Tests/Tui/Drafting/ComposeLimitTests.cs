@@ -1,5 +1,6 @@
 using Wooly.Core.Errors;
 using Wooly.Core.Posts;
+using Wooly.Core.Profiles;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
@@ -62,6 +63,104 @@ public class ComposeLimitTests
         drafting.Composing.Rewrite(new string('a', length));
 
         Assert.Equal(role, Assert.Single(Count(drafting.Composing).Spans, span => span.Text.Trim().Length > 0).Role);
+    }
+
+    /// <summary>
+    ///     Limits that arrive while the compose is covered by the file browser reach it all the same, so that coming
+    ///     back finds it measured against them (#424).
+    /// </summary>
+    [Fact]
+    public void LimitsArrivingUnderTheFileBrowserReachTheCompose()
+    {
+        var drafting = Over(FakeInstanceLimits.Setting(Roomy));
+
+        drafting.Press(ShellKey.C);
+        var compose = drafting.Composing;
+        var browser = new FileBrowserScreen(
+            new FolderListing(Path.GetTempPath(), "/tmp", Up: null, []),
+            compose.Limits,
+            compose.Media.Room);
+
+        drafting.Stack.Push(browser);
+        drafting.Fakes.Host.Drain();
+        drafting.Stack.TakeOff(browser);
+
+        Assert.Same(compose, drafting.Composing);
+        Assert.Equal("0 / 1000", Counted(compose));
+    }
+
+    /// <summary>And the same under the description editor, which covers the compose its attachment is on.</summary>
+    [Fact]
+    public void LimitsArrivingUnderTheDescriptionEditorReachTheCompose()
+    {
+        var drafting = Over(FakeInstanceLimits.Setting(Roomy));
+
+        drafting.Press(ShellKey.C);
+        var compose = drafting.Composing;
+        var attachment = new ComposeAttachment(Path.Combine(Path.GetTempPath(), "cat.png"), MediaKind.Image, 1024);
+
+        compose.Media.Attach([attachment]);
+
+        var describing = new DescriptionScreen(compose, attachment);
+
+        drafting.Stack.Push(describing);
+        drafting.Fakes.Host.Drain();
+        drafting.Stack.TakeOff(describing);
+
+        Assert.Same(compose, drafting.Composing);
+        Assert.Equal("0 / 1000", Counted(compose));
+    }
+
+    /// <summary>
+    ///     An instance's limits reach the drafts going out on it and no other: a compose written as a profile on one
+    ///     instance keeps that instance's limit while one written above it as a profile on another hears its own.
+    /// </summary>
+    [Fact]
+    public void LimitsReachOnlyTheDraftsOnTheirOwnInstance()
+    {
+        var drafting = Over(FakeInstanceLimits.Each(new Dictionary<string, PostLimits>
+        {
+            ["mastodon.social"] = Roomy,
+            ["hachyderm.io"] = new(2000, 23),
+        }));
+
+        drafting.Press(ShellKey.C);
+        var social = drafting.Composing;
+
+        drafting.ActAs(new ActiveProfile
+        {
+            Name = "work",
+            Instance = "hachyderm.io",
+            Account = "jeff@hachyderm.io",
+            AccessToken = "token-work",
+        });
+        drafting.Drafting.Do(Verb.Compose);
+        var hachyderm = drafting.Composing;
+
+        drafting.Fakes.Host.Drain();
+
+        Assert.Equal("0 / 1000", Counted(social));
+        Assert.Equal("0 / 2000", Counted(hachyderm));
+    }
+
+    /// <summary>One redraw follows an arrival, however many drafts on the stack it reaches.</summary>
+    [Fact]
+    public void OneRedrawFollowsAnArrivalHoweverManyDraftsItReaches()
+    {
+        var drafting = Over(FakeInstanceLimits.Setting(Roomy));
+
+        drafting.Press(ShellKey.C);
+        var first = drafting.Composing;
+
+        drafting.Drafting.Do(Verb.Compose);
+        var second = drafting.Composing;
+
+        drafting.Fakes.Host.Drain();
+
+        Assert.NotSame(first, second);
+        Assert.Equal("0 / 1000", Counted(first));
+        Assert.Equal("0 / 1000", Counted(second));
+        Assert.Equal(1, drafting.Changes);
     }
 
     /// <summary>A reader who never writes a post costs no request for a limit.</summary>

@@ -1059,6 +1059,13 @@ public sealed class ComposeScreen : Screen, IDraft
     }
 
     /// <summary>
+    ///     Whether this draft goes out on <paramref name="instance" />, which is whose limits it is measured against
+    ///     (#424). Never, where it was opened without saying who it is from.
+    /// </summary>
+    public bool GoesOutOn(string instance) =>
+        _from is { } from && string.Equals(from.Instance, instance, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
     ///     The From header's value in <paramref name="room" /> columns: the handle as a byline's, then the instance,
     ///     muted — the instance cut first, since the handle is the half that says whose post this is.
     /// </summary>
