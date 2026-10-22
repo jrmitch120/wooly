@@ -167,7 +167,7 @@ public sealed class Drafting
         Verb.ToggleSensitive => Ran(ToggleSensitive),
         Verb.ListAttachments => Ran(ListAttachments),
         Verb.OpenBrowser => Ran(Browse),
-        Verb.AttachChosen => Ran(AttachChosen),
+        Verb.UseChosen => Ran(UseChosen),
         Verb.IntoFolder => Ran(() => Browse(browser => browser.FolderPicked)),
         Verb.UpFolder => Ran(() => Browse(browser => browser.Above)),
 
@@ -179,7 +179,6 @@ public sealed class Drafting
         Verb.NextPublicProfileField => Ran(() => Edit<PublicProfileScreen>(form => form.Walk(1))),
         Verb.ChoosePicture => Ran(ChoosePicture),
         Verb.PastePicture => Ran(PastePicture),
-        Verb.UsePicture => Ran(UsePicture),
         _ => Drafted.NotMine,
     };
 
@@ -289,14 +288,9 @@ public sealed class Drafting
     /// </summary>
     private void Attach(ComposeScreen compose, IReadOnlyCollection<string> paths)
     {
-        IReadOnlyList<ComposeAttachment> attached = [];
+        var attached = compose.Media.Attach(paths.Select(path => ComposeAttachment.Of(path, LocalFiles.Size(path))));
 
-        Edit<ComposeScreen>(screen =>
-        {
-            attached = screen.Media.Attach(paths.Select(path => ComposeAttachment.Of(path, LocalFiles.Size(path))));
-
-            return attached.Count > 0 ? DraftChange.Edited : DraftChange.None;
-        });
+        _ = Settled(attached.Count > 0 ? DraftChange.Edited : DraftChange.None);
 
         if (paths.Count - attached.Count is > 0 and var left)
         {
@@ -316,27 +310,6 @@ public sealed class Drafting
     ///     Wooly was launched from (#376).
     /// </summary>
     private string BrowsingFrom => _lastFolder is { } last && Directory.Exists(last) ? last : _launchedFrom;
-
-    /// <summary>
-    ///     What was chosen in <paramref name="browser" /> — or, with nothing chosen, the file under the cursor — with the
-    ///     folder it came from remembered for the next time. With neither, nothing: the folder under the cursor opens
-    ///     instead, since what is chosen comes first wherever the cursor is (review of #372).
-    /// </summary>
-    private IReadOnlyList<string> Took(FileBrowserScreen browser)
-    {
-        var chosen = browser.Take();
-
-        if (chosen.Count == 0)
-        {
-            Browse(opening => opening.FolderPicked);
-
-            return chosen;
-        }
-
-        _lastFolder = browser.Folder;
-
-        return chosen;
-    }
 
     /// <summary>
     ///     <c>ctrl-s</c> on a compose screen, which the window carries out: sends what it says, once it says something,
@@ -605,35 +578,58 @@ public sealed class Drafting
 
     /// <summary>
     ///     <c>⏎</c> in the file browser: the browser goes and what was chosen — or, with nothing chosen, the file under the
-    ///     cursor — is attached to the compose screen under it, exactly as a drop is (#375, #376), and the folder it came
-    ///     from is remembered for the next time. With neither, the folder under the cursor opens: what is chosen comes
-    ///     first wherever the cursor is (review of #372).
+    ///     cursor — is handed to the draft it was opened over, and the folder it came from is remembered for the next
+    ///     time. A compose attaches it, exactly as a drop is (#375, #376); the edit public profile form takes the one file
+    ///     as the picture its walk is on, sent when the form is saved and not before (#407, ADR-0028). With neither, the
+    ///     folder under the cursor opens: what is chosen comes first wherever the cursor is (review of #372).
     /// </summary>
-    private void AttachChosen()
+    private void UseChosen()
     {
         if (_stack.Top is not FileBrowserScreen browser)
         {
             return;
         }
 
-        // The compose it was opened over — directly, or under the attachments screen it was opened from (story 58).
-        var under = _stack.Screens is [.., var beneath, _]
-            ? beneath switch
-            {
-                ComposeScreen compose => compose,
-                AttachmentsScreen listing => listing.Compose,
-                _ => null,
-            }
-            : null;
+        var chosen = browser.Take();
 
-        if (Took(browser) is not { Count: > 0 } chosen || under is null)
+        if (chosen.Count == 0)
+        {
+            Browse(opening => opening.FolderPicked);
+
+            return;
+        }
+
+        _lastFolder = browser.Folder;
+
+        if (OpenedOver(browser) is not { } draft)
         {
             return;
         }
 
         _stack.TakeOff(browser);
-        Attach(under, chosen);
+
+        switch (draft)
+        {
+            case ComposeScreen compose:
+                Attach(compose, chosen);
+
+                break;
+
+            case PublicProfileScreen form:
+                _ = Settled(form.Pick(chosen[0]));
+
+                break;
+        }
     }
+
+    /// <summary>
+    ///     The draft <paramref name="browser" /> was opened over: the nearest beneath it on the stack — the compose under
+    ///     the attachments screen it was opened from counting as that compose (story 58) — or none.
+    /// </summary>
+    private Screen? OpenedOver(FileBrowserScreen browser) => _stack.Screens
+        .TakeWhile(screen => !ReferenceEquals(screen, browser))
+        .Select(screen => screen is AttachmentsScreen listing ? listing.Compose : screen)
+        .LastOrDefault(screen => screen is IDraft);
 
     /// <summary>
     ///     Opens the description editor over the compose screen in front, on the attachment whose row the walk is on
@@ -971,24 +967,6 @@ public sealed class Drafting
         {
             _stack.Push(FileBrowserScreen.ForAPicture(LocalFiles.Listing(BrowsingFrom), picture));
         }
-    }
-
-    /// <summary>
-    ///     <c>⏎</c> in the file browser opened for one of the edit public profile form's pictures (#407): the browser
-    ///     goes and the file chosen — or, with none chosen, the one under the cursor — is the picture the form's walk is
-    ///     on, sent when the form is saved and not before (ADR-0028). With neither, the folder under the cursor opens,
-    ///     as it does for a compose.
-    /// </summary>
-    private void UsePicture()
-    {
-        if (_stack.Top is not FileBrowserScreen { Picture: not null } browser
-            || Took(browser) is not { Count: > 0 } chosen)
-        {
-            return;
-        }
-
-        _stack.TakeOff(browser);
-        _ = Edit<PublicProfileScreen>(form => form.Pick(chosen[0]));
     }
 
     /// <summary>
