@@ -178,6 +178,39 @@ public class ShellWidthTests
         AssertMargins(drawn, left: 10, right: 10);
     }
 
+    /// <summary>The keymap lists the three keys with the frame's, everywhere.</summary>
+    [Fact]
+    public async Task TheKeymapListsTheKeysWithTheFrame()
+    {
+        using var drawn = await DrawnShell.Of(80, 40, Themes.Plain);
+
+        drawn.Press(new Key('?'));
+
+        var rows = drawn.Rows();
+        var everywhere = Array.FindIndex(rows, row => row.Contains("Everywhere", StringComparison.Ordinal));
+        var keys = Array.FindIndex(rows, row => row.Contains("- / + or =", StringComparison.Ordinal));
+
+        Assert.InRange(everywhere, 0, keys - 1);
+        Assert.Contains("narrow or widen the shell", rows[keys], StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    ///     And the status row does not: they are set and forgotten, and would take room on every screen. On a terminal
+    ///     wide enough for every key the feed offers, none of them is a width key.
+    /// </summary>
+    [Fact]
+    public async Task TheStatusRowDoesNotOfferTheKeys()
+    {
+        using var drawn = await DrawnShell.Of(300, 24, Themes.Plain);
+
+        var status = drawn.Rows()[^1];
+
+        Assert.DoesNotContain("…+", status, StringComparison.Ordinal);
+        Assert.DoesNotContain(": -", status, StringComparison.Ordinal);
+        Assert.DoesNotContain(": +", status, StringComparison.Ordinal);
+        Assert.DoesNotContain(": =", status, StringComparison.Ordinal);
+    }
+
     /// <summary>
     ///     On a screen taking typing the three keys are typed, as <c>?</c> and <c>/</c> are: a search for
     ///     <c>c++</c> or <c>a=b</c> is a search, never a narrower shell.
