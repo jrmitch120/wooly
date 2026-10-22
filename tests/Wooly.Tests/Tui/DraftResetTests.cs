@@ -41,7 +41,53 @@ public class DraftResetTests : IDisposable
         Assert.Equal(DestinationKind.Home, drawn.Shell.Rail.Showing.Kind);
     }
 
-    /// <summary>A drawn compose with two files attached, their rows folded, and the attachments screen listing them.</summary>
+    /// <summary>
+    ///     Keep, any key but <c>y</c>, leaves the reader exactly where they were: the list in front over the compose, the
+    ///     row they had picked still picked, and nothing attached called off.
+    /// </summary>
+    [Fact]
+    public async Task KeepingAfterSlash_LeavesTheListAsItWas()
+    {
+        using var drawn = await Listing();
+        var listed = Assert.IsType<AttachmentsScreen>(drawn.Shell.Screen);
+
+        drawn.Press(Key.CursorDown);
+
+        var picked = listed.Compose.Media.Picked;
+
+        drawn.Press(new Key('/'));
+        drawn.Press(new Key('n'));
+        drawn.Settle();
+
+        Assert.Null(drawn.Shell.Asking);
+        Assert.Same(listed, drawn.Shell.Screen);
+        Assert.Equal(["Home", "Compose", "Media"], drawn.Shell.Crumbs);
+        Assert.Equal("two.png", picked?.Name);
+        Assert.Same(picked, listed.Compose.Media.Picked);
+        Assert.Equal(DestinationKind.Home, drawn.Shell.Rail.Showing.Kind);
+        Assert.DoesNotContain(drawn.Built.Author.Attaching, sending => sending.CalledOff);
+    }
+
+    /// <summary><c>y</c> throws the draft away, calls off what it was sending up, and goes to Search.</summary>
+    [Fact]
+    public async Task DiscardingAfterSlash_LetsTheUploadsGoAndGoesToSearch()
+    {
+        using var drawn = await Listing();
+
+        drawn.Press(new Key('/'));
+        drawn.Press(Key.Y);
+        drawn.Built.Host.SettleAll();
+        drawn.Redraw();
+
+        Assert.Null(drawn.Shell.Asking);
+        Assert.IsType<SearchScreen>(drawn.Shell.Screen);
+        Assert.Equal(1, drawn.Shell.Depth);
+        Assert.Equal(DestinationKind.Search, drawn.Shell.Rail.Showing.Kind);
+        Assert.Equal(3, drawn.Built.Author.Attaching.Count);
+        Assert.All(drawn.Built.Author.Attaching, sending => Assert.True(sending.CalledOff));
+    }
+
+    /// <summary>A drawn compose with three files attached, their rows folded, and the attachments screen listing them.</summary>
     private async Task<DrawnShell> Listing()
     {
         var drawn = await DrawnShell.Of(80, Short, Themes.Plain, new AShell { LaunchedFrom = _files.Path });
