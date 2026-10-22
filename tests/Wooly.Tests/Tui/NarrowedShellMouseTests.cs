@@ -25,6 +25,9 @@ public class NarrowedShellMouseTests
     /// <summary>A row inside both panels, below their top edges.</summary>
     private const int Inside = 3;
 
+    /// <summary>A column inside the narrowed shell's rail, clear of its left edge and its mark column.</summary>
+    private const int OverRail = Left + RailLines.Width / 2;
+
     /// <summary>
     ///     A notch over either margin moves the page as a notch over the content panel does, a row at a time, either way.
     /// </summary>
@@ -110,6 +113,21 @@ public class NarrowedShellMouseTests
         Assert.Empty(drawn.Built.Engagement.Votes);
     }
 
+    /// <summary>A click on a destination on the narrowed shell's rail arrives at the one drawn under the pointer.</summary>
+    [Theory]
+    [InlineData("Notifications")]
+    [InlineData("Local")]
+    public async Task AClickOnTheRailArrivesAtTheEntryUnderThePointer(string label)
+    {
+        using var drawn = await Narrowed();
+
+        drawn.Click(OverRail, RailRowOf(drawn, label));
+        drawn.Settle();
+
+        Assert.Equal(label, drawn.Shell.Rail.Showing.Label);
+        Assert.Equal(drawn.Shell.Rail.Current, drawn.Shell.Rail.Cursor);
+    }
+
     /// <summary>The shell on a 200-column terminal, narrowed a step to 180 columns from the eleventh.</summary>
     private static async Task<DrawnShell> Narrowed(AShell? built = null, int height = 30)
     {
@@ -120,6 +138,17 @@ public class NarrowedShellMouseTests
         Assert.Equal(Left, drawn.Rows()[0].IndexOf('╭', StringComparison.Ordinal));
 
         return drawn;
+    }
+
+    /// <summary>The terminal row the narrowed shell's rail draws <paramref name="text" /> on.</summary>
+    private static int RailRowOf(DrawnShell drawn, string text)
+    {
+        var rows = drawn.Rail();
+        var row = Array.FindIndex(rows, line => line.Contains(text, StringComparison.Ordinal));
+
+        Assert.True(row >= 0, $"Nothing on the rail reads {text}:\n{string.Join('\n', rows)}");
+
+        return row;
     }
 
     /// <summary>Four posts on Home, by people other than the reader.</summary>
