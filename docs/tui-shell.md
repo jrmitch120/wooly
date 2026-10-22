@@ -1065,7 +1065,7 @@ lists them under a read-only Media header of its own (#381).
   compose's own rows (`ComposeMedia`, #387), drawn as under the header, the first picked. Every key and click a row takes under the header it
   takes there — `⏎` or a click on the description describes, `del`/`backspace` or a click on `x` takes off, `ctrl-z`
   brings back, `shift-↑↓` or a drag moves, `r` or a click on `retry (r)` retries, `s` or a click on the toggle flips
-  it — and `ctrl-o` attaches more, all of it changing the compose's own draft through the shell; `↑`/`↓` walk the
+  it — and `ctrl-o` attaches more, all of it changing the compose's own draft through drafting; `↑`/`↓` walk the
   rows. `esc` goes back to the draft, the walk on the header.
 - **The sensitive toggle ends the header's line**, after a `·`, once anything is attached (#379): `□ sensitive` muted
   while it is off, `■ sensitive` in `content-warning` while it is on, and `■ sensitive (warning)`, the same, while a
@@ -1193,9 +1193,9 @@ crumbed `Attach`, in the look the prototype on `prototype/374-attachments` settl
 does a post already carrying all it can, which says `This post carries all it can — 4 of 4.`
 
 - **It works on the real file system, and opens where the author last attached from** this session — else in the
-  folder Wooly was launched from. Nothing is saved: the next session starts from the launch folder again. The shell
-  reads each folder (`LocalFiles`) and hands the screen a `FolderListing`; the screen reads nothing itself, as no
-  screen does (ADR-0015), and says which folder `→`, `←` or `⏎` opens next.
+  folder Wooly was launched from. Nothing is saved: the next session starts from the launch folder again. Drafting
+  (ADR-0029) reads each folder (`LocalFiles`) and hands the screen a `FolderListing`; the screen reads nothing
+  itself, as no screen does (ADR-0015), and says which folder `→`, `←` or `⏎` opens next.
 - **Rows, top to bottom:** the folder, `~` for the home folder and cut from its start where it is long, with
   `2 chosen · 2 more fit` (or `4 more fit on this post`) against the right; the filter, `filter ss0229▏` or
   `type to filter`, with what is listed and the key that changes it against the right — `pictures, video, sound ·

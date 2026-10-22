@@ -10,15 +10,17 @@ namespace Wooly.Tui.Drafting;
 
 /// <summary>
 ///     What the session does for the **draft**s it has open, beyond holding what is written (ADR-0029): opening a compose
-///     screen to post, reply or edit, with the defaults it starts on and the limits it is measured against; sending up
-///     what is attached and describing it; and sending, at once or once what it waits on is done. One for the session,
-///     beside the shell, rather than one per draft: what it remembers outlives any one draft.
+///     screen to post, reply or edit, with the defaults it starts on and the limits it is measured against; attaching
+///     what is pasted, dropped or chosen in the file browser, sending it up and describing it; every change to a draft
+///     and to its attachments' rows; and sending, at once or once what it waits on is done. One for the session, beside
+///     the shell, rather than one per draft: what it remembers outlives any one draft.
 /// </summary>
 /// <remarks>
 ///     It reaches the shell through two things and no more: the stack (<see cref="IStack" />), and the
 ///     <see cref="Reach" /> a screen gets for a verb of its own — read afresh on every call, so a switch of profile needs
-///     no rewiring. A draft verb comes in through <see cref="Do" />, and the shell tells it when a screen leaves
-///     (<see cref="Left" />) and when one is uncovered (<see cref="Uncovered" />).
+///     no rewiring. A draft verb comes in through <see cref="Do" />, a view's change to a draft through
+///     <see cref="Edit{T}" />, and the shell tells it when a screen leaves (<see cref="Left" />) and when one is
+///     uncovered (<see cref="Uncovered" />).
 ///     <para>
 ///         Everything here runs on the drawing thread: what an instance answers is brought back onto it through the
 ///         shell host, as it always was.

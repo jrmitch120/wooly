@@ -8,7 +8,7 @@ namespace Wooly.Tui.Views;
 /// <summary>
 ///     Who a post being written goes to (ADR-0024, #338): a row of radio buttons laid over To's value column, the way
 ///     the warning field is laid over the warning's. It is there to take the typing and the mouse — what it shows and
-///     what a key or a click on it means are the compose screen's, asked through the shell.
+///     what a key or a click on it means are the compose screen's, carried out by drafting.
 /// </summary>
 /// <remarks>
 ///     It leaves every key it does not mean to swallow to the window and so to <c>Keymap</c>: the arrows, which walk the
