@@ -64,6 +64,30 @@ public class ComposeLimitTests
         Assert.Equal(role, Assert.Single(Count(drafting.Composing).Spans, span => span.Text.Trim().Length > 0).Role);
     }
 
+    /// <summary>
+    ///     Limits that arrive while the compose is covered by the file browser reach it all the same, so that coming
+    ///     back finds it measured against them (#424).
+    /// </summary>
+    [Fact]
+    public void LimitsArrivingUnderTheFileBrowserReachTheCompose()
+    {
+        var drafting = Over(FakeInstanceLimits.Setting(Roomy));
+
+        drafting.Press(ShellKey.C);
+        var compose = drafting.Composing;
+        var browser = new FileBrowserScreen(
+            new FolderListing(Path.GetTempPath(), "/tmp", Up: null, []),
+            compose.Limits,
+            compose.Media.Room);
+
+        drafting.Stack.Push(browser);
+        drafting.Fakes.Host.Drain();
+        drafting.Stack.TakeOff(browser);
+
+        Assert.Same(compose, drafting.Composing);
+        Assert.Equal("0 / 1000", Counted(compose));
+    }
+
     /// <summary>A reader who never writes a post costs no request for a limit.</summary>
     [Fact]
     public void NothingIsAskedUntilAPostIsWritten()
