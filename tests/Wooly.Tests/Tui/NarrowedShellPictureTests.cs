@@ -96,6 +96,117 @@ public class NarrowedShellPictureTests
         Assert.Equal(1, drawn.SixelsSent());
     }
 
+    /// <summary>
+    ///     On a terminal drawing Kitty's placeholders, every placeholder cell is inside the narrowed panel, and the box
+    ///     takes the panel's width — numbered from its own first column, wherever the shell has put it.
+    /// </summary>
+    [Fact]
+    public async Task KittyPlaceholderCellsFallInsideTheNarrowedContentPanel()
+    {
+        var terminal = new FakeTerminalImages();
+
+        using var drawn = await Narrowed(kittyImages: terminal, drawsPlaceholders: true);
+
+        var sent = terminal.Transmitted[^1];
+        var cells = PlaceholderCells(drawn);
+
+        Assert.Equal(sent.Rows * sent.Columns, cells.Count);
+        Assert.All(cells, cell => Assert.InRange(cell.Column, FirstInside, LastInside));
+        Assert.Equal(LastInside, cells.Max(cell => cell.Column));
+
+        var top = cells.Min(cell => cell.Row);
+        var left = cells.Min(cell => cell.Column);
+
+        Assert.All(cells, cell =>
+        {
+            Assert.Equal(sent.Id, cell.Id);
+            Assert.Equal(KittyPlaceholder.Of(cell.Row - top, cell.Column - left), cell.Grapheme);
+        });
+    }
+
+    /// <summary>
+    ///     As placeholders, a step either way paints the picture's cells in the new panel, naming an image sent sized to
+    ///     it: one sent for the narrower panel when narrowed, and the one the terminal already holds for the whole width
+    ///     when widened back.
+    /// </summary>
+    [Fact]
+    public async Task AStepPaintsKittyPlaceholdersAgainAtTheNewWidthAndPlace()
+    {
+        var terminal = new FakeTerminalImages();
+
+        using var drawn = await AtFullWidth(kittyImages: terminal, drawsPlaceholders: true);
+
+        drawn.DrawAsTheLoopDraws();
+        drawn.PressAsTheLoopDraws(new Key('-'));
+
+        // From just past the panel's left edge to just before its right one.
+        Assert.Equal((FirstInside + 1, LastInside), Across(PlaceholderCells(drawn)));
+        Assert.Equal(157, Named(PlaceholderCells(drawn)).Columns);
+
+        drawn.PressAsTheLoopDraws(new Key('+'));
+
+        Assert.Equal((RailLines.Width + 2, 198), Across(PlaceholderCells(drawn)));
+        Assert.Equal(177, Named(PlaceholderCells(drawn)).Columns);
+
+        // The image the cells name, of those the terminal was sent.
+        FakeTerminalImages.Transmission Named(List<PlaceholderCell> cells) =>
+            Assert.Single(terminal.Transmitted, sent => sent.Id == cells[0].Id);
+    }
+
+    /// <summary>
+    ///     On a terminal answering Kitty but not known to draw its placeholders, the picture is drawn through a box —
+    ///     and the box, and what the terminal is let draw it in, are inside the narrowed panel.
+    /// </summary>
+    [Fact]
+    public async Task AKittyPictureDrawnThroughABoxFallsInsideTheNarrowedContentPanel()
+    {
+        var terminal = new FakeTerminalImages();
+
+        using var drawn = await Narrowed(kittyImages: terminal, answersKitty: true);
+
+        var cells = BoxCells(drawn);
+
+        Assert.Empty(terminal.Transmitted);
+        Assert.Empty(PlaceholderCells(drawn));
+        Assert.NotEmpty(cells);
+        Assert.All(cells, cell => Assert.InRange(cell.X, FirstInside, LastInside));
+        Assert.Equal(LastInside, cells.Max(cell => cell.X));
+    }
+
+    /// <summary>
+    ///     Through a Kitty box, a step either way places the picture again in the frame it lands, at the new panel's
+    ///     origin and width.
+    /// </summary>
+    [Fact]
+    public async Task AStepPlacesAKittyBoxAgainAtTheNewWidthAndPlace()
+    {
+        using var drawn = await AtFullWidth(answersKitty: true);
+
+        drawn.DrawAsTheLoopDraws();
+        drawn.PressAsTheLoopDraws(new Key('-'));
+
+        AssertPlacedInTheFrameSaying(drawn, "Width 90%");
+        Assert.Equal((FirstInside + 1, LastInside), Across(BoxCells(drawn)));
+
+        drawn.PressAsTheLoopDraws(new Key('+'));
+
+        AssertPlacedInTheFrameSaying(drawn, "Width 100%");
+        Assert.Equal((RailLines.Width + 2, 198), Across(BoxCells(drawn)));
+    }
+
+    /// <summary>The last frame written placed a Kitty image, and is the frame that said <paramref name="said" />.</summary>
+    private static void AssertPlacedInTheFrameSaying(DrawnShell drawn, string said)
+    {
+        var frame = drawn.Application.Driver!.GetOutput().GetLastOutput();
+
+        Assert.Contains(said, frame, StringComparison.Ordinal);
+        Assert.Contains("\u001b_G", frame, StringComparison.Ordinal);
+    }
+
+    /// <summary>The first and last column <paramref name="cells" /> take.</summary>
+    private static (int First, int Last) Across(IEnumerable<PlaceholderCell> cells) =>
+        Across([.. cells.Select(cell => new Point(cell.Column, cell.Row))]);
+
     /// <summary>The first and last column <paramref name="cells" /> take.</summary>
     private static (int First, int Last) Across(List<Point> cells) =>
         (cells.Min(cell => cell.X), cells.Max(cell => cell.X));
@@ -144,6 +255,32 @@ public class NarrowedShellPictureTests
             APost.With(id: "220"),
             APost.With(id: "330")),
     };
+
+    /// <summary>Every placeholder cell on screen, with where it is and the image id its colour carries.</summary>
+    private static List<PlaceholderCell> PlaceholderCells(DrawnShell drawn)
+    {
+        var contents = drawn.Application.Driver!.Contents!;
+        var cells = new List<PlaceholderCell>();
+
+        for (var row = 0; row < contents.GetLength(0); row++)
+        {
+            for (var column = 0; column < contents.GetLength(1); column++)
+            {
+                var grapheme = contents[row, column].Grapheme;
+
+                if (grapheme.StartsWith(Placeholder, StringComparison.Ordinal))
+                {
+                    var colour = drawn.Cell(row, column).Foreground;
+
+                    cells.Add(new PlaceholderCell(row, column, grapheme, (colour.R << 16) | (colour.G << 8) | colour.B));
+                }
+            }
+        }
+
+        return cells;
+    }
+
+    private sealed record PlaceholderCell(int Row, int Column, string Grapheme, int Id);
 
     /// <summary>Every cell a picture was drawn in through a box: where it was placed, cut to where the terminal was let draw it.</summary>
     private static List<Point> BoxCells(DrawnShell drawn)
