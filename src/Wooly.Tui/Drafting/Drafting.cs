@@ -464,9 +464,13 @@ public sealed class Drafting
     ///     Where <paramref name="attachment" /> on <paramref name="compose" /> has got to, heard on the drawing thread —
     ///     and, where that was the last thing a waiting send was waiting on, the send (ADR-0026, #375).
     /// </summary>
+    /// <remarks>
+    ///     A report for a compose no longer on the stack is ignored: one already on its way as the compose left still
+    ///     lands, and the draft it was for has gone (#425).
+    /// </remarks>
     private void Progressed(ComposeScreen compose, ComposeAttachment attachment, AttachmentState state)
     {
-        if (!compose.Media.Progressed(attachment, state))
+        if (Gone(compose) || !compose.Media.Progressed(attachment, state))
         {
             return;
         }
@@ -501,6 +505,12 @@ public sealed class Drafting
             _ = Send();
         }
     }
+
+    /// <summary>
+    ///     Whether <paramref name="compose" /> is no longer on the stack — taken off, its uploads let go — so that a report
+    ///     still landing for it changes nothing, says nothing and redraws nothing (#425).
+    /// </summary>
+    private bool Gone(ComposeScreen compose) => !_stack.Screens.Any(screen => ReferenceEquals(screen, compose));
 
     /// <summary>That a send is waiting on <paramref name="unfinished" /> attachments, and how to call it off.</summary>
     private void SayWaiting(int unfinished) => Reach.Say(

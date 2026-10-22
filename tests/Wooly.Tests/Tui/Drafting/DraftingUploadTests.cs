@@ -260,6 +260,48 @@ public class DraftingUploadTests : IDisposable
         Assert.False(drafting.Fakes.Author.Attaching.Single().CalledOff);
     }
 
+    /// <summary>
+    ///     An upload's report already on its way as its compose leaves the stack is ignored: the compose that has gone is
+    ///     left as it was, nothing is said and nothing is redrawn (#425).
+    /// </summary>
+    [Fact]
+    public void AReportForAComposeThatHasLeftIsIgnored()
+    {
+        var drafting = Composing();
+        var compose = drafting.Composing;
+
+        drafting.Drafting.Paste(_files.WriteFile("cat.png"));
+        drafting.Fakes.Author.Attaching.Single().Ready();
+        drafting.Stack.TakeOff(compose);
+        drafting.Notice = "untouched";
+
+        var changes = drafting.Changes;
+
+        drafting.Fakes.Host.Drain();
+
+        Assert.IsType<AttachmentState.Sending>(compose.Media.Attachments.Single().State);
+        Assert.Equal(changes, drafting.Changes);
+        Assert.Equal("untouched", drafting.Notice);
+    }
+
+    /// <summary>
+    ///     A report for a compose still on the stack under a screen opened over it lands as ever: the compose is not
+    ///     in front, but it has not gone (#425).
+    /// </summary>
+    [Fact]
+    public void AReportForAComposeUnderAScreenStillLands()
+    {
+        var drafting = Composing();
+        var compose = drafting.Composing;
+
+        drafting.Drafting.Paste(_files.WriteFile("cat.png"));
+        drafting.Stack.Push(ADrafting.Home());
+        drafting.Fakes.Author.Attaching.Single().Ready();
+        drafting.Fakes.Host.Drain();
+
+        Assert.IsType<AttachmentState.Ready>(compose.Media.Attachments.Single().State);
+    }
+
     public void Dispose() => _files.Dispose();
 
     /// <summary>Drafting with a compose open over Home, its instance setting <paramref name="limits" />.</summary>
