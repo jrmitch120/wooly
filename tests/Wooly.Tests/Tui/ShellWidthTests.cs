@@ -7,6 +7,7 @@ using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 using Wooly.Tui.Views;
 using Attribute = Terminal.Gui.Drawing.Attribute;
+using Color = Terminal.Gui.Drawing.Color;
 
 namespace Wooly.Tests.Tui;
 
@@ -17,6 +18,12 @@ namespace Wooly.Tests.Tui;
 /// </summary>
 public class ShellWidthTests
 {
+    /// <summary>The terminal's own foreground and background, which is what a cell outside the shell is left at.</summary>
+    private static readonly Attribute TheTerminalsOwn = new(Color.None, Color.None);
+
+    /// <summary>The escapes that say "the terminal's own colours", rather than any of this client's.</summary>
+    private const string OwnColours = "\u001b[39m\u001b[49m";
+
     /// <summary>What is typed on a screen taking typing: each of the three keys, between letters.</summary>
     private const string Typed = "a-b+c=d";
 
@@ -289,6 +296,26 @@ public class ShellWidthTests
     }
 
     /// <summary>
+    ///     A resize that leaves the shell where it was — 70% of 100 and of 101 are both under the floor, so 80 columns from
+    ///     the eleventh either way — still leaves the column it adds to the terminal, not to a black Terminal.Gui cleared
+    ///     it to.
+    /// </summary>
+    [Fact]
+    public async Task AResizeThatLeavesTheShellWhereItWasLeavesTheNewColumnsToTheTerminal()
+    {
+        using var drawn = await DrawnShell.Of(200, 24, Midnight());
+
+        drawn.Press(new Key('-'));
+        drawn.Press(new Key('-'));
+        drawn.Press(new Key('-'));
+        drawn.Resize(100, 24);
+        drawn.Resize(101, 24);
+
+        Assert.Equal((10, 80), Shell(drawn));
+        AssertMargins(drawn, left: 10, right: 11);
+    }
+
+    /// <summary>
     ///     The margins are the terminal's: blank, at its default attribute, under a theme with a page of its own — no
     ///     role, so no theme entry, painted them. An odd column left over falls on the right, so the left edge moves only
     ///     when the width does.
@@ -303,6 +330,31 @@ public class ShellWidthTests
         // 90% of 201 is 180.9, so 180 columns, and 21 to share: 10 on the left, 11 on the right.
         Assert.Equal((10, 180), Shell(drawn));
         AssertMargins(drawn, left: 10, right: 11);
+    }
+
+    /// <summary>
+    ///     Under every theme, and with no colour at all: the margins are written as the terminal's own colours, never as
+    ///     any of the theme's — nor as the white on black Terminal.Gui clears a screen to.
+    /// </summary>
+    [Theory]
+    [InlineData("dark")]
+    [InlineData("light")]
+    [InlineData("plain")]
+    public async Task TheMarginsAreTheTerminalsOwnUnderEveryTheme(string name)
+    {
+        var theme = name switch
+        {
+            "dark" => Themes.Dark,
+            "light" => Themes.Light,
+            _ => Themes.Plain,
+        };
+
+        using var drawn = await DrawnShell.Of(200, 24, theme);
+
+        drawn.Press(new Key('-'));
+
+        AssertMargins(drawn, left: 10, right: 10, theme);
+        Assert.StartsWith($"{OwnColours}          ", drawn.Ansi(), StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -370,20 +422,21 @@ public class ShellWidthTests
 
     /// <summary>
     ///     Every cell of every row in the <paramref name="left" /> columns at the start and the <paramref name="right" /> at
-    ///     the end is blank and at the terminal's default attribute — and the columns just inside them are the shell's.
+    ///     the end is blank and at the terminal's default attribute — and, under <paramref name="theme" />, the columns
+    ///     just inside them are the shell's.
     /// </summary>
-    private static void AssertMargins(DrawnShell drawn, int left, int right)
+    private static void AssertMargins(DrawnShell drawn, int left, int right, ITheme? theme = null)
     {
         var rows = drawn.Rows();
         var width = rows[0].Length;
-        var page = Midnight().For(Role.Body);
+        var page = (theme ?? Midnight()).For(Role.Body);
 
         for (var row = 0; row < rows.Length; row++)
         {
             foreach (var column in Enumerable.Range(0, left).Concat(Enumerable.Range(width - right, right)))
             {
                 Assert.Equal(' ', rows[row][column]);
-                Assert.Equal(Attribute.Default, drawn.Cell(row, column));
+                Assert.Equal(TheTerminalsOwn, drawn.Cell(row, column));
             }
 
             Assert.Equal(page.Background, drawn.Cell(row, left).Background);

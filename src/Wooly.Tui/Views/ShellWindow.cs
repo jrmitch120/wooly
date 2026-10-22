@@ -58,6 +58,13 @@ internal sealed class ShellWindow : Window
     /// </remarks>
     internal const string ContentId = "content";
 
+    /// <summary>
+    ///     The terminal's own foreground and background, which Terminal.Gui writes as <c>CSI 39m</c> and <c>CSI 49m</c>:
+    ///     what a cell outside the shell is left at (#414).
+    /// </summary>
+    private static readonly Terminal.Gui.Drawing.Attribute TheTerminalsOwn =
+        new(Terminal.Gui.Drawing.Color.None, Terminal.Gui.Drawing.Color.None);
+
     private readonly PaintedView _content;
 
     /// <summary>Compose's fields, laid over the content panel's viewport (#365).</summary>
@@ -164,6 +171,7 @@ internal sealed class ShellWindow : Window
         X = Pos.Func(_ => shell.ShellWidth.Left(TerminalColumns));
         Width = Dim.Func(_ => shell.ShellWidth.Columns(TerminalColumns));
         Height = Dim.Fill();
+        Initialized += (_, _) => LeftToTheTerminal(App);
 
         // The cells no region covers, which are the window's own. There are none now that the panels meet the rail and
         // the status row edge to edge, but every region clears itself in the theme's page before it draws, so a cell
@@ -913,6 +921,28 @@ internal sealed class ShellWindow : Window
         {
             application.ClearScreenNextIteration = true;
         }
+    }
+
+    /// <summary>
+    ///     Leaves every cell no view draws — the margins either side of a narrowed shell — at the terminal's own colours
+    ///     (#414). Terminal.Gui clears a screen to a white on black of its own, which written out is a black margin on
+    ///     any terminal whose background is not; so each clear is put back to the terminal's own, under no
+    ///     <see cref="Role" /> and in no theme, before anything draws over it.
+    /// </summary>
+    private static void LeftToTheTerminal(IApplication? application)
+    {
+        if (application?.Driver is not { } driver)
+        {
+            return;
+        }
+
+        driver.ClearedContents += (_, _) =>
+        {
+            var was = driver.SetAttribute(TheTerminalsOwn);
+
+            driver.FillRect(driver.Screen);
+            driver.SetAttribute(was);
+        };
     }
 
     /// <summary>How wide the terminal is, which the shell's columns are a share of.</summary>

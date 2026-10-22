@@ -102,8 +102,10 @@ this document gives — the rail's 20, the 58 columns at 80 — is the shell's, 
   and at most 100. Narrower is refused where there is none, or where it would take the shell under 80 columns on this
   terminal, and says `Narrowest`; wider is refused only at 100, and says `Full width`. A step taken says `Width 90%`.
 - **The margins** are cells the window never draws, left at the terminal's default attribute: no **Role**, so no theme
-  entry, under any theme or `NO_COLOR`. They are the terminal's, outside the shell (ADR-0014, ADR-0021). A step clears
-  the screen as it lays the window out again, so nothing of the wider shell is left in them.
+  entry, under any theme or `NO_COLOR`. They are the terminal's, outside the shell (ADR-0014, ADR-0021). Terminal.Gui
+  clears a screen to a white on black of its own, which written out would be a black margin, so the window puts every
+  clear back to the terminal's own colours (`CSI 39m`, `CSI 49m`) before anything draws. A step clears the screen as it
+  lays the window out again, so nothing of the wider shell is left in them.
 - **Everything inside follows for free**: the root window (`ShellWindow`) is the shell, given an `X` and a `Width` from
   the share, and the rail, the content panel, its title row, the status row and the overlays laid over the panel's
   viewport — compose, the description editor, the public profile form — are all laid out against it. The rail-hidden
