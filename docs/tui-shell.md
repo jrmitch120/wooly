@@ -110,6 +110,11 @@ this document gives — the rail's 20, the 58 columns at 80 — is the shell's, 
   the share, and the rail, the content panel, its title row, the status row and the overlays laid over the panel's
   viewport — compose, the description editor, the public profile form — are all laid out against it. The rail-hidden
   first-run shell is centred the same way. "Nothing jumps" reads the shell's width where it read the terminal's.
+- **The mouse inside the shell** lands where it would at full width: every hit test works out screen positions from the
+  view tree, so the offset carries through. **In the margins** the window takes every mouse event before any view is
+  asked (`ShellWindow.InTheMargins`, #416): a button there does nothing, and a wheel notch there is the content panel's
+  notch. A view holding the mouse — one being dragged in — keeps its events wherever the pointer goes, so its let-go
+  still reaches it (**Pointer**, below).
 
 ## Screens, and who owns them
 
@@ -2027,6 +2032,8 @@ panel the pointer is over. What the gesture then does is a move the keys already
 |---|---|---|
 | Wheel down / up | The content panel | The page moves one row per notch, the finest step a terminal has, so a trackpad's stream of small events glides rather than lurching three rows at a time (#292). Three notches are as far as one `↓` / `↑`, and it clamps at the same ends. **Picked** stays where it is, so after wheeling it off the page `j`/`k` reclaim the topmost thing on the page, as after the arrows. On help and notices too, which are content like any other screen. A notch is that arrow through the **Keymap**, with a row for its step, so with a confirmation open it declines it and scrolls nothing, as `↓` does (#287) |
 | Wheel | The rail | Nothing: not the cursor, not the selection, not the rail's scroll and not the page beside it |
+| Wheel down / up | Either margin of a narrowed shell | The content panel's wheel, exactly: so a reader need not aim for the panel to scroll (**Shell width**, #416) |
+| Click, double click, right click, drag | Either margin of a narrowed shell | Nothing, not even declining an open question: the margins are the terminal's, outside the shell (#416) |
 | Wheel sideways | Anywhere | Nothing. A trackpad drifting sideways sends these between vertical notches, and Terminal.Gui's left and right carry up's and down's bits, so they are asked about first and dropped |
 | Wheel, click | The compose editor | Terminal.Gui's own handling: the wheel scrolls the draft and a click places the caret. Nothing of the shell's |
 | Click | A value of compose's **To** | Chooses it and gives To the typing, so `←`/`→` carry on from there; a click on either arrow of the narrow form steps, and anywhere else on the row gives To the typing. A value To does not allow, and the whole row on an edit, ignores it. The wheel over the row does nothing (ADR-0024, #338) |

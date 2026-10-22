@@ -171,7 +171,15 @@ internal sealed class ShellWindow : Window
         X = Pos.Func(_ => shell.ShellWidth.Left(TerminalColumns));
         Width = Dim.Func(_ => shell.ShellWidth.Columns(TerminalColumns));
         Height = Dim.Fill();
-        Initialized += (_, _) => LeftToTheTerminal(App);
+        Initialized += (_, _) =>
+        {
+            LeftToTheTerminal(App);
+
+            if (App is { } application)
+            {
+                application.Mouse.MouseEvent += (_, mouse) => InTheMargins(mouse);
+            }
+        };
 
         // The cells no region covers, which are the window's own. There are none now that the panels meet the rail and
         // the status row edge to edge, but every region clears itself in the theme's page before it draws, so a cell
@@ -417,6 +425,16 @@ internal sealed class ShellWindow : Window
             return base.OnMouseEvent(mouse);
         }
 
+        return Wheeled(pressed);
+    }
+
+    /// <summary>
+    ///     A notch of the wheel over the content panel, <paramref name="pressed" /> the arrow it stands for — or over
+    ///     either margin of a narrowed shell, which is the content panel's to the wheel (#416).
+    /// </summary>
+    /// <returns>Always that it was the shell's.</returns>
+    private bool Wheeled(ShellKey pressed)
+    {
         // A notch is the arrow it stands for, open question and all: anything but the agreeing key declines one, so a
         // notch declines it too and scrolls nothing behind it (story 43).
         if (Declined())
@@ -943,6 +961,30 @@ internal sealed class ShellWindow : Window
             driver.FillRect(driver.Screen);
             driver.SetAttribute(was);
         };
+    }
+
+    /// <summary>
+    ///     A mouse event in either margin of a narrowed shell, taken before any view is asked (#416): those cells are the
+    ///     terminal's, not the shell's, so every button there does nothing — but the wheel scrolls the content panel, as
+    ///     it does over the panel itself, so that a reader need not aim for the panel to scroll.
+    /// </summary>
+    /// <remarks>
+    ///     A view holding the mouse — one being dragged in — keeps every event wherever the pointer goes, as it does at
+    ///     full width, so that its let-go reaches it.
+    /// </remarks>
+    private void InTheMargins(Mouse mouse)
+    {
+        if (mouse.Handled || App?.Mouse.IsGrabbed() == true || FrameToScreen().Contains(mouse.ScreenPosition))
+        {
+            return;
+        }
+
+        mouse.Handled = true;
+
+        if (Notched(mouse) is { } pressed)
+        {
+            _ = Wheeled(pressed);
+        }
     }
 
     /// <summary>How wide the terminal is, which the shell's columns are a share of.</summary>
