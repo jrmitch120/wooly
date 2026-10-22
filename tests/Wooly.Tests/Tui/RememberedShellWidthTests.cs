@@ -99,4 +99,22 @@ public class RememberedShellWidthTests
         Assert.Equal((50, 100), Shell(drawn));
         Assert.Empty(built.ShellWidths.Saved);
     }
+
+    /// <summary>
+    ///     A config file edited by hand, while the TUI runs, into something that no longer reads cannot be saved to. The
+    ///     status row says why, as <c>D</c> does, and the step still holds for this session, since it was seen.
+    /// </summary>
+    [Fact]
+    public async Task AStepThatCannotBeSavedSaysWhy_AndStillHoldsForTheSession()
+    {
+        var built = new AShell();
+        built.ShellWidths.Unreadable = "'bell' must be true or false.";
+        using var drawn = await DrawnShell.Of(200, 24, Midnight(), built);
+
+        drawn.Press(new Key('-'));
+
+        Assert.Equal((10, 180), Shell(drawn));
+        Assert.Contains("'bell' must be true or false.", drawn.Shell.Notice, StringComparison.Ordinal);
+        Assert.True(drawn.Shell.NoticeIsError);
+    }
 }

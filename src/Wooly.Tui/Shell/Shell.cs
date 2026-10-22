@@ -3216,7 +3216,17 @@ public sealed class Shell
 
         // Saved straight away, so the next launch opens where this one was left (#415). A step pressed is a choice
         // asked for (ADR-0020), and a refused one, above, is none — so what is saved is always a width that was seen.
-        _shellWidths.Save(width);
+        // One that cannot be saved still holds for this session, since it was seen; the status row says why, as D does.
+        try
+        {
+            _shellWidths.Save(width);
+        }
+        catch (WoolyException failure)
+        {
+            Say(failure.Message, isError: true);
+
+            return;
+        }
 
         Say($"Width {width.Percent}%", isError: false);
     }
