@@ -258,7 +258,7 @@ internal sealed class ShellWindow : Window
         // Compose's fields, over the panel's viewport: the room the compose screen lays itself out in, inside the panel's
         // edge, wherever the rail has left the panel. Every one is read off _content, which Pos.Func and Dim.Func hand
         // back as "the view where the data will be retrieved".
-        _compose = new ComposeView(theme, shell)
+        _compose = new ComposeView(theme, shell, shell.Drafting)
         {
             X = Pos.Func(content => ViewportOrigin(content).X, _content),
             Y = Pos.Func(content => ViewportOrigin(content).Y, _content),
@@ -267,7 +267,7 @@ internal sealed class ShellWindow : Window
         };
 
         // The description editor's field, laid over the same viewport the same way (#377).
-        _description = new DescriptionView(theme, shell, () => _content.Raster)
+        _description = new DescriptionView(theme, shell, shell.Drafting, () => _content.Raster)
         {
             X = Pos.Func(content => ViewportOrigin(content).X, _content),
             Y = Pos.Func(content => ViewportOrigin(content).Y, _content),
@@ -637,13 +637,13 @@ internal sealed class ShellWindow : Window
             // Picked as it is picked up, where the screen drags its rows; a press picks nothing anywhere else.
             if (on is { } row)
             {
-                _shell.PickUp(row);
+                PickUp(row);
             }
 
             return false;
         }
 
-        if (_pressedOn is not { } from || on is not { } to || to == from || !_shell.DragRow(from, to))
+        if (_pressedOn is not { } from || on is not { } to || to == from || !DragRow(from, to))
         {
             return false;
         }
@@ -653,6 +653,28 @@ internal sealed class ShellWindow : Window
 
         return true;
     }
+
+    /// <summary>
+    ///     A press on the <paramref name="row" />th row of the attachments screen, which picks it as a press on a row
+    ///     under the Media header does, so that the row being dragged carries the bar from the moment it is picked up
+    ///     (#378, review of #372). Nothing on any other screen, where a press picks nothing and the click does.
+    /// </summary>
+    private void PickUp(int row) =>
+        _ = _shell.Drafting.Edit<AttachmentsScreen>(listing =>
+            row >= 0 && row < listing.Media.Attachments.Count
+                ? listing.Compose.Pick(listing.Media.Attachments[row])
+                : DraftChange.None);
+
+    /// <summary>
+    ///     A row on the attachments screen dragged by the pointer from the <paramref name="from" />th place to the
+    ///     <paramref name="to" />th, live, the others making way — as a row under the Media header is (#378, story 58).
+    /// </summary>
+    /// <returns>Whether it moved, which makes the button's release a drop rather than a click.</returns>
+    private bool DragRow(int from, int to) =>
+        _shell.Drafting.Edit<AttachmentsScreen>(listing =>
+            from >= 0 && from < listing.Media.Attachments.Count
+                ? listing.Compose.Media.ReorderTo(listing.Media.Attachments[from], to)
+                : DraftChange.None) != DraftChange.None;
 
     /// <summary>Whether ctrl or shift was held through a click.</summary>
     private static bool Chorded(Mouse mouse) =>

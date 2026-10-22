@@ -21,6 +21,9 @@ internal sealed class DescriptionView : View
 {
     private readonly Shell.Shell _shell;
 
+    /// <summary>What every change to the description goes through.</summary>
+    private readonly Drafting.Drafting _drafting;
+
     /// <summary>
     ///     The field, the compose editor's own kind: <c>esc</c> and <c>ctrl-s</c> are both "done" here, there being no
     ///     cancel, and <c>ctrl-w</c> and <c>↑</c> off its first line have no field to move to.
@@ -33,9 +36,10 @@ internal sealed class DescriptionView : View
     /// </summary>
     private readonly Func<Raster> _raster;
 
-    public DescriptionView(ITheme theme, Shell.Shell shell, Func<Raster> raster)
+    public DescriptionView(ITheme theme, Shell.Shell shell, Drafting.Drafting drafting, Func<Raster> raster)
     {
         _shell = shell;
+        _drafting = drafting;
         _raster = raster;
 
         CanFocus = true;
@@ -71,7 +75,7 @@ internal sealed class DescriptionView : View
         };
 
         _editor.ContentsChanged += (_, _) =>
-            _ = _shell.Drafting.Edit<DescriptionScreen>(describing => describing.Rewrite(_editor.Text));
+            _ = _drafting.Edit<DescriptionScreen>(describing => describing.Rewrite(_editor.Text));
 
         Add(_editor);
 

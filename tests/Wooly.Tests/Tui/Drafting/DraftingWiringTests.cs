@@ -1,4 +1,5 @@
 using Terminal.Gui.Input;
+using Wooly.Core.Errors;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
@@ -70,6 +71,32 @@ public class DraftingWiringTests : IDisposable
         Assert.IsNotType<ComposeScreen>(drawn.Shell.Screen);
         Assert.Equal("Sent.", drawn.Shell.Notice);
     }
+
+    /// <summary>
+    ///     The compose view changes the draft through drafting: typed into the real editor, the status row's keys are
+    ///     back the moment the draft changes, a refusal said over it spent by the edit (#364).
+    /// </summary>
+    [Fact]
+    public async Task TypingIntoTheEditorBringsTheKeysBack()
+    {
+        var built = new AShell { Author = FakePostAuthor.Refusing(new PostRefusedException("Text character limit of 500 exceeded")) };
+
+        using var drawn = await DrawnShell.Of(80, 24, Themes.Dark, built);
+
+        drawn.Shell.Press(ShellKey.C);
+        drawn.Redraw();
+        drawn.Window.NewKeyDownEvent(new Key('a'));
+
+        await drawn.Shell.Drafting.Send();
+        drawn.Settle();
+
+        Assert.Contains("Text character limit of 500 exceeded", drawn.Rows()[^1]);
+
+        drawn.Press(new Key('b'));
+
+        Assert.Contains("ctrl-s", drawn.Rows()[^1]);
+    }
+
 
     [Fact]
     public async Task EscOffAComposeLetsItsUploadsGo()

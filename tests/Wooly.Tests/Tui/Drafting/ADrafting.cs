@@ -41,6 +41,9 @@ internal sealed class ADrafting
     /// <summary>How many times drafting has said something on screen has changed.</summary>
     public int Changes { get; private set; }
 
+    /// <summary>How many times the status row has been told what to say — nothing among it.</summary>
+    public int Said { get; private set; }
+
     /// <summary>What a screen can reach as whoever is acted as now, for a test to answer a screen's own verb with.</summary>
     public Reach Reach => _reach!;
 
@@ -123,6 +126,7 @@ internal sealed class ADrafting
 
     private void Say(string? notice, bool isError)
     {
+        Said++;
         Notice = notice;
         NoticeIsError = isError;
     }

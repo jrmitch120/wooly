@@ -620,18 +620,6 @@ public sealed class Shell
         Verb.Vote => Ran(AskToVote),
         Verb.Refresh => Ran(Refresh),
         Verb.MarkRead => Ran(MarkRead),
-        Verb.WriteWarning => Ran(() => _ = ChangeCompose(compose => compose.WriteTheWarning())),
-        // Answered whether or not there was anywhere to go, so that an arrow off either end of the walk or of To stops
-        // there rather than falling through to Terminal.Gui, which would carry the focus round to the other end.
-        Verb.PreviousField => Ran(() => _ = ChangeCompose(compose => compose.Walk(-1))),
-        Verb.NextField => Ran(() => _ = ChangeCompose(compose => compose.Walk(1))),
-        Verb.PreviousChoice => Ran(() => _ = ChangeCompose(compose => compose.Choose(-1))),
-        Verb.NextChoice => Ran(() => _ = ChangeCompose(compose => compose.Choose(1))),
-        Verb.BringBackAttachment => Ran(() => _ = ChangeCompose(compose => compose.BringBack())),
-        Verb.EarlierAttachment => Ran(() => _ = ChangeCompose(compose => compose.Reorder(-1))),
-        Verb.LaterAttachment => Ran(() => _ = ChangeCompose(compose => compose.Reorder(1))),
-        Verb.ToggleSensitive => Ran(ToggleSensitive),
-        Verb.ListAttachments => Ran(ListAttachments),
         Verb.EditPublicProfile => Ran(EditPublicProfile),
         Verb.FlipToggle => Ran(() => _ = ChangePublicProfile(form => form.Flip())),
         Verb.SavePublicProfile => Ran(SavePublicProfile),
@@ -1312,130 +1300,13 @@ public sealed class Shell
     }
 
     /// <summary>
-    ///     Makes <paramref name="change" /> to the compose screen on top — every change to a draft comes in here, from
-    ///     its fields, its lists and its keys — and settles what follows from it by the one rule (#364): a change that
-    ///     says it <see cref="DraftChange.Edited" /> spends a notice said over the draft, and anything but no change at
-    ///     all is announced so the screen is drawn again.
-    /// </summary>
-    /// <remarks>
-    ///     A notice is spent by an edit of the draft and not by a move (#319). The status row holds a notice or the
-    ///     keymap and never both, and while a post is being written the keys go to its fields rather than to anything
-    ///     that would otherwise take a notice down — so a refusal of the post would stand, hiding every key compose
-    ///     answers to, until <c>esc</c> threw the draft away. Changing the draft is doing what the notice asked; walking
-    ///     the fields, choosing on To or opening a list is not, and leaves the notice to be read.
-    /// </remarks>
-    /// <returns>What the change was, or nothing where compose is not on top and no change was made.</returns>
-    public DraftChange ChangeCompose(Func<ComposeScreen, DraftChange> change)
-    {
-        return InFront is { } compose ? Settled(change(compose)) : DraftChange.None;
-    }
-
-    /// <summary>
     ///     Makes <paramref name="change" /> to the edit public profile form on top — every change to it comes in here,
-    ///     from its fields and its keys — by the rule <see cref="ChangeCompose" /> keeps for a draft (#364): an edit
-    ///     spends a notice said over the form, a refusal among them, and anything but no change at all is announced.
+    ///     from its fields and its keys — through drafting's one way in for a draft (<see cref="Drafting.Edit{T}" />,
+    ///     #364), until the form is drafting's own (#422).
     /// </summary>
     /// <returns>What the change was, or nothing where the form is not on top and no change was made.</returns>
-    public DraftChange ChangePublicProfile(Func<PublicProfileScreen, DraftChange> change)
-    {
-        return Screen is PublicProfileScreen form ? Settled(change(form)) : DraftChange.None;
-    }
-
-    /// <summary>
-    ///     What follows from <paramref name="made" />, a change to a draft, by the one rule both kinds of draft keep
-    ///     (#364): an edit spends a notice said over it, and anything but no change at all is announced so the screen is
-    ///     drawn again.
-    /// </summary>
-    /// <returns><paramref name="made" />.</returns>
-    private DraftChange Settled(DraftChange made)
-    {
-        if (made == DraftChange.Edited && Notice is not null)
-        {
-            // Saying nothing announces the change itself.
-            Say(null, isError: false);
-        }
-        else if (made != DraftChange.None)
-        {
-            Changed?.Invoke();
-        }
-
-        return made;
-    }
-
-    /// <summary>
-    ///     The compose screen in front: on top, or under the attachments screen listing its rows on a short terminal,
-    ///     whose keys and clicks change the compose's draft as the same ones on its rows do (story 58, review of #372).
-    /// </summary>
-    private ComposeScreen? InFront => ComposeOf(Screen);
-
-    /// <summary>
-    ///     The compose screen <paramref name="screen" /> is, or whose rows it lists on a short terminal (story 58) — or
-    ///     <see langword="null" /> for any other screen.
-    /// </summary>
-    private static ComposeScreen? ComposeOf(Screen screen) => screen switch
-    {
-        ComposeScreen compose => compose,
-        AttachmentsScreen listing => listing.Compose,
-        _ => null,
-    };
-
-    /// <summary>
-    ///     <c>⏎</c> on compose's Media header, or a click on its line, where a terminal too short for a row each folded
-    ///     the rows into it: pushes the attachments screen listing them, the first picked (story 58).
-    /// </summary>
-    public void ListAttachments()
-    {
-        if (Screen is not ComposeScreen { RowsFolded: true } compose)
-        {
-            return;
-        }
-
-        compose.Pick(compose.Media.Attachments[0]);
-        Push(new AttachmentsScreen(compose));
-    }
-
-    /// <summary>
-    ///     A press on the <paramref name="row" />th row of the attachments screen, which picks it as a press on a row
-    ///     under the Media header does, so that the row being dragged carries the bar from the moment it is picked up
-    ///     (#378, review of #372). Nothing on any other screen, where a press picks nothing and the click does.
-    /// </summary>
-    public void PickUp(int row)
-    {
-        if (Screen is not AttachmentsScreen listing || row < 0 || row >= listing.Media.Attachments.Count)
-        {
-            return;
-        }
-
-        _ = ChangeCompose(compose => compose.Pick(listing.Media.Attachments[row]));
-    }
-
-    /// <summary>
-    ///     A row on the attachments screen dragged by the pointer from the <paramref name="from" />th place to the
-    ///     <paramref name="to" />th, live, the others making way — as a row under the Media header is (#378, story 58).
-    /// </summary>
-    /// <returns>Whether it moved, which makes the button's release a drop rather than a click.</returns>
-    public bool DragRow(int from, int to) =>
-        Screen is AttachmentsScreen listing
-        && from >= 0
-        && from < listing.Media.Attachments.Count
-        && DragAttachment(listing.Media.Attachments[from], to);
-
-    /// <summary>
-    ///     <c>s</c> on compose's Media header, or a click on its toggle: puts what is attached behind a click or takes it
-    ///     back out (#379). While a warning holds it on, the status row says so instead, since a press that changes
-    ///     nothing on screen would otherwise read as one the shell missed.
-    /// </summary>
-    public void ToggleSensitive()
-    {
-        if (InFront is { SensitiveByAWarning: true, Media.Attachments.Count: > 0 })
-        {
-            Say("The warning already hides what is attached.", isError: false);
-
-            return;
-        }
-
-        _ = ChangeCompose(compose => compose.ToggleSensitive());
-    }
+    public DraftChange ChangePublicProfile(Func<PublicProfileScreen, DraftChange> change) =>
+        _drafting.Edit(change);
 
     /// <summary>
     ///     Takes the unread mark off the conversation being read, or the one picked out on the list — the conversation
@@ -2235,44 +2106,6 @@ public sealed class Shell
 
         Pop();
         _ = ChangePublicProfile(form => form.Pick(chosen[0]));
-    }
-
-    /// <summary>
-    ///     A row under the Media header dragged by the pointer to the <paramref name="place" />th row, live, the others
-    ///     making way (#378).
-    /// </summary>
-    /// <returns>Whether it moved, which makes the button's release a drop rather than a click.</returns>
-    public bool DragAttachment(ComposeAttachment attachment, int place) =>
-        ChangeCompose(compose => compose.Media.ReorderTo(attachment, place)) != DraftChange.None;
-
-    /// <summary>
-    ///     A click on <paramref name="attachment" />'s row, on <paramref name="part" /> of it (#378): its <c>x</c> takes
-    ///     it off, its <c>retry (r)</c> sends it up again, its description opens the description editor (#377), and
-    ///     anywhere else picks it.
-    /// </summary>
-    public void ClickAttachment(ComposeAttachment attachment, AttachmentPart part)
-    {
-        switch (part)
-        {
-            case AttachmentPart.Remove:
-                _ = _drafting.Do(Verb.RemoveAttachment, attachment);
-
-                break;
-            case AttachmentPart.Retry:
-                _ = _drafting.Do(Verb.RetryAttachment, attachment);
-
-                break;
-            case AttachmentPart.Description:
-                // Picked first, so that the editor's done comes back to the row it was opened from (#377).
-                _ = ChangeCompose(compose => compose.Pick(attachment));
-                _ = _drafting.Do(Verb.Describe);
-
-                break;
-            default:
-                _ = ChangeCompose(compose => compose.Pick(attachment));
-
-                break;
-        }
     }
 
     /// <summary>

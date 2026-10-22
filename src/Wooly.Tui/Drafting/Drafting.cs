@@ -139,8 +139,8 @@ public sealed class Drafting
     /// </summary>
     /// <param name="verb">What was pressed or clicked.</param>
     /// <param name="on">
-    ///     The attachment a click acted on, where it was one — taken off or sent up again — rather than the one the walk
-    ///     is on.
+    ///     The attachment a click acted on, where it was one — taken off, sent up again or described — rather than the one
+    ///     the walk is on: a click on a row's part is the verb that part stands for, with the row's attachment (#378).
     /// </param>
     /// <returns>
     ///     <see cref="Drafted.NotMine" /> for any verb that is not a draft's, which the shell carries on with;
@@ -153,10 +153,23 @@ public sealed class Drafting
         Verb.Reply => Ran(() => Compose(ComposeFor.Reply)),
         Verb.Edit => Ran(() => Compose(ComposeFor.Edit)),
         Verb.Back => CallOff(),
-        Verb.Describe => Ran(Describe),
+        Verb.Describe => Ran(() => Describe(on)),
         Verb.RemoveAttachment => Ran(() => RemoveAttachment(compose => on is null ? compose.Remove() : compose.Remove(on))),
         Verb.RetryAttachment => Ran(() => Retry(compose => on is null ? compose.Retry() : compose.Media.Retry(on))),
         Verb.PasteFromTheClipboard => PasteFromTheClipboard() ? Drafted.Used : Drafted.Declined,
+        Verb.WriteWarning => Ran(() => Edit<ComposeScreen>(compose => compose.WriteTheWarning())),
+
+        // Answered whether or not there was anywhere to go, so that an arrow off either end of the walk or of To stops
+        // there rather than falling through to Terminal.Gui, which would carry the focus round to the other end.
+        Verb.PreviousField => Ran(() => Edit<ComposeScreen>(compose => compose.Walk(-1))),
+        Verb.NextField => Ran(() => Edit<ComposeScreen>(compose => compose.Walk(1))),
+        Verb.PreviousChoice => Ran(() => Edit<ComposeScreen>(compose => compose.Choose(-1))),
+        Verb.NextChoice => Ran(() => Edit<ComposeScreen>(compose => compose.Choose(1))),
+        Verb.BringBackAttachment => Ran(() => Edit<ComposeScreen>(compose => compose.BringBack())),
+        Verb.EarlierAttachment => Ran(() => Edit<ComposeScreen>(compose => compose.Reorder(-1))),
+        Verb.LaterAttachment => Ran(() => Edit<ComposeScreen>(compose => compose.Reorder(1))),
+        Verb.ToggleSensitive => Ran(ToggleSensitive),
+        Verb.ListAttachments => Ran(ListAttachments),
         Verb.OpenBrowser => Ran(Browse),
         Verb.AttachChosen => Ran(AttachChosen),
         Verb.IntoFolder => Ran(() => Browse(browser => browser.FolderPicked)),
@@ -618,14 +631,52 @@ public sealed class Drafting
 
     /// <summary>
     ///     Opens the description editor over the compose screen in front, on the attachment whose row the walk is on
-    ///     (#377). Nothing where it is on no row.
+    ///     (#377) — or on <paramref name="on" />, a row clicked, which is picked first so that the editor's done comes back
+    ///     to the row it was opened from. Nothing where it is on no row.
     /// </summary>
-    private void Describe()
+    private void Describe(ComposeAttachment? on)
     {
+        if (on is not null)
+        {
+            _ = Edit<ComposeScreen>(compose => compose.Pick(on));
+        }
+
         if (InFront is { Typing: ComposeField.Attachment, Media.Picked: { } attachment } compose)
         {
             _stack.Push(new DescriptionScreen(compose, attachment));
         }
+    }
+
+    /// <summary>
+    ///     <c>s</c> on compose's Media header, or a click on its toggle: puts what is attached behind a click or takes it
+    ///     back out (#379). While a warning holds it on, the status row says so instead, since a press that changes
+    ///     nothing on screen would otherwise read as one the shell missed.
+    /// </summary>
+    private void ToggleSensitive()
+    {
+        if (InFront is { SensitiveByAWarning: true, Media.Attachments.Count: > 0 })
+        {
+            Reach.Say("The warning already hides what is attached.", isError: false);
+
+            return;
+        }
+
+        _ = Edit<ComposeScreen>(compose => compose.ToggleSensitive());
+    }
+
+    /// <summary>
+    ///     <c>⏎</c> on compose's Media header, or a click on its line, where a terminal too short for a row each folded
+    ///     the rows into it: pushes the attachments screen listing them, the first picked (story 58).
+    /// </summary>
+    private void ListAttachments()
+    {
+        if (_stack.Top is not ComposeScreen { RowsFolded: true } compose)
+        {
+            return;
+        }
+
+        compose.Pick(compose.Media.Attachments[0]);
+        _stack.Push(new AttachmentsScreen(compose));
     }
 
     /// <summary>
