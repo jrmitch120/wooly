@@ -90,7 +90,8 @@ combining mark, is something nobody wrote.
 ## Shell width
 
 The shell is drawn in a share of the terminal's width: all of it, or less, in steps of ten down to half (`GLOSSARY.md`,
-#413). `-` narrows it a step and `+` or `=` widens it a step (**Keys**, below), for this session (#414). Every width
+#413). `-` narrows it a step and `+` or `=` widens it a step (**Keys**, below), and each step taken is saved as `shell_width`
+for the next launch to open at (#414, #415; "Starting it", below). Every width
 this document gives — the rail's 20, the 58 columns at 80 — is the shell's, which is the terminal's at 100%.
 
 - **The columns** are worked out from the terminal's `T` and the share `p` on every layout:
@@ -98,9 +99,13 @@ this document gives — the rail's 20, the 58 columns at 80 — is the shell's, 
   column of an odd remainder falls on the right: the left edge moves only when the width does. A resized terminal keeps the share and re-centres. The
   height is always the terminal's whole height.
 - **Never under 80 columns**, the width the shell is laid out for: on a terminal 80 wide or less the shell is all of it.
+  A saved share the floor overrides on a narrow terminal is left as saved, for a wider one to draw.
 - **The steps.** Narrower is the largest multiple of ten below the share and at least 50; wider is the smallest above it
   and at most 100. Narrower is refused where there is none, or where it would take the shell under 80 columns on this
-  terminal, and says `Narrowest`; wider is refused only at 100, and says `Full width`. A step taken says `Width 90%`.
+  terminal, and says `Narrowest`; wider is refused only at 100, and says `Full width`. A step taken says `Width 90%`
+  and is saved straight away, through the shell's one narrow port for it (`IShellWidthStore`); a refused one saves
+  nothing, so what is saved is always a width that was seen. A share written by hand between the steps, such as 73, is
+  drawn as written, and a step takes it back onto them: 70 narrower, 80 wider.
 - **The margins** are cells the window never draws, left at the terminal's default attribute: no **Role**, so no theme
   entry, under any theme or `NO_COLOR`. They are the terminal's, outside the shell (ADR-0014, ADR-0021). Terminal.Gui
   clears a screen to a white on black of its own, which written out would be a black margin, so the window puts every
@@ -2097,6 +2102,7 @@ business but the reader's, so it is a setting in the same TOML file everything e
 hashtag = "dotnet"
 hide_drawn_caption = true
 bell = false
+shell_width = 70
 ```
 
 `hide_drawn_caption` is another reader-owned preference in this section (#71) — a picture's caption, `false` (the
@@ -2104,6 +2110,12 @@ default) shows it always, `true` hides it once a picture is actually drawn, per 
 third (#399): `true` (the default, and what an absent key means) rings the terminal's bell when an Inbox badge rises,
 `false` keeps the badges live without the sound. Like the others it is the same for every profile, and has no key in
 the shell yet.
+
+`shell_width` is a fourth (#415): the **Shell width** a launch opens at, a whole number from 50 to 100 (above, "Shell
+width"). One written out of range is clamped to the nearer end rather than refused; 100 is what an absent key means, so
+it is never written, and widening back to it takes the line away. Unlike the others it has keys, `-` and `+`/`=`, and
+each step they take saves it — which rewrites the whole file, as `D` on the profiles screen does, so comments written in
+it by hand do not survive.
 
 With none set, the destination is still on the rail — it says no tag has been named and asks the instance for nothing,
 rather than being a rail entry that swallows a keypress.
