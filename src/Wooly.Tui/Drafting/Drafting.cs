@@ -127,12 +127,6 @@ public sealed class Drafting
         _attachments.Untold += Untold;
     }
 
-    /// <summary>
-    ///     The limits on the instance acted as, as far as they are known — Mastodon's own until it has said — asking it
-    ///     where nobody has yet. What the edit public profile form's bio is counted against.
-    /// </summary>
-    public PostLimits Limits => _limits.For(Reach.Profile);
-
     private Reach Reach => _reach() ?? throw new InvalidOperationException("Nobody is being acted as.");
 
     /// <summary>
@@ -176,6 +170,16 @@ public sealed class Drafting
         Verb.AttachChosen => Ran(AttachChosen),
         Verb.IntoFolder => Ran(() => Browse(browser => browser.FolderPicked)),
         Verb.UpFolder => Ran(() => Browse(browser => browser.Above)),
+
+        // The edit public profile form's, the second draft (#422).
+        Verb.EditPublicProfile => Ran(() => _ = EditPublicProfile()),
+        Verb.FlipToggle => Ran(() => Edit<PublicProfileScreen>(form => form.Flip())),
+        Verb.SavePublicProfile => Ran(() => _ = SavePublicProfile()),
+        Verb.PreviousPublicProfileField => Ran(() => Edit<PublicProfileScreen>(form => form.Walk(-1))),
+        Verb.NextPublicProfileField => Ran(() => Edit<PublicProfileScreen>(form => form.Walk(1))),
+        Verb.ChoosePicture => Ran(ChoosePicture),
+        Verb.PastePicture => Ran(PastePicture),
+        Verb.UsePicture => Ran(UsePicture),
         _ => Drafted.NotMine,
     };
 
@@ -311,16 +315,14 @@ public sealed class Drafting
     ///     Where the file browser opens: the folder last attached or chosen from this session or, the first time, the one
     ///     Wooly was launched from (#376).
     /// </summary>
-    /// <remarks>Read by the shell's edit public profile form too, until the form is drafting's (#422).</remarks>
-    internal string BrowsingFrom => _lastFolder is { } last && Directory.Exists(last) ? last : _launchedFrom;
+    private string BrowsingFrom => _lastFolder is { } last && Directory.Exists(last) ? last : _launchedFrom;
 
     /// <summary>
     ///     What was chosen in <paramref name="browser" /> — or, with nothing chosen, the file under the cursor — with the
     ///     folder it came from remembered for the next time. With neither, nothing: the folder under the cursor opens
     ///     instead, since what is chosen comes first wherever the cursor is (review of #372).
     /// </summary>
-    /// <remarks>Taken by the shell's edit public profile form too, until the form is drafting's (#422).</remarks>
-    internal IReadOnlyList<string> Took(FileBrowserScreen browser)
+    private IReadOnlyList<string> Took(FileBrowserScreen browser)
     {
         var chosen = browser.Take();
 
@@ -879,6 +881,162 @@ public sealed class Drafting
                 Visibility = PostAudience.Narrower(preferred.Visibility ?? answered.Visibility, answered.Visibility),
             }
             : preferred;
+    }
+
+    /// <summary>
+    ///     Reads the own account's public profile as written and puts the form that edits it up over the account it
+    ///     was asked from (#406), measured against the instance's own limit on a bio as far as that is known. Read fresh
+    ///     every time, and never prefilled from the account on screen, whose bio is the flattened one (ADR-0028); a read
+    ///     that fails opens nothing, and the status row says why.
+    /// </summary>
+    private async Task EditPublicProfile()
+    {
+        if (_stack.Top is not AccountScreen { IsOwnAccount: true })
+        {
+            return;
+        }
+
+        // Taken now rather than read when the call is made, which a rate-limit wait can put after a switch (#243).
+        var reach = Reach;
+        var profile = reach.Profile;
+
+        await reach.Put(
+            ask => ask.Of(token => reach.Ports.PublicProfile.Read(profile, token)),
+            ifStillHere: read => _stack.Push(new PublicProfileScreen(read) { Limits = _limits.For(profile) }));
+    }
+
+    /// <summary>
+    ///     <c>ctrl-s</c> on the edit public profile form: sends what the form says changed and nothing else
+    ///     (<see cref="PublicProfileScreen.Outgoing" />, ADR-0028), then takes the form off, says so, and reports the
+    ///     public profile saved so that whatever shows the account reads it again.
+    /// </summary>
+    /// <remarks>
+    ///     Nothing is refused before it is sent: the limits are the instance's (ADR-0028). A refusal leaves the form as
+    ///     it is, every edit in it, and the status row says why in the instance's words — the enquiry's, as every
+    ///     failure is — until an edit spends it (<see cref="Edit{T}" />).
+    /// </remarks>
+    private async Task SavePublicProfile()
+    {
+        if (_stack.Top is not PublicProfileScreen form)
+        {
+            return;
+        }
+
+        var change = form.Outgoing;
+
+        if (change.IsEmpty)
+        {
+            Reach.Say("Nothing has changed to save.", isError: false);
+
+            return;
+        }
+
+        // Taken now rather than read when the call is made, which a rate-limit wait can put after a switch (#243).
+        var reach = Reach;
+        var profile = reach.Profile;
+
+        const string Saved = "Public profile saved.";
+
+        await reach.Put(
+            ask => ask.Of(token => reach.Ports.PublicProfile.Save(profile, change, token)),
+            eitherWay: saved =>
+            {
+                // Off the stack only where it is still on top: a form thrown away while the save was on its way has
+                // gone already, and what is on top now is somewhere else the reader went.
+                if (ReferenceEquals(_stack.Top, form))
+                {
+                    _stack.TakeOff(form);
+                }
+
+                Reach.Tell(new Change.PublicProfileSaved(saved));
+                Reach.Say(Saved, isError: false);
+
+                // The account the form was opened over, read again rather than patched with what the save answered:
+                // its posts carry the display name too, and an account screen is one reading (#84, #229). Said again
+                // once it lands, since a fresh copy takes down what was said over the old one.
+                if (_stack.Top is AccountScreen { IsOwnAccount: true, Subject: { } account })
+                {
+                    _ = Reach.Again(account, landed: () => Reach.Say(Saved, isError: false));
+                }
+            });
+    }
+
+    /// <summary>
+    ///     <c>⏎</c> or a click on the edit public profile form's avatar or header (#407): pushes the file browser over it
+    ///     for that one picture, in the folder the file browser opens in for a compose (#376).
+    /// </summary>
+    private void ChoosePicture()
+    {
+        if (_stack.Top is PublicProfileScreen form && PublicProfilePicture.Of(form.Typing.Part) is { } picture)
+        {
+            _stack.Push(FileBrowserScreen.ForAPicture(LocalFiles.Listing(BrowsingFrom), picture));
+        }
+    }
+
+    /// <summary>
+    ///     <c>⏎</c> in the file browser opened for one of the edit public profile form's pictures (#407): the browser
+    ///     goes and the file chosen — or, with none chosen, the one under the cursor — is the picture the form's walk is
+    ///     on, sent when the form is saved and not before (ADR-0028). With neither, the folder under the cursor opens,
+    ///     as it does for a compose.
+    /// </summary>
+    private void UsePicture()
+    {
+        if (_stack.Top is not FileBrowserScreen { Picture: not null } browser
+            || Took(browser) is not { Count: > 0 } chosen)
+        {
+            return;
+        }
+
+        _stack.TakeOff(browser);
+        _ = Edit<PublicProfileScreen>(form => form.Pick(chosen[0]));
+    }
+
+    /// <summary>
+    ///     <c>ctrl-v</c> or <c>alt-v</c> on the edit public profile form's avatar or header (#407): a picture on the
+    ///     clipboard is written to a file of its own and taken as that picture, and of copied files the first that is a
+    ///     picture is. Sent with the rest of the form when it is saved, and not before (ADR-0028).
+    /// </summary>
+    /// <remarks>
+    ///     There is no text to paste on either row, so whatever else the clipboard holds is said on the status row, every
+    ///     time, rather than left to a field's own paste as on compose.
+    /// </remarks>
+    private void PastePicture()
+    {
+        if (_stack.Top is not PublicProfileScreen { Typing.IsAPicture: true })
+        {
+            return;
+        }
+
+        switch (_clipboard.Read())
+        {
+            case Clipped.Picture(var png):
+                var pasted = _pasted.Keep(png);
+
+                _ = Edit<PublicProfileScreen>(form => form.Pick(pasted));
+
+                break;
+
+            case Clipped.Files(var paths)
+                when paths.FirstOrDefault(path => File.Exists(path) && FileBrowserScreen.Pictures.Accepts(path)) is { } picture:
+                _ = Edit<PublicProfileScreen>(form => form.Pick(picture));
+
+                break;
+
+            case Clipped.Files:
+                Reach.Say("None of the copied files is a picture.", isError: true);
+
+                break;
+
+            case Clipped.NoTool(var why):
+                Reach.Say(why, isError: false);
+
+                break;
+
+            default:
+                Reach.Say("There is no picture on the clipboard.", isError: false);
+
+                break;
+        }
     }
 
     /// <summary>

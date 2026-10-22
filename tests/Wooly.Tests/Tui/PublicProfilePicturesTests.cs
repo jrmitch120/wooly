@@ -313,7 +313,7 @@ public class PublicProfilePicturesTests : IDisposable
         var form = Assert.IsType<PublicProfileScreen>(shell.Screen);
 
         WalkTo(shell, form, PublicProfilePart.Avatar);
-        shell.ChangePublicProfile(editing => editing.Pick(cat));
+        shell.Drafting.Edit<PublicProfileScreen>(editing => editing.Pick(cat));
         built.Accounts.NowShowing(renewed);
         shell.Press(ShellKey.CtrlS);
         built.Host.Settle();
@@ -363,7 +363,7 @@ public class PublicProfilePicturesTests : IDisposable
         var before = Lines(form, new FakePictures());
 
         WalkTo(shell, form, PublicProfilePart.Avatar);
-        shell.ChangePublicProfile(editing => editing.Pick(cat));
+        shell.Drafting.Edit<PublicProfileScreen>(editing => editing.Pick(cat));
 
         var after = Lines(form, new FakePictures().Holding(Drawn.OnDisk(cat).Id, 40, 40));
         var row = Row(after, "Avatar");
@@ -387,7 +387,7 @@ public class PublicProfilePicturesTests : IDisposable
         var (shell, _, form) = await Editing(Built(APublicProfile.With(account: Me) with { HeaderUrl = null }));
 
         WalkTo(shell, form, PublicProfilePart.Avatar);
-        shell.ChangePublicProfile(editing => editing.Pick(cat));
+        shell.Drafting.Edit<PublicProfileScreen>(editing => editing.Pick(cat));
 
         var lines = form.Lines(new Drawing(61, AShell.Now, new FakePictures(), Raster.None));
 

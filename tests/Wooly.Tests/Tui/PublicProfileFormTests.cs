@@ -245,18 +245,18 @@ public class PublicProfileFormTests
 
         WalkTo(shell, form, PublicProfilePart.Label);
 
-        Assert.Equal(DraftChange.None, shell.ChangePublicProfile(editing => editing.Across(-1)));
-        _ = shell.ChangePublicProfile(editing => editing.Across(1));
+        Assert.Equal(DraftChange.None, shell.Drafting.Edit<PublicProfileScreen>(editing => editing.Across(-1)));
+        _ = shell.Drafting.Edit<PublicProfileScreen>(editing => editing.Across(1));
         Assert.Equal(new PublicProfileStop(PublicProfilePart.Value, 0), form.Typing);
-        Assert.Equal(DraftChange.None, shell.ChangePublicProfile(editing => editing.Across(1)));
+        Assert.Equal(DraftChange.None, shell.Drafting.Edit<PublicProfileScreen>(editing => editing.Across(1)));
 
         shell.Press(ShellKey.Down);
         shell.Press(ShellKey.Down);
         Assert.Equal(new PublicProfileStop(PublicProfilePart.Value, 2), form.Typing);
 
-        _ = shell.ChangePublicProfile(editing => editing.Across(-1));
+        _ = shell.Drafting.Edit<PublicProfileScreen>(editing => editing.Across(-1));
         Assert.Equal(new PublicProfileStop(PublicProfilePart.Label, 2), form.Typing);
-        _ = shell.ChangePublicProfile(editing => editing.Across(1));
+        _ = shell.Drafting.Edit<PublicProfileScreen>(editing => editing.Across(1));
 
         shell.Press(ShellKey.Down);
         shell.Press(ShellKey.Down);
@@ -265,7 +265,7 @@ public class PublicProfileFormTests
         shell.Press(ShellKey.Up);
         Assert.Equal(new PublicProfileStop(PublicProfilePart.Label, 3), form.Typing);
 
-        _ = shell.ChangePublicProfile(editing => editing.Across(1));
+        _ = shell.Drafting.Edit<PublicProfileScreen>(editing => editing.Across(1));
         shell.Press(ShellKey.Up);
         shell.Press(ShellKey.Up);
         Assert.Equal(new PublicProfileStop(PublicProfilePart.Value, 1), form.Typing);
@@ -325,7 +325,7 @@ public class PublicProfileFormTests
         var built = Built(APublicProfile.With(displayName: "Jeff", isBot: false, account: Me));
         var (shell, form) = await Editing(built);
 
-        shell.ChangePublicProfile(editing => editing.RewriteDisplayName("Jeff M"));
+        shell.Drafting.Edit<PublicProfileScreen>(editing => editing.RewriteDisplayName("Jeff M"));
         WalkTo(shell, form, PublicProfilePart.Bot);
         shell.Press(ShellKey.Space);
 
@@ -348,10 +348,10 @@ public class PublicProfileFormTests
         var built = Built(read);
         var (shell, _) = await Editing(built);
 
-        shell.ChangePublicProfile(editing => editing.RewriteLabel(0, ""));
-        shell.ChangePublicProfile(editing => editing.RewriteValue(0, ""));
-        shell.ChangePublicProfile(editing => editing.RewriteLabel(2, "Home"));
-        shell.ChangePublicProfile(editing => editing.RewriteValue(2, "Kansas"));
+        shell.Drafting.Edit<PublicProfileScreen>(editing => editing.RewriteLabel(0, ""));
+        shell.Drafting.Edit<PublicProfileScreen>(editing => editing.RewriteValue(0, ""));
+        shell.Drafting.Edit<PublicProfileScreen>(editing => editing.RewriteLabel(2, "Home"));
+        shell.Drafting.Edit<PublicProfileScreen>(editing => editing.RewriteValue(2, "Kansas"));
 
         shell.Press(ShellKey.CtrlS);
         built.Host.Drain();
@@ -372,7 +372,7 @@ public class PublicProfileFormTests
         var built = Built(APublicProfile.With(bio: "One\r\nTwo", account: Me));
         var (shell, form) = await Editing(built);
 
-        shell.ChangePublicProfile(editing => editing.RewriteBio("One\nTwo"));
+        shell.Drafting.Edit<PublicProfileScreen>(editing => editing.RewriteBio("One\nTwo"));
 
         shell.Press(ShellKey.CtrlS);
         built.Host.Drain();
@@ -395,7 +395,7 @@ public class PublicProfileFormTests
         var (shell, _) = await Editing(built);
         var readsBefore = built.Accounts.Reads.Count;
 
-        shell.ChangePublicProfile(editing => editing.RewriteDisplayName("Jeff M"));
+        shell.Drafting.Edit<PublicProfileScreen>(editing => editing.RewriteDisplayName("Jeff M"));
         built.Accounts.NowShowing(renamed);
 
         shell.Press(ShellKey.CtrlS);
@@ -437,7 +437,7 @@ public class PublicProfileFormTests
 
         shell.Press(ShellKey.CapitalE);
         built.Host.Drain();
-        shell.ChangePublicProfile(editing => editing.RewriteDisplayName("Jeff M"));
+        shell.Drafting.Edit<PublicProfileScreen>(editing => editing.RewriteDisplayName("Jeff M"));
         shell.Press(ShellKey.CtrlS);
         built.Host.Drain();
 
@@ -464,7 +464,7 @@ public class PublicProfileFormTests
         built.Timelines = FakeTimelineReader.Holding(APost.With(id: "220", account: Me.Address, author: "Jeff"));
         var (shell, _) = await Editing(built);
 
-        shell.ChangePublicProfile(editing => editing.RewriteDisplayName("Jeff M"));
+        shell.Drafting.Edit<PublicProfileScreen>(editing => editing.RewriteDisplayName("Jeff M"));
         shell.Press(ShellKey.CtrlS);
         built.Host.Drain();
 
@@ -500,7 +500,7 @@ public class PublicProfileFormTests
 
         shell.Press(ShellKey.CapitalE);
         built.Host.Drain();
-        shell.ChangePublicProfile(editing => editing.RewriteDisplayName("Jeff M"));
+        shell.Drafting.Edit<PublicProfileScreen>(editing => editing.RewriteDisplayName("Jeff M"));
         built.Accounts.NowShowing(renamed);
         shell.Press(ShellKey.CtrlS);
         built.Host.Settle();
@@ -527,7 +527,7 @@ public class PublicProfileFormTests
             APublicProfile.With(account: Me));
         var (shell, form) = await Editing(built);
 
-        shell.ChangePublicProfile(editing => editing.RewriteDisplayName("Jeff the very long display name indeed"));
+        shell.Drafting.Edit<PublicProfileScreen>(editing => editing.RewriteDisplayName("Jeff the very long display name indeed"));
         WalkTo(shell, form, PublicProfilePart.Locked);
         shell.Press(ShellKey.Space);
 
@@ -542,7 +542,7 @@ public class PublicProfileFormTests
             shell.Notice);
         Assert.True(shell.NoticeIsError);
 
-        shell.ChangePublicProfile(editing => editing.RewriteDisplayName("Jeff"));
+        shell.Drafting.Edit<PublicProfileScreen>(editing => editing.RewriteDisplayName("Jeff"));
 
         Assert.Null(shell.Notice);
     }
@@ -576,7 +576,7 @@ public class PublicProfileFormTests
         var built = Built();
         var (shell, form) = await Editing(built);
 
-        shell.ChangePublicProfile(editing => editing.RewriteDisplayName("Jeff M"));
+        shell.Drafting.Edit<PublicProfileScreen>(editing => editing.RewriteDisplayName("Jeff M"));
 
         shell.Press(way);
 
