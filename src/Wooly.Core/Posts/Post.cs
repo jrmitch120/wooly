@@ -1,7 +1,7 @@
 namespace Wooly.Core.Posts;
 
 /// <summary>
-///     One post, in this project's vocabulary rather than the API's (CONTEXT.md): a <c>status</c> is a post, a
+///     One post, in this project's vocabulary rather than the API's (GLOSSARY.md): a <c>status</c> is a post, a
 ///     <c>reblog</c> is a boost, and <c>favourites</c> are favorites. Nothing above this layer sees the wire names.
 /// </summary>
 public sealed record Post

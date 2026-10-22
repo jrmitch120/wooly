@@ -4,7 +4,7 @@ namespace Wooly.Core.Notifications;
 
 /// <summary>
 ///     The notifications an account has not read: those newer than its <b>Read marker</b>, which the instance keeps and
-///     every client of the account shares (CONTEXT.md, ADR-0027). Unread is never a flag on a notification — it is
+///     every client of the account shares (GLOSSARY.md, ADR-0027). Unread is never a flag on a notification — it is
 ///     where the notification stands against the marker.
 /// </summary>
 /// <param name="Marker">

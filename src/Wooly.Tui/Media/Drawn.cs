@@ -8,7 +8,7 @@ namespace Wooly.Tui.Media;
 /// <remarks>
 ///     The key the whole picture path turns on — what is held, what is sent for, and what a box on a row stands in
 ///     for. Named separately from what it was made of because two different things are drawn now and only one of them
-///     is an <c>Attachment</c> in this project's vocabulary (CONTEXT.md): a post's picture hangs off the post, and an
+///     is an <c>Attachment</c> in this project's vocabulary (GLOSSARY.md): a post's picture hangs off the post, and an
 ///     author's avatar hangs off the author. Keying on <see cref="PostMedia" /> and passing an avatar off as one would
 ///     have made "something attached to a post" mean something else wherever the avatar went.
 /// </remarks>

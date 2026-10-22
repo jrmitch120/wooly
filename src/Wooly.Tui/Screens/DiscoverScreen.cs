@@ -108,7 +108,7 @@ public sealed class DiscoverScreen : Screen
     /// <remarks>
     ///     Counted off <see cref="Heads" />, which is the very predicate <see cref="Heading" /> draws by — so the runs
     ///     the reader can see are the runs the key is announced for, with no second count kept anywhere. That is the
-    ///     arrangement the search screen states and CONTEXT.md's <b>Section</b> requires.
+    ///     arrangement the search screen states and GLOSSARY.md's <b>Section</b> requires.
     ///     <para>
     ///         The run standing above the first heading counts as one of them, since <c>]</c> reaches the first headed
     ///         run from there: a key that could move but was not announced is as wrong as one announced where it
@@ -275,7 +275,7 @@ public sealed class DiscoverScreen : Screen
     ///         as a run of their own — the position the account screen's header block already occupies, so <c>]</c>
     ///         reaches the first headed run from there and <c>[</c> clamps. Dropped would be the alternative, and it
     ///         is the wrong one twice over: an instance that has learned a sixth source has still named somebody worth
-    ///         showing (CONTEXT.md), and a heading invented for a word this client cannot spell would be the one
+    ///         showing (GLOSSARY.md), and a heading invented for a word this client cannot spell would be the one
     ///         dishonest row on the screen. Below the last section they could not go — they would read as part of it,
     ///         and its heading counts only its own.
     ///     </para>
@@ -353,7 +353,7 @@ public sealed class DiscoverScreen : Screen
     /// <remarks>
     ///     The follow is worded by <see cref="AccountLines.Follow" /> rather than here, so that a follow reads the
     ///     same way on this screen as on a follow list — including the one that is still waiting for a locked account
-    ///     to accept it, which is not a follow yet and must not be drawn as one (CONTEXT.md).
+    ///     to accept it, which is not a follow yet and must not be drawn as one (GLOSSARY.md).
     /// </remarks>
     private static string Suffix(Offer offer)
     {

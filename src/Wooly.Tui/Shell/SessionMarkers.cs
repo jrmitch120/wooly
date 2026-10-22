@@ -5,7 +5,7 @@ namespace Wooly.Tui.Shell;
 
 /// <summary>
 ///     Where this session counts unread notifications from for each profile whose account has no <b>Read marker</b>:
-///     its <see cref="SessionMarker" />, set where its count was first read (CONTEXT.md, ADR-0027, story 8 of #395).
+///     its <see cref="SessionMarker" />, set where its count was first read (GLOSSARY.md, ADR-0027, story 8 of #395).
 /// </summary>
 /// <remarks>
 ///     No marker means nothing unread this client can prove — but what arrives while the shell runs has plainly not

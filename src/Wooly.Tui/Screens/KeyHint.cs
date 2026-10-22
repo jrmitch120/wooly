@@ -14,7 +14,7 @@ namespace Wooly.Tui.Screens;
 ///     Whether it needs something <b>picked</b> to act on, and so has nothing to do while the screen's list is empty —
 ///     <c>d dismiss</c> on an inbox with nothing waiting, <c>a accept</c> with nobody asking. The thing picked out, or
 ///     the list it would be picked from: <c>D clear all</c> empties the whole inbox and is as idle on an empty one,
-///     which is the same fact CONTEXT.md states as an empty list having nothing picked (#195).
+///     which is the same fact GLOSSARY.md states as an empty list having nothing picked (#195).
 ///     Declared here, on the key, because this is the one place the key is already written down: a second list of
 ///     which keys need a pick would be a list a screen could forget to keep in step, and a row that lies is the
 ///     failure this exists to stop. <see langword="false" /> by default, that being every key that acts on the screen

@@ -1,7 +1,7 @@
 # A link preview is its own Reference, even though its address usually repeats one already in the post
 
 Mastodon's `card` is server-generated metadata about a URL already sitting inside a post's own text — a title, a site
-name, sometimes an image — not something the author attached (CONTEXT.md's **Attachment** is deliberately "besides its
+name, sometimes an image — not something the author attached (GLOSSARY.md's **Attachment** is deliberately "besides its
 text"; this is about it). So it lands as `Post.LinkPreview`, a new nullable field alongside `Media` and `Poll` rather
 than a `MediaKind`, carrying only what a terminal can use: `Url`, `Title`, `Description`, `ProviderName`, `Image`, and
 the author's name as plain text. `Type`, `Html`, `EmbedUrl`, `Width`, `Height`, `Blurhash`, `AuthorUrl` and

@@ -5,7 +5,7 @@ namespace Wooly.Tui.Rendering;
 
 /// <summary>
 ///     What a <b>drawn</b> picture's box shows while the picture is not here: a plain shaded fill, the size of the box,
-///     with nothing written in it (ADR-0025, CONTEXT.md's <b>Stand-in</b>).
+///     with nothing written in it (ADR-0025, GLOSSARY.md's <b>Stand-in</b>).
 /// </summary>
 /// <remarks>
 ///     Said once for an attachment's box and an avatar's, so the two cannot come to shade differently — a byline

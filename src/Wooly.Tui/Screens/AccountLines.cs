@@ -17,7 +17,7 @@ namespace Wooly.Tui.Screens;
 ///     <see cref="Header" /> opens with, drawn by every screen that merely <em>lists</em> somebody. The header block
 ///     is then the Account block <em>plus</em> the bio, the custom fields and the standing, rather than a near-copy of
 ///     its top — because two shapes that drift by even a flag are a locked account reading as locked on its own screen
-///     and not on the list it was found from (#198, CONTEXT.md).
+///     and not on the list it was found from (#198, GLOSSARY.md).
 /// </remarks>
 public static class AccountLines
 {
@@ -63,7 +63,7 @@ public static class AccountLines
     ///     The accounts the reader follows that also follow this one, or <see langword="null" /> where the instance
     ///     was never asked — which draws nothing, exactly as an empty list does. The distinction is in what the screen
     ///     was handed rather than in what it drew, and it is what lets the row be honest when a rate limit stops the
-    ///     one call it costs (CONTEXT.md).
+    ///     one call it costs (GLOSSARY.md).
     /// </param>
     /// <param name="drawing">The room, the moment, and what this terminal can paint.</param>
     /// <param name="picked">
@@ -204,7 +204,7 @@ public static class AccountLines
     /// </remarks>
     /// <param name="standing">
     ///     Where the profile stands with them, or <see langword="null" /> where the instance was never asked — which
-    ///     says nothing rather than saying there is no tie (CONTEXT.md).
+    ///     says nothing rather than saying there is no tie (GLOSSARY.md).
     /// </param>
     /// <param name="said">
     ///     What the list this row is on has already said about everyone on it, which is what the row must not repeat.
@@ -253,7 +253,7 @@ public static class AccountLines
 
     /// <summary>
     ///     Where the profile stands with them, or the fact that the instance was not asked. Absent is not the same as
-    ///     nothing (CONTEXT.md), and five silences would say the profile follows nobody.
+    ///     nothing (GLOSSARY.md), and five silences would say the profile follows nobody.
     /// </summary>
     public static Line Standing(Account account, int width)
     {

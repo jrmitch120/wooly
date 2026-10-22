@@ -12,4 +12,4 @@ Uses the five canonical triage roles as-is (`needs-triage`, `needs-info`, `ready
 
 ### Domain docs
 
-Single-context layout — `CONTEXT.md` at the repo root. See `docs/agents/domain.md`.
+Single-context layout — `GLOSSARY.md` at the repo root. See `docs/agents/domain.md`.

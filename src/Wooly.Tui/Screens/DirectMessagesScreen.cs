@@ -13,7 +13,7 @@ namespace Wooly.Tui.Screens;
 /// <remarks>
 ///     A row is a conversation, not a post — so this screen answers to none of the keys that act on one. What it
 ///     offers is the two things a conversation can be asked: <c>⏎</c> opens the thread and <c>m</c> takes the unread
-///     mark off, both by the conversation's own id, which is not the id of any post in it (CONTEXT.md).
+///     mark off, both by the conversation's own id, which is not the id of any post in it (GLOSSARY.md).
 ///     <para>
 ///         The last post is drawn under each row rather than summarised, because it is the thing that tells one
 ///         conversation from another, and drawing it through <see cref="PostLines" /> is what stops a message read
@@ -22,7 +22,7 @@ namespace Wooly.Tui.Screens;
 /// </remarks>
 public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversations, string? notice = null) : Screen
 {
-    // Named by the conversation's own id, which is not the id of any post in it (CONTEXT.md) — and is what a refresh
+    // Named by the conversation's own id, which is not the id of any post in it (GLOSSARY.md) — and is what a refresh
     // puts the reader back on (#84).
     private readonly Picked<Conversation> _conversations = new(conversations);
 
@@ -88,7 +88,7 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
 
     /// <summary>
     ///     What this screen's own <c>⏎</c> does: opens the picked conversation — the thread its last post is in, oldest
-    ///     first. Named by the conversation's own id, which is not the id of any post in it (CONTEXT.md).
+    ///     first. Named by the conversation's own id, which is not the id of any post in it (GLOSSARY.md).
     /// </summary>
     /// <remarks>
     ///     Reading one does not mark it read (ADR-0013). A client that cleared the mark on the way past would make

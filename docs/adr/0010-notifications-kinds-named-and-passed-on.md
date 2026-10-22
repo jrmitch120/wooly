@@ -8,7 +8,7 @@ this client has never heard of.
 **A kind is a word, and only four of them are this project's.** Mastodon's notification `type` is an open set that grows
 between releases — `poll`, `update`, `severed_relationships`, `admin.report` all arrived after the four #24 names. So
 `NotificationKind` is a value with a `Name` rather than an enum: `Mention`, `Follow`, `Boost` and `Favorite` are the four
-this client has words of its own for (CONTEXT.md's vocabulary, so the wire's `reblog` and `favourite` never surface), and
+this client has words of its own for (GLOSSARY.md's vocabulary, so the wire's `reblog` and `favourite` never surface), and
 anything else is `NotificationKind.Reported(whatever the instance called it)`. An enum would have forced the alternative
 — a catch-all member — and a catch-all member with no word behind it is a notification a user can see the existence of
 and nothing else.

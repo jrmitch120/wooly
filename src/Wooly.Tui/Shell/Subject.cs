@@ -15,7 +15,7 @@ namespace Wooly.Tui.Shell;
 
 /// <summary>
 ///     What a screen that is read is read from: a destination on the rail, a post's thread, an account, one side of an
-///     account's follows, a hashtag walked to, or a conversation (CONTEXT.md, #233).
+///     account's follows, a hashtag walked to, or a conversation (GLOSSARY.md, #233).
 /// </summary>
 /// <remarks>
 ///     A closed set of values, each of which carries its own read and builds its own screen, and says whether what it
@@ -499,7 +499,7 @@ public abstract record Subject
 
     /// <summary>
     ///     One conversation and what was said in it — the thread its last post is in, oldest first. Named by the
-    ///     conversation's own id, which is not the id of any post in it (CONTEXT.md).
+    ///     conversation's own id, which is not the id of any post in it (GLOSSARY.md).
     /// </summary>
     /// <param name="Id">The conversation's own id.</param>
     public sealed record Conversation(string Id) : Subject

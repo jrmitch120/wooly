@@ -42,7 +42,7 @@ public class ShellNotificationTests
     }
 
     /// <summary>
-    ///     A notification is not the post it is about (CONTEXT.md): dismissing takes the notification's own id, and
+    ///     A notification is not the post it is about (GLOSSARY.md): dismissing takes the notification's own id, and
     ///     dismissing by the post's would clear nothing.
     /// </summary>
     [Fact]

@@ -3,7 +3,7 @@ using Wooly.Core.Profiles;
 namespace Wooly.Core.Accounts;
 
 /// <summary>
-///     Reads and saves the public profile (CONTEXT.md) of the account a profile signs in as — the only account whose
+///     Reads and saves the public profile (GLOSSARY.md) of the account a profile signs in as — the only account whose
 ///     public profile this client can change. A port of its own, ADR-0005's narrow kind: both front ends edit through
 ///     it, and their tests fake it rather than the network. ADR-0028 says why it reads as written and saves as changed.
 /// </summary>

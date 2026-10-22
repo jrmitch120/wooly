@@ -42,7 +42,7 @@ public class TimelineReaderTests
     }
 
     /// <summary>
-    ///     CONTEXT.md's vocabulary is the point of this layer: what the wire calls <c>reblogs_count</c> and
+    ///     GLOSSARY.md's vocabulary is the point of this layer: what the wire calls <c>reblogs_count</c> and
     ///     <c>favourites_count</c> reaches anything above here as boosts and favorites, spelled the project's way.
     /// </summary>
     [Fact]

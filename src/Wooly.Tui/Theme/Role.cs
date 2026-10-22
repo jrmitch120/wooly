@@ -2,7 +2,7 @@ namespace Wooly.Tui.Theme;
 
 /// <summary>
 ///     What a drawn thing <em>is</em>, said in a way a theme can answer. Nothing in the TUI constructs a colour: a view
-///     names one of these and the theme resolves it to an attribute (ADR-0014, CONTEXT.md). The table in
+///     names one of these and the theme resolves it to an attribute (ADR-0014, GLOSSARY.md). The table in
 ///     <c>docs/tui-shell.md</c> is the contract, and every member here is a row of it.
 ///     <para>
 ///         Distinct from Terminal.Gui's own <c>VisualRole</c>, which describes what a widget is doing —

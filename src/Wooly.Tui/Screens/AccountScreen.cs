@@ -45,7 +45,7 @@ public sealed class AccountScreen : Screen
     /// <param name="familiar">
     ///     The accounts the reader follows that also follow this one, or <see langword="null" /> where the instance
     ///     was never asked — which is what a screen built with no answer to that question is handed, and what the
-    ///     shell hands it when a rate limit stops the last of its calls (CONTEXT.md).
+    ///     shell hands it when a rate limit stops the last of its calls (GLOSSARY.md).
     /// </param>
     /// <param name="withReplies">
     ///     Whether <paramref name="posts" /> is their <b>Posts and replies</b> rather than their posts alone. Off
@@ -145,7 +145,7 @@ public sealed class AccountScreen : Screen
     /// <summary>
     ///     Whether the instance was asked what they have pinned. False leaves a row saying so where the run would
     ///     have been, which is not the same as the nothing an account with no pins draws — absent is not empty
-    ///     (CONTEXT.md), and the precedent is <see cref="AccountLines.Standing" />'s own.
+    ///     (GLOSSARY.md), and the precedent is <see cref="AccountLines.Standing" />'s own.
     /// </summary>
     public bool Asked { get; }
 

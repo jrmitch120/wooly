@@ -9,7 +9,7 @@ namespace Wooly.Tests.Tui;
 /// <summary>
 ///     Arriving at Notifications reads them: the account's <b>Read marker</b> moves to the newest notification shown,
 ///     so the badge clears as the reader looks — on the web too, since the marker is the instance's — while the rows
-///     that were unread stay marked for that visit (CONTEXT.md, ADR-0027, #397).
+///     that were unread stay marked for that visit (GLOSSARY.md, ADR-0027, #397).
 /// </summary>
 public class ReadMarkerArrivalTests
 {

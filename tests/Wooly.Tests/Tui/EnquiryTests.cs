@@ -6,7 +6,7 @@ using Wooly.Tui.Shell;
 namespace Wooly.Tests.Tui;
 
 /// <summary>
-///     A question put to an instance for a reader who may walk away before it answers (CONTEXT.md): the rate limit
+///     A question put to an instance for a reader who may walk away before it answers (GLOSSARY.md): the rate limit
 ///     waited out where they can watch it count down, the failure said out loud rather than thrown, and the answer
 ///     dropped where the screen it was asked from is no longer in front of them (ADR-0014, #233).
 /// </summary>

@@ -42,7 +42,7 @@ public class NotificationInboxTests
     }
 
     /// <summary>
-    ///     CONTEXT.md's vocabulary is the point of this layer: what the wire calls a <c>reblog</c> and a
+    ///     GLOSSARY.md's vocabulary is the point of this layer: what the wire calls a <c>reblog</c> and a
     ///     <c>favourite</c> reaches anything above here as a boost and a favorite.
     /// </summary>
     [Theory]
@@ -291,7 +291,7 @@ public class NotificationInboxTests
 
     /// <summary>
     ///     What is unread is what is newer than the account's read marker, which the instance keeps for every client of
-    ///     the account — so it is asked for first, and the notifications are read from just above it (CONTEXT.md).
+    ///     the account — so it is asked for first, and the notifications are read from just above it (GLOSSARY.md).
     /// </summary>
     [Fact]
     public async Task ReadUnread_ReadsTheNotificationsNewerThanTheReadMarker()

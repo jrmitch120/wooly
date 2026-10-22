@@ -3,7 +3,7 @@ using Wooly.Tui.Shell;
 namespace Wooly.Tests.Tui;
 
 /// <summary>
-///     Every destination belongs to one rail group, by what it is for (CONTEXT.md, ADR-0021): the timelines you read,
+///     Every destination belongs to one rail group, by what it is for (GLOSSARY.md, ADR-0021): the timelines you read,
 ///     the tools you go looking with, what comes to you, and your own account.
 /// </summary>
 public class RailGroupTests

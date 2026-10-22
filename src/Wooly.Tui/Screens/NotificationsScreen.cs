@@ -17,7 +17,7 @@ namespace Wooly.Tui.Screens;
 ///     </para>
 /// </summary>
 /// <remarks>
-///     A notification is not the post it is about (CONTEXT.md), and the difference is load-bearing here: <c>d</c>
+///     A notification is not the post it is about (GLOSSARY.md), and the difference is load-bearing here: <c>d</c>
 ///     dismisses the notification by its own id and leaves the post exactly where it was, while every other key on the
 ///     row acts on the post — so the two ids are kept apart rather than one standing in for the other.
 /// </remarks>
@@ -31,7 +31,7 @@ public sealed class NotificationsScreen(
 {
     private readonly HashSet<string> _unread = new(unread ?? new HashSet<string>(), StringComparer.Ordinal);
 
-    // Named by the notification's own id, which is not the id of the post it is about (CONTEXT.md) — and is what a
+    // Named by the notification's own id, which is not the id of the post it is about (GLOSSARY.md) — and is what a
     // refresh puts the reader back on (#84).
     private readonly Picked<Notification> _notifications = new(notifications);
 
@@ -155,7 +155,7 @@ public sealed class NotificationsScreen(
         return Task.CompletedTask;
     }
 
-    /// <summary>Clears the picked notification, which is named by its own id and not by the post's (CONTEXT.md).</summary>
+    /// <summary>Clears the picked notification, which is named by its own id and not by the post's (GLOSSARY.md).</summary>
     private Task Dismiss(Reach reach)
     {
         if (PickedNotification is not { } picked)

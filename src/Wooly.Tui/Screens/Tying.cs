@@ -34,7 +34,7 @@ internal static class Tying
     /// <remarks>
     ///     A follow is the one that may not have gone through as asked: following a locked account leaves a request
     ///     behind rather than a follow, and the instance's own answer is the only thing that says which happened
-    ///     (CONTEXT.md).
+    ///     (GLOSSARY.md).
     /// </remarks>
     private static string Said(AccountTie tie, bool wanted, Account account) => (tie, wanted) switch
     {

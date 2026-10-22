@@ -1,6 +1,6 @@
 namespace Wooly.Core.Accounts;
 
-/// <summary>One custom field (CONTEXT.md), of the four Mastodon lets an account set.</summary>
+/// <summary>One custom field (GLOSSARY.md), of the four Mastodon lets an account set.</summary>
 public sealed record AccountField
 {
     /// <summary>What the account calls the row, which is anything it chose to type and unique to nothing.</summary>

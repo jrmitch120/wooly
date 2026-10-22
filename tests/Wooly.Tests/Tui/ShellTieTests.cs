@@ -84,7 +84,7 @@ public class ShellTieTests
 
     /// <summary>
     ///     Following a locked account leaves a request behind rather than a follow, and the instance's own answer is
-    ///     the only thing that says which happened — so "now following" is not said about one (CONTEXT.md).
+    ///     the only thing that says which happened — so "now following" is not said about one (GLOSSARY.md).
     /// </summary>
     [Fact]
     public async Task Tie_SaysAFollowOfALockedAccountWasAskedForRatherThanDone()

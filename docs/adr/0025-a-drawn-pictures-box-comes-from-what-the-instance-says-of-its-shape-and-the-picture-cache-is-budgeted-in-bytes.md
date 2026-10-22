@@ -123,7 +123,7 @@ In ADR-0016:
 ADR-0022's "A box whose picture is not ready yet keeps the `▒` its rows already carry" is replaced by the Stand-in for the
 same reason. "Fit, never squash" now relies on the fitting described above, not on the box already having the picture's
 shape. Kitty's Unicode placeholders are still called placeholders in the code. The Stand-in is a different thing
-(CONTEXT.md).
+(GLOSSARY.md).
 
 The `MostHeld` count, and its history (sixteen, then 32 for #77), are superseded completely.
 

@@ -429,6 +429,15 @@ which is a headed run on a screen: `[`/`]` walk sections, `` ` ``/`~` walk rail 
 not only the notifications that the code's `INotificationInbox` reads.
 _Avoid_: section, box, panel (a rail group is drawn as a panel, but the content is a panel too)
 
+**Shell width**:
+How much of the terminal's width the TUI takes, as a percentage: all of it, or less, in steps of ten down to half, with
+the shell centred and the terminal's own background showing either side. Width only, because what it is for is a line
+length a reader can follow on a wide terminal, and the height a short line needs is the height there is. A share rather
+than a count of columns, so it holds when the terminal is resized, but never narrower than the 80 columns the shell is
+laid out for: on a terminal that leaves no room for less, the shell is all of it. One for every profile, since how wide
+to read is a fact about the terminal and the reader, not the account.
+_Avoid_: zoom, scale (nothing is drawn bigger), size (the height never changes), measure (the cell is measured)
+
 **Unread count**:
 What an **Inbox** destination's badge says is waiting, in the instance's own terms for each: notifications newer than
 the **Read marker**, conversations the instance flags unread, and follow requests not yet answered — a request has no

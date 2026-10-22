@@ -37,7 +37,7 @@ public enum DestinationKind
 }
 
 /// <summary>
-///     Which of the four rail groups a destination is drawn in, by what it is for (CONTEXT.md, ADR-0021). The rail's
+///     Which of the four rail groups a destination is drawn in, by what it is for (GLOSSARY.md, ADR-0021). The rail's
 ///     order is the groups' order, which is this one.
 /// </summary>
 public enum RailGroup
@@ -58,7 +58,7 @@ public enum RailGroup
 }
 
 /// <summary>
-///     One place the rail can send you (CONTEXT.md): what it is called, what it costs a fetch to arrive at, and how
+///     One place the rail can send you (GLOSSARY.md): what it is called, what it costs a fetch to arrive at, and how
 ///     many unread things are waiting there.
 /// </summary>
 /// <remarks>

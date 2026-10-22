@@ -50,7 +50,7 @@ public interface IPicked
 
 /// <summary>
 ///     The things on one screen with one of them picked out, and the rows they are drawn on. Which of the things the
-///     reader has walked to with <c>j</c> and <c>k</c>, and what every key that acts on something acts on (CONTEXT.md).
+///     reader has walked to with <c>j</c> and <c>k</c>, and what every key that acts on something acts on (GLOSSARY.md).
 /// </summary>
 /// <remarks>
 ///     The index and the rows are one module because the two cannot be told apart from outside: <see cref="Scroll" />

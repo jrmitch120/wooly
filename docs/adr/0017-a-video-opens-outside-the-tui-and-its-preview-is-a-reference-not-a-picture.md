@@ -47,7 +47,7 @@ for a `Link` inside a post's text: `←`/`→` walks to it, `⏎` opens it. But 
 — "found inside a post's text" — because an attachment is rendered on a separate path (`PostLines.Media`, not
 `BodyText`) and was never part of what that walk reached.
 
-It was widened anyway (CONTEXT.md, **Reference**). The alternative — a second, parallel walk/pick/open mechanism for
+It was widened anyway (GLOSSARY.md, **Reference**). The alternative — a second, parallel walk/pick/open mechanism for
 attachments alone — would have meant solving "which of several things on this post is picked right now" a second
 time, including its edge cases (bounds, clearing the pick when the post changes, the bracket that marks it,
 `PostKeys.OnAReference`'s hint row), rather than reusing the one solve that already exists and is already exercised.

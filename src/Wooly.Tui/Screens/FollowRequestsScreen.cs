@@ -7,7 +7,7 @@ namespace Wooly.Tui.Screens;
 
 /// <summary>
 ///     The follows waiting to be answered, which only a locked account ever has any of — an unlocked one is followed
-///     rather than asked (CONTEXT.md). A rail destination, carrying its own count.
+///     rather than asked (GLOSSARY.md). A rail destination, carrying its own count.
 /// </summary>
 /// <remarks>
 ///     Each row is a person, not a post, so this screen answers to none of the keys that act on one: <c>a</c> accepts

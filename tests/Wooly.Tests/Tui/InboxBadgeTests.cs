@@ -6,7 +6,7 @@ using Wooly.Tui.Shell;
 namespace Wooly.Tests.Tui;
 
 /// <summary>
-///     Every Inbox badge says what the instance says is waiting — its <b>Unread count</b> (CONTEXT.md, ADR-0027):
+///     Every Inbox badge says what the instance says is waiting — its <b>Unread count</b> (GLOSSARY.md, ADR-0027):
 ///     notifications newer than the <b>Read marker</b>, conversations flagged unread, follow requests not yet answered.
 ///     Read the same way when the shell opens and when the reader arrives at the destination, so the two can never
 ///     disagree (#396).

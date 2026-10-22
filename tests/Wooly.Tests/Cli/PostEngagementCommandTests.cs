@@ -951,7 +951,7 @@ public class PostEngagementCommandTests : IDisposable
     private static FakePostEngagement WithAPoll(PostPoll? poll = null) =>
         FakePostEngagement.Answering(APost.With(poll: poll ?? APost.APoll()));
 
-    /// <summary>CONTEXT.md's vocabulary, at the one place a user reads it: nothing on screen says reblog or favourite.</summary>
+    /// <summary>GLOSSARY.md's vocabulary, at the one place a user reads it: nothing on screen says reblog or favourite.</summary>
     [Fact]
     public void Post_NamesWhatItDoesInThisProjectsVocabulary()
     {

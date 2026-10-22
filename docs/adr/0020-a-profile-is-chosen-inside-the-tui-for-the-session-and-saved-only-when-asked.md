@@ -19,7 +19,7 @@ touched, as every way out of a compose screen now does.)
 
 ## Two words for two things: default, and acting as
 
-CONTEXT.md's **default profile** is the saved one, which the CLI uses whenever `--profile` is not given. A TUI session
+GLOSSARY.md's **default profile** is the saved one, which the CLI uses whenever `--profile` is not given. A TUI session
 can act as a different profile without changing the saved one, just as `--profile` does. **Acting as** is the name for
 that, and it is what `profile show` already prints. The profiles screen marks both. Switching changes only acting as.
 `D` changes the default.

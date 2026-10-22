@@ -98,7 +98,7 @@ public class ShellMessageTests
     }
 
     /// <summary>
-    ///     A conversation is shown by its own id and not by the id of any post in it (CONTEXT.md) — the one mistake the
+    ///     A conversation is shown by its own id and not by the id of any post in it (GLOSSARY.md) — the one mistake the
     ///     noun exists to make impossible.
     /// </summary>
     [Fact]

@@ -3,7 +3,7 @@ using Wooly.Core.Accounts;
 namespace Wooly.Core.Discovery;
 
 /// <summary>
-///     Somebody an instance offers this profile to follow, and why it is offering them (CONTEXT.md). The reason is what
+///     Somebody an instance offers this profile to follow, and why it is offering them (GLOSSARY.md). The reason is what
 ///     makes this a record at all rather than a bare <see cref="Accounts.Account" />: a list of strangers is a list of
 ///     strangers, and it is the reason that earns a stranger a row.
 ///     <para>

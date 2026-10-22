@@ -19,7 +19,7 @@ namespace Wooly.Tui.Screens;
 ///         them — only while it is drawing, which is what makes a screen safe to hand over as it is being built.
 ///     </para>
 ///     <para>
-///         No new word for it: what this holds is <b>Picked</b> as CONTEXT.md already defines it, and the posts are
+///         No new word for it: what this holds is <b>Picked</b> as GLOSSARY.md already defines it, and the posts are
 ///         posts. The forwarding members are the price of naming the pair once — a screen that reached past this to
 ///         the list inside it could pick one thing and draw another.
 ///     </para>

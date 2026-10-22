@@ -3,7 +3,7 @@ namespace Wooly.Core.Accounts;
 /// <summary>
 ///     One Mastodon account, as an instance describes it: who they are, what they say about themselves, where to read
 ///     them, and how much of a presence they have. Distinct from a local <see cref="Profiles.ProfileSummary" />, which
-///     is this client's own credential entry pointing at one of these (CONTEXT.md).
+///     is this client's own credential entry pointing at one of these (GLOSSARY.md).
 ///     <para>
 ///         The two facts a post already carries about its author — the address and the name shown — are named here with
 ///         the same two words a post names them with, so that <c>account</c> and <c>author</c> mean the same thing
@@ -35,7 +35,7 @@ public sealed record Account
     public required long Posts { get; init; }
 
     /// <summary>
-    ///     The bio (CONTEXT.md), as the plain text a terminal can print, and an empty string where the account wrote
+    ///     The bio (GLOSSARY.md), as the plain text a terminal can print, and an empty string where the account wrote
     ///     none. Never <see langword="null" />: this and the four below it ride on every account entity Mastodon
     ///     sends, so there is no state in which the question went unput — which is what tells them from
     ///     <see cref="Standing" />.

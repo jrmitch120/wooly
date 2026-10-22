@@ -10,7 +10,7 @@ namespace Wooly.Tests.Tui;
 /// <summary>
 ///     A re-read that finds something new for the <b>Inbox</b> screen in front puts it at the top of that screen, without
 ///     the picked row moving — and on Notifications moves the <b>Read marker</b> past it, so the badge stays clear while
-///     the reader looks, drawing it unread for the visit (CONTEXT.md, ADR-0027, #400). Driven by the poll here; a stream
+///     the reader looks, drawing it unread for the visit (GLOSSARY.md, ADR-0027, #400). Driven by the poll here; a stream
 ///     event re-reads through the same path.
 /// </summary>
 public class LiveInsertionTests

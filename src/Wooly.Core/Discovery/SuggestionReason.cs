@@ -3,7 +3,7 @@ namespace Wooly.Core.Discovery;
 /// <summary>
 ///     Why an instance is offering somebody to follow — the whole of what makes a <see cref="Suggestion" /> worth
 ///     having, since a bare list of strangers is a list of strangers and "followed by people you follow" is an
-///     argument (CONTEXT.md).
+///     argument (GLOSSARY.md).
 ///     <para>
 ///         Five members, being the five sources Mastodon's <c>/v2/suggestions</c> documents. Unlike
 ///         <see cref="Notifications.NotificationKind" />, a source this client has never heard of is not kept under the
@@ -22,7 +22,7 @@ public enum SuggestionReason
     /// <summary>Like the accounts this profile has followed lately.</summary>
     SimilarToRecentlyFollowed,
 
-    /// <summary>Put forward by the instance's own staff. Not the <b>Pinned</b> sense of the word (CONTEXT.md).</summary>
+    /// <summary>Put forward by the instance's own staff. Not the <b>Pinned</b> sense of the word (GLOSSARY.md).</summary>
     Featured,
 
     /// <summary>Among the accounts talked with most on this instance.</summary>

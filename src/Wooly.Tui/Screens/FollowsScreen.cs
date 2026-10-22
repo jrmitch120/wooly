@@ -98,7 +98,7 @@ public sealed class FollowsScreen : Screen
     /// </summary>
     /// <remarks>
     ///     Not called <c>Reading</c>, which this namespace has already spent on what a reader has done to one post
-    ///     (CONTEXT.md).
+    ///     (GLOSSARY.md).
     /// </remarks>
     public bool More { get; private set; }
 

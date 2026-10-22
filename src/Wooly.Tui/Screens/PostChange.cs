@@ -9,7 +9,7 @@ namespace Wooly.Tui.Screens;
 /// <remarks>
 ///     A boost is the same post as far as a mark or a deletion goes and a different one as far as the row goes, which
 ///     is the whole of the rule: who boosted a post, and whether this profile did, is a fact about the boost and not
-///     about the post inside it (CONTEXT.md).
+///     about the post inside it (GLOSSARY.md).
 /// </remarks>
 public static class PostChange
 {

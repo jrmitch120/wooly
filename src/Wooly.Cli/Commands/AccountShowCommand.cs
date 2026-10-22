@@ -9,7 +9,7 @@ namespace Wooly.Cli.Commands;
 /// <summary>
 ///     Shows one account, named by its address and read on its own: who somebody is, and where the profile stands with
 ///     them. The read the <c>account</c> branch never had — the rest of it is follow, block, mute, the two lists and
-///     requests, and <c>profile show</c> is the local credential entry, a different thing entirely (CONTEXT.md's
+///     requests, and <c>profile show</c> is the local credential entry, a different thing entirely (GLOSSARY.md's
 ///     <em>profile</em> against its <em>account</em>).
 /// </summary>
 /// <remarks>

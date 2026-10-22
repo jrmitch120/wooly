@@ -175,7 +175,7 @@ public class AccountBlockTests
 
     /// <summary>
     ///     An account carrying no standing at all says nothing rather than saying no: the batched call that fills one
-    ///     in may not have happened, or may have been refused, and a silent row is the honest one (CONTEXT.md).
+    ///     in may not have happened, or may have been refused, and a silent row is the honest one (GLOSSARY.md).
     /// </summary>
     [Fact]
     public void Compact_SaysNothingWhereTheInstanceWasNeverAsked() => Assert.Equal(string.Empty, AccountLines.Compact(null));

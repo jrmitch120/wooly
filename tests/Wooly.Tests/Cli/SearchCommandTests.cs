@@ -378,7 +378,7 @@ public class SearchCommandTests : IDisposable
         Assert.Empty(found.GetProperty("posts").EnumerateArray().ToList());
     }
 
-    /// <summary>CONTEXT.md's vocabulary, at the one place a user reads it: nothing on screen says reblog or toot.</summary>
+    /// <summary>GLOSSARY.md's vocabulary, at the one place a user reads it: nothing on screen says reblog or toot.</summary>
     [Fact]
     public void Search_NamesWhatItShowsInThisProjectsVocabulary()
     {

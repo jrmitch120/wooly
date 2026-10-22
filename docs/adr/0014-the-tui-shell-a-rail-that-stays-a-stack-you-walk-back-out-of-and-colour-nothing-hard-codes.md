@@ -145,7 +145,7 @@ one screen, caches for the same minute in the same `DestinationCache`, and count
 Search gives, since nothing there is waiting for anybody.
 
 Three places in the codebase and its docs enumerate nine and now enumerate ten: `DestinationKind`, `RailLines.Of`'s
-group rules, and `docs/tui-shell.md`. CONTEXT.md's **Destination** term says which one grew and why, so that the next
+group rules, and `docs/tui-shell.md`. GLOSSARY.md's **Destination** term says which one grew and why, so that the next
 person to propose an eleventh finds the bar it has to clear.
 
 ## Amendment: a pick is not necessarily a post, and a screen's sections are walkable (map #159)

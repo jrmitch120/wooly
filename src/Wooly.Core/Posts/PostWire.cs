@@ -5,7 +5,7 @@ using Wooly.Core.Profiles;
 namespace Wooly.Core.Posts;
 
 /// <summary>
-///     The one crossing between Mastodon's <c>status</c> and this project's <see cref="Post" /> (CONTEXT.md). Shared by
+///     The one crossing between Mastodon's <c>status</c> and this project's <see cref="Post" /> (GLOSSARY.md). Shared by
 ///     everything that gets a post back from an instance — reading a timeline, publishing one, editing one — so that a
 ///     post looks the same however it arrived. Two ways of mapping the same wire type is how a field comes to be filled
 ///     in on a timeline and empty on the post that was just published.

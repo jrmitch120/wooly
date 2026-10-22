@@ -5,7 +5,7 @@ namespace Wooly.Tui.Shell;
 
 /// <summary>
 ///     What happened on the instance, as a verb reports it: a post changed, gone or sent, a tie made, something taken
-///     off an inbox (CONTEXT.md, #234).
+///     off an inbox (GLOSSARY.md, #234).
 /// </summary>
 /// <remarks>
 ///     A closed set of values that say what happened and nothing about what it makes stale. That is

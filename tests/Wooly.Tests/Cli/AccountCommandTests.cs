@@ -329,7 +329,7 @@ public class AccountCommandTests : IDisposable
 
     /// <summary>
     ///     The command the <c>account</c> branch turns out never to have had: who somebody is, read on its own.
-    ///     <c>profile show</c> is the local credential entry and a different thing entirely (CONTEXT.md).
+    ///     <c>profile show</c> is the local credential entry and a different thing entirely (GLOSSARY.md).
     /// </summary>
     [Fact]
     public void Account_ShowsWhoAnAccountIsWhenOneIsNamed()
@@ -374,7 +374,7 @@ public class AccountCommandTests : IDisposable
 
     /// <summary>
     ///     A verified field is marked after its value; one nobody proved says nothing extra, absence being the honest
-    ///     signal since a field nobody proved is not a field anybody disproved (CONTEXT.md).
+    ///     signal since a field nobody proved is not a field anybody disproved (GLOSSARY.md).
     /// </summary>
     [Fact]
     public void Account_ShowsTheFieldsAnAccountSetAndMarksOnlyTheOnesItsInstanceProved()
@@ -408,7 +408,7 @@ public class AccountCommandTests : IDisposable
 
     /// <summary>
     ///     The reader's own words about somebody else, which nobody else ever sees and which arrives on the standing
-    ///     this read already asked for (CONTEXT.md).
+    ///     this read already asked for (GLOSSARY.md).
     /// </summary>
     [Fact]
     public void Account_ShowsTheNoteTheProfileKeptAboutAnAccount()
@@ -692,7 +692,7 @@ public class AccountCommandTests : IDisposable
         Assert.Equal("42", account.GetProperty("id").GetString());
     }
 
-    /// <summary>CONTEXT.md's vocabulary, at the one place a user reads it: an instance is not a server.</summary>
+    /// <summary>GLOSSARY.md's vocabulary, at the one place a user reads it: an instance is not a server.</summary>
     [Fact]
     public void Account_NamesWhatItShowsInThisProjectsVocabulary()
     {

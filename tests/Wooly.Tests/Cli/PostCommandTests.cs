@@ -764,7 +764,7 @@ public class PostCommandTests : IDisposable
         Assert.Empty(_posts.Deletions);
     }
 
-    /// <summary>CONTEXT.md's vocabulary, at the one place a user reads it: nothing on screen says status or toot.</summary>
+    /// <summary>GLOSSARY.md's vocabulary, at the one place a user reads it: nothing on screen says status or toot.</summary>
     [Fact]
     public void Post_NamesWhatItDoesInThisProjectsVocabulary()
     {

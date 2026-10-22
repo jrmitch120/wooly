@@ -6,7 +6,7 @@ namespace Wooly.Core.Search;
 
 /// <summary>
 ///     What is typed into search when it names one thing rather than asks after something, and so goes straight to
-///     the thing it names instead of listing results (<c>CONTEXT.md</c>).
+///     the thing it names instead of listing results (<c>GLOSSARY.md</c>).
 /// </summary>
 /// <remarks>
 ///     A front end's rule rather than the search's: what is typed still searches for exactly what it says wherever a

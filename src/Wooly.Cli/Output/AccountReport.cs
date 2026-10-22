@@ -27,7 +27,7 @@ internal static class AccountReport
     /// <summary>
     ///     What marks a custom field the instance has proved, the same mark the TUI puts there. Mastodon only ever
     ///     verifies a link, so it always lands on an address — and a field nobody proved says nothing extra, absence
-    ///     being the honest signal (CONTEXT.md).
+    ///     being the honest signal (GLOSSARY.md).
     /// </summary>
     private const string VerifiedMark = " ✓";
 
@@ -289,7 +289,7 @@ internal static class AccountReport
     ///     question, and a silence here would read as a line that failed to print rather than as an answer.
     /// </summary>
     /// <remarks>
-    ///     Absent is not the same as nothing (CONTEXT.md) — an account whose standing was never asked for says so,
+    ///     Absent is not the same as nothing (GLOSSARY.md) — an account whose standing was never asked for says so,
     ///     rather than being reported as an account the profile has no ties with. Said here rather than left to the
     ///     one caller, because what this is handed is an <see cref="Account" />, and an account is a thing that may
     ///     carry no standing however it was come by.

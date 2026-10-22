@@ -395,7 +395,7 @@ back to the thread's root (#72):
 - **The whole ancestor chain, uncapped** — not just the immediate parent. Free: `PostEngagement` already calls
   `GetStatusContext`, discarding `context.Ancestors` while keeping `context.Descendants`; ancestors ride the same
   call, at zero extra cost. The port's method is `IPostEngagement.Thread` and it answers with a **thread**
-  (`PostThread`, CONTEXT.md) — both halves around the post, since it was never one call's worth of question to ask
+  (`PostThread`, GLOSSARY.md) — both halves around the post, since it was never one call's worth of question to ask
   what a post answers separately from what answered it.
 - **Drawn whole**, via `PostLines.Feed`, the same way a reply already draws — not as the compact `↳` mark above,
   whose cost argument (one fetch per reply, on a whole timeline) does not apply to a single already-fetched screen.
@@ -469,7 +469,7 @@ mention, or address inside a post's text — replacing `BodyText`'s internal "ma
   reader has left the post. **`↓`/`↑` (page scroll) do not** — they leave the selection alone by the existing
   "What moving settled" contract, and a reference pick lives inside the selected post, not on a row.
 - **Bracketed `‹reference›`** — brackets, always drawn, in colour and no-colour terminals alike. ("Marked" is the
-  word `Post.Marks` has, which is the collision the rename was about — CONTEXT.md.) The brackets take
+  word `Post.Marks` has, which is the collision the rename was about — GLOSSARY.md.) The brackets take
   their own role (`Role.ReferencePicked`), independent of whatever role the bracketed text already carries, so a
   picked hashtag stays hashtag-coloured and only the brackets shift. Underline was considered — a separate SGR
   attribute, zero width cost — and set aside in favour of brackets; the two added columns on the one row a pick
@@ -822,7 +822,7 @@ The last two screens, and the one place a screen writes words of its own into wh
 - **Opening a conversation does not mark it read.** `⏎` shows the thread and leaves the mark exactly as it found it;
   `m` is the only thing that clears it (ADR-0013). A client that cleared it on the way past would make "what have I not
   read" unanswerable for anything that looked afterwards — including this shell's own badge.
-- **A conversation is marked read by its own id**, which is not the id of any post in it (CONTEXT.md). The same id
+- **A conversation is marked read by its own id**, which is not the id of any post in it (GLOSSARY.md). The same id
   opens it, and the two screens holding it — the list and the thread pushed from it — are both moved by one answer, so
   a row cannot still say `unread` under a thread just marked.
 - **Every reply opens with the mention already in it.** Mastodon routes by the handles it parses out of a post's text:
@@ -1481,7 +1481,7 @@ to follow (#171):
 - **It is a destination and not a key on the search screen.** What earns the entry is that the screen is sectioned, so
   a second kind of suggestion later is a heading rather than an eleventh rail entry — the cost is paid once now instead
   of once per kind. **There is no second door**: no `S` on the search screen, because Discover is an **Arrival** and
-  the stack resets to one screen, and a place that was both a destination and a pushed screen is what CONTEXT.md's
+  the stack resets to one screen, and a place that was both a destination and a pushed screen is what GLOSSARY.md's
   **Destination** term exists to prevent.
 - **The reason is a heading, and every reason gets one** — `── 11 followed by people you follow ──`,
   `── 6 like people you followed lately ──`, `── 4 featured by this instance ──`, `── 9 talked with most here ──`,
@@ -1805,7 +1805,7 @@ Three things stayed outside it, each deliberately:
   own file, through `Screen.Answer(verb, reach)` (#232). `Shell.Do` keeps the frame's verbs and the ones that act on the
   picked post of any screen — marks, reply, compose, edit, delete, vote, reveal, opening a reference or an author — and
   `m`, which reads across the conversation and DM screens; every other verb falls through to the screen. What a screen
-  can do while it answers is **Reach** (CONTEXT.md): the ports and profile, one `Put` through the shell's **Enquiry**,
+  can do while it answers is **Reach** (GLOSSARY.md): the ports and profile, one `Put` through the shell's **Enquiry**,
   `Open` and `Swap` of a **Subject** (#233), `Say`, `Confirm`, `Changed`, `Tell` of a **Change** (#234) and `IsMe` —
   and nothing of the stack, the rail or the cache. So the account screen's
   ties, `w` and `s` are in `AccountScreen.cs`; a follow list's `s`, `f` and `⏎` in `FollowsScreen.cs`; search's `⏎` in

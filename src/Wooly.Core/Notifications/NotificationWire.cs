@@ -28,7 +28,7 @@ internal static class NotificationWire
 
     /// <summary>
     ///     How this project spells the kind the wire reported. The four it knows are written out — the wire's
-    ///     <c>reblog</c> and <c>favourite</c> reach anything above this layer as a boost and a favorite (CONTEXT.md) —
+    ///     <c>reblog</c> and <c>favourite</c> reach anything above this layer as a boost and a favorite (GLOSSARY.md) —
     ///     and anything else keeps the instance's own word, per <see cref="NotificationKind.Reported" />.
     /// </summary>
     internal static NotificationKind ToKind(string type) => type switch

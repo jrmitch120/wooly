@@ -6,7 +6,7 @@ namespace Wooly.Tui.Shell;
 
 /// <summary>
 ///     What a re-read of one <b>Inbox</b> destination's count came back with, besides the count: what is waiting there
-///     now, newest first — for the screen in front to put at its top whatever of it is new (CONTEXT.md, ADR-0027, #400).
+///     now, newest first — for the screen in front to put at its top whatever of it is new (GLOSSARY.md, ADR-0027, #400).
 /// </summary>
 /// <remarks>
 ///     A closed set, one case per destination, told to the screen in front and to nothing else

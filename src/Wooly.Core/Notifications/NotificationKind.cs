@@ -2,7 +2,7 @@ namespace Wooly.Core.Notifications;
 
 /// <summary>
 ///     What somebody did that the instance thought worth telling this account about. Four of them this client has its
-///     own word for — a mention, a follow, a boost, a favorite (CONTEXT.md) — and those four are what #24 asks for.
+///     own word for — a mention, a follow, a boost, a favorite (GLOSSARY.md) — and those four are what #24 asks for.
 ///     <para>
 ///         A kind is a word rather than an enum member because Mastodon keeps adding kinds, and an instance may send one
 ///         this client has never heard of: a poll that ended, an edited post, a moderation warning. Dropping those would

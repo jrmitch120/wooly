@@ -8,7 +8,7 @@ namespace Wooly.Tui.Shell;
 
 /// <summary>
 ///     How each <b>Inbox</b> destination's badge is counted: its <b>Unread count</b>, in the instance's own terms for
-///     each (CONTEXT.md, ADR-0027). Said once, here, because a badge is read from two places — a re-read of the counts,
+///     each (GLOSSARY.md, ADR-0027). Said once, here, because a badge is read from two places — a re-read of the counts,
 ///     and arriving at the destination itself — and the two must not come to disagree (#396).
 /// </summary>
 /// <remarks>

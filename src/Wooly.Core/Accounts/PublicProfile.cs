@@ -1,7 +1,7 @@
 namespace Wooly.Core.Accounts;
 
 /// <summary>
-///     The public profile (CONTEXT.md) of the own account, as the account wrote it rather than as anyone reads it: the
+///     The public profile (GLOSSARY.md) of the own account, as the account wrote it rather than as anyone reads it: the
 ///     bio and custom fields are <c>source</c>'s, never the flattened <see cref="Account.Bio" />, so that whatever is
 ///     edited from here and saved back is what was written (ADR-0028).
 /// </summary>

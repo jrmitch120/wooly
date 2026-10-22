@@ -6,7 +6,7 @@ namespace Wooly.Tui.Rendering;
 ///     A hashtag, a mention, or an address inside a post's text — or a <c>Video</c>, <c>Animation</c>, <c>Audio</c> or
 ///     <c>Unknown</c> attachment's own address, once it is not drawn as a picture in its own right, or the address a
 ///     link preview was made of — one of the things that point somewhere else, which <c>←</c> and <c>→</c> walk and
-///     <c>⏎</c> opens (CONTEXT.md, #83, ADR-0017, ADR-0018).
+///     <c>⏎</c> opens (GLOSSARY.md, #83, ADR-0017, ADR-0018).
 /// </summary>
 /// <remarks>
 ///     The first three are found once on the whole post's flattened text rather than a row at a time, which is what

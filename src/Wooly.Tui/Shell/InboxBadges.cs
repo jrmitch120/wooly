@@ -5,7 +5,7 @@ namespace Wooly.Tui.Shell;
 
 /// <summary>
 ///     The <b>Inbox</b>'s three badges on the rail, kept live for whoever is acted as: read again by the poll and the
-///     stream, put on the rail, and the bell rung where one rose (CONTEXT.md, ADR-0027, #398, #399, #401).
+///     stream, put on the rail, and the bell rung where one rose (GLOSSARY.md, ADR-0027, #398, #399, #401).
 /// </summary>
 /// <remarks>
 ///     Everything about a badge that is not the screen it sits beside: the last count of each, which the next is told
