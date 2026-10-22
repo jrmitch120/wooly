@@ -304,9 +304,11 @@ public sealed class Drafting
                 break;
         }
 
-        // What both arms do to get back to where the reader was: the screen on top off the stack, before the change is
-        // heard by what is left on it.
-        void Popped() => _stack.TakeOff(_stack.Top);
+        // What both arms do to get back to where the reader was: the compose that was sent off the stack, with whatever
+        // has been put over it meanwhile, before the change is heard by what is left on it — named rather than read off
+        // the top, so an answer that lands after something else is in front takes off only what it was about, and
+        // nothing where the compose has already gone (#423).
+        void Popped() => _stack.TakeOff(compose);
     }
 
     /// <summary>
