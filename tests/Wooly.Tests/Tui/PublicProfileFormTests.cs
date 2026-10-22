@@ -245,10 +245,10 @@ public class PublicProfileFormTests
 
         WalkTo(shell, form, PublicProfilePart.Label);
 
-        Assert.Equal(ComposeChange.None, shell.ChangePublicProfile(editing => editing.Across(-1)));
+        Assert.Equal(DraftChange.None, shell.ChangePublicProfile(editing => editing.Across(-1)));
         _ = shell.ChangePublicProfile(editing => editing.Across(1));
         Assert.Equal(new PublicProfileStop(PublicProfilePart.Value, 0), form.Typing);
-        Assert.Equal(ComposeChange.None, shell.ChangePublicProfile(editing => editing.Across(1)));
+        Assert.Equal(DraftChange.None, shell.ChangePublicProfile(editing => editing.Across(1)));
 
         shell.Press(ShellKey.Down);
         shell.Press(ShellKey.Down);

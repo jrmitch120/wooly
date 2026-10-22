@@ -11,6 +11,7 @@ using Wooly.Core.Relationships;
 using Wooly.Core.Search;
 using Wooly.Core.Timelines;
 using Wooly.Tui.Clipboard;
+using Wooly.Tui.Drafting;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Theme;
@@ -91,13 +92,6 @@ public sealed class Shell
     private readonly string? _hashtag;
 
     /// <summary>
-    ///     What the config file says a post goes out at — <c>default_visibility</c> and <c>default_language</c>, either
-    ///     unknown where it says nothing — which a compose screen's To and Lang start on ahead of the account's own
-    ///     (ADR-0024, #338, #340).
-    /// </summary>
-    private readonly PostDefaults _preferred;
-
-    /// <summary>
     ///     Who this session is acting as, and everything that asks as them or holds what was read as them — which
     ///     <c>⏎</c> on the profiles screen puts a new one in place of, whole (ADR-0020, #243). Nobody, while the shell
     ///     has nobody it can act as and is standing on adding one (#247).
@@ -166,14 +160,11 @@ public sealed class Shell
     /// </summary>
     private readonly InboxBadges _badges;
 
-    /// <summary>How long each instance lets a post be, asked as posts are first written there (#319).</summary>
-    private readonly LimitsByInstance _limits;
-
     /// <summary>
-    ///     What each account acted as posts at by default, asked as the session starts acting as it — the fallback for
-    ///     what compose starts on after the config's own preferences (ADR-0024, #339).
+    ///     What the session does for the drafts it has open, beyond holding what is written (ADR-0029): told of every
+    ///     draft verb first, and of every screen that leaves or is uncovered.
     /// </summary>
-    private readonly DefaultsByProfile _defaults;
+    private readonly Tui.Drafting.Drafting _drafting;
 
     /// <summary>
     ///     The calls each compose screen's pending attachments make to the instance — sent up as attached, and described
@@ -226,20 +217,23 @@ public sealed class Shell
         _profiles = profiles;
         _shellWidths = shellWidths;
         _host = host;
-        _limits = new LimitsByInstance(ports.Limits, host);
-        _limits.Heard += Measured;
         _attachments = new AttachmentCalls(ports.Author, host);
         _attachments.Heard += Progressed;
         _attachments.Told += Told;
         _attachments.Untold += Untold;
-        _defaults = new DefaultsByProfile(ports.Defaults, host);
         _browser = browser;
         _clipboard = clipboard;
         _pasted = pasted;
         _clock = clock;
         _timing = timing;
         _hashtag = preferences?.Hashtag;
-        _preferred = new PostDefaults(preferences?.DefaultVisibility, preferences?.DefaultLanguage);
+        Stack = new Stacked(this);
+        _drafting = new Tui.Drafting.Drafting(
+            Stack,
+            () => _acting?.Reach,
+            ports,
+            host,
+            new PostDefaults(preferences?.DefaultVisibility, preferences?.DefaultLanguage));
         ShellWidth = preferences is null ? ShellWidth.Full : ShellWidth.Of(preferences.ShellWidth);
 
         Rail = new Rail(Destinations(opening.Profile, _hashtag), host, timing.Settle);
@@ -291,6 +285,12 @@ public sealed class Shell
 
     /// <summary>The screen on top of the stack, which is what the content region is showing.</summary>
     public Screen Screen => _stack[^1];
+
+    /// <summary>The stack as drafting reaches it, which the tests hold to the same facts as theirs.</summary>
+    internal IStack Stack { get; }
+
+    /// <summary>Drafting, which the tests hold the shell to telling of every screen that leaves or is uncovered.</summary>
+    internal Tui.Drafting.Drafting Drafting => _drafting;
 
     /// <summary>How deep the drill is, where one is a destination with nothing opened from it.</summary>
     public int Depth => _stack.Count;
@@ -572,10 +572,11 @@ public sealed class Shell
     }
 
     /// <summary>
-    ///     Carries out what a key meant, once <see cref="Keymap" /> has said what that is. The frame's verbs and the
-    ///     ones that act on the picked post of any screen are public here in their own right, so this is a table of
-    ///     one-line arms rather than anywhere a decision is made; every other verb is screen-local, and the screen
-    ///     carries it out itself (<see cref="Screen.Answer" />, #232).
+    ///     Carries out what a key meant, once <see cref="Keymap" /> has said what that is. Every verb is asked of
+    ///     drafting first, and a draft's is drafting's to carry out (ADR-0029): which verbs those are is said there and
+    ///     nowhere else. The frame's verbs and the ones that act on the picked post of any screen are public here in
+    ///     their own right, so this is a table of one-line arms rather than anywhere a decision is made; every other verb
+    ///     is screen-local, and the screen carries it out itself (<see cref="Screen.Answer" />, #232).
     /// </summary>
     /// <remarks>
     ///     Which screen the reader is on has already been accounted for: the collisions the contract allows —
@@ -605,7 +606,15 @@ public sealed class Shell
     ///     what is on the post, and asking it in two places is how two places come to disagree. So can a paste from the
     ///     clipboard, which holds nothing to attach as often as not, and leaves the key to the field's own paste.
     /// </returns>
-    public bool Do(Verb verb, int? answer) => (_acting is not null || WithNobody(verb)) && verb switch
+    public bool Do(Verb verb, int? answer) => (_acting is not null || WithNobody(verb)) && _drafting.Do(verb) switch
+    {
+        Drafted.Used => true,
+        Drafted.Declined => false,
+        _ => Carried(verb, answer),
+    };
+
+    /// <summary>What <see cref="Do" /> carries out of a verb that is not a draft's, which is every one it names.</summary>
+    private bool Carried(Verb verb, int? answer) => verb switch
     {
         Verb.NextReference => WalkReference(1),
         Verb.PreviousReference => WalkReference(-1),
@@ -629,9 +638,6 @@ public sealed class Shell
         Verb.OpenPost => Ran(Enter),
         Verb.OpenAuthor => Ran(OpenAuthor),
         Verb.OpenReference => Ran(OpenReference),
-        Verb.Compose => Ran(() => Compose()),
-        Verb.Reply => Ran(Reply),
-        Verb.Edit => Ran(Edit),
         Verb.Boost => Ran(() => Mark(PostMark.Boost)),
         Verb.Favorite => Ran(() => Mark(PostMark.Favorite)),
         Verb.Pin => Ran(() => Mark(PostMark.Pin)),
@@ -1394,7 +1400,7 @@ public sealed class Shell
     /// <summary>
     ///     Makes <paramref name="change" /> to the compose screen on top — every change to a draft comes in here, from
     ///     its fields, its lists and its keys — and settles what follows from it by the one rule (#364): a change that
-    ///     says it <see cref="ComposeChange.Edited" /> spends a notice said over the draft, and anything but no change at
+    ///     says it <see cref="DraftChange.Edited" /> spends a notice said over the draft, and anything but no change at
     ///     all is announced so the screen is drawn again.
     /// </summary>
     /// <remarks>
@@ -1405,9 +1411,9 @@ public sealed class Shell
     ///     the fields, choosing on To or opening a list is not, and leaves the notice to be read.
     /// </remarks>
     /// <returns>What the change was, or nothing where compose is not on top and no change was made.</returns>
-    public ComposeChange ChangeCompose(Func<ComposeScreen, ComposeChange> change)
+    public DraftChange ChangeCompose(Func<ComposeScreen, DraftChange> change)
     {
-        return InFront is { } compose ? Settled(change(compose)) : ComposeChange.None;
+        return InFront is { } compose ? Settled(change(compose)) : DraftChange.None;
     }
 
     /// <summary>
@@ -1416,9 +1422,9 @@ public sealed class Shell
     ///     spends a notice said over the form, a refusal among them, and anything but no change at all is announced.
     /// </summary>
     /// <returns>What the change was, or nothing where the form is not on top and no change was made.</returns>
-    public ComposeChange ChangePublicProfile(Func<PublicProfileScreen, ComposeChange> change)
+    public DraftChange ChangePublicProfile(Func<PublicProfileScreen, DraftChange> change)
     {
-        return Screen is PublicProfileScreen form ? Settled(change(form)) : ComposeChange.None;
+        return Screen is PublicProfileScreen form ? Settled(change(form)) : DraftChange.None;
     }
 
     /// <summary>
@@ -1427,14 +1433,14 @@ public sealed class Shell
     ///     drawn again.
     /// </summary>
     /// <returns><paramref name="made" />.</returns>
-    private ComposeChange Settled(ComposeChange made)
+    private DraftChange Settled(DraftChange made)
     {
-        if (made == ComposeChange.Edited && Notice is not null)
+        if (made == DraftChange.Edited && Notice is not null)
         {
             // Saying nothing announces the change itself.
             Say(null, isError: false);
         }
-        else if (made != ComposeChange.None)
+        else if (made != DraftChange.None)
         {
             Changed?.Invoke();
         }
@@ -1525,11 +1531,11 @@ public sealed class Shell
 
         var made = describing.Rewrite(description);
 
-        if (made == ComposeChange.Edited && Notice is not null)
+        if (made == DraftChange.Edited && Notice is not null)
         {
             Say(null, isError: false);
         }
-        else if (made != ComposeChange.None)
+        else if (made != DraftChange.None)
         {
             Changed?.Invoke();
         }
@@ -1631,15 +1637,6 @@ public sealed class Shell
             eitherWay: marked => Tell(new Change.PostChanged(marked)));
     }
 
-    /// <summary>Opens an editor answering the picked post.</summary>
-    public void Reply() => Compose(ComposeFor.Reply);
-
-    /// <summary>Opens an editor for a new post.</summary>
-    public void Compose() => Compose(ComposeFor.Post);
-
-    /// <summary>Opens an editor on one of the profile's own posts.</summary>
-    public void Edit() => Compose(ComposeFor.Edit);
-
     /// <summary>
     ///     Reads the own account's public profile as written and puts the form that edits it up over the account it
     ///     was asked from (#406). Read fresh every time, and never prefilled from the account on screen, whose bio is the
@@ -1657,7 +1654,7 @@ public sealed class Shell
 
         await _enquiry.Put(
             ask => ask.Of(token => _ports.PublicProfile.Read(profile, token)),
-            ifStillHere: read => Push(new PublicProfileScreen(read) { Limits = _limits.For(profile) }));
+            ifStillHere: read => Push(new PublicProfileScreen(read) { Limits = _drafting.Limits }));
     }
 
     /// <summary>
@@ -1947,7 +1944,7 @@ public sealed class Shell
         // Asked now rather than when compose opens, so that opening it asks nothing (ADR-0024).
         if (profile is not null)
         {
-            _defaults.Ask(profile);
+            _drafting.ActingAs(profile);
         }
     }
 
@@ -2415,72 +2412,6 @@ public sealed class Shell
         return true;
     }
 
-    private void Compose(ComposeFor purpose)
-    {
-        var about = Screen.Picked?.Boosted ?? Screen.Picked;
-
-        // A mention picked out is an account the reader walked to, so c writes to them — a fresh post rather than a
-        // reply, since what they picked is somebody named in the post rather than the post itself (#85).
-        if (purpose == ComposeFor.Post && Screen.MentionedAs is { } handle)
-        {
-            Composing(new ComposeScreen(
-                purpose,
-                addressing: $"@{handle}",
-                from: ComposeFrom.Of(Actor.Profile),
-                starting: StartingDefaults(purpose, about: null)));
-
-            return;
-        }
-
-        switch (purpose)
-        {
-            case ComposeFor.Reply or ComposeFor.Edit when about is null:
-                return;
-            case ComposeFor.Edit when !IsMine(about!):
-                Say("Only your own posts can be edited.", isError: true);
-
-                return;
-        }
-
-        Composing(new ComposeScreen(
-            purpose,
-            purpose == ComposeFor.Post ? null : about,
-            purpose == ComposeFor.Reply ? Addressed(about!) : null,
-            aboutIsMine: purpose == ComposeFor.Reply && IsMine(about!),
-            from: ComposeFrom.Of(Actor.Profile),
-            starting: StartingDefaults(purpose, about)));
-    }
-
-    /// <summary>
-    ///     What a compose screen's To and Lang start on, which is what would go out if nobody touched them (ADR-0024): the
-    ///     config's <c>default_visibility</c> and <c>default_language</c>, else the account's own as its instance said
-    ///     them (#339), else nothing known. On a reply the visibility is the narrower of that and the post being
-    ///     answered, which is where a reply with no visibility of its own goes out anyway (#338); the language is not,
-    ///     since a reply is in its author's language rather than the answered post's (#340). An edit opens on the post's
-    ///     own, which is the screen's to say.
-    /// </summary>
-    private PostDefaults StartingDefaults(ComposeFor purpose, Post? about)
-    {
-        var preferred = _preferred.Or(_defaults.For(Actor.Profile));
-
-        return purpose == ComposeFor.Reply && about is { } answered
-            ? preferred with
-            {
-                Visibility = PostAudience.Narrower(preferred.Visibility ?? answered.Visibility, answered.Visibility),
-            }
-            : preferred;
-    }
-
-    /// <summary>
-    ///     Pushes <paramref name="compose" />, measured against its instance's own limit as far as that is known (#319).
-    /// </summary>
-    private void Composing(ComposeScreen compose)
-    {
-        compose.Limits = _limits.For(Actor.Profile);
-
-        Push(compose);
-    }
-
     /// <summary>
     ///     A click on the content's rows that means more than picking out the thing under it (<see cref="Screen.Clicked" />,
     ///     #376): the thing is picked out and the key the click stands for is carried out on it.
@@ -2637,7 +2568,7 @@ public sealed class Shell
         {
             attached = screen.Media.Attach(paths.Select(path => ComposeAttachment.Of(path, LocalFiles.Size(path))));
 
-            return attached.Count > 0 ? ComposeChange.Edited : ComposeChange.None;
+            return attached.Count > 0 ? DraftChange.Edited : DraftChange.None;
         });
 
         if (paths.Count - attached.Count is > 0 and var left)
@@ -2657,9 +2588,9 @@ public sealed class Shell
     ///     Takes an attachment off the compose in front, the one <paramref name="removing" /> says (#378) — and where a
     ///     send was waiting on nothing else, the send: what it waited on is no longer on the post.
     /// </summary>
-    private void RemoveAttachment(Func<ComposeScreen, ComposeChange> removing)
+    private void RemoveAttachment(Func<ComposeScreen, DraftChange> removing)
     {
-        if (ChangeCompose(removing) != ComposeChange.None && InFront is { } compose)
+        if (ChangeCompose(removing) != DraftChange.None && InFront is { } compose)
         {
             Waited(compose);
         }
@@ -2687,7 +2618,7 @@ public sealed class Shell
     /// </summary>
     /// <returns>Whether it moved, which makes the button's release a drop rather than a click.</returns>
     public bool DragAttachment(ComposeAttachment attachment, int place) =>
-        ChangeCompose(compose => compose.Media.ReorderTo(attachment, place)) != ComposeChange.None;
+        ChangeCompose(compose => compose.Media.ReorderTo(attachment, place)) != DraftChange.None;
 
     /// <summary>
     ///     A click on <paramref name="attachment" />'s row, on <paramref name="part" /> of it (#378): its <c>x</c> takes
@@ -2839,87 +2770,14 @@ public sealed class Shell
     }
 
     /// <summary>
-    ///     An instance said how long it lets a post be, which a compose on that instance still in front is measured
-    ///     against from now on — and how long it lets a bio be, which the edit public profile form's count is.
-    /// </summary>
-    private void Measured(string instance, PostLimits limits)
-    {
-        if (!string.Equals(_acting?.Profile.Instance, instance, StringComparison.OrdinalIgnoreCase))
-        {
-            return;
-        }
-
-        switch (Screen)
-        {
-            case ComposeScreen compose:
-                compose.Limits = limits;
-                Changed?.Invoke();
-                break;
-            case PublicProfileScreen form:
-                form.Limits = limits;
-                Changed?.Invoke();
-                break;
-        }
-    }
-
-    /// <summary>
-    ///     What a reply has to be written to, or <see langword="null" /> where there is nobody left to name. Mastodon
-    ///     routes by the handles it parses out of a post's <em>text</em>: a direct post reaches the accounts its text
-    ///     mentions and nobody else (ADR-0013), and on every other visibility <c>in_reply_to_id</c> puts the reply in
-    ///     the thread and notifies nobody at all. Either way a reply that named nobody would not reach the account it
-    ///     answers, which is the one thing a reply is for (#130) — so every reply is addressed, and <c>dm send</c>
-    ///     writes its mention for the same reason.
-    /// </summary>
-    /// <remarks>
-    ///     The mention is written into the editor rather than added on the way out, so a reader who does not want to
-    ///     ping somebody can delete the name before sending — and so this client never sends words the reader could
-    ///     not see.
-    ///     <para>
-    ///         Who it goes to is the conversation where there is one, rather than whoever spoke last: a thread with
-    ///         three accounts in it answered to only one of them is a reply that dropped the rest of the conversation.
-    ///         Elsewhere it is the account being answered followed by everyone their post named, which is that same
-    ///         conversation as the post itself carries it — a direct message included, since the accounts a direct post
-    ///         names are the accounts its instance delivered it to (#132). The conversation still wins where there is
-    ///         one on screen, being who is left in it rather than who one message in it happened to name.
-    ///     </para>
-    /// </remarks>
-    private string? Addressed(Post about)
-    {
-        // An instance says who a conversation is with rather than who is having it, so the profile's own account is
-        // already not among them. Everywhere else it is the post itself, whatever its visibility: the account being
-        // answered and everyone their post named, off the post already in hand.
-        IReadOnlyList<string> with = (about.Visibility, Screen) switch
-        {
-            (PostVisibility.Direct, ConversationScreen conversation) => conversation.Conversation.With,
-            _ => [about.Account, .. about.Mentions],
-        };
-
-        // An address this client cannot make sense of is left out rather than thrown over the reply, since a handle
-        // an instance sent is not something the reader can do anything about. What is left is in the editor in front
-        // of them, so a mention that is missing is missing where they can see it and type it themselves. The reader's
-        // own account goes the same way: nobody is notified of their own reply, and a post answering a thread they are
-        // in names them where the instance listed them.
-        var accounts = with
-            .Where(account => AccountAddress.IsWellFormed(account) && !IsMe(account))
-            .Select(AccountAddress.Parse)
-            .DistinctBy(account => account.Text, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        return accounts.Count == 0 ? null : DirectMessage.To(accounts, string.Empty);
-    }
-
-    /// <summary>
-    ///     Whether a post is the profile's own, which is what settles whether pinning, editing and deleting act.
+    ///     Whether a post is the profile's own, which is what settles whether pinning and deleting act.
     /// </summary>
     /// <remarks>
     ///     Asked of the profile rather than read off <see cref="Post.IsMine" />, which is what the status row reads: both
     ///     are the one comparison <see cref="ActiveProfile.SignsInAs" /> makes, so the row and the refusal cannot come
     ///     to disagree, and a press is still refused by the shell that has the profile in hand (#220).
     /// </remarks>
-    private bool IsMine(Post post) => IsMe(post.Account);
-
-    /// <summary>Whether an account is the profile's own, compared the way <see cref="IsMine" /> compares one.</summary>
-    private bool IsMe(string account) => Actor.Profile.SignsInAs(account);
+    private bool IsMine(Post post) => Actor.Profile.SignsInAs(post.Account);
 
     private void Push(Screen screen)
     {
@@ -2954,14 +2812,7 @@ public sealed class Shell
             return;
         }
 
-        while (_stack.Count > depth + 1)
-        {
-            Leave(_stack.Count - 1);
-        }
-
-        ClearNotice();
-
-        BackOn();
+        Uncover(depth + 1);
     }
 
     /// <summary>
@@ -2993,13 +2844,24 @@ public sealed class Shell
     }
 
     /// <summary>Takes the screen on top off, which is what <c>esc</c> does once nothing inside it is left to let go.</summary>
-    private void Pop()
+    private void Pop() => Uncover(_stack.Count - 1);
+
+    /// <summary>
+    ///     Takes the screen at <paramref name="at" /> off the stack with every screen above it, and settles what is
+    ///     uncovered: the notice said over what left is let go of, and drafting is told (ADR-0029).
+    /// </summary>
+    private void Uncover(int at)
     {
-        Leave(_stack.Count - 1);
+        while (_stack.Count > at)
+        {
+            Leave(_stack.Count - 1);
+        }
 
         ClearNotice();
 
         BackOn();
+
+        _drafting.Uncovered();
     }
 
     /// <summary>
@@ -3033,6 +2895,7 @@ public sealed class Shell
     {
         _stack.ForEach(left =>
         {
+            _drafting.Left(left);
             left.Left();
             LetUploadsGo(left);
         });
@@ -3058,6 +2921,7 @@ public sealed class Shell
     /// </remarks>
     private void Freshened(Screen fresh)
     {
+        _drafting.Left(_stack[^1]);
         _stack[^1].Left();
         _stack[^1] = fresh;
         Saw(fresh);
@@ -3184,6 +3048,7 @@ public sealed class Shell
     /// </summary>
     private void Leave(int at)
     {
+        _drafting.Left(_stack[at]);
         _stack[at].Left();
         LetUploadsGo(_stack[at]);
 
@@ -3256,6 +3121,32 @@ public sealed class Shell
     }
 
     private void Apply(Action work) => _host.OnUiThread(work);
+
+    /// <summary>
+    ///     The stack as drafting reaches it (ADR-0029): pushed onto as the shell pushes, and a screen taken off by naming
+    ///     it, as <c>esc</c> takes one off — everything above it with it, every one told to drafting as it leaves, and
+    ///     drafting told what is uncovered.
+    /// </summary>
+    private sealed class Stacked(Shell shell) : IStack
+    {
+        /// <inheritdoc />
+        public IReadOnlyList<Screen> Screens => shell._stack;
+
+        /// <inheritdoc />
+        public Screen Top => shell.Screen;
+
+        /// <inheritdoc />
+        public void Push(Screen screen) => shell.Push(screen);
+
+        /// <inheritdoc />
+        public void TakeOff(Screen screen)
+        {
+            if (shell._stack.IndexOf(screen) is >= 1 and var at)
+            {
+                shell.Uncover(at);
+            }
+        }
+    }
 
     /// <summary>
     ///     Who the session is acting as, with everything that holds what was read as them: the arrival and its cache,

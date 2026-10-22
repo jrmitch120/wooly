@@ -81,7 +81,7 @@ public class ShellChangeTests
         opened.Step(ToNotifications);
         shell.Host.Settle();
 
-        opened.Compose();
+        opened.Press(ShellKey.C);
         ((ComposeScreen)opened.Screen).Text += "Hello";
 
         await opened.Send();

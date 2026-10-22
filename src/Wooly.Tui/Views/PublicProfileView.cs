@@ -373,7 +373,7 @@ internal sealed class PublicProfileView : View
     }
 
     /// <summary>A change to the form from one of its fields, while it is not being filled.</summary>
-    private void Change(Func<PublicProfileScreen, ComposeChange> change)
+    private void Change(Func<PublicProfileScreen, DraftChange> change)
     {
         if (!_filling)
         {
@@ -393,7 +393,7 @@ internal sealed class PublicProfileView : View
     /// </summary>
     private void Across(int by)
     {
-        if (_shell.ChangePublicProfile(form => form.Across(by)) != ComposeChange.Moved || by < 0)
+        if (_shell.ChangePublicProfile(form => form.Across(by)) != DraftChange.Moved || by < 0)
         {
             return;
         }

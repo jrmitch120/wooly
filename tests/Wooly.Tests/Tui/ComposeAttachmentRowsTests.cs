@@ -574,7 +574,7 @@ public class ComposeAttachmentRowsTests : IDisposable
     {
         var drawn = await DrawnShell.Of(80, 24, Themes.Plain, built);
 
-        drawn.Shell.Compose();
+        drawn.Shell.Press(ShellKey.C);
         drawn.Redraw();
 
         foreach (var name in names)

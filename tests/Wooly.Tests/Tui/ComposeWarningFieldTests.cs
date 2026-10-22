@@ -1,6 +1,7 @@
 using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
+using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 using Wooly.Tui.Views;
 using Key = Terminal.Gui.Input.Key;
@@ -386,7 +387,7 @@ public class ComposeWarningFieldTests
         view.Press(Key.W.WithCtrl);
         view.Press(Key.Esc);
 
-        view.Shell.Reply();
+        view.Shell.Press(ShellKey.R);
         view.Redraw();
 
         Assert.False(view.Compose.WritingTheWarning);

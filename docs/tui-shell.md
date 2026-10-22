@@ -905,7 +905,7 @@ its author remembered to warn it again by hand — which Mastodon's own clients 
 - **A reply opens on the warning of the post it answers**, in a field of its own on the row above the editor. A reply
   to a warned post is usually about the warned thing, and an author who has to re-type the warning is one who sometimes
   will not. For a boost it is the warning of the post *inside* it — the post the reply targets, and the resolution
-  `Shell.Compose` already makes for every other key.
+  already made for every other key.
 - **Pre-filled, not imposed.** The field is the author's from the moment it opens: kept, edited or cleared, and what
   goes out is whatever it holds when `ctrl-s` is pressed — letter for letter, spaces included, since a client that
   tidied a warning would be editing the author's words on the way past. Cleared, it sends no warning at all rather than

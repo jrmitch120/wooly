@@ -2,6 +2,7 @@ using Terminal.Gui.Input;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Media;
 using Wooly.Tui.Screens;
+using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 
 namespace Wooly.Tests.Tui;
@@ -50,7 +51,7 @@ public class TerminalMouseReportsTests : IDisposable
             pictures: new FakePictures().HoldingPhotograph(first, 60, 40),
             drawsPictures: true);
 
-        drawn.Shell.Compose();
+        drawn.Shell.Press(ShellKey.C);
         drawn.Iterate();
         drawn.Window.NewKeyDownEvent(Key.O.WithCtrl);
         drawn.Iterate();
@@ -87,7 +88,7 @@ public class TerminalMouseReportsTests : IDisposable
 
         if (!attached)
         {
-            drawn.Shell.Compose();
+            drawn.Shell.Press(ShellKey.C);
             drawn.Iterate();
         }
 
@@ -205,7 +206,7 @@ public class TerminalMouseReportsTests : IDisposable
                 APost.With(id: "1", account: "maria@fosstodon.org", author: "Maria Gonzalez")),
         });
 
-        drawn.Shell.Compose();
+        drawn.Shell.Press(ShellKey.C);
         drawn.Iterate();
 
         foreach (var letter in "hi @ma")
@@ -323,7 +324,7 @@ public class TerminalMouseReportsTests : IDisposable
 
         var drawn = await DrawnShell.Of(80, 24, theme, pictures: pictures, drawsPictures: drawsPictures);
 
-        drawn.Shell.Compose();
+        drawn.Shell.Press(ShellKey.C);
         drawn.Iterate();
 
         foreach (var path in paths)
@@ -347,7 +348,7 @@ public class TerminalMouseReportsTests : IDisposable
     {
         var drawn = await DrawnShell.Of(80, 18, theme);
 
-        drawn.Shell.Compose();
+        drawn.Shell.Press(ShellKey.C);
         drawn.Iterate();
 
         foreach (var name in names)

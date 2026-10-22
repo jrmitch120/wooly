@@ -459,7 +459,7 @@ public class ComposeMediaTests : IDisposable
     {
         using var drawn = await DrawnShell.Of(80, 24, Themes.Plain, new AShell());
 
-        drawn.Shell.Compose();
+        drawn.Shell.Press(ShellKey.C);
         drawn.Redraw();
 
         var editor = drawn.Window.ComposeField<Wooly.Tui.Views.ComposeEditor>();

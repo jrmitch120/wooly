@@ -4,6 +4,7 @@ using Wooly.Core.Posts;
 using Wooly.Core.Paging;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
+using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 using Wooly.Tui.Views;
 
@@ -166,7 +167,7 @@ public class ContentPanelTests
     {
         using var drawn = await Draw(width, height);
 
-        drawn.Shell.Reply();
+        drawn.Shell.Press(ShellKey.R);
         drawn.Redraw();
 
         var compose = Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
@@ -198,7 +199,7 @@ public class ContentPanelTests
     {
         using var drawn = await Draw(80, 24);
 
-        drawn.Shell.Compose();
+        drawn.Shell.Press(ShellKey.C);
         drawn.Redraw();
 
         var editor = drawn.Window.ComposeField<ComposeEditor>();

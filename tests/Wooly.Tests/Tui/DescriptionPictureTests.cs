@@ -106,7 +106,7 @@ public class DescriptionPictureTests : IDisposable
             pictures: new FakePictures().HoldingPhotograph(Drawn.OnDisk(cat).Id, 60, 40),
             drawsPictures: true);
 
-        drawn.Shell.Compose();
+        drawn.Shell.Press(ShellKey.C);
         drawn.Shell.Paste(cat);
         drawn.Settle();
         drawn.Press(Key.CursorUp);

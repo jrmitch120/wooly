@@ -3,6 +3,7 @@ using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
+using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 using Key = Terminal.Gui.Input.Key;
 
@@ -139,7 +140,7 @@ public class ComposeNoticeTests
 
         var change = shell.ChangeCompose(screen => screen.TypeInto(ComposeField.Post));
 
-        Assert.Equal(ComposeChange.None, change);
+        Assert.Equal(DraftChange.None, change);
         Assert.Equal(refusal, shell.Notice);
         Assert.Equal(0, announced());
     }
@@ -163,7 +164,7 @@ public class ComposeNoticeTests
             : screen => screen.PickLanguage(french));
 
         Assert.NotNull(refusal);
-        Assert.Equal(ComposeChange.None, change);
+        Assert.Equal(DraftChange.None, change);
         Assert.Equal(refusal, shell.Notice);
         Assert.Equal(0, announced());
     }
@@ -180,11 +181,11 @@ public class ComposeNoticeTests
         {
             made = true;
 
-            return ComposeChange.Edited;
+            return DraftChange.Edited;
         });
 
         Assert.False(made);
-        Assert.Equal(ComposeChange.None, change);
+        Assert.Equal(DraftChange.None, change);
         Assert.Equal(0, announced());
     }
 
@@ -196,7 +197,7 @@ public class ComposeNoticeTests
 
         using var drawn = await DrawnShell.Of(80, 24, Themes.Dark, built);
 
-        drawn.Shell.Compose();
+        drawn.Shell.Press(ShellKey.C);
         drawn.Redraw();
         drawn.Window.NewKeyDownEvent(new Key('a'));
 

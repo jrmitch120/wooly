@@ -226,25 +226,25 @@ public sealed class ComposeMedia
     ///     (#378) — a place past either end is that end.
     /// </summary>
     /// <returns>An edit, or nothing where it is already there or is not attached.</returns>
-    public ComposeChange ReorderTo(ComposeAttachment attachment, int place)
+    public DraftChange ReorderTo(ComposeAttachment attachment, int place)
     {
         var from = _attachments.IndexOf(attachment);
         var to = Math.Clamp(place, 0, _attachments.Count - 1);
 
         if (from < 0 || from == to)
         {
-            return ComposeChange.None;
+            return DraftChange.None;
         }
 
         _attachments.RemoveAt(from);
         _attachments.Insert(to, attachment);
 
-        return ComposeChange.Edited;
+        return DraftChange.Edited;
     }
 
     /// <summary><paramref name="attachment" /> <paramref name="by" /> places earlier or later on the post (#378).</summary>
     /// <returns>An edit, or nothing off either end or where it is not attached.</returns>
-    internal ComposeChange Move(ComposeAttachment attachment, int by) =>
+    internal DraftChange Move(ComposeAttachment attachment, int by) =>
         ReorderTo(attachment, _attachments.IndexOf(attachment) + by);
 
     /// <summary>
@@ -290,16 +290,16 @@ public sealed class ComposeMedia
     ///     where it is still attached.
     /// </summary>
     /// <returns>An edit, or nothing where that is what it said already.</returns>
-    public ComposeChange Describe(ComposeAttachment attachment, string description)
+    public DraftChange Describe(ComposeAttachment attachment, string description)
     {
         if (!_attachments.Contains(attachment) || attachment.Description == description)
         {
-            return ComposeChange.None;
+            return DraftChange.None;
         }
 
         attachment.Description = description;
 
-        return ComposeChange.Edited;
+        return DraftChange.Edited;
     }
 
     /// <summary>

@@ -3,6 +3,7 @@ using Wooly.Tests.Fakes;
 using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
+using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 
 namespace Wooly.Tests.Tui;
@@ -143,7 +144,7 @@ public class ComposePicturesTests : IDisposable
             pictures: new FakePictures().HoldingPhotograph(Drawn.Attaching(cat).Id, 40, 30),
             drawsPictures: true);
 
-        drawn.Shell.Compose();
+        drawn.Shell.Press(ShellKey.C);
         drawn.Shell.Paste(cat);
         drawn.Settle();
 

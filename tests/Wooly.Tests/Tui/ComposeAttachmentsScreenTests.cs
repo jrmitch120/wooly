@@ -175,7 +175,7 @@ public class ComposeAttachmentsScreenTests : IDisposable
     {
         using var drawn = await DrawnShell.Of(80, Short + 3, Themes.Plain, new AShell { LaunchedFrom = _files.Path });
 
-        drawn.Shell.Compose();
+        drawn.Shell.Press(ShellKey.C);
         drawn.Redraw();
 
         foreach (var name in new[] { "one.png", "two.png", "three.png" })
@@ -224,7 +224,7 @@ public class ComposeAttachmentsScreenTests : IDisposable
     {
         using var drawn = await DrawnShell.Of(80, Short + 3, Themes.Plain, new AShell { LaunchedFrom = _files.Path });
 
-        drawn.Shell.Compose();
+        drawn.Shell.Press(ShellKey.C);
         drawn.Redraw();
 
         foreach (var name in new[] { "one.png", "two.png", "three.png" })

@@ -1,8 +1,9 @@
 using Wooly.Core.Errors;
 using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
+using Wooly.Tui.Shell;
 
-namespace Wooly.Tui.Shell;
+namespace Wooly.Tui.Drafting;
 
 /// <summary>
 ///     How long each instance lets a post be, for the session (#319): asked the first time a post is written on an

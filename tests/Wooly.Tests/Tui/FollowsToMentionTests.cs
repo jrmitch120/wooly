@@ -20,7 +20,7 @@ public class FollowsToMentionTests
         var shell = new AShell { Accounts = Following(Account("maria@b.social", "Maria")) };
         var opened = await shell.Opened();
 
-        opened.Compose();
+        opened.Press(ShellKey.C);
         shell.Host.Drain();
 
         Assert.Empty(FollowReads(shell));
@@ -36,7 +36,7 @@ public class FollowsToMentionTests
         var shell = new AShell { Accounts = Following(Account("maria@b.social", "Maria")) };
         var opened = await shell.Opened();
 
-        opened.Compose();
+        opened.Press(ShellKey.C);
         opened.PeopleMatching("mar");
         shell.Host.Drain();
 
@@ -53,12 +53,12 @@ public class FollowsToMentionTests
         var shell = new AShell { Accounts = Following(Account("maria@b.social", "Maria")) };
         var opened = await shell.Opened();
 
-        opened.Compose();
+        opened.Press(ShellKey.C);
         opened.PeopleMatching(string.Empty);
         shell.Host.Drain();
         opened.PeopleMatching("m");
         opened.Back();
-        opened.Compose();
+        opened.Press(ShellKey.C);
         opened.PeopleMatching(string.Empty);
         shell.Host.Drain();
 
@@ -133,7 +133,7 @@ public class FollowsToMentionTests
 
         var opened = await shell.Opened();
 
-        opened.Compose();
+        opened.Press(ShellKey.C);
         opened.PeopleMatching("m");
         shell.Host.Drain();
 
@@ -156,7 +156,7 @@ public class FollowsToMentionTests
 
         var opened = await shell.Opened();
 
-        opened.Compose();
+        opened.Press(ShellKey.C);
         opened.PeopleMatching("m");
         shell.Host.Drain();
 

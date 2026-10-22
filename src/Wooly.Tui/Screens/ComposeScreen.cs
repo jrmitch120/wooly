@@ -55,25 +55,6 @@ public enum ComposeField
     Post,
 }
 
-/// <summary>
-///     What an edit made on a compose screen changed, which is all the shell needs to settle what follows from it
-///     (#364): whether a notice over the draft is spent, and whether the screen is drawn again.
-/// </summary>
-public enum ComposeChange
-{
-    /// <summary>Nothing: the edit found the screen already as it would have left it.</summary>
-    None,
-
-    /// <summary>
-    ///     The typing or the choosing moved, or a list opened or closed — focus, walking the fields, choosing on To —
-    ///     with the post, its warning and its language as they were.
-    /// </summary>
-    Moved,
-
-    /// <summary>The post's text, its warning or its language changed.</summary>
-    Edited,
-}
-
 /// <summary>Who a compose screen's post goes out as, for its From header (#317).</summary>
 /// <param name="Handle">The profile's account, as a byline's handle: <c>@jeff</c>.</param>
 /// <param name="Instance">The instance it is on, which tells two profiles with the same username apart.</param>
@@ -271,16 +252,16 @@ public sealed class ComposeScreen : Screen, IDraft
 
     /// <summary>The editor changed: what the post says now, learned on every edit.</summary>
     /// <returns>An edit, or nothing where the editor says back what this already holds.</returns>
-    public ComposeChange Rewrite(string text)
+    public DraftChange Rewrite(string text)
     {
         if (Text == text)
         {
-            return ComposeChange.None;
+            return DraftChange.None;
         }
 
         Text = text;
 
-        return ComposeChange.Edited;
+        return DraftChange.Edited;
     }
 
     /// <summary>
@@ -385,16 +366,16 @@ public sealed class ComposeScreen : Screen, IDraft
     ///     it on.
     /// </summary>
     /// <returns>An edit, the toggle being part of what is sent, or nothing where it could not change.</returns>
-    public ComposeChange ToggleSensitive()
+    public DraftChange ToggleSensitive()
     {
         if (Media.Attachments.Count == 0 || SensitiveByAWarning)
         {
-            return ComposeChange.None;
+            return DraftChange.None;
         }
 
         _sensitive = !_sensitive;
 
-        return ComposeChange.Edited;
+        return DraftChange.Edited;
     }
 
     /// <summary>
@@ -402,18 +383,18 @@ public sealed class ComposeScreen : Screen, IDraft
     ///     the walk would have taken it.
     /// </summary>
     /// <returns>A move, or nothing where it was already picked or is not attached.</returns>
-    public ComposeChange Pick(ComposeAttachment attachment)
+    public DraftChange Pick(ComposeAttachment attachment)
     {
         if (!Media.Attachments.Contains(attachment)
             || (Typing == ComposeField.Attachment && ReferenceEquals(Media.Picked, attachment)))
         {
-            return ComposeChange.None;
+            return DraftChange.None;
         }
 
         Typing = ComposeField.Attachment;
         Media.Picked = attachment;
 
-        return ComposeChange.Moved;
+        return DraftChange.Moved;
     }
 
     /// <summary>
@@ -422,20 +403,20 @@ public sealed class ComposeScreen : Screen, IDraft
     ///     one deep, for <see cref="BringBack" />.
     /// </summary>
     /// <returns>An edit, or nothing off the rows.</returns>
-    public ComposeChange Remove() =>
-        Typing == ComposeField.Attachment && Media.Picked is { } picked ? Remove(picked) : ComposeChange.None;
+    public DraftChange Remove() =>
+        Typing == ComposeField.Attachment && Media.Picked is { } picked ? Remove(picked) : DraftChange.None;
 
     /// <summary>
     ///     A click on <paramref name="attachment" />'s <c>x</c>: takes it off the post, as <see cref="Remove()" /> does.
     /// </summary>
     /// <returns>An edit, or nothing where it is not attached.</returns>
-    public ComposeChange Remove(ComposeAttachment attachment)
+    public DraftChange Remove(ComposeAttachment attachment)
     {
         var picked = ReferenceEquals(Media.Picked, attachment);
 
         if (!Media.Remove(attachment))
         {
-            return ComposeChange.None;
+            return DraftChange.None;
         }
 
         if (picked)
@@ -443,7 +424,7 @@ public sealed class ComposeScreen : Screen, IDraft
             Typing = Media.Picked is null ? ComposeField.Media : ComposeField.Attachment;
         }
 
-        return ComposeChange.Edited;
+        return DraftChange.Edited;
     }
 
     /// <summary>
@@ -452,16 +433,16 @@ public sealed class ComposeScreen : Screen, IDraft
     ///     <c>ctrl-z</c> for their own text — and nothing while the post has no room for it.
     /// </summary>
     /// <returns>An edit, or nothing where there is nothing to bring back or nowhere to put it.</returns>
-    public ComposeChange BringBack()
+    public DraftChange BringBack()
     {
         if (Typing is not (ComposeField.Media or ComposeField.Attachment) || !Media.BringBack())
         {
-            return ComposeChange.None;
+            return DraftChange.None;
         }
 
         Typing = ComposeField.Attachment;
 
-        return ComposeChange.Edited;
+        return DraftChange.Edited;
     }
 
     /// <summary>
@@ -469,10 +450,10 @@ public sealed class ComposeScreen : Screen, IDraft
     ///     earlier or later on the post, still picked (#378).
     /// </summary>
     /// <returns>An edit, or nothing off the rows or off either end.</returns>
-    public ComposeChange Reorder(int by) =>
+    public DraftChange Reorder(int by) =>
         Typing == ComposeField.Attachment && Media.Picked is { } picked
             ? Media.Move(picked, by)
-            : ComposeChange.None;
+            : DraftChange.None;
 
     /// <summary>
     ///     <c>r</c> on a row: the picked attachment, where a retry could mend its refusal, to be sent up again (#378).
@@ -607,16 +588,16 @@ public sealed class ComposeScreen : Screen, IDraft
     ///     (#320). The field is the author's to type into; what goes out is still this screen's to say.
     /// </summary>
     /// <returns>An edit, or nothing where the field says back what this holds, as it does when filled on opening.</returns>
-    public ComposeChange RewriteWarning(string written)
+    public DraftChange RewriteWarning(string written)
     {
         if (Warning == written)
         {
-            return ComposeChange.None;
+            return DraftChange.None;
         }
 
         Warning = written;
 
-        return ComposeChange.Edited;
+        return DraftChange.Edited;
     }
 
     /// <summary>
@@ -624,44 +605,44 @@ public sealed class ComposeScreen : Screen, IDraft
     ///     asked at send.
     /// </summary>
     /// <returns>An edit, or nothing where the field says back what Lang already holds.</returns>
-    public ComposeChange RewriteLanguage(string written)
+    public DraftChange RewriteLanguage(string written)
     {
         if (Lang.Held == written)
         {
-            return ComposeChange.None;
+            return DraftChange.None;
         }
 
         Lang = Lang with { Held = written };
 
-        return ComposeChange.Edited;
+        return DraftChange.Edited;
     }
 
     /// <summary>A language picked off Lang's list: the field says it as <see cref="ComposeLang.Spoken" /> writes it.</summary>
     /// <returns>An edit, or nothing where Lang already held it so.</returns>
-    public ComposeChange PickLanguage(PostLanguage language) => RewriteLanguage(ComposeLang.Spoken(language));
+    public DraftChange PickLanguage(PostLanguage language) => RewriteLanguage(ComposeLang.Spoken(language));
 
     /// <summary>The list of languages under Lang opened or closed, which the status row follows.</summary>
     /// <returns>A move, or nothing where the list was already that way.</returns>
-    public ComposeChange OfferLanguages(bool open)
+    public DraftChange OfferLanguages(bool open)
     {
         if (OfferingLanguages == open)
         {
-            return ComposeChange.None;
+            return DraftChange.None;
         }
 
         OfferingLanguages = open;
 
-        return ComposeChange.Moved;
+        return DraftChange.Moved;
     }
 
     /// <summary><c>ctrl-w</c>: hands the typing to the warning, or hands it back to the post.</summary>
     /// <returns>A move, always.</returns>
-    public ComposeChange WriteTheWarning()
+    public DraftChange WriteTheWarning()
     {
         Typing = WritingTheWarning ? ComposeField.Post : ComposeField.Warning;
         Media.Picked = null;
 
-        return ComposeChange.Moved;
+        return DraftChange.Moved;
     }
 
     /// <summary>
@@ -682,16 +663,16 @@ public sealed class ComposeScreen : Screen, IDraft
     ///         header's line on a short terminal are not walked, the header standing for them all.
     ///     </para>
     /// </remarks>
-    public ComposeChange Walk(int by)
+    public DraftChange Walk(int by)
     {
         if (WalkedTo(by) is not { } stop)
         {
-            return ComposeChange.None;
+            return DraftChange.None;
         }
 
         (Typing, Media.Picked) = stop;
 
-        return ComposeChange.Moved;
+        return DraftChange.Moved;
     }
 
     /// <summary>
@@ -752,17 +733,17 @@ public sealed class ComposeScreen : Screen, IDraft
     ///     goes, leaving nothing picked on a line that draws no rows (story 58).
     /// </summary>
     /// <returns>A move, or nothing where the walk was not on a row.</returns>
-    public ComposeChange OffTheRows()
+    public DraftChange OffTheRows()
     {
         if (Typing != ComposeField.Attachment)
         {
-            return ComposeChange.None;
+            return DraftChange.None;
         }
 
         Typing = ComposeField.Media;
         Media.Picked = null;
 
-        return ComposeChange.Moved;
+        return DraftChange.Moved;
     }
 
     /// <summary>
@@ -784,19 +765,19 @@ public sealed class ComposeScreen : Screen, IDraft
     ///     follows it there (#320, #338).
     /// </summary>
     /// <returns>A move, or nothing where it was already there or the field takes nothing.</returns>
-    public ComposeChange TypeInto(ComposeField field)
+    public DraftChange TypeInto(ComposeField field)
     {
         // The rows are under the header, and a row picked has the Media header's focus as much as the header has.
         if (Typing == field || !Takes(field) || field == ComposeField.Attachment
             || (field == ComposeField.Media && Typing == ComposeField.Attachment))
         {
-            return ComposeChange.None;
+            return DraftChange.None;
         }
 
         Typing = field;
         Media.Picked = null;
 
-        return ComposeChange.Moved;
+        return DraftChange.Moved;
     }
 
     /// <summary>
@@ -807,16 +788,16 @@ public sealed class ComposeScreen : Screen, IDraft
     ///     A move — choosing is moving the choice, as walking is moving the typing (#364) — or nothing off To or off
     ///     either end of what it offers.
     /// </returns>
-    public ComposeChange Choose(int by)
+    public DraftChange Choose(int by)
     {
         if (Typing != ComposeField.To || !Stepped(by, out var next))
         {
-            return ComposeChange.None;
+            return DraftChange.None;
         }
 
         Visibility = next;
 
-        return ComposeChange.Moved;
+        return DraftChange.Moved;
     }
 
     /// <summary>
@@ -825,11 +806,11 @@ public sealed class ComposeScreen : Screen, IDraft
     ///     value To does not allow ignores it, and so does all of To on an edit (ADR-0024, #338).
     /// </summary>
     /// <returns>A move where anything changed, as for <see cref="Choose" />, and nothing otherwise.</returns>
-    public ComposeChange ClickTo(int column, int room)
+    public DraftChange ClickTo(int column, int room)
     {
         if (!Takes(ComposeField.To))
         {
-            return ComposeChange.None;
+            return DraftChange.None;
         }
 
         var was = (Visibility, Typing);
@@ -837,7 +818,7 @@ public sealed class ComposeScreen : Screen, IDraft
         switch (ToPartAt(ToRow(room), column))
         {
             case ToPart.Choice { Visibility: var choice } when !Offers(choice):
-                return ComposeChange.None;
+                return DraftChange.None;
             case ToPart.Choice { Visibility: var choice }:
                 Visibility = choice;
 
@@ -850,7 +831,7 @@ public sealed class ComposeScreen : Screen, IDraft
 
         Typing = ComposeField.To;
 
-        return (Visibility, Typing) != was ? ComposeChange.Moved : ComposeChange.None;
+        return (Visibility, Typing) != was ? DraftChange.Moved : DraftChange.None;
     }
 
     /// <summary>What the run <paramref name="column" /> columns into <paramref name="row" /> stands for, if anything.</summary>

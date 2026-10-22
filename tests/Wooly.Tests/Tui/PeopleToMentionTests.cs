@@ -27,7 +27,7 @@ public class PeopleToMentionTests
 
         var opened = await shell.Opened();
 
-        opened.Reply();
+        opened.Press(ShellKey.R);
 
         var before = shell.Requests;
 
@@ -64,7 +64,7 @@ public class PeopleToMentionTests
 
         opened.Walk(1, reclaiming: null);
         opened.Walk(1, reclaiming: null);
-        opened.Reply();
+        opened.Press(ShellKey.R);
 
         Assert.Equal("mary@b.social", Assert.IsType<ComposeScreen>(opened.Screen).About?.Account);
 
