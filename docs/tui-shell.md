@@ -120,6 +120,11 @@ this document gives — the rail's 20, the 58 columns at 80 — is the shell's, 
   asked (`ShellWindow.InTheMargins`, #416): a button there does nothing, and a wheel notch there is the content panel's
   notch. A view holding the mouse — one being dragged in — keeps its events wherever the pointer goes, so its let-go
   still reaches it (**Pointer**, below).
+- **Pictures follow too** (#417): a sixel box, Kitty's placeholder cells and a Kitty box are all placed from the view
+  tree, and what the terminal is let draw a picture in is cut to its view, not to the whole screen, so each lands inside
+  the narrowed content panel. A step clears the screen, so every picture is sent or placed again at the new panel's
+  width and place in the frame the step lands. Only the box narrows: the cell is still measured as the whole terminal's
+  pixels over its whole cells.
 
 ## Screens, and who owns them
 
