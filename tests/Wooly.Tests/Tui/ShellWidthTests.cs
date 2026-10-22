@@ -49,41 +49,26 @@ public class ShellWidthTests
     }
 
     /// <summary>
-    ///     The width a step lands on is said for a moment and then let go of, so the status row goes back to its keys
-    ///     rather than holding a remark about a press long since made.
+    ///     What a width key says is said for a moment and then let go of, so the status row goes back to its keys
+    ///     rather than holding a remark about a press long since made — a step taken, or one refused at either end.
     /// </summary>
-    [Fact]
-    public async Task TheWidthIsSaidForAMomentAndThenClears()
+    [Theory]
+    [InlineData('-', "Width 90%")]
+    [InlineData('+', "Full width")]
+    public async Task WhatAWidthKeySaysIsSaidForAMomentAndThenClears(char key, string said)
     {
         using var drawn = await DrawnShell.Of(200, 24, Midnight());
 
-        drawn.Press(new Key('-'));
+        drawn.Press(new Key(key));
 
-        Assert.Contains("Width 90%", drawn.Rows()[^1], StringComparison.Ordinal);
+        Assert.Contains(said, drawn.Rows()[^1], StringComparison.Ordinal);
         Assert.Contains(ShellTiming.Default.WidthSaidFor, drawn.Built.Host.Delays);
 
         drawn.Built.Host.Settle();
         drawn.Redraw();
 
         Assert.Null(drawn.Shell.Notice);
-        Assert.DoesNotContain("Width", drawn.Rows()[^1], StringComparison.Ordinal);
-    }
-
-    /// <summary>A step refused at either end clears the same way, being the same kind of answer to a width key.</summary>
-    [Fact]
-    public async Task ARefusedStepIsSaidForAMomentAndThenClears()
-    {
-        using var drawn = await DrawnShell.Of(200, 24, Midnight());
-
-        drawn.Press(new Key('+'));
-
-        Assert.Contains("Full width", drawn.Rows()[^1], StringComparison.Ordinal);
-
-        drawn.Built.Host.Settle();
-        drawn.Redraw();
-
-        Assert.Null(drawn.Shell.Notice);
-        Assert.DoesNotContain("Full width", drawn.Rows()[^1], StringComparison.Ordinal);
+        Assert.DoesNotContain(said, drawn.Rows()[^1], StringComparison.Ordinal);
     }
 
     /// <summary><c>+</c> and <c>=</c> each widen a step back, saying where they landed.</summary>

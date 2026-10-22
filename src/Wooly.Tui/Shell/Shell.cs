@@ -154,8 +154,11 @@ public sealed class Shell
     /// </summary>
     private RateLimitQuota? _quotaBeforeSwitch;
 
-    /// <summary>The wait after which a notice said for a moment is let go of, while one is (#413).</summary>
-    private IDisposable? _sayingForAMoment;
+    /// <summary>
+    ///     The wait after which what a width key said is let go of, which anything said or cleared in the meantime
+    ///     calls off (#413).
+    /// </summary>
+    private IDisposable? _widthNoticeWait;
 
     /// <summary>
     ///     The Inbox's badges, kept live for the profile acted as by the poll and the stream, and the bell rung where
@@ -966,8 +969,7 @@ public sealed class Shell
             alone.StartOver();
         }
 
-        Notice = null;
-        Changed?.Invoke();
+        ClearNotice();
     }
 
     /// <summary>
@@ -2923,9 +2925,7 @@ public sealed class Shell
     {
         _stack.Add(screen);
         Saw(screen);
-        Notice = null;
-
-        Changed?.Invoke();
+        ClearNotice();
     }
 
     /// <summary>Waits to be told again before going ahead with what <paramref name="confirmation" /> carries.</summary>
@@ -2959,8 +2959,7 @@ public sealed class Shell
             Leave(_stack.Count - 1);
         }
 
-        Notice = null;
-        Changed?.Invoke();
+        ClearNotice();
 
         BackOn();
     }
@@ -2998,8 +2997,7 @@ public sealed class Shell
     {
         Leave(_stack.Count - 1);
 
-        Notice = null;
-        Changed?.Invoke();
+        ClearNotice();
 
         BackOn();
     }
@@ -3025,8 +3023,7 @@ public sealed class Shell
             Leave(_stack.Count - 1);
         }
 
-        Notice = null;
-        Changed?.Invoke();
+        ClearNotice();
 
         return true;
     }
@@ -3042,9 +3039,7 @@ public sealed class Shell
         _stack.Clear();
         _stack.Add(screen);
         Saw(screen);
-        Notice = null;
-
-        Changed?.Invoke();
+        ClearNotice();
     }
 
     /// <summary>Puts <paramref name="fresh" /> in place of the screen on top.</summary>
@@ -3069,9 +3064,7 @@ public sealed class Shell
 
         // Gone with the screen it was said over, the same as at a push or an arrival: what a reader was told about the
         // list they were looking at is not about the one in front of them now.
-        Notice = null;
-
-        Changed?.Invoke();
+        ClearNotice();
     }
 
     /// <summary>Says what happened on the instance, which <see cref="Arrival.Apply" /> settles the rest of.</summary>
@@ -3211,7 +3204,7 @@ public sealed class Shell
     {
         if (width is null)
         {
-            SayForAMoment(refused);
+            SayWidthForAMoment(refused);
 
             return;
         }
@@ -3233,25 +3226,28 @@ public sealed class Shell
             return;
         }
 
-        SayForAMoment($"Width {width.Percent}%");
+        SayWidthForAMoment($"Width {width.Percent}%");
     }
 
     /// <summary>
-    ///     Says <paramref name="notice" /> and lets go of it once <see cref="ShellTiming.WidthSaidFor" /> has passed — a
-    ///     remark about a key just pressed, which is worth nothing once the reader has seen what the key did. Anything
-    ///     said in the meantime stands: saying calls the wait off.
+    ///     Says what a width key did and lets go of it once <see cref="ShellTiming.WidthSaidFor" /> has passed — a remark
+    ///     about a key just pressed, which is worth nothing once the reader has seen what the key did. Anything said in
+    ///     the meantime stands: saying calls the wait off.
     /// </summary>
-    private void SayForAMoment(string notice)
+    private void SayWidthForAMoment(string notice)
     {
         Say(notice, isError: false);
 
-        _sayingForAMoment = _host.After(_timing.WidthSaidFor, () => Say(null, isError: false));
+        _widthNoticeWait = _host.After(_timing.WidthSaidFor, ClearNotice);
     }
+
+    /// <summary>Lets go of whatever the status row was saying, through <see cref="Say" /> so the same rules hold.</summary>
+    private void ClearNotice() => Say(null, isError: false);
 
     private void Say(string? notice, bool isError)
     {
-        _sayingForAMoment?.Dispose();
-        _sayingForAMoment = null;
+        _widthNoticeWait?.Dispose();
+        _widthNoticeWait = null;
 
         Notice = notice;
         NoticeIsError = isError;
