@@ -44,7 +44,10 @@ internal sealed class ADrafting
     /// <summary>Who is acted as: the shell builder's profile, until <see cref="ActAs" /> says otherwise.</summary>
     public ActiveProfile Profile { get; private set; } = null!;
 
-    /// <summary>Builds drafting over the fakes as they are now, acting as the shell builder's profile.</summary>
+    /// <summary>
+    ///     Builds drafting over the fakes as they are now, acting as the shell builder's profile — with what it asked as
+    ///     it started answered, as a shell that has opened has had it answered.
+    /// </summary>
     public ADrafting Build()
     {
         Stack = new ListStack(Bottom ?? Home(APost.With()), () => Say(null, isError: false));
@@ -52,6 +55,7 @@ internal sealed class ADrafting
         Stack.Hooked = Drafting;
 
         ActAs(Fakes.Profile);
+        Fakes.Host.Drain();
 
         return this;
     }
