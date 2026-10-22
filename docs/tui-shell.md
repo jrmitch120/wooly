@@ -970,7 +970,7 @@ its author remembered to warn it again by hand — which Mastodon's own clients 
   its tail on a terminal too short for everything; the warning band does not, being a row the reader types into rather
   than a quote of something they can see elsewhere. One of the two is a row the reply screen was already spending.
 - **The screen says what goes out; the shell puts it** (#146). `ComposeScreen.Outgoing` answers an `Outgoing` — a
-  `PostDraft` to publish or a `PostEdit` to save, whole — and `Shell.Send` makes the one call, pops, and says `Sent.`
+  `PostDraft` to publish or a `PostEdit` to save, whole — and `Drafting.Send` makes the one call, pops, and says `Sent.`
   or `Saved.`. It was the shell that used to assemble both, which meant the shell was what had to know which of the
   screen's two warning members was the right one for which purpose: the raw field on an edit, where empty means *take
   the warning away*, and the trimmed one on a publish, where empty means *no warning at all*. That is one decision
@@ -1098,17 +1098,17 @@ lists them under a read-only Media header of its own (#381).
   terminal's and only ever carries text, and over SSH the clipboard read is the far machine's, so a paste there is
   text: expected, not a fault. On macOS Terminal `alt-v` types `√` unless Option is set to act as Meta, and `ctrl-v`
   works there anyway. An edit's `ctrl-v` and `alt-v` are text and read no clipboard.
-- **Each file goes up the moment it is attached** (ADR-0026): the shell sends it through `IPostAuthor.Attach`, as the
-  profile acted as, and feeds where it has got to back into the screen on the drawing thread — the screen holds it and
-  draws it, and reaches nothing itself (ADR-0015). The calls are `AttachmentCalls`', the shell's collaborator for
-  them, which hands every answer back as an event. Not through the enquiry: the row says how it is going, the status
-  row says nothing, and it is not stopped by a screen pushed over the draft. **Every upload ends**: a refusal says the
+- **Each file goes up the moment it is attached** (ADR-0026): drafting (ADR-0029) sends it through `IPostAuthor.Attach`,
+  as the profile acted as, and feeds where it has got to back into the screen on the drawing thread — the screen holds
+  it and draws it, and reaches nothing itself (ADR-0015). The calls are `AttachmentCalls`', drafting's collaborator for
+  them, which hands every answer back as an event. Not through the enquiry: the row says how it is going, the status row
+  says nothing, and it is not stopped by a screen pushed over the draft. **Every upload ends**: a refusal says the
   instance's own reason on the row; a dropped connection says `connection lost`, a rate limit `rate limited`, an
   instance that failed to answer `instance failed (502)`, and a call the client gave up waiting on `timed out`; and a
-  failure nothing expected ends the row refused all the same, saying what it was — no row is left going up, and no
-  send left waiting on one. None is tried again by itself (ADR-0006), though the author can retry from the row where
-  a retry can help (below). A compose screen leaving the stack calls off what it is still sending, and leaves what
-  went up for the instance to clear away.
+  failure nothing expected ends the row refused all the same, saying what it was — no row is left going up, and no send
+  left waiting on one. None is tried again by itself (ADR-0006), though the author can retry from the row where a retry
+  can help (below). A compose screen leaving the stack calls off what it is still sending, and leaves what went up for
+  the instance to clear away.
 - **`ctrl-s` waits rather than refuses.** With anything still going up or being processed it keeps the screen up and
   says `Will send once 1 attachment finishes — esc to stop.`, and sends once they have; `esc` calls the send off and
   says the draft is as it was. A screen opened over compose meanwhile — the file browser, a description — leaves the

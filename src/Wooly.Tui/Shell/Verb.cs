@@ -15,7 +15,7 @@ namespace Wooly.Tui.Shell;
 ///         which walk the page rather than the list; <see cref="NextPost" />, <see cref="PreviousPost" />,
 ///         <see cref="FirstPost" />, <see cref="LastPost" />, <see cref="NextSection" />,
 ///         <see cref="PreviousSection" />, <see cref="NextEntry" /> and <see cref="PreviousEntry" />, which move the pick
-///         and the page both; <see cref="Send" />, which has to take the editor widget's text before the shell sends
+///         and the page both; <see cref="Send" />, which has to take the editor widget's text before drafting sends
 ///         it; and <see cref="Narrower" /> and <see cref="Wider" />, whose steps are refused by how wide the terminal
 ///         is. Which sixteen is <see cref="Verbs.NeedsATerminal" />, the one list the window and the shell both read.
 ///     </para>
