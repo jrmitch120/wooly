@@ -87,6 +87,33 @@ public class DraftResetTests : IDisposable
         Assert.All(drawn.Built.Author.Attaching, sending => Assert.True(sending.CalledOff));
     }
 
+    /// <summary>
+    ///     An untouched compose asks nothing: <c>/</c> from it goes to Search at once, as every other way out of one does,
+    ///     and from Search itself it puts a fresh prompt up in its place.
+    /// </summary>
+    [Theory]
+    [InlineData(DestinationKind.Home)]
+    [InlineData(DestinationKind.Search)]
+    public async Task SlashOffAnUntouchedCompose_GoesWithoutAsking(DestinationKind from)
+    {
+        var built = new AShell();
+        var shell = await built.Opened();
+
+        shell.Rail.GoTo(from);
+        built.Host.Settle();
+        shell.Press(ShellKey.C);
+
+        Assert.False(Assert.IsType<ComposeScreen>(shell.Screen).Touched);
+
+        shell.Press(ShellKey.Slash);
+        built.Host.Settle();
+
+        Assert.Null(shell.Asking);
+        Assert.IsType<SearchScreen>(shell.Screen);
+        Assert.Equal(1, shell.Depth);
+        Assert.Equal(DestinationKind.Search, shell.Rail.Showing.Kind);
+    }
+
     /// <summary>A drawn compose with three files attached, their rows folded, and the attachments screen listing them.</summary>
     private async Task<DrawnShell> Listing()
     {
