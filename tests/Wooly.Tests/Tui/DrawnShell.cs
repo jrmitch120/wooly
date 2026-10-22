@@ -293,8 +293,12 @@ internal sealed class DrawnShell : IDisposable
     /// <summary>Every row, as the text drawn on it.</summary>
     public string[] Rows() => Rows(Application.Driver!.Contents!.GetLength(0), Application.Driver.Contents.GetLength(1));
 
-    /// <summary>The rail's columns of every row above the status row.</summary>
-    public string[] Rail() => Rows(Application.Driver!.Contents!.GetLength(0) - 1, RailLines.Width);
+    /// <summary>
+    ///     The rail's columns of every row above the status row: the first of the shell's, wherever a narrowed shell
+    ///     starts.
+    /// </summary>
+    public string[] Rail() =>
+        Rows(Application.Driver!.Contents!.GetLength(0) - 1, RailLines.Width, from: Window.Frame.X);
 
     public Attribute Cell(int row, int column) => Application.Driver!.Contents![row, column].Attribute!.Value;
 
@@ -320,14 +324,14 @@ internal sealed class DrawnShell : IDisposable
         Application.Dispose();
     }
 
-    private string[] Rows(int count, int columns)
+    private string[] Rows(int count, int columns, int from = 0)
     {
         var cells = Application.Driver!.Contents!;
 
         return
         [
             .. Enumerable.Range(0, count).Select(row => string.Concat(
-                Enumerable.Range(0, columns).Select(column => cells[row, column].Grapheme))),
+                Enumerable.Range(from, columns).Select(column => cells[row, column].Grapheme))),
         ];
     }
 }

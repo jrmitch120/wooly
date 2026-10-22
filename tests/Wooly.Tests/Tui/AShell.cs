@@ -104,6 +104,12 @@ internal sealed class AShell
         FakeProfileRegistry.Profile("personal", "mastodon.social", "jeff@mastodon.social"));
 
     /// <summary>
+    ///     Where each step of the shell width is saved (#415). Beside the registry rather than among the ports, for the
+    ///     reason <c>ProfilePorts</c> gives: this is the local config, not an instance.
+    /// </summary>
+    public FakeShellWidthStore ShellWidths { get; set; } = new();
+
+    /// <summary>
     ///     A sign-in through the browser, which the add screen begins (#245). Beside the registry rather than among the
     ///     ports, for the reason <c>ProfilePorts</c> gives.
     /// </summary>
@@ -136,6 +142,9 @@ internal sealed class AShell
     /// <summary>The config file's <c>bell</c>: whether a rising Inbox badge rings the terminal's bell (#399). On, unless said.</summary>
     public bool Bell { get; set; } = true;
 
+    /// <summary>The config file's <c>shell_width</c>, which a launch opens at (#415). The whole terminal, unless said.</summary>
+    public int ShellWidth { get; set; } = 100;
+
     /// <summary>The config file's preferences, as far as these tests set them.</summary>
     private Preferences Preferences => new()
     {
@@ -143,6 +152,7 @@ internal sealed class AShell
         DefaultVisibility = DefaultVisibility,
         DefaultLanguage = DefaultLanguage,
         Bell = Bell,
+        ShellWidth = ShellWidth,
     };
 
     /// <summary>
@@ -176,6 +186,7 @@ internal sealed class AShell
         opening,
         new ShellPorts(Timelines, Author, Engagement, Accounts, Notifications, Messages, Search, Suggestions, RateLimit, Limits, Defaults, Stream, PublicProfile),
         new ProfilePorts(Profiles, Paths, Authorizer, Verifier),
+        ShellWidths,
         Host,
         Browser,
         Clipboard,
@@ -253,6 +264,7 @@ internal sealed class AShell
             Opening.As(registry.Resolve(null)),
             new ShellPorts(Timelines, Author, Engagement, Accounts, Notifications, Messages, Search, Suggestions, RateLimit, Limits, Defaults, Stream, PublicProfile),
             new ProfilePorts(registry, paths, Authorizer, Verifier),
+            ShellWidths,
             Host,
             Browser,
             Clipboard,

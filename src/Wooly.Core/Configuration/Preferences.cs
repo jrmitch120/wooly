@@ -38,4 +38,10 @@ public sealed record Preferences
     ///     rings it; one setting for every profile, with no key in the TUI to change it yet.
     /// </summary>
     public bool Bell { get; init; } = true;
+
+    /// <summary>
+    ///     The TUI's <b>Shell width</b> (#413): how much of the terminal's width the shell takes, as a whole-number
+    ///     percentage from 50 to 100. 100 (absent) is all of it; one setting for every profile.
+    /// </summary>
+    public int ShellWidth { get; init; } = 100;
 }

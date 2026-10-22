@@ -411,7 +411,7 @@ public class ShellWidthTests
     ///     Where the shell is drawn, as its first column and how many columns it takes: from the rail's top-left corner to
     ///     the content panel's top-right one.
     /// </summary>
-    private static (int Left, int Columns) Shell(DrawnShell drawn)
+    internal static (int Left, int Columns) Shell(DrawnShell drawn)
     {
         var top = drawn.Rows()[0];
         var left = top.IndexOf('╭', StringComparison.Ordinal);
@@ -445,7 +445,7 @@ public class ShellWidthTests
     }
 
     /// <summary>A theme with a page of its own, so that a cell the shell drew is told from one the terminal kept.</summary>
-    private static ITheme Midnight() => Themes.Chosen(
+    internal static ITheme Midnight() => Themes.Chosen(
         new WoolyConfig
         {
             Theme = "midnight",
