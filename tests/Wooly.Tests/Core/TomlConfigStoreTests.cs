@@ -180,6 +180,56 @@ public class TomlConfigStoreTests : IDisposable
         Assert.Equal(read, NewStore().Load().Preferences.ShellWidth);
     }
 
+    [Fact]
+    public void Save_ThenLoad_RoundTripsTheShellWidthBesideTheOtherPreferences()
+    {
+        var store = NewStore();
+
+        store.Save(new WoolyConfig
+        {
+            Preferences = new Preferences
+            {
+                Hashtag = "dotnet", HideDrawnCaption = true, Bell = false, ShellWidth = 70,
+            },
+        });
+
+        Assert.Contains("shell_width = 70", File.ReadAllText(Path.Combine(_directory.Path, "config.toml")));
+
+        var preferences = store.Load().Preferences;
+
+        Assert.Equal(70, preferences.ShellWidth);
+        Assert.Equal("dotnet", preferences.Hashtag);
+        Assert.True(preferences.HideDrawnCaption);
+        Assert.False(preferences.Bell);
+    }
+
+    /// <summary>
+    ///     The whole terminal is what an absent key reads as, so it is not written: a reader who never changes the width
+    ///     finds no new line in a file nothing else touched.
+    /// </summary>
+    [Fact]
+    public void Save_OmitsTheShellWidthAtFull()
+    {
+        NewStore().Save(new WoolyConfig { Preferences = new Preferences { ShellWidth = 100 } });
+
+        Assert.Empty(File.ReadAllText(Path.Combine(_directory.Path, "config.toml")));
+    }
+
+    /// <summary>Widening back to 100 removes the line, leaving the file the one there would be had it never changed.</summary>
+    [Fact]
+    public void Save_RemovesTheShellWidthOnceItIsBackAtFull()
+    {
+        var store = NewStore();
+
+        store.Save(new WoolyConfig { Preferences = new Preferences { Hashtag = "dotnet", ShellWidth = 90 } });
+        store.Save(store.Load() with { Preferences = store.Load().Preferences with { ShellWidth = 100 } });
+
+        var toml = File.ReadAllText(Path.Combine(_directory.Path, "config.toml"));
+
+        Assert.DoesNotContain("shell_width", toml);
+        Assert.Contains("hashtag = \"dotnet\"", toml);
+    }
+
     [Theory]
     [InlineData("\"80\"")]
     [InlineData("72.5")]

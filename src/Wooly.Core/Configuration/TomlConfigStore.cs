@@ -78,7 +78,7 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
 
         // Inserted before the profiles so the writer emits the short, general section above the long, per-profile one.
         if (config.Preferences is { DefaultVisibility: not null } or { DefaultLanguage: not null } or { Hashtag: not null }
-            or { HideDrawnCaption: true } or { Bell: false })
+            or { HideDrawnCaption: true } or { Bell: false } or { ShellWidth: not FullShellWidth })
         {
             var preferences = new TomlTable();
 
@@ -109,6 +109,13 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
             if (!config.Preferences.Bell)
             {
                 preferences[BellKey] = false;
+            }
+
+            // Absent rather than written as 100, the whole terminal an absent key reads back as — so widening back to it
+            // takes the line away again (#415).
+            if (config.Preferences.ShellWidth != FullShellWidth)
+            {
+                preferences[ShellWidthKey] = (long)config.Preferences.ShellWidth;
             }
 
             root[PreferencesKey] = preferences;
