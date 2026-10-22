@@ -36,12 +36,30 @@ internal sealed class FakePostAuthor : IPostAuthor
     /// <summary>An instance that refuses everything with <paramref name="refusal" />, having recorded the attempt.</summary>
     public static FakePostAuthor Refusing(Exception refusal) => new(APost.With(), refusal);
 
+    /// <summary>
+    ///     Whether a publish waits to be landed by the test, through <see cref="HeldPublishes" />, rather than being
+    ///     answered at once (#423) — so a test can put something else in front before the instance answers.
+    /// </summary>
+    public bool HoldingPublishes { get; set; }
+
+    /// <summary>Every publish held while <see cref="HoldingPublishes" />, in order, each waiting to be landed.</summary>
+    public List<Publishing> HeldPublishes { get; } = [];
+
     public Task<Post> Publish(ActiveProfile profile, PostDraft draft, CancellationToken cancellationToken)
     {
         Published.Add(new Composed(profile.Name, draft));
         Tokens.Add(profile.AccessToken);
 
-        return Answer();
+        if (!HoldingPublishes)
+        {
+            return Answer();
+        }
+
+        var publishing = new Publishing(_answer, _refusal);
+
+        HeldPublishes.Add(publishing);
+
+        return publishing.Answer;
     }
 
     /// <summary>
@@ -144,6 +162,27 @@ internal sealed class FakePostAuthor : IPostAuthor
 
         /// <summary>The instance would not take it.</summary>
         public void Refuse(Exception refusal) => _answer.TrySetException(refusal);
+    }
+
+    /// <summary>One post being published, which the test lands — answered as the fake answers everything — or refuses.</summary>
+    internal sealed class Publishing(Post answer, Exception? refusal)
+    {
+        private readonly TaskCompletionSource<Post> _answer = new();
+
+        public Task<Post> Answer => _answer.Task;
+
+        /// <summary>The instance has answered, as it answers everything.</summary>
+        public void Land()
+        {
+            if (refusal is null)
+            {
+                _answer.TrySetResult(answer);
+            }
+            else
+            {
+                _answer.TrySetException(refusal);
+            }
+        }
     }
 
     /// <summary>One file being sent up, which the test moves through the states an instance would.</summary>
