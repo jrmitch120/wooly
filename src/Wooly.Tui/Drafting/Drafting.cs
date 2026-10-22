@@ -912,7 +912,7 @@ public sealed class Drafting
 
         await reach.Put(
             ask => ask.Of(token => reach.Ports.PublicProfile.Read(profile, token)),
-            ifStillHere: read => _stack.Push(new PublicProfileScreen(read) { Limits = _limits.For(profile) }));
+            ifStillHere: read => _stack.Push(new PublicProfileScreen(read, profile.Instance) { Limits = _limits.For(profile) }));
     }
 
     /// <summary>
@@ -1043,8 +1043,9 @@ public sealed class Drafting
 
     /// <summary>
     ///     An instance said how long it lets a post be, which every compose on the stack going out on that instance is
-    ///     measured against from now on, whatever covers it (#424) — and how long it lets a bio be, which the edit public
-    ///     profile form's count is. One redraw, however many it reached.
+    ///     measured against from now on, whatever covers it (#424) — and how long it lets a bio be, which every edit
+    ///     public profile form on the stack whose profile is on that instance counts against, likewise (#422). One
+    ///     redraw, however many it reached.
     /// </summary>
     private void Measured(string instance, PostLimits limits)
     {
@@ -1061,8 +1062,7 @@ public sealed class Drafting
             reached = true;
         }
 
-        if (_stack.Top is PublicProfileScreen form
-            && string.Equals(reach.Profile.Instance, instance, StringComparison.OrdinalIgnoreCase))
+        foreach (var form in _stack.Screens.OfType<PublicProfileScreen>().Where(form => form.GoesOutOn(instance)))
         {
             form.Limits = limits;
             reached = true;
