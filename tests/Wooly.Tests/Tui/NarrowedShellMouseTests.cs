@@ -305,6 +305,48 @@ public class NarrowedShellMouseTests
         Assert.Equal(["three.png", "one.png", "two.png"], compose.Media.Attachments.Select(attachment => attachment.Name));
     }
 
+    /// <summary>
+    ///     A row being dragged holds the mouse, and keeps it when the pointer strays into a margin: the row still follows
+    ///     the pointer there, and its let-go there puts it down, as it would anywhere at full width — so the margins,
+    ///     which take every other event, never leave a row stuck to the pointer.
+    /// </summary>
+    [Theory]
+    [InlineData(LeftMargin)]
+    [InlineData(RightMargin)]
+    public async Task ADraggedRowKeepsTheMouseInAMargin(int margin)
+    {
+        using var files = new TemporaryDirectory();
+        using var drawn = await Narrowed();
+
+        drawn.Shell.Compose();
+        drawn.Redraw();
+
+        foreach (var name in new[] { "one.png", "two.png", "three.png" })
+        {
+            Assert.True(drawn.Shell.Paste(files.WriteFile(name)));
+        }
+
+        drawn.Redraw();
+
+        var rows = drawn.Rows();
+        var row = Array.FindIndex(rows, line => line.Contains("three.png", StringComparison.Ordinal));
+        var column = rows[row].IndexOf("three.png", StringComparison.Ordinal);
+
+        drawn.Point(column, row, MouseFlags.LeftButtonPressed);
+
+        Assert.True(drawn.Application.Mouse.IsGrabbed());
+
+        drawn.Point(margin, row - 1, MouseFlags.LeftButtonPressed | MouseFlags.PositionReport);
+        drawn.Point(margin, row - 2, MouseFlags.LeftButtonPressed | MouseFlags.PositionReport);
+        drawn.Point(margin, row - 2, MouseFlags.LeftButtonReleased);
+        drawn.Point(margin, row - 2, MouseFlags.LeftButtonClicked);
+
+        var compose = Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
+
+        Assert.Equal(["three.png", "one.png", "two.png"], compose.Media.Attachments.Select(attachment => attachment.Name));
+        Assert.False(drawn.Application.Mouse.IsGrabbed());
+    }
+
     /// <summary>The shell on a 200-column terminal, narrowed a step to 180 columns from the eleventh.</summary>
     private static async Task<DrawnShell> Narrowed(AShell? built = null, int height = 30)
     {
