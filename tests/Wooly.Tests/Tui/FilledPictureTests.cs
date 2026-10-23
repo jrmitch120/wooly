@@ -83,7 +83,7 @@ public class FilledPictureTests
         return new Picture(pixels);
     }
 
-    /// <summary>Red, green, blue and white quarters, clockwise from the top left but for the last two swapped.</summary>
+    /// <summary>Red at the top left, green at the top right, blue at the bottom left, white at the bottom right.</summary>
     private static Picture Quartered(int width, int height)
     {
         var pixels = new Color[width, height];
