@@ -422,10 +422,13 @@ public sealed class Shell
     /// <summary>
     ///     Takes a draft off and moves the rail cursor with <paramref name="step" />. A step that took a draft off
     ///     arrives at the destination stepped to there and then rather than after the settle, which would stand the
-    ///     screen under the draft in front for the wait (#373, ADR-0014 amended). Stepped onto the destination already
-    ///     shown, it walks back out to it, as a click on it does (<see cref="Arrive" />). Tabbing on from there settles
-    ///     as ever.
+    ///     screen under the draft in front for the wait (#373, ADR-0014 amended). Tabbing on from there settles as
+    ///     ever.
     /// </summary>
+    /// <remarks>
+    ///     Never onto the destination already shown: a draft in front means the cursor is on the selection, opening one
+    ///     having called off whatever the tabbing left waiting (#429), so one step off it is always somewhere else.
+    /// </remarks>
     private void Stepping(Action step) =>
         Leaving(0, () =>
         {
@@ -433,18 +436,9 @@ public sealed class Shell
 
             step();
 
-            if (!dropped)
+            if (dropped)
             {
-                return;
-            }
-
-            var shown = Rail.Current == Rail.Cursor;
-
-            Rail.LandNow();
-
-            if (shown)
-            {
-                Unwind(0);
+                Rail.LandNow();
             }
         });
 
