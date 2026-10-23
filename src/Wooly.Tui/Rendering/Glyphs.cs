@@ -65,6 +65,24 @@ public static class Glyphs
     public static int Columns(string text) =>
         text.AsSpan().ContainsAnyExceptInRange(FirstPlainAscii, LastPlainAscii) ? text.GetColumns() : text.Length;
 
+    /// <summary>
+    ///     Whether this client and a terminal measure <paramref name="text" /> alike: false where it carries a
+    ///     <em>spacing mark</em> (#432).
+    /// </summary>
+    /// <remarks>
+    ///     A spacing mark is a vowel sign that takes up room of its own — the <c>ী</c> of <c>অসমীয়া</c>, most of the
+    ///     vowel signs of the scripts of South and Southeast Asia. Terminal.Gui counts one as no column; a terminal
+    ///     counts it its own way, and not one way: measured in herdr, <c>অসমীয়া</c> came out two columns wider than
+    ///     counted and <c>हिन्दी</c> one, its <c>ि</c> counted as nothing and its <c>ी</c> as one. Every cell after such
+    ///     text lands that many columns right of where it was laid out, which is how a list's border came apart beside
+    ///     the languages written in those scripts. There is no count to correct to, so nothing here pretends to one: a
+    ///     layout that depends on where its text ends writes something measured alike in its place. Marks that take no
+    ///     room — an accent, Arabic's vowels, Tibetan's — are counted alike, and so is text with no mark at all.
+    /// </remarks>
+    public static bool MeasuredAlike(string text) =>
+        !text.AsSpan().ContainsAnyExceptInRange(FirstPlainAscii, LastPlainAscii)
+        || !text.Any(character => char.GetUnicodeCategory(character) == UnicodeCategory.SpacingCombiningMark);
+
     /// <summary>As much of the front of <paramref name="text" /> as fits in <paramref name="columns" />.</summary>
     /// <remarks>
     ///     The text itself where the whole of it fits, so the common case costs a measure and nothing else. What comes

@@ -53,6 +53,27 @@ public class GlyphsTests
         Assert.Equal(columns, Glyphs.Columns(text));
 
     /// <summary>
+    ///     Text this client and a terminal measure alike, and text they do not (#432): a <em>spacing mark</em> — a vowel
+    ///     sign that takes up room of its own, the <c>ী</c> of <c>অসমীয়া</c> — is no column to Terminal.Gui and one to
+    ///     some terminals and not to others, so no count of it agrees with all of them. Marks that take no room (an
+    ///     accent, Arabic's vowels, Tibetan's) are counted alike, and so is everything without a mark at all.
+    /// </summary>
+    [Theory]
+    [InlineData("Français", true)]
+    [InlineData("български език", true)]
+    [InlineData("العربية", true)]
+    [InlineData("བོད་ཡིག", true)]
+    [InlineData("አማርኛ", true)]
+    [InlineData("e\u0301", true)]
+    [InlineData("ドット絵", true)]
+    [InlineData("", true)]
+    [InlineData("অসমীয়া", false)]
+    [InlineData("हिन्दी", false)]
+    [InlineData("ភាសាខ្មែរ", false)]
+    public void MeasuredAlike_IsFalseOnlyWhereASpacingMarkIs(string text, bool alike) =>
+        Assert.Equal(alike, Glyphs.MeasuredAlike(text));
+
+    /// <summary>
     ///     Cutting stops at the last character that fits whole. A row given an odd number of columns and written in a
     ///     script with none of them cannot fill the last one, and a half-drawn character is what filling it would mean.
     /// </summary>

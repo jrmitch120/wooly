@@ -197,6 +197,51 @@ public class ComposeLangTests
     }
 
     /// <summary>
+    ///     The languages whose own names a terminal draws wider than Terminal.Gui counts them — measured in herdr, one
+    ///     to three columns each, pushing the rest of their row out of place (#432).
+    /// </summary>
+    public static TheoryData<string> NotMeasuredAlike =>
+        ["as", "bh", "bn", "gu", "hi", "km", "ks", "ml", "mr", "my", "ne", "pa", "pi", "sd", "si", "ta", "te"];
+
+    /// <summary>Lang and its list write such a language by its English name, which every terminal measures alike.</summary>
+    [Theory]
+    [MemberData(nameof(NotMeasuredAlike))]
+    public void ALanguageWhoseOwnNameIsNotMeasuredAlike_IsWrittenByItsEnglishName(string code)
+    {
+        var language = PostLanguageName.Of(code)!;
+
+        Assert.Equal($"{code}{ComposeLang.CodeGap}{language.Name}", ComposeLang.Spoken(language));
+        Assert.True(Glyphs.MeasuredAlike(ComposeLang.Spoken(language)));
+    }
+
+    /// <summary>Every other language keeps its own name, which is how most of the people writing in it know it.</summary>
+    [Fact]
+    public void EveryOtherLanguage_KeepsItsOwnName()
+    {
+        var others = PostLanguageName.All.Where(language => !NotMeasuredAlike.Any(row => row.Data == language.Code));
+
+        Assert.All(others, language =>
+            Assert.Equal($"{language.Code}{ComposeLang.CodeGap}{language.OwnName}", ComposeLang.Spoken(language)));
+    }
+
+    /// <summary>
+    ///     Lang opened on such a language reads as its list does and resolves to it, and typing either of its names still
+    ///     finds it.
+    /// </summary>
+    [Fact]
+    public void LangOpenedOnALanguageNotMeasuredAlike_ReadsAndResolvesAsItsListWritesIt()
+    {
+        var lang = ComposeLang.Opening("hi");
+
+        Assert.Equal("hi  Hindi", lang.Held);
+        Assert.True(lang.HoldsALanguageWhole);
+        Assert.Equal("hi", lang.Language?.Code);
+        Assert.Contains(PostLanguageName.Matching("Hindi"), language => language.Code == "hi");
+        Assert.Contains(PostLanguageName.Matching("हिन्दी"), language => language.Code == "hi");
+        Assert.Equal("hi", new ComposeLang("hi  Hindi", null).Language?.Code);
+    }
+
+    /// <summary>
     ///     A compose opening on a language fills Lang with it and opens no list: only typing in Lang does, and the
     ///     typing opens in the post.
     /// </summary>
