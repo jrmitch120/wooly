@@ -87,6 +87,17 @@ answers for the whole shell, `Glyphs.Columns`, off Terminal.Gui's own reading of
 `string.Length`. Cuts land between graphemes, never inside one — half of a ZWJ sequence, or a base parted from its
 combining mark, is something nobody wrote.
 
+The one place that measure is not Terminal.Gui's is a **spacing mark** (`GLOSSARY.md`, ADR-0031, #434): a vowel sign
+that takes room of its own, which Terminal.Gui counts as no column and terminals draw in none, one or two — herdr's
+`অসমীয়া` came out two columns wider than counted, and every cell after it on the row with it. There is no count every
+terminal agrees with, so a character carrying one is held in two columns: the view paints it with the next cell blank,
+and the client's own output (`HeldOutput`, handed to Terminal.Gui as its `ansi` driver's) writes it after every other
+cell of its row, at a place of its own, and places the cell after it too. A terminal drawing it two wide covers the
+blank and keeps it whole; one wide shows a gap inside the word; wider hides the next character. Nothing further along
+the row moves on any of them. Terminal.Gui's own editing widgets — compose's editor, Lang, the bio — are not painted by
+the view, so they leave no blank: their rows still hold, but there a terminal drawing the mark wide may cover the
+character after it.
+
 ## Shell width
 
 The shell is drawn in a share of the terminal's width: all of it, or less, in steps of ten down to half (`GLOSSARY.md`,
@@ -1302,10 +1313,9 @@ typing one in the edit public profile form's bio (#408):
 ### What compose's Lang settled
 
 - **Lang is a one-line field under To (#340)**, laid over its value column as the warning field is over the warning's.
-  It shows a language as its code and its own name, `fr  Français`, the name muted on the painted row — or its English
-  name, `as  Assamese`, where its own name carries a spacing mark, which this client and a terminal do not measure alike
-  and which pushed the list's border out of place beside it (#432); typing either name still finds it. Empty, it says
-  `none · the instance decides` and sends no language.
+  It shows a language as its code and its own name, `fr  Français`, the name muted on the painted row — `as  অসমীয়া`
+  too, whose spacing marks are held as every other one is (#434, ADR-0031), where #432 had written it in English;
+  typing either name still finds it. Empty, it says `none · the instance decides` and sends no language.
 - **It starts on the author's own language**: `default_language`, else the account's posting language as its instance
   said it (#339), else empty — on a reply as on a fresh post, never the answered post's. An edit opens on the post's own
   and always sends what the field holds, as the warning does (#140); cleared, that is an empty language, which goes

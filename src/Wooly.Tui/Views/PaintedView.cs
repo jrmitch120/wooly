@@ -589,7 +589,7 @@ internal sealed class PaintedView : View
             // The theme's to answer, not the view's: only a span sitting on the page goes onto the band, and one
             // with a background of its own — a picked reference a theme has given one — keeps it.
             SetAttribute(picked && column < bandsTo ? _theme.Banded(span.Role) : _theme.For(span.Role));
-            AddStr(left + column, row, text);
+            this.AddHeld(left + column, row, text);
 
             column += Glyphs.Columns(text);
         }

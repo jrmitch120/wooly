@@ -60,10 +60,13 @@ public static class Glyphs
     /// <remarks>
     ///     The single measure every layout reads. Plain ASCII — which is most of what a client of an English-speaking
     ///     instance draws, and all of its own chrome — is a column a character and answered by the scan alone; anything
-    ///     else is handed to Terminal.Gui, whose reading of it is the one that places the cells.
+    ///     else is handed to Terminal.Gui, whose reading of it is the one that places the cells. The exception is a
+    ///     character carrying a spacing mark, which is <see cref="HeldColumns" /> wherever it is (ADR-0031).
     /// </remarks>
     public static int Columns(string text) =>
-        text.AsSpan().ContainsAnyExceptInRange(FirstPlainAscii, LastPlainAscii) ? text.GetColumns() : text.Length;
+        !text.AsSpan().ContainsAnyExceptInRange(FirstPlainAscii, LastPlainAscii) ? text.Length
+        : MeasuredAlike(text) ? text.GetColumns()
+        : HeldAcross(text);
 
     /// <summary>
     ///     Whether this client and a terminal measure <paramref name="text" /> alike: false where it carries a
@@ -75,13 +78,40 @@ public static class Glyphs
     ///     counts it its own way, and not one way: measured in herdr, <c>অসমীয়া</c> came out two columns wider than
     ///     counted and <c>हिन्दी</c> one, its <c>ि</c> counted as nothing and its <c>ी</c> as one. Every cell after such
     ///     text lands that many columns right of where it was laid out, which is how a list's border came apart beside
-    ///     the languages written in those scripts. There is no count to correct to, so nothing here pretends to one: a
-    ///     layout that depends on where its text ends writes something measured alike in its place. Marks that take no
-    ///     room — an accent, Arabic's vowels, Tibetan's — are counted alike, and so is text with no mark at all.
+    ///     the languages written in those scripts. There is no count to correct to, so a character carrying one is
+    ///     held in <see cref="HeldColumns" />, the second left blank, and drawn after the rest of its row at a place
+    ///     of its own (ADR-0031): whatever a terminal makes of it, nothing after it moves. Marks that take no room —
+    ///     an accent, Arabic's vowels, Tibetan's — are counted alike, and so is text with no mark at all.
     /// </remarks>
     public static bool MeasuredAlike(string text) =>
         !text.AsSpan().ContainsAnyExceptInRange(FirstPlainAscii, LastPlainAscii)
         || !text.Any(character => char.GetUnicodeCategory(character) == UnicodeCategory.SpacingCombiningMark);
+
+    /// <summary>
+    ///     How many columns a character carrying a spacing mark is held in: its own and one left blank after it, which
+    ///     a terminal drawing it two wide covers and one drawing it one wide leaves (ADR-0031).
+    /// </summary>
+    public const int HeldColumns = 2;
+
+    /// <summary>
+    ///     <paramref name="text" /> measured a character at a time, each carrying a spacing mark held in
+    ///     <see cref="HeldColumns" /> and every other as Terminal.Gui counts it.
+    /// </summary>
+    private static int HeldAcross(string text)
+    {
+        var columns = 0;
+
+        for (var at = 0; at < text.Length;)
+        {
+            var end = Past(text, at, text.Length);
+            var character = text[at..end];
+
+            columns += MeasuredAlike(character) ? character.GetColumns() : HeldColumns;
+            at = end;
+        }
+
+        return columns;
+    }
 
     /// <summary>As much of the front of <paramref name="text" /> as fits in <paramref name="columns" />.</summary>
     /// <remarks>

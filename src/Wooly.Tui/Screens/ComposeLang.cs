@@ -1,5 +1,4 @@
 using Wooly.Core.Posts;
-using Wooly.Tui.Rendering;
 
 namespace Wooly.Tui.Screens;
 
@@ -33,13 +32,11 @@ public sealed record ComposeLang(string Held, string? Opened)
 
     /// <summary>A language as Lang and its list write it: its code, then its own name — <c>fr  Français</c>.</summary>
     /// <remarks>
-    ///     Its English name instead where its own name is not measured alike by this client and a terminal
-    ///     (<see cref="Glyphs.MeasuredAlike" />) — <c>as  Assamese</c> — since a row whose name a terminal draws wider
-    ///     than it was laid out pushes the list's border out of place beside it (#432). Typing either name still finds
-    ///     it.
+    ///     Its own name even where that carries a spacing mark — <c>as  অসমীয়া</c> — which is held in the columns that
+    ///     keep the list's border where it is however a terminal draws it (ADR-0031). Typing its English name still
+    ///     finds it.
     /// </remarks>
-    public static string Spoken(PostLanguage language) =>
-        $"{language.Code}{CodeGap}{(Glyphs.MeasuredAlike(language.OwnName) ? language.OwnName : language.Name)}";
+    public static string Spoken(PostLanguage language) => $"{language.Code}{CodeGap}{language.OwnName}";
 
     /// <summary>
     ///     Why the post cannot go out in what Lang holds, or <see langword="null" /> where it can: empty, a language, or
