@@ -27,9 +27,9 @@ public static class StandIn
     ///     decode — which leaves the shade alone (#349).
     /// </summary>
     /// <remarks>
-    ///     Drawn through the same raster path as the picture it stands in for, on sixel and Kitty alike, and stretched
-    ///     to the box rather than fitted to it: a blur has no proportions of its own to keep, and filling the box is
-    ///     what makes the picture arriving read as sharpening. Named apart from that picture (<see cref="Drawn.Blur" />)
+    ///     Drawn through the same raster path as the picture it stands in for, on sixel and Kitty alike, and filling the
+    ///     box rather than fitted to it — cropped to the box's shape from its middle, as every picture is on its way to
+    ///     its box (#438): filling the box is what makes the picture arriving read as sharpening. Named apart from that picture (<see cref="Drawn.Blur" />)
     ///     so that the box drawing one lets go of it, and the terminal deletes it, when the other takes its place
     ///     (ADR-0022). Its pixels come from <see cref="Blurs" />, never from the picture cache, so a screen of blurs
     ///     can never crowd out the pictures they stand in for (ADR-0025).
