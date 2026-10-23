@@ -1,4 +1,3 @@
-using Terminal.Gui.App;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Wooly.Tui.Media;
@@ -39,9 +38,6 @@ internal sealed class DescriptionView : View
     /// <summary>What the field does with an open question and with the mouse, as every draft's do (#373, #430).</summary>
     private readonly DraftFields _draft;
 
-    /// <summary>Where the terminal's mouse events arrive, once the view is running; asked ahead of the views.</summary>
-    private IMouse? _mouse;
-
     public DescriptionView(ITheme theme, Shell.Shell shell, Drafting.Drafting drafting, Func<Raster> raster)
     {
         _shell = shell;
@@ -63,10 +59,9 @@ internal sealed class DescriptionView : View
         // ctrl-p is the frame's here as everywhere (ADR-0020), where TextView would take it for a line up.
         _editor.KeyBindings.Remove(Key.P.WithCtrl);
 
-        _draft = new DraftFields(
-            shell,
-            () => _shell.Screen is DescriptionScreen,
-            at => Visible && _editor.Visible && _editor.FrameToScreen().Contains(at));
+        // A right click over the field is esc, which the field would otherwise keep to itself, and a press over it
+        // while a question is open is the question's — as on compose and the form (#373, #430).
+        _draft = new DraftFields(this, shell, () => _shell.Screen is DescriptionScreen, () => [_editor]);
 
         // A question open on the status row takes every key ahead of the field — leaving by tab asks before a touched
         // draft under this is thrown away (#373).
@@ -76,19 +71,6 @@ internal sealed class DescriptionView : View
             _ = _drafting.Edit<DescriptionScreen>(describing => describing.Rewrite(_editor.Text));
 
         Add(_editor);
-
-        // A right click over the field is esc, which the field would otherwise keep to itself, and a press over it while
-        // a question is open is the question's, so both are asked about where the terminal's mouse events arrive, ahead
-        // of every view under the pointer — as compose's and the form's are (#373, #430).
-        Initialized += (_, _) =>
-        {
-            _mouse = App?.Mouse;
-
-            if (_mouse is not null)
-            {
-                _mouse.MouseEvent += AheadOfTheViews;
-            }
-        };
 
         _shell.Changed += Refresh;
 
@@ -100,28 +82,9 @@ internal sealed class DescriptionView : View
         if (disposing)
         {
             _shell.Changed -= Refresh;
-
-            if (_mouse is not null)
-            {
-                _mouse.MouseEvent -= AheadOfTheViews;
-                _mouse = null;
-            }
         }
 
         base.Dispose(disposing);
-    }
-
-    /// <summary>
-    ///     A mouse event wherever it landed, before the view under the pointer sees it: a right click while the editor
-    ///     is in front, which is its <c>esc</c> wherever it lands; any other press over the field while a question is
-    ///     open, which the question takes (<see cref="DraftFields.Spent" />); and left alone otherwise.
-    /// </summary>
-    private void AheadOfTheViews(object? sender, Mouse mouse)
-    {
-        if (!mouse.Handled)
-        {
-            mouse.Handled = _draft.Spent(mouse);
-        }
     }
 
     /// <summary>
