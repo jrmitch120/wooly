@@ -67,14 +67,12 @@ internal sealed class ShellWindow : Window
 
     private readonly PaintedView _content;
 
-    /// <summary>Compose's fields, laid over the content panel's viewport (#365).</summary>
-    private readonly ComposeView _compose;
-
-    /// <summary>The description editor's field, laid over the same viewport (#377).</summary>
-    private readonly DescriptionView _description;
-
-    /// <summary>The edit public profile form's fields, laid over the same viewport (#406).</summary>
-    private readonly PublicProfileView _publicProfile;
+    /// <summary>
+    ///     The views laid over the content panel's viewport, each showing while its draft is on top: compose's fields
+    ///     (#365), the description editor's (#377) and the edit public profile form's (#406). The window places them,
+    ///     redraws them with the panel and keeps the panel from scrolling while one shows, all alike (ADR-0030).
+    /// </summary>
+    private readonly IReadOnlyList<View> _overlays;
 
     /// <summary>The rail, which <see cref="Railed" /> takes away and puts back.</summary>
     private readonly PaintedView _rail;
@@ -255,34 +253,23 @@ internal sealed class ShellWindow : Window
             CanFocus = false,
         };
 
-        // Compose's fields, over the panel's viewport: the room the compose screen lays itself out in, inside the panel's
+        // The drafts' views, each over the panel's viewport: the room its screen lays itself out in, inside the panel's
         // edge, wherever the rail has left the panel. Every one is read off _content, which Pos.Func and Dim.Func hand
         // back as "the view where the data will be retrieved".
-        _compose = new ComposeView(theme, shell, shell.Drafting)
-        {
-            X = Pos.Func(content => ViewportOrigin(content).X, _content),
-            Y = Pos.Func(content => ViewportOrigin(content).Y, _content),
-            Width = Dim.Func(content => content?.Viewport.Width ?? 0, _content),
-            Height = Dim.Func(content => content?.Viewport.Height ?? 0, _content),
-        };
+        _overlays =
+        [
+            new ComposeView(theme, shell, shell.Drafting),
+            new DescriptionView(theme, shell, shell.Drafting, () => _content.Raster),
+            new PublicProfileView(theme, shell, shell.Drafting, () => _content.Raster),
+        ];
 
-        // The description editor's field, laid over the same viewport the same way (#377).
-        _description = new DescriptionView(theme, shell, shell.Drafting, () => _content.Raster)
+        foreach (var overlay in _overlays)
         {
-            X = Pos.Func(content => ViewportOrigin(content).X, _content),
-            Y = Pos.Func(content => ViewportOrigin(content).Y, _content),
-            Width = Dim.Func(content => content?.Viewport.Width ?? 0, _content),
-            Height = Dim.Func(content => content?.Viewport.Height ?? 0, _content),
-        };
-
-        // The edit public profile form's fields, over the same viewport the same way (#406).
-        _publicProfile = new PublicProfileView(theme, shell, shell.Drafting, () => _content.Raster)
-        {
-            X = Pos.Func(content => ViewportOrigin(content).X, _content),
-            Y = Pos.Func(content => ViewportOrigin(content).Y, _content),
-            Width = Dim.Func(content => content?.Viewport.Width ?? 0, _content),
-            Height = Dim.Func(content => content?.Viewport.Height ?? 0, _content),
-        };
+            overlay.X = Pos.Func(content => ViewportOrigin(content).X, _content);
+            overlay.Y = Pos.Func(content => ViewportOrigin(content).Y, _content);
+            overlay.Width = Dim.Func(content => content?.Viewport.Width ?? 0, _content);
+            overlay.Height = Dim.Func(content => content?.Viewport.Height ?? 0, _content);
+        }
 
         var status = new PaintedView(theme, (width, _) =>
             [ChromeLines.Status(shell.Keys, shell.Notice, shell.NoticeIsError, shell.Asking, width)])
@@ -294,7 +281,9 @@ internal sealed class ShellWindow : Window
             CanFocus = false,
         };
 
-        Add(rail, _content, title, _compose, _description, _publicProfile, status);
+        Add(rail, _content, title);
+        Add([.. _overlays]);
+        Add(status);
 
         _showing = shell.Screen;
 
@@ -341,8 +330,8 @@ internal sealed class ShellWindow : Window
     }
 
     /// <summary>
-    ///     Compose's fields drawn again with the content panel whenever the panel is about to be, since they are laid
-    ///     over it (#365) and a panel redrawn alone paints its rows over them.
+    ///     Whichever view laid over the content panel is showing drawn again with the panel whenever the panel is about to
+    ///     be, since it is laid over it (#365) and a panel redrawn alone paints its rows over the fields.
     /// </summary>
     /// <remarks>
     ///     Terminal.Gui draws the later of two siblings first, and a field keeps what is under it only by having drawn
@@ -352,19 +341,12 @@ internal sealed class ShellWindow : Window
     /// </remarks>
     protected override bool OnDrawingSubViews(DrawContext? context)
     {
-        if (_content.NeedsDraw && _compose.Visible)
+        if (_content.NeedsDraw)
         {
-            _compose.SetNeedsDraw();
-        }
-
-        if (_content.NeedsDraw && _description.Visible)
-        {
-            _description.SetNeedsDraw();
-        }
-
-        if (_content.NeedsDraw && _publicProfile.Visible)
-        {
-            _publicProfile.SetNeedsDraw();
+            foreach (var overlay in _overlays.Where(overlay => overlay.Visible))
+            {
+                overlay.SetNeedsDraw();
+            }
         }
 
         return base.OnDrawingSubViews(context);
@@ -1079,9 +1061,9 @@ internal sealed class ShellWindow : Window
         // so scrolling the region can only take that block away and put rows nobody can place in its stead. ADR-0015
         // priced this as "you cannot scroll the timeline while composing" and left it to the editor to make true,
         // which it does not: a key the editor declines at the end of its own text still reaches this window, and a
-        // screen with nothing picked out on it is one Scroll.To never scrolls back. Compose's view settled whether it
+        // screen with nothing picked out on it is one Scroll.To never scrolls back. Each draft's view settled whether it
         // shows ahead of this, on the same change.
-        _content.Scrolls = !_compose.Visible && !_description.Visible && !_publicProfile.Visible;
+        _content.Scrolls = !_overlays.Any(overlay => overlay.Visible);
 
         SetNeedsDraw();
     }
