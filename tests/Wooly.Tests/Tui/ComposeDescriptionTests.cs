@@ -131,6 +131,33 @@ public class ComposeDescriptionTests : IDisposable
     }
 
     /// <summary>
+    ///     A right click elsewhere on the description editor's screen — the breadcrumb, the status row — is its
+    ///     <c>esc</c> too, as it was before the field took one (#307, #430): it leaves the editor, back to the draft.
+    /// </summary>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(29)]
+    public async Task InTheWindowARightClickOffTheFieldIsDoneToo(int row)
+    {
+        using var drawn = await Describing();
+        var field = drawn.Window.DescriptionField<ComposeEditor>().FrameToScreen();
+
+        Assert.False(field.Contains(field.X, row));
+
+        foreach (var letter in "A cat")
+        {
+            drawn.Press(letter);
+        }
+
+        drawn.RightClick(field.X, row);
+        drawn.Settle();
+
+        Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
+        Assert.Null(drawn.Shell.Asking);
+        Assert.Equal("A cat", Assert.Single(drawn.Built.Author.Descriptions).Description);
+    }
+
+    /// <summary>
     ///     A press over the description editor's field while a question is open — <c>tab</c> off a touched draft asks
     ///     before it is thrown away — goes to the question, as over compose's fields and the form's (#373, #430): the
     ///     click keeps the draft, and the field neither moves its caret nor takes the typing.
