@@ -42,7 +42,8 @@ public class DraftingAttachmentsScreenTests : IDisposable
         var listed = Assert.IsType<AttachmentsScreen>(drafting.Stack.Top);
         var rows = Texts(listed);
 
-        Assert.Same(compose, drafting.Stack.Screens[^2]);
+        Assert.Same(compose, listed.Compose);
+        Assert.Equal<Screen>([compose, listed], drafting.Stack.Screens.Skip(1));
         Assert.Contains("  Media  3 of 4 · ctrl-o to add · □ sensitive", rows);
         Assert.StartsWith("    ▌⠶     one.png", Row(rows, "one.png"), StringComparison.Ordinal);
         Assert.StartsWith("     ⠶     two.png", Row(rows, "two.png"), StringComparison.Ordinal);

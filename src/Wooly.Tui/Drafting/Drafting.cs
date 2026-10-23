@@ -415,10 +415,9 @@ public sealed class Drafting
             case Outgoing.Publishing(var draft):
                 // A reply written inside a conversation carries which one, taken now from the screen it was written
                 // over rather than read back when it lands — by then the reader may be anywhere.
-                var within = compose.Purpose == ComposeFor.Reply
-                    && _stack.Screens is [.., ConversationScreen conversation, _]
-                        ? conversation.Conversation.Id
-                        : null;
+                var within = compose.Purpose == ComposeFor.Reply && Beneath(compose) is ConversationScreen conversation
+                    ? conversation.Conversation.Id
+                    : null;
 
                 await reach.Put(
                     ask => ask.Of(token => reach.Ports.Author.PublishAttached(profile, draft, token)),
@@ -647,6 +646,14 @@ public sealed class Drafting
         .TakeWhile(screen => !ReferenceEquals(screen, browser))
         .Select(screen => screen is AttachmentsScreen listing ? listing.Compose : screen)
         .LastOrDefault(screen => screen is IDraft);
+
+    /// <summary>
+    ///     The screen <paramref name="screen" /> was opened over: the one beneath it on the stack, found by the screen
+    ///     itself rather than by where it stands from the top — or none.
+    /// </summary>
+    private Screen? Beneath(Screen screen) => _stack.Screens
+        .TakeWhile(below => !ReferenceEquals(below, screen))
+        .LastOrDefault();
 
     /// <summary>
     ///     Opens the description editor over the compose screen in front, on the attachment whose row the walk is on
