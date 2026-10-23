@@ -242,6 +242,52 @@ public class DraftingSendTests
         Assert.Equal(2, drafting.Stack.Screens.Count);
     }
 
+    /// <summary>
+    ///     A reply written inside a direct message thread goes out answering the message it was written under — direct,
+    ///     as To shows it, and not chosen: a reply opens on the post it answers and goes out no wider, which the instance
+    ///     adapter still settles by reading that post (ADR-0013, #338).
+    /// </summary>
+    [Fact]
+    public async Task AReplyInsideAThreadAnswersTheMessageItWasWrittenUnder()
+    {
+        var drafting = InAThread(AConversation.DirectPost(id: "110", content: "Are you about?"));
+
+        drafting.Press(ShellKey.R);
+        drafting.Composing.Text += "All week";
+
+        await drafting.Drafting.Send();
+        drafting.Fakes.Host.Drain();
+
+        var draft = Assert.Single(drafting.Fakes.Author.Published).Draft;
+
+        Assert.Equal("110", draft.InReplyTo);
+        Assert.Contains("All week", draft.Text, StringComparison.Ordinal);
+        Assert.Equal(PostVisibility.Direct, draft.Visibility);
+        Assert.False(draft.VisibilityChosen);
+    }
+
+    /// <summary>
+    ///     A reply in a thread that is nothing but the mention it opened with is nothing the reader wrote, so nothing is
+    ///     sent.
+    /// </summary>
+    [Fact]
+    public async Task AReplyInsideAThreadWithNothingOfTheReadersOwnIsRefused()
+    {
+        var drafting = InAThread(AConversation.DirectPost());
+
+        drafting.Press(ShellKey.R);
+
+        await drafting.Drafting.Send();
+        drafting.Fakes.Host.Drain();
+
+        Assert.Empty(drafting.Fakes.Author.Published);
+        Assert.True(drafting.NoticeIsError);
+    }
+
+    /// <summary>Drafting over a direct message thread holding <paramref name="posts" />, the first picked.</summary>
+    private static ADrafting InAThread(params Post[] posts) =>
+        new ADrafting { Bottom = new ConversationScreen(AConversation.Thread(AConversation.With(id: "7"), posts)) }.Build();
+
     /// <summary>Drafting over Home holding <paramref name="post" />, picked.</summary>
     private static ADrafting Over(Post post) => new ADrafting { Bottom = ADrafting.Home(post) }.Build();
 }
