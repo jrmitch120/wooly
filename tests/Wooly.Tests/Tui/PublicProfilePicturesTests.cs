@@ -2,6 +2,7 @@ using Terminal.Gui.Input;
 using Wooly.Core.Accounts;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Clipboard;
+using Wooly.Tui.Drafting;
 using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;

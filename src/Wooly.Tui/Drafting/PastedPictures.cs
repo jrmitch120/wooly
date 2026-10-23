@@ -1,4 +1,4 @@
-namespace Wooly.Tui.Clipboard;
+namespace Wooly.Tui.Drafting;
 
 /// <summary>
 ///     Where a picture pasted from the clipboard is kept while it goes up to the instance (#380): a file of its own, as
