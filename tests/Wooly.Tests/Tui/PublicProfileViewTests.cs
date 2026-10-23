@@ -310,6 +310,78 @@ public class PublicProfileViewTests
         Assert.Equal("Jeff!", Form(drawn).DisplayName);
     }
 
+    /// <summary>Every place on the form the typing can be, a custom field's label and value included.</summary>
+    public static TheoryData<PublicProfilePart> EveryField => new(Enum.GetValues<PublicProfilePart>());
+
+    /// <summary>
+    ///     The question asked by <c>esc</c> from any of the form's fields is answered the same way, as on compose
+    ///     (#373, #430): <c>space</c> — which the field would otherwise take, typed or flipped — keeps the form and the
+    ///     field takes nothing of it, and <c>y</c> throws the form away.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(EveryField))]
+    public async Task FromEveryField_TheQuestionIsAnsweredByYAndKeptByAnythingElse(PublicProfilePart part)
+    {
+        using var drawn = await Editing(APublicProfile.With(
+            displayName: "Jeff",
+            bio: "Writes Wooly.",
+            fields: [new PublicProfileField("Site", "wooly.example")],
+            isDiscoverable: false,
+            account: Me));
+        var stop = new PublicProfileStop(part);
+
+        Type(drawn, "!");
+        _ = drawn.Shell.Drafting.Edit<PublicProfileScreen>(form => form.TypeInto(stop));
+        drawn.Settle();
+
+        Assert.Equal(stop, Form(drawn).Typing);
+
+        drawn.Press(Key.Esc);
+
+        Assert.Equal("Discard these changes?", drawn.Shell.Asking?.Ask);
+
+        drawn.Press(Key.Space);
+        drawn.Settle();
+
+        var form = Form(drawn);
+
+        Assert.Null(drawn.Shell.Asking);
+        Assert.Equal(stop, form.Typing);
+        Assert.Equal(
+            ("Jeff!", "Writes Wooly.", "Site", "wooly.example", false, false, false),
+            (form.DisplayName, form.Bio, form.LabelOf(0), form.ValueOf(0), form.IsLocked, form.IsBot, form.IsDiscoverable));
+
+        drawn.Press(Key.Esc);
+        drawn.Press(Key.Y);
+        drawn.Settle();
+
+        Assert.IsType<AccountScreen>(drawn.Shell.Screen);
+    }
+
+    /// <summary>
+    ///     A sideways notch over the form while a question is open is no answer, as over compose's post
+    ///     (<see cref="ComposeDiscardTests.ASidewaysNotchOverTheDraft_LeavesTheQuestionOpen" />): the question stays
+    ///     open, and the bio does not scroll.
+    /// </summary>
+    [Fact]
+    public async Task ASidewaysNotchOverTheForm_LeavesTheQuestionOpen()
+    {
+        using var drawn = await Editing();
+        var bio = drawn.Window.ProfileField<ComposeEditor>();
+        var at = bio.FrameToScreen();
+
+        Type(drawn, "!");
+        drawn.Press(Key.Esc);
+
+        drawn.WheelSideways(at.X, at.Y);
+        drawn.WheelSideways(at.X, at.Y, right: false);
+        drawn.Settle();
+
+        Assert.NotNull(drawn.Shell.Asking);
+        Assert.Equal("Jeff!", Form(drawn).DisplayName);
+        Assert.Equal(0, bio.Viewport.X);
+    }
+
     /// <summary>A right click anywhere over the form is <c>esc</c>, a field included: an untouched form leaves.</summary>
     [Fact]
     public async Task ARightClickOverAField_Leaves()
