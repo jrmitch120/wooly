@@ -5,10 +5,11 @@ using Wooly.Tui.Shell;
 namespace Wooly.Tui.Views;
 
 /// <summary>
-///     What the fields of a draft's view — compose's (#365), the edit public profile form's (#406) — do the same way
-///     with a question open on the status row and with the mouse, ahead of the views under the pointer: a key answers
-///     the question where there is one, a right click is the draft's <c>esc</c> wherever it lands, and a press over a
-///     field while a question is open goes to the question rather than the field (#373).
+///     What the fields of every view laid over a draft — compose's (#365), the edit public profile form's (#406), the
+///     description editor's (#377, #430) — do the same way with a question open on the status row and with the mouse,
+///     ahead of the views under the pointer: a key answers the question where there is one, a right click is the
+///     draft's <c>esc</c> wherever it lands, and a press over a field while a question is open goes to the question
+///     rather than the field (#373). The rules are shared here and the widgets stay each view's own (ADR-0030).
 /// </summary>
 /// <param name="shell">Whose question, and whose way out.</param>
 /// <param name="inFront">Whether the draft is the screen in front, which is where a right click is its <c>esc</c>.</param>

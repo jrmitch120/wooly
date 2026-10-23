@@ -1,4 +1,3 @@
-using System.Drawing;
 using Terminal.Gui.App;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
@@ -51,6 +50,9 @@ internal sealed class PublicProfileView : View
     /// <summary>What the fields do with an open question and with the mouse, as every draft's do (#373).</summary>
     private readonly DraftFields _draft;
 
+    /// <summary>Where each field is laid: wherever the form puts its stop (ADR-0030).</summary>
+    private readonly Placement<PublicProfileScreen> _place;
+
     /// <summary>Where the terminal's mouse events arrive, once the view is running; asked ahead of the views.</summary>
     private IMouse? _mouse;
 
@@ -60,6 +62,7 @@ internal sealed class PublicProfileView : View
         _shell = shell;
         _drafting = drafting;
         _raster = raster ?? (() => null);
+        _place = new Placement<PublicProfileScreen>(this, shell);
         _draft = new DraftFields(
             shell,
             () => _shell.Screen is PublicProfileScreen,
@@ -354,25 +357,12 @@ internal sealed class PublicProfileView : View
     }
 
     /// <summary>
-    ///     <paramref name="field" />, hidden until the form comes on top and laid wherever the form puts
+    ///     <paramref name="widget" />, hidden until the form comes on top and laid wherever the form puts
     ///     <paramref name="stop" /> in this view's viewport — nowhere while no form is up.
     /// </summary>
-    private T Placed<T>(T field, PublicProfileStop stop)
-        where T : View
-    {
-        Rectangle Laid() =>
-            Viewport.Width > 0 && _shell.Screen is PublicProfileScreen form
-                ? form.At(stop, Viewport.Size, _raster())
-                : Rectangle.Empty;
-
-        field.X = Pos.Func(_ => Laid().X);
-        field.Y = Pos.Func(_ => Laid().Y);
-        field.Width = Dim.Func(_ => Laid().Width);
-        field.Height = Dim.Func(_ => Laid().Height);
-        field.Visible = false;
-
-        return field;
-    }
+    private T Placed<T>(T widget, PublicProfileStop stop)
+        where T : View =>
+        _place.Placed(widget, (form, room) => form.At(stop, room, _raster()));
 
     /// <summary>A change to the form from one of its fields, while it is not being filled.</summary>
     private void Change(Func<PublicProfileScreen, DraftChange> change)
