@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using Terminal.Gui.Text;
 
 namespace Wooly.Tui.Rendering;
@@ -60,10 +61,13 @@ public static class Glyphs
     /// <remarks>
     ///     The single measure every layout reads. Plain ASCII — which is most of what a client of an English-speaking
     ///     instance draws, and all of its own chrome — is a column a character and answered by the scan alone; anything
-    ///     else is handed to Terminal.Gui, whose reading of it is the one that places the cells.
+    ///     else is handed to Terminal.Gui, whose reading of it is the one that places the cells. The exception is a
+    ///     character carrying a spacing mark, which is <see cref="HeldColumns" /> wherever it is (ADR-0031).
     /// </remarks>
     public static int Columns(string text) =>
-        text.AsSpan().ContainsAnyExceptInRange(FirstPlainAscii, LastPlainAscii) ? text.GetColumns() : text.Length;
+        !text.AsSpan().ContainsAnyExceptInRange(FirstPlainAscii, LastPlainAscii) ? text.Length
+        : CarriesASpacingMark(text) ? ColumnsByCharacter(text)
+        : text.GetColumns();
 
     /// <summary>
     ///     Whether this client and a terminal measure <paramref name="text" /> alike: false where it carries a
@@ -75,13 +79,111 @@ public static class Glyphs
     ///     counts it its own way, and not one way: measured in herdr, <c>অসমীয়া</c> came out two columns wider than
     ///     counted and <c>हिन्दी</c> one, its <c>ि</c> counted as nothing and its <c>ी</c> as one. Every cell after such
     ///     text lands that many columns right of where it was laid out, which is how a list's border came apart beside
-    ///     the languages written in those scripts. There is no count to correct to, so nothing here pretends to one: a
-    ///     layout that depends on where its text ends writes something measured alike in its place. Marks that take no
-    ///     room — an accent, Arabic's vowels, Tibetan's — are counted alike, and so is text with no mark at all.
+    ///     the languages written in those scripts. There is no count to correct to, so a character carrying one is
+    ///     held in <see cref="HeldColumns" />, the second left blank, and drawn after the rest of its row at a place
+    ///     of its own (ADR-0031): whatever a terminal makes of it, nothing after it moves. Marks that take no room —
+    ///     an accent, Arabic's vowels, Tibetan's — are counted alike, and so is text with no mark at all.
     /// </remarks>
     public static bool MeasuredAlike(string text) =>
-        !text.AsSpan().ContainsAnyExceptInRange(FirstPlainAscii, LastPlainAscii)
-        || !text.Any(character => char.GetUnicodeCategory(character) == UnicodeCategory.SpacingCombiningMark);
+        !text.AsSpan().ContainsAnyExceptInRange(FirstPlainAscii, LastPlainAscii) || !CarriesASpacingMark(text);
+
+    /// <summary>
+    ///     Whether every terminal draws <paramref name="text" /> a character to a cell: written in Latin, Greek,
+    ///     Cyrillic, Armenian, Georgian, Han, kana or Hangul, and nothing else but marks, spaces and punctuation.
+    /// </summary>
+    /// <remarks>
+    ///     A script whose letters join, reorder or stack is shaped, and a terminal may lay a shaped word out off its
+    ///     own cells and everything after it on the row with it: probed, Terminal.app drew a border placed by an
+    ///     explicit cursor move a column or two out of place after <c>हिन्दी</c>, <c>తెలుగు</c>, <c>ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ</c> and
+    ///     <c>بهاس ملايو</c>, and in place after <c>অসমীয়া</c> and <c>العربية</c> — which words it does that to is a
+    ///     matter of its fonts, not of anything the text says (ADR-0031). So this answers for the scripts that are
+    ///     never shaped, and is false for every other: text the client writes itself, where it has the choice, is
+    ///     written in one of them.
+    /// </remarks>
+    public static bool DrawnACharacterToACell(string text)
+    {
+        foreach (var rune in text.EnumerateRunes())
+        {
+            if (!Unshaped(rune))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>A character of a script that is never shaped, or a mark, space or punctuation beside one.</summary>
+    private static bool Unshaped(Rune rune) =>
+        rune.Value switch
+        {
+            < 0x0370 => true, // Latin, its extensions, IPA, spacing modifiers and combining diacritics
+            < 0x0530 => true, // Greek and Coptic, Cyrillic and its supplement
+            < 0x0590 => true, // Armenian
+            >= 0x10A0 and < 0x1100 => true, // Georgian
+            >= 0x1100 and < 0x1200 => true, // Hangul jamo
+            >= 0x1C80 and < 0x1CC0 => true, // Cyrillic extended, Georgian extended
+            >= 0x1D00 and < 0x2000 => true, // phonetic extensions, Latin extended additional, Greek extended
+            >= 0x2000 and < 0x2070 => true, // general punctuation
+            >= 0x2C60 and < 0x2C80 => true, // Latin extended
+            >= 0x2D00 and < 0x2D30 => true, // Georgian supplement
+            >= 0x2DE0 and < 0x2E00 => true, // Cyrillic extended
+            >= 0x3000 and < 0x3100 => true, // CJK punctuation, hiragana, katakana
+            >= 0x3130 and < 0x3190 => true, // Hangul compatibility jamo
+            >= 0x3400 and < 0x4DC0 => true, // Han
+            >= 0x4E00 and < 0xA000 => true, // Han
+            >= 0xA640 and < 0xA6A0 => true, // Cyrillic extended
+            >= 0xA720 and < 0xA800 => true, // Latin extended
+            >= 0xAB30 and < 0xAB70 => true, // Latin extended
+            >= 0xAC00 and < 0xD7B0 => true, // Hangul syllables
+            >= 0xF900 and < 0xFB00 => true, // Han compatibility
+            >= 0xFF00 and < 0xFFF0 => true, // half- and full-width forms
+            >= 0x20000 and < 0x32000 => true, // Han
+            _ => false,
+        };
+
+    /// <summary>
+    ///     Whether <paramref name="text" /> carries a spacing mark, read a character at a time rather than a half of one:
+    ///     Chakma's and Grantha's are written as two.
+    /// </summary>
+    private static bool CarriesASpacingMark(string text)
+    {
+        foreach (var rune in text.EnumerateRunes())
+        {
+            if (Rune.GetUnicodeCategory(rune) == UnicodeCategory.SpacingCombiningMark)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    ///     How many columns a character carrying a spacing mark is held in: its own and one left blank after it, which
+    ///     a terminal drawing it two wide covers and one drawing it one wide leaves (ADR-0031).
+    /// </summary>
+    public const int HeldColumns = 2;
+
+    /// <summary>
+    ///     <paramref name="text" /> measured a character at a time, each carrying a spacing mark held in
+    ///     <see cref="HeldColumns" /> and every other as Terminal.Gui counts it.
+    /// </summary>
+    private static int ColumnsByCharacter(string text)
+    {
+        var columns = 0;
+
+        for (var at = 0; at < text.Length;)
+        {
+            var end = Past(text, at, text.Length);
+            var character = text[at..end];
+
+            columns += MeasuredAlike(character) ? character.GetColumns() : HeldColumns;
+            at = end;
+        }
+
+        return columns;
+    }
 
     /// <summary>As much of the front of <paramref name="text" /> as fits in <paramref name="columns" />.</summary>
     /// <remarks>

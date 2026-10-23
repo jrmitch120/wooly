@@ -33,13 +33,14 @@ public sealed record ComposeLang(string Held, string? Opened)
 
     /// <summary>A language as Lang and its list write it: its code, then its own name — <c>fr  Français</c>.</summary>
     /// <remarks>
-    ///     Its English name instead where its own name is not measured alike by this client and a terminal
-    ///     (<see cref="Glyphs.MeasuredAlike" />) — <c>as  Assamese</c> — since a row whose name a terminal draws wider
-    ///     than it was laid out pushes the list's border out of place beside it (#432). Typing either name still finds
-    ///     it.
+    ///     Its English name instead where its own name is written in a script some terminal draws off its own cells
+    ///     (<see cref="Glyphs.DrawnACharacterToACell" />) — <c>hi  Hindi</c>, <c>ar  Arabic</c> — since a row whose
+    ///     name is drawn out of its cells pushes the list's border out of place beside it, and nothing written to the
+    ///     terminal corrects that (#432, ADR-0031). The list is the client's own text, so it need not show any name
+    ///     that way. Typing either name still finds it.
     /// </remarks>
     public static string Spoken(PostLanguage language) =>
-        $"{language.Code}{CodeGap}{(Glyphs.MeasuredAlike(language.OwnName) ? language.OwnName : language.Name)}";
+        $"{language.Code}{CodeGap}{(Glyphs.DrawnACharacterToACell(language.OwnName) ? language.OwnName : language.Name)}";
 
     /// <summary>
     ///     Why the post cannot go out in what Lang holds, or <see langword="null" /> where it can: empty, a language, or

@@ -42,6 +42,9 @@ try
     // Terminal.Gui v2's instance-based application: no static/global shell state, so the TUI owns its own lifetime
     // (ADR-0002).
     using var application = Application.Create();
+
+    // Before it is initialised, which is when it makes the output it writes through (ADR-0031).
+    HeldOutput.Into(application);
     application.Init();
 
     var ports = new ShellPorts(

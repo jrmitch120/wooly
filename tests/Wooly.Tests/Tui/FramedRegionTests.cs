@@ -41,6 +41,30 @@ public class FramedRegionTests
             drawn.Rows());
     }
 
+    /// <summary>
+    ///     A character carrying a spacing mark takes its own cell and leaves the next one blank, so what follows it is
+    ///     painted in the column the row was laid out to put it in — and the frame's edge where the frame is
+    ///     (ADR-0031).
+    /// </summary>
+    [Fact]
+    public async Task ACharacterCarryingASpacingMarkIsPaintedWithABlankCellAfterIt()
+    {
+        using var drawn = await Draw(Themes.Dark, [Line.Of("অসমীয়া|", Role.Body)]);
+
+        Assert.Equal("│অসমী য়া |   │", drawn.Rows()[1]);
+        Assert.Equal("|", drawn.Grapheme(1, 7));
+        Assert.Equal("│", drawn.Grapheme(1, Width - 1));
+    }
+
+    /// <summary>And so does one in a frame's title, which is painted as a row like any other.</summary>
+    [Fact]
+    public async Task ATitleCarryingASpacingMarkIsPaintedWithABlankCellAfterIt()
+    {
+        using var drawn = await Draw(Themes.Dark, [], title: "হিন্দি");
+
+        Assert.Equal("╭ হি ন্দি  ───╮", drawn.Rows()[0]);
+    }
+
     [Fact]
     public async Task TheRegionIsAsWideAndAsTallAsTheInsideOfItsFrame()
     {
@@ -157,7 +181,8 @@ public class FramedRegionTests
         IReadOnlyList<Line> lines,
         bool active = false,
         IPictures? pictures = null,
-        int top = 0)
+        int top = 0,
+        string title = "Home")
     {
         await Task.Yield();
 
@@ -176,7 +201,7 @@ public class FramedRegionTests
             theme,
             (_, _) => lines,
             pictures,
-            (width, height) => Panel.Framed("Home", [], width, height, active),
+            (width, height) => Panel.Framed(title, [], width, height, active),
             raster: () => Raster.Of(application.Driver, placeholders: false, () => null))
         {
             Width = Width,
@@ -207,6 +232,8 @@ public class FramedRegionTests
         }
 
         public Attribute Cell(int row, int column) => Application.Driver!.Contents![row, column].Attribute!.Value;
+
+        public string Grapheme(int row, int column) => Application.Driver!.Contents![row, column].Grapheme;
 
         /// <summary>Every cell a picture was drawn in: where it was placed, cut to where the terminal was let draw it.</summary>
         public List<Point> PictureCells()

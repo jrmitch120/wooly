@@ -1,0 +1,199 @@
+using System.Globalization;
+using System.Text;
+using System.Text.RegularExpressions;
+using Terminal.Gui.App;
+using Terminal.Gui.Drivers;
+using Wooly.Tui.Rendering;
+using Wooly.Tui.Views;
+
+namespace Wooly.Tests.Tui;
+
+/// <summary>
+///     What reaches a terminal for a row holding a character carrying a spacing mark (ADR-0031): written by the
+///     client's own output, and played on a terminal that draws such a character one, two or three columns wide — as
+///     WezTerm, herdr and GNU screen were measured to. Whatever the width, nothing after it on the row moves.
+/// </summary>
+public partial class HeldOutputTests
+{
+    private const int Columns = 12;
+
+    /// <summary>
+    ///     <c>অসমীয়া</c> as the painter leaves it — each character carrying a mark followed by a blank — then
+    ///     <c>|ab</c>. The <c>b</c> is at column eight, where the row was laid out to put it, on every terminal.
+    /// </summary>
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void WhatFollowsIsWhereTheRowPutItHoweverWideTheTerminalDrawsTheMark(int drawnIn)
+    {
+        var terminal = Played("অসমী য়া |ab", drawnIn);
+
+        Assert.Equal("b", terminal.At(8));
+    }
+
+    /// <summary>
+    ///     And a terminal drawing it two wide — herdr — draws it over its blank and keeps it whole: drawn after
+    ///     everything else on the row, nothing written afterwards lands on its second column and erases it.
+    /// </summary>
+    [Fact]
+    public void ATerminalDrawingTheMarkTwoWideKeepsTheWordWhole() =>
+        Assert.Equal("অসমীয়া|ab", Played("অসমী য়া |ab", 2).Text());
+
+    /// <summary>A terminal drawing it one wide — WezTerm — shows the blank after it.</summary>
+    [Fact]
+    public void ATerminalDrawingTheMarkOneWideShowsTheBlank() =>
+        Assert.Equal("অসমী য়া |ab", Played("অসমী য়া |ab", 1).Text());
+
+    /// <summary>
+    ///     Two such characters side by side, as in a field being typed in, where nothing left a blank: the second is
+    ///     still placed in its own column rather than wherever the terminal left the first, so a terminal drawing them
+    ///     wide loses what they cover and nothing past it.
+    /// </summary>
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void TwoMarkedCharactersSideBySideAreEachPlacedInTheirOwnColumn(int drawnIn) =>
+        Assert.Equal("b", Played("মীদী|ab", drawnIn).At(4));
+
+    /// <summary>A row with no such character is written as Terminal.Gui writes it: one run, one place.</summary>
+    [Fact]
+    public void ARowWithNoMarkIsWrittenInOneRun()
+    {
+        var output = Written("Maria Ochoa");
+
+        Assert.Single(output.Places);
+    }
+
+    /// <summary>
+    ///     An application given the output writes every frame through it. Terminal.Gui offers no public way to hand an
+    ///     application its own output, so this is what says a Terminal.Gui that has moved the one used has moved it.
+    /// </summary>
+    [Fact]
+    public void AnApplicationGivenTheOutputWritesThroughIt()
+    {
+        using var application = Application.Create();
+
+        HeldOutput.Into(application);
+        application.Init();
+
+        Assert.IsType<HeldOutput>(application.Driver!.GetOutput());
+    }
+
+    private static Terminal Played(string row, int drawnIn)
+    {
+        var terminal = new Terminal(drawnIn);
+
+        foreach (var (place, text) in Written(row).Writes)
+        {
+            terminal.Write(place, text);
+        }
+
+        return terminal;
+    }
+
+    private static Recording Written(string row)
+    {
+        var buffer = new OutputBufferImpl();
+        buffer.SetSize(Columns, 1);
+        buffer.Move(0, 0);
+        buffer.AddStr(row);
+
+        var output = new Recording();
+        output.Write(buffer);
+
+        return output;
+    }
+
+    /// <summary>
+    ///     The client's output, with what it writes kept: each place the cursor is put and each run of text after it.
+    ///     Headless, Terminal.Gui writes neither to the terminal, so both are read off here.
+    /// </summary>
+    private sealed class Recording : HeldOutput
+    {
+        private int? _place;
+
+        public List<(int? Place, string Text)> Writes { get; } = [];
+
+        public List<int> Places { get; } = [];
+
+        protected override bool SetCursorPositionImpl(int col, int row)
+        {
+            _place = col;
+            Places.Add(col);
+
+            return base.SetCursorPositionImpl(col, row);
+        }
+
+        protected override void Write(StringBuilder output)
+        {
+            Writes.Add((_place, output.ToString()));
+            _place = null;
+            base.Write(output);
+        }
+    }
+
+    /// <summary>
+    ///     One row of a terminal that draws a character carrying a spacing mark <c>drawnIn</c> columns wide and every
+    ///     other one column, and — as herdr and the xterm family do with a wide character — erases a wide one when
+    ///     anything is written into any of its columns but by itself.
+    /// </summary>
+    private sealed partial class Terminal(int drawnIn)
+    {
+        private readonly string?[] _cells = Enumerable.Repeat<string?>(" ", Columns + 4).ToArray();
+
+        private readonly int[] _owner = Enumerable.Range(0, Columns + 4).ToArray();
+
+        private int _cursor;
+
+        public void Write(int? place, string text)
+        {
+            _cursor = place ?? _cursor;
+
+            var plain = Escapes().Replace(text, string.Empty);
+            var characters = StringInfo.GetTextElementEnumerator(plain);
+
+            while (characters.MoveNext())
+            {
+                var character = (string)characters.Current;
+                var wide = Glyphs.MeasuredAlike(character) ? 1 : drawnIn;
+
+                for (var column = _cursor; column < _cursor + wide; column++)
+                {
+                    Erase(_owner[column]);
+                }
+
+                _cells[_cursor] = character;
+
+                for (var column = _cursor + 1; column < _cursor + wide; column++)
+                {
+                    _cells[column] = null;
+                    _owner[column] = _cursor;
+                }
+
+                _cursor += wide;
+            }
+        }
+
+        /// <summary>
+        ///     What is drawn in <paramref name="column" />: a character, a blank, or nothing, under a wide one.
+        /// </summary>
+        public string? At(int column) => _cells[column];
+
+        /// <summary>The row read back as herdr reads one: each character once, trailing blanks dropped.</summary>
+        public string Text() => string.Concat(_cells.Where(cell => cell is not null)).TrimEnd();
+
+        private void Erase(int owner)
+        {
+            for (var column = owner; column < _cells.Length && (column == owner || _owner[column] == owner); column++)
+            {
+                _cells[column] = " ";
+                _owner[column] = column;
+            }
+        }
+
+        [GeneratedRegex(@"\u001b(\[[0-9;?]*[A-Za-z]|\][^\u0007\u001b]*(\u0007|\u001b\\))")]
+        private static partial Regex Escapes();
+    }
+}

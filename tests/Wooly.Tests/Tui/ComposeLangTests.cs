@@ -197,32 +197,40 @@ public class ComposeLangTests
     }
 
     /// <summary>
-    ///     The languages whose own names a terminal draws wider than Terminal.Gui counts them — measured in herdr, one
-    ///     to three columns each, pushing the rest of their row out of place (#432).
+    ///     Languages whose own names are written in a script every terminal draws a character to a cell — Latin, Greek,
+    ///     Cyrillic, Armenian, Georgian, Han, kana and Hangul — keep them (ADR-0031).
     /// </summary>
-    public static TheoryData<string> NotMeasuredAlike =>
-        ["as", "bh", "bn", "gu", "hi", "km", "ks", "ml", "mr", "my", "ne", "pa", "pi", "sd", "si", "ta", "te"];
-
-    /// <summary>Lang and its list write such a language by its English name, which every terminal measures alike.</summary>
     [Theory]
-    [MemberData(nameof(NotMeasuredAlike))]
-    public void ALanguageWhoseOwnNameIsNotMeasuredAlike_IsWrittenByItsEnglishName(string code)
-    {
-        var language = PostLanguageName.Of(code)!;
+    [InlineData("fr", "Français")]
+    [InlineData("mh", "Kajin M̧ajeļ")]
+    [InlineData("ru", "Русский")]
+    [InlineData("el", "Ελληνικά")]
+    [InlineData("hy", "Հայերեն")]
+    [InlineData("ka", "ქართული")]
+    [InlineData("ja", "日本語")]
+    [InlineData("zh-TW", "繁體中文（臺灣）")]
+    [InlineData("ko", "한국어")]
+    public void ALanguageWrittenInAScriptDrawnACharacterToACell_KeepsItsOwnName(string code, string own) =>
+        Assert.Equal($"{code}{ComposeLang.CodeGap}{own}", ComposeLang.Spoken(PostLanguageName.Of(code)!));
 
-        Assert.Equal($"{code}{ComposeLang.CodeGap}{language.Name}", ComposeLang.Spoken(language));
-        Assert.True(Glyphs.MeasuredAlike(ComposeLang.Spoken(language)));
-    }
-
-    /// <summary>Every other language keeps its own name, which is how most of the people writing in it know it.</summary>
-    [Fact]
-    public void EveryOtherLanguage_KeepsItsOwnName()
-    {
-        var others = PostLanguageName.All.Where(language => !NotMeasuredAlike.Any(row => row.Data == language.Code));
-
-        Assert.All(others, language =>
-            Assert.Equal($"{language.Code}{ComposeLang.CodeGap}{language.OwnName}", ComposeLang.Spoken(language)));
-    }
+    /// <summary>
+    ///     Every other is written by its English name: a script whose letters join, reorder or stack is drawn by some
+    ///     terminal off its own cells — Terminal.app drew a border placed after <c>हिन्दी</c>, <c>తెలుగు</c>,
+    ///     <c>ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ</c> and <c>بهاس ملايو</c> a column or two out of place — and which words it does that to is a
+    ///     matter of its fonts, not of anything the text says (#432, #434).
+    /// </summary>
+    [Theory]
+    [InlineData("hi", "Hindi")]
+    [InlineData("te", "Telugu")]
+    [InlineData("mn-Mong", "Traditional Mongolian")]
+    [InlineData("ms-Arab", "Jawi Malay")]
+    [InlineData("ar", "Arabic")]
+    [InlineData("he", "Hebrew")]
+    [InlineData("th", "Thai")]
+    [InlineData("am", "Amharic")]
+    [InlineData("chr", "Cherokee")]
+    public void ALanguageWrittenInAnyOtherScript_IsWrittenByItsEnglishName(string code, string english) =>
+        Assert.Equal($"{code}{ComposeLang.CodeGap}{english}", ComposeLang.Spoken(PostLanguageName.Of(code)!));
 
     /// <summary>
     ///     Lang opened on such a language reads as its list does and resolves to it, and typing either of its names still

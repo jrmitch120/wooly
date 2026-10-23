@@ -34,7 +34,7 @@ internal sealed class ComposeToField(
         foreach (var span in spans(Viewport.Width))
         {
             SetAttribute(theme.For(span.Role));
-            AddStr(column, 0, span.Text);
+            this.AddHeld(column, 0, span.Text);
             column += span.Width;
         }
 

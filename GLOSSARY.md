@@ -189,6 +189,14 @@ all. Distinct from the **Drawing**, which is every condition a screen is drawn u
 and from **Drawn**, which is one picture being painted.
 _Avoid_: protocol, graphics mode, capabilities
 
+**Spacing mark**:
+A vowel sign that takes room of its own (Unicode Mc) — the `ী` of `অসমীয়া`, the `ि` of `हिन्दी` — and the one kind of
+character terminals and Terminal.Gui count differently, and differently from each other: one column, two, or none.
+Text carrying one is given two columns and drawn after the rest of its row, so whatever a terminal makes of it, nothing
+after it on the row moves (ADR-0031). Distinct from the marks that take no room — an accent, Arabic's vowels, a virama —
+which every terminal counts alike.
+_Avoid_: combining mark (most of those take no room), wide character, complex script
+
 **Boost**:
 Re-sharing another account's post to your own followers. The API calls this a `reblog`. This project always says "boost" in user-facing language and domain code; `reblog` may still appear as the literal API field name at the wire layer.
 _Avoid_: reblog, repost, retweet
