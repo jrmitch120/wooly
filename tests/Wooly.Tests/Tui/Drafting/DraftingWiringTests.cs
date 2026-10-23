@@ -273,6 +273,36 @@ public class DraftingWiringTests : IDisposable
         Assert.Equal("Sent.", drawn.Shell.Notice);
     }
 
+    /// <summary>
+    ///     A screen opened over a compose while its post is on its way — the keymap, here — comes off with the compose
+    ///     when the answer lands, leaving the screen the compose was opened from in front (#423).
+    /// </summary>
+    [Fact]
+    public async Task ASendLandingTakesOffWhatWasOpenedOverItsCompose()
+    {
+        using var drawn = await DrawnShell.Of(80, 24, Themes.Plain);
+        drawn.Redraw();
+        var home = drawn.Shell.Screen;
+        var crumb = drawn.Rows()[0];
+        drawn.Built.Author.HoldingPublishes = true;
+        drawn.Press(new Key('c'));
+        drawn.Press(new Key('h'));
+        drawn.Press(new Key('i'));
+        drawn.Press(Key.S.WithCtrl);
+
+        Assert.True(drawn.Shell.Do(Verb.Help, answer: null));
+        Assert.IsType<HelpScreen>(drawn.Shell.Screen);
+
+        drawn.Built.Author.HeldPublishes.Single().Land();
+        drawn.Settle();
+        drawn.Redraw();
+
+        Assert.Same(home, drawn.Shell.Screen);
+        Assert.Equal(1, drawn.Shell.Depth);
+        Assert.Equal(crumb, drawn.Rows()[0]);
+        Assert.Equal("Sent.", drawn.Shell.Notice);
+    }
+
     public void Dispose() => _files.Dispose();
 
     /// <summary>A drawn shell with a compose open, cat.png dropped on it and still going up.</summary>
