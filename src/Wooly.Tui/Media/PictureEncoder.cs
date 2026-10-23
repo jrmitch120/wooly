@@ -1,7 +1,5 @@
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Png;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
 
 namespace Wooly.Tui.Media;
 
@@ -12,39 +10,16 @@ namespace Wooly.Tui.Media;
 internal static class PictureEncoder
 {
     /// <summary>
-    ///     <paramref name="picture" /> resized to exactly <paramref name="width" /> by <paramref name="height" />
-    ///     pixels, as a PNG.
+    ///     <paramref name="picture" /> filling exactly <paramref name="width" /> by <paramref name="height" /> pixels,
+    ///     cropped to that shape rather than stretched to it (<see cref="PictureDecoder.Filled" />), as a PNG.
     /// </summary>
     /// <remarks>
-    ///     Exactly, because the box already has the picture's own shape (<see cref="Rendering.Inset.For" />): a picture
-    ///     sent at any other size is one the terminal scales again, and a picture scaled to fit a box of another shape
-    ///     is stretched. Fast compression rather than small, since the PNG goes down a pipe to the terminal on the same
-    ///     machine rather than over a network.
+    ///     Exactly, because a picture sent at any other size is one the terminal scales again. Fast compression rather
+    ///     than small, since the PNG goes down a pipe to the terminal on the same machine rather than over a network.
     /// </remarks>
     public static byte[] Png(Picture picture, int width, int height)
     {
-        using var image = new Image<Rgba32>(picture.Width, picture.Height);
-
-        image.ProcessPixelRows(rows =>
-        {
-            for (var y = 0; y < rows.Height; y++)
-            {
-                var row = rows.GetRowSpan(y);
-
-                for (var x = 0; x < row.Length; x++)
-                {
-                    var pixel = picture.Pixels[x, y];
-
-                    row[x] = new Rgba32(pixel.R, pixel.G, pixel.B, pixel.A);
-                }
-            }
-        });
-
-        if (image.Width != width || image.Height != height)
-        {
-            image.Mutate(context => context.Resize(width, height));
-        }
-
+        using var image = PictureDecoder.Filled(picture, width, height);
         using var png = new MemoryStream();
 
         image.SaveAsPng(png, new PngEncoder { CompressionLevel = PngCompressionLevel.BestSpeed });
