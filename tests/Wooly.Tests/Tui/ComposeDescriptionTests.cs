@@ -310,7 +310,9 @@ public class ComposeDescriptionTests : IDisposable
         return (row, rows[row].IndexOf(text, StringComparison.Ordinal));
     }
 
-    /// <summary>The window, a picture attached to a fresh compose and ready, and its description editor open over it.</summary>
+    /// <summary>
+    ///     The window, a picture attached to a fresh compose and ready, and its description editor open over it.
+    /// </summary>
     private async Task<DrawnShell> Describing()
     {
         var drawn = await DrawnShell.Of(100, 30, Themes.Plain, new AShell());

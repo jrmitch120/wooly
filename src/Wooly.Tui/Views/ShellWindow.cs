@@ -330,8 +330,8 @@ internal sealed class ShellWindow : Window
     }
 
     /// <summary>
-    ///     Whichever view laid over the content panel is showing drawn again with the panel whenever the panel is about to
-    ///     be, since it is laid over it (#365) and a panel redrawn alone paints its rows over the fields.
+    ///     Whichever view laid over the content panel is showing drawn again with the panel whenever the panel is about
+    ///     to be, since it is laid over it (#365) and a panel redrawn alone paints its rows over the fields.
     /// </summary>
     /// <remarks>
     ///     Terminal.Gui draws the later of two siblings first, and a field keeps what is under it only by having drawn
@@ -1061,8 +1061,8 @@ internal sealed class ShellWindow : Window
         // so scrolling the region can only take that block away and put rows nobody can place in its stead. ADR-0015
         // priced this as "you cannot scroll the timeline while composing" and left it to the editor to make true,
         // which it does not: a key the editor declines at the end of its own text still reaches this window, and a
-        // screen with nothing picked out on it is one Scroll.To never scrolls back. Each draft's view settled whether it
-        // shows ahead of this, on the same change.
+        // screen with nothing picked out on it is one Scroll.To never scrolls back. Each draft's view settled whether
+        // it shows ahead of this, on the same change.
         _content.Scrolls = !_overlays.Any(overlay => overlay.Visible);
 
         SetNeedsDraw();

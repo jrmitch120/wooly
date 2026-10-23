@@ -16,14 +16,17 @@ internal sealed class Placement<TScreen>(View over, Shell.Shell shell)
     where TScreen : Screen
 {
     /// <summary>
-    ///     <paramref name="widget" />, hidden until it is shown, and laid wherever <paramref name="at" /> says the screen
-    ///     on top puts it in the view's viewport — nowhere while that screen is not on top, or the view has no room yet.
+    ///     <paramref name="widget" />, hidden until it is shown, and laid wherever <paramref name="at" /> says the
+    ///     screen on top puts it in the view's viewport — nowhere while that screen is not on top, or the view has no
+    ///     room yet.
     /// </summary>
     public T Placed<T>(T widget, Func<TScreen, Size, Rectangle> at)
         where T : View
     {
         Rectangle Laid() =>
-            over.Viewport.Width > 0 && shell.Screen is TScreen screen ? at(screen, over.Viewport.Size) : Rectangle.Empty;
+            over.Viewport.Width > 0 && shell.Screen is TScreen screen
+                ? at(screen, over.Viewport.Size)
+                : Rectangle.Empty;
 
         widget.X = Pos.Func(_ => Laid().X);
         widget.Y = Pos.Func(_ => Laid().Y);

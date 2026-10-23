@@ -35,7 +35,9 @@ internal sealed class DescriptionView : View
     /// </summary>
     private readonly Func<Raster> _raster;
 
-    /// <summary>What the field does with an open question and with the mouse, as every draft's do (#373, #430).</summary>
+    /// <summary>
+    ///     What the field does with an open question and with the mouse, as every draft's do (#373, #430).
+    /// </summary>
     private readonly DraftFields _draft;
 
     public DescriptionView(ITheme theme, Shell.Shell shell, Drafting.Drafting drafting, Func<Raster> raster)
