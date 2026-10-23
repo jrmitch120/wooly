@@ -1,5 +1,3 @@
-using System.Drawing;
-using Terminal.Gui.App;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Wooly.Tui.Drafting;
@@ -56,9 +54,6 @@ internal sealed class ComposeView : View
     /// <summary>What the fields do with an open question and with the mouse, as every draft's do (#373).</summary>
     private readonly DraftFields _draft;
 
-    /// <summary>Where the terminal's mouse events arrive, once the view is running; asked ahead of the views.</summary>
-    private IMouse? _mouse;
-
     /// <summary>
     ///     Whether the fields are being shown as compose comes on top, while which of them Terminal.Gui focuses says
     ///     nothing about where the typing is.
@@ -69,7 +64,7 @@ internal sealed class ComposeView : View
     {
         _shell = shell;
         _drafting = drafting;
-        _draft = new DraftFields(shell, () => _shell.Screen is ComposeScreen, at => Visible && Over(at));
+        var place = new Placement<ComposeScreen>(this, shell);
 
         CanFocus = true;
         Visible = false;
@@ -82,7 +77,7 @@ internal sealed class ComposeView : View
         // headers and hairlines (#317) are painted behind, so the screen that paints them is the one that knows where
         // the editor has to start for them to be seen, and on which row each header's value column is — Lang's nowhere
         // where a short viewport has given its row up.
-        _editor = Placed(
+        _editor = place.Placed(
             new ComposeEditor(
                 theme,
                 ComposeScreen.EmptyPostHint,
@@ -103,7 +98,7 @@ internal sealed class ComposeView : View
         // post is being written — a count, a list of people to mention — sees what has been typed so far.
         _editor.ContentsChanged += (_, _) => _drafting.Edit<ComposeScreen>(compose => compose.Rewrite(_editor.Text));
 
-        _warning = Placed(
+        _warning = place.Placed(
             new ComposeWarningField(
                 theme,
                 () => (_shell.Screen as ComposeScreen)?.WarningHint ?? string.Empty,
@@ -115,14 +110,14 @@ internal sealed class ComposeView : View
         // The same for the warning. The count is painted behind, on rows an edit announces as changed.
         _warning.ValueChanged += (_, _) => _drafting.Edit<ComposeScreen>(compose => compose.RewriteWarning(_warning.Text));
 
-        _to = Placed(
+        _to = place.Placed(
             new ComposeToField(
                 theme,
                 room => (_shell.Screen as ComposeScreen)?.ToSpans(room) ?? [],
                 (column, room) => _drafting.Edit<ComposeScreen>(compose => compose.ClickTo(column, room))),
             (compose, room) => compose.ToAt(room));
 
-        _lang = Placed(
+        _lang = place.Placed(
             new ComposeLangField(
                 theme,
                 () => (_shell.Screen as ComposeScreen)?.LanguageHint ?? string.Empty,
@@ -134,7 +129,7 @@ internal sealed class ComposeView : View
         // A click on the toggle at the end of Media's line flips it; anywhere else on the header — its words — opens
         // the file browser (#376), or, where a short terminal folded the rows into the line, lists them on a screen of
         // their own (story 58). A click on a row is the field's own (#378, #377).
-        _media = Placed(
+        _media = place.Placed(
             new ComposeMediaField(shell, drafting, column =>
             {
                 if (_shell.Screen is not ComposeScreen compose)
@@ -172,10 +167,6 @@ internal sealed class ComposeView : View
         // ctrl-p is the frame's here as everywhere (ADR-0020, #373), where TextView would take it for a line up.
         _editor.KeyBindings.Remove(Key.P.WithCtrl);
 
-        // A question open on the status row takes every key ahead of whichever field has the typing, since the fields
-        // take their keys before the window sees them (#373).
-        _editor.Answering = _to.Answering = _lang.Answering = _warning.Answering = _media.Answering = _draft.Answered;
-
         // ctrl-v or alt-v in any field that takes a paste attaches a picture or copied files from the clipboard, where
         // it holds either, and is the field's own paste otherwise (#380). The fields that take none, To and Media, leave
         // both keys to the window, which asks the keymap the same question.
@@ -183,20 +174,20 @@ internal sealed class ComposeView : View
 
         _languages = new LanguageList(theme, shell, drafting, _lang, this);
 
-        Add(_editor, _to, _lang, _warning, _media, _mentions.View, _languages.View);
-
         // A click outside an open list closes it whichever view it lands on — the editor's caret, the content behind
-        // this view, the rail — so it is asked about where the terminal's mouse events arrive, ahead of every view
-        // under the pointer (#335).
-        Initialized += (_, _) =>
-        {
-            _mouse = App?.Mouse;
+        // this view, the rail — so the lists are asked about it ahead of every view under the pointer too (#335).
+        _draft = new DraftFields(
+            this,
+            shell,
+            () => _shell.Screen is ComposeScreen,
+            () => [_editor, _to, _lang, _warning, _media],
+            mouse => _mentions.ClosedBy(mouse) || _languages.ClosedBy(mouse));
 
-            if (_mouse is not null)
-            {
-                _mouse.MouseEvent += AheadOfTheViews;
-            }
-        };
+        // A question open on the status row takes every key ahead of whichever field has the typing, since the fields
+        // take their keys before the window sees them (#373).
+        _editor.Answering = _to.Answering = _lang.Answering = _warning.Answering = _media.Answering = _draft.Answered;
+
+        Add(_editor, _to, _lang, _warning, _media, _mentions.View, _languages.View);
 
         _shell.Changed += Refresh;
 
@@ -220,36 +211,10 @@ internal sealed class ComposeView : View
         if (disposing)
         {
             _shell.Changed -= Refresh;
-
-            if (_mouse is not null)
-            {
-                _mouse.MouseEvent -= AheadOfTheViews;
-                _mouse = null;
-            }
         }
 
         base.Dispose(disposing);
     }
-
-    /// <summary>
-    ///     A mouse event wherever it landed, before the view under the pointer sees it: a right click while compose is in
-    ///     front, which is its <c>esc</c> wherever it lands (#373); any other press over a field while a question is
-    ///     open, which the question takes (<see cref="DraftFields.Spent" />); spent on closing an open list where it is a click
-    ///     outside it (#335); and left alone otherwise.
-    /// </summary>
-    private void AheadOfTheViews(object? sender, Mouse mouse)
-    {
-        if (!mouse.Handled)
-        {
-            mouse.Handled = _draft.Spent(mouse)
-                            || _mentions.ClosedBy(mouse)
-                            || _languages.ClosedBy(mouse);
-        }
-    }
-
-    /// <summary>Whether <paramref name="at" /> is over one of the fields, which take the pointer before the window does.</summary>
-    private bool Over(Point at) =>
-        new View[] { _editor, _to, _lang, _warning, _media }.Any(field => field.Visible && field.FrameToScreen().Contains(at));
 
     /// <summary>
     ///     Whether <paramref name="key" /> is compose's paste from the clipboard, as the keymap says, and if so whether
@@ -358,25 +323,6 @@ internal sealed class ComposeView : View
         ComposeField.Media or ComposeField.Attachment => _media,
         _ => _editor,
     };
-
-    /// <summary>
-    ///     <paramref name="field" />, hidden until compose comes on top and laid wherever <paramref name="at" /> says
-    ///     the compose screen puts it in this view's viewport — nowhere while no post is being written.
-    /// </summary>
-    private T Placed<T>(T field, Func<ComposeScreen, Size, Rectangle> at)
-        where T : View
-    {
-        Rectangle Laid() =>
-            Viewport.Width > 0 && _shell.Screen is ComposeScreen compose ? at(compose, Viewport.Size) : Rectangle.Empty;
-
-        field.X = Pos.Func(_ => Laid().X);
-        field.Y = Pos.Func(_ => Laid().Y);
-        field.Width = Dim.Func(_ => Laid().Width);
-        field.Height = Dim.Func(_ => Laid().Height);
-        field.Visible = false;
-
-        return field;
-    }
 
     /// <summary><c>ctrl-s</c> in any of compose's fields.</summary>
     private void Send() => _ = _drafting.Send();

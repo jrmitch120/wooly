@@ -1,5 +1,3 @@
-using System.Drawing;
-using Terminal.Gui.App;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Wooly.Tui.Media;
@@ -51,8 +49,8 @@ internal sealed class PublicProfileView : View
     /// <summary>What the fields do with an open question and with the mouse, as every draft's do (#373).</summary>
     private readonly DraftFields _draft;
 
-    /// <summary>Where the terminal's mouse events arrive, once the view is running; asked ahead of the views.</summary>
-    private IMouse? _mouse;
+    /// <summary>Where each field is laid: wherever the form puts its stop (ADR-0030).</summary>
+    private readonly Placement<PublicProfileScreen> _place;
 
     public PublicProfileView(ITheme theme, Shell.Shell shell, Drafting.Drafting drafting, Func<Raster?>? raster = null)
     {
@@ -60,10 +58,17 @@ internal sealed class PublicProfileView : View
         _shell = shell;
         _drafting = drafting;
         _raster = raster ?? (() => null);
+        _place = new Placement<PublicProfileScreen>(this, shell);
+
+        // A right click over a field is esc, which the fields would otherwise keep to themselves, and a click outside
+        // the list of people to mention closes it, as on compose (#373, #335). The list hangs under the bio, which
+        // answers a question through these rules, so it is made after them.
         _draft = new DraftFields(
+            this,
             shell,
             () => _shell.Screen is PublicProfileScreen,
-            at => Visible && Fields.Any(field => field.Visible && field.FrameToScreen().Contains(at)));
+            () => Fields,
+            mouse => _mentions?.ClosedBy(mouse) is true);
 
         CanFocus = true;
         Visible = false;
@@ -122,18 +127,6 @@ internal sealed class PublicProfileView : View
         Add([.. _buttons.Values]);
         Add(_mentions.View);
 
-        // A right click over a field is esc, which the fields would otherwise keep to themselves, so it is asked about
-        // where the terminal's mouse events arrive, ahead of every view under the pointer — as compose's are (#373).
-        Initialized += (_, _) =>
-        {
-            _mouse = App?.Mouse;
-
-            if (_mouse is not null)
-            {
-                _mouse.MouseEvent += AheadOfTheViews;
-            }
-        };
-
         _shell.Changed += Refresh;
 
         Refresh();
@@ -162,12 +155,6 @@ internal sealed class PublicProfileView : View
         if (disposing)
         {
             _shell.Changed -= Refresh;
-
-            if (_mouse is not null)
-            {
-                _mouse.MouseEvent -= AheadOfTheViews;
-                _mouse = null;
-            }
         }
 
         base.Dispose(disposing);
@@ -180,20 +167,6 @@ internal sealed class PublicProfileView : View
         .. _labels.Zip(_values).SelectMany(row => new View[] { row.First, row.Second }),
         .. PublicProfileToggle.All.Select(toggle => _buttons[toggle.Part]),
     ];
-
-    /// <summary>
-    ///     A mouse event wherever it landed, before the view under the pointer sees it: a right click while the form is
-    ///     in front, which is its <c>esc</c> wherever it lands; any other press over a field while a question is open,
-    ///     which the question takes; spent on closing the list of people to mention where it is a click outside it, as
-    ///     on compose (#335); and left alone otherwise.
-    /// </summary>
-    private void AheadOfTheViews(object? sender, Mouse mouse)
-    {
-        if (!mouse.Handled)
-        {
-            mouse.Handled = _draft.Spent(mouse) || _mentions.ClosedBy(mouse);
-        }
-    }
 
     /// <summary>
     ///     Shows the fields as the form comes on top, filled from it, and takes them away as it goes; and keeps the
@@ -354,25 +327,16 @@ internal sealed class PublicProfileView : View
     }
 
     /// <summary>
-    ///     <paramref name="field" />, hidden until the form comes on top and laid wherever the form puts
+    ///     <paramref name="widget" />, hidden until the form comes on top and laid wherever the form puts
     ///     <paramref name="stop" /> in this view's viewport — nowhere while no form is up.
     /// </summary>
-    private T Placed<T>(T field, PublicProfileStop stop)
-        where T : View
-    {
-        Rectangle Laid() =>
-            Viewport.Width > 0 && _shell.Screen is PublicProfileScreen form
-                ? form.At(stop, Viewport.Size, _raster())
-                : Rectangle.Empty;
-
-        field.X = Pos.Func(_ => Laid().X);
-        field.Y = Pos.Func(_ => Laid().Y);
-        field.Width = Dim.Func(_ => Laid().Width);
-        field.Height = Dim.Func(_ => Laid().Height);
-        field.Visible = false;
-
-        return field;
-    }
+    /// <remarks>
+    ///     Kept, where compose and the description editor use their placement inline, because every widget here is
+    ///     laid by its stop the same way and a custom field's row is placed long after the constructor, as it is added.
+    /// </remarks>
+    private T Placed<T>(T widget, PublicProfileStop stop)
+        where T : View =>
+        _place.Placed(widget, (form, room) => form.At(stop, room, _raster()));
 
     /// <summary>A change to the form from one of its fields, while it is not being filled.</summary>
     private void Change(Func<PublicProfileScreen, DraftChange> change)

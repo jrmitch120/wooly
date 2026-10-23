@@ -2,7 +2,6 @@ using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Wooly.Tui.Media;
 using Wooly.Tui.Screens;
-using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 
 namespace Wooly.Tui.Views;
@@ -36,43 +35,40 @@ internal sealed class DescriptionView : View
     /// </summary>
     private readonly Func<Raster> _raster;
 
+    /// <summary>
+    ///     What the field does with an open question and with the mouse, as every draft's do (#373, #430).
+    /// </summary>
+    private readonly DraftFields _draft;
+
     public DescriptionView(ITheme theme, Shell.Shell shell, Drafting.Drafting drafting, Func<Raster> raster)
     {
         _shell = shell;
         _drafting = drafting;
         _raster = raster;
+        var place = new Placement<DescriptionScreen>(this, shell);
 
         CanFocus = true;
         Visible = false;
         ViewportSettings |= ViewportSettingsFlags.Transparent | ViewportSettingsFlags.TransparentMouse;
 
-        _editor = new ComposeEditor(theme, DescriptionScreen.EmptyHint, Done, Done, () => { }, () => { })
-        {
-            WordWrap = true,
-            TabKeyAddsTab = false,
-            Visible = false,
-            X = Pos.Func(_ => Laid().X),
-            Y = Pos.Func(_ => Laid().Y),
-            Width = Dim.Func(_ => Laid().Width),
-            Height = Dim.Func(_ => Laid().Height),
-        };
+        _editor = place.Placed(
+            new ComposeEditor(theme, DescriptionScreen.EmptyHint, Done, Done, () => { }, () => { })
+            {
+                WordWrap = true,
+                TabKeyAddsTab = false,
+            },
+            (describing, room) => describing.FieldAt(room, _raster()));
 
         // ctrl-p is the frame's here as everywhere (ADR-0020), where TextView would take it for a line up.
         _editor.KeyBindings.Remove(Key.P.WithCtrl);
 
+        // A right click over the field is esc, which the field would otherwise keep to itself, and a press over it
+        // while a question is open is the question's — as on compose and the form (#373, #430).
+        _draft = new DraftFields(this, shell, () => _shell.Screen is DescriptionScreen, () => [_editor]);
+
         // A question open on the status row takes every key ahead of the field — leaving by tab asks before a touched
         // draft under this is thrown away (#373).
-        _editor.Answering = key =>
-        {
-            if (_shell.Asking is null)
-            {
-                return false;
-            }
-
-            _ = _shell.Answer(ShellKeys.Of(key));
-
-            return true;
-        };
+        _editor.Answering = _draft.Answered;
 
         _editor.ContentsChanged += (_, _) =>
             _ = _drafting.Edit<DescriptionScreen>(describing => describing.Rewrite(_editor.Text));
@@ -93,12 +89,6 @@ internal sealed class DescriptionView : View
 
         base.Dispose(disposing);
     }
-
-    /// <summary>Where the screen on top lays the field, or nowhere while it is not the description editor.</summary>
-    private System.Drawing.Rectangle Laid() =>
-        Viewport.Width > 0 && _shell.Screen is DescriptionScreen describing
-            ? describing.FieldAt(Viewport.Size, _raster())
-            : System.Drawing.Rectangle.Empty;
 
     /// <summary>
     ///     Shows the field as the description editor comes on top, filled from the attachment, and takes it away as the

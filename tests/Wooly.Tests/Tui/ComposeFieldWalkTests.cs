@@ -1,5 +1,7 @@
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
+using Wooly.Tui.Shell;
+using Wooly.Tui.Theme;
 using Key = Terminal.Gui.Input.Key;
 
 namespace Wooly.Tests.Tui;
@@ -282,6 +284,46 @@ public class ComposeFieldWalkTests
 
         Assert.Equal(ComposeField.To, compose.Typing);
         Assert.True(view.To.HasFocus);
+    }
+
+    /// <summary>
+    ///     On the drawn shell, <c>←</c> and <c>→</c> on any field but To — the post, Media, the warning, Lang — move
+    ///     neither the walk nor Terminal.Gui's focus, at either end of what the field holds, as on the public profile
+    ///     form's fields (#430).
+    /// </summary>
+    [Fact]
+    public async Task InTheWindowLeftAndRightOffToMoveNeitherTheWalkNorTheFocus()
+    {
+        using var drawn = await DrawnShell.Of(80, 30, Themes.Plain, new AShell { Accounts = FakeAccountRelationships.HoldingNobody() });
+
+        ComposeRows.Open(drawn.Shell, ComposeFor.Post);
+        drawn.Redraw();
+
+        var compose = Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
+        drawn.Press(new Key('h'));
+        drawn.Press(new Key('i'));
+
+        var walked = new List<ComposeField>();
+
+        while (compose.Typing != ComposeField.To)
+        {
+            var on = compose.Typing;
+            var focused = drawn.Window.MostFocused;
+
+            walked.Add(on);
+
+            foreach (var key in Enumerable.Repeat(Key.CursorLeft, 4).Concat(Enumerable.Repeat(Key.CursorRight, 8)))
+            {
+                drawn.PressThroughTheApplication(key);
+
+                Assert.Equal(on, compose.Typing);
+                Assert.Same(focused, drawn.Window.MostFocused);
+            }
+
+            drawn.PressThroughTheApplication(Key.CursorUp);
+        }
+
+        Assert.Equal([ComposeField.Post, ComposeField.Media, ComposeField.Warning, ComposeField.Lang], walked);
     }
 
     /// <summary>

@@ -15,4 +15,11 @@ internal static class ComposeFields
     public static T ProfileField<T>(this View window)
         where T : View =>
         window.SubViews.OfType<PublicProfileView>().Single().SubViews.OfType<T>().First();
+
+    /// <summary>
+    ///     The <typeparamref name="T" /> among the description editor's fields in <paramref name="window" /> (#377).
+    /// </summary>
+    public static T DescriptionField<T>(this View window)
+        where T : View =>
+        window.SubViews.OfType<DescriptionView>().Single().SubViews.OfType<T>().Single();
 }
