@@ -745,16 +745,17 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
 - **A picture is drawn at the full width of the column it is in, at its own proportions**, capped at 16 rows in a feed
   item and 32 on the post screen. Width-driven rather than height-driven — that is the difference between an inline
   picture and a postage stamp.
-- **Fixed boxes are cropped to fill; shaped boxes fit** (#438). Every drawn picture has a **picture box** (`PictureBox`),
-  settled before its pixels arrive and holding its Stand-in until they do. A shaped box — a post's picture, a link
-  preview's — is the shape the instance reported, 16:9 where it reported none, and the picture is fitted inside it,
-  centred, with slack beside it or above and below where the shape was a guess. A fixed box — an avatar, 4×2 on a byline
-  and 8×4 on an account header; a pending attachment's picture, 3×1; the edit public profile form's avatar, 4×2, and
-  header, 12×2 — is filled: a picture of another shape is cropped to it from the middle, as an instance crops an avatar,
-  and never stretched. Kitty and sixel take a picture to its box by the one step (`PictureDecoder.Filled`), so the two
-  cannot crop differently.
-- **The description stands above the picture**, so it does not move when the pixels land under it. Until they do there
-  is no box: a picture on its way is its `▒▒▒▒` description and nothing else.
+- **Fixed boxes are cropped to fill; shaped boxes fit** (#438). Every drawn picture has a **picture box**
+  (`PictureBox`), settled before its pixels arrive and holding its Stand-in until they do. A shaped box — a post's
+  picture, a link preview's — is the shape the instance reported, 16:9 where it reported none, and the picture is fitted
+  inside it, centred, with slack beside it or above and below where the shape was a guess. A fixed box — an avatar, 4×2
+  on a byline and 8×4 on an account header; a pending attachment's picture, 3×1; the edit public profile form's avatar,
+  4×2, and header, 12×2 — is filled: a picture of another shape is cropped to it from the middle, as an instance crops
+  an avatar, and never stretched. Kitty and sixel take a picture to its box by the one step (`PictureDecoder.Filled`),
+  so the two cannot crop differently. A Stand-in's blur is the exception: decoded square, it is stretched to its box,
+  which gives it back the picture's proportions (ADR-0025's amendment for #438).
+- **The description stands above the picture**, so it does not move when the pixels land under it. Until they do, the
+  box under it holds its Stand-in, the size the picture will be, so nothing moves when the picture replaces it.
 - **Nothing about a picture is ever an error.** A fetch that fails and a file that will not decode both leave the
   description standing on its own, which is what a terminal that cannot draw shows anyway.
 - **A drawn picture's caption can hide, behind a preference that defaults off.** `hide_drawn_caption` (below) hides

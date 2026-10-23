@@ -155,3 +155,22 @@ of any size. This client accepts that so that scrolling back, and coming back to
 
 `post show` and the timeline commands do not change. `PostMedia` and `LinkPreview` gain a shape and a blurhash, but the
 CLI's text and `--json` output gain neither field, because nothing outside the TUI uses them yet.
+
+## Amendment: fixed boxes are cropped to fill, and a blur is still stretched (#438)
+
+**A fixed box is filled: a picture of another shape is cropped to it from the middle, never stretched to it, and never
+fitted with slack.** The fixed boxes are an avatar's, a **Pending attachment**'s picture on its Media row, and the
+public profile form's avatar and header. Their size does not come from the picture's shape, so fitting and centring
+does not suit them. A small fixed box fitted shows a sliver: a portrait photograph fitted into a Media row's three
+columns by one row is a strip a column wide. Stretched, as the avatar and the Media row were before, the picture is
+distorted, and a portrait photograph comes out squashed. Cropping is what Mastodon itself does with avatars and
+headers, so a reader sees the part of the picture they would see on the web. Both raster paths take a picture to its box
+through one step, `PictureDecoder.Filled`, which crops the picture's middle to the box's shape and then resizes it.
+
+**A shaped box still fits its picture, centred,** as this ADR says above: a post's picture and a **Link preview**'s.
+The fitted inset already has the picture's shape to within a cell's rounding, so the crop takes nothing there.
+
+**A blur is still stretched.** It is decoded square whatever the picture's shape, so stretching it to its shaped box is
+what gives it the picture's proportions back and lines it up with the picture that replaces it, and it has no detail to
+lose. Cropping it would show only its middle band. `PictureDecoder.Filled` stretches it instead of cropping it, told so
+by the inset carrying a blur.
