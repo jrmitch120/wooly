@@ -24,15 +24,11 @@ namespace Wooly.Tui.Rendering;
 /// </remarks>
 public sealed record PictureBox
 {
-    private PictureBox(Drawn? wanted, int columns, int rows, Span held, Inset? set, int down)
-    {
-        Wanted = wanted;
-        Columns = columns;
-        Rows = rows;
-        Held = held;
-        _set = set;
-        _down = down;
-    }
+    /// <summary>What every row of the box holds but the one <see cref="_set" /> is on.</summary>
+    private readonly Span _held;
+
+    /// <summary>What the row <see cref="_set" /> is on holds.</summary>
+    private readonly Span _heldWhereSet;
 
     /// <summary>
     ///     What is set into the box, at its own left — the blur or the picture — or <see langword="null" /> where
@@ -43,6 +39,22 @@ public sealed record PictureBox
     /// <summary>Which row of the box <see cref="_set" /> is on.</summary>
     private readonly int _down;
 
+    private PictureBox(Drawn? wanted, int columns, int rows, Span held, Inset? set = null, int down = 0)
+        : this(wanted, columns, rows, held, held, set, down)
+    {
+    }
+
+    private PictureBox(Drawn? wanted, int columns, int rows, Span held, Span heldWhereSet, Inset? set, int down)
+    {
+        Wanted = wanted;
+        Columns = columns;
+        Rows = rows;
+        _held = held;
+        _heldWhereSet = heldWhereSet;
+        _set = set;
+        _down = down;
+    }
+
     /// <summary>The picture to send for, or <see langword="null" /> where none is drawn.</summary>
     public Drawn? Wanted { get; }
 
@@ -51,12 +63,6 @@ public sealed record PictureBox
 
     /// <summary>How tall the box is.</summary>
     public int Rows { get; }
-
-    /// <summary>
-    ///     What every row of the box holds, the box's width across: the Stand-in's shade while a picture is coming and
-    ///     not here, and blanks once it is or where none is drawn.
-    /// </summary>
-    public Span Held { get; }
 
     /// <summary>
     ///     A box <paramref name="columns" /> by <paramref name="rows" /> for <paramref name="wanted" />, the same size
@@ -75,12 +81,12 @@ public sealed record PictureBox
     {
         if (wanted is null || !Drawing.Draws(pictures, raster, out _))
         {
-            return new PictureBox(null, columns, rows, Blanks(columns, Role.Body), set: null, down: 0);
+            return new PictureBox(null, columns, rows, Blanks(columns, Role.Body));
         }
 
         return pictures.Of(wanted) is null
-            ? new PictureBox(wanted, columns, rows, StandIn.Row(columns), set: null, down: 0)
-            : new PictureBox(wanted, columns, rows, Blanks(columns), new Inset(wanted, Column: 0, columns, rows), 0);
+            ? new PictureBox(wanted, columns, rows, StandIn.Row(columns))
+            : new PictureBox(wanted, columns, rows, Blanks(columns), new Inset(wanted, Column: 0, columns, rows));
     }
 
     /// <summary>
@@ -127,14 +133,30 @@ public sealed record PictureBox
                 box.Columns,
                 box.Rows,
                 StandIn.Row(box.Columns),
-                StandIn.WithBlur(box, blurhash, blurs),
-                down: 0);
+                StandIn.WithBlur(box, blurhash, blurs));
         }
 
         var (fitted, down) = box.Fit(picture, cell);
 
-        return new PictureBox(drawn, box.Columns, box.Rows, Blanks(box.Columns), fitted, down);
+        // The row the picture is on runs to the picture's right edge and no further, and the rest are the page: a row
+        // carrying an inset measures it, so what scrolls and what is drawn cannot come apart.
+        return new PictureBox(
+            drawn,
+            box.Columns,
+            box.Rows,
+            Blanks(0, Role.Body),
+            Blanks(fitted.Column + fitted.Columns),
+            fitted,
+            down);
     }
+
+    /// <summary>
+    ///     What row <paramref name="row" /> of the box holds: the Stand-in's shade, the box's width across, while a
+    ///     picture is coming and not here; blank columns where none is drawn or a fixed box's picture is here; and where
+    ///     a shaped box's picture is here, blanks to the picture's right edge on the row it is set into and nothing on
+    ///     the rest.
+    /// </summary>
+    public Span Holds(int row) => _set is not null && row == _down ? _heldWhereSet : _held;
 
     /// <summary>
     ///     What is set into row <paramref name="row" /> of the box, where the box starts <paramref name="column" />

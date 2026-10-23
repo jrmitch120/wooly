@@ -35,7 +35,7 @@ public class PictureBoxTests
         var box = PictureBox.Fixed(Face, columns: 4, rows: 2, new FakePictures(), ARaster.Kitty());
 
         Assert.Equal(Face, box.Wanted);
-        Assert.Equal(new Span("░░░░", Role.StandIn), box.Held);
+        Assert.Equal(new Span("░░░░", Role.StandIn), box.Holds(0));
         Assert.Empty(box.On(row: 0, column: 3));
         Assert.Empty(box.On(row: 1, column: 3));
     }
@@ -52,8 +52,8 @@ public class PictureBoxTests
         var box = PictureBox.Fixed(Face, columns: 3, rows: 1, pictures, ARaster.Kitty());
 
         Assert.Equal(Face, box.Wanted);
-        Assert.Equal("   ", box.Held.Text);
-        Assert.NotEqual(Role.StandIn, box.Held.Role);
+        Assert.Equal("   ", box.Holds(0).Text);
+        Assert.NotEqual(Role.StandIn, box.Holds(0).Role);
         Assert.Equal([new Inset(Face, Column: 7, Columns: 3, Rows: 1)], box.On(row: 0, column: 7));
     }
 
@@ -74,8 +74,8 @@ public class PictureBoxTests
         var box = PictureBox.Fixed(Face, columns: 4, rows: 2, Pictures(pictures), Raster(cell));
 
         Assert.Null(box.Wanted);
-        Assert.Equal("    ", box.Held.Text);
-        Assert.NotEqual(Role.StandIn, box.Held.Role);
+        Assert.Equal("    ", box.Holds(1).Text);
+        Assert.NotEqual(Role.StandIn, box.Holds(1).Role);
         Assert.Empty(box.On(row: 0, column: 0));
     }
 
@@ -88,7 +88,7 @@ public class PictureBoxTests
         var box = PictureBox.Fixed(wanted: null, columns: 3, rows: 1, new FakePictures(), ARaster.Kitty());
 
         Assert.Null(box.Wanted);
-        Assert.Equal("   ", box.Held.Text);
+        Assert.Equal("   ", box.Holds(0).Text);
         Assert.Empty(box.On(row: 0, column: 0));
     }
 
@@ -103,8 +103,11 @@ public class PictureBoxTests
 
         Assert.NotNull(box);
         Assert.Equal((61, 8), (box.Columns, box.Rows));
-        Assert.Equal(new Span(new string('░', 61), Role.StandIn), box.Held);
-        Assert.All(Enumerable.Range(0, 8), row => Assert.Empty(box.On(row, column: 0)));
+        Assert.All(Enumerable.Range(0, 8), row =>
+        {
+            Assert.Equal(new Span(new string('░', 61), Role.StandIn), box.Holds(row));
+            Assert.Empty(box.On(row, column: 0));
+        });
     }
 
     /// <summary>The blur is set into the box's top row over the whole box, and the shade stays under it.</summary>
@@ -114,7 +117,7 @@ public class PictureBoxTests
         var box = Shaped(new FakePictures(), new PictureShape(800, 200), StandInBlurTests.AHash);
 
         Assert.NotNull(box);
-        Assert.Equal(Role.StandIn, box.Held.Role);
+        Assert.Equal(Role.StandIn, box.Holds(0).Role);
 
         var blur = Assert.Single(box.On(row: 0, column: 2));
 
@@ -126,7 +129,8 @@ public class PictureBoxTests
 
     /// <summary>
     ///     A square picture in a box the instance said was four times as wide: fitted inside, as tall as the box, with
-    ///     the slack shared either side of it.
+    ///     the slack shared either side of it. Its row runs blank to the picture's right edge, which is what a row
+    ///     carrying an inset measures, and the rest of the box is the page.
     /// </summary>
     [Fact]
     public void Shaped_FitsPixelsOfAnotherShapeInsideItCentredAcross()
@@ -134,8 +138,9 @@ public class PictureBoxTests
         var box = Shaped(new FakePictures().Holding("m1", 200, 200), new PictureShape(800, 200));
 
         Assert.NotNull(box);
-        Assert.Equal(new string(' ', 61), box.Held.Text);
-        Assert.NotEqual(Role.StandIn, box.Held.Role);
+        Assert.Equal(new string(' ', 38), box.Holds(0).Text);
+        Assert.NotEqual(Role.StandIn, box.Holds(0).Role);
+        Assert.All(Enumerable.Range(1, 7), row => Assert.Equal("", box.Holds(row).Text));
         Assert.Equal([new Inset(Face, Column: 25, Columns: 16, Rows: 8)], box.On(row: 0, column: 3));
     }
 

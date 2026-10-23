@@ -495,7 +495,7 @@ public static class PostLines
                 continue;
             }
 
-            if (!Drawing.Draws(pictures, raster, out var cell))
+            if (!Drawing.Draws(pictures, raster, out _))
             {
                 yield return [.. LinkedImage(attached, width)];
 
@@ -507,7 +507,8 @@ public static class PostLines
             var drawn = Drawn.Attached(attached);
             var described = Described(attached, MediaMark, width) with { Wants = drawn };
 
-            if (Inset.For(drawn, attached.Shape, cell, width, mostRows) is not { } box)
+            if (PictureBox.Shaped(drawn, attached.Shape, attached.Blurhash, width, mostRows, pictures, raster, blurs)
+                is not { } box)
             {
                 yield return [described];
 
@@ -519,8 +520,8 @@ public static class PostLines
             // reader, which is what the box was reserved to stop (ADR-0025). The box's own top row carries the Wants
             // then, there being no caption to carry it.
             yield return hideDrawnCaption
-                ? [.. Reserved(box, attached.Blurhash, blurs, pictures, cell, drawn)]
-                : [described, .. Reserved(box, attached.Blurhash, blurs, pictures, cell)];
+                ? [.. Reserved(box, drawn)]
+                : [described, .. Reserved(box)];
         }
     }
 
@@ -571,7 +572,7 @@ public static class PostLines
         Line Label(bool saysWhatItShows) =>
             AttachmentReferenceLine(attached, reference, picked, width, saysWhatItShows);
 
-        if (!attached.IsDrawable || !Drawing.Draws(pictures, raster, out var cell))
+        if (!attached.IsDrawable || !Drawing.Draws(pictures, raster, out _))
         {
             return [Label(saysWhatItShows: true)];
         }
@@ -583,12 +584,13 @@ public static class PostLines
         // The description goes behind the preference from the first frame rather than when the preview lands, for the
         // reason a picture's caption does: the box is already there, and the setting should not depend on how quick
         // the network was (ADR-0025).
-        return Inset.For(drawn, attached.Shape, cell, width, mostRows) is not { } box
+        return PictureBox.Shaped(drawn, attached.Shape, attached.Blurhash, width, mostRows, pictures, raster, blurs)
+            is not { } box
             ? [Label(saysWhatItShows: true) with { Wants = drawn }]
             :
             [
                 Label(saysWhatItShows: !hideDrawnCaption) with { Wants = drawn },
-                .. Reserved(box, attached.Blurhash, blurs, pictures, cell),
+                .. Reserved(box),
             ];
     }
 
@@ -672,56 +674,20 @@ public static class PostLines
     ///         cannot come to reserve, shade or fit differently.
     ///     </para>
     ///     <para>
-    ///         The picture's inset goes on whichever row of the box its centred top lands on, rather than always on the
-    ///         first: a row carries the inset its pixels start on, and that is how the view already places a picture
-    ///         whatever row it is on. The rest of the box is blank page, so a picture narrower or shorter than the shape
-    ///         it was reserved at has the page's own background round it.
+    ///         What each row holds and what is set into it is the <see cref="PictureBox" />'s, shaped from what the
+    ///         instance reported; this lays the box across the full width and says what its top row waits for.
     ///     </para>
     /// </remarks>
     /// <param name="box">The box the shape settled.</param>
-    /// <param name="blurhash">
-    ///     The instance's blurhash of the picture, which is drawn over the shade while the picture is not here, or
-    ///     <see langword="null" /> where it sent none (#349).
-    /// </param>
-    /// <param name="blurs">What decodes that blurhash, or <see langword="null" /> where no blur is drawn.</param>
     /// <param name="wants">
     ///     What the box's top row says it is waiting for, where no caption above it is there to say so — or
     ///     <see langword="null" /> where one is.
     /// </param>
-    private static IEnumerable<Line> Reserved(
-        Inset box,
-        string? blurhash,
-        Blurs? blurs,
-        IPictures pictures,
-        CellSize cell,
-        Drawn? wants = null)
+    private static IEnumerable<Line> Reserved(PictureBox box, Drawn? wants = null)
     {
-        if (pictures.Of(box.Drawn) is not { } picture)
-        {
-            // The blur is set into the whole box over the shade rather than in place of it: the shade is what shows
-            // until the blur is encoded and drawn, and what shows where it never decodes at all (#349).
-            var blur = StandIn.WithBlur(box, blurhash, blurs);
-
-            for (var row = 0; row < box.Rows; row++)
-            {
-                var shade = Line.Of(StandIn.Row(box.Columns));
-
-                yield return row == 0 ? shade with { Wants = wants, Insets = blur is null ? [] : [blur] } : shade;
-            }
-
-            yield break;
-        }
-
-        var (fitted, down) = box.Fit(picture, cell);
-
         for (var row = 0; row < box.Rows; row++)
         {
-            var line = row != down
-                ? Line.Blank
-                : new Line([
-                    new Span(new string(' ', fitted.Column), Role.Body),
-                    new Span(new string(' ', fitted.Columns), Role.Media),
-                ]) { Insets = [fitted] };
+            var line = Line.Of(box.Holds(row)) with { Insets = box.On(row, column: 0) };
 
             yield return row == 0 ? line with { Wants = wants } : line;
         }
@@ -801,10 +767,9 @@ public static class PostLines
         // the picture is here yet — the same box and Stand-in an attachment gets, so a link card moves nothing when its
         // picture lands either (ADR-0025, #348). The walked row above already carries the Wants.
         if (drawn is not null
-            && Drawing.Draws(pictures, raster, out var cell)
-            && Inset.For(drawn, link.Shape, cell, width, mostRows) is { } box)
+            && PictureBox.Shaped(drawn, link.Shape, link.Blurhash, width, mostRows, pictures, raster, blurs) is { } box)
         {
-            lines.AddRange(Reserved(box, link.Blurhash, blurs, pictures, cell));
+            lines.AddRange(Reserved(box));
         }
 
         return lines;
