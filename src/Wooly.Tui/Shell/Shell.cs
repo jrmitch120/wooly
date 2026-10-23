@@ -862,8 +862,8 @@ public sealed class Shell
         }
 
         // A send waiting on its attachments is a level of its own over the draft, which drafting calls off (ADR-0026,
-        // #375).
-        if (_drafting.Do(Verb.Back) is Drafted.Used)
+        // #375) — asked here, after the question and nowhere else, so an esc answering a question calls nothing off.
+        if (_drafting.Back())
         {
             return;
         }

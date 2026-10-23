@@ -47,8 +47,8 @@ public sealed class Drafting
     private readonly PastedPictures _pasted;
 
     /// <summary>
-    ///     Whether the status row has said this machine has nothing to read the clipboard with, which it says once a
-    ///     session (#380).
+    ///     Whether the status row has said over a compose that this machine has nothing to read the clipboard with, which
+    ///     it says there once a session (#380).
     /// </summary>
     private bool _toldNoClipboard;
 
@@ -142,15 +142,14 @@ public sealed class Drafting
     /// </param>
     /// <returns>
     ///     <see cref="Drafted.NotMine" /> for any verb that is not a draft's, which the shell carries on with;
-    ///     otherwise whether it was used or declined. <c>esc</c> is drafting's only while a send is waiting on the
-    ///     compose in front, which it calls off; otherwise it is the shell's.
+    ///     otherwise whether it was used or declined. <c>esc</c> is not among them: it reaches drafting directly
+    ///     (<see cref="Back" />), and only once the shell has no question open.
     /// </returns>
     public Drafted Do(Verb verb, ComposeAttachment? on = null) => verb switch
     {
         Verb.Compose => Ran(() => Compose(ComposeFor.Post)),
         Verb.Reply => Ran(() => Compose(ComposeFor.Reply)),
         Verb.Edit => Ran(() => Compose(ComposeFor.Edit)),
-        Verb.Back => CallOff(),
         Verb.Describe => Ran(() => Describe(on)),
         Verb.RemoveAttachment => Ran(() => RemoveAttachment(compose => on is null ? compose.Remove() : compose.Remove(on))),
         Verb.RetryAttachment => Ran(() => Retry(compose => on is null ? compose.Retry() : compose.Media.Retry(on))),
@@ -247,7 +246,7 @@ public sealed class Drafting
             return false;
         }
 
-        switch (ReadTheClipboard())
+        switch (_clipboard.Read())
         {
             case Clipped.Picture(var png):
                 Attach(compose, [_pasted.Keep(png)]);
@@ -269,31 +268,17 @@ public sealed class Drafting
 
                 return true;
 
+            // Said once a session: the author who has no wish to install either is still pasting text every time. Said
+            // once the field has pasted, since the paste is an edit and an edit spends a notice (#364).
+            case Clipped.NoTool(var why) when !_toldNoClipboard:
+                _toldNoClipboard = true;
+                _host.OnUiThread(() => Reach.Say(why, isError: false));
+
+                return false;
+
             default:
                 return false;
         }
-    }
-
-    /// <summary>
-    ///     What this machine's clipboard holds, read for a paste into either draft — a compose (#380) or the edit public
-    ///     profile form's pictures (#407) — with nothing to read it with said once a session, whichever draft it was
-    ///     pasted into (#422): the author who has no wish to install either is still pasting text every time.
-    /// </summary>
-    /// <remarks>
-    ///     Said on the drawing thread once the press is done, since on compose the field's own paste follows and is an
-    ///     edit, and an edit spends a notice (#364).
-    /// </remarks>
-    private Clipped ReadTheClipboard()
-    {
-        var clipped = _clipboard.Read();
-
-        if (clipped is Clipped.NoTool(var why) && !_toldNoClipboard)
-        {
-            _toldNoClipboard = true;
-            _host.OnUiThread(() => Reach.Say(why, isError: false));
-        }
-
-        return clipped;
     }
 
     /// <summary>
@@ -416,10 +401,9 @@ public sealed class Drafting
             case Outgoing.Publishing(var draft):
                 // A reply written inside a conversation carries which one, taken now from the screen it was written
                 // over rather than read back when it lands — by then the reader may be anywhere.
-                var within = compose.Purpose == ComposeFor.Reply
-                    && _stack.Screens is [.., ConversationScreen conversation, _]
-                        ? conversation.Conversation.Id
-                        : null;
+                var within = compose.Purpose == ComposeFor.Reply && Beneath(compose) is ConversationScreen conversation
+                    ? conversation.Conversation.Id
+                    : null;
 
                 await reach.Put(
                     ask => ask.Of(token => reach.Ports.Author.PublishAttached(profile, draft, token)),
@@ -504,21 +488,23 @@ public sealed class Drafting
     }
 
     /// <summary>
-    ///     <c>esc</c> while a send is waiting on the compose in front, which is a level of its own over the draft: the
-    ///     send is called off and the draft left as it was, to be changed or sent again (ADR-0026, #375).
+    ///     <c>esc</c>, once the shell has no question open to answer with it: while a send is waiting on the compose in
+    ///     front, which is a level of its own over the draft, the send is called off and the draft left as it was, to be
+    ///     changed or sent again (ADR-0026, #375).
     /// </summary>
-    private Drafted CallOff()
+    /// <returns>Whether there was a send to call off; where there was not, <c>esc</c> is the shell's.</returns>
+    public bool Back()
     {
         if (_waitingToSend is null || !ReferenceEquals(_waitingToSend, _stack.Top))
         {
-            return Drafted.NotMine;
+            return false;
         }
 
         _waitingToSend = null;
 
         Reach.Say("Not sent — the draft is as it was.", isError: false);
 
-        return Drafted.Used;
+        return true;
     }
 
     /// <summary>
@@ -646,6 +632,14 @@ public sealed class Drafting
         .TakeWhile(screen => !ReferenceEquals(screen, browser))
         .Select(screen => screen is AttachmentsScreen listing ? listing.Compose : screen)
         .LastOrDefault(screen => screen is IDraft);
+
+    /// <summary>
+    ///     The screen <paramref name="screen" /> was opened over: the one beneath it on the stack, found by the screen
+    ///     itself rather than by where it stands from the top — or none.
+    /// </summary>
+    private Screen? Beneath(Screen screen) => _stack.Screens
+        .TakeWhile(below => !ReferenceEquals(below, screen))
+        .LastOrDefault();
 
     /// <summary>
     ///     Opens the description editor over the compose screen in front, on the attachment whose row the walk is on
@@ -991,9 +985,9 @@ public sealed class Drafting
     ///     picture is. Sent with the rest of the form when it is saved, and not before (ADR-0028).
     /// </summary>
     /// <remarks>
-    ///     There is no text to paste on either row, so whatever else the clipboard holds is said on the status row rather
-    ///     than left to a field's own paste as on compose — every time, but for nothing to read the clipboard with, which
-    ///     is said once a session whichever draft it was pasted into (<see cref="ReadTheClipboard" />, #422).
+    ///     There is no text to paste on either row, so whatever else the clipboard holds is said on the status row, every
+    ///     time and there and then, rather than left to a field's own paste as on compose — nothing to read the clipboard
+    ///     with included, which compose says once a session because text still pastes there, and here nothing would.
     /// </remarks>
     private void PastePicture()
     {
@@ -1002,7 +996,7 @@ public sealed class Drafting
             return;
         }
 
-        switch (ReadTheClipboard())
+        switch (_clipboard.Read())
         {
             case Clipped.Picture(var png):
                 var pasted = _pasted.Keep(png);
@@ -1022,8 +1016,9 @@ public sealed class Drafting
 
                 break;
 
-            // Said, where it is said at all, as the clipboard was read: once a session, as on compose (#422).
-            case Clipped.NoTool:
+            case Clipped.NoTool(var why):
+                Reach.Say(why, isError: false);
+
                 break;
 
             default:

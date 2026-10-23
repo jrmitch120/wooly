@@ -8,9 +8,9 @@ using Wooly.Tui.Theme;
 namespace Wooly.Tests.Tui;
 
 /// <summary>
-///     Descriptions on pending attachments (#377) in the shell: walking onto an attachment's row, the description editor
-///     it opens as drawn, and <c>esc</c> and <c>ctrl-s</c> being done with it. What goes to the instance, and when, is
-///     drafting's (<see cref="DraftingDescriptionTests" />).
+///     Descriptions on pending attachments (#377) in the shell: the description editor in the window, and <c>esc</c>
+///     and <c>ctrl-s</c> being done with it. Opening it, what is written into it and what goes to the instance, and
+///     when, are drafting's (<see cref="DraftingDescriptionTests" />).
 /// </summary>
 public class ComposeDescriptionTests : IDisposable
 {
@@ -20,80 +20,6 @@ public class ComposeDescriptionTests : IDisposable
     private const int Height = 21;
 
     private readonly TemporaryDirectory _files = new();
-
-    /// <summary>
-    ///     <c>enter</c> on a row opens the description editor over the draft, named after the attachment, with the
-    ///     instance's limit to count against.
-    /// </summary>
-    [Fact]
-    public async Task EnterOnARowOpensTheDescriptionEditor()
-    {
-        var (shell, _, compose) = await Composing();
-
-        shell.Paste(_files.WriteFile("cat.png"));
-        Walk(shell, ShellKey.Up);
-        shell.Press(ShellKey.Enter);
-
-        var describing = Assert.IsType<DescriptionScreen>(shell.Screen);
-
-        Assert.Equal(["Home", "Compose", "Describe cat.png"], shell.Crumbs);
-        Assert.Same(compose.Media.Attachments[0], describing.Attachment);
-
-        var rows = Texts(describing);
-
-        Assert.Contains(rows, row => row.Trim() == "Description (alt text)");
-        Assert.Equal("0 / 1500", rows[^1].Trim());
-    }
-
-    /// <summary>
-    ///     <c>enter</c> on the Media header above the rows opens the file browser (#376), not the description editor:
-    ///     there is nothing there to describe.
-    /// </summary>
-    [Fact]
-    public async Task EnterOnTheHeaderDescribesNothing()
-    {
-        var (shell, _, _) = await Composing();
-
-        shell.Paste(_files.WriteFile("cat.png"));
-        Walk(shell, ShellKey.Up);
-        Walk(shell, ShellKey.Up);
-        shell.Press(ShellKey.Enter);
-
-        Assert.IsType<FileBrowserScreen>(shell.Screen);
-    }
-
-    /// <summary>The editor's counter is out of the instance's own description limit, where it gives one.</summary>
-    [Fact]
-    public async Task TheCounterIsOutOfTheInstancesLimit()
-    {
-        var (shell, _, _) = await Composing(PostLimits.Default with { Descriptions = 420 });
-
-        shell.Paste(_files.WriteFile("cat.png"));
-        Walk(shell, ShellKey.Up);
-        shell.Press(ShellKey.Enter);
-        shell.Drafting.Write("A cat");
-
-        Assert.Equal("5 / 420", Texts(shell.Screen)[^1].Trim());
-    }
-
-    /// <summary>
-    ///     Past the limit the counter turns to the error's colour, so a description the instance would refuse is seen
-    ///     before it is sent.
-    /// </summary>
-    [Fact]
-    public async Task ACounterPastTheLimitIsAnError()
-    {
-        var (shell, _, _) = await Composing(PostLimits.Default with { Descriptions = 10 });
-
-        shell.Paste(_files.WriteFile("cat.png"));
-        Walk(shell, ShellKey.Up);
-        shell.Press(ShellKey.Enter);
-        shell.Drafting.Write("A cat on a mat");
-
-        var counter = Lines(shell.Screen)[^1];
-
-        Assert.Equal(Role.Error, Assert.Single(counter.Spans, span => span.Text == "14 / 10").Role);
-    }
 
     /// <summary>
     ///     <c>esc</c> is done, not cancel: it goes back to the draft keeping what was typed, which the row says in quotes
@@ -299,10 +225,9 @@ public class ComposeDescriptionTests : IDisposable
         return (row, rows[row].IndexOf(text, StringComparison.Ordinal));
     }
 
-    private async Task<(Wooly.Tui.Shell.Shell Shell, AShell Built, ComposeScreen Compose)> Composing(
-        PostLimits? limits = null)
+    private async Task<(Wooly.Tui.Shell.Shell Shell, AShell Built, ComposeScreen Compose)> Composing()
     {
-        var built = new AShell { Limits = FakeInstanceLimits.Setting(limits) };
+        var built = new AShell();
         var shell = await built.Opened();
         var compose = ComposeRows.Open(shell, ComposeFor.Post);
 

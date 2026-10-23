@@ -106,7 +106,7 @@ public class DraftingWaitingSendTests : IDisposable
     {
         var (drafting, compose) = await WaitingOnAClip();
 
-        Assert.Equal(Drafted.Used, drafting.Press(ShellKey.Escape));
+        Assert.True(drafting.Drafting.Back());
 
         Assert.Same(compose, drafting.Stack.Top);
         Assert.Equal("Not sent — the draft is as it was.", drafting.Notice);
@@ -120,12 +120,16 @@ public class DraftingWaitingSendTests : IDisposable
         Assert.Single(compose.Media.Attachments);
     }
 
-    /// <summary><c>esc</c> with no send waiting is not drafting's, and is left to the shell.</summary>
+    /// <summary>
+    ///     <c>esc</c> with no send waiting is not drafting's, and is left to the shell; nor is it ever a draft verb, which
+    ///     would reach drafting before the shell's open question (ADR-0029).
+    /// </summary>
     [Fact]
     public void EscWithNothingWaitingIsTheShells()
     {
         var drafting = Composing();
 
+        Assert.False(drafting.Drafting.Back());
         Assert.Equal(Drafted.NotMine, drafting.Press(ShellKey.Escape));
         Assert.Null(drafting.Notice);
     }

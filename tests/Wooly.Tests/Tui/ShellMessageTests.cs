@@ -7,9 +7,10 @@ using Wooly.Tui.Shell;
 namespace Wooly.Tests.Tui;
 
 /// <summary>
-///     The direct messages destination: the conversations waiting, the thread one of them opens onto, and the reply
-///     written without leaving either. Every one of these is a decision the shell makes without a terminal — which id
-///     is shown, which id is marked read, what a reply is addressed to — which is the seam ADR-0005 asks for.
+///     The direct messages destination: the conversations waiting, the thread one of them opens onto, and where a reply
+///     written without leaving either lands. Every one of these is a decision the shell makes without a terminal — which
+///     id is shown, which id is marked read — which is the seam ADR-0005 asks for. What a reply is addressed to and what
+///     it sends are drafting's (<see cref="DraftingOpenTests" />, <see cref="DraftingSendTests" />).
 /// </summary>
 public class ShellMessageTests
 {
@@ -389,65 +390,6 @@ public class ShellMessageTests
         Assert.Contains(
             listed.Lines(new Drawing(61, AShell.Now)),
             line => line.Text.Contains("Nothing left", StringComparison.Ordinal));
-    }
-
-    /// <summary>
-    ///     The whole of the third acceptance criterion: a reply is written where the thread is, and it goes out
-    ///     answering the message it was written under.
-    /// </summary>
-    [Fact]
-    public async Task Reply_AnswersAMessageFromInsideTheThread()
-    {
-        var thread = AConversation.Thread(
-            AConversation.With(id: "7"),
-            AConversation.DirectPost(id: "110", content: "Are you about?"));
-
-        var shell = new AShell { Messages = FakeDirectMessages.Threading(thread) };
-        var opened = await shell.Opened();
-
-        opened.Step(ToMessages);
-        shell.Host.Settle();
-
-        opened.Press(ShellKey.Enter);
-        shell.Host.Drain();
-        opened.Press(ShellKey.R);
-
-        var compose = Assert.IsType<ComposeScreen>(opened.Screen);
-        compose.Text += "All week";
-
-        await opened.Drafting.Send();
-        shell.Host.Drain();
-
-        var draft = Assert.Single(shell.Author.Published).Draft;
-
-        Assert.Equal("110", draft.InReplyTo);
-        Assert.Contains("All week", draft.Text, StringComparison.Ordinal);
-
-        // Direct, as To shows it, and not chosen: a reply opens on the post it answers and goes out no wider, which
-        // the instance adapter still settles by reading that post (ADR-0013, #338).
-        Assert.Equal(PostVisibility.Direct, draft.Visibility);
-        Assert.False(draft.VisibilityChosen);
-    }
-
-    /// <summary>A reply that is nothing but the mention it opened with is nothing the reader wrote, so nothing is sent.</summary>
-    [Fact]
-    public async Task Send_RefusesAReplyWithNothingOfTheReadersOwnInIt()
-    {
-        var shell = new AShell { Messages = FakeDirectMessages.Threading(AConversation.Thread()) };
-        var opened = await shell.Opened();
-
-        opened.Step(ToMessages);
-        shell.Host.Settle();
-
-        opened.Press(ShellKey.Enter);
-        shell.Host.Drain();
-        opened.Press(ShellKey.R);
-
-        await opened.Drafting.Send();
-        shell.Host.Drain();
-
-        Assert.Empty(shell.Author.Published);
-        Assert.True(opened.NoticeIsError);
     }
 
     /// <summary>A reply lands where the reader is looking, rather than only in the next listing of the conversation.</summary>

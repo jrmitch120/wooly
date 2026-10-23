@@ -197,6 +197,41 @@ public class DraftingWiringTests : IDisposable
         Assert.Equal("Will send once 1 attachment finishes — esc to stop.", drawn.Shell.Notice);
     }
 
+    /// <summary>
+    ///     A walk back down the stack by its crumbs uncovers the compose as <c>esc</c> does: a send still waiting is said
+    ///     again, and one whose upload finished while the description editor was over it goes.
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task WalkingBackOntoAComposeWithASendWaitingCarriesItOn(bool finishedWhileAway)
+    {
+        using var drawn = await Attached();
+        Assert.IsType<ComposeScreen>(drawn.Shell.Screen).Rewrite("Watch this");
+        drawn.Press(Key.S.WithCtrl);
+        OpenTheDescriptionEditor(drawn);
+
+        if (finishedWhileAway)
+        {
+            drawn.Built.Author.Attaching.Single().Ready();
+            drawn.Settle();
+        }
+
+        drawn.Shell.WalkBack(1);
+        drawn.Settle();
+
+        if (finishedWhileAway)
+        {
+            Assert.Equal("Watch this", Assert.Single(drawn.Built.Author.Published).Draft.Text);
+            Assert.Equal("Sent.", drawn.Shell.Notice);
+        }
+        else
+        {
+            Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
+            Assert.Equal("Will send once 1 attachment finishes — esc to stop.", drawn.Shell.Notice);
+        }
+    }
+
     [Fact]
     public async Task EscWithASendWaitingCallsItOffThroughDrafting()
     {
@@ -215,6 +250,33 @@ public class DraftingWiringTests : IDisposable
         drawn.Settle();
 
         Assert.Empty(drawn.Built.Author.Published);
+    }
+
+    /// <summary>
+    ///     <c>esc</c> with a question open over a compose whose send is waiting answers the question, no, and nothing
+    ///     more: the shell's question comes before drafting's call-off, so the send still waits and goes once the upload
+    ///     finishes.
+    /// </summary>
+    [Fact]
+    public async Task EscWithAQuestionOpenOverAWaitingSendAnswersTheQuestionAndTheSendStillWaits()
+    {
+        using var drawn = await Attached();
+        var compose = Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
+        compose.Rewrite("Watch this");
+        drawn.Press(Key.S.WithCtrl);
+        drawn.Shell.Arrive(1);
+        Assert.NotNull(drawn.Shell.Asking);
+
+        Assert.True(drawn.Shell.Do(Verb.Back, answer: null));
+
+        Assert.Null(drawn.Shell.Asking);
+        Assert.Same(compose, drawn.Shell.Screen);
+        Assert.NotEqual("Not sent — the draft is as it was.", drawn.Shell.Notice);
+
+        drawn.Built.Author.Attaching.Single().Ready();
+        drawn.Settle();
+
+        Assert.Equal("Watch this", Assert.Single(drawn.Built.Author.Published).Draft.Text);
     }
 
     /// <summary>
@@ -243,6 +305,36 @@ public class DraftingWiringTests : IDisposable
 
         Assert.IsType<ProfilesScreen>(drawn.Shell.Screen);
         Assert.Equal(opened, drawn.Rows()[0]);
+        Assert.Equal("Sent.", drawn.Shell.Notice);
+    }
+
+    /// <summary>
+    ///     A screen opened over a compose while its post is on its way — the keymap, here — comes off with the compose
+    ///     when the answer lands, leaving the screen the compose was opened from in front (#423).
+    /// </summary>
+    [Fact]
+    public async Task ASendLandingTakesOffWhatWasOpenedOverItsCompose()
+    {
+        using var drawn = await DrawnShell.Of(80, 24, Themes.Plain);
+        drawn.Redraw();
+        var home = drawn.Shell.Screen;
+        var crumb = drawn.Rows()[0];
+        drawn.Built.Author.HoldingPublishes = true;
+        drawn.Press(new Key('c'));
+        drawn.Press(new Key('h'));
+        drawn.Press(new Key('i'));
+        drawn.Press(Key.S.WithCtrl);
+
+        Assert.True(drawn.Shell.Do(Verb.Help, answer: null));
+        Assert.IsType<HelpScreen>(drawn.Shell.Screen);
+
+        drawn.Built.Author.HeldPublishes.Single().Land();
+        drawn.Settle();
+        drawn.Redraw();
+
+        Assert.Same(home, drawn.Shell.Screen);
+        Assert.Equal(1, drawn.Shell.Depth);
+        Assert.Equal(crumb, drawn.Rows()[0]);
         Assert.Equal("Sent.", drawn.Shell.Notice);
     }
 

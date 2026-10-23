@@ -31,8 +31,7 @@ public class DraftingBrowserTests : IDisposable
 
         Assert.Equal(Drafted.Used, drafting.Press(ShellKey.CtrlO));
 
-        Assert.IsType<FileBrowserScreen>(drafting.Stack.Top);
-        Assert.Same(compose, drafting.Stack.Screens[^2]);
+        Assert.Equal<Screen>([compose, Assert.IsType<FileBrowserScreen>(drafting.Stack.Top)], drafting.Stack.Screens.Skip(1));
     }
 
     /// <summary>An edit has nothing to attach to, so <c>ctrl-o</c> opens nothing there.</summary>
@@ -111,8 +110,7 @@ public class DraftingBrowserTests : IDisposable
         _files.WriteFile("a.png");
         _files.WriteFile("b.png");
         _files.WriteFile("c.png");
-        var drafting = Browsing(PostLimits.Default);
-        var compose = (ComposeScreen)drafting.Stack.Screens[^2];
+        var (drafting, compose) = Browsing(PostLimits.Default);
 
         Browser(drafting).Pick(At(drafting, "b.png"));
         Choose(drafting);
@@ -172,8 +170,7 @@ public class DraftingBrowserTests : IDisposable
     {
         Folder("holiday");
         _files.WriteFile("a.png");
-        var drafting = Browsing(PostLimits.Default);
-        var compose = (ComposeScreen)drafting.Stack.Screens[^2];
+        var (drafting, compose) = Browsing(PostLimits.Default);
 
         Browser(drafting).Pick(At(drafting, "a.png"));
         Choose(drafting);
@@ -190,8 +187,7 @@ public class DraftingBrowserTests : IDisposable
     {
         _files.WriteFile("a.png");
         _files.WriteFile("b.png");
-        var drafting = Browsing(PostLimits.Default);
-        var compose = (ComposeScreen)drafting.Stack.Screens[^2];
+        var (drafting, compose) = Browsing(PostLimits.Default);
 
         Browser(drafting).Pick(At(drafting, "b.png"));
         drafting.Press(ShellKey.Enter);
@@ -210,7 +206,7 @@ public class DraftingBrowserTests : IDisposable
         Folder("work");
         File.WriteAllText(Path.Combine(holiday, "beach.png"), "sand");
         File.WriteAllText(Path.Combine(holiday, "pier.png"), "wood");
-        var drafting = Browsing(PostLimits.Default);
+        var (drafting, _) = Browsing(PostLimits.Default);
 
         foreach (var letter in "hol")
         {
@@ -285,14 +281,17 @@ public class DraftingBrowserTests : IDisposable
         return drafting;
     }
 
-    /// <summary>The browser opened over a fresh compose on an instance setting <paramref name="limits" />.</summary>
-    private ADrafting Browsing(PostLimits limits)
+    /// <summary>
+    ///     The browser opened over a fresh compose on an instance setting <paramref name="limits" />, and that compose.
+    /// </summary>
+    private (ADrafting Drafting, ComposeScreen Compose) Browsing(PostLimits limits)
     {
         var drafting = Composing(limits: limits);
+        var compose = drafting.Composing;
 
         drafting.Press(ShellKey.CtrlO);
 
-        return drafting;
+        return (drafting, compose);
     }
 
     private static FileBrowserScreen Browser(ADrafting drafting) => Assert.IsType<FileBrowserScreen>(drafting.Stack.Top);
