@@ -152,9 +152,9 @@ public sealed record PictureBox
 
     /// <summary>
     ///     What row <paramref name="row" /> of the box holds: the Stand-in's shade, the box's width across, while a
-    ///     picture is coming and not here; blank columns where none is drawn or a fixed box's picture is here; and where
-    ///     a shaped box's picture is here, blanks to the picture's right edge on the row it is set into and nothing on
-    ///     the rest.
+    ///     picture is coming and not here; blank columns where none is drawn or a fixed box's picture is here; and
+    ///     where a shaped box's picture is here, blanks to the picture's right edge on the row it is set into and
+    ///     nothing on the rest.
     /// </summary>
     public Span Holds(int row) => _set is not null && row == _down ? _heldWhereSet : _held;
 
