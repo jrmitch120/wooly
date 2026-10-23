@@ -140,12 +140,12 @@ public class DraftingClipboardTests : IDisposable
     }
 
     /// <summary>
-    ///     The edit public profile form's picture paste shares compose's clipboard and what it was told about it: a
-    ///     missing tool said over a compose is not said again over the form's avatar, nor one said there over a compose
-    ///     opened afterwards — once a session, whichever draft it was pasted into (#422).
+    ///     The edit public profile form's picture paste has no text of its own to fall back on, so with nothing to read
+    ///     the clipboard with it says so on every press, there and then — whatever was said over a compose before, which
+    ///     says it once a session for its own reason: text still pastes there.
     /// </summary>
     [Fact]
-    public void AMissingToolIsSaidOnceASessionAcrossBothDrafts()
+    public void TheFormSaysAMissingToolOnEveryPressAtOnce()
     {
         var drafting = Composing();
         const string why = "Pasting a picture or files needs wl-paste or xclip installed.";
@@ -159,14 +159,18 @@ public class DraftingClipboardTests : IDisposable
         drafting.Stack.TakeOff(drafting.Composing);
         OnTheAvatar(drafting);
 
-        drafting.Press(ShellKey.CtrlV);
-        drafting.Fakes.Host.Drain();
-        Assert.Null(drafting.Notice);
+        foreach (var _ in Enumerable.Range(0, 2))
+        {
+            drafting.Notice = null;
+
+            Assert.Equal(Drafted.Used, drafting.Press(ShellKey.CtrlV));
+            Assert.Equal(why, drafting.Notice);
+        }
     }
 
-    /// <summary>And the other way about: said first over the form's avatar, it is not said again over a compose.</summary>
+    /// <summary>And said over the form first, it is still said once over a compose: the form's saying is its own.</summary>
     [Fact]
-    public void AMissingToolSaidOverTheFormIsNotSaidAgainOverACompose()
+    public void AMissingToolSaidOverTheFormIsStillSaidOverACompose()
     {
         var drafting = new ADrafting().Build();
         const string why = "Pasting a picture or files needs wl-paste or xclip installed.";
@@ -176,15 +180,15 @@ public class DraftingClipboardTests : IDisposable
         var form = OnTheAvatar(drafting);
 
         drafting.Press(ShellKey.CtrlV);
-        drafting.Fakes.Host.Drain();
         Assert.Equal(why, drafting.Notice);
 
         drafting.Stack.TakeOff(form);
         drafting.Press(ShellKey.C);
+        drafting.Notice = null;
 
         Assert.Equal(Drafted.Declined, drafting.Press(ShellKey.CtrlV));
         drafting.Fakes.Host.Drain();
-        Assert.Null(drafting.Notice);
+        Assert.Equal(why, drafting.Notice);
     }
 
     /// <summary>The edit public profile form pushed over what is showing, its walk on the avatar.</summary>
