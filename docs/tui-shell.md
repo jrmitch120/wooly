@@ -2071,6 +2071,7 @@ panel the pointer is over. What the gesture then does is a move the keys already
 | Double click | The breadcrumb | Its first click's walk back and nothing more: never a `⏎` on the screen it landed on (#308) |
 | Right click | Anywhere: the content, the rail, the breadcrumb, the status row | `esc`, through the **Keymap** on the screen in front, so up one level of whichever kind is open: it lets a picked **Reference** or an uncast poll toggle go before it pops the screen, declines a confirmation, clears the filter prompt's filter (as `esc` does, not as a left click does) and calls off a sign-in in flight on Add a profile. On a destination's own screen it does nothing, and never quits. Over the rail it does not arrive at the destination under the pointer, and over the breadcrumb it does not walk back to the crumb. Each right click the terminal reports is one `esc`, Terminal.Gui's double and triple included, so three quick right clicks walk back three levels. Only the terminal's right button counts: ctrl+click stays a left click, and the middle button means nothing (#307) |
 | Right click | Anywhere, with compose in front | `esc`, wherever it lands — a field, the rail, the breadcrumb, the status row: over a touched draft it asks `Discard this post? y / n`, and a second right click agrees as a second `esc` does; over an untouched one it leaves (#373). Taken ahead of the view under the pointer, so the compose editor's own context menu never opens, and on the open list of people to mention it neither closes the list nor picks |
+| Right click | Anywhere, with the description editor in front | `esc`, wherever it lands, its field included, as on compose and the edit public profile form: done, back to the draft with the description kept and sent as leaving it any other way sends it. With a question open — `tab` off a touched draft under it asks — it answers it as `esc` does. Taken ahead of the field, whose own context menu never opens (#430) |
 
 **Open questions win.** While a confirmation is on the status row or the filter prompt is open, a click anywhere is a
 key the question does not take: it declines the confirmation, or closes the prompt with what was typed still narrowing
@@ -2079,7 +2080,11 @@ click, and a click does no more than the keys there allow. Terminal.Gui reports 
 before the pair, so a double click whose first click declined a question or closed the prompt is spent with it and
 opens nothing behind it. A click on a crumb is one of these clicks too: it declines or closes the question and walks
 nowhere. A right click is not one of these clicks but `esc`, and answers the question as `esc` does:
-it declines the confirmation too, but takes the filter off rather than leaving what was typed narrowing the list.
+it declines the confirmation too, but takes the filter off rather than leaving what was typed narrowing the list. Over
+the fields of a draft — compose's, the edit public profile form's, the description editor's alike — a click or a wheel
+notch while a question is open goes to the question, not the field: it declines it, and the field neither takes the
+typing nor moves its caret nor scrolls. A sideways notch is no answer there either. A key answers the question the same
+way from any of their fields: `y` agrees, and anything else keeps the draft, the field taking none of it (#373, #430).
 
 **A button is believed only from a press** (`MouseButtons`, review of #372). Terminal.Gui turns on any-motion
 tracking in SGR form, takes the reports as the terminal words them, and makes clicks of them itself: a click as a
