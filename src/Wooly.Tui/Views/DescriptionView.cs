@@ -3,7 +3,6 @@ using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Wooly.Tui.Media;
 using Wooly.Tui.Screens;
-using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 
 namespace Wooly.Tui.Views;
@@ -53,16 +52,13 @@ internal sealed class DescriptionView : View
         Visible = false;
         ViewportSettings |= ViewportSettingsFlags.Transparent | ViewportSettingsFlags.TransparentMouse;
 
-        _editor = new ComposeEditor(theme, DescriptionScreen.EmptyHint, Done, Done, () => { }, () => { })
-        {
-            WordWrap = true,
-            TabKeyAddsTab = false,
-            Visible = false,
-            X = Pos.Func(_ => Laid().X),
-            Y = Pos.Func(_ => Laid().Y),
-            Width = Dim.Func(_ => Laid().Width),
-            Height = Dim.Func(_ => Laid().Height),
-        };
+        _editor = new Placement<DescriptionScreen>(this, shell).Placed(
+            new ComposeEditor(theme, DescriptionScreen.EmptyHint, Done, Done, () => { }, () => { })
+            {
+                WordWrap = true,
+                TabKeyAddsTab = false,
+            },
+            (describing, room) => describing.FieldAt(room, _raster()));
 
         // ctrl-p is the frame's here as everywhere (ADR-0020), where TextView would take it for a line up.
         _editor.KeyBindings.Remove(Key.P.WithCtrl);
@@ -127,12 +123,6 @@ internal sealed class DescriptionView : View
             mouse.Handled = _draft.Spent(mouse);
         }
     }
-
-    /// <summary>Where the screen on top lays the field, or nowhere while it is not the description editor.</summary>
-    private System.Drawing.Rectangle Laid() =>
-        Viewport.Width > 0 && _shell.Screen is DescriptionScreen describing
-            ? describing.FieldAt(Viewport.Size, _raster())
-            : System.Drawing.Rectangle.Empty;
 
     /// <summary>
     ///     Shows the field as the description editor comes on top, filled from the attachment, and takes it away as the
