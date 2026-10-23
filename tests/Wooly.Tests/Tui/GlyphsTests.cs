@@ -1,3 +1,4 @@
+using System.Globalization;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Theme;
 
@@ -70,13 +71,15 @@ public class GlyphsTests
     [InlineData("অসমীয়া", false)]
     [InlineData("हिन्दी", false)]
     [InlineData("ភាសាខ្មែរ", false)]
+    // Chakma's letter KAA and its vowel sign E, both beyond the first 65,536 characters: a mark written as two halves.
+    [InlineData("\U00011107\U0001112C", false)]
     public void MeasuredAlike_IsFalseOnlyWhereASpacingMarkIs(string text, bool alike) =>
         Assert.Equal(alike, Glyphs.MeasuredAlike(text));
 
     /// <summary>
     ///     A character carrying a <em>spacing mark</em> is held in two columns, whatever Terminal.Gui counts it as —
-    ///     one — and whatever a terminal draws it in: one, two, or more (ADR-0031). <c>অসমীয়া</c> is <c>অ স মী য়া</c>,
-    ///     the last two carrying one each; <c>हिन्दी</c> is <c>हि न् दी</c>, the first and last.
+    ///     one — and whatever a terminal draws it in: one, two, or more (ADR-0031). <c>অসমীয়া</c> is
+    ///     <c>অ স মী য়া</c>, the last two carrying one each; <c>हिन्दी</c> is <c>हि न् दी</c>, the first and last.
     /// </summary>
     [Theory]
     [InlineData("অসমীয়া", 6)]
@@ -89,15 +92,15 @@ public class GlyphsTests
     /// <summary>
     ///     A virama joining two letters with no spacing mark between them is measured alike by Terminal.Gui and every
     ///     terminal measured — two columns — but only because .NET's segmentation splits the conjunct after the virama.
-    ///     A runtime that joins it into one cluster, as Unicode's GB9c asks, would have Terminal.Gui count it as one and
-    ///     a terminal draw it in two; this says so before a row does (ADR-0031).
+    ///     A runtime that joins it into one cluster, as Unicode's GB9c asks, would have Terminal.Gui count it as one
+    ///     and a terminal draw it in two; this says so before a row does (ADR-0031).
     /// </summary>
     [Theory]
     [InlineData("न्द")]
     [InlineData("ক্ষ")]
     public void AConjunctWithNoSpacingMark_IsTwoCharactersOfAColumnEach(string conjunct)
     {
-        Assert.Equal(2, new System.Globalization.StringInfo(conjunct).LengthInTextElements);
+        Assert.Equal(2, new StringInfo(conjunct).LengthInTextElements);
         Assert.Equal(2, Glyphs.Columns(conjunct));
         Assert.True(Glyphs.MeasuredAlike(conjunct));
     }

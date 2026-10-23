@@ -15,9 +15,11 @@ namespace Wooly.Tests.Tui;
 /// </summary>
 public partial class HeldOutputTests
 {
+    private const int Columns = 12;
+
     /// <summary>
-    ///     <c>অসমীয়া</c> as the painter leaves it — each character carrying a mark followed by a blank — then <c>|ab</c>.
-    ///     The <c>b</c> is at column eight, where the row was laid out to put it, on every terminal.
+    ///     <c>অসমীয়া</c> as the painter leaves it — each character carrying a mark followed by a blank — then
+    ///     <c>|ab</c>. The <c>b</c> is at column eight, where the row was laid out to put it, on every terminal.
     /// </summary>
     [Theory]
     [InlineData(1)]
@@ -104,8 +106,6 @@ public partial class HeldOutputTests
         return output;
     }
 
-    private const int Columns = 12;
-
     /// <summary>
     ///     The client's output, with what it writes kept: each place the cursor is put and each run of text after it.
     ///     Headless, Terminal.Gui writes neither to the terminal, so both are read off here.
@@ -176,7 +176,9 @@ public partial class HeldOutputTests
             }
         }
 
-        /// <summary>What is drawn in <paramref name="column" />: a character, a blank, or nothing, under a wide one.</summary>
+        /// <summary>
+        ///     What is drawn in <paramref name="column" />: a character, a blank, or nothing, under a wide one.
+        /// </summary>
         public string? At(int column) => _cells[column];
 
         /// <summary>The row read back as herdr reads one: each character once, trailing blanks dropped.</summary>

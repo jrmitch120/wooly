@@ -164,6 +164,27 @@ public class ComposeLangTests
     }
 
     /// <summary>
+    ///     A language whose own name carries a spacing mark is listed by it, each such character with a blank cell
+    ///     after it, and the list's edge where every other row has it (ADR-0031).
+    /// </summary>
+    [Fact]
+    public async Task ALanguageWhoseNameCarriesASpacingMarkIsListedByItWithItsColumnsHeld()
+    {
+        using var drawn = await Drawn();
+
+        OnLang(drawn);
+        Type(drawn, "Assamese");
+
+        var list = List(drawn).FrameToScreen();
+        var cells = drawn.Application.Driver!.Contents!;
+        var row = string.Concat(
+            Enumerable.Range(list.X, list.Width).Select(column => cells[list.Y + 1, column].Grapheme));
+
+        Assert.Contains("as  অসমী য়া ", row, StringComparison.Ordinal);
+        Assert.Equal("│", cells[list.Y + 1, list.Right - 1].Grapheme);
+    }
+
+    /// <summary>
     ///     The list's keys are the mention list's: <c>↑</c>/<c>↓</c> move the pick, <c>⏎</c> picks, and <c>esc</c>
     ///     closes the list and leaves the draft where it was.
     /// </summary>

@@ -30,7 +30,9 @@ The rule is about the character, not the terminal: nothing asks which terminal t
   field its component factory is read from, because Terminal.Gui 2.5.0 offers no public way to: its `DriverRegistry`
   names a factory for each driver, but the application makes its own by name and never calls it. A Terminal.Gui without
   the field leaves the application writing as Terminal.Gui does — the row moving as before, nothing worse — and a test
-  says so. Ask upstream for a public way to hand an application its component factory; when there is one, use it.
+  says so. The field is `readonly`, and set, it overrides any driver named or forced after it — so it is set just
+  before `Init` with none named. Ask upstream for a public way to hand an application its component factory; when there
+  is one, use it.
 - Text in Terminal.Gui's own editing widgets (compose, the bio, search) gets the writer half only: its row holds, but in
   a terminal that draws the cluster wide it may cover the character after it while it is being typed.
 - A virama conjunct with no spacing mark (`न्द`, `ক্ষ`) is counted alike everywhere today, and only because .NET's

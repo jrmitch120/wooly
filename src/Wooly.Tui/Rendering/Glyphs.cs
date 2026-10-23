@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using Terminal.Gui.Text;
 
 namespace Wooly.Tui.Rendering;
@@ -65,8 +66,8 @@ public static class Glyphs
     /// </remarks>
     public static int Columns(string text) =>
         !text.AsSpan().ContainsAnyExceptInRange(FirstPlainAscii, LastPlainAscii) ? text.Length
-        : MeasuredAlike(text) ? text.GetColumns()
-        : HeldAcross(text);
+        : CarriesASpacingMark(text) ? ColumnsByCharacter(text)
+        : text.GetColumns();
 
     /// <summary>
     ///     Whether this client and a terminal measure <paramref name="text" /> alike: false where it carries a
@@ -84,8 +85,24 @@ public static class Glyphs
     ///     an accent, Arabic's vowels, Tibetan's — are counted alike, and so is text with no mark at all.
     /// </remarks>
     public static bool MeasuredAlike(string text) =>
-        !text.AsSpan().ContainsAnyExceptInRange(FirstPlainAscii, LastPlainAscii)
-        || !text.Any(character => char.GetUnicodeCategory(character) == UnicodeCategory.SpacingCombiningMark);
+        !text.AsSpan().ContainsAnyExceptInRange(FirstPlainAscii, LastPlainAscii) || !CarriesASpacingMark(text);
+
+    /// <summary>
+    ///     Whether <paramref name="text" /> carries a spacing mark, read a character at a time rather than a half of one:
+    ///     Chakma's and Grantha's are written as two.
+    /// </summary>
+    private static bool CarriesASpacingMark(string text)
+    {
+        foreach (var rune in text.EnumerateRunes())
+        {
+            if (Rune.GetUnicodeCategory(rune) == UnicodeCategory.SpacingCombiningMark)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     /// <summary>
     ///     How many columns a character carrying a spacing mark is held in: its own and one left blank after it, which
@@ -97,7 +114,7 @@ public static class Glyphs
     ///     <paramref name="text" /> measured a character at a time, each carrying a spacing mark held in
     ///     <see cref="HeldColumns" /> and every other as Terminal.Gui counts it.
     /// </summary>
-    private static int HeldAcross(string text)
+    private static int ColumnsByCharacter(string text)
     {
         var columns = 0;
 

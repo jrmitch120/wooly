@@ -43,7 +43,8 @@ public class FramedRegionTests
 
     /// <summary>
     ///     A character carrying a spacing mark takes its own cell and leaves the next one blank, so what follows it is
-    ///     painted in the column the row was laid out to put it in — and the frame's edge where the frame is (ADR-0031).
+    ///     painted in the column the row was laid out to put it in — and the frame's edge where the frame is
+    ///     (ADR-0031).
     /// </summary>
     [Fact]
     public async Task ACharacterCarryingASpacingMarkIsPaintedWithABlankCellAfterIt()

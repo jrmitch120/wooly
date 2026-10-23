@@ -1,6 +1,7 @@
 using Terminal.Gui.ViewBase;
+using Wooly.Tui.Rendering;
 
-namespace Wooly.Tui.Rendering;
+namespace Wooly.Tui.Views;
 
 /// <summary>
 ///     Text put into a view's cells the way <see cref="Glyphs.Columns" /> measured it: a character carrying a spacing
@@ -9,7 +10,7 @@ namespace Wooly.Tui.Rendering;
 /// <remarks>
 ///     Terminal.Gui gives such a character one cell, and a terminal draws it in one, two, or more; the blank is the
 ///     room a terminal drawing it two wide covers, and the output draws the character after the rest of its row so
-///     that one drawing it wider still moves nothing after it (<see cref="Views.HeldOutput" />). The text itself is
+///     that one drawing it wider still moves nothing after it (<see cref="HeldOutput" />). The text itself is
 ///     left as it was written — what a reader copies, searches or wraps is what the author wrote.
 /// </remarks>
 internal static class HeldText

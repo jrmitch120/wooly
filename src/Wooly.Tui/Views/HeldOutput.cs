@@ -14,13 +14,15 @@ namespace Wooly.Tui.Views;
 ///     for it — and no terminal draws such a character in the one column Terminal.Gui counts: WezTerm draws it in one,
 ///     herdr in two, GNU screen in two or more. Every cell after it lands wherever the terminal's count put it. So each
 ///     frame is written in passes: first every cell but those, each run breaking where one was and the next placed
-///     where Terminal.Gui put it; then those, each placed itself. A terminal drawing one two wide covers the blank the
-///     painter left after it (<see cref="HeldText" />), and writing it last means nothing written afterwards lands on its
-///     second column and erases it, as a wide character is erased. Two side by side — a field being typed in leaves
-///     no blank — go in separate passes, so that each is placed rather than written wherever the first left off.
+///     where Terminal.Gui put it; then those, each placed itself. A terminal drawing one two wide covers the blank
+///     the painter left after it (<see cref="HeldText" />), and writing it last means nothing written afterwards
+///     lands on its second column and erases it, as a wide character is erased. Two side by side — a field being
+///     typed in leaves no blank — go in separate passes, so that each is placed rather than written wherever the
+///     first left off.
 ///     <para>
 ///         Handed to the application as its <c>ansi</c> driver's output (<see cref="Into" />). A frame with no such
-///         character is written exactly as Terminal.Gui writes it, in one pass.
+///         character is written exactly as Terminal.Gui writes it, in one pass. Not sealed, so that a test can read
+///         what it writes at the terminal's edge, which headless Terminal.Gui writes nowhere.
 ///     </para>
 /// </remarks>
 internal class HeldOutput : AnsiOutput
@@ -33,7 +35,9 @@ internal class HeldOutput : AnsiOutput
     ///     Through the field Terminal.Gui's application reads a component factory from, because nothing public sets
     ///     one: its driver registry names a factory for each driver but the application makes its own by name. A
     ///     Terminal.Gui without the field leaves the application writing as Terminal.Gui does, which is the row moving
-    ///     as it did before and nothing worse; <c>HeldOutputTests</c> is what says so.
+    ///     as it did before and nothing worse; <c>HeldOutputTests</c> is what says so. Called just before
+    ///     <see cref="IApplication.Init" /> is, with no driver named: a factory set here is used whatever driver is
+    ///     named or forced after it.
     /// </remarks>
     public static void Into(IApplication application)
     {
@@ -43,7 +47,8 @@ internal class HeldOutput : AnsiOutput
             return;
         }
 
-        var factory = application.GetType().GetField("_componentFactory", BindingFlags.Instance | BindingFlags.NonPublic);
+        var factory = application.GetType()
+            .GetField("_componentFactory", BindingFlags.Instance | BindingFlags.NonPublic);
 
         if (factory?.FieldType.IsAssignableFrom(typeof(AnsiComponentFactory)) == true)
         {
