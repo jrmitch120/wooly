@@ -1,6 +1,5 @@
 using Wooly.Core.Posts;
 using Wooly.Tui.Media;
-using Wooly.Tui.Theme;
 
 namespace Wooly.Tui.Rendering;
 
@@ -59,18 +58,15 @@ public readonly record struct AttachmentPicture(Span Held, Drawn? Wanted, Inset?
     public static AttachmentPicture OfKept(PostMedia kept, int column, IPictures? pictures, Raster? raster) =>
         Of(kept.IsDrawable ? Drawn.Kept(kept) : null, column, pictures, raster);
 
-    /// <summary>What the picture column holds for <paramref name="wanted" />, or blanks where nothing is.</summary>
+    /// <summary>
+    ///     What the picture column holds for <paramref name="wanted" />, or blanks where nothing is: a fixed
+    ///     <see cref="PictureBox" />, filled by the picture whatever its shape, so a portrait photograph is cropped to
+    ///     the column rather than squashed into it (#438).
+    /// </summary>
     private static AttachmentPicture Of(Drawn? wanted, int column, IPictures? pictures, Raster? raster)
     {
-        var blank = new Span(new string(' ', Columns), Role.Body);
+        var box = PictureBox.Fixed(wanted, Columns, rows: 1, pictures, raster);
 
-        if (wanted is null || !Drawing.Draws(pictures, raster, out _))
-        {
-            return new AttachmentPicture(blank, null, null);
-        }
-
-        return pictures.Of(wanted) is null
-            ? new AttachmentPicture(StandIn.Row(Columns), wanted, null)
-            : new AttachmentPicture(blank, wanted, new Inset(wanted, column, Columns, Rows: 1));
+        return new AttachmentPicture(box.Cells(0), box.Wanted, box.Insets(0, column) is [var set] ? set : null);
     }
 }

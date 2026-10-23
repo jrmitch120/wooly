@@ -37,6 +37,12 @@ internal sealed class PublicProfileView : View
     /// <summary>How this terminal paints pixels, which says how tall the avatar's and the header's rows are.</summary>
     private readonly Func<Raster?> _raster;
 
+    /// <summary>
+    ///     Where the pixels come from, which with <see cref="_raster" /> says whether the pictures are drawn at all
+    ///     (<see cref="Rendering.Drawing.Draws" />).
+    /// </summary>
+    private readonly IPictures? _pictures;
+
     /// <summary>The people to mention, hung under the @-word being typed in the bio, as under compose's post (#408).</summary>
     private readonly MentionList _mentions;
 
@@ -52,12 +58,18 @@ internal sealed class PublicProfileView : View
     /// <summary>Where each field is laid: wherever the form puts its stop (ADR-0030).</summary>
     private readonly Placement<PublicProfileScreen> _place;
 
-    public PublicProfileView(ITheme theme, Shell.Shell shell, Drafting.Drafting drafting, Func<Raster?>? raster = null)
+    public PublicProfileView(
+        ITheme theme,
+        Shell.Shell shell,
+        Drafting.Drafting drafting,
+        Func<Raster?>? raster = null,
+        IPictures? pictures = null)
     {
         _theme = theme;
         _shell = shell;
         _drafting = drafting;
         _raster = raster ?? (() => null);
+        _pictures = pictures;
         _place = new Placement<PublicProfileScreen>(this, shell);
 
         // A right click over a field is esc, which the fields would otherwise keep to themselves, and a click outside
@@ -336,7 +348,7 @@ internal sealed class PublicProfileView : View
     /// </remarks>
     private T Placed<T>(T widget, PublicProfileStop stop)
         where T : View =>
-        _place.Placed(widget, (form, room) => form.At(stop, room, _raster()));
+        _place.Placed(widget, (form, room) => form.At(stop, room, _raster(), _pictures));
 
     /// <summary>A change to the form from one of its fields, while it is not being filled.</summary>
     private void Change(Func<PublicProfileScreen, DraftChange> change)

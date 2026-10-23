@@ -127,17 +127,59 @@ internal static class PictureDecoder
     }
 
     /// <summary>
-    ///     <paramref name="picture" /> resized to exactly <paramref name="width" /> by <paramref name="height" />
-    ///     pixels — the box it is drawn in, so that the terminal is handed pixels it has nothing left to do to.
+    ///     <paramref name="picture" /> at exactly <paramref name="width" /> by <paramref name="height" /> pixels — the
+    ///     box it is drawn in, so that the terminal is handed pixels it has nothing left to do to. Through
+    ///     <see cref="Filled" />, so a picture of another shape is cropped to the box rather than stretched to it, and
+    ///     a Stand-in's blur is stretched.
     /// </summary>
-    public static Picture Scaled(Picture picture, int width, int height)
+    /// <param name="picture">The picture, or the blur.</param>
+    /// <param name="width">How wide the box is, in pixels.</param>
+    /// <param name="height">How tall the box is, in pixels.</param>
+    /// <param name="stretched">
+    ///     Whether this is a Stand-in's blur, which is stretched to the box rather than cropped.
+    /// </param>
+    public static Picture Scaled(Picture picture, int width, int height, bool stretched)
     {
         if (picture.Width == width && picture.Height == height)
         {
             return picture;
         }
 
-        using var image = new Image<Rgba32>(picture.Width, picture.Height);
+        using var image = Filled(picture, width, height, stretched);
+
+        return new Picture(Pixels(image));
+    }
+
+    /// <summary>
+    ///     <paramref name="picture" /> filling a box <paramref name="width" /> by <paramref name="height" /> pixels:
+    ///     its middle cropped to the box's shape, then resized to the box (#438). The one step both raster paths take a
+    ///     picture to its box by — Kitty's PNG (<see cref="PictureEncoder.Png" />) and sixel's pixels
+    ///     (<see cref="Scaled" />) — so that the two cannot come to draw one picture in one box differently.
+    /// </summary>
+    /// <remarks>
+    ///     Cropped from the middle, as an instance crops an avatar, because a fixed box — an avatar's, a Media row's —
+    ///     is not the picture's shape, and a picture stretched to one is squashed (GLOSSARY.md's <b>Picture box</b>).
+    ///     A picture fitted to a shaped box (<see cref="Rendering.Inset.Fit" />) already has the box's shape to within
+    ///     a cell's rounding, so the crop takes nothing there worth seeing, and nothing has to say which kind of box
+    ///     this is.
+    ///     <para>
+    ///         A <b>Stand-in</b>'s blur is the one thing stretched instead (<paramref name="stretched" />). It is
+    ///         decoded square whatever the picture's shape (<see cref="Blurs" />), so stretching it to its shaped box
+    ///         is what gives it back the picture's proportions and lines it up with the picture that replaces it, where
+    ///         cropping it would show only its middle band; and a blur has no detail to lose by being stretched
+    ///         (ADR-0025).
+    ///     </para>
+    /// </remarks>
+    /// <param name="picture">The picture, or the blur.</param>
+    /// <param name="width">How wide the box is, in pixels.</param>
+    /// <param name="height">How tall the box is, in pixels.</param>
+    /// <param name="stretched">
+    ///     Whether this is a Stand-in's blur, which is stretched to the box rather than cropped.
+    /// </param>
+    /// <returns>The image, which the caller disposes of.</returns>
+    internal static Image<Rgba32> Filled(Picture picture, int width, int height, bool stretched)
+    {
+        var image = new Image<Rgba32>(picture.Width, picture.Height);
 
         image.ProcessPixelRows(rows =>
         {
@@ -154,9 +196,17 @@ internal static class PictureDecoder
             }
         });
 
-        image.Mutate(context => context.Resize(width, height));
+        if (image.Width != width || image.Height != height)
+        {
+            image.Mutate(context => context.Resize(new ResizeOptions
+            {
+                Size = new Size(width, height),
+                Mode = stretched ? ResizeMode.Stretch : ResizeMode.Crop,
+                Position = AnchorPositionMode.Center,
+            }));
+        }
 
-        return new Picture(Pixels(image));
+        return image;
     }
 
     /// <summary>

@@ -17,7 +17,8 @@ namespace Wooly.Tui.Rendering;
 ///         Where one <em>is</em> coming the columns are taken from the first frame, before the pixels land, and show
 ///         the <see cref="StandIn" />'s shade until they do: a byline that gained five columns on arrival would shove
 ///         the name across the row as the reader was reading it. An attachment's box has been reserved the same way
-///         since ADR-0025, from the shape the instance reported; an avatar's is fixed and needs no shape.
+///         since ADR-0025, from the shape the instance reported; an avatar's is a fixed <see cref="PictureBox" />,
+///         filled by the face whatever its shape (#438).
 ///     </para>
 ///     <para>
 ///         Said once for the two places that spend them — a post's byline at 4×2 (#62) and an account screen's header
@@ -25,12 +26,13 @@ namespace Wooly.Tui.Rendering;
 ///         at two sizes, and a second copy of it is how one of them comes to hold a gap open that the other reclaims.
 ///     </para>
 /// </remarks>
-/// <param name="Wanted">The avatar to send for, or <see langword="null" /> where none is drawn.</param>
-/// <param name="Box">Where to draw it, or <see langword="null" /> while the pixels are still on their way.</param>
-/// <param name="Held">How many columns the box holds.</param>
+/// <param name="Box">The box the face is drawn in, or <see langword="null" /> where none is drawn.</param>
 /// <param name="Gap">How many columns stand between it and the rows beside it.</param>
-public readonly record struct Avatar(Drawn? Wanted, Inset? Box, int Held, int Gap)
+public readonly record struct Avatar(PictureBox? Box, int Gap)
 {
+    /// <summary>The avatar to send for, or <see langword="null" /> where none is drawn.</summary>
+    public Drawn? Wanted => Box?.Wanted;
+
     /// <summary>
     ///     What a post's byline spends on its author's face: four wide and two tall, which is about square in a cell
     ///     twice as tall as it is wide, and one column of air after it (#62).
@@ -63,7 +65,7 @@ public readonly record struct Avatar(Drawn? Wanted, Inset? Box, int Held, int Ga
     internal const int HeaderRows = 4;
 
     /// <summary>How many columns it costs in all: the box and the gap after it, or none.</summary>
-    public int Width => Wanted is null ? 0 : Held + Gap;
+    public int Width => Box is { } box ? box.Columns + Gap : 0;
 
     /// <summary>What <paramref name="account" />'s avatar costs a set of rows <paramref name="rows" /> tall.</summary>
     /// <remarks>
@@ -91,18 +93,14 @@ public readonly record struct Avatar(Drawn? Wanted, Inset? Box, int Held, int Ga
         int rows,
         int gap)
     {
-        if (!Drawing.Draws(pictures, raster, out _) || address is null)
-        {
-            return default;
-        }
-
-        var wanted = Drawn.Avatar(account, address);
-
-        return new Avatar(
-            wanted,
-            pictures.Of(wanted) is null ? null : new Inset(wanted, Column: 0, columns, rows),
+        var box = PictureBox.Fixed(
+            address is null ? null : Drawn.Avatar(account, address),
             columns,
-            gap);
+            rows,
+            pictures,
+            raster);
+
+        return box.Wanted is null ? default : new Avatar(box, gap);
     }
 
     /// <summary><paramref name="rows" /> stepped in to sit beside the avatar, in the order they were given.</summary>
@@ -118,25 +116,22 @@ public readonly record struct Avatar(Drawn? Wanted, Inset? Box, int Held, int Ga
     /// </remarks>
     public IEnumerable<Line> Across(params Line[] rows)
     {
-        if (Wanted is not { } wanted)
+        // Matched into locals because a lambda inside a struct cannot reach the instance it is written in.
+        if (Box is not { Wanted: { } wanted } box)
         {
             return rows;
         }
 
-        // Copied out because a lambda inside a struct cannot reach the instance it is written in.
-        var box = Box;
-
-        // The Stand-in in the columns while the face is not here, on every row the box covers, and blank once it is:
+        // What the box holds on every row it covers — the Stand-in while the face is not here, blank once it is — is
         // the same columns either way, so the name beside it never moves (ADR-0025). Avatars come with no blurhash,
         // so theirs is always the shade.
-        var held = box is null ? StandIn.Row(Held) : new Span(new string(' ', Held), Role.Media);
-        var gap = new string(' ', Gap);
+        var gap = new Span(new string(' ', Gap), Role.Body);
 
         return rows.Select((row, at) =>
         {
-            var beside = row.After(held, new Span(gap, Role.Body));
+            var beside = row.After(box.Cells(at), gap);
 
-            return at > 0 ? beside : beside with { Insets = box is null ? [] : [box], Wants = wanted };
+            return at > 0 ? beside : beside with { Insets = box.Insets(at, column: 0), Wants = wanted };
         });
     }
 }

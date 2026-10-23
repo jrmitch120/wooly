@@ -12,8 +12,10 @@ namespace Wooly.Tui.Media;
 ///     what a frame cost.
 ///     <para>
 ///         Decoded at <see cref="Side" /> pixels square whatever the box: a blur has no detail to lose by being
-///         stretched to its box, which both raster paths do anyway, and one size a hash means one entry a hash. At four
-///         bytes a pixel that is 4 KB a blur, so <see cref="MostBlurs" /> of them is a megabyte at most.
+///         stretched to its box, which both raster paths do to a blur where they crop a picture
+///         (<see cref="PictureDecoder.Filled" />) — and being stretched to its shaped box is what gives it the
+///         picture's proportions back. One size a hash means one entry a hash. At four bytes a pixel that is 4 KB a
+///         blur, so <see cref="MostBlurs" /> of them is a megabyte at most.
 ///     </para>
 ///     <para>
 ///         One made by the shell and handed to the screens on their <see cref="Rendering.Drawing" />, the way the

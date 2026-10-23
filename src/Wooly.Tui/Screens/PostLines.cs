@@ -98,17 +98,8 @@ public static class PostLines
                 .. Byline(shown, width, drawing.Now, pictures, raster),
             ],
             Body(show, width, reading, saysHowToAskPast),
-            .. Media(
-                show,
-                width,
-                pictures,
-                raster,
-                drawing.Blurs,
-                Inset.FeedRows,
-                drawing.HideDrawnCaption,
-                reading,
-                saysHowToAskPast),
-            LinkPreview(show, width, pictures, raster, drawing.Blurs, Inset.FeedRows, reading),
+            .. Media(show, drawing, Inset.FeedRows, reading, saysHowToAskPast),
+            LinkPreview(show, drawing, Inset.FeedRows, reading),
             Poll(show, width, reading),
             [Counts(shown, spelledOut: false)],
         ]);
@@ -158,17 +149,8 @@ public static class PostLines
             ],
             // The post screen is about this post, so x is always something that can act on it here.
             Body(show, width, reading, saysHowToAskPast: true),
-            .. Media(
-                show,
-                width,
-                pictures,
-                raster,
-                drawing.Blurs,
-                Inset.WholeRows,
-                drawing.HideDrawnCaption,
-                reading,
-                saysHowToAskPast: true),
-            LinkPreview(show, width, pictures, raster, drawing.Blurs, Inset.WholeRows, reading),
+            .. Media(show, drawing, Inset.WholeRows, reading, saysHowToAskPast: true),
+            LinkPreview(show, drawing, Inset.WholeRows, reading),
             Poll(show, width, reading),
             [Counts(shown, spelledOut: true)],
         ]);
@@ -414,15 +396,16 @@ public static class PostLines
     ///     answers to either part of the warning: the instance's flag hides what is attached with no text to read it
     ///     off (#113).
     /// </param>
-    /// <param name="pictures">What is here, or <see langword="null" /> where nothing can be drawn.</param>
-    /// <param name="raster">How this terminal paints pixels, or <see langword="null" /> where nobody said.</param>
-    /// <param name="blurs">What a Stand-in's blur comes from, or <see langword="null" /> where none is drawn.</param>
-    /// <param name="mostRows">The most rows a picture may take, which is what a feed and a whole post differ on.</param>
-    /// <param name="hideDrawnCaption">
-    ///     Whether what an attachment says it shows drops where a box is drawn for it (#71) — a picture's own caption,
-    ///     and since #110 a video's description under its label, on the same terms. Since ADR-0025 that is wherever
-    ///     the box is reserved, from the first frame and not from when the pixels land: the box is there either way,
-    ///     and a caption taken down on arrival would move the post under the reader.
+    /// <param name="drawing">
+    ///     The width there is, what is here, how this terminal paints pixels, what a Stand-in's blur comes from, and
+    ///     <see cref="Drawing.HideDrawnCaption" />: whether what an attachment says it shows drops where a box is drawn
+    ///     for it (#71) — a picture's own caption, and since #110 a video's description under its label, on the same
+    ///     terms. Since ADR-0025 that is wherever the box is reserved, from the first frame and not from when the
+    ///     pixels land: the box is there either way, and a caption taken down on arrival would move the post under the
+    ///     reader.
+    /// </param>
+    /// <param name="mostRows">
+    ///     The most rows a picture may take, which is what a feed and a whole post differ on.
     /// </param>
     /// <param name="reading">
     ///     What this reader has done to this post, which is what says whether one of its attachment references is
@@ -439,15 +422,12 @@ public static class PostLines
     /// </returns>
     private static IEnumerable<IReadOnlyList<Line>> Media(
         OnShow show,
-        int width,
-        IPictures? pictures,
-        Raster? raster,
-        Blurs? blurs,
+        Drawing drawing,
         int mostRows,
-        bool hideDrawnCaption,
         Reading reading,
         bool saysHowToAskPast)
     {
+        var width = drawing.Width;
         var post = show.Shown;
 
         // A warned post's attachments are part of what the warning covers, and nothing about one is drawn until the
@@ -479,23 +459,14 @@ public static class PostLines
         {
             if (attached.Opens)
             {
-                yield return Opened(
-                    attached,
-                    references[at],
-                    reading.Reference,
-                    width,
-                    pictures,
-                    raster,
-                    blurs,
-                    mostRows,
-                    hideDrawnCaption);
+                yield return Opened(attached, references[at], reading.Reference, drawing, mostRows);
 
                 at++;
 
                 continue;
             }
 
-            if (!Drawing.Draws(pictures, raster, out var cell))
+            if (!Drawing.Draws(drawing.Pictures, drawing.Raster, out _))
             {
                 yield return [.. LinkedImage(attached, width)];
 
@@ -507,7 +478,7 @@ public static class PostLines
             var drawn = Drawn.Attached(attached);
             var described = Described(attached, MediaMark, width) with { Wants = drawn };
 
-            if (Inset.For(drawn, attached.Shape, cell, width, mostRows) is not { } box)
+            if (PictureBox.Shaped(drawn, attached.Shape, attached.Blurhash, drawing, mostRows) is not { } box)
             {
                 yield return [described];
 
@@ -518,9 +489,9 @@ public static class PostLines
             // there either way, so a caption taken down on arrival would be a row going and the post moving under the
             // reader, which is what the box was reserved to stop (ADR-0025). The box's own top row carries the Wants
             // then, there being no caption to carry it.
-            yield return hideDrawnCaption
-                ? [.. Reserved(box, attached.Blurhash, blurs, pictures, cell, drawn)]
-                : [described, .. Reserved(box, attached.Blurhash, blurs, pictures, cell)];
+            yield return drawing.HideDrawnCaption
+                ? [.. Reserved(box, drawn)]
+                : [described, .. Reserved(box)];
         }
     }
 
@@ -561,17 +532,13 @@ public static class PostLines
         PostMedia attached,
         Reference reference,
         Reference? picked,
-        int width,
-        IPictures? pictures,
-        Raster? raster,
-        Blurs? blurs,
-        int mostRows,
-        bool hideDrawnCaption)
+        Drawing drawing,
+        int mostRows)
     {
         Line Label(bool saysWhatItShows) =>
-            AttachmentReferenceLine(attached, reference, picked, width, saysWhatItShows);
+            AttachmentReferenceLine(attached, reference, picked, drawing.Width, saysWhatItShows);
 
-        if (!attached.IsDrawable || !Drawing.Draws(pictures, raster, out var cell))
+        if (!attached.IsDrawable || !Drawing.Draws(drawing.Pictures, drawing.Raster, out _))
         {
             return [Label(saysWhatItShows: true)];
         }
@@ -583,12 +550,12 @@ public static class PostLines
         // The description goes behind the preference from the first frame rather than when the preview lands, for the
         // reason a picture's caption does: the box is already there, and the setting should not depend on how quick
         // the network was (ADR-0025).
-        return Inset.For(drawn, attached.Shape, cell, width, mostRows) is not { } box
+        return PictureBox.Shaped(drawn, attached.Shape, attached.Blurhash, drawing, mostRows) is not { } box
             ? [Label(saysWhatItShows: true) with { Wants = drawn }]
             :
             [
-                Label(saysWhatItShows: !hideDrawnCaption) with { Wants = drawn },
-                .. Reserved(box, attached.Blurhash, blurs, pictures, cell),
+                Label(saysWhatItShows: !drawing.HideDrawnCaption) with { Wants = drawn },
+                .. Reserved(box),
             ];
     }
 
@@ -672,56 +639,20 @@ public static class PostLines
     ///         cannot come to reserve, shade or fit differently.
     ///     </para>
     ///     <para>
-    ///         The picture's inset goes on whichever row of the box its centred top lands on, rather than always on the
-    ///         first: a row carries the inset its pixels start on, and that is how the view already places a picture
-    ///         whatever row it is on. The rest of the box is blank page, so a picture narrower or shorter than the shape
-    ///         it was reserved at has the page's own background round it.
+    ///         What each row holds and what is set into it is the <see cref="PictureBox" />'s, shaped from what the
+    ///         instance reported; this lays the box across the full width and says what its top row waits for.
     ///     </para>
     /// </remarks>
     /// <param name="box">The box the shape settled.</param>
-    /// <param name="blurhash">
-    ///     The instance's blurhash of the picture, which is drawn over the shade while the picture is not here, or
-    ///     <see langword="null" /> where it sent none (#349).
-    /// </param>
-    /// <param name="blurs">What decodes that blurhash, or <see langword="null" /> where no blur is drawn.</param>
     /// <param name="wants">
     ///     What the box's top row says it is waiting for, where no caption above it is there to say so — or
     ///     <see langword="null" /> where one is.
     /// </param>
-    private static IEnumerable<Line> Reserved(
-        Inset box,
-        string? blurhash,
-        Blurs? blurs,
-        IPictures pictures,
-        CellSize cell,
-        Drawn? wants = null)
+    private static IEnumerable<Line> Reserved(PictureBox box, Drawn? wants = null)
     {
-        if (pictures.Of(box.Drawn) is not { } picture)
-        {
-            // The blur is set into the whole box over the shade rather than in place of it: the shade is what shows
-            // until the blur is encoded and drawn, and what shows where it never decodes at all (#349).
-            var blur = StandIn.WithBlur(box, blurhash, blurs);
-
-            for (var row = 0; row < box.Rows; row++)
-            {
-                var shade = Line.Of(StandIn.Row(box.Columns));
-
-                yield return row == 0 ? shade with { Wants = wants, Insets = blur is null ? [] : [blur] } : shade;
-            }
-
-            yield break;
-        }
-
-        var (fitted, down) = box.Fit(picture, cell);
-
         for (var row = 0; row < box.Rows; row++)
         {
-            var line = row != down
-                ? Line.Blank
-                : new Line([
-                    new Span(new string(' ', fitted.Column), Role.Body),
-                    new Span(new string(' ', fitted.Columns), Role.Media),
-                ]) { Insets = [fitted] };
+            var line = Line.Of(box.Cells(row)) with { Insets = box.Insets(row, column: 0) };
 
             yield return row == 0 ? line with { Wants = wants } : line;
         }
@@ -769,16 +700,10 @@ public static class PostLines
     ///     attachments are asked, which is the whole of what "behind the warning exactly as an attachment is" means.
     /// </param>
     /// <param name="mostRows">The most rows the picture may take, which is what a feed and a whole post differ on.</param>
-    private static IReadOnlyList<Line> LinkPreview(
-        OnShow show,
-        int width,
-        IPictures? pictures,
-        Raster? raster,
-        Blurs? blurs,
-        int mostRows,
-        Reading reading)
+    private static IReadOnlyList<Line> LinkPreview(OnShow show, Drawing drawing, int mostRows, Reading reading)
     {
         var post = show.Shown;
+        var width = drawing.Width;
 
         if (post.LinkPreview is not { } link || !show.Media)
         {
@@ -787,7 +712,7 @@ public static class PostLines
 
         // Null on a terminal that draws nothing and where the instance chose no picture alike — the two answers that
         // read the same, which is what "linked rather than drawn" already means for an attachment (ADR-0016).
-        var drawn = Drawing.Draws(pictures, raster, out _) ? Drawn.LinkPreview(link) : null;
+        var drawn = Drawing.Draws(drawing.Pictures, drawing.Raster, out _) ? Drawn.LinkPreview(link) : null;
 
         // The words first and always, so nothing a reader is looking at moves when the pixels land underneath them.
         // The walked row is what carries the Wants, the way an attachment's own description does.
@@ -800,11 +725,9 @@ public static class PostLines
         // Reserved from the shape the card gave, or the 16:9 default where it gave none worth trusting, whether or not
         // the picture is here yet — the same box and Stand-in an attachment gets, so a link card moves nothing when its
         // picture lands either (ADR-0025, #348). The walked row above already carries the Wants.
-        if (drawn is not null
-            && Drawing.Draws(pictures, raster, out var cell)
-            && Inset.For(drawn, link.Shape, cell, width, mostRows) is { } box)
+        if (drawn is not null && PictureBox.Shaped(drawn, link.Shape, link.Blurhash, drawing, mostRows) is { } box)
         {
-            lines.AddRange(Reserved(box, link.Blurhash, blurs, pictures, cell));
+            lines.AddRange(Reserved(box));
         }
 
         return lines;

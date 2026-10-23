@@ -1,0 +1,209 @@
+using Wooly.Core.Posts;
+using Wooly.Tests.Fakes;
+using Wooly.Tui.Media;
+using Wooly.Tui.Rendering;
+using Wooly.Tui.Theme;
+
+namespace Wooly.Tests.Tui;
+
+/// <summary>
+///     A <b>Picture box</b>: the cells a <b>drawn</b> picture is painted in, and what every row of them holds before
+///     and after its pixels arrive (#438). Fixed boxes — an avatar's, a Media row's, the public profile form's — are
+///     filled; shaped boxes — a post's picture's, a link preview's — fit the picture inside, centred.
+/// </summary>
+public class PictureBoxTests
+{
+    private static readonly Drawn Face = new("m1", "https://files.example/m1.png");
+
+    /// <summary>
+    ///     Every way a picture is not drawn: nowhere for pixels to come from, no cell to draw at, or neither — and no
+    ///     cell to draw at with the pixels already here, which draws nothing either.
+    /// </summary>
+    public static TheoryData<bool, bool, bool> NotDrawn => new()
+    {
+        { false, true, false },
+        { true, false, false },
+        { false, false, false },
+        { true, false, true },
+    };
+
+    private static IPictures? Pictures(bool given, bool here = false) =>
+        !given ? null
+        : here ? new FakePictures().Holding("m1", 300, 300)
+        : new FakePictures();
+
+    private static Raster Raster(bool cell) => cell ? ARaster.Kitty() : Wooly.Tui.Media.Raster.None;
+
+    [Fact]
+    public void Fixed_HoldsTheShadeOnEveryRowUntilThePixelsAreHere()
+    {
+        var box = PictureBox.Fixed(Face, columns: 4, rows: 2, new FakePictures(), ARaster.Kitty());
+
+        Assert.Equal(Face, box.Wanted);
+        Assert.Equal(new Span("░░░░", Role.StandIn), box.Cells(0));
+        Assert.Empty(box.Insets(row: 0, column: 3));
+        Assert.Empty(box.Insets(row: 1, column: 3));
+    }
+
+    /// <summary>
+    ///     Once the pixels are here the box is blank, and the picture is set into its first row over the whole box —
+    ///     filled, whatever its own shape, so the box is the inset.
+    /// </summary>
+    [Fact]
+    public void Fixed_SetsThePictureIntoTheWholeBoxOnceItIsHere()
+    {
+        var pictures = new FakePictures().Holding("m1", 300, 900);
+
+        var box = PictureBox.Fixed(Face, columns: 3, rows: 1, pictures, ARaster.Kitty());
+
+        Assert.Equal(Face, box.Wanted);
+        Assert.Equal("   ", box.Cells(0).Text);
+        Assert.NotEqual(Role.StandIn, box.Cells(0).Role);
+        Assert.Equal([new Inset(Face, Column: 7, Columns: 3, Rows: 1)], box.Insets(row: 0, column: 7));
+    }
+
+    [Fact]
+    public void Fixed_SetsNothingIntoAnyRowButTheFirst()
+    {
+        var pictures = new FakePictures().Holding("m1", 96, 96);
+
+        var box = PictureBox.Fixed(Face, columns: 8, rows: 4, pictures, ARaster.Kitty());
+
+        Assert.All([1, 2, 3], row => Assert.Empty(box.Insets(row, column: 0)));
+    }
+
+    [Theory]
+    [MemberData(nameof(NotDrawn))]
+    public void Fixed_HoldsBlanksAndWantsNothingWhereNoPictureIsDrawn(bool pictures, bool cell, bool here)
+    {
+        var box = PictureBox.Fixed(Face, columns: 4, rows: 2, Pictures(pictures, here), Raster(cell));
+
+        Assert.Null(box.Wanted);
+        Assert.Equal("    ", box.Cells(1).Text);
+        Assert.NotEqual(Role.StandIn, box.Cells(1).Role);
+        Assert.Empty(box.Insets(row: 0, column: 0));
+    }
+
+    /// <summary>
+    ///     A box with no picture to draw in it — a file chosen that cannot be decoded — is blank columns.
+    /// </summary>
+    [Fact]
+    public void Fixed_HoldsBlanksWhereThereIsNoPicture()
+    {
+        var box = PictureBox.Fixed(wanted: null, columns: 3, rows: 1, new FakePictures(), ARaster.Kitty());
+
+        Assert.Null(box.Wanted);
+        Assert.Equal("   ", box.Cells(0).Text);
+        Assert.Empty(box.Insets(row: 0, column: 0));
+    }
+
+    /// <summary>
+    ///     800×200 at 61 columns of 10×20-pixel cells is eight rows, every one shaded until the pixels are here, with
+    ///     nothing set into any of them where no blurhash was sent.
+    /// </summary>
+    [Fact]
+    public void Shaped_IsTheReportedShapeShadedUntilThePixelsAreHere()
+    {
+        var box = Shaped(new FakePictures(), new PictureShape(800, 200));
+
+        Assert.NotNull(box);
+        Assert.Equal((61, 8), (box.Columns, box.Rows));
+        Assert.All(Enumerable.Range(0, 8), row =>
+        {
+            Assert.Equal(new Span(new string('░', 61), Role.StandIn), box.Cells(row));
+            Assert.Empty(box.Insets(row, column: 0));
+        });
+    }
+
+    /// <summary>The blur is set into the box's top row over the whole box, and the shade stays under it.</summary>
+    [Fact]
+    public void Shaped_KeepsTheBlurOnItsTopRow()
+    {
+        var box = Shaped(new FakePictures(), new PictureShape(800, 200), StandInBlurTests.AHash);
+
+        Assert.NotNull(box);
+        Assert.Equal(Role.StandIn, box.Cells(0).Role);
+
+        var blur = Assert.Single(box.Insets(row: 0, column: 2));
+
+        Assert.Equal((2, 61, 8), (blur.Column, blur.Columns, blur.Rows));
+        Assert.Equal(Drawn.Blur(Face), blur.Drawn);
+        Assert.NotNull(blur.Blur);
+        Assert.All(Enumerable.Range(1, 7), row => Assert.Empty(box.Insets(row, column: 2)));
+    }
+
+    /// <summary>
+    ///     A square picture in a box the instance said was four times as wide: fitted inside, as tall as the box, with
+    ///     the slack shared either side of it. Its row runs blank to the picture's right edge, which is what a row
+    ///     carrying an inset measures, and the rest of the box is the page.
+    /// </summary>
+    [Fact]
+    public void Shaped_FitsPixelsOfAnotherShapeInsideItCentredAcross()
+    {
+        var box = Shaped(new FakePictures().Holding("m1", 200, 200), new PictureShape(800, 200));
+
+        Assert.NotNull(box);
+        Assert.Equal(new string(' ', 38), box.Cells(0).Text);
+        Assert.NotEqual(Role.StandIn, box.Cells(0).Role);
+        Assert.All(Enumerable.Range(1, 7), row => Assert.Equal("", box.Cells(row).Text));
+        Assert.Equal([new Inset(Face, Column: 25, Columns: 16, Rows: 8)], box.Insets(row: 0, column: 3));
+    }
+
+    /// <summary>
+    ///     A wide picture in a box the instance said was square: twenty columns by ten rows, with the picture's three
+    ///     rows set into the fourth, so the slack is shared above and below.
+    /// </summary>
+    [Fact]
+    public void Shaped_FitsPixelsOfAnotherShapeInsideItCentredDown()
+    {
+        var box = PictureBox.Shaped(
+            Face,
+            new PictureShape(100, 100),
+            blurhash: null,
+            Drawing(width: 20, new FakePictures().Holding("m1", 400, 100), ARaster.Kitty(), blurs: null),
+            mostRows: Inset.FeedRows);
+
+        Assert.NotNull(box);
+        Assert.Equal((20, 10), (box.Columns, box.Rows));
+        Assert.Equal([new Inset(Face, Column: 0, Columns: 20, Rows: 3)], box.Insets(row: 3, column: 0));
+        Assert.All(new[] { 0, 1, 2, 4, 5 }, row => Assert.Empty(box.Insets(row, column: 0)));
+    }
+
+    /// <summary>
+    ///     Where the instance reported no shape, the box is sixteen by nine: full width, narrowed here to the feed's
+    ///     cap.
+    /// </summary>
+    [Fact]
+    public void Shaped_IsSixteenByNineWhereNoShapeWasReported()
+    {
+        var box = Shaped(new FakePictures(), shape: null);
+
+        Assert.NotNull(box);
+        Assert.Equal((57, 16), (box.Columns, box.Rows));
+    }
+
+    [Theory]
+    [MemberData(nameof(NotDrawn))]
+    public void Shaped_IsNoBoxWhereNoPictureIsDrawn(bool pictures, bool cell, bool here)
+    {
+        var box = PictureBox.Shaped(
+            Face,
+            new PictureShape(800, 200),
+            StandInBlurTests.AHash,
+            Drawing(width: 61, Pictures(pictures, here), Raster(cell), new Blurs()),
+            mostRows: Inset.FeedRows);
+
+        Assert.Null(box);
+    }
+
+    private static PictureBox? Shaped(IPictures pictures, PictureShape? shape, string? blurhash = null) =>
+        PictureBox.Shaped(
+            Face,
+            shape,
+            blurhash,
+            Drawing(width: 61, pictures, ARaster.Kitty(), new Blurs()),
+            mostRows: Inset.FeedRows);
+
+    private static Drawing Drawing(int width, IPictures? pictures, Raster raster, Blurs? blurs) =>
+        new(width, DateTimeOffset.UnixEpoch, pictures, raster, Blurs: blurs);
+}

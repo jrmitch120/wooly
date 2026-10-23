@@ -91,22 +91,22 @@ public sealed record Inset(Drawn Drawn, int Column, int Columns, int Rows)
     /// </summary>
     /// <param name="picture">The pixels to fit.</param>
     /// <param name="cell">How many pixels one cell is.</param>
-    /// <param name="atTheLeft">
-    ///     Whether the picture goes at the box's left edge rather than centred across it — where boxes stacked one over
-    ///     another are to start in one column, as the edit public profile form's avatar and header do.
-    /// </param>
     /// <returns>
     ///     The picture's own inset, at <see cref="Column" /> plus how far in it is set, and how many rows down the
     ///     box its top is.
     /// </returns>
-    public (Inset Inset, int Row) Fit(Picture picture, CellSize cell, bool atTheLeft = false)
+    /// <remarks>
+    ///     Only a shaped box fits its picture: a fixed one is filled, cropped to it from the middle, and has no slack
+    ///     to put on either side (<see cref="PictureBox" />, #438).
+    /// </remarks>
+    public (Inset Inset, int Row) Fit(Picture picture, CellSize cell)
     {
         if (Sized(Drawn, picture.Width, picture.Height, cell, Columns, Rows) is not { } fitted)
         {
             return (this, 0);
         }
 
-        var inFrom = atTheLeft ? 0 : (Columns - fitted.Columns) / 2;
+        var inFrom = (Columns - fitted.Columns) / 2;
 
         return (fitted with { Column = Column + inFrom }, (Rows - fitted.Rows) / 2);
     }
