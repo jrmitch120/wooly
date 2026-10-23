@@ -65,7 +65,7 @@ public readonly record struct Avatar(PictureBox? Box, int Gap)
     internal const int HeaderRows = 4;
 
     /// <summary>How many columns it costs in all: the box and the gap after it, or none.</summary>
-    public int Width => Box is { Wanted: not null } box ? box.Columns + Gap : 0;
+    public int Width => Box is { } box ? box.Columns + Gap : 0;
 
     /// <summary>What <paramref name="account" />'s avatar costs a set of rows <paramref name="rows" /> tall.</summary>
     /// <remarks>
@@ -129,9 +129,9 @@ public readonly record struct Avatar(PictureBox? Box, int Gap)
 
         return rows.Select((row, at) =>
         {
-            var beside = row.After(box.Holds(at), gap);
+            var beside = row.After(box.Cells(at), gap);
 
-            return at > 0 ? beside : beside with { Insets = box.On(at, column: 0), Wants = wanted };
+            return at > 0 ? beside : beside with { Insets = box.Insets(at, column: 0), Wants = wanted };
         });
     }
 }

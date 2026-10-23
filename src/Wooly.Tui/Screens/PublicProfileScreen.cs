@@ -457,7 +457,7 @@ public sealed class PublicProfileScreen : Screen, IDraft
             }
 
             Place(new PublicProfileStop(picture.Part), new Rectangle(at, rows.Count, room, pictureRows));
-            rows.AddRange(Pictured(picture, at, width, pictureRows, raster, pictures));
+            rows.AddRange(Pictured(picture, at, width, pictureRows, draws, raster, pictures));
         }
 
         rows.Add(Line.Blank);
@@ -577,12 +577,12 @@ public sealed class PublicProfileScreen : Screen, IDraft
         int at,
         int width,
         int pictureRows,
+        bool draws,
         Raster? raster,
         IPictures? pictures)
     {
         var (label, columns, chosen) = (picture.Label, picture.Columns, PickedFor(picture));
 
-        var draws = Drawing.Draws(pictures, raster, out _);
         var named = !draws ? at : Math.Min(at + PublicProfilePictures.HeaderColumns + Gap, width);
         var room = Math.Max(0, width - named - Pad);
 
@@ -625,13 +625,13 @@ public sealed class PublicProfileScreen : Screen, IDraft
         for (var row = 0; row < pictureRows; row++)
         {
             var line = row == 0
-                ? Labelled(label, at, [box.Holds(row), Blank(named - at - columns), .. said])
-                : Line.Of(Blank(at), box.Holds(row));
+                ? Labelled(label, at, [box.Cells(row), Blank(named - at - columns), .. said])
+                : Line.Of(Blank(at), box.Cells(row));
 
             yield return line with
             {
                 Wants = row == 0 ? box.Wanted : null,
-                Insets = box.On(row, at),
+                Insets = box.Insets(row, at),
             };
         }
     }

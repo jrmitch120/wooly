@@ -67,6 +67,6 @@ public readonly record struct AttachmentPicture(Span Held, Drawn? Wanted, Inset?
     {
         var box = PictureBox.Fixed(wanted, Columns, rows: 1, pictures, raster);
 
-        return new AttachmentPicture(box.Holds(0), box.Wanted, box.On(0, column) is [var set] ? set : null);
+        return new AttachmentPicture(box.Cells(0), box.Wanted, box.Insets(0, column) is [var set] ? set : null);
     }
 }

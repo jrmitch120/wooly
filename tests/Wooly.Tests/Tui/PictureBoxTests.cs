@@ -16,16 +16,21 @@ public class PictureBoxTests
     private static readonly Drawn Face = new("m1", "https://files.example/m1.png");
 
     /// <summary>
-    ///     Every way a picture is not drawn: nowhere for pixels to come from, no cell to draw at, or neither.
+    ///     Every way a picture is not drawn: nowhere for pixels to come from, no cell to draw at, or neither — and no
+    ///     cell to draw at with the pixels already here, which draws nothing either.
     /// </summary>
-    public static TheoryData<bool, bool> NotDrawn => new()
+    public static TheoryData<bool, bool, bool> NotDrawn => new()
     {
-        { false, true },
-        { true, false },
-        { false, false },
+        { false, true, false },
+        { true, false, false },
+        { false, false, false },
+        { true, false, true },
     };
 
-    private static IPictures? Pictures(bool given) => given ? new FakePictures() : null;
+    private static IPictures? Pictures(bool given, bool here = false) =>
+        !given ? null
+        : here ? new FakePictures().Holding("m1", 300, 300)
+        : new FakePictures();
 
     private static Raster Raster(bool cell) => cell ? ARaster.Kitty() : Wooly.Tui.Media.Raster.None;
 
@@ -35,9 +40,9 @@ public class PictureBoxTests
         var box = PictureBox.Fixed(Face, columns: 4, rows: 2, new FakePictures(), ARaster.Kitty());
 
         Assert.Equal(Face, box.Wanted);
-        Assert.Equal(new Span("░░░░", Role.StandIn), box.Holds(0));
-        Assert.Empty(box.On(row: 0, column: 3));
-        Assert.Empty(box.On(row: 1, column: 3));
+        Assert.Equal(new Span("░░░░", Role.StandIn), box.Cells(0));
+        Assert.Empty(box.Insets(row: 0, column: 3));
+        Assert.Empty(box.Insets(row: 1, column: 3));
     }
 
     /// <summary>
@@ -52,9 +57,9 @@ public class PictureBoxTests
         var box = PictureBox.Fixed(Face, columns: 3, rows: 1, pictures, ARaster.Kitty());
 
         Assert.Equal(Face, box.Wanted);
-        Assert.Equal("   ", box.Holds(0).Text);
-        Assert.NotEqual(Role.StandIn, box.Holds(0).Role);
-        Assert.Equal([new Inset(Face, Column: 7, Columns: 3, Rows: 1)], box.On(row: 0, column: 7));
+        Assert.Equal("   ", box.Cells(0).Text);
+        Assert.NotEqual(Role.StandIn, box.Cells(0).Role);
+        Assert.Equal([new Inset(Face, Column: 7, Columns: 3, Rows: 1)], box.Insets(row: 0, column: 7));
     }
 
     [Fact]
@@ -64,19 +69,19 @@ public class PictureBoxTests
 
         var box = PictureBox.Fixed(Face, columns: 8, rows: 4, pictures, ARaster.Kitty());
 
-        Assert.All([1, 2, 3], row => Assert.Empty(box.On(row, column: 0)));
+        Assert.All([1, 2, 3], row => Assert.Empty(box.Insets(row, column: 0)));
     }
 
     [Theory]
     [MemberData(nameof(NotDrawn))]
-    public void Fixed_HoldsBlanksAndWantsNothingWhereNoPictureIsDrawn(bool pictures, bool cell)
+    public void Fixed_HoldsBlanksAndWantsNothingWhereNoPictureIsDrawn(bool pictures, bool cell, bool here)
     {
-        var box = PictureBox.Fixed(Face, columns: 4, rows: 2, Pictures(pictures), Raster(cell));
+        var box = PictureBox.Fixed(Face, columns: 4, rows: 2, Pictures(pictures, here), Raster(cell));
 
         Assert.Null(box.Wanted);
-        Assert.Equal("    ", box.Holds(1).Text);
-        Assert.NotEqual(Role.StandIn, box.Holds(1).Role);
-        Assert.Empty(box.On(row: 0, column: 0));
+        Assert.Equal("    ", box.Cells(1).Text);
+        Assert.NotEqual(Role.StandIn, box.Cells(1).Role);
+        Assert.Empty(box.Insets(row: 0, column: 0));
     }
 
     /// <summary>
@@ -88,8 +93,8 @@ public class PictureBoxTests
         var box = PictureBox.Fixed(wanted: null, columns: 3, rows: 1, new FakePictures(), ARaster.Kitty());
 
         Assert.Null(box.Wanted);
-        Assert.Equal("   ", box.Holds(0).Text);
-        Assert.Empty(box.On(row: 0, column: 0));
+        Assert.Equal("   ", box.Cells(0).Text);
+        Assert.Empty(box.Insets(row: 0, column: 0));
     }
 
     /// <summary>
@@ -105,8 +110,8 @@ public class PictureBoxTests
         Assert.Equal((61, 8), (box.Columns, box.Rows));
         Assert.All(Enumerable.Range(0, 8), row =>
         {
-            Assert.Equal(new Span(new string('░', 61), Role.StandIn), box.Holds(row));
-            Assert.Empty(box.On(row, column: 0));
+            Assert.Equal(new Span(new string('░', 61), Role.StandIn), box.Cells(row));
+            Assert.Empty(box.Insets(row, column: 0));
         });
     }
 
@@ -117,14 +122,14 @@ public class PictureBoxTests
         var box = Shaped(new FakePictures(), new PictureShape(800, 200), StandInBlurTests.AHash);
 
         Assert.NotNull(box);
-        Assert.Equal(Role.StandIn, box.Holds(0).Role);
+        Assert.Equal(Role.StandIn, box.Cells(0).Role);
 
-        var blur = Assert.Single(box.On(row: 0, column: 2));
+        var blur = Assert.Single(box.Insets(row: 0, column: 2));
 
         Assert.Equal((2, 61, 8), (blur.Column, blur.Columns, blur.Rows));
         Assert.Equal(Drawn.Blur(Face), blur.Drawn);
         Assert.NotNull(blur.Blur);
-        Assert.All(Enumerable.Range(1, 7), row => Assert.Empty(box.On(row, column: 2)));
+        Assert.All(Enumerable.Range(1, 7), row => Assert.Empty(box.Insets(row, column: 2)));
     }
 
     /// <summary>
@@ -138,10 +143,10 @@ public class PictureBoxTests
         var box = Shaped(new FakePictures().Holding("m1", 200, 200), new PictureShape(800, 200));
 
         Assert.NotNull(box);
-        Assert.Equal(new string(' ', 38), box.Holds(0).Text);
-        Assert.NotEqual(Role.StandIn, box.Holds(0).Role);
-        Assert.All(Enumerable.Range(1, 7), row => Assert.Equal("", box.Holds(row).Text));
-        Assert.Equal([new Inset(Face, Column: 25, Columns: 16, Rows: 8)], box.On(row: 0, column: 3));
+        Assert.Equal(new string(' ', 38), box.Cells(0).Text);
+        Assert.NotEqual(Role.StandIn, box.Cells(0).Role);
+        Assert.All(Enumerable.Range(1, 7), row => Assert.Equal("", box.Cells(row).Text));
+        Assert.Equal([new Inset(Face, Column: 25, Columns: 16, Rows: 8)], box.Insets(row: 0, column: 3));
     }
 
     /// <summary>
@@ -155,16 +160,13 @@ public class PictureBoxTests
             Face,
             new PictureShape(100, 100),
             blurhash: null,
-            width: 20,
-            mostRows: Inset.FeedRows,
-            new FakePictures().Holding("m1", 400, 100),
-            ARaster.Kitty(),
-            blurs: null);
+            Drawing(width: 20, new FakePictures().Holding("m1", 400, 100), ARaster.Kitty(), blurs: null),
+            mostRows: Inset.FeedRows);
 
         Assert.NotNull(box);
         Assert.Equal((20, 10), (box.Columns, box.Rows));
-        Assert.Equal([new Inset(Face, Column: 0, Columns: 20, Rows: 3)], box.On(row: 3, column: 0));
-        Assert.All(new[] { 0, 1, 2, 4, 5 }, row => Assert.Empty(box.On(row, column: 0)));
+        Assert.Equal([new Inset(Face, Column: 0, Columns: 20, Rows: 3)], box.Insets(row: 3, column: 0));
+        Assert.All(new[] { 0, 1, 2, 4, 5 }, row => Assert.Empty(box.Insets(row, column: 0)));
     }
 
     /// <summary>
@@ -182,17 +184,14 @@ public class PictureBoxTests
 
     [Theory]
     [MemberData(nameof(NotDrawn))]
-    public void Shaped_IsNoBoxWhereNoPictureIsDrawn(bool pictures, bool cell)
+    public void Shaped_IsNoBoxWhereNoPictureIsDrawn(bool pictures, bool cell, bool here)
     {
         var box = PictureBox.Shaped(
             Face,
             new PictureShape(800, 200),
             StandInBlurTests.AHash,
-            width: 61,
-            mostRows: Inset.FeedRows,
-            Pictures(pictures),
-            Raster(cell),
-            new Blurs());
+            Drawing(width: 61, Pictures(pictures, here), Raster(cell), new Blurs()),
+            mostRows: Inset.FeedRows);
 
         Assert.Null(box);
     }
@@ -202,9 +201,9 @@ public class PictureBoxTests
             Face,
             shape,
             blurhash,
-            width: 61,
-            mostRows: Inset.FeedRows,
-            pictures,
-            ARaster.Kitty(),
-            new Blurs());
+            Drawing(width: 61, pictures, ARaster.Kitty(), new Blurs()),
+            mostRows: Inset.FeedRows);
+
+    private static Drawing Drawing(int width, IPictures? pictures, Raster raster, Blurs? blurs) =>
+        new(width, DateTimeOffset.UnixEpoch, pictures, raster, Blurs: blurs);
 }

@@ -28,7 +28,7 @@ public sealed record PictureBox
     private readonly Span _held;
 
     /// <summary>What the row <see cref="_set" /> is on holds.</summary>
-    private readonly Span _heldWhereSet;
+    private readonly Span _heldOnSetRow;
 
     /// <summary>
     ///     What is set into the box, at its own left — the blur or the picture — or <see langword="null" /> where
@@ -36,23 +36,23 @@ public sealed record PictureBox
     /// </summary>
     private readonly Inset? _set;
 
-    /// <summary>Which row of the box <see cref="_set" /> is on.</summary>
-    private readonly int _down;
+    /// <summary>Which row of the box <see cref="_set" /> is on, counted from the box's top.</summary>
+    private readonly int _setRow;
 
-    private PictureBox(Drawn? wanted, int columns, int rows, Span held, Inset? set = null, int down = 0)
-        : this(wanted, columns, rows, held, held, set, down)
+    private PictureBox(Drawn? wanted, int columns, int rows, Span held, Inset? set = null, int setRow = 0)
+        : this(wanted, columns, rows, held, held, set, setRow)
     {
     }
 
-    private PictureBox(Drawn? wanted, int columns, int rows, Span held, Span heldWhereSet, Inset? set, int down)
+    private PictureBox(Drawn? wanted, int columns, int rows, Span held, Span heldOnSetRow, Inset? set, int setRow)
     {
         Wanted = wanted;
         Columns = columns;
         Rows = rows;
         _held = held;
-        _heldWhereSet = heldWhereSet;
+        _heldOnSetRow = heldOnSetRow;
         _set = set;
-        _down = down;
+        _setRow = setRow;
     }
 
     /// <summary>The picture to send for, or <see langword="null" /> where none is drawn.</summary>
@@ -90,9 +90,10 @@ public sealed record PictureBox
     }
 
     /// <summary>
-    ///     A box the shape the instance reported for <paramref name="drawn" />, at the full <paramref name="width" />
-    ///     and no taller than <paramref name="mostRows" /> (<see cref="Inset.For" />), with the picture fitted inside
-    ///     it and centred once it is here (<see cref="Inset.Fit" />): a post's picture, a link preview's.
+    ///     A box the shape the instance reported for <paramref name="drawn" />, at the full width of
+    ///     <paramref name="drawing" /> and no taller than <paramref name="mostRows" /> (<see cref="Inset.For" />), with
+    ///     the picture fitted inside it and centred once it is here (<see cref="Inset.Fit" />): a post's picture, a
+    ///     link preview's.
     /// </summary>
     /// <param name="drawn">The picture.</param>
     /// <param name="shape">
@@ -102,29 +103,26 @@ public sealed record PictureBox
     ///     The instance's blurhash of the picture, set into the top row over the shade while the picture is not here,
     ///     or <see langword="null" /> where it sent none (#349).
     /// </param>
-    /// <param name="width">How many columns there are to draw in.</param>
+    /// <param name="drawing">
+    ///     How many columns there are to draw in, whose pixels have arrived, how this terminal paints them, and what
+    ///     decodes the blurhash.
+    /// </param>
     /// <param name="mostRows">The most rows the box may take.</param>
-    /// <param name="pictures">Whose pixels have arrived, if anywhere's.</param>
-    /// <param name="raster">How this terminal paints pixels, if anybody said.</param>
-    /// <param name="blurs">What decodes the blurhash, or <see langword="null" /> where no blur is drawn.</param>
     /// <returns>The box, or <see langword="null" /> where no picture is drawn or there is no room for one.</returns>
     public static PictureBox? Shaped(
         Drawn drawn,
         PictureShape? shape,
         string? blurhash,
-        int width,
-        int mostRows,
-        IPictures? pictures,
-        Raster? raster,
-        Blurs? blurs)
+        Drawing drawing,
+        int mostRows)
     {
-        if (!Drawing.Draws(pictures, raster, out var cell)
-            || Inset.For(drawn, shape, cell, width, mostRows) is not { } box)
+        if (!Drawing.Draws(drawing.Pictures, drawing.Raster, out var cell)
+            || Inset.For(drawn, shape, cell, drawing.Width, mostRows) is not { } box)
         {
             return null;
         }
 
-        if (pictures.Of(drawn) is not { } picture)
+        if (drawing.Pictures.Of(drawn) is not { } picture)
         {
             // The blur is set into the whole box over the shade rather than in place of it: the shade is what shows
             // until the blur is encoded and drawn, and what shows where it never decodes at all (#349).
@@ -133,10 +131,10 @@ public sealed record PictureBox
                 box.Columns,
                 box.Rows,
                 StandIn.Row(box.Columns),
-                StandIn.WithBlur(box, blurhash, blurs));
+                StandIn.WithBlur(box, blurhash, drawing.Blurs));
         }
 
-        var (fitted, down) = box.Fit(picture, cell);
+        var (fitted, setRow) = box.Fit(picture, cell);
 
         // The row the picture is on runs to the picture's right edge and no further, and the rest are the page: a row
         // carrying an inset measures it, so what scrolls and what is drawn cannot come apart.
@@ -147,7 +145,7 @@ public sealed record PictureBox
             Blanks(0, Role.Body),
             Blanks(fitted.Column + fitted.Columns),
             fitted,
-            down);
+            setRow);
     }
 
     /// <summary>
@@ -156,14 +154,14 @@ public sealed record PictureBox
     ///     where a shaped box's picture is here, blanks to the picture's right edge on the row it is set into and
     ///     nothing on the rest.
     /// </summary>
-    public Span Holds(int row) => _set is not null && row == _down ? _heldWhereSet : _held;
+    public Span Cells(int row) => _set is not null && row == _setRow ? _heldOnSetRow : _held;
 
     /// <summary>
     ///     What is set into row <paramref name="row" /> of the box, where the box starts <paramref name="column" />
     ///     columns into the row: on one row at most, and on none while there is nothing to draw.
     /// </summary>
-    public IReadOnlyList<Inset> On(int row, int column) =>
-        _set is { } set && row == _down ? [set.ShiftedBy(column)] : [];
+    public IReadOnlyList<Inset> Insets(int row, int column) =>
+        _set is { } set && row == _setRow ? [set.ShiftedBy(column)] : [];
 
     private static Span Blanks(int columns, Role role = Role.Media) => new(new string(' ', Math.Max(0, columns)), role);
 }
