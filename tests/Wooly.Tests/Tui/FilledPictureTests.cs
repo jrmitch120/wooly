@@ -26,7 +26,7 @@ public class FilledPictureTests
     [Fact]
     public void Scaled_KeepsAPortraitPicturesMiddleRatherThanSquashingIt()
     {
-        var filled = PictureDecoder.Scaled(Portrait(), 3 * Cell.Width, 1 * Cell.Height);
+        var filled = PictureDecoder.Scaled(Portrait(), 3 * Cell.Width, 1 * Cell.Height, stretched: false);
 
         AssertTheMiddleKept(filled);
     }
@@ -50,7 +50,7 @@ public class FilledPictureTests
     [Fact]
     public void Scaled_ResizesAPictureAlreadyTheBoxsShapeWhole()
     {
-        var filled = PictureDecoder.Scaled(Quartered(60, 40), 30, 20);
+        var filled = PictureDecoder.Scaled(Quartered(60, 40), 30, 20, stretched: false);
 
         Assert.Equal((30, 20), (filled.Width, filled.Height));
         Assert.Equal(Red, filled.Pixels[0, 0]);
@@ -59,6 +59,76 @@ public class FilledPictureTests
         Assert.Equal(White, filled.Pixels[29, 19]);
         Assert.Equal(Red, filled.Pixels[10, 6]);
         Assert.Equal(White, filled.Pixels[20, 14]);
+    }
+
+    /// <summary>
+    ///     A <b>Stand-in</b>'s blur is decoded square and stretched to its box, not cropped like the picture it stands in
+    ///     for: stretching it is what gives it back the picture's proportions, so it lines up with what replaces it
+    ///     (ADR-0025). Set into a wide shaped box, it keeps its full height — its top band and its bottom band both.
+    /// </summary>
+    [Fact]
+    public void Placeholders_StretchABlurToAWideBoxRatherThanCroppingIt()
+    {
+        var terminal = new FakeTerminalImages();
+        using var placeholders = new Placeholders(terminal, () => { }, work => work());
+
+        placeholders.Ready(WideBlur(), Banded(), Cell);
+
+        AssertNothingCropped(Pixels(Assert.Single(terminal.Transmitted).Png));
+    }
+
+    /// <inheritdoc cref="Placeholders_StretchABlurToAWideBoxRatherThanCroppingIt" />
+    [Fact]
+    public void SixelPictures_StretchABlurToAWideBoxRatherThanCroppingIt()
+    {
+        var sixels = new SixelPictures(encode: (_, _) => "", elsewhere: work => work());
+
+        var sixel = sixels.Of(WideBlur(), Banded(), Cell, new SixelCrop(Top: 0, Rows: 2, Columns: 8), colours: 256);
+
+        AssertNothingCropped(new Picture(sixel.Pixels));
+    }
+
+    /// <summary>A blur set into a shaped box eight columns by two rows: 80 by 40 pixels, twice as wide as tall.</summary>
+    private static Inset WideBlur()
+    {
+        var picture = new Drawn("m1", "https://files.example/m1.png");
+
+        return new Inset(Drawn.Blur(picture), Column: 0, Columns: 8, Rows: 2) { Blur = Banded() };
+    }
+
+    /// <summary>
+    ///     A blur as <see cref="Blurs" /> decodes one, 32 pixels square: red along its top eight rows, blue along its
+    ///     bottom eight, and green between.
+    /// </summary>
+    private static Picture Banded()
+    {
+        var pixels = new Color[Blurs.Side, Blurs.Side];
+
+        for (var x = 0; x < Blurs.Side; x++)
+        {
+            for (var y = 0; y < Blurs.Side; y++)
+            {
+                pixels[x, y] = y < 8 ? Red : y >= Blurs.Side - 8 ? Blue : Green;
+            }
+        }
+
+        return new Picture(pixels);
+    }
+
+    /// <summary>
+    ///     The banded blur at 80 by 40: its red band still along the top row and its blue band along the bottom one,
+    ///     where cropping it to the box's shape would have cut both away.
+    /// </summary>
+    private static void AssertNothingCropped(Picture stretched)
+    {
+        Assert.Equal((80, 40), (stretched.Width, stretched.Height));
+
+        foreach (var x in new[] { 0, 40, 79 })
+        {
+            Assert.Equal(Red, stretched.Pixels[x, 0]);
+            Assert.Equal(Green, stretched.Pixels[x, 20]);
+            Assert.Equal(Blue, stretched.Pixels[x, 39]);
+        }
     }
 
     /// <summary>
