@@ -197,6 +197,41 @@ public class DraftingWiringTests : IDisposable
         Assert.Equal("Will send once 1 attachment finishes — esc to stop.", drawn.Shell.Notice);
     }
 
+    /// <summary>
+    ///     A walk back down the stack by its crumbs uncovers the compose as <c>esc</c> does: a send still waiting is said
+    ///     again, and one whose upload finished while the description editor was over it goes.
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task WalkingBackOntoAComposeWithASendWaitingCarriesItOn(bool finishedWhileAway)
+    {
+        using var drawn = await Attached();
+        Assert.IsType<ComposeScreen>(drawn.Shell.Screen).Rewrite("Watch this");
+        drawn.Press(Key.S.WithCtrl);
+        OpenTheDescriptionEditor(drawn);
+
+        if (finishedWhileAway)
+        {
+            drawn.Built.Author.Attaching.Single().Ready();
+            drawn.Settle();
+        }
+
+        drawn.Shell.WalkBack(1);
+        drawn.Settle();
+
+        if (finishedWhileAway)
+        {
+            Assert.Equal("Watch this", Assert.Single(drawn.Built.Author.Published).Draft.Text);
+            Assert.Equal("Sent.", drawn.Shell.Notice);
+        }
+        else
+        {
+            Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
+            Assert.Equal("Will send once 1 attachment finishes — esc to stop.", drawn.Shell.Notice);
+        }
+    }
+
     [Fact]
     public async Task EscWithASendWaitingCallsItOffThroughDrafting()
     {
