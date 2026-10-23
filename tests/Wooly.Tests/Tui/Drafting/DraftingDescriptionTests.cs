@@ -1,9 +1,11 @@
 using Wooly.Core.Errors;
+using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Drafting;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
+using Wooly.Tui.Theme;
 
 namespace Wooly.Tests.Tui;
 
@@ -17,7 +19,8 @@ public class DraftingDescriptionTests : IDisposable
     private readonly TemporaryDirectory _files = new();
 
     /// <summary>
-    ///     <c>enter</c> on a row opens the description editor over the draft, on the attachment the row is.
+    ///     <c>enter</c> on a row opens the description editor over the draft, on the attachment the row is, named after
+    ///     it, with the instance's limit to count against.
     /// </summary>
     [Fact]
     public void EnterOnARowOpensTheDescriptionEditor()
@@ -30,8 +33,61 @@ public class DraftingDescriptionTests : IDisposable
 
         var describing = Assert.IsType<DescriptionScreen>(drafting.Stack.Top);
 
+        Assert.Equal(["Home", "Compose", "Describe cat.png"], drafting.Stack.Screens.Select(screen => screen.Crumb));
         Assert.Same(compose, describing.Compose);
         Assert.Same(compose.Media.Attachments[0], describing.Attachment);
+
+        var rows = Texts(describing);
+
+        Assert.Contains(rows, row => row.Trim() == "Description (alt text)");
+        Assert.Equal("0 / 1500", rows[^1].Trim());
+    }
+
+    /// <summary>
+    ///     <c>enter</c> on the Media header above the rows opens the file browser (#376), not the description editor:
+    ///     there is nothing there to describe.
+    /// </summary>
+    [Fact]
+    public void EnterOnTheHeaderDescribesNothing()
+    {
+        var (drafting, compose) = Attached();
+
+        OntoTheRow(compose);
+        compose.Walk(-1);
+        drafting.Press(ShellKey.Enter);
+
+        Assert.IsType<FileBrowserScreen>(drafting.Stack.Top);
+    }
+
+    /// <summary>The editor's counter is out of the instance's own description limit, where it gives one.</summary>
+    [Fact]
+    public void TheCounterIsOutOfTheInstancesLimit()
+    {
+        var (drafting, compose) = Attached(limits: PostLimits.Default with { Descriptions = 420 });
+
+        OntoTheRow(compose);
+        drafting.Press(ShellKey.Enter);
+        drafting.Drafting.Write("A cat");
+
+        Assert.Equal("5 / 420", Texts(drafting.Stack.Top)[^1].Trim());
+    }
+
+    /// <summary>
+    ///     Past the limit the counter turns to the error's colour, so a description the instance would refuse is seen
+    ///     before it is sent.
+    /// </summary>
+    [Fact]
+    public void ACounterPastTheLimitIsAnError()
+    {
+        var (drafting, compose) = Attached(limits: PostLimits.Default with { Descriptions = 10 });
+
+        OntoTheRow(compose);
+        drafting.Press(ShellKey.Enter);
+        drafting.Drafting.Write("A cat on a mat");
+
+        var counter = Lines(drafting.Stack.Top)[^1];
+
+        Assert.Equal(Role.Error, Assert.Single(counter.Spans, span => span.Text == "14 / 10").Role);
     }
 
     /// <summary>What is written into the editor is the attachment's description, and an edit of the draft.</summary>
@@ -316,10 +372,19 @@ public class DraftingDescriptionTests : IDisposable
         compose.Walk(1);
     }
 
-    /// <summary>Drafting with a compose open over Home and cat.png attached, still going up.</summary>
-    private (ADrafting Drafting, ComposeScreen Compose) Attached(bool holdingDescriptions = false)
+    private static IReadOnlyList<Line> Lines(Screen screen) => screen.Lines(new Drawing(78, AShell.Now, Height: 21));
+
+    private static IReadOnlyList<string> Texts(Screen screen) => [.. Lines(screen).Select(line => line.Text)];
+
+    /// <summary>
+    ///     Drafting with a compose open over Home and cat.png attached, still going up, on an instance setting
+    ///     <paramref name="limits" />.
+    /// </summary>
+    private (ADrafting Drafting, ComposeScreen Compose) Attached(
+        bool holdingDescriptions = false,
+        PostLimits? limits = null)
     {
-        var drafting = new ADrafting().Build();
+        var drafting = new ADrafting { Fakes = { Limits = FakeInstanceLimits.Setting(limits) } }.Build();
 
         drafting.Fakes.Author.HoldingDescriptions = holdingDescriptions;
         drafting.Press(ShellKey.C);
