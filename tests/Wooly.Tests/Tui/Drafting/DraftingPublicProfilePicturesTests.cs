@@ -222,21 +222,23 @@ public class DraftingPublicProfilePicturesTests : IDisposable
     }
 
     /// <summary>
-    ///     A header narrower than its box is drawn at the box's left edge, under the avatar, rather than centred in it:
-    ///     the two pictures start in one column whatever their shapes.
+    ///     A header narrower than its box fills the box, cropped to it as the feed's avatar is, rather than standing in
+    ///     it with slack beside it (#438): under the avatar, starting in its column, and as wide and tall as the box.
     /// </summary>
     [Fact]
-    public void OnATerminalThatDraws_ANarrowHeaderLinesUpWithTheAvatar()
+    public void OnATerminalThatDraws_ANarrowHeaderFillsItsBoxUnderTheAvatar()
     {
         var (_, form) = Editing();
         var avatar = Drawn.Avatar("jeff@mastodon.social", "https://files.example/avatar.png");
         var header = Drawn.HeaderPicture("jeff@mastodon.social", "https://files.example/header.png");
 
         var here = Lines(form, new FakePictures().Holding(avatar.Id, 96, 96).Holding(header.Id, 500, 500));
+        var drawn = Assert.Single(here, line => line.Insets.Any(inset => inset.Drawn == header)).Insets[0];
 
+        Assert.Equal(Assert.Single(Row(here, "Avatar").Insets).Column, drawn.Column);
         Assert.Equal(
-            Assert.Single(Row(here, "Avatar").Insets).Column,
-            Assert.Single(here, line => line.Insets.Any(inset => inset.Drawn == header)).Insets[0].Column);
+            (PublicProfilePictures.HeaderColumns, PublicProfilePictures.Rows),
+            (drawn.Columns, drawn.Rows));
     }
 
     /// <summary>
@@ -299,6 +301,26 @@ public class DraftingPublicProfilePicturesTests : IDisposable
         Assert.All(lines, line => Assert.Null(line.Wants));
         Assert.Contains(lines, line => line.Text.EndsWith(" Avatar  cat.png · sent on save", StringComparison.Ordinal));
         Assert.Contains(lines, line => line.Text == "  Header  none · choose…");
+    }
+
+    /// <summary>
+    ///     A terminal with a cell to draw at but nothing supplying pictures draws none either, by the one test every
+    ///     other picture is drawn by (<see cref="Drawing.Draws" />, #438): no box and no shade, which would otherwise
+    ///     stand for good waiting on pixels that nothing will send for — the rows laid out as a terminal that cannot
+    ///     draw lays them out.
+    /// </summary>
+    [Fact]
+    public void WhereNothingSuppliesPictures_EachRowIsItsWordsWithNoShade()
+    {
+        var (_, form) = Editing();
+
+        var lines = form.Lines(new Drawing(61, AShell.Now, Pictures: null, ARaster.Sixel(), Height: 24));
+        var undrawn = form.Lines(new Drawing(61, AShell.Now, new FakePictures(), Raster.None, Height: 24));
+
+        Assert.DoesNotContain(lines, line => line.Has(Role.StandIn));
+        Assert.All(lines, line => Assert.Empty(line.Insets));
+        Assert.All(lines, line => Assert.Null(line.Wants));
+        Assert.Equal(undrawn.Select(line => line.Text), lines.Select(line => line.Text));
     }
 
     /// <summary>

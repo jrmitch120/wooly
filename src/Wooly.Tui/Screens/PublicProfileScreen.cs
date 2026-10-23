@@ -382,12 +382,15 @@ public sealed class PublicProfileScreen : Screen, IDraft
 
     /// <summary>
     ///     Where the field, picture or toggle at <paramref name="stop" /> goes inside a content viewport of
-    ///     <paramref name="viewport" /> on a terminal that paints as <paramref name="raster" /> says — nowhere, for a row
-    ///     a short viewport has no room for.
+    ///     <paramref name="viewport" /> on a terminal that paints as <paramref name="raster" /> says with
+    ///     <paramref name="pictures" />' pixels — nowhere, for a row a short viewport has no room for.
     /// </summary>
-    /// <remarks>Under the raster the rows were laid out by, which says how tall a picture's row is.</remarks>
-    public Rectangle At(PublicProfileStop stop, Size viewport, Raster? raster = null) =>
-        Laid(viewport.Width, viewport.Height, raster, pictures: null).Places.GetValueOrDefault(stop);
+    /// <remarks>
+    ///     Under the raster and the pictures the rows were laid out by, which between them say whether a picture is
+    ///     drawn and so how tall a picture's row is (<see cref="Drawing.Draws" />).
+    /// </remarks>
+    public Rectangle At(PublicProfileStop stop, Size viewport, Raster? raster = null, IPictures? pictures = null) =>
+        Laid(viewport.Width, viewport.Height, raster, pictures).Places.GetValueOrDefault(stop);
 
     /// <inheritdoc />
     /// <remarks>
@@ -424,10 +427,13 @@ public sealed class PublicProfileScreen : Screen, IDraft
         var valueAt = Math.Min(at + labelRoom + Gap, width);
         var valueRoom = Math.Max(0, room - labelRoom - Gap);
 
-        var pictureRows = raster?.Cell is not null ? PublicProfilePictures.Rows : 1;
+        // By the one test every picture is drawn by, so that a terminal with a cell but nothing supplying pictures does
+        // not hold a shade open for good waiting on pixels nothing will send for (#438).
+        var draws = Drawing.Draws(pictures, raster, out _);
+        var pictureRows = draws ? PublicProfilePictures.Rows : 1;
         var inner = Math.Max(0, width - (Pad * 2));
 
-        var pictureGap = raster?.Cell is not null ? 1 : 0;
+        var pictureGap = draws ? 1 : 0;
         var others = 1 + 1 + 1 + (pictureRows * PublicProfilePicture.Both.Count) + pictureGap + 1 + FieldRows + 1
             + PublicProfileToggle.All.Count + 1 + 1 + 1 + 1;
         var bioRows = height is { } tall ? Math.Max(tall - others, LeastBioRows) : BioRowsUnmeasured;
@@ -576,8 +582,8 @@ public sealed class PublicProfileScreen : Screen, IDraft
     {
         var (label, columns, chosen) = (picture.Label, picture.Columns, PickedFor(picture));
 
-        var cell = raster?.Cell;
-        var named = cell is null ? at : Math.Min(at + PublicProfilePictures.HeaderColumns + Gap, width);
+        var draws = Drawing.Draws(pictures, raster, out _);
+        var named = !draws ? at : Math.Min(at + PublicProfilePictures.HeaderColumns + Gap, width);
         var room = Math.Max(0, width - named - Pad);
 
         Span[] said;
@@ -605,32 +611,27 @@ public sealed class PublicProfileScreen : Screen, IDraft
             said = [name, new Span(TextWrap.Clip(SentOnSave, room - name.Width), Role.Muted)];
         }
 
-        if (cell is not { } drawnAt)
+        if (!draws)
         {
             yield return Labelled(label, at, said);
 
             yield break;
         }
 
-        var wanted = Wanted(picture);
-        var pixels = wanted is not null && pictures is not null ? pictures.Of(wanted) : null;
-        var held = wanted is null ? Blank(columns)
-            : pixels is null ? StandIn.Row(columns)
-            : new Span(new string(' ', columns), Role.Media);
-        var fitted = wanted is not null && pixels is not null
-            ? new Inset(wanted, at, columns, pictureRows).Fit(pixels, drawnAt, atTheLeft: true)
-            : default;
+        // Filled as the feed's avatar is, whatever the picture's shape, so the avatar and the header start in one
+        // column and end at their boxes' edges (#438).
+        var box = PictureBox.Fixed(Wanted(picture), columns, pictureRows, pictures, raster);
 
         for (var row = 0; row < pictureRows; row++)
         {
             var line = row == 0
-                ? Labelled(label, at, [held, Blank(named - at - columns), .. said])
-                : Line.Of(Blank(at), held);
+                ? Labelled(label, at, [box.Holds(row), Blank(named - at - columns), .. said])
+                : Line.Of(Blank(at), box.Holds(row));
 
             yield return line with
             {
-                Wants = row == 0 ? wanted : null,
-                Insets = fitted.Inset is { } box && row == fitted.Row ? [box] : [],
+                Wants = row == 0 ? box.Wanted : null,
+                Insets = box.On(row, at),
             };
         }
     }

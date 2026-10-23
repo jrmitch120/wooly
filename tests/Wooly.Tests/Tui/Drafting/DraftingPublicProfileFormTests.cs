@@ -186,7 +186,7 @@ public class DraftingPublicProfileFormTests
         void InView()
         {
             var lines = form.Lines(drawing);
-            var at = form.At(form.Typing, room, drawing.Raster);
+            var at = form.At(form.Typing, room, drawing.Raster, drawing.Pictures);
 
             Assert.True(lines.Count <= 10, $"{lines.Count} rows in a room of 10");
             Assert.False(at.IsEmpty, $"{form.Typing} is nowhere");

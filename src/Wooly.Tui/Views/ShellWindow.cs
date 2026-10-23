@@ -260,7 +260,7 @@ internal sealed class ShellWindow : Window
         [
             new ComposeView(theme, shell, shell.Drafting),
             new DescriptionView(theme, shell, shell.Drafting, () => _content.Raster),
-            new PublicProfileView(theme, shell, shell.Drafting, () => _content.Raster),
+            new PublicProfileView(theme, shell, shell.Drafting, () => _content.Raster, pictures),
         ];
 
         foreach (var overlay in _overlays)
