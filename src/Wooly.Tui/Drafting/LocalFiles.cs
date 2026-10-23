@@ -1,9 +1,9 @@
 using Wooly.Tui.Screens;
 
-namespace Wooly.Tui.Shell;
+namespace Wooly.Tui.Drafting;
 
 /// <summary>
-///     What the shell reads off this machine's disk for attaching (#375, #376): a folder as the file browser lists it,
+///     What drafting reads off this machine's disk for attaching (#375, #376): a folder as the file browser lists it,
 ///     and how large a file being attached is. Here rather than on the screens, which hold what they are handed and
 ///     read nothing themselves (ADR-0015, review of #372).
 /// </summary>

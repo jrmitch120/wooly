@@ -333,7 +333,7 @@ public class ComposeLangTests
             drawn.Press(Key.Tab);
         }
 
-        await drawn.Shell.Send();
+        await drawn.Shell.Drafting.Send();
         drawn.Settle();
 
         Assert.Equal(sent, Assert.Single(drawn.Built.Author.Edits).Edit.Language);
@@ -352,7 +352,7 @@ public class ComposeLangTests
 
         Assert.False(List(drawn).Visible);
 
-        await drawn.Shell.Send();
+        await drawn.Shell.Drafting.Send();
         drawn.Settle();
 
         Assert.Same(compose, drawn.Shell.Screen);

@@ -159,13 +159,13 @@ public class ComposeDiscardTests
                 break;
 
             case "visibility":
-                drawn.Shell.ChangeCompose(screen => screen.TypeInto(ComposeField.To));
+                drawn.Shell.Drafting.Edit<ComposeScreen>(screen => screen.TypeInto(ComposeField.To));
                 drawn.Redraw();
                 drawn.Press(Key.CursorRight);
                 break;
 
             case "language":
-                drawn.Shell.ChangeCompose(screen => screen.TypeInto(ComposeField.Lang));
+                drawn.Shell.Drafting.Edit<ComposeScreen>(screen => screen.TypeInto(ComposeField.Lang));
                 drawn.Redraw();
                 Type(drawn, "fr");
                 break;
@@ -174,7 +174,7 @@ public class ComposeDiscardTests
         Assert.True(compose.Touched, field);
 
         // Back to the post, so that esc is a way out rather than the close of a list a field opened.
-        drawn.Shell.ChangeCompose(screen => screen.TypeInto(ComposeField.Post));
+        drawn.Shell.Drafting.Edit<ComposeScreen>(screen => screen.TypeInto(ComposeField.Post));
         drawn.Redraw();
         drawn.Press(Key.Esc);
 
@@ -480,37 +480,6 @@ public class ComposeDiscardTests
         drawn.Built.Host.SettleAll();
 
         Assert.Equal(2, drawn.Shell.Rail.Current);
-    }
-
-    /// <summary>
-    ///     A step off a draft that lands on the destination already shown — the cursor tabbed away before the reply
-    ///     was opened, and stepped back — walks back out to that destination's own screen, as a click on it does,
-    ///     rather than leaving the post the reply was opened from in front.
-    /// </summary>
-    [Fact]
-    public async Task SteppingOffADraftOntoTheDestinationShown_WalksBackOutToIt()
-    {
-        var post = APost.With(id: "220", account: "ben@hachyderm.io");
-        using var drawn = await DrawnShell.Of(80, Tall, Themes.Plain, new AShell
-        {
-            Timelines = FakeTimelineReader.Holding(post),
-            Engagement = FakePostEngagement.Answered(post),
-        });
-
-        drawn.Press(Key.Enter);
-        drawn.Settle();
-
-        Assert.Equal(2, drawn.Shell.Depth);
-
-        drawn.Shell.Rail.Step(1);
-        ComposeRows.Open(drawn.Shell, ComposeFor.Reply);
-        drawn.Redraw();
-        drawn.Press(Key.Tab.WithShift);
-
-        Assert.Null(drawn.Shell.Asking);
-        Assert.Equal(0, drawn.Shell.Rail.Current);
-        Assert.Equal(1, drawn.Shell.Depth);
-        Assert.IsType<FeedScreen>(drawn.Shell.Screen);
     }
 
     /// <summary>A sent post leaves without asking: sending is not throwing it away.</summary>

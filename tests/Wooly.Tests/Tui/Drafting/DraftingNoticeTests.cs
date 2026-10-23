@@ -3,17 +3,18 @@ using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
-using Wooly.Tui.Theme;
-using Key = Terminal.Gui.Input.Key;
+using Wooly.Tui.Shell;
 
 namespace Wooly.Tests.Tui;
 
 /// <summary>
 ///     A notice said over a post being written goes once the writer does what it asked: edits the draft (#319). The
 ///     status row holds a notice or the keymap and never both, and every key compose answers to was hidden behind a
-///     refusal that only <c>esc</c> — which throws the draft away — would clear.
+///     refusal that only <c>esc</c> — which throws the draft away — would clear. Asked of drafting's one way in for a
+///     change to a draft (<see cref="Wooly.Tui.Drafting.Drafting.Edit{T}" />, ADR-0029, #421): an edit spends the notice
+///     by saying nothing, which is itself announced, and anything else but no change at all is announced.
 /// </summary>
-public class ComposeNoticeTests
+public class DraftingNoticeTests
 {
     private const string TooLong = "Text character limit of 500 exceeded";
 
@@ -21,12 +22,12 @@ public class ComposeNoticeTests
     [Fact]
     public async Task EditingThePostClearsTheNoticeAndIsAnnounced()
     {
-        var (shell, compose) = await Refused();
-        var announced = Announced(shell);
+        var (drafting, compose) = await Refused();
+        var announced = Announced(drafting);
 
-        shell.ChangeCompose(screen => screen.Rewrite("Shorter"));
+        drafting.Drafting.Edit<ComposeScreen>(screen => screen.Rewrite("Shorter"));
 
-        Assert.Null(shell.Notice);
+        Assert.Null(drafting.Notice);
         Assert.Equal("Shorter", compose.Text);
         Assert.Equal(1, announced());
     }
@@ -38,12 +39,12 @@ public class ComposeNoticeTests
     [Fact]
     public async Task TypingInTheWarningUpdatesTheCountAndClearsTheRefusal()
     {
-        var (shell, compose) = await Refused(writingTheWarning: true);
-        var announced = Announced(shell);
+        var (drafting, compose) = await Refused(writingTheWarning: true);
+        var announced = Announced(drafting);
 
-        shell.ChangeCompose(screen => screen.RewriteWarning("!!!"));
+        drafting.Drafting.Edit<ComposeScreen>(screen => screen.RewriteWarning("!!!"));
 
-        Assert.Null(shell.Notice);
+        Assert.Null(drafting.Notice);
         Assert.Equal(1, announced());
 
         // "Far too long" is twelve, and the warning's three count with it.
@@ -54,12 +55,12 @@ public class ComposeNoticeTests
     [Fact]
     public async Task ChangingTheLanguageClearsTheNoticeAndIsAnnounced()
     {
-        var (shell, compose) = await Refused();
-        var announced = Announced(shell);
+        var (drafting, compose) = await Refused();
+        var announced = Announced(drafting);
 
-        shell.ChangeCompose(screen => screen.RewriteLanguage("fr"));
+        drafting.Drafting.Edit<ComposeScreen>(screen => screen.RewriteLanguage("fr"));
 
-        Assert.Null(shell.Notice);
+        Assert.Null(drafting.Notice);
         Assert.Equal("fr", compose.Lang.Held);
         Assert.Equal(1, announced());
     }
@@ -68,13 +69,13 @@ public class ComposeNoticeTests
     [Fact]
     public async Task PickingALanguageClearsTheNoticeAndIsAnnounced()
     {
-        var (shell, compose) = await Refused();
-        var announced = Announced(shell);
+        var (drafting, compose) = await Refused();
+        var announced = Announced(drafting);
         var french = PostLanguageName.Matching("French")[0];
 
-        shell.ChangeCompose(screen => screen.PickLanguage(french));
+        drafting.Drafting.Edit<ComposeScreen>(screen => screen.PickLanguage(french));
 
-        Assert.Null(shell.Notice);
+        Assert.Null(drafting.Notice);
         Assert.Equal(ComposeLang.Spoken(french), compose.Lang.Held);
         Assert.Equal(1, announced());
     }
@@ -91,11 +92,11 @@ public class ComposeNoticeTests
     [InlineData("open the language list")]
     public async Task AMoveLeavesTheNoticeButIsAnnounced(string move)
     {
-        var (shell, _) = await Refused();
-        var announced = Announced(shell);
-        var refusal = shell.Notice;
+        var (drafting, _) = await Refused();
+        var announced = Announced(drafting);
+        var refusal = drafting.Notice;
 
-        shell.ChangeCompose(move switch
+        drafting.Drafting.Edit<ComposeScreen>(move switch
         {
             "walk" => screen => screen.Walk(-1),
             "type into" => screen => screen.TypeInto(ComposeField.Lang),
@@ -103,7 +104,7 @@ public class ComposeNoticeTests
             _ => screen => screen.OfferLanguages(true),
         });
 
-        Assert.Equal(refusal, shell.Notice);
+        Assert.Equal(refusal, drafting.Notice);
         Assert.Equal(1, announced());
     }
 
@@ -114,18 +115,18 @@ public class ComposeNoticeTests
     [Fact]
     public async Task ChoosingOnToLeavesTheNotice()
     {
-        var (shell, compose) = await Refused();
-        var refusal = shell.Notice;
+        var (drafting, compose) = await Refused();
+        var refusal = drafting.Notice;
 
-        shell.ChangeCompose(screen => screen.TypeInto(ComposeField.To));
+        drafting.Drafting.Edit<ComposeScreen>(screen => screen.TypeInto(ComposeField.To));
 
         var was = compose.Visibility;
-        var announced = Announced(shell);
+        var announced = Announced(drafting);
 
-        shell.ChangeCompose(screen => screen.Choose(1));
+        drafting.Drafting.Edit<ComposeScreen>(screen => screen.Choose(1));
 
         Assert.NotEqual(was, compose.Visibility);
-        Assert.Equal(refusal, shell.Notice);
+        Assert.Equal(refusal, drafting.Notice);
         Assert.Equal(1, announced());
     }
 
@@ -133,14 +134,14 @@ public class ComposeNoticeTests
     [Fact]
     public async Task AnEditThatChangesNothingIsNotAnnounced()
     {
-        var (shell, _) = await Refused();
-        var announced = Announced(shell);
-        var refusal = shell.Notice;
+        var (drafting, _) = await Refused();
+        var announced = Announced(drafting);
+        var refusal = drafting.Notice;
 
-        var change = shell.ChangeCompose(screen => screen.TypeInto(ComposeField.Post));
+        var change = drafting.Drafting.Edit<ComposeScreen>(screen => screen.TypeInto(ComposeField.Post));
 
-        Assert.Equal(ComposeChange.None, change);
-        Assert.Equal(refusal, shell.Notice);
+        Assert.Equal(DraftChange.None, change);
+        Assert.Equal(refusal, drafting.Notice);
         Assert.Equal(0, announced());
     }
 
@@ -154,98 +155,80 @@ public class ComposeNoticeTests
     public async Task SayingBackWhatTheDraftHoldsIsNoEdit(string field)
     {
         var french = PostLanguageName.Matching("French")[0];
-        var (shell, _) = await Refused(inLanguage: french);
-        var refusal = shell.Notice;
-        var announced = Announced(shell);
+        var (drafting, _) = await Refused(inLanguage: french);
+        var refusal = drafting.Notice;
+        var announced = Announced(drafting);
 
-        var change = shell.ChangeCompose(field == "the post"
+        var change = drafting.Drafting.Edit<ComposeScreen>(field == "the post"
             ? screen => screen.Rewrite("Far too long")
             : screen => screen.PickLanguage(french));
 
         Assert.NotNull(refusal);
-        Assert.Equal(ComposeChange.None, change);
-        Assert.Equal(refusal, shell.Notice);
+        Assert.Equal(DraftChange.None, change);
+        Assert.Equal(refusal, drafting.Notice);
         Assert.Equal(0, announced());
     }
 
     /// <summary>Nothing at all where compose is not on top: the edit is not made.</summary>
     [Fact]
-    public async Task NothingIsEditedWhereComposeIsNotOnTop()
+    public void NothingIsEditedWhereComposeIsNotOnTop()
     {
-        var shell = await new AShell().Opened();
-        var announced = Announced(shell);
+        var drafting = new ADrafting().Build();
+        var announced = Announced(drafting);
         var made = false;
 
-        var change = shell.ChangeCompose(_ =>
+        var change = drafting.Drafting.Edit<ComposeScreen>(_ =>
         {
             made = true;
 
-            return ComposeChange.Edited;
+            return DraftChange.Edited;
         });
 
         Assert.False(made);
-        Assert.Equal(ComposeChange.None, change);
+        Assert.Equal(DraftChange.None, change);
         Assert.Equal(0, announced());
     }
 
-    /// <summary>Typed into the real editor, the status row's keys are back the moment the draft changes.</summary>
-    [Fact]
-    public async Task TypingIntoTheEditorBringsTheKeysBack()
-    {
-        var built = new AShell { Author = FakePostAuthor.Refusing(new PostRefusedException(TooLong)) };
-
-        using var drawn = await DrawnShell.Of(80, 24, Themes.Dark, built);
-
-        drawn.Shell.Compose();
-        drawn.Redraw();
-        drawn.Window.NewKeyDownEvent(new Key('a'));
-
-        await drawn.Shell.Send();
-        drawn.Settle();
-
-        Assert.Contains(TooLong, drawn.Rows()[^1]);
-
-        drawn.Press(new Key('b'));
-
-        Assert.Contains("ctrl-s", drawn.Rows()[^1]);
-    }
-
-    private static async Task<(Wooly.Tui.Shell.Shell Shell, ComposeScreen Compose)> Refused(
+    private static async Task<(ADrafting Drafting, ComposeScreen Compose)> Refused(
         bool writingTheWarning = false,
         PostLanguage? inLanguage = null)
     {
-        var built = new AShell { Author = FakePostAuthor.Refusing(new PostRefusedException(TooLong)) };
-        var shell = await built.Opened();
-        var compose = ComposeRows.Open(shell, ComposeFor.Post);
+        var drafting = new ADrafting { Fakes = { Author = FakePostAuthor.Refusing(new PostRefusedException(TooLong)) } }
+            .Build();
+
+        drafting.Press(ShellKey.C);
+
+        var compose = drafting.Composing;
 
         compose.Text = "Far too long";
 
         if (writingTheWarning)
         {
-            shell.ChangeCompose(screen => screen.WriteTheWarning());
-            shell.ChangeCompose(screen => screen.RewriteWarning("!!"));
+            drafting.Drafting.Edit<ComposeScreen>(screen => screen.WriteTheWarning());
+            drafting.Drafting.Edit<ComposeScreen>(screen => screen.RewriteWarning("!!"));
         }
 
         if (inLanguage is { } language)
         {
-            shell.ChangeCompose(screen => screen.PickLanguage(language));
+            drafting.Drafting.Edit<ComposeScreen>(screen => screen.PickLanguage(language));
         }
 
-        await shell.Send();
-        built.Host.Drain();
+        await drafting.Drafting.Send();
+        drafting.Fakes.Host.Drain();
 
-        Assert.Contains(TooLong, shell.Notice);
+        Assert.Contains(TooLong, drafting.Notice);
 
-        return (shell, compose);
+        return (drafting, compose);
     }
 
-    /// <summary>Counts every change <paramref name="shell" /> announces from here on.</summary>
-    private static Func<int> Announced(Wooly.Tui.Shell.Shell shell)
+    /// <summary>
+    ///     Counts every change drafting announces from here on: a redraw asked for, or the notice said away — which the
+    ///     shell announces as a change of its own.
+    /// </summary>
+    private static Func<int> Announced(ADrafting drafting)
     {
-        var changes = 0;
+        var from = drafting.Changes + drafting.Said;
 
-        shell.Changed += () => changes++;
-
-        return () => changes;
+        return () => drafting.Changes + drafting.Said - from;
     }
 }

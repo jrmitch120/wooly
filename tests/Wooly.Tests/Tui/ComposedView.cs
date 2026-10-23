@@ -96,7 +96,7 @@ internal sealed class ComposedView : IDisposable
             CanFocus = false,
         };
 
-        var view = new ComposeView(theme, shell)
+        var view = new ComposeView(theme, shell, shell.Drafting)
         {
             X = 0,
             Y = 0,

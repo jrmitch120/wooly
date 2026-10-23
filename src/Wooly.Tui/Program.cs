@@ -16,6 +16,7 @@ using Wooly.Core.Search;
 using Wooly.Core.Timelines;
 using Wooly.Tui;
 using Wooly.Tui.Clipboard;
+using Wooly.Tui.Drafting;
 using Wooly.Tui.Media;
 using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;

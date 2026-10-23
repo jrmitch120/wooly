@@ -7,9 +7,10 @@ using Wooly.Tui.Shell;
 namespace Wooly.Tests.Tui;
 
 /// <summary>
-///     The direct messages destination: the conversations waiting, the thread one of them opens onto, and the reply
-///     written without leaving either. Every one of these is a decision the shell makes without a terminal — which id
-///     is shown, which id is marked read, what a reply is addressed to — which is the seam ADR-0005 asks for.
+///     The direct messages destination: the conversations waiting, the thread one of them opens onto, and where a reply
+///     written without leaving either lands. Every one of these is a decision the shell makes without a terminal — which
+///     id is shown, which id is marked read — which is the seam ADR-0005 asks for. What a reply is addressed to and what
+///     it sends are drafting's (<see cref="DraftingOpenTests" />, <see cref="DraftingSendTests" />).
 /// </summary>
 public class ShellMessageTests
 {
@@ -391,101 +392,6 @@ public class ShellMessageTests
             line => line.Text.Contains("Nothing left", StringComparison.Ordinal));
     }
 
-    /// <summary>
-    ///     The whole of the third acceptance criterion: a reply is written where the thread is, and it goes out
-    ///     answering the message it was written under.
-    /// </summary>
-    [Fact]
-    public async Task Reply_AnswersAMessageFromInsideTheThread()
-    {
-        var thread = AConversation.Thread(
-            AConversation.With(id: "7"),
-            AConversation.DirectPost(id: "110", content: "Are you about?"));
-
-        var shell = new AShell { Messages = FakeDirectMessages.Threading(thread) };
-        var opened = await shell.Opened();
-
-        opened.Step(ToMessages);
-        shell.Host.Settle();
-
-        opened.Press(ShellKey.Enter);
-        shell.Host.Drain();
-        opened.Reply();
-
-        var compose = Assert.IsType<ComposeScreen>(opened.Screen);
-        compose.Text += "All week";
-
-        await opened.Send();
-        shell.Host.Drain();
-
-        var draft = Assert.Single(shell.Author.Published).Draft;
-
-        Assert.Equal("110", draft.InReplyTo);
-        Assert.Contains("All week", draft.Text, StringComparison.Ordinal);
-
-        // Direct, as To shows it, and not chosen: a reply opens on the post it answers and goes out no wider, which
-        // the instance adapter still settles by reading that post (ADR-0013, #338).
-        Assert.Equal(PostVisibility.Direct, draft.Visibility);
-        Assert.False(draft.VisibilityChosen);
-    }
-
-    /// <summary>
-    ///     Mastodon delivers a direct post to the accounts its text mentions and to nobody else (ADR-0013), so a reply
-    ///     in a conversation opens with the mention already written — otherwise it would reach nobody at all.
-    /// </summary>
-    [Fact]
-    public async Task Reply_OpensWithTheConversationWrittenIntoIt()
-    {
-        var thread = AConversation.Thread(
-            AConversation.With(id: "7", with: ["alice@hachyderm.io", "ben@hachyderm.io"]),
-            AConversation.DirectPost(id: "110"));
-
-        var shell = new AShell { Messages = FakeDirectMessages.Threading(thread) };
-        var opened = await shell.Opened();
-
-        opened.Step(ToMessages);
-        shell.Host.Settle();
-
-        opened.Press(ShellKey.Enter);
-        shell.Host.Drain();
-        opened.Reply();
-
-        var compose = Assert.IsType<ComposeScreen>(opened.Screen);
-
-        Assert.Equal("@alice@hachyderm.io @ben@hachyderm.io ", compose.Text);
-
-        compose.Text += "Both of you then";
-
-        await opened.Send();
-        shell.Host.Drain();
-
-        Assert.StartsWith(
-            "@alice@hachyderm.io @ben@hachyderm.io",
-            Assert.Single(shell.Author.Published).Draft.Text,
-            StringComparison.Ordinal);
-    }
-
-    /// <summary>A reply that is nothing but the mention it opened with is nothing the reader wrote, so nothing is sent.</summary>
-    [Fact]
-    public async Task Send_RefusesAReplyWithNothingOfTheReadersOwnInIt()
-    {
-        var shell = new AShell { Messages = FakeDirectMessages.Threading(AConversation.Thread()) };
-        var opened = await shell.Opened();
-
-        opened.Step(ToMessages);
-        shell.Host.Settle();
-
-        opened.Press(ShellKey.Enter);
-        shell.Host.Drain();
-        opened.Reply();
-
-        await opened.Send();
-        shell.Host.Drain();
-
-        Assert.Empty(shell.Author.Published);
-        Assert.True(opened.NoticeIsError);
-    }
-
     /// <summary>A reply lands where the reader is looking, rather than only in the next listing of the conversation.</summary>
     [Fact]
     public async Task Send_PutsWhatWasJustSaidAtTheEndOfTheThread()
@@ -509,11 +415,11 @@ public class ShellMessageTests
 
         opened.Press(ShellKey.Enter);
         shell.Host.Drain();
-        opened.Reply();
+        opened.Press(ShellKey.R);
 
         ((ComposeScreen)opened.Screen).Text += "All week";
 
-        await opened.Send();
+        await opened.Drafting.Send();
         shell.Host.Drain();
 
         var screen = Assert.IsType<ConversationScreen>(opened.Screen);
@@ -563,10 +469,10 @@ public class ShellMessageTests
 
         Assert.Equal("110", opened.Screen.Picked?.Id);
 
-        opened.Reply();
+        opened.Press(ShellKey.R);
         ((ComposeScreen)opened.Screen).Text += "All week";
 
-        await opened.Send();
+        await opened.Drafting.Send();
         shell.Host.Drain();
 
         var screen = Assert.IsType<ConversationScreen>(opened.Screen);
@@ -576,94 +482,6 @@ public class ShellMessageTests
         opened.Back();
 
         Assert.Equal("112", Assert.IsType<DirectMessagesScreen>(opened.Screen).Conversations[0].Latest?.Id);
-    }
-
-    /// <summary>
-    ///     A direct message answered from anywhere but its conversation names whoever wrote it and everyone else it was
-    ///     delivered to: Mastodon routes a direct post to the accounts its text mentions and nobody else (ADR-0013), so
-    ///     its mentions <em>are</em> the rest of the conversation (#132). Naming only its author would answer a
-    ///     three-way message to one of the accounts having it.
-    /// </summary>
-    [Fact]
-    public async Task Reply_AddressesADirectMessageReadOutsideItsConversationToEveryoneItNames()
-    {
-        var message = APost.With(
-            id: "220",
-            account: "alice@hachyderm.io",
-            visibility: PostVisibility.Direct,
-            mentions: ["ben@hachyderm.io", "maria@example.social"]);
-
-        var shell = new AShell { Timelines = FakeTimelineReader.Holding(message) };
-        var opened = await shell.Opened();
-
-        opened.Reply();
-
-        Assert.Equal(
-            "@alice@hachyderm.io @ben@hachyderm.io @maria@example.social ",
-            Assert.IsType<ComposeScreen>(opened.Screen).Text);
-    }
-
-    /// <summary>
-    ///     The reader is among the accounts a direct message they were delivered names — that is how it reached them —
-    ///     and is left out all the same, since nobody is notified of their own reply.
-    /// </summary>
-    [Fact]
-    public async Task Reply_LeavesTheReaderOutOfADirectMessageThatNamedThem()
-    {
-        var message = APost.With(
-            id: "220",
-            account: "alice@hachyderm.io",
-            visibility: PostVisibility.Direct,
-            mentions: ["jeff@mastodon.social", "ben@hachyderm.io"]);
-
-        var shell = new AShell { Timelines = FakeTimelineReader.Holding(message) };
-        var opened = await shell.Opened();
-
-        opened.Reply();
-
-        Assert.Equal("@alice@hachyderm.io @ben@hachyderm.io ", Assert.IsType<ComposeScreen>(opened.Screen).Text);
-    }
-
-    /// <summary>
-    ///     A direct message the reader wrote themselves is answered to whoever they sent it to, off the same list —
-    ///     their own account goes out with everyone else's, and what is left is the recipients.
-    /// </summary>
-    [Fact]
-    public async Task Reply_AddressesTheReadersOwnDirectMessageToWhoTheySentIt()
-    {
-        var message = APost.With(
-            id: "220",
-            account: "jeff@mastodon.social",
-            visibility: PostVisibility.Direct,
-            mentions: ["jeff@mastodon.social", "alice@hachyderm.io"]);
-
-        var shell = new AShell { Timelines = FakeTimelineReader.Holding(message) };
-        var opened = await shell.Opened();
-
-        opened.Reply();
-
-        Assert.Equal("@alice@hachyderm.io ", Assert.IsType<ComposeScreen>(opened.Screen).Text);
-    }
-
-    /// <summary>
-    ///     A handle this client cannot parse is left out of a direct reply rather than written in malformed, exactly as
-    ///     it is at every wider visibility.
-    /// </summary>
-    [Fact]
-    public async Task Reply_LeavesOutAHandleItCannotParseInADirectMessage()
-    {
-        var message = APost.With(
-            id: "220",
-            account: "alice@hachyderm.io",
-            visibility: PostVisibility.Direct,
-            mentions: ["not a handle", "ben@hachyderm.io"]);
-
-        var shell = new AShell { Timelines = FakeTimelineReader.Holding(message) };
-        var opened = await shell.Opened();
-
-        opened.Reply();
-
-        Assert.Equal("@alice@hachyderm.io @ben@hachyderm.io ", Assert.IsType<ComposeScreen>(opened.Screen).Text);
     }
 
     /// <summary>

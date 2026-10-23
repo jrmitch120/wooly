@@ -68,6 +68,21 @@ to draw the rows under the **Media** header — where they fold into the header'
 changes the same draft; it holds nothing of its own.
 _Avoid_: media screen
 
+**Draft**:
+A screen holding something written and not yet sent, which goes when the screen goes: a post being composed, and the
+edit **public profile** form. Leaving one that has been touched asks first, naming what would be lost.
+_Avoid_: form (for the post being composed), editor (which is one field of one)
+
+**Drafting**:
+What a session does for the **draft**s it has open, beyond holding what is written: the **pending attachment**s sent
+up for them and a send waiting on those, what is pasted or chosen in the **file browser** into them, the
+**description**s written in the **description editor**, and the limits and defaults one opens with. One for the
+session rather than one per draft, because what it remembers — the folder last attached from, that the clipboard
+could not be read — outlives any one draft. Distinct from a draft, which is the screen holding the words: drafting is
+what keeps everything around those words going, and is told when a draft leaves so that nothing it started outlives
+it.
+_Avoid_: compose (for the public profile form's share of this), draft session
+
 **Link preview**:
 Server-generated metadata about a URL already sitting inside a post's text — a title, a site name, sometimes an
 image — read back as `Post.LinkPreview`. Distinct from an **Attachment**, which is something the *author* attached: a
@@ -549,11 +564,12 @@ _Avoid_: binding, shortcut, command (which is the CLI's word for what it runs)
 **Reach**:
 What a **screen** can reach of the shell while it carries out a verb of its own (`Screen.Answer`, #232): the profile and
 the ports, one way of asking an **instance** (through the shell's **Enquiry**, stale-answer rule and all), opening a
-**Subject** on top of what is showing or swapping one into its own place, saying something on the status row, asking
-before going ahead, and telling the shell what **Change** a verb made. Nothing of the stack, the rail or the cache:
-what a change makes stale is **Arrival**'s to settle, not the screen's that made it (#234). Narrow on purpose: a verb
-that needs more is a sign it is not screen-local, and the thing to do is say so rather than widen it. Concrete rather
-than an interface, because the shell is the only thing that builds one.
+**Subject** on top of what is showing, swapping one into its own place or reading it again, saying something on the
+status row, asking before going ahead, and telling the shell what **Change** a verb made. Nothing of the stack, the rail
+or the cache: what a change makes stale is **Arrival**'s to settle, not the screen's that made it (#234). Narrow on
+purpose: a verb that needs more is a sign it is not screen-local, and the thing to do is say so rather than widen it.
+Concrete rather than an interface, because the shell is the only thing that builds one. **Drafting** reaches the shell
+through the same reach, and through nothing wider bar the stack it pushes onto and takes its own screens off (ADR-0029).
 _Avoid_: context, services, host (which is `IShellHost`, the terminal's side of the shell)
 
 **Picked**:

@@ -122,7 +122,7 @@ public class FileBrowserPreviewTests : IDisposable
 
         using var drawn = await DrawnShell.Of(120, 24, theme, new AShell { LaunchedFrom = _files.Path });
 
-        drawn.Shell.Compose();
+        drawn.Shell.Press(ShellKey.C);
         drawn.Redraw();
         drawn.Press(Key.O.WithCtrl);
 
@@ -242,7 +242,7 @@ public class FileBrowserPreviewTests : IDisposable
             pictures: new FakePictures().HoldingPhotograph(Drawn.OnDisk(last).Id, 60, 40),
             drawsPictures: true);
 
-        drawn.Shell.Compose();
+        drawn.Shell.Press(ShellKey.C);
         drawn.Redraw();
         drawn.Press(Key.O.WithCtrl);
 

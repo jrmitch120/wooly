@@ -1,5 +1,5 @@
 using Wooly.Tests.Fakes;
-using Wooly.Tui.Clipboard;
+using Wooly.Tui.Drafting;
 
 namespace Wooly.Tests.Tui;
 

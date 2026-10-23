@@ -1,8 +1,9 @@
 using Wooly.Core.Errors;
 using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
+using Wooly.Tui.Shell;
 
-namespace Wooly.Tui.Shell;
+namespace Wooly.Tui.Drafting;
 
 /// <summary>
 ///     What each profile's account posts at by default, for the session (ADR-0024, #339): asked when the session starts

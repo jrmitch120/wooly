@@ -14,7 +14,7 @@ namespace Wooly.Tui.Views;
 ///     (<see cref="ComposeView" />): the display name, the bio in the editor a post is written in, each custom field's
 ///     label and value, the avatar and the header (#407), and the three toggles. Each sits where the form lays it, shows while the form is on top and
 ///     opens on what the form holds, and where the typing is stays one fact — the form's — whichever way it moved.
-///     Every change goes through the shell's one way in (<see cref="Shell.Shell.ChangePublicProfile" />).
+///     Every change goes through drafting's one way in (<see cref="Drafting.Drafting.Edit{T}" />).
 /// </summary>
 /// <remarks>
 ///     The labels, the boxes and the words beside them are the form's rows, painted by the content panel behind this
@@ -26,6 +26,7 @@ internal sealed class PublicProfileView : View
 {
     private readonly ITheme _theme;
     private readonly Shell.Shell _shell;
+    private readonly Drafting.Drafting _drafting;
 
     private readonly PublicProfileTextField _name;
     private readonly ComposeEditor _bio;
@@ -53,10 +54,11 @@ internal sealed class PublicProfileView : View
     /// <summary>Where the terminal's mouse events arrive, once the view is running; asked ahead of the views.</summary>
     private IMouse? _mouse;
 
-    public PublicProfileView(ITheme theme, Shell.Shell shell, Func<Raster?>? raster = null)
+    public PublicProfileView(ITheme theme, Shell.Shell shell, Drafting.Drafting drafting, Func<Raster?>? raster = null)
     {
         _theme = theme;
         _shell = shell;
+        _drafting = drafting;
         _raster = raster ?? (() => null);
         _draft = new DraftFields(
             shell,
@@ -373,19 +375,19 @@ internal sealed class PublicProfileView : View
     }
 
     /// <summary>A change to the form from one of its fields, while it is not being filled.</summary>
-    private void Change(Func<PublicProfileScreen, ComposeChange> change)
+    private void Change(Func<PublicProfileScreen, DraftChange> change)
     {
         if (!_filling)
         {
-            _ = _shell.ChangePublicProfile(change);
+            _ = _drafting.Edit(change);
         }
     }
 
     /// <summary>The typing on by <paramref name="by" />: <c>↑</c> off the bio's first line, or <c>↓</c> off its last.</summary>
-    private void Walk(int by) => _ = _shell.ChangePublicProfile(form => form.Walk(by));
+    private void Walk(int by) => _ = _drafting.Edit<PublicProfileScreen>(form => form.Walk(by));
 
     /// <summary><c>⏎</c> in a one-line field: the typing on to the next field in the order the form is read.</summary>
-    private void WalkOn() => _ = _shell.ChangePublicProfile(form => form.WalkOn());
+    private void WalkOn() => _ = _drafting.Edit<PublicProfileScreen>(form => form.WalkOn());
 
     /// <summary>
     ///     The typing across a custom field's row, <paramref name="by" /> <c>→</c> from its label or <c>←</c> from its
@@ -393,7 +395,7 @@ internal sealed class PublicProfileView : View
     /// </summary>
     private void Across(int by)
     {
-        if (_shell.ChangePublicProfile(form => form.Across(by)) != ComposeChange.Moved || by < 0)
+        if (_drafting.Edit<PublicProfileScreen>(form => form.Across(by)) != DraftChange.Moved || by < 0)
         {
             return;
         }
@@ -407,19 +409,19 @@ internal sealed class PublicProfileView : View
     /// <summary>A click on the toggle at <paramref name="stop" />: the walk there, and it flipped.</summary>
     private void Flip(PublicProfileStop stop)
     {
-        _ = _shell.ChangePublicProfile(form => form.TypeInto(stop));
-        _ = _shell.ChangePublicProfile(form => form.Flip(stop.Part));
+        _ = _drafting.Edit<PublicProfileScreen>(form => form.TypeInto(stop));
+        _ = _drafting.Edit<PublicProfileScreen>(form => form.Flip(stop.Part));
     }
 
     /// <summary>A click on the avatar or the header at <paramref name="stop" />: the walk there, and the file browser for it.</summary>
     private void Choose(PublicProfileStop stop)
     {
-        _ = _shell.ChangePublicProfile(form => form.TypeInto(stop));
-        _shell.ChoosePicture();
+        _ = _drafting.Edit<PublicProfileScreen>(form => form.TypeInto(stop));
+        _ = _drafting.Do(Verb.ChoosePicture);
     }
 
     /// <summary><c>ctrl-s</c> in any of the form's fields.</summary>
-    private void Save() => _ = _shell.SavePublicProfile();
+    private void Save() => _ = _drafting.Do(Verb.SavePublicProfile);
 
     /// <summary><c>esc</c> in any of the form's fields.</summary>
     private void Back() => _shell.Back();
@@ -432,7 +434,7 @@ internal sealed class PublicProfileView : View
     {
         if (gained && !_filling && _showing is not null)
         {
-            _ = _shell.ChangePublicProfile(form => form.TypeInto(stop));
+            _ = _drafting.Edit<PublicProfileScreen>(form => form.TypeInto(stop));
         }
     }
 }

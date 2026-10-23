@@ -321,7 +321,7 @@ public class KeymapTests
     [InlineData("↑", Verb.PreviousEntry)]
     [InlineData("→", Verb.IntoFolder)]
     [InlineData("←", Verb.UpFolder)]
-    [InlineData("⏎", Verb.AttachChosen)]
+    [InlineData("⏎", Verb.UseChosen)]
     public void TheFileBrowserAnswersToItsOwnKeys(string key, Verb verb) =>
         Assert.Equal(verb, Means(key, Browser()));
 
@@ -350,13 +350,13 @@ public class KeymapTests
     }
 
     /// <summary>
-    ///     <c>⏎</c> in the file browser opened for a picture uses the picture rather than attaching it to a post (#407,
-    ///     review of #403).
+    ///     <c>⏎</c> in the file browser opened for a picture means what it means in one opened for a post: what is chosen
+    ///     is handed to the draft beneath, which settles whether it is attached or used as the picture (#407, #422).
     /// </summary>
     [Fact]
-    public void EnterInTheFileBrowserForAPicture_UsesIt() =>
+    public void EnterInTheFileBrowserForAPicture_UsesWhatIsChosen() =>
         Assert.Equal(
-            Verb.UsePicture,
+            Verb.UseChosen,
             Means(
                 "⏎",
                 FileBrowserScreen.ForAPicture(

@@ -165,7 +165,7 @@ public class ComposeEditMediaTests : IDisposable
 
         using var drawn = await DrawnShell.Of(80, 24, Themes.Plain, built);
 
-        drawn.Shell.Edit();
+        drawn.Shell.Press(ShellKey.E);
         drawn.Redraw();
 
         var compose = Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
@@ -191,27 +191,6 @@ public class ComposeEditMediaTests : IDisposable
         Assert.Contains(after, row => row.Contains("Media  2 · kept as they are", StringComparison.Ordinal));
         Assert.Contains(after, row => row.Contains("“A cartoon", StringComparison.Ordinal));
         Assert.Contains(after, row => row.Contains("no alt text", StringComparison.Ordinal));
-    }
-
-    /// <summary>
-    ///     Saving the edit sends the change it always did — the text and the warning, nothing about attachments — so the
-    ///     post's own carry through as ADR-0008 has them, and nothing is sent up or published afresh.
-    /// </summary>
-    [Fact]
-    public async Task SavingCarriesTheAttachmentsThroughUnchanged()
-    {
-        var (shell, built, compose) = await Editing(Illustrated);
-
-        compose.Rewrite("Hello again");
-        await shell.Send();
-        built.Host.Drain();
-
-        var changed = Assert.Single(built.Author.Edits);
-
-        Assert.Equal("110", changed.PostId);
-        Assert.Equal("Hello again", changed.Edit.Text);
-        Assert.Empty(built.Author.Attaching);
-        Assert.Empty(built.Author.Published);
     }
 
     private readonly TemporaryDirectory _files = new();

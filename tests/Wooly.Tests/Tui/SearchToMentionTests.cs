@@ -163,7 +163,7 @@ public class SearchToMentionTests
         opened.PeopleMatching("m");
         shell.Host.Settle();
         opened.Back();
-        opened.Compose();
+        opened.Press(ShellKey.C);
         opened.PeopleMatching("ma");
         shell.Host.SettleAll();
 
@@ -239,7 +239,7 @@ public class SearchToMentionTests
     {
         var opened = await shell.Opened();
 
-        opened.Compose();
+        opened.Press(ShellKey.C);
 
         return opened;
     }

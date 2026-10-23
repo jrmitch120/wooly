@@ -151,7 +151,7 @@ public class ReferenceWalkTests
 
         Assert.False(shell.WalkReference(1));
 
-        shell.Compose();
+        shell.Press(ShellKey.C);
 
         Assert.False(shell.WalkReference(1));
         Assert.Null(shell.Screen.Reference);

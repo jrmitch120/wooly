@@ -2,6 +2,7 @@ using System.Drawing;
 using Terminal.Gui.App;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
+using Wooly.Tui.Drafting;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
@@ -13,7 +14,7 @@ namespace Wooly.Tui.Views;
 ///     fields, with the list of people to mention hung under the post and the list of languages under Lang (#366). Each
 ///     field sits where the compose screen lays it, shows while compose is on top and opens on what the draft
 ///     holds, and where the typing is stays one fact — the screen's — whichever way it moved. Every change it makes goes
-///     through the shell's one way in (<see cref="Shell.Shell.ChangeCompose" />).
+///     through drafting's one way in (<see cref="Drafting.Drafting.Edit{T}" />).
 /// </summary>
 /// <remarks>
 ///     The headers, hairlines and count around the fields are the screen's rows, painted by the content panel behind
@@ -26,6 +27,10 @@ namespace Wooly.Tui.Views;
 internal sealed class ComposeView : View
 {
     private readonly Shell.Shell _shell;
+
+    /// <summary>What every change to the draft goes through, and what its keys and clicks are carried out by.</summary>
+    private readonly Drafting.Drafting _drafting;
+
     private readonly ComposeEditor _editor;
 
     /// <summary>The content warning over the post, laid over its header's value column (#320).</summary>
@@ -60,9 +65,10 @@ internal sealed class ComposeView : View
     /// </summary>
     private bool _showing;
 
-    public ComposeView(ITheme theme, Shell.Shell shell)
+    public ComposeView(ITheme theme, Shell.Shell shell, Drafting.Drafting drafting)
     {
         _shell = shell;
+        _drafting = drafting;
         _draft = new DraftFields(shell, () => _shell.Screen is ComposeScreen, at => Visible && Over(at));
 
         CanFocus = true;
@@ -83,7 +89,7 @@ internal sealed class ComposeView : View
                 Send,
                 Back,
                 WriteWarning,
-                () => _shell.ChangeCompose(compose => compose.Walk(-1)))
+                () => _drafting.Edit<ComposeScreen>(compose => compose.Walk(-1)))
             {
                 WordWrap = true,
 
@@ -95,7 +101,7 @@ internal sealed class ComposeView : View
 
         // The screen's text follows the editor on every edit rather than only at ctrl-s, so whatever reads it while a
         // post is being written — a count, a list of people to mention — sees what has been typed so far.
-        _editor.ContentsChanged += (_, _) => _shell.ChangeCompose(compose => compose.Rewrite(_editor.Text));
+        _editor.ContentsChanged += (_, _) => _drafting.Edit<ComposeScreen>(compose => compose.Rewrite(_editor.Text));
 
         _warning = Placed(
             new ComposeWarningField(
@@ -107,13 +113,13 @@ internal sealed class ComposeView : View
             (compose, room) => compose.WarningAt(room));
 
         // The same for the warning. The count is painted behind, on rows an edit announces as changed.
-        _warning.ValueChanged += (_, _) => _shell.ChangeCompose(compose => compose.RewriteWarning(_warning.Text));
+        _warning.ValueChanged += (_, _) => _drafting.Edit<ComposeScreen>(compose => compose.RewriteWarning(_warning.Text));
 
         _to = Placed(
             new ComposeToField(
                 theme,
                 room => (_shell.Screen as ComposeScreen)?.ToSpans(room) ?? [],
-                (column, room) => _shell.ChangeCompose(compose => compose.ClickTo(column, room))),
+                (column, room) => _drafting.Edit<ComposeScreen>(compose => compose.ClickTo(column, room))),
             (compose, room) => compose.ToAt(room));
 
         _lang = Placed(
@@ -129,7 +135,7 @@ internal sealed class ComposeView : View
         // the file browser (#376), or, where a short terminal folded the rows into the line, lists them on a screen of
         // their own (story 58). A click on a row is the field's own (#378, #377).
         _media = Placed(
-            new ComposeMediaField(shell, column =>
+            new ComposeMediaField(shell, drafting, column =>
             {
                 if (_shell.Screen is not ComposeScreen compose)
                 {
@@ -138,15 +144,15 @@ internal sealed class ComposeView : View
 
                 if (compose.OnTheSensitiveToggle(column, Viewport.Size))
                 {
-                    _shell.ToggleSensitive();
+                    _ = _drafting.Do(Verb.ToggleSensitive);
                 }
                 else if (compose.RowsFolded)
                 {
-                    _shell.ListAttachments();
+                    _ = _drafting.Do(Verb.ListAttachments);
                 }
                 else
                 {
-                    _shell.Browse();
+                    _ = _drafting.Do(Verb.OpenBrowser);
                 }
             }),
             (compose, room) => compose.MediaAt(room));
@@ -175,7 +181,7 @@ internal sealed class ComposeView : View
         // both keys to the window, which asks the keymap the same question.
         _editor.FromTheClipboard = _lang.FromTheClipboard = _warning.FromTheClipboard = FromTheClipboard;
 
-        _languages = new LanguageList(theme, shell, _lang, this);
+        _languages = new LanguageList(theme, shell, drafting, _lang, this);
 
         Add(_editor, _to, _lang, _warning, _media, _mentions.View, _languages.View);
 
@@ -251,7 +257,7 @@ internal sealed class ComposeView : View
     /// </summary>
     private bool? FromTheClipboard(Key key) =>
         ShellKeys.Of(key) is { } pressed && Keymap.Means(pressed, _shell.Screen) is Verb.PasteFromTheClipboard
-            ? _shell.Do(Verb.PasteFromTheClipboard, answer: null)
+            ? _drafting.Do(Verb.PasteFromTheClipboard) is Drafted.Used
             : null;
 
     /// <summary>
@@ -373,13 +379,13 @@ internal sealed class ComposeView : View
     }
 
     /// <summary><c>ctrl-s</c> in any of compose's fields.</summary>
-    private void Send() => _ = _shell.Send();
+    private void Send() => _ = _drafting.Send();
 
     /// <summary><c>esc</c> in any of compose's fields.</summary>
     private void Back() => _shell.Back();
 
     /// <summary><c>ctrl-w</c> in any of compose's fields: the typing to the warning and back (#123).</summary>
-    private void WriteWarning() => _shell.ChangeCompose(compose => compose.WriteTheWarning());
+    private void WriteWarning() => _drafting.Edit<ComposeScreen>(compose => compose.WriteTheWarning());
 
     /// <summary>
     ///     One of the fields gained focus — by a click, or by <see cref="Refresh" /> moving it — and the screen is
@@ -389,7 +395,7 @@ internal sealed class ComposeView : View
     {
         if (gained && _editor.Visible && !_showing)
         {
-            _shell.ChangeCompose(compose => compose.TypeInto(field));
+            _drafting.Edit<ComposeScreen>(compose => compose.TypeInto(field));
         }
     }
 }

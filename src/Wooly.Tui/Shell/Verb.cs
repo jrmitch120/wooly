@@ -15,7 +15,7 @@ namespace Wooly.Tui.Shell;
 ///         which walk the page rather than the list; <see cref="NextPost" />, <see cref="PreviousPost" />,
 ///         <see cref="FirstPost" />, <see cref="LastPost" />, <see cref="NextSection" />,
 ///         <see cref="PreviousSection" />, <see cref="NextEntry" /> and <see cref="PreviousEntry" />, which move the pick
-///         and the page both; <see cref="Send" />, which has to take the editor widget's text before the shell sends
+///         and the page both; <see cref="Send" />, which has to take the editor widget's text before drafting sends
 ///         it; and <see cref="Narrower" /> and <see cref="Wider" />, whose steps are refused by how wide the terminal
 ///         is. Which sixteen is <see cref="Verbs.NeedsATerminal" />, the one list the window and the shell both read.
 ///     </para>
@@ -329,10 +329,11 @@ public enum Verb
     PasteFromTheClipboard,
 
     /// <summary>
-    ///     <c>⏎</c> in the file browser: open the folder under the cursor, or attach what is chosen — or, with nothing
-    ///     chosen, the file under the cursor — to the compose screen under it (#376).
+    ///     <c>⏎</c> in the file browser: open the folder under the cursor, or hand what is chosen — or, with nothing
+    ///     chosen, the file under the cursor — to the draft under it: attached to a compose screen (#376), or the picture
+    ///     the edit public profile form's walk is on (#407, #422).
     /// </summary>
-    AttachChosen,
+    UseChosen,
 
     /// <summary>
     ///     <c>space</c> in the file browser, a click on a box there, or a ctrl- or shift-click on a row: choose the file
@@ -409,10 +410,4 @@ public enum Verb
     ///     copied file that is one, as that picture (#407).
     /// </summary>
     PastePicture,
-
-    /// <summary>
-    ///     <c>⏎</c> in the file browser opened for one of the form's pictures: open the folder under the cursor, or take
-    ///     the file chosen — or the one under the cursor — back to the form as that picture (#407).
-    /// </summary>
-    UsePicture,
 }

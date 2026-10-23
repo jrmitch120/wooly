@@ -10,7 +10,7 @@ namespace Wooly.Tui.Views;
 ///     The Media header and the rows of what is attached under it (#379, #378), laid over them the way To's row of
 ///     buttons is laid over To's: there to take the typing as the walk passes through, and the mouse. It draws nothing of
 ///     its own — the header and the rows are the screen's, painted behind, lit where the typing is on them — and what a
-///     key or a click on them means is the screen's, asked through the shell.
+///     key or a click on them means is the screen's, carried out by drafting.
 /// </summary>
 /// <remarks>
 ///     It leaves to the window every key <c>Keymap</c> means something by on the compose screen, and the <c>ctrl</c> and
@@ -32,6 +32,10 @@ namespace Wooly.Tui.Views;
 internal sealed class ComposeMediaField : View
 {
     private readonly Shell.Shell _shell;
+
+    /// <summary>What a click or a drag on a row is carried out by.</summary>
+    private readonly Drafting.Drafting _drafting;
+
     private readonly Action<int> _clicked;
 
     /// <summary>The row being dragged, from the press that picked it up to the release that lets it go.</summary>
@@ -40,11 +44,13 @@ internal sealed class ComposeMediaField : View
     /// <summary>Whether the row being dragged has moved, which makes the release a drop rather than a click.</summary>
     private bool _dragged;
 
-    /// <param name="shell">What a click or a drag on a row is carried out by.</param>
+    /// <param name="shell">Whose screen is in front, and whose open question a key answers.</param>
+    /// <param name="drafting">What a click or a drag on a row is carried out by.</param>
     /// <param name="clicked">A click this many columns into the header's line.</param>
-    public ComposeMediaField(Shell.Shell shell, Action<int> clicked)
+    public ComposeMediaField(Shell.Shell shell, Drafting.Drafting drafting, Action<int> clicked)
     {
         _shell = shell;
+        _drafting = drafting;
         _clicked = clicked;
 
         CanFocus = true;
@@ -91,7 +97,8 @@ internal sealed class ComposeMediaField : View
         }
         else if (flags.HasFlag(MouseFlags.LeftButtonPressed) && _dragging is { } dragging)
         {
-            _dragged |= _shell.DragAttachment(dragging, at.Y - Frame.Y - 1);
+            _dragged |= _drafting.Edit<ComposeScreen>(compose => compose.Media.ReorderTo(dragging, at.Y - Frame.Y - 1))
+                != DraftChange.None;
         }
         else if (flags.HasFlag(MouseFlags.LeftButtonReleased))
         {
@@ -124,7 +131,7 @@ internal sealed class ComposeMediaField : View
             return;
         }
 
-        _shell.ChangeCompose(screen => screen.Pick(attachment));
+        _ = _drafting.Edit<ComposeScreen>(screen => screen.Pick(attachment));
 
         _dragging = attachment;
         _dragged = false;
@@ -167,7 +174,7 @@ internal sealed class ComposeMediaField : View
 
         if (compose.AttachmentAt(SuperView!.Viewport.Size, at) is ({ } attachment, var part))
         {
-            _shell.ClickAttachment(attachment, part);
+            Click(attachment, part);
 
             return;
         }
@@ -199,9 +206,33 @@ internal sealed class ComposeMediaField : View
         if (_shell.Screen is ComposeScreen compose
             && compose.AttachmentAt(SuperView!.Viewport.Size, at) is ({ } attachment, var part))
         {
-            _shell.ClickAttachment(
-                attachment,
-                part is AttachmentPart.Remove or AttachmentPart.Retry ? part : AttachmentPart.Description);
+            Click(attachment, part is AttachmentPart.Remove or AttachmentPart.Retry ? part : AttachmentPart.Description);
         }
     }
+
+    /// <summary>
+    ///     A click on <paramref name="attachment" />'s row, on <paramref name="part" /> of it (#378): the draft verb that
+    ///     part stands for, on that attachment — its <c>x</c> takes it off, its <c>retry (r)</c> sends it up again, its
+    ///     description opens the description editor (#377) — and anywhere else picks it.
+    /// </summary>
+    private void Click(ComposeAttachment attachment, AttachmentPart part)
+    {
+        if (Verbs(part) is { } verb)
+        {
+            _ = _drafting.Do(verb, attachment);
+        }
+        else
+        {
+            _ = _drafting.Edit<ComposeScreen>(compose => compose.Pick(attachment));
+        }
+    }
+
+    /// <summary>The draft verb a click on <paramref name="part" /> of a row stands for, or none where it only picks.</summary>
+    private static Verb? Verbs(AttachmentPart part) => part switch
+    {
+        AttachmentPart.Remove => Verb.RemoveAttachment,
+        AttachmentPart.Retry => Verb.RetryAttachment,
+        AttachmentPart.Description => Verb.Describe,
+        _ => null,
+    };
 }

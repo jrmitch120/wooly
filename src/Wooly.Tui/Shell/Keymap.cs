@@ -132,9 +132,9 @@ public static class Keymap
         // attaches or opens, → and ← go into a folder and up one, ctrl-a shows every file, and the arrows walk its
         // entries as j and k walk posts elsewhere — j and k being letters here. And space, the one letter it does not
         // type, since its filter is fuzzy and a name's spaces never need typing: it chooses.
-        // Opened for one of the public profile's pictures, ⏎ takes the file back to the form as that picture (#407).
-        (ShellKey.Enter, FileBrowserScreen { Picture: not null }) => Verb.UsePicture,
-        (ShellKey.Enter, FileBrowserScreen) => Verb.AttachChosen,
+        // Opened for one of the public profile's pictures, ⏎ takes the file back to the form as that picture (#407): the
+        // same verb, since what is chosen goes to whichever draft the browser was opened over (#422).
+        (ShellKey.Enter, FileBrowserScreen) => Verb.UseChosen,
         (ShellKey.Right, FileBrowserScreen) => Verb.IntoFolder,
         (ShellKey.Left, FileBrowserScreen) => Verb.UpFolder,
         (ShellKey.CtrlA, FileBrowserScreen) => Verb.EveryFile,

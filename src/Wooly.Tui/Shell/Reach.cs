@@ -82,6 +82,13 @@ public sealed class Reach
     /// </summary>
     public Task Swap(Subject subject) => _arrival.Swap(subject);
 
+    /// <summary>
+    ///     Reads <paramref name="subject" /> again, the one showing, what it last held forgotten — as a save of the public
+    ///     profile reads the account it was opened over (#406, #422).
+    /// </summary>
+    /// <inheritdoc cref="Arrival.Again" />
+    public Task Again(Subject subject, Action? landed = null) => _arrival.Again(subject, landed);
+
     /// <summary>Puts <paramref name="notice" /> on the status row, or takes whatever is there off it.</summary>
     public void Say(string? notice, bool isError) => _say(notice, isError);
 

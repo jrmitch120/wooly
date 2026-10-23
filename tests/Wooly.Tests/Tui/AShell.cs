@@ -3,7 +3,7 @@ using Wooly.Core.Configuration;
 using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
 using Wooly.Tests.Fakes;
-using Wooly.Tui.Clipboard;
+using Wooly.Tui.Drafting;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
@@ -164,6 +164,31 @@ internal sealed class AShell
     /// <summary>The folder Wooly was launched from, where the file browser first opens (#376); the working one if unset.</summary>
     public string? LaunchedFrom { get; set; }
 
+    /// <summary>
+    ///     The ports over whatever the fakes have been set to — what the shell reaches an instance through, and what
+    ///     drafting does (<see cref="ADrafting" />).
+    /// </summary>
+    public ShellPorts Ports => new(
+        Timelines,
+        Author,
+        Engagement,
+        Accounts,
+        Notifications,
+        Messages,
+        Search,
+        Suggestions,
+        RateLimit,
+        Limits,
+        Defaults,
+        Stream,
+        PublicProfile);
+
+    /// <summary>
+    ///     What the config file says a post goes out at, which a compose starts on ahead of the account's own (#338,
+    ///     #340).
+    /// </summary>
+    public PostDefaults Preferred => new(DefaultVisibility, DefaultLanguage);
+
     /// <summary>The shell itself, over whatever the fakes have been set to.</summary>
     public Shell Build() => Over(Opening.As(Profile));
 
@@ -184,7 +209,7 @@ internal sealed class AShell
 
     private Shell Over(Opening opening) => new(
         opening,
-        new ShellPorts(Timelines, Author, Engagement, Accounts, Notifications, Messages, Search, Suggestions, RateLimit, Limits, Defaults, Stream, PublicProfile),
+        Ports,
         new ProfilePorts(Profiles, Paths, Authorizer, Verifier),
         ShellWidths,
         Host,
@@ -262,7 +287,7 @@ internal sealed class AShell
     {
         var shell = new Shell(
             Opening.As(registry.Resolve(null)),
-            new ShellPorts(Timelines, Author, Engagement, Accounts, Notifications, Messages, Search, Suggestions, RateLimit, Limits, Defaults, Stream, PublicProfile),
+            Ports,
             new ProfilePorts(registry, paths, Authorizer, Verifier),
             ShellWidths,
             Host,

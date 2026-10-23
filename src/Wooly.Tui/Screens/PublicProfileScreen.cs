@@ -84,10 +84,18 @@ public sealed class PublicProfileScreen : Screen, IDraft
     /// </summary>
     private int _scrolled;
 
+    /// <summary>The instance the public profile is on, or none where nobody said.</summary>
+    private readonly string? _on;
+
     /// <param name="read">The public profile as written, read fresh as the form was opened.</param>
-    public PublicProfileScreen(PublicProfile read)
+    /// <param name="on">
+    ///     The instance the public profile is on, and so whose limit on a bio it is measured against (#422) — or none,
+    ///     where nobody said.
+    /// </param>
+    public PublicProfileScreen(PublicProfile read, string? on = null)
     {
         _read = read;
+        _on = on;
 
         // Four rows at the least, which is what Mastodon keeps, and as many as a fork's account already has where it
         // keeps more — so that a save never drops a field nobody could see to keep (#404's review).
@@ -105,6 +113,14 @@ public sealed class PublicProfileScreen : Screen, IDraft
             [PublicProfilePart.Discoverable] = read.IsDiscoverable,
         };
     }
+
+    /// <summary>
+    ///     Whether this public profile is on <paramref name="instance" />, which is whose limit on a bio it is measured
+    ///     against (#422), as a compose's post is (<see cref="ComposeScreen.GoesOutOn" />). Never, where it was opened
+    ///     without saying which instance it is on.
+    /// </summary>
+    public bool GoesOutOn(string instance) =>
+        _on is { } on && string.Equals(on, instance, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>The public profile as it was read, which is what everything here is compared against.</summary>
     public PublicProfile Read => _read;
@@ -198,7 +214,7 @@ public sealed class PublicProfileScreen : Screen, IDraft
     ///     on the labels.
     /// </summary>
     /// <returns>A move, or nothing at either end.</returns>
-    public ComposeChange Walk(int by)
+    public DraftChange Walk(int by)
     {
         if (Typing.Part is PublicProfilePart.Label or PublicProfilePart.Value
             && Typing.Row + by is var row and >= 0
@@ -219,7 +235,7 @@ public sealed class PublicProfileScreen : Screen, IDraft
     ///     field's label to its value, and from the value to the next row's label.
     /// </summary>
     /// <returns>A move, or nothing at the end.</returns>
-    public ComposeChange WalkOn()
+    public DraftChange WalkOn()
     {
         var stops = Stops;
 
@@ -231,25 +247,25 @@ public sealed class PublicProfileScreen : Screen, IDraft
     ///     to the other half of the row. Nothing anywhere else, there being nothing beside it.
     /// </summary>
     /// <returns>A move, or nothing where there is nothing that way.</returns>
-    public ComposeChange Across(int by) => (Typing.Part, by) switch
+    public DraftChange Across(int by) => (Typing.Part, by) switch
     {
         (PublicProfilePart.Label, > 0) => TypeInto(Typing with { Part = PublicProfilePart.Value }),
         (PublicProfilePart.Value, < 0) => TypeInto(Typing with { Part = PublicProfilePart.Label }),
-        _ => ComposeChange.None,
+        _ => DraftChange.None,
     };
 
     /// <summary>The typing into <paramref name="stop" />, by a click or the walk.</summary>
     /// <returns>A move, or nothing where the typing was there already.</returns>
-    public ComposeChange TypeInto(PublicProfileStop stop)
+    public DraftChange TypeInto(PublicProfileStop stop)
     {
         if (Typing == stop || !Stops.Contains(stop))
         {
-            return ComposeChange.None;
+            return DraftChange.None;
         }
 
         Typing = stop;
 
-        return ComposeChange.Moved;
+        return DraftChange.Moved;
     }
 
     /// <summary>
@@ -293,40 +309,40 @@ public sealed class PublicProfileScreen : Screen, IDraft
 
     /// <summary>The display name's field changed: what it holds now.</summary>
     /// <returns>An edit, or nothing where the field says back what the form holds, as it does when filled on opening.</returns>
-    public ComposeChange RewriteDisplayName(string written) => Rewrite(DisplayName, written, () => DisplayName = written);
+    public DraftChange RewriteDisplayName(string written) => Rewrite(DisplayName, written, () => DisplayName = written);
 
     /// <summary>The bio's editor changed: what it holds now.</summary>
     /// <returns>An edit, or nothing where the editor says back what the form holds.</returns>
-    public ComposeChange RewriteBio(string written) => Rewrite(Bio, written, () => Bio = written);
+    public DraftChange RewriteBio(string written) => Rewrite(Bio, written, () => Bio = written);
 
     /// <summary>The <paramref name="row" />th custom field's label changed: what it holds now.</summary>
     /// <returns>An edit, or nothing where the field says back what the form holds.</returns>
-    public ComposeChange RewriteLabel(int row, string written) =>
+    public DraftChange RewriteLabel(int row, string written) =>
         Rewrite(_labels[row], written, () => _labels[row] = written);
 
     /// <summary>The <paramref name="row" />th custom field's value changed: what it holds now.</summary>
     /// <returns>An edit, or nothing where the field says back what the form holds.</returns>
-    public ComposeChange RewriteValue(int row, string written) =>
+    public DraftChange RewriteValue(int row, string written) =>
         Rewrite(_values[row], written, () => _values[row] = written);
 
     /// <summary>
     ///     <c>space</c>, <c>⏎</c> or a click on the toggle the walk is on: it the other way.
     /// </summary>
     /// <returns>An edit, or nothing where the walk is on a field rather than a toggle.</returns>
-    public ComposeChange Flip() => Flip(Typing.Part);
+    public DraftChange Flip() => Flip(Typing.Part);
 
     /// <summary>The toggle <paramref name="toggle" /> names the other way, from a click on it.</summary>
     /// <returns>An edit, or nothing where <paramref name="toggle" /> is no toggle.</returns>
-    public ComposeChange Flip(PublicProfilePart toggle)
+    public DraftChange Flip(PublicProfilePart toggle)
     {
         if (!_toggled.TryGetValue(toggle, out var on))
         {
-            return ComposeChange.None;
+            return DraftChange.None;
         }
 
         _toggled[toggle] = !on;
 
-        return ComposeChange.Edited;
+        return DraftChange.Edited;
     }
 
     /// <summary>
@@ -334,28 +350,28 @@ public sealed class PublicProfileScreen : Screen, IDraft
     ///     avatar or the header — to be drawn in place of the current one and sent when the form is saved (#407).
     /// </summary>
     /// <returns>An edit, or nothing where the walk is on no picture or the file is the one already chosen.</returns>
-    public ComposeChange Pick(string path)
+    public DraftChange Pick(string path)
     {
         if (PublicProfilePicture.Of(Typing.Part) is not { } picture || PickedFor(picture) == path)
         {
-            return ComposeChange.None;
+            return DraftChange.None;
         }
 
         _picked[picture.Part] = path;
 
-        return ComposeChange.Edited;
+        return DraftChange.Edited;
     }
 
-    private static ComposeChange Rewrite(string holding, string written, Action rewrite)
+    private static DraftChange Rewrite(string holding, string written, Action rewrite)
     {
         if (string.Equals(holding, written, StringComparison.Ordinal))
         {
-            return ComposeChange.None;
+            return DraftChange.None;
         }
 
         rewrite();
 
-        return ComposeChange.Edited;
+        return DraftChange.Edited;
     }
 
     /// <summary>The <paramref name="row" />th custom field's label, as it stands in the form.</summary>

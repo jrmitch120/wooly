@@ -166,7 +166,7 @@ workable only because the status row always shows the current screen's keys. Wha
 | `esc` | Up one level of the stack. Never quits. |
 | `ctrl-q` | Quit. |
 | `?` | The keymap for this screen. The spec has no in-app help story; this is the shell adding one, and #28 carries it — every other screen inherits it for free. |
-| `tab` / `shift-tab` | Moves the cursor (`▶`) at once, one destination down or up the rail, crossing from one rail group into the next. The selection follows it (`▷` while it lags behind), and that destination loads, once the tabbing has stopped for ~250ms. |
+| `tab` / `shift-tab` | Moves the cursor (`▶`) at once, one destination down or up the rail, crossing from one rail group into the next. The selection follows it (`▷` while it lags behind), and that destination loads, once the tabbing has stopped for ~250ms. Opening a draft — compose, a reply, an edit, the public profile form — before then calls that off: the cursor goes back to the destination selected, nothing loads, and the draft stays in front (#429). |
 | `` ` `` / `~` | Moves the cursor to the first destination of the next or previous **rail group**, wrapping. Settles and loads as `tab` does (ADR-0021). |
 | `/` | Search. Goes to the search destination; what it opens onto is #29's. |
 | `ctrl-p` | The profiles screen, pushed onto the stack. On compose it takes the draft off first and opens the screen in its place, asking first where the draft is touched (ADR-0020, #373); it is not listed there. |
@@ -198,7 +198,7 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Screen | Keys |
 |---|---|
 | Account | `F` follow/unfollow · `M` mute/unmute · `B` block/unblock — capitals, so a lower-case mark key can never fire a tie by accident, and on nobody's account but the own one, which cannot have a tie with itself and draws no standing, nobody in common and no note · `w` follows, which is everyone they follow with `s` a keypress from everyone who follows them · `s` posts and replies, or back to posts alone, in place · `[`/`]` section, on an account carrying a pinned run · `E` edit public profile, on the own account only — **You**, or yours reached any other way — and off the status row and answered nowhere else, as `p`/`e`/`d` are on somebody else's post; it reads the public profile as written first, and a read that fails opens nothing and says why (#406) |
-| Edit public profile | `↑`/`↓` walk the fields top to bottom — display name, Avatar, Header, the custom fields, Locked, Bot, Discoverable, then the bio at the foot — stopping at either end rather than coming round; a custom field's label and value sit side by side, so `↑`/`↓` keep to the column down the rows, coming in on the labels, and `→` off the end of a label crosses to its value with the caret at the start, `←` off the start of a value back to its label; `←`/`→` move nothing else, being the caret's in a field and nobody's on a picture or toggle; in the bio `↑` walks only off its first line and `↓` only off its last, the caret having them between, and `⏎` in a one-line field walks on to the next in reading order, a label to its value; nothing is marked with a bar — a field walked to has the caret, and a picture or toggle, having none, has its value lit in `selected-text`, as compose's Media and To are · `space` or `⏎` flips the toggle walked to · on **Avatar** or **Header** `⏎` opens the file browser for one picture, crumbed `Choose avatar` or `Choose header`, and `ctrl-v` or `alt-v` pastes a picture from the clipboard — or the first copied file that is a picture — into it, saying on the status row where the clipboard holds neither; the status row offers `⏎ choose file` and `ctrl-v/alt-v paste` there, and other letters are nobody's. A picture picked is drawn in place of the current one with its file name and `sent on save` beside it, and goes up only in the save (ADR-0028) — a touch, like any other edit; on a terminal that draws, each row is two rows tall with the picture in a box (the avatar four columns wide, the header twelve) and the words after the header's box width, and where nothing is drawn it is one line, `Avatar  change…`, `Avatar  none · choose…` or `Avatar  cat.png · sent on save` (#407) — `change…` and `choose…` saying what `⏎` does, the picture saying what is there · `ctrl-s` save, sending only what differs from what was read (ADR-0028): the custom fields as a set, an emptied row left out, which removes its field; with nothing changed it sends nothing and says so · `esc` leave — asking `Discard these changes? y / n` first where anything differs from how it opened, as every way out does, and only `y` goes (#373) · `tab`/`shift-tab` are the frame's, never a walk of the form's fields. On a terminal too short for the whole form the field walked to is always on screen: the form moves up or down only when the walk leaves what is shown, and only as far as brings it back. A save takes the form off and reads the account under it again, saying "Public profile saved." — the own account further down the stack shows it as saved, a list held a moment ago with the own account or a post it wrote or boosted on it is read again when next reached, and a new avatar or header is drawn rather than the old one; a refusal keeps the form and every edit in it, with the instance's own words on the status row until an edit spends them (#406). While the list of people to mention is open in the bio: `↑`/`↓` pick · `tab`/`⏎` insert · `esc` close the list, never the form (#408) |
+| Edit public profile | `↑`/`↓` walk the fields top to bottom — display name, Avatar, Header, the custom fields, Locked, Bot, Discoverable, then the bio at the foot — stopping at either end rather than coming round; a custom field's label and value sit side by side, so `↑`/`↓` keep to the column down the rows, coming in on the labels, and `→` off the end of a label crosses to its value with the caret at the start, `←` off the start of a value back to its label; `←`/`→` move nothing else, being the caret's in a field and nobody's on a picture or toggle; in the bio `↑` walks only off its first line and `↓` only off its last, the caret having them between, and `⏎` in a one-line field walks on to the next in reading order, a label to its value; nothing is marked with a bar — a field walked to has the caret, and a picture or toggle, having none, has its value lit in `selected-text`, as compose's Media and To are · `space` or `⏎` flips the toggle walked to · on **Avatar** or **Header** `⏎` opens the file browser for one picture, crumbed `Choose avatar` or `Choose header`, and `ctrl-v` or `alt-v` pastes a picture from the clipboard — or the first copied file that is a picture — into it, saying on the status row where the clipboard holds neither, or where this machine has nothing to read the clipboard with — every press, there being no text to paste instead, where compose says the missing tool once a session; the status row offers `⏎ choose file` and `ctrl-v/alt-v paste` there, and other letters are nobody's. A picture picked is drawn in place of the current one with its file name and `sent on save` beside it, and goes up only in the save (ADR-0028) — a touch, like any other edit; on a terminal that draws, each row is two rows tall with the picture in a box (the avatar four columns wide, the header twelve) and the words after the header's box width, and where nothing is drawn it is one line, `Avatar  change…`, `Avatar  none · choose…` or `Avatar  cat.png · sent on save` (#407) — `change…` and `choose…` saying what `⏎` does, the picture saying what is there · `ctrl-s` save, sending only what differs from what was read (ADR-0028): the custom fields as a set, an emptied row left out, which removes its field; with nothing changed it sends nothing and says so · `esc` leave — asking `Discard these changes? y / n` first where anything differs from how it opened, as every way out does, and only `y` goes (#373) · `tab`/`shift-tab` are the frame's, never a walk of the form's fields. On a terminal too short for the whole form the field walked to is always on screen: the form moves up or down only when the walk leaves what is shown, and only as far as brings it back. A save takes the form off and reads the account under it again, saying "Public profile saved." — the own account further down the stack shows it as saved, a list held a moment ago with the own account or a post it wrote or boosted on it is read again when next reached, and a new avatar or header is drawn rather than the old one; a refusal keeps the form and every edit in it, with the instance's own words on the status row until an edit spends them (#406). While the list of people to mention is open in the bio: `↑`/`↓` pick · `tab`/`⏎` insert · `esc` close the list, never the form (#408) |
 | Follows — following or followers | `f` filter, on a list under the threshold · `s` swap to the other side, in place · `⏎` open that account |
 | Search results | `[`/`]` section, where two or more kinds found something |
 | Discover | `F` follow/unfollow · `d` dismiss, one-way · `[`/`]` section |
@@ -905,7 +905,7 @@ its author remembered to warn it again by hand — which Mastodon's own clients 
 - **A reply opens on the warning of the post it answers**, in a field of its own on the row above the editor. A reply
   to a warned post is usually about the warned thing, and an author who has to re-type the warning is one who sometimes
   will not. For a boost it is the warning of the post *inside* it — the post the reply targets, and the resolution
-  `Shell.Compose` already makes for every other key.
+  already made for every other key.
 - **Pre-filled, not imposed.** The field is the author's from the moment it opens: kept, edited or cleared, and what
   goes out is whatever it holds when `ctrl-s` is pressed — letter for letter, spaces included, since a client that
   tidied a warning would be editing the author's words on the way past. Cleared, it sends no warning at all rather than
@@ -970,7 +970,7 @@ its author remembered to warn it again by hand — which Mastodon's own clients 
   its tail on a terminal too short for everything; the warning band does not, being a row the reader types into rather
   than a quote of something they can see elsewhere. One of the two is a row the reply screen was already spending.
 - **The screen says what goes out; the shell puts it** (#146). `ComposeScreen.Outgoing` answers an `Outgoing` — a
-  `PostDraft` to publish or a `PostEdit` to save, whole — and `Shell.Send` makes the one call, pops, and says `Sent.`
+  `PostDraft` to publish or a `PostEdit` to save, whole — and `Drafting.Send` makes the one call, pops, and says `Sent.`
   or `Saved.`. It was the shell that used to assemble both, which meant the shell was what had to know which of the
   screen's two warning members was the right one for which purpose: the raw field on an edit, where empty means *take
   the warning away*, and the trimmed one on a publish, where empty means *no warning at all*. That is one decision
@@ -1065,7 +1065,7 @@ lists them under a read-only Media header of its own (#381).
   compose's own rows (`ComposeMedia`, #387), drawn as under the header, the first picked. Every key and click a row takes under the header it
   takes there — `⏎` or a click on the description describes, `del`/`backspace` or a click on `x` takes off, `ctrl-z`
   brings back, `shift-↑↓` or a drag moves, `r` or a click on `retry (r)` retries, `s` or a click on the toggle flips
-  it — and `ctrl-o` attaches more, all of it changing the compose's own draft through the shell; `↑`/`↓` walk the
+  it — and `ctrl-o` attaches more, all of it changing the compose's own draft through drafting; `↑`/`↓` walk the
   rows. `esc` goes back to the draft, the walk on the header.
 - **The sensitive toggle ends the header's line**, after a `·`, once anything is attached (#379): `□ sensitive` muted
   while it is off, `■ sensitive` in `content-warning` while it is on, and `■ sensitive (warning)`, the same, while a
@@ -1098,17 +1098,17 @@ lists them under a read-only Media header of its own (#381).
   terminal's and only ever carries text, and over SSH the clipboard read is the far machine's, so a paste there is
   text: expected, not a fault. On macOS Terminal `alt-v` types `√` unless Option is set to act as Meta, and `ctrl-v`
   works there anyway. An edit's `ctrl-v` and `alt-v` are text and read no clipboard.
-- **Each file goes up the moment it is attached** (ADR-0026): the shell sends it through `IPostAuthor.Attach`, as the
-  profile acted as, and feeds where it has got to back into the screen on the drawing thread — the screen holds it and
-  draws it, and reaches nothing itself (ADR-0015). The calls are `AttachmentCalls`', the shell's collaborator for
-  them, which hands every answer back as an event. Not through the enquiry: the row says how it is going, the status
-  row says nothing, and it is not stopped by a screen pushed over the draft. **Every upload ends**: a refusal says the
+- **Each file goes up the moment it is attached** (ADR-0026): drafting (ADR-0029) sends it through `IPostAuthor.Attach`,
+  as the profile acted as, and feeds where it has got to back into the screen on the drawing thread — the screen holds
+  it and draws it, and reaches nothing itself (ADR-0015). The calls are `AttachmentCalls`', drafting's collaborator for
+  them, which hands every answer back as an event. Not through the enquiry: the row says how it is going, the status row
+  says nothing, and it is not stopped by a screen pushed over the draft. **Every upload ends**: a refusal says the
   instance's own reason on the row; a dropped connection says `connection lost`, a rate limit `rate limited`, an
   instance that failed to answer `instance failed (502)`, and a call the client gave up waiting on `timed out`; and a
-  failure nothing expected ends the row refused all the same, saying what it was — no row is left going up, and no
-  send left waiting on one. None is tried again by itself (ADR-0006), though the author can retry from the row where
-  a retry can help (below). A compose screen leaving the stack calls off what it is still sending, and leaves what
-  went up for the instance to clear away.
+  failure nothing expected ends the row refused all the same, saying what it was — no row is left going up, and no send
+  left waiting on one. None is tried again by itself (ADR-0006), though the author can retry from the row where a retry
+  can help (below). A compose screen leaving the stack calls off what it is still sending, and leaves what went up for
+  the instance to clear away.
 - **`ctrl-s` waits rather than refuses.** With anything still going up or being processed it keeps the screen up and
   says `Will send once 1 attachment finishes — esc to stop.`, and sends once they have; `esc` calls the send off and
   says the draft is as it was. A screen opened over compose meanwhile — the file browser, a description — leaves the
@@ -1193,9 +1193,9 @@ crumbed `Attach`, in the look the prototype on `prototype/374-attachments` settl
 does a post already carrying all it can, which says `This post carries all it can — 4 of 4.`
 
 - **It works on the real file system, and opens where the author last attached from** this session — else in the
-  folder Wooly was launched from. Nothing is saved: the next session starts from the launch folder again. The shell
-  reads each folder (`LocalFiles`) and hands the screen a `FolderListing`; the screen reads nothing itself, as no
-  screen does (ADR-0015), and says which folder `→`, `←` or `⏎` opens next.
+  folder Wooly was launched from. Nothing is saved: the next session starts from the launch folder again. Drafting
+  (ADR-0029) reads each folder (`LocalFiles`) and hands the screen a `FolderListing`; the screen reads nothing
+  itself, as no screen does (ADR-0015), and says which folder `→`, `←` or `⏎` opens next.
 - **Rows, top to bottom:** the folder, `~` for the home folder and cut from its start where it is long, with
   `2 chosen · 2 more fit` (or `4 more fit on this post`) against the right; the filter, `filter ss0229▏` or
   `type to filter`, with what is listed and the key that changes it against the right — `pictures, video, sound ·
@@ -1791,15 +1791,16 @@ reminder, `?` is the reference.** #169, #214 and #215 settled the row; #218, #21
   on the status row — but a confirmation is the only status row that ends in `<key> <word> · esc <word>`, and a
   notice never shows keys. No leading glyph and no band.
 - **A touched compose asks before it is thrown away, on every way out (#373).** `esc`, a right click, `tab`,
-  `shift-tab`, `` ` ``/`~`, a click on the rail or on a crumb behind it, `ctrl-p` and `ctrl-q` all go through one
-  check in the shell: where a compose screen the way out would take off differs from what it opened with — its text,
-  its warning, To or Lang (`ComposeScreen.Touched`) — the confirmation row asks **`Discard this post? y / n`**, and
-  nothing else happens until it is answered. Only `y` discards and finishes that way out; the way out's own key
+  `shift-tab`, `` ` ``/`~`, a click on the rail or on a crumb behind it, `/` from a screen over the draft — the
+  attachments screen, or help over it (#426) — `ctrl-p` and `ctrl-q` all go through one check in the shell: where a
+  compose screen the way out would take off differs from what it opened with — its text, its warning, To or Lang
+  (`ComposeScreen.Touched`) — the confirmation row asks **`Discard this post? y / n`**, and nothing else happens
+  until it is answered. Only `y` discards and finishes that way out; the way out's own key
   pressed again does not, so `esc esc` or `tab tab` never throws a draft away. Anything else keeps the draft and does
   nothing more — a stray second `tab` cannot finish what the first started. A step along the rail (`tab`,
   `shift-tab`, `` ` ``/`~`) that takes a draft off, asked or not, arrives at the destination stepped to at once,
-  without the settle (ADR-0014 amended), so the screen under the draft is never shown in between; stepped onto the
-  destination already shown, it walks back out to it as a click on it does. Tabbing on from there settles as ever.
+  without the settle (ADR-0014 amended), so the screen under the draft is never shown in between. Tabbing on from there
+  settles as ever.
   *Touched* is what the screen holds rather than whether a key was pressed: a reply still holding only its mention and
   the warning it opened on, an unchanged edit, and a letter typed and rubbed out again all leave without asking. The
   question reads `y / n` rather than `y discard · esc keep` because it is put in front of `esc` among other ways out,
@@ -1844,11 +1845,13 @@ Three things stayed outside it, each deliberately:
   and that is the screen's answer, relayed as the `bool` `Shell.Do` returns. The keymap says what a key *means*; only
   the screen knows what is on the post, and asking it in two places is how two places come to disagree.
 - **What a screen-local verb does.** The keymap decides which verbs a screen is sent; the screen carries them out, in its
-  own file, through `Screen.Answer(verb, reach)` (#232). `Shell.Do` keeps the frame's verbs and the ones that act on the
-  picked post of any screen — marks, reply, compose, edit, delete, vote, reveal, opening a reference or an author — and
-  `m`, which reads across the conversation and DM screens; every other verb falls through to the screen. What a screen
-  can do while it answers is **Reach** (GLOSSARY.md): the ports and profile, one `Put` through the shell's **Enquiry**,
-  `Open` and `Swap` of a **Subject** (#233), `Say`, `Confirm`, `Changed`, `Tell` of a **Change** (#234) and `IsMe` —
+  own file, through `Screen.Answer(verb, reach)` (#232). `Shell.Do` asks **Drafting** of every verb first, through one
+  arm, and a draft's verbs — compose, reply and edit among them — are drafting's (ADR-0029). Of the rest it keeps the
+  frame's verbs and the ones that act on the picked post of any screen — marks, delete, vote, reveal, opening a
+  reference or an author — and `m`, which reads across the conversation and DM screens; every other verb falls through
+  to the screen. What a screen can do while it answers is **Reach** (GLOSSARY.md): the ports and profile, one `Put`
+  through the shell's **Enquiry**, `Open`, `Swap` and `Again` of a **Subject** (#233, #422), `Say`, `Confirm`,
+  `Changed`, `Tell` of a **Change** (#234) and `IsMe` —
   and nothing of the stack, the rail or the cache. So the account screen's
   ties, `w` and `s` are in `AccountScreen.cs`; a follow list's `s`, `f` and `⏎` in `FollowsScreen.cs`; search's `⏎` in
   `SearchScreen.cs`; `d` and `D` in `NotificationsScreen.cs`; `a`, `x` and `⏎` in `FollowRequestsScreen.cs`; the
