@@ -24,13 +24,19 @@ public sealed class StatusRow(Func<TimeSpan, Action, IDisposable> after, TimeSpa
     private IDisposable? _wait;
 
     /// <summary>
+    ///     What is said on the row, as one value: its words and whether it is a failure. Kept while a confirmation is
+    ///     open, behind it, and shown once that is answered.
+    /// </summary>
+    private Shown.Notice? _notice;
+
+    /// <summary>
     ///     Something said that is not a screen: a refusal, or the countdown on a rate limit being waited out. Kept
     ///     while a confirmation is open, behind it, and shown once that is answered.
     /// </summary>
-    public string? Notice { get; private set; }
+    public string? Notice => _notice?.Text;
 
     /// <summary>Whether that notice is a failure rather than a remark, which settles the role it is drawn in.</summary>
-    public bool NoticeIsError { get; private set; }
+    public bool NoticeIsError => _notice?.IsError ?? false;
 
     /// <summary>
     ///     What the shell is waiting to be told again before it does, or <see langword="null" /> if nothing.
@@ -40,8 +46,8 @@ public sealed class StatusRow(Func<TimeSpan, Action, IDisposable> after, TimeSpa
     /// <summary>What the row shows: the confirmation, else the notice, else the keys of the screen in front.</summary>
     public Shown Shown =>
         Asking is { } asking ? new Shown.Asking(asking)
-        : Notice is { } notice ? new Shown.Notice(notice, NoticeIsError)
-        : Shown.Keys;
+        : _notice is { } notice ? notice
+        : new Shown.Keys();
 
     /// <summary>
     ///     Puts <paramref name="notice" /> on the row, or takes whatever is there off it where it is
@@ -52,8 +58,7 @@ public sealed class StatusRow(Func<TimeSpan, Action, IDisposable> after, TimeSpa
         _wait?.Dispose();
         _wait = null;
 
-        Notice = notice;
-        NoticeIsError = isError;
+        _notice = notice is null ? null : new Shown.Notice(notice, isError);
 
         changed();
     }
@@ -86,8 +91,9 @@ public sealed class StatusRow(Func<TimeSpan, Action, IDisposable> after, TimeSpa
 
     /// <summary>
     ///     <paramref name="press" /> as the answer to the confirmation open on the row, where one is: the key that
-    ///     agrees goes ahead (<see cref="Confirmation.AgreedBy" />), and any other press keeps — <see langword="null" />,
-    ///     a click or a notch of the wheel, among them (story 43). Where none is open it does nothing.
+    ///     agrees goes ahead (<see cref="Confirmation.AgreedBy" />), and any other press keeps —
+    ///     <see langword="null" />, a click or a notch of the wheel, among them (story 43). Where none is open it does
+    ///     nothing.
     /// </summary>
     /// <returns>Whether a confirmation was open, and the press was spent on it.</returns>
     public bool Answered(ShellKey? press)
@@ -100,6 +106,23 @@ public sealed class StatusRow(Func<TimeSpan, Action, IDisposable> after, TimeSpa
         _ = Answer(open.AgreedBy(press));
 
         return true;
+    }
+
+    /// <summary>
+    ///     Puts away the confirmation open on the row, where one is, without going ahead with what it carries — not
+    ///     an answer to it but the shell letting go of it, as when the profile it was asked as is switched away from.
+    ///     Where none is open it does nothing.
+    /// </summary>
+    public void Dismiss()
+    {
+        if (Asking is null)
+        {
+            return;
+        }
+
+        Asking = null;
+
+        changed();
     }
 
     /// <summary>

@@ -117,7 +117,7 @@ public partial class RoleTests
                 80),
         ]);
         Collect([ChromeLines.Status([], new Shown.Notice("Only your own posts can be deleted.", IsError: true), 80)]);
-        Collect([ChromeLines.Status([new KeyHint("⏎", "read")], Shown.Keys, 80)]);
+        Collect([ChromeLines.Status([new KeyHint("⏎", "read")], new Shown.Keys(), 80)]);
 
         // Selected text is the compose editor's rather than a span's: Terminal.Gui draws a selection in it and asks the
         // widget which colour, which ComposeThemeTests checks on a drawn frame (#316).
@@ -540,8 +540,8 @@ public partial class RoleTests
 
         var inbox = new NotificationsScreen([ANotification.With()]);
 
-        var onAnAccount = ChromeLines.Status(account.Keys, Shown.Keys, 80).Text;
-        var onTheInbox = ChromeLines.Status(inbox.Keys, Shown.Keys, 80).Text;
+        var onAnAccount = ChromeLines.Status(account.Keys, new Shown.Keys(), 80).Text;
+        var onTheInbox = ChromeLines.Status(inbox.Keys, new Shown.Keys(), 80).Text;
 
         Assert.Contains("Unfollow: F", onAnAccount);
         Assert.Contains("Mute: M", onAnAccount);
@@ -570,7 +570,7 @@ public partial class RoleTests
     {
         var keys = ChromeLines.Status(
             [new KeyHint("⏎", "read"), new KeyHint("a", "author")],
-            Shown.Keys,
+            new Shown.Keys(),
             80);
 
         Assert.Contains("Read: ⏎", keys.Text);

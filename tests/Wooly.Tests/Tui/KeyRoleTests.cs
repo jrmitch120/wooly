@@ -28,7 +28,7 @@ public class KeyRoleTests
     [Fact]
     public void TheStatusRow_DrawsAKeyInKeyAndItsExplanationInMuted()
     {
-        var row = ChromeLines.Status([new KeyHint("⏎", "read")], Shown.Keys, 80);
+        var row = ChromeLines.Status([new KeyHint("⏎", "read")], new Shown.Keys(), 80);
 
         Assert.Contains(row.Spans, span => span is { Role: Role.Key, Text: "⏎" });
         Assert.Contains(row.Spans, span => span is { Role: Role.Muted, Text: "Read: " });
@@ -40,7 +40,7 @@ public class KeyRoleTests
     {
         var row = ChromeLines.Status(
             [new KeyHint("⏎", "read"), new KeyHint("a", "author")],
-            Shown.Keys,
+            new Shown.Keys(),
             80);
 
         Assert.All(

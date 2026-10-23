@@ -194,7 +194,7 @@ public class IdleKeyTests
     /// <summary>What the row's <c>…+N</c> counts at 80 columns.</summary>
     private static int Over(Screen screen)
     {
-        var mark = ChromeLines.Status(screen.Keys, Shown.Keys, 80).Text
+        var mark = ChromeLines.Status(screen.Keys, new Shown.Keys(), 80).Text
             .Split(" | ")
             .Single(said => said.StartsWith("…+", StringComparison.Ordinal));
 

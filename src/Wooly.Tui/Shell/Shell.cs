@@ -1459,7 +1459,8 @@ public sealed class Shell
             _ports,
             enquiry,
             arrival,
-            StatusRow,
+            say: StatusRow.Say,
+            confirm: StatusRow.Ask,
             changed: () => Changed?.Invoke());
 
         return new Acting(profile, arrival, reach, cache, new PeopleToMention(profile)) { Lists = lists };
@@ -1572,7 +1573,7 @@ public sealed class Shell
         _enquiry.Abandon();
         _badges.LetGo();
 
-        StatusRow.Answered(ShellKey.Escape);
+        StatusRow.Dismiss();
         _launching = false;
     }
 

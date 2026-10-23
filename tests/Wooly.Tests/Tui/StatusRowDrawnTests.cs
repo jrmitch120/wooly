@@ -54,14 +54,18 @@ public class StatusRowDrawnTests
             new KeyHint("esc", "back")),
         "notifications" => PostKeys.Around(
             new KeyHint("j/k", "notification"),
-            [new KeyHint("d", "dismiss", NeedsAPick: true), new KeyHint("D", "clear all", NeedsAPick: true), Screen.Refreshing],
+            [
+                new KeyHint("d", "dismiss", NeedsAPick: true),
+                new KeyHint("D", "clear all", NeedsAPick: true),
+                Screen.Refreshing,
+            ],
             new KeyHint("tab", "destination")),
         "feed" => Feed,
         _ => throw new ArgumentOutOfRangeException(nameof(state), state, null),
     };
 
     private static Line Row(IReadOnlyList<KeyHint> keys, int width) =>
-        ChromeLines.Status(keys, Shown.Keys, width);
+        ChromeLines.Status(keys, new Shown.Keys(), width);
 
     /// <summary>What the row reads as, one entry per thing between its bars.</summary>
     private static IReadOnlyList<string> Said(Line row) => row.Text.Trim().Split(" | ");
@@ -111,7 +115,8 @@ public class StatusRowDrawnTests
     [InlineData(80, " Option: 1-0 | Vote: v | Thread: j/k | Refresh: g | Back: esc | …+11 | Keys: ?")]
     [InlineData(
         120,
-        " Option: 1-0 | Vote: v | Thread: j/k | Refresh: g | Back: esc | Read: ⏎ | Reply: r | Boost: b | …+8 | Keys: ?")]
+        " Option: 1-0 | Vote: v | Thread: j/k | Refresh: g | Back: esc | Read: ⏎ | Reply: r | Boost: b"
+        + " | …+8 | Keys: ?")]
     public void AtEachWidth_APollOfYourOwnDegradesRatherThanTruncating(int width, string row) =>
         Assert.Equal(row, Row(Of("post-poll"), width).Text);
 

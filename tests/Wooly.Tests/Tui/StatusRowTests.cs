@@ -4,9 +4,9 @@ using Wooly.Tui.Shell;
 namespace Wooly.Tests.Tui;
 
 /// <summary>
-///     The status row as a module of its own beside the shell (#436): what it shows, the confirmation that takes every
-///     press while it is open, and the wait that lets a remark about a key just pressed go. Driven directly, with a fake
-///     host's <c>After</c> for the wait, so no shell is built to know what the row does.
+///     The status row as a module of its own beside the shell (#436): what it shows, the confirmation that takes
+///     every press while it is open, and the wait that lets a remark about a key just pressed go. Driven directly,
+///     with a fake host's <c>After</c> for the wait, so no shell is built to know what the row does.
 /// </summary>
 public class StatusRowTests
 {
@@ -30,7 +30,7 @@ public class StatusRowTests
 
         _host.Settle();
 
-        Assert.Equal(Shown.Keys, row.Shown);
+        Assert.Equal(new Shown.Keys(), row.Shown);
     }
 
     [Fact]
@@ -57,7 +57,7 @@ public class StatusRowTests
         row.Clear();
 
         Assert.Equal(0, _host.Waiting);
-        Assert.Equal(Shown.Keys, row.Shown);
+        Assert.Equal(new Shown.Keys(), row.Shown);
     }
 
     [Fact]
@@ -98,7 +98,7 @@ public class StatusRowTests
 
         Assert.True(row.Answered(ShellKey.Y));
         Assert.Equal(1, agreed);
-        Assert.Equal(Shown.Keys, row.Shown);
+        Assert.Equal(new Shown.Keys(), row.Shown);
     }
 
     [Theory]
@@ -114,7 +114,40 @@ public class StatusRowTests
 
         Assert.True(row.Answered(press));
         Assert.Equal(0, agreed);
-        Assert.Equal(Shown.Keys, row.Shown);
+        Assert.Equal(new Shown.Keys(), row.Shown);
+    }
+
+    [Fact]
+    public void Dismissing_puts_the_confirmation_away_without_going_ahead_and_leaves_the_notice()
+    {
+        var row = Row();
+        var agreed = 0;
+
+        row.Ask(new Confirmation("Delete this post?", () => Task.FromResult(agreed++)));
+        row.Say("Marked as read.", isError: false);
+
+        var asked = _changes;
+
+        row.Dismiss();
+
+        Assert.Equal(0, agreed);
+        Assert.Equal(new Shown.Notice("Marked as read.", IsError: false), row.Shown);
+        Assert.Equal(asked + 1, _changes);
+    }
+
+    [Fact]
+    public void Dismissing_with_no_confirmation_open_changes_nothing()
+    {
+        var row = Row();
+
+        row.Say("Marked as read.", isError: false);
+
+        var said = _changes;
+
+        row.Dismiss();
+
+        Assert.Equal(said, _changes);
+        Assert.Equal(new Shown.Notice("Marked as read.", IsError: false), row.Shown);
     }
 
     [Fact]

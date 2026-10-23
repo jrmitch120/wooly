@@ -115,7 +115,8 @@ internal sealed class ADrafting
             Fakes.Ports,
             enquiry,
             arrival,
-            StatusRow,
+            say: StatusRow.Say,
+            confirm: StatusRow.Ask,
             changed: () => Changes++);
 
         Drafting.ActingAs(profile);

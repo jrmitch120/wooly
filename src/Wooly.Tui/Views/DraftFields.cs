@@ -142,7 +142,7 @@ internal sealed class DraftFields
         }
 
         // A notch as the window reads one, so that a sideways one — which carries a vertical one's bit — is no answer.
-        // Anything else over a field is only kept from it, and only while there is a question to keep it from.
+        // Anything else over a field is only kept from it, and only while there is a confirmation to keep it from.
         var answers = mouse.Flags.HasFlag(MouseFlags.LeftButtonClicked) || ShellWindow.Notched(mouse) is not null;
 
         if (answers ? !_shell.StatusRow.Answered(press: null) : _shell.StatusRow.Shown is not Shown.Asking)

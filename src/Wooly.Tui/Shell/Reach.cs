@@ -31,26 +31,26 @@ public sealed class Reach
 {
     private readonly Arrival _arrival;
     private readonly Action _changed;
+    private readonly Action<Confirmation> _confirm;
     private readonly Enquiry _enquiry;
-    private readonly StatusRow _statusRow;
+    private readonly Says _say;
 
-    /// <summary>
-    ///     Built by the shell alone, with the shell's own hands for everything that touches its stack, and its status
-    ///     row for saying and asking — the row and not the shell, so what holds there holds for a screen too (#436).
-    /// </summary>
+    /// <summary>Built by the shell alone, with the shell's own hands for everything that touches its stack.</summary>
     internal Reach(
         ActiveProfile profile,
         ShellPorts ports,
         Enquiry enquiry,
         Arrival arrival,
-        StatusRow statusRow,
+        Says say,
+        Action<Confirmation> confirm,
         Action changed)
     {
         Profile = profile;
         Ports = ports;
         _enquiry = enquiry;
         _arrival = arrival;
-        _statusRow = statusRow;
+        _say = say;
+        _confirm = confirm;
         _changed = changed;
     }
 
@@ -90,10 +90,10 @@ public sealed class Reach
     public Task Again(Subject subject, Action? landed = null) => _arrival.Again(subject, landed);
 
     /// <summary>Puts <paramref name="notice" /> on the status row, or takes whatever is there off it.</summary>
-    public void Say(string? notice, bool isError) => _statusRow.Say(notice, isError);
+    public void Say(string? notice, bool isError) => _say(notice, isError);
 
     /// <summary>Asks before going ahead, and goes ahead with what the confirmation carries once it is agreed to.</summary>
-    public void Confirm(Confirmation confirmation) => _statusRow.Ask(confirmation);
+    public void Confirm(Confirmation confirmation) => _confirm(confirmation);
 
     /// <summary>Says something on screen has changed, so that it is drawn again.</summary>
     public void Changed() => _changed();
