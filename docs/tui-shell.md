@@ -1302,7 +1302,9 @@ typing one in the edit public profile form's bio (#408):
 ### What compose's Lang settled
 
 - **Lang is a one-line field under To (#340)**, laid over its value column as the warning field is over the warning's.
-  It shows a language as its code and its own name, `fr  Français`, the name muted on the painted row. Empty, it says
+  It shows a language as its code and its own name, `fr  Français`, the name muted on the painted row — or its English
+  name, `as  Assamese`, where its own name carries a spacing mark, which this client and a terminal do not measure alike
+  and which pushed the list's border out of place beside it (#432); typing either name still finds it. Empty, it says
   `none · the instance decides` and sends no language.
 - **It starts on the author's own language**: `default_language`, else the account's posting language as its instance
   said it (#339), else empty — on a reply as on a fresh post, never the answered post's. An edit opens on the post's own
