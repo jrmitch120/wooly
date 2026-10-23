@@ -484,6 +484,24 @@ crumb always the **destination**'s own screen and the last the one in front. Wal
 was drilled in above it and keeps nothing of it to walk forward to again.
 _Avoid_: tab, history, level (which is also a picked **Reference**, that `esc` leaves before it leaves a screen)
 
+**Status row**:
+The one row at the foot of the shell, which shows one thing at a time and in this order: a **Confirmation** where one is
+open, else a **Notice**, else the keys of the screen in front. A notice said while a confirmation is open waits behind
+it rather than being lost, and is shown once the confirmation is answered.
+_Avoid_: status bar, footer, message line
+
+**Notice**:
+Something the shell says on the **Status row** that is not a screen: a remark, or a failure, drawn as one. It stands
+until something else is said or a screen is pushed — except a remark about a key just pressed, which is let go of after
+a moment, and which anything said in the meantime replaces.
+_Avoid_: toast, message, alert
+
+**Confirmation**:
+Something the shell will not do until it is told again, asked on the **Status row** (story 43). While one is open it is
+the only thing answered: the key that agrees goes ahead, and any other press, click or `esc` keeps. A question in the
+plain sense is wider — a filter prompt is one too, and is closed by the screen it is on, not answered here.
+_Avoid_: dialog, prompt (which takes typing), question (which is wider)
+
 **Arrival**:
 Bringing a **screen** up from its **Subject**, which is one thing however many kinds of screen are read (#100, #233).
 Three moves do it, and they stay distinct inside it. _Arriving_ from the rail lands on a **destination**: the stack is

@@ -247,7 +247,7 @@ internal sealed class ComposedView : IDisposable
 
     /// <summary>The status row as the shell's window would draw it, 80 columns wide.</summary>
     public string Status() =>
-        ChromeLines.Status(Shell.Keys, Shell.Notice, Shell.NoticeIsError, Shell.Asking, 80).Text;
+        ChromeLines.Status(Shell.Keys, Shell.StatusRow.Shown, 80).Text;
 
     private PaintedView List(string id) => View.SubViews.OfType<PaintedView>().Single(view => view.Id == id);
 

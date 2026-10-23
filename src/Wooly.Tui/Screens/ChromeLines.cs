@@ -165,16 +165,13 @@ public static class ChromeLines
 
     /// <summary>
     ///     The status row: what this screen's keys are, or — when there is one — the thing the shell has to say
-    ///     instead. A confirmation displaces the keys because it is the only thing on screen worth answering.
+    ///     instead. A confirmation displaces the keys because it is the only thing on screen worth answering; which of
+    ///     them is <paramref name="shown" /> is the status row's to settle (<see cref="Shell.StatusRow.Shown" />), and
+    ///     this only draws it.
     /// </summary>
-    public static Line Status(
-        IReadOnlyList<KeyHint> keys,
-        string? notice,
-        bool noticeIsError,
-        Shell.Confirmation? asking,
-        int width)
+    public static Line Status(IReadOnlyList<KeyHint> keys, Shell.Shown shown, int width)
     {
-        if (asking is { } question)
+        if (shown is Shell.Shown.Asking { Confirmation: var question })
         {
             // The two keys take the role a key has and the words beside them do not (#221): these are the columns
             // #219 reserved as the ones that must never be cut, and the keys in them are the ones a reader presses.
@@ -205,9 +202,9 @@ public static class ChromeLines
             ]);
         }
 
-        if (notice is { } said)
+        if (shown is Shell.Shown.Notice said)
         {
-            return Line.Of(TextWrap.Clip($" {said}", width), noticeIsError ? Role.Error : Role.Muted);
+            return Line.Of(TextWrap.Clip($" {said.Text}", width), said.IsError ? Role.Error : Role.Muted);
         }
 
         return new Line(Fitted(keys, width));

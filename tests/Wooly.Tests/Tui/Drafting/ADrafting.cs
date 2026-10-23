@@ -32,16 +32,26 @@ internal sealed class ADrafting
     /// <summary>Drafting itself, once built.</summary>
     public Wooly.Tui.Drafting.Drafting Drafting { get; private set; } = null!;
 
-    /// <summary>What the status row says, or nothing.</summary>
-    public string? Notice { get; set; }
+    /// <summary>The status row drafting says things on through its reach, once built (#436).</summary>
+    public StatusRow StatusRow { get; private set; } = null!;
+
+    /// <summary>
+    ///     What the status row says, or nothing — set by a test where something said before stands for what drafting
+    ///     should leave alone or replace.
+    /// </summary>
+    public string? Notice
+    {
+        get => StatusRow.Notice;
+        set => StatusRow.Say(value, isError: false);
+    }
 
     /// <summary>Whether what the status row says is a refusal or a failure.</summary>
-    public bool NoticeIsError { get; private set; }
+    public bool NoticeIsError => StatusRow.NoticeIsError;
 
     /// <summary>How many times drafting has said something on screen has changed.</summary>
     public int Changes { get; private set; }
 
-    /// <summary>How many times the status row has been told what to say — nothing among it.</summary>
+    /// <summary>How many times the status row has changed — told what to say, nothing among it, or asked.</summary>
     public int Said { get; private set; }
 
     /// <summary>What a screen can reach as whoever is acted as now, for a test to answer a screen's own verb with.</summary>
@@ -56,7 +66,8 @@ internal sealed class ADrafting
     /// </summary>
     public ADrafting Build()
     {
-        Stack = new ListStack(Bottom ?? Home(APost.With()), () => Say(null, isError: false));
+        StatusRow = new StatusRow(Fakes.Host.After, Fakes.Timing.WidthSaidFor, () => Said++);
+        Stack = new ListStack(Bottom ?? Home(APost.With()), () => StatusRow.Clear());
         Drafting = new Wooly.Tui.Drafting.Drafting(
             Stack,
             () => _reach!,
@@ -89,7 +100,7 @@ internal sealed class ADrafting
             Fakes.Timing.MarkStep,
             () => Stack.Top);
 
-        enquiry.Said += Say;
+        enquiry.Said += StatusRow.Say;
 
         var arrival = new Arrival(
             profile,
@@ -104,8 +115,8 @@ internal sealed class ADrafting
             Fakes.Ports,
             enquiry,
             arrival,
-            say: Say,
-            confirm: _ => { },
+            say: StatusRow.Say,
+            confirm: StatusRow.Ask,
             changed: () => Changes++);
 
         Drafting.ActingAs(profile);
@@ -123,13 +134,6 @@ internal sealed class ADrafting
 
     /// <summary>The compose screen on top, which a test that opened one goes on to read.</summary>
     public ComposeScreen Composing => Assert.IsType<ComposeScreen>(Stack.Top);
-
-    private void Say(string? notice, bool isError)
-    {
-        Said++;
-        Notice = notice;
-        NoticeIsError = isError;
-    }
 }
 
 /// <summary>What the description editor's view does with what is typed into it, for tests with no view in the room.</summary>

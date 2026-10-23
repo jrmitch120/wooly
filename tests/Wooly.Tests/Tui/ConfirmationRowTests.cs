@@ -30,7 +30,7 @@ public class ConfirmationRowTests
     private static string Answer(Confirmation asking) => $"{asking.Confirm} {asking.Going} · esc keep";
 
     private static Line Row(Confirmation asking, int width) =>
-        ChromeLines.Status([], notice: null, noticeIsError: false, asking, width);
+        ChromeLines.Status([], new Shown.Asking(asking), width);
 
     /// <summary>At 80 columns, the contract's floor, every confirmation is drawn whole: the ask, the warning, the answer.</summary>
     [Theory]

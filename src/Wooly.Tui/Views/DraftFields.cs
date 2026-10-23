@@ -90,17 +90,7 @@ internal sealed class DraftFields
     ///     agrees, anything else keeps — where it has one, and nothing where it has none.
     /// </summary>
     /// <returns>Whether there was a question, and the press was spent on it.</returns>
-    public bool Answered(ShellKey? pressed)
-    {
-        if (_shell.Asking is null)
-        {
-            return false;
-        }
-
-        _ = _shell.Answer(pressed);
-
-        return true;
-    }
+    public bool Answered(ShellKey? pressed) => _shell.StatusRow.Answered(pressed);
 
     /// <summary>
     ///     A mouse event wherever it landed, before the view under the pointer sees it: a right click while the draft
@@ -146,15 +136,18 @@ internal sealed class DraftFields
     /// <returns>Whether the event was over a field and spent.</returns>
     private bool Withheld(Mouse mouse)
     {
-        if (_shell.Asking is null || !Over(mouse.ScreenPosition))
+        if (!Over(mouse.ScreenPosition))
         {
             return false;
         }
 
         // A notch as the window reads one, so that a sideways one — which carries a vertical one's bit — is no answer.
-        if (mouse.Flags.HasFlag(MouseFlags.LeftButtonClicked) || ShellWindow.Notched(mouse) is not null)
+        // Anything else over a field is only kept from it, and only while there is a confirmation to keep it from.
+        var answers = mouse.Flags.HasFlag(MouseFlags.LeftButtonClicked) || ShellWindow.Notched(mouse) is not null;
+
+        if (answers ? !_shell.StatusRow.Answered(press: null) : _shell.StatusRow.Shown is not Shown.Asking)
         {
-            _ = _shell.Answer(pressed: null);
+            return false;
         }
 
         return mouse.Flags != MouseFlags.None && mouse.Flags != MouseFlags.PositionReport;

@@ -484,7 +484,7 @@ public class ShellVoteTests
         opened.Toggle(1);
         opened.AskToVote();
 
-        var row = ChromeLines.Status(opened.Keys, opened.Notice, opened.NoticeIsError, opened.Asking, 80).Text;
+        var row = ChromeLines.Status(opened.Keys, opened.StatusRow.Shown, 80).Text;
 
         Assert.Equal(" Cast the answer you ticked? This cannot be undone.  y vote · esc keep", row);
     }
