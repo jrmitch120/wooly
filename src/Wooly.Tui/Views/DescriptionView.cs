@@ -43,12 +43,13 @@ internal sealed class DescriptionView : View
         _shell = shell;
         _drafting = drafting;
         _raster = raster;
+        var place = new Placement<DescriptionScreen>(this, shell);
 
         CanFocus = true;
         Visible = false;
         ViewportSettings |= ViewportSettingsFlags.Transparent | ViewportSettingsFlags.TransparentMouse;
 
-        _editor = new Placement<DescriptionScreen>(this, shell).Placed(
+        _editor = place.Placed(
             new ComposeEditor(theme, DescriptionScreen.EmptyHint, Done, Done, () => { }, () => { })
             {
                 WordWrap = true,

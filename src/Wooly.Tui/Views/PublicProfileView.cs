@@ -330,6 +330,10 @@ internal sealed class PublicProfileView : View
     ///     <paramref name="widget" />, hidden until the form comes on top and laid wherever the form puts
     ///     <paramref name="stop" /> in this view's viewport — nowhere while no form is up.
     /// </summary>
+    /// <remarks>
+    ///     Kept, where compose and the description editor use their placement inline, because every widget here is
+    ///     laid by its stop the same way and a custom field's row is placed long after the constructor, as it is added.
+    /// </remarks>
     private T Placed<T>(T widget, PublicProfileStop stop)
         where T : View =>
         _place.Placed(widget, (form, room) => form.At(stop, room, _raster()));
