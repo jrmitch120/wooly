@@ -164,27 +164,6 @@ public class ComposeLangTests
     }
 
     /// <summary>
-    ///     A language whose own name carries a spacing mark is listed by it, each such character with a blank cell
-    ///     after it, and the list's edge where every other row has it (ADR-0031).
-    /// </summary>
-    [Fact]
-    public async Task ALanguageWhoseNameCarriesASpacingMarkIsListedByItWithItsColumnsHeld()
-    {
-        using var drawn = await Drawn();
-
-        OnLang(drawn);
-        Type(drawn, "Assamese");
-
-        var list = List(drawn).FrameToScreen();
-        var cells = drawn.Application.Driver!.Contents!;
-        var row = string.Concat(
-            Enumerable.Range(list.X, list.Width).Select(column => cells[list.Y + 1, column].Grapheme));
-
-        Assert.Contains("as  অসমী য়া ", row, StringComparison.Ordinal);
-        Assert.Equal("│", cells[list.Y + 1, list.Right - 1].Grapheme);
-    }
-
-    /// <summary>
     ///     The list's keys are the mention list's: <c>↑</c>/<c>↓</c> move the pick, <c>⏎</c> picks, and <c>esc</c>
     ///     closes the list and leaves the draft where it was.
     /// </summary>
@@ -218,30 +197,48 @@ public class ComposeLangTests
     }
 
     /// <summary>
-    ///     Every language is written by its own name, which is how most of the people writing in it know it — those
-    ///     whose names carry a spacing mark too, which are held in the columns that keep a list's border in place
-    ///     however a terminal draws them (ADR-0031), where #432 had written them in English.
+    ///     The languages whose own names a terminal draws wider than Terminal.Gui counts them — measured in herdr, one
+    ///     to three columns each, pushing the rest of their row out of place (#432).
     /// </summary>
+    public static TheoryData<string> NotMeasuredAlike =>
+        ["as", "bh", "bn", "gu", "hi", "km", "ks", "ml", "mr", "my", "ne", "pa", "pi", "sd", "si", "ta", "te"];
+
+    /// <summary>Lang and its list write such a language by its English name, which every terminal measures alike.</summary>
+    [Theory]
+    [MemberData(nameof(NotMeasuredAlike))]
+    public void ALanguageWhoseOwnNameIsNotMeasuredAlike_IsWrittenByItsEnglishName(string code)
+    {
+        var language = PostLanguageName.Of(code)!;
+
+        Assert.Equal($"{code}{ComposeLang.CodeGap}{language.Name}", ComposeLang.Spoken(language));
+        Assert.True(Glyphs.MeasuredAlike(ComposeLang.Spoken(language)));
+    }
+
+    /// <summary>Every other language keeps its own name, which is how most of the people writing in it know it.</summary>
     [Fact]
-    public void EveryLanguage_IsWrittenByItsOwnName() =>
-        Assert.All(PostLanguageName.All, language =>
+    public void EveryOtherLanguage_KeepsItsOwnName()
+    {
+        var others = PostLanguageName.All.Where(language => !NotMeasuredAlike.Any(row => row.Data == language.Code));
+
+        Assert.All(others, language =>
             Assert.Equal($"{language.Code}{ComposeLang.CodeGap}{language.OwnName}", ComposeLang.Spoken(language)));
+    }
 
     /// <summary>
-    ///     Lang opened on a language whose name carries one reads as its list writes it and resolves to it, and typing
-    ///     either of its names still finds it.
+    ///     Lang opened on such a language reads as its list does and resolves to it, and typing either of its names still
+    ///     finds it.
     /// </summary>
     [Fact]
-    public void LangOpenedOnALanguageWhoseNameCarriesASpacingMark_ReadsAndResolvesAsItsListWritesIt()
+    public void LangOpenedOnALanguageNotMeasuredAlike_ReadsAndResolvesAsItsListWritesIt()
     {
         var lang = ComposeLang.Opening("hi");
 
-        Assert.Equal("hi  हिन्दी", lang.Held);
+        Assert.Equal("hi  Hindi", lang.Held);
         Assert.True(lang.HoldsALanguageWhole);
         Assert.Equal("hi", lang.Language?.Code);
         Assert.Contains(PostLanguageName.Matching("Hindi"), language => language.Code == "hi");
         Assert.Contains(PostLanguageName.Matching("हिन्दी"), language => language.Code == "hi");
-        Assert.Equal("hi", new ComposeLang("hi  हिन्दी", null).Language?.Code);
+        Assert.Equal("hi", new ComposeLang("hi  Hindi", null).Language?.Code);
     }
 
     /// <summary>
