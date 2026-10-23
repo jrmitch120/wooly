@@ -35,8 +35,11 @@ The rule is about the character, not the terminal: nothing asks which terminal t
   is one, use it.
 - Terminal.app is beyond any of this: probed, it drew a border placed by an explicit cursor move one or two columns
   left after `सिन्धी`, `தமிழ்`, `తెలుగు` and `हिन्दी` — it lays such text out off its own cells, and what follows with it.
-  An author's words are shown as written and shift there; the client's own text that would carry a spacing mark — the
-  Lang list's names — is written in English instead (#432), so the client's chrome is straight on every terminal.
+  Probing all 214 language names showed no Unicode property that predicts it: Bengali, full of spacing marks, drew in
+  place, Telugu drifted with no virama, Arabic drew in place and Arabic-script Malay drifted. An author's words are
+  shown as written and shift there; the client's own text — the Lang list's names — keeps a language's own name only
+  where it is in a script never shaped (Latin, Greek, Cyrillic, Armenian, Georgian, Han, kana, Hangul) and is written in
+  English otherwise, so the client's chrome is straight on every terminal.
 - Text in Terminal.Gui's own editing widgets (compose, the bio, search) gets the writer half only: its row holds, but in
   a terminal that draws the cluster wide it may cover the character after it while it is being typed.
 - A virama conjunct with no spacing mark (`न्द`, `ক্ষ`) is counted alike everywhere today, and only because .NET's
