@@ -4,6 +4,7 @@ using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
+using Wooly.Tui.Views;
 
 namespace Wooly.Tests.Tui;
 
@@ -104,6 +105,63 @@ public class ComposeDescriptionTests : IDisposable
         Assert.Same(compose, drawn.Shell.Screen);
         Assert.Contains(drawn.Rows(), text => text.Contains("“A cat”", StringComparison.Ordinal));
         Assert.Equal("A cat", Assert.Single(drawn.Built.Author.Descriptions).Description);
+    }
+
+    /// <summary>
+    ///     A right click over the description editor's field is its <c>esc</c>, as it is over compose's fields and the
+    ///     form's (#373, #430): it leaves the editor, back to the draft, and sends the description as leaving does.
+    /// </summary>
+    [Fact]
+    public async Task InTheWindowARightClickOverTheFieldIsDone()
+    {
+        using var drawn = await Describing();
+        var field = drawn.Window.DescriptionField<ComposeEditor>().FrameToScreen();
+
+        foreach (var letter in "A cat")
+        {
+            drawn.Press(letter);
+        }
+
+        drawn.RightClick(field.X, field.Y);
+        drawn.Settle();
+
+        Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
+        Assert.Null(drawn.Shell.Asking);
+        Assert.Equal("A cat", Assert.Single(drawn.Built.Author.Descriptions).Description);
+    }
+
+    /// <summary>
+    ///     A press over the description editor's field while a question is open — <c>tab</c> off a touched draft asks
+    ///     before it is thrown away — goes to the question, as over compose's fields and the form's (#373, #430): the
+    ///     click keeps the draft, and the field neither moves its caret nor takes the typing.
+    /// </summary>
+    [Fact]
+    public async Task InTheWindowAPressOverTheFieldDuringAQuestionGoesToTheQuestion()
+    {
+        using var drawn = await Describing();
+        var editor = drawn.Window.DescriptionField<ComposeEditor>();
+        var field = editor.FrameToScreen();
+
+        foreach (var letter in "A cat")
+        {
+            drawn.Press(letter);
+        }
+
+        drawn.Press(Terminal.Gui.Input.Key.Tab);
+
+        Assert.NotNull(drawn.Shell.Asking);
+
+        var caret = editor.CurrentColumn;
+
+        drawn.Point(field.X, field.Y, Terminal.Gui.Input.MouseFlags.LeftButtonPressed);
+        drawn.Point(field.X, field.Y, Terminal.Gui.Input.MouseFlags.LeftButtonReleased);
+        drawn.Click(field.X, field.Y);
+        drawn.Settle();
+
+        Assert.Null(drawn.Shell.Asking);
+        Assert.IsType<DescriptionScreen>(drawn.Shell.Screen);
+        Assert.Equal("A cat", editor.Text);
+        Assert.Equal(caret, editor.CurrentColumn);
     }
 
     /// <summary>A double click anywhere on a row opens the editor.</summary>
@@ -223,6 +281,26 @@ public class ComposeDescriptionTests : IDisposable
         var row = Array.FindIndex(rows, drawnRow => drawnRow.Contains(text, StringComparison.Ordinal));
 
         return (row, rows[row].IndexOf(text, StringComparison.Ordinal));
+    }
+
+    /// <summary>The window, a picture attached to a fresh compose and ready, and its description editor open over it.</summary>
+    private async Task<DrawnShell> Describing()
+    {
+        var drawn = await DrawnShell.Of(100, 30, Themes.Plain, new AShell());
+
+        drawn.Shell.Press(ShellKey.C);
+        drawn.Redraw();
+        drawn.Shell.Paste(_files.WriteFile("cat.png"));
+        drawn.Built.Author.Attaching.Single().Ready();
+        drawn.Settle();
+
+        drawn.PressThroughTheApplication(Terminal.Gui.Input.Key.CursorUp);
+        drawn.PressThroughTheApplication(Terminal.Gui.Input.Key.Enter);
+        drawn.Settle();
+
+        Assert.IsType<DescriptionScreen>(drawn.Shell.Screen);
+
+        return drawn;
     }
 
     private async Task<(Wooly.Tui.Shell.Shell Shell, AShell Built, ComposeScreen Compose)> Composing()
