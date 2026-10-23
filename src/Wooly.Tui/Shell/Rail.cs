@@ -175,6 +175,27 @@ public sealed class Rail
     }
 
     /// <summary>
+    ///     Calls off whatever the tabbing left waiting and puts the cursor back on the selection, which is where it is
+    ///     at rest: nothing is selected and nothing asked for. For a draft opened before the settle lands, a deliberate
+    ///     move away from the rail that the settle would otherwise throw away (#429, ADR-0014 amended). Nothing where
+    ///     nothing is waiting.
+    /// </summary>
+    public void CallOff()
+    {
+        if (_settling is null)
+        {
+            return;
+        }
+
+        _settling.Dispose();
+        _settling = null;
+
+        Cursor = Current;
+
+        Changed?.Invoke();
+    }
+
+    /// <summary>
     ///     The settle window closing: the selection catches up with the cursor, and that destination — only that one —
     ///     is asked for. A walk that ended where it started asks for nothing, because nothing moved.
     /// </summary>

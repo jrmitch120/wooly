@@ -166,7 +166,7 @@ workable only because the status row always shows the current screen's keys. Wha
 | `esc` | Up one level of the stack. Never quits. |
 | `ctrl-q` | Quit. |
 | `?` | The keymap for this screen. The spec has no in-app help story; this is the shell adding one, and #28 carries it — every other screen inherits it for free. |
-| `tab` / `shift-tab` | Moves the cursor (`▶`) at once, one destination down or up the rail, crossing from one rail group into the next. The selection follows it (`▷` while it lags behind), and that destination loads, once the tabbing has stopped for ~250ms. |
+| `tab` / `shift-tab` | Moves the cursor (`▶`) at once, one destination down or up the rail, crossing from one rail group into the next. The selection follows it (`▷` while it lags behind), and that destination loads, once the tabbing has stopped for ~250ms. Opening a draft — compose, a reply, an edit, the public profile form — before then calls that off: the cursor goes back to the destination selected, nothing loads, and the draft stays in front (#429). |
 | `` ` `` / `~` | Moves the cursor to the first destination of the next or previous **rail group**, wrapping. Settles and loads as `tab` does (ADR-0021). |
 | `/` | Search. Goes to the search destination; what it opens onto is #29's. |
 | `ctrl-p` | The profiles screen, pushed onto the stack. On compose it takes the draft off first and opens the screen in its place, asking first where the draft is touched (ADR-0020, #373); it is not listed there. |
@@ -1799,8 +1799,8 @@ reminder, `?` is the reference.** #169, #214 and #215 settled the row; #218, #21
   pressed again does not, so `esc esc` or `tab tab` never throws a draft away. Anything else keeps the draft and does
   nothing more — a stray second `tab` cannot finish what the first started. A step along the rail (`tab`,
   `shift-tab`, `` ` ``/`~`) that takes a draft off, asked or not, arrives at the destination stepped to at once,
-  without the settle (ADR-0014 amended), so the screen under the draft is never shown in between; stepped onto the
-  destination already shown, it walks back out to it as a click on it does. Tabbing on from there settles as ever.
+  without the settle (ADR-0014 amended), so the screen under the draft is never shown in between. Tabbing on from there
+  settles as ever.
   *Touched* is what the screen holds rather than whether a key was pressed: a reply still holding only its mention and
   the warning it opened on, an unchanged edit, and a letter typed and rubbed out again all leave without asking. The
   question reads `y / n` rather than `y discard · esc keep` because it is put in front of `esc` among other ways out,

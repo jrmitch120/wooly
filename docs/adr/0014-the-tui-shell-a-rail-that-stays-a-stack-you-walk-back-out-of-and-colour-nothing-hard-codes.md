@@ -291,3 +291,13 @@ front for the wait, a place the reader neither asked for nor is going to. So tha
 and then (`Rail.LandNow`), and the destination stepped to is arrived at at once. Tabbing on from there settles as
 before. The cost is one fetch for a destination a reader tabs straight past on the way off a draft, which is rare and
 cheap beside a flash of the wrong screen.
+
+## Amendment: opening a draft calls off a pending settle (#429)
+
+A draft opened inside the settle window — `tab` on a feed, then `c` before the settle lands — was thrown away when
+the settle landed, since an arrival resets the stack, touched or not and with no question. Opening a draft is a
+deliberate move away from the rail, so it calls the settle off (`Rail.CallOff`): the cursor goes back to the
+destination selected, nothing is fetched, and the draft stays in front. A settle already landed is nothing to call off.
+The shell's stack adapter does it as a draft is put on, since drafting has no rail to reach (ADR-0029). With the cursor
+always on the selection while a draft is in front, the previous amendment's step off a draft is never onto the
+destination already shown.
