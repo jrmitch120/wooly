@@ -33,8 +33,8 @@ public static class StandIn
     ///     and stretching it to the shaped box is what gives it the picture's and lines it up with the picture that
     ///     replaces it. Filling the box is what makes the picture arriving read as sharpening. Named apart from that
     ///     picture (<see cref="Drawn.Blur" />) so that the box drawing one lets go of it, and the terminal deletes it,
-    ///     when the other takes its place (ADR-0022). Its pixels come from <see cref="Blurs" />, never from the picture cache, so a screen of blurs
-    ///     can never crowd out the pictures they stand in for (ADR-0025).
+    ///     when the other takes its place (ADR-0022). Its pixels come from <see cref="Blurs" />, never from the picture
+    ///     cache, so a screen of blurs can never crowd out the pictures they stand in for (ADR-0025).
     /// </remarks>
     /// <param name="box">The box the Stand-in fills.</param>
     /// <param name="blurhash">The instance's blurhash of the picture, where it sent one.</param>

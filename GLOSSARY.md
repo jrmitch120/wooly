@@ -158,12 +158,13 @@ arriving or being let go of never moves the rows around it.
 _Avoid_: image, media (for the avatar half of this)
 
 **Picture box**:
-The cells a **drawn** picture is painted in, settled before its pixels arrive so that nothing moves when they come or go:
-shaped as the instance said the picture is, for a post's picture and a **Link preview**'s, or a fixed size, for an
+The cells a **drawn** picture is painted in, settled before its pixels arrive so that nothing moves when they come or
+go: shaped as the instance said the picture is, for a post's picture and a **Link preview**'s, or a fixed size, for an
 avatar, the small picture on a **pending attachment**'s row and the public profile form's avatar and header. A fixed box
 is filled: a picture of another shape is cropped to it from the middle, as an instance crops an avatar, never stretched.
 A shaped box fits the picture inside it, since the shape it was given can be a guess — a picture the guess got wrong
-shows whole, with slack beside it. Until the pixels are here the box holds a **Stand-in**.
+shows whole, with slack beside it. Until the pixels are here the box holds a **Stand-in**, whose blur is stretched to
+the box rather than cropped.
 _Avoid_: thumbnail (only the smallest of them), frame, slot
 
 **Stand-in**:

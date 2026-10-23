@@ -21,7 +21,9 @@ internal static class PictureEncoder
     /// <param name="picture">The picture, or the blur.</param>
     /// <param name="width">How wide the box is, in pixels.</param>
     /// <param name="height">How tall the box is, in pixels.</param>
-    /// <param name="stretched">Whether this is a Stand-in's blur, which is stretched to the box rather than cropped.</param>
+    /// <param name="stretched">
+    ///     Whether this is a Stand-in's blur, which is stretched to the box rather than cropped.
+    /// </param>
     public static byte[] Png(Picture picture, int width, int height, bool stretched)
     {
         using var image = PictureDecoder.Filled(picture, width, height, stretched);

@@ -129,13 +129,15 @@ internal static class PictureDecoder
     /// <summary>
     ///     <paramref name="picture" /> at exactly <paramref name="width" /> by <paramref name="height" /> pixels — the
     ///     box it is drawn in, so that the terminal is handed pixels it has nothing left to do to. Through
-    ///     <see cref="Filled" />, so a picture of another shape is cropped to the box rather than stretched to it, and a
-    ///     Stand-in's blur is stretched.
+    ///     <see cref="Filled" />, so a picture of another shape is cropped to the box rather than stretched to it, and
+    ///     a Stand-in's blur is stretched.
     /// </summary>
     /// <param name="picture">The picture, or the blur.</param>
     /// <param name="width">How wide the box is, in pixels.</param>
     /// <param name="height">How tall the box is, in pixels.</param>
-    /// <param name="stretched">Whether this is a Stand-in's blur, which is stretched to the box rather than cropped.</param>
+    /// <param name="stretched">
+    ///     Whether this is a Stand-in's blur, which is stretched to the box rather than cropped.
+    /// </param>
     public static Picture Scaled(Picture picture, int width, int height, bool stretched)
     {
         if (picture.Width == width && picture.Height == height)
@@ -162,8 +164,8 @@ internal static class PictureDecoder
     ///     this is.
     ///     <para>
     ///         A <b>Stand-in</b>'s blur is the one thing stretched instead (<paramref name="stretched" />). It is
-    ///         decoded square whatever the picture's shape (<see cref="Blurs" />), so stretching it to its shaped box is
-    ///         what gives it back the picture's proportions and lines it up with the picture that replaces it, where
+    ///         decoded square whatever the picture's shape (<see cref="Blurs" />), so stretching it to its shaped box
+    ///         is what gives it back the picture's proportions and lines it up with the picture that replaces it, where
     ///         cropping it would show only its middle band; and a blur has no detail to lose by being stretched
     ///         (ADR-0025).
     ///     </para>
@@ -171,7 +173,9 @@ internal static class PictureDecoder
     /// <param name="picture">The picture, or the blur.</param>
     /// <param name="width">How wide the box is, in pixels.</param>
     /// <param name="height">How tall the box is, in pixels.</param>
-    /// <param name="stretched">Whether this is a Stand-in's blur, which is stretched to the box rather than cropped.</param>
+    /// <param name="stretched">
+    ///     Whether this is a Stand-in's blur, which is stretched to the box rather than cropped.
+    /// </param>
     /// <returns>The image, which the caller disposes of.</returns>
     internal static Image<Rgba32> Filled(Picture picture, int width, int height, bool stretched)
     {

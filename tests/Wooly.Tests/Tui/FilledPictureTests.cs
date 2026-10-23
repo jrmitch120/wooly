@@ -62,8 +62,8 @@ public class FilledPictureTests
     }
 
     /// <summary>
-    ///     A <b>Stand-in</b>'s blur is decoded square and stretched to its box, not cropped like the picture it stands in
-    ///     for: stretching it is what gives it back the picture's proportions, so it lines up with what replaces it
+    ///     A <b>Stand-in</b>'s blur is decoded square and stretched to its box, not cropped like the picture it stands
+    ///     in for: stretching it is what gives it back the picture's proportions, so it lines up with what replaces it
     ///     (ADR-0025). Set into a wide shaped box, it keeps its full height — its top band and its bottom band both.
     /// </summary>
     [Fact]
@@ -88,7 +88,9 @@ public class FilledPictureTests
         AssertNothingCropped(new Picture(sixel.Pixels));
     }
 
-    /// <summary>A blur set into a shaped box eight columns by two rows: 80 by 40 pixels, twice as wide as tall.</summary>
+    /// <summary>
+    ///     A blur set into a shaped box eight columns by two rows: 80 by 40 pixels, twice as wide as it is tall.
+    /// </summary>
     private static Inset WideBlur()
     {
         var picture = new Drawn("m1", "https://files.example/m1.png");
@@ -153,7 +155,9 @@ public class FilledPictureTests
         return new Picture(pixels);
     }
 
-    /// <summary>Red at the top left, green at the top right, blue at the bottom left, white at the bottom right.</summary>
+    /// <summary>
+    ///     Red at the top left, green at the top right, blue at the bottom left, white at the bottom right.
+    /// </summary>
     private static Picture Quartered(int width, int height)
     {
         var pixels = new Color[width, height];

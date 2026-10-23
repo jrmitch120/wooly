@@ -96,8 +96,8 @@ public sealed record Inset(Drawn Drawn, int Column, int Columns, int Rows)
     ///     box its top is.
     /// </returns>
     /// <remarks>
-    ///     Only a shaped box fits its picture: a fixed one is filled, cropped to it from the middle, and has no slack to
-    ///     put on either side (<see cref="PictureBox" />, #438).
+    ///     Only a shaped box fits its picture: a fixed one is filled, cropped to it from the middle, and has no slack
+    ///     to put on either side (<see cref="PictureBox" />, #438).
     /// </remarks>
     public (Inset Inset, int Row) Fit(Picture picture, CellSize cell)
     {
