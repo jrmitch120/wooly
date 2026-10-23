@@ -35,3 +35,19 @@ which leaves the field's own paste to run.
 - **Drafting with a wide port of its own** onto the shell (the stack, the notice, the enquiry, changes, an event on
   every stack move). Rejected: it moves the shell's complexity into the dependency rather than removing it, and
   duplicates what **Reach** already is.
+
+## Amendment: Reach reads a subject again, and two things reach drafting outside the verb route (review of #419)
+
+**Reach gained `Again`**: reading the **Subject** showing again, what it last held forgotten, with what to say once
+the fresh copy lands. A save of the public profile form takes the form off and has the own account beneath it read
+again (#406), which was the shell's to do before the form moved into drafting (#422) — and drafting reaches the shell
+through Reach and nothing wider. Reading a subject again is what a refresh already did through **Arrival**, so this
+names an existing way of reaching the shell rather than opening a new one, and Reach stays narrow: nothing of the
+stack, the rail or the cache. What to say rides on it because a fresh copy takes down what was said over the old one,
+and "Public profile saved." must still be on the status row once the account is back.
+
+**Besides the one arm of `Shell.Do`, two things reach drafting directly.** `esc`, through `Drafting.Back`, called by
+the shell's own `Back` only once it has found no question open: a question open over a compose is answered by `esc`,
+and asking drafting first, through the verb route, called a waiting send off behind the question. And a drop of pasted
+text: a paste is text rather than a verb, and the shell's `Paste` hands it to `Drafting.Paste` before anything else, so
+that files dropped onto the terminal are attached and anything else is left to be typed.

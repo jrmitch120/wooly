@@ -1845,11 +1845,13 @@ Three things stayed outside it, each deliberately:
   and that is the screen's answer, relayed as the `bool` `Shell.Do` returns. The keymap says what a key *means*; only
   the screen knows what is on the post, and asking it in two places is how two places come to disagree.
 - **What a screen-local verb does.** The keymap decides which verbs a screen is sent; the screen carries them out, in its
-  own file, through `Screen.Answer(verb, reach)` (#232). `Shell.Do` keeps the frame's verbs and the ones that act on the
-  picked post of any screen — marks, reply, compose, edit, delete, vote, reveal, opening a reference or an author — and
-  `m`, which reads across the conversation and DM screens; every other verb falls through to the screen. What a screen
-  can do while it answers is **Reach** (GLOSSARY.md): the ports and profile, one `Put` through the shell's **Enquiry**,
-  `Open` and `Swap` of a **Subject** (#233), `Say`, `Confirm`, `Changed`, `Tell` of a **Change** (#234) and `IsMe` —
+  own file, through `Screen.Answer(verb, reach)` (#232). `Shell.Do` asks **Drafting** of every verb first, through one
+  arm, and a draft's verbs — compose, reply and edit among them — are drafting's (ADR-0029). Of the rest it keeps the
+  frame's verbs and the ones that act on the picked post of any screen — marks, delete, vote, reveal, opening a
+  reference or an author — and `m`, which reads across the conversation and DM screens; every other verb falls through
+  to the screen. What a screen can do while it answers is **Reach** (GLOSSARY.md): the ports and profile, one `Put`
+  through the shell's **Enquiry**, `Open`, `Swap` and `Again` of a **Subject** (#233, #422), `Say`, `Confirm`,
+  `Changed`, `Tell` of a **Change** (#234) and `IsMe` —
   and nothing of the stack, the rail or the cache. So the account screen's
   ties, `w` and `s` are in `AccountScreen.cs`; a follow list's `s`, `f` and `⏎` in `FollowsScreen.cs`; search's `⏎` in
   `SearchScreen.cs`; `d` and `D` in `NotificationsScreen.cs`; `a`, `x` and `⏎` in `FollowRequestsScreen.cs`; the
