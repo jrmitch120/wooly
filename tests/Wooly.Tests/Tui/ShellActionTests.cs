@@ -147,7 +147,7 @@ public class ShellActionTests
         Assert.Equal("Delete this post?", opened.Asking?.Ask);
         Assert.Equal(
             " Delete this post? This cannot be undone.  y delete · esc keep",
-            ChromeLines.Status(opened.Keys, opened.Notice, opened.NoticeIsError, opened.Asking, 80).Text);
+            ChromeLines.Status(opened.Keys, opened.StatusRow.Shown, 80).Text);
     }
 
     /// <summary>Answering no leaves the post exactly where it was, which is the point of asking.</summary>

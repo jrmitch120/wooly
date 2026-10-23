@@ -28,7 +28,7 @@ public class KeyRoleTests
     [Fact]
     public void TheStatusRow_DrawsAKeyInKeyAndItsExplanationInMuted()
     {
-        var row = ChromeLines.Status([new KeyHint("⏎", "read")], null, noticeIsError: false, asking: null, 80);
+        var row = ChromeLines.Status([new KeyHint("⏎", "read")], Shown.Keys, 80);
 
         Assert.Contains(row.Spans, span => span is { Role: Role.Key, Text: "⏎" });
         Assert.Contains(row.Spans, span => span is { Role: Role.Muted, Text: "Read: " });
@@ -40,9 +40,7 @@ public class KeyRoleTests
     {
         var row = ChromeLines.Status(
             [new KeyHint("⏎", "read"), new KeyHint("a", "author")],
-            null,
-            noticeIsError: false,
-            asking: null,
+            Shown.Keys,
             80);
 
         Assert.All(
@@ -86,7 +84,7 @@ public class KeyRoleTests
     [Fact]
     public void AConfirmation_DrawsItsTwoKeysInKey()
     {
-        var row = ChromeLines.Status([], null, noticeIsError: false, new Confirmation("Delete this post?", Pressing.Nothing), 80);
+        var row = ChromeLines.Status([], new Shown.Asking(new Confirmation("Delete this post?", Pressing.Nothing)), 80);
 
         var keyed = row.Spans.Where(span => span.Role == Role.Key).Select(span => span.Text).ToList();
 

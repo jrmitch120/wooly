@@ -14,7 +14,9 @@ namespace Wooly.Tui.Shell;
 ///     The host's wait (<see cref="IShellHost.After" />), which runs its work once on the drawing thread and is called
 ///     off when the handle it gives back is disposed.
 /// </param>
-/// <param name="remarkFor">How long a remark said for a moment stands (<see cref="ShellTiming.WidthSaidFor" />).</param>
+/// <param name="remarkFor">
+///     How long a remark said for a moment stands (<see cref="ShellTiming.WidthSaidFor" />).
+/// </param>
 /// <param name="changed">Called whenever what the row shows may have changed, so that it is drawn again.</param>
 public sealed class StatusRow(Func<TimeSpan, Action, IDisposable> after, TimeSpan remarkFor, Action changed)
 {
@@ -22,15 +24,17 @@ public sealed class StatusRow(Func<TimeSpan, Action, IDisposable> after, TimeSpa
     private IDisposable? _wait;
 
     /// <summary>
-    ///     Something said that is not a screen: a refusal, or the countdown on a rate limit being waited out. Kept while a
-    ///     confirmation is open, behind it, and shown once that is answered.
+    ///     Something said that is not a screen: a refusal, or the countdown on a rate limit being waited out. Kept
+    ///     while a confirmation is open, behind it, and shown once that is answered.
     /// </summary>
     public string? Notice { get; private set; }
 
     /// <summary>Whether that notice is a failure rather than a remark, which settles the role it is drawn in.</summary>
     public bool NoticeIsError { get; private set; }
 
-    /// <summary>What the shell is waiting to be told again before it does, or <see langword="null" /> if nothing.</summary>
+    /// <summary>
+    ///     What the shell is waiting to be told again before it does, or <see langword="null" /> if nothing.
+    /// </summary>
     public Confirmation? Asking { get; private set; }
 
     /// <summary>What the row shows: the confirmation, else the notice, else the keys of the screen in front.</summary>
@@ -81,9 +85,9 @@ public sealed class StatusRow(Func<TimeSpan, Action, IDisposable> after, TimeSpa
     }
 
     /// <summary>
-    ///     <paramref name="press" /> as the answer to the confirmation open on the row, where one is: the key that agrees
-    ///     goes ahead (<see cref="Confirmation.AgreedBy" />), and any other press keeps — <see langword="null" />, a click
-    ///     or a notch of the wheel, among them (story 43). Where none is open it does nothing.
+    ///     <paramref name="press" /> as the answer to the confirmation open on the row, where one is: the key that
+    ///     agrees goes ahead (<see cref="Confirmation.AgreedBy" />), and any other press keeps — <see langword="null" />,
+    ///     a click or a notch of the wheel, among them (story 43). Where none is open it does nothing.
     /// </summary>
     /// <returns>Whether a confirmation was open, and the press was spent on it.</returns>
     public bool Answered(ShellKey? press)
@@ -97,6 +101,12 @@ public sealed class StatusRow(Func<TimeSpan, Action, IDisposable> after, TimeSpa
 
         return true;
     }
+
+    /// <summary>
+    ///     <paramref name="press" /> as <see cref="Answered" /> takes it, for a test to await what agreeing goes ahead
+    ///     with.
+    /// </summary>
+    internal Task Answer(ShellKey? press) => Answer(Asking?.AgreedBy(press) == true);
 
     /// <summary>
     ///     Answers the confirmation open on the row, where one is: put away either way, and gone ahead with where

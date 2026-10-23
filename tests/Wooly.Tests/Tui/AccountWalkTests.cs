@@ -53,7 +53,7 @@ public class AccountWalkTests
     ///     announces rather than which of them an 80-column row has room for — the account screen's wants 217 (#218).
     /// </summary>
     private static string Status(Screen screen) =>
-        ChromeLines.Status(screen.Keys, notice: null, noticeIsError: false, asking: null, 400).Text;
+        ChromeLines.Status(screen.Keys, Shown.Keys, 400).Text;
 
     /// <summary>A hint as the status row draws it, <c>Does: key</c>.</summary>
     private static string Drawn(KeyHint key) => string.Concat(key.Spans.Select(span => span.Text));

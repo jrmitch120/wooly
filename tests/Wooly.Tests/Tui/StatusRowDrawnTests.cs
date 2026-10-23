@@ -61,7 +61,7 @@ public class StatusRowDrawnTests
     };
 
     private static Line Row(IReadOnlyList<KeyHint> keys, int width) =>
-        ChromeLines.Status(keys, notice: null, noticeIsError: false, asking: null, width);
+        ChromeLines.Status(keys, Shown.Keys, width);
 
     /// <summary>What the row reads as, one entry per thing between its bars.</summary>
     private static IReadOnlyList<string> Said(Line row) => row.Text.Trim().Split(" | ");
@@ -228,12 +228,13 @@ public class StatusRowDrawnTests
     {
         var keys = Of("account");
 
-        var notice = ChromeLines.Status(keys, "Only your own posts can be deleted.", noticeIsError: true, null, 80);
+        var notice = ChromeLines.Status(
+            keys,
+            new Shown.Notice("Only your own posts can be deleted.", IsError: true),
+            80);
         var asking = ChromeLines.Status(
             keys,
-            notice: null,
-            noticeIsError: false,
-            new Confirmation("Delete this post?", Pressing.Nothing),
+            new Shown.Asking(new Confirmation("Delete this post?", Pressing.Nothing)),
             80);
 
         Assert.Equal(" Only your own posts can be deleted.", notice.Text);

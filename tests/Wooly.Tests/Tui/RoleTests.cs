@@ -113,13 +113,11 @@ public partial class RoleTests
         Collect([
             ChromeLines.Status(
                 [],
-                notice: null,
-                noticeIsError: false,
-                new Confirmation("Delete this post?", Pressing.Nothing),
+                new Shown.Asking(new Confirmation("Delete this post?", Pressing.Nothing)),
                 80),
         ]);
-        Collect([ChromeLines.Status([], "Only your own posts can be deleted.", noticeIsError: true, null, 80)]);
-        Collect([ChromeLines.Status([new KeyHint("⏎", "read")], null, noticeIsError: false, asking: null, 80)]);
+        Collect([ChromeLines.Status([], new Shown.Notice("Only your own posts can be deleted.", IsError: true), 80)]);
+        Collect([ChromeLines.Status([new KeyHint("⏎", "read")], Shown.Keys, 80)]);
 
         // Selected text is the compose editor's rather than a span's: Terminal.Gui draws a selection in it and asks the
         // widget which colour, which ComposeThemeTests checks on a drawn frame (#316).
@@ -508,9 +506,7 @@ public partial class RoleTests
     {
         var asking = ChromeLines.Status(
             [new KeyHint("j/k", "post")],
-            notice: null,
-            noticeIsError: false,
-            new Confirmation("Delete this post?", Pressing.Nothing),
+            new Shown.Asking(new Confirmation("Delete this post?", Pressing.Nothing)),
             80);
 
         Assert.Contains(asking.Spans, span => span.Role == Role.Destructive);
@@ -522,8 +518,8 @@ public partial class RoleTests
     [Fact]
     public void Status_TellsAFailureApartFromARemark()
     {
-        var failed = ChromeLines.Status([], "Only your own posts can be deleted.", noticeIsError: true, null, 80);
-        var said = ChromeLines.Status([], "Sent.", noticeIsError: false, null, 80);
+        var failed = ChromeLines.Status([], new Shown.Notice("Only your own posts can be deleted.", IsError: true), 80);
+        var said = ChromeLines.Status([], new Shown.Notice("Sent.", IsError: false), 80);
 
         Assert.Equal(Role.Error, failed.Role);
         Assert.Equal(Role.Muted, said.Role);
@@ -544,8 +540,8 @@ public partial class RoleTests
 
         var inbox = new NotificationsScreen([ANotification.With()]);
 
-        var onAnAccount = ChromeLines.Status(account.Keys, null, noticeIsError: false, asking: null, 80).Text;
-        var onTheInbox = ChromeLines.Status(inbox.Keys, null, noticeIsError: false, asking: null, 80).Text;
+        var onAnAccount = ChromeLines.Status(account.Keys, Shown.Keys, 80).Text;
+        var onTheInbox = ChromeLines.Status(inbox.Keys, Shown.Keys, 80).Text;
 
         Assert.Contains("Unfollow: F", onAnAccount);
         Assert.Contains("Mute: M", onAnAccount);
@@ -574,9 +570,7 @@ public partial class RoleTests
     {
         var keys = ChromeLines.Status(
             [new KeyHint("⏎", "read"), new KeyHint("a", "author")],
-            notice: null,
-            noticeIsError: false,
-            asking: null,
+            Shown.Keys,
             80);
 
         Assert.Contains("Read: ⏎", keys.Text);

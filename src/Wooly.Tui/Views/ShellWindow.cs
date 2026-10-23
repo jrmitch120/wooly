@@ -272,7 +272,7 @@ internal sealed class ShellWindow : Window
         }
 
         var status = new PaintedView(theme, (width, _) =>
-            [ChromeLines.Status(shell.Keys, shell.Notice, shell.NoticeIsError, shell.Asking, width)])
+            [ChromeLines.Status(shell.Keys, shell.StatusRow.Shown, width)])
         {
             X = 0,
             Y = Pos.AnchorEnd(1),
@@ -309,10 +309,8 @@ internal sealed class ShellWindow : Window
     {
         // A confirmation is the only thing on screen worth answering, so nothing else is listened to while one is up
         // (story 43). Anything that is not the agreeing key, y, is a no.
-        if (_shell.Asking is not null)
+        if (_shell.StatusRow.Answered(ShellKeys.Of(key)))
         {
-            _ = _shell.Answer(ShellKeys.Of(key));
-
             return true;
         }
 
@@ -560,14 +558,10 @@ internal sealed class ShellWindow : Window
     /// <returns>Always that it was the shell's, so nothing behind the window answers a right click either.</returns>
     private bool RightClicked(ShellKey pressed)
     {
-        if (_shell.Asking is not null)
+        if (!_shell.StatusRow.Answered(pressed))
         {
-            _ = _shell.Answer(pressed);
-
-            return true;
+            _ = Do(pressed);
         }
-
-        _ = Do(pressed);
 
         return true;
     }
@@ -577,17 +571,7 @@ internal sealed class ShellWindow : Window
     ///     for such a press.
     /// </summary>
     /// <returns>Whether there was one, and the gesture was spent on it.</returns>
-    private bool Declined()
-    {
-        if (_shell.Asking is null)
-        {
-            return false;
-        }
-
-        _ = _shell.Answer(agreed: false);
-
-        return true;
-    }
+    private bool Declined() => _shell.StatusRow.Answered(press: null);
 
     /// <summary>
     ///     Whether <paramref name="key" /> is a space the keymap means something by on the screen in front, rather than a

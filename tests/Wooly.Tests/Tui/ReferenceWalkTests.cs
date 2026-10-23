@@ -363,7 +363,7 @@ public class ReferenceWalkTests
     ///     width the contract is written for.
     /// </summary>
     private static string Status(Screen screen, int width = 80) =>
-        ChromeLines.Status(screen.Keys, notice: null, noticeIsError: false, asking: null, width).Text;
+        ChromeLines.Status(screen.Keys, Shown.Keys, width).Text;
 
     /// <summary>One of each screen a post is drawn on, each with the same post picked out.</summary>
     private static Screen Of(string kind)

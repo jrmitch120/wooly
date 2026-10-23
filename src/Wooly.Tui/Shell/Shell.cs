@@ -131,12 +131,6 @@ public sealed class Shell
     private RateLimitQuota? _quotaBeforeSwitch;
 
     /// <summary>
-    ///     The wait after which what a width key said is let go of, which anything said or cleared in the meantime
-    ///     calls off (#413).
-    /// </summary>
-    private IDisposable? _widthNoticeWait;
-
-    /// <summary>
     ///     The Inbox's badges, kept live for the profile acted as by the poll and the stream, and the bell rung where
     ///     one rises (ADR-0027, #398, #399, #401).
     /// </summary>
@@ -181,6 +175,7 @@ public sealed class Shell
         _clock = clock;
         _timing = timing;
         _hashtag = preferences?.Hashtag;
+        StatusRow = new StatusRow(host.After, timing.WidthSaidFor, () => Changed?.Invoke());
         Stack = new Stacked(this);
         _drafting = new Tui.Drafting.Drafting(
             Stack,
@@ -288,16 +283,20 @@ public sealed class Shell
     public ShellWidth ShellWidth { get; private set; }
 
     /// <summary>
-    ///     Something the shell has to say out loud that is not a screen: a refusal, or the countdown on a rate limit
-    ///     being waited out.
+    ///     The row at the foot of the shell, which keeps what is said and asked on it and takes every press while a
+    ///     confirmation is open (#436). The shell keeps only what sets it going: a push clears it, and <c>esc</c> and a
+    ///     profile switch dismiss the confirmation.
     /// </summary>
-    public string? Notice { get; private set; }
+    public StatusRow StatusRow { get; }
 
-    /// <summary>Whether that notice is a failure rather than a remark, which settles the role it is drawn in.</summary>
-    public bool NoticeIsError { get; private set; }
+    /// <inheritdoc cref="StatusRow.Notice" />
+    public string? Notice => StatusRow.Notice;
 
-    /// <summary>What the shell is waiting to be told again before it does, or <see langword="null" /> if nothing.</summary>
-    public Confirmation? Asking { get; private set; }
+    /// <inheritdoc cref="StatusRow.NoticeIsError" />
+    public bool NoticeIsError => StatusRow.NoticeIsError;
+
+    /// <inheritdoc cref="StatusRow.Asking" />
+    public Confirmation? Asking => StatusRow.Asking;
 
     /// <summary>What the instance last said is left of the profile's budget, for the rail's foot (story 54).</summary>
     /// <remarks>
@@ -507,10 +506,8 @@ public sealed class Shell
     /// <returns>Whether there was a question to spend the click on.</returns>
     public bool DeclineOpenQuestion()
     {
-        if (Asking is not null)
+        if (StatusRow.Answered(press: null))
         {
-            _ = Answer(agreed: false);
-
             return true;
         }
 
@@ -622,7 +619,7 @@ public sealed class Shell
         Paging();
 
         // The remark goes with the post it was said over, for the reason <see cref="Walk" /> gives.
-        Say(null, isError: false);
+        StatusRow.Clear();
     }
 
     /// <summary>
@@ -656,7 +653,7 @@ public sealed class Shell
         // same way esc takes it off on the way out of a screen. It is not a small thing to leave standing: the status
         // row holds either a notice or the keymap, never both, so a stale one is every key the screen answers to,
         // hidden until the reader happens to go somewhere.
-        Say(null, isError: false);
+        StatusRow.Clear();
     }
 
     /// <summary>
@@ -675,7 +672,7 @@ public sealed class Shell
         Screen.Pick(at);
 
         // The remark goes with the thing it was said over, for the reason Walk gives.
-        Say(null, isError: false);
+        StatusRow.Clear();
     }
 
 
@@ -726,7 +723,7 @@ public sealed class Shell
         // The status row holds one thing at a time and a notice wins it, so a remark left standing is the whole keymap
         // gone — including the v the reader is being told to press next. A remark is about what had just happened, and
         // what had just happened is over (#87 follow-up).
-        Say(null, isError: false);
+        StatusRow.Clear();
 
         return true;
     }
@@ -845,13 +842,9 @@ public sealed class Shell
     /// <summary>Walks back up one level of the stack. Never quits, and never leaves the shell with nothing on it.</summary>
     public void Back()
     {
-        if (Asking is not null)
+        // Escaping out of a confirmation is answering it, and the answer is no.
+        if (StatusRow.Answered(ShellKey.Escape))
         {
-            // Escaping out of a confirmation is answering it, and the answer is no.
-            Asking = null;
-
-            Changed?.Invoke();
-
             return;
         }
 
@@ -896,7 +889,7 @@ public sealed class Shell
             alone.StartOver();
         }
 
-        ClearNotice();
+        StatusRow.Clear();
     }
 
     /// <summary>
@@ -1028,7 +1021,7 @@ public sealed class Shell
         }
         catch (WoolyException failure)
         {
-            Say(failure.Message, isError: true);
+            StatusRow.Say(failure.Message, isError: true);
 
             return;
         }
@@ -1039,7 +1032,7 @@ public sealed class Shell
         Freshened(list);
 
         // Said after the list is up, which clears what was said over the one it replaced.
-        Say(ProfileWords.ActsAs(name), isError: false);
+        StatusRow.Say(ProfileWords.ActsAs(name), isError: false);
     }
 
     /// <summary>
@@ -1061,19 +1054,19 @@ public sealed class Shell
 
         if (picked.Name == Actor.Profile.Name)
         {
-            Say("Switch to another profile before removing this one.", isError: true);
+            StatusRow.Say("Switch to another profile before removing this one.", isError: true);
 
             return;
         }
 
         if (picked.IsCurrent)
         {
-            Say(MakeAnotherTheDefault, isError: true);
+            StatusRow.Say(MakeAnotherTheDefault, isError: true);
 
             return;
         }
 
-        Confirm(new Confirmation("Remove this profile?", () => RemoveProfile(picked.Name), Going: "remove"));
+        StatusRow.Ask(new Confirmation("Remove this profile?", () => RemoveProfile(picked.Name), Going: "remove"));
     }
 
     /// <summary>
@@ -1102,13 +1095,13 @@ public sealed class Shell
         {
             // Made the default since the list was read — profile switch in another terminal. Said in this screen's
             // words, which name D, rather than the registry's, which name the CLI.
-            Say(MakeAnotherTheDefault, isError: true);
+            StatusRow.Say(MakeAnotherTheDefault, isError: true);
 
             return Task.CompletedTask;
         }
         catch (WoolyException failure)
         {
-            Say(failure.Message, isError: true);
+            StatusRow.Say(failure.Message, isError: true);
 
             return Task.CompletedTask;
         }
@@ -1124,7 +1117,7 @@ public sealed class Shell
         Freshened(list);
 
         // Said after the list is up, which clears what was said over the one it replaced.
-        Say($"Removed profile {name}.", isError: false);
+        StatusRow.Say($"Removed profile {name}.", isError: false);
 
         return Task.CompletedTask;
     }
@@ -1237,7 +1230,7 @@ public sealed class Shell
         {
             // A key that did nothing and said nothing reads as a shell that missed the press, and asking an instance
             // to clear a mark it does not have would spend a request to be told what is already on screen.
-            Say("Already read.", isError: false);
+            StatusRow.Say("Already read.", isError: false);
 
             return;
         }
@@ -1257,7 +1250,7 @@ public sealed class Shell
         await _enquiry.Put(
             ask => ask.Of(token => _ports.Messages.MarkRead(profile, conversation.Id, token)),
             eitherWay: marked => Tell(new Change.ConversationMarked(marked)),
-            ifStillHere: _ => Say("Marked as read.", isError: false));
+            ifStillHere: _ => StatusRow.Say("Marked as read.", isError: false));
 
         // Let go on the drawing thread, behind whatever the answer or its failure has already queued there: by then the
         // conversation is drawn as the instance has it, and a press that fails can be pressed again.
@@ -1288,7 +1281,7 @@ public sealed class Shell
 
         if (mark == PostMark.Pin && !IsMine(about))
         {
-            Say("Only your own posts can be pinned.", isError: true);
+            StatusRow.Say("Only your own posts can be pinned.", isError: true);
 
             return;
         }
@@ -1316,12 +1309,12 @@ public sealed class Shell
 
         if (!IsMine(about))
         {
-            Say("Only your own posts can be deleted.", isError: true);
+            StatusRow.Say("Only your own posts can be deleted.", isError: true);
 
             return;
         }
 
-        Confirm(new Confirmation("Delete this post?", () => Delete(about.Id)));
+        StatusRow.Ask(new Confirmation("Delete this post?", () => Delete(about.Id)));
     }
 
     /// <summary>
@@ -1343,7 +1336,9 @@ public sealed class Shell
             // Said rather than passed over in silence, the same way m answers on a conversation already read: the
             // poll is on screen and the key is on the keyboard, so a press that did nothing at all would read as a
             // shell that missed it. Which of the two reasons it is, is the part worth saying.
-            Say(poll.Closed ? "That poll has closed." : "You have already voted in this poll.", isError: false);
+            StatusRow.Say(
+                poll.Closed ? "That poll has closed." : "You have already voted in this poll.",
+                isError: false);
 
             return;
         }
@@ -1352,7 +1347,7 @@ public sealed class Shell
         {
             // The key is announced wherever there is a poll, so it has to answer wherever it is announced: a v that
             // did nothing and said nothing reads as a shell that missed the press.
-            Say("Choose an answer first, with 1-9 or 0.", isError: false);
+            StatusRow.Say("Choose an answer first, with 1-9 or 0.", isError: false);
 
             return;
         }
@@ -1364,30 +1359,17 @@ public sealed class Shell
         // ballot when it was put, and in the order the poll lists its answers rather than the order they were pressed.
         var choices = Screen.Chosen.Order().ToList();
 
-        Confirm(new Confirmation(VotingFor(choices), () => Cast(screen, about, choices), Going: "vote"));
+        StatusRow.Ask(new Confirmation(VotingFor(choices), () => Cast(screen, about, choices), Going: "vote"));
     }
 
     /// <summary>
-    ///     Answers whatever the shell was waiting to be told again with <paramref name="pressed" />: a yes where it is
-    ///     the key that agrees to it (<see cref="Confirmation.AgreedBy" />), and a no for anything else, a key that means
-    ///     nothing to the shell included (story 43).
+    ///     Answers whatever the shell was waiting to be told again with <paramref name="pressed" />, as
+    ///     <see cref="StatusRow.Answered" /> does, for a test to await what agreeing goes ahead with.
     /// </summary>
-    public Task Answer(ShellKey? pressed) => Answer(agreed: Asking?.AgreedBy(pressed) == true);
+    internal Task Answer(ShellKey? pressed) => StatusRow.Answer(pressed);
 
-    /// <summary>Answers whatever the shell was waiting to be told again.</summary>
-    public async Task Answer(bool agreed)
-    {
-        var confirmed = Asking;
-
-        Asking = null;
-
-        Changed?.Invoke();
-
-        if (agreed && confirmed is not null)
-        {
-            await confirmed.Agreed();
-        }
-    }
+    /// <inheritdoc cref="StatusRow.Answer(bool)" />
+    internal Task Answer(bool agreed) => StatusRow.Answer(agreed);
 
     /// <summary>
     ///     Builds everything that asks as <paramref name="profile" />, or holds what was read as it: at launch, and
@@ -1400,7 +1382,7 @@ public sealed class Shell
         // Asked from whatever is on top, which is the whole of the stale-answer rule: an answer lands only while the
         // screen it was asked from is still in front of the reader.
         var enquiry = new Enquiry(_host, _clock, _timing.CountdownStep, _timing.MarkStep, () => Screen);
-        enquiry.Said += Say;
+        enquiry.Said += StatusRow.Say;
         enquiry.Changed += () => Changed?.Invoke();
         enquiry.Ticked += () => Ticked?.Invoke();
         enquiry.Refused += refused => Refused(enquiry, refused);
@@ -1413,8 +1395,8 @@ public sealed class Shell
             _browser,
             held: screen => _stack.Contains(screen),
             changed: () => Changed?.Invoke(),
-            say: Say,
-            confirm: Confirm,
+            say: StatusRow.Say,
+            confirm: StatusRow.Ask,
             added: Added);
 
         _pause?.Wait.Dispose();
@@ -1451,7 +1433,7 @@ public sealed class Shell
         arrival.Filled += () =>
         {
             Saw(Screen);
-            Say(null, isError: false);
+            StatusRow.Clear();
         };
         arrival.Counts += _badges.Arrived;
         arrival.Moves += (kind, by) => _badges.Moved(profile, enquiry.Abandoned, kind, by);
@@ -1477,8 +1459,7 @@ public sealed class Shell
             _ports,
             enquiry,
             arrival,
-            say: Say,
-            confirm: Confirm,
+            StatusRow,
             changed: () => Changed?.Invoke());
 
         return new Acting(profile, arrival, reach, cache, new PeopleToMention(profile)) { Lists = lists };
@@ -1545,7 +1526,7 @@ public sealed class Shell
         }
         catch (WoolyException failure)
         {
-            Say(failure.Message, isError: true);
+            StatusRow.Say(failure.Message, isError: true);
 
             return null;
         }
@@ -1568,7 +1549,7 @@ public sealed class Shell
 
         if (!_launching || enquiry.Answered)
         {
-            Say(TokenRefused, isError: true);
+            StatusRow.Say(TokenRefused, isError: true);
 
             return;
         }
@@ -1591,7 +1572,7 @@ public sealed class Shell
         _enquiry.Abandon();
         _badges.LetGo();
 
-        Asking = null;
+        StatusRow.Answered(ShellKey.Escape);
         _launching = false;
     }
 
@@ -1651,7 +1632,7 @@ public sealed class Shell
         // about, and one this client cannot look up is as good as one it was never given.
         if (Screen.Mentioned is not { } handle || !AccountAddress.IsWellFormed(handle))
         {
-            Say(MentionUnresolved, isError: true);
+            StatusRow.Say(MentionUnresolved, isError: true);
 
             return Task.CompletedTask;
         }
@@ -1674,14 +1655,14 @@ public sealed class Shell
     {
         if (BrowserLaunch.Address(written) is not { } address)
         {
-            Say(AddressRefused, isError: true);
+            StatusRow.Say(AddressRefused, isError: true);
 
             return;
         }
 
         if (!_browser.TryOpen(address))
         {
-            Say(NoBrowser, isError: true);
+            StatusRow.Say(NoBrowser, isError: true);
         }
     }
 
@@ -1695,7 +1676,7 @@ public sealed class Shell
             eitherWay: () =>
             {
                 Tell(new Change.PostGone(postId));
-                Say("Deleted.", isError: false);
+                StatusRow.Say("Deleted.", isError: false);
             });
     }
 
@@ -1738,7 +1719,7 @@ public sealed class Shell
             eitherWay: voted =>
             {
                 Tell(new Change.PostChanged(voted));
-                Say("Vote cast.", isError: false);
+                StatusRow.Say("Vote cast.", isError: false);
             });
     }
 
@@ -1931,15 +1912,7 @@ public sealed class Shell
     {
         _stack.Add(screen);
         Saw(screen);
-        ClearNotice();
-    }
-
-    /// <summary>Waits to be told again before going ahead with what <paramref name="confirmation" /> carries.</summary>
-    private void Confirm(Confirmation confirmation)
-    {
-        Asking = confirmation;
-
-        Changed?.Invoke();
+        StatusRow.Clear();
     }
 
     /// <summary>
@@ -1981,7 +1954,7 @@ public sealed class Shell
             return;
         }
 
-        Confirm(Confirmation.Discarding(
+        StatusRow.Ask(Confirmation.Discarding(
             () =>
             {
                 leave();
@@ -2005,7 +1978,7 @@ public sealed class Shell
             Leave(_stack.Count - 1);
         }
 
-        ClearNotice();
+        StatusRow.Clear();
 
         _drafting.Uncovered();
     }
@@ -2031,7 +2004,7 @@ public sealed class Shell
             Leave(_stack.Count - 1);
         }
 
-        ClearNotice();
+        StatusRow.Clear();
 
         return true;
     }
@@ -2047,7 +2020,7 @@ public sealed class Shell
         _stack.Clear();
         _stack.Add(screen);
         Saw(screen);
-        ClearNotice();
+        StatusRow.Clear();
     }
 
     /// <summary>Puts <paramref name="fresh" /> in place of the screen on top.</summary>
@@ -2073,7 +2046,7 @@ public sealed class Shell
 
         // Gone with the screen it was said over, the same as at a push or an arrival: what a reader was told about the
         // list they were looking at is not about the one in front of them now.
-        ClearNotice();
+        StatusRow.Clear();
     }
 
     /// <summary>Says what happened on the instance, which <see cref="Arrival.Apply" /> settles the rest of.</summary>
@@ -2137,7 +2110,7 @@ public sealed class Shell
             if (adding.Account is not { } account || !Actor.Profile.SignsInAs(account))
             {
                 Act(name);
-                Say($"Replaced profile {name}.", isError: false);
+                StatusRow.Say($"Replaced profile {name}.", isError: false);
 
                 return;
             }
@@ -2164,7 +2137,7 @@ public sealed class Shell
         var what = addition.ReplacedExisting ? "Replaced" : "Added";
 
         // Said after the list is up, which clears what was said over the one it replaced — in profile add's words.
-        Say(
+        StatusRow.Say(
             addition.IsCurrent ? $"{what} profile {name}. {ProfileWords.ActsAs(name)}" : $"{what} profile {name}.",
             isError: false);
     }
@@ -2206,7 +2179,7 @@ public sealed class Shell
     {
         if (width is null)
         {
-            SayWidthForAMoment(refused);
+            StatusRow.SayForAMoment(refused);
 
             return;
         }
@@ -2223,38 +2196,12 @@ public sealed class Shell
         }
         catch (WoolyException failure)
         {
-            Say(failure.Message, isError: true);
+            StatusRow.Say(failure.Message, isError: true);
 
             return;
         }
 
-        SayWidthForAMoment($"Width {width.Percent}%");
-    }
-
-    /// <summary>
-    ///     Says what a width key did and lets go of it once <see cref="ShellTiming.WidthSaidFor" /> has passed — a remark
-    ///     about a key just pressed, which is worth nothing once the reader has seen what the key did. Anything said in
-    ///     the meantime stands: saying calls the wait off.
-    /// </summary>
-    private void SayWidthForAMoment(string notice)
-    {
-        Say(notice, isError: false);
-
-        _widthNoticeWait = _host.After(_timing.WidthSaidFor, ClearNotice);
-    }
-
-    /// <summary>Lets go of whatever the status row was saying, through <see cref="Say" /> so the same rules hold.</summary>
-    private void ClearNotice() => Say(null, isError: false);
-
-    private void Say(string? notice, bool isError)
-    {
-        _widthNoticeWait?.Dispose();
-        _widthNoticeWait = null;
-
-        Notice = notice;
-        NoticeIsError = isError;
-
-        Changed?.Invoke();
+        StatusRow.SayForAMoment($"Width {width.Percent}%");
     }
 
     private void Apply(Action work) => _host.OnUiThread(work);
