@@ -88,6 +88,13 @@ public sealed class NotificationsScreen(
 
     /// <inheritdoc />
     /// <remarks>
+    ///     Only a post drawn whole: the reader's own is a preview with none of its references on screen, and the arrows
+    ///     walk what can be seen. <c>⏎</c> opens it whole, references and all (#452).
+    /// </remarks>
+    protected override Post? Referencing => Picked is { IsMine: false } post ? post : null;
+
+    /// <inheritdoc />
+    /// <remarks>
     ///     A notification about a post that is no longer there is a row about nothing, so it goes with it — the
     ///     instance still has the notification, and the next read will say so, which is the honest thing to draw.
     /// </remarks>
@@ -228,9 +235,15 @@ public sealed class NotificationsScreen(
 
             if (notification.Post is { } post)
             {
-                rows.AddRange(PostLines
-                              .Feed(post, drawing.In(Math.Max(1, room - 2)), ReadingOf(post, at))
-                              .Select(line => line.After(new Span("  ", Role.Body))));
+                // The reader's own post is a reminder of which one it was, and anyone else's is what the notification
+                // is for — told apart by who wrote it rather than by the kind, so a kind this client has no word for
+                // is drawn by the same rule (#452).
+                var inner = Math.Max(1, room - 2);
+                var drawn = post.IsMine
+                    ? PostLines.Preview(post, inner)
+                    : PostLines.Feed(post, drawing.In(inner), ReadingOf(post, at));
+
+                rows.AddRange(drawn.Select(line => line.After(new Span("  ", Role.Body))));
             }
 
             return rows;
