@@ -34,7 +34,7 @@ public class RememberedCollapsedRailTests
 
     /// <summary>
     ///     A launch opens on the collapsed rail where that is what was saved, the content panel starting where the
-    ///     strip ends — and saves nothing, as opening on it is not a toggle. <c>\</c> then expands it.
+    ///     collapsed rail ends — and saves nothing, as opening on it is not a toggle. <c>\</c> then expands it.
     /// </summary>
     [Fact]
     public async Task ALaunchOpensOnTheSavedCollapsedRail()

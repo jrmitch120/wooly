@@ -95,8 +95,8 @@ public enum Verb
     Wider,
 
     /// <summary>
-    ///     <c>\</c>: the rail collapsed to its strip of marks, or expanded again to its labels (#441), and saved for
-    ///     the next launch (#442). Nothing where there is no rail.
+    ///     <c>\</c>: the collapsed rail, one mark a destination, or the expanded rail again with its labels (#441), and
+    ///     saved for the next launch (#442). Nothing where there is no rail.
     /// </summary>
     ToggleRail,
 

@@ -102,9 +102,9 @@ text is the client's own rather than an author's — the Lang list — it is wri
 
 ## Collapsed rail
 
-`\` collapses the rail to a strip and expands it again (`GLOSSARY.md`, #441), and each toggle is saved as
-`collapsed_rail` for the next launch to open on (#442; "Starting it", below). Only how the rail is drawn and how wide:
-the cursor, the selection, the settle window, arrivals and the stack mean the same either way.
+`\` collapses the rail and expands it again (`GLOSSARY.md`, #441), and each toggle is saved as `collapsed_rail` for
+the next launch to open on (#442; "Starting it", below). Only how the rail is drawn and how wide: the cursor, the
+selection, the settle window, arrivals and the stack mean the same either way.
 
 ```
 ╭────»╮╭ Home ─────────────────────────────────────────────────────────────────╮
@@ -126,17 +126,17 @@ the cursor, the selection, the settle window, arrivals and the stack mean the sa
 
 - **The widths.** 7 columns where colour is drawn — a frame, the mark, a space, a count's 3 columns, a frame — and 9
   where it is not, the 2-column `▶`/`▷` lead kept between the frame and the mark. Each is fixed whatever the counts say,
-  so a badge coming or growing moves nothing. The content panel and its breadcrumb start where the strip ends, inside
-  whatever the **Shell width** has left: 73 columns at 80, and 71 inside its edges.
+  so a badge coming or growing moves nothing. The content panel and its breadcrumb start where the collapsed rail ends,
+  inside whatever the **Shell width** has left: 73 columns at 80, and 71 inside its edges.
 - **The marks** are fixed single-width ASCII, `H L F # D / N M R @` for Home, Local, Federated, Hashtag, Discover,
   Search, Notifications, Direct messages, Follow requests and You — `#` whatever tag is kept and `@` whatever the handle.
   Symbols were rejected because their widths are not ones every terminal agrees on (ADR-0031). The breadcrumb still
   names where you are in full.
 - **The counts** are drawn as expanded — none at nothing, the number, or `40+` — in `rail-unread`, or `rail-current` on
-  the selected row in colour, right-aligned so they end where the strip's inside ends.
-- **The groups** stay four panels, untitled, the one holding the cursor framed in `panel-border-active`. The strip steps
-  down framed → compact → scrolled at exactly the expanded rail's row counts, compact keeping each heading as a blank
-  row, so every destination is on the same row in both states and a toggle moves the rail only sideways.
+  the selected row in colour, right-aligned so they end where the collapsed rail's inside ends.
+- **The groups** stay four panels, untitled, the one holding the cursor framed in `panel-border-active`. The collapsed rail
+  steps down framed → compact → scrolled at exactly the expanded rail's row counts, compact keeping each heading as a
+  blank row, so every destination is on the same row in both states and a toggle moves the rail only sideways.
 - **The API panel** is its percentage alone, ` nn%`, in `quota-low` at a tenth or less: no bar, no title and no
   instance, whose row is kept blank so the panel is as tall as it was. Blank before any quota is known.
 - **A toggle** lays the content out again at its new width, pictures with it (ADR-0025), and keeps the picked post on the
@@ -147,14 +147,14 @@ the cursor, the selection, the settle window, arrivals and the stack mean the sa
   port (`IShellPreferenceStore`); opening on it is not a toggle, and saves nothing. A fresh install opens expanded. A
   toggle that cannot be saved still holds for the session, and the status row says why as a failure, which stays until
   something else is said. A toggle that is saved says nothing: the rail changing is answer enough.
-- **The mark.** `«` on the expanded rail and `»` on the strip, the way a click would send the rail, sit in the top-right
-  corner of the Timelines panel's top edge, just inside the corner. Compact, where there are no frames, the mark ends
-  the Timelines heading, over where the counts end: the last column expanded, the one before it on the strip, whose
-  heading is blank. Scrolled past that heading, it ends the first heading in view, and on a rail too short for any
-  heading there is no mark, rather than one drawn over a count; `\` still toggles there (#443). A left click on it is `\`,
-  through the **Keymap** on the screen in front, so it toggles and saves exactly as the key does and does nothing where
-  the key does nothing: on compose, the description editor and the public profile form, where the mark is still drawn,
-  and where an open question is declined instead. The mark's glyph is the whole of what it says, in the role of the
+- **The mark.** `«` on the expanded rail and `»` on the collapsed rail, the way a click would send the rail, sit in the
+  top-right corner of the Timelines panel's top edge, just inside the corner. Compact, where there are no frames, the
+  mark ends the Timelines heading, over where the counts end: the last column expanded, the one before it on the
+  collapsed rail, whose heading is blank. Scrolled past that heading, it ends the first heading in view, and on a rail
+  too short for any heading there is no mark, rather than one drawn over a count; `\` still toggles there (#443). A
+  left click on it is `\`, through the **Keymap** on the screen in front, so it toggles and saves exactly as the key
+  does and does nothing where the key does nothing: on compose, the description editor and the public profile form,
+  where the mark is still drawn, and where an open question is declined instead. The mark's glyph is the whole of what it says, in the role of the
   edge or heading it is on, so it reads the same with colour and without. Both are Latin-1 and not East Asian
   ambiguous, so a column wide on every terminal. No hover, no drag, the wheel over it does nothing, and a double click
   is its first click's toggle alone, wherever the second lands once the rail has moved: on the scrolled compact rail,
@@ -244,7 +244,7 @@ workable only because the status row always shows the current screen's keys. Wha
 | `/` | Search. Goes to the search destination; what it opens onto is #29's. |
 | `ctrl-p` | The profiles screen, pushed onto the stack. On compose it takes the draft off first and opens the screen in its place, asking first where the draft is touched (ADR-0020, #373); it is not listed there. |
 | `-` / `+` or `=` | The **Shell width** one step narrower, or one wider: `=` is `+` without the shift. Typed as letters wherever letters are typed, as `/` and `?` are, and nothing on compose, the description editor or the public profile form. Said on the status row for two seconds (`Width 90%`, or `Narrowest` / `Full width` where there is no step to take); listed on the `?` screen and on no status row (#414). See **Shell width**, above. |
-| `\` | Collapses the rail to a strip of marks, or expands it again, saved for the next launch (#442). Typed as a letter wherever letters are typed, nothing on compose, the description editor or the public profile form, and nothing where there is no rail. Listed on the `?` screen and on no status row (#441). See **Collapsed rail**, above. |
+| `\` | Collapses the rail to one mark a destination, or expands it again, saved for the next launch (#442). Typed as a letter wherever letters are typed, nothing on compose, the description editor or the public profile form, and nothing where there is no rail. Listed on the `?` screen and on no status row (#441). See **Collapsed rail**, above. |
 
 Feed and post:
 

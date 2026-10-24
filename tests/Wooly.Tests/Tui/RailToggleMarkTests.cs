@@ -32,7 +32,7 @@ public class RailToggleMarkTests
     /// <summary>
     ///     Framed, the mark is in the top-right corner of the Timelines panel's top edge, just inside the corner —
     ///     <c>«</c> expanded, and a click on it collapses the rail, which then has <c>»</c> in the same place on the
-    ///     strip, a click on which expands it again. Each click is saved, as each <c>\</c> is.
+    ///     collapsed rail, a click on which expands it again. Each click is saved, as each <c>\</c> is.
     /// </summary>
     [Theory]
     [InlineData(true)]
@@ -47,9 +47,9 @@ public class RailToggleMarkTests
         drawn.Click(RailLines.Width - 2, 0);
 
         Assert.Equal(RailState.Collapsed, drawn.Shell.RailState);
-        Assert.Equal(coloured ? "╭────»╮" : "╭──────»╮", drawn.Rail(Strip(coloured))[0]);
+        Assert.Equal(coloured ? "╭────»╮" : "╭──────»╮", drawn.Rail(CollapsedRailWidth(coloured))[0]);
 
-        drawn.Click(Strip(coloured) - 2, 0);
+        drawn.Click(CollapsedRailWidth(coloured) - 2, 0);
 
         Assert.Equal(RailState.Expanded, drawn.Shell.RailState);
         Assert.Equal("╭ Timelines ──────«╮", drawn.Rail()[0]);
@@ -58,7 +58,7 @@ public class RailToggleMarkTests
 
     /// <summary>
     ///     Compact, where there are no frames, the mark ends the Timelines heading, over where the counts end: the last
-    ///     column expanded, and on the strip the column before its last, which its counts leave.
+    ///     column expanded, and on the collapsed rail the column before its last, which its counts leave.
     /// </summary>
     [Theory]
     [InlineData(true)]
@@ -73,9 +73,11 @@ public class RailToggleMarkTests
         drawn.Click(RailLines.Width - 1, 0);
 
         Assert.Equal(RailState.Collapsed, drawn.Shell.RailState);
-        Assert.Equal(new string(' ', Strip(coloured) - 2) + "» ", drawn.Rail(Strip(coloured))[0]);
+        var columns = CollapsedRailWidth(coloured);
 
-        drawn.Click(Strip(coloured) - 2, 0);
+        Assert.Equal(new string(' ', columns - 2) + "» ", drawn.Rail(columns)[0]);
+
+        drawn.Click(columns - 2, 0);
 
         Assert.Equal(RailState.Expanded, drawn.Shell.RailState);
         Assert.Equal([RailState.Collapsed, RailState.Expanded], built.ShellPreferences.Rails);
@@ -83,7 +85,7 @@ public class RailToggleMarkTests
 
     /// <summary>
     ///     Scrolled past the Timelines heading, the mark ends the first heading in view instead, so a click always has
-    ///     it to land on — and the strip, scrolled alike, has it on the same row.
+    ///     it to land on — and the collapsed rail, scrolled alike, has it on the same row.
     /// </summary>
     [Theory]
     [InlineData(true)]
@@ -106,9 +108,11 @@ public class RailToggleMarkTests
         drawn.Click(RailLines.Width - 1, explore);
 
         Assert.Equal(RailState.Collapsed, drawn.Shell.RailState);
-        Assert.Equal(new string(' ', Strip(coloured) - 2) + "» ", drawn.Rail(Strip(coloured))[explore]);
+        var columns = CollapsedRailWidth(coloured);
 
-        drawn.Click(Strip(coloured) - 2, explore);
+        Assert.Equal(new string(' ', columns - 2) + "» ", drawn.Rail(columns)[explore]);
+
+        drawn.Click(columns - 2, explore);
 
         Assert.Equal(RailState.Expanded, drawn.Shell.RailState);
     }
@@ -167,7 +171,7 @@ public class RailToggleMarkTests
         drawn.Built.Host.Drain();
         drawn.Redraw();
 
-        var columns = collapsed ? Strip(coloured) : RailLines.Width;
+        var columns = collapsed ? CollapsedRailWidth(coloured) : RailLines.Width;
         var mark = collapsed ? '»' : '«';
         var row = Array.FindIndex(drawn.Rail(columns), line => line.Contains(mark, StringComparison.Ordinal));
         var screen = drawn.Shell.Screen;
@@ -207,7 +211,7 @@ public class RailToggleMarkTests
         drawn.Built.Host.Drain();
         drawn.Redraw();
 
-        var columns = collapsed ? Strip(coloured) : RailLines.Width;
+        var columns = collapsed ? CollapsedRailWidth(coloured) : RailLines.Width;
         var rows = drawn.Rail(columns);
         var notifications = Array.FindIndex(rows, row => row.Contains("40+", StringComparison.Ordinal));
 
@@ -346,8 +350,8 @@ public class RailToggleMarkTests
             row => row.Contains("click «/» to collapse or expand the rail", StringComparison.Ordinal));
     }
 
-    /// <summary>How wide the strip is: seven columns in colour, and nine with the mark column kept.</summary>
-    private static int Strip(bool coloured) => coloured ? 7 : 9;
+    /// <summary>How wide the collapsed rail is: seven columns in colour, and nine with the mark column kept.</summary>
+    private static int CollapsedRailWidth(bool coloured) => coloured ? 7 : 9;
 
     private static ITheme Theme(bool coloured) => coloured ? Themes.Dark : Themes.Plain;
 }

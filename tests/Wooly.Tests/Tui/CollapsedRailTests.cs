@@ -8,9 +8,9 @@ using Wooly.Tui.Theme;
 namespace Wooly.Tests.Tui;
 
 /// <summary>
-///     The <b>collapsed rail</b> (#441): <c>\</c> switches the rail between the expanded rail and a strip of one mark a
-///     destination, for the session, and the content panel takes the columns the labels gave up. Pressed and read back
-///     off a headless terminal, since the promise is about where the cells land.
+///     The <b>collapsed rail</b> (#441): <c>\</c> switches the rail between the expanded rail and the collapsed rail,
+///     one mark a destination, for the session, and the content panel takes the columns the labels gave up. Pressed
+///     and read back off a headless terminal, since the promise is about where the cells land.
 /// </summary>
 public class CollapsedRailTests
 {
@@ -30,21 +30,21 @@ public class CollapsedRailTests
     private static readonly Key Toggle = new('\\');
 
     /// <summary>
-    ///     <c>\</c> collapses the rail to a strip of fixed width — seven columns where colour is drawn, nine where it
-    ///     is not and the mark column is kept — and the content panel starts where the strip ends. Pressed again, the
+    ///     <c>\</c> collapses the rail to a fixed width — seven columns where colour is drawn, nine where it is not and
+    ///     the mark column is kept — and the content panel starts where the collapsed rail ends. Pressed again, the
     ///     rail is as it was.
     /// </summary>
     [Theory]
     [InlineData(true, 7)]
     [InlineData(false, 9)]
-    public async Task BackslashCollapsesTheRailToAStripAndExpandsItAgain(bool coloured, int strip)
+    public async Task BackslashCollapsesTheRailAndExpandsItAgain(bool coloured, int columns)
     {
         using var drawn = await DrawnShell.Of(80, 24, Theme(coloured));
 
         drawn.Press(Toggle);
 
-        Assert.Equal(strip, ContentStarts(drawn));
-        Assert.Equal(80 - strip, drawn.Content.Frame.Width);
+        Assert.Equal(columns, ContentStarts(drawn));
+        Assert.Equal(80 - columns, drawn.Content.Frame.Width);
 
         drawn.Press(Toggle);
 
@@ -53,9 +53,9 @@ public class CollapsedRailTests
     }
 
     /// <summary>
-    ///     Each destination is one fixed mark on the strip, the Hashtag's <c>#</c> whatever tag is kept and You's
-    ///     <c>@</c> whatever the handle — drawn on the row its label was drawn on, inside its group's frame and after
-    ///     the cursor's mark where colour is not drawn.
+    ///     Each destination is one fixed mark on the collapsed rail, the Hashtag's <c>#</c> whatever tag is kept and
+    ///     You's <c>@</c> whatever the handle — drawn on the row its label was drawn on, inside its group's frame and
+    ///     after the cursor's mark where colour is not drawn.
     /// </summary>
     [Theory]
     [InlineData(true)]
@@ -69,22 +69,22 @@ public class CollapsedRailTests
 
         drawn.Press(Toggle);
 
-        var strip = drawn.Rail(Strip(coloured));
-        var marks = labels.Select(label => strip[RowOf(expanded, label)][coloured ? 1 : 3]);
+        var collapsedRail = drawn.Rail(CollapsedRailWidth(coloured));
+        var marks = labels.Select(label => collapsedRail[RowOf(expanded, label)][coloured ? 1 : 3]);
 
         Assert.Equal(Marks, string.Concat(marks));
-        Assert.Equal(coloured ? "│H    │" : "│▶ H    │", strip[1]);
+        Assert.Equal(coloured ? "│H    │" : "│▶ H    │", collapsedRail[1]);
     }
 
     /// <summary>
     ///     The counts are drawn as they are expanded — none at nothing, the number, or <c>40+</c> for a read that came
-    ///     back full — after the mark and ending where the strip's inside ends, and the strip is as wide whatever they
-    ///     say.
+    ///     back full — after the mark and ending where the collapsed rail's inside ends, and the collapsed rail is as
+    ///     wide whatever they say.
     /// </summary>
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task CountsAreDrawnAsExpandedAndTheStripKeepsItsWidth(bool coloured)
+    public async Task CountsAreDrawnAsExpandedAndTheCollapsedRailKeepsItsWidth(bool coloured)
     {
         using var drawn = await DrawnShell.Of(80, Framed, Theme(coloured));
 
@@ -98,20 +98,20 @@ public class CollapsedRailTests
         Assert.Equal($"│{lead}N 40+│", Row(drawn, DestinationKind.Notifications, coloured));
         Assert.Equal($"│{lead}M   4│", Row(drawn, DestinationKind.Messages, coloured));
         Assert.Equal($"│{lead}R    │", Row(drawn, DestinationKind.Requests, coloured));
-        Assert.Equal(Strip(coloured), ContentStarts(drawn));
+        Assert.Equal(CollapsedRailWidth(coloured), ContentStarts(drawn));
 
         Counted(drawn, DestinationKind.Notifications, 0);
 
         Assert.Equal($"│{lead}N    │", Row(drawn, DestinationKind.Notifications, coloured));
-        Assert.Equal(Strip(coloured), ContentStarts(drawn));
+        Assert.Equal(CollapsedRailWidth(coloured), ContentStarts(drawn));
     }
 
     /// <summary>
-    ///     Where colour is drawn the selection and the cursor are bands across the whole of the strip's inside, and a
-    ///     count off the selected row is in the unread role.
+    ///     Where colour is drawn the selection and the cursor are bands across the whole of the collapsed rail's
+    ///     inside, and a count off the selected row is in the unread role.
     /// </summary>
     [Fact]
-    public async Task TheSelectionAndTheCursorAreBandsAcrossTheStrip()
+    public async Task TheSelectionAndTheCursorAreBandsAcrossTheCollapsedRail()
     {
         var theme = Themes.Dark;
         using var drawn = await DrawnShell.Of(80, Framed, theme);
@@ -120,10 +120,10 @@ public class CollapsedRailTests
         Counted(drawn, DestinationKind.Messages, 4);
         drawn.Press(Key.Tab);
 
-        var strip = drawn.Rail(Strip(true));
-        var home = RowOf(drawn.Shell, DestinationKind.Home, strip);
-        var local = RowOf(drawn.Shell, DestinationKind.Local, strip);
-        var messages = RowOf(drawn.Shell, DestinationKind.Messages, strip);
+        var collapsedRail = drawn.Rail(CollapsedRailWidth(true));
+        var home = RowOf(drawn.Shell, DestinationKind.Home, collapsedRail);
+        var local = RowOf(drawn.Shell, DestinationKind.Local, collapsedRail);
+        var messages = RowOf(drawn.Shell, DestinationKind.Messages, collapsedRail);
 
         var inside = Enumerable.Range(1, 5);
 
@@ -143,16 +143,16 @@ public class CollapsedRailTests
         drawn.Press(Toggle);
         drawn.Press(Key.Tab);
 
-        var strip = drawn.Rail(Strip(false));
+        var collapsedRail = drawn.Rail(CollapsedRailWidth(false));
 
-        Assert.Equal("│▷ H    │", strip[1]);
-        Assert.Equal("│▶ L    │", strip[2]);
+        Assert.Equal("│▷ H    │", collapsedRail[1]);
+        Assert.Equal("│▶ L    │", collapsedRail[2]);
     }
 
     /// <summary>
     ///     Every destination is on the same row collapsed as expanded, and every panel's edges too — framed, compact
-    ///     and scrolled alike, since the strip steps down at the expanded rail's heights — so a toggle moves the rail
-    ///     only sideways.
+    ///     and scrolled alike, since the collapsed rail steps down at the expanded rail's heights — so a toggle moves
+    ///     the rail only sideways.
     /// </summary>
     [Theory]
     [InlineData(Framed, true)]
@@ -178,10 +178,12 @@ public class CollapsedRailTests
 
         drawn.Press(Toggle);
 
-        var strip = drawn.Rail(Strip(coloured));
+        var collapsedRail = drawn.Rail(CollapsedRailWidth(coloured));
 
-        Assert.Equal(rows, drawn.Shell.Rail.Destinations.Select(place => RowOf(drawn.Shell, place.Kind, strip)));
-        Assert.Equal(expanded.Select(Framing), strip.Select(Framing));
+        Assert.Equal(
+            rows,
+            drawn.Shell.Rail.Destinations.Select(place => RowOf(drawn.Shell, place.Kind, collapsedRail)));
+        Assert.Equal(expanded.Select(Framing), collapsedRail.Select(Framing));
         Assert.Equal(height == Scrolled, rows.Contains(-1));
     }
 
@@ -197,13 +199,13 @@ public class CollapsedRailTests
 
         drawn.Press(Toggle);
 
-        var strip = drawn.Rail(Strip(true));
-        var tops = Enumerable.Range(0, strip.Length).Where(row => strip[row].StartsWith('╭')).ToList();
+        var collapsedRail = drawn.Rail(CollapsedRailWidth(true));
+        var tops = Enumerable.Range(0, collapsedRail.Length).Where(row => collapsedRail[row].StartsWith('╭')).ToList();
 
         Assert.Equal(5, tops.Count);
         // The first ending in the toggle's mark (#443).
-        Assert.Equal("╭────»╮", strip[tops[0]]);
-        Assert.All(tops.Skip(1), row => Assert.Equal("╭─────╮", strip[row]));
+        Assert.Equal("╭────»╮", collapsedRail[tops[0]]);
+        Assert.All(tops.Skip(1), row => Assert.Equal("╭─────╮", collapsedRail[row]));
         Assert.Equal(theme.For(Role.PanelBorderActive), drawn.Cell(tops[0], 0));
         Assert.Equal(theme.For(Role.PanelBorder), drawn.Cell(tops[1], 0));
 
@@ -230,20 +232,22 @@ public class CollapsedRailTests
 
         drawn.Press(Toggle);
 
-        Assert.DoesNotContain(drawn.Rail(Strip(coloured)), row => row.Contains('%', StringComparison.Ordinal));
+        var columns = CollapsedRailWidth(coloured);
+
+        Assert.DoesNotContain(drawn.Rail(columns), row => row.Contains('%', StringComparison.Ordinal));
 
         built.RateLimit.Said("mastodon.social", "token-personal", 213);
         drawn.Redraw();
 
         Assert.Equal(drawnAt71, Gauge(drawn, coloured));
-        Assert.DoesNotContain(drawn.Rail(Strip(coloured)), row => row.Contains("mastodon", StringComparison.Ordinal));
-        Assert.DoesNotContain(drawn.Rail(Strip(coloured)), row => row.Contains('█', StringComparison.Ordinal));
+        Assert.DoesNotContain(drawn.Rail(columns), row => row.Contains("mastodon", StringComparison.Ordinal));
+        Assert.DoesNotContain(drawn.Rail(columns), row => row.Contains('█', StringComparison.Ordinal));
 
         built.RateLimit.Said("mastodon.social", "token-personal", 30);
         drawn.Redraw();
 
         var gauge = Gauge(drawn, coloured);
-        var row = Array.IndexOf(drawn.Rail(Strip(coloured)), gauge);
+        var row = Array.IndexOf(drawn.Rail(columns), gauge);
 
         Assert.Contains("10%", gauge, StringComparison.Ordinal);
         Assert.Equal(theme.For(Role.QuotaLow), drawn.Cell(row, gauge.IndexOf('%', StringComparison.Ordinal)));
@@ -388,7 +392,8 @@ public class CollapsedRailTests
 
     /// <summary>
     ///     A picture is laid out again at the content's new width and sent again in the frame the toggle lands — from
-    ///     just past the strip and the panel's edge and gutter, to the column before the panel's right edge — and back.
+    ///     just past the collapsed rail and the panel's edge and gutter, to the column before the panel's right edge —
+    ///     and back.
     /// </summary>
     [Fact]
     public async Task APictureIsLaidOutAgainAtTheNewWidth()
@@ -410,7 +415,7 @@ public class CollapsedRailTests
         drawn.PressAsTheLoopDraws(Toggle);
 
         Assert.Equal(1, drawn.SixelsSent());
-        Assert.Equal((Strip(false) + 2, 78), Across(drawn));
+        Assert.Equal((CollapsedRailWidth(false) + 2, 78), Across(drawn));
 
         drawn.PressAsTheLoopDraws(Toggle);
 
@@ -433,17 +438,17 @@ public class CollapsedRailTests
 
         drawn.Press(Toggle);
 
-        Assert.Equal(top, drawn.Rows()[1][(Strip(false) + 1)..^1].Trim());
+        Assert.Equal(top, drawn.Rows()[1][(CollapsedRailWidth(false) + 1)..^1].Trim());
     }
 
     /// <summary>
-    ///     <c>tab</c> and <c>`</c> walk the strip as they walk the expanded rail — the cursor moving at once, the
-    ///     selection after the settle window — and the rail stays collapsed throughout: walking it never opens it.
+    ///     <c>tab</c> and <c>`</c> walk the collapsed rail as they walk the expanded rail — the cursor moving at once,
+    ///     the selection after the settle window — and the rail stays collapsed throughout: walking it never opens it.
     /// </summary>
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task WalkingTheStripMovesTheCursorAndSettlesWithoutOpeningIt(bool coloured)
+    public async Task WalkingTheCollapsedRailMovesTheCursorAndSettlesWithoutOpeningIt(bool coloured)
     {
         using var drawn = await DrawnShell.Of(80, Framed, Theme(coloured));
 
@@ -457,7 +462,7 @@ public class CollapsedRailTests
 
         Assert.Equal(discover, drawn.Shell.Rail.Cursor);
         Assert.Equal(0, drawn.Shell.Rail.Current);
-        Assert.Equal(Strip(coloured), ContentStarts(drawn));
+        Assert.Equal(CollapsedRailWidth(coloured), ContentStarts(drawn));
         Assert.Equal(ShellTiming.Default.Settle, drawn.Built.Host.Delays[^1]);
 
         drawn.Built.Host.Settle();
@@ -465,7 +470,7 @@ public class CollapsedRailTests
 
         Assert.Equal(discover, drawn.Shell.Rail.Current);
         Assert.Equal(["Discover"], drawn.Shell.Crumbs);
-        Assert.Equal(Strip(coloured), drawn.Rows()[0].IndexOf("╭ Discover", StringComparison.Ordinal));
+        Assert.Equal(CollapsedRailWidth(coloured), drawn.Rows()[0].IndexOf("╭ Discover", StringComparison.Ordinal));
     }
 
     /// <summary>
@@ -481,7 +486,9 @@ public class CollapsedRailTests
         using var drawn = await DrawnShell.Of(80, height, Theme(coloured));
 
         drawn.Press(Toggle);
-        drawn.Click(coloured ? 1 : 3, RowOf(drawn.Shell, DestinationKind.Notifications, drawn.Rail(Strip(coloured))));
+        var collapsedRail = drawn.Rail(CollapsedRailWidth(coloured));
+
+        drawn.Click(coloured ? 1 : 3, RowOf(drawn.Shell, DestinationKind.Notifications, collapsedRail));
         drawn.Built.Host.Drain();
         drawn.Redraw();
 
@@ -517,7 +524,7 @@ public class CollapsedRailTests
         Assert.Equal(requests, drawn.Built.Requests);
         Assert.Contains(crumbs[^1], drawn.Rows()[0], StringComparison.Ordinal);
 
-        drawn.Click(3, RowOf(drawn.Shell, DestinationKind.Home, drawn.Rail(Strip(false))));
+        drawn.Click(3, RowOf(drawn.Shell, DestinationKind.Home, drawn.Rail(CollapsedRailWidth(false))));
         drawn.Built.Host.Settle();
         drawn.Redraw();
 
@@ -526,13 +533,13 @@ public class CollapsedRailTests
     }
 
     /// <summary>
-    ///     Inside a narrowed shell the strip gives its columns to the content: the panel starts where the strip ends,
-    ///     past the margin, and still ends on the shell's last column.
+    ///     Inside a narrowed shell the collapsed rail gives its columns to the content: the panel starts where the
+    ///     collapsed rail ends, past the margin, and still ends on the shell's last column.
     /// </summary>
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task InsideANarrowedShellTheStripGivesItsWidthToTheContent(bool coloured)
+    public async Task InsideANarrowedShellTheCollapsedRailGivesItsWidthToTheContent(bool coloured)
     {
         using var drawn = await DrawnShell.Of(200, Framed, Theme(coloured));
 
@@ -542,9 +549,9 @@ public class CollapsedRailTests
         var top = drawn.Rows()[0];
 
         Assert.Equal(10, top.IndexOf('╭', StringComparison.Ordinal));
-        Assert.Equal(10 + Strip(coloured), top.IndexOf("╭ Home", StringComparison.Ordinal));
+        Assert.Equal(10 + CollapsedRailWidth(coloured), top.IndexOf("╭ Home", StringComparison.Ordinal));
         Assert.Equal(189, top.LastIndexOf('╮'));
-        Assert.Equal(180 - Strip(coloured), drawn.Content.Frame.Width);
+        Assert.Equal(180 - CollapsedRailWidth(coloured), drawn.Content.Frame.Width);
     }
 
     /// <summary>The keymap lists <c>\</c> with the frame's keys, everywhere.</summary>
@@ -587,26 +594,26 @@ public class CollapsedRailTests
         Array.FindIndex(rail, row => row.Contains(label[..Math.Min(6, label.Length)], StringComparison.Ordinal));
 
     /// <summary>
-    ///     Which row of <paramref name="strip" /> is <paramref name="kind" />'s, read off it by its mark.
+    ///     Which row of <paramref name="collapsedRail" /> is <paramref name="kind" />'s, read off it by its mark.
     /// </summary>
-    private static int RowOf(Shell shell, DestinationKind kind, string[] strip)
+    private static int RowOf(Shell shell, DestinationKind kind, string[] collapsedRail)
     {
         var mark = Marks[shell.Rail.Destinations.ToList().FindIndex(destination => destination.Kind == kind)];
 
-        return Array.FindIndex(strip, row => row.Length > 3 && (row[1] == mark || row[3] == mark));
+        return Array.FindIndex(collapsedRail, row => row.Length > 3 && (row[1] == mark || row[3] == mark));
     }
 
-    /// <summary>The strip's row for <paramref name="kind" />.</summary>
+    /// <summary>The collapsed rail's row for <paramref name="kind" />.</summary>
     private static string Row(DrawnShell drawn, DestinationKind kind, bool coloured)
     {
-        var strip = drawn.Rail(Strip(coloured));
+        var collapsedRail = drawn.Rail(CollapsedRailWidth(coloured));
 
-        return strip[RowOf(drawn.Shell, kind, strip)];
+        return collapsedRail[RowOf(drawn.Shell, kind, collapsedRail)];
     }
 
-    /// <summary>The strip's row the percentage is on.</summary>
+    /// <summary>The collapsed rail's row the percentage is on.</summary>
     private static string Gauge(DrawnShell drawn, bool coloured) =>
-        drawn.Rail(Strip(coloured)).Single(row => row.Contains('%', StringComparison.Ordinal));
+        drawn.Rail(CollapsedRailWidth(coloured)).Single(row => row.Contains('%', StringComparison.Ordinal));
 
     /// <summary>
     ///     <paramref name="kind" />'s count set to <paramref name="unread" />, and the shell drawn again.
@@ -620,8 +627,8 @@ public class CollapsedRailTests
     }
 
     /// <summary>
-    ///     What a rail row is as frames go — a top edge, a bottom edge, a side, or none — so that the strip and the
-    ///     expanded rail can be told to stand their panels on the same rows.
+    ///     What a rail row is as frames go — a top edge, a bottom edge, a side, or none — so that the collapsed rail
+    ///     and the expanded rail can be told to stand their panels on the same rows.
     /// </summary>
     private static char Framing(string row) => row[0] is '╭' or '╰' or '│' ? row[0] : ' ';
 
@@ -668,7 +675,9 @@ public class CollapsedRailTests
         ]),
     };
 
-    /// <summary>Two profiles, so that the expanded rail's foot names the instance and the strip's must not.</summary>
+    /// <summary>
+    ///     Two profiles, so that the expanded rail's foot names the instance and the collapsed rail's must not.
+    /// </summary>
     private static AShell Twice() => new()
     {
         Profiles = FakeProfileRegistry.Holding(
@@ -682,8 +691,8 @@ public class CollapsedRailTests
     /// </summary>
     private static int ContentStarts(DrawnShell drawn) => drawn.Rows()[0].IndexOf("╭ Home", StringComparison.Ordinal);
 
-    /// <summary>How wide the strip is: seven columns in colour, and nine with the mark column kept.</summary>
-    private static int Strip(bool coloured) => coloured ? 7 : 9;
+    /// <summary>How wide the collapsed rail is: seven columns in colour, and nine with the mark column kept.</summary>
+    private static int CollapsedRailWidth(bool coloured) => coloured ? 7 : 9;
 
     private static ITheme Theme(bool coloured) => coloured ? Themes.Dark : Themes.Plain;
 }
