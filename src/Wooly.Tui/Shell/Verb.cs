@@ -258,7 +258,7 @@ public enum Verb
     ClearAll,
 
     /// <summary>
-    ///     <c>a</c> on the notifications screen: the account of the picked notification's actor, which is not the post's
+    ///     <c>w</c> on the notifications screen: the account of the picked notification's actor, which is not the post's
     ///     author on a favorite or a boost (GLOSSARY.md, #451).
     /// </summary>
     OpenActor,

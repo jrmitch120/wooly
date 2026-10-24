@@ -207,7 +207,7 @@ A screen is a place in the stack, not a window. Entering one pushes, `esc` pops,
 | Post — the post whole, its ancestor chain above and its replies below | `⏎` on a feed item, or on its address typed into search | #28, ancestors #72, direct #306 |
 | Account — who they are, what they are to you, their pinned posts and their posts, or their posts and replies | `a` on a feed item or inside a post, `⏎` on a handle or profile address typed into search, `s` to swap runs | shell #28, tie actions #29, the person #164, pinned #172, replies #229, direct #306 |
 | Follows — everyone an account follows, or everyone who follows it | `w` on an account, `s` to swap sides | #165 |
-| Actors — everyone in one notification group, crumbed by its kind: `Favorited by`, `Boosted by`, `Followed you`, or the instance's own word | `a` on a notification group of several | #455 |
+| Actors — everyone in one notification group, crumbed by its kind: `Favorited by`, `Boosted by`, `Followed you`, or the instance's own word | `w` on a notification group of several | #455 |
 | Discover — who to follow, in sections by why | A rail destination | #171 |
 | Search — prompt and results | A rail destination, or `/` | #29, moving between kinds #166 |
 | Notifications | A rail destination | #29 |
@@ -273,7 +273,7 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Actors | `⏎` open that account |
 | Search results | `[`/`]` section, where two or more kinds found something |
 | Discover | `F` follow/unfollow · `d` dismiss, one-way · `[`/`]` section |
-| Notifications | `a` open the actor — whoever favorited, boosted, followed or mentioned, never the post's author (#451); on a group of several, the actors screen listing every one of them, read from the group's own accounts a page at a time (#455) · `d` dismiss the group, every notification in it (#457) · `D` clear all |
+| Notifications | `w` open who did it — whoever favorited, boosted, followed or mentioned, where `a` is still the post's author (#451); on a group of several, the actors screen listing every one of them, read from the group's own accounts a page at a time (#455) · `d` dismiss the group, every notification in it (#457) · `D` clear all |
 | Follow requests | `a` accept · `x` reject |
 | Direct messages | `⏎` open the conversation · `m` mark read — `m` again inside the thread, where a reader who has just read it is most likely to press it |
 | Conversation | `m` mark read, and every key that acts on a post, since each message in it is one |
@@ -338,7 +338,7 @@ not answer them differently:
   no rows, and a post drawn whole by its actor has none — its byline has the face.
 - **The mouse reaches every actor the keyboard does** (#456, `NotificationsScreen.Clicked`). A click on a face in the
   strip, either of its two rows, opens that actor's account; a click on the names or the kind's sentence of a names line
-  is `a` — the actors screen on a group of several, the actor on a group of one. A click anywhere else on a group (the
+  is `w` — the actors screen on a group of several, the actor on a group of one. A click anywhere else on a group (the
   gaps, the `+N`, the age, the post) picks it and nothing more, and a double click there is `⏎`, opening the post. A
   double click on a face or the names is that click once, never also `⏎`.
 - **`D` asks first.** Emptying the inbox takes away a list nobody has necessarily read and nothing brings it back, so
@@ -1969,7 +1969,7 @@ Three things stayed outside it, each deliberately:
   `Changed`, `Tell` of a **Change** (#234) and `IsMe` —
   and nothing of the stack, the rail or the cache. So the account screen's
   ties, `w` and `s` are in `AccountScreen.cs`; a follow list's `s`, `f` and `⏎` in `FollowsScreen.cs`; search's `⏎` in
-  `SearchScreen.cs`; `a`, `d` and `D` in `NotificationsScreen.cs`; `a`, `x` and `⏎` in `FollowRequestsScreen.cs`; the
+  `SearchScreen.cs`; `w`, `d` and `D` in `NotificationsScreen.cs`; `a`, `x` and `⏎` in `FollowRequestsScreen.cs`; the
   conversation list's `⏎` in `DirectMessagesScreen.cs`; and Discover's `⏎`, `F` and `d` in `DiscoverScreen.cs`. A
   `Confirmation` carries what agreeing to it does, so `D` asks the same way a delete and a vote do.
 - **The verbs that need a terminal.** `ShellWindow` still carries out `ctrl-q`, the four movements that walk the page

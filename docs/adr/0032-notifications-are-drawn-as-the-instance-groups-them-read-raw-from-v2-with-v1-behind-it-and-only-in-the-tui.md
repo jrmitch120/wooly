@@ -60,11 +60,11 @@ A group's actors are accounts (`Wooly.Core.Accounts.Account`), not an address an
 one by its id and draw its face. The instance sends a sample of a group's actors, up to eight; the count is the
 instance's and is never inferred from the sample.
 
-Tickets after #453 build on this: the avatar strip under the names line (#454), `a` opening a group's actor or its
-actors screen (#451, #455), the mouse (#456), dismissing a group whole by its key (#457), and an arrival joining its
-group live (#458). Until #455, `a` on a group of several opens its most recent actor. A notification that arrives
-live joins its group: the re-read that counts it reads the first page of groups too, while Notifications is in front,
-and a group on screen takes the instance's new count and actors rather than this client adding them up (#458).
+Tickets after #453 build on this: the avatar strip under the names line (#454), `w` opening who did it — a group's actor
+or its actors screen (#451, #455), the mouse (#456), dismissing a group whole by its key (#457), and an arrival joining
+its group live (#458). A notification that arrives live joins its group: the re-read that counts it reads the first page
+of groups too, while Notifications is in front, and a group on screen takes the instance's new count and actors rather
+than this client adding them up (#458).
 
 The grouped read's `unread_count` and `expand_accounts=partial_avatars` are not used. The first counts the wrong thing
 for the badge; the second could make the avatar strip cheaper, and is #454's to weigh. #454 left it off: the grouped

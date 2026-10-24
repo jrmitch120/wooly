@@ -8,7 +8,7 @@ using Wooly.Tui.Shell;
 namespace Wooly.Tests.Tui;
 
 /// <summary>
-///     <c>a</c> on a notification group of several opens a screen listing every <b>Actor</b> in it, so every one of
+///     <c>w</c> on a notification group of several opens a screen listing every <b>Actor</b> in it, so every one of
 ///     them can be reached and not only the two the row names (#455). It is read from the group's own accounts, so it
 ///     lists exactly the group the row counted, and it is an ordinary screen on the stack drawn as Account blocks, the
 ///     way Followers is.
@@ -19,7 +19,7 @@ public class ShellNotificationActorsTests
     private const int ToNotifications = 6;
 
     /// <summary>
-    ///     On a group of several, <c>a</c> opens the actors screen, filled from the group's accounts by its key —
+    ///     On a group of several, <c>w</c> opens the actors screen, filled from the group's accounts by its key —
     ///     everyone in it, not only the two the sample named.
     /// </summary>
     [Fact]
@@ -29,7 +29,7 @@ public class ShellNotificationActorsTests
             ANotification.Group(key: "favourite-110-493000", count: 3, actors: ["Alice", "Bob"]),
             Actors("Alice", "Bob", "Carol"));
 
-        opened.Press(ShellKey.A);
+        opened.Press(ShellKey.W);
         shell.Host.Drain();
 
         var screen = Assert.IsType<ActorsScreen>(opened.Screen);
@@ -39,13 +39,13 @@ public class ShellNotificationActorsTests
         Assert.Empty(shell.Accounts.Reads);
     }
 
-    /// <summary>On a group of one, <c>a</c> opens that one actor's account, as it did before groups had several (#451).</summary>
+    /// <summary>On a group of one, <c>w</c> opens that one actor's account, as it did before groups had several (#451).</summary>
     [Fact]
     public async Task PressA_OnAGroupOfOneOpensItsActor()
     {
         var (shell, opened) = await Arrived(ANotification.Group(count: 1, actors: ["Alice"]));
 
-        opened.Press(ShellKey.A);
+        opened.Press(ShellKey.W);
         shell.Host.Drain();
 
         Assert.IsType<AccountScreen>(opened.Screen);
@@ -76,7 +76,7 @@ public class ShellNotificationActorsTests
             actors: ["Alice", "Bob"],
             noPost: kind != "favorite" && kind != "boost"));
 
-        opened.Press(ShellKey.A);
+        opened.Press(ShellKey.W);
         shell.Host.Drain();
 
         Assert.Equal(crumb, opened.Screen.Crumb);
@@ -94,7 +94,7 @@ public class ShellNotificationActorsTests
             ANotification.Group(count: 100, actors: ["Fan1", "Fan2"]),
             Actors(everyone));
 
-        opened.Press(ShellKey.A);
+        opened.Press(ShellKey.W);
         shell.Host.Drain();
 
         var screen = Assert.IsType<ActorsScreen>(opened.Screen);
@@ -125,7 +125,7 @@ public class ShellNotificationActorsTests
             ANotification.Group(count: 2, actors: ["Alice", "Bob"]),
             Actors("Alice", "Bob"));
 
-        opened.Press(ShellKey.A);
+        opened.Press(ShellKey.W);
         shell.Host.Drain();
         opened.Move(1);
         opened.Press(ShellKey.Enter);

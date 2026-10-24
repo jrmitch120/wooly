@@ -129,7 +129,6 @@ public class ScreenKeyTests
     /// </summary>
     [Theory]
     [InlineData("notifications-follow", "d:dismiss")]
-    [InlineData("notifications-follow", "a:actor")]
     [InlineData("search-account", "⏎:open")]
     [InlineData("search-hashtag", "⏎:open")]
     [InlineData("messages", "⏎:open")]
@@ -188,7 +187,7 @@ public class ScreenKeyTests
     private static readonly (string Empty, string Filled, string[] Keys)[] CanBeEmpty =
     [
         ("feed-empty", "feed", []),
-        ("inbox-empty", "notifications-follow", ["a:actor", "d:dismiss", "D:clear all"]),
+        ("inbox-empty", "notifications-follow", ["w:who", "d:dismiss", "D:clear all"]),
         ("messages-empty", "messages", ["⏎:open", "m:mark read"]),
         ("requests-empty", "requests", ["⏎:read them", "a:accept", "x:reject"]),
         ("search-nothing", "search-account", ["⏎:open"]),

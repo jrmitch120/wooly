@@ -173,9 +173,9 @@ public static class Keymap
         (ShellKey.A, ProfilesScreen) => Verb.AddProfile,
         (ShellKey.D, NotificationsScreen) => Verb.Dismiss,
 
-        // And a on the notifications screen, where the account worth reaching is whoever did what the row reports:
-        // on a favorite or a boost the post's author is the reader (#451).
-        (ShellKey.A, NotificationsScreen) => Verb.OpenActor,
+        // And w on the notifications screen: who did what the row reports — on a favorite or a boost the post's author
+        // is the reader, so a keeps meaning the author and who did it gets a letter of its own (#451).
+        (ShellKey.W, NotificationsScreen) => Verb.OpenActor,
 
         // And the sixth, which Discover added: d dismisses a notification, deletes a post, and here tells the
         // instance to stop suggesting somebody — three things by one letter, which the status row is what makes

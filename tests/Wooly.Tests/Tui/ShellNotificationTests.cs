@@ -271,15 +271,15 @@ public class ShellNotificationTests
     }
 
     /// <summary>
-    ///     <c>a</c> opens the notification's actor, not the author of the post it is about (#451): on a favorite or a
-    ///     boost that author is the reader, and going to yourself is not where "Alice favorited your post" points. A kind
-    ///     this client has no words for has an actor all the same.
+    ///     <c>w</c> opens who did what the notification reports, not the author of the post it is about (#451): on a
+    ///     favorite or a boost that author is the reader, and going to yourself is not where "Alice favorited your post"
+    ///     points. A kind this client has no words for has an actor all the same.
     /// </summary>
     [Theory]
     [InlineData("favorite")]
     [InlineData("boost")]
     [InlineData("poll")]
-    public async Task Press_AOpensTheActorRatherThanThePostsAuthor(string kind)
+    public async Task Press_WOpensTheActorRatherThanThePostsAuthor(string kind)
     {
         var shell = new AShell
         {
@@ -302,7 +302,7 @@ public class ShellNotificationTests
         opened.Step(ToNotifications);
         shell.Host.Settle();
 
-        opened.Press(ShellKey.A);
+        opened.Press(ShellKey.W);
         shell.Host.Drain();
 
         var account = Assert.IsType<AccountScreen>(opened.Screen);
@@ -311,11 +311,11 @@ public class ShellNotificationTests
     }
 
     /// <summary>
-    ///     A follow carries no post, which used to leave <c>a</c> with nothing to act on; its actor is the follower, and
+    ///     A follow carries no post, which used to leave nothing to open; its actor is the follower, and
     ///     looking at them is what a reader does before following back (#451).
     /// </summary>
     [Fact]
-    public async Task Press_AOpensTheAccountThatFollowed()
+    public async Task Press_WOpensTheAccountThatFollowed()
     {
         var shell = new AShell
         {
@@ -328,9 +328,9 @@ public class ShellNotificationTests
         opened.Step(ToNotifications);
         shell.Host.Settle();
 
-        Assert.Contains(opened.Keys, key => key is { Key: "a", Does: "actor" });
+        Assert.Contains(opened.Keys, key => key is { Key: "w", Does: "who" });
 
-        opened.Press(ShellKey.A);
+        opened.Press(ShellKey.W);
         shell.Host.Drain();
 
         var account = Assert.IsType<AccountScreen>(opened.Screen);
@@ -338,9 +338,9 @@ public class ShellNotificationTests
         Assert.Equal("bob@mastodon.social", Assert.Single(shell.Accounts.Reads).Account.Text);
     }
 
-    /// <summary>On a mention the actor and the post's author are the same account, and <c>a</c> opens it.</summary>
+    /// <summary>On a mention the actor and the post's author are the same account, and <c>w</c> opens it.</summary>
     [Fact]
-    public async Task Press_AOpensTheAccountThatMentioned()
+    public async Task Press_WOpensTheAccountThatMentioned()
     {
         var shell = new AShell
         {
@@ -354,14 +354,43 @@ public class ShellNotificationTests
         opened.Step(ToNotifications);
         shell.Host.Settle();
 
-        // Said as what it opens here, and said once.
-        Assert.DoesNotContain(opened.Keys, key => key is { Key: "a", Does: "author" });
-
-        opened.Press(ShellKey.A);
+        opened.Press(ShellKey.W);
         shell.Host.Drain();
 
         var account = Assert.IsType<AccountScreen>(opened.Screen);
         Assert.Equal("alice@hachyderm.io", account.Account.Address);
         Assert.Equal("alice@hachyderm.io", Assert.Single(shell.Accounts.Reads).Account.Text);
+    }
+
+    /// <summary>
+    ///     <c>a</c> means the post's author here as on every feed, even where that is the reader: who did it has
+    ///     <c>w</c> (#451).
+    /// </summary>
+    [Fact]
+    public async Task Press_AOpensThePostsAuthorAsOnAFeed()
+    {
+        var shell = new AShell
+        {
+            Notifications = FakeNotificationInbox.Holding(
+                ANotification.With(
+                    kind: NotificationKind.Favorite,
+                    account: "alice@hachyderm.io",
+                    author: "Alice",
+                    post: APost.With(id: "110", account: "jeff@mastodon.online", author: "Jeff"))),
+            Accounts = FakeAccountRelationships.Holding(AnAccount.With(address: "jeff@mastodon.online")),
+        };
+
+        var opened = await shell.Opened();
+
+        opened.Step(ToNotifications);
+        shell.Host.Settle();
+
+        Assert.Contains(opened.Keys, key => key is { Key: "a", Does: "author" });
+
+        opened.Press(ShellKey.A);
+        shell.Host.Drain();
+
+        var account = Assert.IsType<AccountScreen>(opened.Screen);
+        Assert.Equal("jeff@mastodon.online", account.Account.Address);
     }
 }

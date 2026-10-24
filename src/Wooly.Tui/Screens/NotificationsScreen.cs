@@ -19,9 +19,9 @@ namespace Wooly.Tui.Screens;
 /// </summary>
 /// <remarks>
 ///     A notification is not the post it is about (GLOSSARY.md), and the difference is load-bearing here: <c>d</c>
-///     dismisses the notification and leaves the post exactly where it was, and <c>a</c> opens its actor rather than
-///     the post's author (#451), while every other key on the row acts on the post — so the two are kept apart rather
-///     than one standing in for the other.
+///     dismisses the notification and leaves the post exactly where it was, and <c>w</c> opens who did it (#451),
+///     while every other key on the row, <c>a</c> among them, acts on the post — so the two are kept apart rather than
+///     one standing in for the other.
 /// </remarks>
 /// <param name="groups">What is waiting, newest first.</param>
 /// <param name="notice">What the shell has to say about the inbox as a whole, if anything.</param>
@@ -52,7 +52,7 @@ public sealed class NotificationsScreen(
         PostKeys.Around(
             new KeyHint("j/k", "notification"),
             [
-                new KeyHint("a", "actor", NeedsAPick: true),
+                new KeyHint("w", "who", NeedsAPick: true),
                 new KeyHint("d", "dismiss", NeedsAPick: true),
                 new KeyHint("D", "clear all", NeedsAPick: true),
                 Refreshing,
@@ -173,7 +173,7 @@ public sealed class NotificationsScreen(
     }
 
     /// <summary>
-    ///     What this screen's own keys do: <c>a</c> opens the picked group's actor, <c>d</c> dismisses it, and <c>D</c>
+    ///     What this screen's own keys do: <c>w</c> opens who did what the picked group reports, <c>d</c> dismisses it, and <c>D</c>
     ///     all of them.
     /// </summary>
     public override Task Answer(Verb verb, Reach reach)
@@ -200,7 +200,7 @@ public sealed class NotificationsScreen(
 
     /// <summary>
     ///     A click on a group means more than picking it out in two places (#456): on a face in its avatar strip it opens
-    ///     that one actor's account, and on its names line it opens the group's actors, as <c>a</c> does. Anywhere else
+    ///     that one actor's account, and on its names line it opens the group's actors, as <c>w</c> does. Anywhere else
     ///     — the gaps between faces, the <c>+N</c>, the age, the post — it picks the group and nothing more, and a
     ///     double click there is <c>⏎</c>, which opens the post.
     /// </summary>
@@ -230,7 +230,7 @@ public sealed class NotificationsScreen(
 
     /// <summary>
     ///     Opens the actors of <paramref name="group" />: on a group of one, that one account; on a group of several,
-    ///     the screen listing every one of them, read from the group's own accounts (#455). What <c>a</c> does on the
+    ///     the screen listing every one of them, read from the group's own accounts (#455). What <c>w</c> does on the
     ///     picked group, and what a click on a group's names line does too (#456).
     /// </summary>
     public static Task OpenActors(NotificationGroup group, Reach reach) => group switch
