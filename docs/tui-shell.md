@@ -328,6 +328,11 @@ not answer them differently:
   the right; above a post drawn whole by its actor — a mention — the line is the kind alone (`@ mentioned you`) and
   the post's byline is left as on every feed. A group is `unread` when its newest notification is past the marker.
   Rows are never merged by post: two groups about one post are two rows.
+- **A group's actors stand in an avatar strip under its names line** (#454, layout A7b of #450): their faces at a
+  byline's 4×2, in the instance's order, indented two columns with two between faces, as many as the width has room for
+  up to the sample sent, then a muted `+N` on the top row counting the rest of the group. Face `n` starts `6n` columns
+  in whatever the group holds, so nothing moves as a group grows. Where the terminal draws no pictures the strip takes
+  no rows, and a post drawn whole by its actor has none — its byline has the face.
 - **`D` asks first.** Emptying the inbox takes away a list nobody has necessarily read and nothing brings it back, so
   it is confirmed on the same terms `post delete` is — the same confirmation, saying `clear` rather than `delete`.
 - **A count and the list under it are one fact.** Arriving at a destination sets its badge from the same answer the

@@ -66,4 +66,5 @@ group live (#458). Until #455, `a` on a group of several opens its most recent a
 #458, a notification that arrives live goes on top as a group of its own if it is newer than every group on screen.
 
 The grouped read's `unread_count` and `expand_accounts=partial_avatars` are not used. The first counts the wrong thing
-for the badge; the second could make the avatar strip cheaper, and is #454's to weigh.
+for the badge; the second could make the avatar strip cheaper, and is #454's to weigh. #454 left it off: the grouped
+read already sends the sample's accounts whole, avatar included, so the strip costs no extra request.
