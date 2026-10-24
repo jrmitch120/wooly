@@ -273,7 +273,7 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Actors | `⏎` open that account |
 | Search results | `[`/`]` section, where two or more kinds found something |
 | Discover | `F` follow/unfollow · `d` dismiss, one-way · `[`/`]` section |
-| Notifications | `w` open who did it — whoever favorited, boosted, followed or mentioned, where `a` is still the post's author (#451); on a group of several, the actors screen listing every one of them, read from the group's own accounts a page at a time (#455) · `d` dismiss the group, every notification in it (#457) · `D` clear all |
+| Notifications | `w` open who did it — whoever favorited, boosted, followed or mentioned (#451), `a` staying the post's author as on every feed (#448); on a group of several, the actors screen listing every one of them, read from the group's own accounts a page at a time (#455) · `d` dismiss the group, every notification in it (#457) · `D` clear all |
 | Follow requests | `a` accept · `x` reject |
 | Direct messages | `⏎` open the conversation · `m` mark read — `m` again inside the thread, where a reader who has just read it is most likely to press it |
 | Conversation | `m` mark read, and every key that acts on a post, since each message in it is one |
@@ -310,7 +310,7 @@ not answer them differently:
   the same one the shell's refusals ask — so a screen still knows about no instance.
 - **And a screen's own keys come off an empty row the same way** (#195, amending #193's answer above, which had put
   them outside the rule as idle for their own reasons). A key that acts on one of the things a screen
-  walks needs one of them to be there, and no widening of `PostKeys` reaches these: `d` and `D` on an inbox with
+  walks needs one of them to be there, and no widening of `PostKeys` reaches these: `w`, `d` and `D` on an inbox with
   nothing waiting, `⏎` and `m` with nobody writing, `⏎`, `a` and `x` with nobody asking, `⏎` on a search that found
   nothing. Each key says so where it is declared (`KeyHint.NeedsAPick`) and `Screen.Keys` drops them while the walk is
   empty, so this too is inherited rather than remembered. What stays is `j`/`k` and `↓`/`↑` — an empty screen shows its

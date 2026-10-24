@@ -173,8 +173,8 @@ public sealed class NotificationsScreen(
     }
 
     /// <summary>
-    ///     What this screen's own keys do: <c>w</c> opens who did what the picked group reports, <c>d</c> dismisses it, and <c>D</c>
-    ///     all of them.
+    ///     What this screen's own keys do: <c>w</c> opens who did what the picked group reports, <c>d</c> dismisses
+    ///     it, and <c>D</c> all of them.
     /// </summary>
     public override Task Answer(Verb verb, Reach reach)
     {

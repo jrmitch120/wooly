@@ -23,7 +23,7 @@ public class ShellNotificationActorsTests
     ///     everyone in it, not only the two the sample named.
     /// </summary>
     [Fact]
-    public async Task PressA_OnAGroupOfSeveralOpensEveryActorInIt()
+    public async Task PressW_OnAGroupOfSeveralOpensEveryActorInIt()
     {
         var (shell, opened) = await Arrived(
             ANotification.Group(key: "favourite-110-493000", count: 3, actors: ["Alice", "Bob"]),
@@ -41,7 +41,7 @@ public class ShellNotificationActorsTests
 
     /// <summary>On a group of one, <c>w</c> opens that one actor's account, as it did before groups had several (#451).</summary>
     [Fact]
-    public async Task PressA_OnAGroupOfOneOpensItsActor()
+    public async Task PressW_OnAGroupOfOneOpensItsActor()
     {
         var (shell, opened) = await Arrived(ANotification.Group(count: 1, actors: ["Alice"]));
 
@@ -62,7 +62,7 @@ public class ShellNotificationActorsTests
     [InlineData("boost", "Boosted by")]
     [InlineData("follow", "Followed you")]
     [InlineData("admin.sign_up", "admin.sign_up")]
-    public async Task PressA_NamesTheKindInTheCrumb(string kind, string crumb)
+    public async Task PressW_NamesTheKindInTheCrumb(string kind, string crumb)
     {
         var (shell, opened) = await Arrived(ANotification.Group(
             kind: kind switch

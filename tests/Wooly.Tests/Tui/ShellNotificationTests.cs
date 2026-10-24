@@ -311,8 +311,8 @@ public class ShellNotificationTests
     }
 
     /// <summary>
-    ///     A follow carries no post, which used to leave nothing to open; its actor is the follower, and
-    ///     looking at them is what a reader does before following back (#451).
+    ///     A follow carries no post, which used to leave nothing to open; its actor is the follower, and looking at
+    ///     them is what a reader does before following back (#451).
     /// </summary>
     [Fact]
     public async Task Press_WOpensTheAccountThatFollowed()
@@ -353,6 +353,8 @@ public class ShellNotificationTests
 
         opened.Step(ToNotifications);
         shell.Host.Settle();
+
+        Assert.Contains(opened.Keys, key => key is { Key: "w", Does: "who" });
 
         opened.Press(ShellKey.W);
         shell.Host.Drain();
