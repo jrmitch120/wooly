@@ -160,6 +160,33 @@ public class HiddenRailTests
     }
 
     /// <summary>
+    ///     On Search while its prompt takes letters, where <c>\</c> is one of them, walking the hidden rail is as locked
+    ///     and says so, but names no key to show it by: <c>\</c> pressed there types a backslash rather than showing
+    ///     anything.
+    /// </summary>
+    [Fact]
+    public async Task WhereBackslashIsALetterTheLockedWalkNamesNoKey()
+    {
+        using var drawn = await DrawnShell.Of(80, Framed, Themes.Plain);
+
+        drawn.Press(Toggle);
+        drawn.Press(new Key('/'));
+        drawn.Settle();
+
+        Assert.True(drawn.Shell.Screen.IsTyping);
+
+        var cursor = drawn.Shell.Rail.Cursor;
+
+        drawn.Press(Key.Tab);
+
+        var said = drawn.Rows()[^1];
+
+        Assert.Contains("Rail hidden", said, StringComparison.Ordinal);
+        Assert.DoesNotContain("\\", said, StringComparison.Ordinal);
+        Assert.Equal(cursor, drawn.Shell.Rail.Cursor);
+    }
+
+    /// <summary>
     ///     Going straight to a named destination still works hidden, since the breadcrumb says where it landed:
     ///     <c>/</c> arrives at Search, and a profile chosen on <c>ctrl-p</c> starts again on its Home.
     /// </summary>

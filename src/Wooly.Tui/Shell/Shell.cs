@@ -372,21 +372,28 @@ public sealed class Shell
     ///     place of the walk along it, which is locked (#445).
     /// </summary>
     public IReadOnlyList<KeyHint> Keys =>
-        ShowsRail && RailState is RailState.Hidden ? Unwalked(Screen.Keys, Screen.IsTyping) : Screen.Keys;
+        ShowsRail && RailState is RailState.Hidden ? Unwalked(Screen.Keys, BackslashShowsTheRail) : Screen.Keys;
+
+    /// <summary>
+    ///     Whether <c>\</c> pressed now would show the hidden rail: not where a prompt takes it as a letter, nor on a
+    ///     screen whose fields do (#441, #445). The status row and the locked walk name it only where it would.
+    /// </summary>
+    private bool BackslashShowsTheRail =>
+        !Screen.IsTyping && Keymap.Means(ShellKey.Backslash, Screen) is Verb.ToggleRail;
 
     /// <summary>
     ///     <paramref name="keys" /> without <c>tab</c> and <c>`</c>, and with <c>\</c> where the first of them stood —
     ///     so that the row keeps its order, and nothing after them moves for a key that does nothing (#445). Nothing
-    ///     in their place where the screen is <paramref name="typing" />, which takes <c>\</c> as a letter.
+    ///     in their place unless <c>\</c> <paramref name="shows" /> the rail, rather than being typed as a letter.
     /// </summary>
-    private static List<KeyHint> Unwalked(IReadOnlyList<KeyHint> keys, bool typing)
+    private static List<KeyHint> Unwalked(IReadOnlyList<KeyHint> keys, bool shows)
     {
         bool Walks(KeyHint key) => key == PostKeys.ToADestination || key == PostKeys.ToAGroup;
 
         var unwalked = keys.Where(key => !Walks(key)).ToList();
         var at = keys.ToList().FindIndex(Walks);
 
-        if (at >= 0 && !typing)
+        if (at >= 0 && shows)
         {
             unwalked.Insert(at, PostKeys.ShowingTheRail);
         }
@@ -462,13 +469,14 @@ public sealed class Shell
     ///     Never onto the destination already shown: a draft in front means the cursor is on the selection, opening one
     ///     having called off whatever the tabbing left waiting (#429), so one step off it is always somewhere else.
     ///     Nothing at all on the hidden rail, whose cursor nobody can see to choose by, but the way to show it said on
-    ///     the status row (#445) — and the draft left where it is, since nothing is being left for.
+    ///     the status row (#445) where <c>\</c> is that way, and only that it is hidden where <c>\</c> is a letter —
+    ///     and the draft left where it is, since nothing is being left for.
     /// </remarks>
     private void Stepping(Action step)
     {
         if (RailState is RailState.Hidden)
         {
-            StatusRow.SayForAMoment(@"Rail hidden — \ to show");
+            StatusRow.SayForAMoment(BackslashShowsTheRail ? @"Rail hidden — \ to show" : "Rail hidden");
 
             return;
         }

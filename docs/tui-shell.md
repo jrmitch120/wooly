@@ -122,9 +122,10 @@ inside its edges. Hiding changes nothing about the stack or about where you are.
   while it is hidden, and a badge rising still rings the bell; only the count is not drawn.
 - **Walking it is locked**, since a cursor nobody can see would land somewhere nobody chose. `tab`, `shift-tab`, `` ` ``
   and `~` move neither the cursor nor the selection and start no settle window, and say `Rail hidden — \ to show` on
-  the status row for a moment. Going straight to a named destination still works, because the breadcrumb says where
-  you landed: `/` arrives at Search, and choosing a profile on `ctrl-p` starts again on its Home. A walk under way when
-  the rail is hidden, inside its settle window, still lands.
+  the status row for a moment — only `Rail hidden` on a prompt taking letters, where `\` would be typed. Going straight
+  to a named destination still works, because the breadcrumb says where you landed: `/` arrives at Search, and
+  choosing a profile on `ctrl-p` starts again on its Home. A walk under way when the rail is hidden, inside its settle
+  window, still lands.
 - **The status row** drops the `Destination: tab` and `Group: `` ` `` hints, which name the locked walk, and says
   `Rail: \` where the first of them stood — but on a prompt taking letters, Search's, where `\` is one of them and
   nothing takes their place. Shown, the row is as it was, and does not offer `\`.
@@ -227,7 +228,7 @@ workable only because the status row always shows the current screen's keys. Wha
 | `esc` | Up one level of the stack. Never quits. |
 | `ctrl-q` | Quit. |
 | `?` | The keymap for this screen. The spec has no in-app help story; this is the shell adding one, and #28 carries it — every other screen inherits it for free. |
-| `tab` / `shift-tab` | Moves the cursor (`▶`) at once, one destination down or up the rail, crossing from one rail group into the next. The selection follows it (`▷` while it lags behind), and that destination loads, once the tabbing has stopped for ~250ms. Opening a draft — compose, a reply, an edit, the public profile form — before then calls that off: the cursor goes back to the destination selected, nothing loads, and the draft stays in front (#429). With the rail hidden, nothing but `Rail hidden — \ to show` on the status row (#445). |
+| `tab` / `shift-tab` | Moves the cursor (`▶`) at once, one destination down or up the rail, crossing from one rail group into the next. The selection follows it (`▷` while it lags behind), and that destination loads, once the tabbing has stopped for ~250ms. Opening a draft — compose, a reply, an edit, the public profile form — before then calls that off: the cursor goes back to the destination selected, nothing loads, and the draft stays in front (#429). With the rail hidden, nothing but `Rail hidden — \ to show` on the status row, or `Rail hidden` on a prompt taking letters (#445). |
 | `` ` `` / `~` | Moves the cursor to the first destination of the next or previous **rail group**, wrapping. Settles and loads as `tab` does (ADR-0021), and is locked as `tab` is with the rail hidden (#445). |
 | `/` | Search. Goes to the search destination; what it opens onto is #29's. |
 | `ctrl-p` | The profiles screen, pushed onto the stack. On compose it takes the draft off first and opens the screen in its place, asking first where the draft is touched (ADR-0020, #373); it is not listed there. |
