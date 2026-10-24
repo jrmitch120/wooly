@@ -39,6 +39,12 @@ public static class RailLines
     public const int CollapsedPlainWidth = CollapsedWidth + MarkColumns;
 
     /// <summary>
+    ///     What the toggle's mark stands for, as its run's <see cref="Span.Item" />: a click there is <c>\</c> (#443).
+    ///     Below every place on the rail, which a row's <see cref="Line.Item" /> carries instead.
+    /// </summary>
+    public const int Toggle = -1;
+
+    /// <summary>
     ///     Where the cursor is — where the tabbing has got to. Shown on the cursor's row however it stands, where colour
     ///     is not drawn.
     /// </summary>
@@ -49,6 +55,16 @@ public static class RailLines
     ///     window, and never at rest, since the two coincide there and the filled mark already covers the row (#78).
     /// </summary>
     private const string SettledMark = "▷";
+
+    /// <summary>
+    ///     The toggle's mark on the expanded rail, which a click collapses, and on the collapsed rail, which a click
+    ///     expands — pointing the way the rail would go. Latin-1 and not East Asian ambiguous, so a column wide on every
+    ///     terminal, which a symbol's width is not (ADR-0031).
+    /// </summary>
+    private const string Collapses = "«";
+
+    /// <inheritdoc cref="Collapses" />
+    private const string Expands = "»";
 
     /// <summary>Below this share of the budget, the quota is drawn as nearly spent.</summary>
     private const double NearlySpent = 0.1;
@@ -148,6 +164,12 @@ public static class RailLines
                 active: places.Contains(rail.Cursor)));
         }
 
+        // The toggle's mark in the first panel's top-right corner, just inside it, where a pointer finds the corner.
+        if (lines.Count > 0)
+        {
+            lines[0] = Marked(lines[0], width - 2, collapsed);
+        }
+
         var api = Foot(quota, instance, inside, collapsed, end: 0);
         var foot = Panel.Framed(collapsed ? string.Empty : "API", api, width, api.Count + Sides, active: false);
 
@@ -216,6 +238,15 @@ public static class RailLines
             body = body.GetRange(Math.Min(top, body.Count), Math.Min(room, body.Count - top));
         }
 
+        // The toggle's mark at the end of the Timelines heading — of the first heading in view, scrolled, or of the top
+        // row where the room is too small for one — so a click always has it to land on. Over where the counts end.
+        if (body.Count > 0)
+        {
+            var heading = Math.Max(0, body.FindIndex(row => row.Item is null));
+
+            body[heading] = Marked(body[heading], width - 1 - (collapsed ? 1 : 0), collapsed);
+        }
+
         return Footed(body, foot, height, width);
     }
 
@@ -232,6 +263,44 @@ public static class RailLines
         return instance is null
             ? [gauge]
             : [collapsed ? Line.Of(new string(' ', width), Role.Quota) : Fact(instance, width), gauge];
+    }
+
+    /// <summary>
+    ///     <paramref name="row" /> with the toggle's mark in place of whatever it drew at <paramref name="column" />, in
+    ///     that cell's role — the glyph is the whole of what it says, with colour or without — and standing for
+    ///     <see cref="Toggle" />.
+    /// </summary>
+    private static Line Marked(Line row, int column, bool collapsed)
+    {
+        var spans = new List<Span>();
+        var start = 0;
+
+        foreach (var span in row.Spans)
+        {
+            var end = start + span.Width;
+
+            if (column < start || column >= end)
+            {
+                spans.Add(span);
+            }
+            else
+            {
+                // Cut either side of the cell, padded where a two-column character straddled it, so the row keeps its
+                // width and everything after the mark stays where it was.
+                var before = Glyphs.Padded(Glyphs.Cut(span.Text, column - start), column - start);
+                var reach = Glyphs.Reach(span.Text, 0, span.Text.Length, column - start + 1);
+                var past = Glyphs.Columns(span.Text[..reach]);
+                var after = new string(' ', Math.Max(0, past - (column - start) - 1)) + span.Text[reach..];
+
+                spans.AddRange(before.Length > 0 ? [span with { Text = before }] : Array.Empty<Span>());
+                spans.Add(new Span(collapsed ? Expands : Collapses, span.Role) { Item = Toggle });
+                spans.AddRange(after.Length > 0 ? [span with { Text = after }] : Array.Empty<Span>());
+            }
+
+            start = end;
+        }
+
+        return row.Respanned(spans);
     }
 
     /// <summary>

@@ -84,7 +84,7 @@ public class RailLinesTests
 
         Assert.Equal(
             [
-                "╭ Timelines ───────╮",
+                "╭ Timelines ──────«╮",
                 "│▶ Home            │",
                 "│  Local           │",
                 "│  Federated       │",
@@ -372,7 +372,7 @@ public class RailLinesTests
 
         Assert.Equal(
             [
-                "Timelines",
+                "Timelines          «",
                 "▶ Home",
                 "  Local",
                 "  Federated",
@@ -424,7 +424,8 @@ public class RailLinesTests
         var texts = drawn.Select(line => line.Text.TrimEnd()).ToList();
 
         Assert.Equal(8, drawn.Count);
-        Assert.Contains(group, texts);
+        // The heading as it reads, past the toggle's mark that ends the first heading in view.
+        Assert.Contains(group, texts.Select(text => text.TrimEnd('«').TrimEnd()));
         Assert.Contains(texts, text => text.EndsWith(label, StringComparison.Ordinal) && text.StartsWith('▶'));
         Assert.Contains("83%", texts[^1], StringComparison.Ordinal);
     }

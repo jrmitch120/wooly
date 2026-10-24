@@ -198,7 +198,9 @@ public class CollapsedRailTests
         var tops = Enumerable.Range(0, strip.Length).Where(row => strip[row].StartsWith('╭')).ToList();
 
         Assert.Equal(5, tops.Count);
-        Assert.All(tops, row => Assert.Equal("╭─────╮", strip[row]));
+        // The first ending in the toggle's mark (#443).
+        Assert.Equal("╭────»╮", strip[tops[0]]);
+        Assert.All(tops.Skip(1), row => Assert.Equal("╭─────╮", strip[row]));
         Assert.Equal(theme.For(Role.PanelBorderActive), drawn.Cell(tops[0], 0));
         Assert.Equal(theme.For(Role.PanelBorder), drawn.Cell(tops[1], 0));
 

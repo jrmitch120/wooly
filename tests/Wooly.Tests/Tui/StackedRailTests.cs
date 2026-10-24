@@ -38,7 +38,7 @@ public class StackedRailTests
 
         var rail = drawn.Rail();
 
-        Assert.Equal("╭ Timelines ───────╮", rail[0]);
+        Assert.Equal("╭ Timelines ──────«╮", rail[0]);
         Assert.Equal("│▶ Home            │", rail[1]);
         Assert.Equal("╭ Explore ─────────╮", rail[6]);
         Assert.Equal("╭ Inbox ───────────╮", rail[10]);
@@ -55,7 +55,7 @@ public class StackedRailTests
 
         var rail = drawn.Rail();
 
-        Assert.Equal("Timelines", rail[0].TrimEnd());
+        Assert.Equal("Timelines          «", rail[0]);
         Assert.DoesNotContain(rail, row => row.Contains('╭', StringComparison.Ordinal));
     }
 
