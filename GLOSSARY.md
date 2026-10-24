@@ -372,7 +372,7 @@ somebody walks rather than a page a command prints. One screen for both sides an
 place rather than pushed, because a toggle that pushed would grow the stack on every flip.
 How large it is decides how it can be read, and it is decided before anything is fetched: an **Account** already
 carries both counts, so a list under the threshold is held whole and narrowed live as the reader types, and one over
-it is browsed a page at a time with no narrowing offered at all and a count that says how much of it has been read.
+it is browsed by **reading on**, with no narrowing offered at all and a count that says how much of it has been read.
 The threshold exists because the two sides are not the same size in practice — a following count is bounded and a
 followers count is not — and an account with hundreds of thousands of followers is thousands of calls, which is not a
 list to promise a search over. Narrowing is the reader's own, done here rather than asked of the instance: the only
@@ -454,7 +454,9 @@ the pair is what tells a list nobody has anything on from a list nothing was rea
 its first page holds nothing at all, and a caller that could not tell those apart would report an empty timeline to
 somebody who has a full one (ADR-0007). One type for every list this client reads — posts, notifications, accounts,
 conversations — with what it holds said by what was asked for rather than by a name of its own (ADR-0010's amendment,
-#101). What is in it is `Items`; paging is how it was filled, and no caller sees a page or a cursor.
+#101). What is in it is `Items`; paging is how it was filled, and no caller sees a page or a cursor. What it carries
+instead, unless the list is **whole**, is where to **read on** from — opaque, so that handing it back is the whole of
+what a caller can do with it.
 _Avoid_: page, result, batch
 
 **Destination**:
@@ -546,8 +548,8 @@ _Refreshing_ stands a fresher copy in place of what is showing (**Refresh**). Wa
 screen — a click on the destination already shown, drilled in from it (#289) — is none of the three: it is a pop to
 the bottom of the stack, which keeps that screen's page and pick and reads nothing. Whichever move, the same machinery reads
 the subject under an **enquiry**, draws what the one cache still holds rather than asking, keeps what came back, sets
-a destination's unread count off the list it is drawn beside, and reads the next page of a list browsed a page at a
-time. A subject says what it reads and what that becomes; nothing about the sequence is said twice.
+a destination's unread count off the list it is drawn beside, and **reads on** a list as the
+reader nears its end. A subject says what it reads and what that becomes; nothing about the sequence is said twice.
 The badge is set outright by every read of its destination and moved by the **Change**s between reads — an answered
 request one fewer, a clear none, never below nothing, and a dismissed notification read again, since only the instance
 knows whether it stood above the **Read marker** — so one landing after the reader has gone elsewhere moves the count
@@ -581,6 +583,16 @@ whole of what the key is for: somebody pressing it is asking to see what has arr
 everything they have already read — so a refresh that held their place would fetch the new posts and leave them off the
 top of the page, which is fetched and invisible.
 _Avoid_: reload, poll, sync, refetch
+
+**Reading on**:
+Asking an instance for what stands behind the last thing a list holds, because the reader is nearing it — older posts
+on a timeline, older notifications, the next run of a **Follow list** being browsed. Only ever further down: what has
+arrived since is **Refresh**'s, above everything already read. It happens as the **Page** comes within a screenful of
+the end, by whatever moved it, and nobody asks for it; a list nobody walks to the end of is never read on. A list is
+**whole** when the instance has nothing behind what it holds, which is said at the foot of it ("that's everything"),
+as is a read in flight ("reading on…"). Not every list reads on: one an instance serves whole (a **Thread**) or does
+not page (**Discover**, a search) is only ever what its one read brought.
+_Avoid_: infinite scroll, load more, pagination, next page, fetch more
 
 **Change**:
 What happened on an **instance**, as a verb reports it: a post changed, gone or sent, a tie made, notifications
