@@ -18,24 +18,23 @@ internal static class ANotification
         NotificationKind? kind = null,
         string account = "alice@hachyderm.io",
         string author = "Alice",
-        Post? post = null) => new()
+        Post? post = null,
+        string actorId = "2") => new()
     {
         Id = id,
         Kind = kind ?? NotificationKind.Mention,
         ReceivedAt = new DateTimeOffset(2026, 7, 29, 12, 4, 0, TimeSpan.Zero),
-        Account = account,
-        Author = author,
+        Actor = AnAccount.With(address: account, author: author, id: actorId),
         Post = post ?? APost.With(account: account, author: author),
     };
 
     /// <summary>Somebody arriving rather than something they wrote, which is the notification with no post behind it.</summary>
-    public static Notification Follow(string id = "35", string account = "bob@mastodon.social") => new()
+    public static Notification Follow(string id = "35", string account = "bob@mastodon.social", string actorId = "3") => new()
     {
         Id = id,
         Kind = NotificationKind.Follow,
         ReceivedAt = new DateTimeOffset(2026, 7, 29, 12, 4, 0, TimeSpan.Zero),
-        Account = account,
-        Author = "Bob",
+        Actor = AnAccount.With(address: account, author: "Bob", id: actorId),
         Post = null,
     };
 }

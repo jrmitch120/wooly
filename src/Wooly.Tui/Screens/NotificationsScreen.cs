@@ -254,7 +254,7 @@ public sealed class NotificationsScreen(
         var did = $" {notification.Kind.Does}";
         var room = Math.Max(0, width - Glyphs.Columns(age) - Glyphs.Columns(mark) - Glyphs.Columns(did) - 2);
 
-        var name = new Span(TextWrap.Clip(notification.Author, room), Role.BylineName);
+        var name = new Span(TextWrap.Clip(notification.Actor.Author, room), Role.BylineName);
         var used = name.Width + Glyphs.Columns(did) + Glyphs.Columns(mark);
 
         return Line.Of([
