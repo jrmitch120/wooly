@@ -271,7 +271,7 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Follows — following or followers | `f` filter, on a list under the threshold · `s` swap to the other side, in place · `⏎` open that account |
 | Search results | `[`/`]` section, where two or more kinds found something |
 | Discover | `F` follow/unfollow · `d` dismiss, one-way · `[`/`]` section |
-| Notifications | `a` open the actor — whoever favorited, boosted, followed or mentioned, never the post's author (#451) · `d` dismiss one · `D` clear all |
+| Notifications | `a` open the actor — whoever favorited, boosted, followed or mentioned, never the post's author (#451) · `d` dismiss the group, every notification in it (#457) · `D` clear all |
 | Follow requests | `a` accept · `x` reject |
 | Direct messages | `⏎` open the conversation · `m` mark read — `m` again inside the thread, where a reader who has just read it is most likely to press it |
 | Conversation | `m` mark read, and every key that acts on a post, since each message in it is one |
@@ -317,7 +317,8 @@ not answer them differently:
   being to fill the screen. Empty means *a list with nothing on it*: a compose editor, the keymap and a notice walk
   nothing at all and are untouched, and the search prompt drops its arrows while it is taking letters for that reason
   rather than this one.
-- **A notification is not the post it is about.** `d` dismisses by the notification's own id; every other key on the
+- **A notification is not the post it is about.** `d` dismisses by the group's own key (#457), or on an instance too old
+  to group by the notification's own id; every other key on the
   row acts on the post it carries, so a mention can be answered without leaving the inbox. A follow carries no post,
   and picking one leaves those keys with nothing to act on rather than guessing — which is why they are off its row.
 - **Notifications are drawn as the instance groups them** (ADR-0032, #453). Each row is a **Notification group**, read

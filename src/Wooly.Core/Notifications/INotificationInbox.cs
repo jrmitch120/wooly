@@ -86,6 +86,13 @@ public interface INotificationInbox
     /// </param>
     Task Dismiss(ActiveProfile profile, string notificationId, CancellationToken cancellationToken);
 
+    /// <summary>
+    ///     Clears every notification in <paramref name="group" />, in one call, by the group's key — or, on an instance
+    ///     too old to group, where every group is a single notification, that notification by its own id (ADR-0032).
+    /// </summary>
+    /// <param name="group">The group as <see cref="ReadGroups" /> handed it over.</param>
+    Task DismissGroup(ActiveProfile profile, NotificationGroup group, CancellationToken cancellationToken);
+
     /// <summary>Clears every notification this profile has, in one call.</summary>
     /// <remarks>
     ///     One call rather than a dismissal each: an account with a hundred notifications would otherwise spend a

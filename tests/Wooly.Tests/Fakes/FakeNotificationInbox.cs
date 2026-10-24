@@ -209,6 +209,39 @@ internal sealed class FakeNotificationInbox(Fetch<Notification> fetch) : INotifi
         _fetch = _fetch with { Items = [.. _fetch.Items.Where(notification => notification.Id != notificationId)] };
     }
 
+    /// <summary>Every group it was asked to dismiss, in order, by the group's key.</summary>
+    public List<GroupDismissed> GroupDismissals { get; } = [];
+
+    /// <summary>
+    ///     Which held notifications each group in <see cref="Groups" /> is made of, by the group's key, where a test
+    ///     says — so that dismissing a group takes them off what a later read of what is unread finds, as the instance
+    ///     would. A group of one read from what it holds is made of its own notification without being said.
+    /// </summary>
+    public Dictionary<string, IReadOnlyList<string>> Members { get; } = [];
+
+    public async Task DismissGroup(
+        ActiveProfile profile,
+        NotificationGroup group,
+        CancellationToken cancellationToken)
+    {
+        GroupDismissals.Add(new GroupDismissed(profile.Name, group.Key));
+        Tokens.Add(profile.AccessToken);
+
+        if (DismissalsWaitFor is { } waiting)
+        {
+            await waiting.Task;
+        }
+
+        // Gone from the instance, every notification in it, so a later read — of the groups, of the list or of what
+        // is unread — no longer finds any of them.
+        var going = Members.TryGetValue(group.Key, out var members)
+            ? members.ToHashSet(StringComparer.Ordinal)
+            : [group.NewestId];
+
+        Groups = Groups?.Where(held => held.Key != group.Key).ToList();
+        _fetch = _fetch with { Items = [.. _fetch.Items.Where(notification => !going.Contains(notification.Id))] };
+    }
+
     public Task Clear(ActiveProfile profile, CancellationToken cancellationToken)
     {
         Clearances.Add(profile.Name);
@@ -226,4 +259,7 @@ internal sealed class FakeNotificationInbox(Fetch<Notification> fetch) : INotifi
 
     /// <summary>One dismissal: which profile it was made as, and which notification it named.</summary>
     internal sealed record Dismissed(string Profile, string NotificationId);
+
+    /// <summary>One group dismissal: which profile it was made as, and which group's key it named.</summary>
+    internal sealed record GroupDismissed(string Profile, string Key);
 }

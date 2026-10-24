@@ -60,6 +60,9 @@ public sealed class NotificationInbox(IMastodonClientFactory clientFactory, IHtt
     /// </summary>
     private readonly ConcurrentDictionary<string, bool> _ungrouped = new(StringComparer.Ordinal);
 
+    /// <summary>What <see cref="_ungrouped" /> knows a profile by.</summary>
+    private static string Known(ActiveProfile profile) => $"{profile.Name}@{profile.Instance}";
+
     /// <inheritdoc />
     /// <remarks>
     ///     Raw, because Mastonet 3.1.3 knows only <c>/api/v1</c> notifications, and sent without <c>grouped_types</c>:
@@ -71,7 +74,7 @@ public sealed class NotificationInbox(IMastodonClientFactory clientFactory, IHtt
         int limit,
         CancellationToken cancellationToken)
     {
-        var known = $"{profile.Name}@{profile.Instance}";
+        var known = Known(profile);
 
         if (!_ungrouped.ContainsKey(known))
         {
@@ -229,6 +232,36 @@ public sealed class NotificationInbox(IMastodonClientFactory clientFactory, IHtt
         var client = clientFactory.CreateClient(profile.Instance, profile.AccessToken);
 
         await client.DismissNotification(notificationId);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    ///     Raw, as the grouped read is: Mastonet 3.1.3 has no <c>/api/v2</c> dismiss. Which call goes is decided by what
+    ///     the grouped read already learned of the instance, so an instance too old to group is never asked for a group.
+    /// </remarks>
+    public async Task DismissGroup(
+        ActiveProfile profile,
+        NotificationGroup group,
+        CancellationToken cancellationToken)
+    {
+        if (_ungrouped.ContainsKey(Known(profile)))
+        {
+            await Dismiss(profile, group.NewestId, cancellationToken);
+
+            return;
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var response = await RawMastodonCall.Sent(
+            httpClientFactory,
+            profile,
+            HttpMethod.Post,
+            $"api/v2/notifications/{Uri.EscapeDataString(group.Key)}/dismiss",
+            content: null,
+            cancellationToken);
+
+        response.EnsureSuccessStatusCode();
     }
 
     /// <inheritdoc />

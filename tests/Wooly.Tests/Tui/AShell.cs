@@ -255,7 +255,7 @@ internal sealed class AShell
         + Accounts.Familiars.Count + Accounts.Standings.Count
         + Notifications.Reads.Count + Notifications.GroupReads.Count + Notifications.UnreadReads.Count
         + Notifications.MarkerMoves.Count
-        + Notifications.Dismissals.Count
+        + Notifications.Dismissals.Count + Notifications.GroupDismissals.Count
         + Notifications.Clearances.Count
         + Messages.Listings.Count + Messages.Shown.Count + Messages.MarkedRead.Count
         + Search.Searches.Count + Search.FollowedSearches.Count
