@@ -39,9 +39,9 @@ the dividing, so there is no breadcrumb row, no blank row under it and no gutter
 
 | Region | Size | Holds |
 |---|---|---|
-| Rail | 20 columns including its frames, full height less the status row | Four **rail groups**, in colour the selected entry on `rail-current` and, while tabbing, the cursor's entry on `rail-cursor`; without colour `▶`/`▷` (ADR-0021), each its own titled panel, the group holding the cursor framed in `panel-border-active`, on the press rather than once the selection follows; each destination with its unread count; at the foot an `API` panel holding, with two or more profiles, the instance acted as (ADR-0020), then the budget as a gauge. On a terminal too short to frame every group the rail steps down (below) |
+| Rail | 20 columns including its frames, full height less the status row; collapsed, 7 in colour and 9 without (**Collapsed rail**, below) | Four **rail groups**, in colour the selected entry on `rail-current` and, while tabbing, the cursor's entry on `rail-cursor`; without colour `▶`/`▷` (ADR-0021), each its own titled panel, the group holding the cursor framed in `panel-border-active`, on the press rather than once the selection follows; each destination with its unread count; at the foot an `API` panel holding, with two or more profiles, the instance acted as (ADR-0020), then the budget as a gauge. On a terminal too short to frame every group the rail steps down (below) |
 | Content | the rest of the width, full height less the status row | A panel titled with the breadcrumb (below), holding exactly one screen. Its rows start on row 1 |
-| Status | 1 row, the shell's full width | The current screen's keys as `Does: key \| Does: key`, as many as fit and `…+N` for the rest; or a notice; or a confirmation; the quota again when the rail is hidden |
+| Status | 1 row, the shell's full width | The current screen's keys as `Does: key \| Does: key`, as many as fit and `…+N` for the rest; or a notice; or a confirmation |
 
 The content panel's title is the stack: the crumbs walked through in `muted`, the one stood on in `panel-title`, eliding
 from the left so it always ends where you are, and the fetch mark, a star spinner, a space after it while a fetch
@@ -99,6 +99,49 @@ the view, so they leave no blank: their rows still hold, but there a terminal dr
 character after it. Terminal.app is beyond it: it draws such text off its own cells and everything after it on the row
 with it, even a border placed at an explicit column, so a post in these scripts still pushes its row there. Where the
 text is the client's own rather than an author's — the Lang list — it is written in English instead.
+
+## Collapsed rail
+
+`\` collapses the rail to a strip and expands it again (`GLOSSARY.md`, #441), for the session. Only how the rail is
+drawn and how wide: the cursor, the selection, the settle window, arrivals and the stack mean the same either way.
+
+```
+╭─────╮╭ Home ─────────────────────────────────────────────────────────────────╮
+│H    ││▌Jeff @jeff@mastodon.social                                         2h │
+│L    ││▌Hello world                                                           │
+│F    ││                                                                       │
+│#    ││                                                                       │
+╰─────╯│                                                                       │
+╭─────╮│                                                                       │
+│D    ││                                                                       │
+│/    ││                                                                       │
+╰─────╯│                                                                       │
+╭─────╮│                                                                       │
+│N 40+││                                                                       │
+│M   4││                                                                       │
+│R    ││                                                                       │
+╰─────╯│                                                                       │
+```
+
+- **The widths.** 7 columns where colour is drawn — a frame, the mark, a space, a count's 3 columns, a frame — and 9
+  where it is not, the 2-column `▶`/`▷` lead kept between the frame and the mark. Each is fixed whatever the counts say,
+  so a badge coming or growing moves nothing. The content panel and its breadcrumb start where the strip ends, inside
+  whatever the **Shell width** has left: 73 columns at 80, and 71 inside its edges.
+- **The marks** are fixed single-width ASCII, `H L F # D / N M R @` for Home, Local, Federated, Hashtag, Discover,
+  Search, Notifications, Direct messages, Follow requests and You — `#` whatever tag is kept and `@` whatever the handle.
+  Symbols were rejected because their widths are not ones every terminal agrees on (ADR-0031). The breadcrumb still
+  names where you are in full.
+- **The counts** are drawn as expanded — none at nothing, the number, or `40+` — in `rail-unread`, or `rail-current` on
+  the selected row in colour, right-aligned so they end where the strip's inside ends.
+- **The groups** stay four panels, untitled, the one holding the cursor framed in `panel-border-active`. The strip steps
+  down framed → compact → scrolled at exactly the expanded rail's row counts, compact keeping each heading as a blank
+  row, so every destination is on the same row in both states and a toggle moves the rail only sideways.
+- **The API panel** is its percentage alone, ` nn%`, in `quota-low` at a tenth or less: no bar, no title and no
+  instance, whose row is kept blank so the panel is as tall as it was. Blank before any quota is known.
+- **A toggle** lays the content out again at its new width, pictures with it (ADR-0025), and keeps the picked post on the
+  page row it was drawn on as near as rewrapping allows; with nothing picked the page is left where it begins. `\` is
+  typed as a letter wherever letters are typed, means nothing on compose, the description editor and the public profile
+  form, and does nothing where there is no rail. It is listed on the `?` screen and on no status row.
 
 ## Shell width
 
@@ -184,6 +227,7 @@ workable only because the status row always shows the current screen's keys. Wha
 | `/` | Search. Goes to the search destination; what it opens onto is #29's. |
 | `ctrl-p` | The profiles screen, pushed onto the stack. On compose it takes the draft off first and opens the screen in its place, asking first where the draft is touched (ADR-0020, #373); it is not listed there. |
 | `-` / `+` or `=` | The **Shell width** one step narrower, or one wider: `=` is `+` without the shift. Typed as letters wherever letters are typed, as `/` and `?` are, and nothing on compose, the description editor or the public profile form. Said on the status row for two seconds (`Width 90%`, or `Narrowest` / `Full width` where there is no step to take); listed on the `?` screen and on no status row (#414). See **Shell width**, above. |
+| `\` | Collapses the rail to a strip of marks, or expands it again, for the session. Typed as a letter wherever letters are typed, nothing on compose, the description editor or the public profile form, and nothing where there is no rail. Listed on the `?` screen and on no status row (#441). See **Collapsed rail**, above. |
 
 Feed and post:
 
