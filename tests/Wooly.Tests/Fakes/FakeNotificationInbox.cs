@@ -109,6 +109,13 @@ internal sealed class FakeNotificationInbox(Fetch<Notification> fetch) : INotifi
             : Fetch<NotificationGroup>.Complete(alone);
     }
 
+    public Task<Fetch<Wooly.Core.Accounts.Account>> ReadGroupActors(
+        ActiveProfile profile,
+        string groupKey,
+        int limit,
+        CancellationToken cancellationToken) =>
+        throw new NotImplementedException();
+
     /// <summary>
     ///     The account's read marker: the id of the newest notification it has read, or <see langword="null" /> for an
     ///     account that has never had one. Nothing read by default — <c>"0"</c>, below every id a test hands it — so
