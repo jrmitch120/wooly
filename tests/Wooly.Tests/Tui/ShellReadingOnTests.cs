@@ -197,6 +197,29 @@ public class ShellReadingOnTests
     }
 
     /// <summary>
+    ///     Home arrived at again within the minute is drawn from the cache, which kept where to read on from with the
+    ///     posts — so walking down it reads on from the post after them, rather than its foot calling it whole.
+    /// </summary>
+    [Fact]
+    public async Task ReadOn_OnAHomeHandedBackByTheCache_GoesOnFromWhereItsFirstReadStopped()
+    {
+        var built = Home(posts: 100);
+        var opened = await built.Opened();
+
+        opened.Step(1);
+        built.Host.Settle();
+        opened.Step(-1);
+        built.Host.Settle();
+
+        Assert.Single(built.Timelines.Reads, read => read.Timeline == Timeline.Home);
+
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+
+        Assert.Equal(Ids(1, 80), Assert.IsType<FeedScreen>(opened.Screen).Posts.Select(post => post.Id));
+    }
+
+    /// <summary>
     ///     A timeline that does not read on yet never asks, and draws no foot: Local is the same screen over a
     ///     different timeline, and reading on reaches it in a ticket of its own (#464).
     /// </summary>
