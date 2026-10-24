@@ -1,4 +1,5 @@
 using Terminal.Gui.Input;
+using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
@@ -317,6 +318,90 @@ public class CollapsedRailTests
         Assert.Equal(0, drawn.Content.Frame.X);
     }
 
+    /// <summary>
+    ///     On a toggle the content is laid out again at its new width — each post wrapping to fewer rows collapsed — and
+    ///     the post picked stays on the row of the page it was drawn on, both ways, rather than the page keeping its row
+    ///     offset into rows that are now another shape.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ThePickedPostStaysOnItsRow(bool coloured)
+    {
+        using var drawn = await DrawnShell.Of(80, Framed, Theme(coloured), Long());
+
+        for (var post = 0; post < 7; post++)
+        {
+            drawn.Press(Key.K);
+        }
+
+        var row = PickRow(drawn);
+        var shown = drawn.Shell.Screen.Picked?.Id;
+        var tall = PickRows(drawn);
+
+        Assert.True(row > 1, "The pick is far enough down that the page has scrolled to it.");
+
+        drawn.Press(Toggle);
+
+        Assert.True(PickRows(drawn) < tall, $"{PickRows(drawn)} rows of {tall}");
+        Assert.Equal(row, PickRow(drawn));
+        Assert.Equal(shown, drawn.Shell.Screen.Picked?.Id);
+
+        drawn.Press(Toggle);
+
+        Assert.Equal(row, PickRow(drawn));
+    }
+
+    /// <summary>
+    ///     A picture is laid out again at the content's new width and sent again in the frame the toggle lands — from
+    ///     just past the strip and the panel's edge and gutter, to the column before the panel's right edge — and back.
+    /// </summary>
+    [Fact]
+    public async Task APictureIsLaidOutAgainAtTheNewWidth()
+    {
+        using var drawn = await DrawnShell.Of(
+            80,
+            30,
+            Themes.Plain,
+            new AShell
+            {
+                Timelines = FakeTimelineReader.Holding(
+                    APost.With(id: "110", media: [APost.APicture("m1", shape: new PictureShape(4000, 400))])),
+            },
+            // Wider than any content panel, so that the panel's width is what bounds its box.
+            pictures: new FakePictures().Holding("m1", 4000, 400),
+            drawsPictures: true);
+
+        drawn.DrawAsTheLoopDraws();
+        drawn.PressAsTheLoopDraws(Toggle);
+
+        Assert.Equal(1, drawn.SixelsSent());
+        Assert.Equal((Strip(false) + 2, 78), Across(drawn));
+
+        drawn.PressAsTheLoopDraws(Toggle);
+
+        Assert.Equal(1, drawn.SixelsSent());
+        Assert.Equal((RailLines.Width + 2, 78), Across(drawn));
+    }
+
+    /// <summary>
+    ///     With nothing picked — the keymap, which is rows of keys and no things — the page is left where it begins, so
+    ///     what was at the top is still at the top.
+    /// </summary>
+    [Fact]
+    public async Task WithNothingPickedTheTopStaysAtTheTop()
+    {
+        using var drawn = await DrawnShell.Of(80, Framed, Themes.Plain);
+
+        drawn.Press(new Key('?'));
+
+        var top = drawn.Rows()[1][(RailLines.Width + 1)..^1].Trim();
+
+        drawn.Press(Toggle);
+
+        Assert.Equal(top, drawn.Rows()[1][(Strip(false) + 1)..^1].Trim());
+    }
+
     /// <summary>The keymap lists <c>\</c> with the frame's keys, everywhere.</summary>
     [Fact]
     public async Task TheKeymapListsBackslashWithTheFrame()
@@ -390,6 +475,45 @@ public class CollapsedRailTests
     ///     expanded rail can be told to stand their panels on the same rows.
     /// </summary>
     private static char Framing(string row) => row[0] is '╭' or '╰' or '│' ? row[0] : ' ';
+
+    /// <summary>The first row of the page the pick is drawn on, by the bar in the content panel's first column.</summary>
+    private static int PickRow(DrawnShell drawn)
+    {
+        var column = ContentStarts(drawn) + 1;
+
+        return Array.FindIndex(drawn.Rows(), row => row[column] == '▌');
+    }
+
+    /// <summary>The first and last column the sixels drawn take, as far as each is let be drawn.</summary>
+    private static (int First, int Last) Across(DrawnShell drawn)
+    {
+        var columns = drawn.Application.Driver!.GetOutputBuffer().GetRasterImages()
+            .SelectMany(image => (image.Clip?.GetRectangles() ?? [image.DestinationCells])
+                .Select(clip => System.Drawing.Rectangle.Intersect(clip, image.DestinationCells)))
+            .Where(visible => !visible.IsEmpty)
+            .ToList();
+
+        return (columns.Min(visible => visible.Left), columns.Max(visible => visible.Right - 1));
+    }
+
+    /// <summary>How many rows of the page the pick is drawn on.</summary>
+    private static int PickRows(DrawnShell drawn)
+    {
+        var column = ContentStarts(drawn) + 1;
+
+        return drawn.Rows().Count(row => row[column] == '▌');
+    }
+
+    /// <summary>A Home of twelve posts each long enough to wrap to fewer rows once the content panel is wider.</summary>
+    private static AShell Long() => new()
+    {
+        Timelines = FakeTimelineReader.Holding(
+        [
+            .. Enumerable.Range(1, 12).Select(post => APost.With(
+                id: $"{post}0",
+                content: string.Join(' ', Enumerable.Repeat("lorem ipsum dolor sit amet", 10)))),
+        ]),
+    };
 
     /// <summary>Two profiles, so that the expanded rail's foot names the instance and the strip's must not.</summary>
     private static AShell Twice() => new()

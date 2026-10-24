@@ -1007,6 +1007,14 @@ internal sealed class ShellWindow : Window
             return;
         }
 
+        // A toggle of the rail rewraps every row of the content at its new width, so a row offset into the old rows
+        // says nothing about the new ones: the pick is kept on the page row it was drawn on instead, and with nothing
+        // picked the page is left where it begins (#441).
+        if (_collapsed != _shell.RailCollapsed)
+        {
+            _content.KeepPickOnItsRow();
+        }
+
         _railed = _shell.ShowsRail;
         _collapsed = _shell.RailCollapsed;
         _rail.Visible = _railed;
