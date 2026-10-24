@@ -983,15 +983,7 @@ public sealed class Shell
         RailCollapsed = !RailCollapsed;
 
         // Saved straight away, as a width step is, so the next launch opens on the rail this one was left on (#442).
-        // One that cannot be saved still holds for this session, since it was seen; the status row says why.
-        try
-        {
-            _shellPreferences.SaveRail(RailCollapsed);
-        }
-        catch (WoolyException failure)
-        {
-            StatusRow.Say(failure.Message, isError: true);
-        }
+        _ = Saved(() => _shellPreferences.SaveRail(RailCollapsed));
 
         Changed?.Invoke();
     }
@@ -2228,20 +2220,32 @@ public sealed class Shell
 
         // Saved straight away, so the next launch opens where this one was left (#415). A choice is saved only when
         // asked (ADR-0020), and a width key pressed counts as asking (#413, which extends that rule to these keys); a
-        // refused step, above, asks for nothing, so what is saved is always a width that was seen. One that cannot be
-        // saved still holds for this session, since it was seen; the status row says why, as D does.
+        // refused step, above, asks for nothing, so what is saved is always a width that was seen.
+        if (Saved(() => _shellPreferences.SaveWidth(width)))
+        {
+            StatusRow.SayForAMoment($"Width {width.Percent}%");
+        }
+    }
+
+    /// <summary>
+    ///     Saves one of the shell's own preferences through <paramref name="save" />. One that cannot be saved still
+    ///     holds for this session, since it was seen; the status row says why, as D does.
+    /// </summary>
+    /// <returns>Whether it was saved.</returns>
+    private bool Saved(Action save)
+    {
         try
         {
-            _shellPreferences.SaveWidth(width);
+            save();
+
+            return true;
         }
         catch (WoolyException failure)
         {
             StatusRow.Say(failure.Message, isError: true);
 
-            return;
+            return false;
         }
-
-        StatusRow.SayForAMoment($"Width {width.Percent}%");
     }
 
     private void Apply(Action work) => _host.OnUiThread(work);
