@@ -538,7 +538,7 @@ public partial class RoleTests
             [APost.With()],
             pinned: []);
 
-        var inbox = new NotificationsScreen([ANotification.With()]);
+        var inbox = new NotificationsScreen([ANotification.Alone(ANotification.With())]);
 
         var onAnAccount = ChromeLines.Status(account.Keys, new Shown.Keys(), 80).Text;
         var onTheInbox = ChromeLines.Status(inbox.Keys, new Shown.Keys(), 80).Text;
@@ -589,13 +589,20 @@ public partial class RoleTests
     [Fact]
     public void Notifications_DrawWhoDidWhatInTheBylineRole()
     {
-        var screen = new NotificationsScreen([ANotification.With(author: "Alice"), ANotification.Follow()]);
+        var screen = new NotificationsScreen(
+        [
+            ANotification.Alone(ANotification.With(
+                author: "Alice",
+                kind: NotificationKind.Favorite,
+                post: APost.With(isMine: true))),
+            ANotification.Alone(ANotification.Follow()),
+        ]);
         var lines = screen.Lines(new Drawing(61, Now));
 
         var said = lines.First(line => line.Has(Role.BylineName));
 
         Assert.Contains("Alice", said.Text);
-        Assert.Contains("mentioned you", said.Text);
+        Assert.Contains("favorited your post", said.Text);
         Assert.Contains(lines, line => line.Text.Contains("followed you", StringComparison.Ordinal));
 
         // The row picked out is told apart by a mark as well as by a role, exactly as a feed's is.
@@ -606,7 +613,8 @@ public partial class RoleTests
     [Fact]
     public void Notifications_DrawAKindThisClientHasNoWordForUnderTheInstancesOwn()
     {
-        var screen = new NotificationsScreen([ANotification.With(kind: NotificationKind.Reported("poll"))]);
+        var screen = new NotificationsScreen(
+            [ANotification.Alone(ANotification.With(kind: NotificationKind.Reported("poll")))]);
 
         Assert.Contains(
             screen.Lines(new Drawing(61, Now)),
@@ -709,7 +717,8 @@ public partial class RoleTests
 
         Screen[] screens =
         [
-            new NotificationsScreen([ANotification.With(author: "Somebody With A Very Long Display Name", post: wordy)]),
+            new NotificationsScreen(
+                [ANotification.Alone(ANotification.With(author: "Somebody With A Very Long Display Name", post: wordy))]),
             new FollowRequestsScreen([account]),
             search,
             new AccountScreen(account, [wordy], pinned: []),

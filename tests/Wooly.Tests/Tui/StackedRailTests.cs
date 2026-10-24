@@ -118,7 +118,7 @@ public class StackedRailTests
         using var drawn = await Draw(80, 24, colour ? Themes.Dark : Themes.Plain, built);
 
         var reads = built.Timelines.Reads.Count;
-        var inbox = built.Notifications.Reads.Count;
+        var inbox = built.Notifications.GroupReads.Count;
 
         for (var press = 0; press < 6; press++)
         {
@@ -134,7 +134,7 @@ public class StackedRailTests
 
         Assert.Equal(6, drawn.Shell.Rail.Current);
         Assert.Equal(reads, built.Timelines.Reads.Count);
-        Assert.Equal(inbox + 1, built.Notifications.Reads.Count);
+        Assert.Equal(inbox + 1, built.Notifications.GroupReads.Count);
     }
 
     /// <summary>

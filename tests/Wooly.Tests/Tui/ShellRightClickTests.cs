@@ -154,7 +154,7 @@ public class ShellRightClickTests
     {
         using var drawn = await On("post");
 
-        var notifications = drawn.Built.Notifications.Reads.Count;
+        var notifications = drawn.Built.Notifications.GroupReads.Count;
 
         var (column, row) = Over(drawn, over);
 
@@ -163,7 +163,7 @@ public class ShellRightClickTests
 
         Assert.IsType<FeedScreen>(drawn.Shell.Screen);
         Assert.Equal(DestinationKind.Home, drawn.Shell.Rail.Showing.Kind);
-        Assert.Equal(notifications, drawn.Built.Notifications.Reads.Count);
+        Assert.Equal(notifications, drawn.Built.Notifications.GroupReads.Count);
     }
 
     /// <summary>

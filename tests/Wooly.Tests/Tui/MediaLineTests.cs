@@ -504,7 +504,7 @@ public class MediaLineTests
     public void Inbox_HidesTheCaptionOnAPostItIsAboutTheSameAsAFeedItem()
     {
         var post = APost.With(media: [APost.APicture(description: "A cartoon sheep")]);
-        var screen = new NotificationsScreen([ANotification.With(post: post)]);
+        var screen = new NotificationsScreen([ANotification.Alone(ANotification.With(post: post))]);
 
         var drawing = new Drawing(
             61,

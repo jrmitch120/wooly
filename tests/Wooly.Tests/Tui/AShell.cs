@@ -253,7 +253,8 @@ internal sealed class AShell
         + Engagement.Marks.Count + Engagement.Reads.Count + Engagement.ThreadsRead.Count + Engagement.Votes.Count
         + Accounts.Ties.Count + Accounts.Lists.Count + Accounts.Answers.Count + Accounts.Reads.Count
         + Accounts.Familiars.Count + Accounts.Standings.Count
-        + Notifications.Reads.Count + Notifications.UnreadReads.Count + Notifications.MarkerMoves.Count
+        + Notifications.Reads.Count + Notifications.GroupReads.Count + Notifications.UnreadReads.Count
+        + Notifications.MarkerMoves.Count
         + Notifications.Dismissals.Count
         + Notifications.Clearances.Count
         + Messages.Listings.Count + Messages.Shown.Count + Messages.MarkedRead.Count

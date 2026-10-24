@@ -161,10 +161,10 @@ public class ShellRefreshTests
 
         var notifications = Assert.IsType<NotificationsScreen>(opened.Screen);
 
-        Assert.Equal(2, notifications.Notifications.Count);
+        Assert.Equal(2, notifications.Groups.Count);
         Assert.Equal(["1", "2"], shell.Notifications.MarkerMoves.Select(move => move.NotificationId));
         Assert.Equal(0, Badge(opened, DestinationKind.Notifications));
-        Assert.Equal(["2"], notifications.Notifications.Where(notifications.IsUnread).Select(waiting => waiting.Id));
+        Assert.Equal(["2"], notifications.Groups.Where(notifications.IsUnread).Select(waiting => waiting.NewestId));
     }
 
     /// <summary>Each of the seven destinations that read a list is refreshed by the arrival it already arrives by.</summary>
@@ -206,11 +206,11 @@ public class ShellRefreshTests
         opened.Step(6);
         shell.Host.Settle();
 
-        var notifications = shell.Notifications.Reads.Count;
+        var notifications = shell.Notifications.GroupReads.Count;
 
         await opened.Refresh();
 
-        Assert.Equal(notifications + 1, shell.Notifications.Reads.Count);
+        Assert.Equal(notifications + 1, shell.Notifications.GroupReads.Count);
 
         opened.Step(1);
         shell.Host.Settle();
@@ -781,7 +781,7 @@ public class ShellRefreshTests
             new Destination(DestinationKind.Hashtag, "#dotnet", Timeline.Tag("dotnet")),
             [APost.With(id: "110")]),
 
-        "notifications" => new NotificationsScreen([ANotification.With()]),
+        "notifications" => new NotificationsScreen([ANotification.Alone(ANotification.With())]),
         "messages" => new DirectMessagesScreen([AConversation.With()]),
         "requests" => new FollowRequestsScreen([AnAccount.With()]),
         "post" => new PostScreen(APost.With(id: "110"), PostThread.Alone),

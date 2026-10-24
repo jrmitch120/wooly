@@ -33,7 +33,7 @@ public class ShellNotificationTests
         shell.Host.Settle();
 
         var screen = Assert.IsType<NotificationsScreen>(opened.Screen);
-        Assert.Equal(["34", "35"], screen.Notifications.Select(notification => notification.Id));
+        Assert.Equal(["34", "35"], screen.Groups.Select(group => group.NewestId));
         Assert.Equal("Notifications", opened.Breadcrumb);
 
         var destination = opened.Rail.Destinations.First(place => place.Kind == DestinationKind.Notifications);
@@ -66,7 +66,7 @@ public class ShellNotificationTests
         Assert.Equal("34", Assert.Single(shell.Notifications.Dismissals).NotificationId);
 
         var screen = Assert.IsType<NotificationsScreen>(opened.Screen);
-        Assert.Equal(["36"], screen.Notifications.Select(notification => notification.Id));
+        Assert.Equal(["36"], screen.Groups.Select(group => group.NewestId));
 
         // The badge and the list are the same fact, so one cannot say two over a list of one.
         Assert.Equal(1, opened.Rail.Destinations.First(place => place.Kind == DestinationKind.Notifications).Unread);
@@ -100,7 +100,7 @@ public class ShellNotificationTests
 
         Assert.IsType<HelpScreen>(opened.Screen);
         Assert.Equal(1, opened.Rail.Destinations.First(place => place.Kind == DestinationKind.Notifications).Unread);
-        Assert.Equal(["36"], notifications.Notifications.Select(notification => notification.Id));
+        Assert.Equal(["36"], notifications.Groups.Select(group => group.NewestId));
     }
 
     /// <summary>
@@ -129,7 +129,7 @@ public class ShellNotificationTests
         Assert.Equal("personal", Assert.Single(shell.Notifications.Clearances));
 
         var screen = Assert.IsType<NotificationsScreen>(opened.Screen);
-        Assert.Empty(screen.Notifications);
+        Assert.Empty(screen.Groups);
         Assert.Equal(0, opened.Rail.Destinations.First(place => place.Kind == DestinationKind.Notifications).Unread);
     }
 
@@ -146,7 +146,7 @@ public class ShellNotificationTests
         await opened.Answer(agreed: false);
 
         Assert.Empty(shell.Notifications.Clearances);
-        Assert.Single(Assert.IsType<NotificationsScreen>(opened.Screen).Notifications);
+        Assert.Single(Assert.IsType<NotificationsScreen>(opened.Screen).Groups);
     }
 
     /// <summary>Nothing to ask about is nothing to ask, rather than a confirmation over an empty list.</summary>
@@ -258,7 +258,7 @@ public class ShellNotificationTests
         opened.Step(ToNotifications);
         shell.Host.Settle();
 
-        var reads = shell.Notifications.Reads.Count;
+        var reads = shell.Notifications.GroupReads.Count;
 
         opened.Press(ShellKey.D);
 
@@ -267,6 +267,6 @@ public class ShellNotificationTests
         opened.Step(-1);
         shell.Host.Settle();
 
-        Assert.Equal(reads + 1, shell.Notifications.Reads.Count);
+        Assert.Equal(reads + 1, shell.Notifications.GroupReads.Count);
     }
 }

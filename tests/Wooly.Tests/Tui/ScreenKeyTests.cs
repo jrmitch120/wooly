@@ -317,10 +317,10 @@ public class ScreenKeyTests
                 return new NotificationsScreen([], "Nothing waiting.");
 
             case "notifications-follow":
-                return new NotificationsScreen([ANotification.Follow()]);
+                return new NotificationsScreen([ANotification.Alone(ANotification.Follow())]);
 
             case "notifications-mention":
-                return new NotificationsScreen([ANotification.With(post: post)]);
+                return new NotificationsScreen([ANotification.Alone(ANotification.With(post: post))]);
 
             case "account-header":
                 return new AccountScreen(AnAccount.With(), [post], pinned: []);

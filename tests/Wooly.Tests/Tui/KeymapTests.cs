@@ -453,7 +453,7 @@ public class KeymapTests
     private static FeedScreen Feed(params Post[] posts) =>
         new(new Destination(DestinationKind.Home, "home"), posts.Length > 0 ? posts : [APost.With()]);
 
-    private static NotificationsScreen Notifications() => new([ANotification.With()]);
+    private static NotificationsScreen Notifications() => new([ANotification.Alone(ANotification.With())]);
 
     /// <summary>A file browser over an empty folder, which is all a key on it needs.</summary>
     private static FileBrowserScreen Browser() =>

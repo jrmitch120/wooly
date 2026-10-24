@@ -164,15 +164,17 @@ public abstract record Subject
 
             return entry.Kind switch
             {
-                DestinationKind.Notifications => new Listing<Notification>(
-                    Reads: (ports, profile, token) => ports.Notifications.Read(profile, Arrival.CountedAtMost, token),
+                DestinationKind.Notifications => new Listing<NotificationGroup>(
+                    // Grouped as the instance groups them, never as this client would (ADR-0032).
+                    Reads: (ports, profile, token) =>
+                        ports.Notifications.ReadGroups(profile, Arrival.CountedAtMost, token),
                     Becomes: (waiting, notice, unread) => new NotificationsScreen(waiting, notice, unread),
                     WhenEmpty: "Nothing is waiting for you.",
                     // Counted apart from the list it is drawn beside: what is unread is what is newer than the read
                     // marker, which the list does not say (ADR-0027). Arriving reads them, so the count moves the
                     // marker too, and hands the screen the rows that were unread for this visit (#397).
                     Counting: (count, shown) => count.Arrived(shown),
-                    Carries: notification => notification.Post),
+                    Carries: group => group.Post),
 
                 // The one destination whose read is two calls: the requests, and where the profile stands with each
                 // person asking — inside this destination's own read, which is what makes a refresh re-ask for free,
