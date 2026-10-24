@@ -89,9 +89,9 @@ public class KeymapTests
         Assert.Equal(Verb.None, Means(key, new ComposeScreen(ComposeFor.Post)));
 
     /// <summary>
-    ///     <c>\</c> collapses or expands the rail (#441), a frame key the same on every screen that is not typing — and,
-    ///     like the Shell width keys, nobody's on compose, the description editor and the public profile form, whose
-    ///     fields type it.
+    ///     <c>\</c> collapses or expands the rail (#441), a frame key the same on every screen that is not typing —
+    ///     and, like the Shell width keys, nobody's on compose, the description editor and the public profile form,
+    ///     whose fields type it.
     /// </summary>
     [Fact]
     public void BackslashTogglesTheRailOnEveryScreenButComposeTheDescriptionEditorAndThePublicProfileForm()

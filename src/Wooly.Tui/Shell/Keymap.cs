@@ -50,10 +50,10 @@ public static class Keymap
         (ShellKey.CtrlQ, _) => Verb.Quit,
         (ShellKey.Escape, _) => Verb.Back,
 
-        // Nothing on compose, the description editor or the public profile form, whose fields take `?`, the Shell width's
-        // `-`, `+` and `=`, and the collapsed rail's `\` as letters before the window sees them (#320, #414, #441): a
-        // keymap opened only where no widget has the typing would be one a reader can never reach, over a draft, and
-        // where the typing is in none — Media, a picture, a toggle — a key from under a draft is no-one's.
+        // Nothing on compose, the description editor or the public profile form, whose fields take `?`, the Shell
+        // width's `-`, `+` and `=`, and the collapsed rail's `\` as letters before the window sees them (#320, #414,
+        // #441): a keymap opened only where no widget has the typing would be one a reader can never reach, over a
+        // draft, and where the typing is in none — Media, a picture, a toggle — a key from under a draft is no-one's.
         (ShellKey.Question or ShellKey.Minus or ShellKey.Plus or ShellKey.EqualsSign or ShellKey.Backslash, _)
             when HasWidgetsOfItsOwn(screen) => Verb.None,
         (ShellKey.Question, _) => Verb.Help,

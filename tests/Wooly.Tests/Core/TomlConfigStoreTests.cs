@@ -248,8 +248,8 @@ public class TomlConfigStoreTests : IDisposable
     }
 
     /// <summary>
-    ///     #442: the expanded rail is what an absent key means, with no file and with a file that leaves it out — which is
-    ///     what a fresh install opens on.
+    ///     #442: the expanded rail is what an absent key means, with no file and with a file that leaves it out — which
+    ///     is what a fresh install opens on.
     /// </summary>
     [Fact]
     public void Load_ReadsTheRailAsExpandedWhenAbsent()
