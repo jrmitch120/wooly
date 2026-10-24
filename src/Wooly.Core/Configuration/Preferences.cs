@@ -51,4 +51,11 @@ public sealed record Preferences
     ///     reader holds it to. <see cref="FullShellWidth" /> (absent) is all of it; one setting for every profile.
     /// </summary>
     public int ShellWidth { get; init; } = FullShellWidth;
+
+    /// <summary>
+    ///     Whether the TUI opens on the <b>collapsed rail</b> (#442): <see langword="false" /> (absent) opens on the
+    ///     expanded rail, which a fresh install starts on so that the marks are learnt from the labels first. One setting
+    ///     for every profile, as the shell width is.
+    /// </summary>
+    public bool CollapsedRail { get; init; }
 }

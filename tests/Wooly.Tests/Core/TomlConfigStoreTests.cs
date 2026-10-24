@@ -247,6 +247,83 @@ public class TomlConfigStoreTests : IDisposable
         Assert.Contains("shell_width", exception.Message);
     }
 
+    /// <summary>
+    ///     #442: the expanded rail is what an absent key means, with no file and with a file that leaves it out — which is
+    ///     what a fresh install opens on.
+    /// </summary>
+    [Fact]
+    public void Load_ReadsTheRailAsExpandedWhenAbsent()
+    {
+        Assert.False(NewStore().Load().Preferences.CollapsedRail);
+
+        WriteConfigFile(
+            """
+            [preferences]
+            hashtag = "dotnet"
+            """);
+
+        Assert.False(NewStore().Load().Preferences.CollapsedRail);
+    }
+
+    [Fact]
+    public void Save_ThenLoad_RoundTripsTheCollapsedRailBesideTheShellWidth()
+    {
+        var store = NewStore();
+
+        store.Save(new WoolyConfig { Preferences = new Preferences { ShellWidth = 70, CollapsedRail = true } });
+
+        Assert.Contains("collapsed_rail = true", File.ReadAllText(Path.Combine(_directory.Path, "config.toml")));
+
+        var preferences = store.Load().Preferences;
+
+        Assert.True(preferences.CollapsedRail);
+        Assert.Equal(70, preferences.ShellWidth);
+    }
+
+    /// <summary>
+    ///     Expanded is what an absent key reads as, so it is not written: expanding the rail again takes the line away,
+    ///     leaving the file there would be had it never been collapsed.
+    /// </summary>
+    [Fact]
+    public void Save_OmitsTheRailWhenExpanded_AndRemovesItOnceExpandedAgain()
+    {
+        var store = NewStore();
+
+        store.Save(new WoolyConfig { Preferences = new Preferences { CollapsedRail = false } });
+
+        Assert.Empty(File.ReadAllText(Path.Combine(_directory.Path, "config.toml")));
+
+        store.Save(new WoolyConfig { Preferences = new Preferences { Hashtag = "dotnet", CollapsedRail = true } });
+        store.Save(store.Load() with { Preferences = store.Load().Preferences with { CollapsedRail = false } });
+
+        var toml = File.ReadAllText(Path.Combine(_directory.Path, "config.toml"));
+
+        Assert.DoesNotContain("collapsed_rail", toml);
+        Assert.Contains("hashtag = \"dotnet\"", toml);
+    }
+
+    /// <summary>
+    ///     A bad value written by hand is refused against the config file, as a bad <c>shell_width</c> is: there is no
+    ///     in-between state to bring it to, so it is said rather than guessed.
+    /// </summary>
+    [Theory]
+    [InlineData("\"yes\"")]
+    [InlineData("1")]
+    [InlineData("\"collapsed\"")]
+    public void Load_RefusesACollapsedRailThatIsNotTrueOrFalse(string written)
+    {
+        WriteConfigFile(
+            $"""
+             [preferences]
+             collapsed_rail = {written}
+             """);
+
+        var exception = Assert.Throws<ConfigurationException>(() => NewStore().Load());
+
+        Assert.Contains("config.toml", exception.Message);
+        Assert.Contains("'collapsed_rail' must be true or false.", exception.Message);
+    }
+
     [Fact]
     public void Save_ThenLoad_RoundTripsProfilesCurrentProfileAndPreferences()
     {

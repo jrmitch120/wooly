@@ -31,6 +31,9 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
     /// <summary>How much of the terminal's width the TUI's shell takes, as a percentage (#413).</summary>
     private const string ShellWidthKey = "shell_width";
 
+    /// <summary>Whether the TUI's rail is the collapsed rail rather than the expanded one (#442).</summary>
+    private const string CollapsedRailKey = "collapsed_rail";
+
     /// <summary>The theme the TUI draws in, and the themes written in this same file (#46).</summary>
     private const string ThemeKey = "theme";
 
@@ -72,7 +75,8 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
 
         // Inserted before the profiles so the writer emits the short, general section above the long, per-profile one.
         if (config.Preferences is { DefaultVisibility: not null } or { DefaultLanguage: not null } or { Hashtag: not null }
-            or { HideDrawnCaption: true } or { Bell: false } or { ShellWidth: not Preferences.FullShellWidth })
+            or { HideDrawnCaption: true } or { Bell: false } or { ShellWidth: not Preferences.FullShellWidth }
+            or { CollapsedRail: true })
         {
             var preferences = new TomlTable();
 
@@ -110,6 +114,13 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
             if (config.Preferences.ShellWidth != Preferences.FullShellWidth)
             {
                 preferences[ShellWidthKey] = (long)config.Preferences.ShellWidth;
+            }
+
+            // Absent rather than written as false, the expanded rail an absent key reads back as — so expanding it
+            // again takes the line away, as widening back to the whole terminal does (#442).
+            if (config.Preferences.CollapsedRail)
+            {
+                preferences[CollapsedRailKey] = true;
             }
 
             root[PreferencesKey] = preferences;
@@ -299,6 +310,7 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
             HideDrawnCaption = ReadBool(stored, HideDrawnCaptionKey),
             Bell = ReadBool(stored, BellKey, whenAbsent: true),
             ShellWidth = ReadShellWidth(stored),
+            CollapsedRail = ReadBool(stored, CollapsedRailKey),
         };
     }
 
