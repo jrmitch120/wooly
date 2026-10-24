@@ -230,10 +230,10 @@ public static class PostKeys
     public static KeyHint[] AlongTheRail => [ToADestination, ToAGroup];
 
     /// <summary><c>tab</c> to the next destination, the first half of <see cref="AlongTheRail" />.</summary>
-    public static KeyHint ToADestination { get; } = new("tab", "destination");
+    public static KeyHint ToADestination { get; } = new("tab", "destination", WalksTheRail: true);
 
     /// <summary><c>`</c> to the next rail group, the second half of <see cref="AlongTheRail" />.</summary>
-    public static KeyHint ToAGroup { get; } = new("`", "group");
+    public static KeyHint ToAGroup { get; } = new("`", "group", WalksTheRail: true);
 
     /// <summary>
     ///     <c>\</c> to show the hidden rail again, which the status row offers in place of <see cref="AlongTheRail" />

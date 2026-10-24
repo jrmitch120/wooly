@@ -389,16 +389,15 @@ public sealed class Shell
         !Screen.IsTyping && Keymap.Means(ShellKey.Backslash, Screen) is Verb.ToggleRail;
 
     /// <summary>
-    ///     <paramref name="keys" /> without <c>tab</c> and <c>`</c>, and with <c>\</c> where the first of them stood —
-    ///     so that the row keeps its order, and nothing after them moves for a key that does nothing (#445). Nothing
-    ///     in their place unless <c>\</c> <paramref name="shows" /> the rail, rather than being typed as a letter.
+    ///     <paramref name="keys" /> without those that walk the rail (<see cref="KeyHint.WalksTheRail" />), and with
+    ///     <c>\</c> where the first of them stood — so that the row keeps its order, and nothing after them moves for
+    ///     a key that does nothing (#445). Nothing in their place unless <c>\</c> <paramref name="shows" /> the rail,
+    ///     rather than being typed as a letter.
     /// </summary>
     private static List<KeyHint> Unwalked(IReadOnlyList<KeyHint> keys, bool shows)
     {
-        bool Walks(KeyHint key) => key == PostKeys.ToADestination || key == PostKeys.ToAGroup;
-
-        var unwalked = keys.Where(key => !Walks(key)).ToList();
-        var at = keys.ToList().FindIndex(Walks);
+        var unwalked = keys.Where(key => !key.WalksTheRail).ToList();
+        var at = keys.ToList().FindIndex(key => key.WalksTheRail);
 
         if (at >= 0 && shows)
         {

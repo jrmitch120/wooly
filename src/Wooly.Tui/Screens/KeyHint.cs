@@ -20,7 +20,13 @@ namespace Wooly.Tui.Screens;
 ///     failure this exists to stop. <see langword="false" /> by default, that being every key that acts on the screen
 ///     itself — the walk, <c>g</c>, <c>tab</c>, <c>?</c> — and what leaves every existing declaration as it was.
 /// </param>
-public readonly record struct KeyHint(string Key, string Does, bool NeedsAPick = false)
+/// <param name="WalksTheRail">
+///     Whether it walks the rail — <c>tab</c> to a destination, <c>`</c> to a group — and so has nothing to do while
+///     the rail is hidden, where the status row offers <c>\</c> in its place (#445). Declared on the key for the reason
+///     <paramref name="NeedsAPick" /> is, so that a screen writing its own walk hint is taken off with the shared ones.
+///     <see langword="false" /> by default.
+/// </param>
+public readonly record struct KeyHint(string Key, string Does, bool NeedsAPick = false, bool WalksTheRail = false)
 {
     /// <summary>
     ///     The explanation and its key as the status row draws them, <c>Does: key</c> — lazygit's strip (ADR-0021,
