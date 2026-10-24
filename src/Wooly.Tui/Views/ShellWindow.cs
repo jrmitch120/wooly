@@ -101,8 +101,8 @@ internal sealed class ShellWindow : Window
     /// <summary>Whether the rail is laid out, which it is as built.</summary>
     private bool _railed = true;
 
-    /// <summary>Whether the rail was laid out collapsed, which as built it is not (#441).</summary>
-    private bool _collapsed;
+    /// <summary>Whether the rail was laid out collapsed or expanded: expanded as built (#441).</summary>
+    private RailState _railState;
 
     /// <summary>Whether colour is drawn, which decides how wide the collapsed rail is.</summary>
     private readonly bool _coloured;
@@ -114,9 +114,9 @@ internal sealed class ShellWindow : Window
     private bool _clickDeclinedQuestion;
 
     /// <summary>
-    ///     Whether the last click was spent toggling the rail, which spends the double click it turns out to be the first
-    ///     half of too: the toggle moved what was under the pointer, so the second click lands on whatever took the
-    ///     mark's place — on the scrolled compact rail, a row of the content (#443).
+    ///     Whether the last click was spent toggling the rail, which spends the double click it turns out to be the
+    ///     first half of too: the toggle moved what was under the pointer, so the second click lands on whatever took
+    ///     the mark's place — on the scrolled compact rail, a row of the content (#443).
     /// </summary>
     private bool _clickToggledRail;
 
@@ -206,7 +206,7 @@ internal sealed class ShellWindow : Window
         var rail = _rail = new PaintedView(
             theme,
             (_, height) =>
-                RailLines.Of(shell.Rail, shell.Quota, height, shell.Instance, theme.DrawsColour, shell.RailCollapsed))
+                RailLines.Of(shell.Rail, shell.Quota, height, shell.Instance, theme.DrawsColour, shell.RailState))
         {
             X = 0,
             Y = 0,
@@ -456,8 +456,8 @@ internal sealed class ShellWindow : Window
     ///     a click on a destination on the rail arrives there (#288), one on the rail's <c>«</c>/<c>»</c> is <c>\</c>
     ///     (#443), a click on a crumb of the breadcrumb walks back to it (#308), and a click on a row of a thing in the
     ///     content picks it (#290), the first half of a double click among them (<see cref="DoubleClicked" />).
-    ///     Everything else — a title, a heading, the API panel, a separator, the fetch mark, a rule, a blank — is part of
-    ///     nothing and ignores it.
+    ///     Everything else — a title, a heading, the API panel, a separator, the fetch mark, a rule, a blank — is part
+    ///     of nothing and ignores it.
     /// </summary>
     /// <param name="at">Where the click was.</param>
     /// <param name="chorded">Whether ctrl or shift was held, which on some rows means more than a pick (#376).</param>
@@ -508,12 +508,12 @@ internal sealed class ShellWindow : Window
 
         // The toggle's mark is `\` itself, through the keymap, so it does exactly what the key does and nothing where
         // the key does nothing — on compose, the description editor and the public profile form (#443).
-        if (_rail.SpanItemAt(at) == RailLines.Toggle)
+        if ((RailPart?)_rail.SpanItemAt(at) is RailPart.ToggleMark)
         {
-            var collapsed = _shell.RailCollapsed;
+            var was = _shell.RailState;
 
             _ = Do(ShellKey.Backslash);
-            _clickToggledRail = collapsed != _shell.RailCollapsed;
+            _clickToggledRail = was != _shell.RailState;
         }
         else if (_rail.ItemAt(at) is { } destination)
         {
@@ -1024,7 +1024,7 @@ internal sealed class ShellWindow : Window
     /// </summary>
     private void Railed()
     {
-        if (_railed == _shell.ShowsRail && _collapsed == _shell.RailCollapsed)
+        if (_railed == _shell.ShowsRail && _railState == _shell.RailState)
         {
             return;
         }
@@ -1032,23 +1032,23 @@ internal sealed class ShellWindow : Window
         // A toggle of the rail rewraps every row of the content at its new width, so a row offset into the old rows
         // says nothing about the new ones: the pick is kept on the page row it was drawn on instead, and with nothing
         // picked the page is left where it begins (#441).
-        if (_collapsed != _shell.RailCollapsed)
+        if (_railState != _shell.RailState)
         {
             _content.KeepPickOnItsRow();
         }
 
         _railed = _shell.ShowsRail;
-        _collapsed = _shell.RailCollapsed;
+        _railState = _shell.RailState;
         _rail.Visible = _railed;
 
         LaidOutAtTheNewWidth();
     }
 
     /// <summary>
-    ///     How many columns the rail takes, expanded or collapsed (#441), which the layout asks for on every pass rather
-    ///     than holding.
+    ///     How many columns the rail takes, expanded or collapsed (#441), which the layout asks for on every pass
+    ///     rather than holding.
     /// </summary>
-    private int RailColumns => RailLines.Columns(_collapsed, _coloured);
+    private int RailColumns => RailLines.Columns(_railState, _coloured);
 
     /// <summary>
     ///     Where the content panel and the breadcrumb over it start: where the rail ends, or at the window's left edge

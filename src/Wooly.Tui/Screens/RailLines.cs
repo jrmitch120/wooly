@@ -10,7 +10,7 @@ namespace Wooly.Tui.Screens;
 ///     The rail as rows: the four rail groups, each a panel titled with its name and holding its destinations with
 ///     their unread counts, and an <c>API</c> panel at the foot holding the budget as a gauge — with the instance above
 ///     it where there are profiles to tell apart. Twenty columns, frames included, full height less the status row
-///     (<c>docs/tui-shell.md</c>, ADR-0021) — or, collapsed, a strip of one mark a destination (#441).
+///     (<c>docs/tui-shell.md</c>, ADR-0021) — or, as the collapsed rail, one mark a destination (#441).
 /// </summary>
 /// <remarks>
 ///     On a terminal too short to frame every group the rail steps down rather than clipping: compact, with each
@@ -28,8 +28,8 @@ public static class RailLines
 
     /// <summary>
     ///     How wide the collapsed rail is where colour is drawn: a frame either side, the mark, a space, and the three
-    ///     columns of the widest count, <c>40+</c> — the same whatever the counts are, so a badge coming or growing moves
-    ///     nothing (#441).
+    ///     columns of the widest count, <c>40+</c> — the same whatever the counts are, so a badge coming or growing
+    ///     moves nothing (#441).
     /// </summary>
     public const int CollapsedWidth = 7;
 
@@ -37,12 +37,6 @@ public static class RailLines
     ///     The collapsed rail is wider by the mark column where colour is not drawn, which carries the cursor.
     /// </summary>
     public const int CollapsedPlainWidth = CollapsedWidth + MarkColumns;
-
-    /// <summary>
-    ///     What the toggle's mark stands for, as its run's <see cref="Span.Item" />: a click there is <c>\</c> (#443).
-    ///     Below every place on the rail, which a row's <see cref="Line.Item" /> carries instead.
-    /// </summary>
-    public const int Toggle = -1;
 
     /// <summary>
     ///     Where the cursor is — where the tabbing has got to. Shown on the cursor's row however it stands, where colour
@@ -58,8 +52,8 @@ public static class RailLines
 
     /// <summary>
     ///     The toggle's mark on the expanded rail, which a click collapses, and on the collapsed rail, which a click
-    ///     expands — pointing the way the rail would go. Latin-1 and not East Asian ambiguous, so a column wide on every
-    ///     terminal, which a symbol's width is not (ADR-0031).
+    ///     expands — pointing the way the rail would go. Latin-1 and not East Asian ambiguous, so a column wide on
+    ///     every terminal, which a symbol's width is not (ADR-0031).
     /// </summary>
     private const string Collapses = "«";
 
@@ -79,7 +73,9 @@ public static class RailLines
     /// <summary>The columns the one mark column takes with the space after it.</summary>
     private const int MarkColumns = 2;
 
-    /// <summary>The columns the widest count takes, <c>40+</c>, kept on the collapsed rail whatever is waiting.</summary>
+    /// <summary>
+    ///     The columns the widest count takes, <c>40+</c>, kept on the collapsed rail whatever is waiting.
+    /// </summary>
     private const int CountColumns = 3;
 
     /// <summary>The columns a panel's two sides take off the rows inside it.</summary>
@@ -91,11 +87,11 @@ public static class RailLines
     /// </summary>
     private const int GaugeMargin = 6;
 
-    /// <summary>How many columns the rail takes, expanded or <paramref name="collapsed" />.</summary>
-    /// <param name="collapsed">Whether it is the collapsed rail, a strip of one mark a destination.</param>
+    /// <summary>How many columns the rail takes, expanded or collapsed.</summary>
+    /// <param name="state">Whether it is the expanded rail or the collapsed rail, one mark a destination.</param>
     /// <param name="coloured">Whether colour is drawn, without which the collapsed rail keeps the mark column.</param>
-    public static int Columns(bool collapsed, bool coloured) =>
-        !collapsed ? Width : coloured ? CollapsedWidth : CollapsedPlainWidth;
+    public static int Columns(RailState state, bool coloured) =>
+        state is RailState.Expanded ? Width : coloured ? CollapsedWidth : CollapsedPlainWidth;
 
     /// <summary>The rail, drawn to <paramref name="height" /> rows with the budget held at the bottom.</summary>
     /// <param name="rail">The destinations, the cursor, and the selection.</param>
@@ -109,9 +105,10 @@ public static class RailLines
     ///     Whether colour is drawn. Where it is, the cursor and the selection are bands and no row carries a mark; where
     ///     it is not, the one mark column carries them (ADR-0021).
     /// </param>
-    /// <param name="collapsed">
-    ///     Whether it is the collapsed rail (#441): each destination its mark and its count, each group an untitled panel,
-    ///     and the budget its percentage alone — stepped down at the same heights, so every row is where it was.
+    /// <param name="state">
+    ///     Whether it is the expanded rail or the collapsed rail (#441): each destination its mark and its count, each
+    ///     group an untitled panel, and the budget its percentage alone — stepped down at the same heights, so every
+    ///     row is where it was.
     /// </param>
     public static IReadOnlyList<Line> Of(
         Rail rail,
@@ -119,7 +116,7 @@ public static class RailLines
         int height,
         string? instance = null,
         bool coloured = false,
-        bool collapsed = false)
+        RailState state = RailState.Expanded)
     {
         if (height <= 0)
         {
@@ -127,7 +124,7 @@ public static class RailLines
         }
 
         var groups = Groups(rail);
-        var drawing = new Drawn(Columns(collapsed, coloured), coloured, collapsed);
+        var drawing = new Drawn(Columns(state, coloured), coloured, state);
 
         return height >= groups.Sum(group => group.Places.Count + Sides) + ApiRows
             ? Framed(rail, groups, quota, height, instance, drawing)
@@ -148,30 +145,30 @@ public static class RailLines
         string? instance,
         Drawn drawing)
     {
-        var (width, coloured, collapsed) = drawing;
+        var width = drawing.Width;
         var inside = width - Sides;
         var lines = new List<Line>();
 
         foreach (var (group, places) in groups)
         {
             lines.AddRange(Panel.Framed(
-                collapsed ? string.Empty : Title(group),
-                [.. places.Select(at => Entry(rail, at, inside, coloured ? string.Empty : Mark(rail, at), drawing))],
+                drawing.Collapsed ? string.Empty : Title(group),
+                [.. places.Select(at => Entry(rail, at, inside, CursorLead(rail, at, drawing), drawing))],
                 width,
                 places.Count + Sides,
-                // The cursor's group rather than the selection's, so the frame moves on the press: a jump into another group
-                // says at once where it landed, rather than a settle window later (#272).
+                // The cursor's group rather than the selection's, so the frame moves on the press: a jump into another
+                // group says at once where it landed, rather than a settle window later (#272).
                 active: places.Contains(rail.Cursor)));
         }
 
         // The toggle's mark in the first panel's top-right corner, just inside it, where a pointer finds the corner.
         if (lines.Count > 0)
         {
-            lines[0] = Marked(lines[0], width - 2, collapsed);
+            lines[0] = WithToggleMark(lines[0], width - 2, drawing);
         }
 
-        var api = Foot(quota, instance, inside, collapsed, end: 0);
-        var foot = Panel.Framed(collapsed ? string.Empty : "API", api, width, api.Count + Sides, active: false);
+        var api = Foot(quota, instance, inside, drawing, end: 0);
+        var foot = Panel.Framed(drawing.Collapsed ? string.Empty : "API", api, width, api.Count + Sides, active: false);
 
         return Footed(lines, foot, height, width);
     }
@@ -192,7 +189,8 @@ public static class RailLines
         string? instance,
         Drawn drawing)
     {
-        var (width, coloured, collapsed) = drawing;
+        var width = drawing.Width;
+        var collapsed = drawing.Collapsed;
         var body = new List<Line>();
         int first = 0, last = 0, cursor = 0;
 
@@ -214,17 +212,16 @@ public static class RailLines
             // Indented under the heading by the mark column, which colour leaves blank, so a heading and an entry are
             // told apart by where they start on every terminal. Collapsed, by the column a frame would take instead and
             // with a column after the count, so the marks and the counts stand where they do framed.
-            var lead = collapsed ? " " : coloured ? new string(' ', MarkColumns) : string.Empty;
+            var lead = collapsed ? " " : drawing.Coloured ? new string(' ', MarkColumns) : string.Empty;
 
-            body.AddRange(places.Select(at =>
-                Entry(rail, at, width, lead + (coloured ? string.Empty : Mark(rail, at)), drawing)));
+            body.AddRange(places.Select(at => Entry(rail, at, width, lead + CursorLead(rail, at, drawing), drawing)));
         }
 
         var spare = height - body.Count - 1;
 
         // The instance where there is a row for it, and the gauge alone where there is not: the gauge is what the rail
         // is the one thing able to spend.
-        var foot = Foot(quota, spare >= 1 ? instance : null, width, collapsed, end: collapsed ? 1 : 0);
+        var foot = Foot(quota, spare >= 1 ? instance : null, width, drawing, end: collapsed ? 1 : 0);
 
         var room = Math.Max(0, height - foot.Count);
 
@@ -244,20 +241,21 @@ public static class RailLines
 
         if (heading >= 0)
         {
-            body[heading] = Marked(body[heading], width - 1 - (collapsed ? 1 : 0), collapsed);
+            body[heading] = WithToggleMark(body[heading], width - 1 - (collapsed ? 1 : 0), drawing);
         }
 
         return Footed(body, foot, height, width);
     }
 
     /// <summary>
-    ///     What the <c>API</c> panel holds, <paramref name="width" /> columns of each row: the instance where there is one,
-    ///     and the gauge. Collapsed, the gauge is its percentage alone, ending <paramref name="end" /> columns short of
-    ///     the row's, and the instance's row is kept blank, so the panel is as tall as it was and nothing over it moves
-    ///     (#441).
+    ///     What the <c>API</c> panel holds, <paramref name="width" /> columns of each row: the instance where there is
+    ///     one, and the gauge. Collapsed, the gauge is its percentage alone, ending <paramref name="end" /> columns
+    ///     short of the row's, and the instance's row is kept blank, so the panel is as tall as it was and nothing over
+    ///     it moves (#441).
     /// </summary>
-    private static List<Line> Foot(RateLimitQuota? quota, string? instance, int width, bool collapsed, int end)
+    private static List<Line> Foot(RateLimitQuota? quota, string? instance, int width, Drawn drawing, int end)
     {
+        var collapsed = drawing.Collapsed;
         var gauge = collapsed ? Percent(quota, width, end) : Gauge(quota, width);
 
         return instance is null
@@ -266,11 +264,11 @@ public static class RailLines
     }
 
     /// <summary>
-    ///     <paramref name="row" /> with the toggle's mark in place of whatever it drew at <paramref name="column" />, in
-    ///     that cell's role — the glyph is the whole of what it says, with colour or without — and standing for
-    ///     <see cref="Toggle" />.
+    ///     <paramref name="row" /> with the toggle's mark in place of whatever it drew at <paramref name="column" />,
+    ///     in that cell's role — the glyph is the whole of what it says, with colour or without — and standing for
+    ///     <see cref="RailPart.ToggleMark" />.
     /// </summary>
-    private static Line Marked(Line row, int column, bool collapsed)
+    private static Line WithToggleMark(Line row, int column, Drawn drawing)
     {
         var spans = new List<Span>();
         var start = 0;
@@ -291,9 +289,10 @@ public static class RailLines
                 var reach = Glyphs.Reach(span.Text, 0, span.Text.Length, column - start + 1);
                 var past = Glyphs.Columns(span.Text[..reach]);
                 var after = new string(' ', Math.Max(0, past - (column - start) - 1)) + span.Text[reach..];
+                var mark = drawing.Collapsed ? Expands : Collapses;
 
                 spans.AddRange(before.Length > 0 ? [span with { Text = before }] : Array.Empty<Span>());
-                spans.Add(new Span(collapsed ? Expands : Collapses, span.Role) { Item = Toggle });
+                spans.Add(new Span(mark, span.Role) { Item = (int)RailPart.ToggleMark });
                 spans.AddRange(after.Length > 0 ? [span with { Text = after }] : Array.Empty<Span>());
             }
 
@@ -354,7 +353,7 @@ public static class RailLines
     ///     What a destination is drawn as on the collapsed rail: one fixed mark, single-width ASCII because a symbol's
     ///     width is not one every terminal agrees on (ADR-0031), and the same whatever the tag or the handle (#441).
     /// </summary>
-    private static char Letter(DestinationKind kind) => kind switch
+    private static char DestinationMark(DestinationKind kind) => kind switch
     {
         DestinationKind.Home => 'H',
         DestinationKind.Local => 'L',
@@ -369,9 +368,14 @@ public static class RailLines
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "A destination with no mark."),
     };
 
-    /// <summary>The one mark column and the space after it, for where colour is not drawn.</summary>
-    private static string Mark(Rail rail, int at) =>
-        (at == rail.Cursor ? CursorMark : at == rail.Current ? SettledMark : " ").PadRight(MarkColumns);
+    /// <summary>
+    ///     The one mark column, carrying the cursor and the selection, and the space after it, for where colour is not
+    ///     drawn — and nothing where it is, since the bands carry them there.
+    /// </summary>
+    private static string CursorLead(Rail rail, int at, Drawn drawing) =>
+        drawing.Coloured
+            ? string.Empty
+            : (at == rail.Cursor ? CursorMark : at == rail.Current ? SettledMark : " ").PadRight(MarkColumns);
 
     /// <summary>
     ///     One destination, <paramref name="width" /> columns of it: <paramref name="lead" />, its label, and its unread
@@ -400,14 +404,14 @@ public static class RailLines
 
         if (drawing.Collapsed)
         {
-            // The mark, and the count after it right-aligned in the columns the widest takes, so that the strip is as
-            // wide whatever is waiting. Whatever is left over is after the count, in the band.
+            // The mark, and the count after it right-aligned in the columns the widest takes, so that the collapsed
+            // rail is as wide whatever is waiting. Whatever is left over is after the count, in the band.
             var gap = Math.Max(0, width - Glyphs.Columns(lead) - 1 - Glyphs.Columns(unread));
             var before = Math.Min(gap, 1 + CountColumns - Glyphs.Columns(unread));
 
             return Line.Of([
                 .. lead.Length > 0 ? [new Span(lead, role)] : Array.Empty<Span>(),
-                new Span(Letter(destination.Kind).ToString(), role),
+                new Span(DestinationMark(destination.Kind).ToString(), role),
                 .. before > 0 ? [new Span(new string(' ', before), role)] : Array.Empty<Span>(),
                 .. count is { } waiting ? [waiting] : Array.Empty<Span>(),
                 .. gap > before ? [new Span(new string(' ', gap - before), role)] : Array.Empty<Span>(),
@@ -453,9 +457,9 @@ public static class RailLines
     }
 
     /// <summary>
-    ///     The budget on the collapsed rail: the percentage left alone, <paramref name="end" /> columns short of the row's
-    ///     end so that it ends where a count does, in the nearly spent role at a tenth or less — or a blank row before
-    ///     anything has asked, as the gauge is (#441).
+    ///     The budget on the collapsed rail: the percentage left alone, <paramref name="end" /> columns short of the
+    ///     row's end so that it ends where a count does, in the nearly spent role at a tenth or less — or a blank row
+    ///     before anything has asked, as the gauge is (#441).
     /// </summary>
     private static Line Percent(RateLimitQuota? quota, int width, int end)
     {
@@ -486,7 +490,11 @@ public static class RailLines
     ///     How the rail is being drawn: <paramref name="Width" /> columns of it, in colour or not, and expanded or
     ///     collapsed.
     /// </summary>
-    private sealed record Drawn(int Width, bool Coloured, bool Collapsed);
+    private sealed record Drawn(int Width, bool Coloured, RailState State)
+    {
+        /// <summary>Whether it is the collapsed rail being drawn.</summary>
+        public bool Collapsed => State is RailState.Collapsed;
+    }
 
     /// <summary>One rail group as it stands on this rail: the places on the rail it holds, in the order they are drawn.</summary>
     private sealed record Run(RailGroup Group, IReadOnlyList<int> Places);

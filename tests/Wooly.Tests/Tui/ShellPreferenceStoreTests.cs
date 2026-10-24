@@ -54,8 +54,8 @@ public class ShellPreferenceStoreTests
     }
 
     /// <summary>
-    ///     Collapsing the rail writes it beside the width, and expanding it again takes the line away, leaving the width
-    ///     where it was.
+    ///     Collapsing the rail writes it beside the width, and expanding it again takes the line away, leaving the
+    ///     width where it was.
     /// </summary>
     [Fact]
     public void SavingTheRailWritesItBesideTheWidth_AndExpandingItTakesTheLineAway()
@@ -66,12 +66,12 @@ public class ShellPreferenceStoreTests
         var store = new ShellPreferenceStore(config);
 
         store.SaveWidth(ShellWidth.Of(90));
-        store.SaveRail(collapsed: true);
+        store.SaveRail(RailState.Collapsed);
 
         Assert.True(config.Load().Preferences.CollapsedRail);
         Assert.Equal(90, config.Load().Preferences.ShellWidth);
 
-        store.SaveRail(collapsed: false);
+        store.SaveRail(RailState.Expanded);
 
         var toml = File.ReadAllText(paths.ConfigFile);
         Assert.DoesNotContain("collapsed_rail", toml);

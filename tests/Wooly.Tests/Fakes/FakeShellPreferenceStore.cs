@@ -9,11 +9,13 @@ namespace Wooly.Tests.Fakes;
 /// </summary>
 internal sealed class FakeShellPreferenceStore : IShellPreferenceStore
 {
-    /// <summary>Every width saved, as its percentage, in order — where a test proves what was saved and how often.</summary>
+    /// <summary>
+    ///     Every width saved, as its percentage, in order — where a test proves what was saved and how often.
+    /// </summary>
     public List<int> Widths { get; } = [];
 
-    /// <summary>Every rail saved, <see langword="true" /> where it was the collapsed rail, in order.</summary>
-    public List<bool> Rails { get; } = [];
+    /// <summary>Every rail saved, collapsed or expanded, in order.</summary>
+    public List<RailState> Rails { get; } = [];
 
     /// <summary>
     ///     Where the config file has been edited by hand into something that no longer reads, what saving says — or
@@ -30,14 +32,16 @@ internal sealed class FakeShellPreferenceStore : IShellPreferenceStore
     }
 
     /// <inheritdoc />
-    public void SaveRail(bool collapsed)
+    public void SaveRail(RailState rail)
     {
         Refuse();
 
-        Rails.Add(collapsed);
+        Rails.Add(rail);
     }
 
-    /// <summary>Throws what saving says where the file no longer reads, as the real store would on loading it.</summary>
+    /// <summary>
+    ///     Throws what saving says where the file no longer reads, as the real store would on loading it.
+    /// </summary>
     private void Refuse()
     {
         if (Unreadable is { } problem)

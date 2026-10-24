@@ -110,9 +110,9 @@ public sealed class Shell
     private readonly ProfilePorts _profiles;
 
     /// <summary>
-    ///     Where each step of the <see cref="ShellWidth" /> and each toggle of the rail is saved, for the next launch to
-    ///     open at (#415, #442). Not one of <see cref="ShellPorts" /> either, for the profiles' reason: it reaches the
-    ///     local config.
+    ///     Where each step of the <see cref="ShellWidth" /> and each toggle of the rail is saved, for the next launch
+    ///     to open at (#415, #442). Not one of <see cref="ShellPorts" /> either, for the profiles' reason: it reaches
+    ///     the local config.
     /// </summary>
     private readonly IShellPreferenceStore _shellPreferences;
 
@@ -189,7 +189,7 @@ public sealed class Shell
             new PostDefaults(preferences?.DefaultVisibility, preferences?.DefaultLanguage),
             launchedFrom ?? Environment.CurrentDirectory);
         ShellWidth = preferences is null ? ShellWidth.Full : ShellWidth.Of(preferences.ShellWidth);
-        RailCollapsed = preferences?.CollapsedRail ?? false;
+        RailState = preferences?.CollapsedRail is true ? RailState.Collapsed : RailState.Expanded;
 
         Rail = new Rail(Destinations(opening.Profile, _hashtag), host, timing.Settle);
         _badges = new InboxBadges(ports, Rail, host, clock, timing, ringing: preferences?.Bell ?? true, Landed);
@@ -286,11 +286,11 @@ public sealed class Shell
     public ShellWidth ShellWidth { get; private set; }
 
     /// <summary>
-    ///     Whether the rail is the <b>collapsed rail</b> (<c>GLOSSARY.md</c>), a strip of one mark a destination, rather
-    ///     than the expanded rail with its labels: how the rail is drawn and how wide, and nothing else about it (#441).
+    ///     Whether the rail is the <b>collapsed rail</b> (<c>GLOSSARY.md</c>), one mark a destination, or the
+    ///     <b>expanded rail</b> with its labels: how the rail is drawn and how wide, and nothing else about it (#441).
     ///     What the config file saved, or expanded, until <c>\</c> toggles it (#442).
     /// </summary>
-    public bool RailCollapsed { get; private set; }
+    public RailState RailState { get; private set; }
 
     /// <summary>
     ///     The row at the foot of the shell, which keeps what is said and asked on it and takes every press while a
@@ -980,10 +980,10 @@ public sealed class Shell
             return;
         }
 
-        RailCollapsed = !RailCollapsed;
+        RailState = RailState is RailState.Collapsed ? RailState.Expanded : RailState.Collapsed;
 
         // Saved straight away, as a width step is, so the next launch opens on the rail this one was left on (#442).
-        _ = Saved(() => _shellPreferences.SaveRail(RailCollapsed));
+        _ = Saved(() => _shellPreferences.SaveRail(RailState));
 
         Changed?.Invoke();
     }

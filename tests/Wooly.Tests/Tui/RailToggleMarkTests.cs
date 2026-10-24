@@ -9,8 +9,8 @@ namespace Wooly.Tests.Tui;
 /// <summary>
 ///     The mark a click collapses and expands the rail by (#443): <c>«</c> on the expanded rail and <c>»</c> on the
 ///     <b>collapsed rail</b>, at the end of the first rail group's top edge, or of the first heading in view where the
-///     rail is compact. A left click on it is <c>\</c>. Clicked at cells of a headless terminal, as the rail-click tests
-///     click.
+///     rail is compact. A left click on it is <c>\</c>. Clicked at cells of a headless terminal, as the rail-click
+///     tests click.
 /// </summary>
 public class RailToggleMarkTests
 {
@@ -30,9 +30,9 @@ public class RailToggleMarkTests
     private const int Headless = 4;
 
     /// <summary>
-    ///     Framed, the mark is in the top-right corner of the Timelines panel's top edge, just inside the corner — <c>«</c>
-    ///     expanded, and a click on it collapses the rail, which then has <c>»</c> in the same place on the strip, a click
-    ///     on which expands it again. Each click is saved, as each <c>\</c> is.
+    ///     Framed, the mark is in the top-right corner of the Timelines panel's top edge, just inside the corner —
+    ///     <c>«</c> expanded, and a click on it collapses the rail, which then has <c>»</c> in the same place on the
+    ///     strip, a click on which expands it again. Each click is saved, as each <c>\</c> is.
     /// </summary>
     [Theory]
     [InlineData(true)]
@@ -46,14 +46,14 @@ public class RailToggleMarkTests
 
         drawn.Click(RailLines.Width - 2, 0);
 
-        Assert.True(drawn.Shell.RailCollapsed);
+        Assert.Equal(RailState.Collapsed, drawn.Shell.RailState);
         Assert.Equal(coloured ? "╭────»╮" : "╭──────»╮", drawn.Rail(Strip(coloured))[0]);
 
         drawn.Click(Strip(coloured) - 2, 0);
 
-        Assert.False(drawn.Shell.RailCollapsed);
+        Assert.Equal(RailState.Expanded, drawn.Shell.RailState);
         Assert.Equal("╭ Timelines ──────«╮", drawn.Rail()[0]);
-        Assert.Equal([true, false], built.ShellPreferences.Rails);
+        Assert.Equal([RailState.Collapsed, RailState.Expanded], built.ShellPreferences.Rails);
     }
 
     /// <summary>
@@ -72,18 +72,18 @@ public class RailToggleMarkTests
 
         drawn.Click(RailLines.Width - 1, 0);
 
-        Assert.True(drawn.Shell.RailCollapsed);
+        Assert.Equal(RailState.Collapsed, drawn.Shell.RailState);
         Assert.Equal(new string(' ', Strip(coloured) - 2) + "» ", drawn.Rail(Strip(coloured))[0]);
 
         drawn.Click(Strip(coloured) - 2, 0);
 
-        Assert.False(drawn.Shell.RailCollapsed);
-        Assert.Equal([true, false], built.ShellPreferences.Rails);
+        Assert.Equal(RailState.Expanded, drawn.Shell.RailState);
+        Assert.Equal([RailState.Collapsed, RailState.Expanded], built.ShellPreferences.Rails);
     }
 
     /// <summary>
-    ///     Scrolled past the Timelines heading, the mark ends the first heading in view instead, so a click always has it
-    ///     to land on — and the strip, scrolled alike, has it on the same row.
+    ///     Scrolled past the Timelines heading, the mark ends the first heading in view instead, so a click always has
+    ///     it to land on — and the strip, scrolled alike, has it on the same row.
     /// </summary>
     [Theory]
     [InlineData(true)]
@@ -105,17 +105,17 @@ public class RailToggleMarkTests
 
         drawn.Click(RailLines.Width - 1, explore);
 
-        Assert.True(drawn.Shell.RailCollapsed);
+        Assert.Equal(RailState.Collapsed, drawn.Shell.RailState);
         Assert.Equal(new string(' ', Strip(coloured) - 2) + "» ", drawn.Rail(Strip(coloured))[explore]);
 
         drawn.Click(Strip(coloured) - 2, explore);
 
-        Assert.False(drawn.Shell.RailCollapsed);
+        Assert.Equal(RailState.Expanded, drawn.Shell.RailState);
     }
 
     /// <summary>
-    ///     A double click on the scrolled mark is the one toggle its first click made and nothing more: its second click,
-    ///     landing where the content panel now starts beside the collapsed rail, opens nothing there.
+    ///     A double click on the scrolled mark is the one toggle its first click made and nothing more: its second
+    ///     click, landing where the content panel now starts beside the collapsed rail, opens nothing there.
     /// </summary>
     [Theory]
     [InlineData(true)]
@@ -139,10 +139,10 @@ public class RailToggleMarkTests
         drawn.Built.Host.Drain();
         drawn.Redraw();
 
-        Assert.True(drawn.Shell.RailCollapsed);
+        Assert.Equal(RailState.Collapsed, drawn.Shell.RailState);
         Assert.Same(messages, drawn.Shell.Screen);
         Assert.Equal(1, drawn.Shell.Depth);
-        Assert.Equal([true], built.ShellPreferences.Rails);
+        Assert.Equal([RailState.Collapsed], built.ShellPreferences.Rails);
     }
 
     /// <summary>
@@ -150,14 +150,16 @@ public class RailToggleMarkTests
     ///     once and <c>»</c> expands it once, the screen in front is still in front, and one toggle is saved.
     /// </summary>
     [Theory]
-    [InlineData(Framed, false, true)]
-    [InlineData(Framed, false, false)]
-    [InlineData(Framed, true, true)]
-    [InlineData(Framed, true, false)]
-    [InlineData(Scrolled, true, true)]
-    [InlineData(Scrolled, true, false)]
-    public async Task ADoubleClickOnTheMarkIsOneToggleEitherWay(int height, bool collapsed, bool coloured)
+    [InlineData(Framed, RailState.Expanded, true)]
+    [InlineData(Framed, RailState.Expanded, false)]
+    [InlineData(Framed, RailState.Collapsed, true)]
+    [InlineData(Framed, RailState.Collapsed, false)]
+    [InlineData(Scrolled, RailState.Collapsed, true)]
+    [InlineData(Scrolled, RailState.Collapsed, false)]
+    public async Task ADoubleClickOnTheMarkIsOneToggleEitherWay(int height, RailState from, bool coloured)
     {
+        var collapsed = from is RailState.Collapsed;
+        var toggled = collapsed ? RailState.Expanded : RailState.Collapsed;
         var built = new AShell { CollapsedRail = collapsed };
         using var drawn = await DrawnShell.Of(80, height, Theme(coloured), built);
 
@@ -174,23 +176,24 @@ public class RailToggleMarkTests
         drawn.Built.Host.Drain();
         drawn.Redraw();
 
-        Assert.Equal(!collapsed, drawn.Shell.RailCollapsed);
+        Assert.Equal(toggled, drawn.Shell.RailState);
         Assert.Same(screen, drawn.Shell.Screen);
-        Assert.Equal([!collapsed], built.ShellPreferences.Rails);
+        Assert.Equal([toggled], built.ShellPreferences.Rails);
     }
 
     /// <summary>
-    ///     On a rail too short to keep any heading in view there is no mark, expanded or collapsed, rather than one drawn
-    ///     over an entry's count: every digit of <c>40+</c> stays, and a click on its last cell arrives as any click on
-    ///     the entry does.
+    ///     On a rail too short to keep any heading in view there is no mark, expanded or collapsed, rather than one
+    ///     drawn over an entry's count: every digit of <c>40+</c> stays, and a click on its last cell arrives as any
+    ///     click on the entry does.
     /// </summary>
     [Theory]
-    [InlineData(false, true)]
-    [InlineData(false, false)]
-    [InlineData(true, true)]
-    [InlineData(true, false)]
-    public async Task WithNoHeadingInViewThereIsNoMarkAndEveryCountIsWhole(bool collapsed, bool coloured)
+    [InlineData(RailState.Expanded, true)]
+    [InlineData(RailState.Expanded, false)]
+    [InlineData(RailState.Collapsed, true)]
+    [InlineData(RailState.Collapsed, false)]
+    public async Task WithNoHeadingInViewThereIsNoMarkAndEveryCountIsWhole(RailState state, bool coloured)
     {
+        var collapsed = state is RailState.Collapsed;
         var built = new AShell { CollapsedRail = collapsed };
         using var drawn = await DrawnShell.Of(80, Headless, Theme(coloured), built);
         var rail = drawn.Shell.Rail;
@@ -217,7 +220,7 @@ public class RailToggleMarkTests
         drawn.Built.Host.Drain();
         drawn.Redraw();
 
-        Assert.Equal(collapsed, drawn.Shell.RailCollapsed);
+        Assert.Equal(state, drawn.Shell.RailState);
         Assert.IsType<NotificationsScreen>(drawn.Shell.Screen);
     }
 
@@ -238,7 +241,7 @@ public class RailToggleMarkTests
 
         drawn.Click(RailLines.Width - 2, 0);
 
-        Assert.False(drawn.Shell.RailCollapsed);
+        Assert.Equal(RailState.Expanded, drawn.Shell.RailState);
         Assert.Empty(built.ShellPreferences.Rails);
         Assert.Same(compose, drawn.Shell.Screen);
         Assert.Equal(RailLines.Width, drawn.Content.Frame.X);
@@ -266,13 +269,13 @@ public class RailToggleMarkTests
         drawn.Click(RailLines.Width - 2, 0);
 
         Assert.Null(drawn.Shell.Asking);
-        Assert.False(drawn.Shell.RailCollapsed);
+        Assert.Equal(RailState.Expanded, drawn.Shell.RailState);
         Assert.Empty(built.ShellPreferences.Rails);
     }
 
     /// <summary>
-    ///     Only the mark's own cell answers: the rest of the top edge it is on, the title and the corner after it, ignore
-    ///     the click as they did, and a click on a destination still arrives there, the rail left expanded.
+    ///     Only the mark's own cell answers: the rest of the top edge it is on, the title and the corner after it,
+    ///     ignore the click as they did, and a click on a destination still arrives there, the rail left expanded.
     /// </summary>
     [Theory]
     [InlineData(true)]
@@ -289,17 +292,18 @@ public class RailToggleMarkTests
 
         drawn.Built.Host.Settle();
 
-        Assert.False(drawn.Shell.RailCollapsed);
+        Assert.Equal(RailState.Expanded, drawn.Shell.RailState);
         Assert.Equal(0, drawn.Shell.Rail.Current);
 
-        var notifications = Array.FindIndex(drawn.Rail(), row => row.Contains("Notifications", StringComparison.Ordinal));
+        var notifications =
+            Array.FindIndex(drawn.Rail(), row => row.Contains("Notifications", StringComparison.Ordinal));
 
         drawn.Click(RailLines.Width / 2, notifications);
         drawn.Built.Host.Drain();
         drawn.Redraw();
 
         Assert.IsType<NotificationsScreen>(drawn.Shell.Screen);
-        Assert.False(drawn.Shell.RailCollapsed);
+        Assert.Equal(RailState.Expanded, drawn.Shell.RailState);
         Assert.Empty(built.ShellPreferences.Rails);
     }
 
@@ -324,7 +328,7 @@ public class RailToggleMarkTests
         drawn.Point(mark, 3, MouseFlags.LeftButtonReleased);
         drawn.RightClick(mark, 0);
 
-        Assert.False(drawn.Shell.RailCollapsed);
+        Assert.Equal(RailState.Expanded, drawn.Shell.RailState);
         Assert.Empty(built.ShellPreferences.Rails);
         Assert.Equal(rows, drawn.Rows());
     }
