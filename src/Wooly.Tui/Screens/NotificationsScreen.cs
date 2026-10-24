@@ -265,19 +265,26 @@ public sealed class NotificationsScreen(
         IReadOnlyList<Line> Draw(NotificationGroup group, int at, int room)
         {
             var unread = IsUnread(group);
-            var rows = new List<Line>
+            var inner = Math.Max(1, room - 2);
+            var rows = new List<Line>();
+
+            if (NotificationGroupLines.ByItsActor(group))
             {
-                NotificationGroupLines.ByItsActor(group)
-                    ? NotificationGroupLines.KindAlone(group, unread, room)
-                    : NotificationGroupLines.Names(group, unread, room, drawing.Now),
-            };
+                // No strip over a post drawn whole by its actor: its byline already has the face (#450).
+                rows.Add(NotificationGroupLines.KindAlone(group, unread, room));
+            }
+            else
+            {
+                // The faces stand indented under the names line, as the post does under them (#454).
+                rows.Add(NotificationGroupLines.Names(group, unread, room, drawing.Now));
+                rows.AddRange(AvatarStrip.Of(group, drawing, inner).Select(line => line.After(new Span("  ", Role.Body))));
+            }
 
             if (group.Post is { } post)
             {
                 // The reader's own post is a reminder of which one it was, and anyone else's is what the notification
                 // is for — told apart by who wrote it rather than by the kind, so a kind this client has no word for
                 // is drawn by the same rule (#452).
-                var inner = Math.Max(1, room - 2);
                 var drawn = post.IsMine
                     ? PostLines.Preview(post, inner)
                     : PostLines.Feed(post, drawing.In(inner), ReadingOf(post, at));
