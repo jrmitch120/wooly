@@ -202,6 +202,49 @@ public class NotificationGroupReadTests
         Assert.Contains("limit=2", Assert.Single(network.Requests).RequestUri!.Query, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    ///     <c>d</c> on a group clears every notification in it with one request, named by the group's key — never one
+    ///     dismissal per notification (#457, #449).
+    /// </summary>
+    [Fact]
+    public async Task DismissGroup_SendsOneDismissByTheGroupsKey()
+    {
+        var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Json("{}"));
+
+        await NewInbox(network).DismissGroup(
+            Profile,
+            ANotification.Group(key: "favourite-110-493000", count: 9, newestId: "340"),
+            TestContext.Current.CancellationToken);
+
+        var request = Assert.Single(network.Requests);
+        Assert.Equal(
+            "https://mastodon.social/api/v2/notifications/favourite-110-493000/dismiss",
+            request.RequestUri?.ToString());
+        Assert.Equal(HttpMethod.Post, request.Method);
+        Assert.Equal("Bearer token-personal", request.Headers.Authorization?.ToString());
+    }
+
+    /// <summary>
+    ///     An instance too old to group has no group to dismiss either. There every group is one notification, and it is
+    ///     dismissed by its own id, as it always was (#457).
+    /// </summary>
+    [Fact]
+    public async Task DismissGroup_DismissesTheOneNotificationByItsOwnIdOnAnInstanceWithNoGroupedRead()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Status(HttpStatusCode.NotFound),
+            ScriptedHttpMessageHandler.Json($"[{V1NotificationJson("34", "favourite")}]"),
+            ScriptedHttpMessageHandler.Json("{}"));
+        var inbox = NewInbox(network);
+
+        var read = await inbox.ReadGroups(Profile, 40, TestContext.Current.CancellationToken);
+        await inbox.DismissGroup(Profile, Assert.Single(read.Items), TestContext.Current.CancellationToken);
+
+        var request = network.Requests[^1];
+        Assert.Equal("https://mastodon.social/api/v1/notifications/34/dismiss", request.RequestUri?.ToString());
+        Assert.Equal(HttpMethod.Post, request.Method);
+    }
+
     private static INotificationInbox NewInbox(HttpMessageHandler network)
     {
         var services = new ServiceCollection();

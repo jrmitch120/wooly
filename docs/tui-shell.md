@@ -273,7 +273,7 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Actors | `⏎` open that account |
 | Search results | `[`/`]` section, where two or more kinds found something |
 | Discover | `F` follow/unfollow · `d` dismiss, one-way · `[`/`]` section |
-| Notifications | `a` open the actor — whoever favorited, boosted, followed or mentioned, never the post's author (#451); on a group of several, the actors screen listing every one of them, read from the group's own accounts a page at a time (#455) · `d` dismiss one · `D` clear all |
+| Notifications | `a` open the actor — whoever favorited, boosted, followed or mentioned, never the post's author (#451); on a group of several, the actors screen listing every one of them, read from the group's own accounts a page at a time (#455) · `d` dismiss the group, every notification in it (#457) · `D` clear all |
 | Follow requests | `a` accept · `x` reject |
 | Direct messages | `⏎` open the conversation · `m` mark read — `m` again inside the thread, where a reader who has just read it is most likely to press it |
 | Conversation | `m` mark read, and every key that acts on a post, since each message in it is one |
@@ -319,7 +319,8 @@ not answer them differently:
   being to fill the screen. Empty means *a list with nothing on it*: a compose editor, the keymap and a notice walk
   nothing at all and are untouched, and the search prompt drops its arrows while it is taking letters for that reason
   rather than this one.
-- **A notification is not the post it is about.** `d` dismisses by the notification's own id; every other key on the
+- **A notification is not the post it is about.** `d` dismisses by the group's own key (#457), or on an instance too old
+  to group by the notification's own id; every other key on the
   row acts on the post it carries, so a mention can be answered without leaving the inbox. A follow carries no post,
   and picking one leaves those keys with nothing to act on rather than guessing — which is why they are off its row.
 - **Notifications are drawn as the instance groups them** (ADR-0032, #453). Each row is a **Notification group**, read
@@ -329,6 +330,11 @@ not answer them differently:
   the right; above a post drawn whole by its actor — a mention — the line is the kind alone (`@ mentioned you`) and
   the post's byline is left as on every feed. A group is `unread` when its newest notification is past the marker.
   Rows are never merged by post: two groups about one post are two rows.
+- **A group's actors stand in an avatar strip under its names line** (#454, layout A7b of #450): their faces at a
+  byline's 4×2, in the instance's order, indented two columns with two between faces, as many as the width has room for
+  up to the sample sent, then a muted `+N` on the top row counting the rest of the group. Face `n` starts `6n` columns
+  in whatever the group holds, so nothing moves as a group grows. Where the terminal draws no pictures the strip takes
+  no rows, and a post drawn whole by its actor has none — its byline has the face.
 - **`D` asks first.** Emptying the inbox takes away a list nobody has necessarily read and nothing brings it back, so
   it is confirmed on the same terms `post delete` is — the same confirmation, saying `clear` rather than `delete`.
 - **A count and the list under it are one fact.** Arriving at a destination sets its badge from the same answer the

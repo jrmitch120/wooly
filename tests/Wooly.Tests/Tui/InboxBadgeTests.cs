@@ -221,7 +221,7 @@ public class InboxBadgeTests
         opened.Press(ShellKey.D);
         shell.Host.Drain();
 
-        Assert.Equal("142", Assert.Single(shell.Notifications.Dismissals).NotificationId);
+        Assert.Equal("ungrouped-142", Assert.Single(shell.Notifications.GroupDismissals).Key);
         Assert.Equal(2, Badge(opened, DestinationKind.Notifications).Unread);
     }
 

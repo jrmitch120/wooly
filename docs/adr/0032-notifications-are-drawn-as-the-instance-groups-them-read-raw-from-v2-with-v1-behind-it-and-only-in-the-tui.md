@@ -62,8 +62,9 @@ instance's and is never inferred from the sample.
 
 Tickets after #453 build on this: the avatar strip under the names line (#454), `a` opening a group's actor or its
 actors screen (#451, #455), the mouse (#456), dismissing a group whole by its key (#457), and an arrival joining its
-group live (#458). Until #455, `a` on a group of several opens its most recent actor. Until #457, `d` dismisses a group's newest notification, which is the whole of a group of one. Until
+group live (#458). Until #455, `a` on a group of several opens its most recent actor. Until
 #458, a notification that arrives live goes on top as a group of its own if it is newer than every group on screen.
 
 The grouped read's `unread_count` and `expand_accounts=partial_avatars` are not used. The first counts the wrong thing
-for the badge; the second could make the avatar strip cheaper, and is #454's to weigh.
+for the badge; the second could make the avatar strip cheaper, and is #454's to weigh. #454 left it off: the grouped
+read already sends the sample's accounts whole, avatar included, so the strip costs no extra request.

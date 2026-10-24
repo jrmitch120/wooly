@@ -292,7 +292,7 @@ public sealed class Arrival(
 
             // Read again rather than moved: whether a dismissed notification was waiting is where it stood against
             // the read marker, which only the instance knows (ADR-0027).
-            case Change.NotificationsGone:
+            case Change.NotificationGroupGone:
                 Forget(DestinationKind.Notifications);
                 Rereads?.Invoke(DestinationKind.Notifications);
 
