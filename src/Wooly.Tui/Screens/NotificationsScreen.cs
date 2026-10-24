@@ -180,14 +180,24 @@ public sealed class NotificationsScreen(
     }
 
     /// <summary>
-    ///     Opens the account of whoever did what the picked group reports (GLOSSARY.md's <b>Actor</b>) — not the author
-    ///     of the post it is about, who on a favorite or a boost is the reader, and who a follow does not have (#451).
-    ///     On a group of several, the most recent of them; the screen listing all of them is #455's.
+    ///     Opens whoever did what the picked group reports (GLOSSARY.md's <b>Actor</b>) — not the author of the post it
+    ///     is about, who on a favorite or a boost is the reader, and who a follow does not have (#451).
     /// </summary>
     private Task OpenActor(Reach reach) =>
-        PickedGroup is { Actors: [var actor, ..] }
-            ? reach.Open(new Subject.Account(AccountAddress.Parse(actor.Address), WithReplies: false))
-            : Task.CompletedTask;
+        PickedGroup is { } picked ? OpenActors(picked, reach) : Task.CompletedTask;
+
+    /// <summary>
+    ///     Opens the actors of <paramref name="group" />: on a group of one, that one account; on a group of several,
+    ///     the screen listing every one of them, read from the group's own accounts (#455). What <c>a</c> does on the
+    ///     picked group, and what a click on a group's names line does too (#456).
+    /// </summary>
+    public static Task OpenActors(NotificationGroup group, Reach reach) => group switch
+    {
+        { Count: > 1 } => reach.Open(new Subject.Actors(group)),
+        { Actors: [var actor, ..] } => reach.Open(
+            new Subject.Account(AccountAddress.Parse(actor.Address), WithReplies: false)),
+        _ => Task.CompletedTask,
+    };
 
     /// <summary>
     ///     Clears the picked group's newest notification, named by its own id and not by the post's (GLOSSARY.md) —

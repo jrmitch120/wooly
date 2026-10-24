@@ -165,6 +165,7 @@ public static class Keymap
         (ShellKey.Enter, FollowRequestsScreen) => Verb.OpenAsker,
         (ShellKey.Enter, FollowsScreen follows) => follows.IsTyping ? Verb.FilterDone : Verb.OpenPerson,
         (ShellKey.Enter, DiscoverScreen) => Verb.OpenPerson,
+        (ShellKey.Enter, ActorsScreen) => Verb.OpenPerson,
         (ShellKey.Enter, DirectMessagesScreen) => Verb.OpenConversation,
         (ShellKey.A, FollowRequestsScreen) => Verb.AcceptRequest,
 

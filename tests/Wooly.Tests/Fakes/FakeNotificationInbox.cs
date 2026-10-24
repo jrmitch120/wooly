@@ -109,12 +109,26 @@ internal sealed class FakeNotificationInbox(Fetch<Notification> fetch) : INotifi
             : Fetch<NotificationGroup>.Complete(alone);
     }
 
+    /// <summary>Each group's actors, by the group's key, as its accounts endpoint lists them; none where not said.</summary>
+    public Dictionary<string, IReadOnlyList<Wooly.Core.Accounts.Account>> ActorsOf { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>Every read of a group's actors it was asked for, in order.</summary>
+    public List<ActorRead> ActorReads { get; } = [];
+
+    /// <summary>Up to <paramref name="limit" /> of the actors <see cref="ActorsOf" /> holds for the group.</summary>
     public Task<Fetch<Wooly.Core.Accounts.Account>> ReadGroupActors(
         ActiveProfile profile,
         string groupKey,
         int limit,
-        CancellationToken cancellationToken) =>
-        throw new NotImplementedException();
+        CancellationToken cancellationToken)
+    {
+        ActorReads.Add(new ActorRead(profile.Name, groupKey, limit));
+        Tokens.Add(profile.AccessToken);
+
+        var actors = ActorsOf.GetValueOrDefault(groupKey) ?? [];
+
+        return Task.FromResult(Fetch<Wooly.Core.Accounts.Account>.Complete([.. actors.Take(limit)]));
+    }
 
     /// <summary>
     ///     The account's read marker: the id of the newest notification it has read, or <see langword="null" /> for an
@@ -230,6 +244,9 @@ internal sealed class FakeNotificationInbox(Fetch<Notification> fetch) : INotifi
 
     /// <summary>One read: which profile it was made as, and how many notifications it wanted.</summary>
     internal sealed record Call(string Profile, int Limit);
+
+    /// <summary>One read of a group's actors: which profile, which group by its key, and how many were wanted.</summary>
+    internal sealed record ActorRead(string Profile, string GroupKey, int Limit);
 
     /// <summary>One dismissal: which profile it was made as, and which notification it named.</summary>
     internal sealed record Dismissed(string Profile, string NotificationId);
