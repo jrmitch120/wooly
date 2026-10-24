@@ -105,3 +105,14 @@ exactly what makes that possible, and the JSON is unchanged to the byte. The `th
 Nothing ADR-0007 decided changed: a caller still asks for posts rather than pages, a rate limit part way through is
 still a partial result carrying the instance's own exception, `--json` is still an object with `complete` and
 `rateLimit` beside the items, and the CLI still throws so that one handler writes the message and the exit code.
+
+## Amendment: the TUI draws notification groups, and names a mention's account once (ticket #453)
+
+*Amended by [ADR-0032](0032-notifications-are-drawn-as-the-instance-groups-them-read-raw-from-v2-with-v1-behind-it-and-only-in-the-tui.md)
+(#448, #453).* The TUI's Notifications screen draws **Notification groups** as the instance groups them, read from
+Mastodon's grouped notifications through `/api/v2`, with `/api/v1` behind it on an instance too old to group. Nothing
+here changes on the way in: the grouped read sends no `grouped_types`, so which kinds group is the instance's call, and
+a kind this client has no word for is still drawn under the instance's word for it. Above a post drawn whole by its
+actor, such as a mention, the TUI now draws the kind alone and leaves the name to the post's byline, so the account is
+named once there rather than twice. The post itself is still drawn exactly as on a feed. The CLI is unchanged: it
+still lists one notification per entry, `--json` included, and still names a mention's account twice.
