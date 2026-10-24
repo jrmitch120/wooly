@@ -33,7 +33,11 @@ public sealed class NotificationsScreen(
 
     // Named by the notification's own id, which is not the id of the post it is about (GLOSSARY.md) — and is what a
     // refresh puts the reader back on (#84).
-    private readonly Picked<Notification> _notifications = new(notifications);
+
+    // PROTOTYPE (#450): the groups each head stands for.
+    private readonly Dictionary<string, NotificationGroupsPrototype.Group> _groups = NotificationGroupsPrototype.Build(notifications).Groups;
+
+    private readonly Picked<Notification> _notifications = new(NotificationGroupsPrototype.Build(notifications).Heads);
 
     /// <inheritdoc />
     public override string Crumb => "Notifications";
@@ -65,7 +69,7 @@ public sealed class NotificationsScreen(
     ///     Something the shell has to say about the inbox rather than about anything in it — that it is empty, or that
     ///     a rate limit cut the read short.
     /// </summary>
-    public string? Notice { get; } = notice;
+    public string? Notice => $"PROTOTYPE #450 · {NotificationGroupsPrototype.Variants[NotificationGroupsPrototype.Variant]} · F2 next" + (notice is null ? "" : $"  {notice}");
 
     /// <summary>
     ///     Whether <paramref name="notification" /> was newer than the read marker when the reader arrived, and so is
@@ -141,16 +145,8 @@ public sealed class NotificationsScreen(
     /// <summary>What this screen's own keys do: <c>d</c> dismisses the picked notification, and <c>D</c> all of them.</summary>
     public override Task Answer(Verb verb, Reach reach)
     {
-        switch (verb)
-        {
-            case Verb.Dismiss:
-                return Dismiss(reach);
-
-            case Verb.ClearAll:
-                AskToClear(reach);
-
-                break;
-        }
+        // PROTOTYPE (#450): nothing is dismissed on the live account from here.
+        reach.Say("Prototype: nothing is dismissed.", isError: false);
 
         return Task.CompletedTask;
     }
@@ -222,19 +218,17 @@ public sealed class NotificationsScreen(
         // The drawing goes down whole. Before #148 this site named four arguments and passed three, so a reader who
         // had asked for hide_drawn_caption got it honoured everywhere but here — which is the failure #148 is about
         // rather than a preference this screen was exempt from (#71).
-        IReadOnlyList<Line> Draw(Notification notification, int at, int room)
-        {
-            var rows = new List<Line> { Happened(notification, IsUnread(notification), room, drawing.Now) };
-
-            if (notification.Post is { } post)
-            {
-                rows.AddRange(PostLines
-                              .Feed(post, drawing.In(Math.Max(1, room - 2)), ReadingOf(post, at))
-                              .Select(line => line.After(new Span("  ", Role.Body))));
-            }
-
-            return rows;
-        }
+        IReadOnlyList<Line> Draw(Notification notification, int at, int room) =>
+            NotificationGroupsPrototype.Draw(
+                _groups.GetValueOrDefault(notification.Id) ?? NotificationGroupsPrototype.Alone(notification),
+                IsUnread(notification),
+                room,
+                drawing,
+                post => [
+                    .. PostLines
+                       .Feed(post, drawing.In(Math.Max(1, room - 2)), ReadingOf(post, at))
+                       .Select(line => line.After(new Span("  ", Role.Body))),
+                ]);
     }
 
     /// <summary>

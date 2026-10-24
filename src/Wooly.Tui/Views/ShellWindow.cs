@@ -345,6 +345,15 @@ internal sealed class ShellWindow : Window
             return true;
         }
 
+        // PROTOTYPE (#450): F2 cycles the notification groups' layouts.
+        if (key == Key.F2 && _shell.Screen is Screens.NotificationsScreen)
+        {
+            Screens.NotificationGroupsPrototype.Next();
+            SetNeedsDraw();
+
+            return true;
+        }
+
         return ShellKeys.Of(key) is { } pressed && Do(pressed) || base.OnKeyDown(key);
     }
 

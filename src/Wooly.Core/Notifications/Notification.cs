@@ -32,4 +32,7 @@ public sealed record Notification
     ///     account's own post that was marked, which is what makes the notification worth reading rather than counting.
     /// </summary>
     public Post? Post { get; init; }
+
+    /// <summary>PROTOTYPE (#450): the actor's avatar.</summary>
+    public string? AvatarUrl { get; init; }
 }

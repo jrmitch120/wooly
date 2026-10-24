@@ -21,6 +21,7 @@ internal static class NotificationWire
         ReceivedAt = MastodonWire.AsUtc(notification.CreatedAt),
         Account = MastodonWire.Qualify(notification.Account, reader.Instance),
         Author = MastodonWire.DisplayName(notification.Account),
+        AvatarUrl = MastodonWire.SaidOrNothing(notification.Account.AvatarUrl),
 
         // Absent on a follow, which is somebody arriving rather than something they wrote.
         Post = notification.Status is null ? null : PostWire.ToPost(notification.Status, reader),

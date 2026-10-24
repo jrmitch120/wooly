@@ -36,6 +36,9 @@ public sealed record Line
     /// </remarks>
     public Drawn? Wants { get; init; }
 
+    /// <summary>PROTOTYPE (#450): more pictures this row wants, for a strip of avatars on one row.</summary>
+    public IReadOnlyList<Drawn> AlsoWants { get; init; } = [];
+
     /// <summary>
     ///     Which of the screen's things this row is part of — the same ordinal <see cref="Screens.Screen.Pick" />
     ///     takes — or <see langword="null" /> for a row that is part of none: a heading, a notice, the blank between
@@ -159,6 +162,7 @@ public sealed record Line
     {
         Insets = Insets,
         Wants = Wants,
+        AlsoWants = AlsoWants,
         Item = Item,
         Heads = Heads,
         Picked = Picked,

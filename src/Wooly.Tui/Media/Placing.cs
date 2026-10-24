@@ -276,6 +276,12 @@ internal sealed class Placing
             {
                 Widen(drawn, at, at);
             }
+
+            // PROTOTYPE (#450)
+            foreach (var also in lines[at].AlsoWants.Where(_ => at >= from && at < to))
+            {
+                Widen(also, at, at);
+            }
         }
 
         for (var at = 0; at < lines.Count; at++)
