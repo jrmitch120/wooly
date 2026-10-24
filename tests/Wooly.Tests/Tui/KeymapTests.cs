@@ -89,6 +89,21 @@ public class KeymapTests
         Assert.Equal(Verb.None, Means(key, new ComposeScreen(ComposeFor.Post)));
 
     /// <summary>
+    ///     <c>\</c> collapses or expands the rail (#441), a frame key the same on every screen that is not typing — and,
+    ///     like the Shell width keys, nobody's on compose, whose fields type it.
+    /// </summary>
+    [Fact]
+    public void BackslashTogglesTheRailOnEveryScreenButCompose()
+    {
+        Assert.Equal(Verb.ToggleRail, Means("\\", Feed()));
+        Assert.Equal(Verb.ToggleRail, Means("\\", Searched()));
+        Assert.Equal(Verb.ToggleRail, Means("\\", Notifications()));
+        Assert.Equal(Verb.ToggleRail, Means("\\", Follows()));
+        Assert.Equal(Verb.ToggleRail, Means("\\", new HelpScreen(Feed())));
+        Assert.Equal(Verb.None, Means("\\", new ComposeScreen(ComposeFor.Post)));
+    }
+
+    /// <summary>
     ///     What a post answers to. <c>k</c> being the next post and <c>j</c> the one before it is the opposite way
     ///     round from vim, which is exactly the kind of thing that gets quietly reversed.
     /// </summary>

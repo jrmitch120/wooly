@@ -242,6 +242,82 @@ public class CollapsedRailTests
     }
 
     /// <summary>
+    ///     On compose, the description editor and the public profile form <c>\</c> is typed, as <c>-</c> and <c>+</c>
+    ///     are: a backslash in the text, never a rail collapsed under the draft.
+    /// </summary>
+    [Theory]
+    [InlineData("compose")]
+    [InlineData("description")]
+    [InlineData("public profile")]
+    public async Task OnTheScreensWithFieldsBackslashIsTyped(string where)
+    {
+        using var files = new TemporaryDirectory();
+        var me = AnAccount.With(address: "jeff@mastodon.social", author: "Jeff", id: "7");
+        using var drawn = await DrawnShell.Of(80, 30, Themes.Plain, new AShell
+        {
+            Accounts = FakeAccountRelationships.Holding(me),
+            PublicProfile = FakePublicProfileEditor.Holding(APublicProfile.With(displayName: string.Empty, account: me)),
+        });
+
+        switch (where)
+        {
+            case "compose":
+                ComposeRows.Open(drawn.Shell, ComposeFor.Post);
+                drawn.Redraw();
+                break;
+
+            case "description":
+                drawn.Shell.Press(ShellKey.C);
+                drawn.Shell.Paste(files.WriteFile("cat.png"));
+                drawn.Settle();
+                drawn.Press(Key.CursorUp);
+                drawn.Press(Key.Enter);
+                Assert.IsType<DescriptionScreen>(drawn.Shell.Screen);
+                break;
+
+            default:
+                drawn.Shell.Rail.GoTo(DestinationKind.Profile);
+                drawn.Settle();
+                drawn.Press(new Key('E'));
+                drawn.Settle();
+                Assert.IsType<PublicProfileScreen>(drawn.Shell.Screen);
+                break;
+        }
+
+        foreach (var letter in "a\\b")
+        {
+            drawn.Press(new Key(letter));
+        }
+
+        Assert.Contains(drawn.Rows(), row => row.Contains("a\\b", StringComparison.Ordinal));
+        Assert.False(drawn.Shell.RailCollapsed);
+        Assert.Equal(RailLines.Width, drawn.Content.Frame.X);
+    }
+
+    /// <summary>
+    ///     Where there is no rail — nobody acted as, the add screen alone on a launch — <c>\</c> collapses nothing, so
+    ///     that a rail coming back once a profile is signed in is the one the reader last saw.
+    /// </summary>
+    [Fact]
+    public async Task WithNoRailBackslashCollapsesNothing()
+    {
+        var registry = FakeProfileRegistry.Holding(
+            "work",
+            FakeProfileRegistry.Profile("work", "mastodon.social", "jeff@mastodon.social"));
+        registry.Tokenless.Add("work");
+
+        using var drawn = await DrawnShell.Of(80, 24, Themes.Plain, new AShell { Profiles = registry }, launch: true);
+
+        Assert.False(drawn.Shell.ShowsRail);
+
+        drawn.Press(Key.Esc);
+        drawn.Press(Toggle);
+
+        Assert.False(drawn.Shell.RailCollapsed);
+        Assert.Equal(0, drawn.Content.Frame.X);
+    }
+
+    /// <summary>
     ///     Which of <paramref name="rail" />'s rows <paramref name="label" /> is drawn on, found by its start, since a
     ///     long handle is clipped.
     /// </summary>
