@@ -7,7 +7,8 @@
 //   A5 A with faces two columns apart, no extra rows
 //   A6 A5 with a thin muted rule down the group's left edge, strip and preview alike
 //   A7 A5 with the kind's icon in front of the names and the sentence in the kind's colour
-//   A7b A7 with the icon between the names and the sentence: "Alice and Bob ↺ boosted your post"
+//   A7b A7 with the icon between the names and the sentence: "Alice and Bob ↺ boosted your post"; above a post
+//       drawn whole by its actor (a mention), only the kind — "@ mentioned you" — since the byline says who and when
 //   A7c A7 with the icon in the gutter on the faces' row rather than the names'
 //   A7d A7 with "★ 9" in the kind's colour after the faces, as a post's marks are written, in place of +N
 //   A7e A7 with the icon at the top of a rule in the kind's colour down the group's left edge
@@ -175,7 +176,15 @@ internal static class NotificationGroupsPrototype
 
         // A post drawn whole already carries its author's face in its byline; a strip of the same face above it is
         // the face twice, so a mention (or any post shown whole, by its actor) gets no strip.
-        var variant = group.Post is { IsMine: false } whole && whole.Account == group.Actors[0].Account ? Variants.Length - 1 : Variant;
+        var byActor = group.Post is { IsMine: false } whole && whole.Account == group.Actors[0].Account;
+
+        // A7b: a post drawn whole already says who and when in its byline, so the line above it says only what kind.
+        if (byActor && Variant == 4)
+        {
+            return [KindOnly(group, unread, room), .. fullPost(group.Post!)];
+        }
+
+        var variant = byActor ? Variants.Length - 1 : Variant;
 
         Role? edge = null;
 
@@ -402,6 +411,18 @@ internal static class NotificationGroupsPrototype
             new Span(new string(' ', Math.Max(1, width - used - Glyphs.Columns(age))), Role.Muted),
             .. unread ? [new Span(mark, Role.RailUnread)] : Array.Empty<Span>(),
             new Span(age, Role.Muted),
+        ]);
+    }
+
+    private static Line KindOnly(Group group, bool unread, int width)
+    {
+        var said = new Span($"{Icon(group).Text} {Sentence(group)}", KindRole(group));
+        var mark = unread ? ConversationLines.UnreadMark : string.Empty;
+
+        return Line.Of([
+            said,
+            new Span(new string(' ', Math.Max(1, width - said.Width - Glyphs.Columns(mark))), Role.Muted),
+            .. unread ? [new Span(mark, Role.RailUnread)] : Array.Empty<Span>(),
         ]);
     }
 
