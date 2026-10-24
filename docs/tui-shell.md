@@ -335,6 +335,11 @@ not answer them differently:
   up to the sample sent, then a muted `+N` on the top row counting the rest of the group. Face `n` starts `6n` columns
   in whatever the group holds, so nothing moves as a group grows. Where the terminal draws no pictures the strip takes
   no rows, and a post drawn whole by its actor has none — its byline has the face.
+- **The mouse reaches every actor the keyboard does** (#456, `NotificationsScreen.Clicked`). A click on a face in the
+  strip, either of its two rows, opens that actor's account; a click on the names or the kind's sentence of a names line
+  is `a` — the actors screen on a group of several, the actor on a group of one. A click anywhere else on a group (the
+  gaps, the `+N`, the age, the post) picks it and nothing more, and a double click there is `⏎`, opening the post. A
+  double click on a face or the names is that click once, never also `⏎`.
 - **`D` asks first.** Emptying the inbox takes away a list nobody has necessarily read and nothing brings it back, so
   it is confirmed on the same terms `post delete` is — the same confirmation, saying `clear` rather than `delete`.
 - **A count and the list under it are one fact.** Arriving at a destination sets its badge from the same answer the

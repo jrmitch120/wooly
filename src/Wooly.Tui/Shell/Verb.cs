@@ -263,6 +263,12 @@ public enum Verb
     /// </summary>
     OpenActor,
 
+    /// <summary>
+    ///     A click on a face in a notification group's avatar strip: that one actor's account, whoever else the group
+    ///     holds (#456). Only ever a click — no key stands for one face of several.
+    /// </summary>
+    OpenFace,
+
     /// <summary><c>a</c> on the follow requests screen: let the picked asker in.</summary>
     AcceptRequest,
 

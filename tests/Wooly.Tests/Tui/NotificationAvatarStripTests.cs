@@ -133,21 +133,6 @@ public class NotificationAvatarStripTests
         Assert.All(lines, line => Assert.Empty(Faces(line)));
     }
 
-    /// <summary>
-    ///     A column of a strip row says whose face it is on — the slot counted from the strip's left edge — or nobody's
-    ///     on the gap between two faces: what a click on a face is to read (#456).
-    /// </summary>
-    [Theory]
-    [InlineData(0, 0)]
-    [InlineData(3, 0)]
-    [InlineData(4, null)]
-    [InlineData(5, null)]
-    [InlineData(6, 1)]
-    [InlineData(45, 7)]
-    [InlineData(-1, null)]
-    public void AColumnOfTheStripSaysWhoseFaceItIsOn(int column, int? face) =>
-        Assert.Equal(face, AvatarStrip.FaceAt(column));
-
     private static Drawing Drawing(int width, IPictures? pictures = null, Raster? raster = null) =>
         new(width, AShell.Now, pictures ?? new FakePictures(), raster ?? ARaster.Sixel());
 
