@@ -212,7 +212,10 @@ public static class RailLines
     ///     (#445).
     /// </summary>
     /// <param name="row">The bottom edge the mark is drawn on.</param>
-    /// <param name="rail">Which rail a click on the mark would leave the other of.</param>
+    /// <param name="rail">
+    ///     The state the rail is in: <see cref="RailState.Shown" /> draws <c>«</c>, a click on which hides it, and
+    ///     <see cref="RailState.Hidden" /> draws <c>»</c>, a click on which shows it.
+    /// </param>
     public static Line WithToggleMark(Line row, RailState rail)
     {
         const int column = ToggleColumn;

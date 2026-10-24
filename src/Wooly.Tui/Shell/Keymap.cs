@@ -52,8 +52,8 @@ public static class Keymap
 
         // Nothing on compose, the description editor or the public profile form, whose fields take `?`, the Shell
         // width's `-`, `+` and `=`, and the hidden rail's `\` as letters before the window sees them (#320, #414,
-        // #441): a keymap opened only where no widget has the typing would be one a reader can never reach, over a
-        // draft, and where the typing is in none — Media, a picture, a toggle — a key from under a draft is no-one's.
+        // #441, #445): a keymap opened only where no widget has the typing would be one a reader can never reach, over
+        // a draft, and where the typing is in none — Media, a picture, a toggle — a key from under a draft is no-one's.
         (ShellKey.Question or ShellKey.Minus or ShellKey.Plus or ShellKey.EqualsSign or ShellKey.Backslash, _)
             when HasWidgetsOfItsOwn(screen) => Verb.None,
         (ShellKey.Question, _) => Verb.Help,
@@ -262,7 +262,8 @@ public static class Keymap
     /// <summary>
     ///     Whether <paramref name="screen" /> is one with widgets of its own — compose, the description editor pushed
     ///     over it, or the edit public profile form — whose fields take <c>?</c>, <c>-</c>, <c>+</c>, <c>=</c> and
-    ///     <c>\</c> as letters before the window sees them, so that those keys mean nothing there (#320, #414, #441).
+    ///     <c>\</c> as letters before the window sees them, so that those keys mean nothing there (#320, #414, #441,
+    ///     #445).
     /// </summary>
     private static bool HasWidgetsOfItsOwn(Screen screen) =>
         screen is ComposeScreen or DescriptionScreen or PublicProfileScreen;
