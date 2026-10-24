@@ -335,10 +335,10 @@ internal sealed class ShellWindow : Window
         // A prompt taking a query takes the letters too, so that searching for "backfeed" is not a boost, an author,
         // a compose and two more besides. Ahead of the keymap rather than inside it: this is the one place a key the
         // contract has settled means something else, and what it means instead is a letter rather than another verb.
-        // Which screens do that is a fact about the screen, not a mode kept here. All but a space the keymap gives a
-        // meaning on the screen — choosing, in the file browser, whose fuzzy filter never needs one typed (#376) — and
-        // `\`, which hides and shows the rail from a prompt too, so that the hidden rail is never out of the keys' reach
-        // there — but on the file browser, whose filter the keymap leaves it to (#447).
+        // Which screens do that is a fact about the screen, not a mode kept here. Two keys are left to the keymap
+        // wherever it gives them a meaning on the screen. A space is choosing in the file browser, whose fuzzy filter
+        // never needs one typed (#376). `\` hides and shows the rail from a prompt too, so that the hidden rail is never
+        // out of the keys' reach there; a screen that types it as a letter gets no meaning for it, and types it (#447).
         if (_shell.Screen.IsTyping && !TakenAheadOfTheTyping(key) && Typing(key))
         {
             return true;

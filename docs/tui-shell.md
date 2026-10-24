@@ -121,23 +121,24 @@ inside its edges. Hiding changes nothing about the stack or about where you are.
 - **Nothing of it is drawn**: no destinations, no unread counts, no instance and no budget. The Inbox is still read
   while it is hidden, and a badge rising still rings the bell; only the count is not drawn.
 - **Walking it is locked**, since a cursor nobody can see would land somewhere nobody chose. `tab`, `shift-tab`, `` ` ``
-  and `~` move neither the cursor nor the selection and start no settle window, and say `Rail hidden — \ to show` on
-  the status row for a moment — only `Rail hidden` where `\` means nothing — on a prompt taking letters too. Going
-  straight to a named destination still works, because the breadcrumb says where you landed: `/` arrives at Search,
-  and choosing a profile on `ctrl-p` starts again on its Home. A walk under way when the rail is hidden, inside its
-  settle window, still lands.
+  and `~` move neither the cursor nor the selection and start no settle window. Instead the status row says
+  `Rail hidden — \ to show` for a moment, on a prompt taking letters as anywhere else. Where `\` is typed as a letter
+  instead, as on the file browser, it says only `Rail hidden`, since there `\` would not show it. Going straight to a
+  named destination still works, because the breadcrumb says where you landed: `/` arrives at Search, and choosing a
+  profile on `ctrl-p` starts again on its Home. A walk under way when the rail is hidden, inside its settle window,
+  still lands.
 - **The status row** drops the `Destination: tab` and `Group: `` ` `` hints, which name the locked walk, and says
   `Rail: \` where the first of them stood. A row with no walk hint to stand in for, such as a drilled-in screen's or
   the follow list's filter's, says `Rail: \` just before `Keys: ?`, or last where it has no `?`, so that it is said
   wherever `\` shows the rail (#447). Shown, the row is as it was, and does not offer `\`.
 - **A toggle** lays the content out again at its new width, pictures with it (ADR-0025), and keeps the picked post on
-  the page row it was drawn on as near as rewrapping allows; with nothing picked the page is left where it begins. `\`
-  hides and shows the rail on a prompt taking letters too — Search's and the follow list's filter — rather than being
-  typed, so that the hidden rail is never out of the keys' reach there; a search or a follow has no use for a
-  backslash (#447). It is typed as a letter only on compose, the description editor and the public profile form, whose
-  fields take it before the shell sees it, and on the file browser, whose filter takes it since a Windows path is
-  typed with it (#447); and it does nothing where there is no rail. It is listed on the `?` screen under the frame's
-  keys.
+  the page row it was drawn on as near as rewrapping allows; with nothing picked the page is left where it begins.
+- **On a prompt taking letters** `\` still hides and shows the rail rather than being typed, so that the hidden rail is
+  never out of the keys' reach: on Search's prompt, the follow list's filter and Add a profile. A search, a follow and
+  an instance have no use for a backslash (#447). It is typed as a letter only on compose, the description editor and
+  the public profile form, whose fields take it before the shell sees it, and on the file browser, whose filter takes
+  it since a Windows path is typed with it (#447). It does nothing where there is no rail. It is listed on the `?`
+  screen under the frame's keys.
 - **Remembered.** One setting for every profile, as the **Shell width** is, and saved straight away through the same
   port (`IShellPreferenceStore`); opening on it is not a toggle, and saves nothing. A fresh install opens on the shown
   rail. A toggle that cannot be saved still holds for the session, and the status row says why as a failure, which
@@ -233,12 +234,12 @@ workable only because the status row always shows the current screen's keys. Wha
 | `esc` | Up one level of the stack. Never quits. |
 | `ctrl-q` | Quit. |
 | `?` | The keymap for this screen. The spec has no in-app help story; this is the shell adding one, and #28 carries it — every other screen inherits it for free. |
-| `tab` / `shift-tab` | Moves the cursor (`▶`) at once, one destination down or up the rail, crossing from one rail group into the next. The selection follows it (`▷` while it lags behind), and that destination loads, once the tabbing has stopped for ~250ms. Opening a draft — compose, a reply, an edit, the public profile form — before then calls that off: the cursor goes back to the destination selected, nothing loads, and the draft stays in front (#429). With the rail hidden, nothing but `Rail hidden — \ to show` on the status row, or `Rail hidden` on a prompt taking letters (#445). |
+| `tab` / `shift-tab` | Moves the cursor (`▶`) at once, one destination down or up the rail, crossing from one rail group into the next. The selection follows it (`▷` while it lags behind), and that destination loads, once the tabbing has stopped for ~250ms. Opening a draft — compose, a reply, an edit, the public profile form — before then calls that off: the cursor goes back to the destination selected, nothing loads, and the draft stays in front (#429). With the rail hidden, nothing but `Rail hidden — \ to show` on the status row, or `Rail hidden` where `\` is typed as a letter, as on the file browser (#445, #447). |
 | `` ` `` / `~` | Moves the cursor to the first destination of the next or previous **rail group**, wrapping. Settles and loads as `tab` does (ADR-0021), and is locked as `tab` is with the rail hidden (#445). |
 | `/` | Search. Goes to the search destination; what it opens onto is #29's. |
 | `ctrl-p` | The profiles screen, pushed onto the stack. On compose it takes the draft off first and opens the screen in its place, asking first where the draft is touched (ADR-0020, #373); it is not listed there. |
 | `-` / `+` or `=` | The **Shell width** one step narrower, or one wider: `=` is `+` without the shift. Typed as letters wherever letters are typed, as `/` and `?` are, and nothing on compose, the description editor or the public profile form. Said on the status row for two seconds (`Width 90%`, or `Narrowest` / `Full width` where there is no step to take); listed on the `?` screen and on no status row (#414). See **Shell width**, above. |
-| `\` | Hides the rail, the content taking the whole width of the shell, or shows it again, saved for the next launch (#442, #445). On a prompt taking letters too — Search's, the follow list's filter — rather than typed (#447); typed as a letter only on compose, the description editor and the public profile form, whose fields take it, and on the file browser, whose filter takes a Windows path (#447), and nothing where there is no rail. Listed on the `?` screen, and on the status row only while the rail is hidden, as `Rail: \` (#445). See **Hidden rail**, above. |
+| `\` | Hides the rail, the content taking the whole width of the shell, or shows it again, saved for the next launch (#442, #445). On a prompt taking letters too, rather than typed: Search's, the follow list's filter and Add a profile (#447). Typed as a letter only on compose, the description editor and the public profile form, whose fields take it, and on the file browser, whose filter takes a Windows path (#447). Nothing where there is no rail. Listed on the `?` screen, and on the status row only while the rail is hidden, as `Rail: \` (#445). See **Hidden rail**, above. |
 
 Feed and post:
 
@@ -387,9 +388,10 @@ not answer them differently:
 - **A prompt taking letters takes `/`, `?`, `` ` `` and `~` too**, which is the one exception to the frame keys above.
   A web address and a question are both things somebody is entitled to search for, and a prompt that could not take a
   slash would refuse the query most likely to be pasted into it; code in backticks and a path under `~` are the same
-  (#265). Every other frame key — `esc`, `ctrl-q`, `tab`, and `\`, which hides and shows the rail rather than typing a
-  backslash no search or follow needs (#447), but on the file browser, whose filter takes it for a Windows path —
-  still means what it means everywhere, and the status row says what the prompt answers to.
+  (#265). Every other frame key, `esc`, `ctrl-q` and `tab` among them, still means what it means everywhere, and the
+  status row says what the prompt answers to. So does `\`, which hides and shows the rail rather than typing a
+  backslash, since no search, follow or instance needs one (#447). The one prompt that types it is the file browser's
+  filter, since a Windows path is typed with it.
 - **`/` from the search screen's results starts a fresh prompt** rather than doing nothing, since that is the one place
   the key is most likely to be pressed twice.
 - **A screen's own keys go in front of the shared ones on the status row.** The row is one row and draws what it has
