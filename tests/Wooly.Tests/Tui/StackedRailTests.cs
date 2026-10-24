@@ -38,13 +38,14 @@ public class StackedRailTests
 
         var rail = drawn.Rail();
 
-        Assert.Equal("╭ Timelines ──────«╮", rail[0]);
+        Assert.Equal("╭ Timelines ───────╮", rail[0]);
         Assert.Equal("│▶ Home            │", rail[1]);
         Assert.Equal("╭ Explore ─────────╮", rail[6]);
         Assert.Equal("╭ Inbox ───────────╮", rail[10]);
         Assert.Equal("╭ You ─────────────╮", rail[15]);
         Assert.Equal("╭ API ─────────────╮", rail[20]);
-        Assert.Equal("╰──────────────────╯", rail[22]);
+        // The toggle's mark just inside the corner, the shell's bottom-left (#445).
+        Assert.Equal("╰«─────────────────╯", rail[22]);
     }
 
     /// <summary>On a terminal too short to frame them, the groups are headings rather than panels.</summary>
@@ -55,7 +56,7 @@ public class StackedRailTests
 
         var rail = drawn.Rail();
 
-        Assert.Equal("Timelines          «", rail[0]);
+        Assert.Equal("Timelines", rail[0].TrimEnd());
         Assert.DoesNotContain(rail, row => row.Contains('╭', StringComparison.Ordinal));
     }
 

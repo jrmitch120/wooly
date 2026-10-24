@@ -186,6 +186,7 @@ internal sealed class ShellWindow : Window
             if (App is { } application)
             {
                 application.Mouse.MouseEvent += (_, mouse) => InTheMargins(mouse);
+                application.Mouse.MouseEvent += (_, mouse) => AtTheToggleMark(mouse);
             }
         };
 
@@ -227,12 +228,12 @@ internal sealed class ShellWindow : Window
                 }),
             pictures,
             // No rows of the panel's own: the view paints only the frame's edges, round the screen's rows.
-            (width, height) => Panel.Framed(
+            (width, height) => ShowingTheRail(Panel.Framed(
                 ChromeLines.Breadcrumb(shell.Crumbs, shell.SpinnerFrame, width),
                 [],
                 width,
                 height,
-                active: true),
+                active: true)),
             placeholders,
             frames,
             raster)
@@ -446,11 +447,11 @@ internal sealed class ShellWindow : Window
 
     /// <summary>
     ///     A click at <paramref name="at" />. An open question takes it wherever it lands, and is all it does; otherwise
-    ///     a click on a destination on the rail arrives there (#288), one on the rail's <c>«</c>/<c>»</c> is <c>\</c>
-    ///     (#443), a click on a crumb of the breadcrumb walks back to it (#308), and a click on a row of a thing in the
-    ///     content picks it (#290), the first half of a double click among them (<see cref="DoubleClicked" />).
-    ///     Everything else — a title, a heading, the API panel, a separator, the fetch mark, a rule, a blank — is part
-    ///     of nothing and ignores it.
+    ///     a click on a destination on the rail arrives there (#288), one on the toggle's <c>«</c>/<c>»</c> at the
+    ///     shell's bottom-left is <c>\</c> (#443, #445), a click on a crumb of the breadcrumb walks back to it (#308),
+    ///     and a click on a row of a thing in the content picks it (#290), the first half of a double click among them
+    ///     (<see cref="DoubleClicked" />). Everything else — a title, a heading, the API panel, a separator, the fetch
+    ///     mark, a rule, a blank — is part of nothing and ignores it.
     /// </summary>
     /// <param name="at">Where the click was.</param>
     /// <param name="chorded">Whether ctrl or shift was held, which on some rows means more than a pick (#376).</param>
@@ -478,6 +479,19 @@ internal sealed class ShellWindow : Window
             return true;
         }
 
+        // The toggle's mark is `\` itself, through the keymap, so it does exactly what the key does and nothing where
+        // the key does nothing — on compose, the description editor and the public profile form (#443). Asked before
+        // the content panel, whose corner it is on once the rail is hidden (#445).
+        if (OnTheToggleMark(at))
+        {
+            var was = _shell.RailState;
+
+            _ = Do(ShellKey.Backslash);
+            _clickToggledRail = was != _shell.RailState;
+
+            return true;
+        }
+
         if (_content.FrameToScreen().Contains(at))
         {
             // A click on a run that stands for a key, or one with ctrl or shift held, means that key on the thing it is
@@ -499,16 +513,7 @@ internal sealed class ShellWindow : Window
             return false;
         }
 
-        // The toggle's mark is `\` itself, through the keymap, so it does exactly what the key does and nothing where
-        // the key does nothing — on compose, the description editor and the public profile form (#443).
-        if ((RailPart?)_rail.SpanItemAt(at) is RailPart.ToggleMark)
-        {
-            var was = _shell.RailState;
-
-            _ = Do(ShellKey.Backslash);
-            _clickToggledRail = was != _shell.RailState;
-        }
-        else if (_rail.ItemAt(at) is { } destination)
+        if (_rail.ItemAt(at) is { } destination)
         {
             _shell.Arrive(destination);
         }
@@ -1000,8 +1005,63 @@ internal sealed class ShellWindow : Window
         }
     }
 
+    /// <summary>
+    ///     A click or a double click on the toggle's mark, taken before any view is asked (#445): hidden, the mark is
+    ///     on the content panel's frame, whose cells Terminal.Gui hands to the panel's own edge and never on to the
+    ///     window — so it is answered here, shown or hidden alike, as <see cref="OnMouseEvent" /> would answer it.
+    /// </summary>
+    /// <remarks>
+    ///     A view holding the mouse keeps every event, as <see cref="InTheMargins" /> leaves it, and a drag ending on
+    ///     the mark is the drop it already is.
+    /// </remarks>
+    private void AtTheToggleMark(Mouse mouse)
+    {
+        if (mouse.Handled || App?.Mouse.IsGrabbed() == true || _dragged || !OnTheToggleMark(mouse.ScreenPosition))
+        {
+            return;
+        }
+
+        if (mouse.Flags.HasFlag(MouseFlags.LeftButtonClicked))
+        {
+            _pressedOn = null;
+            mouse.Handled = Clicked(mouse.ScreenPosition, Chorded(mouse));
+        }
+        else if (mouse.Flags.HasFlag(MouseFlags.LeftButtonDoubleClicked))
+        {
+            mouse.Handled = DoubleClicked(mouse.ScreenPosition, Chorded(mouse));
+        }
+    }
+
     /// <summary>How wide the terminal is, which the shell's columns are a share of.</summary>
     private int TerminalColumns => App?.Screen.Width ?? 0;
+
+    /// <summary>
+    ///     The content panel's <paramref name="edges" />, with the toggle's <c>»</c> on its bottom edge while the rail
+    ///     is hidden, in the cell the shown rail's <c>«</c> was in (#445) — and as they were where the rail is shown,
+    ///     or where there is none to show.
+    /// </summary>
+    private IReadOnlyList<Rendering.Line> ShowingTheRail(IReadOnlyList<Rendering.Line> edges)
+    {
+        if (!_shell.ShowsRail || _shell.RailState is RailState.Shown || edges.Count < 2)
+        {
+            return edges;
+        }
+
+        return [.. edges.Take(edges.Count - 1), RailLines.WithToggleMark(edges[^1], RailState.Hidden)];
+    }
+
+    /// <summary>
+    ///     Whether the terminal cell <paramref name="at" /> is the toggle's mark: column 1 of the shell's bottom frame
+    ///     row, the shown rail's foot or the content panel's bottom edge once the rail is hidden — one cell for both,
+    ///     so that a second click to undo a first lands where the first did (#445). None where there is no rail.
+    /// </summary>
+    private bool OnTheToggleMark(Point at)
+    {
+        var shell = FrameToScreen();
+        var bottom = _content.FrameToScreen().Bottom - 1;
+
+        return _shell.ShowsRail && at == new Point(shell.X + RailLines.ToggleColumn, bottom);
+    }
 
     /// <summary>
     ///     Where the content panel's viewport sits in this window: inside the panel's edge, wherever the rail has left

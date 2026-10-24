@@ -73,7 +73,8 @@ public class RailLinesTests
 
     /// <summary>
     ///     Framed, the rail is the four groups top to bottom, each titled with its name and holding its destinations in
-    ///     the rail's order, and the API panel held at the foot however tall the terminal is.
+    ///     the rail's order, and the API panel held at the foot however tall the terminal is, the toggle's mark just
+    ///     inside its bottom-left corner (#445).
     /// </summary>
     [Fact]
     public void Of_FramesEachGroupWithItsNameAndHoldsTheApiPanelAtTheFoot()
@@ -84,7 +85,7 @@ public class RailLinesTests
 
         Assert.Equal(
             [
-                "╭ Timelines ──────«╮",
+                "╭ Timelines ───────╮",
                 "│▶ Home            │",
                 "│  Local           │",
                 "│  Federated       │",
@@ -106,7 +107,7 @@ public class RailLinesTests
             drawn.Take(18));
 
         Assert.Equal("╭ API ─────────────╮", drawn[^3]);
-        Assert.Equal("╰──────────────────╯", drawn[^1]);
+        Assert.Equal("╰«─────────────────╯", drawn[^1]);
         Assert.All(drawn[18..^3], text => Assert.Equal(new string(' ', RailLines.Width), text));
     }
 
@@ -361,7 +362,7 @@ public class RailLinesTests
 
     /// <summary>
     ///     Compact, each group's title is a heading row with its destinations under it, there are no frames, and the
-    ///     API panel is one gauge row at the foot.
+    ///     API panel is one gauge row at the foot, which carries the toggle's mark after its space in (#445).
     /// </summary>
     [Fact]
     public void Of_Compact_HeadsEachGroupAndDrawsTheBudgetAsOneRow()
@@ -372,7 +373,7 @@ public class RailLinesTests
 
         Assert.Equal(
             [
-                "Timelines          «",
+                "Timelines",
                 "▶ Home",
                 "  Local",
                 "  Federated",
@@ -386,7 +387,7 @@ public class RailLinesTests
                 "  Follow requests",
                 "You",
                 "  @jeff",
-                " ████████████░░  83%",
+                " «███████████░░  83%",
             ],
             drawn.Select(line => line.Text.TrimEnd()));
 
@@ -424,8 +425,7 @@ public class RailLinesTests
         var texts = drawn.Select(line => line.Text.TrimEnd()).ToList();
 
         Assert.Equal(8, drawn.Count);
-        // The heading as it reads, past the toggle's mark that ends the first heading in view.
-        Assert.Contains(group, texts.Select(text => text.TrimEnd('«').TrimEnd()));
+        Assert.Contains(group, texts);
         Assert.Contains(texts, text => text.EndsWith(label, StringComparison.Ordinal) && text.StartsWith('▶'));
         Assert.Contains("83%", texts[^1], StringComparison.Ordinal);
     }
