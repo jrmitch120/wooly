@@ -24,10 +24,6 @@ public class HelpRowsTests
         drawn.Press(new Key('?'));
 
         var rows = drawn.Rows();
-        var wheel = Array.FindIndex(rows, row => row.Contains("│wheel ", StringComparison.Ordinal));
-        Assert.NotEqual(-1, wheel);
-
-        var column = rows[wheel].IndexOf("wheel", StringComparison.Ordinal);
 
         Assert.Equal(
             [
@@ -38,7 +34,7 @@ public class HelpRowsTests
                 "click a crumb   walk back to it",
                 "click «/»       hide or show the rail",
             ],
-            rows[wheel..(wheel + 6)].Select(row => row[column..].TrimEnd().TrimEnd('│').TrimEnd()));
+            From(rows, "wheel", 6));
         Assert.DoesNotContain(rows, row => row.Contains("│mouse ", StringComparison.Ordinal));
     }
 
@@ -53,13 +49,6 @@ public class HelpRowsTests
 
         drawn.Press(new Key('?'));
 
-        var rows = drawn.Rows();
-        var tab = Array.FindIndex(rows, row => row.Contains("│tab / shift-tab ", StringComparison.Ordinal));
-
-        Assert.NotEqual(-1, tab);
-
-        var column = rows[tab].IndexOf("tab / shift-tab", StringComparison.Ordinal);
-
         Assert.Equal(
             [
                 "tab / shift-tab move the rail's cursor; it settles onto a",
@@ -67,7 +56,7 @@ public class HelpRowsTests
                 "` / ~           move it to the next or previous rail",
                 "                group's first destination",
             ],
-            rows[tab..(tab + 4)].Select(row => row[column..].TrimEnd().TrimEnd('│').TrimEnd()));
+            From(drawn.Rows(), "tab / shift-tab", 4));
     }
 
     /// <summary>
@@ -154,5 +143,20 @@ public class HelpRowsTests
         Assert.Contains(
             drawn.Rows(),
             row => row.Contains("click «/»       hide or show the rail", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    ///     <paramref name="count" /> of help's <paramref name="rows" />, starting with the one whose key is
+    ///     <paramref name="key" />, each read from the key column to the panel's right edge.
+    /// </summary>
+    private static IEnumerable<string> From(string[] rows, string key, int count)
+    {
+        var at = Array.FindIndex(rows, row => row.Contains($"│{key} ", StringComparison.Ordinal));
+
+        Assert.NotEqual(-1, at);
+
+        var column = rows[at].IndexOf(key, StringComparison.Ordinal);
+
+        return rows[at..(at + count)].Select(row => row[column..].TrimEnd().TrimEnd('│').TrimEnd());
     }
 }
