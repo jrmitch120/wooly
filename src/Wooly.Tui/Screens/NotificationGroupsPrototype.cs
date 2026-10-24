@@ -181,20 +181,7 @@ internal static class NotificationGroupsPrototype
         // A7b: a post drawn whole already says who and when in its byline, so the line above it says only what kind.
         if (byActor && Variant == 4)
         {
-            var drawn = fullPost(group.Post!).ToList();
-
-            // The byline's audience and age, lifted up onto the kind line so the time sits where every other
-            // notification's does, and the byline keeps only the face, the name and the handle.
-            var at = drawn.FindIndex(line => line.Spans.Count > 0 && line.Spans[^1].Role == Role.Audience);
-            Span? tail = null;
-
-            if (at >= 0)
-            {
-                tail = drawn[at].Spans[^1];
-                drawn[at] = drawn[at].Respanned([.. drawn[at].Spans.Take(drawn[at].Spans.Count - 2)]);
-            }
-
-            return [KindOnly(group, unread, room, tail), .. drawn];
+            return [KindOnly(group, unread, room), .. fullPost(group.Post!)];
         }
 
         var variant = byActor ? Variants.Length - 1 : Variant;
@@ -427,17 +414,15 @@ internal static class NotificationGroupsPrototype
         ]);
     }
 
-    private static Line KindOnly(Group group, bool unread, int width, Span? tail)
+    private static Line KindOnly(Group group, bool unread, int width)
     {
         var said = new Span($"{Icon(group).Text} {Sentence(group)}", KindRole(group));
-        var mark = unread ? $"{ConversationLines.UnreadMark} " : string.Empty;
-        var tailWidth = tail?.Width ?? 0;
+        var mark = unread ? ConversationLines.UnreadMark : string.Empty;
 
         return Line.Of([
             said,
-            new Span(new string(' ', Math.Max(1, width - said.Width - Glyphs.Columns(mark) - tailWidth)), Role.Muted),
+            new Span(new string(' ', Math.Max(1, width - said.Width - Glyphs.Columns(mark))), Role.Muted),
             .. unread ? [new Span(mark, Role.RailUnread)] : Array.Empty<Span>(),
-            .. tail is { } shown ? [shown] : Array.Empty<Span>(),
         ]);
     }
 
