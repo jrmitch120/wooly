@@ -27,6 +27,9 @@ internal sealed class InboxBadges
 
     private readonly Landing _landing;
 
+    /// <summary>Whether a destination's screen is in front, for a re-read to read what that screen draws too (#458).</summary>
+    private readonly Func<DestinationKind, bool> _showing;
+
     /// <summary>
     ///     What keeps the Inbox live for the profile acted as — the user stream, and the poll while it is down — from
     ///     the moment the shell opens onto it until it is let go of (#398, #401). Nothing, with nobody to act as.
@@ -66,6 +69,11 @@ internal sealed class InboxBadges
     ///     Where what a re-read found lands: the shell, which puts it on the screen in front where that is the
     ///     destination's (#400).
     /// </param>
+    /// <param name="showing">
+    ///     Whether a destination's screen is in front with no list read of its own in flight to fill it — asked as a
+    ///     re-read is asked for, on the drawing thread — so that a re-read of Notifications reads its groups too where
+    ///     they are drawn (#458).
+    /// </param>
     public InboxBadges(
         ShellPorts ports,
         Rail rail,
@@ -73,7 +81,8 @@ internal sealed class InboxBadges
         TimeProvider clock,
         ShellTiming timing,
         bool ringing,
-        Landing landed)
+        Landing landed,
+        Func<DestinationKind, bool> showing)
     {
         _ports = ports;
         _rail = rail;
@@ -82,6 +91,7 @@ internal sealed class InboxBadges
         _timing = timing;
         _ringing = ringing;
         _landing = landed;
+        _showing = showing;
     }
 
     /// <summary>
@@ -229,10 +239,12 @@ internal sealed class InboxBadges
         }
 
         var place = Ask();
+        var showing = _showing(kind);
 
         try
         {
-            var (badge, found) = await new InboxCount(_ports, profile, SessionMarkers, abandoned).Read(kind);
+            var (badge, found) = await new InboxCount(_ports, profile, SessionMarkers, abandoned)
+                .Read(kind, withGroups: showing);
 
             _host.OnUiThread(() =>
             {
@@ -249,6 +261,14 @@ internal sealed class InboxBadges
                 if (_landing(badge, found, rose) is { } newest && !badge.Full)
                 {
                     _ = MarkerPast(profile, newest, abandoned);
+                }
+
+                // Begun before Notifications came in front, so it read no groups — and what is unread is never made
+                // into groups of one here, keys an instance that groups does not have (#458). Read again now it is in
+                // front, groups and all, for what arrived to join the group it belongs in.
+                if (found is InboxList.Notifications { Groups: null, Unread.Count: > 0 } && _showing(kind))
+                {
+                    _ = Reread(profile, abandoned, [kind]);
                 }
             });
         }

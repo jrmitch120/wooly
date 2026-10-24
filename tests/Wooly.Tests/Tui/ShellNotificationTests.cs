@@ -33,7 +33,7 @@ public class ShellNotificationTests
         shell.Host.Settle();
 
         var screen = Assert.IsType<NotificationsScreen>(opened.Screen);
-        Assert.Equal(["34", "35"], screen.Notifications.Select(notification => notification.Id));
+        Assert.Equal(["34", "35"], screen.Groups.Select(group => group.NewestId));
         Assert.Equal("Notifications", opened.Breadcrumb);
 
         var destination = opened.Rail.Destinations.First(place => place.Kind == DestinationKind.Notifications);
@@ -42,11 +42,11 @@ public class ShellNotificationTests
     }
 
     /// <summary>
-    ///     A notification is not the post it is about (GLOSSARY.md): dismissing takes the notification's own id, and
-    ///     dismissing by the post's would clear nothing.
+    ///     A notification is not the post it is about (GLOSSARY.md): dismissing names the picked group by its own key,
+    ///     and dismissing by the post's id would clear nothing.
     /// </summary>
     [Fact]
-    public async Task Dismiss_ClearsThePickedNotificationByItsOwnId()
+    public async Task Dismiss_ClearsThePickedGroupByItsOwnKey()
     {
         var shell = new AShell
         {
@@ -63,10 +63,10 @@ public class ShellNotificationTests
         opened.Press(ShellKey.D);
         shell.Host.Drain();
 
-        Assert.Equal("34", Assert.Single(shell.Notifications.Dismissals).NotificationId);
+        Assert.Equal("ungrouped-34", Assert.Single(shell.Notifications.GroupDismissals).Key);
 
         var screen = Assert.IsType<NotificationsScreen>(opened.Screen);
-        Assert.Equal(["36"], screen.Notifications.Select(notification => notification.Id));
+        Assert.Equal(["36"], screen.Groups.Select(group => group.NewestId));
 
         // The badge and the list are the same fact, so one cannot say two over a list of one.
         Assert.Equal(1, opened.Rail.Destinations.First(place => place.Kind == DestinationKind.Notifications).Unread);
@@ -100,7 +100,7 @@ public class ShellNotificationTests
 
         Assert.IsType<HelpScreen>(opened.Screen);
         Assert.Equal(1, opened.Rail.Destinations.First(place => place.Kind == DestinationKind.Notifications).Unread);
-        Assert.Equal(["36"], notifications.Notifications.Select(notification => notification.Id));
+        Assert.Equal(["36"], notifications.Groups.Select(group => group.NewestId));
     }
 
     /// <summary>
@@ -129,7 +129,7 @@ public class ShellNotificationTests
         Assert.Equal("personal", Assert.Single(shell.Notifications.Clearances));
 
         var screen = Assert.IsType<NotificationsScreen>(opened.Screen);
-        Assert.Empty(screen.Notifications);
+        Assert.Empty(screen.Groups);
         Assert.Equal(0, opened.Rail.Destinations.First(place => place.Kind == DestinationKind.Notifications).Unread);
     }
 
@@ -146,7 +146,7 @@ public class ShellNotificationTests
         await opened.Answer(agreed: false);
 
         Assert.Empty(shell.Notifications.Clearances);
-        Assert.Single(Assert.IsType<NotificationsScreen>(opened.Screen).Notifications);
+        Assert.Single(Assert.IsType<NotificationsScreen>(opened.Screen).Groups);
     }
 
     /// <summary>Nothing to ask about is nothing to ask, rather than a confirmation over an empty list.</summary>
@@ -250,7 +250,7 @@ public class ShellNotificationTests
     {
         var shell = new AShell
         {
-            Notifications = FakeNotificationInbox.Holding(ANotification.With(id: "34"), ANotification.With(id: "36")),
+            Notifications = FakeNotificationInbox.Holding(ANotification.With(id: "36"), ANotification.With(id: "34")),
         };
 
         var opened = await shell.Opened();
@@ -258,7 +258,7 @@ public class ShellNotificationTests
         opened.Step(ToNotifications);
         shell.Host.Settle();
 
-        var reads = shell.Notifications.Reads.Count;
+        var reads = shell.Notifications.GroupReads.Count;
 
         opened.Press(ShellKey.D);
 
@@ -267,6 +267,132 @@ public class ShellNotificationTests
         opened.Step(-1);
         shell.Host.Settle();
 
-        Assert.Equal(reads + 1, shell.Notifications.Reads.Count);
+        Assert.Equal(reads + 1, shell.Notifications.GroupReads.Count);
+    }
+
+    /// <summary>
+    ///     <c>w</c> opens who did what the notification reports, not the author of the post it is about (#451): on a
+    ///     favorite or a boost that author is the reader, and going to yourself is not where "Alice favorited your post"
+    ///     points. A kind this client has no words for has an actor all the same.
+    /// </summary>
+    [Theory]
+    [InlineData("favorite")]
+    [InlineData("boost")]
+    [InlineData("poll")]
+    public async Task Press_WOpensTheActorRatherThanThePostsAuthor(string kind)
+    {
+        var shell = new AShell
+        {
+            Notifications = FakeNotificationInbox.Holding(
+                ANotification.With(
+                    kind: kind switch
+                    {
+                        "favorite" => NotificationKind.Favorite,
+                        "boost" => NotificationKind.Boost,
+                        _ => NotificationKind.Reported(kind),
+                    },
+                    account: "alice@hachyderm.io",
+                    author: "Alice",
+                    post: APost.With(id: "110", account: "jeff", author: "Jeff"))),
+            Accounts = FakeAccountRelationships.Holding(AnAccount.With(address: "alice@hachyderm.io")),
+        };
+
+        var opened = await shell.Opened();
+
+        opened.Step(ToNotifications);
+        shell.Host.Settle();
+
+        opened.Press(ShellKey.W);
+        shell.Host.Drain();
+
+        var account = Assert.IsType<AccountScreen>(opened.Screen);
+        Assert.Equal("alice@hachyderm.io", account.Account.Address);
+        Assert.Equal("alice@hachyderm.io", Assert.Single(shell.Accounts.Reads).Account.Text);
+    }
+
+    /// <summary>
+    ///     A follow carries no post, which used to leave nothing to open; its actor is the follower, and looking at
+    ///     them is what a reader does before following back (#451).
+    /// </summary>
+    [Fact]
+    public async Task Press_WOpensTheAccountThatFollowed()
+    {
+        var shell = new AShell
+        {
+            Notifications = FakeNotificationInbox.Holding(ANotification.Follow(account: "bob@mastodon.social")),
+            Accounts = FakeAccountRelationships.Holding(AnAccount.With(address: "bob@mastodon.social", author: "Bob")),
+        };
+
+        var opened = await shell.Opened();
+
+        opened.Step(ToNotifications);
+        shell.Host.Settle();
+
+        Assert.Contains(opened.Keys, key => key is { Key: "w", Does: "who" });
+
+        opened.Press(ShellKey.W);
+        shell.Host.Drain();
+
+        var account = Assert.IsType<AccountScreen>(opened.Screen);
+        Assert.Equal("bob@mastodon.social", account.Account.Address);
+        Assert.Equal("bob@mastodon.social", Assert.Single(shell.Accounts.Reads).Account.Text);
+    }
+
+    /// <summary>On a mention the actor and the post's author are the same account, and <c>w</c> opens it.</summary>
+    [Fact]
+    public async Task Press_WOpensTheAccountThatMentioned()
+    {
+        var shell = new AShell
+        {
+            Notifications = FakeNotificationInbox.Holding(
+                ANotification.With(kind: NotificationKind.Mention, account: "alice@hachyderm.io")),
+            Accounts = FakeAccountRelationships.Holding(AnAccount.With(address: "alice@hachyderm.io")),
+        };
+
+        var opened = await shell.Opened();
+
+        opened.Step(ToNotifications);
+        shell.Host.Settle();
+
+        Assert.Contains(opened.Keys, key => key is { Key: "w", Does: "who" });
+
+        opened.Press(ShellKey.W);
+        shell.Host.Drain();
+
+        var account = Assert.IsType<AccountScreen>(opened.Screen);
+        Assert.Equal("alice@hachyderm.io", account.Account.Address);
+        Assert.Equal("alice@hachyderm.io", Assert.Single(shell.Accounts.Reads).Account.Text);
+    }
+
+    /// <summary>
+    ///     <c>a</c> means the post's author here as on every feed, even where that is the reader: who did it has
+    ///     <c>w</c> (#451).
+    /// </summary>
+    [Fact]
+    public async Task Press_AOpensThePostsAuthorAsOnAFeed()
+    {
+        var shell = new AShell
+        {
+            Notifications = FakeNotificationInbox.Holding(
+                ANotification.With(
+                    kind: NotificationKind.Favorite,
+                    account: "alice@hachyderm.io",
+                    author: "Alice",
+                    post: APost.With(id: "110", account: "jeff@mastodon.online", author: "Jeff"))),
+            Accounts = FakeAccountRelationships.Holding(AnAccount.With(address: "jeff@mastodon.online")),
+        };
+
+        var opened = await shell.Opened();
+
+        opened.Step(ToNotifications);
+        shell.Host.Settle();
+
+        Assert.Contains(opened.Keys, key => key is { Key: "a", Does: "author" });
+
+        opened.Press(ShellKey.A);
+        shell.Host.Drain();
+
+        var account = Assert.IsType<AccountScreen>(opened.Screen);
+        Assert.Equal("jeff@mastodon.online", account.Account.Address);
     }
 }

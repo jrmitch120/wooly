@@ -453,7 +453,7 @@ public class RailFetchTests
         var shell = new AShell();
         var opened = await shell.Opened();
         var readsWhenOpened = shell.Timelines.Reads.Count;
-        var inboxReadsWhenOpened = shell.Notifications.Reads.Count;
+        var inboxReadsWhenOpened = shell.Notifications.GroupReads.Count;
 
         // Explore, Inbox, You, Timelines, Explore, Inbox.
         for (var press = 0; press < 6; press++)
@@ -470,7 +470,7 @@ public class RailFetchTests
         Assert.Equal(DestinationKind.Notifications, opened.Rail.Showing.Kind);
 
         // The one it landed on was asked for once, and nothing the walk crossed was asked for on the way.
-        Assert.Equal(inboxReadsWhenOpened + 1, shell.Notifications.Reads.Count);
+        Assert.Equal(inboxReadsWhenOpened + 1, shell.Notifications.GroupReads.Count);
         Assert.Equal(readsWhenOpened, shell.Timelines.Reads.Count);
         Assert.Empty(shell.Suggestions.Reads);
     }

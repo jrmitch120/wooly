@@ -5,10 +5,11 @@
 # about how a token gets into this *test* instance, not a second way the product itself signs a profile in.
 #
 # Usage: tests/integration/seed.sh
-# Prints three lines on success:
+# Prints four lines on success:
 #   WOOLY_INTEGRATION_INSTANCE=<host:port>
 #   WOOLY_INTEGRATION_TOKEN=<access token>
 #   WOOLY_INTEGRATION_VOTER_TOKEN=<access token>
+#   WOOLY_INTEGRATION_FAN_TOKENS=<access token>,<access token>,...
 # which the caller is expected to export before running `dotnet test --filter Category=Integration`.
 # See README.md in this directory for the full walkthrough, including teardown.
 set -euo pipefail
@@ -21,6 +22,9 @@ readonly EMAIL="woolytester@example.com"
 # second, otherwise-unused account to cast one against a poll the first account published.
 readonly VOTER_USERNAME="woolyvoter"
 readonly VOTER_EMAIL="woolyvoter@example.com"
+# Mastodon groups notifications and sends at most eight of a group's accounts with it, so whether a group's count
+# runs past the accounts it was sent with takes nine accounts doing the same thing to one post (#449).
+readonly FAN_COUNT=9
 readonly APP_NAME="wooly-integration-tests"
 readonly INSTANCE="localhost:34443"
 
@@ -64,6 +68,32 @@ mint_token() {
 token=$(mint_token "$USERNAME" "$EMAIL")
 voter_token=$(mint_token "$VOTER_USERNAME" "$VOTER_EMAIL")
 
+# The fans are made in one `rails runner` rather than by mint_token each, because each tootctl and runner call boots
+# Rails: nine fans that way would cost minutes, and this costs one boot. The registration checks a sign-up page makes
+# do not apply to an account made here, and approving and confirming it is what lets its token act at all.
+echo "Ensuring $FAN_COUNT fan accounts exist and have tokens..." >&2
+fan_tokens=$(compose exec -T web bin/rails runner "
+  app = Doorkeeper::Application.find_by!(name: '$APP_NAME')
+  tokens = (1..$FAN_COUNT).map do |n|
+    username = \"woolyfan#{n}\"
+    account = Account.find_local(username) || User.create!(
+      email: \"#{username}@example.com\",
+      password: SecureRandom.hex,
+      agreement: true,
+      bypass_registration_checks: true,
+      account_attributes: { username: username }
+    ).account
+    user = account.user
+    user.approve! unless user.approved?
+    user.confirm unless user.confirmed?
+    Doorkeeper::AccessToken.find_or_create_by!(resource_owner_id: user.id, application_id: app.id) do |t|
+      t.scopes = 'read write'
+    end.token
+  end
+  puts tokens.join(',')
+" | tail -n 1)
+
 echo "WOOLY_INTEGRATION_INSTANCE=$INSTANCE"
 echo "WOOLY_INTEGRATION_TOKEN=$token"
 echo "WOOLY_INTEGRATION_VOTER_TOKEN=$voter_token"
+echo "WOOLY_INTEGRATION_FAN_TOKENS=$fan_tokens"

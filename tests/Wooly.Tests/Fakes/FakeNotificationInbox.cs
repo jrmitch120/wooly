@@ -72,6 +72,65 @@ internal sealed class FakeNotificationInbox(Fetch<Notification> fetch) : INotifi
     }
 
     /// <summary>
+    ///     The groups it holds, where a test says them: from here on the grouped read answers with these. Where not
+    ///     said, what it holds is read as an instance too old to group would answer — each notification a group of one —
+    ///     so that a test about single notifications reads the same on the grouped screen.
+    /// </summary>
+    public IReadOnlyList<NotificationGroup>? Groups { get; set; }
+
+    /// <summary>Every grouped read it was asked for, in order.</summary>
+    public List<Call> GroupReads { get; } = [];
+
+    public async Task<Fetch<NotificationGroup>> ReadGroups(
+        ActiveProfile profile,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        GroupReads.Add(new Call(profile.Name, limit));
+        Tokens.Add(profile.AccessToken);
+
+        if (Groups is { } groups)
+        {
+            return Fetch<NotificationGroup>.Complete([.. groups.Take(limit)]);
+        }
+
+        var held = _fetch;
+
+        if (ReadsWaitFor is { } waiting)
+        {
+            await waiting.Task;
+        }
+
+        var read = ByProfile.TryGetValue(profile.Name, out var answer) ? await answer() : held;
+        var alone = read.Items.Take(limit).Select(ANotification.Alone).ToList();
+
+        return read.StoppedBy is { } stoppedBy
+            ? Fetch<NotificationGroup>.StoppedShort(alone, stoppedBy)
+            : Fetch<NotificationGroup>.Complete(alone);
+    }
+
+    /// <summary>Each group's actors, by the group's key, as its accounts endpoint lists them; none where not said.</summary>
+    public Dictionary<string, IReadOnlyList<Wooly.Core.Accounts.Account>> ActorsOf { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>Every read of a group's actors it was asked for, in order.</summary>
+    public List<ActorRead> ActorReads { get; } = [];
+
+    /// <summary>Up to <paramref name="limit" /> of the actors <see cref="ActorsOf" /> holds for the group.</summary>
+    public Task<Fetch<Wooly.Core.Accounts.Account>> ReadGroupActors(
+        ActiveProfile profile,
+        string groupKey,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        ActorReads.Add(new ActorRead(profile.Name, groupKey, limit));
+        Tokens.Add(profile.AccessToken);
+
+        var actors = ActorsOf.GetValueOrDefault(groupKey) ?? [];
+
+        return Task.FromResult(Fetch<Wooly.Core.Accounts.Account>.Complete([.. actors.Take(limit)]));
+    }
+
+    /// <summary>
     ///     The account's read marker: the id of the newest notification it has read, or <see langword="null" /> for an
     ///     account that has never had one. Nothing read by default — <c>"0"</c>, below every id a test hands it — so
     ///     what the inbox holds is all unread unless a test says otherwise.
@@ -171,6 +230,39 @@ internal sealed class FakeNotificationInbox(Fetch<Notification> fetch) : INotifi
         _fetch = _fetch with { Items = [.. _fetch.Items.Where(notification => notification.Id != notificationId)] };
     }
 
+    /// <summary>Every group it was asked to dismiss, in order, by the group's key.</summary>
+    public List<GroupDismissed> GroupDismissals { get; } = [];
+
+    /// <summary>
+    ///     Which held notifications each group in <see cref="Groups" /> is made of, by the group's key, where a test
+    ///     says — so that dismissing a group takes them off what a later read of what is unread finds, as the instance
+    ///     would. A group of one read from what it holds is made of its own notification without being said.
+    /// </summary>
+    public Dictionary<string, IReadOnlyList<string>> Members { get; } = [];
+
+    public async Task DismissGroup(
+        ActiveProfile profile,
+        NotificationGroup group,
+        CancellationToken cancellationToken)
+    {
+        GroupDismissals.Add(new GroupDismissed(profile.Name, group.Key));
+        Tokens.Add(profile.AccessToken);
+
+        if (DismissalsWaitFor is { } waiting)
+        {
+            await waiting.Task;
+        }
+
+        // Gone from the instance, every notification in it, so a later read — of the groups, of the list or of what
+        // is unread — no longer finds any of them.
+        var going = Members.TryGetValue(group.Key, out var members)
+            ? members.ToHashSet(StringComparer.Ordinal)
+            : [group.NewestId];
+
+        Groups = Groups?.Where(held => held.Key != group.Key).ToList();
+        _fetch = _fetch with { Items = [.. _fetch.Items.Where(notification => !going.Contains(notification.Id))] };
+    }
+
     public Task Clear(ActiveProfile profile, CancellationToken cancellationToken)
     {
         Clearances.Add(profile.Name);
@@ -186,6 +278,12 @@ internal sealed class FakeNotificationInbox(Fetch<Notification> fetch) : INotifi
     /// <summary>One read: which profile it was made as, and how many notifications it wanted.</summary>
     internal sealed record Call(string Profile, int Limit);
 
+    /// <summary>One read of a group's actors: which profile, which group by its key, and how many were wanted.</summary>
+    internal sealed record ActorRead(string Profile, string GroupKey, int Limit);
+
     /// <summary>One dismissal: which profile it was made as, and which notification it named.</summary>
     internal sealed record Dismissed(string Profile, string NotificationId);
+
+    /// <summary>One group dismissal: which profile it was made as, and which group's key it named.</summary>
+    internal sealed record GroupDismissed(string Profile, string Key);
 }

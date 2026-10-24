@@ -36,6 +36,12 @@ public abstract record Subject
     /// </summary>
     private const int FollowsPage = 80;
 
+    /// <summary>
+    ///     How many of a notification group's actors the actors screen asks for at a time: the most Mastodon serves from
+    ///     a group's accounts in one call (#455).
+    /// </summary>
+    private const int ActorsPage = 80;
+
     private Subject()
     {
     }
@@ -164,15 +170,17 @@ public abstract record Subject
 
             return entry.Kind switch
             {
-                DestinationKind.Notifications => new Listing<Notification>(
-                    Reads: (ports, profile, token) => ports.Notifications.Read(profile, Arrival.CountedAtMost, token),
+                DestinationKind.Notifications => new Listing<NotificationGroup>(
+                    // Grouped as the instance groups them, never as this client would (ADR-0032).
+                    Reads: (ports, profile, token) =>
+                        ports.Notifications.ReadGroups(profile, Arrival.CountedAtMost, token),
                     Becomes: (waiting, notice, unread) => new NotificationsScreen(waiting, notice, unread),
                     WhenEmpty: "Nothing is waiting for you.",
                     // Counted apart from the list it is drawn beside: what is unread is what is newer than the read
                     // marker, which the list does not say (ADR-0027). Arriving reads them, so the count moves the
                     // marker too, and hands the screen the rows that were unread for this visit (#397).
                     Counting: (count, shown) => count.Arrived(shown),
-                    Carries: notification => notification.Post),
+                    Carries: group => group.Post),
 
                 // The one destination whose read is two calls: the requests, and where the profile stands with each
                 // person asking — inside this destination's own read, which is what makes a refresh re-ask for free,
@@ -263,6 +271,13 @@ public abstract record Subject
     /// </param>
     public sealed record Account(AccountAddress Address, bool WithReplies) : Subject
     {
+        /// <summary>
+        ///     <paramref name="person" />'s account screen, opened as anybody is opened from a list of people: without
+        ///     their replies, as <c>a</c> opens an author.
+        /// </summary>
+        public static Account Of(Core.Accounts.Account person) =>
+            new(AccountAddress.Parse(person.Address), WithReplies: false);
+
         /// <inheritdoc />
         /// <remarks>
         ///     Four calls under one enquiry, so it is checked once at the end rather than after each: what matters is
@@ -461,6 +476,80 @@ public abstract record Subject
             /// </summary>
             private bool More(FollowsScreen screen) =>
                 StoppedBy is null && People.Count >= Wanted && People.Count < screen.Total;
+        }
+    }
+
+    /// <summary>
+    ///     Every <b>Actor</b> in one notification group, read from the group's own accounts so that it is exactly the
+    ///     group the row counted (#455). Read a page at a time, the way a follow list too long to hold is browsed.
+    /// </summary>
+    /// <remarks>
+    ///     Never held: a group grows as notifications arrive and shrinks as they are dismissed, so what was read a
+    ///     minute ago is not worth handing back. Compared by the group's key alone, which is what the instance names it
+    ///     by however many it held when its row was read.
+    /// </remarks>
+    /// <param name="Group">The group whose actors these are, as the Notifications screen was holding it.</param>
+    public sealed record Actors(NotificationGroup Group) : Subject
+    {
+        /// <inheritdoc />
+        public override bool Pages => true;
+
+        /// <inheritdoc />
+        public bool Equals(Actors? other) => other is not null && other.Group.Key == Group.Key;
+
+        /// <inheritdoc />
+        public override int GetHashCode() => Group.Key.GetHashCode(StringComparison.Ordinal);
+
+        /// <inheritdoc />
+        /// <remarks>On every move, as a follow list's: the reader is looking at the list they opened while it fills.</remarks>
+        internal override Screen? Placeholder(Move move, ActiveProfile profile) => new ActorsScreen(Group);
+
+        /// <inheritdoc />
+        /// <remarks>
+        ///     A page is asked for by re-reading the group to a longer limit, the port taking a count rather than a
+        ///     cursor, so only the tail of what comes back is new — and only that is asked where the reader stands,
+        ///     once for the page, as a follow list asks it.
+        /// </remarks>
+        internal override async Task<Found> Read(
+            Enquiry.Ask ask,
+            ShellPorts ports,
+            ActiveProfile profile,
+            Screen? standing)
+        {
+            var screen = (ActorsScreen)standing!;
+            var already = screen.Read;
+            var wanted = already + ActorsPage;
+
+            var fetch = await ask.Of(token => ports.Notifications.ReadGroupActors(profile, Group.Key, wanted, token));
+            var read = fetch.Items.Skip(already).ToList();
+            var stood = read.Count > 0 ? await ask.Of(token => ports.StoodOrSilent(profile, read, token)) : [];
+
+            return new Filled([.. fetch.Items.Take(already), .. stood], fetch.StoppedBy, wanted);
+        }
+
+        /// <summary>What one read of a group's actors came back with, and how many it asked for.</summary>
+        /// <param name="People">Everyone read so far, whoever is new among them carrying their standing.</param>
+        /// <param name="StoppedBy">The rate limit that cut the read short, or nothing where none did.</param>
+        /// <param name="Wanted">How many were asked for, which is what says whether the instance filled the ask.</param>
+        private sealed record Filled(IReadOnlyList<Person> People, RateLimitedException? StoppedBy, int Wanted)
+            : Found
+        {
+            /// <inheritdoc />
+            /// <remarks>
+            ///     There is more only where the instance filled the ask: a short read is the end of the group, and a
+            ///     rate limit the end of the reading.
+            /// </remarks>
+            public override Screen Becomes(Screen? standing)
+            {
+                var screen = (ActorsScreen)standing!;
+
+                screen.Arrived(
+                    People,
+                    StoppedBy is null && People.Count >= Wanted,
+                    Arrival.Emptiness(People.Count, ActorsScreen.Nobody, of: null, StoppedBy));
+
+                return screen;
+            }
         }
     }
 

@@ -44,10 +44,40 @@ internal static class PagedReading
     ///     What arrived, and the rate limit that stopped the rest if one did. Nothing waits here — ADR-0006 leaves that
     ///     choice to whichever front end is reading.
     /// </returns>
-    public static async Task<Fetch<TItem>> Collect<TWire, TItem>(
+    public static Task<Fetch<TItem>> Collect<TWire, TItem>(
         int limit,
         int pageSize,
         Func<ArrayOptions, Task<MastodonList<TWire>>> readPage,
+        Func<TWire, TItem> asItem,
+        Func<TWire, string>? idOf,
+        CancellationToken cancellationToken,
+        Func<TItem, bool>? stopWhen = null,
+        Action<IReadOnlyList<TItem>>? arrived = null) =>
+        Collect(
+            limit,
+            pageSize,
+            async options =>
+            {
+                var page = await readPage(options);
+
+                return new Page<TWire>(page, page.NextPageMaxId);
+            },
+            asItem,
+            idOf,
+            cancellationToken,
+            stopWhen,
+            arrived);
+
+    /// <inheritdoc cref="Collect{TWire,TItem}(int,int,Func{ArrayOptions,Task{MastodonList{TWire}}},Func{TWire,TItem},Func{TWire,string}?,CancellationToken,Func{TItem,bool}?,Action{IReadOnlyList{TItem}}?)" />
+    /// <summary>
+    ///     The same loop over pages read around Mastonet (<see cref="Http.RawMastodonCall" />), which come with no
+    ///     <see cref="MastodonList{T}" /> to carry the instance's link to the next page — so the reader says where it
+    ///     starts itself, in a <see cref="Page{T}" /> (#453).
+    /// </summary>
+    public static async Task<Fetch<TItem>> Collect<TWire, TItem>(
+        int limit,
+        int pageSize,
+        Func<ArrayOptions, Task<Page<TWire>>> readPage,
         Func<TWire, TItem> asItem,
         Func<TWire, string>? idOf,
         CancellationToken cancellationToken,
@@ -65,11 +95,12 @@ internal static class PagedReading
             cancellationToken.ThrowIfCancellationRequested();
 
             var wanted = Math.Min(pageSize, limit - items.Count);
-            MastodonList<TWire> page;
+            IReadOnlyList<TWire> page;
+            string? named;
 
             try
             {
-                page = await readPage(new ArrayOptions { Limit = wanted, MaxId = nextPage });
+                (page, named) = await readPage(new ArrayOptions { Limit = wanted, MaxId = nextPage });
             }
             catch (RateLimitedException rateLimit)
             {
@@ -101,7 +132,7 @@ internal static class PagedReading
             // page with room to spare mean the end — and there the oldest thing just read is where a further page
             // would start, since a page comes back newest first. A caller that gave no fallback has nothing this
             // endpoint pages by, and takes the missing link header as the end of the list.
-            nextPage = page.NextPageMaxId ?? (page.Count < wanted || idOf is null ? null : idOf(page[^1]));
+            nextPage = named ?? (page.Count < wanted || idOf is null ? null : idOf(page[^1]));
 
             if (nextPage is null)
             {

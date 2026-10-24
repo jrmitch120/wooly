@@ -220,6 +220,20 @@ Something an instance tells an account happened to it: somebody mentioned it, fo
 its posts. This project names those four and passes any other kind on under the instance's own word for it (ADR-0010).
 A notification is distinct from the post it is about — it has an id of its own, which is what dismisses it.
 
+**Notification group**:
+One or more **notifications** the instance counts as one thing that happened — eight favorites of the same post, say —
+with a key of its own that dismisses all of them at once. Which notifications belong together is the instance's call,
+never this client's; a mention is always a group of one. A group is **unread** when anything in it is newer than the
+**Read marker**.
+_Avoid_: group (which is a **Rail group**), bundle, stack
+
+**Actor**:
+The account that did what a **notification** reports — who favorited, boosted, followed or mentioned. Not the author
+of the post it is about: on a favorite the author is the reader, and the actor is somebody else. A **Notification
+group** has one or more actors. A word for building Wooly, not for the screen: the TUI says **who** (`w:who`), and
+the actors screen is crumbed by what they did ("Favorited by").
+_Avoid_: sender, author, notifier
+
 **Read marker**:
 How far an account has read its notifications: the id of the newest one it has read, which the instance keeps and
 every client of that account shares. A notification is **unread** when it is newer than the marker — there is no flag

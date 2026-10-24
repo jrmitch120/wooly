@@ -42,15 +42,24 @@ internal sealed class InboxCount(
     ///     Reads the badge for <paramref name="kind" />, and what the read found waiting there — for the screen in
     ///     front to put at its top whatever of it is new (#400).
     /// </summary>
+    /// <param name="kind">Which destination.</param>
+    /// <param name="withGroups">
+    ///     Whether Notifications' groups are read too, where anything is unread, so that what arrived joins the group it
+    ///     belongs in (#458). Asked for only where the screen that draws them is in front: a count is read on every
+    ///     stream event, and nothing else draws them.
+    /// </param>
     /// <exception cref="ArgumentOutOfRangeException">Not one of the Inbox's three.</exception>
-    public async Task<Waiting> Read(DestinationKind kind)
+    public async Task<Waiting> Read(DestinationKind kind, bool withGroups = false)
     {
         switch (kind)
         {
             case DestinationKind.Notifications:
                 var unread = await Unread();
+                var groups = withGroups && unread.Unread.Count > 0
+                    ? (await ports.Notifications.ReadGroups(profile, Arrival.CountedAtMost, cancellationToken)).Items
+                    : null;
 
-                return new Waiting(unread.Badge, new InboxList.Notifications(unread.Unread));
+                return new Waiting(unread.Badge, new InboxList.Notifications(unread.Unread, groups));
 
             case DestinationKind.Messages:
                 var listed = (await Conversations(ports, profile, cancellationToken)).Items;
@@ -102,28 +111,36 @@ internal sealed class InboxCount(
     ///     Counted from the session marker where the account has no read marker — so arriving draws unread the same
     ///     notifications the badge counted (stories 8 and 11).
     /// </remarks>
-    /// <param name="shown">The notifications the screen is drawing, newest first.</param>
+    /// <param name="shown">The notification groups the screen is drawing, newest first.</param>
     /// <returns>
     ///     The badge — what is still waiting once the marker has moved: anything that arrived between the list read and
     ///     this one, newer than everything shown; or, where the move was not made, what was waiting before it, which is
-    ///     still true — and the notifications that were newer than the old marker, to be drawn unread for this visit.
+    ///     still true — and the keys of the groups with anything newer than the old marker in them, to be drawn unread
+    ///     for this visit. A group's newest notification says that for the whole group (#453).
     /// </returns>
-    public async Task<Tally> Arrived(IReadOnlyList<Notification> shown)
+    public async Task<Tally> Arrived(IReadOnlyList<NotificationGroup> shown)
     {
         var unread = await Unread();
-        var drawn = shown.Select(notification => notification.Id).ToHashSet(StringComparer.Ordinal);
-        var wasUnread = unread.Unread.Select(notification => notification.Id).ToHashSet(StringComparer.Ordinal);
+        var wasUnread = shown.Where(group => unread.Counts(group.NewestId))
+                             .Select(group => group.Key)
+                             .ToHashSet(StringComparer.Ordinal);
 
         // Moved only where it moves past something unread on screen — or sets a marker the account never had. Nothing
         // unread is nothing to ask the instance for, and a marker already past the newest shown would be moved back.
-        var reads = shown.Count > 0 && (!unread.HasMarker || wasUnread.Overlaps(drawn));
+        var reads = shown.Count > 0 && (!unread.HasMarker || wasUnread.Count > 0);
 
-        if (!reads || !await ports.Notifications.MoveMarker(profile, shown[0].Id, cancellationToken))
+        if (!reads || !await ports.Notifications.MoveMarker(profile, shown[0].NewestId, cancellationToken))
         {
             return new Tally(unread.Badge, wasUnread);
         }
 
-        var waiting = unread.Unread.Where(notification => !drawn.Contains(notification.Id)).ToList();
+        // The newest group's newest notification is the newest shown, so what is newer still — and heads no group on
+        // screen — arrived after the read. Anything older is in a group on screen, and read now the marker is past it.
+        var drawn = shown.Select(group => group.NewestId).ToHashSet(StringComparer.Ordinal);
+        var waiting = unread.Unread
+                            .Where(notification => !drawn.Contains(notification.Id)
+                                                   && NotificationIds.Newer(notification.Id, shown[0].NewestId))
+                            .ToList();
 
         return new Tally(
             Of(DestinationKind.Notifications, waiting.Count, waiting.FirstOrDefault()?.Id),
@@ -154,7 +171,7 @@ internal sealed class InboxCount(
 
         if (unread.HasMarker)
         {
-            return UnreadRead.Of(unread.Since.Items, hasMarker: true);
+            return UnreadRead.Of(unread.Since.Items, hasMarker: true, from: unread.Marker);
         }
 
         if (sessionMarkers.For(profile) is { } marker)
@@ -163,7 +180,7 @@ internal sealed class InboxCount(
                 ? await ports.Notifications.ReadNewer(profile, after, past, cancellationToken)
                 : await ports.Notifications.Read(profile, past, cancellationToken);
 
-            return UnreadRead.Of(since.Items, hasMarker: false);
+            return UnreadRead.Of(since.Items, hasMarker: false, from: marker.After);
         }
 
         var newest = await ports.Notifications.Read(profile, 1, cancellationToken);
@@ -172,7 +189,7 @@ internal sealed class InboxCount(
             profile,
             newest.Items is [var first, ..] ? new SessionMarker(first.Id) : SessionMarker.FromTheBeginning);
 
-        return UnreadRead.Of([], hasMarker: false);
+        return UnreadRead.Nothing;
     }
 
     /// <summary>
@@ -206,8 +223,27 @@ internal sealed class InboxCount(
     /// <param name="Unread">What is unread, newest first, up to what is counted.</param>
     /// <param name="HasMarker">Whether the account has a read marker of its own.</param>
     /// <param name="More">Whether more is unread past <paramref name="Unread" />, which no screen has been handed.</param>
-    private sealed record UnreadRead(IReadOnlyList<Notification> Unread, bool HasMarker, bool More)
+    /// <param name="From">
+    ///     The id it was counted from — the read marker, or the session marker — or <see langword="null" /> where every
+    ///     notification counts, an account that had none when the session started.
+    /// </param>
+    /// <param name="Counting">Whether anything counts at all: not on the first read, which only starts the count.</param>
+    private sealed record UnreadRead(
+        IReadOnlyList<Notification> Unread,
+        bool HasMarker,
+        bool More,
+        string? From,
+        bool Counting)
     {
+        /// <summary>What the first read of an account with no marker counts unread: nothing.</summary>
+        public static UnreadRead Nothing { get; } = new([], HasMarker: false, More: false, From: null, Counting: false);
+
+        /// <summary>
+        ///     Whether the notification <paramref name="id" /> names is unread by this count — newer than where it was
+        ///     counted from, however far past what <see cref="Unread" /> holds.
+        /// </summary>
+        public bool Counts(string id) => Counting && (From is null || NotificationIds.Newer(id, From));
+
         /// <summary>
         ///     The badge: how many, full only where more are unread past them — a read of exactly as many as are
         ///     counted holds them all, and says that many.
@@ -216,8 +252,8 @@ internal sealed class InboxCount(
             new(DestinationKind.Notifications, Unread.Count, Full: More, Newest: Unread.FirstOrDefault()?.Id);
 
         /// <summary>What a read of one more than is counted came back with.</summary>
-        public static UnreadRead Of(IReadOnlyList<Notification> read, bool hasMarker) =>
-            new([.. read.Take(Arrival.CountedAtMost)], hasMarker, read.Count > Arrival.CountedAtMost);
+        public static UnreadRead Of(IReadOnlyList<Notification> read, bool hasMarker, string? from) =>
+            new([.. read.Take(Arrival.CountedAtMost)], hasMarker, read.Count > Arrival.CountedAtMost, from, true);
     }
 
     /// <summary>What is waiting at an Inbox destination, as a re-read of its count found it.</summary>
@@ -228,9 +264,10 @@ internal sealed class InboxCount(
     /// <summary>What arriving at an Inbox destination counted: its badge, and which of its rows to draw unread.</summary>
     /// <param name="Badge">What the rail's badge says.</param>
     /// <param name="Unread">
-    ///     The ids of the rows to draw unread for this visit, or <see langword="null" /> for none. Only Notifications
-    ///     has any: arriving there moves the read marker past them, so the badge no longer says which were new, and
-    ///     the screen does instead. A conversation carries its own unread flag, and a request waits until answered.
+    ///     What names the rows to draw unread for this visit — a notification group's key — or
+    ///     <see langword="null" /> for none. Only Notifications has any: arriving there moves the read marker past
+    ///     them, so the badge no longer says which were new, and the screen does instead. A conversation carries its
+    ///     own unread flag, and a request waits until answered.
     /// </param>
     public sealed record Tally(Found.Badge Badge, IReadOnlySet<string>? Unread = null)
     {

@@ -1,7 +1,12 @@
+using System.Collections.Concurrent;
+using System.Net;
+using System.Net.Http.Json;
+using Wooly.Core.Accounts;
 using Wooly.Core.Errors;
 using Wooly.Core.Http;
 using Wooly.Core.Paging;
 using Wooly.Core.Profiles;
+using WireAccount = Mastonet.Entities.Account;
 
 namespace Wooly.Core.Notifications;
 
@@ -44,6 +49,152 @@ public sealed class NotificationInbox(IMastodonClientFactory clientFactory, IHtt
             notification => notification.Id,
             cancellationToken);
     }
+
+    /// <summary>
+    ///     How many groups to ask <c>/api/v2/notifications</c> for at once: its documented default, which every instance
+    ///     serves. The read goes on by the instance's <c>next</c> link, not by whether a page came back full (#449).
+    /// </summary>
+    private const int GroupPageSize = 40;
+
+    /// <summary>
+    ///     The profiles whose instance has no grouped read, learned from the first read that found none — so that every
+    ///     later read this session goes straight to <c>/api/v1</c> rather than asking again (ADR-0032).
+    /// </summary>
+    private readonly ConcurrentDictionary<string, bool> _ungrouped = new(StringComparer.Ordinal);
+
+    /// <summary>What <see cref="_ungrouped" /> knows a profile by.</summary>
+    private static string Known(ActiveProfile profile) => $"{profile.Name}@{profile.Instance}";
+
+    /// <inheritdoc />
+    /// <remarks>
+    ///     Raw, because Mastonet 3.1.3 knows only <c>/api/v1</c> notifications, and sent without <c>grouped_types</c>:
+    ///     which kinds group is the instance's call (ADR-0032). An instance that answers the first page with a 404 is
+    ///     older than Mastodon 4.3, and is read through <c>/api/v1</c> instead, each notification a group of one.
+    /// </remarks>
+    public async Task<Fetch<NotificationGroup>> ReadGroups(
+        ActiveProfile profile,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        var known = Known(profile);
+
+        if (!_ungrouped.ContainsKey(known))
+        {
+            try
+            {
+                return await PagedReading.Collect(
+                    limit,
+                    GroupPageSize,
+                    options => GroupedPage(profile, options, cancellationToken),
+                    group => group,
+                    idOf: null,
+                    cancellationToken);
+            }
+            catch (NoGroupedRead)
+            {
+                _ungrouped[known] = true;
+            }
+        }
+
+        var client = clientFactory.CreateClient(profile.Instance, profile.AccessToken);
+
+        return await PagedReading.Collect(
+            limit,
+            PageSize,
+            options => client.GetNotifications(options),
+            notification => NotificationGroup.Alone(NotificationWire.ToNotification(notification, profile)),
+            notification => notification.Id,
+            cancellationToken);
+    }
+
+    /// <summary>One page of groups, and where the instance says the next one starts.</summary>
+    /// <exception cref="NoGroupedRead">The instance has no grouped read at all.</exception>
+    private Task<Page<NotificationGroup>> GroupedPage(
+        ActiveProfile profile,
+        Mastonet.ArrayOptions options,
+        CancellationToken cancellationToken) =>
+        RawPage<GroupedNotificationsWire, NotificationGroup>(
+            profile,
+            "api/v2/notifications",
+            options,
+            answer => answer.ToGroups(profile),
+            cancellationToken,
+            whenFirstPageMissing: () => new NoGroupedRead());
+
+    /// <summary>
+    ///     One page of a raw <c>GET</c> of <paramref name="path" />, a list Mastonet does not know, and where the
+    ///     instance's <c>next</c> link says the next page starts — the one way on for a list paged by ids that are not
+    ///     its items' own. Said once for every raw list read here.
+    /// </summary>
+    /// <param name="path">The list's path, without its query.</param>
+    /// <param name="options">How many to ask for, and from where.</param>
+    /// <param name="items">What the answer's body holds, as this project's own.</param>
+    /// <param name="whenFirstPageMissing">
+    ///     What a 404 on the first page is thrown as, where it says more than that the read failed; otherwise it fails
+    ///     as any other answer that is not a success.
+    /// </param>
+    private async Task<Page<TItem>> RawPage<TWire, TItem>(
+        ActiveProfile profile,
+        string path,
+        Mastonet.ArrayOptions options,
+        Func<TWire, IReadOnlyList<TItem>> items,
+        CancellationToken cancellationToken,
+        Func<Exception>? whenFirstPageMissing = null)
+        where TWire : new()
+    {
+        var query = options.MaxId is { } maxId
+            ? $"{path}?limit={options.Limit}&max_id={Uri.EscapeDataString(maxId)}"
+            : $"{path}?limit={options.Limit}";
+
+        using var response = await RawMastodonCall.Sent(
+            httpClientFactory,
+            profile,
+            HttpMethod.Get,
+            query,
+            content: null,
+            cancellationToken);
+
+        if (response.StatusCode == HttpStatusCode.NotFound && options.MaxId is null && whenFirstPageMissing is { } missing)
+        {
+            throw missing();
+        }
+
+        response.EnsureSuccessStatusCode();
+
+        var answer = await response.Content.ReadFromJsonAsync<TWire>(cancellationToken) ?? new TWire();
+
+        return new Page<TItem>(items(answer), LinkHeader.NextMaxId(response));
+    }
+
+    /// <summary>
+    ///     How many of a group's actors to ask for at once: the most Mastodon serves from a list of accounts. The read
+    ///     goes on by the instance's <c>next</c> link, not by whether a page came back full (#449).
+    /// </summary>
+    private const int ActorPageSize = 80;
+
+    /// <inheritdoc />
+    /// <remarks>
+    ///     Raw, as the grouped read is: <c>GET /api/v2/notifications/:group_key/accounts</c>, which Mastonet 3.1.3 does
+    ///     not know. It pages by notification ids, which are not the accounts' own, so nothing read here can stand in
+    ///     for the cursor: the instance's link is the only way on, and a page with none is the last.
+    /// </remarks>
+    public Task<Fetch<Account>> ReadGroupActors(
+        ActiveProfile profile,
+        string groupKey,
+        int limit,
+        CancellationToken cancellationToken) =>
+        PagedReading.Collect(
+            limit,
+            ActorPageSize,
+            options => RawPage<List<WireAccount>, WireAccount>(
+                profile,
+                $"api/v2/notifications/{Uri.EscapeDataString(groupKey)}/accounts",
+                options,
+                accounts => accounts,
+                cancellationToken),
+            account => AccountWire.ToAccount(account, profile.Instance),
+            idOf: null,
+            cancellationToken);
 
     /// <inheritdoc />
     /// <remarks>
@@ -143,6 +294,36 @@ public sealed class NotificationInbox(IMastodonClientFactory clientFactory, IHtt
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    ///     Raw, as the grouped read is: Mastonet 3.1.3 has no <c>/api/v2</c> dismiss. Which call goes is decided by what
+    ///     the grouped read already learned of the instance, so an instance too old to group is never asked for a group.
+    /// </remarks>
+    public async Task DismissGroup(
+        ActiveProfile profile,
+        NotificationGroup group,
+        CancellationToken cancellationToken)
+    {
+        if (_ungrouped.ContainsKey(Known(profile)))
+        {
+            await Dismiss(profile, group.NewestId, cancellationToken);
+
+            return;
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var response = await RawMastodonCall.Sent(
+            httpClientFactory,
+            profile,
+            HttpMethod.Post,
+            $"api/v2/notifications/{Uri.EscapeDataString(group.Key)}/dismiss",
+            content: null,
+            cancellationToken);
+
+        response.EnsureSuccessStatusCode();
+    }
+
+    /// <inheritdoc />
     public async Task Clear(ActiveProfile profile, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -151,4 +332,7 @@ public sealed class NotificationInbox(IMastodonClientFactory clientFactory, IHtt
 
         await client.ClearNotifications();
     }
+
+    /// <summary>An instance answering the grouped read with a 404, which is one too old to have it.</summary>
+    private sealed class NoGroupedRead : Exception;
 }

@@ -130,7 +130,9 @@ public sealed class Picked<T>(IReadOnlyList<T> things) : IPicked
     ///     index: something put in above what the reader is on is no reason for them to be on something else. Where
     ///     the thing picked is itself one that changed — a conversation spoken in again while the reader is on it — it
     ///     is brought up to date where it stands rather than moved to the top: the row the reader is on does not jump
-    ///     out from under them (story 24 of #395), and it goes up with the rest the next time the list is read.
+    ///     out from under them (story 24 of #395), and it goes up with the rest the next time the list is read. A
+    ///     screen whose list must read newest first whatever is picked says <paramref name="pickRises" />, and the
+    ///     thing picked is moved up like the rest, the pick going with it.
     /// </remarks>
     /// <param name="found">What a re-read found, newest first.</param>
     /// <param name="id">What tells one thing from another.</param>
@@ -138,8 +140,16 @@ public sealed class Picked<T>(IReadOnlyList<T> things) : IPicked
     ///     Whether the thing as found differs from the thing as held, given the two; where not said, nothing held
     ///     has changed.
     /// </param>
+    /// <param name="pickRises">
+    ///     Whether the thing picked, where it changed, is moved up with the rest rather than brought up to date where
+    ///     it stands.
+    /// </param>
     /// <returns>What was new: put on top, or brought up to date where it was picked.</returns>
-    public IReadOnlyList<T> TakeIn(IReadOnlyList<T> found, Func<T, string> id, Func<T, T, bool>? changed = null)
+    public IReadOnlyList<T> TakeIn(
+        IReadOnlyList<T> found,
+        Func<T, string> id,
+        Func<T, T, bool>? changed = null,
+        bool pickRises = false)
     {
         var held = _things.ToDictionary(id, StringComparer.Ordinal);
         var fresh = found
@@ -153,12 +163,12 @@ public sealed class Picked<T>(IReadOnlyList<T> things) : IPicked
 
         var pickedId = Out is { } picked ? id(picked) : null;
 
-        if (fresh.Find(thing => id(thing) == pickedId) is { } pickedNow)
+        if (!pickRises && fresh.Find(thing => id(thing) == pickedId) is { } pickedNow)
         {
             _things[At] = pickedNow;
         }
 
-        var raised = fresh.Where(thing => id(thing) != pickedId).ToList();
+        var raised = fresh.Where(thing => pickRises || id(thing) != pickedId).ToList();
         var raisedIds = raised.Select(id).ToHashSet(StringComparer.Ordinal);
 
         _things.RemoveAll(thing => raisedIds.Contains(id(thing)));

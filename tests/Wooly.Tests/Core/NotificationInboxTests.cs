@@ -36,9 +36,26 @@ public class NotificationInboxTests
 
         var notification = Assert.Single(fetch.Items);
         Assert.Equal("34", notification.Id);
-        Assert.Equal("alice@hachyderm.io", notification.Account);
-        Assert.Equal("Alice", notification.Author);
+        Assert.Equal("alice@hachyderm.io", notification.Actor.Address);
+        Assert.Equal("Alice", notification.Actor.Author);
         Assert.Equal(new DateTimeOffset(2026, 7, 29, 12, 4, 0, TimeSpan.Zero), notification.ReceivedAt);
+    }
+
+    /// <summary>
+    ///     The actor is kept as an account rather than an address and a name (GLOSSARY.md): its id is what opens it
+    ///     without a search, and its avatar is what a notification group draws its faces from (#451).
+    /// </summary>
+    [Fact]
+    public async Task Read_KeepsTheActorsIdAndAvatar()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(Page(NotificationJson("34", type: "favourite"))));
+
+        var fetch = await NewInbox(network).Read(Profile, 20, TestContext.Current.CancellationToken);
+
+        var actor = Assert.Single(fetch.Items).Actor;
+        Assert.Equal("2", actor.Id);
+        Assert.Equal("https://hachyderm.io/avatars/alice.png", actor.AvatarUrl);
     }
 
     /// <summary>
@@ -154,7 +171,7 @@ public class NotificationInboxTests
 
         Assert.Equal(
             ["alice@hachyderm.io", "bob@mastodon.social"],
-            fetch.Items.Select(notification => notification.Account));
+            fetch.Items.Select(notification => notification.Actor.Address));
     }
 
     [Fact]
@@ -520,7 +537,8 @@ public class NotificationInboxTests
               "id": "2",
               "username": "{{account.Split('@')[0]}}",
               "acct": "{{account}}",
-              "display_name": "{{char.ToUpperInvariant(account[0]) + account.Split('@')[0][1..]}}"
+              "display_name": "{{char.ToUpperInvariant(account[0]) + account.Split('@')[0][1..]}}",
+              "avatar": "https://hachyderm.io/avatars/{{account.Split('@')[0]}}.png"
             },
             "status": {{post ?? (type == "follow" || type == "follow_request" ? "null" : PostJson("110"))}}
           }

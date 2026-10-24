@@ -38,6 +38,8 @@ public class ScreenKeyTests
         "search-nothing",
         "follows",
         "follows-empty",
+        "actors",
+        "actors-empty",
         "discover",
         "discover-empty",
         "messages",
@@ -185,11 +187,12 @@ public class ScreenKeyTests
     private static readonly (string Empty, string Filled, string[] Keys)[] CanBeEmpty =
     [
         ("feed-empty", "feed", []),
-        ("inbox-empty", "notifications-follow", ["d:dismiss", "D:clear all"]),
+        ("inbox-empty", "notifications-follow", ["w:who", "d:dismiss", "D:clear all"]),
         ("messages-empty", "messages", ["⏎:open", "m:mark read"]),
         ("requests-empty", "requests", ["⏎:read them", "a:accept", "x:reject"]),
         ("search-nothing", "search-account", ["⏎:open"]),
         ("follows-empty", "follows", ["⏎:open"]),
+        ("actors-empty", "actors", ["⏎:open"]),
         ("discover-empty", "discover", ["⏎:open", "F:follow", "d:dismiss"]),
         ("profiles-empty", "profiles", ["D:make default", "R:sign in again", "x:remove"]),
         ("media-empty", "media", ["⏎:describe", "s:sensitive"]),
@@ -317,10 +320,10 @@ public class ScreenKeyTests
                 return new NotificationsScreen([], "Nothing waiting.");
 
             case "notifications-follow":
-                return new NotificationsScreen([ANotification.Follow()]);
+                return new NotificationsScreen([ANotification.Alone(ANotification.Follow())]);
 
             case "notifications-mention":
-                return new NotificationsScreen([ANotification.With(post: post)]);
+                return new NotificationsScreen([ANotification.Alone(ANotification.With(post: post))]);
 
             case "account-header":
                 return new AccountScreen(AnAccount.With(), [post], pinned: []);
@@ -356,6 +359,12 @@ public class ScreenKeyTests
 
             case "follows-empty":
                 return Follows();
+
+            case "actors":
+                return Actors(AnAccount.With());
+
+            case "actors-empty":
+                return Actors();
 
             case "discover":
                 return new DiscoverScreen([ASuggestion.With()]);
@@ -429,6 +438,16 @@ public class ScreenKeyTests
             default:
                 throw new ArgumentOutOfRangeException(nameof(state), state, "No screen by that name.");
         }
+    }
+
+    /// <summary>The actors of a group of favorites, holding <paramref name="people" /> — which is what <c>a</c> opens onto.</summary>
+    private static ActorsScreen Actors(params Account[] people)
+    {
+        var screen = new ActorsScreen(ANotification.Group(count: 2, actors: ["Alice", "Bob"]));
+
+        screen.Arrived(people, more: false);
+
+        return screen;
     }
 
     /// <summary>Maria's following list, holding <paramref name="people" /> — which is what <c>w</c> opens onto.</summary>

@@ -257,6 +257,18 @@ public enum Verb
     /// <summary><c>D</c>: ask before emptying the inbox.</summary>
     ClearAll,
 
+    /// <summary>
+    ///     <c>w</c> on the notifications screen: the account of the picked notification's actor, which is not the post's
+    ///     author on a favorite or a boost (GLOSSARY.md, #451).
+    /// </summary>
+    OpenActor,
+
+    /// <summary>
+    ///     A click on a face in a notification group's avatar strip: that one actor's account, whoever else the group
+    ///     holds (#456). Only ever a click — no key stands for one face of several.
+    /// </summary>
+    OpenFace,
+
     /// <summary><c>a</c> on the follow requests screen: let the picked asker in.</summary>
     AcceptRequest,
 

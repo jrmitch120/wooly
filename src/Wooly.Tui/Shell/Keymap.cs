@@ -165,12 +165,17 @@ public static class Keymap
         (ShellKey.Enter, FollowRequestsScreen) => Verb.OpenAsker,
         (ShellKey.Enter, FollowsScreen follows) => follows.IsTyping ? Verb.FilterDone : Verb.OpenPerson,
         (ShellKey.Enter, DiscoverScreen) => Verb.OpenPerson,
+        (ShellKey.Enter, ActorsScreen) => Verb.OpenPerson,
         (ShellKey.Enter, DirectMessagesScreen) => Verb.OpenConversation,
         (ShellKey.A, FollowRequestsScreen) => Verb.AcceptRequest,
 
         // And a on the profiles screen, where there is no post to have an author: it adds a profile (#245).
         (ShellKey.A, ProfilesScreen) => Verb.AddProfile,
         (ShellKey.D, NotificationsScreen) => Verb.Dismiss,
+
+        // And w on the notifications screen: who did what the row reports — on a favorite or a boost the post's author
+        // is the reader, so a keeps meaning the author and who did it gets a letter of its own (#451).
+        (ShellKey.W, NotificationsScreen) => Verb.OpenActor,
 
         // And the sixth, which Discover added: d dismisses a notification, deletes a post, and here tells the
         // instance to stop suggesting somebody — three things by one letter, which the status row is what makes

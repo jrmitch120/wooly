@@ -22,8 +22,8 @@ internal static class NotificationJson
         // something to a script rather than leaving a hole where the unfamiliar ones were.
         notification.Kind.Name,
         notification.ReceivedAt,
-        notification.Account,
-        notification.Author,
+        notification.Actor.Address,
+        notification.Actor.Author,
         notification.Post is null ? null : PostDocument.Of(notification.Post));
 
     /// <param name="Kind">

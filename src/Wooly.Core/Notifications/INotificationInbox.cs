@@ -29,6 +29,36 @@ public interface INotificationInbox
     Task<Fetch<Notification>> Read(ActiveProfile profile, int limit, CancellationToken cancellationToken);
 
     /// <summary>
+    ///     Reads up to <paramref name="limit" /> <b>Notification groups</b>, newest first, grouped as the instance groups
+    ///     them — or, on an instance too old to group, every notification a group of one (ADR-0032).
+    /// </summary>
+    /// <param name="profile">The profile to read as.</param>
+    /// <param name="limit">
+    ///     How many groups are wanted. More than one page's worth is fetched by following the instance's link to the
+    ///     next page, which the caller never sees (ADR-0007).
+    /// </param>
+    /// <returns>The groups, and whether a rate limit stopped the read part way, as <see cref="Read" /> reports it.</returns>
+    Task<Fetch<NotificationGroup>> ReadGroups(ActiveProfile profile, int limit, CancellationToken cancellationToken);
+
+    /// <summary>
+    ///     Reads up to <paramref name="limit" /> of the <b>Actors</b> of the notification group <paramref name="groupKey" />
+    ///     names, newest first, from the group's own accounts: exactly the group the instance counted, and not everyone
+    ///     who has ever done the same to its post (#455).
+    /// </summary>
+    /// <param name="profile">The profile to read as.</param>
+    /// <param name="groupKey">The group's key, as <see cref="ReadGroups" /> handed it over.</param>
+    /// <param name="limit">
+    ///     How many actors are wanted. More than one page's worth is fetched by following the instance's link to the
+    ///     next page, which the caller never sees (ADR-0007).
+    /// </param>
+    /// <returns>The actors, and whether a rate limit stopped the read part way, as <see cref="Read" /> reports it.</returns>
+    Task<Fetch<Accounts.Account>> ReadGroupActors(
+        ActiveProfile profile,
+        string groupKey,
+        int limit,
+        CancellationToken cancellationToken);
+
+    /// <summary>
     ///     Reads up to <paramref name="limit" /> of the notifications newer than the account's read marker, newest
     ///     first — every kind, as <see cref="Read" /> reads them (ADR-0010) — or learns that the account has no marker,
     ///     and so nothing unread (ADR-0027).
@@ -73,6 +103,13 @@ public interface INotificationInbox
     ///     The notification's own id, as a read reports it — not the id of the post it is about.
     /// </param>
     Task Dismiss(ActiveProfile profile, string notificationId, CancellationToken cancellationToken);
+
+    /// <summary>
+    ///     Clears every notification in <paramref name="group" />, in one call, by the group's key — or, on an instance
+    ///     too old to group, where every group is a single notification, that notification by its own id (ADR-0032).
+    /// </summary>
+    /// <param name="group">The group as <see cref="ReadGroups" /> handed it over.</param>
+    Task DismissGroup(ActiveProfile profile, NotificationGroup group, CancellationToken cancellationToken);
 
     /// <summary>Clears every notification this profile has, in one call.</summary>
     /// <remarks>

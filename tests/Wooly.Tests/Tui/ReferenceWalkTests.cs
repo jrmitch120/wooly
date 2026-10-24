@@ -387,7 +387,7 @@ public class ReferenceWalkTests
                 return search;
 
             case "notifications":
-                return new NotificationsScreen([ANotification.With(post: post)]);
+                return new NotificationsScreen([ANotification.Alone(ANotification.With(post: post))]);
 
             case "messages":
                 return new DirectMessagesScreen([AConversation.With(latest: post)]);

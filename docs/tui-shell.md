@@ -207,6 +207,7 @@ A screen is a place in the stack, not a window. Entering one pushes, `esc` pops,
 | Post — the post whole, its ancestor chain above and its replies below | `⏎` on a feed item, or on its address typed into search | #28, ancestors #72, direct #306 |
 | Account — who they are, what they are to you, their pinned posts and their posts, or their posts and replies | `a` on a feed item or inside a post, `⏎` on a handle or profile address typed into search, `s` to swap runs | shell #28, tie actions #29, the person #164, pinned #172, replies #229, direct #306 |
 | Follows — everyone an account follows, or everyone who follows it | `w` on an account, `s` to swap sides | #165 |
+| Actors — everyone in one notification group, crumbed by its kind: `Favorited by`, `Boosted by`, `Followed you`, or the instance's own word | `w` on a notification group of several | #455 |
 | Discover — who to follow, in sections by why | A rail destination | #171 |
 | Search — prompt and results | A rail destination, or `/` | #29, moving between kinds #166 |
 | Notifications | A rail destination | #29 |
@@ -269,9 +270,10 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Account | `F` follow/unfollow · `M` mute/unmute · `B` block/unblock — capitals, so a lower-case mark key can never fire a tie by accident, and on nobody's account but the own one, which cannot have a tie with itself and draws no standing, nobody in common and no note · `w` follows, which is everyone they follow with `s` a keypress from everyone who follows them · `s` posts and replies, or back to posts alone, in place · `[`/`]` section, on an account carrying a pinned run · `E` edit public profile, on the own account only — **You**, or yours reached any other way — and off the status row and answered nowhere else, as `p`/`e`/`d` are on somebody else's post; it reads the public profile as written first, and a read that fails opens nothing and says why (#406) |
 | Edit public profile | `↑`/`↓` walk the fields top to bottom — display name, Avatar, Header, the custom fields, Locked, Bot, Discoverable, then the bio at the foot — stopping at either end rather than coming round; a custom field's label and value sit side by side, so `↑`/`↓` keep to the column down the rows, coming in on the labels, and `→` off the end of a label crosses to its value with the caret at the start, `←` off the start of a value back to its label; `←`/`→` move nothing else, being the caret's in a field and nobody's on a picture or toggle; in the bio `↑` walks only off its first line and `↓` only off its last, the caret having them between, and `⏎` in a one-line field walks on to the next in reading order, a label to its value; nothing is marked with a bar — a field walked to has the caret, and a picture or toggle, having none, has its value lit in `selected-text`, as compose's Media and To are · `space` or `⏎` flips the toggle walked to · on **Avatar** or **Header** `⏎` opens the file browser for one picture, crumbed `Choose avatar` or `Choose header`, and `ctrl-v` or `alt-v` pastes a picture from the clipboard — or the first copied file that is a picture — into it, saying on the status row where the clipboard holds neither, or where this machine has nothing to read the clipboard with — every press, there being no text to paste instead, where compose says the missing tool once a session; the status row offers `⏎ choose file` and `ctrl-v/alt-v paste` there, and other letters are nobody's. A picture picked is drawn in place of the current one with its file name and `sent on save` beside it, and goes up only in the save (ADR-0028) — a touch, like any other edit; on a terminal that draws, each row is two rows tall with the picture in a box (the avatar four columns wide, the header twelve, each filled by its picture, cropped from the middle — #438) and the words after the header's box width, and where nothing is drawn it is one line, `Avatar  change…`, `Avatar  none · choose…` or `Avatar  cat.png · sent on save` (#407) — `change…` and `choose…` saying what `⏎` does, the picture saying what is there · `ctrl-s` save, sending only what differs from what was read (ADR-0028): the custom fields as a set, an emptied row left out, which removes its field; with nothing changed it sends nothing and says so · `esc` leave — asking `Discard these changes? y / n` first where anything differs from how it opened, as every way out does, and only `y` goes (#373) · `tab`/`shift-tab` are the frame's, never a walk of the form's fields. On a terminal too short for the whole form the field walked to is always on screen: the form moves up or down only when the walk leaves what is shown, and only as far as brings it back. A save takes the form off and reads the account under it again, saying "Public profile saved." — the own account further down the stack shows it as saved, a list held a moment ago with the own account or a post it wrote or boosted on it is read again when next reached, and a new avatar or header is drawn rather than the old one; a refusal keeps the form and every edit in it, with the instance's own words on the status row until an edit spends them (#406). While the list of people to mention is open in the bio: `↑`/`↓` pick · `tab`/`⏎` insert · `esc` close the list, never the form (#408) |
 | Follows — following or followers | `f` filter, on a list under the threshold · `s` swap to the other side, in place · `⏎` open that account |
+| Actors | `⏎` open that account |
 | Search results | `[`/`]` section, where two or more kinds found something |
 | Discover | `F` follow/unfollow · `d` dismiss, one-way · `[`/`]` section |
-| Notifications | `d` dismiss one · `D` clear all |
+| Notifications | `w` open who did it — whoever favorited, boosted, followed or mentioned (#451), `a` staying the post's author as on every feed (#448); on a group of several, the actors screen listing every one of them, read from the group's own accounts a page at a time (#455) · `d` dismiss the group, every notification in it (#457) · `D` clear all |
 | Follow requests | `a` accept · `x` reject |
 | Direct messages | `⏎` open the conversation · `m` mark read — `m` again inside the thread, where a reader who has just read it is most likely to press it |
 | Conversation | `m` mark read, and every key that acts on a post, since each message in it is one |
@@ -281,7 +283,7 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Choose avatar / Choose header | the Attach browser's keys, but it lists only pictures, `ctrl-a` shows no other files, one file may be chosen, and `⏎` takes the file chosen, else the one under the cursor, back to the form's row as its picture (#407) · `esc` back to the form unchanged |
 | Attach | type to filter, fuzzily (#376) · `space` choose the file under the cursor, or let it go — up to what the post has room for · `⏎` attach what is chosen, wherever the cursor is, else the file under the cursor, else open the folder under it · `→` open a folder · `←` up a folder · `↑`/`↓` walk the list · `ctrl-a` every file, and again only the accepted types · `backspace`/`delete` only ever the filter, stopping at empty · `esc` clear the filter, then back to the draft unchanged |
 | Media (the attachments screen) | `↑`/`↓` walk the rows · `⏎` describe the row · `del`/`backspace` take it off · `ctrl-z` bring back the last one taken off · `shift-↑`/`shift-↓` move it · `r` retry it where a retry can help · `s` the sensitive toggle · `ctrl-o` the file browser, attaching onto the compose under it · `ctrl-v`/`alt-v` attach from the clipboard onto it · `esc` back to the draft (story 58) |
-| Home, local, federated, hashtag, Discover, Notifications, Messages, Requests, Post, Account, Follows | `g` refresh — evicts the destination's cache entry (where one exists) and re-runs the same fetch its own arrival runs |
+| Home, local, federated, hashtag, Discover, Notifications, Messages, Requests, Post, Account, Follows, Actors | `g` refresh — evicts the destination's cache entry (where one exists) and re-runs the same fetch its own arrival runs |
 
 ### What the four screens settled
 
@@ -308,7 +310,7 @@ not answer them differently:
   the same one the shell's refusals ask — so a screen still knows about no instance.
 - **And a screen's own keys come off an empty row the same way** (#195, amending #193's answer above, which had put
   them outside the rule as idle for their own reasons). A key that acts on one of the things a screen
-  walks needs one of them to be there, and no widening of `PostKeys` reaches these: `d` and `D` on an inbox with
+  walks needs one of them to be there, and no widening of `PostKeys` reaches these: `w`, `d` and `D` on an inbox with
   nothing waiting, `⏎` and `m` with nobody writing, `⏎`, `a` and `x` with nobody asking, `⏎` on a search that found
   nothing. Each key says so where it is declared (`KeyHint.NeedsAPick`) and `Screen.Keys` drops them while the walk is
   empty, so this too is inherited rather than remembered. What stays is `j`/`k` and `↓`/`↑` — an empty screen shows its
@@ -317,9 +319,28 @@ not answer them differently:
   being to fill the screen. Empty means *a list with nothing on it*: a compose editor, the keymap and a notice walk
   nothing at all and are untouched, and the search prompt drops its arrows while it is taking letters for that reason
   rather than this one.
-- **A notification is not the post it is about.** `d` dismisses by the notification's own id; every other key on the
-  row acts on the post it carries, so a mention can be answered without leaving the inbox. A follow carries no post,
-  and picking one leaves those keys with nothing to act on rather than guessing — which is why they are off its row.
+- **A notification is not the post it is about.** `d` dismisses by the group's own key (#457), or on an instance too old
+  to group by the notification's own id; every other key on the row acts on the post it carries, so a mention can be
+  answered without leaving the inbox. A follow carries no post, and picking one leaves those keys with nothing to act
+  on rather than guessing — which is why they are off its row.
+- **Notifications are drawn as the instance groups them** (ADR-0032, #453). Each row is a **Notification group**, read
+  from `GET /api/v2/notifications` with no `grouped_types`, or one notification a group where the instance has no
+  grouped read. Its names line names two actors and counts the rest by the instance's count (`Alice, Bob and 6 others
+  ★ favorited your post`), with the kind's icon and sentence in the kind's colour and the unread mark and newest age at
+  the right; above a post drawn whole by its actor — a mention — the line is the kind alone (`@ mentioned you`) and
+  the post's byline is left as on every feed. A group is `unread` when its newest notification is past the marker.
+  Rows are never merged by post: two groups about one post are two rows.
+- **A group's actors stand in an avatar strip under its names line** (#454, layout A7b of #450): their faces at a
+  byline's 4×2, in the instance's order, indented two columns with two between faces, as many as the width has room for
+  up to the sample sent, then a muted `+N` on the top row counting the rest of the group. Face `n` starts `6n` columns
+  in whatever the group holds, and five columns are always held for the `+N` — exact up to `+9999`, then `+12k`,
+  `+3M`, `+2G`, rounded down — so nothing moves as a group grows. Where the terminal draws no pictures the strip takes
+  no rows, and a post drawn whole by its actor has none — its byline has the face.
+- **The mouse reaches every actor the keyboard does** (#456, `NotificationsScreen.Clicked`). A click on a face in the
+  strip, either of its two rows, opens that actor's account; a click on the names or the kind's sentence of a names line
+  is `w` — the actors screen on a group of several, the actor on a group of one. A click anywhere else on a group (the
+  gaps, the `+N`, the age, the post) picks it and nothing more, and a double click there is `⏎`, opening the post. A
+  double click on a face or the names is that click once, never also `⏎`.
 - **`D` asks first.** Emptying the inbox takes away a list nobody has necessarily read and nothing brings it back, so
   it is confirmed on the same terms `post delete` is — the same confirmation, saying `clear` rather than `delete`.
 - **A count and the list under it are one fact.** Arriving at a destination sets its badge from the same answer the
@@ -369,7 +390,12 @@ not answer them differently:
   in `[preferences]` turns it off, and the badges still move.
 - **What a re-read finds lands at the top of the Inbox screen in front** (#400). Every re-read of a count — a poll, a
   stream event — hands what it read to the screen on top of the stack (`Screen.PutOnTop`), and only while the rail is
-  showing that destination: new notifications go on top drawn `unread`, and the read marker is moved past them so the
+  showing that destination: new notifications join their **Notification group** — the re-read reads the first page of
+  groups too, only while Notifications is in front with no list read in flight and something is unread — so a group
+  already on screen takes the re-read's count, actors and age and moves up rather than being drawn twice, and a group
+  not on screen is put on top (#458) — a re-read begun before Notifications came in front read no groups, and puts
+  nothing on it but is read again, groups and all, rather than make an unread notification a group of one whose
+  `ungrouped-<id>` key an instance that groups does not have; either is drawn `unread`, and the read marker is moved past them so the
   badge clears again — but only where the re-read put everything unread on screen: one that found more than the 40 it
   counts leaves the marker for the reader's next arrival or `g` and the badge at `40+`, since there are unread ones past
   the 40 that no screen has shown, while exactly 40 all shown moves it; a conversation new or changed (last post or unread flag) moves to the top as the instance has
@@ -377,7 +403,9 @@ not answer them differently:
   on (`Shell.Grew` → `PaintedView.KeepPickOnItsRow`), so the page moves with what went in above it and nothing jumps. Where the
   picked thing is itself what changed — the conversation the reader is on spoken in again — it is brought up to date
   where it stands rather than moved to the top, and the pick stays on it: the row the reader is on never jumps, and it
-  takes its place at the top the next time the list is read (`Picked.TakeIn`). Nothing is put on screen while the
+  takes its place at the top the next time the list is read (`Picked.TakeIn`). A notification group is the
+  exception: the picked group joined moves to the top like any other and the pick goes with it, so Notifications
+  always reads newest first, as a fresh read would draw it (#458). Nothing is put on screen while the
   destination's own list read — its arrival or refresh — is in flight: arriving draws an empty screen until its list
   lands, and that arrival draws the list and moves the marker itself, so a re-read landing first only counts, and the
   count is read again once the list read is over, for whatever arrived after the list was read (`ListReads`). A
@@ -1941,7 +1969,7 @@ Three things stayed outside it, each deliberately:
   `Changed`, `Tell` of a **Change** (#234) and `IsMe` —
   and nothing of the stack, the rail or the cache. So the account screen's
   ties, `w` and `s` are in `AccountScreen.cs`; a follow list's `s`, `f` and `⏎` in `FollowsScreen.cs`; search's `⏎` in
-  `SearchScreen.cs`; `d` and `D` in `NotificationsScreen.cs`; `a`, `x` and `⏎` in `FollowRequestsScreen.cs`; the
+  `SearchScreen.cs`; `w`, `d` and `D` in `NotificationsScreen.cs`; `a`, `x` and `⏎` in `FollowRequestsScreen.cs`; the
   conversation list's `⏎` in `DirectMessagesScreen.cs`; and Discover's `⏎`, `F` and `d` in `DiscoverScreen.cs`. A
   `Confirmation` carries what agreeing to it does, so `D` asks the same way a delete and a vote do.
 - **The verbs that need a terminal.** `ShellWindow` still carries out `ctrl-q`, the four movements that walk the page

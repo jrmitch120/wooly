@@ -41,8 +41,11 @@ public abstract record Change
     /// <summary>An account as the instance now has it, after a tie went on or came off.</summary>
     public sealed record Tied(Person Account) : Change;
 
-    /// <summary>Notifications dismissed, by their own ids.</summary>
-    public sealed record NotificationsGone(IReadOnlyList<string> Ids) : Change;
+    /// <summary>
+    ///     A notification group dismissed, every notification in it, by the group's key (#457) — on an instance too old
+    ///     to group, the one notification that was the group.
+    /// </summary>
+    public sealed record NotificationGroupGone(string Key) : Change;
 
     /// <summary>Every notification cleared at once.</summary>
     public sealed record AllNotificationsGone : Change;

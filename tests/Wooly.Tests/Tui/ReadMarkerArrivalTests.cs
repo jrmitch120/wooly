@@ -47,7 +47,7 @@ public class ReadMarkerArrivalTests
         shell.Host.Settle();
 
         Assert.Equal(["144", "143"], Unread(opened));
-        Assert.Equal(5, Assert.IsType<NotificationsScreen>(opened.Screen).Notifications.Count);
+        Assert.Equal(5, Assert.IsType<NotificationsScreen>(opened.Screen).Groups.Count);
         Assert.Empty(shell.Notifications.Dismissals);
 
         var rows = Assert.IsType<NotificationsScreen>(opened.Screen)
@@ -172,7 +172,7 @@ public class ReadMarkerArrivalTests
         shell.Host.Settle();
 
         var screen = Assert.IsType<NotificationsScreen>(opened.Screen);
-        Assert.Equal(5, screen.Notifications.Count);
+        Assert.Equal(5, screen.Groups.Count);
         Assert.Null(screen.Notice);
         Assert.Null(opened.Notice);
         Assert.Equal(3, Badge(opened).Unread);
@@ -210,9 +210,9 @@ public class ReadMarkerArrivalTests
         Enumerable.Range(0, count).Select(offset => ANotification.With(id: $"{newest - offset}"));
 
     private static IEnumerable<string> Unread(Shell shell) =>
-        Assert.IsType<NotificationsScreen>(shell.Screen).Notifications
-              .Where(notification => Assert.IsType<NotificationsScreen>(shell.Screen).IsUnread(notification))
-              .Select(notification => notification.Id);
+        Assert.IsType<NotificationsScreen>(shell.Screen).Groups
+              .Where(group => Assert.IsType<NotificationsScreen>(shell.Screen).IsUnread(group))
+              .Select(group => group.NewestId);
 
     private static FakeNotificationInbox Holding(int count, int newest) =>
         FakeNotificationInbox.Holding(

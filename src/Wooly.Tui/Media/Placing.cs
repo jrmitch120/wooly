@@ -272,9 +272,19 @@ internal sealed class Placing
 
         for (var at = 0; at < lines.Count; at++)
         {
-            if (lines[at].Wants is { } drawn && at >= from && at < to)
+            if (at < from || at >= to)
+            {
+                continue;
+            }
+
+            if (lines[at].Wants is { } drawn)
             {
                 Widen(drawn, at, at);
+            }
+
+            foreach (var also in lines[at].AlsoWants)
+            {
+                Widen(also, at, at);
             }
         }
 

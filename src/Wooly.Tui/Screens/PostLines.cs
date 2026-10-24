@@ -157,6 +157,46 @@ public static class PostLines
     }
 
     /// <summary>
+    ///     The most rows <see cref="Preview" /> draws: enough to say which post it was, and short enough not to be read
+    ///     again in place of the notification it sits under (#452).
+    /// </summary>
+    private const int PreviewRows = 2;
+
+    /// <summary>
+    ///     A reminder of which post this is rather than the post: its first two rows of text, muted, with nothing
+    ///     attached and no link preview — and where it has a content warning, the warning in place of the text, so a
+    ///     preview never says what the warning was put up to keep back (#452).
+    /// </summary>
+    /// <remarks>
+    ///     What a notification about the reader's own post draws under it. They wrote it and already know it, so what
+    ///     the row is for is who did what to it; <c>⏎</c> still opens it whole.
+    /// </remarks>
+    public static IReadOnlyList<Line> Preview(Post post, int width)
+    {
+        var shown = post.Boosted ?? post;
+
+        if (shown.ContentWarning is { } warning)
+        {
+            return [Line.Of(TextWrap.Clip($"{WarningMark}{warning}", width), Role.Muted)];
+        }
+
+        var rows = TextWrap.Wrap(shown.Content, width).Where(row => !string.IsNullOrWhiteSpace(row)).ToList();
+
+        if (rows.Count <= PreviewRows)
+        {
+            return [.. rows.Select(row => Line.Of(row, Role.Muted))];
+        }
+
+        // The last row carries the rest of the text and is cut with the ellipsis Clip marks a cut with, so the
+        // preview says it stops short rather than reading as the whole post.
+        return
+        [
+            .. rows.Take(PreviewRows - 1).Select(row => Line.Of(row, Role.Muted)),
+            Line.Of(TextWrap.Clip(string.Join(' ', rows.Skip(PreviewRows - 1)), width), Role.Muted),
+        ];
+    }
+
+    /// <summary>
     ///     The parts of a post one after another, with a blank row between each — and none before the first, after the
     ///     last, or around a part there is nothing in.
     /// </summary>

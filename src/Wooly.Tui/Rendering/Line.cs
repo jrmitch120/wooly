@@ -37,6 +37,16 @@ public sealed record Line
     public Drawn? Wants { get; init; }
 
     /// <summary>
+    ///     The pictures this row stands in for after <see cref="Wants" />, left to right, where it holds several boxes
+    ///     side by side: a notification group's avatar strip (#454). Wanted on the same terms as <see cref="Wants" />.
+    /// </summary>
+    /// <remarks>
+    ///     A second mark rather than <see cref="Wants" /> made a list, because every other row stands in for one
+    ///     picture at most, and saying so is what <see cref="Wants" /> already does.
+    /// </remarks>
+    public IReadOnlyList<Drawn> AlsoWants { get; init; } = [];
+
+    /// <summary>
     ///     Which of the screen's things this row is part of — the same ordinal <see cref="Screens.Screen.Pick" />
     ///     takes — or <see langword="null" /> for a row that is part of none: a heading, a notice, the blank between
     ///     two posts.
@@ -159,6 +169,7 @@ public sealed record Line
     {
         Insets = Insets,
         Wants = Wants,
+        AlsoWants = AlsoWants,
         Item = Item,
         Heads = Heads,
         Picked = Picked,

@@ -42,6 +42,7 @@ public class CrumbTests
         ("account", "@maria@fosstodon.org"),
         ("following", "@maria@fosstodon.org following"),
         ("followers", "@maria@fosstodon.org followers"),
+        ("actors", "Favorited by"),
         ("profiles", "Profiles"),
         ("add-profile", "Add a profile"),
         ("browser", "Attach"),
@@ -136,7 +137,7 @@ public class CrumbTests
                 return new FeedScreen(new Destination(DestinationKind.Home, "Home"), [post]);
 
             case "notifications":
-                return new NotificationsScreen([ANotification.Follow()]);
+                return new NotificationsScreen([ANotification.Alone(ANotification.Follow())]);
 
             case "messages":
                 return new DirectMessagesScreen([AConversation.With(latest: post)]);
@@ -210,6 +211,9 @@ public class CrumbTests
 
             case "followers":
                 return new FollowsScreen(maria, FollowSide.Followers, mine: false);
+
+            case "actors":
+                return new ActorsScreen(ANotification.Group(count: 2, actors: ["Alice", "Bob"]));
 
             case "profiles":
                 return new ProfilesScreen([], "personal", []);
