@@ -189,7 +189,7 @@ public abstract class Screen
 
     /// <summary>
     ///     Whether the reader has walked onto the end of what this screen has read and there is more of it to ask
-    ///     for — which is what <c>j</c> past the bottom means on a list browsed a page at a time (#180).
+    ///     for — which is what <c>k</c> past the bottom means on a list browsed a page at a time (#180).
     /// </summary>
     public virtual bool WantsMore => false;
 

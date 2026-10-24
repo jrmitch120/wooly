@@ -28,7 +28,7 @@ public static class Sections
     /// <remarks>
     ///     The first thing of the run rather than the heading itself, because the heading is part of no thing and
     ///     there is nothing there to pick out: <c>]</c> is "take me to the posts", and a reader who arrives at a post
-    ///     wants to press <c>⏎</c> rather than <c>j</c> first.
+    ///     wants to press <c>⏎</c> rather than <c>k</c> first.
     ///     <para>
     ///         Whole runs on both sides, so <c>[</c> from the fifth post is the first hashtag rather than the first
     ///         post: a key that sometimes moved to the top of the run it was already in and sometimes left it would be

@@ -486,7 +486,7 @@ public abstract record Subject
             /// <inheritdoc />
             /// <remarks>
             ///     A list held whole goes on to read the rest at once, which is what streaming in behind the reader
-            ///     is; a browsed one stops here and waits for <c>j</c> to reach the end of what arrived.
+            ///     is; a browsed one stops here and waits for <c>k</c> to reach the end of what arrived.
             /// </remarks>
             public override bool ReadsOn(Screen screen) =>
                 screen is FollowsScreen { Holds: true } follows && More(follows);

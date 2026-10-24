@@ -40,7 +40,7 @@ whoever *their* server has by that name — the exact failure `docs/tui-shell.md
 need no resolution at all, so they walk. This is the same shape as an `Image` attachment and a link preview's author
 name: drawn, and deliberately not openable.
 
-The header draws whole and cuts nothing. Its worst case is around 29 rows and the screen scrolls, so one `j` puts the
+The header draws whole and cuts nothing. Its worst case is around 29 rows and the screen scrolls, so one `k` puts the
 posts on screen — where a truncated bio would be permanent damage done to solve a problem one keypress already solves.
 Every section brings its own separator, so an account with no bio, no fields, nobody in common and no note collapses to
 four rows and a divider with no gaps left behind.
