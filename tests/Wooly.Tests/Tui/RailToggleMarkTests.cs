@@ -175,27 +175,68 @@ public class RailToggleMarkTests
     }
 
     /// <summary>
-    ///     Where <c>\</c> means nothing the click means nothing either — on compose, where it is typed — so the rail
-    ///     stays as it was, shown or hidden, nothing is saved, and the draft is still in front.
+    ///     Where <c>\</c> means nothing the click means nothing either — on compose, the description editor and the
+    ///     public profile form, whose fields type it — and nor does a double click: the rail stays as it was, shown or
+    ///     hidden, nothing is saved, and the screen with the draft is still in front.
     /// </summary>
     [Theory]
-    [InlineData(RailState.Shown)]
-    [InlineData(RailState.Hidden)]
-    public async Task OnComposeAClickOnTheMarkDoesNothing(RailState rail)
+    [InlineData("compose", RailState.Shown)]
+    [InlineData("compose", RailState.Hidden)]
+    [InlineData("description", RailState.Shown)]
+    [InlineData("description", RailState.Hidden)]
+    [InlineData("public profile", RailState.Shown)]
+    [InlineData("public profile", RailState.Hidden)]
+    public async Task OnTheScreensWithFieldsAClickOrADoubleClickOnTheMarkDoesNothing(string where, RailState rail)
     {
-        var built = new AShell { HiddenRail = rail is RailState.Hidden };
-        using var drawn = await DrawnShell.Of(80, Framed, Themes.Plain, built);
+        using var files = new TemporaryDirectory();
+        var me = AnAccount.With(address: "jeff@mastodon.social", author: "Jeff", id: "7");
+        var built = new AShell
+        {
+            Accounts = FakeAccountRelationships.Holding(me),
+            PublicProfile = FakePublicProfileEditor.Holding(APublicProfile.With(displayName: string.Empty, account: me)),
+            HiddenRail = rail is RailState.Hidden,
+        };
+        using var drawn = await DrawnShell.Of(80, 30, Themes.Plain, built);
 
-        ComposeRows.Open(drawn.Shell, ComposeFor.Post);
-        drawn.Redraw();
+        switch (where)
+        {
+            case "compose":
+                ComposeRows.Open(drawn.Shell, ComposeFor.Post);
+                drawn.Redraw();
+                Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
+                break;
 
-        var compose = drawn.Shell.Screen;
+            case "description":
+                drawn.Shell.Press(ShellKey.C);
+                drawn.Shell.Paste(files.WriteFile("cat.png"));
+                drawn.Settle();
+                drawn.Press(Key.CursorUp);
+                drawn.Press(Key.Enter);
+                Assert.IsType<DescriptionScreen>(drawn.Shell.Screen);
+                break;
+
+            default:
+                drawn.Shell.Rail.GoTo(DestinationKind.Profile);
+                drawn.Settle();
+                drawn.Press(new Key('E'));
+                drawn.Settle();
+                Assert.IsType<PublicProfileScreen>(drawn.Shell.Screen);
+                break;
+        }
+
+        var screen = drawn.Shell.Screen;
 
         drawn.Click(Mark, Bottom(drawn));
 
         Assert.Equal(rail, drawn.Shell.RailState);
+
+        drawn.DoubleClick(Mark, Bottom(drawn));
+        drawn.Built.Host.Drain();
+        drawn.Redraw();
+
+        Assert.Equal(rail, drawn.Shell.RailState);
         Assert.Empty(built.ShellPreferences.Rails);
-        Assert.Same(compose, drawn.Shell.Screen);
+        Assert.Same(screen, drawn.Shell.Screen);
     }
 
     /// <summary>
