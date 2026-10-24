@@ -1,3 +1,6 @@
+using System.Collections.Concurrent;
+using System.Net;
+using System.Net.Http.Json;
 using Wooly.Core.Errors;
 using Wooly.Core.Http;
 using Wooly.Core.Paging;
@@ -43,6 +46,92 @@ public sealed class NotificationInbox(IMastodonClientFactory clientFactory, IHtt
             notification => NotificationWire.ToNotification(notification, profile),
             notification => notification.Id,
             cancellationToken);
+    }
+
+    /// <summary>
+    ///     How many groups to ask <c>/api/v2/notifications</c> for at once: its documented default, which every instance
+    ///     serves. The read goes on by the instance's <c>next</c> link, not by whether a page came back full (#449).
+    /// </summary>
+    private const int GroupPageSize = 40;
+
+    /// <summary>
+    ///     The profiles whose instance has no grouped read, learned from the first read that found none — so that every
+    ///     later read this session goes straight to <c>/api/v1</c> rather than asking again (ADR-0032).
+    /// </summary>
+    private readonly ConcurrentDictionary<string, bool> _ungrouped = new(StringComparer.Ordinal);
+
+    /// <inheritdoc />
+    /// <remarks>
+    ///     Raw, because Mastonet 3.1.3 knows only <c>/api/v1</c> notifications, and sent without <c>grouped_types</c>:
+    ///     which kinds group is the instance's call (ADR-0032). An instance that answers the first page with a 404 is
+    ///     older than Mastodon 4.3, and is read through <c>/api/v1</c> instead, each notification a group of one.
+    /// </remarks>
+    public async Task<Fetch<NotificationGroup>> ReadGroups(
+        ActiveProfile profile,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        var known = $"{profile.Name}@{profile.Instance}";
+
+        if (!_ungrouped.ContainsKey(known))
+        {
+            try
+            {
+                return await PagedReading.Collect(
+                    limit,
+                    GroupPageSize,
+                    options => GroupedPage(profile, options, cancellationToken),
+                    group => group,
+                    idOf: null,
+                    cancellationToken);
+            }
+            catch (NoGroupedRead)
+            {
+                _ungrouped[known] = true;
+            }
+        }
+
+        var client = clientFactory.CreateClient(profile.Instance, profile.AccessToken);
+
+        return await PagedReading.Collect(
+            limit,
+            PageSize,
+            options => client.GetNotifications(options),
+            notification => GroupedNotificationsWire.Alone(notification, profile),
+            notification => notification.Id,
+            cancellationToken);
+    }
+
+    /// <summary>One page of groups, and where the instance says the next one starts.</summary>
+    /// <exception cref="NoGroupedRead">The instance has no grouped read at all.</exception>
+    private async Task<Page<NotificationGroup>> GroupedPage(
+        ActiveProfile profile,
+        Mastonet.ArrayOptions options,
+        CancellationToken cancellationToken)
+    {
+        var path = options.MaxId is { } maxId
+            ? $"api/v2/notifications?limit={options.Limit}&max_id={Uri.EscapeDataString(maxId)}"
+            : $"api/v2/notifications?limit={options.Limit}";
+
+        using var response = await RawMastodonCall.Sent(
+            httpClientFactory,
+            profile,
+            HttpMethod.Get,
+            path,
+            content: null,
+            cancellationToken);
+
+        if (response.StatusCode == HttpStatusCode.NotFound && options.MaxId is null)
+        {
+            throw new NoGroupedRead();
+        }
+
+        response.EnsureSuccessStatusCode();
+
+        var answer = await response.Content.ReadFromJsonAsync<GroupedNotificationsWire>(cancellationToken)
+                     ?? new GroupedNotificationsWire();
+
+        return new Page<NotificationGroup>(answer.ToGroups(profile), LinkHeader.NextMaxId(response));
     }
 
     /// <inheritdoc />
@@ -151,4 +240,7 @@ public sealed class NotificationInbox(IMastodonClientFactory clientFactory, IHtt
 
         await client.ClearNotifications();
     }
+
+    /// <summary>An instance answering the grouped read with a 404, which is one too old to have it.</summary>
+    private sealed class NoGroupedRead : Exception;
 }
