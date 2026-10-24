@@ -467,6 +467,80 @@ public abstract record Subject
     }
 
     /// <summary>
+    ///     Every <b>Actor</b> in one notification group, read from the group's own accounts so that it is exactly the
+    ///     group the row counted (#455). Read a page at a time, the way a follow list too long to hold is browsed.
+    /// </summary>
+    /// <remarks>
+    ///     Never held: a group grows as notifications arrive and shrinks as they are dismissed, so what was read a
+    ///     minute ago is not worth handing back. Compared by the group's key alone, which is what the instance names it
+    ///     by however many it held when its row was read.
+    /// </remarks>
+    /// <param name="Group">The group whose actors these are, as the Notifications screen was holding it.</param>
+    public sealed record Actors(NotificationGroup Group) : Subject
+    {
+        /// <inheritdoc />
+        public override bool Pages => true;
+
+        /// <inheritdoc />
+        public bool Equals(Actors? other) => other is not null && other.Group.Key == Group.Key;
+
+        /// <inheritdoc />
+        public override int GetHashCode() => Group.Key.GetHashCode(StringComparison.Ordinal);
+
+        /// <inheritdoc />
+        /// <remarks>On every move, as a follow list's: the reader is looking at the list they opened while it fills.</remarks>
+        internal override Screen? Placeholder(Move move, ActiveProfile profile) => new ActorsScreen(Group);
+
+        /// <inheritdoc />
+        /// <remarks>
+        ///     A page is asked for by re-reading the group to a longer limit, the port taking a count rather than a
+        ///     cursor, so only the tail of what comes back is new — and only that is asked where the reader stands,
+        ///     once for the page, as a follow list asks it.
+        /// </remarks>
+        internal override async Task<Found> Read(
+            Enquiry.Ask ask,
+            ShellPorts ports,
+            ActiveProfile profile,
+            Screen? standing)
+        {
+            var screen = (ActorsScreen)standing!;
+            var already = screen.Read;
+            var wanted = already + FollowsPage;
+
+            var fetch = await ask.Of(token => ports.Notifications.ReadGroupActors(profile, Group.Key, wanted, token));
+            var read = fetch.Items.Skip(already).ToList();
+            var stood = read.Count > 0 ? await ask.Of(token => ports.StoodOrSilent(profile, read, token)) : [];
+
+            return new Filled([.. fetch.Items.Take(already), .. stood], fetch.StoppedBy, wanted);
+        }
+
+        /// <summary>What one read of a group's actors came back with, and how many it asked for.</summary>
+        /// <param name="People">Everyone read so far, whoever is new among them carrying their standing.</param>
+        /// <param name="StoppedBy">The rate limit that cut the read short, or nothing where none did.</param>
+        /// <param name="Wanted">How many were asked for, which is what says whether the instance filled the ask.</param>
+        private sealed record Filled(IReadOnlyList<Person> People, RateLimitedException? StoppedBy, int Wanted)
+            : Found
+        {
+            /// <inheritdoc />
+            /// <remarks>
+            ///     There is more only where the instance filled the ask: a short read is the end of the group, and a
+            ///     rate limit the end of the reading.
+            /// </remarks>
+            public override Screen Becomes(Screen? standing)
+            {
+                var screen = (ActorsScreen)standing!;
+
+                screen.Arrived(
+                    People,
+                    StoppedBy is null && People.Count >= Wanted,
+                    Arrival.Emptiness(People.Count, ActorsScreen.Nobody, of: null, StoppedBy));
+
+                return screen;
+            }
+        }
+    }
+
+    /// <summary>
     ///     A hashtag's timeline walked to from a search or a reference, as a screen on the stack — the rail's own
     ///     hashtag destination left alone, that being a setting the reader wrote down rather than something a keypress
     ///     changes.

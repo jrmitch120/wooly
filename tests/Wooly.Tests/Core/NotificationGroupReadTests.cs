@@ -149,6 +149,60 @@ public class NotificationGroupReadTests
     }
 
     /// <summary>
+    ///     A group's actors are read from the group's own accounts endpoint, so the list is exactly the group the row
+    ///     counted, every one an account with an id and a face, and it is read on past the first page by the
+    ///     instance's <c>next</c> link (#455, #449).
+    /// </summary>
+    [Fact]
+    public async Task ReadGroupActors_ReadsTheGroupsAccountsPageByPage()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            GroupedResponse(
+                $"[{AccountJson("2", "alice@hachyderm.io")},{AccountJson("3", "bob")}]",
+                nextMaxId: "338"),
+            GroupedResponse($"[{AccountJson("4", "carol@carpdiem.online")}]"));
+
+        var fetch = await NewInbox(network).ReadGroupActors(
+            Profile,
+            "favourite-110-493000",
+            80,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(["2", "3", "4"], fetch.Items.Select(actor => actor.Id));
+        Assert.Equal(
+            ["alice@hachyderm.io", "bob@mastodon.social", "carol@carpdiem.online"],
+            fetch.Items.Select(actor => actor.Address));
+        Assert.Equal("https://files.example/2.png", fetch.Items[0].AvatarUrl);
+        Assert.All(
+            network.Requests,
+            request => Assert.Equal(
+                "/api/v2/notifications/favourite-110-493000/accounts",
+                request.RequestUri!.AbsolutePath));
+        Assert.Equal(HttpMethod.Get, network.Requests[0].Method);
+        Assert.DoesNotContain("max_id", network.Requests[0].RequestUri!.Query, StringComparison.Ordinal);
+        Assert.Contains("max_id=338", network.Requests[1].RequestUri!.Query, StringComparison.Ordinal);
+    }
+
+    /// <summary>Asked for fewer than the group holds, the read stops there rather than walking on through the rest.</summary>
+    [Fact]
+    public async Task ReadGroupActors_StopsAtTheLimitAskedFor()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            GroupedResponse(
+                $"[{AccountJson("2", "alice@hachyderm.io")},{AccountJson("3", "bob")}]",
+                nextMaxId: "338"));
+
+        var fetch = await NewInbox(network).ReadGroupActors(
+            Profile,
+            "favourite-110-493000",
+            2,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, fetch.Items.Count);
+        Assert.Contains("limit=2", Assert.Single(network.Requests).RequestUri!.Query, StringComparison.Ordinal);
+    }
+
+    /// <summary>
     ///     <c>d</c> on a group clears every notification in it with one request, named by the group's key — never one
     ///     dismissal per notification (#457, #449).
     /// </summary>

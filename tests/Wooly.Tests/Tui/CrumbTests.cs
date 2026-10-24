@@ -42,6 +42,7 @@ public class CrumbTests
         ("account", "@maria@fosstodon.org"),
         ("following", "@maria@fosstodon.org following"),
         ("followers", "@maria@fosstodon.org followers"),
+        ("actors", "Favorited by"),
         ("profiles", "Profiles"),
         ("add-profile", "Add a profile"),
         ("browser", "Attach"),
@@ -210,6 +211,9 @@ public class CrumbTests
 
             case "followers":
                 return new FollowsScreen(maria, FollowSide.Followers, mine: false);
+
+            case "actors":
+                return new ActorsScreen(ANotification.Group(count: 2, actors: ["Alice", "Bob"]));
 
             case "profiles":
                 return new ProfilesScreen([], "personal", []);

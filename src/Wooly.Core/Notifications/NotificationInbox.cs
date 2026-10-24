@@ -137,6 +137,55 @@ public sealed class NotificationInbox(IMastodonClientFactory clientFactory, IHtt
         return new Page<NotificationGroup>(answer.ToGroups(profile), LinkHeader.NextMaxId(response));
     }
 
+    /// <summary>
+    ///     How many of a group's actors to ask for at once: the most Mastodon serves from a list of accounts. The read
+    ///     goes on by the instance's <c>next</c> link, not by whether a page came back full (#449).
+    /// </summary>
+    private const int ActorPageSize = 80;
+
+    /// <inheritdoc />
+    /// <remarks>
+    ///     Raw, as the grouped read is: <c>GET /api/v2/notifications/:group_key/accounts</c>, which Mastonet 3.1.3 does
+    ///     not know. It pages by notification ids, which are not the accounts' own, so nothing read here can stand in
+    ///     for the cursor: the instance's link is the only way on, and a page with none is the last.
+    /// </remarks>
+    public Task<Fetch<Accounts.Account>> ReadGroupActors(
+        ActiveProfile profile,
+        string groupKey,
+        int limit,
+        CancellationToken cancellationToken) =>
+        PagedReading.Collect(
+            limit,
+            ActorPageSize,
+            async options =>
+            {
+                var path = $"api/v2/notifications/{Uri.EscapeDataString(groupKey)}/accounts?limit={options.Limit}";
+
+                if (options.MaxId is { } maxId)
+                {
+                    path += $"&max_id={Uri.EscapeDataString(maxId)}";
+                }
+
+                using var response = await RawMastodonCall.Sent(
+                    httpClientFactory,
+                    profile,
+                    HttpMethod.Get,
+                    path,
+                    content: null,
+                    cancellationToken);
+
+                response.EnsureSuccessStatusCode();
+
+                var accounts = await response.Content.ReadFromJsonAsync<List<Mastonet.Entities.Account>>(
+                                   cancellationToken)
+                               ?? [];
+
+                return new Page<Mastonet.Entities.Account>(accounts, LinkHeader.NextMaxId(response));
+            },
+            account => Accounts.AccountWire.ToAccount(account, profile.Instance),
+            idOf: null,
+            cancellationToken);
+
     /// <inheritdoc />
     /// <remarks>
     ///     Two questions: where the marker is, then what is above it (<see cref="ReadNewer" />).
