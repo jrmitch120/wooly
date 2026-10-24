@@ -4,6 +4,10 @@
 // instance's grouping, #453), and five made-up groups on top built from the real actors so the avatars are real
 // faces: one actor, two, three follows, eight, forty. F2 cycles the layouts:
 //   A  4×2 strip on its own row under the names line
+//   A1 A with air: two columns between faces, a blank row above and below the strip
+//   A2 A with the strip above the sentence, as Mastodon's web app has it
+//   A3 A with the kind's icon (★ ↺ + @) in the gutter beside the strip
+//   A4 A1 + A2 + A3 together
 //   B  3×1 strip on its own row under the names line
 //   C  3×1 avatars inline, in front of the names
 //   D  4×2 avatars in a band beside the names line and the kind
@@ -25,6 +29,10 @@ internal static class NotificationGroupsPrototype
     public static readonly string[] Variants =
     [
         "A · 4×2 strip on its own row",
+        "A1 · A with air: two columns between faces, a blank row above and below",
+        "A2 · A with the strip above the sentence, as the web app has it",
+        "A3 · A with the kind's icon in the gutter beside the strip",
+        "A4 · A1 + A2 + A3 together",
         "B · 3×1 strip on its own row",
         "C · 3×1 inline before the names",
         "D · 4×2 band beside the names",
@@ -151,7 +159,7 @@ internal static class NotificationGroupsPrototype
 
         // A post drawn whole already carries its author's face in its byline; a strip of the same face above it is
         // the face twice, so a mention (or any post shown whole, by its actor) gets no strip.
-        var variant = group.Post is { IsMine: false } whole && whole.Account == group.Actors[0].Account ? 4 : Variant;
+        var variant = group.Post is { IsMine: false } whole && whole.Account == group.Actors[0].Account ? Variants.Length - 1 : Variant;
 
         switch (variant)
         {
@@ -162,12 +170,59 @@ internal static class NotificationGroupsPrototype
                 break;
 
             case 1:
+            {
+                rows.Add(Names(group, unread, room, drawing.Now, lead: []));
+                var strip = Strip(group, columns: 4, high: 2, room, drawing, indent: 2, gap: 2, plusRow: 1);
+
+                if (strip.Count > 0)
+                {
+                    rows.Add(Line.Blank);
+                    rows.AddRange(strip);
+                    rows.Add(Line.Blank);
+                }
+
+                break;
+            }
+
+            case 2:
+                rows.AddRange(Strip(group, columns: 4, high: 2, room, drawing, indent: 2));
+                rows.Add(Names(group, unread, room, drawing.Now, lead: []));
+
+                break;
+
+            case 3:
+            {
+                var strip = Strip(group, columns: 4, high: 2, room, drawing, indent: 3, icon: Icon(group));
+
+                rows.Add(Names(group, unread, room, drawing.Now, lead: []));
+                rows.AddRange(strip);
+
+                break;
+            }
+
+            case 4:
+            {
+                var strip = Strip(group, columns: 4, high: 2, room, drawing, indent: 3, gap: 2, plusRow: 1, icon: Icon(group));
+
+                if (strip.Count > 0)
+                {
+                    rows.Add(Line.Blank);
+                    rows.AddRange(strip);
+                    rows.Add(Line.Blank);
+                }
+
+                rows.Add(Names(group, unread, room, drawing.Now, lead: []));
+
+                break;
+            }
+
+            case 5:
                 rows.Add(Names(group, unread, room, drawing.Now, lead: []));
                 rows.AddRange(Strip(group, columns: 3, high: 1, room, drawing, indent: 2));
 
                 break;
 
-            case 2:
+            case 6:
             {
                 var strip = Strip(group, columns: 3, high: 1, Math.Min(room, 3 + (5 * 4) + 4), drawing, indent: 0, gapAfter: 1);
 
@@ -190,7 +245,7 @@ internal static class NotificationGroupsPrototype
                 break;
             }
 
-            case 3:
+            case 7:
             {
                 var strip = Strip(group, columns: 4, high: 2, Math.Min(room, (3 * 5) + 5), drawing, indent: 0, gapAfter: 1);
 
@@ -244,6 +299,15 @@ internal static class NotificationGroupsPrototype
 
     private static string Sentence(Group group) => group.Kind.Does;
 
+    private static Span Icon(Group group) =>
+        new(
+            group.Kind == NotificationKind.Favorite ? "★"
+            : group.Kind == NotificationKind.Boost ? "↺"
+            : group.Kind == NotificationKind.Follow ? "+"
+            : group.Kind == NotificationKind.Mention ? "@"
+            : "•",
+            Role.Muted);
+
     private static Line Names(Group group, bool unread, int width, DateTimeOffset now, Span[] lead)
     {
         var age = Elapsed.Since(group.At, now);
@@ -290,7 +354,10 @@ internal static class NotificationGroupsPrototype
         int width,
         Drawing drawing,
         int indent,
-        int gapAfter = 0)
+        int gapAfter = 0,
+        int gap = 1,
+        int plusRow = 0,
+        Span? icon = null)
     {
         var rows = Enumerable.Range(0, high).Select(_ => new List<Span>()).ToArray();
         var insets = new List<Inset>();
@@ -301,9 +368,14 @@ internal static class NotificationGroupsPrototype
             row.Add(new Span(new string(' ', indent), Role.Body));
         }
 
+        if (icon is { } shown0)
+        {
+            rows[0][0] = new Span($" {shown0.Text}".PadRight(indent), shown0.Role);
+        }
+
         var column = indent;
         var plusRoom = 5;
-        var fits = Math.Max(1, (width - indent - plusRoom) / (columns + 1));
+        var fits = Math.Max(1, (width - indent - plusRoom) / (columns + gap));
         var shown = group.Actors.Take(Math.Min(fits, Sampled)).ToList();
 
         foreach (var actor in shown)
@@ -331,11 +403,11 @@ internal static class NotificationGroupsPrototype
             for (var at = 0; at < high; at++)
             {
                 rows[at].Add(box.Cells(at));
-                rows[at].Add(new Span(" ", Role.Body));
+                rows[at].Add(new Span(new string(' ', gap), Role.Body));
                 insets.AddRange(box.Insets(at, column).Select(inset => inset with { Rows = high }));
             }
 
-            column += columns + 1;
+            column += columns + gap;
         }
 
         if (wants.Count == 0)
@@ -347,10 +419,11 @@ internal static class NotificationGroupsPrototype
 
         if (rest > 0)
         {
-            rows[0].Add(new Span($"+{rest}", Role.Muted));
-            for (var at = 1; at < high; at++)
+            for (var at = 0; at < high; at++)
             {
-                rows[at].Add(new Span(new string(' ', Glyphs.Columns($"+{rest}")), Role.Body));
+                rows[at].Add(at == Math.Min(plusRow, high - 1)
+                    ? new Span($"+{rest}", Role.Muted)
+                    : new Span(new string(' ', Glyphs.Columns($"+{rest}")), Role.Body));
             }
         }
 
