@@ -18,13 +18,13 @@ internal static class ANotification
         NotificationKind? kind = null,
         string account = "alice@hachyderm.io",
         string author = "Alice",
-        Post? post = null) => new()
+        Post? post = null,
+        string actorId = "2") => new()
     {
         Id = id,
         Kind = kind ?? NotificationKind.Mention,
         ReceivedAt = new DateTimeOffset(2026, 7, 29, 12, 4, 0, TimeSpan.Zero),
-        Account = account,
-        Author = author,
+        Actor = AnAccount.With(address: account, author: author, id: actorId),
         Post = post ?? APost.With(account: account, author: author),
     };
 
@@ -32,16 +32,7 @@ internal static class ANotification
     ///     <paramref name="notification" /> as a group of one, the way an instance too old to group has every
     ///     notification read (ADR-0032).
     /// </summary>
-    public static NotificationGroup Alone(Notification notification) => new()
-    {
-        Key = $"ungrouped-{notification.Id}",
-        Kind = notification.Kind,
-        Count = 1,
-        NewestId = notification.Id,
-        NewestAt = notification.ReceivedAt,
-        Actors = [AnAccount.With(address: notification.Account, author: notification.Author)],
-        Post = notification.Post,
-    };
+    public static NotificationGroup Alone(Notification notification) => NotificationGroup.Alone(notification);
 
     /// <summary>
     ///     A group of <paramref name="count" /> notifications with <paramref name="actors" /> sent along — a favorite
@@ -78,13 +69,12 @@ internal static class ANotification
     }
 
     /// <summary>Somebody arriving rather than something they wrote, which is the notification with no post behind it.</summary>
-    public static Notification Follow(string id = "35", string account = "bob@mastodon.social") => new()
+    public static Notification Follow(string id = "35", string account = "bob@mastodon.social", string actorId = "3") => new()
     {
         Id = id,
         Kind = NotificationKind.Follow,
         ReceivedAt = new DateTimeOffset(2026, 7, 29, 12, 4, 0, TimeSpan.Zero),
-        Account = account,
-        Author = "Bob",
+        Actor = AnAccount.With(address: account, author: "Bob", id: actorId),
         Post = null,
     };
 }

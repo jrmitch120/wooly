@@ -52,7 +52,19 @@ public sealed record NotificationGroup
     /// </summary>
     public Post? Post { get; init; }
 
-    /// <summary>Whether the group's newest notification is newer than <paramref name="marker" />, an id of the same kind.</summary>
-    /// <param name="marker">The read marker, or an id read from; where null, nothing is newer than it.</param>
-    public bool IsNewerThan(string? marker) => marker is not null && NotificationIds.Newer(NewestId, marker);
+    /// <summary>
+    ///     <paramref name="notification" /> as a group of one, under the key Mastodon gives a notification it does not
+    ///     group: what every notification is on an instance too old to group (ADR-0032), and what one arriving live is
+    ///     until it can be joined to its group (#458).
+    /// </summary>
+    public static NotificationGroup Alone(Notification notification) => new()
+    {
+        Key = $"ungrouped-{notification.Id}",
+        Kind = notification.Kind,
+        Count = 1,
+        NewestId = notification.Id,
+        NewestAt = notification.ReceivedAt,
+        Actors = [notification.Actor],
+        Post = notification.Post,
+    };
 }

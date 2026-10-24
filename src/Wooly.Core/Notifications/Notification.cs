@@ -1,3 +1,4 @@
+using Wooly.Core.Accounts;
 using Wooly.Core.Posts;
 
 namespace Wooly.Core.Notifications;
@@ -20,11 +21,12 @@ public sealed record Notification
     /// <summary>When the instance recorded it, as UTC.</summary>
     public required DateTimeOffset ReceivedAt { get; init; }
 
-    /// <summary>Who did it, as <c>username@instance</c>.</summary>
-    public required string Account { get; init; }
-
-    /// <summary>The name that account chose to be shown as, which is not unique and may be anything at all.</summary>
-    public required string Author { get; init; }
+    /// <summary>
+    ///     Who did it: the <b>Actor</b> (GLOSSARY.md), which is not the author of the post it is about — on a favorite
+    ///     or a boost the author is the reader. Kept as the account the instance sent rather than an address and a name,
+    ///     so that its id and avatar are there for whatever opens or draws it (#451).
+    /// </summary>
+    public required Account Actor { get; init; }
 
     /// <summary>
     ///     The post the notification is about, or <see langword="null" /> where there is none — a follow is somebody

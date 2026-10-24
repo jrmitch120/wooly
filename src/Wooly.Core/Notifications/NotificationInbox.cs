@@ -97,7 +97,7 @@ public sealed class NotificationInbox(IMastodonClientFactory clientFactory, IHtt
             limit,
             PageSize,
             options => client.GetNotifications(options),
-            notification => GroupedNotificationsWire.Alone(notification, profile),
+            notification => NotificationGroup.Alone(NotificationWire.ToNotification(notification, profile)),
             notification => notification.Id,
             cancellationToken);
     }

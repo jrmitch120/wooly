@@ -1,3 +1,4 @@
+using Wooly.Core.Accounts;
 using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
 using WireNotification = Mastonet.Entities.Notification;
@@ -19,8 +20,7 @@ internal static class NotificationWire
         Id = notification.Id,
         Kind = ToKind(notification.Type),
         ReceivedAt = MastodonWire.AsUtc(notification.CreatedAt),
-        Account = MastodonWire.Qualify(notification.Account, reader.Instance),
-        Author = MastodonWire.DisplayName(notification.Account),
+        Actor = AccountWire.ToAccount(notification.Account, reader.Instance),
 
         // Absent on a follow, which is somebody arriving rather than something they wrote.
         Post = notification.Status is null ? null : PostWire.ToPost(notification.Status, reader),

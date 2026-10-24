@@ -1,3 +1,4 @@
+using Wooly.Core.Accounts;
 using Wooly.Core.Notifications;
 using Wooly.Core.Posts;
 using Wooly.Tui.Rendering;
@@ -19,8 +20,9 @@ namespace Wooly.Tui.Screens;
 /// </summary>
 /// <remarks>
 ///     A notification is not the post it is about (GLOSSARY.md), and the difference is load-bearing here: <c>d</c>
-///     dismisses the notification and leaves the post exactly where it was, while every other key on the row acts on
-///     the post — so the two are kept apart rather than one standing in for the other.
+///     dismisses the notification and leaves the post exactly where it was, and <c>a</c> opens its actor rather than
+///     the post's author (#451), while every other key on the row acts on the post — so the two are kept apart rather
+///     than one standing in for the other.
 /// </remarks>
 /// <param name="groups">What is waiting, newest first.</param>
 /// <param name="notice">What the shell has to say about the inbox as a whole, if anything.</param>
@@ -47,6 +49,7 @@ public sealed class NotificationsScreen(
         PostKeys.Around(
             new KeyHint("j/k", "notification"),
             [
+                new KeyHint("a", "actor", NeedsAPick: true),
                 new KeyHint("d", "dismiss", NeedsAPick: true),
                 new KeyHint("D", "clear all", NeedsAPick: true),
                 Refreshing,
@@ -86,6 +89,13 @@ public sealed class NotificationsScreen(
 
     /// <inheritdoc />
     protected override IPicked Walking => _groups;
+
+    /// <inheritdoc />
+    /// <remarks>
+    ///     Only a post drawn whole: the reader's own is a preview with none of its references on screen, and the arrows
+    ///     walk what can be seen. <c>⏎</c> opens it whole, references and all (#452).
+    /// </remarks>
+    protected override Post? Referencing => Picked is { IsMine: false } post ? post : null;
 
     /// <inheritdoc />
     /// <remarks>
@@ -136,7 +146,7 @@ public sealed class NotificationsScreen(
 
         var newest = Groups.Count > 0 ? Groups[0].NewestId : null;
         var arrived = unread.Where(notification => newest is null || NotificationIds.Newer(notification.Id, newest))
-                            .Select(NotificationGroupLines.Alone)
+                            .Select(NotificationGroup.Alone)
                             .ToList();
 
         var put = _groups.TakeIn(arrived, group => group.Key);
@@ -146,11 +156,17 @@ public sealed class NotificationsScreen(
         return put.Count;
     }
 
-    /// <summary>What this screen's own keys do: <c>d</c> dismisses the picked group, and <c>D</c> all of them.</summary>
+    /// <summary>
+    ///     What this screen's own keys do: <c>a</c> opens the picked group's actor, <c>d</c> dismisses it, and <c>D</c>
+    ///     all of them.
+    /// </summary>
     public override Task Answer(Verb verb, Reach reach)
     {
         switch (verb)
         {
+            case Verb.OpenActor:
+                return OpenActor(reach);
+
             case Verb.Dismiss:
                 return Dismiss(reach);
 
@@ -162,6 +178,16 @@ public sealed class NotificationsScreen(
 
         return Task.CompletedTask;
     }
+
+    /// <summary>
+    ///     Opens the account of whoever did what the picked group reports (GLOSSARY.md's <b>Actor</b>) — not the author
+    ///     of the post it is about, who on a favorite or a boost is the reader, and who a follow does not have (#451).
+    ///     On a group of several, the most recent of them; the screen listing all of them is #455's.
+    /// </summary>
+    private Task OpenActor(Reach reach) =>
+        PickedGroup is { Actors: [var actor, ..] }
+            ? reach.Open(new Subject.Account(AccountAddress.Parse(actor.Address), WithReplies: false))
+            : Task.CompletedTask;
 
     /// <summary>
     ///     Clears the picked group's newest notification, named by its own id and not by the post's (GLOSSARY.md) —
@@ -248,9 +274,15 @@ public sealed class NotificationsScreen(
 
             if (group.Post is { } post)
             {
-                rows.AddRange(PostLines
-                              .Feed(post, drawing.In(Math.Max(1, room - 2)), ReadingOf(post, at))
-                              .Select(line => line.After(new Span("  ", Role.Body))));
+                // The reader's own post is a reminder of which one it was, and anyone else's is what the notification
+                // is for — told apart by who wrote it rather than by the kind, so a kind this client has no word for
+                // is drawn by the same rule (#452).
+                var inner = Math.Max(1, room - 2);
+                var drawn = post.IsMine
+                    ? PostLines.Preview(post, inner)
+                    : PostLines.Feed(post, drawing.In(inner), ReadingOf(post, at));
+
+                rows.AddRange(drawn.Select(line => line.After(new Span("  ", Role.Body))));
             }
 
             return rows;

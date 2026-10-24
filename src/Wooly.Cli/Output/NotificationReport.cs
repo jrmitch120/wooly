@@ -47,7 +47,7 @@ internal static class NotificationReport
         // The id leads, because it is the one thing on this line that cannot be worked out from the rest of it, and
         // the one thing the next command — notification dismiss — asks the user to type.
         console.MarkupLineInterpolated(
-            $"[bold]{notification.Id}[/]  {notification.Account} {notification.Kind.Does}  [dim]{LocalMoment.Of(notification.ReceivedAt)}[/]");
+            $"[bold]{notification.Id}[/]  {notification.Actor.Address} {notification.Kind.Does}  [dim]{LocalMoment.Of(notification.ReceivedAt)}[/]");
 
         // A follow is somebody arriving rather than something they wrote, and has nothing to show underneath.
         if (notification.Post is not null)

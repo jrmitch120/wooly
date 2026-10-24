@@ -46,7 +46,7 @@ public sealed partial record Mentionable(string Address, string Name)
 
     /// <summary>Who a notification came from, then everybody its post names.</summary>
     public static IEnumerable<Mentionable> In(Notification notification) =>
-        [Of(notification.Account, notification.Author), .. notification.Post is { } post ? In(post) : []];
+        [Of(notification.Actor.Address, notification.Actor.Author), .. notification.Post is { } post ? In(post) : []];
 
     /// <summary>Who a notification group came from, in the order the instance gave them, then everybody its post names.</summary>
     public static IEnumerable<Mentionable> In(NotificationGroup group) =>

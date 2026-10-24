@@ -269,4 +269,99 @@ public class ShellNotificationTests
 
         Assert.Equal(reads + 1, shell.Notifications.GroupReads.Count);
     }
+
+    /// <summary>
+    ///     <c>a</c> opens the notification's actor, not the author of the post it is about (#451): on a favorite or a
+    ///     boost that author is the reader, and going to yourself is not where "Alice favorited your post" points. A kind
+    ///     this client has no words for has an actor all the same.
+    /// </summary>
+    [Theory]
+    [InlineData("favorite")]
+    [InlineData("boost")]
+    [InlineData("poll")]
+    public async Task Press_AOpensTheActorRatherThanThePostsAuthor(string kind)
+    {
+        var shell = new AShell
+        {
+            Notifications = FakeNotificationInbox.Holding(
+                ANotification.With(
+                    kind: kind switch
+                    {
+                        "favorite" => NotificationKind.Favorite,
+                        "boost" => NotificationKind.Boost,
+                        _ => NotificationKind.Reported(kind),
+                    },
+                    account: "alice@hachyderm.io",
+                    author: "Alice",
+                    post: APost.With(id: "110", account: "jeff", author: "Jeff"))),
+            Accounts = FakeAccountRelationships.Holding(AnAccount.With(address: "alice@hachyderm.io")),
+        };
+
+        var opened = await shell.Opened();
+
+        opened.Step(ToNotifications);
+        shell.Host.Settle();
+
+        opened.Press(ShellKey.A);
+        shell.Host.Drain();
+
+        var account = Assert.IsType<AccountScreen>(opened.Screen);
+        Assert.Equal("alice@hachyderm.io", account.Account.Address);
+        Assert.Equal("alice@hachyderm.io", Assert.Single(shell.Accounts.Reads).Account.Text);
+    }
+
+    /// <summary>
+    ///     A follow carries no post, which used to leave <c>a</c> with nothing to act on; its actor is the follower, and
+    ///     looking at them is what a reader does before following back (#451).
+    /// </summary>
+    [Fact]
+    public async Task Press_AOpensTheAccountThatFollowed()
+    {
+        var shell = new AShell
+        {
+            Notifications = FakeNotificationInbox.Holding(ANotification.Follow(account: "bob@mastodon.social")),
+            Accounts = FakeAccountRelationships.Holding(AnAccount.With(address: "bob@mastodon.social", author: "Bob")),
+        };
+
+        var opened = await shell.Opened();
+
+        opened.Step(ToNotifications);
+        shell.Host.Settle();
+
+        Assert.Contains(opened.Keys, key => key is { Key: "a", Does: "actor" });
+
+        opened.Press(ShellKey.A);
+        shell.Host.Drain();
+
+        var account = Assert.IsType<AccountScreen>(opened.Screen);
+        Assert.Equal("bob@mastodon.social", account.Account.Address);
+        Assert.Equal("bob@mastodon.social", Assert.Single(shell.Accounts.Reads).Account.Text);
+    }
+
+    /// <summary>On a mention the actor and the post's author are the same account, and <c>a</c> opens it.</summary>
+    [Fact]
+    public async Task Press_AOpensTheAccountThatMentioned()
+    {
+        var shell = new AShell
+        {
+            Notifications = FakeNotificationInbox.Holding(
+                ANotification.With(kind: NotificationKind.Mention, account: "alice@hachyderm.io")),
+            Accounts = FakeAccountRelationships.Holding(AnAccount.With(address: "alice@hachyderm.io")),
+        };
+
+        var opened = await shell.Opened();
+
+        opened.Step(ToNotifications);
+        shell.Host.Settle();
+
+        // Said as what it opens here, and said once.
+        Assert.DoesNotContain(opened.Keys, key => key is { Key: "a", Does: "author" });
+
+        opened.Press(ShellKey.A);
+        shell.Host.Drain();
+
+        var account = Assert.IsType<AccountScreen>(opened.Screen);
+        Assert.Equal("alice@hachyderm.io", account.Account.Address);
+        Assert.Equal("alice@hachyderm.io", Assert.Single(shell.Accounts.Reads).Account.Text);
+    }
 }

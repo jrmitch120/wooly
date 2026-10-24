@@ -1,4 +1,3 @@
-using Wooly.Core.Accounts;
 using Wooly.Core.Notifications;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Theme;
@@ -91,38 +90,6 @@ public static class NotificationGroupLines
             .. unread ? [new Span(mark, Role.RailUnread)] : Array.Empty<Span>(),
         ]);
     }
-
-    /// <summary>
-    ///     A notification that arrived live as a group of its own, until it can be joined to the group it belongs in
-    ///     (#458). Its actor is what a single notification says of one — the address and the name — and nothing more,
-    ///     until a notification carries its actor whole (#451).
-    /// </summary>
-    public static NotificationGroup Alone(Notification notification) => new()
-    {
-        Key = $"ungrouped-{notification.Id}",
-        Kind = notification.Kind,
-        Count = 1,
-        NewestId = notification.Id,
-        NewestAt = notification.ReceivedAt,
-        Actors =
-        [
-            new Account
-            {
-                Id = string.Empty,
-                Address = notification.Account,
-                Author = notification.Author,
-                Followers = 0,
-                Following = 0,
-                Posts = 0,
-                Bio = string.Empty,
-                Fields = [],
-                Joined = default,
-                IsLocked = false,
-                IsBot = false,
-            },
-        ],
-        Post = notification.Post,
-    };
 
     /// <summary>The mark that says the kind without colour.</summary>
     private static string Icon(NotificationKind kind) =>

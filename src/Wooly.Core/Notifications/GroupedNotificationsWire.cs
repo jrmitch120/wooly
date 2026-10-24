@@ -4,7 +4,6 @@ using Wooly.Core.Accounts;
 using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
 using WireAccount = Mastonet.Entities.Account;
-using WireNotification = Mastonet.Entities.Notification;
 using WireStatus = Mastonet.Entities.Status;
 
 namespace Wooly.Core.Notifications;
@@ -62,21 +61,6 @@ internal sealed record GroupedNotificationsWire
             }),
         ];
     }
-
-    /// <summary>
-    ///     A single notification off <c>/api/v1</c> as a group of one — what every notification is on an instance too
-    ///     old to group, under the key Mastodon gives a notification it does not group.
-    /// </summary>
-    public static NotificationGroup Alone(WireNotification notification, ActiveProfile reader) => new()
-    {
-        Key = $"ungrouped-{notification.Id}",
-        Kind = NotificationWire.ToKind(notification.Type),
-        Count = 1,
-        NewestId = notification.Id,
-        NewestAt = MastodonWire.AsUtc(notification.CreatedAt),
-        Actors = [AccountWire.ToAccount(notification.Account, reader.Instance)],
-        Post = notification.Status is null ? null : PostWire.ToPost(notification.Status, reader),
-    };
 
     /// <summary>One group, as the instance describes it.</summary>
     internal sealed record GroupWire
