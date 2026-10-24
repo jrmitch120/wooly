@@ -80,6 +80,19 @@ public class KeyRoleTests
         Assert.StartsWith("quit", row.Spans[2].Text, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    ///     A hint with no key of its own, a line carried on from the one above, draws no empty run of <c>key</c>
+    ///     standing in for one: nothing for a themer's background to band.
+    /// </summary>
+    [Fact]
+    public void TheHelpScreen_DrawsNoKeyRoleForAHintWithoutAKey()
+    {
+        var help = new HelpScreen(new Keyless()).Lines(new Drawing(80, Now));
+        var row = help.Single(line => line.Text.Contains("carried on", StringComparison.Ordinal));
+
+        Assert.DoesNotContain(row.Spans, span => span.Role == Role.Key);
+    }
+
     /// <summary>A confirmation's two keys take <c>key</c>; the words beside them and the dot between them do not.</summary>
     [Fact]
     public void AConfirmation_DrawsItsTwoKeysInKey()
@@ -133,5 +146,16 @@ public class KeyRoleTests
             Assert.NotEqual(theme.For(Role.Muted).Foreground, key);
             Assert.NotEqual(theme.For(Role.Chrome).Foreground, key);
         }
+    }
+
+    /// <summary>A screen whose second hint has no key, carrying on the first's meaning.</summary>
+    private sealed class Keyless : Screen
+    {
+        public override string Crumb => "keyless";
+
+        protected override IReadOnlyList<KeyHint> OwnKeys =>
+            [new("x", "a meaning"), new(string.Empty, "carried on")];
+
+        public override IReadOnlyList<Line> Lines(Drawing drawing) => [];
     }
 }

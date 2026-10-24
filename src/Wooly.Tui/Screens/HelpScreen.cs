@@ -79,8 +79,9 @@ public sealed class HelpScreen(Screen about) : Screen
         var used = columns + spacer.Length;
         var meaning = TextWrap.Wrap(key.Does, Math.Max(0, width - used));
 
+        // A hint with no key draws none, and no empty run of the key's role standing in for one.
         yield return Line.Of([
-            new Span(key.Key, Role.Key),
+            .. columns > 0 ? [new Span(key.Key, Role.Key)] : Array.Empty<Span>(),
             new Span(spacer, Role.Body),
             new Span(meaning.Count > 0 ? meaning[0] : string.Empty, Role.Body),
         ]);
