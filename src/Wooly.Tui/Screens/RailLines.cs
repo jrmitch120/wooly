@@ -238,12 +238,12 @@ public static class RailLines
             body = body.GetRange(Math.Min(top, body.Count), Math.Min(room, body.Count - top));
         }
 
-        // The toggle's mark at the end of the Timelines heading — of the first heading in view, scrolled, or of the top
-        // row where the room is too small for one — so a click always has it to land on. Over where the counts end.
-        if (body.Count > 0)
-        {
-            var heading = Math.Max(0, body.FindIndex(row => row.Item is null));
+        // The toggle's mark at the end of the Timelines heading — of the first heading in view, scrolled — over where
+        // the counts end. None where the room is too small for any heading, rather than one drawn over a count.
+        var heading = body.FindIndex(row => row.Item is null);
 
+        if (heading >= 0)
+        {
             body[heading] = Marked(body[heading], width - 1 - (collapsed ? 1 : 0), collapsed);
         }
 

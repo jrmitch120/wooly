@@ -506,9 +506,8 @@ internal sealed class ShellWindow : Window
             return false;
         }
 
-        // The toggle's mark is asked about first, since in the rare rail too short for a heading it is drawn on an entry.
-        // It is `\` itself, through the keymap, so it does exactly what the key does and nothing where the key does
-        // nothing — on compose, the description editor and the public profile form (#443).
+        // The toggle's mark is `\` itself, through the keymap, so it does exactly what the key does and nothing where
+        // the key does nothing — on compose, the description editor and the public profile form (#443).
         if (_rail.SpanItemAt(at) == RailLines.Toggle)
         {
             var collapsed = _shell.RailCollapsed;

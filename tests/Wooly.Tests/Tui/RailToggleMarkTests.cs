@@ -24,6 +24,12 @@ public class RailToggleMarkTests
     private const int Scrolled = 12;
 
     /// <summary>
+    ///     So short that the scrolled rail keeps two rows of the cursor's group over the gauge, and its heading is not
+    ///     one of them.
+    /// </summary>
+    private const int Headless = 4;
+
+    /// <summary>
     ///     Framed, the mark is in the top-right corner of the Timelines panel's top edge, just inside the corner — <c>«</c>
     ///     expanded, and a click on it collapses the rail, which then has <c>»</c> in the same place on the strip, a click
     ///     on which expands it again. Each click is saved, as each <c>\</c> is.
@@ -171,6 +177,48 @@ public class RailToggleMarkTests
         Assert.Equal(!collapsed, drawn.Shell.RailCollapsed);
         Assert.Same(screen, drawn.Shell.Screen);
         Assert.Equal([!collapsed], built.ShellPreferences.Rails);
+    }
+
+    /// <summary>
+    ///     On a rail too short to keep any heading in view there is no mark, expanded or collapsed, rather than one drawn
+    ///     over an entry's count: every digit of <c>40+</c> stays, and a click on its last cell arrives as any click on
+    ///     the entry does.
+    /// </summary>
+    [Theory]
+    [InlineData(false, true)]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    [InlineData(true, false)]
+    public async Task WithNoHeadingInViewThereIsNoMarkAndEveryCountIsWhole(bool collapsed, bool coloured)
+    {
+        var built = new AShell { CollapsedRail = collapsed };
+        using var drawn = await DrawnShell.Of(80, Headless, Theme(coloured), built);
+        var rail = drawn.Shell.Rail;
+
+        rail.GoTo(DestinationKind.Messages);
+        rail.Update(rail.Destinations.Single(place => place.Kind == DestinationKind.Notifications) with
+        {
+            Unread = 40,
+            Full = true,
+        });
+        drawn.Built.Host.Drain();
+        drawn.Redraw();
+
+        var columns = collapsed ? Strip(coloured) : RailLines.Width;
+        var rows = drawn.Rail(columns);
+        var notifications = Array.FindIndex(rows, row => row.Contains("40+", StringComparison.Ordinal));
+
+        Assert.Equal(0, notifications);
+        Assert.EndsWith(collapsed ? "40+ " : "40+", rows[0], StringComparison.Ordinal);
+        Assert.DoesNotContain(rows, row => row.Contains('«', StringComparison.Ordinal));
+        Assert.DoesNotContain(rows, row => row.Contains('»', StringComparison.Ordinal));
+
+        drawn.Click(rows[0].IndexOf('+', StringComparison.Ordinal), 0);
+        drawn.Built.Host.Drain();
+        drawn.Redraw();
+
+        Assert.Equal(collapsed, drawn.Shell.RailCollapsed);
+        Assert.IsType<NotificationsScreen>(drawn.Shell.Screen);
     }
 
     /// <summary>
