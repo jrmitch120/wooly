@@ -586,6 +586,22 @@ public class HiddenRailTests
     }
 
     /// <summary>
+    ///     And says that <c>\</c> does so from a search or a filter too, since nothing else says a backslash cannot be
+    ///     typed into one (#447).
+    /// </summary>
+    [Fact]
+    public async Task TheKeymapSaysBackslashShowsTheRailFromAPromptToo()
+    {
+        using var drawn = await DrawnShell.Of(160, 40, Themes.Plain);
+
+        drawn.Press(new Key('?'));
+
+        const string said = @"\               hide or show the rail, even from a search or a filter";
+
+        Assert.Contains(drawn.Rows(), row => row.Contains(said, StringComparison.Ordinal));
+    }
+
+    /// <summary>
     ///     The first row of the page the pick is drawn on, by the bar in the content panel's first column.
     /// </summary>
     private static int PickRow(DrawnShell drawn)
