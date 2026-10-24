@@ -53,9 +53,9 @@ public sealed record Preferences
     public int ShellWidth { get; init; } = FullShellWidth;
 
     /// <summary>
-    ///     Whether the TUI opens on the <b>collapsed rail</b> (#442): <see langword="false" /> (absent) opens on the
-    ///     expanded rail, which a fresh install starts on so that the marks are learnt from the labels first. One
+    ///     Whether the TUI opens on the <b>hidden rail</b> (#442, #445): <see langword="false" /> (absent) opens on the
+    ///     shown rail, which a fresh install starts on so that the destinations are seen before they are put away. One
     ///     setting for every profile, as the shell width is.
     /// </summary>
-    public bool CollapsedRail { get; init; }
+    public bool HiddenRail { get; init; }
 }

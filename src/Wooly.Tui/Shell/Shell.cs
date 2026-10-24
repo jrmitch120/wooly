@@ -189,7 +189,7 @@ public sealed class Shell
             new PostDefaults(preferences?.DefaultVisibility, preferences?.DefaultLanguage),
             launchedFrom ?? Environment.CurrentDirectory);
         ShellWidth = preferences is null ? ShellWidth.Full : ShellWidth.Of(preferences.ShellWidth);
-        RailState = preferences?.CollapsedRail is true ? RailState.Collapsed : RailState.Expanded;
+        RailState = preferences?.HiddenRail is true ? RailState.Hidden : RailState.Shown;
 
         Rail = new Rail(Destinations(opening.Profile, _hashtag), host, timing.Settle);
         _badges = new InboxBadges(ports, Rail, host, clock, timing, ringing: preferences?.Bell ?? true, Landed);
@@ -980,7 +980,7 @@ public sealed class Shell
             return;
         }
 
-        RailState = RailState is RailState.Collapsed ? RailState.Expanded : RailState.Collapsed;
+        RailState = RailState is RailState.Hidden ? RailState.Shown : RailState.Hidden;
 
         // Saved straight away, as a width step is, so the next launch opens on the rail this one was left on (#442).
         _ = Saved(() => _shellPreferences.SaveRail(RailState));

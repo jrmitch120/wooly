@@ -54,11 +54,11 @@ public class ShellPreferenceStoreTests
     }
 
     /// <summary>
-    ///     Collapsing the rail writes it beside the width, and expanding it again takes the line away, leaving the
-    ///     width where it was.
+    ///     Hiding the rail writes it beside the width, and showing it again takes the line away, leaving the width
+    ///     where it was.
     /// </summary>
     [Fact]
-    public void SavingTheRailWritesItBesideTheWidth_AndExpandingItTakesTheLineAway()
+    public void SavingTheRailWritesItBesideTheWidth_AndShowingItTakesTheLineAway()
     {
         using var directory = new TemporaryDirectory();
         var paths = new WoolyPaths(directory.Path);
@@ -66,15 +66,15 @@ public class ShellPreferenceStoreTests
         var store = new ShellPreferenceStore(config);
 
         store.SaveWidth(ShellWidth.Of(90));
-        store.SaveRail(RailState.Collapsed);
+        store.SaveRail(RailState.Hidden);
 
-        Assert.True(config.Load().Preferences.CollapsedRail);
+        Assert.True(config.Load().Preferences.HiddenRail);
         Assert.Equal(90, config.Load().Preferences.ShellWidth);
 
-        store.SaveRail(RailState.Expanded);
+        store.SaveRail(RailState.Shown);
 
         var toml = File.ReadAllText(paths.ConfigFile);
-        Assert.DoesNotContain("collapsed_rail", toml);
+        Assert.DoesNotContain("hidden_rail", toml);
         Assert.Contains("shell_width = 90", toml);
     }
 }

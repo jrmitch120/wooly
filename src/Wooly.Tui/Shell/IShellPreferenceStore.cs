@@ -2,7 +2,7 @@ namespace Wooly.Tui.Shell;
 
 /// <summary>
 ///     Where the shell's own preferences are remembered between launches — the <see cref="ShellWidth" /> (#415) and
-///     whether the rail is collapsed (#442): the <c>[preferences]</c> section of the config file, one for every
+///     whether the rail is hidden (#442, #445): the <c>[preferences]</c> section of the config file, one for every
 ///     profile, as both of them are.
 /// </summary>
 /// <remarks>
@@ -15,8 +15,8 @@ public interface IShellPreferenceStore
     void SaveWidth(ShellWidth width);
 
     /// <summary>
-    ///     Saves whether the rail is the collapsed rail or the expanded one, <paramref name="rail" />, so that the next
-    ///     launch opens on it.
+    ///     Saves whether the rail is the hidden rail or the shown one, <paramref name="rail" />, so that the next launch
+    ///     opens on it.
     /// </summary>
     void SaveRail(RailState rail);
 }

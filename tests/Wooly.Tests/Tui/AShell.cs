@@ -147,9 +147,9 @@ internal sealed class AShell
     public int ShellWidth { get; set; } = 100;
 
     /// <summary>
-    ///     The config file's <c>collapsed_rail</c>, which a launch opens on (#442). The expanded rail, unless said.
+    ///     The config file's <c>hidden_rail</c>, which a launch opens on (#442, #445). The shown rail, unless said.
     /// </summary>
-    public bool CollapsedRail { get; set; }
+    public bool HiddenRail { get; set; }
 
     /// <summary>The config file's preferences, as far as these tests set them.</summary>
     private Preferences Preferences => new()
@@ -159,7 +159,7 @@ internal sealed class AShell
         DefaultLanguage = DefaultLanguage,
         Bell = Bell,
         ShellWidth = ShellWidth,
-        CollapsedRail = CollapsedRail,
+        HiddenRail = HiddenRail,
     };
 
     /// <summary>

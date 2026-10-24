@@ -4,8 +4,8 @@ namespace Wooly.Tui.Shell;
 
 /// <summary>
 ///     The shell's preferences saved in the config file's <c>[preferences]</c> — <c>shell_width</c> (#415) and
-///     <c>collapsed_rail</c> (#442): the file read, the one value set, and the file written back through the same store
-///     everything else in it is written through.
+///     <c>hidden_rail</c> (#442, #445): the file read, the one value set, and the file written back through the same
+///     store everything else in it is written through.
 /// </summary>
 /// <remarks>
 ///     Written whole, as making a profile the default writes it, so comments written by hand in the file do not
@@ -18,7 +18,7 @@ public sealed class ShellPreferenceStore(IConfigStore config) : IShellPreference
 
     /// <inheritdoc />
     public void SaveRail(RailState rail) =>
-        Saved(preferences => preferences with { CollapsedRail = rail is RailState.Collapsed });
+        Saved(preferences => preferences with { HiddenRail = rail is RailState.Hidden });
 
     private void Saved(Func<Preferences, Preferences> set)
     {

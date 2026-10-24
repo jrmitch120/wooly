@@ -248,13 +248,13 @@ public class TomlConfigStoreTests : IDisposable
     }
 
     /// <summary>
-    ///     #442: the expanded rail is what an absent key means, with no file and with a file that leaves it out — which
+    ///     #445: the shown rail is what an absent key means, with no file and with a file that leaves it out — which
     ///     is what a fresh install opens on.
     /// </summary>
     [Fact]
-    public void Load_ReadsTheRailAsExpandedWhenAbsent()
+    public void Load_ReadsTheRailAsShownWhenAbsent()
     {
-        Assert.False(NewStore().Load().Preferences.CollapsedRail);
+        Assert.False(NewStore().Load().Preferences.HiddenRail);
 
         WriteConfigFile(
             """
@@ -262,43 +262,43 @@ public class TomlConfigStoreTests : IDisposable
             hashtag = "dotnet"
             """);
 
-        Assert.False(NewStore().Load().Preferences.CollapsedRail);
+        Assert.False(NewStore().Load().Preferences.HiddenRail);
     }
 
     [Fact]
-    public void Save_ThenLoad_RoundTripsTheCollapsedRailBesideTheShellWidth()
+    public void Save_ThenLoad_RoundTripsTheHiddenRailBesideTheShellWidth()
     {
         var store = NewStore();
 
-        store.Save(new WoolyConfig { Preferences = new Preferences { ShellWidth = 70, CollapsedRail = true } });
+        store.Save(new WoolyConfig { Preferences = new Preferences { ShellWidth = 70, HiddenRail = true } });
 
-        Assert.Contains("collapsed_rail = true", File.ReadAllText(Path.Combine(_directory.Path, "config.toml")));
+        Assert.Contains("hidden_rail = true", File.ReadAllText(Path.Combine(_directory.Path, "config.toml")));
 
         var preferences = store.Load().Preferences;
 
-        Assert.True(preferences.CollapsedRail);
+        Assert.True(preferences.HiddenRail);
         Assert.Equal(70, preferences.ShellWidth);
     }
 
     /// <summary>
-    ///     Expanded is what an absent key reads as, so it is not written: expanding the rail again takes the line away,
-    ///     leaving the file there would be had it never been collapsed.
+    ///     Shown is what an absent key reads as, so it is not written: showing the rail again takes the line away,
+    ///     leaving the file as it would be had the rail never been hidden.
     /// </summary>
     [Fact]
-    public void Save_OmitsTheRailWhenExpanded_AndRemovesItOnceExpandedAgain()
+    public void Save_OmitsTheRailWhenShown_AndRemovesItOnceShownAgain()
     {
         var store = NewStore();
 
-        store.Save(new WoolyConfig { Preferences = new Preferences { CollapsedRail = false } });
+        store.Save(new WoolyConfig { Preferences = new Preferences { HiddenRail = false } });
 
         Assert.Empty(File.ReadAllText(Path.Combine(_directory.Path, "config.toml")));
 
-        store.Save(new WoolyConfig { Preferences = new Preferences { Hashtag = "dotnet", CollapsedRail = true } });
-        store.Save(store.Load() with { Preferences = store.Load().Preferences with { CollapsedRail = false } });
+        store.Save(new WoolyConfig { Preferences = new Preferences { Hashtag = "dotnet", HiddenRail = true } });
+        store.Save(store.Load() with { Preferences = store.Load().Preferences with { HiddenRail = false } });
 
         var toml = File.ReadAllText(Path.Combine(_directory.Path, "config.toml"));
 
-        Assert.DoesNotContain("collapsed_rail", toml);
+        Assert.DoesNotContain("hidden_rail", toml);
         Assert.Contains("hashtag = \"dotnet\"", toml);
     }
 
@@ -309,19 +309,19 @@ public class TomlConfigStoreTests : IDisposable
     [Theory]
     [InlineData("\"yes\"")]
     [InlineData("1")]
-    [InlineData("\"collapsed\"")]
-    public void Load_RefusesACollapsedRailThatIsNotTrueOrFalse(string written)
+    [InlineData("\"hidden\"")]
+    public void Load_RefusesAHiddenRailThatIsNotTrueOrFalse(string written)
     {
         WriteConfigFile(
             $"""
              [preferences]
-             collapsed_rail = {written}
+             hidden_rail = {written}
              """);
 
         var exception = Assert.Throws<ConfigurationException>(() => NewStore().Load());
 
         Assert.Contains("config.toml", exception.Message);
-        Assert.Contains("'collapsed_rail' must be true or false.", exception.Message);
+        Assert.Contains("'hidden_rail' must be true or false.", exception.Message);
     }
 
     [Fact]

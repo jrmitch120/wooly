@@ -91,7 +91,7 @@ public static class RailLines
     /// <param name="state">Whether it is the expanded rail or the collapsed rail, one mark a destination.</param>
     /// <param name="coloured">Whether colour is drawn, without which the collapsed rail keeps the mark column.</param>
     public static int Columns(RailState state, bool coloured) =>
-        state is RailState.Expanded ? Width : coloured ? CollapsedWidth : CollapsedPlainWidth;
+        state is RailState.Shown ? Width : coloured ? CollapsedWidth : CollapsedPlainWidth;
 
     /// <summary>The rail, drawn to <paramref name="height" /> rows with the budget held at the bottom.</summary>
     /// <param name="rail">The destinations, the cursor, and the selection.</param>
@@ -116,7 +116,7 @@ public static class RailLines
         int height,
         string? instance = null,
         bool coloured = false,
-        RailState state = RailState.Expanded)
+        RailState state = RailState.Shown)
     {
         if (height <= 0)
         {
@@ -493,7 +493,7 @@ public static class RailLines
     private sealed record Drawn(int Width, bool Coloured, RailState State)
     {
         /// <summary>Whether it is the collapsed rail being drawn.</summary>
-        public bool Collapsed => State is RailState.Collapsed;
+        public bool Collapsed => State is RailState.Hidden;
     }
 
     /// <summary>One rail group as it stands on this rail: the places on the rail it holds, in the order they are drawn.</summary>

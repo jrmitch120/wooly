@@ -303,7 +303,7 @@ public class CollapsedRailTests
         }
 
         Assert.Contains(drawn.Rows(), row => row.Contains("a\\b", StringComparison.Ordinal));
-        Assert.Equal(RailState.Expanded, drawn.Shell.RailState);
+        Assert.Equal(RailState.Shown, drawn.Shell.RailState);
         Assert.Equal(RailLines.Width, drawn.Content.Frame.X);
     }
 
@@ -326,7 +326,7 @@ public class CollapsedRailTests
         drawn.Press(Key.Esc);
         drawn.Press(Toggle);
 
-        Assert.Equal(RailState.Expanded, drawn.Shell.RailState);
+        Assert.Equal(RailState.Shown, drawn.Shell.RailState);
         Assert.Equal(0, drawn.Content.Frame.X);
     }
 
@@ -351,7 +351,7 @@ public class CollapsedRailTests
         drawn.Redraw();
 
         Assert.False(drawn.Shell.Do(Verb.ToggleRail, answer: null));
-        Assert.Equal(RailState.Expanded, drawn.Shell.RailState);
+        Assert.Equal(RailState.Shown, drawn.Shell.RailState);
         Assert.Empty(built.ShellPreferences.Rails);
         Assert.Equal(0, drawn.Content.Frame.X);
     }
@@ -495,7 +495,7 @@ public class CollapsedRailTests
         Assert.IsType<NotificationsScreen>(drawn.Shell.Screen);
         Assert.Equal(drawn.Shell.Rail.Current, drawn.Shell.Rail.Cursor);
         Assert.Equal(0, drawn.Built.Host.Waiting);
-        Assert.Equal(RailState.Collapsed, drawn.Shell.RailState);
+        Assert.Equal(RailState.Hidden, drawn.Shell.RailState);
     }
 
     /// <summary>

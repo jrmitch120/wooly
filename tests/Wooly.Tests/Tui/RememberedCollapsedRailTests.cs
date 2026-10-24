@@ -24,12 +24,12 @@ public class RememberedCollapsedRailTests
 
         drawn.Press(Toggle);
 
-        Assert.Equal([RailState.Collapsed], built.ShellPreferences.Rails);
+        Assert.Equal([RailState.Hidden], built.ShellPreferences.Rails);
 
         drawn.Press(Toggle);
         drawn.Press(Toggle);
 
-        Assert.Equal([RailState.Collapsed, RailState.Expanded, RailState.Collapsed], built.ShellPreferences.Rails);
+        Assert.Equal([RailState.Hidden, RailState.Shown, RailState.Hidden], built.ShellPreferences.Rails);
     }
 
     /// <summary>
@@ -39,17 +39,17 @@ public class RememberedCollapsedRailTests
     [Fact]
     public async Task ALaunchOpensOnTheSavedCollapsedRail()
     {
-        var built = new AShell { CollapsedRail = true };
+        var built = new AShell { HiddenRail = true };
         using var drawn = await DrawnShell.Of(80, 24, Themes.Dark, built, launch: true);
 
-        Assert.Equal(RailState.Collapsed, drawn.Shell.RailState);
+        Assert.Equal(RailState.Hidden, drawn.Shell.RailState);
         Assert.Equal(7, ContentStarts(drawn));
         Assert.Empty(built.ShellPreferences.Rails);
 
         drawn.Press(Toggle);
 
         Assert.Equal(RailLines.Width, ContentStarts(drawn));
-        Assert.Equal([RailState.Expanded], built.ShellPreferences.Rails);
+        Assert.Equal([RailState.Shown], built.ShellPreferences.Rails);
     }
 
     /// <summary>Where nothing was saved, as on a fresh install, a launch opens on the expanded rail.</summary>
@@ -58,7 +58,7 @@ public class RememberedCollapsedRailTests
     {
         using var drawn = await DrawnShell.Of(80, 24, Themes.Dark, new AShell(), launch: true);
 
-        Assert.Equal(RailState.Expanded, drawn.Shell.RailState);
+        Assert.Equal(RailState.Shown, drawn.Shell.RailState);
         Assert.Equal(RailLines.Width, ContentStarts(drawn));
     }
 
@@ -76,7 +76,7 @@ public class RememberedCollapsedRailTests
 
         drawn.Press(Toggle);
 
-        Assert.Equal(RailState.Collapsed, drawn.Shell.RailState);
+        Assert.Equal(RailState.Hidden, drawn.Shell.RailState);
         Assert.Equal(7, ContentStarts(drawn));
         Assert.Contains("'bell' must be true or false.", drawn.Shell.Notice, StringComparison.Ordinal);
         Assert.True(drawn.Shell.NoticeIsError);

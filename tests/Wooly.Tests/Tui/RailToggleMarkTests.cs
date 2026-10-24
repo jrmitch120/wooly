@@ -46,14 +46,14 @@ public class RailToggleMarkTests
 
         drawn.Click(RailLines.Width - 2, 0);
 
-        Assert.Equal(RailState.Collapsed, drawn.Shell.RailState);
+        Assert.Equal(RailState.Hidden, drawn.Shell.RailState);
         Assert.Equal(coloured ? "╭────»╮" : "╭──────»╮", drawn.Rail(CollapsedRailWidth(coloured))[0]);
 
         drawn.Click(CollapsedRailWidth(coloured) - 2, 0);
 
-        Assert.Equal(RailState.Expanded, drawn.Shell.RailState);
+        Assert.Equal(RailState.Shown, drawn.Shell.RailState);
         Assert.Equal("╭ Timelines ──────«╮", drawn.Rail()[0]);
-        Assert.Equal([RailState.Collapsed, RailState.Expanded], built.ShellPreferences.Rails);
+        Assert.Equal([RailState.Hidden, RailState.Shown], built.ShellPreferences.Rails);
     }
 
     /// <summary>
@@ -72,15 +72,15 @@ public class RailToggleMarkTests
 
         drawn.Click(RailLines.Width - 1, 0);
 
-        Assert.Equal(RailState.Collapsed, drawn.Shell.RailState);
+        Assert.Equal(RailState.Hidden, drawn.Shell.RailState);
         var columns = CollapsedRailWidth(coloured);
 
         Assert.Equal(new string(' ', columns - 2) + "» ", drawn.Rail(columns)[0]);
 
         drawn.Click(columns - 2, 0);
 
-        Assert.Equal(RailState.Expanded, drawn.Shell.RailState);
-        Assert.Equal([RailState.Collapsed, RailState.Expanded], built.ShellPreferences.Rails);
+        Assert.Equal(RailState.Shown, drawn.Shell.RailState);
+        Assert.Equal([RailState.Hidden, RailState.Shown], built.ShellPreferences.Rails);
     }
 
     /// <summary>
@@ -107,14 +107,14 @@ public class RailToggleMarkTests
 
         drawn.Click(RailLines.Width - 1, explore);
 
-        Assert.Equal(RailState.Collapsed, drawn.Shell.RailState);
+        Assert.Equal(RailState.Hidden, drawn.Shell.RailState);
         var columns = CollapsedRailWidth(coloured);
 
         Assert.Equal(new string(' ', columns - 2) + "» ", drawn.Rail(columns)[explore]);
 
         drawn.Click(columns - 2, explore);
 
-        Assert.Equal(RailState.Expanded, drawn.Shell.RailState);
+        Assert.Equal(RailState.Shown, drawn.Shell.RailState);
     }
 
     /// <summary>
@@ -143,10 +143,10 @@ public class RailToggleMarkTests
         drawn.Built.Host.Drain();
         drawn.Redraw();
 
-        Assert.Equal(RailState.Collapsed, drawn.Shell.RailState);
+        Assert.Equal(RailState.Hidden, drawn.Shell.RailState);
         Assert.Same(messages, drawn.Shell.Screen);
         Assert.Equal(1, drawn.Shell.Depth);
-        Assert.Equal([RailState.Collapsed], built.ShellPreferences.Rails);
+        Assert.Equal([RailState.Hidden], built.ShellPreferences.Rails);
     }
 
     /// <summary>
@@ -154,17 +154,17 @@ public class RailToggleMarkTests
     ///     once and <c>»</c> expands it once, the screen in front is still in front, and one toggle is saved.
     /// </summary>
     [Theory]
-    [InlineData(Framed, RailState.Expanded, true)]
-    [InlineData(Framed, RailState.Expanded, false)]
-    [InlineData(Framed, RailState.Collapsed, true)]
-    [InlineData(Framed, RailState.Collapsed, false)]
-    [InlineData(Scrolled, RailState.Collapsed, true)]
-    [InlineData(Scrolled, RailState.Collapsed, false)]
+    [InlineData(Framed, RailState.Shown, true)]
+    [InlineData(Framed, RailState.Shown, false)]
+    [InlineData(Framed, RailState.Hidden, true)]
+    [InlineData(Framed, RailState.Hidden, false)]
+    [InlineData(Scrolled, RailState.Hidden, true)]
+    [InlineData(Scrolled, RailState.Hidden, false)]
     public async Task ADoubleClickOnTheMarkIsOneToggleEitherWay(int height, RailState from, bool coloured)
     {
-        var collapsed = from is RailState.Collapsed;
-        var toggled = collapsed ? RailState.Expanded : RailState.Collapsed;
-        var built = new AShell { CollapsedRail = collapsed };
+        var collapsed = from is RailState.Hidden;
+        var toggled = collapsed ? RailState.Shown : RailState.Hidden;
+        var built = new AShell { HiddenRail = collapsed };
         using var drawn = await DrawnShell.Of(80, height, Theme(coloured), built);
 
         drawn.Shell.Rail.GoTo(DestinationKind.Messages);
@@ -191,14 +191,14 @@ public class RailToggleMarkTests
     ///     click on the entry does.
     /// </summary>
     [Theory]
-    [InlineData(RailState.Expanded, true)]
-    [InlineData(RailState.Expanded, false)]
-    [InlineData(RailState.Collapsed, true)]
-    [InlineData(RailState.Collapsed, false)]
+    [InlineData(RailState.Shown, true)]
+    [InlineData(RailState.Shown, false)]
+    [InlineData(RailState.Hidden, true)]
+    [InlineData(RailState.Hidden, false)]
     public async Task WithNoHeadingInViewThereIsNoMarkAndEveryCountIsWhole(RailState state, bool coloured)
     {
-        var collapsed = state is RailState.Collapsed;
-        var built = new AShell { CollapsedRail = collapsed };
+        var collapsed = state is RailState.Hidden;
+        var built = new AShell { HiddenRail = collapsed };
         using var drawn = await DrawnShell.Of(80, Headless, Theme(coloured), built);
         var rail = drawn.Shell.Rail;
 
@@ -245,7 +245,7 @@ public class RailToggleMarkTests
 
         drawn.Click(RailLines.Width - 2, 0);
 
-        Assert.Equal(RailState.Expanded, drawn.Shell.RailState);
+        Assert.Equal(RailState.Shown, drawn.Shell.RailState);
         Assert.Empty(built.ShellPreferences.Rails);
         Assert.Same(compose, drawn.Shell.Screen);
         Assert.Equal(RailLines.Width, drawn.Content.Frame.X);
@@ -273,7 +273,7 @@ public class RailToggleMarkTests
         drawn.Click(RailLines.Width - 2, 0);
 
         Assert.Null(drawn.Shell.Asking);
-        Assert.Equal(RailState.Expanded, drawn.Shell.RailState);
+        Assert.Equal(RailState.Shown, drawn.Shell.RailState);
         Assert.Empty(built.ShellPreferences.Rails);
     }
 
@@ -296,7 +296,7 @@ public class RailToggleMarkTests
 
         drawn.Built.Host.Settle();
 
-        Assert.Equal(RailState.Expanded, drawn.Shell.RailState);
+        Assert.Equal(RailState.Shown, drawn.Shell.RailState);
         Assert.Equal(0, drawn.Shell.Rail.Current);
 
         var notifications =
@@ -307,7 +307,7 @@ public class RailToggleMarkTests
         drawn.Redraw();
 
         Assert.IsType<NotificationsScreen>(drawn.Shell.Screen);
-        Assert.Equal(RailState.Expanded, drawn.Shell.RailState);
+        Assert.Equal(RailState.Shown, drawn.Shell.RailState);
         Assert.Empty(built.ShellPreferences.Rails);
     }
 
@@ -332,7 +332,7 @@ public class RailToggleMarkTests
         drawn.Point(mark, 3, MouseFlags.LeftButtonReleased);
         drawn.RightClick(mark, 0);
 
-        Assert.Equal(RailState.Expanded, drawn.Shell.RailState);
+        Assert.Equal(RailState.Shown, drawn.Shell.RailState);
         Assert.Empty(built.ShellPreferences.Rails);
         Assert.Equal(rows, drawn.Rows());
     }
