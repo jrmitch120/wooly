@@ -98,11 +98,17 @@ internal sealed class ShellWindow : Window
     /// </remarks>
     private Screen? _showing;
 
-    /// <summary>Whether the rail is laid out, which it is as built.</summary>
-    private bool _railed = true;
+    /// <summary>
+    ///     Whether the rail is laid out, which it is as built: there is one, and it is not hidden. What gives the
+    ///     content its columns.
+    /// </summary>
+    private bool _railLaidOut = true;
 
-    /// <summary>Whether the rail was last laid out shown or hidden: shown as built (#445).</summary>
-    private RailState _railState;
+    /// <summary>
+    ///     Which state the last toggle the window laid out left the rail in, shown as built — kept apart from
+    ///     <see cref="_railLaidOut" /> so that a toggle is noticed even where there is no rail to lay out (#445).
+    /// </summary>
+    private RailState _toggledTo;
 
     /// <summary>
     ///     Whether the last click was spent declining an open question, which spends the double click it turns out to be
@@ -229,7 +235,7 @@ internal sealed class ShellWindow : Window
                 }),
             pictures,
             // No rows of the panel's own: the view paints only the frame's edges, round the screen's rows.
-            (width, height) => ShowingTheRail(Panel.Framed(
+            (width, height) => WithTheHiddenRailsMark(Panel.Framed(
                 ChromeLines.Breadcrumb(shell.Crumbs, shell.SpinnerFrame, width),
                 [],
                 width,
@@ -502,7 +508,7 @@ internal sealed class ShellWindow : Window
             return true;
         }
 
-        if (!_railed || !_rail.FrameToScreen().Contains(at))
+        if (!_railLaidOut || !_rail.FrameToScreen().Contains(at))
         {
             return false;
         }
@@ -1053,7 +1059,7 @@ internal sealed class ShellWindow : Window
     ///     is hidden, in the cell the shown rail's <c>«</c> was in (#445) — and as they were where the rail is shown,
     ///     or where there is none to show.
     /// </summary>
-    private IReadOnlyList<Rendering.Line> ShowingTheRail(IReadOnlyList<Rendering.Line> edges)
+    private IReadOnlyList<Rendering.Line> WithTheHiddenRailsMark(IReadOnlyList<Rendering.Line> edges)
     {
         if (!_shell.HidesRail || edges.Count < 2)
         {
@@ -1092,7 +1098,7 @@ internal sealed class ShellWindow : Window
     {
         var railed = _shell.ShowsRail && !_shell.HidesRail;
 
-        if (_railed == railed && _railState == _shell.RailState)
+        if (_railLaidOut == railed && _toggledTo == _shell.RailState)
         {
             return;
         }
@@ -1100,14 +1106,14 @@ internal sealed class ShellWindow : Window
         // A toggle of the rail rewraps every row of the content at its new width, so a row offset into the old rows
         // says nothing about the new ones: the pick is kept on the page row it was drawn on instead, and with nothing
         // picked the page is left where it begins (#441).
-        if (_railState != _shell.RailState)
+        if (_toggledTo != _shell.RailState)
         {
             _content.KeepPickOnItsRow();
         }
 
-        _railed = railed;
-        _railState = _shell.RailState;
-        _rail.Visible = _railed;
+        _railLaidOut = railed;
+        _toggledTo = _shell.RailState;
+        _rail.Visible = _railLaidOut;
 
         LaidOutAtTheNewWidth();
     }
@@ -1116,7 +1122,7 @@ internal sealed class ShellWindow : Window
     ///     Where the content panel and the breadcrumb over it start: where the rail ends, or at the window's left edge
     ///     where there is no rail or it is hidden.
     /// </summary>
-    private int Left => _railed ? RailLines.Width : 0;
+    private int Left => _railLaidOut ? RailLines.Width : 0;
 
     /// <summary>
     ///     Settles the window to what the shell now says: the rail, the scroll, and the content's scrolling while
