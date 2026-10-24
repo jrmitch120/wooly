@@ -134,7 +134,16 @@ public sealed class Enquiry(
     /// <param name="ifStillHere">
     ///     What lands only while the screen it was asked from is still the one in front: a screen, a notice about it.
     /// </param>
-    public async Task Put<T>(Func<Ask, Task<T>> question, Action<T>? eitherWay = null, Action<T>? ifStillHere = null)
+    /// <param name="ended">
+    ///     What is done on the drawing thread once the question is over, however it ended — answered, dropped as
+    ///     stale, or refused — ahead of whatever lands: a read on, which is one at a time on its screen, being out no
+    ///     longer (#469). Not done where the enquiry was abandoned, there being nothing left to do it to.
+    /// </param>
+    public async Task Put<T>(
+        Func<Ask, Task<T>> question,
+        Action<T>? eitherWay = null,
+        Action<T>? ifStillHere = null,
+        Action? ended = null)
     {
         if (_abandoned.IsCancellationRequested)
         {
@@ -165,6 +174,8 @@ public sealed class Enquiry(
             // refused token is handed on instead, since what to say about it is which key fixes it (#248).
             Apply(() =>
             {
+                ended?.Invoke();
+
                 if (failure is AuthenticationException refused)
                 {
                     Refused?.Invoke(refused);
@@ -185,6 +196,8 @@ public sealed class Enquiry(
         Apply(() =>
         {
             Answered = true;
+
+            ended?.Invoke();
 
             eitherWay?.Invoke(answer);
 

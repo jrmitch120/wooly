@@ -965,6 +965,43 @@ selection was the only scroll position a screen had and the foot of such a post 
   deliberately, and written down because the vim reading is the one anybody will assume — so a future "fix" would
   silently reverse what `j` does on every screen in the shell.
 
+### What reading on settled
+
+#469 put **reading on** on Home, the first list to get it (spec #460). Home used to read 40 posts and stop, so a reader
+who walked to the bottom had no way to see anything older without leaving the TUI. What this document now holds it to:
+
+- **Nobody asks for it.** As the reader walks down Home and the page comes within one content-region height of the
+  last row of the list, the shell asks the instance for the older posts behind the last one held and adds them below.
+  It is measured in the region's own height, so it starts at the same moment however tall the terminal is, and it
+  rarely, if ever, lets a reader see the list stop and wait.
+- **The window says where the page is, once per move.** Only the window knows how tall the region is and where the
+  rows have scrolled to, so the frame that settles the page tells the shell how many rows lie under it
+  (`Shell.Viewed`). It says so after `k`, `j`, `Home` or `End`, and on a screen coming in front (arrived at, drilled
+  into, refreshed or walked back to), and on nothing else. A frame is drawn for many reasons that are not the reader
+  going anywhere, a read on landing among them, and a list whose read came back with nothing new would ask again on
+  every one. The reader's own walking is the only throttle. `↓`, `PgDn` and the wheel reach it in #461.
+- **Only ever further down.** What has arrived since is still **Refresh**'s (`g`), above everything already read.
+  `g` builds a new screen read from the top, so it drops everything read on.
+- **Nothing moves.** The older posts go under the last one held, and the pick and the rows on the page stay where
+  they were.
+- **One read at a time per screen.** Walking about near the end while a read is in flight asks for nothing more.
+- **The foot of the list says what is happening.** It is one muted row under the last post: "reading on…" while a read
+  is in flight, and "that's everything" once the instance has nothing behind what the list holds, which makes it
+  **whole**. A whole list is never asked again, and a quiet one whose first read held everything says so straight
+  away. Between reads, with more to come, the row is not drawn. Neither is it drawn on an empty list, whose own notice
+  already speaks for it.
+- **Being whole is the instance's call, not a count's.** The instance names no next page, or a page comes back empty
+  (ADR-0007). A short page that still names a next page is not the end. What the shell holds is the instance's own
+  onward position, carried on the `Fetch` and handed back as it came (ADR-0007's amendment), never a page or a cursor.
+- **Leaving mid-read drops the answer**, under the stale rule every enquiry keeps: nothing lands on a screen the
+  reader is not looking at. Walking back out hands back the same screen, still near the end, and it reads on again
+  from where it was. The dropped read cost nothing.
+- **A cached Home reads on from where its first read stopped.** The cache keeps the onward position with the posts
+  (ADR-0014). A Home arrived at within the minute is a fresh screen of the first read's posts, opened at the top, and
+  walking down reads on from the post after them. Holding everything read on is #463's.
+- **Only Home, for now.** Every other list still reads once and never asks, and draws no foot. Local, Federated, a
+  hashtag and an account's posts follow in #464, and the Inbox in #465 and #466.
+
 ### What conversations settled
 
 The last two screens, and the one place a screen writes words of its own into what a reader is sending:

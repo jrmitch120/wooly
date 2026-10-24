@@ -66,6 +66,18 @@ public abstract record Subject
     internal abstract Task<Found> Read(Enquiry.Ask ask, ShellPorts ports, ActiveProfile profile, Screen? standing);
 
     /// <summary>
+    ///     <b>Reads on</b> from <paramref name="from" />: what stands behind the last thing its screen holds, as an answer
+    ///     that adds it to that screen (#469). Asked only of a subject whose screen carries a
+    ///     <see cref="Screens.ReadingOn" />, which only an answer that reads on gives it.
+    /// </summary>
+    /// <param name="ask">What every call it makes is put through.</param>
+    /// <param name="ports">What it is read through.</param>
+    /// <param name="profile">Who is asking.</param>
+    /// <param name="from">Where the instance said to read on from.</param>
+    internal virtual Task<Found> ReadOn(Enquiry.Ask ask, ShellPorts ports, ActiveProfile profile, Onward from) =>
+        throw new InvalidOperationException($"{GetType().Name} does not read on, and its screen was never told to.");
+
+    /// <summary>
     ///     The screen that stands for it at once on <paramref name="move" />, before anything has been read — or
     ///     <see langword="null" /> where its screen appears only when its answer lands.
     /// </summary>
@@ -132,6 +144,10 @@ public abstract record Subject
             Table().Read(ask, ports, profile, Entry, token => new InboxCount(ports, profile, SessionMarkers, token));
 
         /// <inheritdoc />
+        internal override Task<Found> ReadOn(Enquiry.Ask ask, ShellPorts ports, ActiveProfile profile, Onward from) =>
+            Table().ReadOn(ask, ports, profile, from);
+
+        /// <inheritdoc />
         /// <remarks>
         ///     Only on arriving: what was on screen is about somewhere else, which is exactly what is not true of a
         ///     refresh — so there, what is showing stands until a fresher copy of it is ready to take its place, and a
@@ -165,7 +181,15 @@ public abstract record Subject
                     // A timeline carries no badge, which is something this destination says rather than a step its
                     // arrival is missing.
                     Counting: null,
-                    Carries: post => post);
+                    Carries: post => post,
+
+                    // Home alone for now: the other three follow it in #464.
+                    ReadsOn: timeline == Timeline.Home
+                        ? new OnwardRead<Post>(
+                            (ports, profile, from, token) =>
+                                ports.Timelines.ReadOn(profile, timeline, from, Arrival.PostsWanted, token),
+                            (screen, older) => ((FeedScreen)screen).ReadOn(older))
+                        : null);
             }
 
             return entry.Kind switch
@@ -628,7 +652,17 @@ public abstract record Subject
             ActiveProfile profile,
             Entry entry,
             Func<CancellationToken, InboxCount> counting);
+
+        /// <summary>Reads on from <paramref name="from" />, which only a destination that reads on is asked.</summary>
+        public abstract Task<Found> ReadOn(Enquiry.Ask ask, ShellPorts ports, ActiveProfile profile, Onward from);
     }
+
+    /// <summary>How a destination whose list reads on reads on, and what it does with what that brought (#469).</summary>
+    /// <param name="Reads">What the instance is asked for, from where the last read said to read on from.</param>
+    /// <param name="Adds">Puts what came back under what the destination's screen already holds.</param>
+    private sealed record OnwardRead<T>(
+        Func<ShellPorts, ActiveProfile, Onward, CancellationToken, Task<Fetch<T>>> Reads,
+        Action<Screen, IReadOnlyList<T>> Adds);
 
     /// <inheritdoc cref="Listing" />
     /// <param name="Reads">What the instance is asked for.</param>
@@ -646,12 +680,17 @@ public abstract record Subject
     ///     The post a row carries, or <see langword="null" /> where it carries none — which is what says whether a post
     ///     changing makes the list stale (#234).
     /// </param>
+    /// <param name="ReadsOn">
+    ///     How its list reads on, or <see langword="null" /> where it does not — which leaves its screen with nothing to
+    ///     read on from, so it is never asked (#469).
+    /// </param>
     private sealed record Listing<T>(
         Func<ShellPorts, ActiveProfile, CancellationToken, Task<Fetch<T>>> Reads,
         Func<IReadOnlyList<T>, string?, IReadOnlySet<string>, Screen> Becomes,
         string WhenEmpty,
         Func<InboxCount, IReadOnlyList<T>, Task<InboxCount.Tally>>? Counting,
-        Func<T, Post?> Carries) : Listing
+        Func<T, Post?> Carries,
+        OnwardRead<T>? ReadsOn = null) : Listing
     {
         /// <inheritdoc />
         public override Screen Empty() => Becomes([], null, InboxCount.Tally.NoneUnread);
@@ -667,6 +706,18 @@ public abstract record Subject
             var fetch = await ask.Of(token => Reads(ports, profile, token));
 
             return new Listed<T>(this, entry, fetch, await Counted(ask, counting, fetch.Items));
+        }
+
+        /// <inheritdoc />
+        public override async Task<Found> ReadOn(
+            Enquiry.Ask ask,
+            ShellPorts ports,
+            ActiveProfile profile,
+            Onward from)
+        {
+            var reading = ReadsOn ?? throw new InvalidOperationException("This destination's list does not read on.");
+
+            return new ReadOnto<T>(reading, await ask.Of(token => reading.Reads(ports, profile, from, token)));
         }
 
         /// <summary>
@@ -710,11 +761,20 @@ public abstract record Subject
         ///     What the list is of is the destination's own to say, and only a timeline has a name worth putting in
         ///     the sentence — so it is read off the entry rather than being a fifth thing a destination states.
         /// </remarks>
-        public override Screen Becomes(Screen? standing) =>
-            How.Becomes(
+        public override Screen Becomes(Screen? standing)
+        {
+            var screen = How.Becomes(
                 Fetch.Items,
                 Arrival.Emptiness(Fetch.Items.Count, How.WhenEmpty, Entry.Timeline?.Description, Fetch.StoppedBy),
                 Waiting?.Unread ?? InboxCount.Tally.NoneUnread);
+
+            if (How.ReadsOn is not null)
+            {
+                screen.ReadingOn = new ReadingOn(Fetch.Onward);
+            }
+
+            return screen;
+        }
 
         /// <inheritdoc />
         /// <remarks>
@@ -732,7 +792,9 @@ public abstract record Subject
         public override Found Held(Screen screen) =>
             this with
             {
-                Fetch = Fetch<T>.Complete(Fetch.Items),
+                // Where to read on from is kept with it, so a list held reads on from where it was read to rather
+                // than being drawn whole.
+                Fetch = Fetch<T>.Complete(Fetch.Items, Fetch.Onward),
                 Waiting = Waiting is { } waiting ? waiting with { Unread = InboxCount.Tally.NoneUnread } : null,
             };
 
@@ -745,5 +807,24 @@ public abstract record Subject
             Fetch.Items.Any(item => How.Carries(item) is { } post
                 && new[] { post, post.Boosted }.Any(
                     by => string.Equals(by?.Account, account, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    /// <summary>What one read on of a destination came back with, which is added to the screen it was asked from.</summary>
+    /// <param name="How">How the destination reads on.</param>
+    /// <param name="Fetch">What came back, and where to read on from next unless the list is now whole.</param>
+    private sealed record ReadOnto<T>(OnwardRead<T> How, Fetch<T> Fetch) : Found
+    {
+        /// <inheritdoc />
+        /// <remarks>Read into the screen it was asked from, which is already up — so it is not put up again.</remarks>
+        public override Screen Becomes(Screen? standing)
+        {
+            var screen = standing
+                         ?? throw new InvalidOperationException("A read on lands on the screen it was asked from.");
+
+            How.Adds(screen, Fetch.Items);
+            screen.ReadingOn?.Arrived(Fetch.Onward);
+
+            return screen;
+        }
     }
 }

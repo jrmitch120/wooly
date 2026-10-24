@@ -247,6 +247,30 @@ public sealed class Arrival(
             : Task.CompletedTask;
 
     /// <summary>
+    ///     <b>Reads on</b> the list <paramref name="showing" /> holds, which the page has come within a screenful of the
+    ///     end of (#469): the instance asked for what stands behind the last thing held, and that put under it.
+    /// </summary>
+    /// <remarks>
+    ///     Only on a screen whose list reads on and is not whole, and never while a read on is already out for it — one
+    ///     at a time per screen, however much the reader walks about near the end. The answer lands on the screen it
+    ///     was asked from and is added to it rather than put up as a new one, and only while that screen is in front:
+    ///     the stale rule every enquiry keeps. A read dropped by it costs nothing, since where to read on from has not
+    ///     moved, and the page still near the end on coming back asks again.
+    /// </remarks>
+    public Task ReadOn(Screen showing)
+    {
+        if (showing is not { Subject: { } subject, ReadingOn: { } reading } || reading.Begin() is not { } from)
+        {
+            return Task.CompletedTask;
+        }
+
+        return enquiry.Put(
+            ask => subject.ReadOn(ask, ports, profile, from),
+            ifStillHere: found => Land(subject, Move.Page, showing, found),
+            ended: reading.Ended);
+    }
+
+    /// <summary>
     ///     What <paramref name="change" /> makes stale: the cached lists it is no longer true of, the badge it moves,
     ///     and every screen on the stack, which hears it (#234).
     /// </summary>

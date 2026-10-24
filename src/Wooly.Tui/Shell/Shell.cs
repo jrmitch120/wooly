@@ -1713,6 +1713,28 @@ public sealed class Shell
     }
 
     /// <summary>
+    ///     Where the page has come to on the screen in front, as the window settled it: how many rows of the list lie
+    ///     under the foot of the page, and how tall the page is. Within a screenful of the end, the list <b>reads
+    ///     on</b> (#469).
+    /// </summary>
+    /// <remarks>
+    ///     Told rather than asked, because only the window knows how tall the terminal is and where the rows have
+    ///     scrolled to — the same reason <see cref="Walk" /> is handed what to reclaim. Measured in the region's own
+    ///     height, so that it starts at the same moment whatever the terminal's size. Whether the screen's list reads
+    ///     on at all, is whole, or has a read out already is <see cref="Arrival.ReadOn" />'s to settle.
+    /// </remarks>
+    /// <param name="under">How many rows of the list lie below the bottom of the page.</param>
+    /// <param name="screenful">How many rows the page is.</param>
+    public void Viewed(int under, int screenful)
+    {
+        // With nobody acted as there is no list to read on, only the add screen (#247).
+        if (under <= screenful && _acting is { } acting)
+        {
+            _ = acting.Arrival.ReadOn(Screen);
+        }
+    }
+
+    /// <summary>
     ///     Opens the account the picked mention names, off the post itself rather than out of a fetch: an instance
     ///     sends everyone a post names along with the post, so the account is already in hand (#85).
     /// </summary>

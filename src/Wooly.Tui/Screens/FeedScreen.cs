@@ -68,6 +68,18 @@ public sealed class FeedScreen : Screen
     /// <inheritdoc />
     protected override IPicked Walking => _posts;
 
+    /// <summary>
+    ///     Puts <paramref name="older" /> under the posts already held, as a read on brought them: below everything,
+    ///     with the pick left on the post it was on and nothing above it moved (#469).
+    /// </summary>
+    public void ReadOn(IReadOnlyList<Post> older)
+    {
+        foreach (var post in older)
+        {
+            _posts.Add(post);
+        }
+    }
+
     /// <inheritdoc />
     public override bool Heard(Change change)
     {
@@ -90,7 +102,8 @@ public sealed class FeedScreen : Screen
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(Drawing drawing)
     {
-        var rows = _posts.Rows(drawing);
+        var posts = _posts.Rows(drawing);
+        var rows = ReadingOn?.Under(posts, holding: posts.Count > 0) ?? posts;
 
         if (Notice is not { } notice)
         {
