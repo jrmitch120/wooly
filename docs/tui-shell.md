@@ -126,7 +126,8 @@ inside its edges. Hiding changes nothing about the stack or about where you are.
   you landed: `/` arrives at Search, and choosing a profile on `ctrl-p` starts again on its Home. A walk under way when
   the rail is hidden, inside its settle window, still lands.
 - **The status row** drops the `Destination: tab` and `Group: `` ` `` hints, which name the locked walk, and says
-  `Rail: \` where the first of them stood. Shown, the row is as it was, and does not offer `\`.
+  `Rail: \` where the first of them stood — but on a prompt taking letters, Search's, where `\` is one of them and
+  nothing takes their place. Shown, the row is as it was, and does not offer `\`.
 - **A toggle** lays the content out again at its new width, pictures with it (ADR-0025), and keeps the picked post on
   the page row it was drawn on as near as rewrapping allows; with nothing picked the page is left where it begins. `\`
   is typed as a letter wherever letters are typed, means nothing on compose, the description editor and the public

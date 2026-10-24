@@ -190,8 +190,9 @@ public class HiddenRailTests
 
     /// <summary>
     ///     Hidden, the status row no longer offers the walk it has locked: the destination and group hints come off,
-    ///     and <c>Rail: \</c> stands where they stood — on a feed, and on Search while its prompt takes letters, where
-    ///     the destination hint is offered alone. Shown again, the row is as it was, and without <c>\</c>.
+    ///     and <c>Rail: \</c> stands where they stood. Shown again, the row is as it was, and without <c>\</c>. On
+    ///     Search while its prompt takes letters, where the destination hint is offered alone, it comes off with
+    ///     nothing in its place: <c>\</c> is a letter there.
     /// </summary>
     [Fact]
     public async Task HiddenTheStatusRowOffersTheRailInPlaceOfTheWalk()
@@ -225,7 +226,13 @@ public class HiddenRailTests
         var searching = drawn.Rows()[^1];
 
         Assert.DoesNotContain("Destination: tab", searching, StringComparison.Ordinal);
-        Assert.Contains(@"Search: ⏎ | Rail: \", searching, StringComparison.Ordinal);
+        Assert.DoesNotContain("\\", searching, StringComparison.Ordinal);
+        Assert.Contains("Search: ⏎", searching, StringComparison.Ordinal);
+
+        // Not offered there, since the prompt takes `\` as a letter, as it takes every other.
+        drawn.Press(Toggle);
+
+        Assert.Equal(RailState.Hidden, drawn.Shell.RailState);
     }
 
     /// <summary>

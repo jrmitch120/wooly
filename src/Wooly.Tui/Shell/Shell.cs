@@ -372,20 +372,21 @@ public sealed class Shell
     ///     place of the walk along it, which is locked (#445).
     /// </summary>
     public IReadOnlyList<KeyHint> Keys =>
-        ShowsRail && RailState is RailState.Hidden ? Unwalked(Screen.Keys) : Screen.Keys;
+        ShowsRail && RailState is RailState.Hidden ? Unwalked(Screen.Keys, Screen.IsTyping) : Screen.Keys;
 
     /// <summary>
     ///     <paramref name="keys" /> without <c>tab</c> and <c>`</c>, and with <c>\</c> where the first of them stood —
-    ///     so that the row keeps its order, and nothing after them moves for a key that does nothing (#445).
+    ///     so that the row keeps its order, and nothing after them moves for a key that does nothing (#445). Nothing
+    ///     in their place where the screen is <paramref name="typing" />, which takes <c>\</c> as a letter.
     /// </summary>
-    private static List<KeyHint> Unwalked(IReadOnlyList<KeyHint> keys)
+    private static List<KeyHint> Unwalked(IReadOnlyList<KeyHint> keys, bool typing)
     {
         bool Walks(KeyHint key) => key == PostKeys.ToADestination || key == PostKeys.ToAGroup;
 
         var unwalked = keys.Where(key => !Walks(key)).ToList();
         var at = keys.ToList().FindIndex(Walks);
 
-        if (at >= 0)
+        if (at >= 0 && !typing)
         {
             unwalked.Insert(at, PostKeys.ShowingTheRail);
         }
