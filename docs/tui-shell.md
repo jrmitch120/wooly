@@ -102,8 +102,9 @@ text is the client's own rather than an author's — the Lang list — it is wri
 
 ## Collapsed rail
 
-`\` collapses the rail to a strip and expands it again (`GLOSSARY.md`, #441), for the session. Only how the rail is
-drawn and how wide: the cursor, the selection, the settle window, arrivals and the stack mean the same either way.
+`\` collapses the rail to a strip and expands it again (`GLOSSARY.md`, #441), and each toggle is saved as
+`collapsed_rail` for the next launch to open on (#442; "Starting it", below). Only how the rail is drawn and how wide:
+the cursor, the selection, the settle window, arrivals and the stack mean the same either way.
 
 ```
 ╭─────╮╭ Home ─────────────────────────────────────────────────────────────────╮
@@ -142,6 +143,10 @@ drawn and how wide: the cursor, the selection, the settle window, arrivals and t
   page row it was drawn on as near as rewrapping allows; with nothing picked the page is left where it begins. `\` is
   typed as a letter wherever letters are typed, means nothing on compose, the description editor and the public profile
   form, and does nothing where there is no rail. It is listed on the `?` screen and on no status row.
+- **Remembered.** One setting for every profile, as the **Shell width** is, and saved straight away through the same
+  port (`IShellPreferenceStore`); opening on it is not a toggle, and saves nothing. A fresh install opens expanded. A
+  toggle that cannot be saved still holds for the session, and the status row says why as a failure, which stays until
+  something else is said. A toggle that is saved says nothing: the rail changing is answer enough.
 
 ## Shell width
 
@@ -159,11 +164,11 @@ rail's 20, the 58 columns at 80 — is the shell's, which is the terminal's at 1
 - **The steps.** Narrower is the largest multiple of ten below the share and at least 50; wider is the smallest above it
   and at most 100. Narrower is refused where there is none, or where it would take the shell under 80 columns on this
   terminal, and says `Narrowest`; wider is refused only at 100, and says `Full width`. A step taken says `Width 90%`
-  and is saved straight away, through the shell's one narrow port for it (`IShellPreferenceStore`); a refused one saves
-  nothing, so what is saved is always a width that was seen. A share written by hand between the steps, such as 73, is
-  drawn as written, and a step takes it back onto them: 70 narrower, 80 wider. Each of the three is said for two
-  seconds (`ShellTiming.WidthSaidFor`) and then let go of, the status row going back to its keys; why a step could not
-  be saved is a failure, and stays until something else is said.
+  and is saved straight away, through the shell's one narrow port for its preferences (`IShellPreferenceStore`); a
+  refused one saves nothing, so what is saved is always a width that was seen. A share written by hand between the
+  steps, such as 73, is drawn as written, and a step takes it back onto them: 70 narrower, 80 wider. Each of the three
+  is said for two seconds (`ShellTiming.WidthSaidFor`) and then let go of, the status row going back to its keys; why a
+  step could not be saved is a failure, and stays until something else is said.
 - **The margins** are cells the window never draws, left at the terminal's default attribute: no **Role**, so no theme
   entry, under any theme or `NO_COLOR`. They are the terminal's, outside the shell (ADR-0014, ADR-0021). Terminal.Gui
   clears a screen to a white on black of its own, which written out would be a black margin, so the window puts every
@@ -227,7 +232,7 @@ workable only because the status row always shows the current screen's keys. Wha
 | `/` | Search. Goes to the search destination; what it opens onto is #29's. |
 | `ctrl-p` | The profiles screen, pushed onto the stack. On compose it takes the draft off first and opens the screen in its place, asking first where the draft is touched (ADR-0020, #373); it is not listed there. |
 | `-` / `+` or `=` | The **Shell width** one step narrower, or one wider: `=` is `+` without the shift. Typed as letters wherever letters are typed, as `/` and `?` are, and nothing on compose, the description editor or the public profile form. Said on the status row for two seconds (`Width 90%`, or `Narrowest` / `Full width` where there is no step to take); listed on the `?` screen and on no status row (#414). See **Shell width**, above. |
-| `\` | Collapses the rail to a strip of marks, or expands it again, for the session. Typed as a letter wherever letters are typed, nothing on compose, the description editor or the public profile form, and nothing where there is no rail. Listed on the `?` screen and on no status row (#441). See **Collapsed rail**, above. |
+| `\` | Collapses the rail to a strip of marks, or expands it again, saved for the next launch (#442). Typed as a letter wherever letters are typed, nothing on compose, the description editor or the public profile form, and nothing where there is no rail. Listed on the `?` screen and on no status row (#441). See **Collapsed rail**, above. |
 
 Feed and post:
 
@@ -2195,6 +2200,7 @@ hashtag = "dotnet"
 hide_drawn_caption = true
 bell = false
 shell_width = 70
+collapsed_rail = true
 ```
 
 `hide_drawn_caption` is another reader-owned preference in this section (#71) — a picture's caption, `false` (the
@@ -2208,6 +2214,11 @@ width"). One written out of range is clamped to the nearer end rather than refus
 it is never written, and widening back to it takes the line away. Unlike the others it has keys, `-` and `+`/`=`, and
 each step they take saves it — which rewrites the whole file, as `D` on the profiles screen does, so comments written in
 it by hand do not survive.
+
+`collapsed_rail` is a fifth (#442): `true` opens a launch on the **collapsed rail** (above, "Collapsed rail"). `false`
+(the default, and what an absent key means) opens on the expanded rail, so it is never written, and expanding the rail
+again takes the line away. Anything but `true` or `false` is refused against the file, as a `shell_width` that is not a
+whole number is. Like `shell_width` it has a key, `\`, and each toggle saves it, rewriting the whole file the same way.
 
 With none set, the destination is still on the rail — it says no tag has been named and asks the instance for nothing,
 rather than being a rail entry that swallows a keypress.
