@@ -21,7 +21,15 @@ public abstract record InboxList
     }
 
     /// <summary>The notifications newer than the read marker, newest first.</summary>
-    public sealed record Notifications(IReadOnlyList<Notification> Unread) : InboxList;
+    /// <param name="Unread">What is unread, newest first, up to what is counted.</param>
+    /// <param name="Groups">
+    ///     The first page of <b>Notification groups</b> as the instance groups them now, newest first — read only where
+    ///     something was unread and Notifications was in front to put it on, so that an arrival joins the group it
+    ///     belongs in (#458) — or <see langword="null" /> where they were not read.
+    /// </param>
+    public sealed record Notifications(
+        IReadOnlyList<Notification> Unread,
+        IReadOnlyList<NotificationGroup>? Groups = null) : InboxList;
 
     /// <summary>The conversations, most recently spoken in first, each with its unread flag as the instance has it.</summary>
     public sealed record Messages(IReadOnlyList<Conversation> Listed) : InboxList;
