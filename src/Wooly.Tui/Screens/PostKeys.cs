@@ -227,7 +227,19 @@ public static class PostKeys
     ///     <see langword="params" /> of <see cref="Leaving" /> and <c>Around</c>, and a shared array handed out
     ///     could be written to by any of them.
     /// </remarks>
-    public static KeyHint[] AlongTheRail => [new("tab", "destination"), new("`", "group")];
+    public static KeyHint[] AlongTheRail => [ToADestination, ToAGroup];
+
+    /// <summary><c>tab</c> to the next destination, the first half of <see cref="AlongTheRail" />.</summary>
+    public static KeyHint ToADestination { get; } = new("tab", "destination");
+
+    /// <summary><c>`</c> to the next rail group, the second half of <see cref="AlongTheRail" />.</summary>
+    public static KeyHint ToAGroup { get; } = new("`", "group");
+
+    /// <summary>
+    ///     <c>\</c> to show the hidden rail again, which the status row offers in place of <see cref="AlongTheRail" />
+    ///     while the rail is hidden and walking it is locked (#445).
+    /// </summary>
+    public static KeyHint ShowingTheRail { get; } = new("\\", "rail");
 
     /// <summary>
     ///     The end of the rank on a screen with no posts on it: the way out, then the tail, then <see cref="Asking" />

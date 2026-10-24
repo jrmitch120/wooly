@@ -115,7 +115,9 @@ public class HiddenRailTests
         drawn.Redraw();
 
         Assert.Equal(1, built.Host.Bells);
-        Assert.Equal(2, drawn.Shell.Rail.Destinations.Single(place => place.Kind == DestinationKind.Notifications).Unread);
+        Assert.Equal(
+            2,
+            drawn.Shell.Rail.Destinations.Single(place => place.Kind == DestinationKind.Notifications).Unread);
         Assert.Equal(RailState.Hidden, drawn.Shell.RailState);
     }
 
@@ -184,6 +186,46 @@ public class HiddenRailTests
         Assert.Equal(["Home"], drawn.Shell.Crumbs);
         Assert.Equal(RailState.Hidden, drawn.Shell.RailState);
         Assert.StartsWith("╭ Home", drawn.Rows()[0], StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    ///     Hidden, the status row no longer offers the walk it has locked: the destination and group hints come off,
+    ///     and <c>Rail: \</c> stands where they stood — on a feed, and on Search while its prompt takes letters, where
+    ///     the destination hint is offered alone. Shown again, the row is as it was, and without <c>\</c>.
+    /// </summary>
+    [Fact]
+    public async Task HiddenTheStatusRowOffersTheRailInPlaceOfTheWalk()
+    {
+        using var drawn = await DrawnShell.Of(300, Framed, Themes.Plain);
+
+        var shown = drawn.Rows()[^1];
+
+        Assert.Contains("Destination: tab", shown, StringComparison.Ordinal);
+        Assert.Contains("Group: `", shown, StringComparison.Ordinal);
+        Assert.DoesNotContain("\\", shown, StringComparison.Ordinal);
+
+        drawn.Press(Toggle);
+
+        var hidden = drawn.Rows()[^1];
+
+        Assert.DoesNotContain("Destination: tab", hidden, StringComparison.Ordinal);
+        Assert.DoesNotContain("Group: `", hidden, StringComparison.Ordinal);
+        Assert.Equal(
+            shown.IndexOf("Destination", StringComparison.Ordinal),
+            hidden.IndexOf(@"Rail: \", StringComparison.Ordinal));
+
+        drawn.Press(Toggle);
+
+        Assert.Equal(shown, drawn.Rows()[^1]);
+
+        drawn.Press(Toggle);
+        drawn.Press(new Key('/'));
+        drawn.Settle();
+
+        var searching = drawn.Rows()[^1];
+
+        Assert.DoesNotContain("Destination: tab", searching, StringComparison.Ordinal);
+        Assert.Contains(@"Search: ⏎ | Rail: \", searching, StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -508,7 +550,7 @@ public class HiddenRailTests
         ]),
     };
 
-    /// <summary>Two profiles, so that the shown rail's foot names the instance, which the hidden rail must not.</summary>
+    /// <summary>Two profiles, so that the shown rail's foot names the instance, and the hidden rail none.</summary>
     private static AShell Twice() => new()
     {
         Profiles = FakeProfileRegistry.Holding(

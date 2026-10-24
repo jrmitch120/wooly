@@ -57,7 +57,7 @@ public sealed class SearchScreen : Screen
             // under it, so the arrows are left unsaid rather than offered against three rows.
             if (IsTyping)
             {
-                return [new KeyHint("⏎", "search"), new KeyHint("tab", "destination")];
+                return [new KeyHint("⏎", "search"), PostKeys.ToADestination];
             }
 
             return Picked is not null

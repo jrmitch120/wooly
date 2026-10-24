@@ -367,8 +367,31 @@ public sealed class Shell
     /// <summary>What mentioning <paramref name="person" /> writes into a post, as the profile acted as writes it.</summary>
     public string MentionOf(Mentionable person) => _acting?.People.MentionOf(person) ?? $"@{person.Address}";
 
-    /// <summary>The keys the current screen answers to, for the status row.</summary>
-    public IReadOnlyList<KeyHint> Keys => Screen.Keys;
+    /// <summary>
+    ///     The keys the current screen answers to, for the status row — with the rail hidden, the way to show it in
+    ///     place of the walk along it, which is locked (#445).
+    /// </summary>
+    public IReadOnlyList<KeyHint> Keys =>
+        ShowsRail && RailState is RailState.Hidden ? Unwalked(Screen.Keys) : Screen.Keys;
+
+    /// <summary>
+    ///     <paramref name="keys" /> without <c>tab</c> and <c>`</c>, and with <c>\</c> where the first of them stood —
+    ///     so that the row keeps its order, and nothing after them moves for a key that does nothing (#445).
+    /// </summary>
+    private static List<KeyHint> Unwalked(IReadOnlyList<KeyHint> keys)
+    {
+        bool Walks(KeyHint key) => key == PostKeys.ToADestination || key == PostKeys.ToAGroup;
+
+        var unwalked = keys.Where(key => !Walks(key)).ToList();
+        var at = keys.ToList().FindIndex(Walks);
+
+        if (at >= 0)
+        {
+            unwalked.Insert(at, PostKeys.ShowingTheRail);
+        }
+
+        return unwalked;
+    }
 
     /// <summary>
     ///     The conversation <c>m</c> would mark read: the one being read, or the one picked out on the list. The two
@@ -980,9 +1003,9 @@ public sealed class Shell
     public void Widen() => Stepped(ShellWidth.Wider(), refused: "Full width");
 
     /// <summary>
-    ///     <c>\</c>: the rail hidden, or shown again (#441, #445). The cursor, the selection, a settle window under way
-    ///     and the stack are left as they are. Nothing where there is no rail, whoever asks: a setting the reader cannot
-    ///     see is not changed, or saved, behind their back.
+    ///     <c>\</c>: the rail hidden, or shown again (#441, #445). The cursor, the selection, a settle window under
+    ///     way and the stack are left as they are. Nothing where there is no rail, whoever asks: a setting the reader
+    ///     cannot see is not changed, or saved, behind their back.
     /// </summary>
     public void ToggleRail()
     {

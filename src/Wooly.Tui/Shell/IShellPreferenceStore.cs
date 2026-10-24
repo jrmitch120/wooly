@@ -15,8 +15,8 @@ public interface IShellPreferenceStore
     void SaveWidth(ShellWidth width);
 
     /// <summary>
-    ///     Saves whether the rail is the hidden rail or the shown one, <paramref name="rail" />, so that the next launch
-    ///     opens on it.
+    ///     Saves whether the rail is the hidden rail or the shown one, <paramref name="rail" />, so that the next
+    ///     launch opens on it.
     /// </summary>
     void SaveRail(RailState rail);
 }
