@@ -243,7 +243,8 @@ internal sealed class InboxBadges
 
         try
         {
-            var (badge, found) = await new InboxCount(_ports, profile, SessionMarkers, abandoned).Read(kind, showing);
+            var (badge, found) = await new InboxCount(_ports, profile, SessionMarkers, abandoned)
+                .Read(kind, withGroups: showing);
 
             _host.OnUiThread(() =>
             {

@@ -43,19 +43,19 @@ internal sealed class InboxCount(
     ///     front to put at its top whatever of it is new (#400).
     /// </summary>
     /// <param name="kind">Which destination.</param>
-    /// <param name="showing">
-    ///     Whether the destination's screen is in front to put what is new on. Notifications reads its groups as well
-    ///     where it is and anything is unread, so that what arrived joins the group it belongs in (#458) — and not
-    ///     otherwise, since nothing else draws them and a count is read on every stream event.
+    /// <param name="withGroups">
+    ///     Whether Notifications' groups are read too, where anything is unread, so that what arrived joins the group it
+    ///     belongs in (#458). Asked for only where the screen that draws them is in front: a count is read on every
+    ///     stream event, and nothing else draws them.
     /// </param>
     /// <exception cref="ArgumentOutOfRangeException">Not one of the Inbox's three.</exception>
-    public async Task<Waiting> Read(DestinationKind kind, bool showing = false)
+    public async Task<Waiting> Read(DestinationKind kind, bool withGroups = false)
     {
         switch (kind)
         {
             case DestinationKind.Notifications:
                 var unread = await Unread();
-                var groups = showing && unread.Unread.Count > 0
+                var groups = withGroups && unread.Unread.Count > 0
                     ? (await ports.Notifications.ReadGroups(profile, Arrival.CountedAtMost, cancellationToken)).Items
                     : null;
 
