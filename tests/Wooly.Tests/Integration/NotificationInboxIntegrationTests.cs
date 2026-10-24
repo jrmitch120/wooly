@@ -32,7 +32,7 @@ public class NotificationInboxIntegrationTests
 
         var mention = await author.Publish(
             voter,
-            new PostDraft { Text = $"@{LiveInstance.Username} wooly integration test {Guid.NewGuid():N}" },
+            LiveInstance.ThrowawayMention(),
             cancellationToken);
 
         try

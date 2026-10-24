@@ -19,6 +19,7 @@ internal static class LiveInstance
     private const string InstanceVariable = "WOOLY_INTEGRATION_INSTANCE";
     private const string TokenVariable = "WOOLY_INTEGRATION_TOKEN";
     private const string VoterTokenVariable = "WOOLY_INTEGRATION_VOTER_TOKEN";
+    private const string FanTokensVariable = "WOOLY_INTEGRATION_FAN_TOKENS";
 
     /// <summary>The account <c>tests/integration/seed.sh</c> creates and mints <see cref="Profile" />'s token for.</summary>
     public const string Username = "woolytester";
@@ -42,7 +43,8 @@ internal static class LiveInstance
     public static bool Available =>
         !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(InstanceVariable)) &&
         !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(TokenVariable)) &&
-        !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(VoterTokenVariable));
+        !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(VoterTokenVariable)) &&
+        !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(FanTokensVariable));
 
     /// <summary>The seeded test account, ready to call the live instance with.</summary>
     public static ActiveProfile Profile => new()
@@ -71,6 +73,27 @@ internal static class LiveInstance
     };
 
     /// <summary>
+    ///     The nine further accounts <c>tests/integration/seed.sh</c> mints tokens for, <c>woolyfan1</c> to
+    ///     <c>woolyfan9</c>, in that order. Nine because Mastodon sends at most eight of a notification group's
+    ///     accounts with it, and whether its count runs past them takes one more (#449).
+    /// </summary>
+    public static IReadOnlyList<LiveFan> Fans =>
+    [
+        .. (Environment.GetEnvironmentVariable(FanTokensVariable)
+            ?? throw new InvalidOperationException($"{FanTokensVariable} is not set."))
+        .Split(',')
+        .Select((token, at) => new LiveFan(
+            $"woolyfan{at + 1}",
+            new ActiveProfile
+            {
+                Name = $"integration-fan{at + 1}",
+                Instance = Profile.Instance,
+                Account = null,
+                AccessToken = token,
+            })),
+    ];
+
+    /// <summary>
     ///     The application's own container, wired the same way <c>AddWoolyCore</c> wires it for either front end,
     ///     except for the one thing a live run needs that a fake never did: a certificate check that trusts the
     ///     self-signed certificate <c>tests/integration/Caddyfile</c> terminates TLS with (see its own remarks on why
@@ -97,4 +120,14 @@ internal static class LiveInstance
     ///     than typed out again at each call site.
     /// </summary>
     public static PostDraft ThrowawayDraft() => new() { Text = $"wooly integration test {Guid.NewGuid():N}" };
+
+    /// <summary>
+    ///     <see cref="ThrowawayDraft" />, naming <see cref="Username" /> — what any account publishes to send the
+    ///     seeded test account a mention.
+    /// </summary>
+    public static PostDraft ThrowawayMention() =>
+        new() { Text = $"@{Username} wooly integration test {Guid.NewGuid():N}" };
 }
+
+/// <summary>One of <see cref="LiveInstance.Fans" />: the username it was seeded under, and its profile.</summary>
+internal sealed record LiveFan(string Username, ActiveProfile Profile);
