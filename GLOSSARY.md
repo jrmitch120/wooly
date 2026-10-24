@@ -462,14 +462,15 @@ which is a headed run on a screen: `[`/`]` walk sections, `` ` ``/`~` walk rail 
 not only the notifications that the code's `INotificationInbox` reads.
 _Avoid_: section, box, panel (a rail group is drawn as a panel, but the content is a panel too)
 
-**Collapsed rail**:
-The rail drawn as a narrow strip — each **destination** a single mark with its unread count beside it, each **rail
-group** still its own panel without its title — so the content has the width the labels took. Its other state is the
-**expanded rail**, the labelled one. Which one shows is a fact about how the reader likes the screen, so it is one for
-every profile and outlasts the session, like **Shell width**. Purely how the rail is drawn: the cursor, the selection,
-the stack and every key that walks the rail mean the same either way, and nothing moves up or down when it changes.
-Distinct from the rail being _absent_, which is when nobody is being acted as and there are no destinations to show.
-_Avoid_: hidden (that is the absent rail), minimised, folded, strip (a description, not the term)
+**Hidden rail**:
+The rail put out of sight by the reader, so the content has the whole width of the shell. Its other state is the
+**shown rail**. Which one is a fact about how the reader likes the screen, so it is one for every profile and outlasts
+the session, like **Shell width**. Hidden means gone, not shrunk: no destinations, no unread counts, no budget. Walking
+the rail is locked while it is hidden, since a cursor nobody can see would land somewhere nobody chose; going straight
+to a named **destination** still works, because the breadcrumb says where you landed. Hiding changes nothing about the
+stack or about where you are. Distinct from the rail being _absent_, which is when nobody is being acted as and there
+are no destinations to show.
+_Avoid_: collapsed (nothing of it stays), minimised, folded, absent (that is when there is no rail at all)
 
 **Shell width**:
 How much of the terminal's width the TUI takes, as a percentage: all of it, or less, in steps of ten down to half, with
