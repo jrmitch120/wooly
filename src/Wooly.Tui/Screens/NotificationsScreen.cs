@@ -116,8 +116,8 @@ public sealed class NotificationsScreen(
 
                 break;
 
-            case Change.NotificationsGone(var ids):
-                TakeOff(ids);
+            case Change.NotificationGroupGone(var key):
+                _groups.Remove(group => group.Key == key);
 
                 break;
 
@@ -190,8 +190,8 @@ public sealed class NotificationsScreen(
             : Task.CompletedTask;
 
     /// <summary>
-    ///     Clears the picked group's newest notification, named by its own id and not by the post's (GLOSSARY.md) —
-    ///     which is the whole of a group of one. Dismissing a group of several whole, by its key, is #457's.
+    ///     Clears the picked group whole, every notification in it, in one request by the group's key — never by the
+    ///     post's id (GLOSSARY.md), and never one request per notification (#457).
     /// </summary>
     private Task Dismiss(Reach reach)
     {
@@ -201,10 +201,10 @@ public sealed class NotificationsScreen(
         }
 
         return reach.Put(
-            ask => ask.Of(token => reach.Ports.Notifications.Dismiss(reach.Profile, picked.NewestId, token)),
-            // Whether or not the reader is still here: the notification was dismissed on the instance, and what that
-            // makes stale is a fact about the instance rather than about where anybody is standing (#233, #234).
-            eitherWay: () => reach.Tell(new Change.NotificationsGone([picked.NewestId])));
+            ask => ask.Of(token => reach.Ports.Notifications.DismissGroup(reach.Profile, picked, token)),
+            // Whether or not the reader is still here: the group was dismissed on the instance, and what that makes
+            // stale is a fact about the instance rather than about where anybody is standing (#233, #234).
+            eitherWay: () => reach.Tell(new Change.NotificationGroupGone(picked.Key)));
     }
 
     /// <summary>
@@ -230,17 +230,6 @@ public sealed class NotificationsScreen(
                 reach.Tell(new Change.AllNotificationsGone());
                 reach.Say("Cleared.", isError: false);
             });
-
-    /// <summary>
-    ///     Takes the groups whose newest notification <paramref name="ids" /> names off the screen, once the instance
-    ///     has cleared it.
-    /// </summary>
-    private void TakeOff(IEnumerable<string> ids)
-    {
-        var going = ids.ToHashSet(StringComparer.Ordinal);
-
-        _groups.Remove(group => going.Contains(group.NewestId));
-    }
 
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(Drawing drawing)
