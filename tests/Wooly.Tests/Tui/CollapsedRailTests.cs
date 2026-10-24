@@ -323,6 +323,32 @@ public class CollapsedRailTests
     }
 
     /// <summary>
+    ///     With no rail the toggle itself does nothing — the shell's own rule, whatever screen is in front and whatever
+    ///     asks: the rail stays expanded, nothing is saved, and the content keeps every column.
+    /// </summary>
+    [Fact]
+    public async Task WithNoRailTheToggleItselfDoesNothing()
+    {
+        var registry = FakeProfileRegistry.Holding(
+            "work",
+            FakeProfileRegistry.Profile("work", "mastodon.social", "jeff@mastodon.social"));
+        registry.Tokenless.Add("work");
+
+        var built = new AShell { Profiles = registry };
+        using var drawn = await DrawnShell.Of(80, 24, Themes.Plain, built, launch: true);
+
+        Assert.False(drawn.Shell.ShowsRail);
+
+        drawn.Shell.ToggleRail();
+        drawn.Redraw();
+
+        Assert.False(drawn.Shell.Do(Verb.ToggleRail, answer: null));
+        Assert.False(drawn.Shell.RailCollapsed);
+        Assert.Empty(built.ShellPreferences.Rails);
+        Assert.Equal(0, drawn.Content.Frame.X);
+    }
+
+    /// <summary>
     ///     On a toggle the content is laid out again at its new width — each post wrapping to fewer rows collapsed — and
     ///     the post picked stays on the row of the page it was drawn on, both ways, rather than the page keeping its row
     ///     offset into rows that are now another shape.

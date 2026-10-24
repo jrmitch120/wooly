@@ -970,10 +970,16 @@ public sealed class Shell
 
     /// <summary>
     ///     <c>\</c>: the rail collapsed, or expanded again (#441). Only how it is drawn: the cursor, the selection, a
-    ///     settle window under way and the stack are left as they are.
+    ///     settle window under way and the stack are left as they are. Nothing where there is no rail, whoever asks: a
+    ///     setting the reader cannot see is not changed, or saved, behind their back.
     /// </summary>
     public void ToggleRail()
     {
+        if (!ShowsRail)
+        {
+            return;
+        }
+
         RailCollapsed = !RailCollapsed;
 
         // Saved straight away, as a width step is, so the next launch opens on the rail this one was left on (#442).
