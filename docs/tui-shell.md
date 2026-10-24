@@ -2205,9 +2205,8 @@ click «/»       hide or show the rail
 ```
 
 A meaning too long for the screen's width, the mouse's or any key's, carries on to the rows under it, each starting in
-the meaning column, rather than being cut with `…`: at 80 columns with the rail shown that is `tab / shift-tab`'s,
-`` ` `` / `~`'s (#446) and `\`'s, which says it hides or shows the rail even from a search or the follow list's filter
-(#447).
+the meaning column, rather than being cut with `…`: at 80 columns with the rail shown that is `tab / shift-tab`'s and
+`` ` `` / `~`'s (#446).
 
 ## Starting it, and the one destination that needs configuring
 

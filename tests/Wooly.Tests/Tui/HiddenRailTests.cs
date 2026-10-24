@@ -637,20 +637,21 @@ public class HiddenRailTests
     }
 
     /// <summary>
-    ///     And says that <c>\</c> does so from a search or the follow list's filter too, since nothing else says a
-    ///     backslash cannot be typed into one — naming that filter rather than every one, since the file browser's takes
-    ///     it (#447).
+    ///     And says it plainly, naming no screen, on one row at 80 columns with the rail shown: the row after it is the
+    ///     mouse's first, not the rest of <c>\</c>'s meaning carried on (#447).
     /// </summary>
     [Fact]
-    public async Task TheKeymapSaysBackslashShowsTheRailFromAPromptToo()
+    public async Task TheKeymapSaysPlainlyThatBackslashHidesOrShowsTheRail()
     {
-        using var drawn = await DrawnShell.Of(160, 40, Themes.Plain);
+        using var drawn = await DrawnShell.Of(80, 40, Themes.Plain);
 
         drawn.Press(new Key('?'));
 
-        const string said = @"\               hide or show the rail, even from a search or the follow list's filter";
+        var rows = drawn.Rows();
+        var key = Array.FindIndex(rows, row => row.Contains("│\\ ", StringComparison.Ordinal));
 
-        Assert.Contains(drawn.Rows(), row => row.Contains(said, StringComparison.Ordinal));
+        Assert.Contains(@"│\               hide or show the rail ", rows[key], StringComparison.Ordinal);
+        Assert.Contains("│wheel ", rows[key + 1], StringComparison.Ordinal);
     }
 
     /// <summary>On Search's prompt, with <c>a</c> typed into it.</summary>
