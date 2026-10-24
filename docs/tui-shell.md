@@ -157,7 +157,8 @@ the cursor, the selection, the settle window, arrivals and the stack mean the sa
   and where an open question is declined instead. The mark's glyph is the whole of what it says, in the role of the
   edge or heading it is on, so it reads the same with colour and without. Both are Latin-1 and not East Asian
   ambiguous, so a column wide on every terminal. No hover, no drag, the wheel over it does nothing, and a double click
-  is its first click alone, the second landing where the mark was once the rail has moved it.
+  is its first click's toggle alone, wherever the second lands once the rail has moved: on the scrolled compact rail,
+  where the mark is on a row below the breadcrumb, that is a row of the content, which it neither picks nor opens.
 
 ## Shell width
 

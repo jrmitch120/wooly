@@ -114,6 +114,13 @@ internal sealed class ShellWindow : Window
     private bool _clickDeclinedQuestion;
 
     /// <summary>
+    ///     Whether the last click was spent toggling the rail, which spends the double click it turns out to be the first
+    ///     half of too: the toggle moved what was under the pointer, so the second click lands on whatever took the
+    ///     mark's place — on the scrolled compact rail, a row of the content (#443).
+    /// </summary>
+    private bool _clickToggledRail;
+
+    /// <summary>
     ///     The row of the content a press with the left button picked up, held from the press until the button is let go,
     ///     for a screen whose rows the pointer drags into another order — the attachments screen's (story 58).
     /// </summary>
@@ -459,6 +466,7 @@ internal sealed class ShellWindow : Window
     {
         // A click anywhere declines a confirmation or closes a filter prompt, and is not carried out (story 30, 31).
         _clickDeclinedQuestion = _shell.DeclineOpenQuestion();
+        _clickToggledRail = false;
 
         if (_clickDeclinedQuestion)
         {
@@ -503,7 +511,10 @@ internal sealed class ShellWindow : Window
         // nothing — on compose, the description editor and the public profile form (#443).
         if (_rail.SpanItemAt(at) == RailLines.Toggle)
         {
+            var collapsed = _shell.RailCollapsed;
+
             _ = Do(ShellKey.Backslash);
+            _clickToggledRail = collapsed != _shell.RailCollapsed;
         }
         else if (_rail.ItemAt(at) is { } destination)
         {
@@ -522,7 +533,8 @@ internal sealed class ShellWindow : Window
     /// </summary>
     /// <remarks>
     ///     Terminal.Gui reports the pair's first click on its own before the pair, so a pair whose first click was spent
-    ///     on an open question is spent with it, and opens nothing behind the question it closed (story 30, 31).
+    ///     on an open question is spent with it, and opens nothing behind the question it closed (story 30, 31) — and a
+    ///     pair whose first click toggled the rail is that toggle and nothing more, wherever the second lands (#443).
     /// </remarks>
     /// <param name="at">Where the second click was.</param>
     /// <param name="chorded">Whether ctrl or shift was held, as for <see cref="Clicked" />.</param>
@@ -531,9 +543,11 @@ internal sealed class ShellWindow : Window
     {
         // Spent once: a later pair must not be swallowed by a question its own first click never saw.
         var declined = _clickDeclinedQuestion;
+        var toggled = _clickToggledRail;
         _clickDeclinedQuestion = false;
+        _clickToggledRail = false;
 
-        if (declined || _shell.DeclineOpenQuestion())
+        if (declined || toggled || _shell.DeclineOpenQuestion())
         {
             return true;
         }

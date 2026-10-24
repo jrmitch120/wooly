@@ -108,6 +108,72 @@ public class RailToggleMarkTests
     }
 
     /// <summary>
+    ///     A double click on the scrolled mark is the one toggle its first click made and nothing more: its second click,
+    ///     landing where the content panel now starts beside the collapsed rail, opens nothing there.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ADoubleClickOnTheScrolledMarkTogglesTheRailOnceAndOpensNothing(bool coloured)
+    {
+        var conversations = Enumerable.Range(1, 6)
+            .Select(at => AConversation.With(id: $"c{at}", unread: false))
+            .ToArray();
+        var built = new AShell { Messages = FakeDirectMessages.Holding(conversations) };
+        using var drawn = await DrawnShell.Of(80, Scrolled, Theme(coloured), built);
+
+        drawn.Shell.Rail.GoTo(DestinationKind.Messages);
+        drawn.Built.Host.Drain();
+        drawn.Redraw();
+
+        var explore = Array.FindIndex(drawn.Rail(), row => row.StartsWith("Explore", StringComparison.Ordinal));
+        var messages = drawn.Shell.Screen;
+
+        drawn.DoubleClick(RailLines.Width - 1, explore);
+        drawn.Built.Host.Drain();
+        drawn.Redraw();
+
+        Assert.True(drawn.Shell.RailCollapsed);
+        Assert.Same(messages, drawn.Shell.Screen);
+        Assert.Equal(1, drawn.Shell.Depth);
+        Assert.Equal([true], built.ShellPreferences.Rails);
+    }
+
+    /// <summary>
+    ///     Framed or scrolled, either way about, a double click on the mark is one toggle: <c>«</c> collapses the rail
+    ///     once and <c>»</c> expands it once, the screen in front is still in front, and one toggle is saved.
+    /// </summary>
+    [Theory]
+    [InlineData(Framed, false, true)]
+    [InlineData(Framed, false, false)]
+    [InlineData(Framed, true, true)]
+    [InlineData(Framed, true, false)]
+    [InlineData(Scrolled, true, true)]
+    [InlineData(Scrolled, true, false)]
+    public async Task ADoubleClickOnTheMarkIsOneToggleEitherWay(int height, bool collapsed, bool coloured)
+    {
+        var built = new AShell { CollapsedRail = collapsed };
+        using var drawn = await DrawnShell.Of(80, height, Theme(coloured), built);
+
+        drawn.Shell.Rail.GoTo(DestinationKind.Messages);
+        drawn.Built.Host.Drain();
+        drawn.Redraw();
+
+        var columns = collapsed ? Strip(coloured) : RailLines.Width;
+        var mark = collapsed ? '»' : '«';
+        var row = Array.FindIndex(drawn.Rail(columns), line => line.Contains(mark, StringComparison.Ordinal));
+        var screen = drawn.Shell.Screen;
+
+        drawn.DoubleClick(drawn.Rail(columns)[row].IndexOf(mark, StringComparison.Ordinal), row);
+        drawn.Built.Host.Drain();
+        drawn.Redraw();
+
+        Assert.Equal(!collapsed, drawn.Shell.RailCollapsed);
+        Assert.Same(screen, drawn.Shell.Screen);
+        Assert.Equal([!collapsed], built.ShellPreferences.Rails);
+    }
+
+    /// <summary>
     ///     Where <c>\</c> means nothing the click means nothing either — on compose, where it is typed — so the rail
     ///     stays as it was, nothing is saved, and the draft is still in front.
     /// </summary>
