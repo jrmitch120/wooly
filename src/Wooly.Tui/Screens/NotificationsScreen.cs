@@ -144,19 +144,21 @@ public sealed class NotificationsScreen(
     ///     would, and the pick follows the group it was on (#458). Anything not newer than the newest group is already
     ///     on screen as it was, or was dismissed.
     ///     <para>
-    ///         Where the re-read read no groups, each unread notification arrives as a group of its own, as it would
-    ///         from an instance too old to group.
+    ///         Where the re-read read no groups — it was begun before this screen was in front — nothing is put on
+    ///         top: an unread notification made into a group of its own here would carry a key an instance that groups
+    ///         does not have, for <c>d</c> to dismiss nothing by. The shell reads the count again, groups and all
+    ///         (<see cref="InboxBadges" />). An instance too old to group has its groups of one read as groups.
     ///     </para>
     /// </remarks>
     public override int PutOnTop(InboxList found)
     {
-        if (found is not InboxList.Notifications(var unread, var groups))
+        if (found is not InboxList.Notifications { Groups: { } groups })
         {
             return 0;
         }
 
         var newest = Groups.Count > 0 ? Groups[0].NewestId : null;
-        var arrived = (groups ?? [.. unread.Select(NotificationGroup.Alone)])
+        var arrived = groups
                       .Where(group => newest is null || NotificationIds.Newer(group.NewestId, newest))
                       .ToList();
 

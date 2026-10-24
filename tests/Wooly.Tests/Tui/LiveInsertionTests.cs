@@ -1,4 +1,7 @@
+using System.Net;
+using Wooly.Core.Errors;
 using Wooly.Core.Notifications;
+using Wooly.Core.Paging;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
@@ -576,6 +579,66 @@ public class LiveInsertionTests
         Assert.Equal(["107", "106", "105", "103"], screen.Groups.Select(group => group.NewestId));
         Assert.Equal("favourite-110-493000", screen.PickedGroup?.Key);
         Assert.Equal(3, screen.PickedGroup?.Count);
+    }
+
+    /// <summary>
+    ///     A count begun elsewhere on the rail reads no groups. Arriving at Notifications counts again and makes it out
+    ///     of date — but where that count could not be read, the old one lands on the screen with something unread.
+    ///     What it found is never made into groups of one here: on an instance that groups, an
+    ///     <c>ungrouped-&lt;id&gt;</c> group for a favorite is a group the instance does not have, and <c>d</c> on it
+    ///     would dismiss nothing. The count is read again, groups and all, and the favorite joins its real group.
+    /// </summary>
+    [Fact]
+    public async Task OnNotifications_ACountBegunElsewhereReadsTheGroupsAgainRatherThanMakingUpGroupsOfOne()
+    {
+        var favorite = ANotification.Group(key: "favourite-110-493000", newestId: "101", actors: ["Alice"]);
+        var shell = new AShell { Notifications = FakeNotificationInbox.Holding(ANotification.With(id: "101")) };
+        shell.Notifications.Groups = [favorite];
+        shell.Notifications.Marker = "101";
+        var opened = await shell.Opened();
+
+        // The poll's count of what is unread waits, begun on Home; arriving's own count fails; every count after
+        // them answers at once.
+        var late = new TaskCompletionSource();
+        var counts = 0;
+        Notification[] holding = [ANotification.With(id: "101")];
+        shell.Notifications.ByProfile["personal"] = async () =>
+        {
+            switch (counts++)
+            {
+                case 0:
+                    await late.Task;
+
+                    break;
+
+                case 1:
+                    throw new InstanceFailedException("mastodon.social", HttpStatusCode.BadGateway);
+            }
+
+            return Fetch<Notification>.Complete(holding);
+        };
+        Passes(shell, Minute);
+
+        opened.Step(ToNotifications);
+        shell.Host.Settle();
+
+        holding = [ANotification.With(id: "103"), ANotification.With(id: "101")];
+        shell.Notifications.NowHolding(holding);
+        shell.Notifications.Groups =
+            [ANotification.Group(key: "favourite-110-493000", count: 2, newestId: "103", actors: ["Bob", "Alice"])];
+        shell.Notifications.Members["favourite-110-493000"] = ["103", "101"];
+        late.SetResult();
+        shell.Host.Drain();
+
+        var screen = Assert.IsType<NotificationsScreen>(opened.Screen);
+        Assert.Equal(["favourite-110-493000"], screen.Groups.Select(group => group.Key));
+        Assert.Equal(2, screen.Groups[0].Count);
+        Assert.True(screen.IsUnread(screen.Groups[0]));
+
+        opened.Press(ShellKey.D);
+        shell.Host.Drain();
+
+        Assert.Equal("favourite-110-493000", Assert.Single(shell.Notifications.GroupDismissals).Key);
     }
 
     /// <summary>

@@ -393,7 +393,9 @@ not answer them differently:
   showing that destination: new notifications join their **Notification group** — the re-read reads the first page of
   groups too, only while Notifications is in front with no list read in flight and something is unread — so a group
   already on screen takes the re-read's count, actors and age and moves up rather than being drawn twice, and a group
-  not on screen is put on top (#458); either is drawn `unread`, and the read marker is moved past them so the
+  not on screen is put on top (#458) — a re-read begun before Notifications came in front read no groups, and puts
+  nothing on it but is read again, groups and all, rather than make an unread notification a group of one whose
+  `ungrouped-<id>` key an instance that groups does not have; either is drawn `unread`, and the read marker is moved past them so the
   badge clears again — but only where the re-read put everything unread on screen: one that found more than the 40 it
   counts leaves the marker for the reader's next arrival or `g` and the badge at `40+`, since there are unread ones past
   the 40 that no screen has shown, while exactly 40 all shown moves it; a conversation new or changed (last post or unread flag) moves to the top as the instance has

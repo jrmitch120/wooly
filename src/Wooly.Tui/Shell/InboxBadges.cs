@@ -261,6 +261,14 @@ internal sealed class InboxBadges
                 {
                     _ = MarkerPast(profile, newest, abandoned);
                 }
+
+                // Begun before Notifications came in front, so it read no groups — and what is unread is never made
+                // into groups of one here, keys an instance that groups does not have (#458). Read again now it is in
+                // front, groups and all, for what arrived to join the group it belongs in.
+                if (found is InboxList.Notifications { Groups: null, Unread.Count: > 0 } && _showing(kind))
+                {
+                    _ = Reread(profile, abandoned, [kind]);
+                }
             });
         }
         catch (OperationCanceledException) when (abandoned.IsCancellationRequested)
