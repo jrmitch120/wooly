@@ -50,9 +50,12 @@ public static class Keymap
         (ShellKey.CtrlQ, _) => Verb.Quit,
         (ShellKey.Escape, _) => Verb.Back,
 
-        // Nothing on compose, whose fields take `?` as a letter before the window sees it (#320): a keymap opened only
-        // where no widget has the typing would be one a reader can never reach, over a draft.
-        (ShellKey.Question, _) when HasWidgetsOfItsOwn(screen) => Verb.None,
+        // Nothing on compose, the description editor or the public profile form, whose fields take `?`, the Shell width's
+        // `-`, `+` and `=`, and the collapsed rail's `\` as letters before the window sees them (#320, #414, #441): a
+        // keymap opened only where no widget has the typing would be one a reader can never reach, over a draft, and
+        // where the typing is in none — Media, a picture, a toggle — a key from under a draft is no-one's.
+        (ShellKey.Question or ShellKey.Minus or ShellKey.Plus or ShellKey.EqualsSign or ShellKey.Backslash, _)
+            when HasWidgetsOfItsOwn(screen) => Verb.None,
         (ShellKey.Question, _) => Verb.Help,
         (ShellKey.Slash, _) => Verb.Search,
         (ShellKey.Tab, _) => Verb.NextDestination,
@@ -64,15 +67,11 @@ public static class Keymap
         // typed. On compose too, where it is a way out of the draft and asks first like every other (ADR-0020, #373).
         (ShellKey.CtrlP, _) => Verb.Profiles,
 
-        // The Shell width (#414): - narrower, and + or = wider, so that widening needs no shift. Nothing on compose, the
-        // description editor or the public profile form, for the reason ? is nothing there: their fields take them as
-        // letters, and where the typing is in none — Media, a picture, a toggle — a key from under a draft is no-one's.
-        (ShellKey.Minus or ShellKey.Plus or ShellKey.EqualsSign, _) when HasWidgetsOfItsOwn(screen) => Verb.None,
+        // The Shell width (#414): - narrower, and + or = wider, so that widening needs no shift.
         (ShellKey.Minus, _) => Verb.Narrower,
         (ShellKey.Plus or ShellKey.EqualsSign, _) => Verb.Wider,
 
-        // The collapsed rail (#441), nothing on those same three screens for the same reason: a backslash is typed there.
-        (ShellKey.Backslash, _) when HasWidgetsOfItsOwn(screen) => Verb.None,
+        // The collapsed rail (#441).
         (ShellKey.Backslash, _) => Verb.ToggleRail,
 
         // Screen-local, and the reason this pair is here rather than on the editor widget alone: the editor gives up
@@ -262,8 +261,8 @@ public static class Keymap
 
     /// <summary>
     ///     Whether <paramref name="screen" /> is one with widgets of its own — compose, the description editor pushed
-    ///     over it, or the edit public profile form — whose fields take <c>?</c>, <c>-</c>, <c>+</c> and <c>=</c> as
-    ///     letters before the window sees them, so that those keys mean nothing there (#320, #414).
+    ///     over it, or the edit public profile form — whose fields take <c>?</c>, <c>-</c>, <c>+</c>, <c>=</c> and
+    ///     <c>\</c> as letters before the window sees them, so that those keys mean nothing there (#320, #414, #441).
     /// </summary>
     private static bool HasWidgetsOfItsOwn(Screen screen) =>
         screen is ComposeScreen or DescriptionScreen or PublicProfileScreen;

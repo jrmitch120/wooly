@@ -90,10 +90,11 @@ public class KeymapTests
 
     /// <summary>
     ///     <c>\</c> collapses or expands the rail (#441), a frame key the same on every screen that is not typing — and,
-    ///     like the Shell width keys, nobody's on compose, whose fields type it.
+    ///     like the Shell width keys, nobody's on compose, the description editor and the public profile form, whose
+    ///     fields type it.
     /// </summary>
     [Fact]
-    public void BackslashTogglesTheRailOnEveryScreenButCompose()
+    public void BackslashTogglesTheRailOnEveryScreenButComposeTheDescriptionEditorAndThePublicProfileForm()
     {
         Assert.Equal(Verb.ToggleRail, Means("\\", Feed()));
         Assert.Equal(Verb.ToggleRail, Means("\\", Searched()));
@@ -101,6 +102,8 @@ public class KeymapTests
         Assert.Equal(Verb.ToggleRail, Means("\\", Follows()));
         Assert.Equal(Verb.ToggleRail, Means("\\", new HelpScreen(Feed())));
         Assert.Equal(Verb.None, Means("\\", new ComposeScreen(ComposeFor.Post)));
+        Assert.Equal(Verb.None, Means("\\", Describing()));
+        Assert.Equal(Verb.None, Means("\\", new PublicProfileScreen(APublicProfile.With())));
     }
 
     /// <summary>
@@ -464,6 +467,17 @@ public class KeymapTests
         search.Found("cats", new SearchResults { Accounts = [AnAccount.With()] });
 
         return search;
+    }
+
+    /// <summary>The description editor, open on a picture attached to a fresh post (#377).</summary>
+    private static DescriptionScreen Describing()
+    {
+        var compose = new ComposeScreen(ComposeFor.Post);
+        var attachment = new ComposeAttachment("cat.png", MediaKind.Image, 1024);
+
+        compose.Media.Attach([attachment]);
+
+        return new DescriptionScreen(compose, attachment);
     }
 
     /// <summary>What <paramref name="key" /> means on <paramref name="screen" />, pressed as a terminal sends it.</summary>
