@@ -293,6 +293,13 @@ public sealed class Shell
     public RailState RailState { get; private set; }
 
     /// <summary>
+    ///     Whether the rail is drawn hidden: there is one to show (<see cref="ShowsRail" />), and the reader has hidden
+    ///     it (<see cref="RailState" />). What the status row, the locked walk, the window's layout and the mark on the
+    ///     content panel all ask, so that none of them takes a saved hidden rail for one where there is none (#445).
+    /// </summary>
+    public bool HidesRail => ShowsRail && RailState is RailState.Hidden;
+
+    /// <summary>
     ///     The row at the foot of the shell, which keeps what is said and asked on it and takes every press while a
     ///     confirmation is open (#436). The shell keeps only what sets it going: a push clears it, and <c>esc</c> and a
     ///     profile switch dismiss the confirmation.
@@ -372,7 +379,7 @@ public sealed class Shell
     ///     place of the walk along it, which is locked (#445).
     /// </summary>
     public IReadOnlyList<KeyHint> Keys =>
-        ShowsRail && RailState is RailState.Hidden ? Unwalked(Screen.Keys, BackslashShowsTheRail) : Screen.Keys;
+        HidesRail ? Unwalked(Screen.Keys, BackslashShowsTheRail) : Screen.Keys;
 
     /// <summary>
     ///     Whether <c>\</c> pressed now would show the hidden rail: not where a prompt takes it as a letter, nor on a
@@ -474,7 +481,7 @@ public sealed class Shell
     /// </remarks>
     private void Stepping(Action step)
     {
-        if (RailState is RailState.Hidden)
+        if (HidesRail)
         {
             StatusRow.SayForAMoment(BackslashShowsTheRail ? @"Rail hidden — \ to show" : "Rail hidden");
 

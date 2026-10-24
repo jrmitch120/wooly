@@ -1055,7 +1055,7 @@ internal sealed class ShellWindow : Window
     /// </summary>
     private IReadOnlyList<Rendering.Line> ShowingTheRail(IReadOnlyList<Rendering.Line> edges)
     {
-        if (!_shell.ShowsRail || _shell.RailState is RailState.Shown || edges.Count < 2)
+        if (!_shell.HidesRail || edges.Count < 2)
         {
             return edges;
         }
@@ -1090,7 +1090,7 @@ internal sealed class ShellWindow : Window
     /// </summary>
     private void Railed()
     {
-        var railed = _shell.ShowsRail && _shell.RailState is RailState.Shown;
+        var railed = _shell.ShowsRail && !_shell.HidesRail;
 
         if (_railed == railed && _railState == _shell.RailState)
         {
