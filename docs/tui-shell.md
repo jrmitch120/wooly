@@ -2196,6 +2196,10 @@ click a crumb   walk back to it
 click «/»       hide or show the rail
 ```
 
+A meaning too long for the screen's width, the mouse's or any key's, carries on to the rows under it, each starting in
+the meaning column, rather than being cut with `…`: at 80 columns with the rail shown that is `tab / shift-tab`'s and
+`` ` `` / `~`'s (#446).
+
 ## Starting it, and the one destination that needs configuring
 
 `wooly-tui` takes one option, `--profile <name>`, and it means what it means everywhere else: act as that profile for

@@ -41,4 +41,62 @@ public class HelpRowsTests
             rows[wheel..(wheel + 6)].Select(row => row[column..].TrimEnd().TrimEnd('│').TrimEnd()));
         Assert.DoesNotContain(rows, row => row.Contains("│mouse ", StringComparison.Ordinal));
     }
+
+    /// <summary>
+    ///     At 80 columns with the rail shown, the panel leaves the meaning column 42 wide, so <c>tab / shift-tab</c>'s
+    ///     meaning carries on to the row under it, starting in the meaning column, rather than ending in <c>…</c>.
+    /// </summary>
+    [Fact]
+    public async Task AMeaningTooLongForThePanelWrapsUnderItsColumn()
+    {
+        using var drawn = await DrawnShell.Of(80, Tall, Themes.Plain);
+
+        drawn.Press(new Key('?'));
+
+        var rows = drawn.Rows();
+        var tab = Array.FindIndex(rows, row => row.Contains("│tab / shift-tab ", StringComparison.Ordinal));
+
+        Assert.NotEqual(-1, tab);
+
+        var column = rows[tab].IndexOf("tab / shift-tab", StringComparison.Ordinal);
+
+        Assert.Equal(
+            [
+                "tab / shift-tab move the rail's cursor; it settles onto a",
+                "                destination",
+                "` / ~           move it to the next or previous rail",
+                "                group's first destination",
+            ],
+            rows[tab..(tab + 4)].Select(row => row[column..].TrimEnd().TrimEnd('│').TrimEnd()));
+    }
+
+    /// <summary>
+    ///     Nowhere on the content panel is anything of help's cut short, at the narrowest terminal the shell takes and
+    ///     wider, with the rail shown or hidden.
+    /// </summary>
+    [Theory]
+    [InlineData(80, false)]
+    [InlineData(80, true)]
+    [InlineData(100, false)]
+    [InlineData(100, true)]
+    [InlineData(160, false)]
+    [InlineData(160, true)]
+    public async Task NothingOnHelpIsClipped(int width, bool hidden)
+    {
+        using var drawn = await DrawnShell.Of(width, Tall, Themes.Plain);
+
+        if (hidden)
+        {
+            drawn.Press(new Key('\\'));
+        }
+
+        drawn.Press(new Key('?'));
+
+        var rows = drawn.Rows();
+        var panel = drawn.Window.Frame.X + drawn.Content.Frame.X;
+
+        // The status row is the shell's rather than help's, and the rail's entries are cut as the rail cuts them.
+        Assert.Contains(rows, row => row.Contains("Everywhere", StringComparison.Ordinal));
+        Assert.DoesNotContain(rows[..^1], row => row[panel..].Contains('…'));
+    }
 }

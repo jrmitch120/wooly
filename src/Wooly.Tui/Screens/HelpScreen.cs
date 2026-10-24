@@ -55,11 +55,11 @@ public sealed class HelpScreen(Screen about) : Screen
     {
         var lines = new List<Line> { Line.Of($"On {about.Crumb}", Role.BylineName), Line.Blank };
 
-        lines.AddRange(about.Keys.Select(key => Row(key, drawing.Width)));
+        lines.AddRange(about.Keys.SelectMany(key => Rows(key, drawing.Width)));
         lines.Add(Line.Blank);
         lines.Add(Line.Of("Everywhere", Role.BylineName));
         lines.Add(Line.Blank);
-        lines.AddRange(Frame.Select(key => Row(key, drawing.Width)));
+        lines.AddRange(Frame.SelectMany(key => Rows(key, drawing.Width)));
 
         return lines;
     }
@@ -67,20 +67,28 @@ public sealed class HelpScreen(Screen about) : Screen
     /// <summary>The key in one column and what it does in the next, so a reader can scan down either.</summary>
     /// <remarks>
     ///     The key takes <see cref="Role.Key" /> and the padding after it does not (#221): a themer who gives
-    ///     <c>key</c> a background would otherwise get a band across every row rather than a highlighted key.
+    ///     <c>key</c> a background would otherwise get a band across every row rather than a highlighted key. A meaning
+    ///     too long for the width carries on to the rows under it, each starting in the meaning column, rather than
+    ///     being cut (#446): help is the one screen a reader comes to for every word.
     /// </remarks>
-    private static Line Row(KeyHint key, int width)
+    private static IEnumerable<Line> Rows(KeyHint key, int width)
     {
         const int keyColumn = 16;
         var columns = Glyphs.Columns(key.Key);
         var spacer = new string(' ', Math.Max(0, keyColumn - columns));
         var used = columns + spacer.Length;
+        var meaning = TextWrap.Wrap(key.Does, Math.Max(0, width - used));
 
-        // A line carried on from the one above has no key, and no empty run of the key's role standing in for one.
-        return Line.Of([
-            .. columns > 0 ? [new Span(key.Key, Role.Key)] : Array.Empty<Span>(),
+        yield return Line.Of([
+            new Span(key.Key, Role.Key),
             new Span(spacer, Role.Body),
-            new Span(TextWrap.Clip(key.Does, Math.Max(0, width - used)), Role.Body),
+            new Span(meaning.Count > 0 ? meaning[0] : string.Empty, Role.Body),
         ]);
+
+        // A row carried on from the one above has no key, and no empty run of the key's role standing in for one.
+        foreach (var row in meaning.Skip(1))
+        {
+            yield return Line.Of([new Span(new string(' ', used), Role.Body), new Span(row, Role.Body)]);
+        }
     }
 }
