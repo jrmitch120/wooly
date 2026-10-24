@@ -193,7 +193,7 @@ internal sealed class ShellWindow : Window
         {
             X = 0,
             Y = 0,
-            Width = RailLines.Width,
+            Width = Dim.Func(_ => RailColumns),
             Height = Dim.Fill(1),
             CanFocus = false,
         };
@@ -228,7 +228,7 @@ internal sealed class ShellWindow : Window
             raster)
         {
             Id = ContentId,
-            X = RailLines.Width,
+            X = Pos.Func(_ => Left),
             Y = 0,
             Width = Dim.Fill(),
             Height = Dim.Fill(1),
@@ -246,7 +246,7 @@ internal sealed class ShellWindow : Window
             theme,
             (width, _) => [ChromeLines.Breadcrumb(shell.Crumbs, shell.SpinnerFrame, width)])
         {
-            X = RailLines.Width,
+            X = Pos.Func(_ => Left),
             Y = 0,
             Width = Dim.Fill(),
             Height = 1,
@@ -1000,11 +1000,17 @@ internal sealed class ShellWindow : Window
         _railed = _shell.ShowsRail;
         _rail.Visible = _railed;
 
-        var left = _railed ? RailLines.Width : 0;
-
-        _title.X = left;
-        _content.X = left;
+        SetNeedsLayout();
     }
+
+    /// <summary>How many columns the rail takes, which the layout asks for on every pass rather than holding.</summary>
+    private int RailColumns => RailLines.Width;
+
+    /// <summary>
+    ///     Where the content panel and the breadcrumb over it start: where the rail ends, or at the window's left edge
+    ///     where there is no rail.
+    /// </summary>
+    private int Left => _railed ? RailColumns : 0;
 
     /// <summary>
     ///     Settles the window to what the shell now says: the rail, the scroll, and the content's scrolling while
