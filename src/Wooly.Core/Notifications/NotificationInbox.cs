@@ -1,10 +1,12 @@
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http.Json;
+using Wooly.Core.Accounts;
 using Wooly.Core.Errors;
 using Wooly.Core.Http;
 using Wooly.Core.Paging;
 using Wooly.Core.Profiles;
+using WireAccount = Mastonet.Entities.Account;
 
 namespace Wooly.Core.Notifications;
 
@@ -107,34 +109,61 @@ public sealed class NotificationInbox(IMastodonClientFactory clientFactory, IHtt
 
     /// <summary>One page of groups, and where the instance says the next one starts.</summary>
     /// <exception cref="NoGroupedRead">The instance has no grouped read at all.</exception>
-    private async Task<Page<NotificationGroup>> GroupedPage(
+    private Task<Page<NotificationGroup>> GroupedPage(
         ActiveProfile profile,
         Mastonet.ArrayOptions options,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken) =>
+        RawPage<GroupedNotificationsWire, NotificationGroup>(
+            profile,
+            "api/v2/notifications",
+            options,
+            answer => answer.ToGroups(profile),
+            cancellationToken,
+            whenFirstPageMissing: () => new NoGroupedRead());
+
+    /// <summary>
+    ///     One page of a raw <c>GET</c> of <paramref name="path" />, a list Mastonet does not know, and where the
+    ///     instance's <c>next</c> link says the next page starts — the one way on for a list paged by ids that are not
+    ///     its items' own. Said once for every raw list read here.
+    /// </summary>
+    /// <param name="path">The list's path, without its query.</param>
+    /// <param name="options">How many to ask for, and from where.</param>
+    /// <param name="items">What the answer's body holds, as this project's own.</param>
+    /// <param name="whenFirstPageMissing">
+    ///     What a 404 on the first page is thrown as, where it says more than that the read failed; otherwise it fails
+    ///     as any other answer that is not a success.
+    /// </param>
+    private async Task<Page<TItem>> RawPage<TWire, TItem>(
+        ActiveProfile profile,
+        string path,
+        Mastonet.ArrayOptions options,
+        Func<TWire, IReadOnlyList<TItem>> items,
+        CancellationToken cancellationToken,
+        Func<Exception>? whenFirstPageMissing = null)
+        where TWire : new()
     {
-        var path = options.MaxId is { } maxId
-            ? $"api/v2/notifications?limit={options.Limit}&max_id={Uri.EscapeDataString(maxId)}"
-            : $"api/v2/notifications?limit={options.Limit}";
+        var query = options.MaxId is { } maxId
+            ? $"{path}?limit={options.Limit}&max_id={Uri.EscapeDataString(maxId)}"
+            : $"{path}?limit={options.Limit}";
 
         using var response = await RawMastodonCall.Sent(
             httpClientFactory,
             profile,
             HttpMethod.Get,
-            path,
+            query,
             content: null,
             cancellationToken);
 
-        if (response.StatusCode == HttpStatusCode.NotFound && options.MaxId is null)
+        if (response.StatusCode == HttpStatusCode.NotFound && options.MaxId is null && whenFirstPageMissing is { } missing)
         {
-            throw new NoGroupedRead();
+            throw missing();
         }
 
         response.EnsureSuccessStatusCode();
 
-        var answer = await response.Content.ReadFromJsonAsync<GroupedNotificationsWire>(cancellationToken)
-                     ?? new GroupedNotificationsWire();
+        var answer = await response.Content.ReadFromJsonAsync<TWire>(cancellationToken) ?? new TWire();
 
-        return new Page<NotificationGroup>(answer.ToGroups(profile), LinkHeader.NextMaxId(response));
+        return new Page<TItem>(items(answer), LinkHeader.NextMaxId(response));
     }
 
     /// <summary>
@@ -149,7 +178,7 @@ public sealed class NotificationInbox(IMastodonClientFactory clientFactory, IHtt
     ///     not know. It pages by notification ids, which are not the accounts' own, so nothing read here can stand in
     ///     for the cursor: the instance's link is the only way on, and a page with none is the last.
     /// </remarks>
-    public Task<Fetch<Accounts.Account>> ReadGroupActors(
+    public Task<Fetch<Account>> ReadGroupActors(
         ActiveProfile profile,
         string groupKey,
         int limit,
@@ -157,32 +186,13 @@ public sealed class NotificationInbox(IMastodonClientFactory clientFactory, IHtt
         PagedReading.Collect(
             limit,
             ActorPageSize,
-            async options =>
-            {
-                var path = $"api/v2/notifications/{Uri.EscapeDataString(groupKey)}/accounts?limit={options.Limit}";
-
-                if (options.MaxId is { } maxId)
-                {
-                    path += $"&max_id={Uri.EscapeDataString(maxId)}";
-                }
-
-                using var response = await RawMastodonCall.Sent(
-                    httpClientFactory,
-                    profile,
-                    HttpMethod.Get,
-                    path,
-                    content: null,
-                    cancellationToken);
-
-                response.EnsureSuccessStatusCode();
-
-                var accounts = await response.Content.ReadFromJsonAsync<List<Mastonet.Entities.Account>>(
-                                   cancellationToken)
-                               ?? [];
-
-                return new Page<Mastonet.Entities.Account>(accounts, LinkHeader.NextMaxId(response));
-            },
-            account => Accounts.AccountWire.ToAccount(account, profile.Instance),
+            options => RawPage<List<WireAccount>, WireAccount>(
+                profile,
+                $"api/v2/notifications/{Uri.EscapeDataString(groupKey)}/accounts",
+                options,
+                accounts => accounts,
+                cancellationToken),
+            account => AccountWire.ToAccount(account, profile.Instance),
             idOf: null,
             cancellationToken);
 

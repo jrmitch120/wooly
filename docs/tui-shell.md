@@ -320,9 +320,9 @@ not answer them differently:
   nothing at all and are untouched, and the search prompt drops its arrows while it is taking letters for that reason
   rather than this one.
 - **A notification is not the post it is about.** `d` dismisses by the group's own key (#457), or on an instance too old
-  to group by the notification's own id; every other key on the
-  row acts on the post it carries, so a mention can be answered without leaving the inbox. A follow carries no post,
-  and picking one leaves those keys with nothing to act on rather than guessing — which is why they are off its row.
+  to group by the notification's own id; every other key on the row acts on the post it carries, so a mention can be
+  answered without leaving the inbox. A follow carries no post, and picking one leaves those keys with nothing to act
+  on rather than guessing — which is why they are off its row.
 - **Notifications are drawn as the instance groups them** (ADR-0032, #453). Each row is a **Notification group**, read
   from `GET /api/v2/notifications` with no `grouped_types`, or one notification a group where the instance has no
   grouped read. Its names line names two actors and counts the rest by the instance's count (`Alice, Bob and 6 others
@@ -333,7 +333,8 @@ not answer them differently:
 - **A group's actors stand in an avatar strip under its names line** (#454, layout A7b of #450): their faces at a
   byline's 4×2, in the instance's order, indented two columns with two between faces, as many as the width has room for
   up to the sample sent, then a muted `+N` on the top row counting the rest of the group. Face `n` starts `6n` columns
-  in whatever the group holds, so nothing moves as a group grows. Where the terminal draws no pictures the strip takes
+  in whatever the group holds, and five columns are always held for the `+N` — exact up to `+9999`, then `+12k`,
+  `+3M`, `+2G`, rounded down — so nothing moves as a group grows. Where the terminal draws no pictures the strip takes
   no rows, and a post drawn whole by its actor has none — its byline has the face.
 - **The mouse reaches every actor the keyboard does** (#456, `NotificationsScreen.Clicked`). A click on a face in the
   strip, either of its two rows, opens that actor's account; a click on the names or the kind's sentence of a names line
@@ -392,7 +393,9 @@ not answer them differently:
   showing that destination: new notifications join their **Notification group** — the re-read reads the first page of
   groups too, only while Notifications is in front with no list read in flight and something is unread — so a group
   already on screen takes the re-read's count, actors and age and moves up rather than being drawn twice, and a group
-  not on screen is put on top (#458); either is drawn `unread`, and the read marker is moved past them so the
+  not on screen is put on top (#458) — a re-read begun before Notifications came in front read no groups, and puts
+  nothing on it but is read again, groups and all, rather than make an unread notification a group of one whose
+  `ungrouped-<id>` key an instance that groups does not have; either is drawn `unread`, and the read marker is moved past them so the
   badge clears again — but only where the re-read put everything unread on screen: one that found more than the 40 it
   counts leaves the marker for the reader's next arrival or `g` and the badge at `40+`, since there are unread ones past
   the 40 that no screen has shown, while exactly 40 all shown moves it; a conversation new or changed (last post or unread flag) moves to the top as the instance has
@@ -400,7 +403,9 @@ not answer them differently:
   on (`Shell.Grew` → `PaintedView.KeepPickOnItsRow`), so the page moves with what went in above it and nothing jumps. Where the
   picked thing is itself what changed — the conversation the reader is on spoken in again — it is brought up to date
   where it stands rather than moved to the top, and the pick stays on it: the row the reader is on never jumps, and it
-  takes its place at the top the next time the list is read (`Picked.TakeIn`). Nothing is put on screen while the
+  takes its place at the top the next time the list is read (`Picked.TakeIn`). A notification group is the
+  exception: the picked group joined moves to the top like any other and the pick goes with it, so Notifications
+  always reads newest first, as a fresh read would draw it (#458). Nothing is put on screen while the
   destination's own list read — its arrival or refresh — is in flight: arriving draws an empty screen until its list
   lands, and that arrival draws the list and moves the marker itself, so a re-read landing first only counts, and the
   count is read again once the list read is over, for whatever arrived after the list was read (`ListReads`). A

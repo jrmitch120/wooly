@@ -30,10 +30,27 @@ public static class AvatarStrip
     public const int Step = Avatar.BylineColumns + Gap;
 
     /// <summary>
-    ///     The columns held for the <c>+N</c> after the last face, whether or not there is one: enough for <c>+999</c>,
-    ///     so how many faces fit cannot depend on how many actors are left over.
+    ///     The columns held for the <c>+N</c> after the last face, whether or not there is one, so how many faces fit
+    ///     cannot depend on how many actors are left over: enough for <c>+9999</c>, and for any count at all once it
+    ///     is said in thousands, millions or billions (<see cref="More" />).
     /// </summary>
-    private const int Rest = 4;
+    private const int Rest = 5;
+
+    /// <summary>The units a count too long for <see cref="Rest" /> is said in, smallest first.</summary>
+    private static readonly (long Of, string Unit)[] Units = [(1_000, "k"), (1_000_000, "M"), (1_000_000_000, "G")];
+
+    /// <summary>
+    ///     The <c>+N</c> for <paramref name="rest" /> actors left over, never wider than <see cref="Rest" />: exact while
+    ///     it fits, then in the smallest unit that fits, rounded down so it never says more than there are.
+    /// </summary>
+    private static string More(int rest)
+    {
+        var exact = $"+{rest}";
+
+        return exact.Length <= Rest
+            ? exact
+            : Units.Select(unit => $"+{rest / unit.Of}{unit.Unit}").First(said => said.Length <= Rest);
+    }
 
     /// <summary>How many faces a strip <paramref name="width" /> wide has room for.</summary>
     public static int Fits(int width) => Math.Max(0, (width - Rest) / Step);
@@ -84,7 +101,7 @@ public static class AvatarStrip
 
                 if (rest > 0)
                 {
-                    spans.Add(new Span(TextWrap.Clip($"+{rest}", Math.Max(0, width - boxes.Count * Step)), Role.Muted));
+                    spans.Add(new Span(TextWrap.Clip(More(rest), Math.Max(0, width - boxes.Count * Step)), Role.Muted));
                 }
 
                 return new Line(spans)

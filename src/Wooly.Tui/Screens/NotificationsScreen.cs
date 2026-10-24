@@ -1,4 +1,3 @@
-using Wooly.Core.Accounts;
 using Wooly.Core.Notifications;
 using Wooly.Core.Posts;
 using Wooly.Tui.Rendering;
@@ -140,29 +139,33 @@ public sealed class NotificationsScreen(
     ///     on top as the instance groups them now, and drawn unread for the rest of this visit: the shell moves the read
     ///     marker past them as it would have on arriving, so this screen is the only thing left saying they are new. A
     ///     group already on screen is joined rather than drawn twice — its count, actors and age are the re-read's —
-    ///     and moves up, but for the one picked, which is brought up to date where it stands (#458). Anything not newer
-    ///     than the newest group is already on screen as it was, or was dismissed.
+    ///     and moves up, the picked one too, with the pick going along: the list reads newest first as a fresh read
+    ///     would, and the pick follows the group it was on (#458). Anything not newer than the newest group is already
+    ///     on screen as it was, or was dismissed.
     ///     <para>
-    ///         Where the re-read read no groups, each unread notification arrives as a group of its own, as it would
-    ///         from an instance too old to group.
+    ///         Where the re-read read no groups — it was begun before this screen was in front — nothing is put on
+    ///         top: an unread notification made into a group of its own here would carry a key an instance that groups
+    ///         does not have, for <c>d</c> to dismiss nothing by. The shell reads the count again, groups and all
+    ///         (<see cref="InboxBadges" />). An instance too old to group has its groups of one read as groups.
     ///     </para>
     /// </remarks>
     public override int PutOnTop(InboxList found)
     {
-        if (found is not InboxList.Notifications(var unread, var groups))
+        if (found is not InboxList.Notifications { Groups: { } groups })
         {
             return 0;
         }
 
         var newest = Groups.Count > 0 ? Groups[0].NewestId : null;
-        var arrived = (groups ?? [.. unread.Select(NotificationGroup.Alone)])
+        var arrived = groups
                       .Where(group => newest is null || NotificationIds.Newer(group.NewestId, newest))
                       .ToList();
 
         var put = _groups.TakeIn(
             arrived,
             group => group.Key,
-            changed: (was, now) => !string.Equals(was.NewestId, now.NewestId, StringComparison.Ordinal));
+            changed: (was, now) => !string.Equals(was.NewestId, now.NewestId, StringComparison.Ordinal),
+            pickRises: true);
 
         _unread.UnionWith(put.Select(group => group.Key));
 
@@ -233,15 +236,14 @@ public sealed class NotificationsScreen(
     public static Task OpenActors(NotificationGroup group, Reach reach) => group switch
     {
         { Count: > 1 } => reach.Open(new Subject.Actors(group)),
-        { Actors: [var actor, ..] } => reach.Open(
-            new Subject.Account(AccountAddress.Parse(actor.Address), WithReplies: false)),
+        { Actors: [var actor, ..] } => reach.Open(Subject.Account.Of(actor)),
         _ => Task.CompletedTask,
     };
 
     /// <summary>Opens the account of the actor whose face was clicked in the picked group's strip.</summary>
     private Task OpenFace(Reach reach) =>
         PickedGroup is { } picked && _face < picked.Actors.Count
-            ? reach.Open(new Subject.Account(AccountAddress.Parse(picked.Actors[_face].Address), WithReplies: false))
+            ? reach.Open(Subject.Account.Of(picked.Actors[_face]))
             : Task.CompletedTask;
 
     /// <summary>

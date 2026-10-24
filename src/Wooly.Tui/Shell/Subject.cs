@@ -36,6 +36,12 @@ public abstract record Subject
     /// </summary>
     private const int FollowsPage = 80;
 
+    /// <summary>
+    ///     How many of a notification group's actors the actors screen asks for at a time: the most Mastodon serves from
+    ///     a group's accounts in one call (#455).
+    /// </summary>
+    private const int ActorsPage = 80;
+
     private Subject()
     {
     }
@@ -265,6 +271,13 @@ public abstract record Subject
     /// </param>
     public sealed record Account(AccountAddress Address, bool WithReplies) : Subject
     {
+        /// <summary>
+        ///     <paramref name="person" />'s account screen, opened as anybody is opened from a list of people: without
+        ///     their replies, as <c>a</c> opens an author.
+        /// </summary>
+        public static Account Of(Core.Accounts.Account person) =>
+            new(AccountAddress.Parse(person.Address), WithReplies: false);
+
         /// <inheritdoc />
         /// <remarks>
         ///     Four calls under one enquiry, so it is checked once at the end rather than after each: what matters is
@@ -505,7 +518,7 @@ public abstract record Subject
         {
             var screen = (ActorsScreen)standing!;
             var already = screen.Read;
-            var wanted = already + FollowsPage;
+            var wanted = already + ActorsPage;
 
             var fetch = await ask.Of(token => ports.Notifications.ReadGroupActors(profile, Group.Key, wanted, token));
             var read = fetch.Items.Skip(already).ToList();

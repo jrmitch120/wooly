@@ -1,4 +1,3 @@
-using Wooly.Core;
 using Wooly.Core.Accounts;
 using Wooly.Core.Notifications;
 using Wooly.Tui.Rendering;
@@ -48,7 +47,7 @@ public sealed class ActorsScreen(NotificationGroup group) : Screen
     ///     What they did, as the kind says it: "Favorited by", "Boosted by", "Followed you", and for a kind this client
     ///     has no words for, the instance's own word.
     /// </remarks>
-    public override string Crumb => Called(Group.Kind);
+    public override string Crumb => KindLook.Of(Group.Kind).Crumb;
 
     /// <inheritdoc />
     public override bool Refreshes => true;
@@ -74,16 +73,6 @@ public sealed class ActorsScreen(NotificationGroup group) : Screen
 
     /// <inheritdoc />
     protected override IPicked Walking => _people;
-
-    /// <summary>What a group of <paramref name="kind" /> calls the people in it, which is what the crumb says.</summary>
-    public static string Called(NotificationKind kind) => kind.Name switch
-    {
-        "favorite" => "Favorited by",
-        "boost" => "Boosted by",
-        "follow" => "Followed you",
-        "mention" => "Mentioned you",
-        _ => kind.Name,
-    };
 
     /// <summary>
     ///     Puts what has been read on the screen: whoever of <paramref name="people" /> is not already here, in the
@@ -120,7 +109,7 @@ public sealed class ActorsScreen(NotificationGroup group) : Screen
     /// <remarks><c>⏎</c> opens whoever is picked out as the same account screen <c>a</c> opens from a feed.</remarks>
     public override Task Answer(Verb verb, Reach reach) =>
         verb == Verb.OpenPerson && PickedPerson is { } person
-            ? reach.Open(new Subject.Account(AccountAddress.Parse(person.Address), WithReplies: false))
+            ? reach.Open(Subject.Account.Of(person))
             : Task.CompletedTask;
 
     /// <inheritdoc />
