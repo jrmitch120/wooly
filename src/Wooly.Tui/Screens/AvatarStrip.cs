@@ -16,8 +16,9 @@ namespace Wooly.Tui.Screens;
 ///     <para>
 ///         Where this terminal draws no pictures the strip takes no rows at all, as a byline's avatar takes no columns
 ///         (ADR-0016): the names line already says who. An actor the instance named no avatar for keeps its slot,
-///         blank, so that face <c>n</c> is always actor <c>n</c> — which is what lets a click find whose face it hit
-///         (<see cref="FaceAt" />).
+///         blank, so that face <c>n</c> is always actor <c>n</c>: each face's cells, on both rows, stand for its slot
+///         (<see cref="Span.Item" />), which is how a click finds whose face it hit (#456). The gaps and the
+///         <c>+N</c> stand for nothing.
 ///     </para>
 /// </remarks>
 public static class AvatarStrip
@@ -36,14 +37,6 @@ public static class AvatarStrip
 
     /// <summary>How many faces a strip <paramref name="width" /> wide has room for.</summary>
     public static int Fits(int width) => Math.Max(0, (width - Rest) / Step);
-
-    /// <summary>
-    ///     Which face slot the column <paramref name="column" /> of a strip row falls on, counted from the strip's own
-    ///     left edge, or <see langword="null" /> for the gap between two faces. A slot past the faces a group shows
-    ///     (<see cref="Shown" />) is nobody's.
-    /// </summary>
-    public static int? FaceAt(int column) =>
-        column >= 0 && column % Step < Avatar.BylineColumns ? column / Step : null;
 
     /// <summary>How many of <paramref name="group" />'s actors a strip <paramref name="width" /> wide shows.</summary>
     public static int Shown(NotificationGroup group, int width) => Math.Min(group.Actors.Count, Fits(width));
@@ -79,7 +72,10 @@ public static class AvatarStrip
         [
             .. Enumerable.Range(0, Avatar.BylineRows).Select(row =>
             {
-                List<Span> spans = [.. boxes.SelectMany(box => new[] { box?.Cells(row) ?? blank, gap })];
+                List<Span> spans =
+                [
+                    .. boxes.SelectMany((box, at) => new[] { (box?.Cells(row) ?? blank) with { Item = at }, gap }),
+                ];
 
                 if (row > 0)
                 {

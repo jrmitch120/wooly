@@ -38,6 +38,10 @@ public sealed class NotificationsScreen(
     // puts the reader back on (#84).
     private readonly Picked<NotificationGroup> _groups = new(groups);
 
+    // The face last clicked in a group's avatar strip, its slot in the group's actors: what the Verb.OpenFace a click
+    // answers with opens once the shell has picked the group out. A verb carries no more than its name.
+    private int _face;
+
     /// <inheritdoc />
     public override string Crumb => "Notifications";
 
@@ -176,6 +180,9 @@ public sealed class NotificationsScreen(
             case Verb.OpenActor:
                 return OpenActor(reach);
 
+            case Verb.OpenFace:
+                return OpenFace(reach);
+
             case Verb.Dismiss:
                 return Dismiss(reach);
 
@@ -186,6 +193,29 @@ public sealed class NotificationsScreen(
         }
 
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    ///     A click on a group means more than picking it out in two places (#456): on a face in its avatar strip it opens
+    ///     that one actor's account, and on its names line it opens the group's actors, as <c>a</c> does. Anywhere else
+    ///     — the gaps between faces, the <c>+N</c>, the age, the post — it picks the group and nothing more, and a
+    ///     double click there is <c>⏎</c>, which opens the post.
+    /// </summary>
+    public override Verb Clicked(int? item, int? part, bool chorded)
+    {
+        switch (item, part)
+        {
+            case (not null, NotificationGroupLines.NamesPart):
+                return Verb.OpenActor;
+
+            case (not null, >= 0 and var face):
+                _face = face;
+
+                return Verb.OpenFace;
+
+            default:
+                return Verb.None;
+        }
     }
 
     /// <summary>
@@ -207,6 +237,12 @@ public sealed class NotificationsScreen(
             new Subject.Account(AccountAddress.Parse(actor.Address), WithReplies: false)),
         _ => Task.CompletedTask,
     };
+
+    /// <summary>Opens the account of the actor whose face was clicked in the picked group's strip.</summary>
+    private Task OpenFace(Reach reach) =>
+        PickedGroup is { } picked && _face < picked.Actors.Count
+            ? reach.Open(new Subject.Account(AccountAddress.Parse(picked.Actors[_face].Address), WithReplies: false))
+            : Task.CompletedTask;
 
     /// <summary>
     ///     Clears the picked group whole, every notification in it, in one request by the group's key — never by the
